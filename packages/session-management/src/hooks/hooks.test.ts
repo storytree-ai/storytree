@@ -1469,7 +1469,7 @@ test("3.37 a user who replies with the allow command on its own line of their ow
       assert.equal(addedContext(mentioned)?.includes(increment) ?? false, false, "a sentence that mentions the command says nothing of a yes");
       assert.equal((await gate())?.decision, "block", "and records none");
 
-      const said = await runHook("codex", prompted("codex", folder, `yes, change it\n  pnpm storytree workspace allow ${increment}  \n`, "editor"), home);
+      const said = await runHook("codex", prompted("codex", folder, `yes, change it\n  pnpm storytree workspace allow ${increment}  \n`, "editor"), home, [], { STORYTREE_TEST_GUARD_MS: String(DEADLINE_MS) });
       assert.deepEqual({ code: said.code, stderr: said.stderr }, { code: 0, stderr: "" });
       assert.ok(addedContext(said)?.includes(increment), "the agent is told the user's yes is recorded");
       assert.equal(await gate(), undefined, "the session's next edit there goes through");
@@ -1532,7 +1532,12 @@ test("3.35 a shell command that changes or deletes files in an imported folder w
       // The user's yes to the increment (the hook after an edit the gate asked about) covers its capability's files: a command changing only those says nothing.
       const write = JSON.stringify({ session_id: "shell", cwd: folder, hook_event_name: "PostToolUse", tool_name: "Write", tool_input: { file_path: path.join(viewer, "app", "stats", "page.tsx"), content: "export {};\n" } });
       writeFileSync(path.join(viewer, "app", "stats", "page.tsx"), "export {};\n");
-      await runHook("claude-code", write, home);
+      // The hook recording the yes is given the guard's time too, so a slow runner's yes is not lost to its clock.
+      const yeses = async () => (await log.lines(project, { kinds: ["user-allowed"] })).length;
+      await runHook("claude-code", write, home, [], { STORYTREE_TEST_GUARD_MS: "1" });
+      assert.equal(await yeses(), 0, "unrecorded in time, no yes");
+      await runHook("claude-code", write, home, [], { STORYTREE_TEST_GUARD_MS: String(DEADLINE_MS) });
+      assert.equal(await yeses(), 1, "the yes is recorded");
       writeFileSync(path.join(viewer, "app", "stats", "chart.tsx"), "export {};\n");
       assert.equal(told(await guard("claude-code", "post-tool-use-bash")), undefined, "what the yes covers");
       writeFileSync(path.join(viewer, "app", "stats", "table.tsx"), "export {};\n");

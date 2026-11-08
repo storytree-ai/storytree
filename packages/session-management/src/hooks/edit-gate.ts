@@ -153,13 +153,14 @@ async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof e
 
 /**
  * After a Claude Code edit tool ran (its PostToolUse): record the user's yes when the gate would have asked for the
- * edit, which the harness then asked its user and they allowed (contract 3.34). Never throws; `failed` keeps why it gave up.
+ * edit, which the harness then asked its user and they allowed (contract 3.34). It may take `guardMs` when given, as the
+ * gate may, else the gate's time this machine learned. Never throws; `failed` keeps why it gave up.
  */
-export async function recordYesAfterEdit(harness: string, input: unknown, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<void> {
+export async function recordYesAfterEdit(harness: string, input: unknown, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, guardMs?: number): Promise<void> {
   if (harness !== "claude-code" || typeof input !== "object" || input === null || (input as Record<string, unknown>).hook_event_name !== "PostToolUse") return;
   const edit = editIn(harness, { ...input, hook_event_name: "PreToolUse" });
   if (edit === undefined) return;
-  const limit = limitOf(home, EDIT_GATE_STEP);
+  const limit = guardMs ?? limitOf(home, EDIT_GATE_STEP);
   let timer: NodeJS.Timeout | undefined;
   const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), limit)));
   try {
@@ -182,12 +183,13 @@ export function allowsSaidIn(prompt: string): string[] {
 
 /**
  * At a prompt: record the yes the user said for each increment the prompt names with the allow command on its own line
- * (contract 3.37), and what to tell the agent of each; undefined when it names none. Never throws; `failed` keeps why it gave up.
+ * (contract 3.37), and what to tell the agent of each; undefined when it names none. It may take `guardMs` when given, as
+ * the gate may. Never throws; `failed` keeps why it gave up.
  */
-export async function yesSaid(harness: string, prompted: { session: string; folder: string; prompt: string }, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<string[] | undefined> {
+export async function yesSaid(harness: string, prompted: { session: string; folder: string; prompt: string }, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, guardMs?: number): Promise<string[] | undefined> {
   const increments = allowsSaidIn(prompted.prompt);
   if (increments.length === 0) return undefined;
-  const limit = limitOf(home, EDIT_GATE_STEP);
+  const limit = guardMs ?? limitOf(home, EDIT_GATE_STEP);
   let timer: NodeJS.Timeout | undefined;
   const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), limit)));
   try {

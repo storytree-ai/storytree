@@ -611,6 +611,20 @@ test("3.28 · a dispatcher configured with its own checkout and lanes folder bri
   assert.ok(b.briefs[0].endsWith(`Work from C:/no-such-folder/storytree03, never C:/no-such-folder/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
 });
 
+test("3.48 · a pool lane's brief names its lanes folder in its header, and the rules a cloud lane reads unfilled (pool-brief.md as shipped) carry no literal {lanes}", async (t) => {
+  const shipped = await readFile(new URL("./pool-brief.md", import.meta.url), "utf8");
+  assert.ok(!shipped.includes("{lanes}"), "a cloud lane reads this file raw: a {lanes} in it reaches the lane unfilled");
+  const b = await box(t, { survey: async () => poolWork(["one"]), count: async () => 0, rules: async () => shipped });
+  b.home = b.lanesDir;
+  b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
+  await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: "/srv/storytree03", lanes: b.lanesDir }));
+  delete b.briefPaths;
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  const header = b.briefs[0].split("\n").slice(0, 3).join("\n");
+  assert.ok(header.includes(`Your lanes folder: ${b.lanesDir}.`), header);
+});
+
 test("3.35 · a dispatcher whose machine names a second project offers that project's ready work beside storytree's, in `ready` and its picks, and starts its lane in that project's checkout, briefed with it, its failures counted there", async (t) => {
   const website = await folder(t);
   const b = await box(t, {
@@ -672,7 +686,7 @@ test("3.36 · a lane for a project other than storytree is briefed with that pro
   assert.doesNotMatch(site, /pnpm gate|\{\w+\}/, "nothing of storytree's gate, and every slot filled");
   assert.match(briefs.increment_bare, /names no checks of its own/, "a project naming no checks is told so");
   assert.match(briefs.increment_bare, /names no review of its own/, "and no review");
-  assert.equal(briefs.increment_ours, `# Pool lane: increment_ours\n\nYour increment: increment_ours.\n\n${localBrief(await poolRules(""), { checkout: "/srv/storytree03", lanes: b.lanesDir })}`,
+  assert.equal(briefs.increment_ours, `# Pool lane: increment_ours\n\nYour increment: increment_ours. Your lanes folder: ${b.lanesDir}.\n\n${localBrief(await poolRules(""), { checkout: "/srv/storytree03", lanes: b.lanesDir })}`,
     "storytree's lane keeps storytree's brief");
 });
 

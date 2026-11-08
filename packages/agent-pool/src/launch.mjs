@@ -17,7 +17,7 @@ import { promisify } from "node:util";
 import { laneSettings } from "./engine.mjs";
 import { blind, incrementBody, pickPlan, pickPool, planState, readOnly, surveyLibrary, surveyProjects } from "./feed.mjs";
 import { codeVersion, composeBrief, countEngines, localBrief, ENGINE_SLOTS, holdRunner, processTable, reserveSlot, runningLanes, withLockFile, WINDOWS_PROCESSES } from "./queue.mjs";
-import { cloudCounts, cloudOverflow, cloudSecrets } from "./cloud.mjs";
+import { cloudCounts, cloudOverflow, cloudSecrets, whyRefused } from "./cloud.mjs";
 import { refusals, runLane as runEngineLane, SIGNALED } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { poolConfig, readCap } from "./pool-config.mjs";
@@ -417,7 +417,8 @@ async function cloudReadout(b) {
   const out = b.out ?? console.log;
   const ledger = JSON.parse(await readFile(join(b.lanesDir, "pool-cloud.json"), "utf8").catch(() => "{}") || "{}");
   const config = b.cloudConfig ?? { enabled: false, cap: 2 };
-  out(`cloud overflow ${config.enabled ? `on, cap ${config.cap}` : "off"}`);
+  const refused = whyRefused(config);
+  out(`cloud overflow ${config.enabled ? `on, cap ${config.cap}${refused ? `, refused: ${refused}` : ""}` : "off"}`);
   out(cloudCounts(ledger));
   for (const lane of ledger.lanes ?? []) out(`  ${lane.increment}  ${lane.state}  fired ${lane.at}  ${lane.url ?? lane.session}${lane.why ? `  (${lane.why})` : ""}`);
   return 0;
@@ -493,7 +494,7 @@ async function pool(b) {
         : looks ? () => projectReadOnlyRules(other, b.briefsDir) : () => projectRules(other, b.briefsDir);
       const brief = one.plan
         ? { title: `Planning lane: ${one.id}`, intro: `Your arc: ${one.id} (${one.title}).`, notes: "", common: await rules() }
-        : { title: `Pool lane: ${one.id}`, intro: `Your increment: ${one.id}.${role}`,
+        : { title: `Pool lane: ${one.id}`, intro: `Your increment: ${one.id}.${role}${!other && b.briefPaths?.lanes ? ` Your lanes folder: ${b.briefPaths.lanes}.` : ""}`,
           notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: await rules() };
       const checkout = checkoutOf(one.project);
       return laneOnce({

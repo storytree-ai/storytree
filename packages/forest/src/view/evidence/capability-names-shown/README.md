@@ -30,4 +30,4 @@ Taken with `node --import tsx packages/forest/testing/view/capability-names-show
 facing each island, every capability name drawn shows and no two overlap, and writes what it found into `measurements.json`;
 the before is the same run on origin/main's `nameplates.ts`, `island-overlays.tsx` and `styles.css`, its assertion set aside.
 
-In the evidence bucket, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes).
+In the evidence bucket for #617, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `617/before-the-library-near.png`, `617/the-library-near.png`, `617/measurements.json`, `617/before-measurements.json`.

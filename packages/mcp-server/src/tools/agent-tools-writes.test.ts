@@ -1108,7 +1108,7 @@ test("9.22 edit_plan with live: true, under an increment's claim, corrects a sto
   });
 });
 
-test("9.25 park_increment naming a capability another open increment lists is refused, naming that increment and its arc, with nothing written; edit_plan newly listing it on an increment is not refused, and says that increment, its title and its arc", async () => {
+test("9.25 park_increment naming a capability another open increment lists is refused, naming that increment and its arc, with nothing written; edit_plan newly listing it on an increment is not refused, and says that increment, its title and its arc in a notice that the edit is saved", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, capability } = await planned(agent);
@@ -1125,6 +1125,7 @@ test("9.25 park_increment naming a capability another open increment lists is re
       assert.deepEqual(((await library.get(second))?.fields as { capabilities?: string[] }).capabilities, [capability], "the edit is written");
       const [, line, ...more] = told.text.split("\n");
       assert.ok(more.length === 0 && line !== undefined && line.includes(first) && line.includes("Route the form") && line.includes(arc) && line.includes(capability), told.text);
+      assert.ok(line.includes("your edit is saved") && !refused.text.includes(line.replace(/\.$/, "")), `the notice says the edit saved, worded apart from the park's refusal: ${told.text}`);
 
       const again = await agent.call("edit_plan", { id: second, capabilities: [capability], title: "Route the checks and form" });
       assert.equal(again.text.split("\n").length, 1, `a capability it already listed is not told of again: ${again.text}`);

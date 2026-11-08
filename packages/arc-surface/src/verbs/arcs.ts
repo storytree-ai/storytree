@@ -23,7 +23,7 @@
  * landed since a time, by arc.
  */
 import { verb, VerbRefusal, type VerbFamilies } from "@storytree/library/verbs";
-import { beforeCutover, listedSaid, pullSaid, type ArcView, type Holds, type NoteWait, type WaitFor } from "@storytree/library";
+import { beforeCutover, listedNotice, pullSaid, type ArcView, type Holds, type NoteWait, type WaitFor } from "@storytree/library";
 
 import { recentWindow, windowOf, type ClosedRange } from "../board/closed-range.js";
 import { questionsBehind } from "../work-states/board-states.js";
@@ -538,7 +538,7 @@ const incrementEdit = verb({
     // Told, not refused, of another open increment already listing a capability it newly lists: a lane that backed off
     // keeps the shared one on its list while it waits on the claim (ADR-1228), so an edit cannot refuse it.
     const shared = await library.openListing(added, id);
-    return { text: [`Edited increment ${id}.`, ...shared.map((other) => `${listedSaid(other)}.`)].join("\n") };
+    return { text: [`Edited increment ${id}.`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n") };
   },
 });
 

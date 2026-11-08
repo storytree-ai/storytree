@@ -221,6 +221,7 @@ const RUNTIME_EXPORTS = [
   "explainConnectTimeout",
   "heldBack",
   "knowledgeGuidance",
+  "listedNotice",
   "listedSaid",
   "parseSchedule",
   "planGuidance",

@@ -144,8 +144,9 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
       killTree(child);
     }, unitLimitMs);
     // While a file sits with no test open, the unit's processes are read for CPU each tick; one tick busy
-    // (a quarter of a core or more) restarts the grace. Other files computing beside it keep it alive too,
-    // up to the unit's deadline.
+    // (a quarter of a core or more) restarts the grace, and so does the first reading, the grace counting
+    // from when the watch could first tell. Other files computing beside it keep it alive too, up to the
+    // unit's deadline.
     let quietSince = started;
     let cpu;
     const exitWatch = setInterval(() => {
@@ -156,7 +157,7 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
         return;
       }
       const reading = treeCpu(child.pid);
-      if (reading !== undefined && cpu !== undefined && cpuUsed(cpu.reading, reading) >= BUSY_SHARE * (now - cpu.at)) quietSince = now;
+      if (reading !== undefined && (cpu === undefined || cpuShare(cpu, { reading, at: now }) >= BUSY_SHARE)) quietSince = now;
       cpu = reading === undefined ? undefined : { reading, at: now };
       if (now - quietSince < exitGraceMs) return;
       exitHung = endedNotExited(runningFile, now - exitGraceMs);
@@ -264,8 +265,9 @@ function endedNotExited(runningFile, since) {
 }
 
 /**
- * The CPU time, in ms, each process under `pid` (and it) has used, by pid: /proc on Linux, ps elsewhere;
- * undefined where it cannot be read (Windows).
+ * What each process under `pid` (and it) has used of the CPU, by pid: on Linux its CPU time in ms, from
+ * /proc; on macOS its recent share of a core, as ps reports it (read from ps's accumulated time, a file
+ * computing for 4 seconds was killed as idle on CI's macOS, PR #624); undefined where it cannot be read (Windows).
  */
 function treeCpu(pid) {
   const table = [];
@@ -276,16 +278,14 @@ function treeCpu(pid) {
         try {
           const stat = readFileSync(`/proc/${name}/stat`, "utf8");
           const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" "); // from field 3, after the name
-          table.push({ pid: Number(name), ppid: Number(fields[1]), ms: (Number(fields[11]) + Number(fields[12])) * 10 }); // utime + stime, at 100 ticks a second
+          table.push({ pid: Number(name), ppid: Number(fields[1]), used: (Number(fields[11]) + Number(fields[12])) * 10 }); // utime + stime, at 100 ticks a second
         } catch {} // gone since the listing
       }
     } else if (process.platform === "darwin") {
-      for (const line of execFileSync("ps", ["-A", "-o", "pid=,ppid=,time="], { encoding: "utf8" }).split("\n")) {
-        const [child, parent, time] = line.trim().split(/\s+/);
-        if (!time) continue;
-        const [days, clock] = time.includes("-") ? time.split("-") : ["0", time];
-        const seconds = clock.split(":").reduce((sum, part) => sum * 60 + Number(part), 0);
-        table.push({ pid: Number(child), ppid: Number(parent), ms: (Number(days) * 86_400 + seconds) * 1000 });
+      for (const line of execFileSync("ps", ["-A", "-o", "pid=,ppid=,pcpu="], { encoding: "utf8" }).split("\n")) {
+        const [child, parent, share] = line.trim().split(/\s+/);
+        if (!share) continue;
+        table.push({ pid: Number(child), ppid: Number(parent), used: Number(share.replace(",", ".")) / 100 });
       }
     } else return undefined;
   } catch {
@@ -296,18 +296,23 @@ function treeCpu(pid) {
   const cpu = new Map();
   const walk = (parent) => {
     for (const row of children.get(parent) ?? []) {
-      cpu.set(row.pid, row.ms);
+      cpu.set(row.pid, row.used);
       walk(row.pid);
     }
   };
   const own = table.find((row) => row.pid === pid);
-  if (own !== undefined) cpu.set(pid, own.ms);
+  if (own !== undefined) cpu.set(pid, own.used);
   walk(pid);
   return cpu;
 }
 
-/** The CPU time used between two of treeCpu's readings, a process new since the first counting all of its own. */
-const cpuUsed = (before, after) => [...after].reduce((sum, [pid, ms]) => sum + Math.max(0, ms - (before.get(pid) ?? 0)), 0);
+/** The share of one core used between two of treeCpu's readings, a process new since the first counting all its own time. */
+function cpuShare(before, after) {
+  const values = [...after.reading.values()];
+  if (process.platform === "darwin") return values.reduce((sum, share) => sum + share, 0);
+  const used = [...after.reading].reduce((sum, [pid, ms]) => sum + Math.max(0, ms - (before.reading.get(pid) ?? 0)), 0);
+  return used / Math.max(1, after.at - before.at);
+}
 
 /**
  * Each test that ended in a unit's running file (test-running-reporter.mjs writes its time and result), by

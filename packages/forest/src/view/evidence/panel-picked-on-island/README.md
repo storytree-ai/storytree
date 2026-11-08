@@ -36,4 +36,6 @@ panel holds no tree, shows the capability the island ringed with every fold clos
 double-click opens the fold, that each of a picked gate's links says its state in one line with its contracts closed, and
 writes what it found into `measurements.json`.
 
-In the evidence bucket for #PR, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `PR/before-folds-panel.png` (#607's), `PR/capability-picked-on-island.png`, `PR/capability-picked-on-island-panel.png`, `PR/capability-folds-opened-panel.png`, `PR/gate-picked-on-island-panel.png`, `PR/gate-contracts-opened-panel.png`.
+In the evidence bucket for #610, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): #607's `607/before-folds-panel.png` and `607/gate-picked-on-island-panel.png` (the before), `610/capability-picked-on-island.png`, `610/capability-picked-on-island-panel.png`, `610/capability-folds-opened-panel.png`, `610/gate-picked-on-island-panel.png`, `610/gate-contracts-opened-panel.png`.
+
+In the evidence bucket for #610, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `610/capability-picked-on-island.png`, `610/capability-picked-on-island-panel.png`, `610/capability-folds-opened-panel.png`, `610/gate-picked-on-island-panel.png`, `610/gate-contracts-opened-panel.png`.

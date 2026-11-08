@@ -116,7 +116,7 @@ test("4.6 with the Mac's build missing, the others publish and the Mac keeps its
     mkdirSync(bin);
     writeFileSync(path.join(bin, "gh"), `#!/bin/sh
 case "$1 $2" in
-  "api repos/storytree-ai/storytree/releases?per_page=20") echo '[{"tag_name":"v0.3.700","draft":true,"prerelease":false},{"tag_name":"v0.3.699","draft":false,"prerelease":false}]' ;;
+  "api repos/storytree-ai/storytree/releases?per_page=100") echo '[{"tag_name":"v0.3.700","draft":true,"prerelease":false},{"tag_name":"v0.3.699","draft":false,"prerelease":false}]' ;;
   "release download") cp "${root}/$3/"* "$7" ;;
   *) echo "unexpected gh $*" >&2; exit 1 ;;
 esac

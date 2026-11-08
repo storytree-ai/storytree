@@ -9,7 +9,8 @@
 // query's result (querySelector, getElementById, closest, …), a property only a node has (firstElementChild,
 // parentElement, …), a new Window, a property of one of those that holds a node (body, children, target, …), an
 // array or object holding one, or a name, destructured name, loop variable or callback parameter bound to one, a
-// parameter typed as a node, or the result of a local function that returns one. Strings, numbers and booleans read
+// parameter typed as a node, or the result of a local function that returns one, followed through names, destructuring,
+// members and the object a local function returns (a page() factory's helpers). Strings, numbers and booleans read
 // from a node (textContent, dataset values, .length, a comparison) are never refused.
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -141,6 +142,7 @@ function domReader({ parents, nodes, imports }) {
   const domTypeName = (name) => fromHappyDom(name) || (DOM_TYPE.test(name) && !imports.has(name) && !declared.has(name));
   const assignments = nodes.filter((node) => node.type === "AssignmentExpression" && node.left.type === "Identifier");
   const seen = new Set();
+  const following = new Set();
 
   function isDomType(type) {
     if (type === null || type === undefined) return false;
@@ -254,8 +256,10 @@ function domReader({ parents, nodes, imports }) {
         case "TSNonNullExpression": case "ParenthesizedExpression": case "TSAsExpression": case "TSSatisfiesExpression": case "TSTypeAssertion": case "AwaitExpression":
           return propertyValue(object.expression ?? object.argument, name);
         case "ObjectExpression":
-          return object.properties.findLast((property) => (property.type === "ObjectProperty" || property.type === "ObjectMethod") && !property.computed && (property.key.name ?? property.key.value) === name)
-            ?.[0] ?? valueOfProperty(object, name);
+        {
+          const property = object.properties.findLast((candidate) => (candidate.type === "ObjectProperty" || (candidate.type === "ObjectMethod" && candidate.kind === "method")) && !candidate.computed && (candidate.key.name ?? candidate.key.value) === name);
+          return property?.type === "ObjectProperty" ? property.value : property;
+        }
         case "Identifier": {
           const binding = resolve(object);
           if (binding?.kind !== "var") return undefined;
@@ -327,16 +331,25 @@ function domReader({ parents, nodes, imports }) {
   function destructuredIsDom(init, pattern, id) {
     if (init === null || init === undefined) return false;
     if (pattern.type === "ArrayPattern") return isDom(init);
-    if (pattern.type === "ObjectPattern") {
-      const property = pattern.properties.find((candidate) => candidate.type === "ObjectProperty" && contains(candidate.value, id));
-      if (property === undefined) return false;
-      const key = property.computed ? undefined : property.key.name ?? property.key.value;
-      const read = key === undefined ? undefined : { type: "MemberExpression", object: init, property: { type: "Identifier", name: key }, computed: false };
-      if (read === undefined) return false;
-      const inner = property.value.type === "AssignmentPattern" ? property.value.left : property.value;
-      return inner === id ? isDom(read) : destructuredIsDom(read, inner, id);
-    }
-    return false;
+    const step = pattern.type === "ObjectPattern" ? propertyRead(init, pattern, id) : undefined;
+    if (step === undefined) return false;
+    return step.inner === id ? isDom(step.read) : destructuredIsDom(step.read, step.inner, id);
+  }
+
+  /** The read of `init` an object pattern makes for the name `id`, when it reads it only through properties: `init.a.b` for `{ a: { b } }`. */
+  function readOf(init, pattern, id) {
+    if (init === null || init === undefined || pattern.type !== "ObjectPattern") return undefined;
+    const step = propertyRead(init, pattern, id);
+    if (step === undefined) return undefined;
+    return step.inner === id ? step.read : readOf(step.read, step.inner, id);
+  }
+
+  /** One level of an object pattern: the property of `init` that holds `id`, read as a member, and the pattern it is bound by there. */
+  function propertyRead(init, pattern, id) {
+    const property = pattern.properties.find((candidate) => candidate.type === "ObjectProperty" && contains(candidate.value, id));
+    if (property === undefined || property.computed) return undefined;
+    const read = { type: "MemberExpression", object: init, property: { type: "Identifier", name: property.key.name ?? property.key.value }, computed: false };
+    return { read, inner: property.value.type === "AssignmentPattern" ? property.value.left : property.value };
   }
 
   function contains(pattern, id) {

@@ -5,9 +5,11 @@
 //   --test-timeout      a test that never ends fails at TEST_LIMIT_MS, and node names it;
 //   the exit watch      a file whose tests have all ended but whose process has not exited for
 //                       EXIT_GRACE_MS (a Node exit deadlock seen on CI, increment_67a3090c077c)
-//                       fails the unit at once, named, instead of waiting out its deadline; a test
-//                       blocked in a synchronous call whose start never reached the reporter looks
-//                       the same, so the reason names both causes;
+//                       fails the unit at once, named, instead of waiting out its deadline, if the
+//                       unit's processes sat idle all that time; a test or hook blocking its event
+//                       loop reports nothing until it lets go, so a file still computing (or in
+//                       spawnSync on a busy child) looks ended too, and its CPU tells it apart
+//                       (friction_07818dc5b19b); where the CPU cannot be read (Windows), idle is assumed;
 //   the unit deadline   past UNIT_LIMIT_MS the unit's whole process tree is killed, and the tests
 //                       still running are named (test-running-reporter.mjs records them).
 // TEST_LIMIT_MS is about three times the slowest test seen anywhere on 2026-09-28 (117 CI jobs on
@@ -24,7 +26,7 @@
 // A run that gives its own default never gives a learned deadline under it: CI carries its history
 // from main's runs, and a pull request's kills are never carried back to grow it (increment_d51b4f1d9fc8).
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -43,6 +45,7 @@ export const UNIT_LIMIT_MS = 180_000;
 export const EXIT_GRACE_MS = 20_000; // a root after() hook or coverage written at exit fits well inside
 export const UNIT_LIMIT_FLOOR_MS = 60_000;
 export const UNIT_LIMIT_CEILING_MS = 900_000;
+const BUSY_SHARE = 0.25; // of one core, over an exit watch tick: a unit computing, not one sitting idle in a hung exit
 export const DEADLINE_GRACE_MS = 30_000; // past the run's deadline, longer than a cut unit takes to be killed and tabled
 const LEARN_FROM_PASSES = 5; // fewer passes than this on this machine: the fixed deadline
 const RECENT_PASSES = 20;
@@ -140,8 +143,23 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
       running = stillRunning(runningFile);
       killTree(child);
     }, unitLimitMs);
+    // While a file sits with no test open, the unit's processes are read for CPU each tick; one tick busy
+    // (a quarter of a core or more) restarts the grace. Other files computing beside it keep it alive too,
+    // up to the unit's deadline.
+    let quietSince = started;
+    let cpu;
     const exitWatch = setInterval(() => {
-      exitHung = endedNotExited(runningFile, Date.now() - exitGraceMs);
+      const now = Date.now();
+      if (endedNotExited(runningFile, now).length === 0) {
+        quietSince = now;
+        cpu = undefined;
+        return;
+      }
+      const reading = treeCpu(child.pid);
+      if (reading !== undefined && cpu !== undefined && cpuUsed(cpu.reading, reading) >= BUSY_SHARE * (now - cpu.at)) quietSince = now;
+      cpu = reading === undefined ? undefined : { reading, at: now };
+      if (now - quietSince < exitGraceMs) return;
+      exitHung = endedNotExited(runningFile, now - exitGraceMs);
       if (exitHung.length > 0) killTree(child);
     }, Math.min(1_000, exitGraceMs / 2));
     const stop = () => {
@@ -244,6 +262,52 @@ function endedNotExited(runningFile, since) {
     .filter((entry) => isFileEntry(entry) && !busy.has(entry.file) && lastTest.get(entry.file) < since)
     .map((entry) => entry.file);
 }
+
+/**
+ * The CPU time, in ms, each process under `pid` (and it) has used, by pid: /proc on Linux, ps elsewhere;
+ * undefined where it cannot be read (Windows).
+ */
+function treeCpu(pid) {
+  const table = [];
+  try {
+    if (process.platform === "linux") {
+      for (const name of readdirSync("/proc")) {
+        if (!/^\d+$/.test(name)) continue;
+        try {
+          const stat = readFileSync(`/proc/${name}/stat`, "utf8");
+          const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" "); // from field 3, after the name
+          table.push({ pid: Number(name), ppid: Number(fields[1]), ms: (Number(fields[11]) + Number(fields[12])) * 10 }); // utime + stime, at 100 ticks a second
+        } catch {} // gone since the listing
+      }
+    } else if (process.platform === "darwin") {
+      for (const line of execFileSync("ps", ["-A", "-o", "pid=,ppid=,time="], { encoding: "utf8" }).split("\n")) {
+        const [child, parent, time] = line.trim().split(/\s+/);
+        if (!time) continue;
+        const [days, clock] = time.includes("-") ? time.split("-") : ["0", time];
+        const seconds = clock.split(":").reduce((sum, part) => sum * 60 + Number(part), 0);
+        table.push({ pid: Number(child), ppid: Number(parent), ms: (Number(days) * 86_400 + seconds) * 1000 });
+      }
+    } else return undefined;
+  } catch {
+    return undefined;
+  }
+  const children = new Map();
+  for (const row of table) children.set(row.ppid, [...(children.get(row.ppid) ?? []), row]);
+  const cpu = new Map();
+  const walk = (parent) => {
+    for (const row of children.get(parent) ?? []) {
+      cpu.set(row.pid, row.ms);
+      walk(row.pid);
+    }
+  };
+  const own = table.find((row) => row.pid === pid);
+  if (own !== undefined) cpu.set(pid, own.ms);
+  walk(pid);
+  return cpu;
+}
+
+/** The CPU time used between two of treeCpu's readings, a process new since the first counting all of its own. */
+const cpuUsed = (before, after) => [...after].reduce((sum, [pid, ms]) => sum + Math.max(0, ms - (before.get(pid) ?? 0)), 0);
 
 /**
  * Each test that ended in a unit's running file (test-running-reporter.mjs writes its time and result), by
@@ -456,10 +520,7 @@ function unitRowReason({ ms, timedOut, running = [], exitHung = [], unitLimitMs,
   const took = `${(ms / 1000).toFixed(1)} s`;
   const limit = `limit ${unitLimitMs / 1000} s${limitSource ? `, ${limitSource}` : ""}`;
   const shown = (file) => path.relative(root, file).replaceAll("\\", "/");
-  // Where a child's stdout is an async pipe (Windows), a test blocking its process in a synchronous call
-  // (spawnSync, execSync) never reports its start, so it looks the same to the exit watch (friction_e50f26922ba5).
-  const exitCauses = "a handle left open or an exit that hangs, or a test blocking its process in a synchronous call (spawnSync, execSync) whose start never reached the reporter";
-  if (exitHung.length > 0) return `failed after ${took} (${limit}), killed; ${exitHung.map((file) => `${shown(file)}: its last reported test ended, but its process did not exit`).join("; ")} (${exitCauses})`;
+  if (exitHung.length > 0) return `failed after ${took} (${limit}), killed; ${exitHung.map((file) => `${shown(file)}: its last reported test ended, and its process sat idle without exiting`).join("; ")} (a handle left open or an exit that hangs, or a test waiting in a synchronous call that uses no CPU)`;
   if (!timedOut) return limitSource ? `${took} (${limit})` : took;
   const named = running.map(({ file, name }) => {
     const shown = file ? path.relative(root, file).replaceAll("\\", "/") : "(unknown file)";

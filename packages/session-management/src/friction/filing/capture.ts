@@ -65,6 +65,8 @@ export interface NewResteer {
   /** Its failure mode, needed for a defect ("no-mast-home" when none describes it). */
   readonly mode?: string;
   readonly links?: string[];
+  /** The increment it redirected, when there was one. */
+  readonly increment?: string;
 }
 
 /** 0.2's floor for concrete evidence (ADR-0168 D3), with its repository paths made any project's. */
@@ -113,17 +115,17 @@ export async function recordFriction(library: Library, friction: NewFriction, op
 }
 
 /**
- * The increment friction names is a live increment, and none is in its links, which name only artifacts: the refusal
- * names the field that takes it, so the filer keeps the pointer to where the friction happened.
+ * The increment friction or a re-steer names is a live increment, and none is in its links, which name only artifacts:
+ * the refusal names the field that takes it, so the filer keeps the pointer to the work it was about.
  */
-async function requireIncrement(library: Library, friction: NewFriction): Promise<void> {
-  for (const link of friction.links ?? []) {
+async function requireIncrement(library: Library, filed: Pick<NewFriction, "links" | "increment">, about = "it happened in"): Promise<void> {
+  for (const link of filed.links ?? []) {
     if ((await library.get(link))?.type === "increment") {
-      throw new CaptureError(`links names ${JSON.stringify(link)}, an increment: links name only artifacts, so give the increment it happened in as "increment" instead.`);
+      throw new CaptureError(`links names ${JSON.stringify(link)}, an increment: links name only artifacts, so give the increment ${about} as "increment" instead.`);
     }
   }
-  if (friction.increment !== undefined && (await library.get(friction.increment))?.type !== "increment") {
-    throw new CaptureError(`increment names ${JSON.stringify(friction.increment)}: there is no live increment with that id.`);
+  if (filed.increment !== undefined && (await library.get(filed.increment))?.type !== "increment") {
+    throw new CaptureError(`increment names ${JSON.stringify(filed.increment)}: there is no live increment with that id.`);
   }
 }
 
@@ -197,6 +199,7 @@ export async function recordResteer(library: Library, resteer: NewResteer, optio
       `a re-steer's evidence is the user's own words inside double quotation marks: put what they said between them, as in "Can you add it now?". A paraphrase is your account of those words, which goes in the self-report. You gave: ${resteer.evidence}`,
     );
   }
+  await requireIncrement(library, resteer, "it redirected");
   // Its failure mode is checked against the library's own list of modes, inside the write.
   return library.writeKnowledge("resteer", { ...resteer } as NewKnowledge<"resteer">, options);
 }

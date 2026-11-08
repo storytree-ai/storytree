@@ -795,7 +795,7 @@ test("9.29 plan_edge writes an edge between two capabilities of one story, plan_
       assert.notEqual(corrected.isError, true, corrected.text);
 
       const node = (await library.projectTree()).stories.find(({ id }) => id === story)!;
-      assert.deepEqual(node.edges, [{ id: edge, from: link, to: form, description: "Reads the form's address", contracts: [{ id: contract, title: "The link reads the form's checked address" }] }]);
+      assert.deepEqual(node.edges, [{ id: edge, from: link, to: form, description: "Reads the form's address", contracts: [{ id: contract, title: "The link reads the form's checked address", health: { reported: { state: "not-checked" }, verified: { state: "not-checked" } } }] }]);
       assert.deepEqual(node.capabilities.find(({ id }) => id === link)?.dependsOn, [form], "the capability's dependsOn reads the edge");
       assert.deepEqual(node.capabilities.map(({ contracts }) => contracts), [[], []], "neither capability holds the edge's contract");
 

@@ -74,7 +74,7 @@ test("4.6 a description shows its lead, its first paragraph, and the rest behind
   assert.equal(renderStoryPanel(panel, "next").includes('data-fold="more"'), false, "a one-paragraph description has no How it works");
 });
 
-test("4.6 a capability's handles come in one order, More, Health, Open work, Contracts, each contract opens to its own detail, and Open all · n counts every handle", () => {
+test("4.6 a capability's handles come in one order, How it works, Health, Open work, Contracts, each contract opens to its own detail, and Open all · n counts every handle", () => {
   const capability: CapabilityLine = { ...line("next", "failing"), description: "Lead.\n\nRest.", openWork: [{ increment: "i", title: "Do it" }] };
   const html = renderStoryPanel({ ...panel, capabilities: [capability] }, "next");
   const kinds = [...html.matchAll(/data-fold="([^"]+)"/g)].map(([, kind]) => kind);

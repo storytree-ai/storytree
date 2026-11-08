@@ -251,7 +251,7 @@ function planFile(folder: string | undefined, plugin: string): { file: string; w
 /**
  * The capability and contract numbers plugin `plugin`'s plan file in `folder` has held in any commit of the folder's
  * history (its HEAD's), and as it stands: what an import from that folder may retire, so a folder cut before another
- * lane's landing retires none of that lane's plan. None when the folder is not a git checkout, so an import from it
+ * lane's landing retires none of that lane's plan; and those versions themselves, so it writes back no text that lane changed. None when the folder is not a git checkout, so an import from it
  * retires whatever its plan does not hold, as before. A version that is not JSON holds nothing.
  */
 export function pluginPlanHeld(folder: string | undefined, plugin: string): PluginPlanHeld | undefined {
@@ -303,7 +303,7 @@ export function pluginPlanHeld(folder: string | undefined, plugin: string): Plug
       }
     }
   }
-  return { capabilities: [...capabilities], contracts: [...contracts] };
+  return { capabilities: [...capabilities], contracts: [...contracts], versions };
 }
 
 /**

@@ -951,6 +951,30 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(removed.left, []);
     assert.equal(await records.get(landed.get("2 · Speech")!), null);
   });
+
+  contract("4.44", "importPluginPlan given the versions of its plan its source ever held edits a kept record's field only from a value one of them held; a field another lane changed since the source was cut stays as it stands and the record is reported stood", async ({ work, records }) => {
+    const plan = (capability: string, contract: string): PluginPlan => ({ story: { title: "Voice" }, capabilities: [{ title: "1 · The address", description: capability, contracts: [{ title: "1.1 · A wrong path is answered 404", description: contract }] }] });
+    const cut = plan("Where it listens.", "Any path it does not serve.");
+    const first = await work.importPluginPlan("voice", cut);
+    const [capability, contract] = [first.added.find((id) => id.startsWith("capability_"))!, first.added.find((id) => id.startsWith("contract_"))!];
+    const held = (...versions: PluginPlan[]) => ({ held: { capabilities: [1], contracts: ["1.1"], versions } });
+    // Another lane lands a new description for both, from its own folder.
+    const landed = plan("The port and path it listens on.", "Any path outside its routes.");
+    await work.importPluginPlan("voice", landed, held(cut, landed));
+
+    // A folder cut before that landing, whose own history changed only the contract's description, holds the old capability text.
+    const stale = await work.importPluginPlan("voice", plan("Where it listens.", "A path it never serves."), held(cut, plan("Where it listens.", "A path it never serves.")));
+    assert.deepEqual(stale.edited, [], "nothing another lane changed is written back");
+    assert.deepEqual(new Set(stale.stood), new Set([capability, contract]), "each is said");
+    assert.equal(((await records.get(capability))?.fields as { description?: string } | undefined)?.description, "The port and path it listens on.");
+    assert.equal(((await records.get(contract))?.fields as { description?: string } | undefined)?.description, "Any path outside its routes.");
+
+    // After merging the landing, the folder's history holds the live text, so its own change is written.
+    const merged = await work.importPluginPlan("voice", plan("The port and path it listens on.", "A path it never serves."), held(cut, landed, plan("The port and path it listens on.", "A path it never serves.")));
+    assert.deepEqual(merged.edited, [contract]);
+    assert.deepEqual(merged.stood, []);
+    assert.equal(((await records.get(contract))?.fields as { description?: string } | undefined)?.description, "A path it never serves.");
+  });
 }
 
 /**

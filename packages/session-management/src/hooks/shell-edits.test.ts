@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
 import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { runGit } from "../activity/git.js";
 import { LEARNED_FILE } from "./learned-limits.js";
-import { shellEdits } from "./shell-edits.js";
+import { PRUNE_EVERY_MS, pruneBaselines, pruneBaselinesWhenDue, shellEdits } from "./shell-edits.js";
 
 /** A deadline no loaded runner reaches: these tests protect what an observation sees, not how fast its Git reads run. */
 const UNHURRIED = 60_000;
@@ -235,5 +235,55 @@ test("3.22 an observation given its own deadline keeps to it, not to the one lea
     assert.deepEqual(observe(UNHURRIED), []);
     assert.equal(failures.length, 1);
     assert.equal(existsSync(path.join(home, LEARNED_FILE)), false);
+  });
+});
+
+test("3.22 a baseline no observation has written for a week is pruned, a bounded number per pass, from each place baselines are kept, while a fresh one stays", async () => {
+  await withTempDir((dir) => {
+    const home = path.join(dir, "home");
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    const place = (...parts: string[]) => {
+      const file = path.join(home, ...parts);
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, "{}");
+      return file;
+    };
+    const age = (file: string, days: number) => utimesSync(file, new Date(now - days * day), new Date(now - days * day));
+    const stale = [place("shell-edits", "a.json"), place("guarded-edits", "shell-edits", "b.json"), place("imported-edits", "shell-edits", "c.json"), place("shell-edits", "d.json.0f.part")];
+    for (const file of stale) age(file, 8);
+    const fresh = place("shell-edits", "fresh.json");
+    age(fresh, 6);
+
+    assert.equal(pruneBaselines(home, { now, limit: 3 }), 3);
+    assert.equal(stale.filter((file) => existsSync(file)).length, 1);
+    assert.equal(pruneBaselines(home, { now, limit: 3 }), 1);
+    assert.deepEqual(stale.filter((file) => existsSync(file)), []);
+    assert.deepEqual(readdirSync(path.join(home, "shell-edits")), ["fresh.json"]);
+    // A machine with no baselines yet prunes nothing and never throws.
+    assert.equal(pruneBaselines(path.join(dir, "elsewhere"), { now }), 0);
+  });
+});
+
+test("3.22 the hooks look for stale baselines at most once an hour on a machine, and the first look prunes them", async () => {
+  await withTempDir((dir) => {
+    const home = path.join(dir, "home");
+    const now = Date.now();
+    const old = new Date(now - 8 * 24 * 60 * 60 * 1000);
+    const baseline = (name: string) => {
+      const file = path.join(home, "shell-edits", name);
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, "{}");
+      utimesSync(file, old, old);
+      return file;
+    };
+    const first = baseline("first.json");
+    assert.equal(pruneBaselinesWhenDue(home, { now }), 1);
+    assert.equal(existsSync(first), false);
+    const second = baseline("second.json");
+    assert.equal(pruneBaselinesWhenDue(home, { now: now + PRUNE_EVERY_MS - 1 }), 0);
+    assert.equal(existsSync(second), true);
+    assert.equal(pruneBaselinesWhenDue(home, { now: now + PRUNE_EVERY_MS }), 1);
+    assert.equal(existsSync(second), false);
   });
 });

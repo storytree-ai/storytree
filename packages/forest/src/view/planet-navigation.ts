@@ -1,5 +1,5 @@
 /** Capability 3 · Story node render. The desktop's joins between the sheet's islands, the pointer, and Three's camera. */
-import { Euler, Quaternion, Raycaster, Vector2, Vector3, type Camera, type Object3D } from "three";
+import { Box3, Euler, Quaternion, Raycaster, Vector2, Vector3, type Camera, type Object3D } from "three";
 import type { FacingIsland, GlobeTurn } from "@storytree/forest";
 import { pickProjectedNote, type ProjectedNote } from "./globe-picking.js";
 import type { Selection } from "./panel-selection.js";
@@ -191,6 +191,70 @@ export function pickGlobe(world: Object3D, camera: Camera,
   const land = mode === "forest" ? pickLand(ray, world) : undefined;
   if (land === undefined) return undefined;
   return land.capability === undefined ? { kind: "story", id: land.story } : { kind: "story", id: land.story, capability: land.capability };
+}
+
+/** The event the feedback picker dispatches on the canvas to ask what is drawn under the pointer (2.3). A plain string the picker's package pins in its own tests: forest does not depend on it. */
+export const FEEDBACK_PICK_EVENT = "storytree:feedback-pick";
+
+/** What the planet view answers a feedback pick with (ADR-1286): the object by its ids, a name, and its box in the window. */
+export type FeedbackAnswer = {
+  readonly kind: "gate" | "capability" | "island";
+  readonly story: string;
+  readonly capability?: string;
+  readonly between?: [string, string];
+  readonly name: string;
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+};
+
+/**
+ * The gate, capability territory or island under `cursor`, for the feedback picker to attach (3.93): a gate first, else a
+ * territory, else the island, named as the sheet names them, with the object's bounding box projected to the window. Forest
+ * only: Library answers nothing, and neither does a knowledge point or open water.
+ */
+export function feedbackPick(world: Object3D, camera: Camera,
+  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode, titles: ReadonlyMap<string, string>): FeedbackAnswer | undefined {
+  if (mode !== "forest") return undefined;
+  const { gate, hit } = pickClick(world, camera, box, cursor, mode);
+  if (hit?.kind !== "story") return undefined;
+  const planet = world.getObjectByName(`planet:${hit.id}`) ?? world;
+  const capabilityName = (capability: string) => globeName((planet.getObjectByName(`territory:${capability}`)?.userData.title as string | undefined) ?? capability);
+  const screenBox = (objects: readonly Object3D[]) => {
+    const bounds = new Box3();
+    for (const object of objects) bounds.expandByObject(object);
+    if (bounds.isEmpty()) return undefined;
+    const corners = [bounds.min.x, bounds.max.x].flatMap(x => [bounds.min.y, bounds.max.y].flatMap(y => [bounds.min.z, bounds.max.z].map(z => new Vector3(x, y, z).project(camera))));
+    const left = box.left + (Math.min(...corners.map(c => c.x)) + 1) * box.width / 2, right = box.left + (Math.max(...corners.map(c => c.x)) + 1) * box.width / 2;
+    const top = box.top + (1 - Math.max(...corners.map(c => c.y))) * box.height / 2, bottom = box.top + (1 - Math.min(...corners.map(c => c.y))) * box.height / 2;
+    return { x: left, y: top, width: right - left, height: bottom - top };
+  };
+  world.updateMatrixWorld(true);
+  if (gate !== undefined) {
+    const marks: Object3D[] = [];
+    planet.traverse(object => { if (gateOf(object)?.gate === gate.pick.gate) marks.push(object); });
+    const at = screenBox(marks);
+    const [a, b] = gate.pick.between;
+    return at === undefined ? undefined : { kind: "gate", story: gate.story, between: [a, b], name: `${capabilityName(a)} ↔ ${capabilityName(b)}`, box: at };
+  }
+  if (hit.capability !== undefined) {
+    const at = screenBox([planet.getObjectByName(`territory:${hit.capability}`)].filter((o): o is Object3D => o !== undefined));
+    return at === undefined ? undefined : { kind: "capability", story: hit.id, capability: hit.capability, name: capabilityName(hit.capability), box: at };
+  }
+  const at = screenBox([planet]);
+  return at === undefined ? undefined : { kind: "island", story: hit.id, name: titles.get(hit.id) ?? hit.id, box: at };
+}
+
+/**
+ * Answer the feedback picker's synchronous asks on `target` (3.93): each `FEEDBACK_PICK_EVENT` carries the pointer in its
+ * detail, and `answer`'s object for it is written back on the detail. Returns the stop.
+ */
+export function answerFeedbackPicks(target: EventTarget, answer: (cursor: { x: number; y: number }) => FeedbackAnswer | undefined): () => void {
+  const onPick = (event: Event): void => {
+    const detail = (event as CustomEvent<{ x: number; y: number; answer?: FeedbackAnswer }>).detail;
+    const found = answer({ x: detail.x, y: detail.y });
+    if (found !== undefined) detail.answer = found;
+  };
+  target.addEventListener(FEEDBACK_PICK_EVENT, onPick);
+  return () => target.removeEventListener(FEEDBACK_PICK_EVENT, onPick);
 }
 
 /** `handle`, run at most once a frame with the latest of the calls made since the last frame. */

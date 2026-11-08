@@ -234,11 +234,18 @@ export interface OpenListing {
   readonly capabilities: readonly string[];
 }
 
-/** What a park refuses, and an edit of a list is told, about `other`: the capabilities it already lists, and where it is. */
+/** What a park refuses about `other`: the capabilities it already lists, and where it is. */
 export function listedSaid(other: OpenListing): string {
-  const verb = other.capabilities.length === 1 ? "is" : "are";
-  return `${other.capabilities.join(", ")} ${verb} already on the capabilities list of open increment ${other.increment} (${JSON.stringify(other.title)}, on arc ${other.arc})`;
+  return `${other.capabilities.join(", ")} ${isAre(other)} already on the capabilities list of ${listingOf(other)}`;
 }
+
+/** What an edit that newly lists capabilities `other` lists is told: a notice, worded apart from a park's refusal, that the edit is saved. */
+export function listedNotice(other: OpenListing): string {
+  return `Note: ${other.capabilities.join(", ")} ${isAre(other)} also on the capabilities list of ${listingOf(other)}; your edit is saved`;
+}
+
+const isAre = (other: OpenListing): string => (other.capabilities.length === 1 ? "is" : "are");
+const listingOf = (other: OpenListing): string => `open increment ${other.increment} (${JSON.stringify(other.title)}, on arc ${other.arc})`;
 
 export class WorkInFlight {
   readonly #records: SchemaRecords;

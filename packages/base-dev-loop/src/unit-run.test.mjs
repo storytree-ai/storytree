@@ -231,7 +231,7 @@ test("completed failure", () => assert.equal("actual merge", "expected merge", "
 test("4.1 a file whose tests ended but whose process does not exit fails fast, naming the file", async (t) => {
   const root = fixture(t, {
     "nested/exit-hang.test.mjs": `import { test } from "node:test";
-process.on("exit", () => { for (;;) {} });
+process.on("exit", () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)); // blocked for good, idle, as a deadlock is
 test("passes", () => {});
 test("passes too", () => {});`,
     "neighbour.test.mjs": `import { test } from "node:test";\ntest("quick", () => {});`,
@@ -242,17 +242,24 @@ test("passes too", () => {});`,
   assert.notEqual(result.code, 0);
   assert.equal(result.timedOut, false, "an exit hang is not a slow unit: its deadline does not grow");
   assert.deepEqual(result.exitHung.map((file) => path.relative(root, file).replaceAll("\\", "/")), ["nested/exit-hang.test.mjs"]);
-  assert.match(unitReason({ ...result, unitLimitMs: 60_000 }, root), /killed; nested\/exit-hang\.test\.mjs: its last reported test ended, but its process did not exit/);
+  assert.match(unitReason({ ...result, unitLimitMs: 60_000 }, root), /killed; nested\/exit-hang\.test\.mjs: its last reported test ended, and its process sat idle without exiting/);
 });
 
-// friction_e50f26922ba5: where a child's stdout is an async pipe (Windows), a test blocking its process in
-// a synchronous call never reports its start, so the exit watch sees the file idle and kills it.
-test("4.1 a file killed by the exit watch is named with both causes: a hung exit, or a test blocking its process in a synchronous call", () => {
-  const root = path.resolve("unit-root");
-  const reason = unitReason({ ms: 25_000, timedOut: false, exitHung: [path.join(root, "a", "blocked.test.mjs")], unitLimitMs: 60_000 }, root);
-  assert.match(reason, /killed; a\/blocked\.test\.mjs: its last reported test ended, but its process did not exit/);
-  assert.match(reason, /a handle left open or an exit that hangs/);
-  assert.match(reason, /a test blocking its process in a synchronous call/);
+// friction_e50f26922ba5, friction_07818dc5b19b: a test or hook blocking its event loop (computing, or in spawnSync)
+// reports nothing until it lets go, so its file looks idle after its last reported test; it is still running, not hung.
+test("4.1 a file still computing synchronously after its last reported test ended runs to its end, not killed as a hung exit", { skip: process.platform === "win32" && "platform:posix: the exit watch reads no CPU on Windows" }, async (t) => {
+  const root = fixture(t, {
+    "computes.test.mjs": `import { after, test } from "node:test";
+after(async () => {
+  await new Promise((resolve) => setTimeout(resolve, 100)); // the ended test reaches the reporter
+  const end = Date.now() + 4_000;
+  while (Date.now() < end) {}
+});
+test("reported", () => {});`,
+  });
+  const result = await runUnit({ root, files: ["computes.test.mjs"], env: process.env, unitLimitMs: 60_000, exitGraceMs: 1_000, ...captured().options });
+  assert.deepEqual(result.exitHung, []);
+  assert.equal(result.code, 0);
 });
 
 test("each unit's time is added to the machine's timing history, outside the checkout", async (t) => {

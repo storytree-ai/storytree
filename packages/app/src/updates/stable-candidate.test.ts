@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { type CandidatePorts, type LagVerdict, type PublishedBuild, stableCandidate } from "./stable-candidate.js";
-import { appCode, lagVerdicts, releaseCommit, releasePlatforms, releaseRunPassed } from "./stable-github.js";
+import { appCode, lagVerdicts, releaseCommit, releasePlatforms, releaseRunPassed, sameAppCode } from "./stable-github.js";
 import type { StableManifest } from "./stable-pin.js";
 
 const NOW = "2026-10-16T12:00:00.000Z";
@@ -187,4 +187,45 @@ test("4.23 a later build has the same app code when it changed nothing the deskt
     { column: "verified", state: "not-checked", note: "NOT RUN: the box is busy" },
     { column: "reported", state: "failing", note: `at commit ${sha}` },
   ]), [{ contract: "contract_island", state: "passing", commit: sha, note: `open-most-island within the margin of its baseline 3fc702fd, evidence pnpm lag:box, run 251, at commit ${sha}` }]);
+});
+
+test("4.23 a later main commit measures the same app only when it follows the build and changed nothing the app reaches, read from a shallow clone too", async t => {
+  const root = mkdtempSync(join(tmpdir(), "same-app-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const gitIn = (cwd: string) => (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const origin = join(root, "origin");
+  const og = gitIn(origin);
+  const write = (path: string, text: string) => {
+    mkdirSync(join(origin, path, ".."), { recursive: true });
+    writeFileSync(join(origin, path), text);
+  };
+  const commit = (message: string) => {
+    og("add", ".");
+    og("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", message);
+    return og("rev-parse", "HEAD");
+  };
+  mkdirSync(origin, { recursive: true });
+  og("init", "-q", "-b", "main");
+  write("apps/desktop/package.json", JSON.stringify({ name: "@storytree/desktop", devDependencies: { "@storytree/forest": "workspace:*" } }));
+  write("packages/forest/package.json", JSON.stringify({ name: "@storytree/forest" }));
+  write("packages/forest/src/a.ts", "1");
+  write("packages/cli/package.json", JSON.stringify({ name: "@storytree/cli", dependencies: { "@storytree/forest": "workspace:*" } }));
+  write("packages/cli/src/a.ts", "1");
+  const build = commit("build");
+  write("packages/cli/src/a.ts", "2");
+  const cliOnly = commit("cli");
+  og("branch", "side");
+  write("packages/forest/src/a.ts", "2");
+  const forest = commit("forest");
+  og("checkout", "-q", "side");
+  write("packages/cli/src/b.ts", "3");
+  const offMain = commit("off main");
+  og("checkout", "-q", "main");
+  execFileSync("git", ["clone", "-q", "--depth", "1", `file://${origin}`, join(root, "clone")]);
+  const same = sameAppCode(gitIn(join(root, "clone")));
+  assert.equal(await same(build, build), true);
+  assert.equal(await same(build, cliOnly), true);
+  assert.equal(await same(build, forest), false);
+  assert.equal(await same(cliOnly, build), false);
+  assert.equal(await same(build, offMain), false);
 });

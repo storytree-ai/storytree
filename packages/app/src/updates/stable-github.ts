@@ -186,16 +186,11 @@ export function lagVerdicts(contract: string, history: readonly { column: string
   });
 }
 
-/** `storytree release candidate`: the stable candidate read from GitHub and the library; it changes nothing. */
-export async function findStableCandidate(options: { library: Pick<Library, "list" | "prCutover" | "healthHistory">; cwd: string }): Promise<StableCandidate> {
-  const api = github(options.cwd);
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: options.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 16 * 1024 * 1024 }).trim();
-  const commits = new Map<string, Promise<string>>();
-  const commitOf = (version: string) => {
-    if (!commits.has(version)) commits.set(version, (api(`commits/v${version}`) as Promise<{ sha: string }>).then(c => c.sha));
-    return commits.get(version)!;
-  };
-  // The lag run measures main's commits: main's history is fetched whole once, a shallow clone's included, before it is compared.
+/**
+ * Whether main's commit `later` is `commit`, or comes after it with the same app code (appCode, read from `commit`'s manifests).
+ * The lag run measures main's commits, so main's history is fetched whole once, a shallow clone's included, before any is compared.
+ */
+export function sameAppCode(git: Git): (commit: string, later: string) => Promise<boolean> {
   let fetched = false;
   const apps = new Map<string, (path: string) => boolean>();
   const appAt = (commit: string) => {
@@ -208,6 +203,29 @@ export async function findStableCandidate(options: { library: Pick<Library, "lis
     }
     return apps.get(commit)!;
   };
+  return async (commit, later) => {
+    if (commit === later) return true;
+    if (!fetched) {
+      git("fetch", ...(git("rev-parse", "--is-shallow-repository") === "true" ? ["--unshallow"] : []), "origin", "+refs/heads/main:refs/remotes/origin/main");
+      fetched = true;
+    }
+    try { git("merge-base", "--is-ancestor", commit, later); }
+    catch { return false; }
+    const app = appAt(commit);
+    return !git("diff", "--name-only", commit, later).split("\n").filter(Boolean).some(app);
+  };
+}
+
+/** `storytree release candidate`: the stable candidate read from GitHub and the library; it changes nothing. */
+export async function findStableCandidate(options: { library: Pick<Library, "list" | "prCutover" | "healthHistory">; cwd: string }): Promise<StableCandidate> {
+  const api = github(options.cwd);
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: options.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 16 * 1024 * 1024 }).trim();
+  const commits = new Map<string, Promise<string>>();
+  const commitOf = (version: string) => {
+    if (!commits.has(version)) commits.set(version, (api(`commits/v${version}`) as Promise<{ sha: string }>).then(c => c.sha));
+    return commits.get(version)!;
+  };
+  const sameApp = sameAppCode(git);
   return stableCandidate({
     async pinned() {
       try { return await readPin(api, STABLE_BRANCH); }
@@ -255,17 +273,7 @@ export async function findStableCandidate(options: { library: Pick<Library, "lis
       return { contracts, verdicts: histories.flat() };
     },
     commit: build => commitOf(build.version),
-    async sameApp(commit, later) {
-      if (commit === later) return true;
-      if (!fetched) {
-        git("fetch", ...(git("rev-parse", "--is-shallow-repository") === "true" ? ["--unshallow"] : []), "origin", "+refs/heads/main:refs/remotes/origin/main");
-        fetched = true;
-      }
-      try { git("merge-base", "--is-ancestor", commit, later); }
-      catch { return false; }
-      const app = appAt(commit);
-      return !git("diff", "--name-only", commit, later).split("\n").filter(Boolean).some(app);
-    },
+    sameApp,
     notes: async version => (await pinRelease(version, { ...options, preview: true })).releaseNotes,
     now: () => new Date().toISOString(),
   });

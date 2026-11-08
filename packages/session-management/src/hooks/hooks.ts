@@ -580,6 +580,9 @@ async function lookAround(watcher: MergeContext, watch: MergeWatch | undefined):
   // Worktrees whose sessions have left and whose work is in main are removed (ADR-0790).
   const { reapWorktrees } = await import("../sessions/worktree-reaper.js");
   await reapWorktrees(watcher, watch?.everyMs === undefined ? {} : { everyMs: watch.everyMs }).catch(() => []);
+  // Shell-edits baselines no session has written for a week are let go, so they stop filling the disk.
+  const { pruneBaselinesWhenDue } = await import("./shell-edits.js");
+  pruneBaselinesWhenDue(storytreeHome());
   // Which sessions the Claude desktop app and Codex keep on this machine, and whether each is archived there.
   const { recordAppStates } = await import("../sessions/app-records.js");
   await recordAppStates(watcher, watch?.everyMs === undefined ? {} : { everyMs: watch.everyMs }).catch(() => []);

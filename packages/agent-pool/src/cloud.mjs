@@ -38,6 +38,11 @@ export function whyNotCloud(one) {
   return undefined;
 }
 
+/** Why a switched-on overflow fires nothing because a cloud lane cannot review, else undefined (ADR-0956 D1: no lane lands unreviewed). */
+export const whyRefused = (config) => (config.enabled === true && config.reviews !== true
+  ? "a cloud lane cannot run the change-reviewer (the cloud switch's reviews is not true: the cloud environment does not load the plugin that provides storytree quality)"
+  : undefined);
+
 /** Fire the cloud task once for `text` (the increment's id): its session and its link, or an error carrying the status and Retry-After seconds. */
 export async function fireCloud({ trigger, token, text, fetch = globalThis.fetch }) {
   const response = await fetch(fireUrl(trigger), {
@@ -91,7 +96,7 @@ export async function cloudSecrets(file, read = (path) => readFile(path, "utf8")
 }
 
 /**
- * The dispatcher's overflow: `config` is the switch ({ enabled, cap, trigger }), `secrets` reads the token, `file` keeps the
+ * The dispatcher's overflow: `config` is the switch ({ enabled, cap, trigger, reviews }), which fires only with `reviews` true, `secrets` reads the token, `file` keeps the
  * fired lanes. `live(found)` judges them against a survey and names the live ones' increments, which the box never starts
  * meanwhile; `wants()` says whether a fire could happen now (switched on, under the cap, past any back-off), so a saturated
  * box surveys for it only then; `overflow(found, …)` fires for the pool's eligible picks up to the cap, each fire at most once
@@ -123,9 +128,11 @@ export function cloudOverflow({ config, secrets, file, fire = fireCloud, now = D
   return {
     live,
     watching: async () => (await load()).lanes.filter((lane) => lane.state !== "landed" && lane.state !== "failed").map((lane) => lane.increment),
-    wants: async () => config.enabled === true && now() >= until && (await load(), liveOnes().length < config.cap),
+    wants: async () => config.enabled === true && !whyRefused(config) && now() >= until && (await load(), liveOnes().length < config.cap),
     overflow: async (found, { attempts, running = [] } = {}) => {
       if (!config.enabled) return;
+      const refused = whyRefused(config);
+      if (refused) { once(`cloud overflow is switched on, but ${refused}: firing nothing`); return; }
       const flying = await live(found);
       const room = config.cap - flying.length;
       if (room <= 0 || now() < until) return;

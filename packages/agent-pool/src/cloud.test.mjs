@@ -21,7 +21,7 @@ function work(ids, extra = {}) {
 }
 
 /** A cloud overflow over an in-memory ledger: every fire is recorded, and answered by `answer` (a session, or a thrown error). */
-function overflowOf({ config = { enabled: true, cap: 2, trigger: "trig_01abc" }, token = "sk-ant-oat01-x", answer, clock = () => T0, lines = [], ledger = {}, body } = {}) {
+function overflowOf({ config = { enabled: true, cap: 2, trigger: "trig_01abc", reviews: true }, token = "sk-ant-oat01-x", answer, clock = () => T0, lines = [], ledger = {}, body } = {}) {
   const fires = [];
   const cloud = cloudOverflow({
     config, secrets: async () => ({ token }), file: "/lanes/pool-cloud.json", now: clock, say: (line) => lines.push(line), ...(body ? { body } : {}),
@@ -104,7 +104,7 @@ test("3.46 · with a survey that carries no body, each pick's body is read by id
   const found = work(["box", "unread", "fine", "other"]);
   for (const one of found.increments) delete one.body;
   const read = [];
-  const { cloud, fires, lines, ledger } = overflowOf({ config: { enabled: true, cap: 2, trigger: "trig_01abc" }, body: async (one) => {
+  const { cloud, fires, lines, ledger } = overflowOf({ config: { enabled: true, cap: 2, trigger: "trig_01abc", reviews: true }, body: async (one) => {
     read.push(one.id);
     if (one.id === "unread") throw new Error("connection reset");
     return bodies[one.id];
@@ -125,7 +125,7 @@ test("3.41 · an ineligible increment is never fired: a machine named, read-only
     looks: "needs: read-only. Count the tests.", fine: "Make the CLI's arc list sort by priority.",
   };
   const found = work(["laptop", "gpu", "box", "roles", "looks", "fine"], { bodies, machine: { laptop: "laptop" } });
-  const { cloud, fires } = overflowOf({ config: { enabled: true, cap: 6, trigger: "trig_01abc" } });
+  const { cloud, fires } = overflowOf({ config: { enabled: true, cap: 6, trigger: "trig_01abc", reviews: true } });
   await poolRun({ found, cloud });
   assert.deepEqual(fires.map((fire) => fire.text), ["fine"], "only the plain build went to the cloud");
 
@@ -225,7 +225,7 @@ test("3.44 · the trial's lanes are counted fired, landed, failed, live and with
   t.after(() => removeTemp(lanesDir));
   await writeFile(join(lanesDir, "pool-cloud.json"), ledger.text);
   const out = [];
-  assert.equal(await main(["cloud"], { lanesDir, cloudConfig: { enabled: true, cap: 2 }, out: (line) => out.push(line) }), 0);
+  assert.equal(await main(["cloud"], { lanesDir, cloudConfig: { enabled: true, cap: 2, reviews: true }, out: (line) => out.push(line) }), 0);
   assert.equal(out[0], "cloud overflow on, cap 2");
   assert.equal(out[1], "cloud lanes: 5 fired, 1 landed, 2 failed, 1 live, 1 with the watcher; 1 fire error");
   assert.ok(out.some((line) => /^ {2}a {2}landed/.test(line)));
@@ -235,4 +235,24 @@ test("3.44 · the trial's lanes are counted fired, landed, failed, live and with
   await writeFile(join(lanesDir, "secrets.json"), JSON.stringify({ CLOUD_TRIGGER_TOKEN: "sk-ant-oat01-y", CLOUD_TRIGGER_ID: "trig_02" }));
   assert.deepEqual(await cloudSecrets(join(lanesDir, "secrets.json")), { token: "sk-ant-oat01-y", trigger: "trig_02" });
   assert.deepEqual(await cloudSecrets(join(lanesDir, "missing.json")), {});
+});
+
+test("3.47 · switched on while a cloud lane cannot run the change-reviewer (the switch's reviews is not true), the overflow fires nothing, says why once in pool status, and `launch.mjs cloud` reads it as refused", async (t) => {
+  const blind = overflowOf({ config: { enabled: true, cap: 2, trigger: "trig_01abc" } });
+  await poolRun({ found: work(["a", "b"]), cloud: blind.cloud });
+  assert.deepEqual(blind.fires, [], "no review in the cloud: no fire");
+  assert.equal(await blind.cloud.wants(), false, "a saturated box does not survey for a fire that cannot happen");
+  await blind.cloud.overflow(work(["a"]));
+  await blind.cloud.overflow(work(["a"]));
+  assert.equal(blind.lines.filter((line) => /cannot run the change-reviewer/.test(line)).length, 1, `said once: ${blind.lines.join("\n")}`);
+
+  const reviewing = overflowOf();
+  await poolRun({ found: work(["a"]), cloud: reviewing.cloud });
+  assert.deepEqual(reviewing.fires.map((fire) => fire.text), ["a"], "reviews: true fires as before");
+
+  const lanesDir = await mkdtemp(join(tmpdir(), "cloud-refused-"));
+  t.after(() => removeTemp(lanesDir));
+  const out = [];
+  assert.equal(await main(["cloud"], { lanesDir, cloudConfig: { enabled: true, cap: 2 }, out: (line) => out.push(line) }), 0);
+  assert.match(out[0], /^cloud overflow on, cap 2, refused: a cloud lane cannot run the change-reviewer/);
 });

@@ -3,7 +3,7 @@
  * fold in place and another closes it, while a single click only focuses it; Enter or Space opens or closes it from the
  * keyboard, the arrow keys move between the handles shown, and Escape closes the fold the focus is in or, with none
  * focused, closes every fold and forgets the kept depth. The kinds of fold the user opened open again on every later
- * pick for the session; a contract's own fold and Open all · n are never kept. No hint explains any of it (ADR-1283 D2).
+ * pick for the session; a contract's own fold and Open all · n are never kept across picks (the app's panel holds a contract's own fold only while library news redraws the same story, ADR-0836 D1). No hint explains any of it (ADR-1283 D2).
  */
 
 /** The kinds of fold whose being open is kept across picks: the top-level handles, never a contract's own. */

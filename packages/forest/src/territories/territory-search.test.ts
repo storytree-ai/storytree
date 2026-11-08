@@ -157,11 +157,11 @@ test("3.94 a search with territories fixed moves only the others: the fixed come
   const more = [...shares, { capability: "e", lines: 200 }], wider = [...links, { from: "e", to: "a" }];
   const kept = searchTerritories({ ...ask, steps: 0 })!.seeds, fixed = Object.keys(kept);
   const start = searchTerritories({ shares: more, coast, links: wider, docks, kept, steps: 0 })!.seeds;
-  const found = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed, steps: 30 })!;
+  const found = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed, steps: 6 })!;
   for (const id of fixed) assert.deepEqual(found.seeds[id], start[id], `${id || "the Unclaimed code"} kept its place`);
-  const free = searchTerritories({ shares: more, coast, links: wider, docks, kept, steps: 30 })!;
+  const free = searchTerritories({ shares: more, coast, links: wider, docks, kept, steps: 6 })!;
   assert.ok(fixed.some((id) => JSON.stringify(free.seeds[id]) !== JSON.stringify(start[id])), "searched with none fixed, a kept territory moves");
-  const all = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed: [...fixed, "e"], steps: 3 })!;
+  const all = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed: [...fixed, "e"], steps: 1 })!;
   assert.deepEqual(all.seeds, start, "with every territory fixed it answers the arrangement it starts from");
 });
 

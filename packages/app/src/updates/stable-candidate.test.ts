@@ -4,13 +4,18 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { type CandidatePorts, type PublishedBuild, stableCandidate } from "./stable-candidate.js";
-import { releaseCommit, releasePlatforms, releaseRunPassed } from "./stable-github.js";
+import { type CandidatePorts, type LagVerdict, type PublishedBuild, stableCandidate } from "./stable-candidate.js";
+import { appCode, lagVerdicts, releaseCommit, releasePlatforms, releaseRunPassed } from "./stable-github.js";
 import type { StableManifest } from "./stable-pin.js";
 
 const NOW = "2026-10-16T12:00:00.000Z";
 const hoursAgo = (h: number) => new Date(Date.parse(NOW) - h * 3600_000).toISOString();
 const pin = { version: "0.3.10", pin: { covers: ["windows", "mac", "linux"] } } as unknown as StableManifest;
+
+const lagWithin = (commit: string, run = 7): LagVerdict[] => [
+  { contract: "contract_island", state: "passing", commit, note: `open-most-island within the margin of its baseline c10; close-panel within the margin of its baseline c10, evidence pnpm lag:box, run ${run}, at commit ${commit}` },
+  { contract: "contract_start", state: "passing", commit, note: `open-app-kept within the margin of its baseline c10, evidence pnpm lag:box, run ${run}, at commit ${commit}` },
+];
 
 function fixture() {
   const state = {
@@ -24,6 +29,10 @@ function fixture() {
     failed: new Set(["0.3.13"]),
     concerns: [] as { id: string; title: string; text: string }[],
     checked: [] as string[],
+    // The box's lag run measured every build's own commit and found each catalogue action within its baseline.
+    lag: [11, 12, 13, 14, 15].flatMap(n => lagWithin(`c${n}`)),
+    /** Pairs `<commit>><later>` whose app code is the same. */
+    sameApp: new Set<string>(),
   };
   const ports: CandidatePorts = {
     pinned: async () => pin,
@@ -35,6 +44,9 @@ function fixture() {
         : { passed: true, evidence: `release run 3${build.version.slice(4)} passed, mac-acceptance included` };
     },
     concerns: async () => state.concerns,
+    lag: async () => ({ contracts: ["contract_island", "contract_start"], verdicts: state.lag }),
+    commit: async build => `c${build.version.slice(4)}`,
+    sameApp: async (commit, later) => commit === later || state.sameApp.has(`${commit}>${later}`),
     notes: async version => `# storytree ${version}\n- Stable updates (#532)`,
     now: () => NOW,
   };
@@ -118,4 +130,61 @@ test("4.23 a build's tag is checked against its version from a shallow clone too
   const clone = gitIn(join(root, "clone"));
   assert.equal(releaseCommit(clone, "0.3.13"), og("rev-parse", "HEAD"));
   assert.throws(() => releaseCommit(clone, "0.3.14"), /Release tag and merged build version do not match/);
+});
+
+test("4.23 a build the lag run found an action slower in is passed over, naming that action", async () => {
+  const { state, ports } = fixture();
+  state.lag.push({ contract: "contract_island", state: "failing", commit: "c12",
+    note: "open-most-island slower since c12 against its baseline c10, evidence pnpm lag:box, run 8, at commit c12" });
+  const found = await stableCandidate(ports);
+  assert.equal(found.candidate?.version, "0.3.11");
+  assert.match(found.passedOver.find(b => b.version === "0.3.12")!.reasons.join(" "), /lag run.*open-most-island slower since c12.*run 8/);
+});
+
+test("4.23 a build the lag run has not measured, nor any later build with the same app code, is passed over until it has", async () => {
+  const { state, ports } = fixture();
+  state.lag = state.lag.filter(v => v.commit !== "c12");
+  const found = await stableCandidate(ports);
+  assert.equal(found.candidate?.version, "0.3.11");
+  assert.match(found.passedOver.find(b => b.version === "0.3.12")!.reasons.join(" "), /lag run has not measured it/);
+  // One action's contract measured is not enough: every catalogue action must have been measured.
+  state.lag.push(lagWithin("c12")[0]!);
+  const partly = await stableCandidate(ports);
+  assert.equal(partly.candidate?.version, "0.3.11");
+  assert.match(partly.passedOver.find(b => b.version === "0.3.12")!.reasons.join(" "), /not measured it.*for the actions of contract_start$/);
+  // A later build measured counts for it only when its app code is the same.
+  state.lag = state.lag.filter(v => v.commit !== "c12");
+  state.sameApp.add("c12>c13");
+  const later = await stableCandidate(ports);
+  assert.equal(later.candidate?.version, "0.3.12");
+  assert.match(later.candidate!.evidence.join("\n"), /at commit c13/);
+});
+
+test("4.23 the candidate is a build whose lag run found nothing slower, printing the run, its commit and each action's verdict", async () => {
+  const { ports } = fixture();
+  const found = await stableCandidate(ports);
+  assert.equal(found.candidate?.version, "0.3.12");
+  const evidence = found.candidate!.evidence.join("\n");
+  assert.match(evidence, /open-most-island within the margin.*close-panel within the margin.*run 7, at commit c12/);
+  assert.match(evidence, /open-app-kept within the margin.*run 7, at commit c12/);
+});
+
+test("4.23 a later build has the same app code when it changed nothing the desktop app reaches, and the lag run's verdicts are read with the commit each measured", () => {
+  const app = appCode([
+    { folder: "apps/desktop", json: { name: "@storytree/desktop", devDependencies: { "@storytree/forest": "workspace:*" } } },
+    { folder: "packages/forest", json: { name: "@storytree/forest", dependencies: { "@storytree/library": "workspace:*" }, devDependencies: { "@storytree/cli": "workspace:*" } } },
+    { folder: "packages/library", json: { name: "@storytree/library" } },
+    { folder: "packages/cli", json: { name: "@storytree/cli", dependencies: { "@storytree/forest": "workspace:*" } } },
+  ]);
+  assert.equal(app("packages/library/src/api/library.ts"), true);
+  assert.equal(app("apps/desktop/src/main.ts"), true);
+  assert.equal(app("pnpm-lock.yaml"), true);
+  assert.equal(app("packages/cli/src/main.ts"), false);
+  assert.equal(app("packages/forest-world/src/globe.ts"), false);
+  const sha = "3fc702fdeb51528568d627e98cd84be20d407696";
+  assert.deepEqual(lagVerdicts("contract_island", [
+    { column: "verified", state: "passing", note: `open-most-island within the margin of its baseline 3fc702fd, evidence pnpm lag:box, run 251, at commit ${sha}` },
+    { column: "verified", state: "not-checked", note: "NOT RUN: the box is busy" },
+    { column: "reported", state: "failing", note: `at commit ${sha}` },
+  ]), [{ contract: "contract_island", state: "passing", commit: sha, note: `open-most-island within the margin of its baseline 3fc702fd, evidence pnpm lag:box, run 251, at commit ${sha}` }]);
 });

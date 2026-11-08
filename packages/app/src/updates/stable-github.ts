@@ -1,9 +1,10 @@
 /** Capability 4 · Updates. Contract 4.16: GitHub holds the channel's metadata history; each installer stays on its original release. */
 import { execFileSync } from "node:child_process";
+import { CATALOGUE } from "@storytree/forest/actions";
 import type { Library } from "@storytree/library";
 import { STABLE_BRANCH } from "./release-channel.js";
 import { type Git, versionAt } from "./release-source.js";
-import { stableCandidate, type PublishedBuild, type StableCandidate } from "./stable-candidate.js";
+import { stableCandidate, type LagVerdict, type PublishedBuild, type StableCandidate } from "./stable-candidate.js";
 import {
   FEED_PLATFORMS, mergedPullRequests, moveStableBack, pinCoverage, pinStable, readStableManifest, stableAge, windowsInstallers,
   type Bootstraps, type FeedPlatform, type PinPorts, type PlatformFeed, type PlatformFeeds, type StableManifest,
@@ -152,9 +153,61 @@ export function releaseCommit(git: Git, wanted: string): string {
   return commit;
 }
 
+/** A workspace package's folder and its package.json. */
+export interface Manifest { folder: string; json: { name?: string; dependencies?: Record<string, string>; optionalDependencies?: Record<string, string>; devDependencies?: Record<string, string> } }
+
+/**
+ * Whether a changed path is the desktop app's code: in apps/desktop, in a workspace package it reaches (its own dependencies, dev ones
+ * included because its build bundles them, then theirs), or the lockfile and root manifests that choose what is installed. Tests,
+ * notes and the dev loop's own packages are not the app's code; a later build that changed only those measures the same app.
+ */
+export function appCode(manifests: readonly Manifest[]): (path: string) => boolean {
+  const byName = new Map(manifests.map(m => [m.json.name, m]));
+  const reached = new Set<Manifest>();
+  const visit = (m: Manifest, dev: boolean) => {
+    if (reached.has(m)) return;
+    reached.add(m);
+    for (const name of Object.keys({ ...m.json.dependencies, ...m.json.optionalDependencies, ...(dev ? m.json.devDependencies : {}) })) {
+      const dependency = byName.get(name);
+      if (dependency) visit(dependency, false);
+    }
+  };
+  const desktop = manifests.find(m => m.folder === "apps/desktop");
+  if (desktop) visit(desktop, true);
+  const roots = new Set(["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"]);
+  return path => roots.has(path) || [...reached].some(m => path.startsWith(`${m.folder}/`));
+}
+
+/** The lag run's verdicts on the catalogue's budget contracts (ADR-1001 D5), from their verified history: each names the commit it measured. */
+export function lagVerdicts(contract: string, history: readonly { column: string; state: LagVerdict["state"]; note?: string }[]): LagVerdict[] {
+  return history.flatMap(({ column, state, note }) => {
+    const commit = column === "verified" ? /\bat commit ([0-9a-f]{40})\b/.exec(note ?? "")?.[1] : undefined;
+    return commit ? [{ contract, state, note: note!, commit }] : [];
+  });
+}
+
 /** `storytree release candidate`: the stable candidate read from GitHub and the library; it changes nothing. */
-export async function findStableCandidate(options: { library: Pick<Library, "list" | "prCutover">; cwd: string }): Promise<StableCandidate> {
+export async function findStableCandidate(options: { library: Pick<Library, "list" | "prCutover" | "healthHistory">; cwd: string }): Promise<StableCandidate> {
   const api = github(options.cwd);
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: options.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 16 * 1024 * 1024 }).trim();
+  const commits = new Map<string, Promise<string>>();
+  const commitOf = (version: string) => {
+    if (!commits.has(version)) commits.set(version, (api(`commits/v${version}`) as Promise<{ sha: string }>).then(c => c.sha));
+    return commits.get(version)!;
+  };
+  // The lag run measures main's commits: main's history is fetched whole once, a shallow clone's included, before it is compared.
+  let fetched = false;
+  const apps = new Map<string, (path: string) => boolean>();
+  const appAt = (commit: string) => {
+    if (!apps.has(commit)) {
+      const folders = git("ls-tree", "-d", "--name-only", commit, "packages/", "apps/").split("\n").filter(Boolean);
+      apps.set(commit, appCode(folders.flatMap(folder => {
+        try { return [{ folder, json: JSON.parse(git("show", `${commit}:${folder}/package.json`)) as Manifest["json"] }]; }
+        catch { return []; }
+      })));
+    }
+    return apps.get(commit)!;
+  };
   return stableCandidate({
     async pinned() {
       try { return await readPin(api, STABLE_BRANCH); }
@@ -178,7 +231,7 @@ export async function findStableCandidate(options: { library: Pick<Library, "lis
       }
     },
     async runs(build) {
-      const { sha } = await api(`commits/v${build.version}`) as { sha: string };
+      const sha = await commitOf(build.version);
       const { workflow_runs } = await api(`actions/workflows/release.yml/runs?head_sha=${sha}&per_page=20`) as { workflow_runs: { id: number; head_sha: string }[] };
       const runs = [];
       for (const run of workflow_runs.filter(r => r.head_sha === sha)) {
@@ -195,6 +248,23 @@ export async function findStableCandidate(options: { library: Pick<Library, "lis
         ...questions.filter(q => q.fields["lifecycle"] === "open")
           .map(q => ({ id: q.id, title: String(q.fields["title"]), text: text(q.fields, ["statement", "stakes", "context"]) })),
       ];
+    },
+    async lag() {
+      const contracts = [...new Set(CATALOGUE.map(action => action.owner.contract))];
+      const histories = await Promise.all(contracts.map(async contract => lagVerdicts(contract, await options.library.healthHistory(contract))));
+      return { contracts, verdicts: histories.flat() };
+    },
+    commit: build => commitOf(build.version),
+    async sameApp(commit, later) {
+      if (commit === later) return true;
+      if (!fetched) {
+        git("fetch", ...(git("rev-parse", "--is-shallow-repository") === "true" ? ["--unshallow"] : []), "origin", "+refs/heads/main:refs/remotes/origin/main");
+        fetched = true;
+      }
+      try { git("merge-base", "--is-ancestor", commit, later); }
+      catch { return false; }
+      const app = appAt(commit);
+      return !git("diff", "--name-only", commit, later).split("\n").filter(Boolean).some(app);
     },
     notes: async version => (await pinRelease(version, { ...options, preview: true })).releaseNotes,
     now: () => new Date().toISOString(),

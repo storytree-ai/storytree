@@ -170,6 +170,54 @@ test("4.18 a merged worktree is compared with origin/main when the clone has no 
   }
 });
 
+test("4.18 a merged, clean worktree whose sessions have all ended is removed though none closed out verified; one a live process still works in stays", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  let occupant: ReturnType<typeof spawn> | undefined;
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      git(repo, "commit", "-q", "--allow-empty", "-m", "first");
+      const trees = path.join(repo, ".claude", "worktrees");
+      const [handed, exited, occupied] = ["handed", "exited", "occupied"].map((name) => {
+        git(repo, "worktree", "add", "-q", "-b", `claude/${name}`, path.join(trees, name), "main");
+        return path.join(trees, name);
+      }) as [string, string, string];
+      const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
+      const worked = async (session: string, folder: string) => {
+        const branch = `claude/${path.basename(folder)}`;
+        await log.append(project, { ...here, session, folder, branch, kind: "file-edited", files: ["x.ts"] });
+        await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: branch, open: false, how: "not-ahead" });
+      };
+      // A pool lane hands its pull request over, closes out before the merge (so never verified), and its process exits.
+      await worked("lane", handed);
+      await log.append(project, { ...here, session: "lane", folder: repo, kind: "closed-out", safe: false, why: "handed to the watcher" });
+      await log.append(project, { ...here, session: "lane", folder: repo, kind: "turn-ended", exits: true, background: 0 });
+      // A fix session ends without closing out at all.
+      await worked("fixer", exited);
+      await log.append(project, { ...here, session: "fixer", folder: exited, kind: "session-ended", reason: "exit" });
+      // Its session ended, but a process still works in the folder.
+      await worked("left-behind", occupied);
+      await log.append(project, { ...here, session: "left-behind", folder: occupied, kind: "session-ended", reason: "exit" });
+      occupant = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60_000)"], { cwd: occupied, stdio: "ignore" });
+
+      const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
+      const reaped = await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, watch);
+      assert.deepEqual([...reaped].sort(), [exited, handed].sort());
+      assert.equal(existsSync(handed), false);
+      assert.equal(existsSync(exited), false);
+      assert.equal(existsSync(occupied), true, "a live process works in it");
+      const branches = git(repo, "branch", "--format=%(refname:short)").split("\n");
+      assert.equal(branches.includes("claude/handed"), false, "its merged branch is deleted");
+      assert.equal(branches.includes("claude/occupied"), true);
+    });
+  } finally {
+    occupant?.kill();
+    await log.close();
+  }
+});
+
 test("4.37 a worktree reaped while a test Postgres still runs on its .pgtest/data has that server stopped and the folder removed", async () => {
   const log = await openActivityLog(testServerUrl());
   const project = uniqueProjectName();

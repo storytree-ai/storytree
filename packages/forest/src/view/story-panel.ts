@@ -1,7 +1,7 @@
 /**
  * Capability 4 · Drill-down. The drill-down's panel (the forest story, capability 4): @storytree/forest's drillDown, as HTML.
- * It leads with the story's lead, and below it shows the one capability picked on the island, with its health as the agent
- * reports it (ADR-0659). Everything else waits in a fold behind a handle saying what is inside and how much, which a
+ * It leads with the story's lead, and below it shows the one capability picked on the island, its word saying where it came
+ * from and a why line only when that needs the user (ADR-1284 D2, D3). Everything else waits in a fold behind a handle saying what is inside and how much, which a
  * double-click opens (ADR-1284 D1; ./panel-folds.ts works them). The island draws the capability tree, so the panel draws
  * none (ADR-1285). Every word from the library is written as text, never as HTML.
  */
@@ -24,6 +24,7 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
   const body = `
     <p class="panel-sentences">${text(lead)}</p>
     ${panel.mapped === undefined ? "" : mapped(panel.mapped)}
+    ${needsYou(panel.capabilities)}
     ${more(rest)}
     ${panel.checks === undefined || panel.checks.length === 0 ? "" : extraChecks(panel.checks)}
     ${shown === undefined ? "" : capability(shown)}
@@ -126,19 +127,39 @@ function capability(line: CapabilityLine): string {
   const [lead, rest] = paragraphs(line.description);
   return `
     <section class="panel-detail" data-capability-id="${attribute(line.id)}">
-      <h3>${text(line.title)} <span class="panel-state status-${line.status}">${line.reportOnly ? `the agent reports ${HEALTH[line.reported]}` : line.status}</span></h3>
-      ${line.why === undefined ? "" : why(line.why)}
+      <h3>${text(line.title)} <span class="panel-state status-${line.status}">${line.reportOnly ? `the agent reports ${HEALTH[line.reported]}` : word(line)}</span></h3>
+      ${line.why === undefined || !mattersWhy(line.status, line.why) ? "" : why(line.why)}
       ${line.reportOnly ? `<p class="panel-why report-only">${text(NOT_VERIFIED)}.</p>` : ""}
       ${line.parkedOn === undefined ? "" : parked(line.parkedOn)}
       <p class="panel-lead">${text(lead)}</p>
-      <p class="panel-health">
-        ${badge("the agent reports", line.reported)}
-        ${line.verified === undefined ? "" : badge("storytree saw", line.verified, line.sources)}
-      </p>
       ${more(rest)}
+      ${health(line)}
       ${line.openWork === undefined || line.openWork.length === 0 ? "" : openWork(line.openWork)}
       ${contracts(line)}
     </section>`;
+}
+
+/** Its word with where it came from (ADR-1284 D3): "healthy, from CI"; with no source recorded, or proposed, the word alone. */
+function word({ status, sources }: CapabilityLine): string {
+  return status === "proposed" || sources === undefined || sources.length === 0 ? status : `${status}, ${FROM[sourceKey(sources)]}`;
+}
+
+/** The why line matters only when it is unhealthy or untested, or the owner moves it: "not built yet" on a proposed one is no news. */
+function mattersWhy(status: CapabilityLine["status"], { mover }: WhyLine): boolean {
+  return status === "unhealthy" || status === "untested" || mover === "owner";
+}
+
+/** The agent's report and storytree's, side by side behind Health, each with its source (ADR-1284 D3). */
+function health(line: CapabilityLine): string {
+  const readings = [badge("the agent reports", line.reported), ...(line.verified === undefined ? [] : [badge("storytree saw", line.verified, line.sources)])];
+  return fold("health", `Health · ${readings.length}`, `<p class="panel-health">${readings.join(" ")}</p>`);
+}
+
+/** On the story's surface, only when the owner moves one of its capabilities: how many need him (ADR-1284 D2). */
+function needsYou(capabilities: readonly CapabilityLine[]): string {
+  const count = capabilities.filter(({ why: reason }) => reason?.mover === "owner").length;
+  if (count === 0) return "";
+  return `<p class="panel-needs-you">${count} ${count === 1 ? "capability needs" : "capabilities need"} you</p>`;
 }
 
 /** What a report-only capability says in place of a reason (ADR-0630); the library's words, kept here as the panel's. */

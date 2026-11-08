@@ -503,6 +503,12 @@
   font-weight: 600;
 }
 
+/* A story's one line saying how many of its capabilities the owner moves (ADR-1284 D2), weighted as "You move this one" is. */
+.panel-needs-you {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .panel-last-seen {
   flex-basis: 100%;
   color: var(--muted);

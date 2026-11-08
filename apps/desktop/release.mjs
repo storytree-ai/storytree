@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { releaseSource, versionAt } from "../../packages/app/src/updates/release-source.ts";
-import { carriedFeed, feedVersion, PLATFORM_FEED, PLATFORM_NAME, platformsNote, releaseDelivery } from "../../packages/app/src/updates/release-carry.ts";
+import { carriedFeed, carrySource, feedVersion, PLATFORM_FEED, PLATFORM_NAME, platformsNote, releaseDelivery } from "../../packages/app/src/updates/release-carry.ts";
 import { INSTALL_COMMAND, MAC_INSTALL_COMMAND, macBootstraps, windowsBootstraps } from "./delivery-assets.mjs";
 import { freshPlatforms, hostPlatform, PLATFORMS, platformUploads } from "./release-assets.mjs";
 import { macReleaseNote, withMacNote } from "./mac-signing.mjs";
@@ -127,7 +127,7 @@ function publication(tag, version, names, dir) {
   const carried = {};
   let earlier;
   if (absent.length > 0) {
-    const from = JSON.parse(gh("api", `repos/${repository}/releases?per_page=20`)).find((r) => !r.draft && !r.prerelease && r.tag_name !== tag);
+    const from = carrySource(JSON.parse(gh("api", `repos/${repository}/releases?per_page=100`)), tag);
     if (!from) throw new Error(`No earlier release carries ${absent.map((p) => PLATFORM_NAME[p]).join(" or ")} for ${tag}`);
     const earlierDir = mkdtempSync(path.join(tmpdir(), "storytree-earlier-"));
     gh("release", "download", from.tag_name, "--repo", repository, "--dir", earlierDir, "--pattern", "storytree-delivery.json", ...absent.flatMap((platform) => ["--pattern", PLATFORM_FEED[platform]]));

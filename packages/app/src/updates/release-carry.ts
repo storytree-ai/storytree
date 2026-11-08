@@ -47,6 +47,18 @@ export function carriedFeed(text: string): string {
   return text.replace(/^(\s*(?:- )?(?:url|path): )'?([^'\s/]+)'?(\r?)$/gm, `$1../v${version}/$2$3`);
 }
 
+interface ListedRelease { tag_name: string; draft: boolean; prerelease: boolean }
+
+/**
+ * The release an absent platform's build is carried from: the published, non-prerelease release of highest version
+ * other than `tag`. GitHub's releases list is not in published order (drafts come first, and an older release can sit
+ * ahead of newer ones), so its first match can be days stale.
+ */
+export function carrySource<R extends ListedRelease>(releases: readonly R[], tag: string): R | undefined {
+  const candidates = releases.filter((r) => !r.draft && !r.prerelease && r.tag_name !== tag && /^v\d+\.\d+\.\d+$/.test(r.tag_name));
+  return candidates.sort((a, b) => b.tag_name.localeCompare(a.tag_name, "en", { numeric: true }))[0];
+}
+
 const own = (entry: Entry, version: string): Entry => ({ ...entry, version: entry.version ?? version });
 
 /** The part of an earlier release's manifest a platform's one-liner reads, each entry naming the build it really is. */

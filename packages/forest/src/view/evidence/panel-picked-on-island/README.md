@@ -52,3 +52,5 @@ In the evidence bucket for #610, linked from the pull request body (ADR-1234; de
 In the evidence bucket for #612, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `612/gate-picked-on-island-panel.png`, `612/gate-contracts-opened-panel.png`.
 
 In the evidence bucket for #625, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `625/gate-contract-opened-panel.png`, `625/capability-folds-opened-panel.png`, `625/gate-contracts-opened-panel.png`, `625/gate-picked-on-island-panel.png`.
+
+In the evidence bucket for #631, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `631/capability-folds-opened-panel.png`, `631/gate-contracts-opened-panel.png`, `631/gate-contract-opened-panel.png`.

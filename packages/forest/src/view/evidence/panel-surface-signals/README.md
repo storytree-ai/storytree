@@ -21,3 +21,5 @@ healthy pick shows no why line and keeps its readings behind Health, that a not-
 click opens Health, and writes what it found into `measurements.json`.
 
 In the evidence bucket for #630, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `630/healthy-capability-panel.png`, `630/not-green-capability-panel.png`, `630/health-opened-panel.png`, `630/healthy-capability.png`, `630/not-green-capability.png`, `630/health-opened.png`.
+
+In the evidence bucket for #631, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `631/health-opened-panel.png`.

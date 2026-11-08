@@ -92,3 +92,5 @@ tunnel.
 Taken with `node --import tsx packages/forest/testing/view/tunnel-last-resort/capture.mjs --seed <folder> --kept
 <arrangements.json> --prefix before|after --islands <story,…> --retake`, the arrangements from searching each island's
 dumped ask with main's `searchTerritories` and this branch's.
+
+In the evidence bucket for #608, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `608/after-mick-s-dev-loop.png`, `608/after-storytree-s-own-repository-checks.png`, `608/after-the-command-line.png`, `608/after-the-library.png`, `608/before-mick-s-dev-loop.png`, `608/before-storytree-s-own-repository-checks.png`, `608/before-the-command-line.png`, `608/before-the-library.png`.

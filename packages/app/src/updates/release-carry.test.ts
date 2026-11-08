@@ -102,4 +102,6 @@ test("4.6 an absent platform is carried from the newest published release by ver
   // Publishing again a release that is already out never carries from itself.
   assert.equal(carrySource(listed, "v0.3.2610")?.tag_name, "v0.3.2606");
   assert.equal(carrySource([release("v0.3.2611", { draft: true })], "v0.3.2611"), undefined);
+  // Versions compare as numbers: 0.3.1000 is newer than 0.3.999.
+  assert.equal(carrySource([release("v0.3.999"), release("v0.3.1000")], "v0.3.1001")?.tag_name, "v0.3.1000");
 });

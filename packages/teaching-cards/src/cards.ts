@@ -72,8 +72,8 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
   },
   arc: {
     title: "The plan comes first.",
-    line: "Your agent has set up a plan of work: an end state and the pieces of work that reach it.",
-    what: "A plan, called an arc, says what done looks like and lists the pieces of work, called increments, that get there.",
+    line: "Your agent plans before it builds: a plan says what done looks like, and lists the pieces of work that get there.",
+    what: "A plan is called an arc, and its pieces of work are called increments. Your project may start with a standing plan for small fixes; your agent adds its own as you ask it for things.",
     why: "A plan that lives beside the work lets the next agent pick up the next piece without asking you.",
     how: "A session claims a piece of work before it starts, lands it through a pull request, and closes it. Pieces that wait on others show as waiting.",
     decisions: [adr(638, "The arc surface"), adr(760, "Waiting work shows as waiting"), adr(772, "Landed is a work outcome")],

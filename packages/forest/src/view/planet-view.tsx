@@ -162,8 +162,8 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   // 3.90: the wheel's floor is half the sheet's opening, whatever framing the last pose (a panel's resize or slide) sent.
   const floor = useCallback((size: { width: number; height: number }) => sheetOpening(layout.extent, size).framing, [layout.extent]);
-  const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>,
-    [library, outlines, core, layout.spots, layout.radius, codePlaces, underSheet, growth]);
+  const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>,
+    [library, outlines, core, codePlaces, underSheet, growth]);
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} floor={floor} sideOffset={cameraOffset} sheet={layout.extent} hollow={outlines}
     globe={globe} offset={turned.current.centre} inside={inside}

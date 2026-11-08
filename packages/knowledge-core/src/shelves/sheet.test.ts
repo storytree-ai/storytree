@@ -39,6 +39,23 @@ test("1.10 under the glass sheet a note one island's links reach hangs beneath i
   assert.deepEqual(hang(history).points, points, "the same library hangs the same way");
 });
 
+test("1.10 under the glass sheet each note is drawn once at its longest-chain depth, and ghosts (a superseded note), proposals and retired notes add no points", () => {
+  const history = islands()
+    .decision("deep")
+    .decision("middle", { links: ["deep"] })
+    .decision("cover", { frontCoverOf: "cap", links: ["middle", "deep"] })
+    .decision("other", { frontCoverOf: "west", links: ["deep"] })
+    .decision("old", { frontCoverOf: "cap" })
+    .decision("replacement", { frontCoverOf: "cap", supersedes: ["old"] })
+    .decision("proposal", { status: "proposed", frontCoverOf: "west" })
+    .decision("retired", { frontCoverOf: "west" }).retire("retired");
+  const { points } = hang(history);
+  assert.deepEqual(points.map(point => point.id).sort(), ["cover", "deep", "middle", "other", "replacement"]);
+  assert.equal(new Set(points.map(point => point.id)).size, points.length);
+  const depth = (id: string) => points.find(point => point.id === id)!.depth!;
+  assert.equal(depth("deep"), depth("middle") + 1, "the shared shortcut does not shorten depth");
+});
+
 test("1.12 a note whose links reach two islands settles between them, nearer the one it has more links to, and the many citers of one note keep room from each other", () => {
   let history = islands()
     .decision("w1", { frontCoverOf: "west" }).decision("w2", { frontCoverOf: "west" })
@@ -97,6 +114,21 @@ test("1.14 notes with no links, or linked only among themselves, lie on one floo
   const pair = lying.filter(p => p.id.startsWith("pair"));
   assert.ok(Math.hypot(pair[0]!.at.x - pair[1]!.at.x, pair[0]!.at.y - pair[1]!.at.y) < closest, "the linked pair lie closer together than any two strangers");
   assert.ok(closest > 10, `evenly spread (closest strangers ${closest.toFixed(1)})`);
+});
+
+test("1.14 an empty library lays nothing, and a project of notes and no stories lays each note on the floor, following its edits, retirements and additions", () => {
+  assert.deepEqual(hang(new History()).points, []);
+  const history = new History()
+    .create("builder", "agent", { title: "builder", workflow: "Build it." })
+    .create("small", "principle", { title: "Keep it small" })
+    .create("first", "principle", { title: "Test first" });
+  const before = hang(history);
+  assert.deepEqual(before.points.map(point => point.id).sort(), ["builder", "first", "small"]);
+  assert.ok(before.points.every(point => point.depth === undefined && point.at.z === before.floor.z), "all on the floor");
+  history.update("builder", { workflow: "Build it test-first." });
+  assert.deepEqual(hang(history).points, before.points, "an edited note keeps its place");
+  history.retire("small").create("proxy", "check", { title: "Proxy assertion" });
+  assert.deepEqual(hang(history).points.map(point => point.id).sort(), ["builder", "first", "proxy"]);
 });
 
 test("1.15 selecting a story lights every note pulled toward its island, including one between it and another island", () => {

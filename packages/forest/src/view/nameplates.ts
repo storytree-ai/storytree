@@ -30,15 +30,6 @@ export const NAME_OVERLAP_SLACK = 4;
 const overlaps = (box: Box, other: Box) => box.left + NAME_OVERLAP_SLACK < other.right && other.left + NAME_OVERLAP_SLACK < box.right
   && box.top + NAME_OVERLAP_SLACK < other.bottom && other.top + NAME_OVERLAP_SLACK < box.bottom;
 
-/** Taken in order, each name shows if it clears the names already shown; the rest fade. A faded name fades no other. */
-function fadeOverlaps<T extends { box: Box }>(ordered: readonly T[]): T[] {
-  const shown: Box[] = [], faded: T[] = [];
-  for (const name of ordered) {
-    if (shown.some(other => overlaps(name.box, other))) faded.push(name);
-    else shown.push(name.box);
-  }
-  return faded;
-}
 
 /**
  * Which story names fade where names overlap on screen (ADR-0917): no name moves off its island to clear another. The selected
@@ -48,12 +39,60 @@ function fadeOverlaps<T extends { box: Box }>(ordered: readonly T[]): T[] {
 export function fadedPlates(plates: readonly ShownPlate[], selected?: string): Set<string> {
   const order = [...plates].sort((a, b) => Number(b.story === selected) - Number(a.story === selected)
     || Number(a.dimmed ?? false) - Number(b.dimmed ?? false) || b.facing - a.facing);
-  return new Set(fadeOverlaps(order).map(plate => plate.story));
+  // Taken in order, each name shows if it clears the names already shown; the rest fade. A faded name fades no other.
+  const shown: Box[] = [], faded = new Set<string>();
+  for (const plate of order) {
+    if (shown.some(other => overlaps(plate.box, other))) faded.add(plate.story);
+    else shown.push(plate.box);
+  }
+  return faded;
 }
 
-/** Which of the islands' capability names fade where they overlap on screen: the larger territory's name shows (ADR-0917). */
-export function fadedCapabilities(names: readonly { capability: string; box: Box; size: number }[]): Set<string> {
-  return new Set(fadeOverlaps([...names].sort((a, b) => b.size - a.size)).map(name => name.capability));
+/** How far a name is moved from its point, in pixels. */
+export interface Move { x: number; y: number }
+
+const moved = (box: Box, { x, y }: Move): Box => ({ left: box.left + x, right: box.right + x, top: box.top + y, bottom: box.bottom + y });
+
+/**
+ * Where the islands' capability names go where they overlap on screen: never hidden, each is moved apart. Taken from the larger
+ * territory's (more cells) down, each name stays on its point if it clears the names already placed; otherwise it takes the
+ * shortest move, by the side of a name in its way or a step past the next one in its way, that clears them all, and failing
+ * those it steps down past the names in its way until none is. Only names in each other's way move, so a name clear of the
+ * others stays on its own territory.
+ */
+export function spreadCapabilities(names: readonly { capability: string; box: Box; size: number }[]): Map<string, Move> {
+  const placed: Box[] = [], moves = new Map<string, Move>();
+  const clear = (box: Box) => !placed.some(other => overlaps(box, other));
+  const inWay = (at: Box) => placed.filter(other => overlaps(at, other));
+  // The moves that put `box` just past one side of `other`: within the slack, by a pixel less, so the screen's fractions of a
+  // pixel never tip it back over.
+  const reach = NAME_OVERLAP_SLACK - 1;
+  const beside = (box: Box, other: Box): Move[] => [
+    { x: 0, y: other.top + reach - box.bottom }, { x: 0, y: other.bottom - reach - box.top },
+    { x: other.left + reach - box.right, y: 0 }, { x: other.right - reach - box.left, y: 0 },
+  ];
+  // Down past the names in its way, and again past any that is then in its way, until none is.
+  const below = (box: Box): Move => {
+    let y = 0;
+    for (let way = inWay(box); way.length > 0; way = inWay(moved(box, { x: 0, y }))) y = Math.max(...way.map(other => other.bottom)) - reach - box.top;
+    return { x: 0, y };
+  };
+  for (const { capability, box } of [...names].sort((a, b) => b.size - a.size)) {
+    let move: Move | undefined = clear(box) ? { x: 0, y: 0 } : undefined;
+    if (move === undefined) {
+      // Only the names in its way, then only those in the way of where a first move put it, offer a side.
+      const once = inWay(box).flatMap(other => beside(box, other));
+      const twice = once.flatMap(first => {
+        const at = moved(box, first);
+        return inWay(at).flatMap(other => beside(at, other).map(then => ({ x: first.x + then.x, y: first.y + then.y })));
+      });
+      move = [...once, ...twice].filter(m => clear(moved(box, m))).sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y))[0]
+        ?? below(box);
+    }
+    placed.push(moved(box, move));
+    moves.set(capability, move);
+  }
+  return moves;
 }
 
 /** The globe's south as it lies on a plate turned by `plate` on the unturned globe: the way to its south pole along the surface, in the plate's own ground (x, z). */

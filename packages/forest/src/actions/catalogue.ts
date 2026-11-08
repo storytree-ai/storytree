@@ -46,6 +46,8 @@ export type Settled = {
   still?: true;
   /** The start is settled: the fresh tree and the start's first code survey drawn (7.31). */
   start?: "settled";
+  /** A fold of this kind (its `data-fold`) is shown open in the story panel. */
+  fold?: string;
 };
 
 /** What the page shows, as the lag run reads it each frame. */
@@ -62,6 +64,8 @@ export type PageState = {
   progress: boolean;
   /** The page's start is settled (`document.body.dataset.start` is "settled"). */
   startSettled: boolean;
+  /** The kinds of the story panel's folds shown open (a `.panel-handle` with aria-expanded=true); read by the lab run only. */
+  folds?: readonly string[];
 };
 
 export interface LagAction {
@@ -88,6 +92,8 @@ export interface LagAction {
    * the field recorder knows one by the drag itself, never by what the page settles on.
    */
   turns?: "forest" | "library";
+  /** Under news (ADR-1001 D3's note), the settled state must still show once news has arrived after it settled, or the round reads lost. */
+  keptThroughNews?: true;
 }
 
 /** A capability and its budget contract, by their ids in the library. */
@@ -95,6 +101,8 @@ export type Owner = { capability: string; contract: string };
 
 /** 4 · Drill-down, 4.16: opening an island, closing its panel, and clicking a fold's handle on it. */
 const DRILL_DOWN: Owner = { capability: "capability_f0ffead428df", contract: "contract_f93fcab7b3c3" };
+/** 4 · Drill-down, 4.44: opening a fold in the panel, and a contract inside Contracts kept open through news. */
+const PANEL_FOLDS: Owner = { capability: "capability_f0ffead428df", contract: "contract_e2f4b79c7350" };
 /** 3 · Story node render, 3.47: the Library and back, and a sweep across the globe. */
 const STORY_NODE_RENDER: Owner = { capability: "capability_8ffc78a4bad2", contract: "contract_c1a39674d85d" };
 /** The knowledge core's 4 · Look inside and inspect an artifact, 4.22: opening a Library note. */
@@ -117,6 +125,10 @@ const openIsland = (name: string, island: IslandChoice): LagAction => ({ name, s
 /** The library's island is the owner's case (ADR-1001's context); `lag:desktop --story` names another. */
 export const NAMED_STORY = "The library";
 
+/** The library's island selected and its panel open, still. */
+const NAMED_OPEN: Step[] = [{ kind: "island", island: { story: NAMED_STORY } }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }];
+const CONTRACTS = ".story-panel .panel-fold[data-fold=contracts] > .panel-handle";
+
 export const CATALOGUE: readonly LagAction[] = [
   openIsland("open-fewest-island", "fewest"),
   openIsland("open-most-island", "most"),
@@ -132,6 +144,15 @@ export const CATALOGUE: readonly LagAction[] = [
   // page shows no fold's state to settle on, so the click's answer and frames are read, and the field recorder files none.
   { name: "click-fold", setup: [...RESET, { kind: "island", island: { story: NAMED_STORY } }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }],
     perform: [{ kind: "click", selector: ".story-panel [data-fold] > .panel-handle" }], settled: { panel: "open" }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: DRILL_DOWN },
+  // Opening Contracts on the library's panel. Contracts is a kind the panel keeps open, so the setup shuts it (which stops keeping it)
+  // and draws the panel again, shut.
+  { name: "open-fold", setup: [...RESET, ...NAMED_OPEN, { kind: "click", selector: `${CONTRACTS}[aria-expanded=true]`, optional: true },
+    { kind: "click", selector: ".story-panel .panel-close" }, ...RESET, ...NAMED_OPEN],
+    perform: [{ kind: "click", selector: CONTRACTS }], settled: { fold: "contracts" }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: PANEL_FOLDS },
+  // Opening a contract inside Contracts, which must still be open once library news has arrived: a panel drawn again on news loses it.
+  { name: "open-contract", setup: [...RESET, ...NAMED_OPEN, { kind: "click", selector: `${CONTRACTS}[aria-expanded=false]`, optional: true }],
+    perform: [{ kind: "click", selector: ".story-panel .panel-fold[data-fold=contract] > .panel-handle" }], settled: { fold: "contract" }, budget: DEFAULT_BUDGET,
+    limitMs: 10_000, keptThroughNews: true, owner: PANEL_FOLDS },
   { name: "library-and-back", setup: RESET,
     perform: [{ kind: "click", selector: "[data-globe-switch=library]" }, { kind: "wait", until: { mode: "library" } }, { kind: "click", selector: "[data-globe-switch=stories]" }],
     settled: { mode: "forest", still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: STORY_NODE_RENDER },
@@ -164,6 +185,7 @@ export function isSettled(want: Settled, page: PageState, island?: string): bool
   if (want.mode !== undefined && page.mode !== want.mode) return false;
   if (want.session === "selected" && !page.sessionSelected) return false;
   if (want.start === "settled" && !page.startSettled) return false;
+  if (want.fold !== undefined && page.folds?.includes(want.fold) !== true) return false;
   return !want.still || page.still;
 }
 

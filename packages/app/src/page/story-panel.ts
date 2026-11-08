@@ -28,17 +28,48 @@ export interface StoryPanelView {
   stop(): void;
 }
 
+/** A handle's identity across a rebuild: its fold's kind, and for a contract's own fold, the contract it sits in. */
+const handleKey = (handle: Element): string | undefined => {
+  const kind = (handle.parentElement as HTMLElement | null)?.dataset.fold;
+  if (kind === undefined) return undefined;
+  return kind === "contract" ? `contract:${handle.closest<HTMLElement>("[data-contract-id]")?.dataset.contractId ?? ""}` : kind;
+};
+
+/** What the user has open on the panel now: the contracts' own folds, the handle in focus and the scroll position. */
+function snapshot(panel: HTMLElement): { contracts: string[]; focus: string | undefined; scroll: number } {
+  const contracts = [...panel.querySelectorAll<HTMLElement>('.panel-fold[data-fold="contract"] > .panel-handle[aria-expanded="true"]')].map((h) => handleKey(h)!);
+  const active = panel.ownerDocument.activeElement;
+  const focus = active !== null && panel.contains(active) && active.classList.contains("panel-handle") ? handleKey(active) : undefined;
+  return { contracts, focus, scroll: panel.scrollTop };
+}
+
+function restore(panel: HTMLElement, kept: ReturnType<typeof snapshot>): void {
+  const handles = [...panel.querySelectorAll<HTMLElement>(".panel-handle")];
+  for (const handle of handles) {
+    const key = handleKey(handle);
+    if (key === undefined || !kept.contracts.includes(key)) continue;
+    const body = handle.nextElementSibling as HTMLElement | null;
+    handle.setAttribute("aria-expanded", "true");
+    if (body !== null) body.hidden = false;
+  }
+  if (kept.focus !== undefined) handles.find((handle) => handleKey(handle) === kept.focus)?.focus();
+  panel.scrollTop = kept.scroll;
+}
+
 export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPanelView {
   /** The capability shown below the open story's sentences: the one picked on the island, or the one the panel opened on, so it holds while the project redraws. */
   let chosen: string | undefined;
   /** The gate picked on the map, which the panel shows until another pick (ADR-1282 D1). */
   let gate: readonly [string, string] | undefined;
   let card: (() => void) | undefined;
+  /** The HTML on the panel now and the story it was drawn for: news that renders the same changes nothing on screen. */
+  let drawn: { html: string; story: string } | undefined;
 
   const show = (): void => {
     if (parts.body.dataset.note !== undefined) {
       panel.hidden = false;
       card ??= parts.libraryCard(panel, () => parts.deselect());
+      drawn = undefined;
       return;
     }
     card?.();
@@ -48,12 +79,20 @@ export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPan
     panel.hidden = drilled === undefined;
     if (drilled === undefined) {
       panel.replaceChildren();
+      drawn = undefined;
       return;
     }
     const selected = selectedCapability(drilled, chosen);
     chosen = selected;
-    panel.innerHTML = parts.render(drilled, selected, gate);
+    const html = parts.render(drilled, selected, gate);
+    // The same story drawn the same: nothing to change, so nothing is touched (ADR-0836 D1).
+    if (drawn !== undefined && drawn.story === story && drawn.html === html) return;
+    // A change on the same story keeps what the user opened (a contract's own fold too), the handle in focus and the scroll.
+    const kept = drawn?.story === story ? snapshot(panel) : undefined;
+    panel.innerHTML = html;
+    drawn = { html, story: story! };
     parts.folds(panel);
+    if (kept !== undefined) restore(panel, kept);
     panel.querySelector(".panel-close")?.addEventListener("click", () => parts.deselect());
   };
 

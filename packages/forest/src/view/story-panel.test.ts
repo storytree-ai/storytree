@@ -153,9 +153,9 @@ test("4.38 a capability's detail lists its open work in the order given, each by
   assert.equal(renderStoryPanel(base, "cap").includes('data-fold="open-work"'), false, "one with no open work lists none");
 });
 
-test("4.40 a picked gate's panel gives each edge joining its pair, either way, its sentence and one state line, its contracts behind a counted handle", () => {
+test("4.40 a picked gate's panel gives each edge joining its pair, either way, its sentence and one state line, its contracts behind a counted handle and how many are failing", () => {
   const edged: StoryPanel = { ...panel, edges: [
-    { from: "next", fromTitle: "The next", to: "base", toTitle: "The base", contracts: [{ id: "e-1", title: "next reads <base> by id" }, { id: "e-2", title: "next never writes base" }] },
+    { from: "next", fromTitle: "The next", to: "base", toTitle: "The base", contracts: [{ id: "e-1", title: "next reads <base> by id", verified: "passing" }, { id: "e-2", title: "next never writes base" }] },
     { from: "next", fromTitle: "The next", to: "other", toTitle: "The other", contracts: [{ id: "e-3", title: "not this gate's" }] },
   ] };
   const section = (html: string): string => /<section class="panel-gate"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
@@ -166,6 +166,11 @@ test("4.40 a picked gate's panel gives each edge joining its pair, either way, i
   assert.equal(contracts?.handle, "Contracts · 2", "its state: the contracts counted on a handle");
   assert.equal(contracts?.hidden, true, "drawn closed, one double-click away");
   assert.deepEqual([...gate.matchAll(/<li data-contract-id="([^"]+)"[^>]*>([\s\S]*?)<\/li>/g)].map(([, id, said]) => [id, plainText(said!)]), [["e-1", "next reads &lt;base&gt; by id"], ["e-2", "next never writes base"]]);
+  assert.equal(plainText(gate).includes("failing"), false, "none failing, none said");
+  const failing = section(renderStoryPanel({ ...edged, edges: edged.edges!.map((edge) => ({ ...edge, contracts: edge.contracts.map((contract) => ({ ...contract, verified: "failing" as const })) })) }, "next", { gate: ["base", "next"], open: ["e-2"] }));
+  const says = failing.indexOf('class="panel-link-failing"');
+  assert.ok(failing.indexOf('data-fold="contracts"') < says && says < failing.indexOf("open work on this link"), "how many are failing is said in its state line, after the handle");
+  assert.match(plainText(failing), /2 failing/);
   assert.equal(plainText(gate).includes("open work on this link"), false, "no open work named, none said");
   assert.equal(html.includes("panel-detail"), false, "neither capability's own contracts are listed");
   assert.equal(renderStoryPanel(edged, "next", { gate: ["next", "base"] }).includes('data-contract-id="e-1"'), true, "the pair either way round");

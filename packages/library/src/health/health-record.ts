@@ -18,7 +18,7 @@ import { byCreation } from "../creation-order.js";
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, RecordType } from "../schema/types.js";
-import type { Anchor, ArcNode, CapabilityNode, ContractNode, ParkedOn, ProjectTree, StoryNode, WorkModel } from "../work/index.js";
+import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, ParkedOn, ProjectTree, StoryNode, WorkModel } from "../work/index.js";
 
 /** A column's state. A column with no entry reads `not-checked`, never `passing`. */
 export type HealthState = FieldsOf<"health">["state"];
@@ -210,9 +210,15 @@ export interface NamedOnMain extends ChangedOnMain {
   contracts: readonly string[];
 }
 
-/** A story in the annotated tree, with its health rolled up from all its capabilities' contracts. */
-export interface AnnotatedStory extends Omit<StoryNode, "capabilities"> {
+/** An edge in the annotated tree, its contracts each with its own health (ADR-1284 D4); they roll into no capability's or story's. */
+export interface AnnotatedEdge extends Omit<EdgeNode, "contracts"> {
+  contracts: AnnotatedContract[];
+}
+
+/** A story in the annotated tree, with its health rolled up from all its capabilities' contracts, and its edges' contracts' own. */
+export interface AnnotatedStory extends Omit<StoryNode, "capabilities" | "edges"> {
   capabilities: AnnotatedCapability[];
+  edges?: AnnotatedEdge[];
   health: NodeHealth;
 }
 
@@ -322,7 +328,7 @@ export class HealthRecord {
   /**
    * `tree`, as WorkModel.projectTree() gives it, with `health` added to every story, capability and
    * contract: a contract's own, and each capability's and story's rolled up from the contracts the
-   * tree holds under it. The tree given is not changed. With no tree, the plan as it is now. `parked`,
+   * tree holds under it; an edge's contracts carry their own and roll into neither. The tree given is not changed. With no tree, the plan as it is now. `parked`,
    * WorkInFlight.parkedCapabilities()'s reading, marks each capability not proven with the arcs that park it.
    */
   async annotate(tree?: ProjectTree, parked: ReadonlyMap<string, readonly ParkedOn[]> = new Map()): Promise<AnnotatedTree> {
@@ -332,7 +338,7 @@ export class HealthRecord {
     return {
       ...(unverified ? { unverified } : {}),
       ...(plan.anchor === undefined ? {} : { anchor: { ...plan.anchor } }),
-      stories: plan.stories.map((story) => {
+      stories: plan.stories.map(({ edges: links, ...story }) => {
         const capabilities = story.capabilities.map((capability) => {
           const contracts = capability.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries) }));
           const unclaimed = unclaimedOf(capability.id, entries);
@@ -353,7 +359,8 @@ export class HealthRecord {
           return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(unclaimed === undefined ? {} : { unclaimed }), ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}), ...(parkedOn === undefined ? {} : { parkedOn: [...parkedOn] }), ...(open.has(capability.id) ? { openWork: open.get(capability.id)!.map((one) => ({ ...one })) } : {}) };
         });
         const health = rolledUp(capabilities.flatMap((capability) => capability.contracts.map((contract) => contract.health)), capabilities.flatMap((capability) => counted(capability.unclaimed)));
-        return { ...story, capabilities, health };
+        const edges = links?.map((edge) => ({ ...edge, contracts: edge.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries) })) }));
+        return { ...story, capabilities, ...(edges === undefined ? {} : { edges }), health };
       }),
       arcs: plan.arcs.map((arc) => ({ ...arc, stories: [...arc.stories] })),
     };

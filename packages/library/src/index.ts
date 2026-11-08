@@ -73,6 +73,7 @@ export { listedSaid, type OpenListing } from "./work/work-in-flight.js";
 export type {
   AnnotatedCapability,
   AnnotatedContract,
+  AnnotatedEdge,
   AnnotatedStory,
   AnnotatedTree,
   CapabilityStatus,

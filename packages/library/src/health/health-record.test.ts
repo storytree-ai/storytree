@@ -864,6 +864,26 @@ for (const backend of [memory, postgres]) {
     of = await read();
     assert.equal(of.get(api.id)!.status, "unhealthy", "and turns red when a tied test fails");
   });
+
+  contract("5.22", "each edge in the annotated tree carries its contracts with their own health; an edge contract's health rolls into neither capability's nor its story's", async ({ health, work, records }) => {
+    const { story, capability: form, contract } = await smallPlan(work);
+    const link = await work.addCapability({ title: "Confirmation link", story: story.id, dependsOn: [form.id] });
+    const edge = (await records.list("edge"))[0]!;
+    const fails = await work.addContract({ title: "The link reads the form's address", edge: edge.id });
+    await later();
+    const open = await work.addContract({ title: "The address arrives checked", edge: edge.id });
+    await health.recordVerified(contract.id, "passing", { by: "a local test run" });
+    await health.recordVerified(fails.id, "failing", { by: "a local test run" });
+    await health.reportHealth(fails.id, "passing");
+    const [annotated] = (await health.annotate()).stories;
+    assert.deepEqual(annotated!.edges?.map(({ id, from, to, contracts }) => ({ id, from, to, contracts: contracts.map(({ id, health }) => [id, health.reported.state, health.verified.state]) })), [
+      { id: edge.id, from: link.id, to: form.id, contracts: [[fails.id, "passing", "failing"], [open.id, "not-checked", "not-checked"]] },
+    ]);
+    const capabilities = new Map(annotated!.capabilities.map((capability) => [capability.id, capability]));
+    assert.equal(capabilities.get(form.id)!.health.verified.state, "not-checked", "the form's own contracts: one passing, one not checked");
+    assert.equal(capabilities.get(link.id)!.health.verified.state, "not-checked", "the dependent holds no contract of its own");
+    assert.equal(annotated!.health.verified.state, "not-checked", "the story rolls up its capabilities' contracts only, never the failing edge contract");
+  });
 }
 
 /** Past the current millisecond, so the next write's time sorts after the last one's. */
@@ -895,8 +915,9 @@ const STATE_OF: Readonly<Record<string, string>> = { P: "passing", F: "failing",
  */
 function withHealth(tree: ProjectTree, healthOf: (id: string) => NodeHealth): AnnotatedTree {
   return {
-    stories: tree.stories.map((story) => ({
+    stories: tree.stories.map(({ edges, ...story }) => ({
       ...story,
+      ...(edges === undefined ? {} : { edges: edges.map((edge) => ({ ...edge, contracts: edge.contracts.map((contract) => ({ ...contract, health: healthOf(contract.id) })) })) }),
       health: healthOf(story.id),
       capabilities: story.capabilities.map((capability) => {
         const why = capabilityWhy(capability.proposed, capability.contracts.map((contract) => ({ id: contract.id, verified: healthOf(contract.id).verified })));

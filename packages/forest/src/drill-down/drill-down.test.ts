@@ -148,11 +148,11 @@ test("4.38 a capability carries the open increments naming it in the library's o
   assert.equal("openWork" in (b ?? {}), false);
 });
 
-test("4.40 a story's edges carry their own contracts, by which capability depends on which, apart from either capability's", () => {
-  const edge = { id: "edge-1", from: "login", to: "accounts", contracts: [{ id: "e-k", title: "login asks accounts by id" }] };
+test("4.40 a story's edges carry their own contracts with storytree's verdict where one was written, by which capability depends on which, apart from either capability's", () => {
+  const edge = { id: "edge-1", from: "login", to: "accounts", contracts: [{ ...contract("e-k", "passing", "failing"), title: "login asks accounts by id" }, { ...contract("e-l", "passing"), title: "login never writes accounts" }] };
   const tree: AnnotatedTree = { stories: [{ ...story("s", capability("login", ["accounts"], [contract("k1", "passing")]), capability("accounts", [])), edges: [edge] }], arcs: [] };
   const panel = drillDown(tree, "s", workStates([]), []);
-  assert.deepEqual(panel?.edges, [{ from: "login", fromTitle: "The login", to: "accounts", toTitle: "The accounts", contracts: [{ id: "e-k", title: "login asks accounts by id" }] }]);
+  assert.deepEqual(panel?.edges, [{ from: "login", fromTitle: "The login", to: "accounts", toTitle: "The accounts", contracts: [{ id: "e-k", title: "login asks accounts by id", verified: "failing" }, { id: "e-l", title: "login never writes accounts" }] }], "the agent's report is not storytree's verdict");
   assert.deepEqual(panel?.capabilities.find(({ id }) => id === "login")?.contracts.map(({ id }) => id), ["k1"], "its own contracts stay its own");
   assert.equal("edges" in (drillDown({ stories: [story("t", capability("alone", []))], arcs: [] }, "t", workStates([]), []) ?? {}), false, "a story with no edges carries none");
 });

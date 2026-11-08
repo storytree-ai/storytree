@@ -375,8 +375,8 @@
   font-weight: 400;
 }
 
-/* A gate's link in one state line (ADR-1284 D4): its Contracts handle, then the open work that rings it, with the opened
-   contracts below at full width. The fold's body stays its handle's next sibling, as the folds find it. */
+/* A gate's link in one state line (ADR-1284 D4): its Contracts handle, how many are failing, then the open work that
+   rings it, with the opened contracts below at full width. The fold's body stays its handle's next sibling, as the folds find it. */
 .panel-link-state {
   display: flex;
   flex-wrap: wrap;
@@ -399,6 +399,11 @@
 
 .panel-link-open {
   color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.panel-link-failing {
+  color: var(--fail-text);
   font-size: 0.9rem;
 }
 

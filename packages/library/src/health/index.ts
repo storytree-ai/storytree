@@ -4,6 +4,7 @@ export type {
   AnnotatedCapability,
   OpenIncrement,
   AnnotatedContract,
+  AnnotatedEdge,
   AnnotatedStory,
   AnnotatedTree,
   CapabilityStatus,

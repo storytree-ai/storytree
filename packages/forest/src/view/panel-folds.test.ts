@@ -1,6 +1,6 @@
 /**
- * Capability 4 · Drill-down: the panel's folds as the user works them (ADR-1284 D1). A double-click on a handle opens its
- * fold and another closes it, a single click never does; the keyboard opens, moves and closes; the kinds the user opened
+ * Capability 4 · Drill-down: the panel's folds as the user works them (ADR-1287, narrowing ADR-1284 D1). A single click on
+ * a handle opens its fold and another closes it; the keyboard opens, moves and closes; the kinds the user opened
  * stay open on later picks until Escape with no fold focused. Read in happy-dom, as the page would draw it.
  */
 import assert from "node:assert/strict";
@@ -41,8 +41,8 @@ function page() {
     assert.equal(button.getAttribute("aria-expanded") === "true", !body.hidden, "the handle says what its fold shows");
     return !body.hidden;
   };
-  const mouse = (target: Element, type: "click" | "dblclick", detail = 1): void => {
-    target.dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, detail }) as unknown as Event);
+  const mouse = (target: Element, type: "click"): void => {
+    target.dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, detail: 1 }) as unknown as Event);
   };
   const key = (target: Element, name: string): KeyboardEvent => {
     const event = new window.KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }) as unknown as KeyboardEvent;
@@ -53,20 +53,16 @@ function page() {
   return { window, host, draw, handle, open, mouse, key, focused };
 }
 
-test("4.41 a double-click on a handle opens its fold and another closes it; a single click only focuses it", () => {
+test("4.41 a single click on a handle opens its fold and another closes it", () => {
   const { draw, handle, open, mouse } = page();
   draw("one");
   assert.equal(open("contracts"), false, "every fold starts closed");
   mouse(handle("contracts"), "click");
-  assert.equal(open("contracts"), false, "a single click never expands");
-  mouse(handle("contracts"), "click", 1);
-  mouse(handle("contracts"), "click", 2);
-  mouse(handle("contracts"), "dblclick", 2);
-  assert.equal(open("contracts"), true, "a double-click opens it");
-  mouse(handle("contracts"), "dblclick", 2);
+  assert.equal(open("contracts"), true, "a single click opens it");
+  mouse(handle("contracts"), "click");
   assert.equal(open("contracts"), false, "another closes it");
-  mouse(handle("contracts"), "dblclick", 2);
-  mouse(handle("contract"), "dblclick", 2);
+  mouse(handle("contracts"), "click");
+  mouse(handle("contract"), "click");
   assert.equal(open("contract"), true, "a contract opens, one level deeper, to its own detail");
 });
 
@@ -101,8 +97,6 @@ test("4.41 Open all · n opens every fold on this panel, both levels, and is not
   draw("one");
   const all = host.querySelector<HTMLButtonElement>("[data-open-all]")!;
   mouse(all, "click");
-  assert.equal(open("more"), false, "a single click does nothing");
-  mouse(all, "dblclick", 2);
   for (const kind of ["more", "open-work", "contracts", "contract"]) assert.equal(open(kind), true, `${kind} is open`);
   draw("two");
   assert.equal(open("contracts"), false, "the next pick opens closed: Open all is for this panel only");
@@ -111,15 +105,15 @@ test("4.41 Open all · n opens every fold on this panel, both levels, and is not
 test("4.42 the kinds of fold the user opened open on every later pick until he closes them; a contract's own never does; Escape with no fold focused forgets them", () => {
   const { draw, host, handle, open, mouse, key } = page();
   draw("one");
-  mouse(handle("contracts"), "dblclick", 2);
-  mouse(handle("contract"), "dblclick", 2);
-  mouse(handle("open-work"), "dblclick", 2);
+  mouse(handle("contracts"), "click");
+  mouse(handle("contract"), "click");
+  mouse(handle("open-work"), "click");
   draw("two");
   assert.equal(open("contracts"), true, "the contracts the user opened open on the next pick");
   assert.equal(open("open-work"), true);
   assert.equal(open("more"), false, "nothing he has not opened");
   assert.equal(open("contract"), false, "a contract's own fold is never kept");
-  mouse(handle("open-work"), "dblclick", 2);
+  mouse(handle("open-work"), "click");
   draw("one");
   assert.equal(open("open-work"), false, "closed, it is no longer kept");
   assert.equal(open("contracts"), true);

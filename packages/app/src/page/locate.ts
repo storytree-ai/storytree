@@ -2,7 +2,8 @@
  * Capability 2 · Storytree projects. Where a teaching card's target is on the desktop page (Learning as you build places the card
  * beside it): a story or capability at its island, with the island's box, a decision at its note on the globe, a plan or a question at the rail's Arcs tab,
  * the factory beside the app bar's project dropdown; undefined when it is not on show. And what the user is reading near it, which
- * the card keeps clear of: the open story panel, and a story's or capability's nameplate. And every island drawn, which the card
+ * the card keeps clear of: the open story panel, a story's or capability's nameplate, and, for every card, the bar's project
+ * switcher and the globe's Stories/Library switch, the controls a user reaches for first. And every island drawn, which the card
  * covers as little of as it can.
  */
 
@@ -41,10 +42,13 @@ export function drawnIslands(globe: IslandsAndNotes | undefined): Box[] {
   return (globe?.islands() ?? []).flatMap((island) => island.visible && island.box !== undefined ? [island.box] : []);
 }
 
-/** What is being read near `target` on the page, drawn now: the open story panel, and the nameplates of its story and capability. */
+/**
+ * What is being read near `target` on the page, drawn now: the open story panel, the nameplates of its story and capability,
+ * and the project switcher and the Stories/Library switch, which no card covers.
+ */
 export function readingNear(target: CardTarget, document: Document): Box[] {
-  const near = [...document.querySelectorAll<HTMLElement>(".story-panel:not([hidden]), .planet-nameplate")].filter((element) =>
-    element.classList.contains("story-panel")
+  const near = [...document.querySelectorAll<HTMLElement>(".story-panel:not([hidden]), .planet-nameplate, .app-factory, .forest-views")].filter((element) =>
+    !element.classList.contains("planet-nameplate")
     || (target.story !== undefined && element.dataset.storyId === target.story)
     || (target.capability !== undefined && element.dataset.capabilityId === target.capability));
   return near.flatMap((element) => {

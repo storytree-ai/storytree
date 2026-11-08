@@ -24,7 +24,10 @@ const measure = page => page.evaluate(() => {
   const story = document.body.dataset.teachingStory;
   const drawn = window.storytreeGlobe.islands().filter(one => one.visible && one.box !== undefined);
   const island = drawn.find(one => one.story === story);
-  return { cards: document.querySelectorAll('.teaching-card').length, kind: card.dataset.kind, card: { left, top, right, bottom }, island: island?.box, islands: drawn.map(one => one.box) };
+  // The bar's project switcher and the globe's Stories/Library switch, which no card covers (increment_176e36671e3c).
+  const switches = [...document.querySelectorAll('.app-factory, .forest-views')].map(one => one.getBoundingClientRect()).filter(one => one.width > 0)
+    .map(({ left, top, right, bottom }) => ({ left, top, right, bottom }));
+  return { cards: document.querySelectorAll('.teaching-card').length, kind: card.dataset.kind, card: { left, top, right, bottom }, island: island?.box, islands: drawn.map(one => one.box), switches };
 });
 const apart = (a, b) => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
 
@@ -46,7 +49,11 @@ await runCapture({
         await settle(page);
       },
       measure: ({ page }) => measure(page),
-      expect: found => assert.deepEqual([found.cards, found.kind], [1, 'arc']),
+      expect: found => {
+        assert.deepEqual([found.cards, found.kind], [1, 'arc']);
+        assert.equal(found.switches.length, 2, 'the project switcher and the Stories/Library switch are both on show');
+        assert.ok(found.switches.every(one => apart(found.card, one)), 'the plan card covers neither switch');
+      },
     },
     {
       name: 'a-story-card-beside-its-island',
@@ -63,6 +70,7 @@ await runCapture({
         assert.ok(found.island !== undefined, 'its island is drawn');
         assert.ok(apart(found.card, found.island), 'the story card stays off its island');
         assert.ok(found.islands.every(box => apart(found.card, box)), 'and off every other island drawn');
+        assert.ok(found.switches.every(one => apart(found.card, one)), 'and off both switches');
       },
     },
     {

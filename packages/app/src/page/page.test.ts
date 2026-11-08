@@ -482,9 +482,15 @@ test("2.29 · teaching cards hear whether the project on show is the factory, an
   shut.className = "story-panel";
   shut.hidden = true;
   boxed(shut, { left: 500, top: 12, right: 900, bottom: 588 });
-  assert.deepEqual(reading({ kind: "capability", story: story.id, capability: "cap_a" }).map(box => box.left), [0, 200], "its story's and capability's nameplates, not another's");
+  assert.deepEqual(reading({ kind: "capability", story: story.id, capability: "cap_a" }).map(box => box.left), [100, 0, 200], "the switcher, and its story's and capability's nameplates, not another's");
   shut.hidden = false;
-  assert.deepEqual(reading({ kind: "arc" }).map(box => box.left), [500], "the story panel once it is open");
+  assert.deepEqual(reading({ kind: "arc" }).map(box => box.left), [100, 500], "the story panel once it is open");
+  // The bar's project switcher and the globe's Stories/Library switch are kept clear for every card, whatever its target.
+  const views = on.document.createElement("div");
+  views.className = "forest-views";
+  boxed(views, { left: 600, top: 60, right: 760, bottom: 90 });
+  assert.deepEqual(reading({ kind: "arc" }).map(box => box.left), [100, 500, 600], "the project switcher and the Stories/Library switch");
+  assert.deepEqual(reading({ kind: "switch" }).map(box => box.left), [100, 500, 600], "the factory's card too, beside the switcher, never on it");
 });
 
 test("2.30 · each start mark is sent once, and what the forest drew joins the page's census", async (t) => {

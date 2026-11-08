@@ -498,6 +498,14 @@ export class WorkInFlight {
   }
 
   /**
+   * Release each open increment whose event wait is about contract `contract`, on a failing verdict (10.44): one that
+   * links it or lists its `capability` has its event wait cleared and `verdict` written at the top of its body. The ids released.
+   */
+  releaseOnVerdict(contract: string, capability: string | undefined, verdict: string, options?: WriteOptions): Promise<string[]> {
+    return this.#serially(() => waitWrites.releaseOnVerdict(this.#records, contract, capability, verdict, options));
+  }
+
+  /**
    * Make an open increment wait for the owner (an action) or an outside event (with a check-back
    * day), with a note (10.36); waiting again for the same releaser replaces it (RangeError for an event
    * with no day or a day before today, an owner wait with a day, or a closed increment). Null if `id`

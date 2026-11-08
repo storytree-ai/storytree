@@ -163,7 +163,7 @@ const importPlan = verb({
   command: { family: "plugin", name: "import-plan", summary: "write a plugin's own story, capabilities and contracts into this project's plan from the plan file it carries" },
   tool: {
     name: "import_plugin_plan",
-    description: "Write a factory plugin's own story, its capabilities and contracts into this project's plan from the plan file its manifest names: the plugin's file is their one source, so they are then edited only there and imported again. It reads this computer's factory folder, or the one from names, such as a lane's own factory worktree right after its push. Capabilities and contracts are matched by number: what changed is edited, what is new added, and what the file no longer holds retired, so a kept contract keeps its id and health. The first time, adopt names the live story it takes over, else a new story is made.",
+    description: "Write a factory plugin's own story, its capabilities and contracts into this project's plan from the plan file its manifest names: the plugin's file is their one source, so they are then edited only there and imported again. It reads this computer's factory folder, or the one from names, such as a lane's own factory worktree right after its push. Capabilities and contracts are matched by number: what changed is edited, what is new added, and what the file no longer holds retired, so a kept contract keeps its id and health. From a git checkout it retires only what a committed version of the plan there held, leaving (and naming) any other live record, such as one another lane landed after the folder was cut. The first time, adopt names the live story it takes over, else a new story is made.",
   },
   inputs: {
     plugin: { kind: "text", word: 0, describe: "the plugin's name: its folder in the factory's plugins folder" },
@@ -172,13 +172,17 @@ const importPlan = verb({
   },
   writes: true,
   async act({ plugin, adopt, from }, { library, writer }: VerbContext) {
-    const [{ factoryFolder }, { pluginPlan }] = await Promise.all([import("@storytree/project-and-caller"), import("./factory.js")]);
+    const [{ factoryFolder }, { pluginPlan, pluginPlanHeld }] = await Promise.all([import("@storytree/project-and-caller"), import("./factory.js")]);
     try {
-      const plan = pluginPlan(from === undefined ? factoryFolder().folder : path.resolve(from), plugin);
+      const folder = from === undefined ? factoryFolder().folder : path.resolve(from);
+      const plan = pluginPlan(folder, plugin);
       if (plan === undefined) throw new Error(`${plugin}'s storytree manifest names no plan`);
-      const done = await library.importPluginPlan(plugin, plan, { ...writer, ...(adopt === undefined ? {} : { adopt }) });
+      // Retire only what the folder's own history held, so a folder behind the factory's main retires no other lane's landing.
+      const held = pluginPlanHeld(folder, plugin);
+      const done = await library.importPluginPlan(plugin, plan, { ...writer, ...(adopt === undefined ? {} : { adopt }), ...(held === undefined ? {} : { held }) });
+      const left = done.left.length === 0 ? "" : `, ${done.left.length} left\n${done.left.length} live in the plan that this folder's plan has never held were left, not retired: ${done.left.join(", ")}. Another lane may have landed them since this folder was cut: merge the factory's main and import again; retire by hand any that no plan holds.`;
       return {
-        text: `Imported ${plugin}'s plan into ${done.story}: ${done.added.length} added, ${done.edited.length} edited, ${done.retired.length} retired, ${done.kept.length} kept.`,
+        text: `Imported ${plugin}'s plan into ${done.story}: ${done.added.length} added, ${done.edited.length} edited, ${done.retired.length} retired, ${done.kept.length} kept${left === "" ? "." : left}`,
         data: { imported: done },
         next: [{ command: `tree ${done.story}`, why: "the plan as imported, with each contract's health" }],
       };

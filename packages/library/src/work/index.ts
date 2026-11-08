@@ -29,6 +29,7 @@ export type {
   PluginPlan,
   PluginPlanCapability,
   ImportedPluginPlan,
+  PluginPlanHeld,
   MappedStories,
   NewStory,
   ProjectTree,

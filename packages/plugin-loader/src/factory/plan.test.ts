@@ -174,3 +174,67 @@ test("5.23 · `plugin import-plan` from a git checkout retires only what a commi
     await dropTestDatabases([`storytree_${run}`]);
   }
 });
+
+test("5.24 · `plugin import-plan` from a git checkout edits a kept capability's or contract's text only from a value a committed version of the plugin's plan there held, so a folder cut before another lane retitled a contract leaves the new title, saying which it left and to merge the factory's main; after the merge its own edit is written", async (t) => {
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-home-"));
+  const saved = process.env.STORYTREE_HOME;
+  process.env.STORYTREE_HOME = home;
+  t.after(async () => {
+    if (saved === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = saved;
+    await removeTemp(home);
+  });
+  const factory = path.join(home, "factory");
+  const stale = path.join(home, "stale-worktree");
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=lane", "-c", "user.email=lane@example.com", "-c", "commit.gpgsign=false", ...args], { cwd, stdio: "pipe" });
+  const writePlan = (folder: string, contract: string, description: string) => {
+    const plugin = path.join(folder, "plugins", "voice");
+    mkdirSync(plugin, { recursive: true });
+    writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "voice", storytree: { interface: PLUGIN_INTERFACE, plan: "./plan.json" } }));
+    writeFileSync(path.join(plugin, "plan.json"), JSON.stringify({ story: { title: "Voice" }, capabilities: [{ title: "1 · The address", description, contracts: [{ title: contract }] }] }, null, 2));
+  };
+  mkdirSync(factory);
+  git(factory, "init", "-q", "-b", "main");
+  writePlan(factory, "1.1 · A wrong path is answered 404", "Where it listens.");
+  git(factory, "add", ".");
+  git(factory, "commit", "-q", "-m", "voice's plan");
+  git(factory, "worktree", "add", "-q", "-b", "lane", stale);
+  // Another lane retitles 1.1 on the factory's main after this lane's worktree was cut.
+  writePlan(factory, "1.1 · A wrong path is answered 404 with its reason", "Where it listens.");
+  git(factory, "commit", "-q", "-am", "1.1 retitled");
+
+  const { PLUGIN_FAMILIES } = await import("./verbs.js");
+  const importVerb = PLUGIN_FAMILIES[0]!.verbs.find((each) => "name" in each.command && each.command.name === "import-plan")!;
+  const words = { door: "command" as const, say: (step: { command?: string }) => `storytree ${step.command}` };
+  const run = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const library = await storytree.openProject(run);
+    const importPlan = (from: string) => importVerb.act({ plugin: "voice", from } as never, { folder: home, project: run, library, session: "test" } as never, words);
+    const read = async () => {
+      const capability = (await library.projectTree()).stories.find(({ plugin }) => plugin === "voice")!.capabilities[0]!;
+      return { description: capability.description, contract: capability.contracts[0]! };
+    };
+
+    await importPlan(factory);
+    const landed = await read();
+
+    // The stale lane's own edit is the capability's description; the contract's title is the other lane's.
+    writePlan(stale, "1.1 · A wrong path is answered 404", "The port and path it listens on.");
+    git(stale, "commit", "-q", "-am", "a clearer description");
+    const stood = await importPlan(stale);
+    assert.match(stood.text, /: 0 added, 1 edited, 0 retired, 2 kept, 1 stood\n/, "the stale folder writes back no title another lane changed");
+    assert.match(stood.text, new RegExp(`${landed.contract.id}.*merge the factory's main`));
+    assert.deepEqual(await read(), { description: "The port and path it listens on.", contract: landed.contract }, "its own edit is written, the retitle stands");
+
+    git(stale, "merge", "-q", "main");
+    assert.match((await importPlan(stale)).text, /: 0 added, 0 edited, 0 retired, 3 kept\.$/);
+    writePlan(stale, "1.1 · A wrong path or method is answered 404", "The port and path it listens on.");
+    git(stale, "commit", "-q", "-am", "1.1 retitled again");
+    assert.match((await importPlan(stale)).text, /: 0 added, 1 edited, 0 retired, 2 kept\.$/, "after the merge its own retitle is written");
+    assert.equal((await read()).contract.title, "1.1 · A wrong path or method is answered 404");
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([`storytree_${run}`]);
+  }
+});

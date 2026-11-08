@@ -73,6 +73,8 @@ export interface ImportedPluginPlan {
   readonly kept: string[];
   /** The live records the plan does not hold that it left, since its source never held their numbers (`held`). */
   readonly left: string[];
+  /** The kept records with a field the plan would change from a value its source never held (`held.versions`), left as it stands. */
+  readonly stood: string[];
 }
 /**
  * The capability and contract numbers a plugin's plan source has ever held (every version of its plan file in the
@@ -81,6 +83,8 @@ export interface ImportedPluginPlan {
 export interface PluginPlanHeld {
   readonly capabilities: readonly number[];
   readonly contracts: readonly string[];
+  /** Every version of the plan file in the source's history, and as it stands, each as parsed: given, an import edits a kept record's text only from a value one of them held. */
+  readonly versions?: readonly unknown[];
 }
 /** A new capability's fields: `story` and every `dependsOn` id must name existing records. It is proposed unless told otherwise. */
 export type NewCapability = Omit<FieldsOf<"capability">, "proposed"> & { proposed?: boolean };
@@ -278,7 +282,10 @@ export class WorkModel {
    * Its capabilities are matched by number and their contracts by theirs: what changed is edited, what is new added,
    * and what the plan no longer holds retired, a capability's contracts with it, so a kept record keeps its id, links
    * and health. Given `held`, the numbers the plan's source ever held, it retires only those, and leaves any other live
-   * record (one another lane landed after a stale source was cut) as it stands, reporting it left. Everything is checked first, and a plan with a capability or contract carrying no number or a number
+   * record (one another lane landed after a stale source was cut) as it stands, reporting it left. Given `held.versions`
+   * as well, it changes a kept record's text (a story's, capability's or contract's title and description, a capability's
+   * text and proposed) only from a value one of them held, and leaves a field another lane changed since as it stands,
+   * reporting the record stood; a story it adopts has no such history. Everything is checked first, and a plan with a capability or contract carrying no number or a number
    * twice, a contract numbered under another capability, or an `adopt` that is mapped, another plugin's or not this
    * plugin's own story, is refused (SchemaError) with nothing written.
    */
@@ -323,12 +330,20 @@ export class WorkModel {
       const storyFields = { ...plan.story, plugin };
       this.#records.check("story", storyFields);
 
-      const done: ImportedPluginPlan = { story: "", added: [], edited: [], retired: [], kept: [], left: [] };
+      const done: ImportedPluginPlan = { story: "", added: [], edited: [], retired: [], kept: [], left: [], stood: [] };
       const heldCapabilities = options.held === undefined ? undefined : new Set(options.held.capabilities);
       const heldContracts = options.held === undefined ? undefined : new Set(options.held.contracts);
-      /** Write `fields` over `record` when they differ in any of `owned`, a field missing from `fields` being removed. */
-      const update = async (record: SchemaRecord, fields: Record<string, unknown>, owned: readonly string[]): Promise<void> => {
-        const edit = Object.fromEntries(owned.filter((field) => !isDeepStrictEqual(fields[field], (record.fields as Record<string, unknown>)[field])).map((field) => [field, fields[field]]));
+      const held = options.held?.versions === undefined || own === undefined ? undefined : heldValues(options.held.versions);
+      /**
+       * Write `fields` over `record` when they differ in any of `owned`, a field missing from `fields` being removed, but
+       * none whose live value no version the source held (`held`, under `key`) had: that one stands, and so is said.
+       */
+      const update = async (record: SchemaRecord, fields: Record<string, unknown>, owned: readonly string[], key: string): Promise<void> => {
+        const live = record.fields as Record<string, unknown>;
+        const changed = owned.filter((field) => !isDeepStrictEqual(fields[field], live[field]));
+        const stands = (field: string): boolean => held !== undefined && GUARDED_PLAN_FIELDS.has(field) && !(held.get(`${key}:${field}`) ?? []).some((value) => isDeepStrictEqual(value, live[field]));
+        if (changed.some(stands)) done.stood.push(record.id);
+        const edit = Object.fromEntries(changed.filter((field) => !stands(field)).map((field) => [field, fields[field]]));
         if (Object.keys(edit).length === 0) {
           done.kept.push(record.id);
           return;
@@ -339,7 +354,7 @@ export class WorkModel {
       if (story === undefined) {
         story = await this.#records.create("story", storyFields, options);
         done.added.push(story.id);
-      } else await update(story, storyFields, PLUGIN_STORY_FIELDS);
+      } else await update(story, storyFields, PLUGIN_STORY_FIELDS, "story");
       const storyId = story.id;
       for (const capability of plan.capabilities) {
         // Its dependsOn is written as its links are: the story's own capabilities on edges, another story's stored (ADR-1282 D2).
@@ -354,7 +369,7 @@ export class WorkModel {
         } else {
           const face = await this.#faceOf(stored.id);
           const relink = !sameMembers(face, wanted ?? []);
-          await update(stored, { ...fields, ...(relink ? {} : { dependsOn: stored.fields.dependsOn }) }, relink ? PLUGIN_CAPABILITY_FIELDS.filter((field) => field !== "dependsOn") : PLUGIN_CAPABILITY_FIELDS);
+          await update(stored, { ...fields, ...(relink ? {} : { dependsOn: stored.fields.dependsOn }) }, relink ? PLUGIN_CAPABILITY_FIELDS.filter((field) => field !== "dependsOn") : PLUGIN_CAPABILITY_FIELDS, `capability ${capabilityNumber(capability.title)}`);
           if (relink) {
             await this.#applyRelink(await this.#relink({ id: stored.id, story: storyId, face: wanted ?? [] }, { id: stored.id, story: storyId, face: wanted ?? [] }), options);
             if (done.kept.at(-1) === stored.id) done.kept.pop();
@@ -368,7 +383,7 @@ export class WorkModel {
           const theirs = contracts.get(number);
           contracts.delete(number);
           if (theirs === undefined) done.added.push((await this.#records.create("contract", fieldsOf, options)).id);
-          else await update(theirs, fieldsOf, PLUGIN_CONTRACT_FIELDS);
+          else await update(theirs, fieldsOf, PLUGIN_CONTRACT_FIELDS, `contract ${number}`);
         }
         for (const [number, gone] of contracts) {
           if (heldContracts !== undefined && !heldContracts.has(number)) {
@@ -1017,6 +1032,36 @@ function refuseMapped(fields: object): void {
 const PLUGIN_STORY_FIELDS = ["title", "description", "text", "plugin"] as const;
 const PLUGIN_CAPABILITY_FIELDS = ["title", "description", "text", "proposed", "dependsOn", "story"] as const;
 const PLUGIN_CONTRACT_FIELDS = ["title", "description", "capability"] as const;
+/** The text fields of a plugin's plan an import from a stale source must not write back over another lane's change. */
+const GUARDED_PLAN_FIELDS = new Set(["title", "description", "text", "proposed"]);
+
+/**
+ * Every value a plugin plan's story, capabilities and contracts held their text fields at in any of `versions`, as an
+ * import writes them (a capability proposed when not given, a contract's title separated), keyed `story:<field>`,
+ * `capability <n>:<field>` and `contract <n.m>:<field>`. A version, capability or contract of another shape holds nothing.
+ */
+function heldValues(versions: readonly unknown[]): Map<string, unknown[]> {
+  const values = new Map<string, unknown[]>();
+  const hold = (key: string, fields: Record<string, unknown>): void => {
+    for (const field of GUARDED_PLAN_FIELDS) values.set(`${key}:${field}`, [...(values.get(`${key}:${field}`) ?? []), fields[field]]);
+  };
+  const object = (value: unknown): Record<string, unknown> | undefined => (typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined);
+  for (const version of versions) {
+    const story = object(object(version)?.story);
+    if (story !== undefined) hold("story", story);
+    const capabilities = object(version)?.capabilities;
+    for (const capability of Array.isArray(capabilities) ? capabilities.map(object) : []) {
+      const number = typeof capability?.title === "string" ? capabilityNumber(capability.title) : undefined;
+      if (number === undefined) continue;
+      hold(`capability ${number}`, { ...capability, proposed: capability!.proposed ?? true });
+      for (const contract of Array.isArray(capability!.contracts) ? capability!.contracts.map(object) : []) {
+        const own = typeof contract?.title === "string" ? contractNumber(contract.title) : undefined;
+        if (own !== undefined) hold(`contract ${own}`, { ...contract, title: separated(contract!.title as string) });
+      }
+    }
+  }
+  return values;
+}
 
 /** Whether `one` and `other` hold the same ids, in any order. */
 function sameMembers(one: readonly string[], other: readonly string[]): boolean {

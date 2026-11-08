@@ -420,16 +420,6 @@
   font-size: 0.9rem;
 }
 
-.panel-foot {
-  margin-top: 0.6rem;
-  padding-top: 0.4rem;
-  border-top: 1px solid var(--line);
-}
-
-.panel-open-all::before {
-  content: "»";
-}
-
 /* A story's extra checks: a short list, no graph. */
 .panel-checks {
   margin: 0.15rem 0 0;

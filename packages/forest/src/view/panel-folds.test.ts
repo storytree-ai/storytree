@@ -81,25 +81,16 @@ test("4.41 from the keyboard, Enter or Space opens a handle's fold, the arrow ke
   key(focused()!, "ArrowDown");
   assert.ok(focused() === handle("open-work"));
   key(focused()!, "ArrowDown");
+  assert.ok(focused() === handle("contracts"));
   key(focused()!, "ArrowDown");
-  assert.equal(focused()?.textContent, "Open all · 6", "a closed fold's handles are skipped: the contract's is not shown");
+  assert.ok(focused() === handle("contracts"), "a closed fold's handles are skipped: the contract's is not shown");
   key(focused()!, "ArrowUp");
-  assert.ok(focused() === handle("contracts"), "up moves back");
+  assert.ok(focused() === handle("open-work"), "up moves back");
   key(handle("contracts"), "Enter");
   handle("contract").focus();
   key(handle("contract"), "Escape");
   assert.equal(open("contracts"), false, "Escape closes the fold the focus is in");
   assert.ok(focused() === handle("contracts"), "and leaves the focus on its handle");
-});
-
-test("4.41 Open all · n opens every fold on this panel, both levels, and is not kept", () => {
-  const { draw, host, open, mouse } = page();
-  draw("one");
-  const all = host.querySelector<HTMLButtonElement>("[data-open-all]")!;
-  mouse(all, "click");
-  for (const kind of ["more", "open-work", "contracts", "contract"]) assert.equal(open(kind), true, `${kind} is open`);
-  draw("two");
-  assert.equal(open("contracts"), false, "the next pick opens closed: Open all is for this panel only");
 });
 
 test("4.42 the kinds of fold the user opened open on every later pick until he closes them; a contract's own never does; Escape with no fold focused forgets them", () => {

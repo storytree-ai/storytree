@@ -2,7 +2,8 @@
  * Capability 4 · Drill-down. The panel's folds as the user works them (ADR-1287, narrowing ADR-1284 D1): a single click on
  * a handle opens its fold in place and another closes it; Enter or Space opens or closes it from the keyboard, the arrow keys move between the handles shown, and Escape closes the fold the focus is in or, with none
  * focused, closes every fold and forgets the kept depth. The kinds of fold the user opened open again on every later
- * pick for the session; a contract's own fold and Open all · n are never kept. No hint explains any of it (ADR-1283 D2).
+ * pick for the session; a contract's own fold is never kept. No control opens or closes every fold at once (ADR-1292). No
+ * hint explains any of it (ADR-1283 D2).
  */
 
 /** The kinds of fold whose being open is kept across picks: the top-level handles, never a contract's own. */
@@ -28,12 +29,8 @@ export function panelFolds(): PanelFolds {
   };
   const kind = (handle: HTMLElement): string | undefined => handle.parentElement?.dataset.fold;
 
-  /** The user opens or closes one fold, or opens every one with Open all. */
+  /** The user opens or closes one fold. */
   const toggle = (panel: HTMLElement, handle: HTMLElement): void => {
-    if (handle.dataset.openAll !== undefined) {
-      for (const each of handles(panel)) set(each, true);
-      return;
-    }
     const open = handle.getAttribute("aria-expanded") !== "true";
     set(handle, open);
     const which = kind(handle);

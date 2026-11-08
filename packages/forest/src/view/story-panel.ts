@@ -12,8 +12,8 @@ const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", fail
 
 /**
  * The panel's HTML, with `selected`, the capability picked on the island, shown below the story's lead if it is one of
- * the story's capabilities, and Open all · n at its foot when it has handles. Every fold is drawn closed; the page's
- * folds open the kinds the user keeps open. With the capability details switched off (ADR-0750) it is the story alone. A
+ * the story's capabilities. Every fold is drawn closed, with nothing to open them all (ADR-1292); the page's folds open
+ * the kinds the user keeps open. With the capability details switched off (ADR-0750) it is the story alone. A
  * `gate` picked on the map, the pair of capabilities it joins, shows the edges between them in its place (ADR-1282 D1),
  * each in one state line (ADR-1284 D4); `open` holds the contracts the arc opened in the Arcs tab links in its open work.
  */
@@ -29,13 +29,11 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
     ${panel.checks === undefined || panel.checks.length === 0 ? "" : extraChecks(panel.checks)}
     ${shown === undefined ? "" : capability(shown)}
     ${gate === undefined ? "" : gateLinks(panel, gate, open)}`;
-  const handles = body.split(`class="panel-handle"`).length - 1;
   return `
     <header class="panel-head" data-surface-id="story-panel" data-surface-layer="panel">
       <h2>${text(panel.title)}</h2>
       <button type="button" class="panel-close" aria-label="Close">×</button>
-    </header>${body}
-    ${handles === 0 ? "" : `<footer class="panel-foot"><button type="button" class="panel-handle panel-open-all" data-open-all>Open all · ${handles}</button></footer>`}`;
+    </header>${body}`;
 }
 
 /** One block of detail behind its handle, closed until the user opens it (ADR-1284 D1); `handle` is already text. */

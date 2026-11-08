@@ -7,7 +7,7 @@ import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@stor
 import type { Coast } from "../territories/territories.js";
 import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
 import { keptVersion, subscribeKept } from "../territories/kept-layout.js";
-import { capabilityPlates, facing, fadedCapabilities, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
+import { capabilityPlates, facing, fadedPlates, nameMoves, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 import type { DetailStore } from "./zoom-detail.js";
 
@@ -73,7 +73,7 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
 const NEVER = () => () => {};
 const NEAR = () => "near" as const;
 
-/** Fade the names that overlap another whenever the globe draws: no name moves to clear another (ADR-0917). */
+/** Whenever the globe draws, fade the story names that overlap another, none moving (ADR-0917), and move apart the capability names that overlap (3.33). */
 export function NameplateCrowd({ selected }: { selected: string | undefined }) {
   const gl = useThree(state => state.gl);
   const invalidate = useThree(state => state.invalidate);
@@ -87,15 +87,23 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
       facing: Number(label.dataset.facing ?? 0), dimmed: label.dataset.dimmed !== undefined }));
     const faded = fadedPlates(shown, selected);
     for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));
+    // A capability's name is never hidden: where names overlap they are moved apart (3.33).
+    const capabilities = [...host.querySelectorAll<HTMLElement>(".planet-nameplate.capability")].filter(onScreen);
+    const moves = nameMoves(capabilities.map(label => ({ capability: label.dataset.capabilityId!, box: label.getBoundingClientRect(),
+      given: { x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) }, size: Number(label.dataset.size ?? 0) })));
+    for (const label of capabilities) {
+      const move = moves.get(label.dataset.capabilityId!);
+      if (move === undefined) continue;
+      label.dataset.moveX = String(move.x);
+      label.dataset.moveY = String(move.y);
+      label.style.setProperty("--move-x", `${move.x}px`);
+      label.style.setProperty("--move-y", `${move.y}px`);
+    }
     // The overlays place the names after this pass in the same frame: once they have, a name judged where it no longer stands
     // (a jump with nothing drawn after it, as a reduced-motion step makes) is judged again on one more frame.
     const where = (boxes: readonly DOMRect[]) => boxes.map(box => [box.x, box.y, box.width, box.height].map(Math.round).join()).join(";");
-    const judged = where(shown.map(plate => plate.box));
-    requestAnimationFrame(() => { if (where(labels.filter(onScreen).map(label => label.getBoundingClientRect())) !== judged) invalidate(); });
-    const capabilities = [...host.querySelectorAll<HTMLElement>(".planet-nameplate.capability")];
-    const fadedNames = fadedCapabilities(capabilities.filter(onScreen).map(label => ({ capability: label.dataset.capabilityId!,
-      box: label.getBoundingClientRect(), size: Number(label.dataset.size ?? 0) })));
-    for (const label of capabilities) label.classList.toggle("crowded", fadedNames.has(label.dataset.capabilityId!));
+    const judged = where([...labels.filter(onScreen), ...capabilities].map(label => label.getBoundingClientRect()));
+    requestAnimationFrame(() => { if (where([...labels, ...capabilities].filter(onScreen).map(label => label.getBoundingClientRect())) !== judged) invalidate(); });
   });
   return null;
 }

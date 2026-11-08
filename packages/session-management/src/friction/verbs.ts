@@ -207,11 +207,11 @@ const resteerNew = verb({
     family: "resteer",
     name: "new",
     summary: "file a re-steer with the owner's quoted words, keeping your account apart",
-    usage: "resteer new --redirect … --evidence <quote|@file> [--title <t>] [--description …] [--doing …] [--disposition <defect|taste>] [--judged-by <owner|agent>] [--mode <failure-mode>] [--self-report <text|@file>] [--links a,b]",
+    usage: "resteer new --redirect … --evidence <quote|@file> [--title <t>] [--description …] [--doing …] [--disposition <defect|taste>] [--judged-by <owner|agent>] [--mode <failure-mode>] [--self-report <text|@file>] [--links a,b] [--increment <increment>]",
   },
   tool: {
     name: "record_resteer",
-    description: "Record a re-steer: the user (the project's owner) redirected what you were doing. Two fields are needed: redirect (what they redirected you to; statement is taken for it) and evidence (their own words inside double quotation marks; quote is taken for it). The rest is optional: your own account goes in self-report; disposition is taste unless you say defect (which needs its failure mode, no-mast-home when none fits), and judged-by is agent unless the owner said which.",
+    description: "Record a re-steer: the user (the project's owner) redirected what you were doing. Two fields are needed: redirect (what they redirected you to; statement is taken for it) and evidence (their own words inside double quotation marks; quote is taken for it). The rest is optional: your own account goes in self-report; disposition is taste unless you say defect (which needs its failure mode, no-mast-home when none fits), and judged-by is agent unless the owner said which. The increment the redirection was about goes in increment, never in links, which name only artifacts.",
   },
   inputs: {
     redirect: { kind: "text", optional: true, describe: "what the owner redirected you to" },
@@ -225,7 +225,8 @@ const resteerNew = verb({
     "judged-by": { kind: "text", optional: true, describe: "who judged it a defect or taste: owner only when the owner said so; left out, agent" },
     mode: { kind: "text", optional: true, describe: "a defect's failure mode" },
     "self-report": { kind: "text", optional: true, describe: "your own account of it, kept apart" },
-    links: { kind: "text", optional: true, describe: "what it links to, comma-separated" },
+    links: { kind: "text", optional: true, describe: "the artifacts it links to, comma-separated (never an increment)" },
+    increment: { kind: "text", optional: true, describe: "the increment the redirection was about, when there was one" },
   },
   writes: true,
   async act({ "judged-by": judgedBy, statement, quote, ...given }, context: VerbContext) {

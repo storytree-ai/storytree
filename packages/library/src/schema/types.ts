@@ -555,6 +555,8 @@ export const RECORD_SCHEMAS = {
       dispositionBy: z.enum(["owner", "agent"]),
       mode: z.enum(RESTEER_MODES).optional(),
       provenance: provenance.optional(),
+      /** The increment it redirected, as friction's `increment`: artifacts link only to artifacts. Optional, so no version bump. */
+      increment: nonEmpty.optional(),
     })
     .strict()
     .superRefine((fields, context) => {

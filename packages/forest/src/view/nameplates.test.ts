@@ -1,4 +1,4 @@
-/** The globe's nameplates: a story's fixed just south of its island, its capabilities' on their own land; where names overlap, one fades. */
+/** The globe's nameplates: a story's fixed just south of its island, its capabilities' on their own land; where story names overlap, one fades; overlapping capability names move apart. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Euler, Quaternion, Vector3 } from "three";
@@ -6,7 +6,7 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, facesEye, facing, fadedCapabilities, fadedPlates, southOnPlate, storyPlate } from "./nameplates.js";
+import { capabilityPlates, facesEye, facing, fadedPlates, NAME_OVERLAP_SLACK, nameMoves, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -76,13 +76,43 @@ test("3.31 where two story names overlap on screen, the less face-on one fades a
   assert.deepEqual([...fadedPlates([{ ...pair[1]!, dimmed: true }, pair[0]!])], ["b"], "a dimmed name yields to a name in focus");
 });
 
-test("3.33 where a selected island's capability names overlap, the smaller territory's fades", () => {
-  const box = (left: number, top: number) => ({ left, top, right: left + 80, bottom: top + 30 });
+test("3.33 where a selected island's capability names overlap, they are moved apart until none overlaps, the larger territory's staying put; none is hidden", () => {
+  const box = (left: number, top: number, width = 80) => ({ left, top, right: left + width, bottom: top + 30 });
   // As Session management showed them: Sessions over Claims, Context readings over Settings.
   const names = [
     { capability: "sessions", box: box(500, 400), size: 9 }, { capability: "claims", box: box(530, 415), size: 14 },
     { capability: "context readings", box: box(600, 480), size: 6 }, { capability: "settings", box: box(620, 500), size: 3 },
     { capability: "hooks", box: box(400, 300), size: 1 },
   ];
-  assert.deepEqual([...fadedCapabilities(names)].sort(), ["sessions", "settings"], "the larger territory's name shows; a name clear of the others shows however small");
+  // As the checkbox run's island showed them (increment_9556d994e193): Database connection's name over Caller lookup's.
+  const checkbox = [
+    { capability: "database connection", box: box(725, 380, 120), size: 4 }, { capability: "caller lookup", box: box(786, 370, 120), size: 7 },
+    { capability: "request", box: box(760, 400, 100), size: 6 },
+  ];
+  // Eight names on one point, as a small island far off shows them: no side of one clears the rest.
+  const pile = Array.from({ length: 8 }, (_, i) => ({ capability: `c${i}`, box: box(300, 300, 60 + 10 * i), size: i }));
+  for (const [what, shown] of [["Session management", names], ["the checkbox island", checkbox], ["a pile", pile]] as const) {
+    const moves = spreadCapabilities(shown);
+    assert.deepEqual([...moves.keys()].sort(), shown.map(name => name.capability).sort(), `${what}: every name has a place`);
+    const placed = shown.map(({ capability, box }) => {
+      const { x, y } = moves.get(capability)!;
+      return { capability, box: { left: box.left + x, right: box.right + x, top: box.top + y, bottom: box.bottom + y } };
+    });
+    for (const [i, a] of placed.entries()) for (const b of placed.slice(i + 1)) {
+      const apart = a.box.right <= b.box.left + NAME_OVERLAP_SLACK || b.box.right <= a.box.left + NAME_OVERLAP_SLACK
+        || a.box.bottom <= b.box.top + NAME_OVERLAP_SLACK || b.box.bottom <= a.box.top + NAME_OVERLAP_SLACK;
+      assert.ok(apart, `${what}: ${a.capability} and ${b.capability} no longer overlap`);
+    }
+    const largest = [...shown].sort((a, b) => b.size - a.size)[0]!.capability;
+    assert.deepEqual(moves.get(largest), { x: 0, y: 0 }, `${what}: the largest territory's name stays on its point`);
+  }
+  assert.deepEqual(spreadCapabilities(names).get("hooks"), { x: 0, y: 0 }, "a name clear of the others stays put, however small");
+  // Frame to frame: the screen shows each name where its last move put it. Judged again from there, nothing moves.
+  const first = nameMoves(checkbox.map(name => ({ ...name, given: { x: 0, y: 0 } })));
+  assert.ok(first.has("database connection") || first.has("request"), "names in each other's way are given moves");
+  const shownMoved = checkbox.map(({ capability, box, size }) => {
+    const given = first.get(capability) ?? { x: 0, y: 0 };
+    return { capability, size, given, box: { left: box.left + given.x, right: box.right + given.x, top: box.top + given.y, bottom: box.bottom + given.y } };
+  });
+  assert.deepEqual([...nameMoves(shownMoved)], [], "names already moved apart stay still on the next frame");
 });

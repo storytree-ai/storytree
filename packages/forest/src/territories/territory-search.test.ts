@@ -7,9 +7,9 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 
 import { quietFor, waitUntil } from "@storytree/test-waits";
-import { borderLength, islandLayout, LIBRARY_LAND, linkLayout, prepareIsland, type Seeds } from "./link-layout.js";
+import { islandLayout, LIBRARY_LAND, linkLayout, prepareIsland, type Seeds } from "./link-layout.js";
 import { keepArrangement, keptArrangement, pageTerritorySearcher, searchInWorker, searchIsland, shelveOn, storageShelf, structureKey, type SearchAnswer, type SearchAsk, type SearchWorker, type TerritorySearcher } from "./kept-layout.js";
-import { networkScore, searchTerritories } from "./territory-search.js";
+import { borderLength, networkScore, searchTerritories } from "./territory-search.js";
 import { islandRoads, roadMeasures } from "./island-roads.js";
 import { answerSearch } from "./search-worker.js";
 import { capabilityPlates } from "../view/nameplates.js";
@@ -63,16 +63,23 @@ test("3.80 the network's measures: an inside link through a third territory and 
   const towns = islandRoads(map, across, [], names).towns, a = towns.get("a")!, c = towns.get("c")!;
   assert.ok(m.roadDrawn * S >= Math.hypot(a.x - c.x, a.z - c.z), "the road drawn reaches from a to c");
   assert.equal(roadMeasures(map, [], [], names).roadDrawn, 0, "no links, no road");
+  // The border between the strips runs across the land only, never on past the coast: two crossings of a strip 36 / S wide.
+  const island = prepareIsland(thirds, strip, [], [])!, held = owners(map), across36 = 36 / S;
+  const border = borderLength(island, held);
+  assert.ok(border >= 2 * across36 && border < 2 * 1.5 * across36, `two borders across the strip, ${border}, each a little longer than its width ${across36}`);
+  assert.ok(Math.abs(borderLength(island, held.map((o) => (o === 2 ? 1 : o))) * 2 - border) < 0.25 * border, "b and c as one, half the border");
 });
 
 test("3.80 an interface off the coast costs the arrangement 500, and a link no road reaches refuses it", () => {
   const island = prepareIsland(shares, coast, links, docks)!;
   const held = owners(linkLayout(shares, coast, links, docks));
   const none = { overThird: 0, overThirdBorders: 0, roadDrawn: 0, neighbours: 0, unrouted: 0, tunnels: 0 };
-  const borders = 0.2 * borderLength(island, held);
-  assert.equal(networkScore(island, held, { overThird: 1, overThirdBorders: 2, roadDrawn: 100, neighbours: 1, unrouted: 0, tunnels: 1 }), 100 + 10 + 6 + 5 + borders - 4);
+  const network = networkScore(island, held, { overThird: 1, overThirdBorders: 2, roadDrawn: 100, neighbours: 1, unrouted: 0, tunnels: 1 })! - networkScore(island, held, none)!;
+  assert.ok(Math.abs(network - (100 + 10 + 6 + 5 - 4)) < 1e-9, `a tunnel, a link over a third territory across two borders, 100 of road and a link between neighbours: ${network}`);
+  // a's frontier cells made open land: the border it held there is gone too, at most 0.2 a unit of it.
   const inland = held.map((o, c) => (o === 0 && island.frontier[c] ? -1 : o));
-  assert.equal(networkScore(island, inland, none), 500 + 0.2 * borderLength(island, inland), "a, whose lane lands, holds no frontier cell");
+  const offCoast = networkScore(island, inland, none)! - networkScore(island, held, none)!;
+  assert.ok(offCoast > 400 && offCoast <= 500, `a, whose lane lands, holds no frontier cell: ${offCoast}`);
   assert.equal(networkScore(island, held, { ...none, unrouted: 1 }), undefined);
 });
 

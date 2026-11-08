@@ -27,34 +27,34 @@ the router's own count island by island.
 
 | island | tunnels, main | tunnels, here | links over a third territory, main | here | border between territories, main | here | road drawn, main | here |
 |---|---|---|---|---|---|---|---|---|
-| The library | 0 | 0 | 92 | 88 | 2485 | 2490 | 1293 | 1128 |
-| Session management | 0 | 0 | 17 | 18 | 1561 | 1440 | 930 | 862 |
-| Desktop app | 0 | 0 | 6 | 7 | 1264 | 1066 | 661 | 688 |
-| Map view | 0 | 0 | 1 | 1 | 605 | 388 | 367 | 375 |
-| Work board | 0 | 0 | 2 | 1 | 519 | 319 | 303 | 412 |
-| The command line | 1 | 0 | 6 | 6 | 1564 | 1122 | 571 | 744 |
-| Knowledge graph | 0 | 0 | 2 | 1 | 784 | 493 | 358 | 540 |
-| Setup | 0 | 0 | 9 | 8 | 1451 | 1434 | 697 | 762 |
-| Mick's dev loop | 1 | 0 | 0 | 0 | 1675 | 1582 | 252 | 259 |
-| Code map | 0 | 0 | 2 | 2 | 671 | 477 | 309 | 477 |
-| CI health | 0 | 0 | 2 | 3 | 731 | 554 | 599 | 555 |
-| The MCP server | 0 | 0 | 1 | 0 | 1010 | 712 | 483 | 537 |
-| Plugin loader | 0 | 0 | 0 | 1 | 501 | 426 | 362 | 410 |
-| Context | 0 | 0 | 0 | 0 | 697 | 493 | 307 | 352 |
-| Experiments | 0 | 0 | 1 | 1 | 1443 | 1101 | 452 | 474 |
-| Agent runner | 0 | 0 | 1 | 0 | 662 | 605 | 509 | 597 |
-| Marketing artifacts | 0 | 0 | 0 | 0 | 426 | 238 | 74 | 139 |
-| The local database | 0 | 0 | 0 | 0 | 388 | 154 | 65 | 106 |
-| The drawing engine | 0 | 0 | 0 | 0 | 597 | 500 | 265 | 305 |
-| Surface feedback | 0 | 0 | 0 | 0 | 1028 | 509 | 276 | 349 |
-| Talk to storytree by voice | 0 | 0 | 0 | 0 | 805 | 712 | 413 | 376 |
-| Test waits | 0 | 0 | 0 | 0 | 587 | 419 | 96 | 146 |
-| Base dev loop | 0 | 0 | 0 | 0 | 992 | 545 | 254 | 359 |
-| Service host | 0 | 0 | 0 | 0 | 709 | 479 | 190 | 252 |
-| Teaching cards | 0 | 0 | 0 | 0 | 618 | 356 | 207 | 303 |
-| Storytree's own repository checks | 1 | 0 | 1 | 4 | 1204 | 941 | 527 | 460 |
-| Claude Code mod | 0 | 0 | 0 | 0 | 410 | 294 | 10 | 19 |
-| Mick's agent runner | 0 | 0 | 0 | 0 | 769 | 400 | 29 | 90 |
+| The library | 0 | 0 | 92 | 88 | 2049 | 2046 | 1293 | 1128 |
+| Session management | 0 | 0 | 17 | 18 | 1193 | 1101 | 930 | 813 |
+| Desktop app | 0 | 0 | 6 | 7 | 888 | 710 | 661 | 593 |
+| Map view | 0 | 0 | 1 | 1 | 484 | 328 | 367 | 515 |
+| Work board | 0 | 0 | 2 | 1 | 386 | 247 | 303 | 406 |
+| The command line | 1 | 0 | 6 | 3 | 1246 | 863 | 571 | 752 |
+| Knowledge graph | 0 | 0 | 2 | 2 | 546 | 397 | 358 | 447 |
+| Setup | 0 | 0 | 9 | 14 | 1206 | 1131 | 697 | 817 |
+| Mick's dev loop | 1 | 0 | 0 | 0 | 1535 | 1402 | 252 | 251 |
+| Code map | 0 | 0 | 2 | 2 | 597 | 387 | 309 | 316 |
+| CI health | 0 | 0 | 2 | 2 | 599 | 545 | 599 | 590 |
+| The MCP server | 0 | 0 | 1 | 0 | 783 | 570 | 483 | 621 |
+| Plugin loader | 0 | 0 | 0 | 1 | 456 | 390 | 362 | 363 |
+| Context | 0 | 0 | 0 | 0 | 574 | 380 | 307 | 401 |
+| Experiments | 0 | 0 | 1 | 2 | 1111 | 863 | 452 | 464 |
+| Agent runner | 0 | 0 | 1 | 3 | 618 | 627 | 509 | 386 |
+| Marketing artifacts | 0 | 0 | 0 | 0 | 316 | 140 | 74 | 151 |
+| The local database | 0 | 0 | 0 | 0 | 219 | 141 | 65 | 158 |
+| The drawing engine | 0 | 0 | 0 | 0 | 421 | 408 | 265 | 396 |
+| Surface feedback | 0 | 0 | 0 | 0 | 921 | 330 | 276 | 387 |
+| Talk to storytree by voice | 0 | 0 | 0 | 0 | 594 | 499 | 413 | 424 |
+| Test waits | 0 | 0 | 0 | 0 | 566 | 334 | 96 | 142 |
+| Base dev loop | 0 | 0 | 0 | 0 | 865 | 394 | 254 | 382 |
+| Service host | 0 | 0 | 0 | 0 | 664 | 312 | 190 | 289 |
+| Teaching cards | 0 | 0 | 0 | 0 | 539 | 256 | 207 | 285 |
+| Storytree's own repository checks | 1 | 0 | 1 | 3 | 860 | 797 | 527 | 501 |
+| Claude Code mod | 0 | 0 | 0 | 0 | 209 | 131 | 10 | 12 |
+| Mick's agent runner | 0 | 0 | 0 | 0 | 512 | 226 | 29 | 45 |
 
 Keys and The session manager's scheduled runs on the Mint box hold one territory each: nothing to search. Lengths are in The
 library's units (an island searched at The library's size).
@@ -67,17 +67,19 @@ library's units (an island searched at The library's size).
 - **0.2 for each unit of border between two territories** (open land and the coast are no border): a territory reaching an
   arm between two others draws a border along each side of it, so the search grows it outward. The border measure was chosen
   over a territory's spread from its seed because the arm Mick named is long and thin, little area far out but a long border
-  on each side. The total border between territories fell on 27 of the 28 islands searched, by 23% across them; The library's
-  held (2,485 to 2,490) while its road fell from 1,293 to 1,128. Each territory still holds its share of the lines (3.14):
-  the score never changes how many cells a territory grows to.
+  on each side; it is measured on the land only, as the router clips borders, since a fine cell at the coast reaches past it.
+  The total border between territories fell on 27 of the 28 islands searched (Agent runner's rose 618 to 627), by 24%
+  across them; The library's held (2,049 to 2,046) while its road fell from 1,293 to 1,128. Each territory still holds its
+  share of the lines (3.14): the score never changes how
+  many cells a territory grows to.
 - **The kept arrangement's key carries the score's version** (`score 2`), so every island kept under main's score searches
   once more, from the arrangement it draws, and keeps what it finds.
 
 ## What it costs
 
 A step of the search still routes the network once, and now also counts its tunnels from the cut and sums the borders: per
-step, serially on the Mint box, main against this branch over 40 steps each, twice: The library 667 / 654 against 651 / 648 ms,
-Session management 342 / 346 against 327 / 337 ms, Setup 293 / 294 against 274 / 289 ms, Map view 183 / 181 against 179 / 182
+step, serially on the Mint box, main against this branch over 40 steps each, twice: The library 668 / 640 against 643 / 636 ms,
+Session management 342 / 329 against 340 / 342 ms, Setup 289 / 293 against 290 / 293 ms, Map view 187 / 192 against 202 / 188
 ms. Within the 0.3 to 0.7 s a step increment_45fb1b3db15c and increment_8bde01fc16da measured.
 
 ## Pictures

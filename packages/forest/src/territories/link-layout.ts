@@ -228,25 +228,6 @@ export function grownFrom(island: PreparedIsland, seeds: readonly number[]): num
   return Array.isArray(grown) ? grown : undefined;
 }
 
-/** Each pair of neighbouring cells of the island's fine cut, with the length of the edge they share, in The library's units. */
-const edgesOf = new WeakMap<PreparedIsland, readonly (readonly [number, number, number])[]>();
-
-/** The length of the borders between two territories of `owners`, in The library's units: open land and the coast are no
- * border. A territory that reaches an arm between two others draws more of it than one grown outward (3.80). */
-export function borderLength(island: PreparedIsland, owners: readonly number[]): number {
-  let edges = edgesOf.get(island);
-  if (edges === undefined) {
-    const { cells } = island.fine, found: (readonly [number, number, number])[] = [];
-    cells.forEach((cell, at) => {
-      for (const n of cell.neighbours) if (n > at) { const e = sharedEdge(cell, cells[n]!); if (e) found.push([at, n, far(e[0], e[1])]); }
-    });
-    edgesOf.set(island, edges = found);
-  }
-  let length = 0;
-  for (const [a, b, l] of edges) if (owners[a] !== owners[b] && owners[a]! >= 0 && owners[b]! >= 0) length += l;
-  return length;
-}
-
 /** The island as the map draws it, each cell held by `owners`' territory, at the island's own size. */
 export function drawnIsland(island: PreparedIsland, owners: readonly number[]): TerritoryMap {
   const { fine, scale, coast } = island;
@@ -370,7 +351,7 @@ function piecesOf(list: readonly number[], cells: readonly Cell[]): number[][] {
 }
 
 /** The edge two neighbouring cells share: the corners of `a`'s outline that are also corners of `b`'s. */
-function sharedEdge(a: Cell, b: Cell): [Point, Point] | undefined {
+export function sharedEdge(a: Cell, b: Cell): [Point, Point] | undefined {
   const close = (p: Point, q: Point) => Math.abs(p.x - q.x) < 1e-5 && Math.abs(p.z - q.z) < 1e-5;
   const common = a.polygon.filter((p) => b.polygon.some((q) => close(p, q)));
   return common.length >= 2 ? [common[0]!, common[common.length - 1]!] : undefined;

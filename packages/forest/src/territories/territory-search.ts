@@ -18,9 +18,10 @@
  * - It starts from the arrangement the page draws (link-layout.ts's start, or the kept seeds) and answers the best it
  *   found, never worse than that start. A step routes the whole network (0.3 to 0.7 s an island), so it runs off the page.
  */
-import { borderLength, drawnIsland, grownFrom, prepareIsland, seedKind, seedPoints, settle, startSeeds, type PreparedIsland, type Seeds } from "./link-layout.js";
+import { drawnIsland, grownFrom, prepareIsland, seedKind, seedPoints, settle, sharedEdge, startSeeds, type PreparedIsland, type Seeds } from "./link-layout.js";
 import { roadMeasures, type RoadMeasures } from "./island-roads.js";
 import { capabilityPlates } from "../view/nameplates.js";
+import { insideOf } from "../view/territory-land.js";
 import type { SearchAsk } from "./kept-layout.js";
 
 /** The mock's steps, its starting temperature and how far it cools, and its random seed. */
@@ -34,6 +35,29 @@ export function networkScore(island: PreparedIsland, owners: readonly number[], 
   if (m.unrouted > 0) return undefined;
   const offCoast = [...island.dockOf.keys()].filter((t) => !owners.some((o, c) => o === t && island.frontier[c])).length;
   return TUNNEL * m.tunnels + 10 * m.overThird + 3 * m.overThirdBorders + 0.05 * m.roadDrawn + BORDER * borderLength(island, owners) - 4 * m.neighbours + 500 * offCoast;
+}
+
+/** Each pair of neighbouring cells of an island's fine cut, with the length of the edge they share on the land. */
+const edgesOf = new WeakMap<PreparedIsland, readonly (readonly [number, number, number])[]>();
+
+/** The length of the borders between two territories of `owners` on the land, in The library's units: open land and the
+ * coast are no border. A territory that reaches an arm between two others draws more of it than one grown outward. */
+export function borderLength(island: PreparedIsland, owners: readonly number[]): number {
+  let edges = edgesOf.get(island);
+  if (edges === undefined) {
+    const { cells, coast = [] } = island.fine, found: (readonly [number, number, number])[] = [];
+    cells.forEach((cell, at) => {
+      for (const n of cell.neighbours) {
+        const edge = n > at ? sharedEdge(cell, cells[n]!) : undefined;
+        // A cell at the coast reaches past it: only the edge's stretch on the land is border.
+        if (edge) found.push([at, n, insideOf(edge[0], edge[1], coast).reduce((s, p) => s + Math.hypot(p.to.x - p.from.x, p.to.z - p.from.z), 0)]);
+      }
+    });
+    edgesOf.set(island, edges = found);
+  }
+  let length = 0;
+  for (const [a, b, l] of edges) if (owners[a] !== owners[b] && owners[a]! >= 0 && owners[b]! >= 0) length += l;
+  return length;
 }
 
 /** The best seeds the search finds for the island `ask` describes, its score and its start's, or undefined when no

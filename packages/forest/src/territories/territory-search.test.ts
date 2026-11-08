@@ -112,7 +112,7 @@ test("3.80 a kept arrangement for the island's structure draws from its seeds an
   let answer: (a: SearchAnswer) => void = () => {};
   const searcher: TerritorySearcher = (given) => { asked.push(given); return new Promise((resolve) => { answer = resolve; }); };
   const seeds = { a: { x: 60, z: 10 }, b: { x: -60, z: -10 }, c: { x: 0, z: 50 }, d: { x: 0, z: -50 }, "": { x: 20, z: 20 } };
-  keepArrangement("s", { key: structureKey(shares, links, docks), seeds });
+  keepArrangement("s", { key: structureKey(shares), seeds });
   searchIsland("s", ask, searcher);
   assert.equal(asked.length, 0, "the structure the arrangement was kept for asks no search");
   assert.ok(grownFrom(islandLayout("s", shares, coast, links, docks), seeds), "drawn from the kept seeds");
@@ -120,15 +120,49 @@ test("3.80 a kept arrangement for the island's structure draws from its seeds an
   // More lines are no change of structure.
   searchIsland("s", { ...ask, shares: shares.map((s) => ({ ...s, lines: s.lines * 2 })) }, searcher);
   assert.equal(asked.length, 0, "a change of lines only resizes");
-  const more = [...links, { from: "c", to: "b" }];
-  searchIsland("s", { ...ask, links: more }, searcher);
-  searchIsland("s", { ...ask, links: more }, searcher);
-  assert.equal(asked.length, 1, "a new link asks one search, and asking again while it runs asks no other");
+  const more = [...shares, { capability: "e", lines: 200 }];
+  searchIsland("s", { ...ask, shares: more }, searcher);
+  searchIsland("s", { ...ask, shares: more }, searcher);
+  assert.equal(asked.length, 1, "a new territory asks one search, and asking again while it runs asks no other");
   assert.deepEqual(asked[0]!.kept, seeds, "seeded from the kept seeds the island is drawn from");
-  const found = { a: { x: 1, z: 2 }, b: { x: 3, z: 4 }, c: { x: 5, z: 6 }, d: { x: 7, z: 8 }, "": { x: 9, z: 9 } };
+  const found = { a: { x: 1, z: 2 }, b: { x: 3, z: 4 }, c: { x: 5, z: 6 }, d: { x: 7, z: 8 }, e: { x: 0, z: 0 }, "": { x: 9, z: 9 } };
   answer({ found: { seeds: found, score: 1, start: 2 } });
   const now = await waitUntil(() => { const k = keptArrangement("s"); return k?.seeds === found ? k : undefined; }, 2000, "the arrangement found kept");
-  assert.equal(now.key, structureKey(shares, more, docks), "kept under the new structure");
+  assert.equal(now.key, structureKey(more), "kept under the new structure");
+});
+
+test("3.94 a new link or a lane moved to another dock keeps the island's kept seeds and asks no search; a territory added or dropped is searched with the kept territories fixed", () => {
+  shelveOn(undefined);
+  const asked: SearchAsk[] = [];
+  const searcher: TerritorySearcher = (given) => { asked.push(given); return new Promise(() => {}); };
+  const seeds = { a: { x: 60, z: 10 }, b: { x: -60, z: -10 }, c: { x: 0, z: 50 }, d: { x: 0, z: -50 }, "": { x: 20, z: 20 } };
+  keepArrangement("s", { key: structureKey(shares), seeds });
+  const moved = [{ ...docks[0]!, links: [] }, { ...docks[1]!, links: ["b->y", "z1->a"] }];
+  searchIsland("s", { ...ask, links: [...links, { from: "c", to: "b" }] }, searcher);
+  searchIsland("s", { ...ask, docks: moved }, searcher);
+  assert.equal(asked.length, 0, "a new link and a lane moved to another dock ask no search");
+  assert.equal(keptArrangement("s")?.seeds, seeds, "the kept seeds stay kept");
+  assert.ok(grownFrom(islandLayout("s", shares, coast, [...links, { from: "c", to: "b" }], docks), seeds), "and the island is still drawn from them");
+  searchIsland("s", { ...ask, shares: [...shares, { capability: "e", lines: 200 }] }, searcher);
+  assert.equal(asked.length, 1, "a new territory asks a search");
+  assert.deepEqual([...asked[0]!.fixed!].sort(), ["", "a", "b", "c", "d"], "the territories already kept may not move");
+  shelveOn(undefined);
+  keepArrangement("t", { key: structureKey(shares), seeds });
+  searchIsland("t", { ...ask, shares: shares.filter((s) => s.capability !== "d") }, searcher);
+  assert.equal(asked.length, 1, "a territory dropped leaves the rest where they were kept, with nothing to search");
+  assert.equal(keptArrangement("t")?.key, structureKey(shares.filter((s) => s.capability !== "d")), "kept again under the new structure");
+});
+
+test("3.94 a search with territories fixed moves only the others: the fixed come back where the island is drawn from", { timeout: 120_000 }, () => {
+  const more = [...shares, { capability: "e", lines: 200 }], wider = [...links, { from: "e", to: "a" }];
+  const kept = searchTerritories({ ...ask, steps: 0 })!.seeds, fixed = Object.keys(kept);
+  const start = searchTerritories({ shares: more, coast, links: wider, docks, kept, steps: 0 })!.seeds;
+  const found = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed, steps: 6 })!;
+  for (const id of fixed) assert.deepEqual(found.seeds[id], start[id], `${id || "the Unclaimed code"} kept its place`);
+  const free = searchTerritories({ shares: more, coast, links: wider, docks, kept, steps: 6 })!;
+  assert.ok(fixed.some((id) => JSON.stringify(free.seeds[id]) !== JSON.stringify(start[id])), "searched with none fixed, a kept territory moves");
+  const all = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed: [...fixed, "e"], steps: 1 })!;
+  assert.deepEqual(all.seeds, start, "with every territory fixed it answers the arrangement it starts from");
 });
 
 test("3.80 an arrangement kept before the search's score changed is searched again, once, for the island's structure", () => {
@@ -144,13 +178,13 @@ test("3.80 an arrangement kept before the search's score changed is searched aga
   assert.deepEqual(asked[0]!.kept, seeds, "from the arrangement it draws");
   searchIsland("s", ask, searcher);
   assert.equal(asked.length, 1, "and asked again while it runs, no other");
-  assert.notEqual(structureKey(shares, links, docks), before);
+  assert.notEqual(structureKey(shares), before);
 });
 
 test("3.80 a search asked for another island waits its turn behind the one in flight, one at a time; a new structure of the island in flight overtakes it", async () => {
   shelveOn(undefined);
-  const asked: { links: number; signal: AbortSignal; answer: (a: SearchAnswer) => void }[] = [];
-  const searcher: TerritorySearcher = (given, signal) => new Promise((answer) => asked.push({ links: given.links.length, signal, answer }));
+  const asked: { shares: number; signal: AbortSignal; answer: (a: SearchAnswer) => void }[] = [];
+  const searcher: TerritorySearcher = (given, signal) => new Promise((answer) => asked.push({ shares: given.shares.length, signal, answer }));
   const found = (x: number) => ({ found: { seeds: { a: { x, z: 0 } }, score: 0, start: 0 } });
   searchIsland("one", ask, searcher);
   searchIsland("two", ask, searcher);
@@ -161,16 +195,16 @@ test("3.80 a search asked for another island waits its turn behind the one in fl
   await waitUntil(() => asked.length === 2, 2000, "the next island's search to start once the first answers");
   assert.equal(keptArrangement("one")?.seeds.a?.x, 1, "the first island keeps what it found");
   // "two" is in flight: a new structure for it overtakes it, and is searched in its place, ahead of "three".
-  const more = [...links, { from: "c", to: "b" }];
-  searchIsland("two", { ...ask, links: more }, searcher);
+  const more = [...shares, { capability: "e", lines: 200 }];
+  searchIsland("two", { ...ask, shares: more }, searcher);
   assert.equal(asked[1]!.signal.aborted, true, "the old structure's search is overtaken");
   await waitUntil(() => asked.length === 3, 2000, "the new structure searched");
-  assert.equal(asked[2]!.links, more.length, "searched for the new structure");
+  assert.equal(asked[2]!.shares, more.length, "searched for the new structure");
   asked[1]!.answer(found(2));
   asked[2]!.answer(found(3));
   await waitUntil(() => asked.length === 4, 2000, "the island waiting its turn searched last");
   assert.equal(keptArrangement("two")?.seeds.a?.x, 3, "the overtaken search's answer is not kept");
-  assert.equal(keptArrangement("two")?.key, structureKey(shares, more, docks));
+  assert.equal(keptArrangement("two")?.key, structureKey(more));
   asked[3]!.answer(found(4));
   await waitUntil(() => keptArrangement("three")?.seeds.a?.x === 4, 2000, "the last island kept");
 });
@@ -180,7 +214,7 @@ test("3.80 an island kept for its structure while it waits its turn is passed ov
   const asked: { story: string; signal: AbortSignal; answer: (a: SearchAnswer) => void }[] = [];
   const searcher = (story: string): TerritorySearcher => (_, signal) => new Promise((answer) => asked.push({ story, signal, answer }));
   for (const story of ["one", "two", "three"]) searchIsland(story, ask, searcher(story));
-  keepArrangement("two", { key: structureKey(shares, links, docks), seeds: { a: { x: 2, z: 0 } } });
+  keepArrangement("two", { key: structureKey(shares), seeds: { a: { x: 2, z: 0 } } });
   asked[0]!.answer({ found: undefined });
   await waitUntil(() => asked.length === 2, 2000, "the island behind the one kept meanwhile searched");
   assert.equal(asked[1]!.story, "three", "the island kept while it waited is passed over");

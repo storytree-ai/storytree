@@ -407,7 +407,7 @@ test("2.28 · a territory click opens its story on that capability, and every dr
   const handed = project.folded.length;
   on.land();
   assert.equal(project.rendered.at(-1), second!.id, "the redraw keeps the capability chosen");
-  assert.deepEqual(project.folded.slice(handed), [second!.id], "and hands the redrawn panel to its folds, which open what the user keeps open");
+  assert.deepEqual(project.folded.slice(handed), [], "news that draws the panel the same touches nothing, so nothing is handed to the folds again");
 });
 
 test("2.50 · a gate picked on the map opens its story's panel on the pair it joins, kept on a redraw, and with the contracts the opened arc's open work links; a territory pick after it opens on that capability", async (t) => {

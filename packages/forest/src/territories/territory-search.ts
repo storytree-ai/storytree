@@ -16,7 +16,8 @@
  *   third territory and 3 tunnels. The border term keeps territories compact: a territory reaching an arm between two
  *   others draws a border along each side of it, so it grows outward instead.
  * - It starts from the arrangement the page draws (link-layout.ts's start, or the kept seeds) and answers the best it
- *   found, never worse than that start. A step routes the whole network (0.3 to 0.7 s an island), so it runs off the page.
+ *   found, never worse than that start. The territories it is asked to fix keep their start's seeds, so a territory
+ *   added to a kept island finds its place and the rest only make room (3.94). A step routes the whole network (0.3 to 0.7 s an island), so it runs off the page.
  */
 import { drawnIsland, grownFrom, prepareIsland, seedKind, seedPoints, settle, sharedEdge, startSeeds, type PreparedIsland, type Seeds } from "./link-layout.js";
 import { roadMeasures, type RoadMeasures } from "./island-roads.js";
@@ -63,7 +64,7 @@ export function borderLength(island: PreparedIsland, owners: readonly number[]):
 /** The best seeds the search finds for the island `ask` describes, its score and its start's, or undefined when no
  * arrangement of it grows and routes. */
 export function searchTerritories(ask: SearchAsk): { seeds: Seeds; score: number; start: number } | undefined {
-  const { shares, coast, links, docks, kept, steps = STEPS } = ask;
+  const { shares, coast, links, docks, kept, fixed = [], steps = STEPS } = ask;
   const island = prepareIsland(shares, coast, links, docks);
   if (island === undefined) return undefined;
   const evaluate = (seeds: readonly number[], owners = grownFrom(island, seeds)) => {
@@ -76,7 +77,7 @@ export function searchTerritories(ask: SearchAsk): { seeds: Seeds; score: number
   if (grown === undefined) return undefined;
   let state = SEED;
   const random = () => { state = (state * 1103515245 + 12345) & 0x7fffffff; return state / 0x7fffffff; };
-  const mutate = mutation(island, random);
+  const held = new Set(fixed), mutate = mutation(island, random, island.ids.map((id) => !held.has(id)));
   let here = evaluate(grown.seeds, grown.owners);
   for (let tries = 0; here === undefined && tries < steps; tries++) here = evaluate(mutate(grown.seeds));
   if (here === undefined) return undefined;
@@ -92,17 +93,18 @@ export function searchTerritories(ask: SearchAsk): { seeds: Seeds; score: number
 }
 
 /** The mock's change of an arrangement: swap two seeds of a kind (30%), else move one to a free cell of its kind, a
- * neighbour of it 75% of the time. */
-function mutation(island: PreparedIsland, random: () => number): (seeds: readonly number[]) => number[] {
+ * neighbour of it 75% of the time. Only the territories `free` marks are swapped or moved. */
+function mutation(island: PreparedIsland, random: () => number, free: readonly boolean[]): (seeds: readonly number[]) => number[] {
   const kinds = island.ids.map((_, t) => seedKind(island, t)), coastal = (t: number) => island.dockOf.has(t);
-  const cells = island.fine.cells;
+  const cells = island.fine.cells, movable = island.ids.map((_, t) => t).filter((t) => free[t]), n = movable.length;
   return (seeds) => {
-    const out = [...seeds], n = seeds.length;
+    const out = [...seeds];
+    if (n === 0) return out;
     if (random() < 0.3 && n > 1) {
-      const a = Math.floor(random() * n), pool = seeds.map((_, t) => t).filter((t) => t !== a && coastal(t) === coastal(a));
+      const a = movable[Math.floor(random() * n)]!, pool = movable.filter((t) => t !== a && coastal(t) === coastal(a));
       if (pool.length) { const b = pool[Math.floor(random() * pool.length)]!; out[a] = seeds[b]!; out[b] = seeds[a]!; }
     } else {
-      const t = Math.floor(random() * n), kind = kinds[t]!, taken = new Set(seeds);
+      const t = movable[Math.floor(random() * n)]!, kind = kinds[t]!, taken = new Set(seeds);
       const near = (random() < 0.75 ? cells[seeds[t]!]!.neighbours.filter((c) => kind[c]) : island.main.filter((c) => kind[c])).filter((c) => !taken.has(c));
       if (near.length) out[t] = near[Math.floor(random() * near.length)]!;
     }

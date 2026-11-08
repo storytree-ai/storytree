@@ -79,19 +79,19 @@ test("4.41 from the keyboard, Enter or Space opens a handle's fold, the arrow ke
   key(handle("more"), " ");
   assert.equal(open("more"), false, "Space closes it again");
   key(handle("more"), "ArrowDown");
-  assert.equal(focused(), handle("more", 1), "down moves to the next handle shown");
+  assert.ok(focused() === handle("more", 1), "down moves to the next handle shown");
   key(focused()!, "ArrowDown");
-  assert.equal(focused(), handle("open-work"), "past the story's own to the capability's");
+  assert.ok(focused() === handle("open-work"), "past the story's own to the capability's");
   key(focused()!, "ArrowDown");
   key(focused()!, "ArrowDown");
   assert.equal(focused()?.textContent, "Open all · 5", "a closed fold's handles are skipped: the contract's is not shown");
   key(focused()!, "ArrowUp");
-  assert.equal(focused(), handle("contracts"), "up moves back");
+  assert.ok(focused() === handle("contracts"), "up moves back");
   key(handle("contracts"), "Enter");
   handle("contract").focus();
   key(handle("contract"), "Escape");
   assert.equal(open("contracts"), false, "Escape closes the fold the focus is in");
-  assert.equal(focused(), handle("contracts"), "and leaves the focus on its handle");
+  assert.ok(focused() === handle("contracts"), "and leaves the focus on its handle");
 });
 
 test("4.41 Open all · n opens every fold on this panel, both levels, and is not kept", () => {

@@ -646,11 +646,11 @@
 @media (prefers-reduced-motion: reduce) { .planet-nameplate { transition:none; } }
 /* A story's plate wraps its title to STORY_PLATE_WIDTH (set where it is drawn), balanced and centred under its island. */
 .planet-nameplate:not(.capability) { width:max-content; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; }
-/* A name that overlaps a more face-on one or a larger territory's fades where it is; it never moves (ADR-0917). */
+/* A story name that overlaps a more face-on one fades where it is; it never moves (ADR-0917). A capability name is moved apart instead (3.33). */
 .planet-nameplate.crowded { opacity:0; }
 /* A capability's name wraps by word to two lines at most, an ellipsis past them; its full name and description read on hover (3.32). */
-.planet-nameplate.capability { transform:none; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; width:max-content; max-width:120px; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; padding:0.1rem 0.45rem; font-size:0.7rem; font-weight:500; background:rgb(16 20 24 / 0.62); }
+.planet-nameplate.capability { transform:none; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; width:max-content; max-width:120px; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; padding:0.1rem 0.45rem; font-size:0.7rem; font-weight:500; background:rgb(16 20 24 / 0.62); translate:var(--move-x, 0px) var(--move-y, 0px); }
 /* A claimed capability's flag stands at its nameplate's point: the name hangs just below the flag's foot (ADR-0968 D1). */
-.planet-nameplate.capability[data-claimed] { translate:0 calc(50% + 5px); }
+.planet-nameplate.capability[data-claimed] { translate:var(--move-x, 0px) calc(50% + 5px + var(--move-y, 0px)); }
 /* On a phone a story's plate is slimmer, so the names of two islands this close on a small globe both stand (3.31). */
 @media (max-width:600px) { .planet-nameplate:not(.capability) { font-size:0.7rem; padding:0.1rem 0.25rem; } }

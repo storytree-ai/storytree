@@ -1106,12 +1106,14 @@ test("8.59 a file whose statements are only re-exports is placed in no capabilit
     ].join("\n"));
     await writeFile(path.join(src, "mixed.ts"), '// Capability 4 · Cart.\nexport { cart } from "./cart.js";\nexport const total = 1;\n');
     await writeFile(path.join(src, "local.ts"), '// Capability 4 · Cart.\nimport { cart } from "./cart.js";\nexport { cart };\n');
-    const owners = await capabilitiesOfFiles(folder, ["packages/shop/src/index.ts", "packages/shop/src/mixed.ts", "packages/shop/src/local.ts"], plan, {
+    await writeFile(path.join(src, "notes.ts"), '// Capability 4 · Cart.\n/// <reference path="./assets.d.ts" />\n');
+    const owners = await capabilitiesOfFiles(folder, ["packages/shop/src/index.ts", "packages/shop/src/mixed.ts", "packages/shop/src/local.ts", "packages/shop/src/notes.ts"], plan, {
       survey: async () => ({ "story-shop": { files: [{ path: "src/index.ts", lines: 4, capability: "cap-claims" }] } }) as never,
     });
     assert.deepEqual([...owners], [
       ["packages/shop/src/mixed.ts", { capability: "cap-cart", inferred: false }],
       ["packages/shop/src/local.ts", { capability: "cap-cart", inferred: false }],
+      ["packages/shop/src/notes.ts", { capability: "cap-cart", inferred: false }],
     ]);
   } finally {
     await removeTemp(folder);

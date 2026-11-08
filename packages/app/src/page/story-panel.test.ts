@@ -32,10 +32,10 @@ function setup() {
     folds: (panel) => { // the forest's folds keep the top-level kinds open; a contract's own is the panel's to keep
       for (const handle of panel.querySelectorAll<HTMLElement>('[data-fold="contracts"] > .panel-handle')) { handle.setAttribute("aria-expanded", "true"); (handle.nextElementSibling as HTMLElement).hidden = false; }
     },
-    libraryCard: () => () => {},
+    libraryCard: (panel) => { panel.replaceChildren(); panel.append(document.createElement("article") as never); return () => {}; }, // the card takes the panel
     deselect: () => {},
   });
-  return { host, view, writes, change: (next: string) => { title = next; } };
+  return { host, body, view, writes, change: (next: string) => { title = next; } };
 }
 
 test("2.51 · news that leaves the panel's content unchanged rebuilds nothing", () => {
@@ -65,4 +65,29 @@ test("2.51 · a change on the story keeps the open folds, a contract's own fold,
   assert.equal((handles()[1]!.nextElementSibling as HTMLElement).hidden, false);
   assert.ok(host.ownerDocument.activeElement === handles()[1], "the focused handle keeps focus");
   assert.equal(host.scrollTop, 40, "and the scroll holds");
+});
+
+test("2.51 · a story left for a library note is drawn again on return, though its HTML is unchanged", () => {
+  const { view, writes, host, body } = setup();
+  view.show();
+  body.dataset.note = "note_1";
+  view.show();
+  assert.ok(host.querySelector("article") !== null && host.querySelector("h2") === null, "the note's card is on the panel");
+  delete body.dataset.note;
+  view.show();
+  assert.equal(writes.length, 2, "the story is drawn again");
+  assert.equal(host.querySelector("h2")?.textContent, "one", "and is what the panel shows");
+});
+
+test("2.51 · a story deselected and selected again is drawn again, though its HTML is unchanged", () => {
+  const { view, writes, host, body } = setup();
+  view.show();
+  delete body.dataset.selected;
+  view.show();
+  assert.equal(host.hidden, true, "nothing selected hides the panel");
+  body.dataset.selected = "s";
+  view.show();
+  assert.equal(writes.length, 2, "the story is drawn again");
+  assert.equal(host.hidden, false);
+  assert.equal(host.querySelector("h2")?.textContent, "one", "and is what the panel shows");
 });

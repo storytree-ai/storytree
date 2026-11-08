@@ -1,7 +1,7 @@
 /**
  * Capability 2 · Storytree projects. The desktop page's story panel (the forest's capability 4 drill-down, mounted by the app): the
  * library's card for a selected note, or the selected story's drill-down with the capability picked on the island shown below
- * its lead (ADR-0659 D2). Every drawing is handed to the forest's folds, which open again the kinds the user opened.
+ * its lead (ADR-0659 D2). A drawing that changes the panel is handed to the forest's folds, which open again the kinds the user opened.
  */
 import { selectedCapability, type StoryPanel } from "@storytree/forest";
 

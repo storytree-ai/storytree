@@ -2,7 +2,7 @@
  * Capability 4 · Look inside and inspect an artifact. Capability 4's surface (the knowledge core story): everything the knowledge core shows, owned
  * here so the app only mounts it (ADR-0649 D2). The app makes one core per project it shows,
  * hands it the library's change history and the activity log's new lines as they come, and mounts
- * `KnowledgeGlobePoints` under the globe's islands and `KnowledgeNoteCard` in the story-panel slot.
+ * `KnowledgeGlobePoints` under the glass sheet and `KnowledgeNoteCard` in the story-panel slot.
  * The core keeps its own reads, selected session, windows and pin.
  */
 import { useEffect, useMemo, useSyncExternalStore } from "react";
@@ -14,7 +14,7 @@ import { HIDDEN_AT_START, drawnPoints, kindRows } from "../kinds/kinds.js";
 import { ORCHESTRATOR, dotSizes, lighting, noteCard, trails as readingPaths, traversalTrails, windowView, type CodePlaces, type WindowState, type Point, type RosterEntry, type SessionWindow } from "../look-inside/look-inside.js";
 import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
-import { globePoints, type Point as ShelfPoint } from "../shelves/positions.js";
+import type { Point as ShelfPoint } from "../shelves/positions.js";
 import { sheetLayout, sheetLit, sheetRoots, type SheetHanging } from "../shelves/sheet.js";
 import { GlobePoints, NoteRoots, SeaFloor, type CoreGrowth } from "./globe-points.js";
 import { KindList, NoteCard } from "./drawing.js";
@@ -215,11 +215,11 @@ export interface CoreUnderSheet extends SheetHanging {
 /** A note's dot under the sheet is sized as on a globe of this radius: about two ground units at the floor. */
 const SHEET_DOT_SCALE = 360;
 
-/** Knowledge under the globe's islands, or hung under the glass sheet over a faint sea floor, the selected story's on roots, without ghosts: faint, or lit by a selected session's reads and window (ADR-0738 D5, ADR-0746 D1); with none selected, unlit (ADR-0921). */
-export function KnowledgeGlobePoints({ core, spots, radius, places, growth, sheet }: {
-  core: KnowledgeCore; spots: ReadonlyMap<string, Point>; radius: number;
-  /** Hang the notes under the glass sheet instead of inside the globe. */
-  sheet?: CoreUnderSheet | undefined;
+/** Knowledge hung under the glass sheet over a faint sea floor, the selected story's on roots, without ghosts: faint, or lit by a selected session's reads and window (ADR-0738 D5, ADR-0746 D1); with none selected, unlit (ADR-0921). */
+export function KnowledgeGlobePoints({ core, places, growth, sheet }: {
+  core: KnowledgeCore;
+  /** Where the notes hang under the glass sheet. */
+  sheet: CoreUnderSheet;
   /** A replay to grow with (capability 1.9): the globe's growth reader, read inside the globe. */
   growth?: CoreGrowth | undefined;
   /** The code's surface, as the forest lays it on the globe: the territories a selected session's window lights (ADR-1212 D3). */
@@ -231,18 +231,17 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
   // Live updates that change nothing the sheet lays out keep its layout (Live updates never freeze the globe).
   const layout = useMemo(sheetLayout, []);
   // Laid out a few steps to a task, so a shelf moving as the map opens runs no long task (1.17); the layout before stays meanwhile.
-  const laid = useInSteps(sheet === undefined ? undefined : () => layout(underShelves(state.drawn, known), sheet, known.notes),
-    [layout, state.drawn, known, sheet === undefined, sheet?.shelfAt, sheet?.floor, sheet?.depthStep]);
+  const laid = useInSteps(() => layout(underShelves(state.drawn, known), sheet, known.notes),
+    [layout, state.drawn, known, sheet.shelfAt, sheet.floor, sheet.depthStep]);
   const hung = useMemo(() => {
-    if (sheet === undefined || laid === undefined) return undefined;
+    if (laid === undefined) return undefined;
     const { points, floor } = laid;
     const corners = floor.notes === 0 ? undefined
       : [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, v]) => sheet.place({ x: floor.x + u! * floor.width, y: floor.y + v! * floor.height, z: floor.z }));
     return { laid: points, points: points.map(point => ({ ...point, at: sheet.place(point.at) })), floor: corners === undefined ? undefined : { corners, notes: floor.notes } };
-  }, [laid, sheet?.place]);
-  // Under the sheet, no note is drawn until its first layout is.
-  const placed = useMemo(() => sheet !== undefined ? hung?.points ?? [] : globePoints(underShelves(state.drawn, known), spots, radius),
-    [sheet === undefined, hung, state.drawn, known, spots, radius]);
+  }, [laid, sheet.place]);
+  // No note is drawn until its first layout is.
+  const placed = useMemo(() => hung?.points ?? [], [hung]);
   // With none selected, no session's traversal shows (ADR-0921): nothing lights and no path draws.
   const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     // The record is kept in place, so its version stands in for its reads.
@@ -269,16 +268,16 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
   // A new selection starts its own history, so lines already taken when it opens do not grow (ADR-0742 D4).
   // On the sheet the notes pulled toward a selected story's island are lit, those between it and another island too, and the
   // rest faded back, so whose notes are whose reads at a glance (ADR-1260 D3).
-  const selected = sheet?.selected, storyOf = sheet?.storyOf;
+  const { selected, storyOf } = sheet;
   const [bright, quiet] = useMemo(() => {
-    if (selected === undefined || storyOf === undefined || hung === undefined) return [undefined, undefined];
+    if (selected === undefined || hung === undefined) return [undefined, undefined];
     const own = sheetLit(hung.points, selected, storyOf);
     return [new Set(points.filter(({ id }) => own.has(id)).map(({ id }) => id)), new Set(points.filter(({ id }) => !own.has(id)).map(({ id }) => id))];
   }, [points, hung, selected, storyOf]);
-  const drawn = <GlobePoints key={state.session ?? ""} points={points} radius={sheet === undefined ? radius : SHEET_DOT_SCALE} notes={known.notes} sizes={sizes} lit={lit} trails={drawnPaths} window={window} replay={state.session !== undefined} growth={growth} quiet={quiet} shaded={sheet !== undefined} />;
+  const drawn = <GlobePoints key={state.session ?? ""} points={points} radius={SHEET_DOT_SCALE} notes={known.notes} sizes={sizes} lit={lit} trails={drawnPaths} window={window} replay={state.session !== undefined} growth={growth} quiet={quiet} shaded />;
   // Each lit note's root, laid in the sheet's frame and drawn where the sheet places it; a switched-off kind's go with its dots.
-  const roots = useMemo(() => hung === undefined || sheet === undefined ? undefined
-    : sheetRoots(hung.laid, bright).map(([from, to]) => [sheet.place(from), sheet.place(to)] as const), [hung, bright, sheet?.place]);
+  const roots = useMemo(() => hung === undefined ? undefined
+    : sheetRoots(hung.laid, bright).map(([from, to]) => [sheet.place(from), sheet.place(to)] as const), [hung, bright, sheet.place]);
   return roots === undefined ? drawn : <>{drawn}<NoteRoots roots={roots} />{hung?.floor && <SeaFloor {...hung.floor} />}</>;
 }
 

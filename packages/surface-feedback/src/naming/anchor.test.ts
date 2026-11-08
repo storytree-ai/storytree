@@ -16,7 +16,7 @@ const PAGE = `
   <div id="corner" style="position: fixed; right: 0; bottom: 0; width: 50px; height: 50px">corner</div>
 `;
 
-test("2.2 · the element pointed at is recorded with a selector only it matches, its tag, role, accessible name, text, marks, React components, box, styles and markup capped at 2 KB with only allowlisted attributes and secrets redacted, in its nearest surface; an icon is picked as its control, and a drawn canvas and the corner never are", async (t) => {
+test("2.2 · the element pointed at is recorded with a selector only it matches, its tag, role, accessible name, text, marks, React components, box, styles and markup capped at 2 KB with only allowlisted attributes and secrets redacted, in its nearest surface; an icon is picked as its control, and a drawn canvas that answers no feedback pick (2.3) and the corner never are", async (t) => {
   const browser = await launchChrome();
   t.after(() => browser.close());
   const page = await pageWith(browser, PAGE, [await bundled({ entryPoints: [new URL("./anchor.ts", import.meta.url)] }, "anchor")]);
@@ -60,9 +60,9 @@ test("2.2 · the element pointed at is recorded with a selector only it matches,
   assert.deepEqual((await anchor("#drawn")).components, ["Badge", "Row", "ArcsDrawer"]);
 
   const corner = "document.getElementById('corner')";
-  const at = (x: number, y: number) => page.evaluate(`anchor.pickableAt(document, ${x}, ${y}, ${corner})?.id ?? anchor.pickableAt(document, ${x}, ${y}, ${corner})?.tagName ?? null`);
+  const at = (x: number, y: number) => page.evaluate(`anchor.pickableAt(document, ${x}, ${y}, ${corner})?.element.id ?? anchor.pickableAt(document, ${x}, ${y}, ${corner})?.element.tagName ?? null`);
   const globe = (await page.locator("#globe").boundingBox())!;
-  assert.equal(await at(globe.x + 10, globe.y + 10), null, "a drawn canvas is never picked");
+  assert.equal(await at(globe.x + 10, globe.y + 10), null, "a drawn canvas that answers nothing is not picked");
   const cog = (await page.locator("#cog").boundingBox())!;
   assert.equal(await at(cog.x + 5, cog.y + 5), "gear", "an icon is picked as the button it draws");
   const who = (await page.locator("#who").boundingBox())!;
@@ -70,4 +70,26 @@ test("2.2 · the element pointed at is recorded with a selector only it matches,
   await page.evaluate(`Object.assign(${corner}.style, { left: "${who.x}px", top: "${who.y}px", right: "auto", bottom: "auto" })`);
   assert.equal(await page.evaluate(`document.elementFromPoint(${who.x + 2}, ${who.y + 2}).id`), "corner");
   assert.equal(await at(who.x + 2, who.y + 2), "who", "the corner's own elements are looked through");
+});
+
+test("2.3 · a canvas is asked what it draws under the pointer by a synchronous storytree:feedback-pick event, is picked with the object it answers, whose box stands for the element's in the anchor, and is not picked when it answers nothing", async (t) => {
+  const browser = await launchChrome();
+  t.after(() => browser.close());
+  const page = await pageWith(browser, PAGE, [await bundled({ entryPoints: [new URL("./anchor.ts", import.meta.url)] }, "anchor")]);
+  const globe = (await page.locator("#globe").boundingBox())!;
+  const corner = "document.getElementById('corner')";
+  await page.evaluate(`(() => {
+    window.asked = [];
+    document.getElementById("globe").addEventListener("storytree:feedback-pick", (event) => {
+      window.asked.push({ x: event.detail.x, y: event.detail.y });
+      if (event.detail.x < ${globe.x + 50}) event.detail.answer = { kind: "gate", story: "story_a", between: ["capability_a", "capability_b"], name: "A ↔ B", box: { x: 12, y: 34, width: 56, height: 78 } };
+    });
+  })()`);
+  const picked = (await page.evaluate(`(() => { const p = anchor.pickableAt(document, ${globe.x + 10}, ${globe.y + 10}, ${corner}); return { id: p?.element.id, drawn: p?.drawn, anchor: p && anchor.anchorOf(p.element, p.drawn) }; })()`)) as { id: string; drawn: FeedbackAnchor["drawn"]; anchor: FeedbackAnchor };
+  assert.equal(picked.id, "globe", "the canvas is picked");
+  assert.deepEqual(picked.drawn, { kind: "gate", story: "story_a", between: ["capability_a", "capability_b"], name: "A ↔ B", box: { x: 12, y: 34, width: 56, height: 78 } });
+  assert.deepEqual(picked.anchor.box, { x: 12, y: 34, width: 56, height: 78 }, "the drawn object's box is the anchor's");
+  assert.deepEqual(picked.anchor.drawn, picked.drawn, "the anchor carries the object");
+  assert.deepEqual(await page.evaluate("window.asked"), [{ x: globe.x + 10, y: globe.y + 10 }], "the canvas was asked once, where the pointer is");
+  assert.equal(await page.evaluate(`anchor.pickableAt(document, ${globe.x + 120}, ${globe.y + 10}, ${corner}) === undefined`), true, "a canvas that answers nothing is not picked");
 });

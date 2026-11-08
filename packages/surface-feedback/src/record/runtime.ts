@@ -10,7 +10,7 @@ import type { FeedbackNote, Library, Storytree } from "@storytree/library";
 
 import type { DeclaredSurface } from "../naming/resolve.js";
 import { HTML_LIMIT } from "../naming/anchor.js";
-import { FEEDBACK_CHANNELS, type FeedbackAnchor, type FeedbackBridge, type FeedbackSetup, type PageNote } from "./bridge.js";
+import { FEEDBACK_CHANNELS, type DrawnObject, type FeedbackAnchor, type FeedbackBridge, type FeedbackSetup, type PageNote } from "./bridge.js";
 
 /** The project every note is written to: the owner's own, whichever project is on show ("just me for now"). */
 export const FEEDBACK_PROJECT = "storytree";
@@ -80,6 +80,29 @@ function cropOf(given: unknown): { x: number; y: number; width: number; height: 
   return { x: left, y: top, width: Math.ceil(x! + width! + CROP_MARGIN) - left, height: Math.ceil(y! + height! + CROP_MARGIN) - top };
 }
 
+/** The object a canvas answered a pick with, checked field by field; none where it is not whole (2.3). */
+function drawnOf(given: unknown): DrawnObject | undefined {
+  if (typeof given !== "object" || given === null) return undefined;
+  const drawn = given as Record<string, unknown>;
+  const named = (value: unknown) => (typeof value === "string" && value !== "" ? value : undefined);
+  const kind = drawn.kind === "gate" || drawn.kind === "capability" || drawn.kind === "island" ? drawn.kind : undefined;
+  const story = named(drawn.story);
+  const name = named(drawn.name);
+  if (kind === undefined || story === undefined || name === undefined) return undefined;
+  const capability = named(drawn.capability);
+  const pair = Array.isArray(drawn.between) && drawn.between.length === 2 ? drawn.between.map(named) : [];
+  const between = pair[0] !== undefined && pair[1] !== undefined ? ([pair[0], pair[1]] as [string, string]) : undefined;
+  const box = (typeof drawn.box === "object" && drawn.box !== null ? drawn.box : {}) as Record<string, unknown>;
+  const number = (value: unknown, least = Number.NEGATIVE_INFINITY) => (typeof value === "number" && Number.isFinite(value) ? Math.max(least, value) : 0);
+  return {
+    kind, story,
+    ...(capability === undefined ? {} : { capability }),
+    ...(between === undefined ? {} : { between }),
+    name,
+    box: { x: number(box.x), y: number(box.y), width: number(box.width, 0), height: number(box.height, 0) },
+  };
+}
+
 /** The element the page read, checked field by field: only an anchor's own fields are kept. */
 function anchorOf(given: unknown): NonNullable<FeedbackNote["anchor"]> {
   const anchor = (typeof given === "object" && given !== null ? given : undefined) as Partial<Record<keyof FeedbackAnchor, unknown>> | undefined;
@@ -95,6 +118,7 @@ function anchorOf(given: unknown): NonNullable<FeedbackNote["anchor"]> {
   const role = named(anchor.role);
   const name = named(anchor.name);
   const text = named(anchor.text);
+  const drawn = drawnOf(anchor.drawn);
   return {
     selector,
     tag,
@@ -106,6 +130,7 @@ function anchorOf(given: unknown): NonNullable<FeedbackNote["anchor"]> {
     box: { x: number(box.x), y: number(box.y), width: number(box.width, 0), height: number(box.height, 0) },
     styles: Object.fromEntries(styles),
     html: typeof anchor.html === "string" ? anchor.html.slice(0, HTML_LIMIT) : "",
+    ...(drawn === undefined ? {} : { drawn }),
   };
 }
 

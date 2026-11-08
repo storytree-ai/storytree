@@ -103,6 +103,7 @@ test("4.3 · `feedback show <feedback> [--screenshot <file>]` prints the note wh
     box: { x: 10, y: 20, width: 60, height: 24 },
     styles: { color: "rgb(1, 2, 3)", "font-size": "15px" },
     html: '<button type="button">Close <b>now</b></button>',
+    drawn: { kind: "gate" as const, story: "story_a", between: ["capability_a", "capability_b"] as [string, string], name: "A ↔ B", box: { x: 10, y: 20, width: 60, height: 24 } },
   };
   const pictured = await library.sendFeedback({ ...note("The drawer hides the island\nwhen I click it", "2026-10-24T10:00:00.000Z"), selection: "story_000000000002", project: "site", anchor }, { screenshot: jpeg, crop });
   const plain = await library.sendFeedback(note("No picture", "2026-10-24T11:00:00.000Z"));
@@ -118,6 +119,7 @@ test("4.3 · `feedback show <feedback> [--screenshot <file>]` prints the note wh
     "  components: CloseButton < ArcsDrawer",
     '  marks: section[data-surface-id="arcs"]',
     "  styles: color: rgb(1, 2, 3); font-size: 15px",
+    '  drawn: gate story_a, capability_a ↔ capability_b "A ↔ B"',
     '  html: <button type="button">Close <b>now</b></button>',
   ].join("\n")), `shows the element:\n${shown}`);
   assert.ok(shown.includes(`screenshot: saved to ${join(context.folder, "shot.jpg")}`));

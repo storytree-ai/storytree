@@ -19,7 +19,7 @@ import { ClaimMarks } from "./claim-flag.js";
 import { islandLayoutSteps, type Link } from "../territories/link-layout.js";
 import { keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
-import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, type ForestMode, type PickedGate } from "./planet-navigation.js";
+import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, feedbackPick, FEEDBACK_PICK_EVENT, type ForestMode, type PickedGate } from "./planet-navigation.js";
 import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
@@ -850,6 +850,13 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     };
     // The right button spins and tilts the sheet, so it opens no menu there.
     const onMenu = (event: MouseEvent): void => { event.preventDefault(); };
+    // 3.93: the feedback picker asks, synchronously, what is drawn under the pointer; the answer is written on the event.
+    const onFeedbackPick = (event: Event): void => {
+      const detail = (event as CustomEvent<{ x: number; y: number; answer?: unknown }>).detail;
+      const answer = feedbackPick(scene, camera, element.getBoundingClientRect(), { x: detail.x, y: detail.y }, picking(), titles);
+      if (answer !== undefined) detail.answer = answer;
+    };
+    element.addEventListener(FEEDBACK_PICK_EVENT, onFeedbackPick);
     element.addEventListener("pointerdown", onDown);
     element.addEventListener("pointerup", onUp);
     element.addEventListener("pointermove", onMove);
@@ -861,6 +868,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     return () => {
       stopped = true;
       element.removeEventListener("pointerdown", onDown);
+      element.removeEventListener(FEEDBACK_PICK_EVENT, onFeedbackPick);
       element.removeEventListener("pointerup", onUp);
       element.removeEventListener("pointermove", onMove);
       element.removeEventListener("pointerleave", onCancel);
@@ -869,7 +877,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       element.removeEventListener("contextmenu", onMenu);
       element.style.cursor = "";
     };
-  }, [camera, gl, scene, onPick, onGate, onNote, turnTo, sheet, spinBy, spinTiltBy]);
+  }, [camera, gl, scene, titles, onPick, onGate, onNote, turnTo, sheet, spinBy, spinTiltBy]);
 
   // Pinned to the canvas, not to the sheet's middle: under a side offset (3.40) the pointer's tooltip, the edge markers
   // and the compass would otherwise move twice.

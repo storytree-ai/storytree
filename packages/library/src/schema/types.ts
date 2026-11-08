@@ -854,6 +854,18 @@ export const RECORD_SCHEMAS = {
           box: z.object({ x: z.number(), y: z.number(), width: z.number().nonnegative(), height: z.number().nonnegative() }).strict(),
           styles: z.record(z.string(), z.string()),
           html: z.string().max(2048),
+          /** The object a canvas drew where it was pointed at (ADR-1286): optional, so earlier notes still read. */
+          drawn: z
+            .object({
+              kind: z.enum(["gate", "capability", "island"]),
+              story: nonEmpty,
+              capability: nonEmpty.optional(),
+              between: z.tuple([nonEmpty, nonEmpty]).optional(),
+              name: nonEmpty,
+              box: z.object({ x: z.number(), y: z.number(), width: z.number().nonnegative(), height: z.number().nonnegative() }).strict(),
+            })
+            .strict()
+            .optional(),
         })
         .strict()
         .optional(),

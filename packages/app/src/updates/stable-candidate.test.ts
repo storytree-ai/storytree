@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { removeTemp } from "@storytree/test-waits";
 import { type CandidatePorts, type LagVerdict, type PublishedBuild, stableCandidate } from "./stable-candidate.js";
 import { appCode, lagVerdicts, releaseCommit, releasePlatforms, releaseRunPassed, sameAppCode } from "./stable-github.js";
 import type { StableManifest } from "./stable-pin.js";
@@ -113,7 +114,7 @@ test("4.23 a concern naming a build more than once passes over each build for it
 
 test("4.23 a build's tag is checked against its version from a shallow clone too, as a cloud session's checkout is", t => {
   const root = mkdtempSync(join(tmpdir(), "release-commit-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   const gitIn = (cwd: string) => (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   const origin = join(root, "origin");
   mkdirSync(join(origin, "apps", "desktop"), { recursive: true });
@@ -191,7 +192,7 @@ test("4.23 a later build has the same app code when it changed nothing the deskt
 
 test("4.23 a later main commit measures the same app only when it follows the build and changed nothing the app reaches, read from a shallow clone too", async t => {
   const root = mkdtempSync(join(tmpdir(), "same-app-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   const gitIn = (cwd: string) => (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   const origin = join(root, "origin");
   const og = gitIn(origin);

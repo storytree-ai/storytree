@@ -294,3 +294,24 @@ test("17.25 · A friction report records what its filing was shown: the ids of t
     });
   });
 });
+
+test("17.26 · A re-steer names the increment it redirected: record_resteer takes it as increment, kept on the re-steer, and says so before the call; an increment given in links is refused naming the increment field, and an increment that is not a live increment is refused, nothing written", async () => {
+  const resteer = FRICTION_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "record_resteer")!;
+  assert.match((resteer.inputs as Record<string, { describe: string }>).increment!.describe, /increment/, "the tool names the field before the call");
+  await withLibrary(async (library) => {
+    await onBranch(library, "main", async (context) => {
+      const story = await library.addStory({ title: "Checkout" });
+      const arc = await library.createArc({ title: "Checkout", intent: "Check out", endState: "It checks out", stories: [story.id] });
+      const increment = (await library.addIncrement({ arc: arc.id, title: "checkout", objective: "checkout", body: "checkout" })).id;
+      const call = { redirect: "Fix the checkbox before the list", evidence: '"Do the checkbox first, please"' };
+
+      await assert.rejects(resteer.act({ ...call, links: increment } as never, context, WORDS), (error: Error) => error instanceof VerbRefusal && error.message.includes(increment) && /"increment"/.test(error.message));
+      await assert.rejects(resteer.act({ ...call, increment: story.id } as never, context, WORDS), (error: Error) => error instanceof VerbRefusal && error.message.includes(story.id));
+      assert.deepEqual(await library.list("resteer"), [], "a refusal writes nothing");
+
+      await resteer.act({ ...call, increment } as never, context, WORDS);
+      const [note] = await library.list("resteer");
+      assert.equal(note!.fields.increment, increment);
+    });
+  });
+});

@@ -4,11 +4,12 @@
  *
  * - Kept per story on this computer, in the page's localStorage where it has one, so it outlives a restart and writes
  *   nothing to the library; elsewhere for as long as the process runs.
- * - A kept arrangement carries its island's structure key (`structureKey`): the search's score version, its territories,
- *   its links at home and each dock's lanes, never sizes or positions. A change of score makes every island search again
- *   once, from the arrangement it draws. While the key holds the island draws from the kept seeds and is not searched
- *   again, so a change of lines only resizes its territories; another key draws from the kept seeds still, where they
- *   name a territory, and asks for a search.
+ * - A kept arrangement carries its island's structure key (`structureKey`): the search's score version and its
+ *   territories, never its links, docks, sizes or positions. A change of score makes every island search again once,
+ *   from the arrangement it draws. While the key holds the island draws from the kept seeds and is not searched again,
+ *   so a new link, a lane moved to another dock or a change of lines only regrows its territories from where they are
+ *   (3.94). A territory added asks a search with the kept territories fixed, so it finds its place and the rest only
+ *   make room; one dropped leaves the rest where they were kept, searching nothing.
  * - The search runs in the worker the page names (TERRITORY_WORKER_META), one at a time, never on the page: a page
  *   with no worker draws the start and searches nothing. Every island is laid out (ADR-1253 D2), so a search asked for
  *   another island waits its turn; one asked for a new structure of the island in flight overtakes it.
@@ -18,8 +19,9 @@ import type { Coast, TerritoryShare } from "./territories.js";
 
 /** What is kept for an island: the structure key it was searched for, and the seeds it grows from. */
 export type KeptArrangement = { readonly key: string; readonly seeds: Seeds };
-/** What a search is asked: the island as it is drawn, and the seeds it is drawn from, if any. */
-export type SearchAsk = { readonly shares: readonly TerritoryShare[]; readonly coast: Coast; readonly links: readonly Link[]; readonly docks: readonly LinkDock[]; readonly kept?: Seeds; readonly steps?: number };
+/** What a search is asked: the island as it is drawn, the seeds it is drawn from, if any, and the territories whose
+ * seeds the search may not move. */
+export type SearchAsk = { readonly shares: readonly TerritoryShare[]; readonly coast: Coast; readonly links: readonly Link[]; readonly docks: readonly LinkDock[]; readonly kept?: Seeds; readonly fixed?: readonly string[]; readonly steps?: number };
 /** What the search worker posts back: the best seeds it found, none when no arrangement grows, or why it failed. */
 export type SearchAnswer = { found: { seeds: Seeds; score: number; start: number } | undefined } | { error: string };
 /** Searches an island somewhere off the page; an aborted signal means it was overtaken. */
@@ -34,12 +36,14 @@ const SHELF_KEY = "storytree.territories.";
 /** The version of the search's score (territory-search.ts): 2 since a tunnel became a last resort and territories compact. */
 const SCORE = 2;
 
-/** The island's structure, as searched by this score: the territories it holds, its links at home, and each dock's lanes,
- * sorted, never sizes. */
-export function structureKey(shares: readonly TerritoryShare[], links: readonly Link[], docks: readonly LinkDock[]): string {
-  const ids = shares.map((s) => s.capability ?? ""), here = new Set(ids);
-  const home = links.filter((l) => here.has(l.from) && here.has(l.to) && l.from !== l.to).map((l) => `${l.from}->${l.to}`);
-  return JSON.stringify([`score ${SCORE}`, [...ids].sort(), home.sort(), docks.map((d) => [...d.links].sort()).sort()]);
+/** The island's structure, as searched by this score: the territories it holds, sorted, never links, docks or sizes. */
+export function structureKey(shares: readonly TerritoryShare[]): string {
+  return JSON.stringify([`score ${SCORE}`, shares.map((s) => s.capability ?? "").sort()]);
+}
+
+/** Whether `key` was kept under this score, so its seeds still stand for the territories they name. */
+function sameScore(key: string): boolean {
+  try { return (JSON.parse(key) as unknown[])[0] === `score ${SCORE}`; } catch { return false; }
 }
 
 /** The page's localStorage as a shelf, or none where the page has no storage (a test, a worker) or refuses it. */
@@ -107,14 +111,22 @@ const waiting = new Map<string, { ask: Omit<SearchAsk, "kept">; searcher: Territ
 
 /**
  * Asks `searcher` to search `story`'s island unless its kept arrangement was searched for this structure, or a search
- * for it is already in flight. Searches run one at a time: another island's waits its turn, and a new structure of the
+ * for it is already in flight. A kept arrangement under this score fixes the territories it has seeds for: when it
+ * has one for every territory it is kept again under the new structure and nothing is searched. Searches run one at a time: another island's waits its turn, and a new structure of the
  * island in flight overtakes it. What the search finds is kept; a search that fails, finds nothing or is overtaken keeps
  * nothing.
  */
 export function searchIsland(story: string, ask: Omit<SearchAsk, "kept">, searcher: TerritorySearcher | undefined): void {
   if (searcher === undefined) return;
-  const key = structureKey(ask.shares, ask.links, ask.docks);
-  if (keptArrangement(story)?.key === key) { waiting.delete(story); return; }
+  const key = structureKey(ask.shares), held = keptArrangement(story);
+  if (held?.key === key) { waiting.delete(story); return; }
+  const fixed = held && sameScore(held.key) ? ask.shares.map((s) => s.capability ?? "").filter((id) => held.seeds[id] !== undefined) : [];
+  if (held && fixed.length === ask.shares.length) {
+    if (inFlight?.story === story) { inFlight.overtaken.abort(); inFlight = undefined; }
+    waiting.delete(story);
+    keepArrangement(story, { key, seeds: held.seeds });
+    return;
+  }
   if (inFlight?.story === story) {
     if (inFlight.key === key) return;
     inFlight.overtaken.abort();
@@ -134,7 +146,7 @@ export function searchIsland(story: string, ask: Omit<SearchAsk, "kept">, search
       if (inFlight !== undefined) break;
     }
   };
-  void searcher({ ...ask, ...(was && { kept: was.seeds }) }, signal).then((answer) => {
+  void searcher({ ...ask, ...(was && { kept: was.seeds }), ...(fixed.length > 0 && { fixed }) }, signal).then((answer) => {
     if (!signal.aborted) {
       if ("error" in answer) console.error("forest territories: the territory search failed", answer.error);
       else if (answer.found !== undefined) keepArrangement(story, { key, seeds: answer.found.seeds });

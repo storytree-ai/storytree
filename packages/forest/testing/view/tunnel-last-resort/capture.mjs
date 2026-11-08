@@ -60,7 +60,7 @@ const portals = page => page.evaluate(() => {
 const shelf = {};
 if (keptFile !== undefined) {
   for (const { story, ask, seeds } of JSON.parse(readFileSync(keptFile, 'utf8'))) {
-    shelf[`storytree.territories.${story}`] = JSON.stringify({ key: structureKey(ask.shares, ask.links, ask.docks), seeds });
+    shelf[`storytree.territories.${story}`] = JSON.stringify({ key: structureKey(ask.shares), seeds });
   }
 }
 const results = {};

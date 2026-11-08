@@ -161,6 +161,8 @@ test("3.94 a search with territories fixed moves only the others: the fixed come
   for (const id of fixed) assert.deepEqual(found.seeds[id], start[id], `${id || "the Unclaimed code"} kept its place`);
   const free = searchTerritories({ shares: more, coast, links: wider, docks, kept, steps: 30 })!;
   assert.ok(fixed.some((id) => JSON.stringify(free.seeds[id]) !== JSON.stringify(start[id])), "searched with none fixed, a kept territory moves");
+  const all = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed: [...fixed, "e"], steps: 3 })!;
+  assert.deepEqual(all.seeds, start, "with every territory fixed it answers the arrangement it starts from");
 });
 
 test("3.80 an arrangement kept before the search's score changed is searched again, once, for the island's structure", () => {

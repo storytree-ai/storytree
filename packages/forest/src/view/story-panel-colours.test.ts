@@ -16,8 +16,9 @@ function panelFor(status: CapabilityLine["status"]): StoryPanel {
     capabilities: [{ id: status, title: `The ${status}`, description: "What it does.", reported: "passing", status, contracts: [] }] };
 }
 
-/** A light host's palette, as the desktop's own light theme gives it; the dark one is the forest's opt-in `data-theme="dark"`. */
+/** A host's palettes, as the desktop's own light and dark themes give them; the forest's opt-in `data-theme="dark"` is a third. */
 const lightHost = "--surface:#ffffff;--text:#1d1f23;--muted:#5d636d;--pass-text:#146c2e;--fail-text:#a61b1b;--none-text:#4e545d";
+const darkHost = "--surface:#1e2125;--text:#e7e8ea;--muted:#a0a6af;--pass-text:#8fdba6;--fail-text:#ffaaaa;--none-text:#b8bdc4";
 
 /** WCAG contrast of two `rgb(r, g, b)` colours. */
 function contrast(a: string, b: string): number {
@@ -29,13 +30,15 @@ function contrast(a: string, b: string): number {
   return (hi! + 0.05) / (lo! + 0.05);
 }
 
-test("4.43 the capability selected's word draws in its own colour, each status apart from the others and from the panel's grey, readable on the panel in light and dark", async t => {
+test("4.43 the capability selected's word draws in its own colour, each status apart from the others and from the panel's grey, readable on the panel in light and dark, the OS's dark theme included", async t => {
   // Chrome is installed on the three CI runner images; no browser download during tests.
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
   const css = await readFile(path.join(import.meta.dirname, "styles.css"), "utf8");
-  for (const [theme, attributes] of [["light", `style="${lightHost}"`], ["dark", `data-theme="dark"`]] as const) {
+  const themes = [["light", "light", `style="${lightHost}"`], ["the OS's dark", "dark", `style="${darkHost}"`], ["opt-in dark", "light", `data-theme="dark"`]] as const;
+  for (const [theme, colorScheme, attributes] of themes) {
+    await page.emulateMedia({ colorScheme });
     const panels = statuses.map(status => `<div class="story-panel" data-status="${status}">${renderStoryPanel(panelFor(status), status)}</div>`).join("");
     await page.setContent(`<style>${css}</style><div class="forest-workspace" ${attributes}>${panels}</div>`);
     const seen = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".story-panel")].map(panel => {

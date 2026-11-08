@@ -44,7 +44,7 @@ test("4.6 the panel is the story's lead and below it only the capability selecte
   assert.match(below, /What next does\./);
   assert.match(below, /<span class="panel-state status-proposed">proposed<\/span>/, "its word, not its work state");
   assert.doesNotMatch(below, /in progress/);
-  assert.match(below, /the agent reports: failing/);
+  assert.match(fold(below, "health")?.body ?? "", /the agent reports: failing/, "its health behind its Health handle");
   const contracts = fold(below, "contracts");
   assert.ok(contracts !== undefined, "its contracts sit behind a handle");
   assert.equal(contracts.handle, "Contracts · 1", "which says what is inside and how much");
@@ -74,18 +74,58 @@ test("4.6 a description shows its lead, its first paragraph, and the rest behind
   assert.equal(renderStoryPanel(panel, "next").includes('data-fold="more"'), false, "a one-paragraph description has no More");
 });
 
-test("4.6 a capability's handles come in one order, More, Open work, Contracts, each contract opens to its own detail, and Open all · n counts every handle", () => {
+test("4.6 a capability's handles come in one order, More, Health, Open work, Contracts, each contract opens to its own detail, and Open all · n counts every handle", () => {
   const capability: CapabilityLine = { ...line("next", "failing"), description: "Lead.\n\nRest.", openWork: [{ increment: "i", title: "Do it" }] };
   const html = renderStoryPanel({ ...panel, capabilities: [capability] }, "next");
   const kinds = [...html.matchAll(/data-fold="([^"]+)"/g)].map(([, kind]) => kind);
-  assert.deepEqual(kinds, ["more", "open-work", "contracts", "contract"]);
+  assert.deepEqual(kinds, ["more", "health", "open-work", "contracts", "contract"]);
   assert.equal(fold(html, "open-work")?.handle, "Open work · 1");
   const contract = fold(html, "contract");
   assert.equal(contract?.handle, "next keeps its promise", "a contract's handle is its title");
   assert.match(contract!.body, /the agent reports: failing[\s\S]*green only/, "it opens to its health and trail");
   const foot = /<footer class="panel-foot">([\s\S]*?)<\/footer>/.exec(html)?.[1] ?? "";
-  assert.match(foot, /<button type="button" class="panel-handle panel-open-all" data-open-all>Open all · 4<\/button>/, "both levels counted");
+  assert.match(foot, /<button type="button" class="panel-handle panel-open-all" data-open-all>Open all · 5<\/button>/, "both levels counted");
   assert.equal(renderStoryPanel({ ...panel, capabilities: [] }, undefined).includes("panel-open-all"), false, "no handles, no Open all");
+});
+
+/** The selected capability's surface: its section's words with every fold's body dropped. */
+function surface(html: string): string {
+  const detail = /<section class="panel-detail[\s\S]*<\/section>/.exec(html)?.[0] ?? "";
+  return plainText(detail.split(/<div class="panel-fold-body" hidden>[\s\S]*?<\/div><\/div>/).join(""));
+}
+
+test("4.6 a capability's word says where it came from, and its two health readings wait behind Health, each with its source", () => {
+  const base = line("base", "passing", "healthy");
+  const healthy: CapabilityLine = { ...base, verified: "passing", sources: ["ci"] };
+  const html = renderStoryPanel({ ...panel, capabilities: [healthy] }, "base");
+  assert.equal(surface(html), "The base healthy, from CI What base does. Health · 2 Contracts · 1", "title, word with source and lead; then its handles");
+  const health = fold(html, "health");
+  assert.equal(health?.handle, "Health · 2");
+  assert.ok(health?.hidden, "closed until asked for");
+  assert.match(plainText(health!.body), /^the agent reports: passing storytree saw: passing, from CI/, "both readings, each with its source");
+  const local = renderStoryPanel({ ...panel, capabilities: [{ ...line("cap", "failing", "unhealthy"), verified: "failing", sources: ["local"] }] }, "cap");
+  assert.match(local, /<span class="panel-state status-unhealthy">unhealthy, verified locally<\/span>/);
+  const unseen = renderStoryPanel(panel, "base");
+  assert.match(unseen, /<span class="panel-state status-healthy">healthy<\/span>/, "no source recorded, the word alone");
+  assert.equal(fold(unseen, "health")?.handle, "Health · 1", "only the readings there are");
+});
+
+test("4.12 the why line shows only for an unhealthy or untested capability or one the owner moves; a proposed one shows its word alone", () => {
+  const proposed = (why: NonNullable<CapabilityLine["why"]>): string => renderStoryPanel({ ...panel, capabilities: [{ ...line("cap", "not-checked", "proposed"), why }] }, "cap");
+  assert.equal(surface(proposed({ reason: "not built", mover: "agent", contracts: [] })), "The cap proposed What cap does. Health · 1 Contracts · 1", "not built yet is no news");
+  assert.equal(whyLine(proposed({ reason: "needs owner", mover: "owner", contracts: ["8.1"] })), "Why not green: 8.1 needs something only you can give. You move this one.", "the owner's always shows");
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not built", mover: "agent", contracts: [] }), "cap")), "Why not green: it is not built yet. The agent moves this one.", "an untested one keeps it");
+});
+
+test("4.6 a story's surface says how many of its capabilities need the owner, only when he moves one", () => {
+  const owner = (id: string): CapabilityLine => ({ ...line(id, "not-checked", "untested"), why: { reason: "needs owner", mover: "owner", contracts: ["8.1"] } });
+  const agent: CapabilityLine = { ...line("a", "failing", "unhealthy"), why: { reason: "failing", mover: "agent", contracts: ["1.1"] } };
+  const needs = (capabilities: CapabilityLine[]): string | undefined => /<p class="panel-needs-you">([\s\S]*?)<\/p>/.exec(renderStoryPanel({ ...panel, capabilities }, undefined))?.[1];
+  assert.equal(needs([owner("x"), agent]), "1 capability needs you");
+  assert.equal(needs([owner("x"), owner("y")]), "2 capabilities need you");
+  assert.equal(needs([agent, line("h", "passing", "healthy")]), undefined, "none the owner moves, no line");
+  const html = renderStoryPanel({ ...panel, capabilities: [owner("x")] }, undefined);
+  assert.ok(html.indexOf("panel-needs-you") > html.indexOf("What s is. Why."), "under the story's lead");
 });
 
 test("4.8 the panel offers no pick of its own: no tree, no card to click and no pop-out, only the capability the island picked", () => {

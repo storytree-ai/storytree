@@ -49,11 +49,10 @@ function paragraphs(description: string): [string, string[]] {
   return [lead, rest];
 }
 
-/** The rest of a description behind More, its words counted as whitespace-separated tokens; with no rest, no handle. */
+/** The rest of a description behind a bare "How it works", no count (ADR-1291); with no rest, no handle. */
 function more(rest: readonly string[]): string {
   if (rest.length === 0) return "";
-  const words = rest.join(" ").split(/\s+/).length;
-  return fold("more", `More · ${words} word${words === 1 ? "" : "s"}`, rest.map((paragraph) => `<p>${text(paragraph)}</p>`).join(""));
+  return fold("more", "How it works", rest.map((paragraph) => `<p>${text(paragraph)}</p>`).join(""));
 }
 
 /**

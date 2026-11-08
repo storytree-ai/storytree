@@ -147,7 +147,7 @@ export const CATALOGUE: readonly LagAction[] = [
   // Opening Contracts on the library's panel. Contracts is a kind the panel keeps open, so the setup shuts it (which stops keeping it)
   // and draws the panel again, shut.
   { name: "open-fold", setup: [...RESET, ...NAMED_OPEN, { kind: "click", selector: `${CONTRACTS}[aria-expanded=true]`, optional: true },
-    { kind: "click", selector: ".story-panel .panel-close" }, { kind: "wait", until: { panel: "closed" } }, ...NAMED_OPEN],
+    { kind: "click", selector: ".story-panel .panel-close" }, ...RESET, ...NAMED_OPEN],
     perform: [{ kind: "click", selector: CONTRACTS }], settled: { fold: "contracts" }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: PANEL_FOLDS },
   // Opening a contract inside Contracts, which must still be open once library news has arrived: a panel drawn again on news loses it.
   { name: "open-contract", setup: [...RESET, ...NAMED_OPEN, { kind: "click", selector: `${CONTRACTS}[aria-expanded=false]`, optional: true }],

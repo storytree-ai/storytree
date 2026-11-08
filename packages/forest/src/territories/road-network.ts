@@ -53,8 +53,9 @@ export const COST = {
   share: 0.3,
   /** Within `townReach` of another territory's settlement, per step. */
   town: 40, townReach: 2.6,
-  /** No two entrances into one territory nearer than this. */
-  entranceApart: 6,
+  /** No two entrances nearer than this: a gate's posts reach about 3.1 either side of it (wider at a ramp), so at 9 two
+   * gates keep clear ground between their posts (island-roads.ts's GATE_POSTS_APART; at 6 they touched, Mick, 2026-11-08). */
+  entranceApart: 9,
   /** A crossing sits this far from its border segment's ends. */
   gateClear: 2.1,
   /** A step on a territory's land near the coast, outside a mouth, costs up to this much more, falling to nothing at `edgeReach`. */

@@ -6,8 +6,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { quietFor, waitUntil } from "@storytree/test-waits";
-import { answerRoads, islandRoads, ROUTING_AT_ONCE, islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, routeIslandInWorker, subscribeRoads, type IslandRoads, type RoadsAsk, type RoadsWorker } from "./island-roads.js";
+import { answerRoads, GATE_POSTS_APART, inTunnelMouth, islandRoads, ROUTING_AT_ONCE, islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, routeIslandInWorker, subscribeRoads, type IslandRoads, type RoadsAsk, type RoadsWorker } from "./island-roads.js";
 import { answerAsk } from "./search-worker.js";
+import { RELIEF } from "./island-relief.js";
 import { linkLayout, LIBRARY_LAND } from "./link-layout.js";
 import { type Coast, type Point, type TerritoryMap } from "./territories.js";
 
@@ -177,6 +178,23 @@ test("3.77 a road leaves the capability that depends with no gate, and its one g
   const sides = (g: { at: Point; along: Point }) => [-0.6, 0.6].map((k) => ownerAt(sixMap, { x: g.at.x - g.along.z * k, z: g.at.z + g.along.x * k }));
   assert.ok(six.passes.some((p) => p.links.includes("f->c") && sides(p).includes("f")), "f's road to c leaves f with no gate");
   assert.ok(sides(six.gates.find((g) => g.entrances.includes("f->c"))!).includes("c"), "and enters c by its gate");
+});
+
+test("3.77 two gates on one island stand apart where their border has room: their posts at least GATE_POSTS_APART apart, never touching (Mick, 2026-11-08)", () => {
+  // A gate's posts stand either side of its opening, wider where a ramp climbs to it from the open land (island-roads.ts in view).
+  const reach = (g: IslandRoads["gates"][number]) => (g.between.includes("open") ? Math.max(g.opening, RELIEF.ramp.width) : g.opening) / 2 + RELIEF.post.side;
+  const eightMap = linkLayout(eightShares, round(LIBRARY_RADIUS), eightLinks, eightDocks);
+  const islands = [library.roads, six, islandRoads(eightMap, eightLinks, eightDocks, names(eightMap))];
+  let pairs = 0;
+  for (const roads of islands) {
+    const gates = roads.gates.filter((g) => !inTunnelMouth(roads, g));
+    gates.forEach((g, i) => gates.slice(i + 1).forEach((h) => {
+      pairs++;
+      const gap = far(g.at, h.at) - reach(g) - reach(h);
+      assert.ok(gap >= GATE_POSTS_APART, `${g.entrances.join(",")}'s gate and ${h.entrances.join(",")}'s: ${gap.toFixed(2)} between their posts`);
+    }));
+  }
+  assert.ok(pairs > 20, "gates enough to crowd");
 });
 
 test("3.77 a small island's roads are routed at The library's size and drawn at its own, widths and gates scaled with it", () => {

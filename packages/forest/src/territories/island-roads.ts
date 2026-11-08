@@ -55,6 +55,9 @@ const MOUTH = { setback: 1.8, way: 3.2, near: 0.6, least: 1.1, most: 0.2, room: 
 export const MOUTH_ROOM = MOUTH.room;
 /** The least gate opening (its posts stand on the relief, island-relief.ts). */
 const GATE_OPENING = 3;
+/** The least clear ground, in The library's units, between two gates' nearest posts where their border has room (Mick,
+ * 2026-11-08: "push the gates away from each other if possible"): the router keeps their entrances COST.entranceApart apart. */
+export const GATE_POSTS_APART = 2;
 /** The mock measured names on the page at about 2.6 pixels per ground unit: a name's box, and its padding in pixels. */
 const PX = 2.6;
 const nameBox = (title: string) => ({ w: (title.length * 6.5 + 12) / PX, h: 7 });

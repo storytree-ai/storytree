@@ -95,6 +95,21 @@ export function spreadCapabilities(names: readonly { capability: string; box: Bo
   return moves;
 }
 
+/**
+ * The moves to give capability names shown on screen at `box`, each having been given `given` (3.33): each is judged from its own
+ * point, its box with that move taken back off, and only a name whose move changes by half a pixel or more is listed, so names
+ * already apart stay still from one frame to the next.
+ */
+export function nameMoves(names: readonly { capability: string; box: Box; given: Move; size: number }[]): Map<string, Move> {
+  const moves = spreadCapabilities(names.map(({ capability, box, given, size }) => ({ capability, box: moved(box, { x: -given.x, y: -given.y }), size })));
+  const changed = new Map<string, Move>();
+  for (const { capability, given } of names) {
+    const move = moves.get(capability)!;
+    if (Math.abs(move.x - given.x) >= 0.5 || Math.abs(move.y - given.y) >= 0.5) changed.set(capability, move);
+  }
+  return changed;
+}
+
 /** The globe's south as it lies on a plate turned by `plate` on the unturned globe: the way to its south pole along the surface, in the plate's own ground (x, z). */
 export function southOnPlate(plate: Quaternion): Point {
   const south = new Vector3(0, -1, 0).applyQuaternion(plate.clone().invert());

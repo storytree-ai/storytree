@@ -7,7 +7,7 @@ import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@stor
 import type { Coast } from "../territories/territories.js";
 import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
 import { keptVersion, subscribeKept } from "../territories/kept-layout.js";
-import { capabilityPlates, facing, fadedPlates, southOnPlate, spreadCapabilities, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
+import { capabilityPlates, facing, fadedPlates, nameMoves, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 import type { DetailStore } from "./zoom-detail.js";
 
@@ -87,17 +87,13 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
       facing: Number(label.dataset.facing ?? 0), dimmed: label.dataset.dimmed !== undefined }));
     const faded = fadedPlates(shown, selected);
     for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));
-    // A capability's name is never hidden: where names overlap they are moved apart (3.33), each judged from its own point,
-    // the move it was given last taken back off the box the screen shows.
+    // A capability's name is never hidden: where names overlap they are moved apart (3.33).
     const capabilities = [...host.querySelectorAll<HTMLElement>(".planet-nameplate.capability")].filter(onScreen);
-    const given = (label: HTMLElement) => ({ x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) });
-    const moves = spreadCapabilities(capabilities.map(label => {
-      const box = label.getBoundingClientRect(), { x, y } = given(label);
-      return { capability: label.dataset.capabilityId!, box: { left: box.left - x, right: box.right - x, top: box.top - y, bottom: box.bottom - y }, size: Number(label.dataset.size ?? 0) };
-    }));
+    const moves = nameMoves(capabilities.map(label => ({ capability: label.dataset.capabilityId!, box: label.getBoundingClientRect(),
+      given: { x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) }, size: Number(label.dataset.size ?? 0) })));
     for (const label of capabilities) {
-      const move = moves.get(label.dataset.capabilityId!) ?? { x: 0, y: 0 }, was = given(label);
-      if (Math.abs(move.x - was.x) < 0.5 && Math.abs(move.y - was.y) < 0.5) continue;
+      const move = moves.get(label.dataset.capabilityId!);
+      if (move === undefined) continue;
       label.dataset.moveX = String(move.x);
       label.dataset.moveY = String(move.y);
       label.style.setProperty("--move-x", `${move.x}px`);

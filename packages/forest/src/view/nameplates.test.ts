@@ -6,7 +6,7 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, facesEye, facing, fadedPlates, NAME_OVERLAP_SLACK, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
+import { capabilityPlates, facesEye, facing, fadedPlates, NAME_OVERLAP_SLACK, nameMoves, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -107,4 +107,12 @@ test("3.33 where a selected island's capability names overlap, they are moved ap
     assert.deepEqual(moves.get(largest), { x: 0, y: 0 }, `${what}: the largest territory's name stays on its point`);
   }
   assert.deepEqual(spreadCapabilities(names).get("hooks"), { x: 0, y: 0 }, "a name clear of the others stays put, however small");
+  // Frame to frame: the screen shows each name where its last move put it. Judged again from there, nothing moves.
+  const first = nameMoves(checkbox.map(name => ({ ...name, given: { x: 0, y: 0 } })));
+  assert.ok(first.has("database connection") || first.has("request"), "names in each other's way are given moves");
+  const shownMoved = checkbox.map(({ capability, box, size }) => {
+    const given = first.get(capability) ?? { x: 0, y: 0 };
+    return { capability, size, given, box: { left: box.left + given.x, right: box.right + given.x, top: box.top + given.y, bottom: box.bottom + given.y } };
+  });
+  assert.deepEqual([...nameMoves(shownMoved)], [], "names already moved apart stay still on the next frame");
 });

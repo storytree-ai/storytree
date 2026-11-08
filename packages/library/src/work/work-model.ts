@@ -323,7 +323,7 @@ export class WorkModel {
       const storyFields = { ...plan.story, plugin };
       this.#records.check("story", storyFields);
 
-      const done: ImportedPluginPlan = { story: story?.id ?? "", added: [], edited: [], retired: [], kept: [], left: [] };
+      const done: ImportedPluginPlan = { story: "", added: [], edited: [], retired: [], kept: [], left: [] };
       const heldCapabilities = options.held === undefined ? undefined : new Set(options.held.capabilities);
       const heldContracts = options.held === undefined ? undefined : new Set(options.held.contracts);
       /** Write `fields` over `record` when they differ in any of `owned`, a field missing from `fields` being removed. */

@@ -163,7 +163,9 @@ test("5.23 · `plugin import-plan` from a git checkout retires only what a commi
     assert.match((await importPlan(stale)).text, /: 0 added, 0 edited, 0 retired, 4 kept\.$/);
     assert.deepEqual(await contracts(), landed, "a re-import after the merge keeps the ids");
 
-    // The lane's own history dropping 1.2 is a removal it may make.
+    // The lane's own history dropping 1.2 is a removal it may make, past a committed version that was not JSON.
+    writeFileSync(path.join(stale, "plugins", "voice", "plan.json"), "{ not json");
+    git(stale, "commit", "-q", "-am", "a broken plan");
     writePlan(stale, address(["1.1 · A wrong path is answered 404"]));
     git(stale, "commit", "-q", "-am", "1.2 goes");
     assert.match((await importPlan(stale)).text, /: 0 added, 0 edited, 1 retired, 3 kept\.$/);

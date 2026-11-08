@@ -58,23 +58,23 @@ test("4.6 the panel is the story's lead and below it only the capability selecte
   assert.doesNotMatch(html, /Front covers|panel-shelf|data-book-id/, "no front covers (ADR-0659 D4)");
 });
 
-test("4.6 a description shows its lead, its first paragraph, and the rest behind More with its words counted; one paragraph has no More", () => {
+test("4.6 a description shows its lead, its first paragraph, and the rest behind a bare \"How it works\", no count; one paragraph has no handle", () => {
   const story = "What s does for you.\n\nHow it works, in   five words.\n\nWhat it is not.";
   const capability = { ...line("next", "failing"), description: "Its lead.\n\nIts rest <here>." };
   const html = renderStoryPanel({ ...panel, description: story, capabilities: [capability] }, "next");
   assert.equal(plainText(/<p class="panel-sentences">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? ""), "What s does for you.", "the story's lead alone on the surface");
   const more = fold(html, "more");
-  assert.equal(more?.handle, "More · 10 words", "the rest's words, counted as whitespace-separated tokens");
+  assert.equal(more?.handle, "How it works", "a bare label, no word count (ADR-1291)");
   assert.ok(more?.hidden);
   assert.match(more!.body, /How it works, in\s+five words\.[\s\S]*What it is not\./);
   const detail = html.slice(html.indexOf("panel-detail"));
   assert.match(detail, /<p class="panel-lead">Its lead\.<\/p>/, "the capability's lead on its surface");
-  assert.equal(fold(detail, "more")?.handle, "More · 3 words");
+  assert.equal(fold(detail, "more")?.handle, "How it works");
   assert.match(fold(detail, "more")!.body, /Its rest &lt;here&gt;\./, "as text");
-  assert.equal(renderStoryPanel(panel, "next").includes('data-fold="more"'), false, "a one-paragraph description has no More");
+  assert.equal(renderStoryPanel(panel, "next").includes('data-fold="more"'), false, "a one-paragraph description has no How it works");
 });
 
-test("4.6 a capability's handles come in one order, More, Health, Open work, Contracts, each contract opens to its own detail, and Open all · n counts every handle", () => {
+test("4.6 a capability's handles come in one order, How it works, Health, Open work, Contracts, each contract opens to its own detail, and Open all · n counts every handle", () => {
   const capability: CapabilityLine = { ...line("next", "failing"), description: "Lead.\n\nRest.", openWork: [{ increment: "i", title: "Do it" }] };
   const html = renderStoryPanel({ ...panel, capabilities: [capability] }, "next");
   const kinds = [...html.matchAll(/data-fold="([^"]+)"/g)].map(([, kind]) => kind);
@@ -204,7 +204,7 @@ test("4.40 a picked gate's panel gives each edge joining its pair, either way, i
   assert.match(plainText(gate), /^The next depends on The base\./);
   const contracts = fold(gate, "contracts");
   assert.equal(contracts?.handle, "Contracts · 2", "its state: the contracts counted on a handle");
-  assert.equal(contracts?.hidden, true, "drawn closed, one double-click away");
+  assert.equal(contracts?.hidden, true, "drawn closed, one click away");
   assert.deepEqual([...gate.matchAll(/<li data-contract-id="([^"]+)"[^>]*>([\s\S]*?)<\/li>/g)].map(([, id, said]) => [id, fold(said!, "contract")?.handle]), [["e-1", "next reads &lt;base&gt; by id"], ["e-2", "next never writes base"]]);
   assert.equal(plainText(gate).includes("failing"), false, "none failing, none said");
   const shared = { id: "k-1", title: "next reads base by id", reported: "failing" as const, trail: "green, then red", verified: "failing" as const, source: "ci" as const, lastSeen: { state: "passing" as const, at: "2026-09-27T10:00:00.000Z" } };

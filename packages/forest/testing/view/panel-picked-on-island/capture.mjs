@@ -2,7 +2,7 @@
 // don't think it's needed."): storytree's own map (the code-rows snapshot and its survey) as the app opens it, close up on The
 // library. A capability's territory clicked on the island (a road click falls through to the land under it) opens the panel
 // on that capability: the story's lead and its detail, with no tree, card or pop-out (4.6, 4.8), and its contracts behind a
-// handle that a single click leaves closed and a double-click opens (4.41, ADR-1284 D1); then a gate clicked shows its pair's
+// handle that one click opens and another closes (4.41, ADR-1287); then a gate clicked shows its pair's
 // links in its place (3.88). `node --import tsx capture.mjs` (append --retake to write into
 // src/view/evidence/panel-picked-on-island). Measures, from the page, what the panel holds, so "no tree" is measured.
 import assert from 'node:assert/strict';
@@ -80,6 +80,8 @@ const targets = (page, kind) => page.evaluate(({ story, kind }) => {
 }, { story: library, kind });
 const clickUntil = async (page, settle, kind, done) => {
   for (const target of await targets(page, kind)) {
+    // A point the open panel covers is skipped: a click there would work its folds (ADR-1287), not the map.
+    if (await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('aside.story-panel'), target)) continue;
     await page.mouse.click(target.x, target.y);
     await settle(page, 8);
     if (done(await panel(page))) return;
@@ -113,15 +115,18 @@ await runCapture({
       assert.deepEqual(found.opened, [], 'every fold closed on the first pick');
     },
   }, {
-    // ADR-1284 D1: a single click on the handle opens nothing, a double-click opens it, and a contract opens one level deeper.
+    // ADR-1287: one click on the handle opens it, a second closes it, and a contract opens one level deeper on its own click.
     name: 'capability-folds-opened',
     prepare: async ({ page, settle }) => {
       const contracts = page.locator('aside.story-panel [data-fold="contracts"] > .panel-handle');
       await contracts.click();
       await settle(page, 2);
       results.singleClick = (await panel(page)).opened;
-      await contracts.dblclick();
-      await page.locator('aside.story-panel [data-fold="contract"] > .panel-handle').first().dblclick();
+      await contracts.click();
+      await settle(page, 2);
+      results.secondClick = (await panel(page)).opened;
+      await contracts.click();
+      await page.locator('aside.story-panel [data-fold="contract"] > .panel-handle').first().click();
       await settle(page, 4);
     },
     measure: async ({ page, out }) => {
@@ -129,8 +134,9 @@ await runCapture({
       return (results.opened = await panel(page));
     },
     expect: found => {
-      assert.deepEqual(results.singleClick, [], 'a single click opens nothing');
-      assert.equal(found.opened.length, 2, 'the double-clicked Contracts and its first contract are open');
+      assert.equal(results.singleClick.length, 1, 'one click opens Contracts');
+      assert.deepEqual(results.secondClick, [], 'a second click closes it');
+      assert.equal(found.opened.length, 2, 'the clicked Contracts and its first contract are open');
     },
   }, {
     // ADR-1284 D4: a gate's links, each its sentence and one state line, their contracts closed behind the handle. Escape on
@@ -153,19 +159,19 @@ await runCapture({
   }, {
     name: 'gate-contracts-opened',
     prepare: async ({ page, settle }) => {
-      await page.locator('aside.story-panel .panel-gate [data-fold="contracts"] > .panel-handle').first().dblclick();
+      await page.locator('aside.story-panel .panel-gate [data-fold="contracts"] > .panel-handle').first().click();
       await settle(page, 4);
     },
     measure: async ({ page, out }) => {
       await page.locator('aside.story-panel').screenshot({ path: path.join(out, 'gate-contracts-opened-panel.png') });
       return (results.gateOpened = await panel(page));
     },
-    expect: found => { assert.equal(found.opened.length, 1, 'a double-click opens the link\'s contracts'); },
+    expect: found => { assert.equal(found.opened.length, 1, 'a click opens the link\'s contracts'); },
   }, {
     // A gate's contract opens one level deeper, to what a capability's contract shows and nothing more (ADR-1289).
     name: 'gate-contract-opened',
     prepare: async ({ page, settle }) => {
-      await page.locator('aside.story-panel .panel-gate [data-fold="contract"] > .panel-handle').first().dblclick();
+      await page.locator('aside.story-panel .panel-gate [data-fold="contract"] > .panel-handle').first().click();
       await settle(page, 4);
     },
     measure: async ({ page, out }) => {
@@ -174,7 +180,7 @@ await runCapture({
       return (results.gateContractOpened = { ...await panel(page), said });
     },
     expect: found => {
-      assert.equal(found.opened.length, 2, 'a double-click opens the link\'s first contract');
+      assert.equal(found.opened.length, 2, 'a click opens the link\'s first contract');
       assert.deepEqual(found.said, ['panel-badge badge-passing', 'panel-trail', 'panel-badge badge-failing'], 'the agent\'s report, its trail and storytree\'s verdict, as a capability\'s contract shows');
     },
   }],

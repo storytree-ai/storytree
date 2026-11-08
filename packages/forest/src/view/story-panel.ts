@@ -2,7 +2,7 @@
  * Capability 4 · Drill-down. The drill-down's panel (the forest story, capability 4): @storytree/forest's drillDown, as HTML.
  * It leads with the story's lead, and below it shows the one capability picked on the island, its word saying where it came
  * from and a why line only when that needs the user (ADR-1284 D2, D3). Everything else waits in a fold behind a handle saying what is inside and how much, which a
- * double-click opens (ADR-1284 D1; ./panel-folds.ts works them). The island draws the capability tree, so the panel draws
+ * single click opens (ADR-1287, narrowing ADR-1284 D1; ./panel-folds.ts works them). The island draws the capability tree, so the panel draws
  * none (ADR-1285). Every word from the library is written as text, never as HTML.
  */
 import type { CapabilityLine, ContractLine, StoryPanel, WhyLine } from "@storytree/forest";
@@ -49,11 +49,10 @@ function paragraphs(description: string): [string, string[]] {
   return [lead, rest];
 }
 
-/** The rest of a description behind More, its words counted as whitespace-separated tokens; with no rest, no handle. */
+/** The rest of a description behind a bare "How it works", no count (ADR-1291); with no rest, no handle. */
 function more(rest: readonly string[]): string {
   if (rest.length === 0) return "";
-  const words = rest.join(" ").split(/\s+/).length;
-  return fold("more", `More · ${words} word${words === 1 ? "" : "s"}`, rest.map((paragraph) => `<p>${text(paragraph)}</p>`).join(""));
+  return fold("more", "How it works", rest.map((paragraph) => `<p>${text(paragraph)}</p>`).join(""));
 }
 
 /**

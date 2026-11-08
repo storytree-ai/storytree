@@ -23,7 +23,7 @@
  * observations running, in a run about two seconds slower than its passing twins.
  */
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { NewLine } from "@storytree/library";
@@ -100,6 +100,26 @@ export function shellEdits(home: string, root: string, line: NewLine, failed: (e
 
 /** How long a baseline may go unwritten before it is pruned: no live session's is that stale, and a missing one is only re-seeded. */
 export const BASELINE_KEPT_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** How often the hooks look for stale baselines: an hour, since a week is what makes one stale. */
+export const PRUNE_EVERY_MS = 60 * 60 * 1000;
+
+/**
+ * Prune stale baselines (pruneBaselines) when this machine has not looked for them in `everyMs`, marking the look in `home`,
+ * and return how many went. A look that is not due removes nothing; a mark that cannot be written only brings the next look sooner.
+ */
+export function pruneBaselinesWhenDue(home: string, { now = Date.now(), everyMs = PRUNE_EVERY_MS, ...prune }: { now?: number; everyMs?: number; keptMs?: number; limit?: number } = {}): number {
+  const stamp = path.join(home, "shell-edits-pruned.stamp");
+  try {
+    if (now - statSync(stamp).mtimeMs < everyMs) return 0;
+  } catch { /* Never looked on this machine. */ }
+  try {
+    mkdirSync(home, { recursive: true });
+    writeFileSync(stamp, "");
+    utimesSync(stamp, new Date(now), new Date(now));
+  } catch { /* Looked for again next time, which is only slower. */ }
+  return pruneBaselines(home, { now, ...prune });
+}
 
 /**
  * Remove the baselines no observation has written for `keptMs`, from each place under `home` they are kept (the hooks',

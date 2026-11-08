@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { runGit } from "../activity/git.js";
 import { LEARNED_FILE } from "./learned-limits.js";
-import { pruneBaselines, shellEdits } from "./shell-edits.js";
+import { PRUNE_EVERY_MS, pruneBaselines, pruneBaselinesWhenDue, shellEdits } from "./shell-edits.js";
 
 /** A deadline no loaded runner reaches: these tests protect what an observation sees, not how fast its Git reads run. */
 const UNHURRIED = 60_000;
@@ -262,5 +262,28 @@ test("3.22 a baseline no observation has written for a week is pruned, a bounded
     assert.deepEqual(readdirSync(path.join(home, "shell-edits")), ["fresh.json"]);
     // A machine with no baselines yet prunes nothing and never throws.
     assert.equal(pruneBaselines(path.join(dir, "elsewhere"), { now }), 0);
+  });
+});
+
+test("3.22 the hooks look for stale baselines at most once an hour on a machine, and the first look prunes them", async () => {
+  await withTempDir((dir) => {
+    const home = path.join(dir, "home");
+    const now = Date.now();
+    const old = new Date(now - 8 * 24 * 60 * 60 * 1000);
+    const baseline = (name: string) => {
+      const file = path.join(home, "shell-edits", name);
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, "{}");
+      utimesSync(file, old, old);
+      return file;
+    };
+    const first = baseline("first.json");
+    assert.equal(pruneBaselinesWhenDue(home, { now }), 1);
+    assert.equal(existsSync(first), false);
+    const second = baseline("second.json");
+    assert.equal(pruneBaselinesWhenDue(home, { now: now + PRUNE_EVERY_MS - 1 }), 0);
+    assert.equal(existsSync(second), true);
+    assert.equal(pruneBaselinesWhenDue(home, { now: now + PRUNE_EVERY_MS }), 1);
+    assert.equal(existsSync(second), false);
   });
 });

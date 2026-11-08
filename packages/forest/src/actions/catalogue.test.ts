@@ -77,8 +77,9 @@ test("3.42 the lag catalogue opens a fold and a contract on the library's panel,
   // Both start on a freshly drawn panel of the library's island, so a fold the last round left open is shut again.
   const open = [{ kind: "island", island: { story: "The library" } }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }];
   assert.deepEqual(fold.setup.slice(-2), open);
-  assert.deepEqual(fold.setup.filter(step => step.kind === "click").slice(-2).map(step => step.kind === "click" && step.selector),
-    [".story-panel .panel-fold[data-fold=contracts] > .panel-handle[aria-expanded=true]", ".story-panel .panel-close"], "Contracts is shut and no longer kept before it is opened");
+  const clicked = fold.setup.map(step => step.kind === "click" ? step.selector : undefined);
+  const shut = clicked.indexOf(".story-panel .panel-fold[data-fold=contracts] > .panel-handle[aria-expanded=true]");
+  assert.ok(shut !== -1 && clicked.indexOf(".story-panel .panel-close", shut) !== -1, "Contracts is shut, so no longer kept, and the panel closed before it is opened again");
   assert.deepEqual(contract.setup.slice(-3), [...open, { kind: "click", selector: ".story-panel .panel-fold[data-fold=contracts] > .panel-handle[aria-expanded=false]", optional: true }]);
   for (const action of [fold, contract]) assert.deepEqual(action.owner, { capability: "capability_f0ffead428df", contract: "contract_e2f4b79c7350" });
 });

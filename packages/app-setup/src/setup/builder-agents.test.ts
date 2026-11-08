@@ -89,3 +89,22 @@ test("2.24 both builder agents carry the shell Claude Code gives them, Bash or, 
     }
   });
 });
+
+test("2.25 after the user approves the red tests, the builders send the session on to verify, commit and land with no diff stop, showing a diff only when the user asks; the green builder still never commits itself (ADR-1269)", async () => {
+  await withTempDir(async (dir) => {
+    const claude = path.join(dir, ".claude");
+    mkdirSync(claude);
+    registerHooks({ claude }, HOOK);
+    const read = (mode: string) => readFileSync(path.join(claude, "agents", `storytree-${mode}.md`), "utf8");
+
+    const green = read("green");
+    const handBack = green.slice(green.indexOf("5. Return:"));
+    assert.doesNotMatch(handBack, /show the user the diff|STOP until they approve|approval of the tests covered building green only/i, "green's hand-back holds no diff stop");
+    assert.match(handBack, /commit and land/i, "it sends the session on to land");
+    assert.match(handBack, /diff[^.]*only (when|if) the user asks/i, "a diff is shown only when the user asks");
+    assert.match(handBack, /Never commit yourself/, "the builder itself still never commits");
+
+    const red = read("red");
+    assert.doesNotMatch(red, /never committing or landing/, "approving the tests no longer forbids landing");
+  });
+});

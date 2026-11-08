@@ -24,15 +24,17 @@ const libraryStory = seed.tree.stories.find(story => story.title === 'The librar
 const library = libraryStory.id;
 // The snapshot predates edge records (ADR-1279), so The library's links are staged here, one for every pair a gate may join
 // (by its recorded dependency where it has one), each with contracts of its own but every third with none, for the gate's
-// panel to show both states (ADR-1284 D4).
+// panel to show both states (ADR-1284 D4). Each link's first contract storytree last saw failing, its second passing, so the
+// state line counts one failing.
 const ids = libraryStory.capabilities.map(({ id }) => id);
 const depends = new Set(libraryStory.capabilities.flatMap(({ id, dependsOn }) => dependsOn.map(to => `${id}>${to}`)));
+const seen = state => ({ reported: { state: 'passing', at: '2026-11-08T00:00:00.000Z' }, verified: { state, at: '2026-11-08T00:00:00.000Z' } });
 const pairs = ids.flatMap((one, i) => ids.slice(i + 1).map(other => depends.has(`${other}>${one}`) ? { from: other, to: one } : { from: one, to: other }));
 libraryStory.edges = pairs.map(({ from, to }, index) => ({
   id: `staged-edge-${index}`, from, to,
   contracts: index % 3 === 2 ? [] : [
-    { id: `staged-edge-${index}-reads`, title: 'Reads the other only through its exported functions, never its tables' },
-    { id: `staged-edge-${index}-ids`, title: 'Names each record it hands over by its id' },
+    { id: `staged-edge-${index}-reads`, title: 'Reads the other only through its exported functions, never its tables', health: seen('failing') },
+    { id: `staged-edge-${index}-ids`, title: 'Names each record it hands over by its id', health: seen('passing') },
   ],
 }));
 /** What the panel holds: the capability whose detail it shows, a gate's links, and anything of a tree. */
@@ -42,7 +44,7 @@ const panel = page => page.evaluate(() => {
     open: aside !== null && !aside.hidden,
     detail: aside?.querySelector('.panel-detail')?.dataset.capabilityId,
     gate: aside?.querySelector('.panel-gate') !== null && aside?.querySelector('.panel-gate') !== undefined,
-    links: [...aside?.querySelectorAll('.panel-gate h3') ?? []].map(h => ({ said: h.textContent, contracts: h.nextElementSibling?.querySelectorAll('[data-contract-id]').length ?? 0, state: (h.nextElementSibling?.classList.contains('panel-link-state') ? [h.nextElementSibling.querySelector('.panel-handle')?.textContent, h.nextElementSibling.querySelector('.panel-link-open')?.textContent].filter(Boolean).join(' ') : h.nextElementSibling?.textContent) ?? '' })),
+    links: [...aside?.querySelectorAll('.panel-gate h3') ?? []].map(h => ({ said: h.textContent, contracts: h.nextElementSibling?.querySelectorAll('[data-contract-id]').length ?? 0, state: (h.nextElementSibling?.classList.contains('panel-link-state') ? [h.nextElementSibling.querySelector('.panel-handle')?.textContent, h.nextElementSibling.querySelector('.panel-link-failing')?.textContent, h.nextElementSibling.querySelector('.panel-link-open')?.textContent].filter(Boolean).join(' ') : h.nextElementSibling?.textContent) ?? '' })),
     tree: aside?.querySelectorAll('svg, .panel-tree, [data-open-tree], [role="button"]').length ?? 0,
     handles: [...aside?.querySelectorAll('.panel-handle') ?? []].filter(h => h.closest('.panel-fold-body[hidden]') === null).map(h => h.textContent),
     opened: [...aside?.querySelectorAll('.panel-handle[aria-expanded="true"]') ?? []].map(h => h.textContent),
@@ -145,7 +147,7 @@ await runCapture({
     expect: found => {
       assert.equal(found.tree, 0);
       assert.equal(found.detail, undefined, 'a gate shows its links in the capability\'s place');
-      for (const link of found.links) assert.match(link.state, link.contracts === 0 ? /^No contracts on this link yet\.$/ : /^Contracts · \d+/, 'each link in one state line');
+      for (const link of found.links) assert.match(link.state, link.contracts === 0 ? /^No contracts on this link yet\.$/ : /^Contracts · 2 1 failing/, 'each link in one state line, saying how many are failing');
       assert.deepEqual(found.opened, [], 'its contracts closed behind the handle');
     },
   }, {

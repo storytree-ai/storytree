@@ -59,7 +59,7 @@ function more(rest: readonly string[]): string {
  * A picked gate: the edges joining its two capabilities, whichever depends on which, each saying so and then its state in
  * one line: its own contracts behind "Contracts · n", never either capability's (ADR-1282 D1), and "open work on this link"
  * when the opened arc's open work links one of them, the reason the gate is ringed; one with none says so, with no handle
- * (ADR-1284 D4). Edge contracts carry no health yet, so the line counts them without how many are failing.
+ * (ADR-1284 D4). After the handle, how many of them storytree last saw failing, when any are.
  */
 function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string], open: readonly string[] | undefined): string {
   const links = (panel.edges ?? []).filter(({ from, to }) => (from === one && to === other) || (from === other && to === one));
@@ -72,9 +72,15 @@ function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string], o
             ? `<p class="panel-muted">No contracts on this link yet.</p>`
             : `<div class="panel-link-state">${fold("contracts", `Contracts · ${contracts.length}`, `<ul class="panel-contracts">${contracts
               .map(({ id, title }) => `<li data-contract-id="${attribute(id)}">${text(title)}</li>`)
-              .join("")}</ul>`)}${contracts.some(({ id }) => open?.includes(id) === true) ? `<span class="panel-link-open">open work on this link</span>` : ""}</div>`}`)
+              .join("")}</ul>`)}${failing(contracts)}${contracts.some(({ id }) => open?.includes(id) === true) ? `<span class="panel-link-open">open work on this link</span>` : ""}</div>`}`)
         .join("")}
     </section>`;
+}
+
+/** How many of a link's contracts storytree last saw failing, in its state line; with none, nothing. */
+function failing(contracts: NonNullable<StoryPanel["edges"]>[number]["contracts"]): string {
+  const count = contracts.filter(({ verified }) => verified === "failing").length;
+  return count === 0 ? "" : `<span class="panel-link-failing">${count} failing</span>`;
 }
 
 /** What a mapped story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. */

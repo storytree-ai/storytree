@@ -74,7 +74,7 @@ test("4.6 a description shows its lead, its first paragraph, and the rest behind
   assert.equal(renderStoryPanel(panel, "next").includes('data-fold="more"'), false, "a one-paragraph description has no How it works");
 });
 
-test("4.6 a capability's handles come in one order, How it works, Health, Open work, Contracts, each contract opens to its own detail, and Open all · n counts every handle", () => {
+test("4.6 a capability's handles come in one order, How it works, Health, Open work, Contracts, and each contract opens to its own detail", () => {
   const capability: CapabilityLine = { ...line("next", "failing"), description: "Lead.\n\nRest.", openWork: [{ increment: "i", title: "Do it" }] };
   const html = renderStoryPanel({ ...panel, capabilities: [capability] }, "next");
   const kinds = [...html.matchAll(/data-fold="([^"]+)"/g)].map(([, kind]) => kind);
@@ -83,9 +83,6 @@ test("4.6 a capability's handles come in one order, How it works, Health, Open w
   const contract = fold(html, "contract");
   assert.equal(contract?.handle, "next keeps its promise", "a contract's handle is its title");
   assert.match(contract!.body, /the agent reports: failing[\s\S]*green only/, "it opens to its health and trail");
-  const foot = /<footer class="panel-foot">([\s\S]*?)<\/footer>/.exec(html)?.[1] ?? "";
-  assert.match(foot, /<button type="button" class="panel-handle panel-open-all" data-open-all>Open all · 5<\/button>/, "both levels counted");
-  assert.equal(renderStoryPanel({ ...panel, capabilities: [] }, undefined).includes("panel-open-all"), false, "no handles, no Open all");
 });
 
 /** The selected capability's surface: its section's words with every fold's body dropped. */

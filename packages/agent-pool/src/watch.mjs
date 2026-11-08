@@ -78,15 +78,23 @@ export function readPull(pull, { since, now, graceMs, home = HOME }) {
   const why = failed.map((check) => `${check.name ?? check.context} failed`).join("; ");
   const logs = failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean);
   const names = failed.map((check) => check.name ?? check.context).filter(Boolean);
+  // The Actions runs failed checks belong to, by their details link, for runnerReruns (4.29) and scanSetup (4.56).
+  const runOf = (check) => /\/actions\/runs\/(\d+)\//.exec(check.detailsUrl ?? "")?.[1];
+  const runsOf = (checks) => {
+    const ids = checks.map(runOf);
+    return ids.length && ids.every(Boolean) ? { runs: [...new Set(ids.map(Number))] } : {};
+  };
   const security = names.filter(isSecurityCheck);
-  if (security.length) return { state: "red", head, why: `${security.join(", ")} failed`, logs: [], checks: security, security };
+  if (security.length) {
+    return { state: "red", head, why: `${security.join(", ")} failed`, logs: [], checks: security, security,
+      ...runsOf(failed.filter((check) => isSecurityCheck(check.name ?? check.context))) };
+  }
   if (pull.mergeable === "CONFLICTING") {
     return { state: "red", head, why: `it conflicts with main: merge origin/main and resolve the conflicts${why ? `; also ${why}` : ""}`, logs,
       checks: names, conflict: true, branch: pull.headRefName };
   }
   // The Actions runs its failed checks belong to, when every one names one, so the watcher can ask whether only the runner failed them (4.29).
-  const runs = failed.map((check) => /\/actions\/runs\/(\d+)\//.exec(check.detailsUrl ?? "")?.[1]);
-  if (failed.length) return { state: "red", head, why, logs, checks: names, ...(runs.every(Boolean) ? { runs: [...new Set(runs.map(Number))] } : {}) };
+  if (failed.length) return { state: "red", head, why, logs, checks: names, ...runsOf(failed) };
   const removal = pull.timelineItems?.nodes?.at(-1);
   const removedAt = Date.parse(removal?.createdAt);
   if (!pull.mergeQueueEntry && EJECTED.has(removal?.reason?.toUpperCase()) && removedAt > Date.parse(since) && now - removedAt > graceMs) {
@@ -99,6 +107,52 @@ export function readPull(pull, { since, now, graceMs, home = HOME }) {
     return { state: "pending", head, stranded: pull.id };
   }
   return { state: "pending", head };
+}
+
+/** How many attempts a code-scanning run that analysed nothing reaches before it is read as a plain red: two reruns (4.56). */
+export const SETUP_ATTEMPTS = 3;
+/** A CodeQL job's steps before its analysis: one failed there analysed nothing (4.56). */
+const SETUP_STEP = /^(Set up job|Initialize CodeQL|Checkout|Run actions\/checkout)/i;
+/** A code-scanning check, of the security checks: never secret-check, whose red is always a finding (4.56). */
+const isCodeScan = (name) => isSecurityCheck(name) && name !== "secret-check";
+
+/**
+ * A security red (readPull's, with `runs`) read again from its Actions runs ({ id, attempt, status, repo, jobs: [{ name,
+ * conclusion, steps, failed }] }, `failed` its first failed step) and the count of open code-scanning alerts on its merge
+ * ref, `alerts` (undefined when unread), 4.56. When its checks are all code scanning's and it analysed nothing (no open
+ * alert, or every red one of them failed at a setup step), it is no security finding: below SETUP_ATTEMPTS it is a red
+ * for the runner's rerun (`runner`, as runnerReruns gives it), after that a plain red with its runs' links as logs, and
+ * a run still running is pending. Anything else is the security red as it came.
+ */
+export function scanSetup(pull, runs, alerts) {
+  if (!pull.security?.every(isCodeScan) || !runs.length || alerts > 0) return pull;
+  const jobs = runs.flatMap((one) => one.jobs.filter((job) => job.steps > 0 && job.conclusion === "failure" && isCodeScan(job.name)));
+  const steps = [...new Set(jobs.map((job) => job.failed))];
+  const why = alerts === 0 ? "no open alert on its merge ref"
+    : jobs.length && steps.every((step) => SETUP_STEP.test(step ?? "")) ? `it failed at ${steps.join(", ")}` : undefined;
+  if (!why) return pull;
+  if (runs.some((one) => one.status !== "completed")) return { state: "pending", head: pull.head };
+  const said = `${pull.checks.join(", ")} failed before analysing (${why})`;
+  const { security, ...plain } = pull;
+  if (runs.every((one) => one.attempt < SETUP_ATTEMPTS)) return { ...plain, why: said, runner: { runs, why: said } };
+  return { ...plain, why: `${said} on ${SETUP_ATTEMPTS} attempts: an infrastructure red`,
+    logs: runs.map((one) => `https://github.com/${one.repo}/actions/runs/${one.id}`) };
+}
+
+/**
+ * A security red read again, for scanSetup, from its Actions runs and the open code-scanning alerts on pull request
+ * `pr`'s merge ref (4.56), through `json` (a GitHub REST path's answer) and `jobs` (a run's, as jobFields gives them).
+ * One with no runs, or a check that is not code scanning's, is read no further; unreadable alerts are undefined.
+ */
+export async function readScan(pull, pr, { json, jobs, api = REPO, home = HOME }) {
+  if (!pull.runs || !pull.security.every(isCodeScan)) return pull;
+  const runs = [];
+  for (const id of pull.runs) {
+    const one = await json(`${api}/actions/runs/${id}`);
+    runs.push({ id, attempt: one.run_attempt, status: one.status, repo: one.repository?.full_name ?? home, jobs: await jobs(one) });
+  }
+  const alerts = await json(`${api}/code-scanning/alerts?ref=refs/pull/${pr}/merge&state=open&per_page=1`).then((open) => open.length, () => undefined);
+  return scanSetup(pull, runs, alerts);
 }
 
 /** The repository the watcher watches: a pull request whose head is elsewhere (a fork's) is never its to land or fix. */
@@ -208,6 +262,7 @@ export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 
     queueReds.push({ ...red, ...await queueFailures(repo, red.commit, home).catch(() => ({ checks: [], tests: [] })) });
   }
   const pull = { ...readPull(found, { since, now: now(), graceMs, home }), ...(queueReds.length ? { queueReds } : {}) };
+  if (pull.security) return readScan(pull, pr, { json: (path) => ghJson(repo, path), jobs: (one) => jobsOf(repo, one, api), api, home });
   if (pull.state !== "red" || pull.conflict || !pull.runs) return pull;
   const runs = [];
   for (const id of pull.runs) {
@@ -293,13 +348,15 @@ async function jobLog(repo, id, api = REPO) {
 
 const REPO = "repos/storytree-ai/storytree";
 const ghJson = async (repo, path) => JSON.parse((await run("gh", ["api", path], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout);
+/** A job, as GitHub's REST API lists a run's, as the watcher reads it: `failed` is its first failed step's name (4.56). */
+export const jobFields = (job) => ({ id: job.id, name: job.name, conclusion: job.conclusion, steps: job.steps?.length ?? 0, runner: job.runner_name ?? "",
+  failed: job.steps?.find((step) => step.conclusion === "failure")?.name });
 const jobsSeen = new Map();
 /** A run's jobs as { name, conclusion, steps }; a completed attempt's never change, so they are read once. */
 async function jobsOf(repo, run, api = REPO) {
   const key = `${run.id}:${run.run_attempt}`;
   if (jobsSeen.has(key)) return jobsSeen.get(key);
-  const jobs = (await ghJson(repo, `${api}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`)).jobs
-    .map((job) => ({ id: job.id, name: job.name, conclusion: job.conclusion, steps: job.steps?.length ?? 0, runner: job.runner_name ?? "" }));
+  const jobs = (await ghJson(repo, `${api}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`)).jobs.map(jobFields);
   if (run.status === "completed") jobsSeen.set(key, jobs);
   return jobs;
 }

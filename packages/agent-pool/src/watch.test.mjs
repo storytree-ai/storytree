@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import { removeTemp } from "@storytree/test-waits";
 
 import { countEngines } from "./queue.mjs";
-import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, onMain, failedOnQueue, projectOf, queueOutcome, queueRemovals, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
+import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, onMain, failedOnQueue, projectOf, queueOutcome, queueRemovals, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, jobFields, readScan, scanSetup, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -1361,6 +1361,83 @@ test("4.44 · a hand-over GitHub cannot be asked about names why, a missing shar
   assert.equal((await handOver({ pr: 93, increment: "increment_one", session: SESSION, onBox: true, local: async () => 1 })).code, 1,
     "on the box, hand's refusal is the hand-over's");
 });
+
+test("4.56 · a code-scanning red that analysed nothing is rerun below three attempts, then is a plain red; an open alert, a secret check or a check with no Actions run stays a security red", () => {
+  const options = { since: minutes(-60), now: at, graceMs: 10 * 60_000 };
+  const analyze = { ...failed, name: "Analyze (c-cpp)", detailsUrl: "https://github.com/storytree-ai/storytree/actions/runs/7/job/70" };
+  const scan = readPull(pull({ checks: [passed, analyze] }), options);
+  assert.deepEqual(scan.runs, [7], "a code-scanning red names its Actions runs");
+  const job = { name: "Analyze (c-cpp)", conclusion: "failure", steps: 4, failed: "Initialize CodeQL" };
+  const runs = (attempt, jobs = [job], status = "completed") => [{ id: 7, attempt, status, repo: "storytree-ai/storytree", jobs }];
+
+  const setup = scanSetup(scan, runs(1), undefined);
+  assert.equal(setup.state, "red");
+  assert.equal(setup.security, undefined, "no security finding");
+  assert.deepEqual(setup.runner.runs.map((one) => [one.id, one.attempt]), [[7, 1]]);
+  assert.match(setup.why, /Analyze \(c-cpp\) failed before analysing.*Initialize CodeQL/);
+  const analysed = [{ ...job, failed: "Perform CodeQL Analysis" }];
+  assert.match(scanSetup(scan, runs(2, analysed), 0).runner.why, /no open alert/, "no open alert on the merge ref, whatever step failed");
+  assert.deepEqual(scanSetup(scan, runs(1, analysed), undefined), scan, "a failed analysis with its alerts unread stays a security red");
+  assert.deepEqual(scanSetup(scan, runs(1), 2), scan, "an open alert stays a security red");
+
+  const spent = scanSetup(scan, runs(3), 0);
+  assert.equal(spent.runner, undefined, "three attempts: no rerun");
+  assert.equal(spent.security, undefined);
+  assert.equal(spent.state, "red");
+  assert.match(spent.why, /infrastructure/);
+  assert.deepEqual(spent.logs, ["https://github.com/storytree-ai/storytree/actions/runs/7"]);
+  assert.deepEqual(scanSetup(scan, runs(1, [job], "in_progress"), 0), { state: "pending", head: "h1" }, "a run still running waits");
+
+  const secret = readPull(pull({ checks: [{ ...analyze, name: "secret-check" }] }), options);
+  assert.deepEqual(scanSetup(secret, runs(1, [{ ...job, name: "secret-check" }]), 0), secret);
+  const both = readPull(pull({ checks: [analyze, { ...failed, name: "CodeQL", detailsUrl: "https://github.com/storytree-ai/storytree/runs/5" }] }), options);
+  assert.equal(both.runs, undefined, "a check naming no Actions run names no runs");
+});
+
+test("4.56 · a code-scanning red is read from its runs' jobs, each named by its first failed step, and the open alerts on its merge ref; a secret check or one with no runs is read no further", async () => {
+  const scan = { state: "red", head: "h1", why: "Analyze (c-cpp) failed", logs: [], checks: ["Analyze (c-cpp)"], security: ["Analyze (c-cpp)"], runs: [7] };
+  const job = jobFields({ id: 70, name: "Analyze (c-cpp)", conclusion: "failure", runner_name: "GitHub Actions 1",
+    steps: [{ name: "Set up job", conclusion: "success" }, { name: "Initialize CodeQL", conclusion: "failure" }, { name: "Perform CodeQL Analysis", conclusion: "skipped" }] });
+  assert.equal(job.failed, "Initialize CodeQL");
+  const asked = [];
+  const answers = { "repos/x/y/actions/runs/7": { run_attempt: 1, status: "completed" } };
+  const json = async (path) => { asked.push(path); if (path.includes("code-scanning")) throw new Error("HTTP 404"); return answers[path]; };
+  const read = await readScan(scan, 41, { json, jobs: async () => [job], api: "repos/x/y", home: "x/y" });
+  assert.deepEqual(read.runner.runs, [{ id: 7, attempt: 1, status: "completed", repo: "x/y", jobs: [job] }], "a run that names no repository is the hand-off's");
+  assert.match(read.why, /failed at Initialize CodeQL/, "alerts unread: the failed setup step decides");
+  assert.ok(asked.includes("repos/x/y/code-scanning/alerts?ref=refs/pull/41/merge&state=open&per_page=1"));
+  answers["repos/x/y/actions/runs/7"].repository = { full_name: "x/z" };
+  const open = async (path) => (path.includes("code-scanning") ? [{ number: 1 }] : answers[path]);
+  assert.deepEqual(await readScan(scan, 41, { json: open, jobs: async () => [job], api: "repos/x/y" }), scan, "an open alert stays a security red");
+  const none = async (path) => (path.includes("code-scanning") ? [] : answers[path]);
+  assert.equal((await readScan(scan, 41, { json: none, jobs: async () => [], api: "repos/x/y" })).runner.runs[0].repo, "x/z");
+  asked.length = 0;
+  const secret = { ...scan, checks: ["secret-check"], security: ["secret-check"] };
+  assert.equal(await readScan(secret, 41, { json, jobs: async () => [job] }), secret);
+  const { runs, ...unrun } = scan;
+  assert.equal(await readScan(unrun, 41, { json, jobs: async () => [job] }), unrun);
+  assert.deepEqual(asked, [], "nothing read for either");
+});
+
+test("4.56 · the watcher reruns a code-scanning red that analysed nothing with no fix session, and its spent red starts an ordinary fix session, not a security one", async (t) => {
+  const b = await box(t);
+  const reruns = [];
+  b.options.rerun = async (run) => { reruns.push(run.id); };
+  await handOff(b);
+  const scan = { state: "red", head: "h1", why: "Analyze (c-cpp) failed", logs: [], checks: ["Analyze (c-cpp)"], security: ["Analyze (c-cpp)"], runs: [7] };
+  const job = { name: "Analyze (c-cpp)", conclusion: "failure", steps: 4, failed: "Initialize CodeQL" };
+  const runs = (attempt) => [{ id: 7, attempt, status: "completed", repo: "storytree-ai/storytree", jobs: [job] }];
+  b.looks[41] = scanSetup(scan, runs(1), 0);
+  await watchOnce(b.options);
+  assert.deepEqual(reruns, [7]);
+  assert.equal(b.fixes.length, 0, "no model session for a scan that analysed nothing");
+  b.looks[41] = scanSetup(scan, runs(3), 0);
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 1);
+  assert.doesNotMatch(b.fixes[0].brief, /code-scanning\/alerts/, "not the security brief");
+  assert.equal((await saved(b)).fixes[0].security, undefined);
+});
+
 
 test("4.46 · a saturated box holds new pull request and release fix sessions, said once with its reading; an unread box holds nothing back", async (t) => {
   const b = await box(t);

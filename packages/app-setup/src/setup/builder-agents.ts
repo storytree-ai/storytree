@@ -54,7 +54,7 @@ Rules for each test:
 
 Workflow: read the code under test and the project's existing tests; write each test; run it with the project's own test command and confirm it FAILS for the missing behaviour (an assertion, the expected error not raised), not from an import, typo or collection error. A test that already passes guards an existing behaviour: say so. Then return this and STOP:
 
-RED: <n> tests, <k> failing. Awaiting approval; no production code written. Approving these tests, even with "build it", covers building green only, never committing or landing.
+RED: <n> tests, <k> failing. Awaiting approval; no production code written. Approving these tests, even with "build it", sends the session on to build green, review and land; it shows a diff only if the user asks.
 | test | contract | why it is needed | red: quoted failure line | deletion check |
 Run: <exact command> -> <quoted summary line>
 Files written: <paths>
@@ -62,7 +62,7 @@ Files written: <paths>
 If a contract has nothing a test can observe, or needs a seam the code lacks, stop and say which.`,
   },
   green: {
-    description: "Green builder for one increment: writes the least production code that makes the user-approved failing tests pass, never edits a test, and proves it with the test run and the diff. A hook refuses its edits to test files.",
+    description: "Green builder for one increment: writes the least production code that makes the user-approved failing tests pass, never edits a test, and proves it with the test run. A hook refuses its edits to test files.",
     text: `You make the approved failing tests pass with the least production code. The tests are the specification: storytree's hook refuses any edit to a test file, and the rule holds for the shell too (no sed, echo or scripts that write a test).
 
 Workflow:
@@ -70,7 +70,7 @@ Workflow:
 2. Write only what a failing test demands, in the project's own style: no speculative abstraction, new dependency or refactor the tests do not reach, and never the literal a test expects in place of the behaviour.
 3. Run the tests until they pass, then the project's whole test command, exactly as the project gives it; name any failure that was there before you started.
 4. If a test looks wrong, STOP and say which, where and why, with the change you would propose. Do not touch it.
-5. Return: GREEN or STOPPED, the quoted test summary, \`git diff --stat\`, and confirmation that no test file changed, then this line for the session that called you, word for word: "Next: show the user the diff and STOP until they approve it: commit nothing, and call no land, mark_built or close_increment, before that reply; their approval of the tests covered building green only." Never commit yourself.`,
+5. Return: GREEN or STOPPED, the quoted test summary, \`git diff --stat\`, and confirmation that no test file changed, then this line for the session that called you, word for word: "Next: run the project's whole test command over this tree, have the change reviewed, then commit and land it as the project lands; show the user a diff or code only if the user asks (the user's choice, not a stop)." Never commit yourself.`,
   },
 };
 

@@ -12,7 +12,8 @@ import { test } from "node:test";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect, type Library } from "@storytree/library";
 
-import { PRINCIPLES } from "./starter-notes.js";
+import { PRINCIPLES, PROCESSES } from "./starter-notes.js";
+import { ROLES } from "./starter-roles.js";
 import { seedStarterPack, STARTER_PACK_VERSION, starterPackStatus, takeStarterPack } from "./starter-pack.js";
 
 /** Who the history says wrote a record when version 1 of the pack seeded it. */
@@ -118,4 +119,13 @@ test("6.9 a product project holding no copy of the pack is offered and takes the
     await storytree.close();
     await dropTestProjects([factory, product]);
   }
+});
+
+test("6.17 the starter pack's Merge ceremony and orchestrator land green, reviewed work without a diff approval, showing a diff only when the user asks (ADR-1269)", () => {
+  const diffStop = /show the user the diff|approval of the diff|diff approved by the user|approve[sd]? the diff/i;
+  const ceremony = PROCESSES.find((process) => process.title === "Merge ceremony")!;
+  for (const [field, text] of Object.entries(ceremony)) assert.doesNotMatch(String(text), diffStop, `Merge ceremony's ${field}`);
+  assert.match(ceremony.steps, /diff[^.]*only (when|if) the user asks/i, "its landing step shows a diff only when asked");
+  const orchestrator = ROLES.find((role) => role.workflow.includes("Merge ceremony"))!;
+  assert.doesNotMatch(orchestrator.workflow, diffStop, "the orchestrator's land step");
 });

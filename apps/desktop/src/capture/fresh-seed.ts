@@ -32,7 +32,7 @@ const checkout = path.resolve(import.meta.dirname, "../../../..");
  * folder when not named) as seed.json.gz and survey.json. Writes nothing to the library.
  */
 export async function freshSeed({ storytree, project, checkout, folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-seed-")) }: {
-  storytree: Storytree; project: string; checkout: string; folder?: string;
+  storytree: Storytree; project: string; checkout: string; folder?: string | undefined;
 }): Promise<SeedPair & { folder: string }> {
   const library = await openNamedProject(storytree, project);
   const tree = await library.projectTree();
@@ -47,9 +47,8 @@ export async function freshSeed({ storytree, project, checkout, folder = mkdtemp
       if (shelf.length > 0) covers[id] = shelf;
     }
   }
-  const capabilities = tree.stories.reduce((n, story) => n + story.capabilities.length, 0);
   const seed = sanitiseSeed({ projects: [project], tree, changes, lines: { lines: [], cursor: 0 }, covers,
-    stats: { stories: tree.stories.length, capabilities, taken: new Date().toISOString(), changesFolded: "each record: its created change and its last later change; cursor kept" } }) as unknown as CaptureSeed;
+    stats: { stories: tree.stories.length, taken: new Date().toISOString(), changesFolded: "each record: its created change and its last later change; cursor kept" } }) as unknown as CaptureSeed;
   const survey = await readCodeSurvey(checkout, seed.tree as Parameters<typeof readCodeSurvey>[1]);
   writeFileSync(path.join(folder, "seed.json.gz"), gzipSync(JSON.stringify(seed) + "\n", { level: 9 }));
   writeFileSync(path.join(folder, "survey.json"), JSON.stringify(survey, null, 1) + "\n");
@@ -64,7 +63,7 @@ export async function freshFromCheckout(folder?: string): Promise<SeedPair & { f
   try {
     // Only from an approved checkout of storytree, whatever project the folder's marker names (ADR-0942 D1).
     await requireApproval(storytree, "storytree", where.folder);
-    return await freshSeed({ storytree, project: "storytree", checkout, ...(folder === undefined ? {} : { folder }) });
+    return await freshSeed({ storytree, project: "storytree", checkout, folder });
   } finally {
     await storytree.close();
   }

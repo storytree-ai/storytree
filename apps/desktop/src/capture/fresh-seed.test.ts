@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -8,6 +8,7 @@ import { gunzipSync } from "node:zlib";
 
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { removeTemp } from "@storytree/test-waits";
 
 import { freshSeed, seedHolding } from "./fresh-seed.js";
 import type { CaptureSeed } from "./runner.js";
@@ -22,12 +23,15 @@ test("2.52 · a capture naming islands the shared code-rows seed lacks builds a 
   t.after(async () => {
     await storytree.close();
     await dropTestDatabases([`storytree_${project}`]);
-    for (const folder of [checkout, ...made]) rmSync(folder, { recursive: true, force: true });
+    for (const folder of [checkout, ...made]) await removeTemp(folder);
   });
+  // This checkout's code: the newer island's package holds one file.
+  mkdirSync(path.join(checkout, "packages/code-map/src"), { recursive: true });
+  writeFileSync(path.join(checkout, "packages/code-map/src/rows.ts"), "export const rows = 1;\n");
   // The library has moved on from the committed snapshot: a newer island, and an older one renamed twice.
   const library = await storytree.openProject(project);
   const library0 = await library.addStory({ title: "The library" });
-  await library.addStory({ title: "Code map" });
+  const codeMap = await library.addStory({ title: "Code map" });
   await library.editStory(library0.id, { title: "The library, renamed" });
   await library.editStory(library0.id, { title: "The library" });
   const committed = { seed: { projects: [project], tree: { stories: [{ id: library0.id, title: "The library" }] } } as unknown as CaptureSeed, survey: {} };
@@ -51,7 +55,8 @@ test("2.52 · a capture naming islands the shared code-rows seed lacks builds a 
   const folder = made[0]!;
   assert.ok(folder.startsWith(tmpdir()) && !folder.startsWith(checkout), "written to a scratch folder, not into the checkout");
   assert.deepEqual(JSON.parse(gunzipSync(readFileSync(path.join(folder, "seed.json.gz"))).toString("utf8")).tree.stories.length, 2, "the seed is kept there as the committed one is");
-  assert.ok(existsSync(path.join(folder, "survey.json")), "beside its code survey");
+  assert.deepEqual(newer.survey?.[codeMap.id]?.files.map(file => file.path), ["src/rows.ts"], "with a code survey read from this checkout");
+  assert.deepEqual(JSON.parse(readFileSync(path.join(folder, "survey.json"), "utf8")), newer.survey, "kept beside it");
   assert.deepEqual(newer.seed.changes.changes.filter(change => change.recordId === library0.id).map(change => [change.action, change.record.fields.title]),
     [["created", "The library"], ["updated", "The library"]], "each record's creation and only its latest later change, as the committed seed is folded");
 

@@ -106,3 +106,40 @@ test("8.6 pnpm lint refuses an assert.equal-family call on what may be a happy-d
   assert.deepEqual(linesIn("packages/view/src/other.test.mjs"), [5], "only node's own assert counts");
   for (const problem of problems) assert.match(problem, /assert\.ok\(a === b, message\)/);
 });
+
+/** Helpers a local factory returns, destructured or read as members: the panel-folds form (increment_6b3c738489a6). */
+const FACTORY = `import assert from "node:assert/strict";
+import { test } from "node:test";
+import { Window } from "happy-dom";
+
+function page() {
+  const window = new Window();
+  const handle = (kind: string): HTMLButtonElement => window.document.querySelector(kind)!;
+  const focused = (): Element | null => window.document.activeElement as unknown as Element | null;
+  const label = (kind: string): string => handle(kind).textContent ?? "";
+  return { window, handle, focused, label, nested: { focused }, first() { return window.document.body.firstElementChild; } };
+}
+
+test("1.3 a factory", () => {
+  const { handle, focused, label, nested: { focused: deep } } = page();
+  const p = page();
+  assert.equal(focused(), handle("more"), "down moves on");
+  assert.equal(p.focused(), null);
+  assert.equal(deep(), null);
+  assert.equal(p.first(), null);
+  assert.equal(label("more"), "More");
+  assert.equal(focused()?.textContent, "Open all");
+  assert.ok(focused() === handle("more"), "identity passes");
+});
+`;
+
+test("8.6 pnpm lint refuses an assert.equal-family call on the result of a node-returning helper destructured from, or read as a member of, the object a local function returns; the helpers' strings pass", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "happy-dom-asserts-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "src"), { recursive: true });
+  writeFileSync(path.join(root, "src/factory.test.ts"), FACTORY);
+
+  const problems = happyDomAssertProblems(root);
+
+  assert.deepEqual(problems.map((problem) => Number(problem.split(" ")[0].split(":")[1])), [16, 17, 18, 19], problems.join("\n"));
+});

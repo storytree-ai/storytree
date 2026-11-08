@@ -9,7 +9,8 @@
 // query's result (querySelector, getElementById, closest, …), a property only a node has (firstElementChild,
 // parentElement, …), a new Window, a property of one of those that holds a node (body, children, target, …), an
 // array or object holding one, or a name, destructured name, loop variable or callback parameter bound to one, a
-// parameter typed as a node, or the result of a local function that returns one. Strings, numbers and booleans read
+// parameter typed as a node, or the result of a local function that returns one, followed through names, destructuring,
+// members and the object a local function returns (a page() factory's helpers). Strings, numbers and booleans read
 // from a node (textContent, dataset values, .length, a comparison) are never refused.
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -141,6 +142,7 @@ function domReader({ parents, nodes, imports }) {
   const domTypeName = (name) => fromHappyDom(name) || (DOM_TYPE.test(name) && !imports.has(name) && !declared.has(name));
   const assignments = nodes.filter((node) => node.type === "AssignmentExpression" && node.left.type === "Identifier");
   const seen = new Set();
+  const following = new Set();
 
   function isDomType(type) {
     if (type === null || type === undefined) return false;
@@ -210,16 +212,80 @@ function domReader({ parents, nodes, imports }) {
       if (name !== undefined && QUERIES.has(name)) return true;
       if (name !== undefined && KEEPS.has(name)) return isDom(callee.object);
       if (name === "from" && callee.object.type === "Identifier" && callee.object.name === "Array") return node.arguments.length === 1 && isDom(node.arguments[0]);
-      return false;
     }
-    if (callee.type === "Identifier") {
-      const binding = resolve(callee);
-      if (binding?.kind === "function") return returnsDom(binding.fn);
-      if (binding?.kind === "var" && binding.pattern === binding.declarator.id && FUNCTIONS.has(binding.declarator.init?.type)) return returnsDom(binding.declarator.init);
-      return false;
+    const fn = functionOf(callee);
+    return fn !== undefined && returnsDom(fn);
+  }
+
+  /**
+   * The local function `node` evaluates to, when the code says which: one written in place or declared, or one bound to a
+   * name or held in an object's property, followed through names, destructuring and the object a local function returns.
+   */
+  function functionOf(node) {
+    if (node === null || node === undefined || following.has(node)) return undefined;
+    following.add(node);
+    try {
+      if (FUNCTIONS.has(node.type)) return node;
+      switch (node.type) {
+        case "TSNonNullExpression": case "ParenthesizedExpression": case "TSAsExpression": case "TSSatisfiesExpression": case "TSTypeAssertion":
+          return functionOf(node.expression);
+        case "Identifier": {
+          const binding = resolve(node);
+          if (binding?.kind === "function") return binding.fn;
+          if (binding?.kind !== "var") return undefined;
+          return functionOf(binding.pattern === binding.id ? binding.declarator.init : readOf(binding.declarator.init, binding.pattern, binding.id));
+        }
+        case "MemberExpression": case "OptionalMemberExpression": {
+          const name = propertyName(node);
+          return name === undefined ? undefined : functionOf(propertyValue(node.object, name));
+        }
+        default:
+          return undefined;
+      }
+    } finally {
+      following.delete(node);
     }
-    if (FUNCTIONS.has(callee.type)) return returnsDom(callee);
-    return false;
+  }
+
+  /** The expression the property `name` of `object` holds, when the code says which: an object written in place, named, or returned by a local function. */
+  function propertyValue(object, name) {
+    if (object === null || object === undefined || following.has(object)) return undefined;
+    following.add(object);
+    try {
+      switch (object.type) {
+        case "TSNonNullExpression": case "ParenthesizedExpression": case "TSAsExpression": case "TSSatisfiesExpression": case "TSTypeAssertion": case "AwaitExpression":
+          return propertyValue(object.expression ?? object.argument, name);
+        case "ObjectExpression":
+        {
+          const property = object.properties.findLast((candidate) => (candidate.type === "ObjectProperty" || (candidate.type === "ObjectMethod" && candidate.kind === "method")) && !candidate.computed && (candidate.key.name ?? candidate.key.value) === name);
+          return property?.type === "ObjectProperty" ? property.value : property;
+        }
+        case "Identifier": {
+          const binding = resolve(object);
+          if (binding?.kind !== "var") return undefined;
+          return propertyValue(binding.pattern === binding.id ? binding.declarator.init : readOf(binding.declarator.init, binding.pattern, binding.id), name);
+        }
+        case "MemberExpression": case "OptionalMemberExpression": {
+          const key = propertyName(object);
+          return key === undefined ? undefined : propertyValue(propertyValue(object.object, key), name);
+        }
+        case "CallExpression": case "OptionalCallExpression": {
+          const fn = functionOf(object.callee);
+          if (fn === undefined) return undefined;
+          if (fn.body.type !== "BlockStatement") return propertyValue(fn.body, name);
+          for (const node of nodes) {
+            if (node.type !== "ReturnStatement" || node.argument === null || enclosingFunction(node) !== fn) continue;
+            const value = propertyValue(node.argument, name);
+            if (value !== undefined) return value;
+          }
+          return undefined;
+        }
+        default:
+          return undefined;
+      }
+    } finally {
+      following.delete(object);
+    }
   }
 
   function returnsDom(fn) {
@@ -265,16 +331,25 @@ function domReader({ parents, nodes, imports }) {
   function destructuredIsDom(init, pattern, id) {
     if (init === null || init === undefined) return false;
     if (pattern.type === "ArrayPattern") return isDom(init);
-    if (pattern.type === "ObjectPattern") {
-      const property = pattern.properties.find((candidate) => candidate.type === "ObjectProperty" && contains(candidate.value, id));
-      if (property === undefined) return false;
-      const key = property.computed ? undefined : property.key.name ?? property.key.value;
-      const read = key === undefined ? undefined : { type: "MemberExpression", object: init, property: { type: "Identifier", name: key }, computed: false };
-      if (read === undefined) return false;
-      const inner = property.value.type === "AssignmentPattern" ? property.value.left : property.value;
-      return inner === id ? isDom(read) : destructuredIsDom(read, inner, id);
-    }
-    return false;
+    const step = pattern.type === "ObjectPattern" ? propertyRead(init, pattern, id) : undefined;
+    if (step === undefined) return false;
+    return step.inner === id ? isDom(step.read) : destructuredIsDom(step.read, step.inner, id);
+  }
+
+  /** The read of `init` an object pattern makes for the name `id`, when it reads it only through properties: `init.a.b` for `{ a: { b } }`. */
+  function readOf(init, pattern, id) {
+    if (init === null || init === undefined || pattern.type !== "ObjectPattern") return undefined;
+    const step = propertyRead(init, pattern, id);
+    if (step === undefined) return undefined;
+    return step.inner === id ? step.read : readOf(step.read, step.inner, id);
+  }
+
+  /** One level of an object pattern: the property of `init` that holds `id`, read as a member, and the pattern it is bound by there. */
+  function propertyRead(init, pattern, id) {
+    const property = pattern.properties.find((candidate) => candidate.type === "ObjectProperty" && contains(candidate.value, id));
+    if (property === undefined || property.computed) return undefined;
+    const read = { type: "MemberExpression", object: init, property: { type: "Identifier", name: property.key.name ?? property.key.value }, computed: false };
+    return { read, inner: property.value.type === "AssignmentPattern" ? property.value.left : property.value };
   }
 
   function contains(pattern, id) {

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { GitHubProvider } from "electron-updater/out/providers/GitHubProvider.js";
 
-import { carriedFeed, platformsNote, releaseDelivery, type DeliveryManifest } from "./release-carry.js";
+import { carriedFeed, carrySource, platformsNote, releaseDelivery, type DeliveryManifest } from "./release-carry.js";
 
 // latest-mac.yml as electron-builder writes it (release v0.3.1356's, checksums shortened to the shape the updater checks).
 const sha = (c: string) => `${c.repeat(86)}==`;
@@ -92,4 +92,16 @@ test("4.6 the release page says which platforms stay on an earlier build, and st
   assert.equal(noted, `${body}\n\n**Platforms.** This release has no new Mac build: Mac stays on 0.3.700, the last that built. Its installs and one-liners take that build until a release carries a new one.`);
   assert.match(platformsNote(noted, { windows: "0.3.699", linux: "0.3.700" }), /no new Windows or Linux build: Windows stays on 0\.3\.699, Linux stays on 0\.3\.700/);
   assert.equal(platformsNote(noted, {}), body);
+});
+
+test("4.6 an absent platform is carried from the newest published release by version, whatever order GitHub lists releases in", () => {
+  const release = (tag_name: string, more: { draft?: boolean; prerelease?: boolean } = {}) => ({ tag_name, draft: false, prerelease: false, ...more });
+  // The order GitHub's releases list returned on 2026-11-08: drafts first, then a four-day-old release ahead of the newer ones.
+  const listed = [release("v0.3.2612", { draft: true }), release("v0.3.2611", { draft: true }), release("v0.3.2379"), release("v0.3.2610"), release("v0.3.2606"), release("v0.3.2609", { prerelease: true })];
+  assert.equal(carrySource(listed, "v0.3.2611")?.tag_name, "v0.3.2610");
+  // Publishing again a release that is already out never carries from itself.
+  assert.equal(carrySource(listed, "v0.3.2610")?.tag_name, "v0.3.2606");
+  assert.equal(carrySource([release("v0.3.2611", { draft: true })], "v0.3.2611"), undefined);
+  // Versions compare as numbers: 0.3.1000 is newer than 0.3.999.
+  assert.equal(carrySource([release("v0.3.999"), release("v0.3.1000")], "v0.3.1001")?.tag_name, "v0.3.1000");
 });

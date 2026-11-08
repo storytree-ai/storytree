@@ -1085,6 +1085,39 @@ test("8.17 a changed file is placed by its own declaration, else by the survey's
   }
 });
 
+test("8.59 a file whose statements are only re-exports is placed in no capability, whatever its header declares, while a file with any other statement keeps its capability", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-barrels-"));
+  const plan = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }, { id: "cap-cart", title: "4 · Cart" }] }] } as unknown as AnnotatedTree;
+  try {
+    const src = path.join(folder, "packages/shop/src");
+    await mkdir(src, { recursive: true });
+    await writeFile(path.join(src, "index.ts"), [
+      "/** Capability 4 · Cart. */",
+      '/// <reference path="./assets.d.ts" />',
+      "// The shop's entry.",
+      'export { cart, type Cart } from "./cart.js";',
+      'export type { Claim } from "./claim.js";',
+      "export * from './claim.js';",
+      'export * as checkout from "./checkout.js";',
+      "export {",
+      "  loose,",
+      '} from "./loose.js"',
+      "",
+    ].join("\n"));
+    await writeFile(path.join(src, "mixed.ts"), '// Capability 4 · Cart.\nexport { cart } from "./cart.js";\nexport const total = 1;\n');
+    await writeFile(path.join(src, "local.ts"), '// Capability 4 · Cart.\nimport { cart } from "./cart.js";\nexport { cart };\n');
+    const owners = await capabilitiesOfFiles(folder, ["packages/shop/src/index.ts", "packages/shop/src/mixed.ts", "packages/shop/src/local.ts"], plan, {
+      survey: async () => ({ "story-shop": { files: [{ path: "src/index.ts", lines: 4, capability: "cap-claims" }] } }) as never,
+    });
+    assert.deepEqual([...owners], [
+      ["packages/shop/src/mixed.ts", { capability: "cap-cart", inferred: false }],
+      ["packages/shop/src/local.ts", { capability: "cap-cart", inferred: false }],
+    ]);
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
 test("8.38 each path given is placed in its checkout: its story and package, the desktop app's apps/desktop too, a file the survey does not read included, its capability when it declares one, and a path in no story's package nowhere", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-places-"));
   const shop = { id: "story-shop", title: "Shop", capabilities: [{ id: "cap-cart", title: "4 · Cart" }] };

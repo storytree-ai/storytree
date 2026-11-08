@@ -34,7 +34,7 @@ async function aProject(t: TestContext): Promise<{ library: Library; log: Activi
   return { library, log, project };
 }
 
-test("3.28 · `arc increment new` naming a capability another open increment lists is refused, naming that increment and its arc, with nothing written; `arc increment edit` newly listing it is not refused, and says that increment, its title and its arc", async (t) => {
+test("3.28 · `arc increment new` naming a capability another open increment lists is refused, naming that increment and its arc, with nothing written; `arc increment edit` newly listing it is not refused, and says that increment, its title and its arc in a notice that the edit is saved, worded apart from the park's refusal", async (t) => {
   const { library, log, project } = await aProject(t);
   const context: ArcVerbContext = { library, log, project, session: "person:test", folder: "/work", writer: { actor: "person:test" } };
   const story = await library.addStory({ title: "Visitor can sign up" });
@@ -45,9 +45,10 @@ test("3.28 · `arc increment new` naming a capability another open increment lis
   const first = await library.addIncrement({ arc: arc.id, title: "Route the form", objective: "Route it", body: "…", capabilities: [form.id] });
 
   const before = await library.history();
+  let refusal = "";
   await assert.rejects(
     verbOf("new").act({ arc: drain.id, title: "Route the form again", objective: "Route it", body: "…", capabilities: `${checks.id},${form.id}` }, context, WORDS),
-    (error: unknown) => error instanceof VerbRefusal && error.message.includes(first.id) && error.message.includes(arc.id) && error.message.includes(form.id),
+    (error: unknown) => error instanceof VerbRefusal && error.message.includes(first.id) && error.message.includes(arc.id) && error.message.includes(form.id) && Boolean((refusal = error.message)),
   );
   assert.deepEqual(await library.history(), before, "nothing was written");
 
@@ -58,6 +59,8 @@ test("3.28 · `arc increment new` naming a capability another open increment lis
   const lines = told.text.split("\n");
   assert.equal(lines.length, 2, told.text);
   assert.ok(lines[1]!.includes(first.id) && lines[1]!.includes("Route the form") && lines[1]!.includes(arc.id) && lines[1]!.includes(form.id) && !lines[1]!.includes(checks.id), told.text);
+  assert.ok(lines[1]!.includes("your edit is saved"), `the notice says the edit is saved: ${told.text}`);
+  assert.ok(!refusal.includes(lines[1]!.replace(/\.$/, "")), `the notice is not the park's refusal: ${told.text} / ${refusal}`);
 
   const again = await edit.act({ increment: second.id, capabilities: `${checks.id},${form.id}`, title: "Route the checks and form" }, context, WORDS);
   assert.equal(again.text, `Edited increment ${second.id}.`, "a capability it already listed is not told of again");

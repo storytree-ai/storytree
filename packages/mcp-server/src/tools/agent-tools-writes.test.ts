@@ -931,7 +931,7 @@ test("9.8 edit_plan sets and clears an arc's priority, refusing anything but a w
   });
 });
 
-test("10.10 edit_plan refuses an increment's capabilities list a capability already on the list of another live session's claimed increment, naming that increment and its holder, with nothing written; the same session's own lists, and a list whose increment is released, are not refused (ADR-0949 D2)", async () => {
+test("10.10 edit_plan refuses an increment's capabilities list a capability already on the list of another live session's claimed increment, naming that increment and its holder, with nothing written; the same session's own lists, and a list whose increment is released, are not refused, and an open increment still listing it is told as a notice that the edit saved (ADR-0949 D2)", async () => {
   await withProject(async ({ folder, library }) => {
     const capabilitiesOf = async (id: string) => ((await library.get(id))?.fields as { capabilities?: string[] }).capabilities;
     let theirs = "";
@@ -965,6 +965,7 @@ test("10.10 edit_plan refuses an increment's capabilities list a capability alre
       const allowed = await agent.call("edit_plan", { id: mine, capabilities: [capability] });
       assert.equal(allowed.isError, false, allowed.text);
       assert.deepEqual(await capabilitiesOf(mine), [capability]);
+      assert.ok(allowed.text.includes(theirs) && allowed.text.includes("your edit is saved") && !allowed.text.includes("already on the capabilities list"), `an open increment still listing it is a notice that the edit saved, not a refusal: ${allowed.text}`);
     });
   });
 });

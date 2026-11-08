@@ -55,6 +55,8 @@ export interface ReapWatch {
   readonly idleMs?: number;
   /** How a live process's name is read, within `timeoutMs`, throwing when it cannot be. By default, from /proc, tasklist or ps. */
   readonly nameOf?: (pid: number, timeoutMs: number) => string;
+  /** The working folders of the machine's processes, or undefined when they cannot be read. By default, from /proc or lsof. */
+  readonly inUse?: () => readonly string[] | undefined;
 }
 
 const EVERY_MS = 60_000;
@@ -99,7 +101,7 @@ export async function reapWorktrees(context: MergeContext, watch: ReapWatch = {}
   // A process working inside a worktree keeps it, whatever its sessions' lines say: on Linux and macOS a rename would not refuse it.
   // A test Postgres working in its `.pgtest/data` does not: it is stopped below. A machine whose processes cannot be read lets a
   // worktree go only once its sessions closed out verified or were archived.
-  const inUse = foldersInUse();
+  const inUse = (watch.inUse ?? foldersInUse)();
   const candidates = trees.filter((tree) => {
     if (tree.locked || protect.some((kept) => inside(tree.folder, kept))) return false;
     if (inUse?.some((cwd) => inside(tree.folder, cwd) && !inside(path.join(tree.folder, ".pgtest", "data"), cwd))) return false;

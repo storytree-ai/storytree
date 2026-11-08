@@ -4,8 +4,9 @@
  *
  * - Kept per story on this computer, in the page's localStorage where it has one, so it outlives a restart and writes
  *   nothing to the library; elsewhere for as long as the process runs.
- * - A kept arrangement carries its island's structure key (`structureKey`): its territories, its links at home and each
- *   dock's lanes, never sizes or positions. While the key holds the island draws from the kept seeds and is not searched
+ * - A kept arrangement carries its island's structure key (`structureKey`): the search's score version, its territories,
+ *   its links at home and each dock's lanes, never sizes or positions. A change of score makes every island search again
+ *   once, from the arrangement it draws. While the key holds the island draws from the kept seeds and is not searched
  *   again, so a change of lines only resizes its territories; another key draws from the kept seeds still, where they
  *   name a territory, and asks for a search.
  * - The search runs in the worker the page names (TERRITORY_WORKER_META), one at a time, never on the page: a page
@@ -30,11 +31,15 @@ export interface ArrangementShelf { read(story: string): KeptArrangement | undef
 export const TERRITORY_WORKER_META = "storytree-territory-worker";
 const SHELF_KEY = "storytree.territories.";
 
-/** The island's structure: the territories it holds, its links at home, and each dock's lanes, sorted, never sizes. */
+/** The version of the search's score (territory-search.ts): 2 since a tunnel became a last resort and territories compact. */
+const SCORE = 2;
+
+/** The island's structure, as searched by this score: the territories it holds, its links at home, and each dock's lanes,
+ * sorted, never sizes. */
 export function structureKey(shares: readonly TerritoryShare[], links: readonly Link[], docks: readonly LinkDock[]): string {
   const ids = shares.map((s) => s.capability ?? ""), here = new Set(ids);
   const home = links.filter((l) => here.has(l.from) && here.has(l.to) && l.from !== l.to).map((l) => `${l.from}->${l.to}`);
-  return JSON.stringify([[...ids].sort(), home.sort(), docks.map((d) => [...d.links].sort()).sort()]);
+  return JSON.stringify([`score ${SCORE}`, [...ids].sort(), home.sort(), docks.map((d) => [...d.links].sort()).sort()]);
 }
 
 /** The page's localStorage as a shelf, or none where the page has no storage (a test, a worker) or refuses it. */

@@ -32,7 +32,7 @@ Pictures, 1440 x 960:
   contracts carrying no health.
 - `gate-contracts-opened-panel.png`: the same after "Contracts · 2" is double-clicked open.
 
-The capability pictures are unchanged in look from #610's; only the gate's two are taken again for this change.
+The capability pictures are unchanged in look from #610's; only the gate's two are taken again for #612.
 
 Taken with `node --import tsx packages/forest/testing/view/panel-picked-on-island/capture.mjs --retake`, which asserts that the
 panel holds no tree, shows the capability the island ringed with every fold closed, that a single click opens nothing and a
@@ -42,3 +42,5 @@ contracts closed, and writes what it found into `measurements.json`.
 In the evidence bucket for #610, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): #607's `607/before-folds-panel.png` and `607/gate-picked-on-island-panel.png` (the before), `610/capability-picked-on-island.png`, `610/capability-picked-on-island-panel.png`, `610/capability-folds-opened-panel.png`, `610/gate-picked-on-island-panel.png`, `610/gate-contracts-opened-panel.png`.
 
 In the evidence bucket for #610, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `610/capability-picked-on-island.png`, `610/capability-picked-on-island-panel.png`, `610/capability-folds-opened-panel.png`, `610/gate-picked-on-island-panel.png`, `610/gate-contracts-opened-panel.png`.
+
+In the evidence bucket for #612, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `612/gate-picked-on-island-panel.png`, `612/gate-contracts-opened-panel.png`.

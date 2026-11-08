@@ -61,6 +61,15 @@ hand-written `packages/<name>/…`. The path follows the seed's own story title,
 the globe keys its files, so renaming the live package cannot desync it. A story
 the seed lacks fails, and the error names the stories the seed has.
 
+The `code-rows` snapshot falls behind the library. A capture of islands named on
+its command line takes `await seedHolding(islands)` from `fresh-seed.ts` (imported
+on its own, as `live.ts` is) instead of `captureSeed('code-rows')`: it returns the
+committed pair when that holds every island named (by story id or title), and
+otherwise builds a fresh seed and code survey from storytree's library and this
+checkout into a scratch folder, read-only, leaving the committed files as they
+were. An island the library lacks too fails, naming the stories it has. Refresh
+the committed pair only when the shared snapshot itself should move.
+
 Globe captures built with `buildCapture` can call `visibleGlobeTargets(page)` once
 the globe is ready. It returns the camera's `zoom` and sorted `dots` and `islands`,
 each with an `id` and page coordinates `x`, `y`. It conservatively chooses centres

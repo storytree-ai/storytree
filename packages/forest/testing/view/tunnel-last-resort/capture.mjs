@@ -1,5 +1,6 @@
 // Tunnels as a last resort (increment_fb8987cfd45e): storytree's own map as the app opens it, from the code-rows snapshot
-// and its survey, or a fresher pair (`--seed <folder holding seed.json.gz and survey.json>`).
+// and its survey (a fresh pair built in a scratch folder when the snapshot lacks an island `--islands` names), or a
+// given pair (`--seed <folder holding seed.json.gz and survey.json>`).
 //
 // - `--dump <asks.json>`: every island's ask to the territory search, answered at once with nothing so the next is asked,
 //   written with its story, for search.mjs to search with the score of either side.
@@ -12,7 +13,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, buildFolder, captureOutput, captureSeed, runCapture } from '../../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, captureOutput, runCapture } from '../../../../../apps/desktop/src/capture/index.ts';
+import { seedHolding } from '../../../../../apps/desktop/src/capture/fresh-seed.ts';
 import { PLATE_CLEARANCE, SHEET_FOV, SHEET_RADIUS } from '../../../../forest-world/src/planet/PlanetWorldCanvas.tsx';
 import { DETAIL_ZOOM } from '../../../src/view/zoom-detail.ts';
 import { structureKey } from '../../../src/territories/kept-layout.ts';
@@ -21,14 +23,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const pictures = path.join(here, '../../../src/view/evidence', 'tunnel-last-resort');
 const arg = name => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : undefined);
 const given = arg('--seed');
-const { seed, survey } = given === undefined ? captureSeed('code-rows') : {
+const islands = (arg('--islands') ?? '').split(',').filter(Boolean);
+const { seed, survey } = given === undefined ? await seedHolding(islands) : {
   seed: JSON.parse(gunzipSync(readFileSync(path.join(given, 'seed.json.gz'))).toString('utf8')),
   survey: JSON.parse(readFileSync(path.join(given, 'survey.json'), 'utf8')),
 };
 const storyOf = new Map(seed.tree.stories.flatMap(story => (story.capabilities ?? []).map(c => [c.id ?? c, story.id])));
 const titleOf = new Map(seed.tree.stories.map(story => [story.id, story.title]));
 const dump = arg('--dump'), keptFile = arg('--kept'), prefix = arg('--prefix') ?? 'map';
-const islands = (arg('--islands') ?? '').split(',').filter(Boolean);
 const dist = buildFolder(here);
 await buildCapture({ dist });
 

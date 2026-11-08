@@ -16,7 +16,8 @@ const seeds = path.resolve(import.meta.dirname, "../../../../packages/forest/tes
 
 /**
  * The shared seeds by name. `code-rows` is storytree's own library and its code survey (refresh: `node --import tsx seed.mts`
- * in its folder, which reads the library and writes nothing to it); `forest` is the eight-story isolated forest snapshot
+ * in its folder, which reads the library and writes nothing to it; a capture naming islands it lacks takes fresh-seed.ts's
+ * `seedHolding` instead); `forest` is the eight-story isolated forest snapshot
  * (refresh: its `export.mjs`, with STORYTREE_HOME set to the isolated capture seed).
  */
 const SEEDS = {

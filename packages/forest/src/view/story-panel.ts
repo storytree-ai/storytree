@@ -14,11 +14,11 @@ const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", fail
  * The panel's HTML, with `selected`, the capability picked on the island, shown below the story's lead if it is one of
  * the story's capabilities, and Open all · n at its foot when it has handles. Every fold is drawn closed; the page's
  * folds open the kinds the user keeps open. With the capability details switched off (ADR-0750) it is the story alone. A
- * `gate` picked on the map, the pair of capabilities it joins, shows the contracts of the edges between them in its place
- * (ADR-1282 D1).
+ * `gate` picked on the map, the pair of capabilities it joins, shows the edges between them in its place (ADR-1282 D1),
+ * each in one state line (ADR-1284 D4); `open` holds the contracts the arc opened in the Arcs tab links in its open work.
  */
 // Its head, on show exactly while the panel is, names the panel as the Story panel's canvas (Surface feedback).
-export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { details = true, gate }: { details?: boolean; gate?: readonly [string, string] | undefined } = {}): string {
+export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { details = true, gate, open }: { details?: boolean; gate?: readonly [string, string] | undefined; open?: readonly string[] | undefined } = {}): string {
   const shown = details && gate === undefined ? panel.capabilities.find(({ id }) => id === selected) : undefined;
   const [lead, rest] = paragraphs(panel.description);
   const body = `
@@ -27,7 +27,7 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
     ${more(rest)}
     ${panel.checks === undefined || panel.checks.length === 0 ? "" : extraChecks(panel.checks)}
     ${shown === undefined ? "" : capability(shown)}
-    ${gate === undefined ? "" : gateLinks(panel, gate)}`;
+    ${gate === undefined ? "" : gateLinks(panel, gate, open)}`;
   const handles = body.split(`class="panel-handle"`).length - 1;
   return `
     <header class="panel-head" data-surface-id="story-panel" data-surface-layer="panel">
@@ -56,10 +56,12 @@ function more(rest: readonly string[]): string {
 }
 
 /**
- * A picked gate: the edges joining its two capabilities, whichever depends on which, each saying so and listing its own
- * contracts; one with none says so, never listing either capability's own (ADR-1282 D1).
+ * A picked gate: the edges joining its two capabilities, whichever depends on which, each saying so and then its state in
+ * one line: its own contracts behind "Contracts · n", never either capability's (ADR-1282 D1), and "open work on this link"
+ * when the opened arc's open work links one of them, the reason the gate is ringed; one with none says so, with no handle
+ * (ADR-1284 D4). Edge contracts carry no health yet, so the line counts them without how many are failing.
  */
-function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string]): string {
+function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string], open: readonly string[] | undefined): string {
   const links = (panel.edges ?? []).filter(({ from, to }) => (from === one && to === other) || (from === other && to === one));
   return `
     <section class="panel-gate" aria-label="Gate">
@@ -68,7 +70,9 @@ function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string]): 
           <h3>${text(fromTitle)} depends on ${text(toTitle)}.</h3>
           ${contracts.length === 0
             ? `<p class="panel-muted">No contracts on this link yet.</p>`
-            : `<ul class="panel-contracts">${contracts.map(({ id, title }) => `<li data-contract-id="${attribute(id)}">${text(title)}</li>`).join("")}</ul>`}`)
+            : `<div class="panel-link-state">${fold("contracts", `Contracts · ${contracts.length}`, `<ul class="panel-contracts">${contracts
+              .map(({ id, title }) => `<li data-contract-id="${attribute(id)}">${text(title)}</li>`)
+              .join("")}</ul>`)}${contracts.some(({ id }) => open?.includes(id) === true) ? `<span class="panel-link-open">open work on this link</span>` : ""}</div>`}`)
         .join("")}
     </section>`;
 }

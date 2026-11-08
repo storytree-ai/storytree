@@ -65,7 +65,8 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   /** Mount the factory's stand-in surfaces (ADR-1174) that `on` says are on. */
   plugins(on: (surface: string) => boolean): Promise<{ stop(): void; failed: readonly { surface: string; why: string }[] }>;
   reading(options: Pick<ForestReadingOptions, "onTree" | "onError" | "onSettled" | "survey">): { stop(): void };
-  renderPanel(drilled: StoryPanel, selected: string | undefined, options: { details: boolean; gate: readonly [string, string] | undefined }): string;
+  /** `open`: the contracts the arc opened in the Arcs tab links in its open work, which say why a picked gate is ringed. */
+  renderPanel(drilled: StoryPanel, selected: string | undefined, options: { details: boolean; gate: readonly [string, string] | undefined; open: readonly string[] | undefined }): string;
   /** Work the folds of the panel just drawn into `panel` (the forest's capability 4), opening the kinds the user keeps open. */
   foldPanel(panel: HTMLElement): void;
 }
@@ -223,11 +224,13 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     let tree: AnnotatedTree | undefined;
     /** The code survey last read, which counts a mapped story's files and lines for its panel. */
     let surveyed: Survey = {};
+    /** The contracts the arc opened in the Arcs tab links in its open work, for the panel of a picked gate (ADR-1284 D4). */
+    let opened: readonly string[] | undefined;
 
     const panel = storyPanel(panelHost, {
       body,
       drill: (story) => tree === undefined ? undefined : drillDown(tree, story, states, history(), surveyed),
-      render: (drilled, selected, gate) => project.renderPanel(drilled, selected, { details: withDetails, gate }),
+      render: (drilled, selected, gate) => project.renderPanel(drilled, selected, { details: withDetails, gate, open: opened }),
       folds: (host) => project.foldPanel(host),
       libraryCard: (host, onClose) => project.libraryCard(host, onClose),
       deselect: () => mine.view?.select(undefined),
@@ -314,7 +317,11 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
         if (mounted) return;
         mounted = true;
         stopWaiting?.();
-        if (showing === mine) mine.arcs = project.arcs(rail.panel("arcs"), { onFreshDraw: () => startMark("arcs first fresh draw"), onWaiting: (count) => rail.badge(count), onOpened: (capabilities, contracts) => mine.view?.circle(capabilities, contracts), startAfter });
+        if (showing === mine) mine.arcs = project.arcs(rail.panel("arcs"), { onFreshDraw: () => startMark("arcs first fresh draw"), onWaiting: (count) => rail.badge(count), onOpened: (capabilities, contracts) => {
+          mine.view?.circle(capabilities, contracts);
+          opened = contracts;
+          panel.show();
+        }, startAfter });
       };
       stopWaiting = page.subscribe({ onNews: mountArcs, onError: mountArcs });
     }

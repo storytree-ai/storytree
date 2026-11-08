@@ -46,6 +46,8 @@ interface Drawn {
   islands: Parameters<ProjectParts["teaching"]>[2] | undefined;
   rendered: (string | undefined)[];
   gates: (readonly [string, string] | undefined)[];
+  /** The contracts the opened arc's open work links, as each panel drawn was handed them. */
+  opens: (readonly string[] | undefined)[];
   /** Whether each panel drawn showed its capability's details, as the Surfaces menu says. */
   details: boolean[];
   /** The capability each panel handed to its folds was drawn on, read from the panel after it was drawn. */
@@ -101,7 +103,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     ...answers,
     project(name, timed) {
       const mine: Drawn = {
-        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], gates: [], details: [], folded: [],
+        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], gates: [], opens: [], details: [], folded: [],
         kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, arcsStart: undefined, listeners: [], events: [],
         view: {
           scenes: 0, disposed: false, circled: [], circledContracts: [], onSelect: () => {}, painted: deferred<void>(),
@@ -148,6 +150,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
         renderPanel: (drilledPanel, selected, options) => {
           mine.rendered.push(selected);
           mine.gates.push(options.gate);
+          mine.opens.push(options.open);
           mine.details.push(options.details);
           return selected === undefined ? "" : `<section class="panel-detail" data-capability-id="${selected}"></section>`;
         },
@@ -407,7 +410,7 @@ test("2.28 · a territory click opens its story on that capability, and every dr
   assert.deepEqual(project.folded.slice(handed), [second!.id], "and hands the redrawn panel to its folds, which open what the user keeps open");
 });
 
-test("2.50 · a gate picked on the map opens its story's panel on the pair it joins, kept on a redraw; a territory pick after it opens on that capability", async (t) => {
+test("2.50 · a gate picked on the map opens its story's panel on the pair it joins, kept on a redraw, and with the contracts the opened arc's open work links; a territory pick after it opens on that capability", async (t) => {
   const on = page(t);
   await settled();
   on.land();
@@ -418,6 +421,14 @@ test("2.50 · a gate picked on the map opens its story's panel on the pair it jo
   assert.deepEqual(project.gates.at(-1), [first!.id, second!.id], "the panel is handed the pair the gate joins");
   on.land();
   assert.deepEqual(project.gates.at(-1), [first!.id, second!.id], "a redraw keeps the gate");
+  on.heard();
+  await settled();
+  const drawn = project.rendered.length;
+  project.opened!([first!.id], ["contract_a"]);
+  assert.ok(project.rendered.length > drawn, "an arc opened in the Arcs tab draws the panel again");
+  assert.deepEqual([project.gates.at(-1), project.opens.at(-1)], [[first!.id, second!.id], ["contract_a"]], "on the same gate, with the contracts its open work links");
+  project.opened!(undefined, undefined);
+  assert.equal(project.opens.at(-1), undefined, "and closing it hands none");
   project.view.onSelect({ kind: "story", id: story.id, capability: second!.id });
   assert.equal(project.gates.at(-1), undefined, "a territory click puts the gate down");
   assert.equal(project.rendered.at(-1), second!.id);

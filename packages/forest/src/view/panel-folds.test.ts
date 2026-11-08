@@ -81,10 +81,12 @@ test("4.41 from the keyboard, Enter or Space opens a handle's fold, the arrow ke
   key(handle("more"), "ArrowDown");
   assert.ok(focused() === handle("more", 1), "down moves to the next handle shown");
   key(focused()!, "ArrowDown");
-  assert.ok(focused() === handle("open-work"), "past the story's own to the capability's");
+  assert.ok(focused() === handle("health"), "past the story's own to the capability's");
+  key(focused()!, "ArrowDown");
+  assert.ok(focused() === handle("open-work"));
   key(focused()!, "ArrowDown");
   key(focused()!, "ArrowDown");
-  assert.equal(focused()?.textContent, "Open all · 5", "a closed fold's handles are skipped: the contract's is not shown");
+  assert.equal(focused()?.textContent, "Open all · 6", "a closed fold's handles are skipped: the contract's is not shown");
   key(focused()!, "ArrowUp");
   assert.ok(focused() === handle("contracts"), "up moves back");
   key(handle("contracts"), "Enter");

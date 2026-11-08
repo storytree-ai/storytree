@@ -210,16 +210,78 @@ function domReader({ parents, nodes, imports }) {
       if (name !== undefined && QUERIES.has(name)) return true;
       if (name !== undefined && KEEPS.has(name)) return isDom(callee.object);
       if (name === "from" && callee.object.type === "Identifier" && callee.object.name === "Array") return node.arguments.length === 1 && isDom(node.arguments[0]);
-      return false;
     }
-    if (callee.type === "Identifier") {
-      const binding = resolve(callee);
-      if (binding?.kind === "function") return returnsDom(binding.fn);
-      if (binding?.kind === "var" && binding.pattern === binding.declarator.id && FUNCTIONS.has(binding.declarator.init?.type)) return returnsDom(binding.declarator.init);
-      return false;
+    const fn = functionOf(callee);
+    return fn !== undefined && returnsDom(fn);
+  }
+
+  /**
+   * The local function `node` evaluates to, when the code says which: one written in place or declared, or one bound to a
+   * name or held in an object's property, followed through names, destructuring and the object a local function returns.
+   */
+  function functionOf(node) {
+    if (node === null || node === undefined || following.has(node)) return undefined;
+    following.add(node);
+    try {
+      if (FUNCTIONS.has(node.type)) return node;
+      switch (node.type) {
+        case "TSNonNullExpression": case "ParenthesizedExpression": case "TSAsExpression": case "TSSatisfiesExpression": case "TSTypeAssertion":
+          return functionOf(node.expression);
+        case "Identifier": {
+          const binding = resolve(node);
+          if (binding?.kind === "function") return binding.fn;
+          if (binding?.kind !== "var") return undefined;
+          return functionOf(binding.pattern === binding.id ? binding.declarator.init : readOf(binding.declarator.init, binding.pattern, binding.id));
+        }
+        case "MemberExpression": case "OptionalMemberExpression": {
+          const name = propertyName(node);
+          return name === undefined ? undefined : functionOf(propertyValue(node.object, name));
+        }
+        default:
+          return undefined;
+      }
+    } finally {
+      following.delete(node);
     }
-    if (FUNCTIONS.has(callee.type)) return returnsDom(callee);
-    return false;
+  }
+
+  /** The expression the property `name` of `object` holds, when the code says which: an object written in place, named, or returned by a local function. */
+  function propertyValue(object, name) {
+    if (object === null || object === undefined || following.has(object)) return undefined;
+    following.add(object);
+    try {
+      switch (object.type) {
+        case "TSNonNullExpression": case "ParenthesizedExpression": case "TSAsExpression": case "TSSatisfiesExpression": case "TSTypeAssertion": case "AwaitExpression":
+          return propertyValue(object.expression ?? object.argument, name);
+        case "ObjectExpression":
+          return object.properties.findLast((property) => (property.type === "ObjectProperty" || property.type === "ObjectMethod") && !property.computed && (property.key.name ?? property.key.value) === name)
+            ?.[0] ?? valueOfProperty(object, name);
+        case "Identifier": {
+          const binding = resolve(object);
+          if (binding?.kind !== "var") return undefined;
+          return propertyValue(binding.pattern === binding.id ? binding.declarator.init : readOf(binding.declarator.init, binding.pattern, binding.id), name);
+        }
+        case "MemberExpression": case "OptionalMemberExpression": {
+          const key = propertyName(object);
+          return key === undefined ? undefined : propertyValue(propertyValue(object.object, key), name);
+        }
+        case "CallExpression": case "OptionalCallExpression": {
+          const fn = functionOf(object.callee);
+          if (fn === undefined) return undefined;
+          if (fn.body.type !== "BlockStatement") return propertyValue(fn.body, name);
+          for (const node of nodes) {
+            if (node.type !== "ReturnStatement" || node.argument === null || enclosingFunction(node) !== fn) continue;
+            const value = propertyValue(node.argument, name);
+            if (value !== undefined) return value;
+          }
+          return undefined;
+        }
+        default:
+          return undefined;
+      }
+    } finally {
+      following.delete(object);
+    }
   }
 
   function returnsDom(fn) {

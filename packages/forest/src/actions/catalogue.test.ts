@@ -31,7 +31,7 @@ test("3.42 the lag catalogue names each action by what it opens, picks its islan
   // The first entries, by name: an island is opened by its size or its story's name, never a point, and settles on that island's panel.
   const by = new Map(CATALOGUE.map(action => [action.name, action]));
   assert.deepEqual([...by.keys()], ["open-fewest-island", "open-most-island", "open-named-island", "open-app-kept", "open-app-fresh", "close-panel",
-    "click-fold", "library-and-back", "open-library-note", "open-session-row", "hover-sweep", "turn-forest", "turn-library", "idle"]);
+    "click-fold", "open-fold", "open-contract", "library-and-back", "open-library-note", "open-session-row", "hover-sweep", "turn-forest", "turn-library", "idle"]);
   assert.deepEqual(["open-fewest-island", "open-most-island", "open-named-island"].map(name => by.get(name)!.perform),
     [[{ kind: "island", island: "fewest" }], [{ kind: "island", island: "most" }], [{ kind: "island", island: { story: "The library" } }]]);
   assert.deepEqual(by.get("open-named-island")!.settled, { selected: "island", panel: "open", still: true });
@@ -57,4 +57,28 @@ test("3.42 the lag catalogue names each action by what it opens, picks its islan
   assert.deepEqual(turnFrames(times, 50), { p50: 17, p95: 17, max: 84, over: 1 });
   assert.deepEqual(turnFrames([0, 16, 120, 136], 50), { p50: 16, p95: 104, max: 104, over: 1 });
   assert.deepEqual(turnFrames([10], 50), { p50: 0, p95: 0, max: 0, over: 0 }, "one frame has no interval");
+});
+
+test("3.42 the lag catalogue opens a fold and a contract on the library's panel, settles on the fold the page shows open, and keeps the contract's through news", () => {
+  const page: PageState = { selected: "story_a", note: undefined, panelOpen: true, mode: "forest", sessionSelected: false, still: true, progress: false, startSettled: true, folds: ["more"] };
+  assert.equal(isSettled({ fold: "contracts" }, page), false, "Contracts is still shut");
+  assert.equal(isSettled({ fold: "contracts" }, { ...page, folds: ["more", "contracts"] }), true);
+  assert.equal(isSettled({ fold: "contract" }, { ...page, folds: ["contracts"] }), false, "only the list is open, not a contract in it");
+
+  const by = new Map(CATALOGUE.map(action => [action.name, action]));
+  const fold = by.get("open-fold")!;
+  const contract = by.get("open-contract")!;
+  assert.deepEqual(fold.perform, [{ kind: "click", selector: ".story-panel .panel-fold[data-fold=contracts] > .panel-handle" }]);
+  assert.deepEqual(fold.settled, { fold: "contracts" });
+  assert.equal(fold.keptThroughNews, undefined);
+  assert.deepEqual(contract.perform, [{ kind: "click", selector: ".story-panel .panel-fold[data-fold=contract] > .panel-handle" }]);
+  assert.deepEqual(contract.settled, { fold: "contract" });
+  assert.equal(contract.keptThroughNews, true, "a contract opened is still open once news has arrived");
+  // Both start on a freshly drawn panel of the library's island, so a fold the last round left open is shut again.
+  const open = [{ kind: "island", island: { story: "The library" } }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }];
+  assert.deepEqual(fold.setup.slice(-2), open);
+  assert.deepEqual(fold.setup.filter(step => step.kind === "click").slice(-2).map(step => step.kind === "click" && step.selector),
+    [".story-panel .panel-fold[data-fold=contracts] > .panel-handle[aria-expanded=true]", ".story-panel .panel-close"], "Contracts is shut and no longer kept before it is opened");
+  assert.deepEqual(contract.setup.slice(-3), [...open, { kind: "click", selector: ".story-panel .panel-fold[data-fold=contracts] > .panel-handle[aria-expanded=false]", optional: true }]);
+  for (const action of [fold, contract]) assert.deepEqual(action.owner, { capability: "capability_f0ffead428df", contract: "contract_e2f4b79c7350" });
 });

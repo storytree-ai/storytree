@@ -5,7 +5,9 @@
  *
  * - A linked worktree of the project's repository on this machine (never the main checkout) goes only
  *   when every session whose lines name a folder in it has left (its close-out verified, ADR-0758
- *   D3, or archived by its app), at least one such session is known, it is clean with nothing
+ *   D3, or archived by its app; or, where the machine's processes can be read and none works inside
+ *   it, its session ended or gone silent, as a pool lane that closed out at hand-over and exited has),
+ *   at least one such session is known, it is clean with nothing
  *   untracked, its head is already in the main line as this clone last fetched it, it is not locked,
  *   and it holds neither the folder the hook runs in nor a registered hook script. Its branch goes
  *   with it. A test Postgres still running on its `.pgtest/data`, left by a run whose harness was
@@ -53,6 +55,8 @@ export interface ReapWatch {
   readonly idleMs?: number;
   /** How a live process's name is read, within `timeoutMs`, throwing when it cannot be. By default, from /proc, tasklist or ps. */
   readonly nameOf?: (pid: number, timeoutMs: number) => string;
+  /** The working folders of the machine's processes, or undefined when they cannot be read. By default, from /proc or lsof. */
+  readonly inUse?: () => readonly string[] | undefined;
 }
 
 const EVERY_MS = 60_000;
@@ -94,10 +98,15 @@ export async function reapWorktrees(context: MergeContext, watch: ReapWatch = {}
   const leftovers = checkout === undefined ? [] : unlistedFolders(path.join(checkout, ".claude", "worktrees"), trees.map((tree) => tree.folder)).filter((folder) => !protect.some((kept) => inside(folder, kept)));
   const users = await context.log.lines(context.project, { within: trees.map((tree) => tree.folder), latestBy: ["session"], omit: ["command", "files", "transcript"] });
   const sessions = users.length === 0 ? [] : await readSessions(context.log, context.project, { of: users.map((line) => line.session) });
+  // A process working inside a worktree keeps it, whatever its sessions' lines say: on Linux and macOS a rename would not refuse it.
+  // A test Postgres working in its `.pgtest/data` does not: it is stopped below. A machine whose processes cannot be read lets a
+  // worktree go only once its sessions closed out verified or were archived.
+  const inUse = (watch.inUse ?? foldersInUse)();
   const candidates = trees.filter((tree) => {
     if (tree.locked || protect.some((kept) => inside(tree.folder, kept))) return false;
+    if (inUse?.some((cwd) => inside(tree.folder, cwd) && !inside(path.join(tree.folder, ".pgtest", "data"), cwd))) return false;
     const users = sessions.filter((session) => session.worktrees.some((folder) => inside(tree.folder, folder)));
-    return users.length > 0 && users.every((session) => session.closeOut?.verified === true || session.archived);
+    return users.length > 0 && users.every((session) => session.closeOut?.verified === true || session.archived || (inUse !== undefined && (session.state === "ended" || session.state === "gone")));
   });
   // Least recently looked at first, so worktrees that stay never crowd out the rest.
   const looked = lookedAt(context.project);

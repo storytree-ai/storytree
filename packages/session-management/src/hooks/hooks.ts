@@ -220,7 +220,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     // A prompt's line is written while its context is looked up: the harness waits for both.
     if (asked !== undefined) {
       // The user's own words may carry their yes to changing imported code (contract 3.37); a harness's notice is not theirs.
-      const said = isHarnessNotice(asked.prompt) ? undefined : yesSaid(harness, asked, locate, homeOf(locate), failed);
+      const said = isHarnessNotice(asked.prompt) ? undefined : yesSaid(harness, asked, locate, homeOf(locate), failed, guardMs);
       const [looked, yes] = await Promise.all([withinTime(contextForPrompt(asked)), said, made === undefined ? undefined : writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git)]);
       const context = looked?.context;
       if (looked?.report !== undefined) {
@@ -233,7 +233,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     }
     if (made === undefined) return;
     // After an edit the gate asked the user about, the user's yes is recorded on the increment (contract 3.34).
-    await Promise.all([writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed)]);
+    await Promise.all([writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed, guardMs)]);
   } catch (error) {
     // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said, but why is kept here.
     failed("hook", error);

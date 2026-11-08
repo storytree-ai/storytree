@@ -76,8 +76,8 @@ export interface EdgeLine {
   fromTitle: string;
   to: string;
   toTitle: string;
-  /** Its contracts, each a short line, never either capability's own. */
-  contracts: { id: string; title: string }[];
+  /** Its contracts, each a short line with storytree's own verdict where something wrote it, never either capability's own. */
+  contracts: { id: string; title: string; verified?: HealthState }[];
 }
 
 /** The panel for one story. */
@@ -153,7 +153,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
     fromTitle: byId.get(from)?.title ?? from,
     to,
     toTitle: byId.get(to)?.title ?? to,
-    contracts: contracts.map(({ id, title }) => ({ id, title })),
+    contracts: contracts.map(({ id, title, health }) => ({ id, title, ...(written(health.verified) ? { verified: health.verified.state } : {}) })),
   }));
 
   const files = survey[found.id]?.files ?? [];

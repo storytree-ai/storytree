@@ -351,7 +351,7 @@ function piecesOf(list: readonly number[], cells: readonly Cell[]): number[][] {
 }
 
 /** The edge two neighbouring cells share: the corners of `a`'s outline that are also corners of `b`'s. */
-function sharedEdge(a: Cell, b: Cell): [Point, Point] | undefined {
+export function sharedEdge(a: Cell, b: Cell): [Point, Point] | undefined {
   const close = (p: Point, q: Point) => Math.abs(p.x - q.x) < 1e-5 && Math.abs(p.z - q.z) < 1e-5;
   const common = a.polygon.filter((p) => b.polygon.some((q) => close(p, q)));
   return common.length >= 2 ? [common[0]!, common[common.length - 1]!] : undefined;

@@ -73,8 +73,8 @@ export interface FileOwner {
  * ADR-0925 D4's lookup, shared by edit claims and the gate's capability-list check so they never place a
  * file differently: each of `files` (repo-relative to `root`) is placed by its own declaration, else by
  * the code survey's inference of `root`'s current checkout. A source file's header declares only when it names
- * the title of the capability its number does in the file's story (8.29); a file in any package its story owns is its (8.30). A file in no story's package, or one
- * `readText` cannot read (undefined or a throw), is placed nowhere. Keys use forward slashes.
+ * the title of the capability its number does in the file's story (8.29); a file in any package its story owns is its (8.30). A file in no story's package, one
+ * `readText` cannot read (undefined or a throw), or a barrel of re-exports only (8.59) is placed nowhere. Keys use forward slashes.
  */
 export async function capabilitiesOfFiles(root: string, files: readonly string[], tree: AnnotatedTree, {
   readText = (file: string) => readFileSync(path.join(root, file), "utf8"),
@@ -91,7 +91,7 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
     try {
       text = readText(file);
     } catch {}
-    if (text === undefined) continue;
+    if (text === undefined || onlyReExports(file, text)) continue;
     const number = declaredNumberOf({ path: file, text }, packagesOf(story, alsoOwned));
     const numbered = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
     // A source file's header must name the capability its number does here; a test file's numbers carry no title.
@@ -108,6 +108,24 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
   }
   for (const file of undeclared) if (inferred.has(file)) owners.set(file, { capability: inferred.get(file)!, inferred: true });
   return owners;
+}
+
+/** One `export … from "…"` statement, of names, of a namespace or of everything, at the start of the text. */
+const RE_EXPORT = /^\s*export\s+(?:type\s+)?(?:\*(?:\s+as\s+[\w$]+)?|\{[^}]*\})\s*from\s*(["'])[^"']*\1\s*;?/;
+
+/**
+ * Whether `file` is a JavaScript or TypeScript barrel: its statements, past its comments and triple-slash directives,
+ * are one or more re-exports and nothing else. A barrel belongs to no capability (8.59), as the lockfile does (ADR-0955 D6).
+ */
+function onlyReExports(file: string, text: string): boolean {
+  if (!/\.[cm]?[jt]sx?$/.test(file) || isTestFile(file)) return false;
+  let rest = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  let found = false;
+  for (let match = RE_EXPORT.exec(rest); match !== null; match = RE_EXPORT.exec(rest)) {
+    rest = rest.slice(match[0].length);
+    found = true;
+  }
+  return found && rest.trim() === "";
 }
 
 /** The story of `tree`'s, mapped from a folder of its own or not, whose package holds `file` (repo-relative, forward slashes), with that package's folder. */

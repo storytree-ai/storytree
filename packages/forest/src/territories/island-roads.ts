@@ -209,13 +209,14 @@ export function pageIslandRouter(page: Pick<Document, "querySelector"> | undefin
 
 /** What the territory search scores an arrangement by (3.80), as the mock's tool measured its network, in The library's
  * units: the inside links that pass through a third territory and the borders those cross, the length of road drawn,
- * the inside links between neighbours, and the links no road reaches. */
-export type RoadMeasures = { readonly overThird: number; readonly overThirdBorders: number; readonly roadDrawn: number; readonly neighbours: number; readonly unrouted: number };
+ * the inside links between neighbours, and the links no road reaches; and the tunnels the network draws (a road is in a
+ * tunnel only where every link it carries goes under the land, so a link over a third territory is often open road). */
+export type RoadMeasures = { readonly overThird: number; readonly overThirdBorders: number; readonly roadDrawn: number; readonly neighbours: number; readonly unrouted: number; readonly tunnels: number };
 
-/** The measures of the network `islandRoads` would route over `map`, routed once and not drawn. */
+/** The measures of the network `islandRoads` routes over `map`, routed once. */
 export function roadMeasures(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDock[], names: readonly NameAnchor[]): RoadMeasures {
-  let measures: RoadMeasures = { overThird: 0, overThirdBorders: 0, roadDrawn: 0, neighbours: 0, unrouted: 0 };
-  route(map, links, docks, names, (net, netLinks, tAt, borders) => {
+  let measures: Omit<RoadMeasures, "tunnels"> = { overThird: 0, overThirdBorders: 0, roadDrawn: 0, neighbours: 0, unrouted: 0 };
+  const drawn = route(map, links, docks, names, (net, netLinks, tAt, borders) => {
     const pairs = new Set(borders.map((b) => [...b.pair].sort().join("|")));
     const length = (pts: readonly Point[]) => pts.reduce((s, p, i) => (i ? s + far(pts[i - 1]!, p) : 0), 0);
     let overThird = 0, overThirdBorders = 0, neighbours = 0;
@@ -228,7 +229,7 @@ export function roadMeasures(map: TerritoryMap, links: readonly Link[], docks: r
     }
     measures = { overThird, overThirdBorders, roadDrawn: net.segments.reduce((s, x) => s + length(x.pts), 0), neighbours, unrouted: net.unrouted.length };
   });
-  return measures;
+  return { ...measures, tunnels: drawn.tunnels.length };
 }
 
 function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDock[], names: readonly NameAnchor[],
@@ -319,7 +320,7 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     extra: (p) => (underName(p, 2) ? UNDER_NAME : 0),
     gateExtra: (p) => (ring(p).some((q) => underName(q, 3)) || [...towns.values()].some((t) => far(t, p) < 5.5) ? GATE_CLEAR : 0),
   });
-  if (heard !== undefined) { heard(net, netLinks, tAt, borders); return empty; }
+  heard?.(net, netLinks, tAt, borders);
 
   // Each road cut where it crosses a border: a stretch on land every link it carries calls neither from nor to is in a
   // tunnel (ADR-1253 D3), a portal where it meets the land; each link's own gate where it enters the territory it calls.

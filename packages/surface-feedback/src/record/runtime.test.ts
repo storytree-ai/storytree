@@ -59,11 +59,18 @@ test("3.1 · sending writes one feedback record in project storytree with the te
   assert.deepEqual(sent[1]!.note, { text: NOTE.text, surface: "menu:help", story: "app", anchor: ANCHOR, window: NOTE.window, theme: "dark", version: "0.3.99", at: "2026-10-21T12:00:00.000Z" });
   assert.deepEqual(opened, ["storytree"], "the library is opened once");
 
+  // A drawn object a canvas answered with is kept by its ids, checked field by field; one that is not whole is dropped.
+  const drawn = { kind: "gate", story: "story_a", between: ["capability_a", "capability_b"], name: "A ↔ B", box: { x: 1, y: 2, width: 3, height: 4 } } as const;
+  await runtime.sendFeedback({ ...NOTE, anchor: { ...ANCHOR, drawn: { ...drawn, extra: "dropped" } } } as never);
+  assert.deepEqual((sent.at(-1)!.note.anchor as { drawn?: unknown } | undefined)?.drawn, drawn);
+  await runtime.sendFeedback({ ...NOTE, anchor: { ...ANCHOR, drawn: { kind: "road", story: "story_a", name: "x" } } } as never);
+  assert.equal((sent.at(-1)!.note.anchor as { drawn?: unknown } | undefined)?.drawn, undefined);
+
   await assert.rejects(runtime.sendFeedback({ ...NOTE, surface: "nowhere" }), /no declared surface "nowhere"/, "a surface no story declares is refused");
   await assert.rejects(runtime.sendFeedback({ ...NOTE, text: "   " }), /needs text/, "a note with no text is refused");
   await assert.rejects(runtime.sendFeedback({ ...NOTE, anchor: undefined } as never), /needs the element it is about/, "every note points at an element");
   await assert.rejects(runtime.sendFeedback({ ...NOTE, anchor: { ...ANCHOR, selector: "" } }), /selector and tag/);
-  assert.equal(sent.length, 2, "a refused note writes nothing");
+  assert.equal(sent.length, 4, "a refused note writes nothing: only the two sent before and the two drawn checks");
 });
 
 test("3.2 · the app window is captured before the composer opens and stored as a JPEG with the record, unless the owner drops it; the button is offered only where the library holds project storytree", async () => {

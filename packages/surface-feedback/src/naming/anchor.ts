@@ -1,10 +1,10 @@
 /**
  * Capability 2 · Surface naming. The element the owner points at, read from the page as he clicks it (ADR-1151, the
  * owner's answer to question_c8c6697b2d3d): what a building agent needs to find it in the code without guessing from a
- * picture. Only HTML is picked: a drawn canvas, the globe's included, is one element with nothing inside to name, so it
- * is never picked (feedback on the map is a surface of its own).
+ * picture. HTML is picked as the element; a drawn canvas is one element with nothing inside to name, so it is picked only
+ * when the canvas answers a feedback pick (2.3, ADR-1286): the object it draws there, named by its ids.
  */
-import type { FeedbackAnchor } from "../record/bridge.js";
+import { FEEDBACK_PICK_EVENT, type DrawnObject, type FeedbackAnchor, type FeedbackPickDetail } from "../record/bridge.js";
 
 /** At most this much of the element's markup is kept. */
 export const HTML_LIMIT = 2048;
@@ -25,19 +25,30 @@ const IMPLICIT_ROLE: Readonly<Record<string, string>> = {
 };
 const INPUT_ROLE: Readonly<Record<string, string>> = { checkbox: "checkbox", radio: "radio", range: "slider", button: "button", submit: "button", search: "searchbox" };
 
+/** What a note may point at: an element, and for a canvas that answered, the object it draws there (2.3). */
+export interface Pickable {
+  readonly element: Element;
+  readonly drawn?: DrawnObject;
+}
+
 /**
- * The element drawn at `x`, `y` that a note may point at: the top-most one that is not inside `corner` (the feedback
- * corner's own) and is not a drawn canvas, an svg's shape standing for the HTML element holding it; none where a canvas
- * or the corner is all there is.
+ * What is drawn at `x`, `y` that a note may point at: the top-most element that is not inside `corner` (the feedback
+ * corner's own), an svg's shape standing for the HTML element holding it. A canvas is asked (2.3): a synchronous
+ * `FEEDBACK_PICK_EVENT` on it, whose detail the drawing side answers; the canvas is picked with that object if it
+ * answers, and nothing is picked where it does not. None where the corner is all there is.
  */
-export function pickableAt(document: Document, x: number, y: number, corner: Element): Element | undefined {
+export function pickableAt(document: Document, x: number, y: number, corner: Element): Pickable | undefined {
   for (const element of document.elementsFromPoint(x, y)) {
     if (corner.contains(element)) continue;
-    if (element.tagName === "CANVAS") return undefined;
+    if (element.tagName === "CANVAS") {
+      const detail: FeedbackPickDetail = { x, y };
+      element.dispatchEvent(new (document.defaultView!.CustomEvent)(FEEDBACK_PICK_EVENT, { detail }));
+      return detail.answer === undefined ? undefined : { element, drawn: detail.answer };
+    }
     // An icon's drawing is picked as the control it draws: the HTML element holding the svg.
     let html: Element = element;
     while (html instanceof document.defaultView!.SVGElement && html.parentElement !== null) html = html.parentElement;
-    return html;
+    return { element: html };
   }
   return undefined;
 }
@@ -48,10 +59,10 @@ export function surfaceOf(element: Element): string | undefined {
   return marked?.dataset.surfaceId === "" ? undefined : marked?.dataset.surfaceId;
 }
 
-/** What a note records of `element`. */
-export function anchorOf(element: Element): FeedbackAnchor {
+/** What a note records of `element`; of a canvas with `drawn`, the object, its box standing for the element's (2.3). */
+export function anchorOf(element: Element, drawn?: DrawnObject): FeedbackAnchor {
   const view = element.ownerDocument.defaultView!;
-  const box = element.getBoundingClientRect();
+  const box = drawn === undefined ? element.getBoundingClientRect() : drawn.box;
   const computed = view.getComputedStyle(element);
   const role = roleOf(element);
   const name = nameOf(element);
@@ -67,6 +78,7 @@ export function anchorOf(element: Element): FeedbackAnchor {
     box: { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height) },
     styles: Object.fromEntries(STYLES.map((style) => [style, computed.getPropertyValue(style)]).filter(([, value]) => value !== "")),
     html: htmlOf(element),
+    ...(drawn === undefined ? {} : { drawn }),
   };
 }
 

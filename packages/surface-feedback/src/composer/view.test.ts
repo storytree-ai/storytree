@@ -173,7 +173,7 @@ test("1.3 · a failed write keeps the text and offers Retry and Copy", async (t)
   assert.equal(await page.locator("[data-corner-retry]").isVisible(), false);
 });
 
-test("1.4 · while picking, the element under the pointer is outlined with its tag and size, a click attaches it without pressing it, Escape before the first pick leaves nothing open and Escape from Pick again returns to the note, and neither the corner nor a drawn canvas is picked", async (t) => {
+test("1.4 · while picking, the element under the pointer is outlined with its tag and size, a click attaches it without pressing it, Escape before the first pick leaves nothing open and Escape from Pick again returns to the note, and neither the corner nor a drawn canvas that answers no feedback pick (2.3) is picked", async (t) => {
   const browser = await launchChrome();
   t.after(() => browser.close());
   const page = await mounted(browser);
@@ -225,4 +225,27 @@ test("1.4 · while picking, the element under the pointer is outlined with its t
   await page.waitForFunction("!document.querySelector('[data-corner-composer]').hidden");
   assert.equal(await pickerOnShow(page), false);
   assert.equal(await page.locator("[data-corner-anchor]").textContent(), "button “Press”", "the pick in flight is the note's");
+});
+
+test("2.3 · over a canvas that answers the pick, the outline is the drawn object's box labelled with its kind and name, a click attaches it, and the note carries the object by its ids", async (t) => {
+  const browser = await launchChrome();
+  t.after(() => browser.close());
+  const page = await mounted(browser);
+  await page.evaluate(`document.getElementById("drawn").addEventListener("storytree:feedback-pick", (event) => { event.detail.answer = { kind: "gate", story: "story_a", between: ["capability_a", "capability_b"], name: "A ↔ B", box: { x: 40, y: 50, width: 60, height: 70 } }; })`);
+  await page.click("[data-corner-button]");
+  const canvas = (await page.locator("#drawn").boundingBox())!;
+  await page.mouse.move(canvas.x + 20, canvas.y + 20);
+  const outline = page.locator("[data-corner-outline]");
+  assert.equal(await outline.isVisible(), true, "the canvas is outlined where it answers");
+  assert.deepEqual(await outline.boundingBox(), { x: 40, y: 50, width: 60, height: 70 }, "the outline is the drawn object's box");
+  assert.equal(await page.locator("[data-corner-label]").textContent(), "gate · A ↔ B");
+  await page.mouse.click(canvas.x + 20, canvas.y + 20);
+  await page.waitForFunction("!document.querySelector('[data-corner-composer]').hidden");
+  assert.equal(await page.locator("[data-corner-anchor]").textContent(), "gate “A ↔ B”");
+  await page.fill("[data-corner-text]", "This gate is ugly");
+  await page.selectOption("[data-corner-surface]", "globe");
+  await page.click("[data-corner-send]");
+  await page.waitForFunction("sends.length === 1");
+  const calls = await page.evaluate("calls") as { note?: { anchor: { drawn?: unknown } } }[];
+  assert.deepEqual(calls.find((call) => call.note !== undefined)!.note!.anchor.drawn, { kind: "gate", story: "story_a", between: ["capability_a", "capability_b"], name: "A ↔ B", box: { x: 40, y: 50, width: 60, height: 70 } });
 });

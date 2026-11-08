@@ -7,7 +7,7 @@
  * above it and a press on it light-dismisses nothing: the surface the note is about stays on show for its picture.
  */
 import type { FeedbackAnchor, FeedbackBridge } from "../record/bridge.js";
-import { anchorOf, pickableAt, surfaceOf } from "../naming/anchor.js";
+import { anchorOf, pickableAt, surfaceOf, type Pickable } from "../naming/anchor.js";
 import { surfaceInFront } from "../naming/resolve.js";
 import { cornerStyles } from "./styles.js";
 
@@ -126,32 +126,35 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
     button.setAttribute("aria-expanded", "true");
   };
   /** The element under the pointer, outlined with its tag, role and size; none over a drawn canvas or the corner. */
-  const hover = (x: number, y: number): Element | undefined => {
-    const target = pickableAt(document, x, y, host);
-    outline.hidden = target === undefined;
-    if (target !== undefined) {
-      const box = target.getBoundingClientRect();
+  const hover = (x: number, y: number): Pickable | undefined => {
+    const picked = pickableAt(document, x, y, host);
+    const target = picked?.element;
+    outline.hidden = picked === undefined;
+    if (picked !== undefined && target !== undefined) {
+      const box = picked.drawn?.box ?? target.getBoundingClientRect();
       Object.assign(outline.style, { left: `${box.x}px`, top: `${box.y}px`, width: `${box.width}px`, height: `${box.height}px` });
       // The label sits above the element, or below it at the top of the window, and leans in from the right half.
       outline.toggleAttribute("data-below", box.y < 24);
       outline.toggleAttribute("data-right", box.x + box.width / 2 > window.innerWidth / 2);
       const role = target.getAttribute("role");
-      label.textContent = `${target.tagName.toLowerCase()}${role === null ? "" : ` · ${role}`} · ${Math.round(box.width)}×${Math.round(box.height)}`;
+      label.textContent = picked.drawn === undefined
+        ? `${target.tagName.toLowerCase()}${role === null ? "" : ` · ${role}`} · ${Math.round(box.width)}×${Math.round(box.height)}`
+        : `${picked.drawn.kind} · ${picked.drawn.name}`;
     }
-    return target;
+    return picked;
   };
-  const pick = async (target: Element): Promise<void> => {
+  const pick = async ({ element: target, drawn }: Pickable): Promise<void> => {
     // Until the composer is on show, a second press of the button or Ctrl+Shift+F starts nothing.
     opening = true;
     try {
-      anchor = anchorOf(target);
+      anchor = anchorOf(target, drawn);
       const surface = surfaceOf(target) ?? surfaceInFront(document);
       picker.hidden = true;
       // The element's own picture, once the outline has left the screen.
       await new Promise((done) => window.requestAnimationFrame(() => window.requestAnimationFrame(done)));
       crop = token === undefined ? undefined : await bridge.captureForFeedback(anchor.box).catch(() => undefined);
       chip.value = surface ?? "";
-      pointed.textContent = `${anchor.tag}${anchor.name === undefined ? "" : ` “${anchor.name}”`}`;
+      pointed.textContent = drawn === undefined ? `${anchor.tag}${anchor.name === undefined ? "" : ` “${anchor.name}”`}` : `${drawn.kind} “${drawn.name}”`;
       picture.checked = token !== undefined;
       picture.disabled = token === undefined;
       say(surface === undefined ? "Choose the surface this note is about." : "");

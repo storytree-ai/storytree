@@ -12,6 +12,27 @@ export interface FeedbackSetup {
   readonly surfaces: readonly DeclaredSurface[];
 }
 
+/** The event the picker dispatches on a canvas, synchronously, to ask what it draws at a point (2.3). Plain strings and objects: the drawing side pins the same in its own tests. */
+export const FEEDBACK_PICK_EVENT = "storytree:feedback-pick";
+
+/** An object drawn on a canvas that a note points at: its ids, a name, and its box in the window (ADR-1286). */
+export interface DrawnObject {
+  readonly kind: "gate" | "capability" | "island";
+  readonly story: string;
+  readonly capability?: string;
+  /** For a gate, the two capabilities it joins. */
+  readonly between?: [string, string];
+  readonly name: string;
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+}
+
+/** The event's detail: where, and the answer the drawing side writes back. */
+export interface FeedbackPickDetail {
+  readonly x: number;
+  readonly y: number;
+  answer?: DrawnObject;
+}
+
 /** The element a note points at, as the page reads it at the click (Surface feedback 2.2). */
 export interface FeedbackAnchor {
   /** A CSS selector only this element matches in the page. */
@@ -31,6 +52,8 @@ export interface FeedbackAnchor {
   readonly styles: Readonly<Record<string, string>>;
   /** Its markup, at most 2 KB, with only allowlisted attributes and secret-looking values redacted. */
   readonly html: string;
+  /** The object it draws, when it is a canvas that answered the pick (2.3). */
+  readonly drawn?: DrawnObject;
 }
 
 /** A note as the page sends it. */

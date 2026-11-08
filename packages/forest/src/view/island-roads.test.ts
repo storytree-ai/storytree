@@ -15,7 +15,7 @@ import { capabilityPlates } from "./nameplates.js";
 import { presentTerritories } from "./globe-surfaces.js";
 import { gateOf, islandRoadMarks, landFill, LIT, PORTAL, ringGate, ROAD } from "./island-roads.js";
 import { RING_PX, sizeOpenWork } from "./open-work.js";
-import { gateAfterSelection, pickClick } from "./planet-navigation.js";
+import { answerFeedbackPicks, FEEDBACK_PICK_EVENT, feedbackPick, gateAfterSelection, pickClick } from "./planet-navigation.js";
 import { GLYPHS, kindOf, settlementSymbols, SYMBOL_INK } from "./settlement-symbols.js";
 import { territoryLand } from "./territory-land.js";
 
@@ -294,3 +294,55 @@ test("3.77 a road that must cross a third territory goes under it: at each porta
   });
 });
 
+
+test("3.93 · the feedback pick answers a gate with its story, pair and name, else a capability's territory, else the island, each with its box in the window, and answers nothing in Library or over open water", () => {
+  const world = new Group();
+  world.name = "planet:story";
+  const land = territoryLand(map, flat, coast, new Map(), roads);
+  world.add(land, islandRoadMarks(roads, flat, landFill(map, land), islandRelief(map, roads)));
+  const titles = new Map([["story", "Story One"]]);
+  const box = { left: 0, top: 0, width: 100, height: 100 };
+  const above = (at: Point) => {
+    const camera = new PerspectiveCamera(30, 1, 0.1, 1000);
+    camera.position.set(at.x, 300, at.z);
+    camera.up.set(0, 0, -1);
+    camera.lookAt(at.x, 0, at.z);
+    return camera;
+  };
+  const i = roads.gates.findIndex((g) => g.entrances.includes("d->c"));
+  const post = (world.getObjectByName(`gate-post:${i}:1`) as Mesh).geometry;
+  post.computeBoundingBox();
+  const on = post.boundingBox!.getCenter(new Vector3());
+  const gate = feedbackPick(world, above({ x: on.x, z: on.z }), box, { x: 50, y: 50 }, "forest", titles)!;
+  assert.deepEqual({ kind: gate.kind, story: gate.story, between: gate.between, name: gate.name }, { kind: "gate", story: "story", between: ["c", "d"], name: "Gamma ↔ Delta" });
+  assert.ok(gate.box.width > 0 && gate.box.height > 0 && gate.box.x < 50 && gate.box.x + gate.box.width > 50 && gate.box.y < 50 && gate.box.y + gate.box.height > 50, "the gate's box is round the pointer");
+
+  const clear = (p: Point) => roads.gates.every((g) => Math.hypot(g.at.x - p.x, g.at.z - p.z) > 6);
+  const spot = [...roads.settlements.values()].map((s) => s.at).find(clear)!;
+  const territory = feedbackPick(world, above(spot), box, { x: 50, y: 50 }, "forest", titles)!;
+  assert.equal(territory.story, "story");
+  assert.equal(territory.kind, "capability");
+  assert.ok(["a", "b", "c", "d"].includes(territory.capability!), "a territory is named by its capability id");
+  assert.ok(territory.name !== "" && !/^\d+ · /.test(territory.name), "named without its number, as the sheet names it");
+
+  assert.equal(feedbackPick(world, above({ x: on.x, z: on.z }), box, { x: 50, y: 50 }, "library", titles), undefined, "Library answers nothing for now");
+  assert.equal(feedbackPick(world, above({ x: 9999, z: 9999 }), box, { x: 50, y: 50 }, "forest", titles), undefined, "open water answers nothing");
+  assert.equal(FEEDBACK_PICK_EVENT, "storytree:feedback-pick", "the name the picker's package dispatches");
+});
+
+test("3.93 · a canvas answering feedback picks writes the drawn object for the pointer on the picker's event, leaves the event unanswered where nothing is drawn, and stops answering once stopped", () => {
+  const canvas = new EventTarget();
+  const gate = { kind: "gate" as const, story: "story", between: ["c", "d"] as [string, string], name: "Gamma ↔ Delta", box: { x: 40, y: 40, width: 20, height: 20 } };
+  const asked: { x: number; y: number }[] = [];
+  const stop = answerFeedbackPicks(canvas, (cursor) => { asked.push(cursor); return cursor.x < 100 ? gate : undefined; });
+  const ask = (x: number, y: number) => {
+    const detail: { x: number; y: number; answer?: unknown } = { x, y };
+    canvas.dispatchEvent(new CustomEvent("storytree:feedback-pick", { detail }));
+    return detail.answer;
+  };
+  assert.deepEqual(ask(50, 60), gate);
+  assert.deepEqual(asked, [{ x: 50, y: 60 }], "asked with the pointer the event carried");
+  assert.equal(ask(500, 60), undefined, "nothing drawn there leaves the event unanswered");
+  stop();
+  assert.equal(ask(50, 60), undefined, "a stopped canvas answers nothing");
+});

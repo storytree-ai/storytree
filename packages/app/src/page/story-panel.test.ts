@@ -44,7 +44,7 @@ test("2.51 · news that leaves the panel's content unchanged rebuilds nothing", 
   const first = host.querySelector(".panel-handle");
   for (let news = 0; news < 5; news++) view.show();
   assert.equal(writes.length, 1, "one drawing, however much news lands");
-  assert.equal(host.querySelector(".panel-handle"), first, "the same elements stay on the panel");
+  assert.ok(host.querySelector(".panel-handle") === first, "the same elements stay on the panel");
 });
 
 test("2.51 · a change on the story keeps the open folds, a contract's own fold, the handle in focus and the scroll", () => {
@@ -63,6 +63,6 @@ test("2.51 · a change on the story keeps the open folds, a contract's own fold,
   assert.match(host.innerHTML, /two/);
   assert.deepEqual(handles().map((h) => h.getAttribute("aria-expanded")), ["true", "true"], "both folds, the contract's own included, stay open");
   assert.equal((handles()[1]!.nextElementSibling as HTMLElement).hidden, false);
-  assert.equal(host.ownerDocument.activeElement, handles()[1], "the focused handle keeps focus");
+  assert.ok(host.ownerDocument.activeElement === handles()[1], "the focused handle keeps focus");
   assert.equal(host.scrollTop, 40, "and the scroll holds");
 });

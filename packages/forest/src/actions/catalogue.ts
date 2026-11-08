@@ -93,7 +93,7 @@ export interface LagAction {
 /** A capability and its budget contract, by their ids in the library. */
 export type Owner = { capability: string; contract: string };
 
-/** 4 · Drill-down, 4.16: opening an island, and closing its panel. */
+/** 4 · Drill-down, 4.16: opening an island, closing its panel, and clicking a fold's handle on it. */
 const DRILL_DOWN: Owner = { capability: "capability_f0ffead428df", contract: "contract_f93fcab7b3c3" };
 /** 3 · Story node render, 3.47: the Library and back, and a sweep across the globe. */
 const STORY_NODE_RENDER: Owner = { capability: "capability_8ffc78a4bad2", contract: "contract_c1a39674d85d" };
@@ -128,6 +128,10 @@ export const CATALOGUE: readonly LagAction[] = [
     limitMs: 60_000, owner: OPENING_THE_APP },
   { name: "close-panel", setup: [...RESET, { kind: "island", island: "most" }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }],
     perform: [{ kind: "click", selector: ".story-panel .panel-close" }], settled: { selected: "none", panel: "closed" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "close-panel", owner: DRILL_DOWN },
+  // One click on the first fold's handle of the library's panel opens or closes it (ADR-1287), as the user's kept folds leave it. The
+  // page shows no fold's state to settle on, so the click's answer and frames are read, and the field recorder files none.
+  { name: "click-fold", setup: [...RESET, { kind: "island", island: { story: NAMED_STORY } }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }],
+    perform: [{ kind: "click", selector: ".story-panel [data-fold] > .panel-handle" }], settled: { panel: "open" }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: DRILL_DOWN },
   { name: "library-and-back", setup: RESET,
     perform: [{ kind: "click", selector: "[data-globe-switch=library]" }, { kind: "wait", until: { mode: "library" } }, { kind: "click", selector: "[data-globe-switch=stories]" }],
     settled: { mode: "forest", still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: STORY_NODE_RENDER },

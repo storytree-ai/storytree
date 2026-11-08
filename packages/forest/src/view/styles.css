@@ -345,7 +345,7 @@
 }
 
 /* A fold's handle (ADR-1284 D1): one line, "<Label> · <count>", behind a chevron that turns when it is open. A
-   double-click opens it, so it selects no word; nothing hints at that (ADR-1283 D2). */
+   single click opens it (ADR-1287); nothing hints at that (ADR-1283 D2). */
 .panel-handle {
   display: flex;
   align-items: baseline;

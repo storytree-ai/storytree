@@ -204,7 +204,7 @@ test("4.40 a picked gate's panel gives each edge joining its pair, either way, i
   assert.match(plainText(gate), /^The next depends on The base\./);
   const contracts = fold(gate, "contracts");
   assert.equal(contracts?.handle, "Contracts · 2", "its state: the contracts counted on a handle");
-  assert.equal(contracts?.hidden, true, "drawn closed, one double-click away");
+  assert.equal(contracts?.hidden, true, "drawn closed, one click away");
   assert.deepEqual([...gate.matchAll(/<li data-contract-id="([^"]+)"[^>]*>([\s\S]*?)<\/li>/g)].map(([, id, said]) => [id, fold(said!, "contract")?.handle]), [["e-1", "next reads &lt;base&gt; by id"], ["e-2", "next never writes base"]]);
   assert.equal(plainText(gate).includes("failing"), false, "none failing, none said");
   const shared = { id: "k-1", title: "next reads base by id", reported: "failing" as const, trail: "green, then red", verified: "failing" as const, source: "ci" as const, lastSeen: { state: "passing" as const, at: "2026-09-27T10:00:00.000Z" } };

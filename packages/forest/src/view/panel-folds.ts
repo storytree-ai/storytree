@@ -1,7 +1,6 @@
 /**
- * Capability 4 · Drill-down. The panel's folds as the user works them (ADR-1284 D1): a double-click on a handle opens its
- * fold in place and another closes it, while a single click only focuses it; Enter or Space opens or closes it from the
- * keyboard, the arrow keys move between the handles shown, and Escape closes the fold the focus is in or, with none
+ * Capability 4 · Drill-down. The panel's folds as the user works them (ADR-1287, narrowing ADR-1284 D1): a single click on
+ * a handle opens its fold in place and another closes it; Enter or Space opens or closes it from the keyboard, the arrow keys move between the handles shown, and Escape closes the fold the focus is in or, with none
  * focused, closes every fold and forgets the kept depth. The kinds of fold the user opened open again on every later
  * pick for the session; a contract's own fold and Open all · n are never kept. No hint explains any of it (ADR-1283 D2).
  */
@@ -59,7 +58,7 @@ export function panelFolds(): PanelFolds {
 
   const wire = (panel: HTMLElement): void => {
     wired.add(panel);
-    panel.addEventListener("dblclick", (event) => {
+    panel.addEventListener("click", (event) => {
       const handle = (event.target as Element | null)?.closest<HTMLElement>(".panel-handle");
       if (handle === null || handle === undefined || !panel.contains(handle)) return;
       event.stopPropagation();
@@ -76,7 +75,7 @@ export function panelFolds(): PanelFolds {
       }
       if (handle === null) return;
       if (event.key === "Enter" || event.key === " ") {
-        // Kept from the button's own click, which a pointer's single click shares and which never expands.
+        // Kept from the button's own click, which would toggle the fold a second time.
         event.preventDefault();
         toggle(panel, handle);
         return;

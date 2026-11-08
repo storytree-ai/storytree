@@ -1,7 +1,7 @@
 // The panel's surface says only what needs you (ADR-1284 D2, D3): storytree's own map (the code-rows snapshot and its survey)
 // as the app opens it, close up on The library. A healthy capability picked on the island shows its title, its word with
 // where it came from and its lead; one that is not green adds one why line; its two health readings wait behind Health, which
-// a double-click opens. `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/panel-surface-signals).
+// a click opens. `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/panel-surface-signals).
 // Measures, from the page, each pick's word, why line and handles.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
@@ -68,6 +68,8 @@ const clickUntil = async (page, settle, kind, done) => {
   const grid = [];
   for (let y = 0.3; y <= 0.7; y += 0.05) for (let x = 0.3; x <= 0.7; x += 0.04) grid.push({ x: box.left + x * box.width, y: box.top + y * box.height });
   for (const target of [...await targets(page, kind), ...grid]) {
+    // A point the open panel covers is skipped: a click there would work its folds (ADR-1287), not the map.
+    if (await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('aside.story-panel'), target)) continue;
     await page.mouse.click(target.x, target.y);
     await settle(page, 8);
     if (done(await panel(page))) return;
@@ -108,10 +110,10 @@ await runCapture({
     measure: shot('not-green-capability', 'notGreen'),
     expect: found => { assert.match(found.why ?? '', /^Why not green: /, 'one why line'); assert.ok(found.surface); },
   }, {
-    // ADR-1284 D1, D3: a double-click on Health opens both readings, each with its source.
+    // ADR-1287, ADR-1284 D3: a click on Health opens both readings, each with its source.
     name: 'health-opened',
     prepare: async ({ page, settle }) => {
-      await page.locator('aside.story-panel [data-fold="health"] > .panel-handle').dblclick();
+      await page.locator('aside.story-panel [data-fold="health"] > .panel-handle').click();
       await settle(page, 4);
     },
     measure: shot('health-opened', 'opened'),

@@ -243,6 +243,20 @@ export function feedbackPick(world: Object3D, camera: Camera,
   return at === undefined ? undefined : { kind: "island", story: hit.id, name: titles.get(hit.id) ?? hit.id, box: at };
 }
 
+/**
+ * Answer the feedback picker's synchronous asks on `target` (3.93): each `FEEDBACK_PICK_EVENT` carries the pointer in its
+ * detail, and `answer`'s object for it is written back on the detail. Returns the stop.
+ */
+export function answerFeedbackPicks(target: EventTarget, answer: (cursor: { x: number; y: number }) => FeedbackAnswer | undefined): () => void {
+  const onPick = (event: Event): void => {
+    const detail = (event as CustomEvent<{ x: number; y: number; answer?: FeedbackAnswer }>).detail;
+    const found = answer({ x: detail.x, y: detail.y });
+    if (found !== undefined) detail.answer = found;
+  };
+  target.addEventListener(FEEDBACK_PICK_EVENT, onPick);
+  return () => target.removeEventListener(FEEDBACK_PICK_EVENT, onPick);
+}
+
 /** `handle`, run at most once a frame with the latest of the calls made since the last frame. */
 export function oncePerFrame<T>(handle: (value: T) => void, schedule: (run: () => void) => unknown = requestAnimationFrame): (value: T) => void {
   let latest: { value: T } | undefined;

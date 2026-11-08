@@ -15,7 +15,7 @@ import { capabilityPlates } from "./nameplates.js";
 import { presentTerritories } from "./globe-surfaces.js";
 import { gateOf, islandRoadMarks, landFill, LIT, PORTAL, ringGate, ROAD } from "./island-roads.js";
 import { RING_PX, sizeOpenWork } from "./open-work.js";
-import { FEEDBACK_PICK_EVENT, feedbackPick, gateAfterSelection, pickClick } from "./planet-navigation.js";
+import { answerFeedbackPicks, FEEDBACK_PICK_EVENT, feedbackPick, gateAfterSelection, pickClick } from "./planet-navigation.js";
 import { GLYPHS, kindOf, settlementSymbols, SYMBOL_INK } from "./settlement-symbols.js";
 import { territoryLand } from "./territory-land.js";
 
@@ -328,4 +328,21 @@ test("3.93 · the feedback pick answers a gate with its story, pair and name, el
   assert.equal(feedbackPick(world, above({ x: on.x, z: on.z }), box, { x: 50, y: 50 }, "library", titles), undefined, "Library answers nothing for now");
   assert.equal(feedbackPick(world, above({ x: 9999, z: 9999 }), box, { x: 50, y: 50 }, "forest", titles), undefined, "open water answers nothing");
   assert.equal(FEEDBACK_PICK_EVENT, "storytree:feedback-pick", "the name the picker's package dispatches");
+});
+
+test("3.93 · a canvas answering feedback picks writes the drawn object for the pointer on the picker's event, leaves the event unanswered where nothing is drawn, and stops answering once stopped", () => {
+  const canvas = new EventTarget();
+  const gate = { kind: "gate" as const, story: "story", between: ["c", "d"] as [string, string], name: "Gamma ↔ Delta", box: { x: 40, y: 40, width: 20, height: 20 } };
+  const asked: { x: number; y: number }[] = [];
+  const stop = answerFeedbackPicks(canvas, (cursor) => { asked.push(cursor); return cursor.x < 100 ? gate : undefined; });
+  const ask = (x: number, y: number) => {
+    const detail: { x: number; y: number; answer?: unknown } = { x, y };
+    canvas.dispatchEvent(new CustomEvent("storytree:feedback-pick", { detail }));
+    return detail.answer;
+  };
+  assert.deepEqual(ask(50, 60), gate);
+  assert.deepEqual(asked, [{ x: 50, y: 60 }], "asked with the pointer the event carried");
+  assert.equal(ask(500, 60), undefined, "nothing drawn there leaves the event unanswered");
+  stop();
+  assert.equal(ask(50, 60), undefined, "a stopped canvas answers nothing");
 });

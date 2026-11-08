@@ -99,13 +99,13 @@ const show = verb({
   },
 });
 
-/** The element a note points at, a line a fact: what a building agent searches the code with. */
 /** A drawn object by its ids: `gate story_x, capability_a ↔ capability_b "name"`. */
 function drawnLine(drawn: NonNullable<NonNullable<Note["fields"]["anchor"]>["drawn"]>): string {
   const ids = drawn.between === undefined ? [drawn.story, ...(drawn.capability === undefined ? [] : [drawn.capability])].join(", ") : `${drawn.story}, ${drawn.between[0]} ↔ ${drawn.between[1]}`;
   return `${drawn.kind} ${ids} ${JSON.stringify(drawn.name)}`;
 }
 
+/** The element a note points at, a line a fact: what a building agent searches the code with. */
 function anchorLines(anchor: NonNullable<Note["fields"]["anchor"]>): string[] {
   const { box } = anchor;
   return [

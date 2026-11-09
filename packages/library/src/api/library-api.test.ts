@@ -193,6 +193,7 @@ const RUNTIME_EXPORTS = [
   "ANCHOR_ID",
   "CONNECT_TIMEOUT_MS",
   "CONTRACT_DEFINITION",
+  "CONTRACT_PLACEMENT",
   "ConnectionError",
   "DependencyLoopError",
   "LONG_CONTRACT_TITLE",

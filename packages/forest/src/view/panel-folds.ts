@@ -7,7 +7,7 @@
  */
 
 /** The kinds of fold whose being open is kept across picks: the top-level handles, never a contract's own. */
-const KEPT = new Set(["more", "health", "open-work", "contracts", "extra-checks"]);
+const KEPT = new Set(["open-work", "contracts", "extra-checks"]);
 
 export interface PanelFolds {
   /** After the panel's HTML is drawn into `panel`: open the kinds the user keeps open, and answer his handles (once per element). */

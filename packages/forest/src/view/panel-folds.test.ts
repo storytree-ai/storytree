@@ -18,7 +18,7 @@ const capability = (id: string): CapabilityLine => ({
   description: `What ${id} does.\n\nHow ${id} works.`,
   reported: "passing",
   status: "healthy",
-  contracts: [{ id: `${id}-k`, title: `${id} keeps its promise`, reported: "passing", trail: "green only" }],
+  contracts: [{ id: `${id}-k`, title: `${id} keeps its promise`, reported: "passing", trail: "green only" }, { id: `${id}-k2`, title: `${id} says so`, reported: "passing", trail: "green only" }],
   openWork: [{ increment: `${id}-i`, title: `Work on ${id}` }],
 });
 
@@ -56,61 +56,55 @@ function page() {
 test("4.41 a single click on a handle opens its fold and another closes it", () => {
   const { draw, handle, open, mouse } = page();
   draw("one");
-  assert.equal(open("contracts"), false, "every fold starts closed");
-  mouse(handle("contracts"), "click");
-  assert.equal(open("contracts"), true, "a single click opens it");
-  mouse(handle("contracts"), "click");
-  assert.equal(open("contracts"), false, "another closes it");
-  mouse(handle("contracts"), "click");
+  assert.equal(open("open-work"), false, "every fold starts closed");
+  mouse(handle("open-work"), "click");
+  assert.equal(open("open-work"), true, "a single click opens it");
+  mouse(handle("open-work"), "click");
+  assert.equal(open("open-work"), false, "another closes it");
   mouse(handle("contract"), "click");
-  assert.equal(open("contract"), true, "a contract opens, one level deeper, to its own detail");
+  assert.equal(open("contract"), true, "a contract opens to its own detail");
 });
 
 test("4.41 from the keyboard, Enter or Space opens a handle's fold, the arrow keys move between the handles shown, and Escape closes the fold the focus is in", () => {
   const { draw, handle, open, key, focused } = page();
   draw("one");
-  handle("more").focus();
-  assert.ok(key(handle("more"), "Enter").defaultPrevented);
-  assert.equal(open("more"), true, "Enter opens it");
-  key(handle("more"), " ");
-  assert.equal(open("more"), false, "Space closes it again");
-  key(handle("more"), "ArrowDown");
-  assert.ok(focused() === handle("more", 1), "down moves to the next handle shown");
+  handle("open-work").focus();
+  assert.ok(key(handle("open-work"), "Enter").defaultPrevented);
+  assert.equal(open("open-work"), true, "Enter opens it");
+  key(handle("open-work"), " ");
+  assert.equal(open("open-work"), false, "Space closes it again");
+  key(handle("open-work"), "ArrowDown");
+  assert.ok(focused() === handle("contract"), "down moves to the next handle shown");
   key(focused()!, "ArrowDown");
-  assert.ok(focused() === handle("health"), "past the story's own to the capability's");
+  assert.ok(focused() === handle("contract", 1));
   key(focused()!, "ArrowDown");
-  assert.ok(focused() === handle("open-work"));
-  key(focused()!, "ArrowDown");
-  assert.ok(focused() === handle("contracts"));
-  key(focused()!, "ArrowDown");
-  assert.ok(focused() === handle("contracts"), "a closed fold's handles are skipped: the contract's is not shown");
+  assert.ok(focused() === handle("contract", 1), "the last stays put");
   key(focused()!, "ArrowUp");
-  assert.ok(focused() === handle("open-work"), "up moves back");
-  key(handle("contracts"), "Enter");
-  handle("contract").focus();
+  assert.ok(focused() === handle("contract"), "up moves back");
+  key(handle("contract"), "Enter");
+  assert.equal(open("contract"), true);
   key(handle("contract"), "Escape");
-  assert.equal(open("contracts"), false, "Escape closes the fold the focus is in");
-  assert.ok(focused() === handle("contracts"), "and leaves the focus on its handle");
+  assert.equal(open("contract"), false, "Escape closes the fold the focus is in");
+  assert.ok(focused() === handle("contract"), "and leaves the focus on its handle");
 });
 
 test("4.42 the kinds of fold the user opened open on every later pick until he closes them; a contract's own never does; Escape with no fold focused forgets them", () => {
   const { draw, host, handle, open, mouse, key } = page();
   draw("one");
-  mouse(handle("contracts"), "click");
   mouse(handle("contract"), "click");
   mouse(handle("open-work"), "click");
   draw("two");
-  assert.equal(open("contracts"), true, "the contracts the user opened open on the next pick");
-  assert.equal(open("open-work"), true);
-  assert.equal(open("more"), false, "nothing he has not opened");
+  assert.equal(open("open-work"), true, "the open work the user opened opens on the next pick");
   assert.equal(open("contract"), false, "a contract's own fold is never kept");
   mouse(handle("open-work"), "click");
   draw("one");
   assert.equal(open("open-work"), false, "closed, it is no longer kept");
-  assert.equal(open("contracts"), true);
+  mouse(handle("open-work"), "click");
+  draw("two");
+  assert.equal(open("open-work"), true);
   (host.querySelector(".panel-close") as HTMLElement).focus();
   key(host.querySelector(".panel-close")!, "Escape");
-  assert.equal(open("contracts"), false, "Escape with no fold focused closes every fold");
-  draw("two");
-  assert.equal(open("contracts"), false, "and resets the kept depth");
+  assert.equal(open("open-work"), false, "Escape with no fold focused closes every fold");
+  draw("one");
+  assert.equal(open("open-work"), false, "and resets the kept depth");
 });

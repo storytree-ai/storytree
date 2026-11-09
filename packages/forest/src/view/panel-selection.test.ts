@@ -1,7 +1,7 @@
 /** Forest capability 3 / knowledge-core capability 4: one right-side panel (ADR-0661 D2). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { PanelSelection, type Selection } from "./panel-selection.js";
+import { PanelSelection, panelPicks, type Selection } from "./panel-selection.js";
 
 test("3.13 a card replaces a story and a story replaces a card; Close and Escape dismiss the card", () => {
   const changes: Selection[] = [];
@@ -71,4 +71,29 @@ test("3.88 · a picked gate selects its island's story with the pair of capabili
   assert.deepEqual(selection.current, { kind: "story", id: "story", capability: "c" }, "one that picked a territory, its capability");
   selection.picked(undefined);
   assert.equal(selection.current, undefined, "one that picked nothing, nothing");
+});
+
+test("4.8 a capability's name clicked on the story's panel picks that capability of the story on show, as its territory's click would, and the story's name picks it alone", async () => {
+  const { Window } = await import("happy-dom");
+  const window = new Window();
+  const host = window.document.createElement("aside") as unknown as HTMLElement;
+  host.innerHTML = `<button type="button" class="panel-story-name" data-pick-story>Forest</button><ul><li><button type="button" class="panel-pick" data-pick-capability="cap_b">The <b>B</b></button></li></ul><p>Elsewhere</p>`;
+  const changes: Selection[] = [];
+  const selection = new PanelSelection(next => changes.push(next));
+  const stop = panelPicks(host, selection);
+  const click = (target: Element): void => { target.dispatchEvent(new window.MouseEvent("click", { bubbles: true }) as unknown as Event); };
+  selection.story("forest");
+  click(host.querySelector("b")!);
+  assert.deepEqual(selection.current, { kind: "story", id: "forest", capability: "cap_b" }, "the story on show, on that capability");
+  click(host.querySelector("p")!);
+  assert.equal(changes.length, 2, "a click elsewhere on the panel picks nothing");
+  click(host.querySelector("[data-pick-story]")!);
+  assert.deepEqual(selection.current, { kind: "story", id: "forest" }, "the story named above a capability picks the story alone");
+  selection.close();
+  click(host.querySelector("b")!);
+  assert.equal(selection.current, undefined, "with no story on show, a name picks nothing");
+  stop();
+  selection.story("forest");
+  click(host.querySelector("b")!);
+  assert.deepEqual(selection.current, { kind: "story", id: "forest" }, "stopped, it hears nothing");
 });

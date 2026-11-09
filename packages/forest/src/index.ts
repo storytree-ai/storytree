@@ -14,7 +14,7 @@ export type { KeptDrawing } from "./render/kept-tree.js";
 export { selectionLanes, type SelectionLane } from "./render/selection-lanes.js";
 export { forestReading } from "./render/forest-reading.js";
 export type { ForestReadingOptions, ForestReads } from "./render/forest-reading.js";
-export { drillDown, NO_DESCRIPTION, selectedCapability } from "./drill-down/drill-down.js";
+export { drillDown, NO_DESCRIPTION } from "./drill-down/drill-down.js";
 export type { CapabilityLine, ContractLine, StoryPanel, WhyLine } from "./drill-down/drill-down.js";
 export { claimTints, replayWisps, sessionColour, sessionWisps, shownPointers } from "./agent-claims/agent-claims.js";
 export type { ClaimTint, PointerTint, SessionWisp } from "./agent-claims/agent-claims.js";

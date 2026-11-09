@@ -230,15 +230,3 @@ function trailWords(trail: readonly HealthState[]): string {
 function sentences(description: string | undefined): string {
   return description === undefined || description.trim() === "" ? NO_DESCRIPTION : description;
 }
-
-/**
- * The capability the panel shows below the story's sentences (ADR-0659 D2): `chosen`, picked on the island, when it is one of the
- * story's own; otherwise the first in build order that is not healthy, or the first if all are. Its
- * word, not the work state, says what has landed: no session writes the activity log's landed lines.
- * Undefined for a story with no capabilities.
- */
-export function selectedCapability(panel: StoryPanel, chosen?: string): string | undefined {
-  const own = panel.capabilities;
-  if (chosen !== undefined && own.some(({ id }) => id === chosen)) return chosen;
-  return (own.find(({ status }) => status !== "healthy") ?? own[0])?.id;
-}

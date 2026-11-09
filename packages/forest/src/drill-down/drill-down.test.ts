@@ -10,7 +10,7 @@ import { test } from "node:test";
 import type { AnnotatedCapability, AnnotatedContract, AnnotatedStory, AnnotatedTree, Change, HealthColumn, HealthState } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
 
-import { drillDown, NO_DESCRIPTION, selectedCapability } from "./drill-down.js";
+import { drillDown, NO_DESCRIPTION } from "./drill-down.js";
 
 const column = (state: HealthState, written = false): HealthColumn => (written ? { state, by: "someone", at: new Date(0).toISOString() } : { state });
 
@@ -85,30 +85,7 @@ test("4.5 storytree's own column shows beside the agent's only where something w
   assert.equal(bare?.capabilities[0]?.verified, undefined);
 });
 
-test("4.7 the panel shows one capability below the story's sentences: the one chosen, else the first in build order not yet healthy", () => {
-  const opened = (...words: AnnotatedCapability["status"][]) => {
-    const [base, next, last] = words;
-    const tree: AnnotatedTree = {
-      stories: [story("s", capability("base", [], [], undefined, base), capability("next", ["base"], [], undefined, next), capability("last", ["next"], [], undefined, last)), story("t", capability("away", []))],
-      arcs: [],
-    };
-    const panel = drillDown(tree, "s", workStates([]), []);
-    assert.ok(panel !== undefined);
-    return panel;
-  };
-  assert.equal(selectedCapability(opened("proposed", "proposed", "proposed")), "base", "nothing healthy: the first in build order");
-  const part = opened("healthy", "untested", "unhealthy");
-  assert.equal(selectedCapability(part), "next", "the first not yet healthy");
-  assert.equal(selectedCapability(part, "last"), "last", "a chosen capability of the story stays chosen");
-  assert.equal(selectedCapability(part, "away"), "next", "another story's capability is never chosen here");
-  assert.equal(selectedCapability(part, "gone"), "next", "a choice that has left the story falls back");
-  assert.equal(selectedCapability(opened("healthy", "healthy", "healthy")), "base", "everything healthy: the first");
-  const empty = drillDown({ stories: [story("e")], arcs: [] }, "e", workStates([]), []);
-  assert.ok(empty !== undefined);
-  assert.equal(selectedCapability(empty), undefined, "a story with no capabilities selects none");
-});
-
-test("4.6 each capability carries the library's word for it", () => {
+test("4.1 each capability carries the library's word for it", () => {
   const tree: AnnotatedTree = { stories: [story("a", capability("login", [], [], "Logs in.", "unhealthy"), capability("logout", [], [], "Logs out.", "healthy"))], arcs: [] };
   assert.deepEqual(drillDown(tree, "a", workStates([]), [])?.capabilities.map(({ id, status }) => [id, status]), [["login", "unhealthy"], ["logout", "healthy"]]);
 });

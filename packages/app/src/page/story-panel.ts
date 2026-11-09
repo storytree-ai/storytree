@@ -1,9 +1,9 @@
 /**
  * Capability 2 · Storytree projects. The desktop page's story panel (the forest's capability 4 drill-down, mounted by the app): the
- * library's card for a selected note, or the selected story's drill-down with the capability picked on the island shown below
- * its lead (ADR-0659 D2). A drawing that changes the panel is handed to the forest's folds, which open again the kinds the user opened.
+ * library's card for a selected note, or the selected story's drill-down, on the capability picked when one is, never one picked
+ * for the user (ADR-1297). A drawing that changes the panel is handed to the forest's folds, which open again the kinds the user opened.
  */
-import { selectedCapability, type StoryPanel } from "@storytree/forest";
+import type { StoryPanel } from "@storytree/forest";
 
 export interface StoryPanelParts {
   /** The selected story node (`data-selected`) and note (`data-note`) live on this body's dataset. */
@@ -23,7 +23,7 @@ export interface StoryPanelParts {
 export interface StoryPanelView {
   /** Draw the panel for the selection on the body, or hide it. */
   show(): void;
-  /** Show `capability` below the open story's sentences (undefined for the story's first), or the edges of the `gate` picked on the map. */
+  /** Show `capability` of the open story (undefined for the story alone), or the edges of the `gate` picked on the map. */
   choose(capability: string | undefined, gate?: readonly [string, string]): void;
   stop(): void;
 }
@@ -57,7 +57,7 @@ function restore(panel: HTMLElement, kept: ReturnType<typeof snapshot>): void {
 }
 
 export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPanelView {
-  /** The capability shown below the open story's sentences: the one picked on the island, or the one the panel opened on, so it holds while the project redraws. */
+  /** The capability picked, on the island or by its name on the panel, held while the project redraws. */
   let chosen: string | undefined;
   /** The gate picked on the map, which the panel shows until another pick (ADR-1282 D1). */
   let gate: readonly [string, string] | undefined;
@@ -82,9 +82,7 @@ export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPan
       drawn = undefined;
       return;
     }
-    const selected = selectedCapability(drilled, chosen);
-    chosen = selected;
-    const html = parts.render(drilled, selected, gate);
+    const html = parts.render(drilled, chosen, gate);
     // The same story drawn the same: nothing to change, so nothing is touched (ADR-0836 D1).
     if (drawn !== undefined && drawn.story === story && drawn.html === html) return;
     // A change on the same story keeps what the user opened (a contract's own fold too), the handle in focus and the scroll.

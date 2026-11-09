@@ -1,9 +1,11 @@
 // The story panel draws no capability tree (ADR-1285; Mick, 2026-11-07: "I'm actually really liking the one on the map. I
 // don't think it's needed."): storytree's own map (the code-rows snapshot and its survey) as the app opens it, close up on The
 // library. A capability's territory clicked on the island (a road click falls through to the land under it) opens the panel
-// on that capability: the story's lead and its detail, with no tree, card or pop-out (4.6, 4.8), and its contracts behind a
-// handle that one click opens and another closes (4.41, ADR-1287); then a gate clicked shows its pair's
-// links in its place (3.88). `node --import tsx capture.mjs` (append --retake to write into
+// on exactly that capability: its title, its story named small above it, its whole description and its contracts, each with
+// its own state, with no tree, card or pop-out and no How it works or Health fold (4.6, 4.8, ADR-1297). The story's name
+// opens the story alone, with nothing picked for it and its capabilities by name (4.7); a name opens that capability,
+// ringed on the island (4.8), and a contract opens on one click (4.41, ADR-1287); then a gate clicked shows its pair's
+// links in the panel (3.88). `node --import tsx capture.mjs` (append --retake to write into
 // src/view/evidence/panel-picked-on-island). Measures, from the page, what the panel holds, so "no tree" is measured.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
@@ -43,6 +45,10 @@ const panel = page => page.evaluate(() => {
   return {
     open: aside !== null && !aside.hidden,
     detail: aside?.querySelector('.panel-detail')?.dataset.capabilityId,
+    title: aside?.querySelector('.panel-head h2')?.textContent,
+    story: aside?.querySelector('.panel-head .panel-story-name')?.textContent,
+    names: [...aside?.querySelectorAll('.panel-pick') ?? []].map(b => b.textContent),
+    contractStates: [...aside?.querySelectorAll('.panel-detail [data-contract-id] .panel-handle .panel-badge') ?? []].length,
     gate: aside?.querySelector('.panel-gate') !== null && aside?.querySelector('.panel-gate') !== undefined,
     links: [...aside?.querySelectorAll('.panel-gate h3') ?? []].map(h => ({ said: h.textContent, contracts: h.nextElementSibling?.querySelectorAll('[data-contract-id]').length ?? 0, state: (h.nextElementSibling?.classList.contains('panel-link-state') ? [h.nextElementSibling.querySelector('.panel-handle')?.textContent, h.nextElementSibling.querySelector('.panel-link-failing')?.textContent, h.nextElementSibling.querySelector('.panel-link-open')?.textContent].filter(Boolean).join(' ') : h.nextElementSibling?.textContent) ?? '' })),
     tree: aside?.querySelectorAll('svg, .panel-tree, [data-open-tree], [role="button"]').length ?? 0,
@@ -111,39 +117,54 @@ await runCapture({
     expect: found => {
       assert.equal(found.tree, 0, 'no tree, card or pop-out in the panel');
       assert.equal(found.detail, found.picked[0], 'the panel shows the capability picked on the island');
-      assert.ok(found.handles.some(h => /^Contracts · \d+$/.test(h)), 'its contracts behind a counted handle');
+      assert.equal(found.story, 'The library', 'its story named small above its title');
+      assert.deepEqual(found.names, [], 'nothing of the story\'s list');
+      assert.ok(!found.handles.some(h => /How it works|Health|Contracts ·/.test(h)), 'no How it works, Health or Contracts fold');
+      assert.ok(found.contractStates > 0, 'each contract shows its state');
       assert.deepEqual(found.opened, [], 'every fold closed on the first pick');
     },
   }, {
-    // ADR-1287: one click on the handle opens it, a second closes it, and a contract opens one level deeper on its own click.
-    name: 'capability-folds-opened',
+    // ADR-1297 D1: the story's name opens the story alone, with no capability picked for it and its capabilities by name.
+    name: 'story-alone',
     prepare: async ({ page, settle }) => {
-      const contracts = page.locator('aside.story-panel [data-fold="contracts"] > .panel-handle');
-      await contracts.click();
-      await settle(page, 2);
-      results.singleClick = (await panel(page)).opened;
-      await contracts.click();
-      await settle(page, 2);
-      results.secondClick = (await panel(page)).opened;
-      await contracts.click();
+      await page.locator('aside.story-panel .panel-story-name').click();
+      await settle(page, 6);
+    },
+    measure: async ({ page, out }) => {
+      await page.locator('aside.story-panel').screenshot({ path: path.join(out, 'story-alone-panel.png') });
+      return (results.story = await panel(page));
+    },
+    expect: found => {
+      assert.equal(found.title, 'The library');
+      assert.equal(found.detail, undefined, 'no capability picked for the user');
+      assert.deepEqual(found.picked, [], 'and none ringed on the island');
+      assert.equal(found.names.length, libraryStory.capabilities.length, 'every capability by name');
+      assert.ok(!found.handles.some(h => /How it works/.test(h)), 'its whole description, no fold');
+    },
+  }, {
+    // ADR-1297 D1, 4.8: a name opens that capability, ringed on the island as its territory's click would.
+    name: 'capability-picked-by-name',
+    prepare: async ({ page, settle }) => {
+      const names = page.locator('aside.story-panel .panel-pick');
+      const wanted = page.locator('aside.story-panel .panel-pick', { hasText: 'Connection by address' });
+      await ((await wanted.count()) > 0 ? wanted.first() : names.first()).click();
+      await settle(page, 6);
+      results.byName = await panel(page);
       await page.locator('aside.story-panel [data-fold="contract"] > .panel-handle').first().click();
       await settle(page, 4);
     },
     measure: async ({ page, out }) => {
-      await page.locator('aside.story-panel').screenshot({ path: path.join(out, 'capability-folds-opened-panel.png') });
+      await page.locator('aside.story-panel').screenshot({ path: path.join(out, 'capability-picked-by-name-panel.png') });
       return (results.opened = await panel(page));
     },
     expect: found => {
-      assert.equal(results.singleClick.length, 1, 'one click opens Contracts');
-      assert.deepEqual(results.secondClick, [], 'a second click closes it');
-      assert.equal(found.opened.length, 2, 'the clicked Contracts and its first contract are open');
+      assert.ok(results.byName.detail !== undefined && results.byName.detail === results.byName.picked[0], 'the name opens its capability, ringed on the island');
+      assert.equal(found.opened.length, 1, 'one click opens a contract to its detail');
     },
   }, {
-    // ADR-1284 D4: a gate's links, each its sentence and one state line, their contracts closed behind the handle. Escape on
-    // the panel first forgets the Contracts the step above kept open.
+    // ADR-1284 D4: a gate's links, each its sentence and one state line, their contracts closed behind the handle.
     name: 'gate-picked-on-island',
     prepare: async ({ page, settle }) => {
-      await page.evaluate(() => document.querySelector('aside.story-panel').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
       await clickUntil(page, settle, 'gate', found => found.open && found.gate && found.links.some(link => link.contracts > 0));
     },
     measure: async ({ page, out }) => {
@@ -181,7 +202,7 @@ await runCapture({
     },
     expect: found => {
       assert.equal(found.opened.length, 2, 'a click opens the link\'s first contract');
-      assert.deepEqual(found.said, ['panel-badge badge-passing', 'panel-trail', 'panel-badge badge-failing'], 'the agent\'s report, its trail and storytree\'s verdict, as a capability\'s contract shows');
+      assert.deepEqual(found.said, ['panel-badge badge-passing', 'panel-trail'], 'the agent\'s report and its trail, storytree\'s verdict on its handle, as a capability\'s contract shows');
     },
   }],
 });

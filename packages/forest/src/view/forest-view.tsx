@@ -10,7 +10,7 @@ import type { ForestScene, SessionWisp } from "@storytree/forest";
 import { KnowledgeKinds, KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { PlanetView } from "./planet-view.js";
 import { nextScene, sameWisps } from "./planet-update.js";
-import { PanelSelection, type Selection } from "./panel-selection.js";
+import { PanelSelection, panelPicks, type Selection } from "./panel-selection.js";
 import { panelAside } from "./globe-aside.js";
 import { globeFraming } from "./planet-navigation.js";
 import { LAUNCH_FACE, sheetFaces, type SheetFace } from "./globe-switches.js";
@@ -131,6 +131,8 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   // Opening or closing the panel toggles its `hidden`, which a size observer alone may miss.
   const shown = new MutationObserver(measure);
   if (panel !== undefined) { observer.observe(panel); shown.observe(panel, { attributes: true, attributeFilter: ["hidden"] }); }
+  // A capability's name on the story panel picks it here, so its territory is ringed as a click on it would (4.8).
+  const stopPicks = panel === undefined ? undefined : panelPicks(panel, selection);
 
   return {
     show(scene, places) {
@@ -157,6 +159,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       core.dispose();
       observer.disconnect();
       shown.disconnect();
+      stopPicks?.();
       root.unmount();
       container.replaceChildren();
     },

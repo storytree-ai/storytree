@@ -77,3 +77,43 @@
     ${endIf}
   ${endIf}
 !macroend
+
+; Is storytree running (4.43, ADR-1296 D4)? electron-builder's own check asks PowerShell, with no time
+; limit, for every process under the install folder, and one such query never returned. This one looks
+; only for storytree-0.3.exe, in-process, each step bounded (nsProcess's close waits 3 s, then ends it).
+; An update's app is quitting itself, so it gets a grace before being closed. At the ceiling an attended
+; run offers Retry / Cancel; a silent one gives up with error level 2. Inserted in the install section
+; and in the uninstaller's un.checkAppRunning, so its labels are unique within each.
+!macro customCheckAppRunning
+  ${nsProcess::FindProcess} "${APP_EXECUTABLE_FILENAME}" $R0
+  ${if} $R0 == 0
+    ${ifNot} ${isUpdated}
+      MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "$(appRunning)" /SD IDOK IDOK storytreeCloseApp
+      Quit
+    ${endIf}
+    storytreeCloseApp:
+    DetailPrint "$(appClosing)"
+    StrCpy $R1 0
+    storytreeWaitApp:
+      ${nsProcess::FindProcess} "${APP_EXECUTABLE_FILENAME}" $R0
+      ${if} $R0 == 0
+        ${if} $R1 >= 60
+          MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "storytree is still running and could not be closed (storytree-0.3.exe).$\r$\n$\r$\nClose it, or end storytree-0.3.exe in Task Manager, then choose Retry. Cancel stops this setup." /SD IDCANCEL IDRETRY storytreeRetryApp
+          SetErrorLevel 2
+          Quit
+          storytreeRetryApp:
+          StrCpy $R1 0
+        ${endIf}
+        ${if} ${isUpdated}
+        ${andIf} $R1 < 10
+          Sleep 1000
+        ${else}
+          ${nsProcess::CloseProcess} "${APP_EXECUTABLE_FILENAME}" $R0
+          Sleep 1000
+        ${endIf}
+        IntOp $R1 $R1 + 1
+        Goto storytreeWaitApp
+      ${endIf}
+  ${endIf}
+  ${nsProcess::Unload}
+!macroend

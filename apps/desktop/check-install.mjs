@@ -4,7 +4,7 @@
 // it publishes, so a release whose installed app cannot start never publishes.
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { checkEmbeddingBinaries, checkTools } from "./check-tools.mjs";
@@ -17,7 +17,8 @@ const installer = readdirSync(release).find((file) => file.endsWith(`-windows-${
 assert.ok(installer, "NSIS installer was not built");
 assert.equal(process.platform, "win32", "Run this proof on Windows");
 const version = process.env.STORYTREE_RELEASE_VERSION ?? JSON.parse(readFileSync("apps/desktop/package.json", "utf8")).version;
-const temp = mkdtempSync(path.join(tmpdir(), "storytree-installer-"));
+// Long names: CI's temp folder is given in its 8.3 form (RUNNER~1), which no process path reported by Windows begins with.
+const temp = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-installer-")));
 const installed = path.join(temp, "app with spaces");
 const license = readFileSync("LICENSE");
 
@@ -45,7 +46,24 @@ function checkUninstall(tools) {
   writeFileSync(path.join(project, "notes.md"), "the user's work");
   const env = { ...process.env, USERPROFILE: user, STORYTREE_HOME: home, CLAUDE_CONFIG_DIR: claude, CODEX_HOME: path.join(user, ".codex"), LOCALAPPDATA: localAppData };
 
-  execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 180_000, env });
+  // 4.43: the installers' running-app check looks only for storytree-0.3.exe. electron-builder's own
+  // asks PowerShell for every process whose path starts with the install folder's and stops them, so
+  // programs in a folder named like it, beside it (not moved by the update's uninstall), show which ran.
+  // Two, because its query counts matches with .Count, which one CIM object lacks in PowerShell 5.1.
+  // The runner's PSModulePath names PowerShell 7's modules, where 5.1 cannot load Get-ExecutionPolicy
+  // and electron-builder's check falls back to tasklist; a user's has no such entry, so the run drops it.
+  const beside = path.join(`${installed}-beside`, "node.exe");
+  mkdirSync(path.dirname(beside), { recursive: true });
+  copyFileSync(path.join(tools, "node.exe"), beside);
+  const neighbours = [0, 1].map(() => spawn(beside, ["-e", "setInterval(() => {}, 1000)"], { windowsHide: true, stdio: "ignore" }));
+  const userEnv = Object.fromEntries(Object.entries(env).filter(([name]) => name.toLowerCase() !== "psmodulepath"));
+  try {
+    execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 180_000, env: userEnv });
+    for (const neighbour of neighbours) assert.doesNotThrow(() => process.kill(neighbour.pid, 0), "the reinstall left programs that are not storytree-0.3.exe running");
+  } finally {
+    for (const neighbour of neighbours) neighbour.kill();
+  }
+  console.log("4.43 PASS (Windows x64): a reinstall's running-app check finished in time and left other programs beside the install folder running");
   assert.ok(existsSync(path.join(home, "pgdata", "PG_VERSION")) && existsSync(cache), "an update's uninstall leaves the home and cache");
   assert.deepEqual(JSON.parse(readFileSync(claudeFile, "utf8")).mcpServers.storytree, ours, "an update's uninstall leaves the agent connection");
 

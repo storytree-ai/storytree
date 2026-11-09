@@ -6,7 +6,7 @@ import type { Island } from "@storytree/forest";
 import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
 import type { Coast } from "../territories/territories.js";
 import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
-import { keptVersion, subscribeKept } from "../territories/kept-layout.js";
+import { awaitingFirstLayout, keptVersion, pageTerritorySearcher, subscribeKept } from "../territories/kept-layout.js";
 import { capabilityPlates, facing, fadedPlates, nameMoves, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 import type { DetailStore } from "./zoom-detail.js";
@@ -52,7 +52,10 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
   const level = useSyncExternalStore(detail?.subscribe ?? NEVER, detail?.get ?? NEAR);
   // Near only: every island's names at once, from the whole map's zoom, cost the page a frame in two (evidence/zoom-detail).
   const named = level === "near";
-  const plates = useMemo(() => named && island.land !== undefined ? capabilityPlates(islandLayout(island.story, island.land.territories, coast, links, docks)) : [], [named, island.story, island.land, coast, links, docks, kept]);
+  // 3.95: an island awaiting its first search names no territory, and says it is laying them out.
+  const searcher = useMemo(() => pageTerritorySearcher(), []);
+  const awaiting = island.land !== undefined && awaitingFirstLayout(island.story, island.land.territories, searcher);
+  const plates = useMemo(() => named && !awaiting && island.land !== undefined ? capabilityPlates(islandLayout(island.story, island.land.territories, coast, links, docks)) : [], [named, awaiting, island.story, island.land, coast, links, docks, kept]);
   const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
   // Its opacity is a variable, so a crowded plate's fade (styles.css) can take it to nothing and back.
   const plateStyle = { "--plate-opacity": opacity, maxWidth: STORY_PLATE_WIDTH } as CSSProperties;
@@ -61,6 +64,7 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
       <Overlay zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
         <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}`} data-story-id={island.story} data-dimmed={dimmed ? "" : undefined} style={plateStyle}>
           <span className="planet-nameplate-title">{island.title}</span>
+          {awaiting && <span className="planet-nameplate-laying-out">laying out parts…</span>}
         </div>
       </Overlay>
     </group>

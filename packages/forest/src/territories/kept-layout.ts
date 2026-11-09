@@ -13,6 +13,8 @@
  * - The search runs in the worker the page names (TERRITORY_WORKER_META), one at a time, never on the page: a page
  *   with no worker draws the start and searches nothing. Every island is laid out (ADR-1253 D2), so a search asked for
  *   another island waits its turn; one asked for a new structure of the island in flight overtakes it.
+ * - An island with nothing kept draws no territories while its first search runs or waits its turn, so they draw once,
+ *   where they stay (3.95); a search that fails or finds nothing ends that wait, and the island draws its start.
  */
 import type { Link, LinkDock, Seeds } from "./link-layout.js";
 import type { Coast, TerritoryShare } from "./territories.js";
@@ -75,7 +77,7 @@ let version = 0;
 /** Kept arrangements are read from and written to `next` from now on (a test's own; undefined for none), forgetting
  * every one read so far. */
 export function shelveOn(next: ArrangementShelf | undefined): void {
-  shelf = next; kept.clear(); version++;
+  shelf = next; kept.clear(); unanswered.clear(); version++;
   inFlight?.overtaken.abort(); inFlight = undefined; waiting.clear();
 }
 
@@ -93,16 +95,30 @@ export function keepArrangement(story: string, arrangement: KeptArrangement): vo
   if (shelf === null) shelf = storageShelf();
   kept.set(story, arrangement);
   shelf?.write(story, arrangement);
+  told();
+}
+
+/** The islands whose first search failed or found nothing, which draw their start. */
+const unanswered = new Set<string>();
+
+/** Whether `story`'s island of `shares` draws no territories yet (3.95): `searcher` would search it, it has more than one
+ * territory to arrange, nothing is kept for it, and no search for it has failed or found nothing. */
+export function awaitingFirstLayout(story: string, shares: readonly TerritoryShare[], searcher: TerritorySearcher | undefined): boolean {
+  return searcher !== undefined && shares.length > 1 && keptArrangement(story) === undefined && !unanswered.has(story);
+}
+
+function told(): void {
   version++;
   for (const listener of listeners) listener();
 }
 
-/** Hears every arrangement kept from now on (React's useSyncExternalStore, with `keptVersion`). */
+/** Hears every arrangement kept from now on, and every first search that ends with none (React's useSyncExternalStore,
+ * with `keptVersion`). */
 export function subscribeKept(listener: () => void): () => void {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
 }
-/** Changes whenever an arrangement is kept. */
+/** Changes whenever an arrangement is kept, or an island's first search ends with none. */
 export const keptVersion = (): number => version;
 
 let inFlight: { story: string; key: string; overtaken: AbortController } | undefined;
@@ -146,14 +162,16 @@ export function searchIsland(story: string, ask: Omit<SearchAsk, "kept">, search
       if (inFlight !== undefined) break;
     }
   };
+  const none = () => { if (keptArrangement(story) === undefined && !unanswered.has(story)) { unanswered.add(story); told(); } };
   void searcher({ ...ask, ...(was && { kept: was.seeds }), ...(fixed.length > 0 && { fixed }) }, signal).then((answer) => {
     if (!signal.aborted) {
       if ("error" in answer) console.error("forest territories: the territory search failed", answer.error);
-      else if (answer.found !== undefined) keepArrangement(story, { key, seeds: answer.found.seeds });
+      if (!("error" in answer) && answer.found !== undefined) keepArrangement(story, { key, seeds: answer.found.seeds });
+      else none();
     }
     done();
   }, (error: unknown) => {
-    if (!signal.aborted) console.error("forest territories: the territory search failed", error);
+    if (!signal.aborted) { console.error("forest territories: the territory search failed", error); none(); }
     done();
   });
 }

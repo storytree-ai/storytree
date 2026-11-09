@@ -679,5 +679,7 @@
 .planet-nameplate.capability { transform:none; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; width:max-content; max-width:120px; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; padding:0.1rem 0.45rem; font-size:0.7rem; font-weight:500; background:rgb(16 20 24 / 0.62); translate:var(--move-x, 0px) var(--move-y, 0px); }
 /* A claimed capability's flag stands at its nameplate's point: the name hangs just below the flag's foot (ADR-0968 D1). */
 .planet-nameplate.capability[data-claimed] { translate:var(--move-x, 0px) calc(50% + 5px + var(--move-y, 0px)); }
+/* 3.95: an island awaiting its first territory search says so under its name. */
+.planet-nameplate-laying-out { display:block; font-size:0.7rem; font-weight:400; font-style:italic; opacity:0.75; }
 /* On a phone a story's plate is slimmer, so the names of two islands this close on a small globe both stand (3.31). */
 @media (max-width:600px) { .planet-nameplate:not(.capability) { font-size:0.7rem; padding:0.1rem 0.25rem; } }

@@ -662,6 +662,29 @@ test("7.15 · a Windows run that skips a Linux-only test leaves the Mint box's L
   });
 });
 
+test("7.16 · a story's contract proved only by a named workflow job is recorded from that job's verdict, with its note; no job verdict leaves its earlier one standing", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-jobs-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages/app/src"), { recursive: true });
+  await withLibrary(async (lib) => {
+    const story = await lib.addStory({ title: "The app" });
+    const capability = await lib.addCapability({ story: story.id, title: "4 · Updates" });
+    const contract = await lib.addContract({ capability: capability.id, title: "4.43 · The installer closes only the app" });
+    const planned = (await lib.projectTree()).stories[0];
+    const record = async (jobProofs) => {
+      await checkStory(lib, planned, { by: "storytree test run on CI", commit: "a".repeat(40) }, {
+        root, platform: "linux", log: () => {}, error: () => {}, jobProofs, runTests: async () => ({ code: 0, results: [] }),
+      });
+      return (await lib.health(contract.id)).verified;
+    };
+    const passed = await record([{ package: "app", contract: "4.43", state: "passing", note: 'job "installer on Windows" passed, run https://github.com/storytree-ai/storytree/actions/runs/10' }]);
+    assert.equal(passed.state, "passing");
+    assert.match(passed.note ?? "", /installer on Windows/);
+    assert.equal((await record([])).state, "passing", "a run whose installer job was skipped leaves the pass standing");
+    assert.equal((await record([{ package: "app", contract: "4.43", state: "failing", note: 'job "installer on Windows" failed' }])).state, "failing");
+  });
+});
+
 test("7.2 judge reads a skipped contract's skip kind from its skip reason's first word: owner, platform:<os>, or other", () => {
   const result = (name, status, extra = {}) => ({ name, suites: [], file: "a.test.ts", status, ...extra });
   const { verdicts } = judge({

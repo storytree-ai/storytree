@@ -13,14 +13,16 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import { applyJobProofs } from "./job-proofs.mjs";
 import { contractsCoveredBy, contractsOf, creditPlatforms, dependantTestsNaming, judge, packageOf, recordHealth, sourcesOf } from "./test-run.mjs";
 
 /**
  * Run `story`'s own tests (those of its packages under `root`, or the folders `folders` names there, through `runTests`, which gives the run's exit code and
  * its junit report's results) and record each of its contracts' verified health from what they showed. False if the run produced no report, so no
- * health could be recorded. `platform` is the one the tests ran on (this computer's, by default).
+ * health could be recorded. `platform` is the one the tests ran on (this computer's, by default). `jobProofs` are the
+ * verdicts of the workflow jobs that prove contracts no test run can (./job-proofs.mjs), laid over the tests' own.
  */
-export async function checkStory(library, story, writer, { root, folders, evidence = [], runTests, platform = process.platform, pause = sleep, log = (line) => console.log(line), error = (line) => console.error(line) }) {
+export async function checkStory(library, story, writer, { root, folders, evidence = [], jobProofs = [], runTests, platform = process.platform, pause = sleep, log = (line) => console.log(line), error = (line) => console.error(line) }) {
   const { numbers, contractIds } = contractsOf(story);
   const name = packageOf(story);
   const dirs = folders ?? sourcesOf(name);
@@ -57,6 +59,7 @@ export async function checkStory(library, story, writer, { root, folders, eviden
     prefix: name,
     dependant,
   });
+  applyJobProofs(verdicts, name, jobProofs);
   // A run can re-run only its own platform's tests and those its CI evidence credits: a platform:<os> skip of any other
   // was never reached, so a pass from that platform stands (7.15), as the laptop's factory run skipping a Linux-only test.
   const platformsSeen = new Set([platform, ...evidence.filter(Boolean).map(({ platform: seen }) => seen)]);

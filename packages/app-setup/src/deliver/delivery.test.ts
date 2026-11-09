@@ -176,6 +176,10 @@ test("1.21 on Windows, the installed app's start removes older builds' copies no
     const stale = path.join(copies, "fedcba9876543210");
     mkdirSync(stale);
     writeFileSync(path.join(stale, "node.exe"), "an older build's");
+    // One an earlier start moved aside and could not finish deleting, and one another start is still copying in.
+    mkdirSync(path.join(copies, "0011223344556677.old-123"));
+    const copying = "8899aabbccddeeff.next-456";
+    mkdirSync(path.join(copies, copying));
     // A session still runs the older build's tools.
     running = older;
     if (process.platform === "win32") {
@@ -189,14 +193,14 @@ test("1.21 on Windows, the installed app's start removes older builds' copies no
     writePayloadManifest(f.tools.dir, "arm64", "24.21.0");
     assert.equal(await followBuildTools(options), true);
     const current = JSON.parse(readFileSync(path.join(f.home, "delivery.json"), "utf8")).tools.dir;
-    assert.deepEqual(readdirSync(copies).sort(), [path.basename(older), path.basename(current)].sort());
+    assert.deepEqual(readdirSync(copies).sort(), [path.basename(older), path.basename(current), copying].sort());
     assert.ok(existsSync(path.join(older, "storytree-hook.mjs")), "the copy a session runs keeps every file");
 
     // Once that session has ended, the next start removes its copy too.
     if (session) { const ended = new Promise((resolve) => session!.once("exit", resolve)); session.kill(); await ended; session = undefined; }
     running = undefined;
     assert.equal(await followBuildTools(options), false);
-    assert.deepEqual(readdirSync(copies), [path.basename(current)]);
+    assert.deepEqual(readdirSync(copies).sort(), [path.basename(current), copying].sort());
   } finally { session?.kill(); f.close(); }
 });
 

@@ -131,8 +131,8 @@ export function clearOlderTools(home: string, keep: string, move: (from: string,
     const dir = path.join(root, name);
     if (dir === keep || /\.next-\d+$/.test(name)) continue;
     try {
-      const aside = /\.old-\d+$/.test(name) ? dir : `${dir}.old-${process.pid}`;
-      if (aside !== dir) move(dir, aside);
+      const aside = `${dir}.old-${process.pid}`;
+      move(dir, aside);
       rmSync(aside, { recursive: true, force: true });
     } catch { /* In use: the next start tries again. */ }
   }

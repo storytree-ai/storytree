@@ -196,6 +196,9 @@ function notes(command, macCommand, sha) {
     // replaces this with Apple's answer.
     macReleaseNote(process.env.STORYTREE_MAC_SIGNED === "true" ? "pending" : "ad-hoc"),
     "",
+    // An update from an older release can hang on Windows; every page points there to the way out (4.44).
+    "If a Windows update stays on **Installing, please wait...** and never finishes, [these steps](https://github.com/storytree-ai/storytree/blob/main/INSTALL.md#if-a-windows-update-never-finishes) get it unstuck.",
+    "",
     "Alpha installations follow every published build. To install alpha explicitly, use the command in install-storytree-alpha.txt (Windows) or install-storytree-mac-alpha.txt (Mac and Linux). Existing installations retain their channel.",
   ].join("\n");
 }

@@ -7,6 +7,8 @@ name: Own health
 # macOS evidence from that exact commit and CI attempt: the merge queue's passing run of it, which is where it is
 # tested now that the push run stands on that run's verdict (ci.yml's `queue-verdict`), else main's push run of it
 # (packages/repo-checks/src/test-run/main-commit.mjs). Never from a pull request's run: only main's own commits are recorded.
+# A contract proved by a named workflow job rather than a test (CI's Windows installer job, the release's Windows
+# update legs) is recorded from that job's verdict (packages/repo-checks/src/test-run/job-proofs.mjs).
 #
 # The merge queue's merge (ADR-0796) is a push to main and starts CI, whose completion starts this.
 # A direct merge by CI is made
@@ -147,6 +149,12 @@ jobs:
             if (sha === undefined) return;
             core.setOutput('current', 'true');
             core.setOutput('sha', sha);
+            // Contracts a workflow job proves rather than a test (job-proofs.mjs, question_ae4c17ef04cd): CI's
+            // installer job in the credited run, and the newest release run's Windows update legs.
+            const { readJobProofs } = await import(`${process.env.GITHUB_WORKSPACE}/packages/repo-checks/src/test-run/job-proofs.mjs`);
+            const jobs = await readJobProofs({ github, repo: context.repo, run });
+            for (const notice of jobs.notices) core.notice(notice);
+            core.setOutput('job-proofs', JSON.stringify(jobs.proofs));
             if (run === undefined) return;
             core.setOutput('run-id', run.id);
             core.setOutput('attempt', run.run_attempt);
@@ -216,5 +224,6 @@ jobs:
           STORYTREE_WINDOWS_RUN: ${{ steps.windows.outcome == 'success' && steps.evidence.outputs.run-url || '' }}
           STORYTREE_MACOS_EVIDENCE: ${{ steps.macos.outcome == 'success' && '.pgtest/macos-evidence' || '' }}
           STORYTREE_MACOS_RUN: ${{ steps.macos.outcome == 'success' && steps.evidence.outputs.run-url || '' }}
+          STORYTREE_JOB_PROOFS: ${{ steps.evidence.outputs.job-proofs }}
           # The health role's password, read only when connecting by address.
           PGPASSWORD: ${{ env.HEALTH_PG_ADDRESS != '' && secrets.HEALTH_PG_PASSWORD || '' }}

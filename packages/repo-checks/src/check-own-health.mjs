@@ -30,6 +30,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { factoryFolder, readLibrary } from "@storytree/project-and-caller";
 import { connect } from "@storytree/library";
 import { factoryArgument, recordFactory } from "./test-run/factory-run.mjs";
+import { jobProofsFrom } from "./test-run/job-proofs.mjs";
 import { checkStory } from "./test-run/record-run.mjs";
 import { markPending, parseJunit, readCiEvidence, recordingTarget } from "./test-run/test-run.mjs";
 
@@ -72,6 +73,9 @@ async function main({ factory } = {}) {
     readCiEvidence(process.env.STORYTREE_WINDOWS_EVIDENCE, { commit, run: process.env.STORYTREE_WINDOWS_RUN, platform: "win32" }),
     readCiEvidence(process.env.STORYTREE_MACOS_EVIDENCE, { commit, run: process.env.STORYTREE_MACOS_RUN, platform: "darwin" }),
   ];
+  // The verdicts of the workflow jobs that prove contracts no test run can, read by own-health.yml's first step.
+  const jobProofs = jobProofsFrom(process.env.STORYTREE_JOB_PROOFS);
+  for (const { package: name, contract, state } of jobProofs) console.log(`workflow job proof: ${name} ${contract} ${state}`);
   let where;
   if (target.library === "app") {
     console.log(`the app's library: ${home.pgdata}`);
@@ -102,7 +106,7 @@ async function main({ factory } = {}) {
       for (const story of stories) pending += (await markPending(library, story, target.writer, { root })).length;
       console.log(`marked ${pending} contracts pending: this run's numbered tests name them and their verified health is not yet passing`);
       for (const story of stories) {
-        if (!(await checkStory(library, story, target.writer, { root, evidence, runTests: runStoryTests }))) code = 1;
+        if (!(await checkStory(library, story, target.writer, { root, evidence, jobProofs, runTests: runStoryTests }))) code = 1;
       }
       return code;
     } finally {

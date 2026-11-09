@@ -109,6 +109,38 @@ Every command names the step it stopped at and why, then says to run the same co
 never replaces the user's projects or agent settings. Tell the user that message in plain words, fix what it
 names if the user agrees (or say what they must do), and run the command again.
 
+## If a Windows update never finishes
+
+An update from an older release can get stuck on Windows: the window says **Installing, please wait...**
+for hours and nothing moves. The update first checks that storytree is not running, and that check
+counts every program running from storytree's install folder (`%LOCALAPPDATA%\Programs\storytree-0.3` unless
+the user chose another), including the `node.exe` that the user's agent sessions run storytree's tools with.
+The check is a PowerShell command with no time limit, and on some computers it never returns. The user's
+projects, library and agent settings are not in the install folder, so these steps do not touch them. Take
+them in order, and stop as soon as the update finishes:
+
+1. **Close the agent sessions.** Close every Claude Code, Codex or other agent session that uses storytree's
+   tools. Then open Task Manager, go to **Details**, right-click a column heading, choose **Select columns**
+   and tick **Image path name**. End any `node.exe` still running from the install folder's
+   `resources\agent-tools`. Do this first: Windows cannot replace a program that is running, so the update
+   cannot finish while one is.
+2. **End the stuck check.** If the window still waits a minute later, the check itself is stuck. In the same
+   **Details** list, also tick **Command line**, and end each `powershell.exe` whose command line mentions
+   `Get-CimInstance` or `Get-ExecutionPolicy`: those are the update's own checks, and the user's own
+   PowerShell windows show neither. An ended check reads as "storytree is not running", so the update
+   carries on. If another such `powershell.exe` appears and stays, end it too.
+3. **Run the installer again.** If it still does not finish, or it says storytree could not be closed, end
+   the update in **Details**: `old-uninstaller.exe` and the `storytree-0.3-…-setup.exe` (only one storytree
+   setup can run at a time, so a new one starts only once this one is gone). With the agent sessions still
+   closed, download the installer for the computer (`windows-x64-setup.exe` for most PCs,
+   `windows-arm64-setup.exe` for ARM PCs) from the release the installation's channel follows (the build
+   the [stable channel's page](https://github.com/storytree-ai/storytree/tree/release-channel-stable) names,
+   or the newest of the [Releases](https://github.com/storytree-ai/storytree/releases) for alpha), and run
+   it. It keeps the installation's channel. Use the installer, not the one-line command: the command leaves
+   a complete installation as it is, so it would not finish the update.
+
+Once storytree opens on the new build, the agent sessions can be opened again.
+
 ## Once it is installed
 
 The command opens the app. **Help → First-run guide** in the app covers setup, connection checks, the

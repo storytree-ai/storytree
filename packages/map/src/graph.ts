@@ -29,6 +29,8 @@ export interface MapNode {
   readonly snapshot?: SnapshotOrigin;
   readonly changes?: readonly ChangeLabel[];
   readonly unresolved?: string;
+  /** A contract on an edge (ADR-1282 D1): the edge, and its capabilities, `from` depending on `to`. */
+  readonly onEdge?: { readonly id: string; readonly from: string; readonly to: string };
 }
 export interface MapEdge {
   readonly from: string;
@@ -96,6 +98,15 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
         const number = /^\s*(\d+\.\d+)\b/.exec(contract.title)?.[1];
         add({ id: contract.id, kind: "contract", title: contract.title, story: story.id, health: healthOf(contract.health, healthSource), ...(number === undefined ? {} : { number }) });
         edge(contract.id, cap.id, "belongs-to", "declared");
+      }
+    }
+    // An edge's contract belongs to both capabilities it joins, so a focus on either lists it beside its own.
+    for (const link of story.edges ?? []) {
+      for (const contract of link.contracts) {
+        const number = /^\s*(\d+\.\d+)\b/.exec(contract.title)?.[1];
+        add({ id: contract.id, kind: "contract", title: contract.title, story: story.id, health: healthOf(contract.health, healthSource), onEdge: { id: link.id, from: link.from, to: link.to }, ...(number === undefined ? {} : { number }) });
+        edge(contract.id, link.from, "belongs-to", "declared");
+        edge(contract.id, link.to, "belongs-to", "declared");
       }
     }
   }

@@ -877,7 +877,7 @@ test("17.23 · The open tool opens a contract on an edge whole, as it does a cap
   const opened = await open.act({ id: contract.id }, context, WORDS);
   assert.match(opened.text, /^Contract "The link reads the form's address"/);
   assert.match(opened.text, /It reads the address the form saved\./);
-  assert.match(opened.text, new RegExp(`It sits on the edge ${edge.id}: Capability "Link" \\(${link.id}\\) depends on Capability "Form" \\(${form.id}\\)\\.`));
+  assert.match(opened.text, new RegExp(`It sits on the edge ${edge.id}: Capability "${link.fields.title}" \\(${link.id}\\) depends on Capability "${form.fields.title}" \\(${form.id}\\)\\.`));
   assert.match(opened.text, /Health: verified not-checked, reported not-checked\./);
-  assert.deepEqual((opened.data as { contract: { edge: unknown } }).contract.edge, { id: edge.id, from: { id: link.id, title: "Link" }, to: { id: form.id, title: "Form" } });
+  assert.deepEqual((opened.data as { contract: { edge: unknown } }).contract.edge, { id: edge.id, from: { id: link.id, title: link.fields.title }, to: { id: form.id, title: form.fields.title } });
 });

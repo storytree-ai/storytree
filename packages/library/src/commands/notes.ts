@@ -9,7 +9,8 @@
  *   D7): a spine or title shown is a peek, an opened artifact is read whole. How it was found is how the session last
  *   saw it: in a search, on a shelf, or as a link from another artifact; an artifact opened without having been shown
  *   was found by its id. The record says what was reached, never what helped (ADR-0624 D3).
- * - A contract opens whole too: what it guarantees and the capability it belongs to. So does a question: its arc and state,
+ * - A contract opens whole too: what it guarantees and the capability it belongs to, or, on an edge, the edge, the two
+ *   capabilities it joins and its own health. So does a question: its arc and state,
  *   its wording and answer, and the open increments held on it. An arc is refused.
  * - An artifact is corrected in place through editNote (ADR-0641 D2 step 3): only the fields given change, and its
  *   old wording stays in its history.
@@ -59,6 +60,8 @@ export interface NoteToolContext extends VerbContext {
 type Findable = Note | SchemaRecord<"story" | "capability" | "contract">;
 type CapabilityNode = Awaited<ReturnType<Library["projectTree"]>>["stories"][number]["capabilities"][number];
 type ContractNode = CapabilityNode["contracts"][number];
+type EdgeNode = NonNullable<Awaited<ReturnType<Library["projectTree"]>>["stories"][number]["edges"]>[number];
+type EdgeContractNode = EdgeNode["contracts"][number];
 
 const NO_COMMAND = (instead: string) => ({ absent: `a person does this with \`storytree library ${instead}\`, which records no reads` });
 
@@ -186,6 +189,10 @@ async function openRecord(id: string, context: NoteToolContext): Promise<VerbAns
       const contract = capability.contracts.find((node) => node.id === id);
       if (contract !== undefined) return openContract(contract, capability);
     }
+    for (const edge of story.edges ?? []) {
+      const contract = edge.contracts.find((node) => node.id === id);
+      if (contract !== undefined) return openEdgeContract(contract, edge, story.capabilities);
+    }
   }
   const record = await library.get(id);
   if (record?.type === "question") return openQuestion(record as SchemaRecord<"question">, context);
@@ -249,6 +256,19 @@ function openContract(contract: ContractNode, capability: CapabilityNode): VerbA
   return {
     text: out.join("\n"),
     data: { contract: { id: contract.id, title: contract.title, ...(contract.description === undefined ? {} : { description: contract.description }), capability: { id: capability.id, title: capability.title } } },
+  };
+}
+
+/** A contract on an edge whole: its title, its description, the edge and the two capabilities it joins, and its own health. */
+function openEdgeContract(contract: EdgeContractNode, edge: EdgeNode, capabilities: readonly CapabilityNode[]): VerbAnswer {
+  const [from, to] = [edge.from, edge.to].map((cap) => ({ id: cap, title: capabilities.find((node) => node.id === cap)?.title ?? cap }));
+  const out = [`Contract ${quoted(contract.title)} (${contract.id}):`];
+  if (contract.description !== undefined) out.push(contract.description);
+  out.push(`It sits on the edge ${edge.id}: Capability ${quoted(from!.title)} (${from!.id}) depends on Capability ${quoted(to!.title)} (${to!.id}).`);
+  out.push(`Health: verified ${contract.health.verified.state}, reported ${contract.health.reported.state}.`);
+  return {
+    text: out.join("\n"),
+    data: { contract: { id: contract.id, title: contract.title, ...(contract.description === undefined ? {} : { description: contract.description }), edge: { id: edge.id, from, to }, health: contract.health } },
   };
 }
 

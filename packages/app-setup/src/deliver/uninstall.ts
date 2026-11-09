@@ -9,7 +9,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
-import { installedToolServerCommand, removeConnections, type RunHarness } from "../connect/index.js";
+import { installedToolServerCommand, removeConnections, type InstalledToolServerCommand, type RunHarness } from "../connect/index.js";
 import { locateApp, storytreeHome } from "@storytree/project-and-caller";
 import { watchedHarness } from "@storytree/project-and-caller/caller";
 import { toolPaths } from "./payload.js";
@@ -51,6 +51,14 @@ function ownsHome(installDir: string, home: string): boolean {
     const record = JSON.parse(readFileSync(path.join(home, "delivery.json"), "utf8"));
     return record?.schema === 1 && typeof record.installDir === "string" && same(record.installDir, installDir);
   } catch { return false; }
+}
+
+/** The tool server the delivery record names: on Windows a build's copy under the home (1.19). */
+function recordedTools(home: string): InstalledToolServerCommand | undefined {
+  try {
+    const record = JSON.parse(readFileSync(path.join(home, "delivery.json"), "utf8"));
+    return installedToolServerCommand(record.tools.node, record.tools.mcp);
+  } catch { return undefined; }
 }
 
 /** What the uninstaller should ask: whether to keep a local library, or nothing. */
@@ -160,8 +168,11 @@ async function removeInstallation(options: UninstallOptions): Promise<UninstallR
   const lines: string[] = [];
   let complete = true;
   const tools = toolPaths(options.installDir, options.platform);
+  // Where the home is this installation's, also what runs the build's copy its record names (1.19).
+  const recorded = ownsHome(options.installDir, options.home) ? recordedTools(options.home) : undefined;
   const connections = await removeConnections({
     installed: installedToolServerCommand(tools.node, tools.mcp),
+    ...(recorded === undefined ? {} : { also: [recorded] }),
     installDir: options.installDir,
     ...(options.userHome === undefined ? {} : { home: options.userHome }),
     ...(options.env === undefined ? {} : { env: options.env }),

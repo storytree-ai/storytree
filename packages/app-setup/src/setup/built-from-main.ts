@@ -42,8 +42,8 @@ export interface FollowMainOptions {
 /** How many builds are kept: a hook already running from an older one may still load its chunks. */
 const KEPT = 3;
 
-/** The hook script the app installs: it lives in the app's resources/agent-tools folder. */
-const APP_PAYLOAD = /[\\/]resources[\\/]agent-tools[\\/]/;
+/** The hook script the app installs: in the app's resources/agent-tools folder, or on Windows its build's copy in the home's app-tools (Get storytree 1.19). */
+const APP_PAYLOAD = /[\\/](resources[\\/]agent-tools|app-tools[\\/][^\\/]+)[\\/]/;
 
 /** The hook command built from `checkout`'s commit when it is origin/main's, building it if it is not built yet; otherwise undefined. */
 export async function builtFromMain(options: FollowMainOptions): Promise<HookCommand | undefined> {

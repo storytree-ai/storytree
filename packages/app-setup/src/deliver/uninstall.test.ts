@@ -122,6 +122,24 @@ test("1.8: uninstalling removes any registration that starts a tool server from 
   assert.ok(report.lines.some((line) => line.startsWith("Codex") && line.includes("removed")), report.lines.join("\n"));
 });
 
+test("1.8 / 1.19: uninstalling removes the registrations and hooks that run a build's copy of the tools under the home", async (t) => {
+  const m = await installedMachine(t);
+  const copy = path.join(m.home, "app-tools", "0123456789abcdef");
+  mkdirSync(copy, { recursive: true });
+  for (const file of ["node.exe", "storytree-mcp.mjs", "storytree-hook.mjs"]) writeFileSync(path.join(copy, file), "a build's copy");
+  const staged = installedToolServerCommand(path.join(copy, "node.exe"), path.join(copy, "storytree-mcp.mjs"));
+  writeFileSync(path.join(m.home, "delivery.json"), JSON.stringify({ schema: 1, installDir: m.installDir, tools: { dir: copy, node: staged.command, mcp: staged.args[0] } }));
+  const connected = await connectAgents({ harnesses: ["claude-code", "codex"], installed: staged, home: m.user, env: m.options.env, run });
+  assert.deepEqual(connected.map((result) => result.tools), ["connected", "connected"], connected.map((result) => result.next).join("\n"));
+
+  const report = await uninstall({ ...m.options, library: "remove" });
+  assert.equal(report.complete, true, report.lines.join("\n"));
+  assert.equal(JSON.parse(readFileSync(m.claudeFile, "utf8")).mcpServers.storytree, undefined);
+  assert.equal(readFileSync(path.join(m.codex, "config.toml"), "utf8"), '# the user\'s own\nmodel = "kept"\n');
+  assert.deepEqual(JSON.parse(readFileSync(path.join(m.claude, "settings.json"), "utf8")).hooks, { Stop: [{ hooks: [{ type: "command", command: "the user's own hook" }] }] });
+  assert.equal(existsSync(copy), false);
+});
+
 test("1.8: the uninstall's report is kept in a file that names what stayed and how to tell the removal is finished", async (t) => {
   const m = await installedMachine(t);
   const reportFile = path.join(m.user, "storytree-uninstall.txt");

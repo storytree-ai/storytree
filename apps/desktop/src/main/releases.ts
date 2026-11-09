@@ -5,7 +5,7 @@ import path from "node:path";
 import { app } from "electron";
 import { ReleaseUpdater, installation, releaseChannel, releaseChannelChoice, stableBuild, type InstallChoice, type Installation, type ReleaseOptions } from "@storytree/app";
 import { channelOffered, keepCheckingReleases, refreshAgentTools } from "@storytree/app/updates/follow-releases";
-import { refreshTools } from "@storytree/app-setup/deliver";
+import { followBuildTools, refreshTools } from "@storytree/app-setup/deliver";
 
 import { appHome } from "../home.js";
 import { releasesLog, waitingLine } from "./releases-log.js";
@@ -47,11 +47,13 @@ export function channelChoice(home: string, smoke: boolean) {
 export function followReleases(options: ReleaseOptions, home: string, choice: () => InstallChoice): ReleaseUpdater | undefined {
   const { followsReleases, markerFile } = thisInstallation();
   if (!followsReleases) return undefined;
-  // An installed Linux AppImage puts its own agent tools beside it, where the hooks run them (Get storytree 1.5; updates 4.31).
-  refreshAgentTools({
+  // An installed Linux AppImage puts its own agent tools beside it, where the hooks run them (Get storytree 1.5; updates 4.31);
+  // an installed Windows app points the agents at its build's copy under the home, out of the installation (1.20; updates 4.42).
+  void refreshAgentTools({
     platform: process.platform,
     appImage: process.env.APPIMAGE,
     refresh: (folder) => refreshTools(folder, path.join(process.resourcesPath, "agent-tools")),
+    follow: () => followBuildTools({ installDir: path.dirname(process.execPath), home, arch: process.arch === "arm64" ? "arm64" : "x64", searchPath: process.env.PATH ?? "" }),
     log: console,
   });
 

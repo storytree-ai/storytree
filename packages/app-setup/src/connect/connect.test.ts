@@ -452,6 +452,38 @@ test("2.5 a disconnected harness stays disconnected: the other harness's next se
   assert.equal(existsSync(codexHooks), true, "connected again, Codex gets its hooks at the next check");
 });
 
+test("2.26 connect rewrites a registration that runs another copy of storytree's installed tools to this one's, and still refuses one that is not a copy", async (t) => {
+  const f = fixture(t);
+  // Two builds' tools, each its node beside its storytree-mcp.mjs, as each build's copy under the home on Windows.
+  const copy = (build: string) => {
+    const dir = path.join(f.home, "app-tools", build);
+    mkdirSync(dir, { recursive: true });
+    for (const file of ["node.exe", "storytree-mcp.mjs"]) writeFileSync(path.join(dir, file), build);
+    return installedToolServerCommand(path.join(dir, "node.exe"), path.join(dir, "storytree-mcp.mjs"));
+  };
+  const older = copy("older"), newer = copy("newer");
+  const original = { theme: "dark", mcpServers: { other: { command: "kept" } } };
+  writeFileSync(f.claudeFile, JSON.stringify(original));
+  const harnesses = ["claude-code", "codex"] as const;
+  assert.deepEqual((await connectAgents({ ...f.options, installed: older, harnesses })).map((r) => r.tools), ["connected", "connected"]);
+  const results = await connectAgents({ ...f.options, installed: newer, harnesses });
+  assert.deepEqual(results.map((r) => r.tools), ["connected", "connected"], results.map((r) => r.next).join("\n"));
+  const claude = JSON.parse(readFileSync(f.claudeFile, "utf8"));
+  assert.deepEqual(claude.mcpServers.storytree, { type: "stdio", command: newer.command, args: [...newer.args], env: {} });
+  assert.deepEqual(claude.mcpServers.other, original.mcpServers.other);
+  const codex = readFileSync(f.codexFile, "utf8");
+  assert.equal(codex.split("[mcp_servers.storytree]").length, 2, codex);
+  assert.ok(codex.includes(`command = ${JSON.stringify(newer.command)}`), codex);
+  assert.deepEqual((await connectAgents({ ...f.options, installed: newer, harnesses })).map((r) => r.tools), ["already connected", "already connected"]);
+
+  // A node that is not beside its tool server (a source build's, say) is not a copy of the installed tools: kept, and named.
+  const elsewhere = { mcpServers: { storytree: { type: "stdio", command: process.execPath, args: [older.args[0]], env: {} } } };
+  writeFileSync(f.claudeFile, JSON.stringify(elsewhere));
+  const [kept] = await connectAgents({ ...f.options, installed: newer, harnesses: ["claude-code"] });
+  assert.equal(kept!.tools, "not connected");
+  assert.deepEqual(JSON.parse(readFileSync(f.claudeFile, "utf8")), elsewhere);
+});
+
 test("2.3 incompatible Codex command and disabled tools are explained without overwriting", async (t) => {
   const f = fixture(t);
   const original = `${legacy}\n[mcp_servers.storytree]\ncommand = "storytree-02"\nargs = []\n`;

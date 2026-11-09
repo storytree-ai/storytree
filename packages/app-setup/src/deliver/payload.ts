@@ -122,15 +122,16 @@ export function stageTools(installDir: string, home: string, arch: Architecture,
  * Every copy under the home's app-tools but `keep` goes once no process runs it (contract 1.21). Its node goes first:
  * Windows refuses to delete a node.exe a session or hook still runs, though it lets the folder holding it be moved, so
  * a copy whose node stays keeps every file and is tried again at the next start, and one whose node went can start
- * nothing more. Another start's copy still being made (`.next-`) is left alone.
+ * nothing more. Another start's copy still being made (`.next-`) is left alone, and so is one whose folder name
+ * `named` finds in an agent's registration or hooks (an agent the start could not re-point, 1.20).
  */
-export function clearOlderTools(home: string, keep: string, remove: (file: string) => void = (file) => rmSync(file, { force: true })): void {
+export function clearOlderTools(home: string, keep: string, remove: (file: string) => void = (file) => rmSync(file, { force: true }), named: (name: string) => boolean = () => false): void {
   const root = path.join(home, "app-tools");
   let names: string[];
   try { names = readdirSync(root); } catch { return; }
   for (const name of names) {
     const dir = path.join(root, name);
-    if (dir === keep || /\.next-\d+$/.test(name)) continue;
+    if (dir === keep || /\.next-\d+$/.test(name) || named(name)) continue;
     try {
       for (const node of ["node.exe", "node"]) remove(path.join(dir, node));
       rmSync(dir, { recursive: true, force: true });

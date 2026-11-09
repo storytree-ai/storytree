@@ -135,7 +135,7 @@ test("1.20 on Windows, the installed app's start points the record, the connecte
     writeFileSync(recordFile, JSON.stringify({ schema: 1, installDir: path.resolve(f.install), tools: f.tools }));
     await connectAgents({ harnesses: ["claude-code"], installed: installedToolServerCommand(f.tools.node, f.tools.mcp), ...connections });
 
-    assert.equal(await followBuildTools(options), true);
+    assert.deepEqual(await followBuildTools(options), { moved: ["Claude Code"], notMoved: [] });
     const record = JSON.parse(readFileSync(recordFile, "utf8"));
     assert.equal(path.dirname(record.tools.dir), path.join(f.home, "app-tools"));
     assert.equal(readFileSync(record.tools.mcp, "utf8"), "a runnable fixture");
@@ -147,11 +147,46 @@ test("1.20 on Windows, the installed app's start points the record, the connecte
     assert.ok(existsSync(path.join(f.home, "bin", "storytree.exe")));
     if (process.platform === "win32") assert.deepEqual(launcherRuns(path.join(f.home, "bin", "storytree.exe")), { node: record.tools.node, target: record.tools.cli });
 
-    assert.equal(await followBuildTools(options), false, "a start on the same build changes nothing");
+    assert.equal(await followBuildTools(options), undefined, "a start on the same build changes nothing");
     const elsewhere = JSON.stringify({ schema: 1, installDir: path.join(f.dir, "another"), tools: f.tools });
     writeFileSync(recordFile, elsewhere);
-    assert.equal(await followBuildTools(options), false);
+    assert.equal(await followBuildTools(options), undefined);
     assert.equal(readFileSync(recordFile, "utf8"), elsewhere);
+  } finally { f.close(); }
+});
+
+test("1.20 on Windows, an agent the start could not point at its build's copy is said with why, keeps its copy, and is pointed again at the next start", async () => {
+  const f = fixture();
+  const user = path.join(f.dir, "user");
+  mkdirSync(path.join(user, ".claude"), { recursive: true });
+  // The app started where Claude Code is not on the PATH, as from Explorer before it was installed.
+  let found = true;
+  const run: RunHarness = async (_executable, args) => { if (args[0] === "--version" && found) return "a harness"; throw new Error("claude is not recognized"); };
+  const connections = { home: user, env: { PATH: "", STORYTREE_HOME: f.home }, run };
+  const options = { installDir: f.install, home: f.home, arch: "arm64" as const, platform: "win32" as const, searchPath: "", connections };
+  const registration = () => JSON.parse(readFileSync(path.join(user, ".claude.json"), "utf8")).mcpServers.storytree.args[0];
+  try {
+    const older = (await finishDelivery(options, { launch: async () => {}, waitForApp: async () => {} })).tools;
+    await connectAgents({ harnesses: ["claude-code"], installed: installedToolServerCommand(older.node, older.mcp), ...connections });
+
+    // An update whose start cannot find Claude Code.
+    writeFileSync(f.tools.cli, "the next build");
+    writePayloadManifest(f.tools.dir, "arm64", "24.21.0");
+    found = false;
+    const failed = await followBuildTools(options);
+    assert.deepEqual(failed?.moved, []);
+    assert.deepEqual(failed?.notMoved.map((agent) => agent.agent), ["Claude Code"]);
+    assert.match(failed!.notMoved[0]!.reason, /claude --version/);
+    assert.equal(registration(), older.mcp, "Claude Code still runs the older copy");
+    assert.ok(existsSync(older.mcp), "so that copy is kept, though no process runs it");
+
+    // The next start, with Claude Code found, points it at this build's copy and clears the older one.
+    found = true;
+    const current = JSON.parse(readFileSync(path.join(f.home, "delivery.json"), "utf8")).tools;
+    assert.deepEqual(await followBuildTools(options), { moved: ["Claude Code"], notMoved: [] });
+    assert.equal(registration(), current.mcp);
+    assert.equal(existsSync(older.dir), false);
+    assert.equal(await followBuildTools(options), undefined, "and once every agent has moved, a start changes nothing");
   } finally { f.close(); }
 });
 
@@ -191,7 +226,7 @@ test("1.21 on Windows, the installed app's start removes older builds' copies no
     // An update: the app's start follows its new build, clears what no session runs, and leaves the running copy whole.
     writeFileSync(f.tools.cli, "the next build");
     writePayloadManifest(f.tools.dir, "arm64", "24.21.0");
-    assert.equal(await followBuildTools(options), true);
+    assert.deepEqual(await followBuildTools(options), { moved: [], notMoved: [] });
     const current = JSON.parse(readFileSync(path.join(f.home, "delivery.json"), "utf8")).tools.dir;
     assert.deepEqual(readdirSync(copies).sort(), [path.basename(older), path.basename(current), copying].sort());
     assert.ok(existsSync(path.join(older, "storytree-hook.mjs")), "the copy a session runs keeps every file");
@@ -199,7 +234,7 @@ test("1.21 on Windows, the installed app's start removes older builds' copies no
     // Once that session has ended, the next start removes its copy too.
     if (session) { const ended = new Promise((resolve) => session!.once("exit", resolve)); session.kill(); await ended; session = undefined; }
     running = undefined;
-    assert.equal(await followBuildTools(options), false);
+    assert.equal(await followBuildTools(options), undefined);
     // Windows can hold an ended process's executable a moment longer; a later start would find it free.
     for (let start = 0; start < 20 && readdirSync(copies).length > 2; start++) {
       await new Promise((resolve) => setTimeout(resolve, 250));

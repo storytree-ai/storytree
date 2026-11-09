@@ -32,19 +32,25 @@ export function keepCheckingReleases({ updater, log, waiting, every = RELEASE_CH
 /**
  * An installed Linux AppImage that replaced itself puts its own agent tools beside it, where the hooks run them (4.31);
  * an installed Windows app points the agents at its own build's copy of the tools under the home, so none runs from the
- * installation the next update replaces (4.42). `refresh` copies this build's tools into a folder and `follow` re-points
- * the agents, each saying whether it changed anything; one that fails is said, and the app starts all the same.
+ * installation the next update replaces (4.42). `refresh` copies this build's tools into a folder, saying whether it changed
+ * anything, and `follow` re-points the agents, saying which moved and which could not and why; one that fails is said,
+ * and the app starts all the same.
  */
 export async function refreshAgentTools({ platform, appImage, refresh, follow, log }: {
   platform: NodeJS.Platform;
   appImage: string | undefined;
   refresh: (folder: string) => boolean;
-  follow?: () => Promise<boolean>;
+  follow?: () => Promise<{ readonly moved: readonly string[]; readonly notMoved: readonly { readonly agent: string; readonly reason: string }[] } | undefined>;
   log: { log(line: string): void; error(line: string): void };
 }): Promise<void> {
   if (platform === "win32" && follow !== undefined) {
     try {
-      if (await follow()) log.log("Agent tools now run from this build's copy");
+      const followed = await follow();
+      if (followed !== undefined && followed.moved.length > 0) {
+        const names = followed.moved.length === 1 ? followed.moved[0] : `${followed.moved.slice(0, -1).join(", ")} and ${followed.moved.at(-1)}`;
+        log.log(`${names} now ${followed.moved.length === 1 ? "runs" : "run"} this build's copy of the agent tools`);
+      }
+      for (const { agent, reason } of followed?.notMoved ?? []) log.error(`${agent} still runs an older copy of the agent tools, tried again at the next start: ${reason}`);
     } catch (error) { log.error(`Agent tools could not be pointed at this build's: ${error instanceof Error ? error.message : String(error)}`); }
     return;
   }

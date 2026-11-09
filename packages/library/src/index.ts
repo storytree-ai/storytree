@@ -18,7 +18,7 @@ export { knowledgeGuidance, LinkLoopError, referenceEdgesOf, SupersessionLoopErr
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
 export type { Counts, KindCount, RecentChange, TitleHit } from "./data/data-questions.js";
-export { ANCHOR_ID, anchorGaps, beforeCutover, CONTRACT_DEFINITION, LifecycleError, LONG_CONTRACT_TITLE, planGuidance, pullSaid, RetireRefusedError, WaitLoopError } from "./work/index.js";
+export { ANCHOR_ID, anchorGaps, beforeCutover, CONTRACT_DEFINITION, CONTRACT_PLACEMENT, LifecycleError, LONG_CONTRACT_TITLE, planGuidance, pullSaid, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, NEW_LINE, OWNER_TIME_ZONE, parseSchedule, pluginSchema, SchemaError, UnknownTypeError } from "./schema/index.js";
 
 export type { Agent, CodeEdge, EdgeFile, FieldsOf, FileImport, KnowledgeKind, Line, LineKind, LinesSince, NewLine, PluginRecordKind, PluginUpgradeStep, Precheck, RecordType, ScheduleRule, SchemaRecord, StorySurvey, SurveyedFile, SurveyedTest, WriteOptions } from "./schema/index.js";

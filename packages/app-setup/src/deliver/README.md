@@ -21,8 +21,10 @@ running from the installation holds it, and the installer's check waits on it. `
 verified payload to `<STORYTREE_HOME>/app-tools/<build>/`, one folder per build named for its
 `payload.json`, and records that copy; the installed app's start does the same for its own build and,
 when the record names this installation but other tools, points the record, the connected agents'
-registrations and hooks and the `storytree` command at its copy (`followBuildTools`, 1.20). An older
-build's copy stays whole while a session still runs it; clearing old copies is a later increment.
+registrations and hooks and the `storytree` command at its copy (`followBuildTools`, 1.20). Each start
+then removes every other copy no process runs (`clearOlderTools`, 1.21): a copy's node.exe is deleted
+before the rest of it, and Windows refuses that while a session's node.exe runs from it (though it
+lets the folder be moved), so that copy stays whole until a later start. Uninstall's removal of the home reports such a copy as in use.
 
 After verifying the payload, delivery starts the app executable **even if its database is
 already running**. The existing desktop second-instance handler restores a hidden window.

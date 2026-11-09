@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -153,6 +153,64 @@ test("1.20 on Windows, the installed app's start points the record, the connecte
     assert.equal(await followBuildTools(options), false);
     assert.equal(readFileSync(recordFile, "utf8"), elsewhere);
   } finally { f.close(); }
+});
+
+test("1.21 on Windows, the installed app's start removes older builds' copies no session runs, and keeps one a session runs until it ends", async () => {
+  const f = fixture();
+  const user = path.join(f.dir, "user");
+  mkdirSync(path.join(user, ".claude"), { recursive: true });
+  const run: RunHarness = async (_executable, args) => { if (args[0] === "--version") return "a harness"; throw new Error(`unexpected ${args.join(" ")}`); };
+  const connections = { home: user, env: { PATH: "", STORYTREE_HOME: f.home }, run };
+  const copies = path.join(f.home, "app-tools");
+  let session: ReturnType<typeof spawn> | undefined;
+  let running: string | undefined;
+  // On Windows a real node.exe runs from the copy, which Windows refuses to delete; elsewhere deleting it is refused as Windows would.
+  const remove = process.platform === "win32" ? undefined : (file: string) => {
+    if (path.dirname(file) === running) throw Object.assign(new Error(`EPERM: operation not permitted, unlink '${file}'`), { code: "EPERM" });
+    rmSync(file, { force: true });
+  };
+  const options = { installDir: f.install, home: f.home, arch: "arm64" as const, platform: "win32" as const, searchPath: "", connections, ...(remove ? { remove } : {}) };
+  try {
+    const older = (await finishDelivery(options, { launch: async () => {}, waitForApp: async () => {} })).tools.dir;
+    // A copy left by a build before it, which no session runs any more.
+    const stale = path.join(copies, "fedcba9876543210");
+    mkdirSync(stale);
+    writeFileSync(path.join(stale, "node.exe"), "an older build's");
+    // One an earlier start moved aside and could not finish deleting, and one another start is still copying in.
+    mkdirSync(path.join(copies, "0011223344556677.old-123"));
+    const copying = "8899aabbccddeeff.next-456";
+    mkdirSync(path.join(copies, copying));
+    // A session still runs the older build's tools.
+    running = older;
+    if (process.platform === "win32") {
+      copyFileSync(process.execPath, path.join(older, "node.exe"));
+      session = spawn(path.join(older, "node.exe"), ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
+      await new Promise((resolve, reject) => { session!.once("spawn", resolve); session!.once("error", reject); });
+    }
+
+    // An update: the app's start follows its new build, clears what no session runs, and leaves the running copy whole.
+    writeFileSync(f.tools.cli, "the next build");
+    writePayloadManifest(f.tools.dir, "arm64", "24.21.0");
+    assert.equal(await followBuildTools(options), true);
+    const current = JSON.parse(readFileSync(path.join(f.home, "delivery.json"), "utf8")).tools.dir;
+    assert.deepEqual(readdirSync(copies).sort(), [path.basename(older), path.basename(current), copying].sort());
+    assert.ok(existsSync(path.join(older, "storytree-hook.mjs")), "the copy a session runs keeps every file");
+
+    // Once that session has ended, the next start removes its copy too.
+    if (session) { const ended = new Promise((resolve) => session!.once("exit", resolve)); session.kill(); await ended; session = undefined; }
+    running = undefined;
+    assert.equal(await followBuildTools(options), false);
+    // Windows can hold an ended process's executable a moment longer; a later start would find it free.
+    for (let start = 0; start < 20 && readdirSync(copies).length > 2; start++) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await followBuildTools(options);
+    }
+    assert.deepEqual(readdirSync(copies).sort(), [path.basename(current), copying].sort());
+  } finally {
+    // A session still running holds its copy, and Windows refuses to delete the fixture under it.
+    if (session) { const ended = new Promise((resolve) => session!.once("exit", resolve)); session.kill(); await ended; }
+    rmSync(f.dir, { recursive: true, force: true, maxRetries: 10 });
+  }
 });
 
 test("1.4: failure to launch or reach the app never publishes a successful installation over the last usable record", async () => {

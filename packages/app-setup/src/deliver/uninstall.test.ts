@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -25,7 +25,7 @@ const run: RunHarness = async (_executable, args, options) => {
 /** A first user's machine after the one-liner: app, home, command, both agents connected, a project. */
 async function installedMachine(t: { after(fn: () => void): void }) {
   const user = mkdtempSync(path.join(tmpdir(), "storytree uninstall "));
-  t.after(() => rmSync(user, { recursive: true, force: true }));
+  t.after(() => rmSync(user, { recursive: true, force: true, maxRetries: 10 }));
   const installDir = path.join(user, "AppData", "Local", "Programs", "storytree-0.3");
   const localAppData = path.join(user, "AppData", "Local");
   const home = path.join(user, ".storytree", "0.3");
@@ -138,6 +138,26 @@ test("1.8 / 1.19: uninstalling removes the registrations and hooks that run a bu
   assert.equal(readFileSync(path.join(m.codex, "config.toml"), "utf8"), '# the user\'s own\nmodel = "kept"\n');
   assert.deepEqual(JSON.parse(readFileSync(path.join(m.claude, "settings.json"), "utf8")).hooks, { Stop: [{ hooks: [{ type: "command", command: "the user's own hook" }] }] });
   assert.equal(existsSync(copy), false);
+});
+
+test("1.8 / 1.21: uninstalling while a session still runs a build's copy of the tools reports what stayed instead of failing", {
+  skip: process.platform !== "win32" && "platform:win32: only Windows refuses to delete a running node.exe; Windows CI runs this proof",
+}, async (t) => {
+  const m = await installedMachine(t);
+  const copy = path.join(m.home, "app-tools", "0123456789abcdef");
+  mkdirSync(copy, { recursive: true });
+  copyFileSync(process.execPath, path.join(copy, "node.exe"));
+  const session = spawn(path.join(copy, "node.exe"), ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
+  const ended = new Promise((resolve) => session.once("exit", resolve));
+  // The session ends inside the test: the machine's own clean-up runs first and could not delete a running copy.
+  try {
+    await new Promise((resolve, reject) => { session.once("spawn", resolve); session.once("error", reject); });
+
+    const report = await uninstall({ ...m.options, library: "remove" });
+    assert.equal(report.complete, false);
+    assert.ok(report.lines.some((line) => line.includes(m.home) && line.includes("in use")), report.lines.join("\n"));
+    assert.ok(existsSync(path.join(copy, "node.exe")), "the running copy stayed");
+  } finally { session.kill(); await ended; }
 });
 
 test("1.8: the uninstall's report is kept in a file that names what stayed and how to tell the removal is finished", async (t) => {

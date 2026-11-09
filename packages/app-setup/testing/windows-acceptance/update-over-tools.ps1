@@ -140,8 +140,13 @@ if (-not $From -or -not $candidate) {
 $installed = Step 'install-from' {
   $script = "`$ProgressPreference = 'SilentlyContinue'; `$env:STORYTREE_ACCEPTANCE_VERSION = '$From'; & ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/$repo/releases/download/v$From/install-storytree.ps1')))"
   $log = Join-Path $Out 'install-from.txt'
-  $process = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $script) -RedirectStandardOutput $log -RedirectStandardError "$log.err" -PassThru -NoNewWindow
-  $null = $process.Handle
+  # Started from PowerShell 7, Windows PowerShell would inherit its module path and find no Get-FileHash.
+  $modules = $env:PSModulePath
+  $env:PSModulePath = [Environment]::GetEnvironmentVariable('PSModulePath', 'Machine')
+  try {
+    $process = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $script) -RedirectStandardOutput $log -RedirectStandardError "$log.err" -PassThru -NoNewWindow
+    $null = $process.Handle
+  } finally { $env:PSModulePath = $modules }
   if (-not $process.WaitForExit(900000)) { $process.Kill($true); throw 'the one-liner did not finish within 15 minutes' }
   if ($process.ExitCode -ne 0) { throw "the one-liner exited $($process.ExitCode)" }
   $version = (Get-Item -LiteralPath $appExe).VersionInfo.FileVersion

@@ -1457,3 +1457,34 @@ test("9.31 · plan_contract given an open increment adds the new contract to tha
     });
   });
 });
+
+test("9.32 · edit_plan moving a contract to another capability says when its number changed, from what to what, and that its tests' titles take the new number; held, it says the number changes on apply", async () => {
+  await withProject(async ({ folder, library }) => {
+    git(folder, "init", "-b", "claude/context-service"); // a claim on a branch holds a change until it merges
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Context service", ...FOUNDED }));
+      const arc = idOf(await agent.call("plan_arc", { title: "Launch v1", intent: "Ship it", end_state: "It serves", stories: [story] }));
+      const retrieval = idOf(await agent.call("plan_capability", { story, title: "Retrieval", ...FOUNDED }));
+      const api = idOf(await agent.call("plan_capability", { story, title: "Context API", ...FOUNDED }));
+      const src = path.join(folder, "packages/context-service/src");
+      mkdirSync(src, { recursive: true });
+      writeFileSync(path.join(folder, "packages/context-service/package.json"), JSON.stringify({ name: "context-service" }));
+      writeFileSync(path.join(src, "retrieval.test.js"), 'import { test } from "node:test";\ntest("1.1 finds a matter\'s documents", () => {});\n');
+      const ranked = idOf(await agent.call("plan_contract", { capability: api, title: "Ranks by recency" }));
+      const cited = idOf(await agent.call("plan_contract", { capability: api, title: "Cites its sources" }));
+
+      const moved = await agent.call("edit_plan", { id: ranked, capability: retrieval });
+      assert.equal(moved.isError, false, moved.text);
+      assert.match(moved.text, /Corrected contract "1\.2 · Ranks by recency"/, "past the Retrieval's numbered test");
+      assert.match(moved.text, /Renumbered 2\.1 to 1\.2: rename its tests' titles to 1\.2/, moved.text);
+      assert.doesNotMatch((await agent.call("edit_plan", { id: ranked, description: "Newest first" })).text, /Renumbered/, "an edit that moves nothing says nothing of a number");
+
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Citations move", objective: "Move them", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "moving citations" })).isError, false);
+      const held = await agent.call("edit_plan", { id: cited, capability: retrieval });
+      assert.match(held.text, new RegExp(`pending on increment ${increment}`), held.text);
+      assert.match(held.text, /Its number 2\.2 is not its new capability's, so it takes that capability's next free number when the change applies/, held.text);
+      assert.equal(((await library.get(cited))?.fields as { title: string }).title, "2.2 · Cites its sources", "the live contract is left alone until it applies");
+    });
+  });
+});

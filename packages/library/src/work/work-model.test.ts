@@ -989,6 +989,23 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(merged.stood, []);
     assert.equal(((await records.get(contract))?.fields as { description?: string } | undefined)?.description, "A path it never serves.");
   });
+
+  contract("4.45", "a contract moved to a numbered capability whose number its old one's prefix is not takes the new capability's next free number, past its contracts and tests; one given a title, or moved within its prefix, keeps its own", async ({ work }) => {
+    const story = await work.addStory({ title: "Context service" });
+    const retrieval = await work.addCapability({ title: "3 · Retrieval", story: story.id });
+    const api = await work.addCapability({ title: "5 · Context API", story: story.id });
+    await work.addContract({ title: "Finds a matter's documents", capability: retrieval.id });
+    const ranked = await work.addContract({ title: "Ranks by recency", capability: api.id });
+    const cited = await work.addContract({ title: "Cites its sources", capability: api.id });
+    const named = await work.addContract({ title: "Names its matter", capability: api.id });
+    const titleOf = (record: SchemaRecord<"contract"> | null) => record?.fields.title;
+
+    assert.equal(titleOf(await work.editContract(ranked.id, { capability: retrieval.id }, { testedNumbers: ["3.2"] })), "3.3 · Ranks by recency", "past the new capability's contracts and its tests");
+    assert.equal(titleOf(await work.editContract(cited.id, { capability: retrieval.id })), "3.4 · Cites its sources", "the next after one moved in");
+    assert.equal(titleOf(await work.editContract(named.id, { capability: retrieval.id, title: "5.3 · Names its matter" })), "5.3 · Names its matter", "a title given is kept");
+    const stray = await work.addContract({ title: "3.9 · Reads a matter's notes", capability: api.id });
+    assert.equal(titleOf(await work.editContract(stray.id, { capability: retrieval.id })), "3.9 · Reads a matter's notes", "one already numbered for its new capability keeps its number");
+  });
 }
 
 /**

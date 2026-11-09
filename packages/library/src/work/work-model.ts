@@ -610,10 +610,13 @@ export class WorkModel {
   /**
    * Change only the named fields of a contract, as capability 3's edit does. A new capability is
    * checked as addContract checks it, and a title or capability that would leave its number carried
-   * by another live contract of the capability is refused as addContract refuses it. Returns null,
-   * and writes nothing, if `id` is not a live contract.
+   * by another live contract of the capability is refused as addContract refuses it. A contract moved,
+   * with no title given, to a numbered capability its number's leading part is not, takes that
+   * capability's next free number as addContract gives it, past `testedNumbers`, so its number says
+   * where it is; the rest of its title is kept. Returns null, and writes nothing, if `id` is not a live contract.
    */
-  editContract(id: string, fields: ContractEdit, options?: WriteOptions): Promise<SchemaRecord<"contract"> | null> {
+  editContract(id: string, fields: ContractEdit, options?: ContractWriteOptions): Promise<SchemaRecord<"contract"> | null> {
+    const { testedNumbers: tested = [], ...write } = options ?? {};
     return this.#serially(async () => {
       const own = (await liveRecord(this.#records, id, ["contract"])) as SchemaRecord<"contract"> | null;
       if (own === null) return null;
@@ -622,6 +625,8 @@ export class WorkModel {
       await checkReference(this.#records, "edge", fields.edge, "edge");
       // A contract moved onto an edge leaves its capability, and one moved onto a capability its edge (ADR-1282 D1).
       const owner: ContractEdit = fields.edge !== undefined && !("capability" in fields) ? { capability: undefined } : fields.capability !== undefined && !("edge" in fields) ? { edge: undefined } : {};
+      const renumbered = fields.title === undefined && fields.capability !== undefined && fields.capability !== own.fields.capability ? await this.#movedTitle(own.fields.title, fields.capability, tested) : undefined;
+      if (renumbered !== undefined) fields = { ...fields, title: renumbered };
       const after = { ...own.fields, ...fields, ...owner };
       if (fields.title !== undefined || fields.capability !== undefined || fields.edge !== undefined) {
         const title = after.title;
@@ -629,8 +634,20 @@ export class WorkModel {
         else if (typeof title === "string" && couldBeId(after.capability)) await this.#refuseTakenNumber(title, after.capability, id);
       }
       const edit = { ...fields, ...owner, ...(typeof fields.title === "string" ? { title: separated(fields.title) } : {}) };
-      return (await this.#records.edit(id, edit, options)) as SchemaRecord<"contract"> | null;
+      return (await this.#records.edit(id, edit, write)) as SchemaRecord<"contract"> | null;
     });
+  }
+
+  /**
+   * `title`, a contract's, as it carries it moved onto `capability`: given the capability's next free number in place of
+   * its own when its number's leading part is not the capability's; undefined, kept as it is, otherwise, or when either
+   * has no number.
+   */
+  async #movedTitle(title: string, capability: string, tested: readonly string[]): Promise<string | undefined> {
+    const number = contractNumber(title);
+    const prefix = /^(\d+) · /.exec((await this.#titleOf(capability)) ?? "")?.[1];
+    if (number === undefined || prefix === undefined || number.startsWith(`${prefix}.`)) return undefined;
+    return this.#numbered(title.slice(number.length).replace(/^\s*·?\s*/, ""), capability, tested);
   }
 
   /**

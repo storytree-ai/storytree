@@ -101,7 +101,7 @@ export type Owner = { capability: string; contract: string };
 
 /** 4 · Drill-down, 4.16: opening an island, closing its panel, and clicking a fold's handle on it. */
 const DRILL_DOWN: Owner = { capability: "capability_f0ffead428df", contract: "contract_f93fcab7b3c3" };
-/** 4 · Drill-down, 4.44: opening a fold in the panel, and a contract inside Contracts kept open through news. */
+/** 4 · Drill-down, 4.44: opening a fold in the panel, and a contract opened kept open through news. */
 const PANEL_FOLDS: Owner = { capability: "capability_f0ffead428df", contract: "contract_e2f4b79c7350" };
 /** 3 · Story node render, 3.47: the Library and back, and a sweep across the globe. */
 const STORY_NODE_RENDER: Owner = { capability: "capability_8ffc78a4bad2", contract: "contract_c1a39674d85d" };
@@ -127,7 +127,9 @@ export const NAMED_STORY = "The library";
 
 /** The library's island selected and its panel open, still. */
 const NAMED_OPEN: Step[] = [{ kind: "island", island: { story: NAMED_STORY } }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }];
-const CONTRACTS = ".story-panel .panel-fold[data-fold=contracts] > .panel-handle";
+/** The library's first capability picked by its name on the story's panel (ADR-1297), drawn afresh with every fold shut: its contracts listed. */
+const NAMED_CAPABILITY: Step[] = [...NAMED_OPEN, { kind: "click", selector: ".story-panel .panel-pick" }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }];
+const CONTRACT = ".story-panel .panel-fold[data-fold=contract] > .panel-handle";
 
 export const CATALOGUE: readonly LagAction[] = [
   openIsland("open-fewest-island", "fewest"),
@@ -140,18 +142,16 @@ export const CATALOGUE: readonly LagAction[] = [
     limitMs: 60_000, owner: OPENING_THE_APP },
   { name: "close-panel", setup: [...RESET, { kind: "island", island: "most" }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }],
     perform: [{ kind: "click", selector: ".story-panel .panel-close" }], settled: { selected: "none", panel: "closed" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "close-panel", owner: DRILL_DOWN },
-  // One click on the first fold's handle of the library's panel opens or closes it (ADR-1287), as the user's kept folds leave it. The
-  // page shows no fold's state to settle on, so the click's answer and frames are read, and the field recorder files none.
-  { name: "click-fold", setup: [...RESET, { kind: "island", island: { story: NAMED_STORY } }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }],
+  // One click on the first fold's handle of the library's first capability's panel opens or closes it (ADR-1287), as the user's kept
+  // folds leave it. The page shows no fold's state to settle on, so the click's answer and frames are read, and the field recorder files none.
+  { name: "click-fold", setup: [...RESET, ...NAMED_CAPABILITY],
     perform: [{ kind: "click", selector: ".story-panel [data-fold] > .panel-handle" }], settled: { panel: "open" }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: DRILL_DOWN },
-  // Opening Contracts on the library's panel. Contracts is a kind the panel keeps open, so the setup shuts it (which stops keeping it)
-  // and draws the panel again, shut.
-  { name: "open-fold", setup: [...RESET, ...NAMED_OPEN, { kind: "click", selector: `${CONTRACTS}[aria-expanded=true]`, optional: true },
-    { kind: "click", selector: ".story-panel .panel-close" }, ...RESET, ...NAMED_OPEN],
-    perform: [{ kind: "click", selector: CONTRACTS }], settled: { fold: "contracts" }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: PANEL_FOLDS },
-  // Opening a contract inside Contracts, which must still be open once library news has arrived: a panel drawn again on news loses it.
-  { name: "open-contract", setup: [...RESET, ...NAMED_OPEN, { kind: "click", selector: `${CONTRACTS}[aria-expanded=false]`, optional: true }],
-    perform: [{ kind: "click", selector: ".story-panel .panel-fold[data-fold=contract] > .panel-handle" }], settled: { fold: "contract" }, budget: DEFAULT_BUDGET,
+  // Opening a contract on the library's first capability's panel. A contract's fold is never kept, so the panel drawn afresh has it shut.
+  { name: "open-fold", setup: [...RESET, ...NAMED_CAPABILITY],
+    perform: [{ kind: "click", selector: CONTRACT }], settled: { fold: "contract" }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: PANEL_FOLDS },
+  // The same contract opened, which must still be open once library news has arrived: a panel drawn again on news loses it.
+  { name: "open-contract", setup: [...RESET, ...NAMED_CAPABILITY],
+    perform: [{ kind: "click", selector: CONTRACT }], settled: { fold: "contract" }, budget: DEFAULT_BUDGET,
     limitMs: 10_000, keptThroughNews: true, owner: PANEL_FOLDS },
   { name: "library-and-back", setup: RESET,
     perform: [{ kind: "click", selector: "[data-globe-switch=library]" }, { kind: "wait", until: { mode: "library" } }, { kind: "click", selector: "[data-globe-switch=stories]" }],

@@ -67,8 +67,9 @@ test("4.31 only an installed Linux AppImage refreshes the agent tools beside it,
   assert.deepEqual(run("linux", "/apps/storytree.AppImage", () => { throw new Error("read-only"); }).lines, ["error: Agent tools could not be updated: read-only"]);
 });
 
-test("4.42 an installed Windows app's start points the agents at its own build's copy of the tools, and one that fails is said while the app starts all the same", async () => {
-  const run = async (platform: NodeJS.Platform, follow: () => Promise<boolean>) => {
+test("4.42 an installed Windows app's start points the agents at its own build's copy of the tools, says which moved and which did not with why, and starts all the same", async () => {
+  type Followed = { moved: string[]; notMoved: { agent: string; reason: string }[] } | undefined;
+  const run = async (platform: NodeJS.Platform, follow: () => Promise<Followed>) => {
     const lines: string[] = [];
     let followed = 0;
     await refreshAgentTools({
@@ -80,10 +81,15 @@ test("4.42 an installed Windows app's start points the agents at its own build's
     });
     return { followed, lines };
   };
-  assert.deepEqual(await run("win32", async () => true), { followed: 1, lines: ["Agent tools now run from this build's copy"] });
-  assert.deepEqual(await run("win32", async () => false), { followed: 1, lines: [] }, "agents already on this build's copy are said nothing of");
+  assert.deepEqual(await run("win32", async () => ({ moved: ["Claude Code", "Codex"], notMoved: [] })), { followed: 1, lines: ["Claude Code and Codex now run this build's copy of the agent tools"] });
+  assert.deepEqual(await run("win32", async () => ({ moved: ["Codex"], notMoved: [{ agent: "Claude Code", reason: "Install Claude Code, then retry." }] })), { followed: 1, lines: [
+    "Codex now runs this build's copy of the agent tools",
+    "error: Claude Code still runs an older copy of the agent tools, tried again at the next start: Install Claude Code, then retry.",
+  ] });
+  assert.deepEqual(await run("win32", async () => undefined), { followed: 1, lines: [] }, "agents already on this build's copy are said nothing of");
+  assert.deepEqual(await run("win32", async () => ({ moved: [], notMoved: [] })), { followed: 1, lines: [] }, "nor is a move with no agent connected");
   assert.deepEqual(await run("win32", async () => { throw new Error("disk full"); }), { followed: 1, lines: ["error: Agent tools could not be pointed at this build's: disk full"] });
-  assert.deepEqual(await run("darwin", async () => true), { followed: 0, lines: [] });
+  assert.deepEqual(await run("darwin", async () => ({ moved: ["Claude Code"], notMoved: [] })), { followed: 0, lines: [] });
 });
 
 test("4.32 the gear offers the update channel only where releases install themselves, and never in a smoke check", () => {

@@ -69,7 +69,9 @@ function locations(options: ConnectionOptions) {
 /** The hook the installation carries: its bundled Node and the hook script beside its tool server. */
 const hookCommand = (installed: InstalledToolServerCommand) => ({ node: installed.command, script: path.join(path.dirname(installed.args[0]), "storytree-hook.mjs") });
 const executable = (harness: Harness) => harness === "claude-code" ? "claude" : harness === "codex" ? "codex" : harness === "pi" ? "pi" : harness === "antigravity" ? "agy" : "cursor-agent";
-const label = (harness: Harness) => watchedHarness(harness)?.label ?? harness;
+/** The agent's name as the user knows it: Claude Code, Codex, Cursor, Pi, Antigravity CLI. */
+export const agentLabel = (harness: Harness) => watchedHarness(harness)?.label ?? harness;
+const label = agentLabel;
 /** The file a harness keeps its hooks in: Claude Code's settings.json, Codex's, Cursor's and Antigravity's hooks.json, and storytree's Pi extension. */
 const hooksFileOf = (where: ReturnType<typeof locations>, harness: Harness) => harness === "claude-code" ? path.join(where.claude, "settings.json") : harness === "pi" ? path.join(where.pi, PI_EXTENSION) : harness === "antigravity" ? path.join(where.antigravity, ANTIGRAVITY_HOOKS) : path.join(where[harness], "hooks.json");
 /** The folder a harness keeps its hooks file in: its home, for Pi its agent folder, which holds the extensions folder, and for Antigravity ~/.gemini, which holds its config folder. */
@@ -173,6 +175,12 @@ export async function reconnectAgents(options: Omit<ConnectionOptions, "harnesse
   const disconnected = disconnectedHarnesses(where.storytree);
   const harnesses = [...connectedHarnesses(homesOf(where))].filter((harness) => !disconnected.has(harness));
   return harnesses.length === 0 ? [] : connectAgents({ ...options, harnesses });
+}
+
+/** Every file an agent keeps storytree's registration or hooks in, so a copy of the tools one still names is known (Get storytree 1.21). */
+export function agentFiles(options: Pick<ConnectionOptions, "home" | "env">): string[] {
+  const where = locations({ ...options, harnesses: [], installed: { command: "", args: [""] } });
+  return HARNESS_IDS.flatMap((harness) => [where.files[harness], hooksFileOf(where, harness)]);
 }
 
 /** An agent this computer runs, and whether this installation's tool server is already registered with it. */

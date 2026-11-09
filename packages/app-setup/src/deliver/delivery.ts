@@ -8,7 +8,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { installCommand } from "./command.js";
 import { runInstalledConnection } from "../connect/installed.js";
 import { clearOlderTools, stageTools, verifyPayload, type Architecture, type InstalledTools } from "./payload.js";
-import { installedToolServerCommand, reconnectAgents, type ConnectionOptions } from "../connect/index.js";
+import { agentFiles, agentLabel, installedToolServerCommand, reconnectAgents, type ConnectionOptions } from "../connect/index.js";
 import { openUninstaller, uninstall, uninstallAsks, uninstallReportFile } from "./uninstall.js";
 
 interface DeliveryOptions {
@@ -132,9 +132,9 @@ export async function finishDelivery(options: DeliveryOptions, effects: {
   return { state: "ready", tools, command };
 }
 
-/** delivery.json, renamed into place whole. */
-function writeRecord(options: DeliveryOptions, tools: InstalledTools): void {
-  const record = { schema: 1, installDir: path.resolve(options.installDir), tools };
+/** delivery.json, renamed into place whole. `pending` names the agents a start could not point at `tools` (1.20). */
+function writeRecord(options: DeliveryOptions, tools: InstalledTools, pending: readonly string[] = []): void {
+  const record = { schema: 1, installDir: path.resolve(options.installDir), tools, ...(pending.length > 0 ? { pending } : {}) };
   mkdirSync(options.home, { recursive: true });
   const temp = path.join(options.home, `delivery-${process.pid}.tmp`);
   try {
@@ -143,29 +143,44 @@ function writeRecord(options: DeliveryOptions, tools: InstalledTools): void {
   } finally { rmSync(temp, { force: true }); }
 }
 
+/** Which connected agents a start pointed at its build's copy of the tools, and which it could not, each with why. */
+export interface FollowedTools {
+  readonly moved: readonly string[];
+  readonly notMoved: readonly { readonly agent: string; readonly reason: string }[];
+}
+
 /**
  * The installed Windows app's start (1.20): its own build's tools are copied under the home and, when the delivery record
- * names this installation but other tools (the last build's copy, or a release's from before the copies), the record, the
- * connected agents' registrations and hooks, and the storytree command are pointed at that copy. A session still open keeps
- * the copy it started. A record naming another installation, or none, is not this app's to rewrite. True when it re-pointed.
+ * names this installation but other tools (the last build's copy, or a release's from before the copies), or agents an
+ * earlier start could not re-point, the record, the connected agents' registrations and hooks, and the storytree command
+ * are pointed at that copy. A session still open keeps the copy it started. A record naming another installation, or
+ * none, is not this app's to rewrite. Undefined when there was nothing to re-point.
  */
 export async function followBuildTools(options: DeliveryOptions & {
   connections?: Pick<ConnectionOptions, "home" | "env" | "run">;
   /** How a copy's node is deleted before the rest of it; Windows refuses while a session runs it. */
   remove?: (file: string) => void;
-}): Promise<boolean> {
-  let recorded: { installDir?: unknown; tools?: { dir?: unknown } } | undefined;
-  try { recorded = JSON.parse(readFileSync(path.join(options.home, "delivery.json"), "utf8")); } catch { return false; }
-  if (typeof recorded?.installDir !== "string" || path.resolve(recorded.installDir).toLowerCase() !== path.resolve(options.installDir).toLowerCase()) return false;
+}): Promise<FollowedTools | undefined> {
+  let recorded: { installDir?: unknown; tools?: { dir?: unknown }; pending?: unknown } | undefined;
+  try { recorded = JSON.parse(readFileSync(path.join(options.home, "delivery.json"), "utf8")); } catch { return undefined; }
+  if (typeof recorded?.installDir !== "string" || path.resolve(recorded.installDir).toLowerCase() !== path.resolve(options.installDir).toLowerCase()) return undefined;
   const tools = stageTools(options.installDir, options.home, options.arch, options.platform ?? process.platform);
-  const followed = recorded.tools?.dir !== tools.dir;
-  if (followed) {
-    writeRecord(options, tools);
+  const pending = Array.isArray(recorded.pending) && recorded.pending.length > 0;
+  let followed: FollowedTools | undefined;
+  if (recorded.tools?.dir !== tools.dir || pending) {
     installCommand({ ...options, tools });
-    await reconnectAgents({ installed: installedToolServerCommand(tools.node, tools.mcp), ...options.connections });
+    const results = await reconnectAgents({ installed: installedToolServerCommand(tools.node, tools.mcp), ...options.connections });
+    const failed = results.filter((result) => result.tools === "not connected");
+    followed = {
+      moved: results.filter((result) => result.tools !== "not connected").map((result) => agentLabel(result.harness)),
+      notMoved: failed.map((result) => ({ agent: agentLabel(result.harness), reason: result.next })),
+    };
+    // An agent left on an older copy is tried again at the next start.
+    writeRecord(options, tools, failed.map((result) => result.harness));
   }
-  // Older builds' copies no session runs go, once the agents point at this one (1.21).
-  clearOlderTools(options.home, tools.dir, options.remove);
+  // Older builds' copies no session runs and no agent still names go (1.21).
+  const named = agentFiles(options.connections ?? {}).map((file) => { try { return readFileSync(file, "utf8"); } catch { return ""; } }).join("\n");
+  clearOlderTools(options.home, tools.dir, options.remove, (name) => named.includes(name));
   return followed;
 }
 

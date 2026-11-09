@@ -305,3 +305,38 @@ test("5.7 · `health local` on an imported story whose tests fail names each red
   assert.ok(passing.written && passing.red.length === 0, JSON.stringify(passing));
   assert.doesNotMatch(localReadingText(passing), /plan one arc/i);
 });
+
+test("5.8 · storytree health local records a local test titled with an edge contract's number on that contract, so a fault between two parts can turn verified green", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-local-"));
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+      await removeTemp(folder);
+    }
+  });
+  const story = await library.addStory({ title: "Context" });
+  const retrieval = await library.addCapability({ story: story.id, title: "1 · Retrieval" });
+  const api = await library.addCapability({ story: story.id, title: "2 · Context API", dependsOn: [retrieval.id] });
+  const edge = (await library.projectTree()).stories[0]!.edges![0]!;
+  assert.equal(edge.from, api.id);
+  const contract = await library.addContract({ edge: edge.id, title: "the caller's identity reaches retrieval" });
+  const number = /^(\d+\.\d+) · /.exec(contract.fields.title)?.[1];
+  assert.ok(number !== undefined, contract.fields.title);
+  writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "scratch", type: "module", scripts: { test: "node --test" } }));
+  mkdirSync(path.join(folder, "packages", "context"), { recursive: true });
+  writeFileSync(path.join(folder, "packages", "context", "api.test.js"), `import { test } from "node:test";\ntest("${number} · the caller's identity reaches retrieval", () => {});\n`);
+
+  const local = HEALTH_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "local")!;
+  const reading = await local.act({} as never, { library, project: name, session: "test", folder } as never, WORDS);
+  assert.match(reading.text, /1 contracts verified passing, 0 failing/, reading.text);
+  const verified = (await library.health(contract.id)).verified;
+  assert.equal(verified.state, "passing");
+  assert.equal(verified.source, "local");
+});

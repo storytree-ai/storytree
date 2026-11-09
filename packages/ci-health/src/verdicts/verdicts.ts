@@ -21,6 +21,8 @@
  * number only a docstring carries credits nothing here. A skip, which pytest names only by its file and line, is the
  * test whose decorators or definition that line is in, else the test whose body it is in.
  *
+ * A contract on an edge inside a story counts as its capabilities' contracts do, by its number or its provedBy.
+ *
  * A test that carries no number (an imported repository's own) counts for each contract whose provedBy names it
  * (question_b5918c0ff273), beside any number it carries: see provedFor.
  *
@@ -41,9 +43,12 @@ import { dependenciesOf, isTestFile, packagesOf, readersReady, surveyStory, type
 import "@storytree/map/code-survey";
 import type { TestResult } from "../run-results/run-results.js";
 
-/** The plan as judging needs it: stories, their numbered capabilities and contracts ("1.2 · …"). */
+/** A contract as judging needs it: its title ("1.2 · …") and the tests its provedBy names. */
+type PlannedContract = { readonly id: string; readonly title: string; readonly provedBy?: readonly string[] };
+
+/** The plan as judging needs it: stories, their numbered capabilities and contracts ("1.2 · …"), and their edges' contracts. */
 export type PlanTree = {
-  readonly stories: readonly { readonly id: string; readonly title: string; readonly plugin?: string; readonly mapped?: { readonly folders: readonly string[] }; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly covers?: readonly string[]; readonly contracts: readonly { readonly id: string; readonly title: string; readonly provedBy?: readonly string[] }[] }[] }[];
+  readonly stories: readonly { readonly id: string; readonly title: string; readonly plugin?: string; readonly mapped?: { readonly folders: readonly string[] }; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly covers?: readonly string[]; readonly contracts: readonly PlannedContract[] }[]; readonly edges?: readonly { readonly contracts: readonly PlannedContract[] }[] }[];
 };
 
 /** A story's proofs at one commit: its contracts by number, and each numbered test title its package holds. */
@@ -122,12 +127,11 @@ export function proofsAt(tree: PlanTree, files: readonly SourceFile[]): StoryPro
     }
     const contracts = new Map<string, string>();
     const proved: { contract: string; test: string }[] = [];
-    for (const capability of story.capabilities) {
-      for (const contract of capability.contracts) {
-        const number = /^(\d+\.\d+) · /.exec(contract.title)?.[1];
-        if (number !== undefined) contracts.set(number, contract.id);
-        for (const test of contract.provedBy ?? []) proved.push({ contract: contract.id, test });
-      }
+    // An edge's contracts count as its capabilities' do: its numbers are the story's too (ADR-1282 D1).
+    for (const contract of [...story.capabilities, ...(story.edges ?? [])].flatMap((part) => part.contracts)) {
+      const number = /^(\d+\.\d+) · /.exec(contract.title)?.[1];
+      if (number !== undefined) contracts.set(number, contract.id);
+      for (const test of contract.provedBy ?? []) proved.push({ contract: contract.id, test });
     }
     return { story: story.id, package: own, packages, contracts, titles, helped, pytest, proved };
   });
@@ -256,7 +260,8 @@ export function skipKind(reasons: readonly string[]): SkipKind {
 export function judgeRun(proofs: readonly StoryProofs[], reported: readonly TestResult[]): { verdicts: Map<string, Verdict>; unmatched: TestResult[] } {
   const results = creditPlatformSkips(reported.map((result) => namedSkip(proofs, result)));
   const byPackage = new Map(proofs.flatMap((story) => story.packages.map((name) => [name, story] as const)));
-  const tests = new Map<string, TestResult[]>(proofs.flatMap((story) => [...story.contracts.values()].map((id) => [id, []] as [string, TestResult[]])));
+  // Every contract is judged: each numbered one, and each a provedBy names, numbered or not.
+  const tests = new Map<string, TestResult[]>(proofs.flatMap((story) => [...story.contracts.values(), ...story.proved.map(({ contract }) => contract)].map((id) => [id, []] as [string, TestResult[]])));
   const unmatched: TestResult[] = [];
   for (const result of results) {
     if (result.file !== undefined) {

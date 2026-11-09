@@ -795,12 +795,12 @@ test("9.29 plan_edge writes an edge between two capabilities of one story, plan_
       assert.notEqual(corrected.isError, true, corrected.text);
 
       const node = (await library.projectTree()).stories.find(({ id }) => id === story)!;
-      assert.deepEqual(node.edges, [{ id: edge, from: link, to: form, description: "Reads the form's address", contracts: [{ id: contract, title: "The link reads the form's checked address", health: { reported: { state: "not-checked" }, verified: { state: "not-checked" } } }] }]);
+      assert.deepEqual(node.edges, [{ id: edge, from: link, to: form, description: "Reads the form's address", contracts: [{ id: contract, title: "2.1 · The link reads the form's checked address", health: { reported: { state: "not-checked" }, verified: { state: "not-checked" } } }] }]);
       assert.deepEqual(node.capabilities.find(({ id }) => id === link)?.dependsOn, [form], "the capability's dependsOn reads the edge");
       assert.deepEqual(node.capabilities.map(({ contracts }) => contracts), [[], []], "neither capability holds the edge's contract");
 
       const plan = await agent.call("show_plan");
-      assert.match(plan.text, new RegExp(`Edge \\(${edge}\\): "2 · Confirmation link" depends on "1 · Email form": Reads the form's address\n    Contract "The link reads the form's checked address" \\(${contract}\\)`), plan.text);
+      assert.match(plan.text, new RegExp(`Edge \\(${edge}\\): "2 · Confirmation link" depends on "1 · Email form": Reads the form's address\n    Contract "2\\.1 · The link reads the form's checked address" \\(${contract}\\)`), plan.text);
       const other = idOf(await agent.call("plan_story", { title: "Mail", ...FOUNDED }));
       const sender = idOf(await agent.call("plan_capability", { story: other, title: "Sender", ...FOUNDED }));
       const across = await agent.call("plan_edge", { from: link, to: sender });
@@ -811,6 +811,26 @@ test("9.29 plan_edge writes an edge between two capabilities of one story, plan_
         assert.equal(refused.isError, true, JSON.stringify(owners));
         assert.match(refused.text, /Give the capability the contract belongs to, or the edge: one of them/, refused.text);
       }
+    });
+  });
+});
+
+test("9.30 · plan_contract given an edge numbers the contract from its dependent capability, past that capability's numbered tests, and its reply says a test titled with that number, or named in proved_by, proves it under storytree health local", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Context service", ...FOUNDED }));
+      const retrieval = idOf(await agent.call("plan_capability", { story, title: "Retrieval", ...FOUNDED }));
+      const api = idOf(await agent.call("plan_capability", { story, title: "Context API", ...FOUNDED }));
+      const edge = idOf(await agent.call("plan_edge", { from: api, to: retrieval }));
+      const src = path.join(folder, "packages/context-service/src");
+      mkdirSync(src, { recursive: true });
+      writeFileSync(path.join(folder, "packages/context-service/package.json"), JSON.stringify({ name: "context-service" }));
+      writeFileSync(path.join(src, "api.test.js"), 'import { test } from "node:test";\ntest("2.1 answers a request", () => {});\n');
+
+      const planned = await agent.call("plan_contract", { edge, title: "The caller's identity reaches retrieval" });
+      assert.equal(planned.isError, false, planned.text);
+      assert.match(planned.text, /Planned contract "2\.2 · The caller's identity reaches retrieval"/, "past the Context API's numbered test");
+      assert.match(planned.text, /A test titled "2\.2 · …", or named in proved_by, proves it under `storytree health local`/, planned.text);
     });
   });
 });

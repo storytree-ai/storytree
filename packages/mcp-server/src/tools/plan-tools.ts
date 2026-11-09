@@ -113,19 +113,23 @@ export function registerPlanTools(define: Define): void {
     `Plan a contract: one testable guarantee a capability makes. ${CONTRACT_PLACEMENT} Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again, and a test numbered for one that sits in another story's package, which credits that package's story, not this one. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On a mapped story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.`,
     z.object({
       capability: id("capability it belongs to").optional(),
-      edge: id("edge it belongs to instead, a link inside one story: a loose contract, even one line, on how one capability depends on the other").optional(),
+      edge: id("edge it belongs to instead, a link inside one story: a loose contract, even one line, on how one capability depends on the other, numbered from the dependent capability").optional(),
       title,
       description,
       proved_by: provedBy,
     }),
     async ({ capability, edge, title: name, description: about, proved_by: proved }, call) => {
       if ((capability === undefined) === (edge === undefined)) return { text: "Give the capability the contract belongs to, or the edge: one of them.", refused: true };
-      if (edge !== undefined) {
-        // An edge's contract is numbered only as given, never against a capability's tests (ADR-1282 D1).
-        const contract = await call.library.addContract({ title: name, edge, ...optional({ description: about, provedBy: proved }) }, call.writer);
-        return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}) on edge ${edge}.`, data: { id: contract.id } };
-      }
       const tree = await call.library.projectTree();
+      if (edge !== undefined) {
+        // An edge's contract is numbered from its dependent capability, past that capability's tests, so a test can carry it.
+        const from = tree.stories.flatMap((story) => story.edges ?? []).find((one) => one.id === edge)?.from;
+        const tested = from === undefined ? [] : await testedNumbers(call, from, tree);
+        const contract = await call.library.addContract({ title: name, edge, ...optional({ description: about, provedBy: proved }) }, { ...call.writer, testedNumbers: tested });
+        const number = /^(\d+\.\d+) · /.exec(contract.fields.title)?.[1];
+        const naming = number === undefined ? " A test named in its proved_by proves it" : ` A test titled "${number} · …", or named in proved_by, proves it`;
+        return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}) on edge ${edge}.${naming} under \`storytree health local\`.`, data: { id: contract.id } };
+      }
       const owner = capability!;
       const tested = await testedNumbers(call, owner, tree);
       const contract = await call.library.addContract({ title: name, capability: owner, ...optional({ description: about, provedBy: proved }) }, { ...call.writer, testedNumbers: tested });

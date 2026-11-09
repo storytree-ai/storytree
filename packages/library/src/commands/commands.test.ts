@@ -828,7 +828,7 @@ test("17.22 · library new edge and library new contract --edge write an edge an
   await verbOf("edit").act({ "<id>": edge, "<fields>": { description: "Reads the form's address" }, live: false }, context, WORDS);
   const tree = await library.projectTree();
   assert.deepEqual(tree.stories[0]!.edges?.map(({ id, description, contracts }) => ({ id, description, contracts: contracts.map(({ title }) => title) })), [
-    { id: edge, description: "Reads the form's address", contracts: ["The link reads the form's address"] },
+    { id: edge, description: "Reads the form's address", contracts: ["2.1 · The link reads the form's address"] },
   ]);
 
   const read = await verbOf("read").act({ ids: [link.id], linked: false, field: "dependsOn", out: undefined }, context, WORDS);
@@ -875,7 +875,7 @@ test("17.23 · The open tool opens a contract on an edge whole, as it does a cap
   const contract = await library.addContract({ edge: edge.id, title: "The link reads the form's address", description: "It reads the address the form saved." });
 
   const opened = await open.act({ id: contract.id }, context, WORDS);
-  assert.match(opened.text, /^Contract "The link reads the form's address"/);
+  assert.match(opened.text, /^Contract "2\.1 · The link reads the form's address"/);
   assert.match(opened.text, /It reads the address the form saved\./);
   assert.match(opened.text, new RegExp(`It sits on the edge ${edge.id}: Capability "${link.fields.title}" \\(${link.id}\\) depends on Capability "${form.fields.title}" \\(${form.id}\\)\\.`));
   assert.match(opened.text, /Health: verified not-checked, reported not-checked\./);

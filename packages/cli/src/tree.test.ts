@@ -402,14 +402,14 @@ test("10.15 the plan view reads edges (ADR-1282 D1): `storytree tree` lists each
     const lines = tree.stdout.split(/\r?\n/);
     const at = lines.indexOf(`  edge: 5 · Welcome page › 4 · Email form  [${edge.id}]`);
     assert.ok(at > lines.findIndex((line) => line.includes(`[${page.id}]`)), tree.stdout);
-    assert.match(lines[at + 1]!, new RegExp(`^      - Takes the address the form sent  \\[${contract.id}\\]  agent says passing`), tree.stdout);
+    assert.match(lines[at + 1]!, new RegExp(`^      - 5\\.1 · Takes the address the form sent  \\[${contract.id}\\]  agent says passing`), tree.stdout);
 
     const listed = await world.run(["contract", "list", story.id]);
     assert.equal(listed.code, 0, listed.stderr);
     const rows = listed.stdout.split(/\r?\n/);
     const row = rows.indexOf(`edge: 5 · Welcome page › 4 · Email form  [${edge.id}]`);
     assert.ok(row >= 0, listed.stdout);
-    assert.match(rows[row + 1]!, new RegExp(`^  - Takes the address the form sent  \\[${contract.id}\\]  agent says passing`), listed.stdout);
+    assert.match(rows[row + 1]!, new RegExp(`^  - 5\\.1 · Takes the address the form sent  \\[${contract.id}\\]  agent says passing`), listed.stdout);
     assert.ok(!listed.stdout.includes("No contracts yet."), listed.stdout);
 
     const shown = await world.run(["contract", "show", contract.id]);

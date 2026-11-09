@@ -745,8 +745,18 @@ export class WorkModel {
     const prefix = /^(\d+) · /.exec((await this.#titleOf(capability)) ?? "")?.[1];
     if (prefix === undefined) return title;
     const own = (numbers: readonly (string | undefined)[]) => numbers.flatMap((number) => (number?.startsWith(`${prefix}.`) ? [Number(number.slice(prefix.length + 1))] : []));
-    const planned = own((await this.#contractsOf(capability)).map((contract) => contractNumber(contract.fields.title)));
+    // An edge's contracts are its story's (ADR-1282 D1): a number one carries is never given again.
+    const planned = own([...(await this.#contractsOf(capability)), ...(await this.#edgeContractsBeside(capability))].map((contract) => contractNumber(contract.fields.title)));
     return `${prefix}.${Math.max(0, ...planned, ...own(tested)) + 1} · ${title}`;
+  }
+
+  /** The live contracts on the edges of `capability`'s story. */
+  async #edgeContractsBeside(capability: string): Promise<SchemaRecord<"contract">[]> {
+    const capabilities = await this.#records.list("capability");
+    const story = capabilities.find(({ id }) => id === capability)?.fields.story;
+    const inStory = new Set(capabilities.filter((one) => one.fields.story === story).map(({ id }) => id));
+    const edges = new Set((await this.#records.list("edge")).filter(({ fields }) => inStory.has(fields.from)).map(({ id }) => id));
+    return (await this.#records.list("contract")).filter((contract) => contract.fields.edge !== undefined && edges.has(contract.fields.edge));
   }
 
   /**
@@ -955,14 +965,21 @@ export class WorkModel {
 
   /**
    * Add a contract to an edge (ADR-1282 D1), which must be a live edge (MissingReferenceError otherwise): a number given
-   * is kept, and one another live contract of the edge's story carries is refused (SchemaError on `title`); none is assigned.
+   * is kept, and one another live contract of the edge's story carries is refused (SchemaError on `title`). A title given
+   * none gets its dependent (`from`) capability's next free number, as addContract gives it there, `testedNumbers` being
+   * that capability's tests' numbers, so a test titled with it can prove the edge's contract.
    */
   async #addEdgeContract(contract: NewContract, options?: ContractWriteOptions): Promise<SchemaRecord<"contract">> {
     await checkReference(this.#records, "edge", contract.edge, "edge");
-    this.#refusePlugins("contract", "edge", await this.#pluginOfCapability(await this.#fromOf(contract.edge)));
-    if (typeof contract.title === "string") await this.#refuseTakenStoryNumber(contract.title, contract.edge!);
-    const { testedNumbers: _tested, ...write } = options ?? {};
-    return this.#records.create("contract", typeof contract.title === "string" ? { ...contract, title: separated(contract.title) } : contract, write);
+    const from = await this.#fromOf(contract.edge);
+    this.#refusePlugins("contract", "edge", await this.#pluginOfCapability(from));
+    const { testedNumbers: tested = [], ...write } = options ?? {};
+    if (typeof contract.title !== "string") return this.#records.create("contract", contract, write);
+    if (contractNumber(contract.title) !== undefined) {
+      await this.#refuseTakenStoryNumber(contract.title, contract.edge!);
+      return this.#records.create("contract", { ...contract, title: separated(contract.title) }, write);
+    }
+    return this.#records.create("contract", { ...contract, title: await this.#numbered(contract.title, from!, tested) }, write);
   }
 
   /** Refuse `title` on edge `edge` when another live contract of the edge's story (not `self`) carries its number. */

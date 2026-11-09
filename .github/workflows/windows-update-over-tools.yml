@@ -5,11 +5,12 @@ name: Windows update over live agent tools
 # session's storytree tools left running (and again with none), the newer release's setup is run as the app's updater
 # runs it, and the run fails unless it finishes within five minutes, the new version runs, the agents are re-pointed at
 # its tools and those tools answer, and the open session's tools still answer. On 2026-11-09 a setup waited fifteen
-# hours on tools run from the install folder (research_e00d8bcfc32e). Recorded by
+# hours on tools run from the install folder (research_e00d8bcfc32e); on these runners the same update, from 0.3.2624
+# with a session open, finished in about a minute, so what stalled that machine is not reproduced here. Recorded by
 # packages/app-setup/testing/windows-acceptance/update-over-tools.ps1 and kept as an artifact; a push to a
-# windows-update-over-tools/ branch runs it before the workflow reaches main. Not yet called by every release: until
-# the first update off a release from before the tools moved under the home is carried (increment_322e2bead5d5), a
-# starting release before 0.3.2629 (the first with the tools under the home) is expected to fail. The repository is public: no secret is used.
+# windows-update-over-tools/ branch runs it before the workflow reaches main. Not yet called by every release
+# (increment_2d7b27aeff33 makes it block one). A starting release before 0.3.2629, whose agents run the installation's
+# tools, fails its home-copy step and still runs the rest. The repository is public: no secret is used.
 on:
   workflow_dispatch:
     inputs:

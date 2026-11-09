@@ -6,7 +6,7 @@
 # fails unless the setup finishes within the bound, the candidate's version is installed, the agents are re-pointed at
 # its tools and those tools answer, and an open session's tools still answer afterwards. -Session closed repeats it
 # with no session open. On 2026-11-09 a setup waited fifteen hours on tools run from the install folder
-# (research_e00d8bcfc32e); this is the run that catches that before a release ships.
+# (research_e00d8bcfc32e): the bound is what turns a setup that waits like that into a failed run.
 # Every step records its result in $Out\steps.tsv and the run carries on, so one failure still leaves the rest observed.
 # The repository is public: nothing here prints a secret, and no agent is signed in (connect needs only `claude --version`).
 param(

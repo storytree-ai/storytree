@@ -270,17 +270,42 @@ export class HealthRecord {
   /**
    * Write what storytree verified about contract `contractId`, by seeing it for itself: as reportHealth, in the verified
    * column. A failing verdict, given work in flight, releases each open increment waiting on an event about the contract,
-   * with the verdict written on it (10.44), so a red a fix did not cure goes back to ready work.
+   * with the verdict written on it (10.44), so a red a fix did not cure goes back to ready work. A verdict that turns
+   * failing, or stays failing but releases such a fix, and one that turns passing from failing, records an FYI for the
+   * owner (5.23, ADR-1293 D1); a verdict that stays as it was records none.
    */
   async recordVerified(contractId: string, state: HealthState, options: HealthOptions = {}): Promise<HealthEntry> {
+    const earlier = await this.#lastVerdict(contractId);
     const entry = await this.#write("verified", contractId, state, options);
-    if (state !== "failing" || this.#flight === undefined) return entry;
+    if (state === "not-checked" || (state === "passing" && earlier !== "failing")) return entry;
     const contract = (await liveRecord(this.#records, contractId, ["contract"]))!;
     const by = [entry.by, entry.source].filter((part) => part !== undefined).join(", ");
-    const verdict = `VERDICT ${entry.at}: ${contract.fields.title} verified failing${by === "" ? "" : ` by ${by}`}${entry.note === undefined ? "." : `: ${entry.note}.`}`;
     const { by: _by, note: _note, skip: _skip, was: _was, source: _source, ...write } = options;
-    await this.#flight.releaseOnVerdict(contractId, contract.fields.capability, verdict, write);
+    const told = { about: contractId, by: entry.by ?? "storytree", at: entry.at };
+    if (state === "passing") {
+      await this.#records.create("fyi", { ...told, title: `Green again: ${contract.fields.title}`, what: `${contract.fields.title} was verified passing${by === "" ? "" : ` by ${by}`} at ${entry.at}, after failing.` }, write);
+      return entry;
+    }
+    const verdict = `VERDICT ${entry.at}: ${contract.fields.title} verified failing${by === "" ? "" : ` by ${by}`}${entry.note === undefined ? "." : `: ${entry.note}.`}`;
+    const released = this.#flight === undefined ? [] : await this.#flight.releaseOnVerdict(contractId, contract.fields.capability, verdict, write);
+    if (earlier === "failing" && released.length === 0) return entry;
+    const routed = (await this.#records.select("increment", ["title", "links", "capabilities"], { not: { status: "closed" } }))
+      .filter(({ fields }) => fields.links?.includes(contractId) === true || (contract.fields.capability !== undefined && fields.capabilities?.includes(contract.fields.capability) === true))
+      .sort(byCreation);
+    const doing = routed.length === 0 ? "Being done: nothing routed, as no open increment lists its capability or links it." : `Being done: routed to ${routed.map(({ id, fields }) => `${id} (${fields.title})`).join(", ")}.`;
+    const title = earlier === "failing" ? `Still red after a fix: ${contract.fields.title}` : `Red: ${contract.fields.title}`;
+    const after = released.length === 0 ? "" : ` It was still failing on the run ${released.join(", ")} waited for, so that work is ready again.`;
+    await this.#records.create("fyi", { ...told, title, what: `${verdict}${after} ${doing}` }, write);
     return entry;
+  }
+
+  /** The last passing or failing verdict in contract `contractId`'s verified column: a not-checked entry keeps the one it did not reproduce. */
+  async #lastVerdict(contractId: string): Promise<"passing" | "failing" | undefined> {
+    if (!couldBeId(contractId)) return undefined;
+    const current = await this.#records.get(healthId(contractId, "verified"));
+    if (current?.type !== "health") return undefined;
+    const { state, was } = current.fields as FieldsOf<"health">;
+    return state === "not-checked" ? was : state;
   }
 
   /**

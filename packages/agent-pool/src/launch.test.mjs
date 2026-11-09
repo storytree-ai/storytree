@@ -899,7 +899,8 @@ test("3.8 · a dispatcher started while a lane an earlier one started still runs
     await new Promise((go) => setImmediate(go));
     // The earlier lane's engine ends a few looks after increment_b started.
     if (started.length === 1 && looks > 5) lanes = [];
-    if (started.length === 2 || looks > 60) await writeFile(join(b.lanesDir, "pool-stop"), "");
+    // The cap only ends a pool that never starts increment_a: a slow runner (macOS CI) spends many looks starting a lane.
+    if (started.length === 2 || looks > 2000) await writeFile(join(b.lanesDir, "pool-stop"), "");
   };
   assert.equal(await main(["pool"], b), 0);
   assert.deepEqual(started, ["increment_b while increment_a's lane runs", "increment_a"], "increment_a starts only once the earlier lane's engine ended");

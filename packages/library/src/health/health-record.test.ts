@@ -884,6 +884,42 @@ for (const backend of [memory, postgres]) {
     assert.equal(capabilities.get(link.id)!.health.verified.state, "not-checked", "the dependent holds no contract of its own");
     assert.equal(annotated!.health.verified.state, "not-checked", "the story rolls up its capabilities' contracts only, never the failing edge contract");
   });
+
+  contract("5.23", "a verified verdict that turns failing, or stays failing but releases a fix waiting on it, records one FYI for the owner with the contract, its cause and what is being done; one that turns passing again records one; a verdict that stays as it was records none", async ({ work, flight, records }) => {
+    const health = new HealthRecord(records, work, flight);
+    const { capability, contract, sibling } = await smallPlan(work);
+    const told = async (act: () => Promise<unknown>) => {
+      const before = new Set((await records.list("fyi")).map(({ id }) => id));
+      await act();
+      return (await records.list("fyi")).filter(({ id }) => !before.has(id)).map(({ fields }) => fields);
+    };
+
+    assert.deepEqual(await told(() => health.recordVerified(contract.id, "passing", { by: "run 1" })), [], "a first passing verdict tells nothing");
+    const [red, ...extra] = await told(() => health.recordVerified(contract.id, "failing", { by: "run 2", note: "0/1 tests passed; first failure: bad@ accepted" }));
+    assert.deepEqual(extra, [], "one FYI for the flip");
+    assert.equal(red!.about, contract.id);
+    for (const said of ["Rejects a bad email", "failing", "bad@ accepted", "nothing routed"]) assert.ok(`${red!.title} ${red!.what}`.includes(said), `the red FYI says ${said}`);
+    assert.deepEqual(await told(() => health.recordVerified(contract.id, "failing", { by: "run 3" })), [], "a verdict that stays red tells nothing more");
+    assert.deepEqual(await told(() => health.recordVerified(contract.id, "not-checked", { by: "run 4", skip: "other", was: { state: "failing", at: new Date().toISOString() } })), [], "a not-checked reading tells nothing");
+    assert.deepEqual(await told(() => health.recordVerified(contract.id, "failing", { by: "run 5" })), [], "nor does red again after it, the verdict it kept");
+
+    const arc = await flight.createArc({ title: "Fix sign-up", intent: "An intent", endState: "An end state" });
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    const fix = await flight.addIncrement({ arc: arc.id, title: "Fix the email check", objective: "Do it", body: "The steps.", capabilities: [capability.id], waitsFor: [{ releaser: "event", note: "the next run", checkBack: tomorrow }] });
+    const linked = await flight.addIncrement({ arc: arc.id, title: "Re-check the email rule", objective: "Do it", body: "The steps.", links: [contract.id] });
+    const [uncured, ...more] = await told(() => health.recordVerified(contract.id, "failing", { by: "run 6", note: "still accepts bad@" }));
+    assert.deepEqual(more, [], "a fix that did not cure it is told once");
+    for (const said of ["still accepts bad@", fix.id, "Fix the email check", linked.id]) assert.ok(`${uncured!.title} ${uncured!.what}`.includes(said), `the uncured FYI says ${said}`);
+    assert.deepEqual(await told(() => health.recordVerified(contract.id, "failing", { by: "run 7" })), [], "once released, red again tells nothing");
+
+    const [green, ...again] = await told(() => health.recordVerified(contract.id, "passing", { by: "run 8" }));
+    assert.deepEqual(again, [], "one FYI for the return");
+    assert.equal(green!.about, contract.id);
+    for (const said of ["Rejects a bad email", "passing"]) assert.ok(`${green!.title} ${green!.what}`.includes(said), `the green FYI says ${said}`);
+    assert.deepEqual(await told(() => health.recordVerified(contract.id, "passing", { by: "run 9" })), [], "a verdict that stays green tells nothing more");
+    assert.deepEqual(await told(() => health.reportHealth(sibling.id, "failing")), [], "an agent's report is no verdict");
+    assert.equal(((await records.get(fix.id))?.fields as { waitsFor?: unknown }).waitsFor, undefined, "the release 10.44 does is unchanged");
+  });
 }
 
 /** Past the current millisecond, so the next write's time sorts after the last one's. */

@@ -259,6 +259,12 @@ if ($Session -eq 'open') {
   }
 }
 
+# What the app and its updater said, and what still runs, for a failure's diagnosis.
+$logs = Join-Path $Out 'home'
+New-Item -ItemType Directory -Force -Path $logs | Out-Null
+Get-ChildItem -LiteralPath $storytreeHome -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.log', '.json' } | Copy-Item -Destination $logs
+Get-ChildItem -LiteralPath (Join-Path $storytreeHome 'app-tools') -ErrorAction SilentlyContinue | ForEach-Object Name | Set-Content -LiteralPath (Join-Path $Out 'app-tools.txt') -Encoding utf8
+Get-Process | Where-Object Path | ForEach-Object { "$($_.Id) $($_.Path)" } | Set-Content -LiteralPath (Join-Path $Out 'processes-after.txt') -Encoding utf8
 foreach ($process in $held) { if (-not $process.HasExited) { $process.Kill($true) } }
 Start-Process -FilePath $appExe -ArgumentList '--quit'
 Remove-Item -LiteralPath $holdFile -Force -ErrorAction SilentlyContinue

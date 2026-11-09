@@ -37,8 +37,7 @@ test("7.16 · CI's installer job in the run own health credits proves 4.43: pass
   const proof = passed.proofs.find((p) => p.contract === "4.43");
   assert.equal(proof?.package, "app");
   assert.equal(proof?.state, "passing");
-  assert.match(proof.note, /installer on Windows/);
-  assert.match(proof.note, /runs\/10/);
+  assert.equal(proof.note, `workflow job "installer on Windows" passed, ${url(10)}`);
 
   const skipped = await readJobProofs({ github: github({ jobs: { "10/2": [job("installer on Windows", "skipped")] } }), repo, run });
   assert.equal(skipped.proofs.find((p) => p.contract === "4.43"), undefined);
@@ -53,8 +52,7 @@ test("7.16 · the newest release run on main that ran the windows-update legs pr
   const proof = passing.proofs.find((p) => p.contract === "4.45");
   assert.equal(proof?.package, "app");
   assert.equal(proof?.state, "passing");
-  assert.match(proof.note, /windows-update/);
-  assert.match(proof.note, /runs\/2/);
+  assert.match(proof.note, /^workflow jobs "package \/ windows-update \(windows-latest, open\)", .* passed, .*runs\/2 \(commit b{12}\)$/);
 
   const failing = await readJobProofs({ github: github({ runs, jobs: { 3: legs(["success", "timed_out", "success", "success"]) } }), repo });
   const failed = failing.proofs.find((p) => p.contract === "4.45");

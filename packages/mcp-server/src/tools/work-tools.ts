@@ -35,7 +35,7 @@ export function registerWorkTools(define: Define): void {
       objective: z.string().min(1).describe("What it delivers, in a sentence"),
       body: z.string().min(1).describe("The increment itself: how the work breaks down"),
       capabilities: z.array(z.string().min(1)).optional().describe("The ids of the capabilities it changes, and nothing else: its lock list"),
-      links: z.array(z.string().min(1)).optional().describe("The ids of anything else it cites: its stories, notes or decisions"),
+      links: z.array(z.string().min(1)).optional().describe("The ids of anything else it cites: its stories, notes or decisions, and the contracts it makes true"),
       held_on: z.array(z.string().min(1)).optional().describe("The ids of open questions it is born held on: it waits on the owner's answer until each is settled"),
       waits_on: z.array(z.object({ increment: id("increment"), reason: z.string().min(1).describe("Why it waits") })).optional().describe("The increments it is born waiting on: it is not ready until each closes as landed"),
       wait_for_owner: z.string().min(1).optional().describe("What the owner must do before it can start, in a line: it is born waiting for him until the wait is cleared (clear_wait)"),

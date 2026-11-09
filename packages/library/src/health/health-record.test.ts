@@ -906,9 +906,10 @@ for (const backend of [memory, postgres]) {
     const arc = await flight.createArc({ title: "Fix sign-up", intent: "An intent", endState: "An end state" });
     const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
     const fix = await flight.addIncrement({ arc: arc.id, title: "Fix the email check", objective: "Do it", body: "The steps.", capabilities: [capability.id], waitsFor: [{ releaser: "event", note: "the next run", checkBack: tomorrow }] });
+    const linked = await flight.addIncrement({ arc: arc.id, title: "Re-check the email rule", objective: "Do it", body: "The steps.", links: [contract.id] });
     const [uncured, ...more] = await told(() => health.recordVerified(contract.id, "failing", { by: "run 6", note: "still accepts bad@" }));
     assert.deepEqual(more, [], "a fix that did not cure it is told once");
-    for (const said of ["still accepts bad@", fix.id, "Fix the email check"]) assert.ok(`${uncured!.title} ${uncured!.what}`.includes(said), `the uncured FYI says ${said}`);
+    for (const said of ["still accepts bad@", fix.id, "Fix the email check", linked.id]) assert.ok(`${uncured!.title} ${uncured!.what}`.includes(said), `the uncured FYI says ${said}`);
     assert.deepEqual(await told(() => health.recordVerified(contract.id, "failing", { by: "run 7" })), [], "once released, red again tells nothing");
 
     const [green, ...again] = await told(() => health.recordVerified(contract.id, "passing", { by: "run 8" }));

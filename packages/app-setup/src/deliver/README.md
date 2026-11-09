@@ -16,6 +16,13 @@ The installed payload is `<installation>/resources/agent-tools/`: native Node 24
 `buildBins` entry points, `chunks/**`, a delivery helper, Node's license and `payload.json`
 (architecture and SHA-256 inventory). The installation defaults to
 `%LOCALAPPDATA%\Programs\storytree-0.3`. Its paths do not contain the release version.
+On Windows the agents never run the tools from there (contract 1.19, ADR recorded with it): a node.exe
+running from the installation holds it, and the installer's check waits on it. `finish` copies the
+verified payload to `<STORYTREE_HOME>/app-tools/<build>/`, one folder per build named for its
+`payload.json`, and records that copy; the installed app's start does the same for its own build and,
+when the record names this installation but other tools, points the record, the connected agents'
+registrations and hooks and the `storytree` command at its copy (`followBuildTools`, 1.20). An older
+build's copy stays whole while a session still runs it; clearing old copies is a later increment.
 
 After verifying the payload, delivery starts the app executable **even if its database is
 already running**. The existing desktop second-instance handler restores a hidden window.

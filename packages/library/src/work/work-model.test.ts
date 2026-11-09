@@ -824,7 +824,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await records.list("edge")).filter(({ fields }) => fields.from === link.id).map(({ fields }) => fields.to), [captcha.id], "the edge to the form is retired");
   });
 
-  contract("4.39", "an edge holds its own contracts: one added to an edge keeps a number given, a number another live contract of its story carries is refused and none is assigned; the tree lists it under the story's edge, never among either capability's contracts", async ({ work, records, transactions }) => {
+  contract("4.39", "an edge holds its own contracts: one added to an edge keeps a number given, a number another live contract of its story carries is refused, and one given none gets its dependent capability's next free number, past every number the story's contracts carry, which that capability never gives again; the tree lists it under the story's edge, never among either capability's contracts", async ({ work, records, transactions }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
     const own = await work.addContract({ title: "Rejects a bad email", capability: form.id });
@@ -833,7 +833,7 @@ for (const backend of [memory, postgres]) {
 
     const loose = await work.addContract({ title: "The link reads the form's address", edge: edge.id });
     await laterThan(loose);
-    assert.equal(loose.fields.title, "The link reads the form's address", "no number is assigned on an edge");
+    assert.equal(loose.fields.title, "2.1 · The link reads the form's address", "its dependent capability's next free number");
     const numbered = await work.addContract({ title: "1.7 The address arrives checked", edge: edge.id });
     assert.equal(numbered.fields.title, "1.7 · The address arrives checked", "a number given is kept, written with its separator");
 
@@ -853,6 +853,20 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(moved?.fields, { title: "1.1 · Rejects a bad email", edge: edge.id }, "it leaves its capability");
     const back = await work.editContract(own.id, { capability: form.id });
     assert.deepEqual(back?.fields, { title: "1.1 · Rejects a bad email", capability: form.id }, "it leaves the edge");
+
+    // Under numbered capabilities, a contract given no number gets its dependent capability's next free one.
+    const shop = await work.addStory({ title: "Shopper checks out" });
+    const cart = await work.addCapability({ title: "1 · Cart", story: shop.id });
+    const pay = await work.addCapability({ title: "2 · Payment", story: shop.id, dependsOn: [cart.id] });
+    const charged = await work.addContract({ title: "Charges the card", capability: pay.id });
+    const kept = await work.addContract({ title: "Keeps the basket", capability: cart.id });
+    const reads = (await records.list("edge")).find(({ fields }) => fields.from === pay.id)!;
+    const across = await work.addContract({ title: "Payment reads the cart's total", edge: reads.id }, { testedNumbers: ["2.2"] });
+    assert.equal(across.fields.title, "2.3 · Payment reads the cart's total", "past the dependent's contracts and its tests");
+    await work.editContract(kept.id, { edge: reads.id });
+    assert.equal((await work.addContract({ title: "Empties itself", capability: cart.id })).fields.title, "1.2 · Empties itself", "a number moved onto an edge is not given again");
+    assert.equal((await work.addContract({ title: "Refunds the card", capability: pay.id })).fields.title, "2.4 · Refunds the card", "nor is one an edge contract was given");
+    assert.equal(charged.fields.title, "2.1 · Charges the card");
   });
 
   contract("4.40", "moving a capability to another story turns its edges and its dependents' edges to it into stored dependsOn ids, and stored ids of its new story into edges; a dependsOn edit or move that would drop an edge holding contracts is refused, with nothing written", async ({ work, records, transactions }) => {

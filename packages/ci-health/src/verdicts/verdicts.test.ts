@@ -388,3 +388,35 @@ test("2.11 · a result no contract claims that names no file (TAP's) is the one 
     "the ambiguous and the unheld failures reach no capability, and Other is reached by none",
   );
 });
+
+test("2.12 · a contract on an edge inside a story counts a test's result as a capability's contract does: by the number its title carries, in the story's package, or by its provedBy", () => {
+  const tree: PlanTree = {
+    stories: [{
+      id: "story_cart",
+      title: "Review the cart",
+      capabilities: [
+        { id: "cap_cart", title: "1 · Cart page", contracts: [{ id: "c_cart_11", title: "1.1 · Cart page shows its shell" }] },
+        { id: "cap_total", title: "2 · Totals", contracts: [] },
+      ],
+      edges: [{ contracts: [
+        { id: "c_edge_21", title: "2.1 · Totals read the cart's rows" },
+        { id: "c_edge_proved", title: "Totals see a removed row", provedBy: ["a removed row leaves the total"] },
+      ] }],
+    }],
+  };
+  const files = [{ path: "packages/review-the-cart/src/total.test.js", text: [
+    `import { test } from "node:test";`,
+    `test("2.1 totals read the cart's rows", () => {});`,
+    `test("a removed row leaves the total", () => {});`,
+  ].join("\n") }];
+  const { verdicts, unmatched } = judgeRun(proofsAt(tree, files), [
+    pass("2.1 totals read the cart's rows"),
+    { name: "a removed row leaves the total", suites: [], status: "failed" },
+  ]);
+  assert.deepEqual(
+    Object.fromEntries([...verdicts].map(([id, verdict]) => [id, [verdict.state, verdict.total]])),
+    { c_cart_11: ["not-checked", 0], c_edge_21: ["passing", 1], c_edge_proved: ["failing", 1] },
+    "the edge's numbered contract by its test's title, and the other by the test its provedBy names",
+  );
+  assert.deepEqual(unmatched, []);
+});

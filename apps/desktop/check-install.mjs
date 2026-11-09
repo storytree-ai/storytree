@@ -4,7 +4,7 @@
 // it publishes, so a release whose installed app cannot start never publishes.
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { checkEmbeddingBinaries, checkTools } from "./check-tools.mjs";
@@ -45,7 +45,20 @@ function checkUninstall(tools) {
   writeFileSync(path.join(project, "notes.md"), "the user's work");
   const env = { ...process.env, USERPROFILE: user, STORYTREE_HOME: home, CLAUDE_CONFIG_DIR: claude, CODEX_HOME: path.join(user, ".codex"), LOCALAPPDATA: localAppData };
 
-  execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 180_000, env });
+  // 4.43: the installers' running-app check looks only for storytree-0.3.exe. electron-builder's own
+  // asked PowerShell for any process whose path starts with the install folder's and stopped it, so a
+  // program in a folder named like it, beside it (not moved by the update's uninstall), shows which ran.
+  const beside = path.join(`${installed}-beside`, "node.exe");
+  mkdirSync(path.dirname(beside), { recursive: true });
+  copyFileSync(path.join(tools, "node.exe"), beside);
+  const neighbour = spawn(beside, ["-e", "setInterval(() => {}, 1000)"], { windowsHide: true, stdio: "ignore" });
+  try {
+    execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 180_000, env });
+    assert.doesNotThrow(() => process.kill(neighbour.pid, 0), "the reinstall left a program that is not storytree-0.3.exe running");
+  } finally {
+    neighbour.kill();
+  }
+  console.log("4.43 PASS (Windows x64): a reinstall's running-app check finished in time and left another program beside the install folder running");
   assert.ok(existsSync(path.join(home, "pgdata", "PG_VERSION")) && existsSync(cache), "an update's uninstall leaves the home and cache");
   assert.deepEqual(JSON.parse(readFileSync(claudeFile, "utf8")).mcpServers.storytree, ours, "an update's uninstall leaves the agent connection");
 

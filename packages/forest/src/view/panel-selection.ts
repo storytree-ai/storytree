@@ -1,5 +1,5 @@
 /** Capability 3 · Story node render. Forest capability 3: the story and artifact share one panel slot. A story picked by its territory names that capability (3.15);
- * by a gate, the pair of capabilities the gate joins (3.88). */
+ * by a gate, the pair of capabilities the gate joins (3.88); and by a capability's name on the story's panel, that capability (4.8). */
 import type { GlobeSwitches, SheetFace } from "./globe-switches.js";
 
 export type Selection = { kind: "story"; id: string; capability?: string; gate?: readonly [string, string] } | { kind: "note"; id: string } | undefined;
@@ -15,6 +15,8 @@ export class PanelSelection {
     if (id !== undefined && gate !== undefined) this.gate(id, gate);
     else this.story(id, capability);
   }
+  /** A capability's name clicked on the open story's panel: that story, on that capability, as its territory's click would pick it (4.8). */
+  capability(capability: string): void { if (this.current?.kind === "story") this.story(this.current.id, capability); }
   note(id: string): void { this.show({ kind: "note", id }); }
   close(): void { this.show(undefined); }
   key(key: string): void { if (key === "Escape") this.close(); }
@@ -30,4 +32,16 @@ export class PanelSelection {
     this.current = selection;
     this.changed(selection);
   }
+}
+
+/** Hear clicks on the capability names the story panel lists (4.8), each picking its capability; returns the stop. */
+export function panelPicks(panel: HTMLElement, selection: PanelSelection): () => void {
+  const click = (event: Event): void => {
+    const name = (event.target as Element | null)?.closest<HTMLElement>("[data-pick-capability]");
+    if (name === null || name === undefined || !panel.contains(name)) return;
+    event.stopPropagation();
+    selection.capability(name.dataset.pickCapability!);
+  };
+  panel.addEventListener("click", click);
+  return () => panel.removeEventListener("click", click);
 }

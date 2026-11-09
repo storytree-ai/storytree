@@ -9,18 +9,6 @@
   box-sizing: border-box;
 }
 
-/* A capability's word in its status's colour (4.43, ADR-0744's four words), from the host's text colours; amber is the forest's own, one per theme. */
-.forest-workspace {
-  --st-proposed: #8a4b0f;
-  --st-healthy: var(--pass-text);
-  --st-unhealthy: var(--fail-text);
-  --st-untested: var(--none-text);
-}
-
-@media (prefers-color-scheme: dark) {
-  .forest-workspace { --st-proposed: #f2b84b; }
-}
-
 /* Opt-in desktop dark palette for hosts without the desktop OS theme. */
 .forest-workspace[data-theme="dark"] {
   color-scheme: dark;
@@ -40,7 +28,6 @@
   --none-bg: #2a2e33;
   --none-text: #b8bdc4;
   --none-line: #454a52;
-  --st-proposed: #f2b84b;
 }
 
 .forest {
@@ -330,6 +317,14 @@
   font-size: 1.2rem;
 }
 
+/* A capability's story, named small above its title (ADR-1297). */
+.panel-story-name {
+  margin: 0 0 0.1rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .panel-close {
   font: inherit;
   font-size: 1.3rem;
@@ -342,6 +337,43 @@
 
 .panel-sentences {
   margin-top: 0.4rem;
+}
+
+.panel-sentences p,
+.panel-lead p {
+  margin: 0 0 0.5rem;
+}
+
+/* A story's capabilities by name, each opening that capability as its territory would (ADR-1297). */
+.panel-capabilities {
+  margin: 0.6rem 0 0.4rem;
+  padding: 0.5rem 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.panel-pick {
+  padding: 0.15rem 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.panel-pick:hover,
+.panel-pick:focus-visible {
+  text-decoration-color: currentColor;
+}
+
+.panel-subhead {
+  margin: 0.6rem 0 0.2rem;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 /* A fold's handle (ADR-1284 D1): one line, "<Label> · <count>", behind a chevron that turns when it is open. A
@@ -382,8 +414,9 @@
   font-size: 0.9rem;
 }
 
-/* A contract inside "Contracts · n" is a handle too, one level deeper: its title in the panel's own colour. */
+/* A contract is a handle too: its title in the panel's own colour, its state beside it. */
 .panel-contracts .panel-handle {
+  flex-wrap: wrap;
   color: var(--text);
   font-weight: 400;
 }
@@ -427,23 +460,16 @@
 }
 
 .panel-muted,
-.panel-trail,
-.panel-state {
+.panel-trail {
   color: var(--muted);
   font-size: 0.85rem;
   font-weight: 600;
 }
 
-.panel-state.status-proposed { color: var(--st-proposed); }
-.panel-state.status-healthy { color: var(--st-healthy); }
-.panel-state.status-unhealthy { color: var(--st-unhealthy); }
-.panel-state.status-untested { color: var(--st-untested); }
-
-/* The one capability picked on the island, shown below the story's sentences (ADR-0659 D2). */
+/* The capability picked, on the island or by its name on the story's panel (ADR-1297). */
 
 .panel-detail {
-  padding: 0.7rem 0;
-  border-top: 1px solid var(--line);
+  padding: 0.5rem 0;
 }
 
 .panel-detail h3 {
@@ -456,7 +482,7 @@
 }
 
 /* Why the selected capability is not green, and who moves it (forest 4.12, ADR-0825 D1): plain words
-   under its word, no colour of its own, so "needs you" is carried by the sentence, not a tint. */
+   above its description, no colour of its own, so "needs you" is carried by the sentence, not a tint. */
 
 .panel-detail p.panel-why {
   margin: 0.35rem 0 0.5rem;

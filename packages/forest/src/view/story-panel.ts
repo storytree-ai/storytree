@@ -1,9 +1,11 @@
 /**
  * Capability 4 · Drill-down. The drill-down's panel (the forest story, capability 4): @storytree/forest's drillDown, as HTML.
- * It leads with the story's lead, and below it shows the one capability picked on the island, its word saying where it came
- * from and a why line only when that needs the user (ADR-1284 D2, D3). Everything else waits in a fold behind a handle saying what is inside and how much, which a
- * single click opens (ADR-1287, narrowing ADR-1284 D1; ./panel-folds.ts works them). The island draws the capability tree, so the panel draws
- * none (ADR-1285). Every word from the library is written as text, never as HTML.
+ * It shows exactly what is selected, each thing once (ADR-1295, ADR-1297): a story picked alone is its title, its whole
+ * description and its capabilities by name, each opening that capability; a capability picked is its title, its story
+ * named small above it, its whole description and its contracts, each with its own state. Its open work, a contract's
+ * detail and the story's extra checks wait in a fold behind a handle saying what is inside and how much, which a single
+ * click opens (ADR-1287; ./panel-folds.ts works them). The island draws the capability tree and the territories carry
+ * health, so the panel draws neither (ADR-1285). Every word from the library is written as text, never as HTML.
  */
 import type { CapabilityLine, ContractLine, StoryPanel, WhyLine } from "@storytree/forest";
 import type { HealthSource, HealthState } from "@storytree/library";
@@ -11,46 +13,52 @@ import type { HealthSource, HealthState } from "@storytree/library";
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
 
 /**
- * The panel's HTML, with `selected`, the capability picked on the island, shown below the story's lead if it is one of
- * the story's capabilities. Every fold is drawn closed, with nothing to open them all (ADR-1292); the page's folds open
- * the kinds the user keeps open. With the capability details switched off (ADR-0750) it is the story alone. A
- * `gate` picked on the map, the pair of capabilities it joins, shows the edges between them in its place (ADR-1282 D1),
- * each in one state line (ADR-1284 D4); `open` holds the contracts the arc opened in the Arcs tab links in its open work.
+ * The panel's HTML: `selected`, the capability picked, when it is one of the story's, else the story alone; no capability
+ * is ever picked for the user (ADR-1297). Every fold is drawn closed, with nothing to open them all (ADR-1292); the page's
+ * folds open the kinds the user keeps open. With the capability details switched off (ADR-0750) it is the story alone,
+ * without its capabilities' names. A `gate` picked on the map, the pair of capabilities it joins, shows the edges between
+ * them (ADR-1282 D1), each in one state line (ADR-1284 D4); `open` holds the contracts the arc opened in the Arcs tab
+ * links in its open work.
  */
 // Its head, on show exactly while the panel is, names the panel as the Story panel's canvas (Surface feedback).
 export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { details = true, gate, open }: { details?: boolean; gate?: readonly [string, string] | undefined; open?: readonly string[] | undefined } = {}): string {
-  const shown = details && gate === undefined ? panel.capabilities.find(({ id }) => id === selected) : undefined;
-  const [lead, rest] = paragraphs(panel.description);
-  const body = `
-    <p class="panel-sentences">${text(lead)}</p>
+  if (gate !== undefined) return `${head(panel.title)}${gateLinks(panel, gate, open)}`;
+  const shown = details ? panel.capabilities.find(({ id }) => id === selected) : undefined;
+  if (shown !== undefined) return `${head(shown.title, panel.title)}${capability(shown)}`;
+  return `${head(panel.title)}
+    ${description(panel.description, "panel-sentences")}
     ${panel.mapped === undefined ? "" : mapped(panel.mapped)}
     ${needsYou(panel.capabilities)}
-    ${more(rest)}
-    ${panel.checks === undefined || panel.checks.length === 0 ? "" : extraChecks(panel.checks)}
-    ${shown === undefined ? "" : capability(shown)}
-    ${gate === undefined ? "" : gateLinks(panel, gate, open)}`;
+    ${details ? names(panel.capabilities) : ""}
+    ${panel.checks === undefined || panel.checks.length === 0 ? "" : extraChecks(panel.checks)}`;
+}
+
+/** The panel's head: what is selected, and for a capability its story, named small above it. */
+function head(title: string, story?: string): string {
   return `
     <header class="panel-head" data-surface-id="story-panel" data-surface-layer="panel">
-      <h2>${text(panel.title)}</h2>
+      <div class="panel-titles">${story === undefined ? "" : `<p class="panel-story-name">${text(story)}</p>`}<h2>${text(title)}</h2></div>
       <button type="button" class="panel-close" aria-label="Close">×</button>
-    </header>${body}`;
+    </header>`;
+}
+
+/** A whole description, each paragraph its own, with no fold (ADR-1297). */
+function description(words: string, kind: string): string {
+  const paragraphs = words.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter((paragraph) => paragraph !== "");
+  return `<div class="${kind}">${paragraphs.map((paragraph) => `<p>${text(paragraph)}</p>`).join("")}</div>`;
+}
+
+/** A story's capabilities by name, in build order, each a button that opens that capability (ADR-1297); with none, nothing. */
+function names(capabilities: readonly CapabilityLine[]): string {
+  if (capabilities.length === 0) return "";
+  return `<ul class="panel-capabilities" aria-label="Capabilities">${capabilities
+    .map(({ id, title }) => `<li><button type="button" class="panel-pick" data-pick-capability="${attribute(id)}">${text(title)}</button></li>`)
+    .join("")}</ul>`;
 }
 
 /** One block of detail behind its handle, closed until the user opens it (ADR-1284 D1); `handle` is already text. */
 function fold(kind: string, handle: string, inside: string): string {
   return `<div class="panel-fold" data-fold="${kind}"><button type="button" class="panel-handle" aria-expanded="false">${handle}</button><div class="panel-fold-body" hidden>${inside}</div></div>`;
-}
-
-/** A description's lead, its first paragraph, and the rest, every later one (ADR-1284 D5). */
-function paragraphs(description: string): [string, string[]] {
-  const [lead = "", ...rest] = description.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter((paragraph) => paragraph !== "");
-  return [lead, rest];
-}
-
-/** The rest of a description behind a bare "How it works", no count (ADR-1291); with no rest, no handle. */
-function more(rest: readonly string[]): string {
-  if (rest.length === 0) return "";
-  return fold("more", "How it works", rest.map((paragraph) => `<p>${text(paragraph)}</p>`).join(""));
 }
 
 /**
@@ -100,56 +108,52 @@ function extraChecks(checks: readonly ExtraCheck[]): string {
     .join("")}</ul>`);
 }
 
-/** A capability's contracts behind "Contracts · n". */
+/** A capability's contracts, each with its own state on show (ADR-1297); with none, it says so. */
 function contracts(line: CapabilityLine): string {
   if (line.contracts.length === 0) return `<p class="panel-muted">No contracts yet.</p>`;
-  return fold("contracts", `Contracts · ${line.contracts.length}`, contractList(line.contracts));
+  return `<h3 class="panel-subhead">Contracts</h3>${contractList(line.contracts)}`;
 }
 
-/** Contracts, a capability's or a link's alike, each by its title, opening one level deeper to its health and trail. */
+/**
+ * Contracts, a capability's or a link's alike, each by its title and its state: storytree's verdict with its source where
+ * one was written, else the agent's report, labelled as the agent's. Each opens one level deeper to its trail, the agent's
+ * report beside storytree's, and when it was last seen if not re-run since.
+ */
 function contractList(contracts: readonly ContractLine[]): string {
   return `<ul class="panel-contracts">${contracts
-    .map((contract) => `
-      <li data-contract-id="${attribute(contract.id)}">${fold("contract", text(contract.title), `
+    .map((contract) => {
+      const state = contract.verified === undefined ? badge("the agent reports", contract.reported) : badge("storytree saw", contract.verified, contract.source === undefined ? undefined : [contract.source]);
+      return `
+      <li data-contract-id="${attribute(contract.id)}">${fold("contract", `${text(contract.title)} ${state}`, `
         <span class="panel-health">
-          ${badge("the agent reports", contract.reported)}
+          ${contract.verified === undefined ? "" : badge("the agent reports", contract.reported)}
           <span class="panel-trail">${text(contract.trail)}</span>
-          ${contract.verified === undefined ? "" : badge("storytree saw", contract.verified, contract.source === undefined ? undefined : [contract.source])}
           ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
-        </span>`)}</li>`)
+        </span>`)}</li>`;
+    })
     .join("")}</ul>`;
 }
 
+/**
+ * A capability picked: why it is not green and who moves it, only when that needs the user; that nothing checks a
+ * report-only project; where it is parked; its whole description; its open work; then its contracts. Its health is the
+ * territory's to show (ADR-1295), so it has no word and no Health fold here.
+ */
 function capability(line: CapabilityLine): string {
-  const [lead, rest] = paragraphs(line.description);
   return `
     <section class="panel-detail" data-capability-id="${attribute(line.id)}">
-      <h3>${text(line.title)} <span class="panel-state status-${line.status}">${line.reportOnly ? `the agent reports ${HEALTH[line.reported]}` : word(line)}</span></h3>
-      ${line.why === undefined || !mattersWhy(line.status, line.why) ? "" : why(line.why)}
+      ${line.reportOnly || line.why === undefined || !mattersWhy(line.status, line.why) ? "" : why(line.why)}
       ${line.reportOnly ? `<p class="panel-why report-only">${text(NOT_VERIFIED)}.</p>` : ""}
       ${line.parkedOn === undefined ? "" : parked(line.parkedOn)}
-      <p class="panel-lead">${text(lead)}</p>
-      ${more(rest)}
-      ${health(line)}
+      ${description(line.description, "panel-lead")}
       ${line.openWork === undefined || line.openWork.length === 0 ? "" : openWork(line.openWork)}
       ${contracts(line)}
     </section>`;
 }
 
-/** Its word with where it came from (ADR-1284 D3): "healthy, from CI"; with no source recorded, or proposed, the word alone. */
-function word({ status, sources }: CapabilityLine): string {
-  return status === "proposed" || sources === undefined || sources.length === 0 ? status : `${status}, ${FROM[sourceKey(sources)]}`;
-}
-
 /** The why line matters only when it is unhealthy or untested, or the owner moves it: "not built yet" on a proposed one is no news. */
 function mattersWhy(status: CapabilityLine["status"], { mover }: WhyLine): boolean {
   return status === "unhealthy" || status === "untested" || mover === "owner";
-}
-
-/** The agent's report and storytree's, side by side behind Health, each with its source (ADR-1284 D3). */
-function health(line: CapabilityLine): string {
-  const readings = [badge("the agent reports", line.reported), ...(line.verified === undefined ? [] : [badge("storytree saw", line.verified, line.sources)])];
-  return fold("health", `Health · ${readings.length}`, `<p class="panel-health">${readings.join(" ")}</p>`);
 }
 
 /** On the story's surface, only when the owner moves one of its capabilities: how many need him (ADR-1284 D2). */

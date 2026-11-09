@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { removeTemp } from "@storytree/test-waits";
 import { test } from "node:test";
 
 // The release workflow's completeness check, kept with the packaging it describes (apps/desktop's
@@ -223,7 +224,7 @@ esac
 
 test("4.44 every release page links the steps out of a Windows update that never finishes", {
   skip: process.platform === "win32" && "platform:posix: GitHub's command line is stood in for by a shell script",
-}, () => {
+}, async () => {
   const script = fileURLToPath(new URL("../release.mjs", import.meta.url));
   const root = mkdtempSync(path.join(tmpdir(), "storytree-notes-"));
   try {
@@ -253,7 +254,7 @@ esac
     assert.equal(run.status, 0, run.stderr);
     assert.match(readFileSync(notes, "utf8"), /\(https:\/\/github\.com\/storytree-ai\/storytree\/blob\/main\/INSTALL\.md#if-a-windows-update-never-finishes\)/);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });
 

@@ -167,9 +167,15 @@ $null = Step 'hold' {
 # Claude Code connected by the installed tools; a stand-in `claude` answers the version check, nothing more.
 $tools = $null
 $connected = Step 'connect' {
-  $stub = Join-Path $Out 'claude-stub'
+  # Where Claude Code's installer puts it, on the user's PATH: the setup starts the new app through Explorer, which
+  # reads that PATH, not this script's.
+  $stub = Join-Path $env:USERPROFILE '.local\bin'
   New-Item -ItemType Directory -Force -Path $stub | Out-Null
   Set-Content -LiteralPath (Join-Path $stub 'claude.cmd') -Value '@echo 2.0.0 (Claude Code)' -Encoding ascii
+  [Environment]::SetEnvironmentVariable('Path', "$stub;$([Environment]::GetEnvironmentVariable('Path', 'User'))", 'User')
+  Add-Type -Namespace StorytreeAcceptance -Name Environment -MemberDefinition '[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, UIntPtr wParam, string lParam, uint flags, uint timeout, out UIntPtr result);'
+  $result = [UIntPtr]::Zero
+  $null = [StorytreeAcceptance.Environment]::SendMessageTimeout([IntPtr]0xffff, 0x1a, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
   $env:Path = "$stub;$env:Path"
   $script:tools = (Get-Json (Join-Path $storytreeHome 'delivery.json')).tools
   & $script:tools.node $script:tools.deliver connect claude-code *> (Join-Path $Out 'connect.txt')

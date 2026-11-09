@@ -53,7 +53,10 @@ function checkUninstall(tools) {
   mkdirSync(path.dirname(beside), { recursive: true });
   copyFileSync(path.join(tools, "node.exe"), beside);
   const neighbour = spawn(beside, ["-e", "setInterval(() => {}, 1000)"], { windowsHide: true, stdio: "ignore" });
-  console.log(`4.43 diagnostic: install folder ${installed}; Windows sees ${execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `(Get-CimInstance Win32_Process -Filter "ProcessId=${neighbour.pid}").Path`], { encoding: "utf8", timeout: 60_000 }).trim()}`);
+  const query = `if ((Get-CimInstance -ClassName Win32_Process | ? {$_.Path -and $_.Path.StartsWith('${installed}', 'CurrentCultureIgnoreCase')}).Count -gt 0) { exit 0 } else { exit 1 }`;
+  const seen = spawnSync("powershell.exe", ["-C", query], { encoding: "utf8", timeout: 60_000 });
+  const policy = spawnSync("powershell.exe", ["-C", "if ((Get-ExecutionPolicy -Scope Process) -eq 'Restricted') { exit 1 } else { exit 0 }"], { encoding: "utf8", timeout: 60_000 });
+  console.log(`4.43 diagnostic: template query exit ${seen.status} ${seen.stdout}${seen.stderr}; policy exit ${policy.status}`);
   try {
     execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 180_000, env });
     assert.doesNotThrow(() => process.kill(neighbour.pid, 0), "the reinstall left a program that is not storytree-0.3.exe running");

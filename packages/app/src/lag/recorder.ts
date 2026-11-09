@@ -155,6 +155,11 @@ export function createRecorder(options: RecorderOptions) {
       const working = pending !== undefined && pending.answered && pending.last !== undefined && (!pending.last.still || pending.last.progress);
       if (pending?.settled === undefined && !working) pending = { at, start, progress: false, answered: false };
     },
+    /** A script's input (an untrusted event): what the page shows next is the script's doing, not an answer to its user's input,
+     * so an action under way that has not settled ends unrecorded. */
+    scripted(): void {
+      if (pending !== undefined && pending.settled === undefined) end();
+    },
     /** The page as it showed at a frame. */
     frame(at: number, page: PageState): void {
       const under = pending;

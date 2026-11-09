@@ -27,6 +27,8 @@ function page(search: string) {
     win, listeners, timers,
     /** A trusted click at `at`. */
     click(at: number) { now = at; listeners.get("pointerdown")?.({ isTrusted: true, timeStamp: at } as unknown as Event); },
+    /** A script's click at `at` (an element's click(), as a driver or the smoke check makes): no pointerdown, and untrusted. */
+    scriptClick(at: number) { now = at; listeners.get("click")?.({ type: "click", isTrusted: false, timeStamp: at } as unknown as Event); },
     /** A trusted pointer event of `type` at `at` on the map's canvas, its button and Ctrl as given. */
     pointer(type: string, at: number, press: { button?: number; ctrlKey?: boolean } = {}) {
       now = at;
@@ -41,6 +43,10 @@ function page(search: string) {
     openIsland(story: string) {
       dom.document.body.dataset.selected = story;
       (dom.document.querySelector(".story-panel") as unknown as HTMLElement).hidden = false;
+    },
+    closePanel() {
+      delete dom.document.body.dataset.selected;
+      (dom.document.querySelector(".story-panel") as unknown as HTMLElement).hidden = true;
     },
   };
 }
@@ -64,6 +70,28 @@ test("5.2 · switched off, the recorder makes no call at all; switched on, a cli
   assert.deepEqual(sent, [], "nothing is sent until the flush");
   on.timers.forEach((flush) => flush());
   assert.deepEqual(sent, [[{ name: "open-island", response: 0, longFrames: 0, longestFrame: 0, settled: 40, progress: false, size: 14 }]]);
+  recorder.stop();
+  assert.equal(on.listeners.size, 0);
+});
+
+test("5.1 · a panel a script closes after its user's click is no reading of that click; the user's own close is", () => {
+  const sent: LagReading[][] = [];
+  const on = page("");
+  const recorder = mountLagRecorder({ recordLag: async (readings: LagReading[]) => { sent.push(readings); } }, on.win)!;
+  on.openIsland("story_lib");
+  // The user clicks inside the open panel (a fold), which no catalogue action settles; two seconds on, a script clicks its close.
+  on.click(1000);
+  for (const at of [1016, 1033]) on.frame(at);
+  on.scriptClick(3037);
+  on.closePanel();
+  for (const at of [3050, 3066, 3083]) on.frame(at);
+  // The user opens it again and closes it with their own click.
+  on.openIsland("story_lib");
+  on.click(5000);
+  on.closePanel();
+  for (const at of [5016, 5033, 5050]) on.frame(at);
+  on.timers.forEach((flush) => flush());
+  assert.deepEqual(sent.flat().map((reading) => [reading.name, reading.settled]), [["close-panel", 16]]);
   recorder.stop();
   assert.equal(on.listeners.size, 0);
 });

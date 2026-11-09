@@ -54,7 +54,7 @@ export function mountLagRecorder(bridge: LagBridge, win: RecorderWindow = window
     });
   };
   const onInput = (event: Event) => {
-    if (!event.isTrusted) return;
+    if (!event.isTrusted) return recorder.scripted();
     // A press on the map's canvas that spins and tilts it is a turn of the view on show, timed by its frames; no click action.
     const mode = event.type === "pointerdown" && (event.target as Element | null)?.tagName === "CANVAS" && sheetDrag(event as PointerEvent) === "spin"
       ? readPage(win, false).mode : undefined;
@@ -62,9 +62,11 @@ export function mountLagRecorder(bridge: LagBridge, win: RecorderWindow = window
     else recorder.input(event.timeStamp, readPage(win, false));
     if (!watching) watch();
   };
+  // A script's click (an element's click()) comes with no pointerdown; the user's own click was heard at its pointerdown.
+  const onClick = (event: Event) => { if (!event.isTrusted) recorder.scripted(); };
   const onMove = (event: Event) => { if (event.isTrusted) recorder.turnMove(); };
   const onLetGo = (event: Event) => { if (event.isTrusted) recorder.turnEnd(event.timeStamp); };
-  const turnListeners: [string, (event: Event) => void][] = [["pointermove", onMove], ["pointerup", onLetGo], ["pointercancel", onLetGo]];
+  const turnListeners: [string, (event: Event) => void][] = [["click", onClick], ["pointermove", onMove], ["pointerup", onLetGo], ["pointercancel", onLetGo]];
   const observers: PerformanceObserver[] = [];
   const observe = (type: string, deliver: (entries: Entry[]) => void, options: PerformanceObserverInit) => {
     if (win.PerformanceObserver?.supportedEntryTypes?.includes(type) !== true) return;

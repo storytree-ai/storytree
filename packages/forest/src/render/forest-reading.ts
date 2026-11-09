@@ -73,18 +73,27 @@ const pageTimers: Timers = {
   },
 };
 
-/** The record types a project's tree is read from (the library's projectTree and its health): a change to any other leaves it as it was. */
+/** The record types a project's tree is read from (the library's projectTree and its health): a change to any other, but an increment's that moves open work, leaves it as it was. */
 const TREE_TYPES: ReadonlySet<string> = new Set(["story", "capability", "contract", "arc", "health"]);
 
-/** A change as the page passes one on: its record's fields are read only for health. */
-type TreeNewsChange = { readonly type: string; readonly action?: string; readonly record?: { readonly fields?: unknown } };
+/** A change as the page passes one on: its record's fields are read only for health and increments. */
+type TreeNewsChange = { readonly type: string; readonly recordId?: string; readonly action?: string; readonly record?: { readonly fields?: unknown } };
 
 /**
  * Whether `news` changes the tree: a change to one of its records (7.24), except a health record that re-records the
  * state `last` already shows for its contract's column (7.27). Agents' test runs re-record health every few seconds,
- * mostly unchanged; skipping those leaves only an entry's time and author stale (ADR-0836: stale before slow).
+ * mostly unchanged; skipping those leaves only an entry's time and author stale (ADR-0836: stale before slow). An
+ * increment's change counts when it could move a capability's open work (ADR-1253 D1): it names a capability, or `last`
+ * already lists it under one.
  */
 function changesTree(news: { readonly changes: readonly TreeNewsChange[] }, last: AnnotatedTree): boolean {
+  let listed: Set<string> | undefined;
+  const movesOpenWork = (change: TreeNewsChange): boolean => {
+    if (change.type !== "increment") return false;
+    if (((change.record?.fields as { capabilities?: readonly string[] } | undefined)?.capabilities ?? []).length > 0) return true;
+    listed ??= new Set(last.stories.flatMap((story) => story.capabilities.flatMap((capability) => (capability.openWork ?? []).map(({ increment }) => increment))));
+    return change.recordId !== undefined && listed.has(change.recordId);
+  };
   let shown: Map<string, string> | undefined;
   const unchangedHealth = (change: TreeNewsChange): boolean => {
     if (change.type !== "health" || change.action === "retired") return false;
@@ -93,7 +102,7 @@ function changesTree(news: { readonly changes: readonly TreeNewsChange[] }, last
       Object.entries(contract.health ?? {}).map(([name, entry]) => [`${contract.id} ${name}`, (entry as { state?: string }).state ?? ""] as const)))));
     return state !== undefined && shown.get(`${node} ${column}`) === state;
   };
-  return news.changes.some((change) => TREE_TYPES.has(change.type) && !unchangedHealth(change));
+  return news.changes.some((change) => (TREE_TYPES.has(change.type) && !unchangedHealth(change)) || movesOpenWork(change));
 }
 
 /** Landed work can change the code without changing the plan (7.25). */

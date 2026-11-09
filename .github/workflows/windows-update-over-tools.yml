@@ -1,0 +1,57 @@
+name: Windows update over live agent tools
+
+# The Windows update an open agent session must not block (increment_dcb59d18e37b, arc_fa72f1830b5d): on fresh x64 and
+# arm64 runners, the previous release is installed by its one-liner and Claude Code connected to it; with an agent
+# session's storytree tools left running (and again with none), the newer release's setup is run as the app's updater
+# runs it, and the run fails unless it finishes within five minutes, the new version runs, the agents are re-pointed at
+# its tools and those tools answer, and the open session's tools still answer. On 2026-11-09 a setup waited fifteen
+# hours on tools run from the install folder (research_e00d8bcfc32e). Recorded by
+# packages/app-setup/testing/windows-acceptance/update-over-tools.ps1 and kept as an artifact; a push to a
+# windows-update-over-tools/ branch runs it before the workflow reaches main. Not yet called by every release: until
+# the first update off a release from before the tools moved under the home is carried (increment_322e2bead5d5), a
+# starting release before 0.3.2629 (the first with the tools under the home) is expected to fail. The repository is public: no secret is used.
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: The 0.3.<n> release to install first; empty takes the release before the one updated to
+        default: ""
+      to:
+        description: The 0.3.<n> release to update to; empty takes the newest with a Windows setup
+        default: ""
+  push:
+    branches: ["windows-update-over-tools/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-latest, windows-11-arm]
+        session: [open, closed]
+    runs-on: ${{ matrix.runner }}
+    # The one-liner's install, the five-minute bound and the three-minute re-point fit well inside.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: packages/app-setup/testing/windows-acceptance
+      - name: Install the previous release, connect an agent, and update over its running tools
+        shell: pwsh
+        env:
+          FROM: ${{ inputs.from }}
+          TO: ${{ inputs.to }}
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          ./packages/app-setup/testing/windows-acceptance/update-over-tools.ps1
+          -Out "$env:RUNNER_TEMP/windows-update-over-tools" -Session ${{ matrix.session }} -From "$env:FROM" -To "$env:TO"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: windows-update-over-tools-${{ matrix.runner }}-${{ matrix.session }}
+          path: ${{ runner.temp }}/windows-update-over-tools
+          retention-days: 14

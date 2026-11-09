@@ -233,3 +233,18 @@ test("1.4 a contract no test of its story's packages proves names a test numbere
   assert.match(shown, /not credited: test "1\.2 · rows persist through the app" in packages\/app\/src\/rows\.test\.ts sits in another story's package/);
   assert.match(shown, /prefix its title with data/);
 });
+
+test("1.5 a contract on an edge joins the graph with its own health, belonging to both capabilities the edge joins and saying the edge, so focus selects it and a focus on either capability lists it beside its own contracts", () => {
+  const onEdge = { id: "projects-read-storage", title: "2.7 Projects reads what the cache saved", health: { ...health, verified: { state: "failing" } } };
+  const joined = { ...tree, stories: [
+    { id: "app", title: "The app", health, capabilities: [projects, { ...storage, id: "cache", title: "3 · Cache" }], edges: [{ id: "edge-1", from: "projects", to: "cache", contracts: [onEdge] }] },
+    tree.stories[1],
+  ] } as unknown as AnnotatedTree;
+  const built = buildGraph(joined, {});
+  const selected = focus(built, { select: "contract:2.7", up: 1, mode: "show" });
+  assert.deepEqual(selected.rows?.find(row => row.depth === 0), { id: onEdge.id, kind: "contract", title: onEdge.title, story: "app", health: "failing", onEdge: { id: "edge-1", from: "projects", to: "cache" }, number: "2.7", depth: 0, edge: [] });
+  assert.deepEqual(selected.rows?.filter(row => row.depth === 1).map(row => row.id).sort(), ["cache", "projects"]);
+  assert.deepEqual(focus(built, { select: "cap:projects", down: 1, kind: ["contract"], mode: "show" }).rows?.map(row => row.id), [promise.id, onEdge.id]);
+  assert.deepEqual(focus(built, { select: "cap:cache", down: 1, kind: ["contract"], mode: "show" }).rows?.map(row => row.id), [onEdge.id]);
+  assert.match(formatFocus(selected), /projects-read-storage .*on edge-1: projects depends on cache/);
+});

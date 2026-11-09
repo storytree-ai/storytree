@@ -180,13 +180,16 @@ $connected = Step 'connect' {
   $script:tools = (Get-Json (Join-Path $storytreeHome 'delivery.json')).tools
   & $script:tools.node $script:tools.deliver connect claude-code *> (Join-Path $Out 'connect.txt')
   if ($LASTEXITCODE -ne 0) { throw "connect exited $LASTEXITCODE" }
-  $mcp = Get-McpScript
-  # Since contract 1.20 the agents run the build's copy under the home, never the installation's.
-  if ($mcp.StartsWith($installDir, [StringComparison]::OrdinalIgnoreCase)) { throw "the registration runs the installation's copy: $mcp" }
-  "registered $mcp"
+  "registered $(Get-McpScript)"
 }
 if (-not $connected) { exit 1 }
 $fromMcp = Get-McpScript
+# Since contract 1.20 the agents run the build's copy under the home, never the installation's. A release from before
+# it fails here and carries on, so the update over tools run from the installation is still observed.
+$null = Step 'home-copy' {
+  if ($fromMcp.StartsWith($installDir, [StringComparison]::OrdinalIgnoreCase)) { throw "the registration runs the installation's copy: $fromMcp" }
+  "runs $(Split-Path $fromMcp)"
+}
 
 # An open session: its MCP server answering, and a hook still reading its event, both left running over the update.
 $held = @()

@@ -47,23 +47,23 @@ function checkUninstall(tools) {
   const env = { ...process.env, USERPROFILE: user, STORYTREE_HOME: home, CLAUDE_CONFIG_DIR: claude, CODEX_HOME: path.join(user, ".codex"), LOCALAPPDATA: localAppData };
 
   // 4.43: the installers' running-app check looks only for storytree-0.3.exe. electron-builder's own
-  // asked PowerShell for any process whose path starts with the install folder's and stopped it, so a
-  // program in a folder named like it, beside it (not moved by the update's uninstall), shows which ran.
+  // asks PowerShell for every process whose path starts with the install folder's and stops them, so
+  // programs in a folder named like it, beside it (not moved by the update's uninstall), show which ran.
+  // Two, because its query counts matches with .Count, which one CIM object lacks in PowerShell 5.1.
+  // The runner's PSModulePath names PowerShell 7's modules, where 5.1 cannot load Get-ExecutionPolicy
+  // and electron-builder's check falls back to tasklist; a user's has no such entry, so the run drops it.
   const beside = path.join(`${installed}-beside`, "node.exe");
   mkdirSync(path.dirname(beside), { recursive: true });
   copyFileSync(path.join(tools, "node.exe"), beside);
-  const neighbour = spawn(beside, ["-e", "setInterval(() => {}, 1000)"], { windowsHide: true, stdio: "ignore" });
-  const ps = (command, extra = {}) => { const r = spawnSync("powershell.exe", ["-C", command], { encoding: "utf8", timeout: 60_000, ...extra }); return `exit ${r.status}: ${r.stdout.trim()} ${r.stderr.trim()}`; };
-  console.log(`4.43 diagnostic: alive ${neighbour.exitCode}; policy ${ps("Get-ExecutionPolicy -Scope Process")}; with preference ${ps("Get-ExecutionPolicy -Scope Process", { env: { ...process.env, PSExecutionPolicyPreference: "Bypass" } })}`);
-  console.log(`4.43 diagnostic: matches ${ps(`Get-CimInstance -ClassName Win32_Process | ? {$_.Path -and $_.Path.StartsWith('${installed}', 'CurrentCultureIgnoreCase')} | % { \"$($_.ProcessId) $($_.Path)\" }`)}`);
-  console.log(`4.43 diagnostic: count ${ps(`(Get-CimInstance -ClassName Win32_Process | ? {$_.Path -and $_.Path.StartsWith('${installed}', 'CurrentCultureIgnoreCase')}).Count`)}`);
+  const neighbours = [0, 1].map(() => spawn(beside, ["-e", "setInterval(() => {}, 1000)"], { windowsHide: true, stdio: "ignore" }));
+  const userEnv = Object.fromEntries(Object.entries(env).filter(([name]) => name.toLowerCase() !== "psmodulepath"));
   try {
-    execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 180_000, env });
-    assert.doesNotThrow(() => process.kill(neighbour.pid, 0), "the reinstall left a program that is not storytree-0.3.exe running");
+    execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 180_000, env: userEnv });
+    for (const neighbour of neighbours) assert.doesNotThrow(() => process.kill(neighbour.pid, 0), "the reinstall left programs that are not storytree-0.3.exe running");
   } finally {
-    neighbour.kill();
+    for (const neighbour of neighbours) neighbour.kill();
   }
-  console.log("4.43 PASS (Windows x64): a reinstall's running-app check finished in time and left another program beside the install folder running");
+  console.log("4.43 PASS (Windows x64): a reinstall's running-app check finished in time and left other programs beside the install folder running");
   assert.ok(existsSync(path.join(home, "pgdata", "PG_VERSION")) && existsSync(cache), "an update's uninstall leaves the home and cache");
   assert.deepEqual(JSON.parse(readFileSync(claudeFile, "utf8")).mcpServers.storytree, ours, "an update's uninstall leaves the agent connection");
 

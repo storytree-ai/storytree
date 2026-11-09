@@ -317,9 +317,15 @@
   font-size: 1.2rem;
 }
 
-/* A capability's story, named small above its title (ADR-1297). */
+/* A capability's story, named small above its title; a click opens the story alone (ADR-1297). */
 .panel-story-name {
+  display: block;
   margin: 0 0 0.1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 600;
@@ -370,7 +376,7 @@
   text-decoration-color: currentColor;
 }
 
-.panel-subhead {
+.panel-detail h3.panel-subhead {
   margin: 0.6rem 0 0.2rem;
   color: var(--muted);
   font-size: 0.85rem;
@@ -416,7 +422,6 @@
 
 /* A contract is a handle too: its title in the panel's own colour, its state beside it. */
 .panel-contracts .panel-handle {
-  flex-wrap: wrap;
   color: var(--text);
   font-weight: 400;
 }

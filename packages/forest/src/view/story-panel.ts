@@ -33,11 +33,11 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
     ${panel.checks === undefined || panel.checks.length === 0 ? "" : extraChecks(panel.checks)}`;
 }
 
-/** The panel's head: what is selected, and for a capability its story, named small above it. */
+/** The panel's head: what is selected, and for a capability its story, named small above it, which opens the story alone. */
 function head(title: string, story?: string): string {
   return `
     <header class="panel-head" data-surface-id="story-panel" data-surface-layer="panel">
-      <div class="panel-titles">${story === undefined ? "" : `<p class="panel-story-name">${text(story)}</p>`}<h2>${text(title)}</h2></div>
+      <div class="panel-titles">${story === undefined ? "" : `<button type="button" class="panel-story-name" data-pick-story>${text(story)}</button>`}<h2>${text(title)}</h2></div>
       <button type="button" class="panel-close" aria-label="Close">×</button>
     </header>`;
 }
@@ -124,7 +124,7 @@ function contractList(contracts: readonly ContractLine[]): string {
     .map((contract) => {
       const state = contract.verified === undefined ? badge("the agent reports", contract.reported) : badge("storytree saw", contract.verified, contract.source === undefined ? undefined : [contract.source]);
       return `
-      <li data-contract-id="${attribute(contract.id)}">${fold("contract", `${text(contract.title)} ${state}`, `
+      <li data-contract-id="${attribute(contract.id)}">${fold("contract", `<span class="panel-contract-said">${text(contract.title)} ${state}</span>`, `
         <span class="panel-health">
           ${contract.verified === undefined ? "" : badge("the agent reports", contract.reported)}
           <span class="panel-trail">${text(contract.trail)}</span>

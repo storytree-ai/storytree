@@ -38,7 +38,7 @@ function fold(html: string, kind: string): { handle: string; expanded: string; h
 /** The panel's head: the title it leads with, and the story named small above a capability's. */
 function head(html: string): { title: string; story: string | undefined } {
   const header = /<header class="panel-head"[\s\S]*?<\/header>/.exec(html)?.[0] ?? "";
-  const story = /<p class="panel-story-name">([\s\S]*?)<\/p>/.exec(header)?.[1];
+  const story = /<button type="button" class="panel-story-name" data-pick-story>([\s\S]*?)<\/button>/.exec(header)?.[1];
   return { title: plainText(/<h2>([\s\S]*?)<\/h2>/.exec(header)?.[1] ?? ""), story: story === undefined ? undefined : plainText(story) };
 }
 

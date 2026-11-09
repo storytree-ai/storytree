@@ -34,13 +34,18 @@ export class PanelSelection {
   }
 }
 
-/** Hear clicks on the capability names the story panel lists (4.8), each picking its capability; returns the stop. */
+/**
+ * Hear clicks on the names the story panel shows (4.8): a capability's name picks that capability, and the story named
+ * above a capability's title picks the story alone; returns the stop.
+ */
 export function panelPicks(panel: HTMLElement, selection: PanelSelection): () => void {
   const click = (event: Event): void => {
-    const name = (event.target as Element | null)?.closest<HTMLElement>("[data-pick-capability]");
+    const name = (event.target as Element | null)?.closest<HTMLElement>("[data-pick-capability], [data-pick-story]");
     if (name === null || name === undefined || !panel.contains(name)) return;
     event.stopPropagation();
-    selection.capability(name.dataset.pickCapability!);
+    const capability = name.dataset.pickCapability;
+    if (capability !== undefined) selection.capability(capability);
+    else if (selection.current?.kind === "story") selection.story(selection.current.id);
   };
   panel.addEventListener("click", click);
   return () => panel.removeEventListener("click", click);

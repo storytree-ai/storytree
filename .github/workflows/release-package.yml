@@ -319,7 +319,7 @@ jobs:
           $setup = @(Get-Item "apps/desktop/release/storytree-0.3-*-windows-$arch-setup.exe")
           if ($setup.Count -ne 1) { throw "this build has $($setup.Count) Windows $arch setups" }
           ./packages/app-setup/testing/windows-acceptance/update-over-tools.ps1 `
-            -Out "$env:RUNNER_TEMP/windows-update-over-tools" -Session ${{ matrix.session }} -Setup $setup[0].FullName -BoundSeconds 5
+            -Out "$env:RUNNER_TEMP/windows-update-over-tools" -Session ${{ matrix.session }} -Setup $setup[0].FullName
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

@@ -4,7 +4,7 @@
 // it publishes, so a release whose installed app cannot start never publishes.
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { checkEmbeddingBinaries, checkTools } from "./check-tools.mjs";
@@ -17,7 +17,8 @@ const installer = readdirSync(release).find((file) => file.endsWith(`-windows-${
 assert.ok(installer, "NSIS installer was not built");
 assert.equal(process.platform, "win32", "Run this proof on Windows");
 const version = process.env.STORYTREE_RELEASE_VERSION ?? JSON.parse(readFileSync("apps/desktop/package.json", "utf8")).version;
-const temp = mkdtempSync(path.join(tmpdir(), "storytree-installer-"));
+// Long names: CI's temp folder is given in its 8.3 form (RUNNER~1), which no process path reported by Windows begins with.
+const temp = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-installer-")));
 const installed = path.join(temp, "app with spaces");
 const license = readFileSync("LICENSE");
 
@@ -52,6 +53,7 @@ function checkUninstall(tools) {
   mkdirSync(path.dirname(beside), { recursive: true });
   copyFileSync(path.join(tools, "node.exe"), beside);
   const neighbour = spawn(beside, ["-e", "setInterval(() => {}, 1000)"], { windowsHide: true, stdio: "ignore" });
+  console.log(`4.43 diagnostic: install folder ${installed}; Windows sees ${execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `(Get-CimInstance Win32_Process -Filter "ProcessId=${neighbour.pid}").Path`], { encoding: "utf8", timeout: 60_000 }).trim()}`);
   try {
     execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 180_000, env });
     assert.doesNotThrow(() => process.kill(neighbour.pid, 0), "the reinstall left a program that is not storytree-0.3.exe running");

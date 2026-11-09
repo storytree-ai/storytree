@@ -200,8 +200,17 @@ test("1.21 on Windows, the installed app's start removes older builds' copies no
     if (session) { const ended = new Promise((resolve) => session!.once("exit", resolve)); session.kill(); await ended; session = undefined; }
     running = undefined;
     assert.equal(await followBuildTools(options), false);
+    // Windows can hold an ended process's executable a moment longer; a later start would find it free.
+    for (let start = 0; start < 20 && readdirSync(copies).length > 2; start++) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await followBuildTools(options);
+    }
     assert.deepEqual(readdirSync(copies).sort(), [path.basename(current), copying].sort());
-  } finally { session?.kill(); f.close(); }
+  } finally {
+    // A session still running holds its copy, and Windows refuses to delete the fixture under it.
+    if (session) { const ended = new Promise((resolve) => session!.once("exit", resolve)); session.kill(); await ended; }
+    rmSync(f.dir, { recursive: true, force: true, maxRetries: 10 });
+  }
 });
 
 test("1.4: failure to launch or reach the app never publishes a successful installation over the last usable record", async () => {

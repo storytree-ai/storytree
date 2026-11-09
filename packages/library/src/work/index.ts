@@ -8,7 +8,7 @@ export { WaitLoopError } from "./wait-writes.js";
 export type { Hold, Holds, NoteWait, WaitFor } from "./waits.js";
 export { beforeCutover, PR_CUTOVER_ID, pullRepository, pullSaid } from "./pr-cutover.js";
 export type { PrCutover } from "./pr-cutover.js";
-export { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, planGuidance, WorkModel } from "./work-model.js";
+export { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE, planGuidance, WorkModel } from "./work-model.js";
 export type {
   Anchor,
   AnchorEdit,

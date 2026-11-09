@@ -7,7 +7,7 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { installCommand } from "./command.js";
 import { runInstalledConnection } from "../connect/installed.js";
-import { stageTools, verifyPayload, type Architecture, type InstalledTools } from "./payload.js";
+import { clearOlderTools, stageTools, verifyPayload, type Architecture, type InstalledTools } from "./payload.js";
 import { installedToolServerCommand, reconnectAgents, type ConnectionOptions } from "../connect/index.js";
 import { openUninstaller, uninstall, uninstallAsks, uninstallReportFile } from "./uninstall.js";
 
@@ -149,16 +149,24 @@ function writeRecord(options: DeliveryOptions, tools: InstalledTools): void {
  * connected agents' registrations and hooks, and the storytree command are pointed at that copy. A session still open keeps
  * the copy it started. A record naming another installation, or none, is not this app's to rewrite. True when it re-pointed.
  */
-export async function followBuildTools(options: DeliveryOptions & { connections?: Pick<ConnectionOptions, "home" | "env" | "run"> }): Promise<boolean> {
+export async function followBuildTools(options: DeliveryOptions & {
+  connections?: Pick<ConnectionOptions, "home" | "env" | "run">;
+  /** How a copy is moved aside before it is cleared; Windows refuses while a session runs it. */
+  move?: (from: string, to: string) => void;
+}): Promise<boolean> {
   let recorded: { installDir?: unknown; tools?: { dir?: unknown } } | undefined;
   try { recorded = JSON.parse(readFileSync(path.join(options.home, "delivery.json"), "utf8")); } catch { return false; }
   if (typeof recorded?.installDir !== "string" || path.resolve(recorded.installDir).toLowerCase() !== path.resolve(options.installDir).toLowerCase()) return false;
   const tools = stageTools(options.installDir, options.home, options.arch, options.platform ?? process.platform);
-  if (recorded.tools?.dir === tools.dir) return false;
-  writeRecord(options, tools);
-  installCommand({ ...options, tools });
-  await reconnectAgents({ installed: installedToolServerCommand(tools.node, tools.mcp), ...options.connections });
-  return true;
+  const followed = recorded.tools?.dir !== tools.dir;
+  if (followed) {
+    writeRecord(options, tools);
+    installCommand({ ...options, tools });
+    await reconnectAgents({ installed: installedToolServerCommand(tools.node, tools.mcp), ...options.connections });
+  }
+  // Older builds' copies no session runs go, once the agents point at this one (1.21).
+  clearOlderTools(options.home, tools.dir, options.move);
+  return followed;
 }
 
 /** The helper runs only from its own payload's Node: Windows x64 or arm64, an Apple Silicon Mac or x64 Linux (install.sh). */

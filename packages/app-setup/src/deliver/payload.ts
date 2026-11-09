@@ -119,6 +119,26 @@ export function stageTools(installDir: string, home: string, arch: Architecture,
 }
 
 /**
+ * Every copy under the home's app-tools but `keep` goes once no process runs it (contract 1.21). A copy is moved aside
+ * whole before it is deleted: Windows refuses to move a folder a running node.exe holds, so a copy a session still runs
+ * keeps every file and is tried again at the next start. Another start's copy still being made (`.next-`) is left alone.
+ */
+export function clearOlderTools(home: string, keep: string, move: (from: string, to: string) => void = renameSync): void {
+  const root = path.join(home, "app-tools");
+  let names: string[];
+  try { names = readdirSync(root); } catch { return; }
+  for (const name of names) {
+    const dir = path.join(root, name);
+    if (dir === keep || /\.next-\d+$/.test(name)) continue;
+    try {
+      const aside = /\.old-\d+$/.test(name) ? dir : `${dir}.old-${process.pid}`;
+      if (aside !== dir) move(dir, aside);
+      rmSync(aside, { recursive: true, force: true });
+    } catch { /* In use: the next start tries again. */ }
+  }
+}
+
+/**
  * On Linux the agent tools sit beside the AppImage, extracted by the one-liner: the hooks and MCP server need a
  * Node whose path stays put, and a running AppImage's mount moves. An AppImage that replaced itself still has the
  * old build's tools there, so its next start copies its own (`bundled`, its resources/agent-tools) over them,

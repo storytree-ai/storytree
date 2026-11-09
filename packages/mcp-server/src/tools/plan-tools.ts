@@ -187,7 +187,7 @@ export function registerPlanTools(define: Define): void {
       title: title.optional(),
       description,
       story: z.string().min(1).optional().describe("A capability's story, to move it"),
-      capability: z.string().min(1).optional().describe("A contract's capability, to move it"),
+      capability: z.string().min(1).optional().describe("A contract's capability, to move it: with no title given, a contract whose number is another capability's takes this one's next free number"),
       edge: z.string().min(1).optional().describe("A contract's edge, to move it onto that link inside its story"),
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
       covers: covers.describe("A mapped story's capability's folders and files, replacing them"),
@@ -312,12 +312,35 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   };
   const listing = (fields as { capabilities?: string[] }).capabilities;
   const had = kind !== "increment" || listing === undefined ? [] : ((await library.get(target))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
-  const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live }, writer);
+  // A contract moved to another capability with no title given takes that capability's next number, past its tests (4.45).
+  const move = kind === "contract" && changes.capability !== undefined && changes.title === undefined ? await movedNumber(target, changes.capability, call) : undefined;
+  const options = move === undefined ? writer : { ...writer, testedNumbers: move.tested };
+  const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live }, options);
   if (done === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
-  if ("held" in done) return { text: `Your change to ${kind} ${quoted(String(((await library.get(target))?.fields as { title?: string } | undefined)?.title))} (${target}) is ${heldSaid(done.held)}`, data: { id: target } };
+  if ("held" in done) {
+    const renumbers = move?.renumbers === true ? ` Its number ${move.from} is not its new capability's, so it takes that capability's next free number when the change applies: rename its tests' titles to that number then.` : "";
+    return { text: `Your change to ${kind} ${quoted(String(((await library.get(target))?.fields as { title?: string } | undefined)?.title))} (${target}) is ${heldSaid(done.held)}${renumbers}`, data: { id: target } };
+  }
+  const title = (done.edited.fields as { title: string }).title;
+  const to = /^(\d+\.\d+) · /.exec(title)?.[1];
+  const renumbered = move?.from !== undefined && to !== undefined && to !== move.from ? ` Renumbered ${move.from} to ${to}: rename its tests' titles to ${to}, since a test's number is what credits its contract.` : "";
   // Told, not refused, of another open increment already listing a capability this one newly lists (10.35, ADR-1228).
   const shared = kind === "increment" ? await library.openListing((listing ?? []).filter((capability) => !had.includes(capability)), target) : [];
-  return { text: [`Corrected ${kind} ${quoted((done.edited.fields as { title: string }).title)} (${target}).`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
+  return { text: [`Corrected ${kind} ${quoted(title)} (${target}).${renumbered}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
+}
+
+/**
+ * What moving contract `id` to `capability` does to its number: the number it carries, whether that number's leading
+ * part is not the capability's (so the move renumbers it), and the capability's tested numbers, which the new one is past.
+ */
+async function movedNumber(id: string, capability: string, call: Call): Promise<{ from?: string; renumbers: boolean; tested: string[] }> {
+  const tree = await call.library.projectTree();
+  const titleOf = (want: string) => tree.stories.flatMap((story) => story.capabilities).find((one) => one.id === want)?.title;
+  const own = ((await call.library.get(id))?.fields as { title?: string } | undefined)?.title ?? "";
+  const from = /^(\d+\.\d+)(?![\d.])/.exec(own)?.[1];
+  const prefix = /^(\d+) · /.exec(titleOf(capability) ?? "")?.[1];
+  const renumbers = from !== undefined && prefix !== undefined && !from.startsWith(`${prefix}.`);
+  return { ...(from === undefined ? {} : { from }), renumbers, tested: renumbers ? await testedNumbers(call, capability, tree) : [] };
 }
 
 /** The project's claims, as the calling door reads them. */

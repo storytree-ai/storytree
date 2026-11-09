@@ -848,3 +848,36 @@ test("17.22 · library new edge and library new contract --edge write an edge an
   assert.match((await verbOf("move-to-edges").act({}, context, WORDS)).text, /nothing to move/);
 });
 
+
+test("17.23 · The open tool opens a contract on an edge whole, as it does a capability's: its title, its statement, the edge and the two capabilities it joins, and its health (increment_fb8e17883110)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const open = NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "open")!;
+  const context: NoteToolContext = {
+    library, project, session: "lane", folder: process.cwd(), writer: { actor: "session:lane" },
+    claims: async () => [],
+    notesRead: async () => [],
+    recordReads: async () => undefined,
+    presenterOf: async () => undefined,
+  };
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const link = await library.addCapability({ story: story.id, title: "Link" });
+  const edge = await library.addEdge({ from: link.id, to: form.id });
+  const contract = await library.addContract({ edge: edge.id, title: "The link reads the form's address", description: "It reads the address the form saved." });
+
+  const opened = await open.act({ id: contract.id }, context, WORDS);
+  assert.match(opened.text, /^Contract "The link reads the form's address"/);
+  assert.match(opened.text, /It reads the address the form saved\./);
+  assert.match(opened.text, new RegExp(`It sits on the edge ${edge.id}: Capability "Link" \\(${link.id}\\) depends on Capability "Form" \\(${form.id}\\)\\.`));
+  assert.match(opened.text, /Health: verified not-checked, reported not-checked\./);
+  assert.deepEqual((opened.data as { contract: { edge: unknown } }).contract.edge, { id: edge.id, from: { id: link.id, title: "Link" }, to: { id: form.id, title: "Form" } });
+});

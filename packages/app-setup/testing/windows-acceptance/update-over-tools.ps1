@@ -263,6 +263,9 @@ if ($Session -eq 'open') {
 $logs = Join-Path $Out 'home'
 New-Item -ItemType Directory -Force -Path $logs | Out-Null
 Get-ChildItem -LiteralPath $storytreeHome -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.log', '.json' } | Copy-Item -Destination $logs
+Copy-Item -LiteralPath $claudeJson -Destination (Join-Path $Out 'claude.json') -ErrorAction SilentlyContinue
+Copy-Item -LiteralPath $claudeSettings -Destination (Join-Path $Out 'claude-settings.json') -ErrorAction SilentlyContinue
+Get-Command claude -All -ErrorAction SilentlyContinue | ForEach-Object Source | Set-Content -LiteralPath (Join-Path $Out 'claude-commands.txt') -Encoding utf8
 Get-ChildItem -LiteralPath (Join-Path $storytreeHome 'app-tools') -ErrorAction SilentlyContinue | ForEach-Object Name | Set-Content -LiteralPath (Join-Path $Out 'app-tools.txt') -Encoding utf8
 Get-Process | Where-Object Path | ForEach-Object { "$($_.Id) $($_.Path)" } | Set-Content -LiteralPath (Join-Path $Out 'processes-after.txt') -Encoding utf8
 foreach ($process in $held) { if (-not $process.HasExited) { $process.Kill($true) } }

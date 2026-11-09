@@ -300,19 +300,20 @@ function inside(file: unknown, folder: string): boolean {
  * is ours whatever shape an older connect gave it, since it cannot run afterwards. Anything else
  * (another build's, 0.2's, the user's own) is not ours and stays, silently. Records no disconnection, since the home goes too.
  */
-export async function removeConnections(options: Omit<ConnectionOptions, "harnesses"> & { readonly installDir?: string }): Promise<RemovalResult[]> {
+export async function removeConnections(options: Omit<ConnectionOptions, "harnesses"> & { readonly installDir?: string; readonly also?: readonly InstalledToolServerCommand[] }): Promise<RemovalResult[]> {
   const where = locations({ ...options, harnesses: [] });
-  const hook = hookCommand(options.installed);
+  // The installation's tools, and any copy of them the installation's record names (on Windows its build's copy, Get storytree 1.19).
+  const installed = [options.installed, ...(options.also ?? [])];
   const results: RemovalResult[] = [];
   for (const harness of HARNESS_IDS) {
     let settings: Settings | undefined;
     try {
-      removeHooks(homesOf(where), { harness, hook });
+      for (const each of installed) removeHooks(homesOf(where), { harness, hook: hookCommand(each) });
       if (harness === "codex" || harness === "pi") removeCodexInstructions(harnessHomeOf(where, harness));
       // Codex's own command line reads its TOML; without a storytree table there is nothing to ask it.
       if (harness === "codex" && !/mcp_servers\.["']?storytree\b/.test(read(where.files.codex) ?? "")) { results.push({ harness, tools: "none" }); continue; }
       settings = await openSettings(harness, { ...options, harnesses: [] });
-      const ours = settings.current !== undefined && (settings.compatible(options.installed) || settings.outdated(options.installed) ||
+      const ours = settings.current !== undefined && (installed.some((each) => settings!.compatible(each) || settings!.outdated(each)) ||
         (options.installDir !== undefined && inside(commandOf(settings.current), options.installDir)));
       if (ours) await settings.remove();
       results.push({ harness, tools: ours ? "removed" : "none" });

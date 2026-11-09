@@ -103,10 +103,11 @@ export function stageTools(installDir: string, home: string, arch: Architecture,
     rmSync(next, { recursive: true, force: true });
     mkdirSync(path.dirname(dir), { recursive: true });
     cpSync(installed.dir, next, { recursive: true });
-    // A damaged copy no session can be running whole is moved aside; one another start renamed in meanwhile is kept.
+    // A damaged copy is moved aside (one still in use cannot be, and the start says so); one another start renamed in meanwhile is kept.
     if (existsSync(dir)) {
       const old = `${dir}.old-${process.pid}`;
-      try { renameSync(dir, old); rmSync(old, { recursive: true, force: true }); } catch { /* still in use: left for clean-up */ }
+      renameSync(dir, old);
+      rmSync(old, { recursive: true, force: true });
     }
     try { renameSync(next, dir); } catch (error) {
       rmSync(next, { recursive: true, force: true });

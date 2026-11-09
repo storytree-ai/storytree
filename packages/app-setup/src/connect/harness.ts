@@ -168,8 +168,8 @@ export async function codexSettings(file: string, run: RunHarness, env: NodeJS.P
       // either registration is storytree's own, only older.
       outdated: (installed) => !compatible(current, installed, home) && older(installed),
       anotherCopy: (installed) => {
-        const transport = object(current) && object(current.transport) ? current.transport : undefined;
-        const copy = transport === undefined ? undefined : installedCopy(transport.command, transport.args);
+        const transport = object(current) ? current.transport : undefined;
+        const copy = object(transport) ? installedCopy(transport.command, transport.args) : undefined;
         return !compatible(current, installed, home) && copy !== undefined && installedCopy(installed.command, installed.args) !== undefined && (compatible(current, copy, home) || older(copy));
       },
       add: (installed) => append(before ?? "", installed),

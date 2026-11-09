@@ -728,7 +728,7 @@ test("7.4 editStory, editContract and editArc change only the fields they name, 
     });
     assert.deepEqual((await lib.editStory(story.id, { description: undefined }))?.fields, { title: "Visitor can sign up with email" });
     assert.deepEqual((await lib.editContract(contract.id, { capability: link.id }))?.fields, {
-      title: "1.1 · Rejects a bad email",
+      title: "2.1 · Rejects a bad email", // a move takes its new capability's number (4.45)
       capability: link.id,
       description: "Before sending",
     });

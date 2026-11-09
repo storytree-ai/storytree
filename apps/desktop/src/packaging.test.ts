@@ -221,6 +221,42 @@ esac
   }
 });
 
+test("4.44 every release page links the steps out of a Windows update that never finishes", {
+  skip: process.platform === "win32" && "platform:posix: GitHub's command line is stood in for by a shell script",
+}, () => {
+  const script = fileURLToPath(new URL("../release.mjs", import.meta.url));
+  const root = mkdtempSync(path.join(tmpdir(), "storytree-notes-"));
+  try {
+    const repo = path.join(root, "repo");
+    mkdirSync(repo);
+    const git = (...args: string[]) => spawnSync("git", args, { cwd: repo, encoding: "utf8" }).stdout.trim();
+    git("init", "-q");
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "release");
+    const sha = git("rev-parse", "HEAD");
+    git("update-ref", "refs/remotes/origin/main", sha);
+    // GitHub, stood in for: nothing is published and there is no draft yet, so the draft step writes the notes.
+    const notes = path.join(root, "notes.md");
+    const bin = path.join(root, "bin");
+    mkdirSync(bin);
+    writeFileSync(path.join(bin, "gh"), `#!/bin/sh
+case "$1 $2" in
+  "api repos/storytree-ai/storytree/releases/latest") echo "HTTP 404" >&2; exit 1 ;;
+  "release view") exit 1 ;;
+  "release create") while [ "$1" != "--notes" ]; do shift; done; printf '%s' "$2" > "${notes}" ;;
+  *) echo "unexpected gh $*" >&2; exit 1 ;;
+esac
+`, { mode: 0o755 });
+    const env: NodeJS.ProcessEnv = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, RELEASE_SHA: sha, STORYTREE_RELEASE_VERSION: "0.3.700" };
+    delete env.NODE_OPTIONS;
+    delete env.STORYTREE_REHEARSAL;
+    const run = spawnSync(process.execPath, [script, "draft"], { cwd: repo, encoding: "utf8", env });
+    assert.equal(run.status, 0, run.stderr);
+    assert.match(readFileSync(notes, "utf8"), /\(https:\/\/github\.com\/storytree-ai\/storytree\/blob\/main\/INSTALL\.md#if-a-windows-update-never-finishes\)/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("4.22 a release rehearsal never drafts, uploads or publishes, and checks only that this runner built its platform's complete set", () => {
   const script = fileURLToPath(new URL("../release.mjs", import.meta.url));
   const version = "0.3.700";

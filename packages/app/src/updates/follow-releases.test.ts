@@ -67,6 +67,25 @@ test("4.31 only an installed Linux AppImage refreshes the agent tools beside it,
   assert.deepEqual(run("linux", "/apps/storytree.AppImage", () => { throw new Error("read-only"); }).lines, ["error: Agent tools could not be updated: read-only"]);
 });
 
+test("4.42 an installed Windows app's start points the agents at its own build's copy of the tools, and one that fails is said while the app starts all the same", async () => {
+  const run = async (platform: NodeJS.Platform, follow: () => Promise<boolean>) => {
+    const lines: string[] = [];
+    let followed = 0;
+    await refreshAgentTools({
+      platform,
+      appImage: undefined,
+      refresh: () => { throw new Error("no AppImage refresh on Windows"); },
+      follow: () => { followed++; return follow(); },
+      log: { log: (line) => lines.push(line), error: (line) => lines.push(`error: ${line}`) },
+    });
+    return { followed, lines };
+  };
+  assert.deepEqual(await run("win32", async () => true), { followed: 1, lines: ["Agent tools now run from this build's copy"] });
+  assert.deepEqual(await run("win32", async () => false), { followed: 1, lines: [] }, "agents already on this build's copy are said nothing of");
+  assert.deepEqual(await run("win32", async () => { throw new Error("disk full"); }), { followed: 1, lines: ["error: Agent tools could not be pointed at this build's: disk full"] });
+  assert.deepEqual(await run("darwin", async () => true), { followed: 0, lines: [] });
+});
+
 test("4.32 the gear offers the update channel only where releases install themselves, and never in a smoke check", () => {
   assert.equal(channelOffered({ smoke: false, followsReleases: true }), true);
   assert.equal(channelOffered({ smoke: false, followsReleases: false }), false);

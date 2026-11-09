@@ -7,9 +7,9 @@ import path from "node:path";
 import { test } from "node:test";
 import { buildLauncher, LAUNCHER_PROGRAM } from "../bins/build.js";
 import { launcherRuns } from "../setup/index.js";
-import { disconnectAgents, installedToolServerCommand } from "@storytree/app-setup/connect";
+import { connectAgents, disconnectAgents, installedToolServerCommand, type RunHarness } from "@storytree/app-setup/connect";
 
-import { finishDelivery, installCommand, refreshTools, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";
+import { finishDelivery, followBuildTools, installCommand, refreshTools, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";
 import { launch, runtimeProblem, waitForApp } from "./delivery.js";
 
 /** The program the Windows command is made from: on Windows the real one, which tests run; elsewhere nothing runs it. */
@@ -82,10 +82,76 @@ test("1.2 / 1.3: first delivery and a repeat always launch the app visibly, wait
     assert.equal(readFileSync(old, "utf8"), "0.2 must survive");
     assert.equal(readFileSync(path.join(f.home, "project-choice.json"), "utf8"), "existing project choice");
     assert.equal(existsSync(path.join(f.dir, ".storytree", "project.json")), false);
-    // Ordinary release replacement keeps the registered paths while changing the tools together.
-    writeFileSync(f.tools.cli, "new compatible release");
+  } finally { f.close(); }
+});
+
+test("1.19 on Windows, finish records the agents' tools as a copy under the home, one folder per build, which outlives the installation's", async () => {
+  const f = fixture();
+  const options = { installDir: f.install, home: f.home, arch: "arm64" as const, platform: "win32" as const, searchPath: "" };
+  const effects = { launch: async () => {}, waitForApp: async () => {} };
+  const copies = path.join(f.home, "app-tools");
+  try {
+    const first = await finishDelivery(options, effects);
+    const record = JSON.parse(readFileSync(path.join(f.home, "delivery.json"), "utf8"));
+    assert.equal(record.installDir, path.resolve(f.install));
+    assert.equal(record.tools.app, f.tools.app, "the app itself still runs from its installation");
+    assert.equal(path.dirname(record.tools.dir), copies);
+    for (const tool of ["node", "mcp", "hook", "setup", "cli", "deliver"] as const) {
+      assert.equal(record.tools[tool], path.join(record.tools.dir, path.basename(f.tools[tool])));
+      assert.equal(readFileSync(record.tools[tool], "utf8"), "a runnable fixture");
+    }
+    assert.equal(readFileSync(path.join(record.tools.dir, "chunks", "shared.mjs"), "utf8"), "export const compatible = true;");
+    assert.deepEqual(first.tools, record.tools);
+    if (process.platform === "win32") assert.deepEqual(launcherRuns(first.command.file), { node: record.tools.node, target: record.tools.cli });
+
+    // The same build again reuses its copy; a damaged copy is made whole again.
+    assert.equal((await finishDelivery(options, effects)).tools.dir, record.tools.dir);
+    writeFileSync(record.tools.hook, "damaged");
+    assert.equal((await finishDelivery(options, effects)).tools.dir, record.tools.dir);
+    assert.equal(readFileSync(record.tools.hook, "utf8"), "a runnable fixture");
+
+    // An update replaces the installation's tools; the older build's copy, which open sessions run, stays whole beside the new one's.
+    writeFileSync(f.tools.cli, "the next build");
     writePayloadManifest(f.tools.dir, "arm64", "24.21.0");
-    assert.equal(verifyPayload(f.install, "arm64", "win32").cli, first.tools.cli);
+    const next = await finishDelivery(options, effects);
+    assert.notEqual(next.tools.dir, record.tools.dir);
+    assert.equal(readFileSync(next.tools.cli, "utf8"), "the next build");
+    assert.equal(readFileSync(record.tools.cli, "utf8"), "a runnable fixture");
+    assert.deepEqual(readdirSync(copies).sort(), [path.basename(record.tools.dir), path.basename(next.tools.dir)].sort(), "nothing half-copied is left beside them");
+  } finally { f.close(); }
+});
+
+test("1.20 on Windows, the installed app's start points the record, the connected agents and the command at its own build's copy, and leaves another installation's record alone", async () => {
+  const f = fixture();
+  const user = path.join(f.dir, "user");
+  mkdirSync(path.join(user, ".claude"), { recursive: true });
+  const run: RunHarness = async (_executable, args) => { if (args[0] === "--version") return "a harness"; throw new Error(`unexpected ${args.join(" ")}`); };
+  const connections = { home: user, env: { PATH: "", STORYTREE_HOME: f.home }, run };
+  const options = { installDir: f.install, home: f.home, arch: "arm64" as const, platform: "win32" as const, searchPath: "", connections };
+  const recordFile = path.join(f.home, "delivery.json");
+  try {
+    // Today's release: the record and Claude Code's registration and hooks run the installation's own tools.
+    mkdirSync(f.home, { recursive: true });
+    writeFileSync(recordFile, JSON.stringify({ schema: 1, installDir: path.resolve(f.install), tools: f.tools }));
+    await connectAgents({ harnesses: ["claude-code"], installed: installedToolServerCommand(f.tools.node, f.tools.mcp), ...connections });
+
+    assert.equal(await followBuildTools(options), true);
+    const record = JSON.parse(readFileSync(recordFile, "utf8"));
+    assert.equal(path.dirname(record.tools.dir), path.join(f.home, "app-tools"));
+    assert.equal(readFileSync(record.tools.mcp, "utf8"), "a runnable fixture");
+    const claude = JSON.parse(readFileSync(path.join(user, ".claude.json"), "utf8"));
+    assert.deepEqual([claude.mcpServers.storytree.command, claude.mcpServers.storytree.args], [record.tools.node, [record.tools.mcp]]);
+    const hooks = readFileSync(path.join(user, ".claude", "settings.json"), "utf8");
+    assert.ok(hooks.includes(JSON.stringify(record.tools.hook)) && !hooks.includes(JSON.stringify(f.tools.hook)), hooks);
+    assert.equal(existsSync(path.join(user, ".codex")), false, "an agent never connected is left alone");
+    assert.ok(existsSync(path.join(f.home, "bin", "storytree.exe")));
+    if (process.platform === "win32") assert.deepEqual(launcherRuns(path.join(f.home, "bin", "storytree.exe")), { node: record.tools.node, target: record.tools.cli });
+
+    assert.equal(await followBuildTools(options), false, "a start on the same build changes nothing");
+    const elsewhere = JSON.stringify({ schema: 1, installDir: path.join(f.dir, "another"), tools: f.tools });
+    writeFileSync(recordFile, elsewhere);
+    assert.equal(await followBuildTools(options), false);
+    assert.equal(readFileSync(recordFile, "utf8"), elsewhere);
   } finally { f.close(); }
 });
 

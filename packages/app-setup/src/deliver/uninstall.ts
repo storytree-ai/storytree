@@ -9,7 +9,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
-import { installedToolServerCommand, removeConnections, type RunHarness } from "../connect/index.js";
+import { installedToolServerCommand, removeConnections, type InstalledToolServerCommand, type RemovalResult, type RunHarness } from "../connect/index.js";
 import { locateApp, storytreeHome } from "@storytree/project-and-caller";
 import { watchedHarness } from "@storytree/project-and-caller/caller";
 import { toolPaths } from "./payload.js";
@@ -51,6 +51,14 @@ function ownsHome(installDir: string, home: string): boolean {
     const record = JSON.parse(readFileSync(path.join(home, "delivery.json"), "utf8"));
     return record?.schema === 1 && typeof record.installDir === "string" && same(record.installDir, installDir);
   } catch { return false; }
+}
+
+/** The tool server the delivery record names: on Windows a build's copy under the home (1.19). */
+function recordedTools(home: string): InstalledToolServerCommand | undefined {
+  try {
+    const record = JSON.parse(readFileSync(path.join(home, "delivery.json"), "utf8"));
+    return installedToolServerCommand(record.tools.node, record.tools.mcp);
+  } catch { return undefined; }
 }
 
 /** What the uninstaller should ask: whether to keep a local library, or nothing. */
@@ -160,13 +168,23 @@ async function removeInstallation(options: UninstallOptions): Promise<UninstallR
   const lines: string[] = [];
   let complete = true;
   const tools = toolPaths(options.installDir, options.platform);
-  const connections = await removeConnections({
-    installed: installedToolServerCommand(tools.node, tools.mcp),
-    installDir: options.installDir,
-    ...(options.userHome === undefined ? {} : { home: options.userHome }),
-    ...(options.env === undefined ? {} : { env: options.env }),
-    ...(options.run === undefined ? {} : { run: options.run }),
-  });
+  // The installation's own tools, and, where the home is this installation's, the build's copy its record names (1.19).
+  const installed = [installedToolServerCommand(tools.node, tools.mcp)];
+  const recorded = ownsHome(options.installDir, options.home) ? recordedTools(options.home) : undefined;
+  if (recorded !== undefined && recorded.command !== installed[0]!.command) installed.push(recorded);
+  const passes: RemovalResult[][] = [];
+  for (const each of installed) {
+    passes.push(await removeConnections({
+      installed: each,
+      installDir: options.installDir,
+      ...(options.userHome === undefined ? {} : { home: options.userHome }),
+      ...(options.env === undefined ? {} : { env: options.env }),
+      ...(options.run === undefined ? {} : { run: options.run }),
+    }));
+  }
+  // Per agent: kept if any pass kept it, else removed if any pass removed it.
+  const connections = passes[0]!.map((first, at) => passes.map((pass) => pass[at]!).find((result) => result.tools === "kept") ??
+    passes.map((pass) => pass[at]!).find((result) => result.tools === "removed") ?? first);
   for (const result of connections) {
     const name = watchedHarness(result.harness)?.label ?? result.harness;
     if (result.tools === "kept") { complete = false; lines.push(`${name}: ${result.next}`); }

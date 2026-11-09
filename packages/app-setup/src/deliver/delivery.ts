@@ -7,7 +7,8 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { installCommand } from "./command.js";
 import { runInstalledConnection } from "../connect/installed.js";
-import { verifyPayload, type Architecture } from "./payload.js";
+import { stageTools, verifyPayload, type Architecture, type InstalledTools } from "./payload.js";
+import { installedToolServerCommand, reconnectAgents, type ConnectionOptions } from "../connect/index.js";
 import { openUninstaller, uninstall, uninstallAsks, uninstallReportFile } from "./uninstall.js";
 
 interface DeliveryOptions {
@@ -121,10 +122,18 @@ export async function finishDelivery(options: DeliveryOptions, effects: {
   launch(exe: string, home: string): Promise<Launched | void>;
   waitForApp(home: string, timeoutMs?: number, launched?: Launched): Promise<void>;
 } = { launch, waitForApp }) {
-  const tools = verifyPayload(options.installDir, options.arch, options.platform);
-  const launched = await effects.launch(tools.app, options.home);
+  const installed = verifyPayload(options.installDir, options.arch, options.platform);
+  const launched = await effects.launch(installed.app, options.home);
   await effects.waitForApp(options.home, undefined, launched || undefined);
+  // On Windows the agents run a copy under the home, so an update never finds them in the installation (1.19).
+  const tools = (options.platform ?? process.platform) === "win32" ? stageTools(options.installDir, options.home, options.arch, "win32") : installed;
   const command = installCommand({ ...options, tools });
+  writeRecord(options, tools);
+  return { state: "ready", tools, command };
+}
+
+/** delivery.json, renamed into place whole. */
+function writeRecord(options: DeliveryOptions, tools: InstalledTools): void {
   const record = { schema: 1, installDir: path.resolve(options.installDir), tools };
   mkdirSync(options.home, { recursive: true });
   const temp = path.join(options.home, `delivery-${process.pid}.tmp`);
@@ -132,7 +141,24 @@ export async function finishDelivery(options: DeliveryOptions, effects: {
     writeFileSync(temp, JSON.stringify(record, null, 2) + "\n");
     renameSync(temp, path.join(options.home, "delivery.json"));
   } finally { rmSync(temp, { force: true }); }
-  return { state: "ready", tools, command };
+}
+
+/**
+ * The installed Windows app's start (1.20): its own build's tools are copied under the home and, when the delivery record
+ * names this installation but other tools (the last build's copy, or a release's from before the copies), the record, the
+ * connected agents' registrations and hooks, and the storytree command are pointed at that copy. A session still open keeps
+ * the copy it started. A record naming another installation, or none, is not this app's to rewrite. True when it re-pointed.
+ */
+export async function followBuildTools(options: DeliveryOptions & { connections?: Pick<ConnectionOptions, "home" | "env" | "run"> }): Promise<boolean> {
+  let recorded: { installDir?: unknown; tools?: { dir?: unknown } } | undefined;
+  try { recorded = JSON.parse(readFileSync(path.join(options.home, "delivery.json"), "utf8")); } catch { return false; }
+  if (typeof recorded?.installDir !== "string" || path.resolve(recorded.installDir).toLowerCase() !== path.resolve(options.installDir).toLowerCase()) return false;
+  const tools = stageTools(options.installDir, options.home, options.arch, options.platform ?? process.platform);
+  if (recorded.tools?.dir === tools.dir) return false;
+  writeRecord(options, tools);
+  installCommand({ ...options, tools });
+  await reconnectAgents({ installed: installedToolServerCommand(tools.node, tools.mcp), ...options.connections });
+  return true;
 }
 
 /** The helper runs only from its own payload's Node: Windows x64 or arm64, an Apple Silicon Mac or x64 Linux (install.sh). */

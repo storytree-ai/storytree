@@ -19,6 +19,18 @@ export function installedToolServerCommand(node: string, server: string): Instal
   return { command: node, args: [server] };
 }
 
+/**
+ * The registration's command as a copy of storytree's installed tools: an absolute node beside its storytree-mcp.mjs, as each
+ * build's own folder of them under the home on Windows. A registration of one is storytree's own, only out of date (2.26).
+ */
+export function installedCopy(command: unknown, args: unknown): InstalledToolServerCommand | undefined {
+  if (typeof command !== "string" || !Array.isArray(args) || args.length !== 1 || typeof args[0] !== "string") return undefined;
+  const server: string = args[0];
+  if (!path.isAbsolute(command) || !path.isAbsolute(server) || path.basename(server) !== "storytree-mcp.mjs") return undefined;
+  if (!/^node(\.exe)?$/i.test(path.basename(command)) || path.dirname(command) !== path.dirname(server)) return undefined;
+  return { command, args: [server] };
+}
+
 export type RunHarness = (executable: "claude" | "codex" | "cursor-agent" | "pi" | "agy", args: readonly string[], options: { cwd: string; env: NodeJS.ProcessEnv }) => Promise<string>;
 export const runHarness: RunHarness = (executable, args, options) => new Promise((resolve, reject) => {
   // Every word is fixed by this module. On Windows the installed CLI may be an npm .cmd shim.
@@ -62,6 +74,11 @@ export interface Settings {
   compatible(installed: InstalledToolServerCommand): boolean;
   /** An entry storytree itself wrote that an older connect left out of date; `update` rewrites it. */
   outdated(installed: InstalledToolServerCommand): boolean;
+  /**
+   * An entry that runs another copy of storytree's installed tools, when `installed` is a copy too: connect re-points it
+   * with `update` (2.26). Only connect does: an uninstaller never takes another installation's registration for its own.
+   */
+  anotherCopy(installed: InstalledToolServerCommand): boolean;
   add(installed: InstalledToolServerCommand): Promise<void>;
   update(installed: InstalledToolServerCommand): Promise<void>;
   remove(): Promise<void>;
@@ -79,14 +96,21 @@ export function claudeSettings(file: string, own: Readonly<Record<string, unknow
   if (!object(config) || (config.mcpServers !== undefined && !object(config.mcpServers))) throw new Error("Expected a JSON object with an mcpServers object.");
   const servers = (config.mcpServers ?? {}) as Record<string, unknown>;
   const current = servers.storytree;
+  const compatible = (installed: InstalledToolServerCommand): boolean => object(current) && (current.type === undefined || current.type === "stdio") &&
+    current.command === installed.command && isDeepStrictEqual(current.args ?? [], installed.args) &&
+    Object.keys(current).every((key) => ["type", "command", "args", "env", ...Object.keys(own)].includes(key)) &&
+    (current.env === undefined || isDeepStrictEqual(current.env, {}));
+  const copy = object(current) ? installedCopy(current.command, current.args) : undefined;
   return {
     current,
-    compatible: (installed) => object(current) && (current.type === undefined || current.type === "stdio") &&
-      current.command === installed.command && isDeepStrictEqual(current.args ?? [], installed.args) &&
-      Object.keys(current).every((key) => ["type", "command", "args", "env", ...Object.keys(own)].includes(key)) &&
-      (current.env === undefined || isDeepStrictEqual(current.env, {})),
+    compatible,
     outdated: () => false,
-    async update() { throw new Error("Nothing to update"); },
+    // Another copy of the installed tools is replaced only by a copy: a source build never takes over an installation's entry.
+    anotherCopy: (installed) => !compatible(installed) && copy !== undefined && compatible(copy) && installedCopy(installed.command, installed.args) !== undefined,
+    async update(installed) {
+      // The user's own changes to the fields a harness lets them change (Pi's exposure) are kept.
+      save(file, before, `${JSON.stringify({ ...config, mcpServers: { ...servers, storytree: { ...own, ...(current as object), type: "stdio", command: installed.command, args: installed.args, env: {} } } }, null, 2)}\n`);
+    },
     async add(installed) {
       save(file, before, `${JSON.stringify({ ...config, mcpServers: { ...servers, storytree: { type: "stdio", command: installed.command, args: installed.args, env: {}, ...own } } }, null, 2)}\n`);
     },
@@ -129,6 +153,7 @@ export async function codexSettings(file: string, run: RunHarness, env: NodeJS.P
     };
     const compatible = (entry: unknown, installed: InstalledToolServerCommand, hand: string | undefined): boolean =>
       launches(entry, installed, hand) && object(entry) && typeof entry.tool_timeout_sec === "number" && entry.tool_timeout_sec >= CODEX_TOOL_TIMEOUT_SEC;
+    const older = (launched: InstalledToolServerCommand) => launches(current, launched, home) || (home !== undefined && launches(current, launched, undefined));
     const append = async (source: string, installed: InstalledToolServerCommand) => {
       // JSON's quoted strings/array are also TOML basic strings/array; escape control characters.
       // Appending a fresh table keeps every existing setting and comment byte-for-byte.
@@ -141,7 +166,12 @@ export async function codexSettings(file: string, run: RunHarness, env: NodeJS.P
       compatible: (installed) => compatible(current, installed, home),
       // Before PR #350 connect handed no custom home over, and before this no tool timeout:
       // either registration is storytree's own, only older.
-      outdated: (installed) => !compatible(current, installed, home) && (launches(current, installed, home) || (home !== undefined && launches(current, installed, undefined))),
+      outdated: (installed) => !compatible(current, installed, home) && older(installed),
+      anotherCopy: (installed) => {
+        const transport = object(current) && object(current.transport) ? current.transport : undefined;
+        const copy = transport === undefined ? undefined : installedCopy(transport.command, transport.args);
+        return !compatible(current, installed, home) && copy !== undefined && installedCopy(installed.command, installed.args) !== undefined && (compatible(current, copy, home) || older(copy));
+      },
       add: (installed) => append(before ?? "", installed),
       async update(installed) {
         await cli(["remove", "storytree"]);

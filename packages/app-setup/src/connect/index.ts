@@ -6,7 +6,7 @@ import { ANTIGRAVITY_HOOKS, codexHookTrust, PI_EXTENSION } from "@storytree/sess
 import { HARNESS_IDS, watchedHarness } from "@storytree/project-and-caller/caller";
 
 import { launcherFiles, launcherRuns, removeLauncher } from "../setup/command.js";
-import { markDisconnected, registerHooks, removeHooks } from "../setup/hooks-config.js";
+import { connectedHarnesses, disconnectedHarnesses, markDisconnected, registerHooks, removeHooks } from "../setup/hooks-config.js";
 import { CODEX_TRUST_STEP, installedCodexVersion, runsElevated } from "./codex.js";
 import { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
@@ -128,7 +128,7 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       }
       checkingFile = settingsFile;
       settings = await openSettings(harness, options);
-      const outdated = settings.current !== undefined && settings.outdated(options.installed);
+      const outdated = settings.current !== undefined && (settings.outdated(options.installed) || settings.anotherCopy(options.installed));
       if (settings.current !== undefined && !outdated && !settings.compatible(options.installed)) {
         result("not connected", conflict(settingsFile));
         continue;
@@ -162,6 +162,17 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
     } finally { settings?.close(); }
   }
   return results;
+}
+
+/**
+ * When the installed tools move (each Windows build's own copy, Get storytree 1.20): connect again every agent whose hooks
+ * carry storytree's and that the user has not disconnected, so its registration and hooks run `installed`. No other agent is touched.
+ */
+export async function reconnectAgents(options: Omit<ConnectionOptions, "harnesses">): Promise<ConnectionResult[]> {
+  const where = locations({ ...options, harnesses: [] });
+  const disconnected = disconnectedHarnesses(where.storytree);
+  const harnesses = [...connectedHarnesses(homesOf(where))].filter((harness) => !disconnected.has(harness));
+  return harnesses.length === 0 ? [] : connectAgents({ ...options, harnesses });
 }
 
 /** An agent this computer runs, and whether this installation's tool server is already registered with it. */

@@ -177,6 +177,9 @@ test("18.2 with no desktop app, a session whose tool server runs from a checkout
     const app: HookCommand = { node: process.execPath, script: path.join(dir, "Programs", "storytree-0.3", "resources", "agent-tools", "storytree-hook.mjs") };
     registerHooks(home.homes, app);
     assert.equal(await builtFromMain(options), undefined, "hooks the app installed are kept");
+    // On Windows the app's hooks run its build's copy under the home (Get storytree 1.19): those stay the app's too.
+    registerHooks(home.homes, { node: process.execPath, script: path.join(home.storytreeHome, "app-tools", "0123456789abcdef", "storytree-hook.mjs") });
+    assert.equal(await builtFromMain(options), undefined, "hooks running the app's copy are kept");
   });
 });
 

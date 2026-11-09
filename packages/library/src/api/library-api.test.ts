@@ -310,6 +310,8 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
     const day = await lib.changesSince(0);
     const reportedColumn = at(day.changes, 4).recordId;
     const verifiedColumn = at(day.changes, 5).recordId;
+    // The verdict that turned red told the owner by FYI (5.23).
+    const [red] = await lib.unheardFyis();
     assert.deepEqual(withoutSeq(day.changes), [
       { recordId: story.id, type: "story", action: "created", record: story },
       { recordId: arc.id, type: "arc", action: "created", record: arc },
@@ -327,12 +329,13 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
         action: "created",
         record: healthRecord(verifiedColumn, { node: contract.id, column: "verified", state: "failing", by: "storytree" }, verified.at),
       },
+      { recordId: red.id, type: "fyi", action: "created", record: red },
       { recordId: cover.id, type: "decision", action: "created", record: cover },
       { recordId: memory.id, type: "definition", action: "created", record: memory },
     ]);
     assert.notEqual(reportedColumn, verifiedColumn, "each column is its own record");
     assertIncreasing(day.changes);
-    assert.equal(day.cursor, at(day.changes, 7).seq, "the cursor handed back is the last change's");
+    assert.equal(day.cursor, at(day.changes, 8).seq, "the cursor handed back is the last change's");
     assert.deepEqual(await lib.changesSince(day.cursor), { changes: [], cursor: day.cursor }, "and nothing came after it");
     // The day ends: the library is closed, and takes no more calls.
     await lib.close();

@@ -1,5 +1,6 @@
 # The Windows update over live agent tools (increment_dcb59d18e37b, arc_fa72f1830b5d), run on a fresh GitHub Windows
-# runner, x64 or arm64, by .github/workflows/windows-update-over-tools.yml. The previous release is installed by its own
+# runner, x64 or arm64, by .github/workflows/windows-update-over-tools.yml, and with -Setup by every release's
+# packaging (.github/workflows/release-package.yml, contract 4.45), on the candidate's own built setup. The previous release is installed by its own
 # one-liner, Claude Code is connected to it, and (with -Session open) an agent session's storytree tools are started
 # from that registration and left running: the MCP server mid-conversation and a hook still reading its input. Then the
 # candidate's setup is run as the app's updater runs it (--updated --force-run, started as the app quits), and the run
@@ -15,6 +16,9 @@ param(
   # The release to install first and the one to update to; empty takes the two newest with this architecture's setup.
   [string] $From = '',
   [string] $To = '',
+  # The candidate's own built setup, updated to instead of a published one; its version, from its file name, is $To,
+  # and an empty -From then takes the newest published release that is not that version.
+  [string] $Setup = '',
   # How long the candidate's setup may take, and then how long its app may take to re-point the agents.
   [int] $BoundSeconds = 300,
   [int] $RepointSeconds = 180
@@ -54,8 +58,8 @@ function Get-Releases {
   foreach ($release in $list) {
     if ($release.draft -or $release.tag_name -notmatch '^v(0\.3\.(\d+))$') { continue }
     $version = $Matches[1]; $number = [int]$Matches[2]
-    $setup = $release.assets | Where-Object name -eq "storytree-0.3-$version-windows-$arch-setup.exe"
-    if ($setup) { [pscustomobject]@{ version = $version; number = $number; setup = $setup.browser_download_url } }
+    $asset = $release.assets | Where-Object name -eq "storytree-0.3-$version-windows-$arch-setup.exe"
+    if ($asset) { [pscustomobject]@{ version = $version; number = $number; setup = $asset.browser_download_url } }
   }
 }
 
@@ -125,9 +129,17 @@ function Get-ProcessesUnder([string] $Folder) {
 }
 
 $releases = @(Get-Releases | Sort-Object number -Descending)
-if (-not $To) { $To = $releases[0].version }
-if (-not $From) { $From = ($releases | Where-Object { $_.number -lt [int]($To -replace '^0\.3\.', '') } | Select-Object -First 1).version }
-$candidate = $releases | Where-Object version -eq $To
+if ($Setup) {
+  $Setup = (Resolve-Path -LiteralPath $Setup).Path
+  if ((Split-Path -Leaf $Setup) -notmatch "^storytree-0\.3-(0\.3\.\d+)-windows-$arch-setup\.exe$") { throw "$Setup is not a Windows $arch setup" }
+  $To = $Matches[1]
+  if (-not $From) { $From = ($releases | Where-Object version -ne $To | Select-Object -First 1).version }
+  $candidate = [pscustomobject]@{ version = $To; setup = $Setup }
+} else {
+  if (-not $To) { $To = $releases[0].version }
+  if (-not $From) { $From = ($releases | Where-Object { $_.number -lt [int]($To -replace '^0\.3\.', '') } | Select-Object -First 1).version }
+  $candidate = $releases | Where-Object version -eq $To
+}
 "from=$From to=$To arch=$arch session=$Session bound=${BoundSeconds}s" | Tee-Object -FilePath (Join-Path $Out 'run.txt')
 
 $null = Step 'machine' { "$([Environment]::OSVersion.VersionString) $env:PROCESSOR_ARCHITECTURE $env:USERNAME" }
@@ -207,17 +219,19 @@ if ($Session -eq 'open') {
   }
 }
 
-$setup = Join-Path $Out "storytree-0.3-$To-windows-$arch-setup.exe"
-$null = Step 'download-candidate' {
-  Invoke-WebRequest $candidate.setup -OutFile $setup -UseBasicParsing
-  "$([int]((Get-Item -LiteralPath $setup).Length / 1MB)) MB"
+if (-not $Setup) {
+  $Setup = Join-Path $Out "storytree-0.3-$To-windows-$arch-setup.exe"
+  $null = Step 'download-candidate' {
+    Invoke-WebRequest $candidate.setup -OutFile $Setup -UseBasicParsing
+    "$([int]((Get-Item -LiteralPath $Setup).Length / 1MB)) MB"
+  }
 }
 
 # The update, as the app's updater makes it: the installer started as the app quits, with the updater's arguments.
 $updated = Step 'update' {
   Get-ProcessesUnder $installDir | Set-Content -LiteralPath (Join-Path $Out 'install-folder-before.txt') -Encoding utf8
   Start-Process -FilePath $appExe -ArgumentList '--quit'
-  $process = Start-Process -FilePath $setup -ArgumentList '--updated --force-run' -PassThru
+  $process = Start-Process -FilePath $Setup -ArgumentList '--updated --force-run' -PassThru
   $null = $process.Handle
   if (-not $process.WaitForExit($BoundSeconds * 1000)) {
     $waiting = @(Get-ProcessesUnder $installDir)

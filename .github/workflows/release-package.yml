@@ -279,12 +279,61 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # The Windows build's update over a connected agent's running tools (contract 4.45, arc_fa72f1830b5d): on fresh x64
+  # and arm64 runners, the newest published release is installed by its one-liner and Claude Code connected to it, and
+  # this build's own setup is run over it as the app's updater runs it, with an agent session's tools left running and
+  # with none. A setup that does not finish within five minutes, or whose app does not re-point the agents at its tools,
+  # or under which the open session's tools stop answering, fails here, and the Windows delivery below then refuses to
+  # upload: Windows stays on its last good build (contract 4.6), Mac and Linux publish. It installs nothing from the
+  # repository and holds no secret and a read-only token whatever the caller grants (the repository is public). Each
+  # leg took 2-4 minutes in its trial (run 42605272462), the one-liner's install most of it.
+  windows-update:
+    needs: package
+    if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-latest, windows-11-arm]
+        session: [open, closed]
+    runs-on: ${{ matrix.runner }}
+    # The one-liner's install, the five-minute bound and the three-minute re-point fit well inside.
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.sha }}
+          sparse-checkout: packages/app-setup/testing/windows-acceptance
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-Windows
+          path: apps/desktop/release
+      - name: Install the newest release, connect an agent, and update over its running tools to this build
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
+          $setup = @(Get-Item "apps/desktop/release/storytree-0.3-*-windows-$arch-setup.exe")
+          if ($setup.Count -ne 1) { throw "this build has $($setup.Count) Windows $arch setups" }
+          ./packages/app-setup/testing/windows-acceptance/update-over-tools.ps1 `
+            -Out "$env:RUNNER_TEMP/windows-update-over-tools" -Session ${{ matrix.session }} -Setup $setup[0].FullName
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: windows-update-over-tools-${{ matrix.runner }}-${{ matrix.session }}
+          path: ${{ runner.temp }}/windows-update-over-tools
+          retention-days: 14
+
   # Each platform's upload into the draft, or in a rehearsal the check that its set is complete, from the build's
   # artifact alone: no dependency is installed here, and only this job holds the caller's token, contents: write in a
   # real release. It runs for each platform whose build passed even when another's failed (contract 4.6); a platform
-  # whose build failed has no artifact, so its delivery fails too, and rerunning the failed jobs reruns both.
+  # whose build failed has no artifact, so its delivery fails too, and rerunning the failed jobs reruns both. Windows'
+  # also fails when its build could not update over running agent tools (windows-update, contract 4.45).
   deliver:
-    needs: [package, check-mac]
+    needs: [package, check-mac, windows-update]
     if: ${{ !cancelled() }}
     strategy:
       fail-fast: false
@@ -303,6 +352,14 @@ jobs:
       STORYTREE_RELEASE_VERSION: ${{ inputs.version }}
       STORYTREE_REHEARSAL: ${{ inputs.rehearsal }}
     steps:
+      - name: Hold a Windows build that could not update over running agent tools
+        if: matrix.system == 'Windows' && needs.windows-update.result != 'success'
+        shell: bash
+        env:
+          RESULT: ${{ needs.windows-update.result }}
+        run: |
+          echo "::error::The Windows update over running agent tools was $RESULT (windows-update): this build is not delivered"
+          exit 1
       # release.mjs and the files it imports run on node alone; the history is for its check that the commit is on main.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:

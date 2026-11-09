@@ -311,7 +311,7 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
     const reportedColumn = at(day.changes, 4).recordId;
     const verifiedColumn = at(day.changes, 5).recordId;
     // The verdict that turned red told the owner by FYI (5.23).
-    const [red] = await lib.unheardFyis();
+    const red = at(await lib.unheardFyis(), 0);
     assert.deepEqual(withoutSeq(day.changes), [
       { recordId: story.id, type: "story", action: "created", record: story },
       { recordId: arc.id, type: "arc", action: "created", record: arc },

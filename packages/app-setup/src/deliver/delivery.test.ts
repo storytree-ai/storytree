@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -164,12 +164,12 @@ test("1.21 on Windows, the installed app's start removes older builds' copies no
   const copies = path.join(f.home, "app-tools");
   let session: ReturnType<typeof spawn> | undefined;
   let running: string | undefined;
-  // On Windows a real node.exe runs from the copy, which Windows refuses to move; elsewhere moving it is refused as Windows would.
-  const move = process.platform === "win32" ? undefined : (from: string, to: string) => {
-    if (from === running) throw Object.assign(new Error(`EBUSY: resource busy or locked, rename '${from}'`), { code: "EBUSY" });
-    renameSync(from, to);
+  // On Windows a real node.exe runs from the copy, which Windows refuses to delete; elsewhere deleting it is refused as Windows would.
+  const remove = process.platform === "win32" ? undefined : (file: string) => {
+    if (path.dirname(file) === running) throw Object.assign(new Error(`EPERM: operation not permitted, unlink '${file}'`), { code: "EPERM" });
+    rmSync(file, { force: true });
   };
-  const options = { installDir: f.install, home: f.home, arch: "arm64" as const, platform: "win32" as const, searchPath: "", connections, ...(move ? { move } : {}) };
+  const options = { installDir: f.install, home: f.home, arch: "arm64" as const, platform: "win32" as const, searchPath: "", connections, ...(remove ? { remove } : {}) };
   try {
     const older = (await finishDelivery(options, { launch: async () => {}, waitForApp: async () => {} })).tools.dir;
     // A copy left by a build before it, which no session runs any more.

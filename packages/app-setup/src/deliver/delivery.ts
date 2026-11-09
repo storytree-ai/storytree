@@ -151,8 +151,8 @@ function writeRecord(options: DeliveryOptions, tools: InstalledTools): void {
  */
 export async function followBuildTools(options: DeliveryOptions & {
   connections?: Pick<ConnectionOptions, "home" | "env" | "run">;
-  /** How a copy is moved aside before it is cleared; Windows refuses while a session runs it. */
-  move?: (from: string, to: string) => void;
+  /** How a copy's node is deleted before the rest of it; Windows refuses while a session runs it. */
+  remove?: (file: string) => void;
 }): Promise<boolean> {
   let recorded: { installDir?: unknown; tools?: { dir?: unknown } } | undefined;
   try { recorded = JSON.parse(readFileSync(path.join(options.home, "delivery.json"), "utf8")); } catch { return false; }
@@ -165,7 +165,7 @@ export async function followBuildTools(options: DeliveryOptions & {
     await reconnectAgents({ installed: installedToolServerCommand(tools.node, tools.mcp), ...options.connections });
   }
   // Older builds' copies no session runs go, once the agents point at this one (1.21).
-  clearOlderTools(options.home, tools.dir, options.move);
+  clearOlderTools(options.home, tools.dir, options.remove);
   return followed;
 }
 

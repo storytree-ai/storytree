@@ -119,11 +119,12 @@ export function stageTools(installDir: string, home: string, arch: Architecture,
 }
 
 /**
- * Every copy under the home's app-tools but `keep` goes once no process runs it (contract 1.21). A copy is moved aside
- * whole before it is deleted: Windows refuses to move a folder a running node.exe holds, so a copy a session still runs
- * keeps every file and is tried again at the next start. Another start's copy still being made (`.next-`) is left alone.
+ * Every copy under the home's app-tools but `keep` goes once no process runs it (contract 1.21). Its node goes first:
+ * Windows refuses to delete a node.exe a session or hook still runs, though it lets the folder holding it be moved, so
+ * a copy whose node stays keeps every file and is tried again at the next start, and one whose node went can start
+ * nothing more. Another start's copy still being made (`.next-`) is left alone.
  */
-export function clearOlderTools(home: string, keep: string, move: (from: string, to: string) => void = renameSync): void {
+export function clearOlderTools(home: string, keep: string, remove: (file: string) => void = (file) => rmSync(file, { force: true })): void {
   const root = path.join(home, "app-tools");
   let names: string[];
   try { names = readdirSync(root); } catch { return; }
@@ -131,9 +132,8 @@ export function clearOlderTools(home: string, keep: string, move: (from: string,
     const dir = path.join(root, name);
     if (dir === keep || /\.next-\d+$/.test(name)) continue;
     try {
-      const aside = `${dir}.old-${process.pid}`;
-      move(dir, aside);
-      rmSync(aside, { recursive: true, force: true });
+      for (const node of ["node.exe", "node"]) remove(path.join(dir, node));
+      rmSync(dir, { recursive: true, force: true });
     } catch { /* In use: the next start tries again. */ }
   }
 }

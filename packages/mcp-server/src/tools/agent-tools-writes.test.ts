@@ -1424,3 +1424,36 @@ test("9.18 apply_pending applies an open increment's pending plan changes under 
     });
   });
 });
+
+test("9.31 · plan_contract given an open increment adds the new contract to that increment's links, so selecting its arc rings the contract's gate; an id that is not an open increment is refused before any write", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc, story, capability: form } = await planned(agent);
+      const link = idOf(await agent.call("plan_capability", { story, title: "Confirmation link", ...FOUNDED }));
+      const edge = idOf(await agent.call("plan_edge", { from: link, to: form }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Link reads the form", objective: "Fix it", body: "Red then green", links: [story] }));
+
+      const planned31 = await agent.call("plan_contract", { edge, increment, title: "The link reads the form's checked address" });
+      assert.notEqual(planned31.isError, true, planned31.text);
+      const contract = idOf(planned31);
+      // An open increment's links naming a contract are what the arc board rings a gate by (arc surface's openContracts).
+      const { status, links } = (await library.get(increment))!.fields as { status: string; links?: string[] };
+      assert.deepEqual(links, [story, contract], "the contract joins the increment's links, beside what it already cited");
+      assert.notEqual(status, "closed");
+      assert.match(planned31.text, new RegExp(`${increment}.*ring`), planned31.text);
+
+      const before = (await library.projectTree()).stories[0]!.edges?.[0]?.contracts.length;
+      for (const wrong of [story, "increment_000000000000"]) {
+        const refused = await agent.call("plan_contract", { capability: form, increment: wrong, title: "Belongs to no increment" });
+        assert.equal(refused.isError, true, wrong);
+        assert.match(refused.text, /not an open increment/, refused.text);
+      }
+      await agent.call("close_increment", { increment, disposition: "withdrawn", note: "replaced" });
+      const closed = await agent.call("plan_contract", { edge, increment, title: "Too late" });
+      assert.equal(closed.isError, true, "a closed increment rings no gate");
+      const tree = await library.projectTree();
+      assert.equal(tree.stories[0]!.edges?.[0]?.contracts.length, before, "nothing was written on a refusal");
+      assert.deepEqual(tree.stories[0]!.capabilities.find(({ id }) => id === form)?.contracts, [], "nothing was written on a refusal");
+    });
+  });
+});

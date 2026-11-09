@@ -117,9 +117,22 @@ export function registerPlanTools(define: Define): void {
       title,
       description,
       proved_by: provedBy,
+      increment: id("open increment that makes it true: the contract joins its links, so selecting its arc rings the gate of the part or edge it pins").optional(),
     }),
-    async ({ capability, edge, title: name, description: about, proved_by: proved }, call) => {
+    async ({ capability, edge, title: name, description: about, proved_by: proved, increment }, call) => {
       if ((capability === undefined) === (edge === undefined)) return { text: "Give the capability the contract belongs to, or the edge: one of them.", refused: true };
+      // The increment is checked before anything is written, so a wrong one leaves no contract behind (9.31).
+      const work = increment === undefined ? undefined : await call.library.get(increment);
+      const cited = (work?.fields as { links?: string[] } | undefined)?.links ?? [];
+      if (increment !== undefined && (work?.type !== "increment" || (work.fields as { status?: string }).status === "closed")) {
+        return { text: `${increment} is not an open increment, so no contract was planned: give the open increment that makes it true, or none.`, refused: true };
+      }
+      // An open increment's links naming a contract are what ring its gate when the arc is selected (ADR-1279 D4).
+      const linked = async (contract: string): Promise<string> => {
+        if (increment === undefined) return "";
+        await call.library.editIncrement(increment, { links: [...cited, contract] }, call.writer);
+        return ` It joins ${increment}'s links, so selecting that increment's arc rings its gate.`;
+      };
       const tree = await call.library.projectTree();
       if (edge !== undefined) {
         // An edge's contract is numbered from its dependent capability, past that capability's tests, so a test can carry it.
@@ -128,11 +141,12 @@ export function registerPlanTools(define: Define): void {
         const contract = await call.library.addContract({ title: name, edge, ...optional({ description: about, provedBy: proved }) }, { ...call.writer, testedNumbers: tested });
         const number = /^(\d+\.\d+) · /.exec(contract.fields.title)?.[1];
         const naming = number === undefined ? " A test named in its proved_by proves it" : ` A test titled "${number} · …", or named in proved_by, proves it`;
-        return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}) on edge ${edge}.${naming} under \`storytree health local\`.`, data: { id: contract.id } };
+        return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}) on edge ${edge}.${naming} under \`storytree health local\`.${await linked(contract.id)}`, data: { id: contract.id } };
       }
       const owner = capability!;
       const tested = await testedNumbers(call, owner, tree);
       const contract = await call.library.addContract({ title: name, capability: owner, ...optional({ description: about, provedBy: proved }) }, { ...call.writer, testedNumbers: tested });
+      const joined = await linked(contract.id);
       const orphans = await orphanTests(call, owner, contract.fields.title, tested);
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is the one ${orphans.length === 1 ? "it proves" : "one proves"}, give it that number with edit_plan.`;
       const untested = untestedContracts(tree, owner, tested);
@@ -145,7 +159,7 @@ export function registerPlanTools(define: Define): void {
       const build = proved === undefined
         ? " Write its test, see it fail, and report it red."
         : ` ${proved.length === 1 ? proved[0] : `${proved.slice(0, -1).join(", ")} and ${proved.at(-1)}`} already ${proved.length === 1 ? "exists" : "exist"}, so write no test for it: ${proved.length === 1 ? "its result credits" : "their results credit"} it at the project's next test run, \`storytree health local\` in your shell.`;
-      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named}${open}${strays}${advice}${build}`, data: { id: contract.id, orphans, untested, long, ...(strays === "" ? {} : { elsewhere }) } };
+      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${joined}${named}${open}${strays}${advice}${build}`, data: { id: contract.id, orphans, untested, long, ...(strays === "" ? {} : { elsewhere }) } };
     },
   );
 
@@ -188,7 +202,7 @@ export function registerPlanTools(define: Define): void {
       objective: z.string().min(1).optional().describe("What an increment delivers, in a sentence"),
       body: z.string().min(1).optional().describe("An increment's body, replacing it: how the work breaks down"),
       capabilities: z.array(z.string().min(1)).optional().describe("An increment's capabilities, replacing them: the ones it changes, and nothing else"),
-      links: z.array(z.string().min(1)).optional().describe("An increment's links, replacing them: its stories, notes or decisions"),
+      links: z.array(z.string().min(1)).optional().describe("An increment's links, replacing them: its stories, notes or decisions, and the contracts it makes true"),
       machine: z.string().min(1).optional().describe("The one machine that can take an increment, by the short name Machines knows it by, \"cloud\" for work only a cloud container can prove (no dispatcher takes it), or \"none\" to clear it, so any machine can"),
       escape: z
         .union([z.object({ caused_by: z.string().min(1).describe("The pull request (#123) or increment that caused it"), commit: z.string().min(1).optional().describe("A pull request's merge commit, required with one, since pull-request numbers restarted at #2 on 2026-10-26"), story: z.string().min(1).describe("The story it hit") }), z.literal("none")])

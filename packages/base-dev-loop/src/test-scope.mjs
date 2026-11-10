@@ -20,7 +20,8 @@
 // origin/main that cannot be read. Running a suite a change could not reach costs minutes; skipping
 // one it could reach merges untested code, so every doubt resolves to the full run. A root path is
 // narrowed only once its test-time readers have been measured, never by guessing (0.2's ADR-0394).
-// One doubt is settled narrow instead: a path into desktop's renderer reaches desktop's files only (ADR-1141).
+// One doubt is settled narrow instead: a path into desktop's renderer reaches desktop's files only (ADR-1141), unless the
+// package's test runs the page in a browser: that package runs, as a leaf, on a change anywhere the renderer bundles (ADR-1302).
 // And one root path has been measured: docs/ (design mocks, research, the pages users read) is read by no test
 // (increment_6bae65aca68d), so a file under it runs only the packages whose code reaches it by a relative path, as
 // a path into another package is read, and their dependents; with no reader it runs nothing. A string merely starting
@@ -72,7 +73,9 @@ export function readWorkspace(root) {
   const { reaching, sources, kept } = reachingPaths(root, packages);
   const reached = reachedFiles(root, packages, sources, kept);
   for (const pkg of packages) Object.assign(pkg, reachesOf(pkg, packages, reaching, reached));
+  for (const pkg of packages) pkg.runsPage = runsPage(pkg, sources);
   packages.sort((a, b) => (a.dir < b.dir ? -1 : 1));
+  packages.renderer = rendererClosure(packages, reached);
   packages.rootDeps = dependencyNames(readManifest(path.join(root, "package.json")) ?? {}).filter((n) => names.has(n));
   return packages;
 }
@@ -101,8 +104,9 @@ function dependencyNames(manifest) {
  * see, so it is written here (`targets`), and a path into the renderer's build output stands for the renderer
  * (`builtAt`). Launch's computed import is Playwright's module, outside the workspace (`readable`). A file renamed away leaves its entry unread, and the real-workspace scope test goes red.
  */
+const RENDERER = "apps/desktop/src/renderer/renderer.ts";
 const DESKTOP_ONLY = {
-  "apps/desktop/src/renderer/renderer.ts": { own: "apps/desktop", builtAt: ["apps/desktop/dist/renderer"] },
+  [RENDERER]: { own: "apps/desktop", builtAt: ["apps/desktop/dist/renderer"] },
   "apps/desktop/src/renderer/road-worker.ts": { own: "apps/desktop" },
   "apps/desktop/src/renderer/page-build.ts": { own: "apps/desktop" },
   "apps/desktop/src/capture/build.ts": { targets: ["apps/desktop/src/renderer/renderer.ts"] },
@@ -269,8 +273,9 @@ function reachedFiles(root, packages, sources, kept) {
    * Each file a reached source can run or read, by relative path or package name, and the packages it reaches whole.
    * Within an `own` dir (a source DESKTOP_ONLY bounds, and what it imports), only relative paths staying in that dir are followed.
    */
+  let whole = false; // set while reading what the renderer bundles, which no DESKTOP_ONLY entry bounds
   const walk = (source, into, seen, own) => {
-    const bound = DESKTOP_ONLY[source.at];
+    const bound = whole ? undefined : DESKTOP_ONLY[source.at];
     own ??= bound?.own;
     const key = `${own ?? ""}:${source.at}`; // read narrowly under the renderer, a file is still read in full when reached directly
     if (seen.has(key)) return;
@@ -303,7 +308,84 @@ function reachedFiles(root, packages, sources, kept) {
       if (owner) into.dirs.add(owner.dir);
     }
   };
-  return { reach };
+  /** Everything the renderer bundles that its walk can follow, read in full: the files, folders and whole packages it reaches. */
+  const bundled = () => {
+    const into = { files: new Set(), folders: new Set(), dirs: new Set() };
+    const renderer = byPath.get(bare(RENDERER));
+    whole = true;
+    try {
+      if (renderer) walk(renderer, into, new Set());
+    } finally {
+      whole = false;
+    }
+    return into;
+  };
+  return { reach, bundled };
+}
+
+/**
+ * The package dirs the renderer bundles (ADR-1302 D1): those its files reach, by path or package name, and everything those
+ * depend on, by a declared dependency or a reach into a whole package. A change in one of them can break a page a browser runs.
+ */
+function rendererClosure(packages, { bundled }) {
+  const { files, folders, dirs } = bundled();
+  const ownerOf = (file) => packages.find((p) => file.startsWith(`${p.dir}/`))?.dir;
+  const closure = new Set([...dirs, ...[...files, ...folders].map(ownerOf)].filter(Boolean));
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const pkg of packages) {
+      if (!closure.has(pkg.dir)) continue;
+      for (const dir of [...pkg.deps.map((name) => packages.find((p) => p.name === name)?.dir), ...pkg.through.dirs]) {
+        if (dir && !closure.has(dir)) {
+          closure.add(dir);
+          grew = true;
+        }
+      }
+    }
+  }
+  return [...closure].sort();
+}
+
+/**
+ * The capture kit's files, and the names each exports that launch a browser on the page (ADR-1302 D1): a script importing one
+ * of them runs the page; one importing only the kit's build (buildCapture) builds it and no more. A name renamed away leaves
+ * the real-workspace scope test red.
+ */
+const LAUNCHERS = {
+  "apps/desktop/src/capture/index.ts": ["launch", "runCapture", "withCapture"],
+  "apps/desktop/src/capture/runner.ts": ["runCapture", "withCapture"],
+  "apps/desktop/src/capture/launch.ts": ["launch"],
+};
+const NAMED_IMPORT = /\bimport\s*\{([^}]*)\}\s*from\s*["'](\.{1,2}\/[^"'\r\n]*)["']/g;
+const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
+
+/**
+ * Whether one of this package's tests runs the desktop page in a browser (ADR-1302 D2, read rather than listed): the test
+ * imports a launcher from the capture kit itself, or names a script of its own package (its file name, and its folder within
+ * the package) that does, or that imports, by path within the package, a script that does. A test naming only its capture's
+ * build script builds the page without running it, and keeps ADR-1141 D2 (ADR-1302 D3).
+ */
+function runsPage(pkg, sources) {
+  const bare = (file) => file.replace(SOURCE, "");
+  const own = sources.filter((s) => s.at.startsWith(`${pkg.dir}/`));
+  const byPath = new Map(own.map((s) => [bare(s.at), s]));
+  const importsLauncher = (source) =>
+    [...source.runs.matchAll(NAMED_IMPORT)].some(([, names, relative]) => {
+      const launchers = LAUNCHERS[`${bare(path.posix.join(path.posix.dirname(source.at), relative))}.ts`] ?? [];
+      return names.split(",").some((name) => launchers.includes(name.trim().split(/\s+as\s+/)[0]));
+    });
+  const launches = (source, seen = new Set()) => {
+    if (seen.has(source)) return false;
+    seen.add(source);
+    return importsLauncher(source) || source.targets.some((target) => byPath.has(bare(target)) && launches(byPath.get(bare(target)), seen));
+  };
+  const names = (test, script) => {
+    const within = script.at.slice(pkg.dir.length + 1);
+    const folder = path.posix.dirname(within);
+    return test.text.includes(path.posix.basename(within)) && (folder === "." || test.text.includes(folder));
+  };
+  const tests = own.filter((s) => TEST_FILE.test(s.at));
+  return tests.some((test) => launches(test) || own.some((script) => !TEST_FILE.test(script.at) && names(test, script) && launches(script)));
 }
 
 const QUOTED = /["'`]([^"'`\r\n]+)["'`]/g;
@@ -403,12 +485,17 @@ export function classify(files, workspace) {
       }
     }
   }
+  // A package whose test runs the page joins as a leaf on a change the renderer bundles, after its dependents are found (ADR-1302).
+  const renders = [...touched].some((dir) => workspace.renderer?.includes(dir));
+  const runners = renders ? workspace.filter((p) => p.runsPage && !selected.has(p.dir)).map((p) => p.dir) : [];
+  for (const dir of runners) selected.add(dir);
   const dirs = [...selected].sort();
-  const dependents = dirs.filter((dir) => !touched.has(dir) && !readers.has(dir));
+  const dependents = dirs.filter((dir) => !touched.has(dir) && !readers.has(dir) && !runners.includes(dir));
   const parts = [];
   if (touched.size) parts.push(`changed: ${[...touched].sort().join(", ")}`);
   if (docs.length) parts.push(`${docs.length} under docs/, ${readers.size ? `read by ${[...readers].sort().join(", ")}` : "which no test reads"}`);
   if (dependents.length) parts.push(`their dependents: ${dependents.join(", ")}`);
+  if (runners.length) parts.push(`running the page the renderer bundles: ${runners.sort().join(", ")}`);
   const reason = parts.join("; ");
   return { mode: "affected", dirs, reason };
 }

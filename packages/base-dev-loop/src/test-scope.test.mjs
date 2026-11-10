@@ -257,6 +257,62 @@ test("2.1 a path into desktop's renderer, or its build output, depends on deskto
   assert.deepEqual(classify(["apps/desktop/src/renderer/views.ts"], ws).dirs, ["apps/desktop", "packages/arc", "packages/forest", "packages/kit", "packages/views"]);
 });
 
+test("2.1 a package whose test runs a capture that launches the page runs, as a leaf, on a change anywhere the renderer bundles; one whose test only builds the page does not (ADR-1302)", (t) => {
+  const kit = "../../../../apps/desktop/src/capture/index.ts";
+  const root = workspace(t, {
+    packages: {
+      "packages/world": { name: "@x/world", files: { "src/planet.ts": "" } },
+      "packages/forest": { name: "@x/forest", deps: ["@x/world"], files: { "src/forest.ts": 'import "@x/world";\n' } },
+      "packages/site": { name: "@x/site", files: { "src/site.ts": "", "src/site.test.ts": "" } },
+      "apps/desktop": {
+        name: "@x/desktop",
+        deps: ["@x/forest"],
+        files: {
+          "src/renderer/renderer.ts": 'import "@x/forest";\n',
+          "src/main/main.ts": "",
+          "src/capture/index.ts": 'export { runCapture, withCapture } from "./runner.js";\nexport { launch } from "./launch.js";\nexport { buildCapture } from "./build.js";\n',
+          "src/capture/runner.ts": 'import { launch } from "./launch.js";\nexport async function runCapture() {}\nexport async function withCapture() {}\n',
+          "src/capture/launch.ts": "export async function launch() {}\n",
+          "src/capture/build.ts": 'const entry = path.join(root, "apps/desktop/src/renderer/renderer.ts");\nexport async function buildCapture() {}\n',
+        },
+      },
+      "packages/core": {
+        name: "@x/core",
+        files: {
+          "testing/look/capture.mjs": `import { buildCapture, runCapture } from '${kit}';\n`,
+          "src/smoke.test.ts": 'const folder = path.join(pkg, "testing/look");\nawait run(path.join(folder, "capture.mjs"), "--smoke");\n',
+        },
+      },
+      "packages/reopen": {
+        name: "@x/reopen",
+        files: {
+          "testing/sheet/build.mjs": "export function buildPage() {}\n",
+          "testing/sheet/reopen.mjs": `import { buildPage } from './build.mjs';\nimport { withCapture as capture } from '${kit}';\n`,
+          "src/reopen.test.ts": "await run('packages/reopen/testing/sheet/reopen.mjs', '--smoke');\n",
+        },
+      },
+      "packages/core-user": { name: "@x/core-user", deps: ["@x/core"], files: { "src/u.test.ts": "" } },
+      "packages/builder": {
+        name: "@x/builder",
+        files: {
+          "testing/look/build.mjs": `import { buildCapture } from '${kit}';\n`,
+          "testing/look/capture.mjs": `import { runCapture } from '${kit}';\n`,
+          "src/build.test.ts": 'await run(path.join(pkg, "testing/look/build.mjs"));\n',
+        },
+      },
+    },
+  });
+  const ws = readWorkspace(root);
+  const runners = ["packages/core", "packages/reopen"];
+  for (const file of ["packages/world/src/planet.ts", "packages/forest/src/forest.ts", "apps/desktop/src/main/main.ts"]) {
+    const dirs = classify([file], ws).dirs;
+    for (const dir of runners) assert.ok(dirs.includes(dir), `${file}: ${dir}`);
+    assert.ok(!dirs.includes("packages/core-user"), `${file}: a runner's dependents stay out`);
+    assert.ok(!dirs.includes("packages/builder"), `${file}: a package that only builds the page keeps ADR-1141 D2`);
+  }
+  assert.deepEqual(classify(["packages/site/src/site.ts"], ws).dirs, ["packages/site"], "outside the renderer's closure, no runner runs");
+});
+
 test("2.1 a type-only import is erased before a test runs, so a path reaching it depends on nothing through it; typecheck, which runs in full, reads it", (t) => {
   const root = workspace(t, {
     packages: {
@@ -308,11 +364,22 @@ test("2.1 the real workspace: a story whose captures reach desktop's capture kit
   for (const file of ["apps/desktop/src/capture/index.ts", "packages/forest/testing/view/code-rows/seed.json.gz"]) {
     for (const dir of users) assert.ok(scope(file).includes(dir), `${file}: ${dir}`);
   }
-  assert.deepEqual(scope("apps/desktop/src/bridge.ts"), ["apps/desktop"]);
-  for (const dir of users) assert.ok(!scope("packages/forest-world/src/x.ts").includes(dir), dir);
+  // The bridge's types reach no capture by path: only the packages whose tests run the page join desktop (ADR-1302).
+  assert.deepEqual(scope("apps/desktop/src/bridge.ts"), ["apps/desktop", "packages/forest", "packages/forest-world", "packages/knowledge-core"]);
   // The page's road worker, which the kit builds from the drawing engine, is bounded to desktop's files as the renderer is.
   for (const dir of users) assert.ok(scope("apps/desktop/src/renderer/road-worker.ts").includes(dir), dir);
-  for (const dir of users) assert.ok(!scope("packages/forest-world/src/planet/road-worker.ts").includes(dir), dir);
+});
+
+test("2.1 the real workspace: a forest-only or desktop-only change runs knowledge-core's and forest-world's browser smokes and not their dependents; a builder, or a change outside the renderer, does not (ADR-1302)", () => {
+  const ws = readWorkspace(repoRoot);
+  const scope = (file) => classify([file], ws).dirs;
+  const runners = ["packages/knowledge-core", "packages/forest-world"];
+  for (const file of ["packages/forest/src/view/forest-view.ts", "apps/desktop/src/renderer/renderer.ts", "packages/forest-world/src/planet/road-worker.ts", "packages/surface-feedback/src/index.ts"]) {
+    for (const dir of runners) assert.ok(scope(file).includes(dir), `${file}: ${dir}`);
+  }
+  // app-setup's test only builds its capture's page, no teaching-cards test runs its capture, and agent-pool reaches nothing the renderer bundles.
+  for (const dir of ["packages/app-setup", "packages/teaching-cards"]) assert.ok(!scope("packages/surface-feedback/src/index.ts").includes(dir), dir);
+  for (const dir of runners) assert.ok(!scope("packages/agent-pool/src/watch.mjs").includes(dir), dir);
 });
 
 test("the real workspace's undeclared reach is found: app-setup builds cli's bin by path", () => {

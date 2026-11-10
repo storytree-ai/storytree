@@ -213,12 +213,12 @@ async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated =
       let failure, stalled = false, closed = false, timer;
       if (watch) {
         // One look at a time: the next is scheduled only once this one (and its reachability probe) is done.
-        let size = -1, quietSince = performance.now();
+        let size = -1, quietSince = watch.clock();
         const look = async () => {
           const grown = await stat(log).then((found) => found.size, () => 0);
-          if (grown !== size) { size = grown; quietSince = performance.now(); }
-          else if (performance.now() - quietSince >= watch.quietMs) {
-            if (await watch.online()) quietSince = performance.now();
+          if (grown !== size) { size = grown; quietSince = watch.clock(); }
+          else if (watch.clock() - quietSince >= watch.quietMs) {
+            if (await watch.online()) quietSince = watch.clock();
             else if (!closed) {
               stalled = true;
               child.kill("SIGTERM");
@@ -420,8 +420,11 @@ export async function bothAnswer(options) {
   return (await refusals(options)).length === 0;
 }
 
-/** How long a lane is held for the network, how often it looks, and how long a quiet log means a stall while offline. */
-const OFFLINE = { ceilingMs: 12 * 3_600_000, pollMs: 60_000, quietMs: 15 * 60_000, everyMs: 60_000 };
+/**
+ * How long a lane is held for the network, how often it looks, how long a quiet log means a stall while offline, and the clock that
+ * quiet time is read on (a monotonic one; a test gives its own, so a loaded runner's pauses are not read as quiet).
+ */
+const OFFLINE = { ceilingMs: 12 * 3_600_000, pollMs: 60_000, quietMs: 15 * 60_000, everyMs: 60_000, clock: () => performance.now() };
 
 /** Append residue to an increment's body; a refusal is said, never thrown. */
 async function appendResidue({ increment, residue, storytree, dated }) {
@@ -484,7 +487,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   const day = began.slice(0, 10);
   const before = increment ? await traces({ increment, lanesDir: settings.lanesDir, heads }) : null;
   const offline = { ...OFFLINE, ...limits };
-  const watch = { quietMs: offline.quietMs, everyMs: offline.everyMs, online: reachable };
+  const watch = { quietMs: offline.quietMs, everyMs: offline.everyMs, clock: offline.clock, online: reachable };
   let last = { engine: picked.engine, log, err };
   let started = now();
   let result = await runEngine(picked.engine, argumentsFor(picked.engine, original, addDirs, undefined, settings.models[picked.engine]), { cwd, env: engineEnvironment(picked.engine, login, log), log, err, watch });

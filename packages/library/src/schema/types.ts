@@ -130,6 +130,9 @@ const pendingChange = z.union([
  */
 const guardrails = z.array(z.object({ check: nonEmpty, trigger: z.enum(["change", "release"]) }).strict()).optional();
 
+/** How a contract is proved (ADR-1294): a test criterion, a test reading the answer, or agentic user acceptance testing, an agent trying it on screen. */
+export const CONTRACT_PROOFS = ["test-criterion", "agentic-user-acceptance-testing"] as const;
+
 /** Who a story reaches (question_1740edf77e9e): the owner alone, the invited users, or the public. */
 export const RISK_AUDIENCES = ["owner", "invited", "public"] as const;
 
@@ -329,6 +332,8 @@ export const RECORD_SCHEMAS = {
        * naming every test it holds) or another runner's test or suite title. Optional, so no version bump.
        */
       provedBy: z.array(nonEmpty).min(1).optional(),
+      /** How it is proved, with a one-line reason, once its story-author has chosen (ADR-1294). Optional, so no version bump. */
+      proof: z.object({ by: z.enum(CONTRACT_PROOFS), reason: nonEmpty }).strict().optional(),
     })
     .strict()
     .superRefine((fields, context) => {

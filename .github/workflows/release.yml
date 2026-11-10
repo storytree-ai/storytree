@@ -2,10 +2,12 @@ name: Release installed app
 
 # workflow_run fires after each whole CI run completes, and only for CI runs on main. Through the merge
 # queue (ADR-0796) every merge is a push to main, and CI's run on that push passes only once the merged
-# commit passed in full on Linux, macOS and Windows: in the merge queue's run of that exact commit, on
-# whose verdict the push stands, or in the push run itself when there is none (ci.yml: on a push to
-# main the scope is everything). So that run is the release's verification: `source` takes its commit
-# only if it succeeded, and nothing here runs the tests again (contract 4.6). Pull request and merge-queue runs start no release run at all.
+# commit passed in full on Linux and Windows: in the merge queue's run of that exact commit, on whose
+# verdict the push stands, or in the push run itself when there is none (ci.yml: on a push to main the
+# scope is everything). So that run is the release's verification: `source` takes its commit only if
+# it succeeded, and nothing here runs the tests again (contract 4.6). macOS is tested on main nightly
+# (macos-nightly.yml), not by that run (ADR-1303 D1, D2); whether a macOS run must precede each release
+# is ADR-1303 D3's open question, and until it is answered this gate is unchanged. Pull request and merge-queue runs start no release run at all.
 on:
   workflow_run:
     workflows: [CI]

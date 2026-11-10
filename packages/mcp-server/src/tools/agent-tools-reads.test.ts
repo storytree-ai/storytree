@@ -783,6 +783,31 @@ test("9.26 plan_contract and edit_plan take proved_by, the existing tests that p
   });
 });
 
+test("9.33 plan_contract and edit_plan take proof, how the contract is proved with its reason, and show_plan says it on each contract's line, a capability's or an edge's, in full words, or that none is chosen yet", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Buyer checks out", ...FOUNDED }));
+      const totals = idOf(await agent.call("plan_capability", { story, title: "Totals", ...FOUNDED }));
+      const sums = idOf(await agent.call("plan_contract", { capability: totals, title: "Sums the cart", proof: { by: "test-criterion", reason: "The total is a returned value a test reads." } }));
+      const shown = idOf(await agent.call("plan_contract", { capability: totals, title: "Shows the total where the buyer looks" }));
+      const rounds = idOf(await agent.call("plan_contract", { capability: totals, title: "Rounds to the cent" }));
+      const tax = idOf(await agent.call("plan_capability", { story, title: "Tax", ...FOUNDED }));
+      const edge = idOf(await agent.call("plan_edge", { from: totals, to: tax }));
+      const taxed = idOf(await agent.call("plan_contract", { edge, title: "Totals include the tax", proof: { by: "test-criterion", reason: "The taxed total is a returned value." } }));
+      const corrected = await agent.call("edit_plan", { id: shown, proof: { by: "agentic-user-acceptance-testing", reason: "Whether a buyer can find the total is judged on screen." } });
+      assert.notEqual(corrected.isError, true, corrected.text);
+      assert.deepEqual(((await library.get(shown))?.fields as { proof?: unknown } | undefined)?.proof, { by: "agentic-user-acceptance-testing", reason: "Whether a buyer can find the total is judged on screen." });
+
+      const plan = (await agent.call("show_plan")).text;
+      const line = (id: string) => plan.split("\n").find((one) => one.includes(`(${id})`)) ?? "";
+      assert.match(line(sums), /; proved by a test criterion: The total is a returned value a test reads\.$/, plan);
+      assert.match(line(shown), /; proved by agentic user acceptance testing: Whether a buyer can find the total is judged on screen\.$/, plan);
+      assert.match(line(rounds), /; how it is proved is not chosen yet$/, plan);
+      assert.match(line(taxed), /: proved by a test criterion: The taxed total is a returned value\.$/, plan);
+    });
+  });
+});
+
 test("9.29 plan_edge writes an edge between two capabilities of one story, plan_contract given an edge writes that edge's contract, edit_plan corrects an edge's description, and show_plan lists each story's edges with their contracts", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

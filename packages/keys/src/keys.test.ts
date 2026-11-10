@@ -129,7 +129,7 @@ test("1.6: a !command that could not reach its host is marked unreachable, one r
     return true;
   });
 
-  saveKey("refused", `!${node} -e "process.stderr.write('mickh@box: Permission denied (publickey).\\r\\n');process.exit(255)"`, { home });
+  saveKey("refused", `!${node} -e "process.stderr.write('user@box: Permission denied (publickey).\\r\\n');process.exit(255)"`, { home });
   assert.throws(() => resolveKey("refused", { home, env: {} }), (error: Error & { unreachable?: boolean }) => {
     assert.equal(error.unreachable, false);
     return true;

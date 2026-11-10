@@ -43,9 +43,9 @@ export function takeWorktreeRun(work, { what }) {
   return { release };
 }
 
-/** What a run runs, for its record: the files named on its command line, relative to `root`, else its units. */
+/** What a run runs, for its record: the files named on its command line, relative to `root` with forward slashes on every platform, else its units. */
 export function runWhat({ root, files, units }) {
-  return files.length > 0 ? `files: ${files.map((file) => path.relative(root, path.resolve(file))).join(", ")}` : `units: ${units.join(", ")}`;
+  return files.length > 0 ? `files: ${files.map((file) => path.relative(root, path.resolve(file)).replaceAll("\\", "/")).join(", ")}` : `units: ${units.join(", ")}`;
 }
 
 function alive(holder) {

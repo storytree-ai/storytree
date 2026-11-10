@@ -1,11 +1,11 @@
 name: CI
 
 # Every change reaches main through a pull request. On each pull request into main, `platforms`
-# installs, typechecks and runs the tests on Linux, macOS and Windows, against the merge of the
-# branch with main; beside them, a change that reaches the desktop app builds and checks the Windows
-# installer (`installer`). `verify` passes once all three systems, and that installer, have. Then
-# `automerge` lands the pull request. Branch protection on main requires `verify`, so nothing merges unless the tests passed on
-# every system.
+# installs, typechecks and runs the tests on Linux and Windows, against the merge of the branch with
+# main; beside them, a change that reaches the desktop app builds and checks the Windows installer
+# (`installer`). `verify` passes once both systems, and that installer, have. Then `automerge` lands
+# the pull request. Branch protection on main requires `verify`, so nothing merges unless the tests
+# passed on both. macOS is tested once a night on main's head instead (macos-nightly.yml, ADR-1303).
 #
 # main merges through GitHub's merge queue (ADR-0796): `automerge` hands a green pull request to
 # the queue, and the queue runs this workflow again (`merge_group`) on the merge of main, every pull
@@ -15,9 +15,9 @@ name: CI
 # its queue run failed, while its own `verify` passed, goes back in once (requeue.yml).
 # A `platforms` job GitHub cancelled before any hosted runner took it is rerun once (rerun-unrun.yml).
 #
-# The product ships for Windows first, on x64 and arm64; the Windows run here is x64. The macOS run
-# keeps the code working on a Mac from the day each line is written, so that Mac support later is
-# packaging rather than porting (ADR-0625 D7, in storytree 0.2's decision log).
+# The product ships for Windows first, on x64 and arm64; the Windows run here is x64. The nightly
+# macOS run keeps the code working on a Mac within a day of each line, so that Mac support later is
+# packaging rather than porting (ADR-0625 D7, in storytree 0.2's decision log; ADR-1303 D4).
 #
 # A draft is never merged: open a pull request as a draft, or convert it to one, to hold it, and
 # `gh pr ready` releases it (`verify` runs again, and the pull request merges when it passes). The
@@ -31,12 +31,12 @@ name: CI
 #
 # `verify` also runs on each push to main. The queue's merge is such a push, so it starts this
 # workflow, then release.yml and own-health.yml after it completes. That push is the commit the
-# queue's run has just tested on all three systems, so `queue-verdict` finds that run and `verify`
+# queue's run has just tested on Linux and Windows, so `queue-verdict` finds that run and `verify`
 # stands on it, and `platforms` runs no tests again (22% of runner time, increment_08dac5c25a06);
 # with no passing queue run of the same commit (a direct merge, a batch whose head differs) the push
-# tests in full, as before. The queue's passing run keeps the Windows and macOS evidence own health
-# credits (packages/repo-checks/src/test-run/main-commit.mjs) and the timing history `timings` saves
-# for main. A direct merge that
+# tests in full, as before. The queue's passing run keeps the Windows evidence own health credits
+# (packages/repo-checks/src/test-run/main-commit.mjs) and the timing history `timings` saves for main;
+# the nightly macOS run keeps macOS's. A direct merge that
 # `automerge` makes starts none of them: GitHub starts no workflow from a push made with a
 # workflow's own token. So then `automerge` starts own-health.yml on main itself, which records
 # each contract's verified health (ADR-0744 D3), and release.yml follows the pull request's run.
@@ -50,9 +50,9 @@ on:
   push:
     branches: [main]
 
-# What reaches the installer: a change to any of these builds and checks it (the `installer` job on Windows, the
-# macOS test job's last steps). Of the workflows, only those that build or ship the desktop app: most workflow edits
-# build no installer.
+# What reaches the installer: a change to any of these builds and checks it (the `installer` job on Windows; the
+# macOS app is packaged and checked by release-package.yml for each release, ADR-1303 D1). Of the workflows, only
+# those that build or ship the desktop app: most workflow edits build no installer.
 env:
   INSTALLER_PATHS: >-
     apps/desktop packages/app pnpm-lock.yaml package.json
@@ -141,7 +141,8 @@ jobs:
               core.warning(`could not read main's caches, so neither shard restores a history: ${error.message}`);
             }
 
-  # One run per system, each installing, typechecking and testing. A failure on one system leaves
+  # One run per system, each installing, typechecking and testing: Linux and Windows, never macOS,
+  # which macos-nightly.yml tests on main each night (ADR-1303 D1). A failure on one system leaves
   # the others running (fail-fast: false), so a failure on one alone shows as that system's.
   # Windows, every run's slowest, is two jobs, each testing half the units by recent pass time
   # (`pnpm test --shard`, increment_6163234e706b): its test step is paced by the sum of its units'
@@ -155,8 +156,6 @@ jobs:
         include:
           - system: Linux
             runner: ubuntu-latest
-          - system: macOS
-            runner: macos-latest
           - system: Windows
             runner: windows-latest
             shard: 1
@@ -267,7 +266,7 @@ jobs:
       - run: pnpm run test ${{ matrix.shard && format('--shard={0}/2', matrix.shard) || '' }}
         env:
           STORYTREE_UNIT_LIMIT_MS: 360000
-          STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || matrix.system == 'macOS' && '.pgtest/macos-evidence' || '' }}
+          STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || '' }}
       # Only main's own runs carry their times forward, a failed or cut one too: its kills grow the
       # next run's deadline for that unit.
       - name: Keep this run's test timing history for the next
@@ -316,24 +315,6 @@ jobs:
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
-      # Exercise the distributable before merging packaging/updater changes. A source build
-      # passing tests alone does not prove that the signed Apple Silicon .app starts and runs its own
-      # Postgres and Node. The Windows installer builds in its own job beside the tests (`installer`);
-      # the macOS one stays here, after the tests: it adds about 1.8 min, and a job of its own would
-      # take a second macOS runner of the free plan's five, where macOS jobs already queue 5 to 6 min
-      # at p90 (increment_941fc3fe1d63).
-      - name: Does this change reach the installer?
-        if: matrix.system == 'macOS'
-        id: installer
-        shell: bash
-        run: |
-          if ! git diff --quiet origin/main...HEAD -- $INSTALLER_PATHS; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-      - if: matrix.system == 'macOS' && steps.installer.outputs.changed == 'true'
-        run: pnpm desktop:dist
-      - if: matrix.system == 'macOS' && steps.installer.outputs.changed == 'true'
-        run: node --import tsx apps/desktop/check-install-mac.mjs
       # Reuse this Windows execution for own health. Each attempt keeps its own immutable
       # artifact. A failed job uploads too (always()), so its own run can be diagnosed; own health
       # downloads only from a passing run, so a failed attempt's evidence earns no credit. A job
@@ -363,24 +344,6 @@ jobs:
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 1
-      # The same for macOS: own health credits a platform:darwin skip only from this run (contract 1.11).
-      # A change the tests do not reach (only docs/, say) runs no unit and writes no evidence, so
-      # then, as for a Windows shard given no units, the missing folder only warns.
-      - name: Does macOS test anything?
-        id: macos
-        if: always() && matrix.system == 'macOS'
-        shell: bash
-        run: |
-          pnpm run -s test --scope 2>/dev/null | grep -qx "units: none" || echo "units=true" >> "$GITHUB_OUTPUT"
-      - name: Preserve macOS test evidence
-        if: always() && matrix.system == 'macOS'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: macos-test-evidence-${{ github.run_attempt }}
-          path: .pgtest/macos-evidence
-          include-hidden-files: true
-          if-no-files-found: ${{ job.status == 'success' && steps.macos.outputs.units == 'true' && 'error' || 'warn' }}
-          retention-days: 14
 
   # On a push that stands on the merge queue's verdict, each system saves the timing history that
   # queue run left (above) as main's, so the next run's unit deadlines still grow from main's tested
@@ -395,8 +358,6 @@ jobs:
         include:
           - system: Linux
             runner: ubuntu-latest
-          - system: macOS
-            runner: macos-latest
           - system: Windows
             runner: windows-latest
             shard: 1
@@ -504,7 +465,7 @@ jobs:
 
   # The check branch protection on main requires, and the one `automerge` waits for; it reports on
   # the merge queue's runs too, so the queue can merge on it. It passes only
-  # if every run in `platforms` passed, `secret-check` passed, and the Windows installer passed or, for a change that
+  # if every run in `platforms` (Linux and both Windows shards) passed, `secret-check` passed, and the Windows installer passed or, for a change that
   # does not reach it, was skipped; or, on a push to main, if the merge queue's run of the same commit
   # passed it (`queue-verdict`). It runs whatever they did (always()), so a run that failed
   # or was cancelled fails it: were it skipped instead, GitHub would count the skipped check as

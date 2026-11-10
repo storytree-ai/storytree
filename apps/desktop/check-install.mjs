@@ -4,7 +4,7 @@
 // it publishes, so a release whose installed app cannot start never publishes.
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { checkEmbeddingBinaries, checkTools } from "./check-tools.mjs";
@@ -91,7 +91,8 @@ function checkUninstall(tools) {
  * started still runs its install folder's agent-tools node.exe, and its uninstaller (here, a copy of
  * cmd.exe, which waits on its console whatever it is given) never returns. The setup must stop that
  * node.exe by its path, end the old uninstaller at its time limit, install over the old files, and
- * leave programs beside the folder running.
+ * leave programs beside the folder running. It records the stop, and the next prompt of a session begun
+ * before it is told why its storytree tools are gone (Hooks 3.57).
  */
 function checkOldUninstallerBounded(tools, env, neighbours) {
   const toolServer = spawn(path.join(tools, "node.exe"), ["-e", "setInterval(() => {}, 1000)"], { windowsHide: true, stdio: "ignore" });
@@ -106,6 +107,12 @@ function checkOldUninstallerBounded(tools, env, neighbours) {
   });
   assert.ok(key, `an uninstall key names ${installed}`);
   execFileSync("reg", ["add", key, "/v", "UninstallString", "/t", "REG_SZ", "/d", `"${stalled}" /currentuser`, "/f"]);
+  // A Claude Code session in a storytree project, begun before the update (Hooks 3.57).
+  const project = path.join(temp, "session project");
+  mkdirSync(project, { recursive: true });
+  writeFileSync(path.join(project, ".storytree.json"), JSON.stringify({ project: "check-install" }));
+  const transcript = path.join(temp, "session.jsonl");
+  writeFileSync(transcript, "{}\n");
   const started = Date.now();
   try {
     execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 300_000, env });
@@ -116,7 +123,13 @@ function checkOldUninstallerBounded(tools, env, neighbours) {
     assert.doesNotMatch(left, /old-uninstaller\.exe/i, "the old uninstaller was ended at its limit");
     assert.equal(archiveVersion(path.join(installed, "resources", "app.asar")), version, "the update installed over the old files");
     assert.ok(existsSync(path.join(installed, "storytree-0.3.exe")));
-    console.log(`4.46 PASS (Windows x64): an update whose old uninstaller never returns finished in ${seconds} s, stopped the old folder's agent-tools node.exe and left programs beside it running`);
+    const record = path.join(env.STORYTREE_HOME, "tools-stopped");
+    assert.ok(existsSync(record) && statSync(record).mtimeMs >= started - 2000, "the setup recorded that it stopped storytree's agent tools, and when");
+    // That session's next prompt runs the new release's hook, from the files the update put in place, and is told.
+    const prompt = JSON.stringify({ hook_event_name: "UserPromptSubmit", session_id: `check-install-${process.pid}`, cwd: project, transcript_path: transcript, prompt: "carry on" });
+    const told = spawnSync(path.join(tools, "node.exe"), [path.join(tools, "storytree-hook.mjs"), "claude-code"], { input: prompt, encoding: "utf8", env, timeout: 60_000 });
+    assert.match(told.stdout, /stopped by a storytree update/, `the interrupted session is told why its tools are gone: ${told.stdout}${told.stderr}`);
+    console.log(`4.46 PASS (Windows x64): an update whose old uninstaller never returns finished in ${seconds} s, stopped the old folder's agent-tools node.exe, recorded it so the session it cut off was told, and left programs beside it running`);
   } finally {
     if (toolServer.exitCode === null) toolServer.kill();
     spawnSync("taskkill", ["/F", "/T", "/IM", "old-uninstaller.exe"]);

@@ -32,7 +32,7 @@ import * as waits from "./waits.js";
 import * as waitWrites from "./wait-writes.js";
 import { WorkModel, type ProjectTree } from "./work-model.js";
 import { arcHold, claimHold, holdsOf, incrementHold, noteWaits, onClaim, type ClaimReading, type Hold, type Holds, type NoteWait, type Wait, type WaitFor } from "./waits.js";
-import { checkedWaitFor, type WaitWrite } from "./wait-writes.js";
+import { checkedWaitFor, INCREMENT_BLOCKER, type WaitWrite } from "./wait-writes.js";
 
 /** The owner's voice note or one of his questions, named in an increment's body or links: work that came from his answer. */
 const FROM_HIS_ANSWER = /\b(?:voice\.note|question)_[0-9a-f]{12}\b/;
@@ -268,19 +268,22 @@ export class WorkInFlight {
    * since nothing can wait on a record not yet written. It is a proposal, stamped with when it was parked, or, given an
    * `outcome`, born closed. A proposal whose capabilities list names a capability already on another open increment's
    * list is refused (RangeError), naming that increment, its title and its arc, so a second drain routes to the one
-   * already parked (10.35): unless it is born waiting on that increment, as a later step of a split is.
+   * already parked (10.35): unless it is born waiting on that increment, as a later step of a split is, or on the claim of
+   * every capability they share, as work split off a held capability is (ADR-1228 D1).
    */
   addIncrement(increment: NewIncrement, options?: WriteOptions): Promise<SchemaRecord<"increment">> {
     return this.#serially(async () => {
       const { outcome, ...fields } = increment;
       await checkReference(this.#records, "arc", fields.arc, "arc");
       await this.#checkNames(fields);
-      for (const { on } of fields.waits ?? []) await checkReference(this.#records, "on", on, "increment");
+      for (const { on } of fields.waits ?? []) await checkReference(this.#records, "on", on, INCREMENT_BLOCKER);
       if (outcome === undefined) {
+        // Born waiting on that increment, or on the claim of every capability it shares (ADR-1228 D1), it follows that work.
         const follows = new Set((fields.waits ?? []).map(({ on }) => on));
-        const shared = (await this.openListing(fields.capabilities ?? [])).find((other) => !follows.has(other.increment));
+        const shared = (await this.openListing(fields.capabilities ?? [])).find((other) => !follows.has(other.increment) && !other.capabilities.every((capability) => follows.has(capability)));
         if (shared !== undefined) {
-          throw new RangeError(`${listedSaid(shared)}: route this work to that increment, or, if it follows that one, park it waiting on it`);
+          const claims = shared.capabilities.map((capability) => `${capability}'s claim`).join(" and ");
+          throw new RangeError(`${listedSaid(shared)}: route this work to that increment, or, if it follows that one, park it waiting on it, or, if it waits only for the capability, on ${claims}`);
         }
       }
       const waitsFor = fields.waitsFor?.map(checkedWaitFor);

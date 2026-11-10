@@ -10,6 +10,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { waitUntil } from "@storytree/test-waits";
 import { CLOSE_OUT_REMINDER, runHook } from "./index.js";
 import { TOOLS_STOPPED } from "./tools-stopped.js";
 
@@ -38,12 +39,13 @@ test("3.57 a session started before an update stopped storytree's tools is told 
       for (const session of [claude, codex, compacted, resumed, unrecorded]) transcript(session);
       assert.equal(await prompt("claude-code", unrecorded), undefined, "no stop recorded: nothing to tell");
 
-      // The setup's stop step, after these sessions began.
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      // The setup's stop step, after these sessions began: its record's time is set just past the last one's creation,
+      // and the sessions below start once the clock has passed it.
       const stopped = path.join(home, TOOLS_STOPPED);
       writeFileSync(stopped, "stopped\r\n");
-      const at = new Date(statSync(path.join(dir, `${claude}.jsonl`)).birthtimeMs + 10);
-      utimesSync(stopped, at, at);
+      const at = Math.max(...[claude, codex, compacted, resumed, unrecorded].map((session) => statSync(path.join(dir, `${session}.jsonl`)).birthtimeMs)) + 1;
+      utimesSync(stopped, new Date(at), new Date(at));
+      await waitUntil(() => Date.now() > at + 1 || undefined, 5_000, "the clock passes the stop's time");
       const late = randomUUID();
       transcript(late);
       await hook("claude-code", "SessionStart", late, { source: "startup" });
@@ -54,6 +56,9 @@ test("3.57 a session started before an update stopped storytree's tools is told 
       assert.match(told.systemMessage ?? "", /\/mcp/, "the user is shown it too");
       assert.equal(said(await prompt("claude-code", claude)).hookSpecificOutput?.additionalContext, undefined, "told once per session");
       assert.equal(await turnEnd("claude-code", claude), undefined, "told once, across the prompt and the turn end");
+
+      // A turn a Stop hook's block continued is never blocked again, even in a session not yet told.
+      assert.equal(await hook("codex", "Stop", unrecorded, { stop_hook_active: true }, [CLOSE_OUT_REMINDER]), undefined);
 
       // A Codex session with no new prompt coming: its turn end tells it, and its next prompt does not again.
       const ended = said(await turnEnd("codex", codex));

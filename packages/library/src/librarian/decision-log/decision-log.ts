@@ -41,13 +41,16 @@ export async function correct(library: Library, id: string, fields: Correction, 
 
 /**
  * Leave a dated note in decision `target`, naming the decision that narrows it: the in-place
- * annotation a narrowing owes its target in the same landing, and the only record of it.
+ * annotation a narrowing owes its target in the same landing. The narrowing decision names the
+ * target in its `narrows`, so a search shows the target with the decision that narrowed it.
  */
 export async function annotate(library: Library, target: string, { by, note, date }: Annotation, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
   const decision = await liveDecision(library, target);
   const narrowing = await liveDecision(library, by);
   const day = date ?? new Date().toISOString().slice(0, 10);
   const text = `${decision.fields.text}\n\n*Annotated ${day} by ${label(narrowing)}:* ${note}`;
+  const narrows = narrowing.fields.narrows ?? [];
+  if (!narrows.includes(target)) await library.editNote(by, { narrows: [...narrows, target] }, writer);
   return (await library.editNote(target, { text }, writer)) as SchemaRecord<"decision">;
 }
 

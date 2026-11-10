@@ -75,6 +75,7 @@ export class DecisionLog {
     await this.#checkLinks(decision.links);
     await this.#checkFrontCover(decision.frontCoverOf);
     await checkReferences(this.#records, "supersedes", decision.supersedes, "decision");
+    await checkReferences(this.#records, "narrows", decision.narrows, "decision");
     return this.#records.create("decision", decision, {
       ...options, sequence: "number",
       ...(floor === undefined ? {} : { sequenceFloor: floor }),

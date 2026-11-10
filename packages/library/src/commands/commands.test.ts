@@ -723,6 +723,53 @@ test("17.17 · library exact and the find_text tool list every live record holdi
   assert.ok(reads.every((read) => read.found === "search" && read.read === "peek"));
 });
 
+test("17.24 · library search and search_notes give current state unless told: --history (history) brings back resteers, friction and superseded decisions, --kind (kinds) ranks only the kinds named, an unknown kind is refused as misuse, and a narrowed decision's line names the decision that narrows it", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const old = await library.recordDecision({ status: "accepted", title: "Mapped is grey", text: "Mapped islands are grey." });
+  await library.recordDecision({ status: "accepted", title: "Grey for parked", text: "Parked islands are grey, and mapped ones are not.", supersedes: [old.id] });
+  const narrowed = await library.recordDecision({ status: "accepted", title: "Mapped is brown", text: "Mapped islands are brown." });
+  const narrowing = await library.recordDecision({ status: "accepted", title: "Explored islands take their health", text: "Only unexplored mapped islands stay brown.", narrows: [narrowed.id] });
+  const resteer = await library.writeKnowledge("resteer", {
+    title: "Mapped islands are not grey", description: "Redirected.", doing: "Painting mapped islands", redirect: "Not grey", evidence: "He said so.", disposition: "taste", dispositionBy: "owner",
+  });
+  const reads: NoteRead[] = [];
+  const context = {
+    library, project, session: "lane", folder: process.cwd(), writer: { actor: "session:lane" },
+    claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }),
+    notesRead: async () => reads, recordReads: async (more: readonly NoteRead[]) => void reads.push(...more), presenterOf: async () => undefined,
+  } satisfies LibraryVerbContext & NoteToolContext;
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const search = family.verbs.find((one) => mounted(one.command) && one.command.name === "search") as Verb<VerbInputs, LibraryVerbContext>;
+  const searchNotes = NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "search_notes") as Verb<VerbInputs, NoteToolContext>;
+  const command = async (inputs: object): Promise<string> => (await search.act({ words: ["mapped", "islands"], limit: "20", history: false, kind: [], ...inputs } as never, context, WORDS)).text;
+  const tool = async (inputs: object): Promise<{ id: string; narrowedBy?: unknown }[]> =>
+    ((await searchNotes.act({ query: "mapped islands", limit: 20, history: false, kinds: [], ...inputs } as never, context, WORDS)).data as { notes: { id: string; narrowedBy?: unknown }[] }).notes;
+
+  const current = await command({});
+  assert.ok(current.includes(narrowed.id) && current.includes(narrowing.id), current);
+  assert.ok(!current.includes(old.id) && !current.includes(resteer.id), "a superseded decision and a resteer are history");
+  assert.match(current, new RegExp(`${narrowed.id}  \\[decision\\]  Mapped is brown.*\\(narrowed by ADR-${String(narrowing.fields.number).padStart(4, "0")}\\)`));
+  const all = await command({ history: true });
+  assert.ok(all.includes(old.id) && all.includes(resteer.id), all);
+  const resteers = await command({ kind: ["resteer"] });
+  assert.ok(resteers.includes(resteer.id) && !resteers.includes(narrowed.id), resteers);
+  await assert.rejects(command({ kind: ["arc"] }), (error: unknown) => error instanceof VerbRefusal && /arc is not a kind a search ranks/.test(error.message));
+
+  assert.deepEqual(new Set((await tool({})).map(({ id }) => id)), new Set([narrowed.id, narrowing.id, (await library.decision(old.id))!.supersededBy[0]]));
+  assert.deepEqual((await tool({})).find(({ id }) => id === narrowed.id)?.narrowedBy, [{ id: narrowing.id, number: narrowing.fields.number }]);
+  assert.ok((await tool({ history: true })).some(({ id }) => id === resteer.id));
+  assert.deepEqual((await tool({ kinds: ["resteer"] })).map(({ id }) => id), [resteer.id]);
+});
+
 test("17.19 · library new decision refuses an accepted decision with no authority, with nothing written, naming adr new; with an authority it writes it (friction_b2b343a7a75e)", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();

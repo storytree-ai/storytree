@@ -266,6 +266,33 @@ for (const backend of [memory, postgres]) {
     assert.equal(many, few, "three times the records and title words, the same patterns compiled");
   });
 
+  contract("14.18", "rankAll ranks current state unless told: resteers, friction and superseded decisions come back with history, a resteer or friction when its kind is named, and a narrowed decision names what narrows it", async (_, { knowledge }) => {
+    const old = await knowledge.recordDecision({ status: "accepted", title: "Email through Mailgun", text: "Every email goes through Mailgun." });
+    const successor = await knowledge.recordDecision({ status: "accepted", title: "Email through Postmark", text: "Every email goes through Postmark.", supersedes: [old.id] });
+    const narrowed = await knowledge.recordDecision({ status: "accepted", title: "Email the sender", text: "The sender gets an email copy." });
+    const narrowing = await knowledge.recordDecision({ status: "accepted", title: "Email copies are opt-in", text: "A sender asks for an email copy.", narrows: [narrowed.id] });
+    const resteer = await knowledge.writeKnowledge("resteer", {
+      title: "Not Mailgun email", description: "The owner redirected the mailer.", doing: "Wiring Mailgun email", redirect: "Use Postmark for email",
+      evidence: "He said: email goes through Postmark.", disposition: "taste", dispositionBy: "owner",
+    });
+    const friction = await knowledge.writeKnowledge("friction", {
+      title: "Email bounced", description: "A test email bounced.", statement: "Mailgun bounced an email.", evidence: "403 on send.", impact: "No email arrives.",
+    });
+    const ids = async (options: Parameters<Knowledge["rankAll"]>[1]): Promise<Set<string>> =>
+      new Set((await knowledge.rankAll("email", { limit: 20, ...options })).hits.map(({ note }) => note.id));
+
+    assert.deepEqual(await ids({}), new Set([successor.id, narrowed.id, narrowing.id]), "current state only");
+    assert.deepEqual(await ids({ history: true }), new Set([old.id, successor.id, narrowed.id, narrowing.id, resteer.id, friction.id]), "history brings the rest back");
+    assert.deepEqual(await ids({ kinds: ["resteer", "friction"] }), new Set([resteer.id, friction.id]), "a named history kind is ranked");
+    assert.deepEqual(await ids({ kinds: ["decision"] }), new Set([successor.id, narrowed.id, narrowing.id]), "a superseded decision needs history");
+    assert.deepEqual(await ids({ kinds: ["decision"], history: true }), new Set([old.id, successor.id, narrowed.id, narrowing.id]));
+
+    const hits = (await knowledge.rankAll("email", { limit: 20 })).hits;
+    assert.deepEqual(hits.find(({ note }) => note.id === narrowed.id)?.narrowedBy, [{ id: narrowing.id, number: narrowing.fields.number }]);
+    assert.ok(hits.filter(({ note }) => note.id !== narrowed.id).every(({ narrowedBy }) => narrowedBy === undefined), "only the narrowed decision is marked");
+    await assert.rejects(knowledge.rankAll("email", { kinds: ["arc" as "story"] }), /unknown kind to search: arc/);
+  });
+
   contract("14.12", "a long note's late paragraph is embedded, so a search finds the note by what that paragraph says", async (embedder, { reopen }) => {
     const knowledge = await reopen(async () => reads512Tokens(embedder));
     await knowledge.defineTerm({ term: "Pricing", meaning: "Plans cost ten a month." });

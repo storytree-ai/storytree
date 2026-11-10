@@ -44,6 +44,7 @@ import { MEDIA_FAMILY } from "./media.js";
 export { mediaGuidance } from "./media.js";
 import { editDecision, recordDecision } from "../librarian/decision-log/index.js";
 import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
+import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
 
 /** A claim as the door reads it: the session holding it, the increment or capability it is for, and since when. */
@@ -182,24 +183,31 @@ async function dormantSaid(context: LibraryVerbContext, words: DoorWords, kinds?
 const NOT_A_TOOL = { absent: "an agent's artifact tools are search_notes, find_text, open, write_note and correct_note, which record its reads" } as const;
 
 const search = verb({
-  command: { family: "library", name: "search", summary: "the artifacts, stories, capabilities and contracts closest in meaning to the words, best first (10 unless --limit)", usage: "library search <words…> [--limit <n>]" },
+  command: {
+    family: "library",
+    name: "search",
+    summary: "the artifacts, stories, capabilities and contracts closest in meaning to the words, best first (10 unless --limit); current state only: resteers, friction and superseded decisions come back with --history, or a resteer or friction with --kind",
+    usage: "library search <words…> [--limit <n>] [--history] [--kind <kind>]",
+  },
   tool: NOT_A_TOOL,
   inputs: {
     words: { kind: "text", word: 0, many: true, optional: true, blank: true, describe: "the words to search for" },
     limit: { kind: "text", optional: true, describe: "how many to show" },
+    history: { kind: "switch", describe: "rank resteers, friction and superseded decisions too" },
+    kind: { kind: "text", many: true, optional: true, describe: "only this kind" },
   },
-  async act({ words, limit }, context: LibraryVerbContext, door) {
+  async act({ words, limit, history, kind }, context: LibraryVerbContext, door) {
     const query = words.join(" ").trim();
     if (query === "") throw new VerbRefusal("this needs the words to search for", { misuse: true });
     const count = countOf(limit);
-    const ranked = await context.library.rankAll(query, count === undefined ? {} : { limit: count });
+    const ranked = await rankedSearch(context.library, query, { ...(count === undefined ? {} : { limit: count }), history, kinds: kind });
     const heading = ranked.by === "meaning" ? `closest in meaning to "${query}":` : `ranked by words: ${ranked.why}; the records holding every word of "${query}":`;
     // Records of a plugin kind no mounted plugin declares are never ranked; the answer says so (ADR-1178 D3).
     const dormant = await dormantSaid(context, door);
     if (ranked.hits.length === 0) return { text: [heading, "  none", ...dormant].join("\n") };
     // A friction report says where it stands, so a settled one found by meaning reads as settled (ADR-1016 D4).
     const kindOf = (note: (typeof ranked.hits)[number]["note"]): string => note.type === "friction" ? `friction: ${note.fields.state}` : note.type;
-    const lines = ranked.hits.map(({ note, score }) => `  ${score === undefined ? "" : `${score.toFixed(2)}  `}${note.id}  [${kindOf(note)}]  ${labelOf(note.fields)}`);
+    const lines = ranked.hits.map(({ note, score, narrowedBy }) => `  ${score === undefined ? "" : `${score.toFixed(2)}  `}${note.id}  [${kindOf(note)}]  ${labelOf(note.fields)}${narrowedSaid(narrowedBy)}`);
     return { text: [heading, ...lines, ...dormant].join("\n"), next: [{ command: "library read <id>", why: "read one whole" }] };
   },
 });

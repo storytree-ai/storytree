@@ -24,6 +24,7 @@ import { isPluginKind } from "../schema/index.js";
 import { KNOWLEDGE_KINDS } from "../knowledge/index.js";
 import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type VerbInputs } from "../verbs/verb.js";
 import { everyHolding, holdingLines, wholeRecord, type HeldClaim } from "./index.js";
+import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
 
 /** How a session came to an artifact it read. */
@@ -69,14 +70,16 @@ const searchNotes = verb({
   command: NO_COMMAND("search"),
   tool: {
     name: "search_notes",
-    description: "Search the project's artifacts (decisions, definitions and other artifact kinds) and its stories, capabilities and contracts: the ones closest in meaning to your question, best first; you see each one's spine. Ask in plain words. Open one to read it whole.",
+    description: "Search the project's artifacts (decisions, definitions and other artifact kinds) and its stories, capabilities and contracts: the ones closest in meaning to your question, best first; you see each one's spine, and a decision narrowed in place says which decisions narrow it. Ask in plain words. Open one to read it whole. It gives current state: resteers, friction and superseded decisions come back with history, or a resteer or friction when kinds names it.",
   },
   inputs: {
     query: { kind: "text", verbatim: true, blank: true, describe: "What you want to know, in plain words" },
     limit: { kind: "count", optional: true, describe: "How many to give back; 10 unless given" },
+    history: { kind: "switch", describe: "Rank resteers, friction and superseded decisions too" },
+    kinds: { kind: "text", many: true, optional: true, describe: "Only these kinds (decision, resteer, contract, ...); every current kind unless given" },
   },
-  async act({ query, limit }, context: NoteToolContext) {
-    const ranked = await context.library.rankAll(query, limit === undefined ? {} : { limit });
+  async act({ query, limit, history, kinds }, context: NoteToolContext) {
+    const ranked = await rankedSearch(context.library, query, { ...(limit === undefined ? {} : { limit }), history, kinds });
     const notes = ranked.hits.map(({ note }) => note);
     await context.recordReads(notes.map((note) => ({ note: note.id, found: "search", read: "peek" })));
     const heading = ranked.by === "meaning"
@@ -84,8 +87,8 @@ const searchNotes = verb({
       : `ranked by words: ${ranked.why}; the records holding every word of ${quoted(query)}:`;
     if (notes.length === 0) return { text: `${heading}\n(none)`, data: { by: ranked.by, notes: [] } };
     return {
-      text: [heading, ...notes.map(spineLine)].join("\n"),
-      data: { by: ranked.by, notes: notes.map(spineData) },
+      text: [heading, ...ranked.hits.map(({ note, narrowedBy }) => `${spineLine(note)}${narrowedSaid(narrowedBy)}`)].join("\n"),
+      data: { by: ranked.by, notes: ranked.hits.map(({ note, narrowedBy }) => ({ ...spineData(note), ...(narrowedBy === undefined ? {} : { narrowedBy }) })) },
     };
   },
 });

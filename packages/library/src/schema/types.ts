@@ -380,6 +380,11 @@ export const RECORD_SCHEMAS = {
       status: z.enum(["proposed", "accepted"]),
       number: z.number().int().positive().optional(),
       supersedes: ids.optional(),
+      /**
+       * The decisions this one narrows in place, each left a dated note by the librarian's `annotate`: a search
+       * shows a narrowed decision with the decisions that narrow it (ADR-0993's narrowing of ADR-0992 had no edge).
+       */
+      narrows: ids.optional(),
       loadBearing: z.boolean().optional(),
       /** The day it was decided (YYYY-MM-DD). */
       decided: nonEmpty.optional(),

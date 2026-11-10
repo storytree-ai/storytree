@@ -37,10 +37,10 @@ import { holdsName, normalisedWords } from "./whole-words.js";
  * (`branchEdges[].to`), the notes a check enforces and the decisions it supersedes. The one list:
  * the librarian's curation and the memory upgrade read it through `referenceEdgesOf` and this.
  */
-export const REFERENCE_FIELD_NAMES = ["links", "context", "rules", "antiPatterns", "enforces", "supersedes", "stepRefs", "branchEdges"] as const;
+export const REFERENCE_FIELD_NAMES = ["links", "context", "rules", "antiPatterns", "enforces", "supersedes", "narrows", "stepRefs", "branchEdges"] as const;
 
-/** The fields that link an artifact to other artifacts (6-a), which the loop check follows: every reference field but supersessions, which the supersession check follows. */
-const LINK_FIELDS = REFERENCE_FIELD_NAMES.filter((field) => field !== "supersedes");
+/** The fields that link an artifact to other artifacts (6-a), which the loop check follows: every reference field but supersessions, which the supersession check follows, and narrowings. */
+const LINK_FIELDS = REFERENCE_FIELD_NAMES.filter((field) => field !== "supersedes" && field !== "narrows");
 
 /** The kinds of artifact: decisions, definitions, the eight kinds of ADR-0640, ADR-0956's check and ADR-1058's research. */
 export type NoteType = "decision" | "definition" | KnowledgeKind;
@@ -65,12 +65,24 @@ export interface Ranked<T extends SchemaRecord = Note> {
   readonly by: "meaning" | "words";
   /** Why it fell back to words; absent when ranked by meaning. */
   readonly why?: string;
-  /** The artifacts, best first. A score, the cosine of its best chunk with the question, comes with meaning only. */
-  readonly hits: { readonly note: T; readonly score?: number }[];
+  /**
+   * The artifacts, best first. A score, the cosine of its best chunk with the question, comes with meaning only.
+   * rankAll marks a decision narrowed in place with the accepted decisions that narrow it, oldest first.
+   */
+  readonly hits: { readonly note: T; readonly score?: number; readonly narrowedBy?: readonly NarrowingDecision[] }[];
+}
+/** A decision that narrows another in place, as a search names it: its id and number. */
+export interface NarrowingDecision {
+  readonly id: string;
+  readonly number?: number;
 }
 /** A ranked search's options: how many artifacts to give back, RANK_LIMIT unless told. */
 export interface RankOptions {
   readonly limit?: number;
+  /** rankAll only: rank history too, the resteers, friction and superseded decisions it leaves out unless told. */
+  readonly history?: boolean;
+  /** rankAll only: rank only these kinds; a resteer or friction named here is ranked without `history`, a superseded decision only with it. */
+  readonly kinds?: readonly (NoteType | PlanKind)[];
 }
 /** Literal lookup includes knowledge artifacts and the plan's work records. */
 export type PhraseKind = NoteType | PlanKind | "arc" | "increment" | "question";
@@ -116,6 +128,10 @@ export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
 
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
 const PLAN_KINDS: readonly PlanKind[] = ["story", "capability", "contract"];
+/** Every kind rankAll ranks. */
+const FINDABLE_KINDS: readonly (NoteType | PlanKind)[] = [...NOTE_TYPES, ...PLAN_KINDS];
+/** The kinds that record what happened rather than what holds, which rankAll leaves out unless told (the owner's option B on question_6931f1a08090). */
+const HISTORY_KINDS: readonly string[] = ["resteer", "friction"];
 const PHRASE_KINDS: readonly PhraseKind[] = [...NOTE_TYPES, ...PLAN_KINDS, "arc", "increment", "question"];
 
 /**
@@ -133,6 +149,7 @@ const REFERENCE_FIELDS: ReadonlySet<string> = new Set([
   "refs",
   "to",
   "supersedes",
+  "narrows",
   "fingerprint",
   "story",
   "capability",
@@ -343,6 +360,7 @@ export class Knowledge {
       await checkReferences(this.#records, "supersedes", fields.supersedes, "decision");
       if (Array.isArray(fields.supersedes)) await this.#refuseSupersessionLoop(id, fields.supersedes);
     }
+    if ("narrows" in fields) await checkReferences(this.#records, "narrows", fields.narrows, "decision");
     const { checkCurrent, ...writer } = options ?? {};
     return (await this.#records.edit(id, fields, {
       ...writer,
@@ -411,10 +429,27 @@ export class Knowledge {
    * id, not words, and is not searched.
    */
   async rankAll(query: string, options: RankOptions = {}): Promise<Ranked<Findable>> {
-    return this.#rankAmong(async () => {
+    const { kinds, history = false } = options;
+    for (const kind of kinds ?? []) if (!FINDABLE_KINDS.includes(kind)) throw new RangeError(`unknown kind to search: ${kind}; one of ${FINDABLE_KINDS.join(", ")}`);
+    const narrowedBy = new Map<string, NarrowingDecision[]>();
+    const ranked = await this.#rankAmong(async () => {
       const lists = await Promise.all([this.#notes(), ...PLAN_KINDS.map((type) => this.#records.list(type))]);
-      return lists.flat().sort(byCreation);
+      const all: Findable[] = lists.flat().sort(byCreation);
+      const accepted = all.filter((record): record is SchemaRecord<"decision"> => record.type === "decision" && record.fields.status === "accepted");
+      const superseded = new Set(accepted.flatMap((decision) => decision.fields.supersedes ?? []));
+      for (const decision of accepted) {
+        for (const target of decision.fields.narrows ?? []) {
+          narrowedBy.set(target, [...(narrowedBy.get(target) ?? []), { id: decision.id, ...(decision.fields.number === undefined ? {} : { number: decision.fields.number }) }]);
+        }
+      }
+      return all.filter((record) => {
+        if (kinds !== undefined && !kinds.includes(record.type)) return false;
+        if (history) return true;
+        if (HISTORY_KINDS.includes(record.type)) return kinds !== undefined;
+        return !superseded.has(record.id);
+      });
     }, query, options);
+    return { ...ranked, hits: ranked.hits.map((hit) => (narrowedBy.has(hit.note.id) ? { ...hit, narrowedBy: narrowedBy.get(hit.note.id)! } : hit)) };
   }
 
   /**
@@ -636,7 +671,7 @@ export function referenceEdgesOf(fields: object): { field: string; to: string }[
 
 /** Every artifact id an artifact's fields link it to, through each of LINK_FIELDS. */
 function linksOf(fields: object): string[] {
-  return referenceEdgesOf(fields).flatMap(({ field, to }) => (field === "supersedes" ? [] : [to]));
+  return referenceEdgesOf(fields).flatMap(({ field, to }) => (field === "supersedes" || field === "narrows" ? [] : [to]));
 }
 
 /**

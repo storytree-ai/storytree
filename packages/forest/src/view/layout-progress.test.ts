@@ -42,6 +42,16 @@ test("3.96 the map's top-left mark counts the islands whose layout is searched o
     answers[1]!({ found: undefined });
     routed[0]!({ segments: [], junctions: [], gates: [], passes: [], portals: [], tunnels: [], towns: new Map(), settlements: new Map() });
     await waitUntil(() => mark(["one", "two", "three", "four"]) === "" || undefined, 2000, "the mark to go once both queues are idle");
+    // An island let go while it routes or waits its turn, or already let go when asked, is no longer counted.
+    const island = (story: string): RoadsAsk => ({ ...roadsAsk, map: { ...roadsAsk.map }, story });
+    const letGo = ["five", "six", "seven"].map((story) => ({ story, shown: new AbortController() }));
+    for (const { story, shown } of letGo) islandRoadsWhenRouted(island(story), () => new Promise(() => {}), shown.signal);
+    assert.match(mark(["five", "six", "seven", "eight"]), /laying out 3 of 4 islands/, "two routing and one waiting its turn");
+    for (const { shown } of letGo) shown.abort();
+    const gone = new AbortController();
+    gone.abort();
+    islandRoadsWhenRouted(island("eight"), () => new Promise(() => {}), gone.signal);
+    assert.equal(mark(["five", "six", "seven", "eight"]), "", "islands let go are not counted");
   } finally { stopSearching(); stopRouting(); }
 });
 

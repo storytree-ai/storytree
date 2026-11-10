@@ -330,6 +330,10 @@ test("3.82 an island's routed roads outlive the run on the page's storage: after
     answers[1]!.resolve(roads);
     await waitUntil(() => knownIslandRoads(full) ?? undefined, 2000, "roads kept for the run when storage is full");
     assert.equal(roadsShelf(undefined), undefined, "no storage, no shelf");
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, get: () => { throw new Error("Access is denied for this document"); } });
+    try { assert.equal(roadsShelf(), undefined, "a page that refuses its storage has no shelf, and still routes"); } finally { delete (globalThis as { localStorage?: unknown }).localStorage; }
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+    try { roadsShelf()?.write("v", "k", roads); assert.ok(stored.has("storytree.roads.v"), "the page's own storage is the shelf by default"); } finally { delete (globalThis as { localStorage?: unknown }).localStorage; }
   } finally { shelveRoadsOn(undefined); }
 });
 

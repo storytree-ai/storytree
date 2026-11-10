@@ -226,11 +226,11 @@ function counted(story: string, by: 1 | -1): void {
 /** Runs `route` once fewer than ROUTING_AT_ONCE routings are in flight; it is passed over if `signal` aborts first.
  * `story`'s island counts as routing until it ends or is let go. */
 function inTurn(route: () => Promise<unknown>, signal: AbortSignal, story: string | undefined): void {
-  let pending = story !== undefined;
+  let pending = story !== undefined && !signal.aborted;
   const settled = () => { if (!pending) return; pending = false; signal.removeEventListener("abort", settled); counted(story!, -1); };
   if (pending) { counted(story!, 1); signal.addEventListener("abort", settled); }
   const start = () => {
-    if (signal.aborted) { next(); return; }
+    if (signal.aborted) { settled(); next(); return; }
     routing++;
     let ended = false;
     const end = () => { if (ended) return; ended = true; routing--; signal.removeEventListener("abort", end); settled(); next(); };

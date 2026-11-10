@@ -3,8 +3,8 @@ import test from 'node:test';
 import { Vector3 } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, SEA_LANE } from '../geometry.js';
-import { advanceLaneClock, LANE_DOTS, LANE_MIN_PX, laneScale, SEA_LANE_ONE, laneDrawn, laneHead, laneHeads, laneShown, LANE_SPEED, restLanes, restShown, SEA_LANE_CAP, SEA_LANE_FILL, seaLaneWidth, type LaneRoute, type LitLink } from './lanes.js';
-import type { PlanetLanes, PlanetPathways } from './pathways.js';
+import { advanceLaneClock, LANE_DOTS, LANE_MIN_PX, LANE_STRANDS, strandSpread, laneScale, SEA_LANE_ONE, laneDrawn, laneHead, laneHeads, laneShown, LANE_SPEED, restLanes, restShown, SEA_LANE_CAP, SEA_LANE_FILL, seaLaneWidth, type LaneRoute, type LitLink } from './lanes.js';
+import { clearOfLand, gentleCurve, type PlanetLanes, type PlanetPathways } from './pathways.js';
 import { plateTransform } from './planet.js';
 
 const R = 218;
@@ -238,40 +238,111 @@ function trunkOfThree(): PlanetLanes {
   };
 }
 
-test('4.44 at rest every lane is drawn as a line of round chart dots in the lane blue, each stretch\'s dots about half its lane width and spaced about twice their size, down the middle of its merged route', () => {
+test('4.44 at rest every lane is drawn as fine round dots of one size, spaced about three times their size, and a stretch several lanes share as that many dotted strands side by side, fanning in at its ends', () => {
   const plan = trunkOfThree(), stretches = restLanes(plan);
   assert.deepEqual(stretches.map(s => s.id).sort(), plan.segments.map(s => s.id).sort(), 'every stretch of every lane is dotted, each once however many lanes share it');
-  // A stretch's lane width is what every lane riding it, lit together, is drawn as there.
-  const every = laneRoutes(plan, plan.edges.map(edge => ({ from: edge.from, to: edge.to, dir: 'down' as const })));
-  const widthOn = (segment: { points: Vector3[] }) => {
-    const mid = segment.points[Math.floor(segment.points.length / 2)]!, lane = every.find(l => l.points.some(p => p.distanceTo(mid) < 1e-9))!;
-    return lane.widths[lane.points.findIndex(p => p.distanceTo(mid) < 1e-9)]!;
-  };
   for (const stretch of stretches) {
     const segment = plan.segments.find(s => s.id === stretch.id)!;
-    assert.ok(Math.abs(stretch.size - widthOn(segment) / 2) < 1e-12, `${stretch.id}'s dots are half its lane width`);
-    for (const dot of stretch.dots) assert.ok(segment.points.some(p => p.distanceTo(dot.at) < 0.6), 'each down the middle of its route');
-    const length = segment.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(segment.points[i]!), 0);
-    assert.ok(stretch.dots[0]!.at.distanceTo(segment.points[0]!) < 2.2 * stretch.size && stretch.dots.at(-1)!.at.distanceTo(segment.points.at(-1)!) < 2.2 * stretch.size, `${stretch.id} dotted end to end (${length.toFixed(0)} units)`);
-    stretch.dots.slice(1).forEach((dot, i) => {
-      const apart = dot.at.distanceTo(stretch.dots[i]!.at) / stretch.size;
-      assert.ok(apart > 1.6 && apart < 2.6, `${stretch.id}'s dots ${apart.toFixed(2)} sizes apart: about twice`);
+    assert.equal(stretch.size, 0.16, `${stretch.id}'s dots are one lane's, half its width, however many share it`);
+    assert.equal(stretch.strands, segment.links.length, `${stretch.id} drawn as a strand a lane`);
+    assert.deepEqual(stretch.carries.flat().sort(), [...segment.links].sort(), 'its strands carry every lane on it once');
+    for (const dot of stretch.dots) assert.ok(segment.points.some(p => p.distanceTo(dot.at) < 0.6), 'each on its route');
+    const across = [...new Set(stretch.dots.map(d => d.across))].sort((a, b) => a - b);
+    assert.equal(across.length, stretch.strands, 'each strand its own place across the route');
+    across.slice(1).forEach((place, i) => assert.ok(Math.abs(place - across[i]! - LANE_STRANDS.gap * SEA_LANE_ONE) < 1e-9, 'strands evenly apart'));
+    assert.ok(Math.abs(across[0]! + across.at(-1)!) < 1e-9, 'centred on the route');
+    const strand = stretch.dots.filter(d => d.across === across[0]);
+    assert.ok(strand[0]!.at.distanceTo(segment.points[0]!) < 3.2 * stretch.size && strand.at(-1)!.at.distanceTo(segment.points.at(-1)!) < 3.2 * stretch.size, `${stretch.id} dotted end to end`);
+    strand.slice(1).forEach((dot, i) => {
+      const apart = dot.at.distanceTo(strand[i]!.at) / stretch.size;
+      assert.ok(apart > 2.6 && apart < 3.6, `${stretch.id}'s dots ${apart.toFixed(2)} sizes apart: about three times`);
     });
+    for (const dot of stretch.dots) {
+      const length = dot.ends[0] + dot.ends[1];
+      assert.ok(Math.abs(length - segment.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(segment.points[i]!), 0)) < 1e-6, 'its distances from the two ends span the stretch');
+    }
   }
-  const trunk = stretches.find(s => s.id === 'trunk')!, arm = stretches.find(s => s.id === 'b')!;
-  assert.ok(trunk.size > arm.size, 'a trunk carrying more links reads as bigger dots');
-  assert.ok(restShown(trunk, () => 1) && !restShown(arm, story => story === 'b' ? 0.5 : 1), 'in a growth a stretch shows once both islands of a lane on it have risen (4.33)');
+  const trunk = stretches.find(s => s.id === 'trunk')!;
+  // The trunk runs from a's dock east to the fork; b's arm leaves north of it, d's south (+ across is north here).
+  assert.deepEqual(trunk.carries, [['d1->a1'], ['c1->a1'], ['b1->a1']], 'each lane on the side its route leaves by, so strands part without crossing');
+  const [first, second] = [...new Set(trunk.dots.map(d => d.across))].sort((a, b) => a - b).map(place => trunk.dots.filter(d => d.across === place));
+  const pitch = first![1]!.ends[0] - first![0]!.ends[0];
+  assert.ok(Math.abs(second![0]!.ends[0] - first![0]!.ends[0] - pitch / 2) < 1e-9, 'a strand\'s dots fall between its neighbour\'s, so side by side they read as lines, not rungs');
+  assert.equal(strandSpread([0, 30]), 0, 'a strand meets the others at a stretch\'s end');
+  assert.equal(strandSpread([30, 0]), 0);
+  assert.equal(strandSpread([LANE_STRANDS.fan * SEA_LANE_ONE, 30]), 1, 'and is out at its place once past the fan');
+  assert.equal(strandSpread([LANE_STRANDS.fan * SEA_LANE_ONE, 30], 4), strandSpread([LANE_STRANDS.fan * SEA_LANE_ONE / 4, 30]), 'the fan scales with every lane size');
+  const half = strandSpread([LANE_STRANDS.fan * SEA_LANE_ONE / 2, 30]);
+  assert.ok(half > 0.4 && half < 0.6, 'fanning out on the way');
+  assert.ok(restShown(trunk, () => 1) && !restShown(stretches.find(s => s.id === 'b')!, story => story === 'b' ? 0.5 : 1), 'in a growth a stretch shows once both islands of a lane on it have risen (4.33)');
   assert.ok(restShown(trunk, story => story === 'b' ? 0.5 : 1), 'the trunk shows while another of its lanes stands');
 });
 
+test('4.44 a stretch carrying more lanes than the cap draws only the cap\'s strands, its dots brighter by how many more ride it, full at the busiest trunk', () => {
+  const busy = (n: number) => {
+    const point = (x: number) => new Vector3(x, 0, R);
+    const links = Array.from({ length: n }, (_, i) => `x${i}->a1`);
+    return restLanes({ docks: [], edges: links.map(link => ({ from: link.split('->')[0]!, to: 'a1', segments: [{ id: 'trunk', reversed: true }], islands: ['x', 'a'] as const })),
+      segments: [{ id: 'trunk', links, points: Array.from({ length: 41 }, (_, i) => point(-30 + 0.75 * i)) }] })[0]!;
+  };
+  assert.equal(busy(LANE_STRANDS.cap).strands, LANE_STRANDS.cap);
+  assert.equal(busy(LANE_STRANDS.cap).bright, 0, 'up to the cap, every lane its own strand, none brighter');
+  const ten = busy(10), sixtyFour = busy(64), hundred = busy(100);
+  assert.equal(ten.strands, LANE_STRANDS.cap, 'above it, the cap\'s strands');
+  assert.deepEqual(ten.carries.map(lanes => lanes.length), [3, 2, 3, 2], 'carrying every lane between them');
+  assert.ok(ten.bright > 0 && ten.bright < sixtyFour.bright, 'brighter by how many more ride it');
+  assert.equal(sixtyFour.bright, 1, 'full at the busiest trunk');
+  assert.equal(hundred.bright, 1, 'and never past it');
+  assert.equal(ten.size, busy(1).size, 'the dots no bigger');
+});
+
+test('4.44 a lane\'s route bends in gentle curves, not corners: a right-angle bend becomes an arc that keeps its ends and stays near the route', () => {
+  const corner = [...Array.from({ length: 51 }, (_, i) => ({ x: i * 0.8 - 40, y: 0 })), ...Array.from({ length: 50 }, (_, i) => ({ x: 0, y: (i + 1) * 0.8 }))];
+  const curve = gentleCurve(corner, 6, 0.8);
+  assert.deepEqual([curve[0], curve.at(-1)], [corner[0], corner.at(-1)], 'its ends kept exactly, so a junction\'s stretches still meet');
+  const walk = [0];
+  for (let i = 1; i < curve.length; i++) walk.push(walk[i - 1]! + Math.hypot(curve[i]!.x - curve[i - 1]!.x, curve[i]!.y - curve[i - 1]!.y));
+  let sharpest = 0;
+  for (let i = 0, j = 0, k = 0; i < curve.length; i++) {
+    while (j < curve.length - 1 && walk[j]! - walk[i]! < 2) j++;
+    while (k < curve.length - 1 && walk[k]! - walk[j]! < 2) k++;
+    if (walk[k]! - walk[j]! < 1.9 || j === i) continue;
+    const a = Math.atan2(curve[j]!.y - curve[i]!.y, curve[j]!.x - curve[i]!.x), b = Math.atan2(curve[k]!.y - curve[j]!.y, curve[k]!.x - curve[j]!.x);
+    sharpest = Math.max(sharpest, Math.abs(b - a) * 180 / Math.PI);
+  }
+  assert.ok(sharpest < 35, `no turn sharper than ${sharpest.toFixed(0)}° over two units (the corner turned 90° at once)`);
+  const off = Math.max(...curve.map(p => Math.min(...corner.map(q => Math.hypot(p.x - q.x, p.y - q.y)))));
+  assert.ok(off < 2, `never more than ${off.toFixed(2)} off the route, well within its clearance of a coast`);
+  assert.deepEqual(gentleCurve(corner.slice(0, 10), 6, 0.8), corner.slice(0, 10), 'a stretch too short to bend is left as it is');
+});
+
+test('4.41 a curved lane still keeps off land: each stretch takes the widest curve that stays two units off every coast away from its docks, and its routed line where none does', () => {
+  const corner = [...Array.from({ length: 51 }, (_, i) => ({ x: i * 0.8 - 40, y: 0 })), ...Array.from({ length: 50 }, (_, i) => ({ x: 0, y: (i + 1) * 0.8 }))];
+  const square = (x0: number, y0: number, x1: number, y1: number) => ({ centre: { x: (x0 + x1) / 2, y: (y0 + y1) / 2 }, r: Math.hypot(x1 - x0, y1 - y0) / 2,
+    chartRings: [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => ({ x: x!, y: y!, local: { x: x!, z: y! } }))] });
+  const coast = (p: { x: number; y: number }, ring: readonly { x: number; y: number }[]) => Math.min(...ring.map((a, i) => {
+    const b = ring[(i + 1) % ring.length]!, dx = b.x - a.x, dy = b.y - a.y, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)));
+    return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
+  }));
+  const cut = (curve: readonly { x: number; y: number }[]) => Math.max(...curve.map(p => Math.min(...corner.map(q => Math.hypot(p.x - q.x, p.y - q.y)))));
+  const open = clearOfLand(corner, new Map());
+  assert.ok(cut(open) > 4, `in open sea the bend is a wide curve (cut by ${cut(open).toFixed(1)})`);
+  // An island in the bend's elbow, its coast four units off the routed lane: the routed lane's clearance.
+  const elbow = square(-30, 4, -4, 30), near = clearOfLand(corner, new Map([['c', elbow]]));
+  assert.ok(near.every(p => !(p.x > -30 && p.x < -4 && p.y > 4 && p.y < 30) && coast(p, elbow.chartRings[0]!) >= 2 - 1e-9), 'beside an island, never on its land nor within two units of its coast');
+  assert.ok(cut(near) > 0.5 && cut(near) < cut(open), `still a curve, a tighter one (cut by ${cut(near).toFixed(1)})`);
+  const across = square(-20, -3, -10, 3);
+  assert.deepEqual(clearOfLand(corner, new Map([['c', across]])), corner, 'where no curve keeps clear, the routed line as it is');
+});
+
 test('4.8 a selected story fills only its share of each stretch, as wide as its own lit lanes there and never wider than the stretch', () => {
-  const plan = trunkOfThree(), rest = new Map(restLanes(plan).map(s => [s.id, s.size / LANE_DOTS.size]));
+  const plan = trunkOfThree();
   const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'c1', to: 'a1', dir: 'down' }]);
   for (const lane of lanes) lane.points.forEach((p, i) => {
     if (p.x < -1e-9) {
       assert.equal(lane.widths[i], seaLaneWidth(2), 'on the trunk it carries two of three: two lanes\' width');
-      assert.ok(lane.widths[i]! < rest.get('trunk')!, 'partly filled: narrower than the trunk');
-    } else if (p.x > 1e-9) assert.equal(lane.widths[i], rest.get(lane.from[0]!), 'alone on its arm it fills the arm');
+      assert.ok(lane.widths[i]! < seaLaneWidth(3), 'partly filled: narrower than the trunk');
+    } else if (p.x > 1e-9) assert.equal(lane.widths[i], seaLaneWidth(1), 'alone on its arm it fills the arm');
   });
 });
 

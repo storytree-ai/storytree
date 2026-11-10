@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, PerspectiveCamera, ShaderMaterial, Vector3, type Camera, type Mesh, type Object3D } from 'three';
 import { usePlanetGrowth } from './PlanetGrowth.js';
-import { advanceLaneClock, LANE_DOTS, laneDrawn, laneScale, laneDrawSeconds, laneHead, laneHeads, laneProgress, laneShown, restShown, SEA_LANE, type LaneRoute, type RestStretch } from './lanes.js';
+import { advanceLaneClock, LANE_DOTS, LANE_STRANDS, laneDrawn, laneScale, laneDrawSeconds, laneHead, laneHeads, laneProgress, laneShown, restShown, SEA_LANE, SEA_LANE_FILL, SEA_LANE_ONE, type LaneRoute, type RestStretch } from './lanes.js';
 
 /** A lane's strip: at each vertex its physical distance along the route (`along`) and the way out to its side at half
  * the strip's width (`sideways`), so a shader can draw its front and head. */
@@ -72,52 +72,75 @@ export function drawLane(material: ShaderMaterial, progress: number, head: numbe
 }
 
 /** The dots at rest as one mesh: a flat quad a dot, lifted off the sea a little (under a selection's fill), carrying its
- * centre (`position`), the way along its route (`ahead`), its corner at ±1 (`corner`) for the shader to round and size it,
- * its size, its place in its stretch (`index`) and whether it shows (`shown`, set by `drawDots`). */
+ * place on its stretch's route (`position`), the way along the route (`ahead`), its corner at ±1 (`corner`) for the shader
+ * to round and size it, its size, its place in its strand (`order`), its strand's place across the route (`across`), how
+ * far it lies from the stretch's two ends (`ends`), how bright its stretch is (`bright`) and whether it shows (`shown`,
+ * set by `drawDots`). */
 export function laneDots(stretches: readonly RestStretch[], lift = 0.08): BufferGeometry {
-  const position: number[] = [], ahead: number[] = [], corner: number[] = [], size: number[] = [], order: number[] = [], index: number[] = [];
-  for (const stretch of stretches) stretch.dots.forEach(({ at, along }, k) => {
-    const p = at.clone().addScaledVector(at.clone().normalize(), lift), first = position.length / 3;
-    for (const [u, v] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as const) {
-      position.push(...p.toArray());
-      ahead.push(...along.toArray());
-      corner.push(u, v);
-      size.push(stretch.size);
-      order.push(k);
-    }
-    index.push(first, first + 1, first + 2, first, first + 2, first + 3);
-  });
+  const position: number[] = [], ahead: number[] = [], corner: number[] = [], size: number[] = [], order: number[] = [], across: number[] = [],
+    ends: number[] = [], bright: number[] = [], index: number[] = [];
+  for (const stretch of stretches) {
+    const perStrand = stretch.dots.length / stretch.strands;
+    stretch.dots.forEach(({ at, along, across: out, ends: [from, to] }, k) => {
+      const p = at.clone().addScaledVector(at.clone().normalize(), lift), first = position.length / 3;
+      for (const [u, v] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as const) {
+        position.push(...p.toArray());
+        ahead.push(...along.toArray());
+        corner.push(u, v);
+        size.push(stretch.size);
+        order.push(k % perStrand);
+        across.push(out);
+        ends.push(from, to);
+        bright.push(stretch.bright);
+      }
+      index.push(first, first + 1, first + 2, first, first + 2, first + 3);
+    });
+  }
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(position, 3));
   geometry.setAttribute('ahead', new Float32BufferAttribute(ahead, 3));
   geometry.setAttribute('corner', new Float32BufferAttribute(corner, 2));
   geometry.setAttribute('size', new Float32BufferAttribute(size, 1));
   geometry.setAttribute('order', new Float32BufferAttribute(order, 1));
+  geometry.setAttribute('across', new Float32BufferAttribute(across, 1));
+  geometry.setAttribute('ends', new Float32BufferAttribute(ends, 2));
+  geometry.setAttribute('bright', new Float32BufferAttribute(bright, 1));
   geometry.setAttribute('shown', new Float32BufferAttribute(new Array<number>(position.length / 3).fill(1), 1));
   geometry.setIndex(index);
   geometry.computeBoundingSphere();
   return geometry;
 }
 
-/** Round dots in the lane blue at the dots' opacity, each `uScale` times its size, every `uScale`th of a stretch kept so
- * they stay about twice their size apart (`laneScale`); a dot not `shown` is not drawn. */
+/** How far a bright stretch's dots (`RestStretch.bright`, 1) are tinted towards the selection's pale fill, and how much
+ * more opaque they are, so the lanes above LANE_STRANDS.cap still read on a trunk. */
+export const LANE_BRIGHT = { mix: 0.6, opacity: 0.33 } as const;
+
+/** Round dots in the lane blue at the dots' opacity, each `uScale` times its size, every `uScale`th of a strand kept so
+ * they stay about three times their size apart (`laneScale`), each strand set its place across the route times
+ * `uScale`, fanning in at the stretch's ends as `strandSpread` does; a bright stretch's dots tinted pale and more opaque;
+ * a dot not `shown` is not drawn. */
 export function laneDotMaterial(): ShaderMaterial {
   return new ShaderMaterial({
-    uniforms: { uColour: { value: new Color(SEA_LANE) }, uOpacity: { value: LANE_DOTS.opacity }, uScale: { value: 1 } },
+    uniforms: { uColour: { value: new Color(SEA_LANE) }, uBright: { value: new Color(SEA_LANE_FILL) }, uOpacity: { value: LANE_DOTS.opacity }, uScale: { value: 1 },
+      uFan: { value: LANE_STRANDS.fan * SEA_LANE_ONE }, uMix: { value: LANE_BRIGHT.mix }, uMore: { value: LANE_BRIGHT.opacity } },
     vertexShader: `attribute vec3 ahead; attribute vec2 corner; attribute float size; attribute float order; attribute float shown;
-uniform float uScale;
-varying vec2 vCorner; varying float vShown;
+attribute float across; attribute vec2 ends; attribute float bright;
+uniform float uScale; uniform float uFan;
+varying vec2 vCorner; varying float vShown; varying float vBright;
 void main() {
   vec3 side = normalize(cross(normalize(position), ahead)), forward = normalize(cross(side, normalize(position)));
   vCorner = corner;
+  vBright = bright;
   vShown = shown * (mod(order + 0.5, uScale) < 1.0 ? 1.0 : 0.0);
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position + (forward * corner.x + side * corner.y) * size * uScale * 0.5, 1.0);
+  float spread = smoothstep(0.0, uFan * uScale, min(ends.x, ends.y));
+  vec3 centre = position + side * across * uScale * spread;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(centre + (forward * corner.x + side * corner.y) * size * uScale * 0.5, 1.0);
 }`,
-    fragmentShader: `uniform vec3 uColour; uniform float uOpacity;
-varying vec2 vCorner; varying float vShown;
+    fragmentShader: `uniform vec3 uColour; uniform vec3 uBright; uniform float uOpacity; uniform float uMix; uniform float uMore;
+varying vec2 vCorner; varying float vShown; varying float vBright;
 void main() {
   if (vShown < 0.5 || dot(vCorner, vCorner) > 1.0) discard;
-  gl_FragColor = vec4(uColour, uOpacity);
+  gl_FragColor = vec4(mix(uColour, uBright, uMix * vBright), min(1.0, uOpacity * (1.0 + uMore * vBright)));
 }`,
     transparent: true, depthWrite: false, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
   });
@@ -146,10 +169,11 @@ export function worldPerPixel(object: Object3D, geometry: BufferGeometry, camera
   return 2 * centre.distanceTo(camera.getWorldPosition(new Vector3())) * Math.tan(camera.fov * Math.PI / 360) / camera.zoom / height / scale;
 }
 
-/** Every lane at rest (ADR-1278 D1, ADR-1276 D1, contract 4.44): each stretch of the merged routes a line of round dots in
- * the lane blue, about half its lane width, spaced about twice their size; dimmed while a story is selected, its share
- * filled over them (`SelectionLanes`). Zoomed out, every lane size scales up together (`laneScale`), written to `scale`
- * for the fills to read. In a recorded growth a stretch shows once a lane on it has both islands risen. */
+/** Every lane at rest (ADR-1278 D1 as ADR-1307 narrows it, ADR-1276 D1, contract 4.44): each stretch of the merged
+ * routes fine round dots of one size in the lane blue, a dotted strand a lane riding it side by side up to a cap
+ * (`restLanes`); dimmed while a story is selected, its share filled over them (`SelectionLanes`). Zoomed out, every lane
+ * size, the strands' places across included, scales up together (`laneScale`), written to `scale` for the fills to read.
+ * In a recorded growth a stretch shows once a lane on it has both islands risen. */
 export function RestLanes({ stretches, selected, scale }: { stretches: readonly RestStretch[]; selected: boolean; scale: { current: number } }) {
   const dots = useMemo(() => ({ geometry: laneDots(stretches), material: laneDotMaterial() }), [stretches]);
   useEffect(() => () => { dots.geometry.dispose(); dots.material.dispose(); }, [dots]);
@@ -162,7 +186,8 @@ export function RestLanes({ stretches, selected, scale }: { stretches: readonly 
     if (mesh.current) scale.current = laneScale(worldPerPixel(mesh.current, dots.geometry, camera, size.height));
     if (drawDots(dots.material, dots.geometry, stretches, selected, growth.island, scale.current)) invalidate();
   });
-  return <group name="pathways:rest-lanes" userData={{ stretches: stretches.length, dots: stretches.reduce((n, s) => n + s.dots.length, 0) }}>
+  return <group name="pathways:rest-lanes" userData={{ stretches: stretches.length, strands: stretches.reduce((n, s) => n + s.strands, 0),
+    dots: stretches.reduce((n, s) => n + s.dots.length, 0) }}>
     <mesh ref={mesh} name="lane-dots" geometry={dots.geometry} material={dots.material} raycast={ignoreRay} renderOrder={1} />
   </group>;
 }

@@ -17,6 +17,21 @@ function mapBundle(linked = false, { late = false }: { late?: boolean } = {}): P
   if (!bundles.has(key)) bundles.set(key, bundleMap(linked, late));
   return bundles.get(key)!;
 }
+/** Counts, as `__pending`, the page's work still to come: the frames asked for and the turns handed to the next task (a
+ * zero-delay timeout: the islands' builds in steps, their roads' routing, the notes' roots). The map draws on demand, so a
+ * page with none pending has drawn all it was asked to, and will draw nothing more until something changes. */
+const PENDING_WORK = `globalThis.__pending = 0; {
+  const frames = new Set(), turns = new Set(), frame = requestAnimationFrame.bind(globalThis), unframe = cancelAnimationFrame.bind(globalThis);
+  const later = setTimeout.bind(globalThis), unlater = clearTimeout.bind(globalThis), count = () => { globalThis.__pending = frames.size + turns.size; };
+  globalThis.requestAnimationFrame = run => { const id = frame(at => { frames.delete(id); count(); run(at); }); frames.add(id); count(); return id; };
+  globalThis.cancelAnimationFrame = id => { frames.delete(id); count(); unframe(id); };
+  globalThis.setTimeout = (run, ms, ...rest) => {
+    if (ms) return later(run, ms, ...rest);
+    const id = later(() => { turns.delete(id); count(); run(...rest); }); turns.add(id); count(); return id;
+  };
+  globalThis.clearTimeout = id => { turns.delete(id); count(); unlater(id); };
+}
+`;
 async function bundleMap(linked: boolean, late: boolean): Promise<string> {
   const entry = `import { createElement } from "react";
     import { createRoot } from "react-dom/client";
@@ -48,7 +63,7 @@ async function bundleMap(linked: boolean, late: boolean): Promise<string> {
   const result = await build({
     stdin: { contents: entry, resolveDir: import.meta.dirname, loader: "js" }, bundle: true, write: false, format: "iife", jsx: "automatic",
     define: { "process.env.NODE_ENV": '"production"' }, loader: { ".glb": "binary" },
-    banner: { js: "globalThis.__renders = 0; globalThis.__storytreeCaptureGlobe = get => Object.defineProperty(globalThis, '__globe', { get, configurable: true }); globalThis.__storytreeCaptureNavigation = nav => { globalThis.__renders++; globalThis.__nav = nav; };" },
+    banner: { js: PENDING_WORK + "globalThis.__renders = 0; globalThis.__storytreeCaptureGlobe = get => Object.defineProperty(globalThis, '__globe', { get, configurable: true }); globalThis.__storytreeCaptureNavigation = nav => { globalThis.__renders++; globalThis.__nav = nav; };" },
   });
   return result.outputFiles[0]!.text;
 }
@@ -80,16 +95,18 @@ async function openedMap(t: { after(run: () => Promise<void>): void }, linked = 
   }, undefined, { timeout: 60_000 });
   const renders = () => page.evaluate(() => (window as unknown as { __renders: number }).__renders);
   // The opening settles: the sheet opens framed and the islands report their places, then the view stops rendering, and
-  // each island's land, built in its turn (3.87), with its roads when it has links, stands as built, its borders whole.
-  const built = () => page.evaluate(linked => {
+  // each island's land, built in its turn (3.87), stands built again with its roads and relief, its borders whole, and no
+  // build or frame is still to come. Every island is routed, linked or not, and its first land, built before its roads
+  // arrive, stands meanwhile: a slow computer can leave it unchanged across two reads (macOS, 2026-11-10).
+  const built = () => page.evaluate(() => {
     type Part = { uuid: string; geometry?: { drawRange: { count: number } } };
-    const { __globe: globe, __renders: renders } = window as unknown as { __renders: number; __globe: { scene: { getObjectByName(name: string): { getObjectByName(name: string): Part | undefined } | undefined } } };
+    const { __globe: globe, __renders: renders, __pending: pending } = window as unknown as { __renders: number; __pending: number; __globe: { scene: { getObjectByName(name: string): { getObjectByName(name: string): Part | undefined } | undefined } } };
     const lands = ["one", "two"].map(story => globe.scene.getObjectByName(`planet:${story}`));
     const drawn = lands.map(island => island?.getObjectByName("territory-land")?.uuid);
-    const routed = !linked || lands.every(island => island?.getObjectByName("island-roads") !== undefined);
+    const routed = lands.every(island => island?.getObjectByName("island-roads") !== undefined);
     const whole = lands.every(island => (island?.getObjectByName("territory-borders")?.geometry?.drawRange.count ?? Infinity) === Infinity);
-    return drawn.every(uuid => uuid !== undefined) && routed && whole ? JSON.stringify([renders, drawn]) : undefined;
-  }, linked);
+    return pending === 0 && drawn.every(uuid => uuid !== undefined) && routed && whole ? JSON.stringify([renders, drawn]) : undefined;
+  });
   let last: string | undefined;
   await waitUntil(async () => { const now = await built(); const still = now !== undefined && now === last; last = now; return still; }, 30_000, "the map view to stop rendering after it opens, its islands' land built");
   // A land built last compiles its shaders on the frame after.

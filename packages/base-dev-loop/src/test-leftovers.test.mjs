@@ -4,7 +4,7 @@
 // they test.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { start } from "@storytree/local-postgres";
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { sweepLeftovers } from "./test-leftovers.mjs";
+import { removeFolder, sweepLeftovers } from "./test-leftovers.mjs";
 import { killTree, runUnit } from "./unit-run.mjs";
 
 const localPostgres = pathToFileURL(fileURLToPath(import.meta.resolve("@storytree/local-postgres"))).href;
@@ -139,6 +139,26 @@ test("4.21 · a run's start stops any Postgres server in Temp left by a run that
   await waitUntil(() => !alive(stale), 10_000, "a server in a storytree scratch folder whose owner has gone to be stopped");
   assert.equal(alive(postmaster(owned.dataDir)), true, "a server whose owner lives is left running");
   assert.equal(existsSync(liveRun), true, "a live run's unit folder is left alone");
+});
+
+// friction_4e5b26e21141: 4.20 and 4.21 failed on Windows with EPERM removing a temp folder a Postgres
+// just killed still held, past Node's own retries of about a second and a half.
+test("4.20 · 4.21 · a folder whose files stay held for a while after its server stops is still removed, and one held past the budget fails with the reason", async (t) => {
+  const steps = cleanups(t);
+  const at = folder(steps, "leftovers-held-");
+  writeFileSync(path.join(at, "file"), "x");
+  const heldUntil = Date.now() + 2_000;
+  const codes = ["EPERM", "EBUSY", "EACCES", "ENOTEMPTY"];
+  let tries = 0;
+  removeFolder(at, {
+    rm: (target) => {
+      if (Date.now() < heldUntil) throw Object.assign(new Error(`${codes[tries % codes.length]}: held`), { code: codes[tries++ % codes.length] });
+      rmSync(target, { recursive: true, force: true });
+    },
+  });
+  assert.equal(existsSync(at), false, "removed once the hold lets go");
+  assert.ok(tries > codes.length, "retried through every held code");
+  assert.throws(() => removeFolder(at, { budgetMs: 200, rm: () => { throw Object.assign(new Error("EPERM: still held"), { code: "EPERM" }); } }), /still held/);
 });
 
 test("4.22 · a run's start removes storytree scratch folders in Temp older than three days, keeping a newer one and one a live server still uses", { timeout: 120_000 }, async (t) => {

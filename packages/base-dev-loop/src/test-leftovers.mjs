@@ -81,7 +81,7 @@ export function sweepLeftovers({ tmp = tmpdir(), now = Date.now(), log = () => {
     swept.stopped.push(...stopServersUnder(at, { keep: (server) => !goneRun && ownerAlive(server.dataDir), log }));
     if (!goneRun && (serversUnder(at).length > 0 || now - modified(at) < SWEEP_AGE_MS)) continue;
     try {
-      rmSync(at, { recursive: true, force: true, maxRetries: 5 });
+      removeFolder(at);
       swept.removed.push(at);
     } catch (error) {
       log(`could not remove ${at}: ${error.message}`);
@@ -90,6 +90,27 @@ export function sweepLeftovers({ tmp = tmpdir(), now = Date.now(), log = () => {
   if (swept.stopped.length > 0) log(`stopped ${swept.stopped.length} Postgres server(s) a gone run left running in ${tmp}`);
   if (swept.removed.length > 0) log(`removed ${swept.removed.length} scratch folder(s) a gone or old run left in ${tmp}`);
   return swept;
+}
+
+// What Windows answers while a file in the folder is still held, as it is for a while after a Postgres
+// in it was killed: Node's own retries (maxRetries) last about a second and a half and skip EACCES.
+const HELD = new Set(["EBUSY", "EPERM", "ENOTEMPTY", "EACCES"]);
+
+/**
+ * Remove `at` and everything under it, retrying while a file in it is held for up to `budgetMs`, then
+ * throwing the last error. Synchronous, so a harness exiting can call it; @storytree/test-waits'
+ * removeTemp, with the same codes and budget, is async.
+ */
+export function removeFolder(at, { budgetMs = 10_000, rm = (target) => rmSync(target, { recursive: true, force: true }) } = {}) {
+  for (const until = Date.now() + budgetMs; ; ) {
+    try {
+      rm(at);
+      return;
+    } catch (error) {
+      if (!HELD.has(error.code) || Date.now() >= until) throw error;
+      sleep(100);
+    }
+  }
 }
 
 /** The pid in a data folder's postmaster.pid, which Postgres writes on start and removes on a clean stop. */

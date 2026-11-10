@@ -1,8 +1,8 @@
 /**
  * Capability 3 · Story node render: an arc selected draws a hollow ring round each capability its open work names, round its
- * settlement or its nameplate, and dims the rest (3.83); with no arc selected open work draws nothing (3.84); at every zoom, every
- * ring one width on screen (3.86) (ADR-1253 D1, ADR-1272 D2); a selected capability ringed in the pick's gold (3.91); and the gate
- * of an edge whose contract the open work makes true ringed the same (3.92, ADR-1279 D4).
+ * settlement or its nameplate, dimming nothing (3.83, ADR-1299); with no arc selected open work draws nothing (3.84); at every
+ * zoom, every ring one width on screen (3.86) (ADR-1253 D1, ADR-1272 D2); a selected capability ringed in the pick's gold (3.91);
+ * and the gate of an edge whose contract the open work makes true ringed the same (3.92, ADR-1279 D4).
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -12,8 +12,7 @@ import { islandRoads } from "../territories/island-roads.js";
 import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
-import { territoryLand } from "./territory-land.js";
-import { arcEmphasis, OPEN_WORK, openWorkLayer, openWorkMarks, PICK_GOLD, RING_LEAST_PX, RING_PX, rungLinks, sizeOpenWork } from "./open-work.js";
+import { OPEN_WORK, openWorkLayer, openWorkMarks, PICK_GOLD, RING_LEAST_PX, RING_PX, rungLinks, sizeOpenWork } from "./open-work.js";
 
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
 const coast: Coast = [Array.from({ length: 96 }, (_, i) => ({ x: R * Math.cos(i * Math.PI / 48), z: R * Math.sin(i * Math.PI / 48) }))];
@@ -24,14 +23,13 @@ const map = linkLayout(shares, coast, links, docks);
 const roads = islandRoads(map, links, docks, capabilityPlates(map));
 const plates = new Map(capabilityPlates(map).map((plate) => [plate.capability, plate]));
 const flat = (p: Point) => new Vector3(p.x, 0, p.z);
-const territoryOf = (capability: string) => map.territories.findIndex((territory) => territory.capability === capability);
 /** The distances from `centre` of every corner of `mesh`'s triangles. */
 const reaches = (mesh: Mesh, centre: Point) => {
   const position = mesh.geometry.getAttribute("position");
   return Array.from({ length: position.count }, (_, i) => Math.hypot(position.getX(i) - centre.x, position.getZ(i) - centre.z));
 };
 
-test("3.83 · an arc selected rings each capability its open work names, a hollow circle round its settlement, and dims every other territory", () => {
+test("3.83 · an arc selected rings each capability its open work names, a hollow circle round its settlement", () => {
   const marks = openWorkMarks(map, new Set(["a", "c", "elsewhere"]), roads);
   assert.deepEqual(marks.rings.map(({ capability }) => capability), ["a", "c"], "a capability on another island rings nothing here");
   for (const ring of marks.rings) {
@@ -40,50 +38,36 @@ test("3.83 · an arc selected rings each capability its open work names, a hollo
     // The symbol's 24-unit box is as large as its size: its corners lie 0.71 of the size from its middle.
     assert.ok(ring.radius > settlement.size * 0.71 && ring.radius < settlement.size * 1.2, "sized to the symbol, with a little room");
   }
-  const unclaimed = map.territories.findIndex(({ capability }) => capability === undefined);
-  assert.ok(unclaimed >= 0);
-  assert.deepEqual(marks.dimmed, [territoryOf("b"), territoryOf("d"), unclaimed].sort((x, y) => x - y), "unclaimed code is dimmed too");
   const bare = openWorkMarks(map, new Set(["a"]));
   assert.deepEqual(bare.rings.map(({ capability, x, z }) => ({ capability, x, z })), [{ capability: "a", x: plates.get("a")!.x, z: plates.get("a")!.z }], "round its nameplate where it has no settlement");
-  assert.deepEqual(openWorkMarks(map, new Set(["elsewhere"]), roads), { rings: [], dimmed: [] }, "an island the arc rings nothing on is dimmed whole, not territory by territory");
+  assert.deepEqual(openWorkMarks(map, new Set(["elsewhere"]), roads), { rings: [] }, "an island the arc rings nothing on draws nothing");
 });
 
-test("3.83 · the open-work layer draws each ring hollow on the land, dims the other territories under their own outlines, and takes no pointer", () => {
-  const land = territoryLand(map, flat, coast);
+test("3.83 · the open-work layer draws each ring hollow on the land, dims no territory, and takes no pointer", () => {
   const marks = openWorkMarks(map, new Set(["a"]), roads);
   // Near enough that the ring is sized to its settlement, not to the least it is across on screen.
   const zoom = 40, width = RING_PX / zoom;
-  const layer = openWorkLayer(marks, land, flat, zoom);
+  const layer = openWorkLayer(marks, flat, zoom);
   const ring = layer.getObjectByName("open-work-ring:a") as Mesh;
   const distances = reaches(ring, marks.rings[0]!);
   assert.ok(Math.min(...distances) >= marks.rings[0]!.radius - width, "nothing filled inside the ring");
   assert.ok(Math.max(...distances) <= marks.rings[0]!.radius + width, "a thin line");
-  const dims = layer.children.filter((child) => child.name.startsWith("open-work-dim:")) as Mesh[];
-  assert.deepEqual(dims.map(({ name }) => name).sort(), map.territories.flatMap((t, at) => marks.dimmed.includes(at) ? [`open-work-dim:${t.capability ?? "unclaimed"}`] : []).sort());
-  for (const dim of dims) assert.equal(dim.geometry, (land.getObjectByName(`territory:${dim.name.slice("open-work-dim:".length)}`) as Mesh).geometry, "a dim lies on its territory's own land");
+  assert.deepEqual(layer.children.map(({ name }) => name), ["open-work-ring:a"], "its ring alone: every territory keeps its own fill (ADR-1299)");
   const hits: unknown[] = [];
   layer.traverse((object) => { if (object instanceof Mesh) object.raycast({} as never, hits as never); });
   assert.equal(hits.length, 0);
 });
 
 test("3.84 · with no arc selected open work draws nothing on the map", () => {
-  const land = territoryLand(map, flat, coast);
-  assert.equal(openWorkLayer(openWorkMarks(map, undefined, roads), land, flat, 1).children.length, 0);
+  assert.equal(openWorkLayer(openWorkMarks(map, undefined, roads), flat, 1).children.length, 0);
 });
 
-test("3.83 · an arc selected dims every island none of whose territories it rings; with none selected no island is dimmed", () => {
-  assert.equal(arcEmphasis(map.territories, new Set(["a"])), undefined);
-  assert.equal(arcEmphasis(map.territories, new Set(["elsewhere"])), "dimmed");
-  assert.equal(arcEmphasis(map.territories, undefined), undefined);
-});
-
-test("3.86 · an arc selected rings its capabilities and dims the rest at every zoom, with no ring round the island; one width on screen at every zoom", () => {
-  const land = territoryLand(map, flat, coast);
-  const layer = openWorkLayer(openWorkMarks(map, new Set(["a", "c"]), roads), land, flat, 1);
+test("3.86 · an arc selected rings its capabilities at every zoom, with no ring round the island; one width on screen at every zoom", () => {
+  const layer = openWorkLayer(openWorkMarks(map, new Set(["a", "c"]), roads), flat, 1);
   /** A ring's line across, in CSS pixels at `zoom`. */
   const onScreen = (name: string, centre: Point, zoom: number) => { const d = reaches(layer.getObjectByName(name) as Mesh, centre); return (Math.max(...d) - Math.min(...d)) * zoom; };
   const far = 0.3, near = 3;
-  assert.deepEqual([...new Set(layer.children.map((mark) => mark.name.split(":")[0]!))].sort(), ["open-work-dim", "open-work-ring"], "the capabilities' rings and the dims, and no island ring");
+  assert.deepEqual([...new Set(layer.children.map((mark) => mark.name.split(":")[0]!))].sort(), ["open-work-ring"], "the capabilities' rings, no dim and no island ring");
   sizeOpenWork(layer, far);
   const ring = layer.getObjectByName("open-work-ring:a")!, at = roads.settlements.get("a")!.at;
   const farWidth = onScreen("open-work-ring:a", at, far);
@@ -102,9 +86,9 @@ test("3.86 · an arc selected rings its capabilities and dims the rest at every 
 });
 
 test("3.91 · a selected capability is ringed in the pick's gold round its settlement, beside an arc's blue rings and clear of them, at least its least across at any zoom, and takes no pointer", () => {
-  assert.deepEqual(openWorkLayer(openWorkMarks(map, undefined, roads), new Mesh(), flat, 2).children, [], "nothing selected: no ring");
+  assert.deepEqual(openWorkLayer(openWorkMarks(map, undefined, roads), flat, 2).children, [], "nothing selected: no ring");
   const settlement = roads.settlements.get("c")!;
-  const layer = openWorkLayer(openWorkMarks(map, undefined, roads, "c"), new Mesh(), flat, 2);
+  const layer = openWorkLayer(openWorkMarks(map, undefined, roads, "c"), flat, 2);
   assert.deepEqual(layer.children.map((o) => o.name), ["picked-ring:c"], "the selected capability's ring alone, and no territory dimmed");
   const ring = layer.children[0] as Mesh;
   assert.equal(`#${(ring.material as MeshBasicMaterial).color.getHexString()}`, PICK_GOLD, "in the pick's gold");
@@ -118,7 +102,7 @@ test("3.91 · a selected capability is ringed in the pick's gold round its settl
   ring.raycast({} as never, hits as never);
   assert.deepEqual(hits, [], "it takes no pointer, so a click still picks the land");
   // An arc selected that rings the same capability: its blue ring, and the gold one round it, each still seen.
-  const both = openWorkLayer(openWorkMarks(map, new Set(["a", "c"]), roads, "c"), territoryLand(map, flat, coast), flat, 2);
+  const both = openWorkLayer(openWorkMarks(map, new Set(["a", "c"]), roads, "c"), flat, 2);
   const named = (name: string) => both.getObjectByName(name) as Mesh;
   assert.deepEqual(both.children.filter((o) => o.name.includes("ring:")).map((o) => o.name).sort(), ["open-work-ring:a", "open-work-ring:c", "picked-ring:c"]);
   assert.equal(`#${(named("open-work-ring:c").material as MeshBasicMaterial).color.getHexString()}`, OPEN_WORK, "blue keeps meaning open work");
@@ -129,7 +113,7 @@ test("3.91 · a selected capability is ringed in the pick's gold round its settl
   }
 });
 
-test("3.92 · an arc selected whose open work makes an edge's contract true rings that edge's gate, hollow, and dims neither capability it joins", () => {
+test("3.92 · an arc selected whose open work makes an edge's contract true rings that edge's gate, hollow", () => {
   const edges = [{ from: "c", to: "a", contracts: ["contract_ca"] }, { from: "d", to: "c", contracts: ["contract_dc"] }, { from: "z1", to: "a", contracts: ["contract_far"] }];
   const rung = rungLinks(edges, ["contract_ca", "contract_none"]);
   assert.deepEqual([...rung ?? []], ["c->a"], "only the edges whose contracts it links");
@@ -140,15 +124,13 @@ test("3.92 · an arc selected whose open work makes an edge's contract true ring
   assert.deepEqual(marks.gates?.map(({ gate }) => gate), [gate], "one gate, its edge's");
   assert.deepEqual({ x: marks.gates![0]!.x, z: marks.gates![0]!.z }, roads.gates[gate]!.at, "round the gate");
   assert.deepEqual(marks.rings.map(({ capability }) => capability), ["b"], "a capability's own work rings its marker as before");
-  assert.deepEqual(marks.dimmed, [territoryOf("d"), map.territories.findIndex(({ capability }) => capability === undefined)].sort((x, y) => x - y), "the gate's two capabilities are not dimmed");
   const only = openWorkMarks(map, new Set(), roads, undefined, rung);
   assert.equal(only.gates?.length, 1, "a gate rings with no capability ringed");
-  assert.equal(arcEmphasis(map.territories, new Set(), rung), undefined, "an island where only a gate rings is not dimmed whole");
-  assert.equal(arcEmphasis(map.territories, new Set(), new Set(["x->y"])), "dimmed", "a gate elsewhere leaves it dimmed");
   assert.equal(openWorkMarks(map, undefined, roads, undefined, rung).gates, undefined, "no arc selected rings no gate");
 
   const zoom = 40, width = RING_PX / zoom;
-  const layer = openWorkLayer(marks, territoryLand(map, flat, coast), flat, zoom);
+  const layer = openWorkLayer(marks, flat, zoom);
+  assert.deepEqual(layer.children.map(({ name }) => name).sort(), [`open-work-gate:${gate}`, "open-work-ring:b"], "the rings alone: no territory dimmed, the gate's two capabilities or any other (ADR-1299)");
   const ring = layer.getObjectByName(`open-work-gate:${gate}`) as Mesh;
   assert.equal((ring.material as MeshBasicMaterial).color.getHexString(), OPEN_WORK.slice(1), "in the open work's cyan");
   const distances = reaches(ring, roads.gates[gate]!.at);

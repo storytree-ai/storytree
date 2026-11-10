@@ -16,7 +16,8 @@ no link says "open work on this link" here; contract 2.50 and 4.40's tests pin t
 
 What this shows (contracts 4.6, 4.7, 4.8, 4.40 and 4.41, ADR-1297): a capability picked heads the panel with its title, its
 story named small above it, the why line when it needs the user, its whole description, then its contracts, each with its
-own state on show ("storytree saw: passing", or the agent's report where storytree saw nothing); there is no "How it works"
+own state on show in plain words ("tests pass", "tests fail" or "tests not run", with where, or, where nothing judged it, "the
+agent's claim: passing", labelled as its claim: contract 4.5, ADR-1294 D1); there is no "How it works"
 fold, no word and no Health fold (its territory carries its health), and nothing of the story's description or list. The
 story alone shows its whole description, "1 capability needs you", and its fourteen capabilities by name, with none picked
 and none ringed on the island. A name opens its capability, ringed in gold. The panel has no tree, no card and no "Open in
@@ -36,8 +37,10 @@ Pictures, 1440 x 960:
 - `gate-picked-on-island-panel.png`: the panel after a gate is picked: the story's title, its link's sentence and state line,
   "Contracts · 2" closed, then "1 failing".
 - `gate-contracts-opened-panel.png`: the same after "Contracts · 2" is clicked open, each contract with its state.
-- `gate-contract-opened-panel.png`: the same after its first contract is clicked open: the agent's report and its trail,
-  storytree's verdict on its handle, as a capability's contract shows (contract 4.40).
+- `gate-contract-opened-panel.png`: the same after its first contract is clicked open: its trail, said as the agent's ("the
+  agent has not reported it yet"), with "tests fail" on its handle and no agent's claim beside it, as a capability's contract
+  shows (contracts 4.40 and 4.5). Before this change (#662's) the handle read "storytree saw: failing" and the opened contract
+  showed "the agent reports: passing" beside a bare trail.
 
 Taken with `node --import tsx packages/forest/testing/view/panel-picked-on-island/capture.mjs --retake`, which asserts that the
 panel holds no tree; that a capability picked on the island heads the panel with its story above it, no How it works, Health

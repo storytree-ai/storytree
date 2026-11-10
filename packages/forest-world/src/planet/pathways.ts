@@ -397,7 +397,7 @@ const CURVE_KEEP = 2;
 /** `points` drawn as the gentlest curve that keeps clear of land (ADR-1307 D4, the owner, 2026-11-10: "fine dots
  * with gentle curves"): the widest of CURVE_SPANS whose curve (`gentleCurve`) comes no nearer than CURVE_KEEP to any
  * island's coast, except within that and a little more of its own two ends, which dock on a coast. */
-function clearOfLand(points: readonly Point[], grounds: ReadonlyMap<string, Ground>): Point[] {
+export function clearOfLand(points: readonly Point[], grounds: ReadonlyMap<string, Pick<Ground, 'centre' | 'r' | 'chartRings'>>): Point[] {
   const [first, last] = [points[0]!, points.at(-1)!];
   const near = (p: Point, q: Point, d: number) => Math.hypot(p.x - q.x, p.y - q.y) < d;
   for (const span of CURVE_SPANS) {

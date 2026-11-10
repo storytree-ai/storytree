@@ -4,7 +4,7 @@ import { Vector3 } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, SEA_LANE } from '../geometry.js';
 import { advanceLaneClock, LANE_DOTS, LANE_MIN_PX, LANE_STRANDS, strandSpread, laneScale, SEA_LANE_ONE, laneDrawn, laneHead, laneHeads, laneShown, LANE_SPEED, restLanes, restShown, SEA_LANE_CAP, SEA_LANE_FILL, seaLaneWidth, type LaneRoute, type LitLink } from './lanes.js';
-import { gentleCurve, type PlanetLanes, type PlanetPathways } from './pathways.js';
+import { clearOfLand, gentleCurve, type PlanetLanes, type PlanetPathways } from './pathways.js';
 import { plateTransform } from './planet.js';
 
 const R = 218;
@@ -243,7 +243,7 @@ test('4.44 at rest every lane is drawn as fine round dots of one size, spaced ab
   assert.deepEqual(stretches.map(s => s.id).sort(), plan.segments.map(s => s.id).sort(), 'every stretch of every lane is dotted, each once however many lanes share it');
   for (const stretch of stretches) {
     const segment = plan.segments.find(s => s.id === stretch.id)!;
-    assert.equal(stretch.size, SEA_LANE_ONE * LANE_DOTS.size, `${stretch.id}'s dots are one lane's, however many share it`);
+    assert.equal(stretch.size, 0.16, `${stretch.id}'s dots are one lane's, half its width, however many share it`);
     assert.equal(stretch.strands, segment.links.length, `${stretch.id} drawn as a strand a lane`);
     assert.deepEqual(stretch.carries.flat().sort(), [...segment.links].sort(), 'its strands carry every lane on it once');
     for (const dot of stretch.dots) assert.ok(segment.points.some(p => p.distanceTo(dot.at) < 0.6), 'each on its route');
@@ -314,6 +314,25 @@ test('4.44 a lane\'s route bends in gentle curves, not corners: a right-angle be
   const off = Math.max(...curve.map(p => Math.min(...corner.map(q => Math.hypot(p.x - q.x, p.y - q.y)))));
   assert.ok(off < 2, `never more than ${off.toFixed(2)} off the route, well within its clearance of a coast`);
   assert.deepEqual(gentleCurve(corner.slice(0, 10), 6, 0.8), corner.slice(0, 10), 'a stretch too short to bend is left as it is');
+});
+
+test('4.41 a curved lane still keeps off land: each stretch takes the widest curve that stays two units off every coast away from its docks, and its routed line where none does', () => {
+  const corner = [...Array.from({ length: 51 }, (_, i) => ({ x: i * 0.8 - 40, y: 0 })), ...Array.from({ length: 50 }, (_, i) => ({ x: 0, y: (i + 1) * 0.8 }))];
+  const square = (x0: number, y0: number, x1: number, y1: number) => ({ centre: { x: (x0 + x1) / 2, y: (y0 + y1) / 2 }, r: Math.hypot(x1 - x0, y1 - y0) / 2,
+    chartRings: [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => ({ x: x!, y: y!, local: { x: x!, z: y! } }))] });
+  const coast = (p: { x: number; y: number }, ring: readonly { x: number; y: number }[]) => Math.min(...ring.map((a, i) => {
+    const b = ring[(i + 1) % ring.length]!, dx = b.x - a.x, dy = b.y - a.y, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)));
+    return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
+  }));
+  const cut = (curve: readonly { x: number; y: number }[]) => Math.max(...curve.map(p => Math.min(...corner.map(q => Math.hypot(p.x - q.x, p.y - q.y)))));
+  const open = clearOfLand(corner, new Map());
+  assert.ok(cut(open) > 4, `in open sea the bend is a wide curve (cut by ${cut(open).toFixed(1)})`);
+  // An island in the bend's elbow, its coast four units off the routed lane: the routed lane's clearance.
+  const elbow = square(-30, 4, -4, 30), near = clearOfLand(corner, new Map([['c', elbow]]));
+  assert.ok(near.every(p => !(p.x > -30 && p.x < -4 && p.y > 4 && p.y < 30) && coast(p, elbow.chartRings[0]!) >= 2 - 1e-9), 'beside an island, never on its land nor within two units of its coast');
+  assert.ok(cut(near) > 0.5 && cut(near) < cut(open), `still a curve, a tighter one (cut by ${cut(near).toFixed(1)})`);
+  const across = square(-20, -3, -10, 3);
+  assert.deepEqual(clearOfLand(corner, new Map([['c', across]])), corner, 'where no curve keeps clear, the routed line as it is');
 });
 
 test('4.8 a selected story fills only its share of each stretch, as wide as its own lit lanes there and never wider than the stretch', () => {

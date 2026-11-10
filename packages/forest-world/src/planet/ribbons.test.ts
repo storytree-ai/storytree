@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BufferGeometry, Mesh, OrthographicCamera, PerspectiveCamera, Vector3 } from 'three';
 import { drawDots, drawLane, laneDotMaterial, laneDots, laneMaterial, laneRibbon, worldPerPixel } from './PlanetTrailRibbons.js';
-import { LANE_DOTS, LANE_STRANDS, laneScale, SEA_LANE, SEA_LANE_FILL, SEA_LANE_ONE } from './lanes.js';
+import { LANE_DOTS, laneScale, SEA_LANE, SEA_LANE_FILL, strandSpread } from './lanes.js';
 
 test('4.9 · The rendered lane front crosses unevenly sampled road sections by physical distance, including between samples', () => {
   const geometry = laneRibbon({ points: [0, 1, 2, 10].map(x => new Vector3(x, 100, 0)), widths: [0.5, 0.5, 0.5, 0.5] });
@@ -37,7 +37,16 @@ test('4.44 · the dots at rest are round quads in the lane blue, one per dot at 
   }
   assert.equal(`#${material.uniforms.uColour!.value.getHexString()}`, SEA_LANE);
   assert.equal(`#${material.uniforms.uBright!.value.getHexString()}`, SEA_LANE_FILL, 'a busy stretch tinted towards the fill');
-  assert.equal(material.uniforms.uFan!.value, LANE_STRANDS.fan * SEA_LANE_ONE, 'fanning in as strandSpread does');
+  const fan = material.uniforms.uFan!.value as number;
+  assert.ok(strandSpread([fan, 99]) === 1 && strandSpread([fan * 0.99, 99]) < 1, 'its strands fanning in over the distance strandSpread does');
+  drawDots(material, geometry, stretches, false, () => 1, 8);
+  assert.equal(material.uniforms.uOpacity!.value, LANE_DOTS.opacity);
+  assert.equal(material.uniforms.uScale!.value, 8, 'scaled with every lane');
+  drawDots(material, geometry, stretches, true, () => 1);
+  assert.equal(material.uniforms.uOpacity!.value, LANE_DOTS.opacity * LANE_DOTS.dim, 'dim while a story is selected');
+  assert.ok(Array.from({ length: 24 }, (_, i) => i).every(i => geometry.getAttribute('shown').getX(i) === 1));
+  drawDots(material, geometry, stretches, true, story => story === 'a' ? 0.3 : 1);
+  assert.ok(Array.from({ length: 24 }, (_, i) => i).every(i => geometry.getAttribute('shown').getX(i) === 0), 'hidden while an island of its lane rises');
   const lane = laneMaterial(SEA_LANE, 1);
   drawLane(lane, 1, 0, 10, 8);
   assert.equal(lane.uniforms.uScale!.value, 8, 'a fill scales with the dots');

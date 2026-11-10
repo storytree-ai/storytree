@@ -42,8 +42,8 @@ test("4.31 · a worktree's test run is held by one live run at a time: a second 
 
 test("4.31 · a run's record says what it runs: the files named on its command line, else its units", () => {
   const root = path.resolve("/repo");
-  assert.equal(runWhat({ root, files: [path.join(root, "packages/a/src/x.test.mjs"), "packages/b/y.test.ts"], units: undefined }).replaceAll("\\", "/"),
-    `files: packages/a/src/x.test.mjs, ${path.relative(root, path.resolve("packages/b/y.test.ts")).replaceAll("\\", "/")}`);
+  assert.equal(runWhat({ root, files: [path.join(root, "packages/a/src/x.test.mjs"), path.join(root, "packages/b/y.test.ts")], units: undefined }).replaceAll("\\", "/"),
+    "files: packages/a/src/x.test.mjs, packages/b/y.test.ts");
   assert.equal(runWhat({ root, files: [], units: ["packages/forest", "packages/cli"] }), "units: packages/forest, packages/cli");
 });
 

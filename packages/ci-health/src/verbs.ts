@@ -9,6 +9,8 @@
  * shell, where its permission prompt applies (ADR-0630), and there is no `record_plugin_health` tool. `health local`
  * (capability 5) runs the project's own tests the same way into its verified health, as a local test run, with no
  * repository needed (ADR-1193 D1, D2: the health ladder's local rung), on the command line only for the same reason.
+ * `health times` (capability 6) records the project's CI times from its GitHub Actions beside the library and prints the
+ * averages the map's bottom-left strip shows; the Mint box runs it on a schedule, and the app while it shows the strip.
  */
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
 
@@ -53,6 +55,24 @@ const ci = verb({
   },
 });
 
+const times = verb({
+  command: { family: "health", name: "times", summary: "record this project's CI times from its GitHub Actions (runs, merges and the merge queue's per-package test times) and print the map's CI averages" },
+  tool: { absent: "recording CI times is a step for its terminal, or the Mint box's schedule; the map shows the reading" },
+  inputs: {},
+  async act(_input, { project, folder, server }) {
+    const [{ ghActions, recordCiTimes }, { ciTimesReading }, { ciTimesText }, { ciTimesPool }, { gitIn, repositoryOf }] = await Promise.all([
+      import("./ci-times/record.js"), import("./ci-times/reading.js"), import("./ci-times/lines.js"), import("./ci-times/store.js"), import("./read-ci/read-ci.js"),
+    ]);
+    const repository = repositoryOf(await gitIn(folder)(["remote", "get-url", "origin"]).catch(() => ""));
+    if (repository === undefined) return { text: "This project has no GitHub origin, so storytree has no CI runs to time; nothing was recorded." };
+    if (server === undefined) throw new VerbRefusal("CI times are kept beside the library, and this door has no library server open.");
+    const db = await ciTimesPool(server);
+    const recorded = await recordCiTimes({ db, project, repository, actions: ghActions() });
+    const reading = await ciTimesReading(db, project);
+    return { text: [`Recorded ${recorded.runs} runs, ${recorded.pulls} merged pull requests and ${recorded.units} per-package test times from ${repository}.`, ...(reading === undefined ? [] : [ciTimesText(reading)])].join("\n") };
+  },
+});
+
 const plugin = verb({
   command: { family: "health", name: "plugin", summary: "run a plugin in this computer's factory by its own test command and record its tests as its story's verified health" },
   tool: { absent: "it runs the plugin's own test command, so it goes through the agent's shell, where its permission prompt applies (ADR-0630)" },
@@ -88,5 +108,5 @@ const local = verb({
 
 /** The command line's `health` family, 18th among `storytree`'s families. */
 export const HEALTH_FAMILIES: readonly VerbFamily[] = [
-  { name: "health", summary: "the health worklist, and reading a project's CI, a local run of its own tests, or a factory plugin's own tests, into its verified health", order: 18, verbs: [worklist, ci, local, plugin] },
+  { name: "health", summary: "the health worklist, and reading a project's CI, a local run of its own tests, or a factory plugin's own tests, into its verified health; recording its CI times", order: 18, verbs: [worklist, ci, times, local, plugin] },
 ];

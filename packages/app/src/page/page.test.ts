@@ -55,7 +55,7 @@ interface Drawn {
   kept: AnnotatedTree | undefined;
   timed: { read(): Promise<unknown> } | undefined;
   /** Where the arcs and the sessions list were mounted, and how the arcs speak to their tab's badge. */
-  hosts: { arcs?: HTMLElement; sessions?: HTMLElement };
+  hosts: { arcs?: HTMLElement; sessions?: HTMLElement; ciTimes?: HTMLElement };
   waiting: ((count: number) => void) | undefined;
   /** How the arcs tell the page the open arc's capabilities. */
   opened: ((capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined) => void) | undefined;
@@ -132,6 +132,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
           return mine.view;
         },
         sessions: (_view, host) => { mine.hosts.sessions = host; return surface("sessions"); },
+        ciTimes: (host) => { mine.hosts.ciTimes = host; return surface("ci-times"); },
         take() {},
         libraryCard: () => () => {},
         teaching: (locate, readingNear, islands) => {
@@ -243,7 +244,7 @@ test("2.24 · a failed choice is said in place of the project and the projects a
   const on = page(t, { readSurfaces: async () => { throw new Error("the main process did not answer"); } });
   await settled();
   on.heard();
-  assert.deepEqual(on.last().mounted.sort(), ["arcs", "library", "sessions"]);
+  assert.deepEqual(on.last().mounted.sort(), ["arcs", "ci-times", "library", "sessions"]);
   assert.ok(on.failures.some((line) => line === "the surfaces could not be read, so every surface is on: the main process did not answer"));
 
   const before = on.selections;
@@ -612,4 +613,29 @@ test("2.47 · the arc opened in the Arcs tab rings its open work on the map, and
   project.opened!(undefined, undefined);
   assert.deepEqual(project.view.circled, [["cap_a", "cap_b"], undefined]);
   assert.deepEqual(project.view.circledContracts, [["contract_a"], undefined], "the contracts its open work links, whose edges' gates the map rings");
+});
+
+test("2.55 · while a project's forest is on show the page mounts the CI times strip in its bottom-left, stops it when the project changes, and a teaching card keeps clear of it", async (t) => {
+  const on = page(t);
+  await settled();
+  const site = on.last();
+  assert.ok(site.mounted.includes("ci-times"));
+  const host = site.hosts.ciTimes!;
+  assert.ok(host.parentElement === on.content, "beside the forest, where the map's corner is");
+  assert.ok(host.classList.contains("ci-times"));
+
+  assert.equal(host.hidden, true, "hidden until the strip has a reading to show");
+  host.getBoundingClientRect = () => ({ left: 12, top: 700, right: 260, bottom: 780, width: 248, height: 80 }) as DOMRect;
+  host.hidden = false;
+  on.land();
+  assert.deepEqual(site.readingNear!({ kind: "arc" }).map((box) => box.left), [12], "a card keeps clear of the strip");
+  host.hidden = true;
+  assert.deepEqual(site.readingNear!({ kind: "arc" }), [], "but not of a strip not on show");
+
+  on.choose({ projects: ["site", "shop"], current: "shop" });
+  await on.page.refresh();
+  await settled();
+  assert.ok(site.stopped.includes("ci-times"), "the left project's strip is stopped");
+  assert.equal(host.isConnected, false);
+  assert.ok(on.last().mounted.includes("ci-times"));
 });

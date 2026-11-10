@@ -67,6 +67,7 @@ test("7.3 · at main's head with no passing run of its commit, it is still recor
   const choice = await chooseRecording({ github: github([cancelled, prRun(12, A)]), repo, own: A, mainHead: A, triggering: cancelled });
   assert.equal(choice.sha, A);
   assert.equal(choice.run, undefined);
+  assert.match(choice.notices.join("\n"), /No passing CI evidence for a+; Windows-only contracts receive no credit/);
 });
 
 test("7.3 · main moved on with no evidence at the commit: main's newest passing push run at or after it is recorded, as before", async () => {
@@ -99,4 +100,20 @@ test("7.3 · a merge's recording credits macOS only from a passing nightly run o
   assert.equal(await at([nightlyRun(30, A, { event: "workflow_dispatch" })]), 30);
   assert.equal(await at([nightlyRun(31, A, { conclusion: "failure" }), nightlyRun(32, A, { branch: "claude/x" }), nightlyRun(33, C)]), undefined);
   assert.equal(await at([]), undefined);
+  const none = await chooseRecording({ github: github([passed]), repo, own: A, mainHead: A, triggering: passed });
+  assert.match(none.notices.join("\n"), /No passing nightly macOS run tested a+; macOS-only contracts receive no credit/);
+  assert.doesNotMatch((await chooseRecording({ github: github([passed, nightlyRun(30, A)]), repo, own: A, mainHead: A, triggering: passed })).notices.join("\n"), /nightly/);
+});
+
+test("7.3 · a nightly macOS lookup that fails still records the commit with its Windows evidence, says so, and credits no macOS", async () => {
+  const passed = pushRun(11, A);
+  const fake = github([passed]);
+  const ciRuns = fake.rest.actions.listWorkflowRuns;
+  fake.rest.actions.listWorkflowRuns = async (query) => {
+    if (query.workflow_id === "macos-nightly.yml") throw new Error("API rate limit exceeded");
+    return ciRuns(query);
+  };
+  const choice = await chooseRecording({ github: fake, repo, own: A, mainHead: A, triggering: passed });
+  assert.deepEqual([choice.sha, choice.run?.id, choice.macos], [A, 11, undefined]);
+  assert.match(choice.notices.join("\n"), /Could not look for nightly macOS evidence at a+: API rate limit exceeded/);
 });

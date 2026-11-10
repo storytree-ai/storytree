@@ -579,7 +579,7 @@ test("5.25 making a workspace for work that already has an open pull request is 
 });
 
 test("5.69 making a workspace for work a local branch named for it carries with commits ahead of origin/main is refused naming each branch, its commits ahead and its worktree, before anything is claimed or made, unless the session says to build beside them; a branch with nothing ahead refuses nothing", async () => {
-  await withWorld(async ({ dir, log, project, site, park, as }) => {
+  await withWorld(async ({ dir, log, library, project, site, park, as }) => {
     const increment = await park("email form");
     const stem = increment.replace(/_/g, "-");
     const earlier = path.join(dir, "earlier-lane");
@@ -601,8 +601,16 @@ test("5.69 making a workspace for work a local branch named for it carries with 
     assert.deepEqual(await readClaims(log, project), [], "nothing claimed");
     assert.deepEqual(worktrees(site), before, "no worktree made");
 
-    const beside = await makeWorkspace(as("A"), increment, "build form", { allOpenPulls: async () => undefined }, { despiteLocalBranches: true });
-    assert.ok(beside.ok && beside.status === "ready", JSON.stringify(beside));
+    const verb = WORKSPACE_FAMILIES[0]!.bare!;
+    await assert.rejects(
+      verb.act({ work: increment, reason: "build form", "despite-open-pulls": false, "despite-local-branches": false }, as("A"), WORDS),
+      (error: Error) => error.message.includes(`storytree workspace ${increment} --reason <text> --despite-local-branches`),
+      "the command line names its own way past them",
+    );
+    const tools = new Map<string, (args: Record<string, unknown>, call: ToolCall) => Promise<{ text: string; data?: Record<string, unknown> }>>();
+    sessionTools().registerTools?.((name, _description, _input, act) => { tools.set(name, act as never); });
+    const beside = await tools.get("make_workspace")!({ increment, reason: "build form", despite_local_branches: true }, { library, log, project, caller: { session: "A" }, folder: site, quietMs: 0, writer: {} } as unknown as ToolCall);
+    assert.equal(beside.data?.made, true, beside.text);
   });
 });
 

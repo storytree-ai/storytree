@@ -795,10 +795,12 @@ test("4.21 `arc increment new --waits-on --wait-reason` parks an increment born 
     assert.deepEqual((await library.get(splitId))?.fields.waits, [{ on: form.id, reason: "its claim is held" }]);
 
     const before = (await library.changesSince(0)).cursor;
-    for (const flags of [["--waits-on", mailer!.id], ["--wait-reason", "why"], ["--waits-on", arc, "--wait-reason", "why"]]) {
+    for (const flags of [["--waits-on", mailer!.id], ["--wait-reason", "why"]]) {
       const refused = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Bounces", "--objective", "Handle", "--body", "Build it", ...flags]);
-      assert.notEqual(refused.code, 0, refused.stdout);
+      assert.equal(refused.code, 2, `refused as a misuse: ${refused.stdout}${refused.stderr}`);
     }
+    const notABlocker = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Bounces", "--objective", "Handle", "--body", "Build it", "--waits-on", arc, "--wait-reason", "why"]);
+    assert.notEqual(notABlocker.code, 0, notABlocker.stdout);
     assert.deepEqual((await library.changesSince(before)).changes, [], "nothing was written");
   });
 });

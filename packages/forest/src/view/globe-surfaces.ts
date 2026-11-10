@@ -1,5 +1,6 @@
 /** Capability 3 · Story node render. */
-import type { BufferAttribute, Group, LineSegments, Mesh, MeshBasicMaterial, Object3D } from "three";
+import type { BufferAttribute, Color, Group, LineSegments, Mesh, MeshBasicMaterial, Object3D } from "three";
+import { filledUnder } from "./territory-land.js";
 import type { Detail } from "./zoom-detail.js";
 
 /** The app's attention switches, also available to guides mounted outside the app. */
@@ -24,13 +25,16 @@ export function shownSurfaces(surfaces: Partial<GlobeSurfaces> | undefined, outl
 }
 
 const healthOpacity = new WeakMap<Mesh, number>();
+const healthColour = new WeakMap<Mesh, Color>();
 const presentation = new WeakMap<Object3D, GlobeSurfaces["territories"]>();
 /** The detail each island's land shows at the eye's zoom (3.86); absent is all of it. */
 const shownDetail = new WeakMap<Object3D, Detail>();
 /** How far each territory has filled in on a growing globe (3.30); absent is whole. */
 const grownBy = new WeakMap<Object3D, number>();
-/** How far each new territory's fill has eased in after its borders drew on (3.46); absent is whole. */
-const drawnBy = new WeakMap<Object3D, number>();
+/** A fill as presented: its colour and opacity. */
+type Look = { colour: Color; opacity: number };
+/** How far each new territory's fill has eased in (3.46), over the fill it was carved `from` where it had one; absent is whole. */
+const drawnBy = new WeakMap<Object3D, { eased: number; from: Look | undefined }>();
 
 export function presentTerritories(group: Group, mode: GlobeSurfaces["territories"]): void {
   presentation.set(group, mode);
@@ -42,7 +46,11 @@ export function presentTerritories(group: Group, mode: GlobeSurfaces["territorie
       mark.visible = land && grown > 0;
       const mesh = mark as Mesh, material = mesh.material as MeshBasicMaterial;
       if (!healthOpacity.has(mesh)) healthOpacity.set(mesh, material.opacity);
-      material.opacity = mode === "plain" ? 0 : healthOpacity.get(mesh)! * grown * (drawnBy.get(mark) ?? 1);
+      if (!healthColour.has(mesh)) healthColour.set(mesh, material.color.clone());
+      const own = healthOpacity.get(mesh)!, { eased, from } = drawnBy.get(mark) ?? { eased: 1, from: undefined };
+      if (from === undefined) material.color.copy(healthColour.get(mesh)!);
+      else material.color.lerpColors(from.colour, healthColour.get(mesh)!, eased);
+      material.opacity = mode === "plain" ? 0 : (from === undefined ? own * eased : from.opacity + (own - from.opacity) * eased) * grown;
     } else if (mark.name === "territory-borders" || mark.name.startsWith("territory-hatch:")) {
       mark.visible = land;
     } else if (mark.name === "island-roads" || mark.name === "island-relief") {
@@ -83,8 +91,9 @@ export function growLand(land: Group, grown: { capability(capability: string): n
   return whole;
 }
 
-/** A new border traces on along its length over `borders` rendered seconds, at constant speed as the roads do (world 6.17),
- * then a new territory's fill eases in over `fill` (3.46). */
+/** A new border traces on along its length over `borders` rendered seconds, at constant speed as the roads do (world 6.17).
+ * A new territory's fill eases in with it, or, where it was carved from land already filled, eases in over that fill over
+ * `fill` once its borders are drawn (3.46). */
 export const TERRITORY_DRAW = { borders: 1, fill: 0.4 } as const;
 
 /**
@@ -112,19 +121,24 @@ type Chain = { start: number; steps: { index: number; flip: boolean; length: num
 
 /**
  * One island's territories arriving (3.46): what it has drawn is kept by its ground, so a rebuilt land shows the borders and
- * fills it already had, whole, from its first frame, and only new land draws on: each new border along its chain, then each new
- * territory's fill easing in. Hiding the territories forgets them, so showing them again draws them on. Under reduced motion, or
- * as the globe first opens, everything stands whole at once.
+ * fills it already had, whole, from its first frame, and only new land draws on: each new border along its chain, and each new
+ * territory's fill easing in with it. A territory carved from land the island already filled shows that fill until its own has
+ * eased in over it, so it never shows the bare ground, which reads as parked. Hiding the territories forgets them, so showing
+ * them again draws them on. Under reduced motion, or as the globe first opens, everything stands whole at once.
  */
 export class TerritoryDrawOn {
   private borders = new Map<string, number>();
-  private fills = new Map<string, number>();
+  private fills = new Map<string, { began: number; from: Look | undefined }>();
+  /** The land last shown with its fills, which a rebuild's new territories were carved from. */
+  private filled: Group | undefined;
   private land: { group: Group; lines: LineSegments; full: Float32Array; kept: number[]; chains: Chain[] } | undefined;
 
   /** Presents a freshly built (or re-shown) `group` at `now`, before it is drawn. */
   take(group: Group, mode: GlobeSurfaces["territories"], now: number, { standing, reduced }: { standing: boolean; reduced: boolean }): void {
     this.restore();
     presentTerritories(group, mode);
+    const before = this.filled === group ? undefined : this.filled;
+    this.filled = mode === "health" ? group : undefined;
     if (mode === false) { this.borders.clear(); this.fills.clear(); return; }
     const start = standing || reduced ? -Infinity : now;
     const lines = group.getObjectByName("territory-borders") as LineSegments | undefined;
@@ -136,8 +150,13 @@ export class TerritoryDrawOn {
       segments.push({ key: from < to ? `${from}|${to}` : `${to}|${from}`, from, to, index: i / 4 });
     }
     this.borders = new Map(segments.map(({ key }) => [key, this.borders.get(key) ?? start]));
-    const names = group.children.filter(mark => mark.name.startsWith("territory:")).map(mark => mark.name);
-    this.fills = new Map(names.map(name => [name, this.fills.get(name) ?? start]));
+    const lookOf = (mark: Mesh | undefined): Look | undefined => {
+      const material = mark?.material as MeshBasicMaterial | undefined;
+      return material === undefined ? undefined : { colour: material.color.clone(), opacity: material.opacity };
+    };
+    const marks = group.children.filter(mark => mark.name.startsWith("territory:"));
+    this.fills = new Map(marks.map(mark => [mark.name, this.fills.get(mark.name)
+      ?? { began: start, from: start === -Infinity || before === undefined ? undefined : lookOf(filledUnder(before, mark)) }]));
     if (lines !== undefined) {
       const position = lines.geometry.getAttribute("position") as BufferAttribute;
       const full = Float32Array.from(position.array as ArrayLike<number>);
@@ -162,11 +181,13 @@ export class TerritoryDrawOn {
     const mode = presentation.get(land.group) ?? "health";
     let drawing = false;
     for (const mark of land.group.children) {
-      const began = this.fills.get(mark.name);
-      if (began === undefined) continue;
-      const eased = reduced ? 1 : Math.min(1, Math.max(0, (now - began - TERRITORY_DRAW.borders) / TERRITORY_DRAW.fill));
+      const fill = this.fills.get(mark.name);
+      if (fill === undefined) continue;
+      const { began, from } = fill;
+      const eased = reduced ? 1 : Math.min(1, Math.max(0, from === undefined ? (now - began) / TERRITORY_DRAW.borders
+        : (now - began - TERRITORY_DRAW.borders) / TERRITORY_DRAW.fill));
       if (eased < 1 && mode === "health") drawing = true;
-      if (eased >= 1) drawnBy.delete(mark); else drawnBy.set(mark, eased * eased * (3 - 2 * eased));
+      if (eased >= 1) drawnBy.delete(mark); else drawnBy.set(mark, { eased: eased * eased * (3 - 2 * eased), from });
     }
     presentTerritories(land.group, mode);
     if (reduced || land.chains.every(chain => now - chain.start >= TERRITORY_DRAW.borders)) {

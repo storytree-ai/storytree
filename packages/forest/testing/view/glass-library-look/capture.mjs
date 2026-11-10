@@ -74,9 +74,11 @@ const { results: summary, out } = await withCapture({ folder: evidence, dist }, 
   for (const name of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   const box = await page.locator('canvas').first().boundingBox();
-  /** A right-drag up the window by `by` degrees of tilt (down for a negative `by`), in small steps, from the middle of the window. */
+  /** A right-drag up the window by `by` degrees of tilt (down for a negative `by`), in steps of at most 5° (17 px, a brisk hand's
+   * move between two frames), from the middle of the window: each step is a frame drawn in software GL, so a step a degree
+   * cost the smoke about two fifths of its time. */
   const tiltBy = async by => {
-    const x = box.x + box.width / 2, y = box.y + box.height / 2, steps = Math.max(1, Math.ceil(Math.abs(by)));
+    const x = box.x + box.width / 2, y = box.y + box.height / 2, steps = Math.max(1, Math.ceil(Math.abs(by) / 5));
     await page.mouse.move(x, y);
     await page.mouse.down({ button: 'right' });
     for (let k = 1; k <= steps; k++) await page.mouse.move(x, y - by * PER_DEGREE * k / steps);

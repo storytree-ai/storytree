@@ -2,7 +2,7 @@
 // survey) as the app opens it, five running sessions in the stand-in bridge, each holding a capability and with a window that
 // opens three notes and a surveyed file no other window opens. Two views: none selected, then one session's row clicked.
 // `node --import tsx build.mjs <checkout> before|after`, then `node --import tsx capture.mjs before|after` (append --retake to
-// replace the committed pictures; --smoke runs the page built as `smoke`, takes no pictures and skips the fixed rests, so a test
+// replace the committed pictures; --smoke runs the page built as `smoke`, takes no pictures and skips the fixed rests (and the frames settled after the long one), so a test
 // proves every wait below still resolves in a real browser). Counts, from the scene, every lit note, trail and lit file mark (none since ADR-1212) by colour, and every claimed
 // territory, so "no traversal with none selected" and "who holds what unchanged" are measured, not looked at.
 import assert from 'node:assert/strict';
@@ -158,7 +158,7 @@ await runCapture({
   },
   views: [{
     name: `${label}-none-selected`, ...(smoke ? { picture: false } : {}),
-    prepare: async ({ page, settle }) => { phase('view: none selected'); await page.mouse.move(2, 2); await rest(page, settle); if (!smoke) await page.waitForTimeout(11_000); await rest(page, settle); },
+    prepare: async ({ page, settle }) => { phase('view: none selected'); await page.mouse.move(2, 2); await rest(page, settle); if (!smoke) { await page.waitForTimeout(11_000); await rest(page, settle); } },
     measure: async ({ page, browser }) => {
       results.browser = await browser.version();
       results.rows = await rowsShown(page);

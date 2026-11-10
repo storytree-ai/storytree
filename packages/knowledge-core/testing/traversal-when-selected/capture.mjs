@@ -125,8 +125,23 @@ phase('launch the browser and load the page');
 await runCapture({
   folder: pictures, dist: buildFolder(here, smoke ? 'smoke' : label), seed, survey,
   answers: { windowReading, idleAfterMs: async () => 30 * 60_000, leaveAfterMs: async () => 60 * 60_000 },
-  prepare: async ({ page }) => {
+  prepare: async ({ page, bridge }) => {
     phase('page loaded');
+    // Since 3.95 an island draws no territories until its first search lands, and the worker searches the seed's islands one
+    // at a time (minutes in software GL). Where territories lie is not what this capture measures, so each search answers at
+    // once with nothing found, the path that draws an island's start; its roads and the lanes still go to their workers.
+    await page.addInitScript(() => {
+      const Original = window.Worker;
+      window.Worker = class extends Original {
+        constructor(script, ...rest) { super(script, ...rest); this.searches = String(script).endsWith('territory-worker.js'); }
+        postMessage(message, ...rest) {
+          if (this.searches && message && !message.roads) { setTimeout(() => this.onmessage?.({ data: {} })); return; }
+          return super.postMessage(message, ...rest);
+        }
+      };
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await bridge.ready(page);
     // The traversal is drawn on the knowledge graph under the glass sheet, which the Library face turns the sheet over to (ADR-1043 D3).
     await whileFramesCome(page, 'the ready page and its Library switch', () => document.body.dataset.state === 'ready' && !!document.querySelector('[data-globe-switch="library"]'), undefined, 120_000);
     await page.evaluate(() => document.querySelector('[data-globe-switch="library"][aria-pressed="false"]')?.click());
@@ -135,7 +150,7 @@ await runCapture({
       if (document.body.dataset.state !== 'ready' || !state || !window.__nav || !state.scene.getObjectByName('sheet:under')) return false;
       return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
     }, seed.tree.stories.map(s => s.id), 120_000);
-    await whileFramesCome(page, 'the claimed territories', () => { let outlines = 0, territories = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('territory:')) territories++; }); return outlines > 0 && territories > 0; }, undefined, 60_000);
+    await whileFramesCome(page, 'every session\'s claimed territory', want => { let outlines = 0, claimed = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('territory:') && o.userData.claimedBy !== undefined) claimed++; }); return outlines > 0 && claimed >= want; }, ids.length, 60_000);
     for (const button of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name: button, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
     await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
     // The sessions list is the left rail's Sessions tab, which a project opens beside Arcs (ADR-1219).

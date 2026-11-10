@@ -402,7 +402,7 @@ test("13.7 search_notes says each friction report's state, so a settled one foun
     await library.editNote(dismissed.id, { route: "nothing", routeReason: "A one-off" });
 
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
-      const found = await agent.call("search_notes", { query: "seed refused" });
+      const found = await agent.call("search_notes", { query: "seed refused", history: true });
       assert.equal(found.isError, false, found.text);
       for (const [{ id }, state] of [[open, "open"], [resolved, "resolved"], [dismissed, "dismissed"]] as const) {
         assert.ok(found.text.includes(`(${id}, ${state})`), found.text);

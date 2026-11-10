@@ -272,7 +272,7 @@ test("3.20 `list friction` leaves out resolved and dismissed reports unless --al
     const asked = await world.run(["library", "list", "friction", "--where", "state=resolved"]);
     assert.ok(asked.stdout.includes(resolved.id), "a filter on the state is answered as asked");
 
-    const found = await world.run(["library", "search", "refused", "--limit", "10"]);
+    const found = await world.run(["library", "search", "refused", "--kind", "friction", "--limit", "10"]);
     assert.equal(found.code, 0, found.stderr);
     for (const [{ id }, state] of [[open, "open"], [routed, "routed"], [resolved, "resolved"], [dismissed, "dismissed"]] as const) {
       assert.match(found.stdout, new RegExp(`${id}  \\[friction: ${state}\\]`), found.stdout);

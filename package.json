@@ -57,6 +57,9 @@
         "x64",
         "arm64"
       ]
+    },
+    "patchedDependencies": {
+      "app-builder-lib": "patches/app-builder-lib.patch"
     }
   }
 }

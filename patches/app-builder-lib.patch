@@ -1,0 +1,32 @@
+diff --git a/templates/nsis/include/installUtil.nsh b/templates/nsis/include/installUtil.nsh
+index 47367741632726ba0886ac516461dbe98b7aea58..aa5c41dd2515f6ca3ed67adc7c7bb87d87cc291e 100644
+--- a/templates/nsis/include/installUtil.nsh
++++ b/templates/nsis/include/installUtil.nsh
+@@ -221,13 +221,25 @@ Function uninstallOldVersion
+     ${endIf}
+ 
+   OneMoreAttempt:
+-    ExecWait '"$uninstallerFileNameTemp" /S /KEEP_APP_DATA $0 _?=$installationDir' $R0
++    # storytree: stop its own agent tools under the old folder, and bound the old uninstaller (installer.nsh)
++    !ifmacrodef storytreeStopAgentTools
++      !insertmacro storytreeStopAgentTools "$installationDir"
++    !endif
++    !ifmacrodef storytreeExecBounded
++      !insertmacro storytreeExecBounded '"$uninstallerFileNameTemp" /S /KEEP_APP_DATA $0 _?=$installationDir' "$installationDir"
++    !else
++      ExecWait '"$uninstallerFileNameTemp" /S /KEEP_APP_DATA $0 _?=$installationDir' $R0
++    !endif
+     ifErrors TryInPlace CheckResult
+ 
+     TryInPlace:
+       # the execution failed - might have been caused by some group policy restrictions
+       # we try to execute the uninstaller in place
+-      ExecWait '"$uninstallerFileName" /S /KEEP_APP_DATA $0 _?=$installationDir' $R0
++      !ifmacrodef storytreeExecBounded
++        !insertmacro storytreeExecBounded '"$uninstallerFileName" /S /KEEP_APP_DATA $0 _?=$installationDir' "$installationDir"
++      !else
++        ExecWait '"$uninstallerFileName" /S /KEEP_APP_DATA $0 _?=$installationDir' $R0
++      !endif
+       ifErrors DoesNotExist
+ 
+     CheckResult:

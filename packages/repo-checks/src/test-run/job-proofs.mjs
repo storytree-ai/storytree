@@ -13,8 +13,10 @@
  * main that ran the jobs.
  */
 export const JOB_PROOFS = [
-  // apps/desktop/check-install.mjs, run when a change reaches the installer (ci.yml's `installer`).
+  // apps/desktop/check-install.mjs, run when a change reaches the installer (ci.yml's `installer`): 4.43, and 4.46's first
+  // update off a release from before the tool copies.
   { package: "app", contract: "4.43", in: "credited", job: /^installer on Windows$/ },
+  { package: "app", contract: "4.46", in: "credited", job: /^installer on Windows$/ },
   // release-package.yml's legs, x64 and arm64, session open and closed; a red one holds the Windows delivery.
   { package: "app", contract: "4.45", in: "release", job: /(^|\/ )windows-update \(/ },
 ];

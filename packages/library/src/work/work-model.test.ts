@@ -1006,6 +1006,27 @@ for (const backend of [memory, postgres]) {
     const stray = await work.addContract({ title: "3.9 · Reads a matter's notes", capability: api.id });
     assert.equal(titleOf(await work.editContract(stray.id, { capability: retrieval.id })), "3.9 · Reads a matter's notes", "one already numbered for its new capability keeps its number");
   });
+
+  contract("4.46", "a contract may record how it is proved (proof: a test criterion or agentic user acceptance testing, with a one-line reason): addContract and editContract store it, projectTree gives it, and any other proof or an empty reason is refused", async ({ work, transactions }) => {
+    const story = await work.addStory({ title: "Checkout" });
+    const capability = await work.addCapability({ title: "Totals", story: story.id });
+    const byTest = { by: "test-criterion", reason: "The total is a returned value a test reads." } as const;
+    const sums = await work.addContract({ title: "Sums the cart", capability: capability.id, proof: byTest });
+    await laterThan(sums);
+    const shown = await work.addContract({ title: "Shows the total where the buyer looks", capability: capability.id });
+    const contracts = async () => (await work.projectTree()).stories[0]!.capabilities[0]!.contracts;
+    assert.deepEqual(await contracts(), [
+      { id: sums.id, title: "1.1 · Sums the cart", proof: byTest },
+      { id: shown.id, title: "1.2 · Shows the total where the buyer looks" },
+    ]);
+    const onScreen = { by: "agentic-user-acceptance-testing", reason: "Whether a buyer can find the total is judged on screen." } as const;
+    await work.editContract(shown.id, { proof: onScreen });
+    assert.deepEqual((await contracts())[1], { id: shown.id, title: "1.2 · Shows the total where the buyer looks", proof: onScreen }, "an edit records it");
+    const before = await transactions.history();
+    await assert.rejects(work.addContract({ title: "Guessed", capability: capability.id, proof: { by: "a hunch", reason: "Seems fine." } as never }), schemaError("contract", ["proof"]));
+    await assert.rejects(work.editContract(sums.id, { proof: { by: "test-criterion", reason: "" } }), schemaError("contract", ["proof"]));
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
 }
 
 /**

@@ -3,7 +3,7 @@
  * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type HealthState, type NodeHealth } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
 import { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
@@ -38,6 +38,14 @@ const provedBy = z
   .min(1)
   .optional()
   .describe("The existing tests that prove it when they carry no contract number, as an imported repository's own: each a pytest node id (tests/test_api.py::TestAuth::test_login; a file or a class names every test it holds) or another runner's test or suite title");
+
+const proof = z
+  .object({
+    by: z.enum(CONTRACT_PROOFS).describe("test-criterion when a test can see the answer (a stored record, a returned value, a refusal, a state change); agentic-user-acceptance-testing only when a user sees or does something on screen and no plain test can judge it"),
+    reason: z.string().min(1).describe("Why, in a line"),
+  })
+  .optional()
+  .describe("How the contract is proved, with a one-line reason (ADR-1294)");
 
 const founding = z
   .object({
@@ -117,9 +125,10 @@ export function registerPlanTools(define: Define): void {
       title,
       description,
       proved_by: provedBy,
+      proof,
       increment: id("open increment that makes it true: the contract joins its links, so selecting its arc rings the gate of the part or edge it pins").optional(),
     }),
-    async ({ capability, edge, title: name, description: about, proved_by: proved, increment }, call) => {
+    async ({ capability, edge, title: name, description: about, proved_by: proved, proof: how, increment }, call) => {
       if ((capability === undefined) === (edge === undefined)) return { text: "Give the capability the contract belongs to, or the edge: one of them.", refused: true };
       // The increment is checked before anything is written, so a wrong one leaves no contract behind (9.31).
       const work = increment === undefined ? undefined : await call.library.get(increment);
@@ -138,14 +147,14 @@ export function registerPlanTools(define: Define): void {
         // An edge's contract is numbered from its dependent capability, past that capability's tests, so a test can carry it.
         const from = tree.stories.flatMap((story) => story.edges ?? []).find((one) => one.id === edge)?.from;
         const tested = from === undefined ? [] : await testedNumbers(call, from, tree);
-        const contract = await call.library.addContract({ title: name, edge, ...optional({ description: about, provedBy: proved }) }, { ...call.writer, testedNumbers: tested });
+        const contract = await call.library.addContract({ title: name, edge, ...optional({ description: about, provedBy: proved, proof: how }) }, { ...call.writer, testedNumbers: tested });
         const number = /^(\d+\.\d+) · /.exec(contract.fields.title)?.[1];
         const naming = number === undefined ? " A test named in its proved_by proves it" : ` A test titled "${number} · …", or named in proved_by, proves it`;
         return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}) on edge ${edge}.${naming} under \`storytree health local\`.${await linked(contract.id)}`, data: { id: contract.id } };
       }
       const owner = capability!;
       const tested = await testedNumbers(call, owner, tree);
-      const contract = await call.library.addContract({ title: name, capability: owner, ...optional({ description: about, provedBy: proved }) }, { ...call.writer, testedNumbers: tested });
+      const contract = await call.library.addContract({ title: name, capability: owner, ...optional({ description: about, provedBy: proved, proof: how }) }, { ...call.writer, testedNumbers: tested });
       const joined = await linked(contract.id);
       const orphans = await orphanTests(call, owner, contract.fields.title, tested);
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is the one ${orphans.length === 1 ? "it proves" : "one proves"}, give it that number with edit_plan.`;
@@ -192,6 +201,7 @@ export function registerPlanTools(define: Define): void {
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
       covers: covers.describe("A mapped story's capability's folders and files, replacing them"),
       proved_by: provedBy.describe("A contract's existing tests that prove it, replacing them"),
+      proof: proof.describe("How a contract is proved, with a one-line reason (ADR-1294), replacing it"),
       stories: z.array(z.string().min(1)).optional().describe("An arc's stories, replacing them"),
       intent: intent.optional(),
       end_state: endState.optional(),
@@ -263,6 +273,7 @@ interface Changes {
   edge?: string | undefined;
   depends_on?: string[] | undefined;
   proved_by?: string[] | undefined;
+  proof?: { by: (typeof CONTRACT_PROOFS)[number]; reason: string } | undefined;
   stories?: string[] | undefined;
   intent?: string | undefined;
   end_state?: string | undefined;
@@ -281,7 +292,7 @@ interface Changes {
 const EDITABLE = {
   story: ["title", "description"],
   capability: ["title", "description", "story", "depends_on", "covers"],
-  contract: ["title", "description", "capability", "edge", "proved_by"],
+  contract: ["title", "description", "capability", "edge", "proved_by", "proof"],
   edge: ["description"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
   increment: ["title", "objective", "body", "capabilities", "links", "machine", "escape"],
@@ -408,13 +419,13 @@ async function showPlan({ library, log, project, quietMs }: PlanReading, closed:
     out.push(`Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "mapped: here before storytree, and assumed to be working"}`);
     for (const capability of story.capabilities) {
       out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`);
-      for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}`);
+      for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}; ${proofSaid(contract)}`);
     }
     // Its edges, each a link inside the story holding its own contracts (ADR-1282 D1).
     const titleOf = new Map(story.capabilities.map((capability) => [capability.id, capability.title]));
     for (const edge of story.edges ?? []) {
       out.push(`  Edge (${edge.id}): ${quoted(titleOf.get(edge.from) ?? edge.from)} depends on ${quoted(titleOf.get(edge.to) ?? edge.to)}${edge.description === undefined ? "" : `: ${edge.description}`}`);
-      for (const contract of edge.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id})`);
+      for (const contract of edge.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${proofSaid(contract)}`);
     }
   }
   // Ranked arcs first, 1 first; the sort is stable, so the unranked and each priority's arcs keep creation order (ADR-0963 D2).
@@ -539,4 +550,10 @@ export async function untestedOf(capability: string, { folder, library, storytre
 async function testedNumbers({ folder }: Call, capability: string, tree: Awaited<ReturnType<Library["projectTree"]>>): Promise<string[]> {
   // The survey reads the checkout `folder` is in, from its top.
   return testedNumbersIn(folder, tree, capability);
+}
+
+/** How a contract is proved, in full words (ADR-1294), or that its story-author has not chosen yet. */
+function proofSaid(contract: { proof?: { by: (typeof CONTRACT_PROOFS)[number]; reason: string } }): string {
+  if (contract.proof === undefined) return "how it is proved is not chosen yet";
+  return `proved by ${contract.proof.by === "test-criterion" ? "a test criterion" : "agentic user acceptance testing"}: ${contract.proof.reason}`;
 }

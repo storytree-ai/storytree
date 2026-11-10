@@ -70,6 +70,9 @@ importers:
       '@storytree/arc-surface':
         specifier: workspace:^
         version: link:../../packages/arc-surface
+      '@storytree/ci-health':
+        specifier: workspace:*
+        version: link:../../packages/ci-health
       '@storytree/forest':
         specifier: workspace:^
         version: link:../../packages/forest

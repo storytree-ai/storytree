@@ -4,7 +4,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./verbs": "./src/verbs.ts"
+    "./verbs": "./src/verbs.ts",
+    "./bridge": "./src/ci-times/bridge.ts",
+    "./runtime": "./src/ci-times/runtime.ts",
+    "./store": "./src/ci-times/store.ts",
+    "./view": "./src/ci-times/view.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -26,6 +30,18 @@
       {
         "from": "./verbs",
         "export": "HEALTH_FAMILIES"
+      }
+    ],
+    "pageChannels": [
+      {
+        "from": "./bridge",
+        "export": "ciTimesPageChannels"
+      }
+    ],
+    "pageAnswers": [
+      {
+        "from": "./runtime",
+        "export": "ciTimesPageAnswers"
       }
     ]
   }

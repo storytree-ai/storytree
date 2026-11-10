@@ -110,6 +110,8 @@ const QUIET: StorytreeBridge = {
   codeSurvey: async () => ({}),
   recordLag: async () => {},
   feedbackSetup: async () => ({ offered: false, surfaces: [] }),
+  // No CI times recorded: no strip in the map's corner unless a capture hands it a reading.
+  ciTimes: async () => undefined,
   captureForFeedback: async () => undefined,
   sendFeedback: async () => { throw new Error("a capture's stand-in bridge writes no feedback"); },
   // Data, not a method: a capture mounts no factory plugin's views.

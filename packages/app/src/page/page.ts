@@ -3,7 +3,7 @@
  * renderer hands it as parts: which project is on show and when it is drawn again; what the page says while it loads, has nothing
  * to show or fails (`data-state`: loading, ready, empty, missing, error); the forest drawn at once from the tree kept at the last
  * start (`data-fresh="no"`) and the notice over it while the first read fails; which surfaces are mounted as the settings say
- * (every one when they cannot be read), the sessions list and the arcs each in its tab of the left rail, the arcs mounted once the forest has asked its first read and reading once the start settled; the start-timing marks, each sent once (lifecycle 1.33); and that a read landing after
+ * (every one when they cannot be read), the CI times strip in the map's bottom-left, the sessions list and the arcs each in its tab of the left rail, the arcs mounted once the forest has asked its first read and reading once the start settled; the start-timing marks, each sent once (lifecycle 1.33); and that a read landing after
  * the user switched project changes nothing on show.
  */
 import { drawingOf, drillDown, forestDrawn, forestScene, storyNodes, type ForestReadingOptions, type ForestScene, type KeptDrawing, type StoryPanel } from "@storytree/forest";
@@ -58,6 +58,8 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   openView(holder: HTMLElement, onSelect: (selection: ForestSelection) => void, options: { library: boolean; opening: string | undefined }): Promise<View>;
   /** The sessions list in `host` (the rail's Sessions tab), joined to `view` and the knowledge core both ways. */
   sessions(view: View, host: HTMLElement): { stop(): void };
+  /** The CI times strip (CI health's capability 6) in `host`, the map's bottom-left corner. */
+  ciTimes(host: HTMLElement): { stop(): void };
   /** Hand the knowledge core the library's changes and the log's lines. */
   take(changes: Changes, lines: News["lines"]): void;
   libraryCard(panel: HTMLElement, onClose: () => void): () => void;
@@ -108,6 +110,7 @@ interface Showing {
   view?: ForestGlobe;
   arcs?: { stop(): void };
   sessions?: { stop(): void };
+  ciTimes?: { stop(): void };
   rail?: Rail;
   panel?: StoryPanelView;
   teaching?: { take: ReturnType<ProjectParts["teaching"]>["take"]; stop(): void };
@@ -147,6 +150,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     showing?.arcs?.stop();
     showing?.reading?.stop();
     showing?.sessions?.stop();
+    showing?.ciTimes?.stop();
     showing?.page?.stop();
     showing?.rail?.stop();
     showing?.view?.dispose();
@@ -221,6 +225,12 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     const toggleHost = content.ownerDocument.querySelector<HTMLElement>(".app-bar > .app-factory") ?? undefined;
     const rail = mountRail(content, { project: name, tabs: (["sessions", "arcs"] as const).filter((tab: RailTab) => surfaceOn(surfaces, tab)), ...(toggleHost ? { toggleHost } : {}) });
     if (rail) mine.rail = rail;
+    // The factory's CI averages in the map's bottom-left corner, beside the rail (stage 1 of question_177bdb4c1e2a's display).
+    const ciHost = content.ownerDocument.createElement("aside");
+    ciHost.className = "ci-times";
+    ciHost.hidden = true;
+    content.append(ciHost);
+    mine.ciTimes = project.ciTimes(ciHost);
     let started!: () => void;
     const startAfter = new Promise<void>((resolve) => { started = resolve; });
     let tree: AnnotatedTree | undefined;

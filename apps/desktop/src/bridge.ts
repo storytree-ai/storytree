@@ -11,6 +11,7 @@ import type { SurfacesBridge } from "@storytree/app";
 import { FEEDBACK_IDENTITY_CHANNELS, SETUP_HELP_CHANNELS, type FeedbackIdentityBridge, type SetupHelpBridge } from "@storytree/app-setup/bridge";
 import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/app-setup/journey-events/bridge";
 import type { StorySurvey } from "@storytree/library";
+import type { CiTimesBridge } from "@storytree/ci-health/bridge";
 
 import PAGE_CHANNELS from "#parts/pageChannels";
 
@@ -18,7 +19,8 @@ import { pageMethods, unreachableSaid, type PageStandIns, type PluginView } from
 
 /**
  * The page operations the forest, Lag in real use and Surface feedback name in their manifests (ADR-1030), as the frame hands them on:
- * its own copy (ADR-1017 D2), with the code survey's shape taken from the library, where it is defined (D1).
+ * its own copy (ADR-1017 D2), with the code survey's shape taken from the library, where it is defined (D1). CI health's CI times
+ * read is its own bridge's shape, there only while CI health is mounted, so the page reads no strip when it is switched off.
  */
 export interface StoryPageBridge {
   /** The forest's: each story's code survey, by story id (map 8). */
@@ -41,7 +43,7 @@ export interface StoryPageBridge {
 export const START_MARK = "storytree:start-mark";
 
 export interface StorytreeBridge
-  extends SetupHelpBridge, SurfacesBridge, JourneyBridge, UpdatesBridge, LifecycleBridge, ProjectsBridge, PageReadsBridge, StoryPageBridge {
+  extends SetupHelpBridge, SurfacesBridge, JourneyBridge, UpdatesBridge, LifecycleBridge, ProjectsBridge, PageReadsBridge, StoryPageBridge, Partial<CiTimesBridge> {
   /** Mark that this start reached `name` now, written once to app.log as milliseconds from launch (contract 1.33). */
   startMark(name: string): Promise<void>;
   /** The views of the factory plugins standing in for switched-off parts, which the page mounts while their surfaces are on. */

@@ -15,6 +15,7 @@ import { journal } from "@storytree/teaching-cards";
 import { mountJournal, mountTeaching } from "@storytree/teaching-cards/view";
 import { mountLagRecorder } from "@storytree/app/lag/view";
 import { mountFeedbackCorner } from "@storytree/surface-feedback/view";
+import { mountCiTimes } from "@storytree/ci-health/view";
 import { outageSaidOnce } from "@storytree/library/connection-error";
 
 import type { StorytreeBridge } from "../bridge.js";
@@ -107,6 +108,7 @@ page = openProjectPage({
         core.onSelect(session => sessions.select(session));
         return sessions;
       },
+      ciTimes: (host) => mountCiTimes(host, { read: async () => window.storytree.ciTimes?.(name) }),
       take: (changes, lines) => core.take(changes, lines),
       libraryCard: (panel, onClose) => mountLibraryPanel(panel, core, onClose),
       teaching: (locate, reading, islands) => mountTeaching(content, { journal: seenCards, locate, reading, islands }),

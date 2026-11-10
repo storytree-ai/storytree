@@ -32,3 +32,5 @@ Pictures, 1440 x 960:
 
 Taken with `node --import tsx packages/ci-health/testing/view/ci-times/capture.mjs --retake`, which measures the strip's
 box (inside the clear band) and its four figures into the JSON beside each picture.
+
+In the evidence bucket for #700, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `700/map-with-ci-times.png`, `700/map-with-ci-times-rail-collapsed.png`, `700/ci-times-close.png`.

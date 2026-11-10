@@ -163,6 +163,7 @@ test("3.95 an island with nothing kept awaits its first search where the page of
   searchIsland("s", ask, searcher("s"));
   searchIsland("t", ask, searcher("t"));
   searchIsland("u", ask, searcher("u"));
+  searchIsland("w", ask, () => Promise.reject(new Error("the worker died")));
   assert.equal(awaitingFirstLayout("t", shares, searcher("t")), true, "and while it waits its turn");
   let heard = 0;
   const stop = subscribeKept(() => { heard++; });
@@ -175,8 +176,9 @@ test("3.95 an island with nothing kept awaits its first search where the page of
   assert.equal(keptArrangement("t"), undefined, "with nothing kept: the island draws its start");
   await waitUntil(() => asked.length === 3, 2000, "the last island searched");
   asked[2]!.answer({ error: "no worker" });
-  await waitUntil(() => !awaitingFirstLayout("u", shares, searcher("u")), 2000, "a search that fails ends the wait");
-  assert.ok(heard >= 3, "the page hears each wait end");
+  await waitUntil(() => !awaitingFirstLayout("u", shares, searcher("u")), 2000, "a search that answers an error ends the wait");
+  await waitUntil(() => !awaitingFirstLayout("w", shares, searcher("w")), 2000, "a search that throws ends the wait");
+  assert.equal(heard, 4, "the page hears the arrangement kept and each wait ended, once each");
   stop();
   keepArrangement("v", { key: structureKey(shares), seeds: { a: { x: 1, z: 0 } } });
   searchIsland("v", { ...ask, shares: [...shares, { capability: "e", lines: 200 }] }, searcher("v"));

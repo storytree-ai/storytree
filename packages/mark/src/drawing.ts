@@ -5,13 +5,10 @@
  * and the fixed-colour files are rendered from them. No role has a colour of its own.
  */
 
-/**
- * The four roles every surface supplies, as any CSS colour (a CSS variable included). `land` is the map sheet and `ocean`
- * its edge: the names are the earlier drawing's, kept because the surfaces that wear the mark supply them by name.
- */
+/** The four roles every surface supplies, as any CSS colour (a CSS variable included): the map sheet, its edge, the tree's trunk and its leaves. */
 export interface MarkRoles {
-  ocean: string;
-  land: string;
+  edge: string;
+  sheet: string;
   tree: string;
   leaf: string;
 }
@@ -21,8 +18,8 @@ export type MarkColours = MarkRoles & { canvas?: string };
 
 /** The named colourways: defaults only for files that cannot follow a theme (.ico, .icns, PNG), never the mark's colours. */
 export const COLOURWAYS: Readonly<Record<string, Required<MarkColours>>> = {
-  day: { canvas: "#3E7CB1", ocean: "#D9CFB4", land: "#F4EFE2", tree: "#17301F", leaf: "#3E8E4E" },
-  night: { canvas: "#0F1E2E", ocean: "#214F2A", land: "#2F6B3A", tree: "#F4EFE2", leaf: "#F2C14E" },
+  day: { canvas: "#3E7CB1", edge: "#D9CFB4", sheet: "#F4EFE2", tree: "#17301F", leaf: "#3E8E4E" },
+  night: { canvas: "#0F1E2E", edge: "#214F2A", sheet: "#2F6B3A", tree: "#F4EFE2", leaf: "#F2C14E" },
 };
 
 export const BOX = 104;
@@ -50,8 +47,8 @@ const square = { kind: "rect", x: 17, y: 17, width: 70, height: 70, r: 8 } as co
 
 /** Every shape of the mark, back to front. */
 export const SHAPES: readonly Shape[] = [
-  { ...square, role: "ocean", plane: EDGE },
-  { ...square, role: "land", plane: SHEET },
+  { ...square, role: "edge", plane: EDGE },
+  { ...square, role: "sheet", plane: SHEET },
   { kind: "line", role: "tree", plane: SHEET, from: [52, 80], to: [52, 54], width: 6 },
   { kind: "circle", role: "leaf", plane: SHEET, cx: 39, cy: 48, r: 13 },
   { kind: "circle", role: "leaf", plane: SHEET, cx: 65, cy: 48, r: 13 },
@@ -66,7 +63,7 @@ export function resolveColours(colours: MarkColours | string): MarkColours {
     if (way === undefined) throw new Error(`No colourway "${colours}": the mark's colourways are ${Object.keys(COLOURWAYS).join(", ")}.`);
     return way;
   }
-  for (const role of ["ocean", "land", "tree", "leaf"] as const) {
+  for (const role of ["edge", "sheet", "tree", "leaf"] as const) {
     if (typeof colours[role] !== "string" || colours[role] === "") throw new Error(`The mark needs a colour for its ${role} role.`);
   }
   return colours;

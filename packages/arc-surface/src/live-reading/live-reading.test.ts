@@ -515,6 +515,23 @@ test("3.29 a first start with no kept reading asks for the thinned changes and t
   reading.stop();
 });
 
+test("3.29 a first start lands when its log holds a command start written with no command, as a hook wrote on 2026-09-30", async () => {
+  const app = new StartingApp();
+  const at = new Date(0).toISOString();
+  const line = (seq: number, kind: string, more: Record<string, unknown> = {}) => ({ seq, session: "s1", source: "hook", project: "shop", at, kind, ...more }) as Line;
+  app.given = { lines: [], sessions: [line(1, "session-started"), line(2, "prompt-submitted"), line(3, "command-started", { call: "c1" })], claims: [], cursor: 3 };
+  const reading = pageReading({ project: "shop", reads: app, timers: new Clock() });
+  const errors: unknown[] = [];
+  let heard = 0;
+  reading.subscribe({ onNews: () => void heard++, onError: (error) => errors.push(error) });
+  await settle();
+
+  assert.deepEqual(errors, [], "the start is not refused");
+  assert.equal(heard, 1, "the surfaces hear it");
+  assert.deepEqual(reading.held().fold.sessions({ now: new Date(0) }).map(({ session, state }) => [session, state]), [["s1", "working"]]);
+  reading.stop();
+});
+
 test("3.29 a host without the bounded start is read whole from 0, as before", async () => {
   const app = new App();
   app.claim("cap_a");

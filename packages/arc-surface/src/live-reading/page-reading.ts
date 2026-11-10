@@ -65,9 +65,13 @@ const HELD_FIELDS = ["title", "term", "text", "statement", "meaning", "role", "d
 /** What a first start asks of the library: the fields held, and a health record's own, of reported health alone (ADR-0630). */
 const START_CHANGES: ChangesFilter = { fields: [...HELD_FIELDS, "node", "column"], healthColumns: ["reported"] };
 
-/** `line` as held: a finished command without its text, and a running one's cut to what the sessions list shows. */
+/**
+ * `line` as held: a finished command without its text, and a running one's cut to what the sessions list shows. A running one
+ * written with no text (storytree's own log holds such lines from 2026-09-30) is held with none.
+ */
 function heldLine(line: Line): Line {
   if (line.kind === "command-run") return { ...line, command: "" };
+  if (line.kind === "command-started" && typeof line.command !== "string") return { ...line, command: "" };
   if (line.kind === "command-started" && line.command.length > COMMAND_SHOWN) return { ...line, command: `${line.command.slice(0, COMMAND_SHOWN)} …` };
   return line;
 }

@@ -365,7 +365,7 @@ test("2.1 the real workspace: a story whose captures reach desktop's capture kit
     for (const dir of users) assert.ok(scope(file).includes(dir), `${file}: ${dir}`);
   }
   // The bridge's types reach no capture by path: only the packages whose tests run the page join desktop (ADR-1302).
-  assert.deepEqual(scope("apps/desktop/src/bridge.ts"), ["apps/desktop", ...ws.filter((p) => p.runsPage && p.dir !== "apps/desktop").map((p) => p.dir)]);
+  assert.deepEqual(scope("apps/desktop/src/bridge.ts"), ["apps/desktop", "packages/forest", "packages/forest-world", "packages/knowledge-core"]);
   // The page's road worker, which the kit builds from the drawing engine, is bounded to desktop's files as the renderer is.
   for (const dir of users) assert.ok(scope("apps/desktop/src/renderer/road-worker.ts").includes(dir), dir);
 });

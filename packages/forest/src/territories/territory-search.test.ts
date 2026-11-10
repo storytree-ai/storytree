@@ -8,7 +8,7 @@ import { afterEach, test } from "node:test";
 
 import { quietFor, waitUntil } from "@storytree/test-waits";
 import { islandLayout, LIBRARY_LAND, linkLayout, prepareIsland, type Seeds } from "./link-layout.js";
-import { awaitingFirstLayout, keepArrangement, keptArrangement, pageTerritorySearcher, searchInWorker, searchIsland, shelveOn, storageShelf, structureKey, subscribeKept, type SearchAnswer, type SearchAsk, type SearchWorker, type TerritorySearcher } from "./kept-layout.js";
+import { awaitingFirstLayout, keepArrangement, keptArrangement, pageTerritorySearcher, searchFirst, searchInWorker, searchIsland, shelveOn, storageShelf, structureKey, subscribeKept, type SearchAnswer, type SearchAsk, type SearchWorker, type TerritorySearcher } from "./kept-layout.js";
 import { borderLength, networkScore, searchTerritories } from "./territory-search.js";
 import { islandRoads, roadMeasures } from "./island-roads.js";
 import { answerSearch } from "./search-worker.js";
@@ -241,6 +241,29 @@ test("3.80 a search asked for another island waits its turn behind the one in fl
   assert.equal(keptArrangement("two")?.key, structureKey(more));
   asked[3]!.answer(found(4));
   await waitUntil(() => keptArrangement("three")?.seeds.a?.x === 4, 2000, "the last island kept");
+});
+
+test("3.97 the island on screen is searched next, ahead of those that waited longer, at its full length; it never overtakes the search in flight", async () => {
+  shelveOn(undefined);
+  const asked: { story: string; steps: number | undefined; signal: AbortSignal; answer: (a: SearchAnswer) => void }[] = [];
+  const searcher = (story: string): TerritorySearcher => (given, signal) => new Promise((answer) => asked.push({ story, steps: given.steps, signal, answer }));
+  for (const story of ["one", "two", "three", "four"]) searchIsland(story, ask, searcher(story));
+  searchFirst("three");
+  assert.equal(asked.length, 1, "nothing starts beside the search in flight");
+  assert.equal(asked[0]!.signal.aborted, false, "and the search in flight is not overtaken");
+  asked[0]!.answer({ found: undefined });
+  await waitUntil(() => asked.length === 2, 2000, "the next search");
+  assert.equal(asked[1]!.story, "three", "the island on screen is searched before the islands that waited longer");
+  assert.equal(asked[1]!.steps, ask.steps, "with every step it was asked");
+  searchFirst(undefined);
+  asked[1]!.answer({ found: undefined });
+  await waitUntil(() => asked.length === 3, 2000, "the next search");
+  assert.equal(asked[2]!.story, "two", "with no island on screen the rest go in the order asked");
+  searchFirst("one");
+  asked[2]!.answer({ found: undefined });
+  await waitUntil(() => asked.length === 4, 2000, "the last search");
+  assert.equal(asked[3]!.story, "four", "an island on screen that waits for nothing changes nothing");
+  asked[3]!.answer({ found: undefined });
 });
 
 test("3.80 an island kept for its structure while it waits its turn is passed over, and the island behind it is searched; a new shelf ends the search in flight and forgets those waiting", async () => {

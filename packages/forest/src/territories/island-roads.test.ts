@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { quietFor, waitUntil } from "@storytree/test-waits";
-import { answerRoads, GATE_POSTS_APART, inTunnelMouth, islandRoads, ROUTING_AT_ONCE, islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, routeIslandInWorker, subscribeRoads, type IslandRoads, type RoadsAsk, type RoadsWorker } from "./island-roads.js";
+import { answerRoads, GATE_POSTS_APART, inTunnelMouth, islandRoads, ROUTING_AT_ONCE, islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, roadsShelf, routeIslandInWorker, shelveRoadsOn, subscribeRoads, type IslandRoads, type RoadsAsk, type RoadsWorker } from "./island-roads.js";
 import { answerAsk } from "./search-worker.js";
 import { RELIEF } from "./island-relief.js";
 import { linkLayout, LIBRARY_LAND } from "./link-layout.js";
@@ -293,6 +293,48 @@ test("3.82 selecting an island draws its territories without waiting on its road
     assert.equal(islandRoadsWhenRouted(ask, router, new AbortController().signal), roads, "the next ask has them at once");
     assert.equal(asked.length, 1, "and routes nothing again");
   } finally { unsubscribe(); }
+});
+
+test("3.82 an island's routed roads outlive the run on the page's storage: after a restart an unchanged island has them at once, routing nothing; a changed island, another story, a stale entry or an unreadable one routes again", async () => {
+  const stored = new Map<string, string>();
+  const storage = { getItem: (k: string) => stored.get(k) ?? null, setItem: (k: string, v: string) => void stored.set(k, v) };
+  shelveRoadsOn(roadsShelf(storage));
+  try {
+    const { router, asked, answers } = byHand(), shown = new AbortController().signal;
+    const ask = { ...fresh(), story: "s" }, routedElsewhere = fresh(), roads = islandRoads(routedElsewhere.map, ask.links, ask.docks, ask.names);
+    islandRoadsWhenRouted(ask, router, shown);
+    answers[0]!.resolve(roads);
+    await waitUntil(() => knownIslandRoads(ask) ?? undefined, 2000, "the roads to arrive");
+    // A restart: the page forgets every island it routed, and reads its storage again.
+    shelveRoadsOn(roadsShelf(storage));
+    const again = { ...fresh(), story: "s" };
+    assert.deepEqual(knownIslandRoads(again), roads, "the unchanged island's roads are had at once from storage");
+    assert.deepEqual(islandRoadsWhenRouted(again, router, shown), roads);
+    assert.equal(asked.length, 1, "and nothing is routed again");
+    const relinked = { ...fresh(), story: "s", links: links.slice(1) };
+    assert.equal(knownIslandRoads(relinked), undefined, "an island changed since its roads were kept routes again");
+    assert.equal(knownIslandRoads({ ...fresh(), story: "t" }), undefined, "another story's island has none of them");
+    assert.equal(knownIslandRoads(fresh()), undefined, "an island named by no story reads no storage");
+    const entry = JSON.parse(stored.get("storytree.roads.s")!) as { key: string };
+    stored.set("storytree.roads.s", JSON.stringify({ ...entry, key: "an older routing's key" }));
+    shelveRoadsOn(roadsShelf(storage));
+    assert.equal(knownIslandRoads({ ...fresh(), story: "s" }), undefined, "an entry kept under another key is ignored");
+    stored.set("storytree.roads.s", "{not json");
+    stored.set("storytree.roads.u", JSON.stringify({ key: entry.key, roads: { segments: [] } }));
+    shelveRoadsOn(roadsShelf(storage));
+    assert.equal(knownIslandRoads({ ...fresh(), story: "s" }), undefined, "an unreadable entry is ignored");
+    assert.equal(knownIslandRoads({ ...fresh(), story: "u" }), undefined, "and so is one missing its parts");
+    shelveRoadsOn(roadsShelf({ getItem: () => null, setItem: () => { throw new Error("full"); } }));
+    const full = { ...fresh(), story: "s" };
+    islandRoadsWhenRouted(full, router, shown);
+    answers[1]!.resolve(roads);
+    await waitUntil(() => knownIslandRoads(full) ?? undefined, 2000, "roads kept for the run when storage is full");
+    assert.equal(roadsShelf(undefined), undefined, "no storage, no shelf");
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, get: () => { throw new Error("Access is denied for this document"); } });
+    try { assert.equal(roadsShelf(), undefined, "a page that refuses its storage has no shelf, and still routes"); } finally { delete (globalThis as { localStorage?: unknown }).localStorage; }
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+    try { roadsShelf()?.write("v", "k", roads); assert.ok(stored.has("storytree.roads.v"), "the page's own storage is the shelf by default"); } finally { delete (globalThis as { localStorage?: unknown }).localStorage; }
+  } finally { shelveRoadsOn(undefined); }
 });
 
 test("3.82 an island overtaken before its roads arrive keeps none, and says nothing of a routing that failed; one not overtaken says why", async (t) => {

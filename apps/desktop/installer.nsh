@@ -124,7 +124,9 @@
 ; process under its folder, and a session started before the app re-pointed it may still run that folder's
 ; agent-tools node.exe. So that node.exe, found by its image path, never by name alone, is stopped first;
 ; then the old uninstaller runs in a job object with a time limit. At the limit the job (the uninstaller
-; and the PowerShell it started) is ended, and this setup carries on over the old files.
+; and the PowerShell it started) is ended, and this setup carries on over the old files. Stopping a tool
+; leaves a record in the storytree home (tools-stopped), from which each session it cut off is told how
+; to reconnect (Hooks 3.57).
 !define storytreeOldUninstallerLimit 120000
 
 !macro storytreeStopAgentTools DIR
@@ -167,6 +169,23 @@
                 DetailPrint "Stopping storytree's agent tools left running by the old version: $8 (process $7)"
                 System::Call 'kernel32::TerminateProcess(i r9, i 1)'
                 System::Call 'kernel32::WaitForSingleObject(i r9, i 5000)'
+                ; The record that the open sessions' tools were stopped, its time being when (Hooks 3.57 tells them).
+                ; The error flag is the caller's, so a record that cannot be written leaves it as it was.
+                StrCpy $8 ""
+                IfErrors 0 +2
+                StrCpy $8 "set"
+                ReadEnvStr $2 STORYTREE_HOME
+                ${if} $2 == ""
+                  StrCpy $2 "$PROFILE\.storytree\0.3"
+                ${endIf}
+                CreateDirectory $2
+                FileOpen $6 "$2\tools-stopped" w
+                FileWrite $6 "storytree's agent tools were stopped by an update$\r$\n"
+                FileClose $6
+                ClearErrors
+                ${if} $8 == "set"
+                  SetErrors
+                ${endIf}
               ${endIf}
             ${endIf}
             System::Call 'kernel32::CloseHandle(i r9)'

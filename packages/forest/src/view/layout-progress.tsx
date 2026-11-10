@@ -5,23 +5,37 @@
  * - 3.96: a small mark in the map's top left while any island's territory search runs or waits its turn, or its roads
  *   route or wait theirs ("laying out 3 of 12 islands"); it goes when both are idle. 3.95's "laying out parts…" under a
  *   waiting island's name stays.
+ * - 3.98: the islands still awaiting their first territory search count in that mark too, and once none awaits, is searched or
+ *   is routed, a hidden mark says the map has settled (`data-layout="settled"`), the one signal a capture waits on.
  * - 3.97: the island on screen, the one selected, else the island that joined the map last, is searched next.
  */
 import React, { useMemo, useSyncExternalStore } from "react";
 
-import { islandsSearching, searchingVersion, subscribeSearching } from "../territories/kept-layout.js";
+import { awaitingFirstLayout, islandsSearching, keptVersion, pageTerritorySearcher, searchingVersion, subscribeKept, subscribeSearching, type TerritorySearcher } from "../territories/kept-layout.js";
+import type { TerritoryShare } from "../territories/territories.js";
 import { islandsRouting, routingVersion, subscribeRouting } from "../territories/island-roads.js";
 
-/** The map's top-left mark: how many of `islands` are still searched or routed, or nothing when none are. */
-export function LayoutProgress({ islands }: { islands: readonly string[] }) {
+/** An island on the map, with its land's territories once it has land. */
+export interface LaidIsland { readonly story: string; readonly territories?: readonly TerritoryShare[] | undefined }
+
+/**
+ * The map's top-left mark: how many of `islands` still await their first layout, are searched or are routed; once none
+ * is, a hidden mark that the map has settled, and nothing while the map has no islands. `searcher` is the page's own
+ * territory search unless one is given.
+ */
+export function LayoutProgress({ islands, searcher: given }: { islands: readonly LaidIsland[]; searcher?: TerritorySearcher | undefined }) {
+  const searcher = useMemo(() => given ?? pageTerritorySearcher(), [given]);
   const searching = useSyncExternalStore(subscribeSearching, searchingVersion, searchingVersion);
   const routing = useSyncExternalStore(subscribeRouting, routingVersion, routingVersion);
+  const kept = useSyncExternalStore(subscribeKept, keptVersion, keptVersion);
   const busy = useMemo(() => {
     const searched = islandsSearching(), routed = islandsRouting();
-    return islands.filter((story) => searched.has(story) || routed.has(story)).length;
-  }, [islands, searching, routing]);
-  if (busy === 0) return null;
-  return <div className="forest-layout-progress" role="status">{`laying out ${busy} of ${islands.length} island${islands.length === 1 ? "" : "s"}`}</div>;
+    return islands.filter(({ story, territories }) => searched.has(story) || routed.has(story)
+      || (territories !== undefined && awaitingFirstLayout(story, territories, searcher))).length;
+  }, [islands, searcher, searching, routing, kept]);
+  if (islands.length === 0) return null;
+  if (busy === 0) return <div hidden data-layout="settled" />;
+  return <div className="forest-layout-progress" role="status" data-layout="laying-out">{`laying out ${busy} of ${islands.length} island${islands.length === 1 ? "" : "s"}`}</div>;
 }
 
 /**

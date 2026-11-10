@@ -101,7 +101,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
           </button>)}
         </div>
         {/* 3.96: beside the switches while any island is still laid out. */}
-        <LayoutProgress islands={stories} />
+        <LayoutProgress islands={drawn.scene.islands.map(island => ({ story: island.story, territories: island.land?.territories }))} />
       </div>
       {/* The knowledge core's kind list unfolds under the Library button while it is pressed (knowledge core 5, D1). */}
       {layers.mode === "library" && <KnowledgeKinds core={core} />}

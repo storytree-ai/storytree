@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { removeTemp } from "@storytree/test-waits";
 
 import { countEngines } from "./queue.mjs";
-import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, onMain, failedOnQueue, projectOf, queueOutcome, queueRemovals, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, jobFields, readScan, scanSetup, watchOnce } from "./watch.mjs";
+import { adoptRequests, asRun, boxDefaults, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, onMain, failedOnQueue, projectOf, queueOutcome, queueRemovals, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, jobFields, readScan, scanSetup, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -1673,4 +1674,27 @@ test("4.51 · a hand-over never takes another repository's pull request number a
   await adoptRequests({ ...adopt.options, viewOf: async (pr) => ({ ...view(pr), state: "MERGED" }) });
   assert.deepEqual(await readdir(adopt.dir), [], "a merged pull request is not watched");
   assert.deepEqual(adopt.calls.filter(([, verb]) => verb !== "waits").map((args) => args.slice(0, 3)), [["arc", "increment", "unwait"], ["workspace", "let-go", "5"]]);
+});
+
+test("4.57 · the watcher starts every fix, review and release fix session's lane runner under storytree's TypeScript loader, in its project's folder, so the runner's exit recorder loads session-management", async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), "lane-watch-runner-"));
+  t.after(() => removeTemp(dir));
+  await mkdir(join(dir, "watch"));
+  const started = [];
+  const spawn = (command, args, options) => { started.push({ command, args, cwd: options.cwd }); return { pid: 4242, unref() {} }; };
+  const box = boxDefaults({ home: dir, env: { LANES_DIR: dir }, spawn });
+  await box.startFix({ pr: 7, n: 1, brief: "fix it", project: { folder: "/srv/shop" } });
+  await box.startReview({ pr: 7, n: 1, brief: "review it" });
+  await box.startReleaseFix({ n: 1, brief: "fix the release" });
+  const runner = join(dirname(fileURLToPath(import.meta.url)), "runner.mjs");
+  assert.deepEqual(started.map(({ args, cwd }) => [args.indexOf(runner) >= 0, args[args.indexOf(runner) + 1], cwd]),
+    [[true, "run", "/srv/shop"], [true, "run", box.repo], [true, "run", box.repo]]);
+  // Each start's arguments, its runner swapped for a stand-in that loads session-management, as the runner's exit recorder does.
+  const probe = join(dir, "runner-probe.mjs");
+  await writeFile(probe, `const { openActivityLog } = await import(${JSON.stringify(import.meta.resolve("@storytree/session-management"))});\nconsole.log(typeof openActivityLog);\n`);
+  const { NODE_OPTIONS: _options, ...env } = process.env;
+  for (const { command, args } of started) {
+    const { stdout } = await promisify(execFile)(command, args.map((arg) => (arg === runner ? probe : arg)), { cwd: dir, env });
+    assert.equal(stdout.trim(), "function");
+  }
 });

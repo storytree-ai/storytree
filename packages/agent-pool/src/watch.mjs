@@ -48,6 +48,8 @@ const LOOP_MARKS = [/watch\.mjs watch( |$)/];
 
 /** Whether a process's command line is a fix session's runner (4.26). */
 export const isFixSession = (args) => /agent-pool\/src\/runner\.mjs run /.test(args);
+/** The node arguments that start lane runner `runner` with `args`: under tsx's loader, as the dispatcher's lanes run, so its exit recorder loads storytree's TypeScript (4.57). */
+export const runnerStart = (runner, args) => ["--import", import.meta.resolve("tsx"), runner, ...args];
 /** The look loop's exit when the dev loop's code in the shared checkout changed: `run` starts it again, on the new code. */
 export const RESTART = 3;
 /** How long a handed-over pull request holds its claims while open: then it is given up and its increment is back on its arc (ADR-1037 D3, 4.23). Its event wait checks back then too. */
@@ -1060,7 +1062,7 @@ export function freeOf(env) {
  * The box's paths, limits and processes, from the pool's configuration (pool-config.mjs). `exec` starts a command as
  * execFile does and `platform` is the one storytree's command line is started for (tests give both).
  */
-function boxDefaults({ home = homedir(), env = process.env, platform = process.platform, exec = run } = {}) {
+export function boxDefaults({ home = homedir(), env = process.env, platform = process.platform, exec = run, spawn = spawnChild } = {}) {
   const config = poolConfig({ home, env });
   const { lanesDir, checkout: repo } = config;
   const dir = join(lanesDir, "watch");
@@ -1071,7 +1073,7 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
   const own = join(repo, "packages", "agent-pool", "src", "watch.mjs");
   const detached = (args, log, cwd) => {
     const out = openSync(log, "a");
-    const child = spawnChild(process.execPath, args, { cwd, env: free, detached: true, stdio: ["ignore", out, out] });
+    const child = spawn(process.execPath, args, { cwd, env: free, detached: true, stdio: ["ignore", out, out] });
     child.unref();
     return child.pid;
   };
@@ -1119,15 +1121,15 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
     startFix: async ({ pr, n, brief, project }) => {
       const base = join(dir, `fix-${pr}-${n}`);
       await writeFile(`${base}-brief.md`, brief);
-      const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
-        ...config.addDirs], `${base}.runner.log`, project?.folder ?? repo);
+      const pid = detached(runnerStart(join(script, "..", "runner.mjs"), ["run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
+        ...config.addDirs]), `${base}.runner.log`, project?.folder ?? repo);
       return { pid, log: `${base}.log` };
     },
     startReview: async ({ pr, n, brief, project }) => {
       const base = join(dir, `review-${pr}-${n}`);
       await writeFile(`${base}-brief.md`, brief);
-      const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
-        ...config.addDirs], `${base}.runner.log`, project?.folder ?? repo);
+      const pid = detached(runnerStart(join(script, "..", "runner.mjs"), ["run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
+        ...config.addDirs]), `${base}.runner.log`, project?.folder ?? repo);
       return { pid, log: `${base}.log` };
     },
     // Started from the shared checkout's copy, whichever worktree handed over, so it runs the code it watches for changes.
@@ -1178,8 +1180,8 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
     startReleaseFix: async ({ n, brief }) => {
       const base = join(dir, `release-fix-${Date.now()}-${n}`);
       await writeFile(`${base}-brief.md`, brief);
-      const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
-        ...config.addDirs], `${base}.runner.log`, repo);
+      const pid = detached(runnerStart(join(script, "..", "runner.mjs"), ["run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
+        ...config.addDirs]), `${base}.runner.log`, repo);
       return { pid, log: `${base}.log` };
     },
   };

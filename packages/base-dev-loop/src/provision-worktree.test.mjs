@@ -25,7 +25,9 @@ const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url
 function run(command, args, options = {}) {
   return new Promise((resolve) => {
     execFile(command, args, { encoding: "utf8", windowsHide: true, ...options }, (error, stdout, stderr) => {
-      resolve({ status: error ? (typeof error.code === "number" ? error.code : 1) : 0, stdout, stderr: stderr || (error?.message ?? "") });
+      resolve({
+        status: error ? (typeof error.code === "number" ? error.code : 1) : 0, signal: error?.signal ?? null, stdout, stderr: stderr || (error?.message ?? ""),
+      });
     });
   });
 }
@@ -295,11 +297,18 @@ test("the tool server starts in a fresh worktree once the session-start install 
   assert.equal(started, 1);
 });
 
+/**
+ * A git command in a test's repository. A slow Windows runner once took past a 10 s limit on a plain
+ * commit, and the kill read as exit 1 with no reason (friction_eaa48abc2b88), so the limit is wide
+ * and a failure says how the command ended and everything it printed.
+ */
 async function git(root, ...args) {
+  const timeout = 60_000;
   const result = await run("git", ["-c", "user.name=Provision test", "-c", "user.email=provision@example.test", "-c", "commit.gpgsign=false", ...args], {
-    cwd: root, timeout: 10_000,
+    cwd: root, timeout,
   });
-  assert.equal(result.status, 0, result.stderr);
+  const ended = result.signal ? `killed by ${result.signal}, its limit ${timeout / 1000} s` : `exit ${result.status}`;
+  assert.equal(result.status, 0, `git ${args.join(" ")}: ${ended}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
   return result.stdout.trim();
 }
 

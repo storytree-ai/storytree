@@ -1027,6 +1027,30 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(work.editContract(sums.id, { proof: { by: "test-criterion", reason: "" } }), schemaError("contract", ["proof"]));
     assert.deepEqual(await transactions.history(), before, "nothing was written");
   });
+
+  contract("4.47", "a plugin plan's contract may carry its proof: importPluginPlan writes it, changes it and, when the plan holds none, removes it; a proof another lane landed stands against a stale source; any other proof is refused with nothing written", async ({ work, records, transactions }) => {
+    const byTest = { by: "test-criterion", reason: "The status code is a returned value a test reads." } as const;
+    const onScreen = { by: "agentic-user-acceptance-testing", reason: "Whether a speaker can tell it is listening is judged on screen." } as const;
+    const plan = (proof?: typeof byTest | typeof onScreen): PluginPlan => ({ story: { title: "Voice" }, capabilities: [{ title: "1 · The address", contracts: [{ title: "1.1 · A wrong path is answered 404", ...(proof === undefined ? {} : { proof }) }] }] });
+    const first = await work.importPluginPlan("voice", plan(byTest));
+    const contract = first.added.find((id) => id.startsWith("contract_"))!;
+    const proof = async () => ((await records.get(contract))?.fields as { proof?: unknown } | undefined)?.proof;
+    assert.deepEqual(await proof(), byTest, "an import writes it");
+    assert.deepEqual((await work.importPluginPlan("voice", plan(onScreen))).edited, [contract]);
+    assert.deepEqual(await proof(), onScreen, "a changed one is written");
+    await work.importPluginPlan("voice", plan());
+    assert.equal(await proof(), undefined, "the plan file is its one source, so a plan holding none removes it");
+
+    await work.importPluginPlan("voice", plan(onScreen), { held: { capabilities: [1], contracts: ["1.1"], versions: [plan(), plan(onScreen)] } });
+    const stale = await work.importPluginPlan("voice", plan(byTest), { held: { capabilities: [1], contracts: ["1.1"], versions: [plan(), plan(byTest)] } });
+    assert.deepEqual(stale.stood, [contract], "a folder whose history never held the live proof writes none back");
+    assert.deepEqual(await proof(), onScreen);
+
+    const before = await transactions.history();
+    await assert.rejects(work.importPluginPlan("voice", plan({ by: "a hunch", reason: "Seems fine." } as never)), schemaError("contract", ["proof"]));
+    await assert.rejects(work.importPluginPlan("voice", plan({ by: "test-criterion", reason: "" } as never)), schemaError("contract", ["proof"]));
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
 }
 
 /**

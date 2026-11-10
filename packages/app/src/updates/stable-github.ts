@@ -141,6 +141,32 @@ export function sweptBy(questions: readonly { id: string; fields: Record<string,
 }
 
 /**
+ * Whether main's latest green nightly macOS run (macos-nightly.yml, ADR-1303 D3) tested `commit`: its head is that commit
+ * or a later main commit containing it. Only the newest green run on main counts; a run off another branch tests nothing.
+ */
+export async function nightlyMacos(runs: readonly { id: number; head_sha: string; head_branch: string | null; conclusion: string | null }[], commit: string,
+  contains: (head: string, commit: string) => Promise<boolean>): Promise<{ tested: boolean; evidence: string }> {
+  const last = runs.find(r => r.head_branch === "main" && r.conclusion === "success");
+  if (!last) return { tested: false, evidence: "main has no green nightly macOS run" };
+  const at = last.head_sha.slice(0, 12), url = `https://github.com/${REPOSITORY}/actions/runs/${last.id}`;
+  return await contains(last.head_sha, commit)
+    ? { tested: true, evidence: `macOS nightly run ${last.id} tested main at ${at}, which contains this build (${url})` }
+    : { tested: false, evidence: `main's last green nightly macOS run, ${last.id}, tested ${at} (${url})` };
+}
+
+/**
+ * Whether main's commit `head` is `commit` or comes after it. Main is fetched first, so a nightly run's head newer than the
+ * clone is known; a fetch that fails throws its own error rather than reading as "not after it".
+ */
+export function mainContains(git: Git): (head: string, commit: string) => Promise<boolean> {
+  return async (head, commit) => {
+    git("fetch", "origin", "+refs/heads/main:refs/remotes/origin/main");
+    try { git("merge-base", "--is-ancestor", commit, head); return true; }
+    catch { return false; }
+  };
+}
+
+/**
  * The commit tagged `v<wanted>`, once it is on main and its first-parent count gives that version. A shallow clone (a cloud
  * session's checkout) counts only its own depth, so its history is fetched whole before it is counted.
  */
@@ -349,6 +375,11 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
     increments: () => options.library.list("increment"),
     cutover: () => options.library.prCutover(),
     swept: async version => sweptBy(await options.library.list("question"), version),
+    async macos(commit) {
+      const { workflow_runs } = await api("actions/workflows/macos-nightly.yml/runs?branch=main&status=completed&per_page=50") as {
+        workflow_runs: { id: number; head_sha: string; head_branch: string | null; conclusion: string | null }[] };
+      return nightlyMacos(workflow_runs, commit, mainContains(git));
+    },
     publish: (manifest, bootstrap, expected) => publishStable(manifest, bootstrap, expected, api),
     now: () => new Date().toISOString(),
   };

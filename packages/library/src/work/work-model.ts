@@ -70,7 +70,8 @@ export interface PluginPlanCapability {
   /** On until the plugin says it is built (ADR-0744 D2); proposed when not given. */
   readonly proposed?: boolean;
   readonly dependsOn?: string[];
-  readonly contracts: readonly { readonly title: string; readonly description?: string }[];
+  /** Each contract's proof says how it is proved (CONTRACT_PROOFS), written only here for a plugin's contract. */
+  readonly contracts: readonly { readonly title: string; readonly description?: string; readonly proof?: { readonly by: (typeof CONTRACT_PROOFS)[number]; readonly reason: string } }[];
 }
 /** What one importPluginPlan did: the plugin's story, and the ids of the records it added, edited, retired and kept as they stood. */
 export interface ImportedPluginPlan {
@@ -294,7 +295,7 @@ export class WorkModel {
    * and health. Given `held`, the numbers the plan's source ever held, it retires only those, and leaves any other live
    * record (one another lane landed after a stale source was cut) as it stands, reporting it left. Given `held.versions`
    * as well, it changes a kept record's text (a story's, capability's or contract's title and description, a capability's
-   * text and proposed) only from a value one of them held, and leaves a field another lane changed since as it stands,
+   * text and proposed, a contract's proof) only from a value one of them held, and leaves a field another lane changed since as it stands,
    * reporting the record stood; a story it adopts has no such history. Everything is checked first, and a plan with a capability or contract carrying no number or a number
    * twice, a contract numbered under another capability, or an `adopt` that is mapped, another plugin's or not this
    * plugin's own story, is refused (SchemaError) with nothing written.
@@ -1076,9 +1077,9 @@ function refuseMapped(fields: object): void {
 /** The fields of a plugin's story, capabilities and contracts its plan holds: only importPluginPlan writes them. */
 const PLUGIN_STORY_FIELDS = ["title", "description", "text", "plugin"] as const;
 const PLUGIN_CAPABILITY_FIELDS = ["title", "description", "text", "proposed", "dependsOn", "story"] as const;
-const PLUGIN_CONTRACT_FIELDS = ["title", "description", "capability"] as const;
+const PLUGIN_CONTRACT_FIELDS = ["title", "description", "proof", "capability"] as const;
 /** The text fields of a plugin's plan an import from a stale source must not write back over another lane's change. */
-const GUARDED_PLAN_FIELDS = new Set(["title", "description", "text", "proposed"]);
+const GUARDED_PLAN_FIELDS = new Set(["title", "description", "text", "proposed", "proof"]);
 
 /**
  * Every value a plugin plan's story, capabilities and contracts held their text fields at in any of `versions`, as an

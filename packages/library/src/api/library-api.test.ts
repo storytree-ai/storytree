@@ -98,6 +98,7 @@ const LIBRARY_API = [
   "checkQuestion",
   "renewQuestion",
   "editQuestion",
+  "linkNamedEvidence",
   "moveQuestion",
   "lapsedQuestions",
   "predictQuestion",

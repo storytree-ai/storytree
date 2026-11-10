@@ -769,6 +769,12 @@ export const RECORD_SCHEMAS = {
       analogy: nonEmpty.optional(),
       diagram: nonEmpty.optional(),
       recommendation: nonEmpty.optional(),
+      /**
+       * The evidence it cites (12.17): live library records (notes, decisions, research, increments, other questions),
+       * never the plan or an arc. A settled question may still gain one; its wording stays as answered. Optional, so no
+       * version bump.
+       */
+      links: ids.optional(),
       lifecycle: z.enum(["open", "settled"]),
       answer: nonEmpty.optional(),
       /** When it was settled (an ISO 8601 timestamp). */

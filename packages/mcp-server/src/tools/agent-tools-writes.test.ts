@@ -751,6 +751,24 @@ test("10.4 correct_question corrects an open question's wording in place: only t
   });
 });
 
+test("10.20 raise_question links the records it is given as the question's evidence, beside those its words name; a link to the plan or an arc is refused readably, raising nothing", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const research = await library.recordDecision({ status: "accepted", title: "Mailgun's API is the simplest", text: "Measured." });
+      const asked = { arc, title: "Which mailer?", stakes: "Cost", statement: "Send through Mailgun or SES?", context: "Both work here", options: "Mailgun; SES" };
+      const question = idOf(await agent.call("raise_question", { ...asked, links: [research.id] }));
+      assert.deepEqual(((await library.get(question))?.fields as { links?: string[] } | undefined)?.links, [research.id]);
+
+      const before = (await library.arcView(arc))?.questions.length;
+      const refused = await agent.call("raise_question", { ...asked, links: [arc] });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, /arc/);
+      assert.equal((await library.arcView(arc))?.questions.length, before, "nothing was raised");
+    });
+  });
+});
+
 test("13.5 open on a contract shows it whole: its title, its description and the capability it belongs to; open on a question reads it whole with the increments held on it; an arc is still refused readably", async () => {
   await withProject(async ({ folder, library }) => {
     const story = await library.addStory({ title: "Visitor can sign up" });

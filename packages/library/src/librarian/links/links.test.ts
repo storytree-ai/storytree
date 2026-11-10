@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Library } from "../../index.js";
+import type { Library, SchemaRecord } from "../../index.js";
 
 import { withLibrary } from "../testing/pg.js";
 import { worklist } from "../rounds/index.js";
@@ -24,9 +24,9 @@ function wholeProject(library: Library, title: string) {
   return library.recordDecision({ title, text: `${title}, for every part of the project.`, status: "accepted" });
 }
 
-test("21.1 link makes a note rest on another, keeping its other links, and linking again writes nothing", async () => {
+test("21.1 link makes a note, or a question open or settled, rest on another note, keeping its other links, and linking again writes nothing; a question linking the plan is refused", async () => {
   await withLibrary(async (library) => {
-    const { cover } = await shelf(library);
+    const { capability, cover } = await shelf(library);
     const tdd = await wholeProject(library, "Minimal viable TDD");
     const spec = await wholeProject(library, "The MVP spec");
     await library.editNote(cover.id, { links: [tdd.id] });
@@ -37,6 +37,17 @@ test("21.1 link makes a note rest on another, keeping its other links, and linki
     const { cursor } = await library.changesSince(0);
     await link(library, cover.id, spec.id);
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
+
+    const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors can sign up" });
+    const question = await library.raiseQuestion({ arc: arc.id, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" });
+    await link(library, question.id, tdd.id);
+    await library.settleQuestion(question.id, { answer: "Mailgun" });
+    await link(library, question.id, spec.id);
+    assert.deepEqual(((await library.get(question.id)) as SchemaRecord<"question"> | null)?.fields.links, [tdd.id, spec.id], "a settled question still gains a link");
+    const settled = (await library.changesSince(0)).cursor;
+    await link(library, question.id, spec.id);
+    await assert.rejects(link(library, question.id, capability.id), /capability/);
+    assert.deepEqual((await library.changesSince(settled)).changes, []);
   });
 });
 

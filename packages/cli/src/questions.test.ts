@@ -336,7 +336,7 @@ test("5.6 `question check` says whether a question's review is fresh or lapsed; 
   });
 });
 
-test("5.7 `library edit <question>` corrects an open question's wording in place; editing a settled question is refused, pointing at its standing answer", async () => {
+test("5.7 `library edit <question>` corrects an open question's wording in place; a settled question refuses a wording edit, pointing at its standing answer, but takes `--links` adding to the links it has", async () => {
   await inWorld(command, async (world) => {
     const { arc } = await arcWithWork(world);
     const library = await world.library();
@@ -352,6 +352,11 @@ test("5.7 `library edit <question>` corrects an open question's wording in place
     assert.equal(refused.code, 1);
     assert.match(refused.stderr, /settled/);
     assert.deepEqual((await library.changesSince(before)).changes, [], "nothing was written");
+
+    const evidence = await library.recordDecision({ status: "accepted", title: "Mailgun's API is the simplest", text: "Measured." });
+    const linked = await world.run(["library", "edit", question.id, "--links", evidence.id]);
+    assert.equal(linked.code, 0, linked.stderr);
+    assert.deepEqual(((await library.get(question.id))?.fields as { links?: string[] } | undefined)?.links, [evidence.id], "a settled question gains a link");
   });
 });
 

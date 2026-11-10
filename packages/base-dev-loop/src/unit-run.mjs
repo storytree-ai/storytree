@@ -35,7 +35,7 @@ import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/ca
 
 import { parseJunit } from "./junit.mjs";
 
-import { stopServersUnder, unitTempPrefix } from "./test-leftovers.mjs";
+import { removeFolder, stopServersUnder, unitTempPrefix } from "./test-leftovers.mjs";
 
 /** The variables that name an agent's session to a command: each watched harness's, and storytree's own. */
 const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness) => (harness.shellSession === undefined ? [] : [harness.shellSession])), SESSION_ENV];
@@ -114,7 +114,7 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
     liveTemps.delete(temp);
     stopServersUnder(temp, { log: (message) => console.error(`test harness: ${message}`) });
     try {
-      rmSync(temp, { recursive: true, force: true, maxRetries: 5 });
+      removeFolder(temp);
     } catch (error) {
       console.error(`test harness: could not remove the unit's temp folder ${temp}: ${error.message}`);
     }

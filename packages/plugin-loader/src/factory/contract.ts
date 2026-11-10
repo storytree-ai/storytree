@@ -240,7 +240,7 @@ export function contractSaid(): string {
     "Its own librarian, librarian-<plugin>, which keeps those records on its schedule as a database role storytree fences to the plugin's kinds:",
     "  \"librarian\": { \"role\": \"<database role>\", \"update\"?: true }: a role of its own, never one of its kinds' writers; update lets it change their records, not only add them",
     "Its own story's plan, kept with its code as the one source of it, which `storytree plugin import-plan <plugin>` writes into a project's plan:",
-    "  \"plan\": \"./plan.json\": a file in its folder holding { story: { title, description?, text? }, capabilities: [{ title: \"1 · …\", description?, text?, proposed?, dependsOn?: [<capability id>], contracts: [{ title: \"1.1 · …\", description? }] }] };",
+    "  \"plan\": \"./plan.json\": a file in its folder holding { story: { title, description?, text? }, capabilities: [{ title: \"1 · …\", description?, text?, proposed?, dependsOn?: [<capability id>], contracts: [{ title: \"1.1 · …\", description?, proof?: { by: \"test-criterion\" | \"agentic-user-acceptance-testing\", reason } }] }] };",
     "    every capability and contract is numbered, since an import matches them by number; the story, capabilities and contracts are then edited only there",
     "",
     "A verb, in a family's verbs:",

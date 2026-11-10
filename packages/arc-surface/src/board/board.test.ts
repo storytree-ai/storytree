@@ -274,6 +274,12 @@ test("3.35 a pull request in CI with its own checks estimate draws its checks le
   const everything = draw({ checks: 14, queue: 15, pulls: [{ pull: 12, checks: 20, system: "linux", full: true, packages: [] }] });
   assert.match(everything.hover, /Checks expected from every package on Linux: a rough estimate/);
 
+  const many = draw({ checks: 14, queue: 15, pulls: [{ pull: 12, checks: 12, system: "darwin", full: false, packages: ["a", "b", "c", "d", "e", "f", "g", "h"].map((name) => `packages/${name}`) }] });
+  assert.match(many.hover, /Checks expected from 8 packages on macOS \(a, b, c, d, e, f and 2 more\): a rough estimate/, "past six, the rest are counted");
+  const untimed = draw({ checks: 14, queue: 15, pulls: [{ pull: 12, checks: 4, full: false, packages: [] }] });
+  assert.equal(untimed.legs[0].expected, 4);
+  assert.match(untimed.hover, /Checks expected from no timed package, setup alone: a rough estimate/);
+
   const none = draw({ checks: 14, queue: 15, pulls: [{ pull: 99, checks: 30, system: "linux", full: true, packages: [] }] });
   assert.equal(none.legs[0].expected, 14, "no estimate of its own: the factory median");
   assert.match(none.hover, /Expected from the factory median/);

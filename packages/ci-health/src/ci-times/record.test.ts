@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
+import { removeTemp } from "@storytree/test-waits";
 
 import { recordCiTimes, type ActionsReader } from "./record.js";
 import { ciScopeRule } from "./scope.js";
@@ -225,7 +226,7 @@ test("6.9 Recording CI times keeps each open pull request's scope, the packages 
 
 test("6.9 An open pull request's scope is read by CI's own rule over the recording's checkout: its changed packages and every package depending on them, or every package for a change no package holds", (t) => {
   const folder = mkdtempSync(path.join(tmpdir(), "ci-scope-"));
-  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  t.after(() => removeTemp(folder));
   const pkg = (dir: string, name: string, deps: Record<string, string> = {}) => {
     mkdirSync(path.join(folder, dir, "src"), { recursive: true });
     writeFileSync(path.join(folder, dir, "package.json"), JSON.stringify({ name, dependencies: deps }));

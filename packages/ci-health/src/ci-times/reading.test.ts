@@ -113,8 +113,11 @@ test("6.10 The CI times reading gives each open pull request's checks estimate f
     await unit(run, at, "win32", "test-timings-Windows-shard-2-1", "packages/a/src/slow.test.ts", 3 * scale);
     await unit(run, at, "win32", "test-timings-Windows-shard-1-1", "packages/b", 4 * scale);
     await unit(run, at, "win32", "test-timings-Windows-shard-2-1", "packages/c", 12 * scale);
+    for (const n of [1, 2, 3, 4, 5, 6]) await unit(run, at, "win32", `test-timings-Windows-shard-${1 + (n % 2)}-1`, `packages/w${n}`, 4 * scale);
   }
   await unit(3, 3 * DAY, "linux", "test-timings-Linux-1", "packages/ab", 50, "fail");
+  // An older run tested Windows unsharded: the shards are the newest run's, not every artifact the week saw.
+  await unit(4, 4 * DAY, "win32", "test-timings-Windows-1", "packages/b", 4);
   // macOS no longer runs on a pull request: its old times are not the slowest system's.
   await unit(9, 6 * DAY, "darwin", "test-timings-macOS-1", "packages/a", 90);
   // Older than a week: not counted.
@@ -124,14 +127,17 @@ test("6.10 The CI times reading gives each open pull request's checks estimate f
   await scope(11, false, ["packages/a"]);
   await scope(12, true, []);
   await scope(13, false, []);
+  await scope(14, false, ["packages/w1", "packages/w2", "packages/w3", "packages/w4", "packages/w5", "packages/w6"]);
 
   const reading = await ciTimesReading(db, project, NOW);
   assert.deepEqual(reading?.legs.pulls, [
     // Linux: (4 + 2) / 2 jobs = 3, under its longest unit, 4. Windows: (6 + 3) / (2 shards x 2 jobs) = 2.25, under 6. Windows is slower: 6, plus 4 of setup.
     { pull: 11, checks: 10, system: "win32", full: false, packages: ["packages/a"] },
-    // Linux: (4 + 2 + 2 + 16) / 2 = 12, under 16. Windows: (6 + 3 + 4 + 12) / 4 = 6.25, under 12. Linux is slower: 16, plus 4.
+    // Linux: (4 + 2 + 2 + 16) / 2 = 12, under 16. Windows: (6 + 3 + 4 + 12 + 6 x 4) / 4 = 12.25. Linux is slower: 16, plus 4.
     { pull: 12, checks: 20, system: "linux", full: true, packages: [] },
     // Nothing to test (docs only): setup alone.
     { pull: 13, checks: 4, full: false, packages: [] },
+    // Six 4-minute units on Windows alone: 24 / (2 shards x 2 jobs) = 6, over its longest unit, plus 4.
+    { pull: 14, checks: 10, system: "win32", full: false, packages: ["packages/w1", "packages/w2", "packages/w3", "packages/w4", "packages/w5", "packages/w6"] },
   ]);
 });

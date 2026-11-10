@@ -31,13 +31,14 @@ const job = (name, conclusion) => ({ name, conclusion });
 const release = (id, sha) => ({ id, head_sha: sha, html_url: url(id) });
 const legs = (conclusions) => conclusions.map((conclusion, i) => job(`package / windows-update (${i < 2 ? "windows-latest" : "windows-11-arm"}, ${i % 2 ? "closed" : "open"})`, conclusion));
 
-test("7.16 · CI's installer job in the run own health credits proves 4.43: passing when it succeeded, nothing when it was skipped or there is no run", async () => {
+test("7.16 · CI's installer job in the run own health credits proves 4.43 and 4.46: passing when it succeeded, nothing when it was skipped or there is no run", async () => {
   const run = { id: 10, run_attempt: 2, html_url: url(10) };
   const passed = await readJobProofs({ github: github({ jobs: { "10/2": [job("installer on Windows", "success"), job("verify", "success")] } }), repo, run });
   const proof = passed.proofs.find((p) => p.contract === "4.43");
   assert.equal(proof?.package, "app");
   assert.equal(proof?.state, "passing");
   assert.equal(proof.note, `workflow job "installer on Windows" passed, ${url(10)}`);
+  assert.equal(passed.proofs.find((p) => p.contract === "4.46")?.state, "passing", "the job also proves the first update off a pre-copy release");
 
   const skipped = await readJobProofs({ github: github({ jobs: { "10/2": [job("installer on Windows", "skipped")] } }), repo, run });
   assert.equal(skipped.proofs.find((p) => p.contract === "4.43"), undefined);

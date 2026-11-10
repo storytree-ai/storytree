@@ -608,8 +608,12 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   await reset();
   Object.assign(options.env, { FIRST: "chatty", LATER: "report" });
   answers = Array(100).fill(false);
+  // The watch reads quiet time on a clock that moves 100 ms with each line the engine writes, so the log grows for 700 ms, past the
+  // 400 ms quiet time, however long a loaded runner keeps the engine from writing its next line.
+  options.offline.clock = () => 100 * (readFileSync(options.log, "utf8").match(/^working /gm)?.length ?? 0);
   assert.equal(await runLane(options), 0, "a log that keeps growing for longer than the quiet time is not stopped, even offline");
   assert.equal((await calls()).length, 1);
+  delete options.offline.clock;
 
   await reset();
   Object.assign(options.env, { FIRST: "linger" });

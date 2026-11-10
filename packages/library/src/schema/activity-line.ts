@@ -244,11 +244,14 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * and the latest line for a branch is its state. A branch no line has resolved is open.
    * Resolved as merged, `pr` is the pull request that merged it. Open, `pr` is its open pull request
    * (Session management's contract 4.24), with whether it is a draft, its checks, and whether it waits in the merge queue
-   * (`draft` and `queued` written only when true); a line written again when any of them changes.
+   * (`draft` and `queued` written only when true), and its CI times (4.47): when its earliest check run started
+   * (`checksSince`), when it joined the merge queue (`queuedSince`, which a re-queue moves) and whether it still waits there
+   * for its turn (`queueWaiting`, only when true); a line written again when any of them changes.
    * Lines are read back unparsed, so a reader that predates these fields reads such a line as it did.
    */
   z.object({ ...common, kind: z.literal("branch-state"), of: z.string().min(1), open: z.boolean(), how: z.enum(["merged", "not-ahead", "deleted", "ahead"]), pr: z.number().int().positive().optional(),
-    draft: z.literal(true).optional(), checks: z.enum(["pending", "passing", "failing"]).optional(), queued: z.literal(true).optional() }).strict(),
+    draft: z.literal(true).optional(), checks: z.enum(["pending", "passing", "failing"]).optional(), queued: z.literal(true).optional(),
+    checksSince: z.string().datetime({ offset: true }).optional(), queuedSince: z.string().datetime({ offset: true }).optional(), queueWaiting: z.literal(true).optional() }).strict(),
   /**
    * What a folder (`of`) on the main line holds, as a look on the machine the line names found it
    * (ADR-0906): whether its working tree has uncommitted changes, and whether its repository has no

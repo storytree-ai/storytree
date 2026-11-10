@@ -40,6 +40,20 @@
 .arc-landed-mark { width: 54px; background: #5b997559; }
 .arc-more-mark { width: 35px; background: #8d949859; }
 .arc-check-back { outline: 1px solid #d3a84c; outline-offset: 1px; }
+/* A pull request in CI (3.34): one row per pull request under the strip, its number then two legs, checks then the queue, side by side. */
+.arc-ci-bars { display: flex; flex-direction: column; gap: 3px; margin-top: 5px; }
+.arc-ci { display: flex; align-items: center; gap: 3px; }
+.arc-ci-pr { flex: 0 0 auto; min-width: 30px; font-size: .58rem; line-height: 1; color: var(--muted, #adb8b2); }
+.arc-ci svg { display: block; flex: 0 1 auto; max-width: 100%; }
+.arc-ci-track { fill: #8d949833; }
+.arc-ci-fill { fill: #78b396; }
+.arc-ci-done .arc-ci-fill { fill: #5b9975; }
+.arc-ci-long .arc-ci-fill { fill: #d3a84c; }
+.arc-ci-hung .arc-ci-fill { fill: #be6463; animation: arc-ci-pulse 1.4s ease-in-out infinite; }
+/* Queued, not running yet: hatched, with no fill. */
+.arc-ci-hatch { fill: none; stroke: #8d9498aa; stroke-width: 1.2; }
+@keyframes arc-ci-pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .arc-ci-hung .arc-ci-fill { animation: none; } }
 /* A holder's flag: its foot at the oval's middle, a little left of centre, so the pennant flies over the oval. An increment has one holder, so one flag. */
 .arc-agent-mark { position: absolute; left: 3px; top: -11px; overflow: visible; pointer-events: none; }
 .arc-other-waits { color: var(--muted, #adb8b2); font-size: .68rem; }

@@ -114,3 +114,14 @@ test("1.6 an idle claim does not hide free work: free work reads ready beside it
   assert.equal(arcState("active", { increments: [claimed], claims: [held] }), "idle", "only idle-claimed work and nothing free reads idle");
   assert.equal(arcState("active", { increments: [incrementState(open, { waits })], claims: [held] }), "queued", "queued still outranks idle");
 });
+
+test("1.7 an increment whose handed-over pull request is in CI reads in CI, before the watcher's event wait would read it queued; its arc reads in progress", () => {
+  const active = { ...open, status: "active" as const };
+  const merging: NoteWait = { releaser: "event", note: "PR #12 merges", checkBack: "2999-01-01", holds: true };
+  const handedOver: Claim = { ...held, session: "pull-request-12", holder: "live" };
+  assert.equal(incrementState(active, { waitsFor: [merging], claim: handedOver }).state, "queued", "out of CI, the watcher's wait reads queued");
+  const inCi = incrementState(active, { waitsFor: [merging], claim: handedOver, inCi: true });
+  assert.deepEqual(inCi, { state: "in-ci", color: "grey", progress: "in-progress" });
+  assert.equal(incrementState(active, { heldOn: ["q"], inCi: true }).state, "waiting-on-you", "your question still comes first");
+  assert.equal(arcState("active", { increments: [inCi] }), "in-progress", "with no claim read beside it");
+});

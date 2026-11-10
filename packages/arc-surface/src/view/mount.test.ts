@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setImmediate as settle } from "node:timers/promises";
 import { Window } from "happy-dom";
+import type { Line } from "@storytree/library";
+import { waitUntil } from "@storytree/test-waits";
 import type { BoardReads } from "../board/reads.js";
 import { record } from "../testing/records.js";
 import { mountArcSurface } from "./index.js";
@@ -474,4 +476,62 @@ test("4.1 · a queued arc's chip selects it and draws its expansion under the ch
   chip().click();
   assert.ok(document.querySelector(".arc-queued-under") === null);
   assert.equal(document.querySelector('[data-arc-queue="first"]')!.getAttribute("aria-expanded"), "true", "its blocker stays open");
+});
+
+test("3.34 · the rail reads each CI leg's factory median once mounted and every ten minutes, and redraws a pull request's CI bar against the clock", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const start = Date.parse("2026-11-11T12:00:00Z");
+  let now = start;
+  const at = (minutesAgo: number) => new Date(start - minutesAgo * 60_000).toISOString();
+  const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
+  const shipping = record("inc_1", "increment", { arc: "arc_1", title: "Ship the bar", objective: "o", body: "b", status: "active" });
+  const lines = [
+    { project: "p", seq: 1, at: at(20), source: "tool", kind: "claimed", harness: "watcher", session: "pull-request-12", increment: "inc_1", reason: "handed over" },
+    { project: "p", seq: 2, at: at(1), source: "tool", kind: "branch-state", session: "observer", of: "claude/ship", open: true, how: "ahead", pr: 12, checks: "pending", checksSince: at(7) },
+  ] as Line[];
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async (_project, from) => ({ lines: from === 0 ? lines : [], cursor: 2 }),
+    boardArcs: async () => [{ arc, increments: [shipping], questions: [], state: "active" }], closedArcs: async () => [],
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  const medians = [{ checks: 14 }, { checks: 28 }, undefined];
+  let asked = 0;
+  const ticks = new Map<number, () => void>();
+  surface = mountArcSurface(document.body, {
+    project: "p", reads, ciExpected: async () => medians[asked++],
+    timers: { now: () => now, every: (ms, tick) => { ticks.set(ms, tick); return () => { ticks.delete(ms); }; } },
+  });
+  const fill = () => document.querySelector(".arc-ci-checks .arc-ci-fill")?.getAttribute("data-fill");
+  await waitUntil(() => fill() === "50", 2_000, "the CI bar drawn at 7 of 14 minutes");
+  assert.equal(asked, 1, "read once mounted");
+  const row = document.querySelector(".arc-row");
+  now = start + 7 * 60_000;
+  ticks.get(60_000)!();
+  assert.equal(fill(), "95", "the clock moved: 14 of 14 minutes, held at 95%");
+  assert.ok(document.querySelector(".arc-ci-checks.arc-ci-long"), "and amber");
+  assert.ok(document.querySelector(".arc-row") === row, "only the CI bar was drawn again: the lane's row is the node it was");
+  ticks.get(600_000)!();
+  await waitUntil(() => fill() === "50", 2_000, "the CI bar drawn against the new median");
+  assert.equal(asked, 2, "read again ten minutes on: 14 of a median now 28 minutes");
+  assert.ok(document.querySelector(".arc-row") === row, "a new median draws only the CI bar");
+  ticks.get(600_000)!();
+  await waitUntil(() => asked === 3, 2_000, "the third read");
+  ticks.get(60_000)!();
+  assert.equal(fill(), "50", "an unreadable median keeps the last one read");
+  surface.stop();
+  assert.equal(ticks.has(600_000), false, "stopped, it reads no more");
 });

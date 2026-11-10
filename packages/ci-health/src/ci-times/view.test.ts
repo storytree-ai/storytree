@@ -22,6 +22,7 @@ const READING: CiTimesReading = {
   readAt: "2026-11-10T11:57:00.000Z",
   toMerge: { median: 36.4, was: 57, merged: 40, days: [50, 60, null, 55, 57, 58, 70, 40, 36, 30, 36, 38, 35, 33] },
   run: { median: 13.2, bound: "win32", runs: 120 },
+  legs: { checks: 12.5, queue: 14 },
   queue: { reds: 22, runs: 100 },
   now: { inCi: 2, inQueue: 1 },
 };

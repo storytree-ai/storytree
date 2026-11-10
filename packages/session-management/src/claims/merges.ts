@@ -231,6 +231,12 @@ export interface OpenPull {
   readonly checks?: "pending" | "passing" | "failing";
   /** Whether it waits in the merge queue (ADR-0796). */
   readonly queued: boolean;
+  /** When its head commit's earliest check run started (contract 4.47); none while none has started. */
+  readonly checksSince?: string;
+  /** When it joined the merge queue: a re-queue moves it (4.47). */
+  readonly queuedSince?: string;
+  /** Whether it still waits in the merge queue for its turn, its checks there not yet running (4.47); written only when true. */
+  readonly queueWaiting?: true;
 }
 
 /** Every open pull request of the project's repository, by the branch it comes from; undefined when GitHub could not say. */
@@ -253,7 +259,7 @@ export const ghAllOpenPulls: AllOpenPulls = (folder) => allOpenPullsThrough("gh"
  * arguments. Undefined, as unanswered, when a page cannot be read or finished, or GitHub does not say a pull request's head.
  */
 export const allOpenPullsThrough = (command: string, prefix: readonly string[] = []): AllOpenPulls => async (folder) => {
-  const query = "query($owner:String!,$name:String!,$after:String){repository(owner:$owner,name:$name){nameWithOwner pullRequests(states:OPEN,first:100,after:$after,orderBy:{field:UPDATED_AT,direction:DESC}){pageInfo{hasNextPage endCursor} nodes{number headRefName isDraft isInMergeQueue isCrossRepository headRepository{nameWithOwner} commits(last:1){nodes{commit{statusCheckRollup{state}}}}}}}}";
+  const query = "query($owner:String!,$name:String!,$after:String){repository(owner:$owner,name:$name){nameWithOwner pullRequests(states:OPEN,first:100,after:$after,orderBy:{field:UPDATED_AT,direction:DESC}){pageInfo{hasNextPage endCursor} nodes{number headRefName isDraft isInMergeQueue isCrossRepository headRepository{nameWithOwner} mergeQueueEntry{enqueuedAt state} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){nodes{... on CheckRun{startedAt}}}}}}}}}}}";
   const byBranch = new Map<string, OpenPull>();
   let after: string | undefined;
   for (let page = 0; page < OPEN_PAGES; page++) {
@@ -269,8 +275,9 @@ export const allOpenPullsThrough = (command: string, prefix: readonly string[] =
       // Only the repository's own reach the map, so a fork's on the same branch never stands in for one.
       for (const pull of own) {
         if (typeof pull?.number !== "number" || typeof pull?.headRefName !== "string" || byBranch.has(pull.headRefName)) continue;
-        const checks = CHECKS[pull.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? ""];
-        byBranch.set(pull.headRefName, { number: pull.number, draft: pull.isDraft === true, ...(checks === undefined ? {} : { checks }), queued: pull.isInMergeQueue === true });
+        const rollup = pull.commits?.nodes?.[0]?.commit?.statusCheckRollup;
+        const checks = CHECKS[rollup?.state ?? ""];
+        byBranch.set(pull.headRefName, { number: pull.number, draft: pull.isDraft === true, ...(checks === undefined ? {} : { checks }), queued: pull.isInMergeQueue === true, ...ciTimes(rollup?.contexts?.nodes, pull.mergeQueueEntry) });
       }
       if (!pageInfo.hasNextPage) return byBranch;
       if (typeof pageInfo.endCursor !== "string" || pageInfo.endCursor === "") return undefined;
@@ -281,6 +288,15 @@ export const allOpenPullsThrough = (command: string, prefix: readonly string[] =
   }
   return undefined;
 };
+
+/** When an open pull request's checks started, and when it joined the merge queue and whether it waits there for its turn (4.47). */
+function ciTimes(contexts: unknown, entry: { enqueuedAt?: unknown; state?: unknown } | null | undefined): Pick<OpenPull, "checksSince" | "queuedSince" | "queueWaiting"> {
+  const started = (Array.isArray(contexts) ? contexts : []).flatMap((context: { startedAt?: unknown } | null) =>
+    typeof context?.startedAt === "string" && !Number.isNaN(Date.parse(context.startedAt)) ? [context.startedAt] : []);
+  const checksSince = started.sort((a, b) => Date.parse(a) - Date.parse(b))[0];
+  const queuedSince = typeof entry?.enqueuedAt === "string" ? entry.enqueuedAt : undefined;
+  return { ...(checksSince === undefined ? {} : { checksSince }), ...(queuedSince === undefined ? {} : { queuedSince }), ...(queuedSince !== undefined && entry?.state === "QUEUED" ? { queueWaiting: true } : {}) };
+}
 
 /**
  * A file in the temp directory named for `project`. An approved project name is used as it is; any

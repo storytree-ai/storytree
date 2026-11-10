@@ -4,6 +4,7 @@ import { pennantOutline, quietColour, sessionColour } from "@storytree/session-m
 import type { BoardAgent } from "../agents/agents.js";
 import { briefing, incrementRows, type IncrementRow, type QuestionReading } from "../briefing/briefing.js";
 import { ownerCount, ownerWaits, type Bar, type BoardView, type Lane, type LaneNoteWait } from "../board/board.js";
+import type { CiBar, CiLeg } from "../board/ci-bars.js";
 import { queueRun, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
 
 export const escape = (text: string) => text.replace(/[&<>"']/gu, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
@@ -63,6 +64,39 @@ function renderStrip(bars: readonly Bar[], perRow: number | undefined): string {
   return (landed.length ? foldMark("landed", `${landed.length} landed`, `${landed.length} landed`, landed) : "")
     + shown.map(renderBar).join("") + (hidden.length ? foldMark("more", `+${hidden.length}`, `${hidden.length} more`, hidden) : "");
 }
+const LEG_NAMES: Record<CiLeg["name"], string> = { checks: "Checks", queue: "Merge queue" };
+const TONES: Record<CiLeg["tone"], string> = { "on-time": "", long: " · running long", hung: " · well past: hung or flaky?" };
+const mins = (minutes: number) => `${Math.floor(minutes)} min`;
+/** What one leg says on its bar's hover: elapsed over expected while it runs (3.34). */
+function legText(leg: CiLeg): string {
+  const said = leg.phase === "waiting" ? (leg.name === "queue" ? "waiting its turn" : "waiting to run")
+    : leg.phase === "done" ? "passed" : leg.phase === "ahead" ? "not yet"
+    : leg.expected === undefined ? `${mins(leg.elapsed ?? 0)}, no factory median yet` : `${mins(leg.elapsed ?? 0)} of ${mins(leg.expected)} expected${TONES[leg.tone]}`;
+  return `${LEG_NAMES[leg.name]}: ${said}`;
+}
+/** A CI leg's drawn length, the gap between the two and their height, in the bar's own pixels. */
+const CI_LEG = 90, CI_GAP = 4, CI_HEIGHT = 5;
+/**
+ * One leg as drawn: its track, its fill as long as its share and hatching while it waits to run. An SVG's attributes, never an
+ * inline style, which the page's content security policy refuses.
+ */
+function renderCiLeg(leg: CiLeg, index: number): string {
+  const x = index * (CI_LEG + CI_GAP);
+  const fill = leg.phase === "running" || leg.phase === "done"
+    ? `<rect class="arc-ci-fill" data-fill="${Math.round(leg.fill * 100)}" x="${x}" width="${px(CI_LEG * leg.fill)}" height="${CI_HEIGHT}" rx="2.5"/>` : "";
+  const hatch = leg.phase === "waiting" ? `<path class="arc-ci-hatch" d="${Array.from({ length: CI_LEG / 5 }, (_, i) => `M${x + i * 5 + 0.5} ${CI_HEIGHT}L${x + i * 5 + 4.5} 0`).join("")}"/>` : "";
+  return `<g class="arc-ci-leg arc-ci-${leg.name} arc-ci-${leg.phase} arc-ci-${leg.tone}"><rect class="arc-ci-track" x="${x}" width="${CI_LEG}" height="${CI_HEIGHT}" rx="2.5"/>${fill}${hatch}</g>`;
+}
+/** A pull request in CI's two-leg bar (3.34): its checks, then the merge queue, each filled by time over its factory median. */
+function renderCiBar(bar: CiBar): string {
+  const title = [`Pull request #${bar.pr} in CI: ${bar.increment.title}`, ...bar.legs.map(legText), "Expected from the factory median",
+    `Last change seen ${bar.seenAgo} min ago`].join("\n");
+  const width = 2 * CI_LEG + CI_GAP;
+  return `<span class="arc-ci" data-ci-pr="${bar.pr}" data-ci-increment="${escape(bar.increment.id)}" role="img" aria-label="${escape(title)}" title="${escape(title)}"><span class="arc-ci-pr" aria-hidden="true">#${bar.pr}</span>`
+    + `<svg viewBox="0 0 ${width} ${CI_HEIGHT}" width="${width}" height="${CI_HEIGHT}" aria-hidden="true">${bar.legs.map(renderCiLeg).join("")}</svg></span>`;
+}
+/** A lane's CI bars, one per pull request in CI, as its `.arc-ci-bars` holds them: drawn apart, the clock moves only these (3.34). */
+export const renderCiBars = (lane: Lane): string => lane.ci.map(renderCiBar).join("");
 function laneText(lane: Lane): string {
   return [lane.count, ...lane.agents.map(agentText), ...lane.waits.map(waitText), ...lane.noteWaits.map(laneNoteText),
     ...lane.holdsUp.map((work) => `Holds up ${because(workText(work), work.reason)}`)].join("\n");
@@ -99,7 +133,7 @@ function renderExpansion(lane: Lane, key: string): string {
     + `${rows.length ? `<div class="arc-table arc-rail-increments">${unfolded.map((row) => renderIncrementRow(key, row)).join("")}${landed.length ? `<details class="arc-fold arc-landed-fold" data-fold-key="${escape(`${key}:landed`)}"><summary>${landed.length} landed</summary>${landed.map((row) => renderIncrementRow(key, row)).join("")}</details>` : ""}</div>` : ""}`;
 }
 /** An arc's row and what its caret, or its click, opens under it (3.21, ADR-1222): its expansion, then its queued arcs, the selected one's expansion under them (4.1). */
-function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: string | undefined, expanded: ReadonlySet<string>, perRow: number | undefined): string {
+function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: string | undefined, expanded: ReadonlySet<string>, perRow: number | undefined, ciApart: boolean): string {
   const lane = lanes.get(queue.arc.id)!;
   const open = expanded.has(lane.id);
   const run = queueRun(queue);
@@ -119,7 +153,7 @@ function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: 
     <span class="arc-caret-slot"><button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-under-${escape(lane.id)}" aria-label="${escape(caretLabel)}" title="${escape(caretLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button></span>
     <button type="button" class="arc-lane" data-arc-select="${escape(lane.id)}" aria-pressed="${opened === lane.id}" aria-expanded="${open}">
       <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(chipText(lane))}">${escape(lane.chip)}</span>${lane.priority === undefined ? "" : `<span class="arc-chip arc-priority" title="Priority ${lane.priority}">P${lane.priority}</span>`}<span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span>${renderMarks(lane)}</span>
-      <span class="arc-track${lane.bars.some(({ agents }) => agents.length) ? " arc-flagged" : ""}"><span class="arc-bars" role="group" aria-label="${escape(`Increments: ${lane.count}`)}">${renderStrip(lane.bars, perRow)}</span></span>
+      <span class="arc-track${lane.bars.some(({ agents }) => agents.length) ? " arc-flagged" : ""}"><span class="arc-bars" role="group" aria-label="${escape(`Increments: ${lane.count}`)}">${renderStrip(lane.bars, perRow)}</span></span>${lane.ci.length ? `<span class="arc-ci-bars" data-ci-lane="${escape(lane.id)}">${ciApart ? "" : renderCiBars(lane)}</span>` : ""}
     </button></div>${open ? `<div class="arc-under" id="arc-under-${escape(lane.id)}">${under}</div>` : ""}</section>`;
 }
 /** One question, one row: its title and its status, unfolding in place to its reading (5.2, ADR-0980 D5). */
@@ -156,11 +190,12 @@ function renderClosedRange(closed: NonNullable<BoardView["closed"]>): string {
 /**
  * HTML is a reading: every stored title and field is escaped before entering the page. The arc selected by its row's click is
  * pressed, and the arcs in `expanded` show what is under their rows. `perRow` is how many ovals one row of a strip holds, as the page measured it; unmeasured, strips are drawn whole.
+ * With `ciApart`, each lane's CI bars are left out of their holder, for `renderCiBars` to fill on their own (3.34).
  */
-export function renderBoard(board: BoardView, opened?: string, expanded: ReadonlySet<string> = new Set(), perRow?: number): string {
+export function renderBoard(board: BoardView, opened?: string, expanded: ReadonlySet<string> = new Set(), perRow?: number, ciApart = false): string {
   const lanes = new Map(board.lanes.map((lane) => [lane.id, lane]));
   return `<nav class="arc-scopes" aria-label="Arc lifecycle">${(["active", "parked", "closed"] as const).map((scope) => `<button type="button" data-arc-scope="${scope}" aria-pressed="${board.scope === scope}">${scope[0]!.toUpperCase() + scope.slice(1)}</button>`).join("")}</nav>
     ${board.closed ? renderClosedRange(board.closed) : ""}
-    <div class="arc-lanes" aria-label="Arcs">${board.lanes.length ? board.queues.map((queue) => renderQueue(queue, lanes, lanes.has(opened ?? "") ? opened : undefined, expanded, perRow)).join("")
+    <div class="arc-lanes" aria-label="Arcs">${board.lanes.length ? board.queues.map((queue) => renderQueue(queue, lanes, lanes.has(opened ?? "") ? opened : undefined, expanded, perRow, ciApart)).join("")
       : board.closed?.reading ? `<p class="arc-empty" role="status">Reading closed arcs…</p>` : `<p class="arc-empty">No ${board.closed ? "arcs closed in this range" : `${board.scope} arcs`}.</p>`}</div>`;
 }

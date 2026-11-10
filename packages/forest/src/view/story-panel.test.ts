@@ -293,6 +293,24 @@ test("4.5 a contract something judged reads tests pass, fail or not run, with wh
   assert.doesNotMatch(shown(html), /storytree saw|the agent reports/);
 });
 
+test("4.45 a contract marked for agentic user acceptance testing shows that line in full words, passed, failed or not run; an unmarked contract shows no such line", () => {
+  const shown = (part: string): string => part.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const base = line("cap", "passing", "unhealthy");
+  const contracts: CapabilityLine["contracts"] = [
+    { id: "k1", title: "3.1 · Seen", reported: "passing", trail: "green only", verified: "passing", source: "ci", acceptance: "passed" },
+    { id: "k2", title: "3.2 · Broken", reported: "passing", trail: "green only", acceptance: "failed" },
+    { id: "k3", title: "3.3 · Waiting", reported: "passing", trail: "green only", verified: "passing", acceptance: "not-run" },
+    { id: "k4", title: "3.4 · Plain", reported: "passing", trail: "green only", verified: "passing", source: "ci" },
+  ];
+  const html = renderStoryPanel({ ...panel, capabilities: [{ ...base, contracts }] }, "cap");
+  const said = (id: string): string => shown(new RegExp(`<li data-contract-id="${id}">[\\s\\S]*?panel-contract-said[\\s\\S]*?</button>`).exec(html)?.[0] ?? "");
+  assert.match(said("k1"), /^3\.1 · Seen tests pass, from CI agentic user acceptance testing: passed$/);
+  assert.match(said("k2"), /^3\.2 · Broken the agent's claim: passing agentic user acceptance testing: failed$/);
+  assert.match(said("k3"), /^3\.3 · Waiting tests pass agentic user acceptance testing: not run$/);
+  assert.doesNotMatch(said("k4"), /acceptance/, "an unmarked contract shows no such line");
+  assert.doesNotMatch(shown(html), /\bUAT\b/, "never abbreviated");
+});
+
 test("4.37 storytree's mark names its source on each contract: verified locally, from CI, or both; the reason says the source of what carries it; no source recorded, it says none", () => {
   const shown = (part: string): string => part.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const base = line("base", "passing", "unhealthy");

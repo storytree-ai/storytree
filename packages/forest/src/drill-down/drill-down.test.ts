@@ -85,6 +85,18 @@ test("4.5 storytree's own column shows beside the agent's only where something w
   assert.equal(bare?.capabilities[0]?.verified, undefined);
 });
 
+test("4.45 a contract marked for agentic user acceptance testing carries its state, not run until a run writes one; an unmarked contract carries none", () => {
+  const marked: AnnotatedContract = { ...contract("marked", "passing"), proof: { by: "agentic-user-acceptance-testing", reason: "a user sees it on screen" } };
+  const tested: AnnotatedContract = { ...contract("tested", "passing"), proof: { by: "test-criterion", reason: "a test reads it" } };
+  const tree: AnnotatedTree = { stories: [story("s", capability("c", [], [marked, tested, contract("bare", "passing")]))], arcs: [] };
+  const lines = drillDown(tree, "s", workStates([]), [])?.capabilities[0]?.contracts ?? [];
+  assert.deepEqual(lines.map(({ id, acceptance }) => [id, acceptance]), [
+    ["marked", "not-run"],
+    ["tested", undefined],
+    ["bare", undefined],
+  ]);
+});
+
 test("4.1 each capability carries the library's word for it", () => {
   const tree: AnnotatedTree = { stories: [story("a", capability("login", [], [], "Logs in.", "unhealthy"), capability("logout", [], [], "Logs out.", "healthy"))], arcs: [] };
   assert.deepEqual(drillDown(tree, "a", workStates([]), [])?.capabilities.map(({ id, status }) => [id, status]), [["login", "unhealthy"], ["logout", "healthy"]]);

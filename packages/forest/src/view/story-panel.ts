@@ -7,7 +7,7 @@
  * click opens (ADR-1287; ./panel-folds.ts works them). The island draws the capability tree and the territories carry
  * health, so the panel draws neither (ADR-1285). Every word from the library is written as text, never as HTML.
  */
-import type { CapabilityLine, ContractLine, StoryPanel, WhyLine } from "@storytree/forest";
+import type { AcceptanceState, CapabilityLine, ContractLine, StoryPanel, WhyLine } from "@storytree/forest";
 import type { HealthSource, HealthState } from "@storytree/library";
 
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
@@ -117,15 +117,17 @@ function contracts(line: CapabilityLine): string {
 /**
  * Contracts, a capability's or a link's alike, each by its title and its state in plain words: "tests pass", "tests fail"
  * or "tests not run" with its source where something judged it, else the agent's claim, labelled as its claim and never
- * as a check (ADR-1294 D1, question_ee767f05e0b9 part 4). Each opens one level deeper to its trail, and when it was last
+ * as a check (ADR-1294 D1, question_ee767f05e0b9 part 4); a contract marked for agentic user acceptance testing also
+ * says where that stands, and an unmarked one says nothing of it. Each opens one level deeper to its trail, and when it was last
  * seen if not re-run since.
  */
 function contractList(contracts: readonly ContractLine[]): string {
   return `<ul class="panel-contracts">${contracts
     .map((contract) => {
       const state = contract.verified === undefined ? claim(contract.reported) : tests(contract.verified, contract.source);
+      const acceptance = contract.acceptance === undefined ? "" : ` ${accepted(contract.acceptance)}`;
       return `
-      <li data-contract-id="${attribute(contract.id)}">${fold("contract", `<span class="panel-contract-said">${text(contract.title)} ${state}</span>`, `
+      <li data-contract-id="${attribute(contract.id)}">${fold("contract", `<span class="panel-contract-said">${text(contract.title)} ${state}${acceptance}</span>`, `
         <span class="panel-health">
           <span class="panel-trail">${text(trail(contract.trail))}</span>
           ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
@@ -220,6 +222,17 @@ const TESTS: Readonly<Record<HealthState, string>> = { passing: "tests pass", fa
 
 function tests(state: HealthState, source: HealthSource | undefined): string {
   return `<span class="panel-badge badge-${state}">${TESTS[state]}${source === undefined ? "" : `, ${FROM[source]}`}</span>`;
+}
+
+/** Agentic user acceptance testing's state on a contract marked for it, in full words, never "UAT" (ADR-1294 D1). */
+const ACCEPTANCE: Readonly<Record<AcceptanceState, { words: string; badge: HealthState }>> = {
+  passed: { words: "passed", badge: "passing" },
+  failed: { words: "failed", badge: "failing" },
+  "not-run": { words: "not run", badge: "not-checked" },
+};
+
+function accepted(state: AcceptanceState): string {
+  return `<span class="panel-badge badge-${ACCEPTANCE[state].badge}">agentic user acceptance testing: ${ACCEPTANCE[state].words}</span>`;
 }
 
 /** Where storytree saw a verdict, in words (ADR-1193 D3). */

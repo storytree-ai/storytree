@@ -26,3 +26,5 @@ Pictures, 1440 x 960:
 
 Taken with `node --import tsx packages/forest/testing/view/sea-strands/capture.mjs` (append `--retake` to write here);
 the before pictures by the same script on main's lane drawing.
+
+In the evidence bucket for #698, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `698/before-near.png`, `698/before-zoomed-out.png`, `698/near-the-knowledge-core.png`, `698/the-knowledge-core-selected.png`, `698/zoomed-out.png`.

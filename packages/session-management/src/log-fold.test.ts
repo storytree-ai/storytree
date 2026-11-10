@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Line, NewLine } from "@storytree/library";
-import { claimsFrom, LogFold, sessionsFrom } from "./readings.js";
+import { claimsFrom, inCi, LogFold, sessionsFrom } from "./readings.js";
 
 /** A small seeded generator, so the log is the same on every run. */
 function random(seed: number): () => number {
@@ -166,4 +166,28 @@ test("4.46 · a fold names the sessions with a line of their own it has never fo
   assert.deepEqual(fold.snapshot().branchStates.find(([branch]) => branch === "feat/a")?.[1].open, false, "and a branch's later state stands");
   fold.foldEarlier([line(2, "here", "session-named", { title: "Renamed" })]);
   assert.equal(fold.sessions(options).find(({ session }) => session === "here")?.name, undefined, "a session it already knows is left as it is");
+});
+
+test("4.48 · the open pull requests in CI and in the merge queue are counted from their branch states, each once by its latest line, by the one in-CI test: its checks pending, or in the queue", () => {
+  const at = (minutes: number) => new Date(START + minutes * 60_000).toISOString();
+  const state = (seq: number, of: string, more: Record<string, unknown>) => ({ seq, project: "p", at: at(seq), session: "watch", source: "hook", kind: "branch-state", of, open: true, how: "ahead", ...more }) as Line;
+  const fold = new LogFold();
+  assert.equal(fold.pullsInCi(), undefined, "holding no branch state, it says no count rather than none");
+  fold.add([
+    state(1, "feat/a", { pr: 10, checks: "pending" }),
+    state(2, "feat/b", { pr: 11, checks: "pending" }),
+    state(3, "feat/b", { pr: 11, checks: "passing", queued: true }),
+    state(4, "feat/c", { pr: 12, checks: "passing" }),
+    state(5, "feat/d", { pr: 13, checks: "failing" }),
+    state(6, "feat/e", { pr: 14, checks: "pending" }),
+    state(7, "feat/e", { open: false, how: "merged" }),
+    state(8, "feat/f", { checks: "pending" }),
+    state(9, "feat/a2", { pr: 10, checks: "pending" }),
+  ]);
+
+  assert.deepEqual(fold.pullsInCi(), { inCi: 1, inQueue: 1 }, "#10 once though two branches name it; #11 queued; passing, failing, merged and no pull request are not in CI");
+  assert.equal(inCi({ checks: "pending", queued: false }), true);
+  assert.equal(inCi({ checks: "passing", queued: true }), true);
+  assert.equal(inCi({ checks: "failing", queued: false }), false);
+  assert.equal(inCi({ queued: false }), false, "no checks said");
 });

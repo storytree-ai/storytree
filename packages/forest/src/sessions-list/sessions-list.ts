@@ -1,5 +1,5 @@
 /** Capability 7 · Running sessions. The forest's running sessions, read from Session management; no transcript or liveness reader here. */
-import { logReading, QUIET_MS, type LogReading, type PullState, type Session, type SessionState } from "@storytree/session-management/readings";
+import { inCi, logReading, QUIET_MS, type LogReading, type PullState, type Session, type SessionState } from "@storytree/session-management/readings";
 import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
@@ -169,7 +169,8 @@ function worktreeRows(session: Session): WorktreeRow[] {
 
 /** A pull request as one short label (7.15): what it waits on, the merge queue before its checks, or its number alone. */
 function pullLabel(pr: PullState): string {
-  const waiting = pr.queued ? "in merge queue" : pr.draft ? "draft" : pr.checks === "failing" ? "failing" : pr.checks === "pending" ? "in CI" : undefined;
+  // In CI by the reading's own test (Session management 4.48), as the arc lanes' CI bars and the map's corner count read it.
+  const waiting = pr.queued ? "in merge queue" : pr.draft ? "draft" : pr.checks === "failing" ? "failing" : inCi(pr) ? "in CI" : undefined;
   return waiting === undefined ? `PR #${pr.number}` : `PR #${pr.number} · ${waiting}`;
 }
 

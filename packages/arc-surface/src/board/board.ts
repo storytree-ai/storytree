@@ -1,8 +1,8 @@
 /** Capability 3 · Arc surface. */
-import { logReading, pullOf, type LogReading } from "@storytree/session-management/readings";
+import { inCi, logReading, pullOf, type LogReading } from "@storytree/session-management/readings";
 import type { BoardArcView, Hold, Line, NoteWait, PrCutover } from "@storytree/library";
 import type { ClosedRange } from "./closed-range.js";
-import { ciLegs, inCi, type CiBar, type CiExpected } from "./ci-bars.js";
+import { ciLegs, type CiBar, type CiExpected } from "./ci-bars.js";
 import { agentsOnBoard, type ArcWork, type BoardAgent } from "../agents/agents.js";
 import { arcQueues, waitsOnBoard, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
 import { arcState, incrementState, questionsBehind, type ArcState, type IncrementReading } from "../work-states/board-states.js";

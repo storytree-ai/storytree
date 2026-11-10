@@ -8,7 +8,7 @@ import { test } from "node:test";
 
 import { ConnectionError } from "@storytree/library";
 
-import { keepTrying, openPatiently } from "./library-wait.js";
+import { keepTrying, keepTryingBehind, openAtStartup, openPatiently, type LibraryQuery } from "./library-wait.js";
 
 /** A key command whose ssh could not reach the box, as @storytree/keys throws it, inside the app's own refusal. */
 function sshDown(): Error {
@@ -91,4 +91,54 @@ test("1.47 after the startup wait the app keeps trying an unreachable library an
     ...clock(),
   });
   assert.equal(tries, 1, "a quitting app stops trying");
+});
+
+test("1.46 · the app's start shows the page waiting while it waits, then the project's library, or the problem, saying it keeps trying only when the library could not be reached", async () => {
+  const shown: LibraryQuery[] = [];
+  const logged: string[] = [];
+  let tries = 0;
+  const opened = await openAtStartup({
+    open: async () => { tries += 1; if (tries < 2) throw sshDown(); return "library"; },
+    show: (query) => { shown.push(query); },
+    log: (line) => { logged.push(line); },
+    ...clock(),
+  });
+  assert.deepEqual(opened, { opened: "library" });
+  assert.equal(shown.length, 1);
+  assert.match(shown[0]!.waiting ?? "", /cannot be reached yet.*exit 255/);
+  assert.deepEqual(logged, [shown[0]!.waiting]);
+
+  const gaveUp = await openAtStartup({ open: async () => { throw sshDown(); }, show: () => {}, log: () => {}, ...clock() });
+  assert.ok("problem" in gaveUp && gaveUp.unreachable);
+  assert.match(gaveUp.problem, /^The app's library could not be opened: .*exit 255.* The app keeps trying, and opens your project once the library answers\.$/);
+
+  const refused = await openAtStartup({ open: async () => { throw new ConnectionError("password", "the box refused the password"); }, show: () => assert.fail("never waits"), log: () => {}, ...clock() });
+  assert.deepEqual(refused, { problem: "The app's library could not be opened: the box refused the password", unreachable: false });
+});
+
+test("1.47 · behind the error page, a library that answers is handed on and the page shown with no problem; one that refuses for good shows why", async () => {
+  const shown: LibraryQuery[] = [];
+  const opened: string[] = [];
+  let tries = 0;
+  await keepTryingBehind({
+    open: async () => { tries += 1; if (tries < 2) throw sshDown(); return "library"; },
+    opened: (library) => { opened.push(library); assert.deepEqual(shown, [], "handed on before the page reads it"); },
+    show: (query) => { shown.push(query); },
+    log: () => {},
+    stopped: () => false,
+    ...clock(),
+  });
+  assert.deepEqual(opened, ["library"]);
+  assert.deepEqual(shown, [{}]);
+
+  shown.length = 0;
+  await keepTryingBehind({
+    open: async () => { throw new ConnectionError("password", "the box refused the password"); },
+    opened: () => assert.fail("never answers"),
+    show: (query) => { shown.push(query); },
+    log: () => {},
+    stopped: () => false,
+    ...clock(),
+  });
+  assert.deepEqual(shown, [{ problem: "The app's library could not be opened: the box refused the password" }]);
 });

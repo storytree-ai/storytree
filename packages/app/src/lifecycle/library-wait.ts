@@ -5,6 +5,7 @@
  * past that the error page shows, and the app keeps trying behind it and opens the project once the library answers.
  * A failure that will not fix itself (a refused password, a key command refused for any other reason) stands at once.
  */
+import { libraryProblem } from "./open-where-set.js";
 
 /** How long startup waits for a library it cannot reach yet before its error page shows. */
 export const STARTUP_WAIT_MS = 120_000;
@@ -90,4 +91,64 @@ export async function keepTrying<T>(options: Clock & {
     options.opened(library);
     return;
   }
+}
+
+/** What the window's page is opened with while the library is not open: why, and whether the app is still waiting. */
+export type LibraryQuery = {
+  readonly problem?: string;
+  readonly waiting?: string;
+};
+
+/**
+ * The app's start: open the library with `open`, showing the page `{ waiting }` while it waits (1.46). Once it gives up,
+ * the page's problem says why, and that the app keeps trying when the library could not be reached (1.47).
+ */
+export async function openAtStartup<T>(options: Clock & {
+  open(): Promise<T>;
+  show(query: LibraryQuery): void;
+  log(line: string): void;
+}): Promise<{ readonly opened: T } | { readonly problem: string; readonly unreachable: boolean }> {
+  try {
+    return {
+      opened: await openPatiently({
+        ...options,
+        waiting: (reason) => {
+          options.log(reason);
+          options.show({ waiting: reason });
+        },
+      }),
+    };
+  } catch (error) {
+    const unreachable = libraryUnreachable(error);
+    const problem = unreachable ? `${libraryProblem(error)} ${KEEPS_TRYING}` : libraryProblem(error);
+    options.log(problem);
+    return { problem, unreachable };
+  }
+}
+
+/**
+ * Behind the error page, keep trying the library (1.47): once it answers, `opened` takes it and the page is shown with
+ * no problem, reading the project itself; a failure that will not fix itself is shown as the page's problem instead.
+ */
+export function keepTryingBehind<T>(options: Clock & {
+  open(): Promise<T>;
+  opened(library: T): void;
+  show(query: LibraryQuery): void;
+  log(line: string): void;
+  stopped(): boolean;
+  every?: number;
+}): Promise<void> {
+  return keepTrying({
+    ...options,
+    opened: (library) => {
+      options.log("library: answered after all");
+      options.opened(library);
+      options.show({});
+    },
+    failed: (error) => {
+      const problem = libraryProblem(error);
+      options.log(problem);
+      options.show({ problem });
+    },
+  });
 }

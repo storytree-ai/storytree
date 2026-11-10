@@ -64,11 +64,10 @@ import {
   launchToRecord,
   loginItemsFor,
   noUpdates,
-  keepTrying,
-  KEEPS_TRYING,
-  libraryUnreachable,
+  keepTryingBehind,
   openAppLibrary,
-  openPatiently,
+  openAtStartup,
+  type LibraryQuery,
   pageReads,
   PAGE_READS_CHANNELS,
   projectSelection,
@@ -89,7 +88,6 @@ import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANN
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/app-setup/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
-import { libraryProblem } from "@storytree/app/lifecycle/open-where-set";
 import { restartLimit } from "@storytree/app/updates/restart-limit";
 import { answerStartWhileInstalling, installUnderway } from "@storytree/app/updates/install-underway";
 import { appShutdown } from "@storytree/app/lifecycle/stopping";
@@ -133,7 +131,7 @@ import { lateReads, projectAnswers } from "./late-reads.js";
 import { keepPageInWindow } from "./page-window.js";
 import { keepTray } from "./tray.js";
 import { titleWindow } from "./window-title.js";
-import { bringWindowForward } from "./window-shown.js";
+import { bringWindowForward, showPageQuery } from "./window-shown.js";
 import { PLUGIN_SCHEME, pluginResponse, windowKinds, windowProjectRecords, windowStandIns } from "./stand-ins.js";
 import { checkPage, PAGE_SCHEME, pageResponse, pageUrl } from "./page-scheme.js";
 import { finishStartCheck, runWhenReady } from "./start-check.js";
@@ -386,10 +384,6 @@ async function run(): Promise<void> {
     return;
   }
 
-  let problem: string | undefined;
-  let project: string | undefined;
-  /** The library could not be reached yet when the time to wait for it ran out, so the app keeps trying behind its error page. */
-  let unreachable = false;
   let errorsOpened: Promise<void> | undefined;
   /** Open the library where the settings say, and what the page reads through it; the project to show. */
   const openLibrary = async (): Promise<string | undefined> => {
@@ -419,23 +413,10 @@ async function run(): Promise<void> {
     if (!args.smoke) recordLaunch();
     return current;
   };
-  try {
-    phases.phase("opening the library");
-    // A library the network cannot reach yet (the computer just started) is waited for, the page saying so (lifecycle 1.46).
-    project = await openPatiently({
-      open: openLibrary,
-      waiting: (reason) => {
-        console.error(reason);
-        showPage({ waiting: reason }, !args.background && !args.smoke);
-      },
-      now: Date.now,
-      sleep,
-    });
-  } catch (error) {
-    unreachable = libraryUnreachable(error);
-    problem = unreachable ? `${libraryProblem(error)} ${KEEPS_TRYING}` : libraryProblem(error);
-    console.error(problem);
-  }
+  phases.phase("opening the library");
+  // A library the network cannot reach yet (the computer just started) is waited for, the page saying so (lifecycle 1.46).
+  const started = await openAtStartup({ open: openLibrary, show: (query) => showPage(query, !args.background && !args.smoke), log: (line) => console.error(line), now: Date.now, sleep });
+  const [project, problem] = "opened" in started ? [started.opened, undefined] : [undefined, started.problem];
   build = await whichBuild();
   const canRestart = restartAllowed({
     stopping: stopping.stopping,
@@ -478,54 +459,37 @@ async function run(): Promise<void> {
     setReleaseChannel: (channel: unknown) => channels.set(channel),
   });
   console.log(`storytree 0.3: ${build}`);
-  const query = problem === undefined ? {} : { problem };
+  windowQuery = problem === undefined ? {} : { problem };
   if (args.smoke) {
     phases.phase("opening the window");
-    for (const waited of BrowserWindow.getAllWindows()) waited.destroy();
-    windowQuery = query;
     await smoke(openWindow(windowQuery), project);
   }
   else {
-    showPage(query, !args.background);
+    showPage(windowQuery, !args.background);
     showTray();
-    // An error the library holds that is not yet reported asks to be, until it is marked submitted (errors 9.6, ADR-1122).
-    void errorsOpened?.then(() => errorRecords.settled())
-      .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
-      .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
+    libraryWork();
     try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
-    if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });
     // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (Session management 4.21).
     setInterval(() => void reads?.lookAround(), LOOK_EVERY_MS).unref();
     releases = followReleases({ restart: lifecycle.restart, canRestart, quiet }, home.dir, () => installing.read().choice);
     // Behind the error page the app keeps trying a library it could not reach, and shows the project once it answers (lifecycle 1.47).
-    if (unreachable) {
-      void keepTrying({
-        open: openLibrary,
-        opened: (current) => {
-          project = current;
-          console.log("library: answered after all");
-          if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });
-          void errorsOpened?.then(() => errorRecords.settled())
-            .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
-            .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
-          // The page reads the project chosen from the library itself, as it does when the library opens at once.
-          showPage({}, false);
-        },
-        failed: (error) => {
-          const said = libraryProblem(error);
-          console.error(said);
-          showPage({ problem: said }, false);
-        },
-        stopped: () => stopping.stopping(),
-        now: Date.now,
-        sleep,
-      });
+    if ("unreachable" in started && started.unreachable) {
+      void keepTryingBehind({ open: openLibrary, opened: libraryWork, show: (query) => showPage(query, false), log: (line) => console.error(line), stopped: stopping.stopping, now: Date.now, sleep });
     }
+  }
+
+  /** What the app does with its library once it is open: ask to report the errors it holds, and keep its backups. */
+  function libraryWork(): void {
+    // An error the library holds that is not yet reported asks to be, until it is marked submitted (errors 9.6, ADR-1122).
+    void errorsOpened?.then(() => errorRecords.settled())
+      .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
+      .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
+    if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });
   }
 }
 
 /** What the window's page is opened with: the project, or why the library is not open. */
-type WindowQuery = { project?: string; problem?: string; waiting?: string };
+type WindowQuery = LibraryQuery & { project?: string };
 
 /** Wait `ms`, without holding the app open. */
 function sleep(ms: number): Promise<void> {
@@ -535,9 +499,10 @@ function sleep(ms: number): Promise<void> {
 /** Show `query` on every open window, and remember it for a window opened later; with none open, open one when `open`. */
 function showPage(query: WindowQuery, open: boolean): void {
   windowQuery = query;
-  const windows = BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed());
-  for (const window of windows) window.loadURL(pageUrl(query)).catch(() => { /* the page's own error logging says it */ });
-  if (windows.length === 0 && open) openWindow(query);
+  showPageQuery(BrowserWindow.getAllWindows(), query, {
+    load: (window, shown) => window.loadURL(pageUrl(shown)).catch(() => { /* the page's own error logging says it */ }),
+    open: open ? openWindow : undefined,
+  });
 }
 
 /** The tray icon, whose menu brings the window back or quits the app. */

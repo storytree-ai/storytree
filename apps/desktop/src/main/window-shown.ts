@@ -18,3 +18,17 @@ export function bringWindowForward(windows: readonly ShownWindow[], { stopping, 
   window.show();
   window.focus();
 }
+
+/**
+ * Show the page at `query` (1.46, 1.47): every live window loads it again, and with none open, `open` opens one when it
+ * is given: a start in the background (1.12) or a smoke check opens none, and the query waits for the window opened later.
+ */
+export function showPageQuery<Window extends { isDestroyed(): boolean }, Query>(
+  windows: readonly Window[],
+  query: Query,
+  { load, open }: { load(window: Window, query: Query): void; open?: ((query: Query) => void) | undefined },
+): void {
+  const live = windows.filter((window) => !window.isDestroyed());
+  for (const window of live) load(window, query);
+  if (live.length === 0) open?.(query);
+}

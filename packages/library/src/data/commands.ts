@@ -87,14 +87,22 @@ async function writerDiff(actor: string, library: Library): Promise<{ text: stri
 }
 
 export const find = verb({
-  command: { family: "library", name: "find", summary: `the records whose title holds every word, any case, ${ANSWER_ROWS} at most; a decision by its number (1103 or ADR-1103)`, usage: "library find <title words…|decision number>" },
+  command: {
+    family: "library",
+    name: "find",
+    summary: `the records whose title holds every word, any case, ${ANSWER_ROWS} at most, current state only: resteers, friction and superseded decisions come back, last, with --history; a decision by its number (1103 or ADR-1103)`,
+    usage: "library find <title words…|decision number> [--history]",
+  },
   tool: NOT_A_TOOL,
-  inputs: { words: { kind: "text", word: 0, many: true, optional: true, blank: true, describe: "the title's words, or a decision's number" } },
-  async act({ words }, context: VerbContext) {
+  inputs: {
+    words: { kind: "text", word: 0, many: true, optional: true, blank: true, describe: "the title's words, or a decision's number" },
+    history: { kind: "switch", describe: "list resteers, friction and superseded decisions too, after current state" },
+  },
+  async act({ words, history }, context: VerbContext) {
     const given = words.flatMap((word) => word.split(/\s+/)).filter((word) => word !== "");
     if (given.length === 0) throw new VerbRefusal("this needs a title's words, or a decision's number", { misuse: true });
     const number = given.length === 1 ? decisionNumber(given[0]!) : undefined;
-    const hits = number === undefined ? await context.library.findByTitle(given) : [await context.library.decisionNumbered(number)].filter((hit): hit is TitleHit => hit !== null);
+    const hits = number === undefined ? await context.library.findByTitle(given, { history }) : [await context.library.decisionNumbered(number)].filter((hit): hit is TitleHit => hit !== null);
     const asked = number === undefined ? `titles holding "${given.join(" ")}"` : `decision number ${number}`;
     if (hits.length === 0) return { text: `No ${asked}.` };
     const lines = hits.map((hit) => `  ${hit.id}  [${hit.type}]  ${cut(hit.title)}`);

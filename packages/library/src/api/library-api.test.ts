@@ -194,6 +194,7 @@ const RUNTIME_EXPORTS = [
   "CONNECT_TIMEOUT_MS",
   "CONTRACT_DEFINITION",
   "CONTRACT_PLACEMENT",
+  "CONTRACT_PROOFS",
   "ConnectionError",
   "DependencyLoopError",
   "LONG_CONTRACT_TITLE",

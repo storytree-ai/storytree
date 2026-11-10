@@ -235,7 +235,7 @@ test("10.9 `storytree plan` prints what the show_plan tool answers: each story, 
       "The project has no anchor yet (project-anchor): say what it is and who it is for with edit_plan.",
       `Story "Visitor can sign up" (${story.id}): reported passing, verified not checked`,
       `  Capability "${form.fields.title}" (${form.id}): reported passing, verified not checked; proposed — not built, the agent's to move; nobody holds it`,
-      `    Contract "1.1 · Rejects an email with no @" (${check.id}): reported passing, verified not checked`,
+      `    Contract "1.1 · Rejects an email with no @" (${check.id}): reported passing, verified not checked; how it is proved is not chosen yet`,
       `Arc "Sign-up works" (${arc.id}) grows no stories yet`,
       "No sessions yet.",
     ]);

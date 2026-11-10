@@ -1,15 +1,23 @@
 import assert from "node:assert/strict";
 import path from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { build } from "esbuild";
-import { chromium } from "playwright-core";
+import { chromium, type Browser, type Page } from "playwright-core";
 import { waitUntil } from "@storytree/test-waits";
+
+/** Each bundle is built once for the file, and its tests each mount it on a fresh page. */
+const bundles = new Map<string, Promise<string>>();
 
 /** The real map view, bundled for the browser and mounted on a two-story plan: the capture seam counts its renders.
  * `__show(titles)` hands it the plan again, a live update, with the stories' titles as given. `linked` gives each story a
  * second capability its first depends on, and story one's first depends on story two's, so each island has roads.
  * `__show(titles, story)` shows it with that story selected, `__core` is its knowledge core, and `__flushSync` commits the map's scene at once. `__zoom()` reads the eye's zoom the map shows its detail by. */
-async function mapBundle(linked = false, { late = false }: { late?: boolean } = {}): Promise<string> {
+function mapBundle(linked = false, { late = false }: { late?: boolean } = {}): Promise<string> {
+  const key = JSON.stringify([linked, late]);
+  if (!bundles.has(key)) bundles.set(key, bundleMap(linked, late));
+  return bundles.get(key)!;
+}
+async function bundleMap(linked: boolean, late: boolean): Promise<string> {
   const entry = `import { createElement } from "react";
     import { createRoot } from "react-dom/client";
     import { flushSync } from "@react-three/fiber";
@@ -45,12 +53,21 @@ async function mapBundle(linked = false, { late = false }: { late?: boolean } = 
   return result.outputFiles[0]!.text;
 }
 
+/** One browser for the file, launched on first use: each test opens its own page in a context of its own, so none sees another's
+ * state, and the file pays one launch rather than one a test. */
+let launched: Promise<Browser> | undefined;
+after(async () => { await (await launched)?.close(); });
+async function freshPage(t: { after(run: () => Promise<void>): void }, viewport: { width: number; height: number }): Promise<Page> {
+  // Chrome is installed on the three CI runner images; no browser download during tests.
+  launched ??= chromium.launch({ channel: "chrome", headless: true });
+  const page = await (await launched).newPage({ viewport });
+  t.after(() => page.context().close());
+  return page;
+}
+
 /** A page with the map mounted, once it has opened and stopped rendering. */
 async function openedMap(t: { after(run: () => Promise<void>): void }, linked = false, viewport = { width: 800, height: 600 }) {
-  // Chrome is installed on the three CI runner images; no browser download during tests.
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
-  t.after(() => browser.close());
-  const page = await browser.newPage({ viewport });
+  const page = await freshPage(t, viewport);
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
   await page.addScriptTag({ content: await mapBundle(linked) });
   await page.waitForFunction(() => {
@@ -78,9 +95,7 @@ async function openedMap(t: { after(run: () => Promise<void>): void }, linked = 
 }
 
 test("3.87 · an island on the map as it opens has its land stand when it is built, however late its turn comes, never traced on", async t => {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
-  t.after(() => browser.close());
-  const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+  const page = await freshPage(t, { width: 800, height: 600 });
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
   // Every turn the page hands on comes 1.5 s late, so each island's land is built well after the sheet first drew.
   await page.evaluate(() => {
@@ -103,9 +118,7 @@ test("3.87 · an island on the map as it opens has its land stand when it is bui
 });
 
 test("3.87 · islands that arrive as the map opens, after it first drew, have their land stand, built again with their roads too, never traced on", async t => {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
-  t.after(() => browser.close());
-  const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+  const page = await freshPage(t, { width: 800, height: 600 });
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
   // The map opens empty and its plan comes 1.5 s later, as the app's does; linked, so each island has roads, routed after
   // its land is first built, which build it again.

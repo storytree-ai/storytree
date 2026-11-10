@@ -11,6 +11,8 @@ import { connect } from '@storytree/library';
 import { route } from '@storytree/project-and-caller/routing';
 import { buildCapture, buildFolder, captureOutput, runCapture } from '../../../../../apps/desktop/src/capture/index.ts';
 import { liveAnswers } from '../../../../../apps/desktop/src/capture/live.ts';
+import { PLATE_CLEARANCE, SHEET_FOV, SHEET_RADIUS } from '../../../../forest-world/src/planet/PlanetWorldCanvas.tsx';
+import { DETAIL_ZOOM } from '../../../src/view/zoom-detail.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pictures = path.join(here, '../../../src/view/evidence', 'panel-open-work');
@@ -31,6 +33,16 @@ const expected = capability.openWork;
 const listed = page => page.evaluate(() => [...document.querySelectorAll('.story-panel .panel-open-work li')].map(li => ({
   increment: li.dataset.incrementId, title: li.childNodes[0].textContent, active: li.classList.contains('active'),
 })));
+/** Stands the eye on its line of sight near, where an island's territories are large enough to click and its settlements show
+ * (3.86), as the wheel would, and lets the map draw it (the open-work capture's close-up). */
+const closeUp = async (page, settle) => {
+  await page.evaluate(({ zoom, radius, fov }) => {
+    const { camera, size, invalidate } = window.__globe;
+    camera.position.setLength(radius + Math.max(size.height, 1) / 2 / Math.tan(fov * Math.PI / 360) / zoom);
+    camera.updateMatrixWorld(); invalidate();
+  }, { zoom: DETAIL_ZOOM.near * 1.4, radius: SHEET_RADIUS + PLATE_CLEARANCE, fov: SHEET_FOV });
+  await settle(page, 12);
+};
 const live = await liveAnswers({ storytree, project: routed.project });
 const results = { story: story.title, capability: capability.title, library: expected };
 try {
@@ -47,18 +59,34 @@ try {
         const island = await page.evaluate(id => window.storytreeGlobe.islands().find(i => i.story === id), story.id);
         await page.mouse.click(island.x, island.y);
         await page.waitForFunction(id => document.body.dataset.selected === id, story.id, { timeout: 60_000 });
+        // Each island's roads, its settlements with them, are routed off the page after its territories' first search lands, one
+        // island at a time, so on the live library the settlement clicked can come minutes in.
+        await page.waitForFunction(id => window.__globe.scene.getObjectByName(`settlement:${id}`) !== undefined, capability.id, { timeout: 600_000, polling: 500 });
         // The panel draws no tree to pick from (ADR-1285): the capability is picked on the island, at its settlement, which takes
-        // no ray, so the click lands on its territory.
+        // no ray, so the click lands on its territory. Faced now, beside the panel as it stands, and closed up: at the map's own
+        // zoom a big island's territories are a few pixels across, so a click beside a settlement picks its neighbour.
         await page.evaluate(id => window.storytreeGlobe.face({ kind: 'story', story: id }), story.id);
         await page.waitForFunction(() => window.storytreeGlobe.still(), undefined, { timeout: 60_000, polling: 200 });
+        await closeUp(page, settle);
+        await page.waitForFunction(() => window.storytreeGlobe.still(), undefined, { timeout: 60_000, polling: 200 });
+        // A settlement's symbol is laid where it stands in its own vertices, its group at its island's origin, so the middle of
+        // its casing's points is where it is drawn.
         const settlement = await page.evaluate(id => {
           const { scene, camera } = window.__globe, box = document.querySelector('canvas').getBoundingClientRect();
           scene.updateMatrixWorld(true);
-          const at = scene.getObjectByName(`settlement:${id}`).getWorldPosition(camera.position.clone()).project(camera);
-          return { x: box.left + (at.x + 1) / 2 * box.width, y: box.top + (1 - at.y) / 2 * box.height };
+          const casing = scene.getObjectByName(`settlement:${id}`).getObjectByName('settlement-casing'), points = casing.geometry.getAttribute('position');
+          const at = camera.position.clone().set(0, 0, 0), point = at.clone();
+          for (let k = 0; k < points.count; k++) at.add(point.fromBufferAttribute(points, k));
+          at.divideScalar(points.count).applyMatrix4(casing.matrixWorld).project(camera);
+          const panel = document.querySelector('.story-panel').getBoundingClientRect();
+          return { x: box.left + (at.x + 1) / 2 * box.width, y: box.top + (1 - at.y) / 2 * box.height, left: box.left, top: box.top, right: Math.min(box.right, panel.left), bottom: box.bottom };
         }, capability.id);
+        assert.ok(settlement.x > settlement.left && settlement.x < settlement.right && settlement.y > settlement.top && settlement.y < settlement.bottom,
+          `the settlement stands on the globe beside the panel: ${JSON.stringify(settlement)}`);
         await page.mouse.click(settlement.x, settlement.y);
         await page.locator(`.story-panel .panel-detail[data-capability-id="${capability.id}"]`).waitFor({ timeout: 60_000 });
+        // The open work is a fold of the capability's detail, closed until its handle opens it.
+        await page.locator(`.story-panel .panel-detail[data-capability-id="${capability.id}"] [data-fold="open-work"] .panel-handle`).click();
         const list = page.locator('.story-panel .panel-open-work');
         await list.waitFor({ timeout: 30_000 });
         await page.locator(`.story-panel .panel-detail[data-capability-id="${capability.id}"]`).scrollIntoViewIfNeeded();

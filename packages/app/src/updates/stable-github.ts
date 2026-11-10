@@ -155,6 +155,18 @@ export async function nightlyMacos(runs: readonly { id: number; head_sha: string
 }
 
 /**
+ * Whether main's commit `head` is `commit` or comes after it. Main is fetched first, so a nightly run's head newer than the
+ * clone is known; a fetch that fails throws its own error rather than reading as "not after it".
+ */
+export function mainContains(git: Git): (head: string, commit: string) => Promise<boolean> {
+  return async (head, commit) => {
+    git("fetch", "origin", "+refs/heads/main:refs/remotes/origin/main");
+    try { git("merge-base", "--is-ancestor", commit, head); return true; }
+    catch { return false; }
+  };
+}
+
+/**
  * The commit tagged `v<wanted>`, once it is on main and its first-parent count gives that version. A shallow clone (a cloud
  * session's checkout) counts only its own depth, so its history is fetched whole before it is counted.
  */
@@ -366,11 +378,7 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
     async macos(commit) {
       const { workflow_runs } = await api("actions/workflows/macos-nightly.yml/runs?branch=main&status=completed&per_page=50") as {
         workflow_runs: { id: number; head_sha: string; head_branch: string | null; conclusion: string | null }[] };
-      return nightlyMacos(workflow_runs, commit, async (head, built) => {
-        // releaseCommit fetched main whole; a run of a later main commit has it once main is fetched again.
-        try { git("fetch", "origin", "+refs/heads/main:refs/remotes/origin/main"); git("merge-base", "--is-ancestor", built, head); return true; }
-        catch { return false; }
-      });
+      return nightlyMacos(workflow_runs, commit, mainContains(git));
     },
     publish: (manifest, bootstrap, expected) => publishStable(manifest, bootstrap, expected, api),
     now: () => new Date().toISOString(),

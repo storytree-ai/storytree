@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { type LandedIncrement, mergedPullRequests, moveStableBack, pinCoverage, type PinCandidate, pinStable, type PinPorts, type PlatformFeed, type StableManifest } from "./stable-pin.js";
-import { formerPin, nightlyMacos, publishStable, releaseFeed, sweptBy, type GithubRequest } from "./stable-github.js";
+import { formerPin, mainContains, nightlyMacos, publishStable, releaseFeed, sweptBy, type GithubRequest } from "./stable-github.js";
 
 type PinCandidateFeeds = PinCandidate["feeds"];
 const RELEASES = "https://github.com/storytree-ai/storytree/releases/download";
@@ -282,6 +282,19 @@ test("4.16 the macOS run a pin stands on is main's latest green nightly run, and
   assert.equal(refused.tested, false);
   assert.match(refused.evidence, /main's last green nightly macOS run, 9, tested eeeeeeeeeeee/);
   assert.deepEqual(await nightlyMacos([], "a".repeat(40), contains), { tested: false, evidence: "main has no green nightly macOS run" });
+});
+
+test("4.16 a nightly run's head contains the build when git finds the build its ancestor after fetching main; a failed fetch is an error, never a refusal", async () => {
+  const calls: string[] = [];
+  const git = (...args: string[]) => {
+    calls.push(args[0]!);
+    if (args[0] === "merge-base" && args[3] !== "c".repeat(40)) throw new Error("exit 1");
+    return "";
+  };
+  assert.equal(await mainContains(git)("c".repeat(40), "a".repeat(40)), true);
+  assert.equal(await mainContains(git)("d".repeat(40), "a".repeat(40)), false);
+  assert.deepEqual(calls, ["fetch", "merge-base", "fetch", "merge-base"]);
+  await assert.rejects(mainContains(() => { throw new Error("Could not read from remote repository"); })("c".repeat(40), "a".repeat(40)), /Could not read from remote/);
 });
 
 test("4.16 a former pin is read from the stable branch's history, a move back included, and a build only mentioned there is not one", async () => {

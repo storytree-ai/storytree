@@ -1,9 +1,10 @@
 // Selecting an arc rings its open work (ADR-1253 D1 as corrected 2026-11-05): storytree's own map (the code-rows snapshot and
 // its survey) as the app opens it, with two active arcs in the stand-in bridge whose open increments name real capabilities of
 // the seed. No arc selected draws no open-work mark; the first arc's row clicked in the Arcs tab rings each capability it names
-// round its settlement or its nameplate, the rest dimmed, the same at the wheel's floor (ADR-1272 D2); then close up on The library
+// round its settlement or its nameplate, dimming nothing (ADR-1299), the same at the wheel's floor (ADR-1272 D2); then close up on The library
 // and on The arc surface, a small island. `node --import tsx capture.mjs` (append --retake to write into
-// src/view/evidence/open-work). Counts, from the scene, every ring and dim shown, so "ringed what the arc names" is measured.
+// src/view/evidence/open-work). Counts, from the scene, every ring and dim shown, so "ringed what the arc names" and "dimmed nothing"
+// are measured.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -90,7 +91,8 @@ await runCapture({
   prepare: async ({ page, settle }) => {
     await until(page, 'the ready map', () => document.body.dataset.state === 'ready');
     for (const button of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name: button, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
-    await until(page, 'every island laid out with its roads', () => { let n = 0, laid = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('planet:') && o.name !== 'planet:shell') { n++; if (o.getObjectByName('island-roads')) laid++; } }); return n > 0 && laid === n; });
+    // Each island draws once its own territory search lands, one search at a time (3.95), so every island takes minutes.
+    await until(page, 'every island laid out with its roads', () => { let n = 0, laid = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('planet:') && o.name !== 'planet:shell') { n++; if (o.getObjectByName('island-roads')) laid++; } }); return n > 0 && laid === n; }, undefined, 1_800_000);
     await settle(page);
     results.opening = await eyeZoom(page);
   },
@@ -114,13 +116,13 @@ await runCapture({
       await settle(page, 12);
     },
     measure: async ({ page }) => (results.selected = await measure(page)),
-    expect: found => { assert.deepEqual(found.rings, RINGED); assert.ok(found.dims.length > 0); assert.ok(found.dimmedIslands.length > 0); },
+    expect: found => { assert.deepEqual(found.rings, RINGED); assert.deepEqual(found.dims, []); assert.deepEqual(found.dimmedIslands, []); },
   }, {
     name: 'arc-selected-floor',
     // Half the zoom the map opens on, where the wheel stops: the territories still show, so the capabilities' rings do (3.86).
     prepare: async ({ page, settle }) => whole(page, settle, 0.5),
     measure: async ({ page }) => (results.floor = await measure(page)),
-    expect: found => { assert.deepEqual(found.rings, RINGED); assert.ok(found.dims.length > 0); },
+    expect: found => { assert.deepEqual(found.rings, RINGED); assert.deepEqual(found.dims, []); assert.deepEqual(found.dimmedIslands, []); },
   }, {
     name: 'arc-selected-the-library',
     prepare: async ({ page, settle }) => closeUp(page, settle, library),

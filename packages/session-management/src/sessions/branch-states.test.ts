@@ -14,6 +14,8 @@ import { git, withTempDir } from "@storytree/project-and-caller/testing/folders"
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { learn } from "../hooks/learned-limits.js";
 import { BRANCH_GIT_STEP, gitRunner, type GitRunner } from "./branch-states.js";
+import { allOpenPullsThrough, type OpenPull } from "../claims/merges.js";
+import { logReading } from "../readings.js";
 import { lookAsApp, projectFolder, resolveBranches, sessionsFrom } from "./index.js";
 
 test("4.10 each branch a session worked on is marked resolved once its pull request merged (any machine), or, on the machine it was worked on, once it has nothing ahead of main or is deleted; one still ahead stays open, and one that gains work after it resolved is open again; a state is written only when it changes", async () => {
@@ -345,6 +347,52 @@ test("4.24 the same look reads each open branch's pull request from GitHub in on
   } finally {
     await log.close();
   }
+});
+
+test("4.47 the open-pulls look reads when a pull request's earliest check run started, when it joined the merge queue and whether it still waits there for its turn, and writes them on its branch state: a re-queue is a change; the reading gives an open pull request's state by its number, with when its line was written", async () => {
+  await withTempDir(async (dir) => {
+    // GitHub's GraphQL answer: one pull request whose checks run, one in the merge queue waiting its turn, one with no check started.
+    const node = (number: number, headRefName: string, extra: object) => ({ number, headRefName, isDraft: false, isCrossRepository: false, headRepository: { nameWithOwner: "acme/app" }, ...extra });
+    const rollup = (state: string, started: (string | null)[]) => ({ commits: { nodes: [{ commit: { statusCheckRollup: { state, contexts: { nodes: [...started.map((startedAt) => ({ startedAt })), { context: "a status, no check run" }] } } } }] } });
+    const answer = { data: { repository: { nameWithOwner: "acme/app", pullRequests: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [
+      node(50, "claude/running", { isInMergeQueue: false, mergeQueueEntry: null, ...rollup("PENDING", [null, "2026-11-11T10:05:00Z", "2026-11-11T10:02:00Z"]) }),
+      node(51, "claude/queued", { isInMergeQueue: true, mergeQueueEntry: { enqueuedAt: "2026-11-11T10:20:00Z", state: "QUEUED" }, ...rollup("SUCCESS", ["2026-11-11T09:00:00Z"]) }),
+      node(52, "claude/not-started", { isInMergeQueue: false, ...rollup("PENDING", [null]) }),
+    ] } } } };
+    const gh = path.join(dir, "gh.mjs");
+    writeFileSync(gh, `process.stdout.write(${JSON.stringify(JSON.stringify(answer))});\n`);
+    const read = await allOpenPullsThrough(process.execPath, [gh])(dir);
+    assert.deepEqual(read && Object.fromEntries(read), {
+      "claude/running": { number: 50, draft: false, checks: "pending", queued: false, checksSince: "2026-11-11T10:02:00Z" },
+      "claude/queued": { number: 51, draft: false, checks: "passing", queued: true, checksSince: "2026-11-11T09:00:00Z", queuedSince: "2026-11-11T10:20:00Z", queueWaiting: true },
+      "claude/not-started": { number: 52, draft: false, checks: "pending", queued: false },
+    }, "the earliest started check run; none started, none said");
+
+    const log = await openActivityLog(testServerUrl());
+    const project = uniqueProjectName();
+    try {
+      await log.append(project, { session: "worker", harness: "claude-code", source: "hook", machine: "elsewhere", folder: "C:\\site", branch: "claude/queued", kind: "file-edited", files: ["x.ts"] });
+      const queued = (queuedSince: string, waiting: boolean): OpenPull => ({ number: 51, draft: false, checks: "passing", queued: true, checksSince: "2026-11-11T09:00:00Z", queuedSince, ...(waiting ? { queueWaiting: true } : {}) });
+      let pull = queued("2026-11-11T10:20:00Z", true);
+      const watcher = { log, project, folder: dir, session: "observer", harness: "claude-code", source: "hook" } as const;
+      const watch = { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map([["claude/queued", pull]]), everyMs: 0, machine: "here" };
+      const said = (lines: readonly Line[]) => lines.flatMap((line) => (line.kind === "branch-state" ? [[line.pr, line.checksSince, line.queuedSince, line.queueWaiting]] : []));
+
+      assert.deepEqual(said(await resolveBranches(watcher, watch)), [[51, "2026-11-11T09:00:00Z", "2026-11-11T10:20:00Z", true]]);
+      assert.deepEqual(await resolveBranches(watcher, watch), [], "nothing changed, nothing written");
+      pull = queued("2026-11-11T10:20:00Z", false);
+      assert.deepEqual(said(await resolveBranches(watcher, watch)), [[51, "2026-11-11T09:00:00Z", "2026-11-11T10:20:00Z", undefined]], "its turn came: written again");
+      pull = queued("2026-11-11T10:41:00Z", true);
+      const requeued = await resolveBranches(watcher, watch);
+      assert.deepEqual(said(requeued), [[51, "2026-11-11T09:00:00Z", "2026-11-11T10:41:00Z", true]], "a red ahead re-queued it: written again");
+
+      const { fold } = logReading((await log.since(project, 0)).lines);
+      assert.deepEqual(fold.openPull(51), { number: 51, draft: false, checks: "passing", queued: true, checksSince: "2026-11-11T09:00:00Z", queuedSince: "2026-11-11T10:41:00Z", queueWaiting: true, at: requeued[0]!.at });
+      assert.equal(fold.openPull(50), undefined, "no line names it");
+    } finally {
+      await log.close();
+    }
+  });
 });
 
 test("4.21 the look never stalls its process: while git takes its time asking origin, a timer due meanwhile still fires promptly (ADR-0836 D3: the app's minute look runs on its main process)", async () => {

@@ -2,7 +2,7 @@
  * Session management decides who holds work. This reading only gives those facts their display order. */
 import type { ArcState as Lifecycle, BoardIncrement, Hold, NoteWait } from "@storytree/library";
 
-export type IncrementState = "landed" | "not-completed" | "waiting-on-you" | "queued" | "blocked" | "held" | "open";
+export type IncrementState = "landed" | "not-completed" | "waiting-on-you" | "in-ci" | "queued" | "blocked" | "held" | "open";
 export type ArcState = "closed" | "parked" | "waiting" | "blocked" | "queued" | "in-progress" | "idle" | "ready" | "quiet";
 export interface IncrementReading {
   state: IncrementState;
@@ -31,6 +31,8 @@ export interface IncrementFacts {
   claim?: Claim;
   /** Another increment a live session holds that holds a capability this one's list names (ADR-0949 D3). */
   blockedBy?: string;
+  /** Its handed-over pull request is in CI: its checks pending, or in the merge queue (1.7). */
+  inCi?: boolean;
 }
 export interface ArcFacts {
   openQuestions?: number;
@@ -63,6 +65,8 @@ export function incrementState(increment: BoardIncrement["fields"], facts: Incre
   if (facts.heldOn?.length || asksYou) return { state: "waiting-on-you", color: "yellow", progress, ...passed };
   // Work it waits on is held on the owner's question, so the owner, not the work, is what it waits for.
   if (facts.behind?.length) return { state: "waiting-on-you", color: "yellow", progress, ...passed, behind: [...facts.behind] };
+  // 1.7: its pull request in CI is what it is doing now, which the watcher's event wait would read as queued.
+  if (facts.inCi) return { state: "in-ci", color: "grey", progress, ...passed };
   if (facts.waits?.length || holding.length) return { state: "queued", color: "yellow", progress, ...passed };
   if (facts.claim) return { state: "held", color: "grey", progress, ...passed };
   if (facts.blockedBy) return { state: "blocked", color: "yellow", progress, ...passed, blockedBy: facts.blockedBy };
@@ -92,7 +96,7 @@ export function arcState(lifecycle: Lifecycle, facts: ArcFacts = {}): ArcState {
   if (facts.waits?.length) return "blocked";
   const open = (facts.increments ?? []).filter(({ state }) => state !== "landed" && state !== "not-completed");
   if (open.length && open.every(({ state }) => state === "queued" || state === "waiting-on-you" || state === "blocked")) return "queued";
-  if (facts.claims?.some((claim) => claim.holder === "live")) return "in-progress";
+  if (facts.claims?.some((claim) => claim.holder === "live") || open.some(({ state }) => state === "in-ci")) return "in-progress";
   // ADR-0938 D3: an idle claim does not hide free work.
   if (open.some(({ state }) => state === "open")) return "ready";
   return facts.claims?.length ? "idle" : "quiet";

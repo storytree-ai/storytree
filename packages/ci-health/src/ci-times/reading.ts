@@ -7,6 +7,8 @@
  * - Run time: a commit's CI for one event, its longest workflow run from start to end (a workflow another event starts later
  *   on the same commit, a label's, would stretch a first-start-to-last-end span), the median of those whose runs all passed
  *   this week; and the system that bounded most of them, the system of that run's longest job.
+ * - Each CI leg's median (6.7): a pull request's own checks (pull-request runs) and the merge queue (merge-queue runs), each
+ *   the median of its passing runs this week, which the arc surface's CI bars are drawn against.
  * - The merge queue's reds: of this week's queue commits that ran to a verdict (one cancelled is passed over), how many failed.
  * - Going now: the pull requests with a run in CI, and those in the queue, as the last recording saw them; a run left going
  *   more than six hours before it is not counted.
@@ -29,6 +31,8 @@ export interface CiTimesReading {
     readonly days: readonly (number | null)[];
   };
   readonly run: { readonly median?: number; readonly bound?: string; readonly runs: number };
+  /** Each CI leg's median passing run: a pull request's checks, then the merge queue; a leg with none passing has none. */
+  readonly legs: { readonly checks?: number; readonly queue?: number };
   readonly queue: { readonly reds: number; readonly runs: number };
   readonly now: { readonly inCi: number; readonly inQueue: number };
 }
@@ -75,7 +79,7 @@ export async function ciTimesReading(db: CiTimesDb, project: string, now = new D
     const key = `${run.event}\0${run.head_sha}`;
     groups.set(key, [...(groups.get(key) ?? []), run]);
   }
-  const passing: { minutes: number; bound: string | null }[] = [];
+  const passing: { event: string; minutes: number; bound: string | null }[] = [];
   let reds = 0;
   let verdicts = 0;
   for (const group of groups.values()) {
@@ -87,12 +91,13 @@ export async function ciTimesReading(db: CiTimesDb, project: string, now = new D
     }
     if (!conclusions.every((one) => PASSED.has(one))) continue;
     const longest = group.reduce((best, one) => (span(one) > span(best) ? one : best));
-    passing.push({ minutes: minutes(span(longest)), bound: longest.bound });
+    passing.push({ event: group[0]!.event, minutes: minutes(span(longest)), bound: longest.bound });
   }
   const bounds = new Map<string, number>();
   for (const { bound } of passing) if (bound !== null && bound !== "unknown") bounds.set(bound, (bounds.get(bound) ?? 0) + 1);
   const bound = [...bounds].sort((a, b) => b[1] - a[1])[0]?.[0];
 
+  const legMedian = (event: string) => median(passing.filter((one) => one.event === event).map(({ minutes: one }) => one));
   const going = (event: string) => new Set(runs.filter((run) => run.event === event && run.status !== "completed" && run.created_at.getTime() >= reading.read_at.getTime() - STALE_MS)
     .map((run) => run.pull ?? run.head_sha)).size;
 
@@ -101,6 +106,7 @@ export async function ciTimesReading(db: CiTimesDb, project: string, now = new D
     readAt: reading.read_at.toISOString(),
     toMerge: { ...defined("median", median(thisWeek)), ...defined("was", median(between(twoWeeksAgo, weekAgo))), merged: thisWeek.length, days },
     run: { ...defined("median", median(passing.map(({ minutes: one }) => one))), ...defined("bound", bound), runs: passing.length },
+    legs: { ...defined("checks", legMedian("pull_request")), ...defined("queue", legMedian("merge_group")) },
     queue: { reds, runs: verdicts },
     now: { inCi: going("pull_request"), inQueue: going("merge_group") },
   };

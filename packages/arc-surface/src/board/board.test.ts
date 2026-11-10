@@ -190,3 +190,57 @@ test("3.3 a ready lane's chip counts untagged work to take and names work tagged
   assert.equal(chip("mixed"), "ready · 2 to take · on desk · on laptop");
   assert.equal(chip("held"), "ready · on laptop", "work held by a wait is not to take, here or anywhere");
 });
+
+test("3.34 a pull request in CI draws a two-leg bar on its arc's lane: its checks, then the merge queue, filled by time over the factory median, hatched while waiting to run, amber and held at 95% past the median, red at twice it, its hover giving elapsed over expected, the median and the reading's age", () => {
+  const now = new Date("2026-11-11T12:00:00Z");
+  const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString();
+  const ci = arc("ci"); ci.increments.push(record("shipping", "increment", { arc: "ci", title: "Ship the bar", objective: "o", body: "b", status: "active" }, "2026-11-10"), noted("free", "ci"));
+  const merging: NoteWait = { releaser: "event", note: "PR #12 merges", checkBack: "2999-01-01", holds: true };
+  const snapshot: BoardSnapshot = { arcs: [ci], heldOn: {}, waits: {}, waitsFor: { shipping: [merging] } };
+  let seq = 0;
+  const line = (fields: object, at: string) => ({ project: "p", source: "tool", seq: ++seq, at, ...fields }) as Line;
+  const handedOver = line({ kind: "claimed", harness: "watcher", session: "pull-request-12", increment: "shipping", reason: "handed over" }, ago(20));
+  const state = (fields: object, seenAgo = 3) => line({ kind: "branch-state", session: "observer", of: "claude/ship", open: true, how: "ahead", pr: 12, ...fields }, ago(seenAgo));
+  const expected = { checks: 14, queue: 15 };
+  const view = (lines: Line[], medians: object = expected) => boardView(snapshot, [handedOver, ...lines], now, "active", undefined, medians);
+  const leg = (html: string, name: string) => html.match(new RegExp(`<span class="arc-ci-leg arc-ci-${name}[^"]*"[^>]*>(?:<span class="arc-ci-fill"[^>]*></span>)?</span>`))?.[0] ?? "";
+
+  const running = view([state({ checks: "pending", checksSince: ago(7) })]);
+  const lane = running.lanes[0]!;
+  assert.deepEqual([lane.bars.find(({ id }) => id === "shipping")?.reading.state, lane.state], ["in-ci", "in-progress"], "in CI, not queued behind the watcher's wait");
+  assert.deepEqual(lane.ci.map(({ pr, increment, legs }) => [pr, increment.id, legs.map(({ phase, fill, tone }) => [phase, fill, tone])]),
+    [[12, "shipping", [["running", 0.5, "on-time"], ["ahead", 0, "on-time"]]]]);
+  let html = renderBoard(running, "ci");
+  assert.match(leg(html, "checks"), /arc-ci-running/);
+  assert.match(leg(html, "checks"), /style="width:50%"/);
+  assert.doesNotMatch(leg(html, "queue"), /arc-ci-fill/, "the queue not reached: no fill");
+  const hover = html.match(/<span class="arc-ci"[^>]*title="([^"]*)"/)?.[1] ?? "";
+  assert.match(hover, /Pull request #12 in CI: Ship the bar/);
+  assert.match(hover, /Checks: 7 min of 14 min expected/);
+  assert.match(hover, /Merge queue: not yet/);
+  assert.match(hover, /Expected from the factory median/);
+  assert.match(hover, /Last change seen 3 min ago/);
+
+  html = renderBoard(view([state({ checks: "pending", checksSince: ago(20) })]), "ci");
+  assert.match(leg(html, "checks"), /arc-ci-long[^>]*>.*width:95%/, "past the median: held at 95%, amber");
+  assert.match(html, /Checks: 20 min of 14 min expected · running long/);
+  html = renderBoard(view([state({ checks: "pending", checksSince: ago(30) })]), "ci");
+  assert.match(leg(html, "checks"), /arc-ci-hung/, "at twice the median: red");
+  assert.match(html, /well past: hung or flaky\?/);
+
+  html = renderBoard(view([state({ checks: "pending" })]), "ci");
+  assert.match(leg(html, "checks"), /arc-ci-waiting/, "no check started: hatched");
+  assert.doesNotMatch(leg(html, "checks"), /arc-ci-fill/);
+  assert.match(html, /Checks: waiting to run/);
+
+  html = renderBoard(view([state({ checks: "passing", queued: true, checksSince: ago(40), queuedSince: ago(2), queueWaiting: true })]), "ci");
+  assert.match(leg(html, "checks"), /arc-ci-done[^>]*>.*width:100%/, "in the queue, its checks are done");
+  assert.match(leg(html, "queue"), /arc-ci-waiting/, "waiting its turn in the queue: hatched");
+  html = renderBoard(view([state({ checks: "passing", queued: true, checksSince: ago(40), queuedSince: ago(6) })]), "ci");
+  assert.match(leg(html, "queue"), /arc-ci-running[^>]*>.*width:40%/, "6 of 15 minutes since it joined the queue");
+
+  html = renderBoard(view([state({ checks: "pending", checksSince: ago(7) })], {}), "ci");
+  assert.match(html, /Checks: 7 min, no factory median yet/);
+  assert.equal(view([state({ checks: "failing", checksSince: ago(7) })]).lanes[0]!.ci.length, 0, "red, out of CI: no bar");
+  assert.equal(view([state({ checks: "failing", checksSince: ago(7) })]).lanes[0]!.bars.find(({ id }) => id === "shipping")?.reading.state, "queued");
+});

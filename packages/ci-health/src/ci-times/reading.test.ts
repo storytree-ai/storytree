@@ -80,3 +80,19 @@ test("6.4 The CI times reading gives the last 7 days against the 7 before: media
   assert.deepEqual(reading.queue, { reds: 1, runs: 4 });
   assert.deepEqual(reading.now, { inCi: 2, inQueue: 1 });
 });
+
+test("6.7 The CI times reading gives each CI leg's factory median apart: a pull request's own checks and the merge queue, each its passing runs' median; a leg with no passing run has none", async (t) => {
+  const { db, project } = await store(t);
+  let id = 0;
+  const run = async (event: string, sha: string, minutes: number, conclusion = "success") => db.query(
+    `INSERT INTO ci_runs (project, repository, run_id, attempt, workflow, event, pull, head_sha, created_at, started_at, ended_at, status, conclusion, bound)
+      VALUES ($1, 'acme/shop', $2, 1, 'CI', $3, NULL, $4, $5, $5, $6, 'completed', $7, NULL)`, [project, ++id, event, sha, ago(DAY), ago(DAY - minutes), conclusion]);
+  for (const [sha, minutes] of [["a", 10], ["b", 12], ["c", 20]] as const) await run("pull_request", sha, minutes);
+  await run("pull_request", "red", 2, "failure");
+  await db.query("INSERT INTO ci_readings (project, repository, read_at) VALUES ($1, 'acme/shop', $2)", [project, ago(2)]);
+  assert.deepEqual((await ciTimesReading(db, project, NOW))?.legs, { checks: 12 }, "no passing queue run: no queue median");
+
+  for (const [sha, minutes] of [["q1", 14], ["q2", 15], ["q3", 16]] as const) await run("merge_group", sha, minutes);
+  await run("merge_group", "q4", 40, "failure");
+  assert.deepEqual((await ciTimesReading(db, project, NOW))?.legs, { checks: 12, queue: 15 });
+});

@@ -162,6 +162,12 @@ export interface PullState {
   checks?: "pending" | "passing" | "failing";
   /** Whether it waits in the merge queue. */
   queued: boolean;
+  /** When its earliest check run started; absent while none has (contract 4.47). */
+  checksSince?: string;
+  /** When it joined the merge queue, which a re-queue moves. */
+  queuedSince?: string;
+  /** Whether it still waits in the merge queue for its turn. */
+  queueWaiting?: true;
 }
 
 export interface SessionOptions {
@@ -386,7 +392,8 @@ interface SessionFold {
 }
 
 /** What a branch's state lines have said of it last: open or not, and its open pull request once a look has read it. */
-type BranchState = { open: boolean; at: string; pr?: number | undefined; draft?: true | undefined; checks?: PullState["checks"] | undefined; queued?: true | undefined };
+type BranchState = { open: boolean; at: string; pr?: number | undefined; draft?: true | undefined; checks?: PullState["checks"] | undefined; queued?: true | undefined;
+  checksSince?: string | undefined; queuedSince?: string | undefined; queueWaiting?: true | undefined };
 
 /**
  * A fold written out as plain data, its sets and maps as arrays, so a page can keep it between starts
@@ -735,7 +742,16 @@ export class LogFold {
     const state = this.#branchStates.get(branch);
     if (state?.open === false) return { open: false };
     if (state?.pr === undefined) return { open: true };
-    return { open: true, pr: { number: state.pr, draft: state.draft === true, ...(state.checks === undefined ? {} : { checks: state.checks }), queued: state.queued === true } };
+    return { open: true, pr: pullState(state.pr, state) };
+  }
+
+  /**
+   * Open pull request `pr` as the latest branch-state line naming it says, with when that line was written (contract 4.47):
+   * a line is written only on a change, so that is when the last change was seen, not when GitHub was last asked.
+   */
+  openPull(pr: number): (PullState & { at: string }) | undefined {
+    const state = [...this.#branchStates.values()].filter((one) => one.open && one.pr === pr).sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+    return state === undefined ? undefined : { ...pullState(pr, state), at: state.at };
   }
 
   /** A session's standing close-out, by what its lines said and its branches still open. */
@@ -753,6 +769,13 @@ export class LogFold {
     ];
     return disagreements.length === 0 ? { ...said, verified: true } : { ...said, verified: false, needsYou: `says safe, but ${disagreements.join("; ")}` };
   }
+}
+
+/** What a branch's state line says of its open pull request `pr`. */
+function pullState(pr: number, state: BranchState): PullState {
+  return { number: pr, draft: state.draft === true, ...(state.checks === undefined ? {} : { checks: state.checks }), queued: state.queued === true,
+    ...(state.checksSince === undefined ? {} : { checksSince: state.checksSince }), ...(state.queuedSince === undefined ? {} : { queuedSince: state.queuedSince }),
+    ...(state.queueWaiting ? { queueWaiting: true as const } : {}) };
 }
 
 /** How many pairs of quiet and leave times a fold keeps judgements under: the oldest read is let go past this. */

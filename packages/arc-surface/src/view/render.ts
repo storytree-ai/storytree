@@ -4,6 +4,7 @@ import { pennantOutline, quietColour, sessionColour } from "@storytree/session-m
 import type { BoardAgent } from "../agents/agents.js";
 import { briefing, incrementRows, type IncrementRow, type QuestionReading } from "../briefing/briefing.js";
 import { ownerCount, ownerWaits, type Bar, type BoardView, type Lane, type LaneNoteWait } from "../board/board.js";
+import type { CiBar, CiLeg } from "../board/ci-bars.js";
 import { queueRun, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
 
 export const escape = (text: string) => text.replace(/[&<>"']/gu, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
@@ -63,6 +64,23 @@ function renderStrip(bars: readonly Bar[], perRow: number | undefined): string {
   return (landed.length ? foldMark("landed", `${landed.length} landed`, `${landed.length} landed`, landed) : "")
     + shown.map(renderBar).join("") + (hidden.length ? foldMark("more", `+${hidden.length}`, `${hidden.length} more`, hidden) : "");
 }
+const LEG_NAMES: Record<CiLeg["name"], string> = { checks: "Checks", queue: "Merge queue" };
+const TONES: Record<CiLeg["tone"], string> = { "on-time": "", long: " · running long", hung: " · well past: hung or flaky?" };
+const mins = (minutes: number) => `${Math.floor(minutes)} min`;
+/** What one leg says on its bar's hover: elapsed over expected while it runs (3.34). */
+function legText(leg: CiLeg): string {
+  const said = leg.phase === "waiting" ? (leg.name === "queue" ? "waiting its turn" : "waiting to run")
+    : leg.phase === "done" ? "passed" : leg.phase === "ahead" ? "not yet"
+    : leg.expected === undefined ? `${mins(leg.elapsed ?? 0)}, no factory median yet` : `${mins(leg.elapsed ?? 0)} of ${mins(leg.expected)} expected${TONES[leg.tone]}`;
+  return `${LEG_NAMES[leg.name]}: ${said}`;
+}
+/** A pull request in CI's two-leg bar (3.34): its checks, then the merge queue, each filled by time over its factory median. */
+function renderCiBar(bar: CiBar): string {
+  const title = [`Pull request #${bar.pr} in CI: ${bar.increment.title}`, ...bar.legs.map(legText), "Expected from the factory median",
+    `Last change seen ${bar.seenAgo} min ago`].join("\n");
+  const leg = (one: CiLeg) => `<span class="arc-ci-leg arc-ci-${one.name} arc-ci-${one.phase} arc-ci-${one.tone}">${one.phase === "running" || one.phase === "done" ? `<span class="arc-ci-fill" style="width:${Math.round(one.fill * 100)}%"></span>` : ""}</span>`;
+  return `<span class="arc-ci" data-ci-pr="${bar.pr}" data-ci-increment="${escape(bar.increment.id)}" role="img" aria-label="${escape(title)}" title="${escape(title)}"><span class="arc-ci-pr" aria-hidden="true">#${bar.pr}</span>${bar.legs.map(leg).join("")}</span>`;
+}
 function laneText(lane: Lane): string {
   return [lane.count, ...lane.agents.map(agentText), ...lane.waits.map(waitText), ...lane.noteWaits.map(laneNoteText),
     ...lane.holdsUp.map((work) => `Holds up ${because(workText(work), work.reason)}`)].join("\n");
@@ -119,7 +137,7 @@ function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: 
     <span class="arc-caret-slot"><button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-under-${escape(lane.id)}" aria-label="${escape(caretLabel)}" title="${escape(caretLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button></span>
     <button type="button" class="arc-lane" data-arc-select="${escape(lane.id)}" aria-pressed="${opened === lane.id}" aria-expanded="${open}">
       <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(chipText(lane))}">${escape(lane.chip)}</span>${lane.priority === undefined ? "" : `<span class="arc-chip arc-priority" title="Priority ${lane.priority}">P${lane.priority}</span>`}<span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span>${renderMarks(lane)}</span>
-      <span class="arc-track${lane.bars.some(({ agents }) => agents.length) ? " arc-flagged" : ""}"><span class="arc-bars" role="group" aria-label="${escape(`Increments: ${lane.count}`)}">${renderStrip(lane.bars, perRow)}</span></span>
+      <span class="arc-track${lane.bars.some(({ agents }) => agents.length) ? " arc-flagged" : ""}"><span class="arc-bars" role="group" aria-label="${escape(`Increments: ${lane.count}`)}">${renderStrip(lane.bars, perRow)}</span></span>${lane.ci.length ? `<span class="arc-ci-bars">${lane.ci.map(renderCiBar).join("")}</span>` : ""}
     </button></div>${open ? `<div class="arc-under" id="arc-under-${escape(lane.id)}">${under}</div>` : ""}</section>`;
 }
 /** One question, one row: its title and its status, unfolding in place to its reading (5.2, ADR-0980 D5). */

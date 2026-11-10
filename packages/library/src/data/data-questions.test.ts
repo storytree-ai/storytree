@@ -31,6 +31,25 @@ async function world(t: TestContext): Promise<{ library: Library; run: (name: st
   return { library, run: async (name, inputs) => (await verbOf(name).act(inputs as never, context, WORDS)).text };
 }
 
+test("27.6 · library find lists current state first: other records, then decisions narrowed in place, then resteers, friction and superseded decisions, each most recently changed first", async (t) => {
+  const { library, run } = await world(t);
+  const current = await library.defineTerm({ term: "Mapped colour", meaning: "Green, red or yellow once explored." });
+  const replaced = await library.recordDecision({ status: "accepted", title: "Mapped colour is grey", text: "D1. Grey." });
+  await library.recordDecision({ status: "accepted", title: "Grey for parked", text: "D1. Grey is parked's.", supersedes: [replaced.id] });
+  const narrowed = await library.recordDecision({ status: "accepted", title: "Mapped colour is brown", text: "D1. Brown." });
+  await library.recordDecision({ status: "accepted", title: "Explored islands take their health", text: "D1. Explored is not brown.", narrows: [narrowed.id] });
+  const resteer = await library.writeKnowledge("resteer", {
+    title: "Mapped colour redirect", description: "Redirected.", doing: "Painting", redirect: "Not brown", evidence: "He said so.", disposition: "taste", dispositionBy: "owner",
+  });
+  const friction = await library.writeKnowledge("friction", { title: "Mapped colour confusion", description: "Confused.", statement: "Two colours.", evidence: "Seen twice.", impact: "Stale answers." });
+  await library.editNote(narrowed.id, { text: "D1. Brown, for the unexplored part." });
+
+  const order = (await run("find", { words: ["mapped", "colour"] })).split("\n").map((line) => /^\s+(\w+_[0-9a-f]{12})\s/.exec(line)?.[1]).filter((id) => id !== undefined);
+  assert.deepEqual(order.slice(0, 2), [current.id, narrowed.id], "current first, then the narrowed decision, though it was edited last");
+  assert.deepEqual(new Set(order.slice(2)), new Set([replaced.id, resteer.id, friction.id]), "history last");
+  assert.deepEqual(order.slice(2), [friction.id, resteer.id, replaced.id], "history most recently changed first");
+});
+
 test("27.1 · library count tallies live records by kind and status, and open increments by arc, leaving health out", async (t) => {
   const { library, run } = await world(t);
   const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });

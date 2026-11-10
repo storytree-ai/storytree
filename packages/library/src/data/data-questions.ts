@@ -105,13 +105,25 @@ export class DataQuestions {
     return rows.map((row) => ({ seq: Number(row.seq), at: row.at.toISOString(), action: row.action, type: row.type, id: row.id, title: row.title }));
   }
 
-  /** The live records whose title has a word starting with each of `words`, any case, most recently changed first; ANSWER_ROWS at most. */
+  /**
+   * The live records whose title has a word starting with each of `words`, any case; ANSWER_ROWS at most. Current
+   * state first (the owner's option B on question_6931f1a08090): every other record, then decisions an accepted
+   * decision narrows in place, then history (resteers, friction, superseded decisions), each most recently changed first.
+   */
   async findByTitle(words: readonly string[]): Promise<TitleHit[]> {
     if (words.length === 0) return [];
+    const namedBy = (field: "supersedes" | "narrows"): string =>
+      `EXISTS (SELECT 1 FROM record other WHERE other.type = 'decision' AND other.fields->>'status' = 'accepted' AND other.fields->'${field}' ? record.id)`;
     const { rows } = await this.#pool.query<TitleHit>(
       `SELECT id, type, ${TITLE} AS title FROM record
         WHERE type <> 'health' AND ${TITLE} ~* ALL($1::text[])
-        ORDER BY updated_at DESC, id LIMIT ${ANSWER_ROWS}`,
+        ORDER BY CASE
+                   WHEN type IN ('resteer', 'friction') THEN 2
+                   WHEN type = 'decision' AND ${namedBy("supersedes")} THEN 2
+                   WHEN type = 'decision' AND ${namedBy("narrows")} THEN 1
+                   ELSE 0
+                 END, updated_at DESC, id
+        LIMIT ${ANSWER_ROWS}`,
       [patterns(words)],
     );
     return rows;

@@ -74,6 +74,7 @@ const UNRENDERED: ReadonlySet<string> = new Set([
   "refs",
   "to",
   "supersedes",
+  "narrows",
   "fingerprint",
   "number",
   "story",

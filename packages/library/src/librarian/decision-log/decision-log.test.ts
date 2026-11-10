@@ -49,6 +49,9 @@ test("22.3 annotate adds a dated note to the target naming the decision that nar
     const text = (await library.decision(cover.id))?.record.fields.text ?? "";
     assert.ok(text.startsWith("Mailgun: the simplest API."));
     assert.match(text, /Annotated 2026-09-27 by .*Transactional email only.*Mailgun now sends transactional email only\./s);
+    assert.deepEqual((await library.decision(narrowing.id))?.record.fields.narrows, [cover.id], "the narrowing decision names what it narrows");
+    await annotate(library, cover.id, { by: narrowing.id, note: "And receipts only.", date: "2026-09-28" });
+    assert.deepEqual((await library.decision(narrowing.id))?.record.fields.narrows, [cover.id], "named once, however often it annotates");
 
     const { cursor } = await library.changesSince(0);
     await assert.rejects(annotate(library, cover.id, { by: definition.id, note: "Not a decision." }), /not a live decision/);

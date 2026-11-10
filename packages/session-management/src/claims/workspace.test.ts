@@ -578,6 +578,34 @@ test("5.25 making a workspace for work that already has an open pull request is 
   });
 });
 
+test("5.69 making a workspace for work a local branch named for it carries with commits ahead of origin/main is refused naming each branch, its commits ahead and its worktree, before anything is claimed or made, unless the session says to build beside them; a branch with nothing ahead refuses nothing", async () => {
+  await withWorld(async ({ dir, log, project, site, park, as }) => {
+    const increment = await park("email form");
+    const stem = increment.replace(/_/g, "-");
+    const earlier = path.join(dir, "earlier-lane");
+    git(site, "worktree", "add", "-b", `claude/${stem}-a1b2c3`, earlier, "main");
+    writeFileSync(path.join(earlier, "form.txt"), "half a form\n");
+    git(earlier, "add", ".");
+    git(earlier, "commit", "-m", "half the form");
+    git(site, "branch", `codex/${stem}-d4e5f6`, "main");
+    git(site, "branch", "claude/increment-other-0a1b2c", `claude/${stem}-a1b2c3`);
+    const before = worktrees(site);
+
+    const refused = await makeWorkspace(as("A"), increment, "build form", { allOpenPulls: async () => undefined });
+
+    assert.ok(!refused.ok && refused.refused === "no-workspace", JSON.stringify(refused));
+    assert.deepEqual(refused.localBranches, [{ branch: `claude/${stem}-a1b2c3`, ahead: 1, folder: path.resolve(earlier) }], "the branches are data, not only wording");
+    assert.match(refused.why, new RegExp(`claude/${stem}-a1b2c3`));
+    assert.ok(refused.why.includes(path.resolve(earlier)), refused.why);
+    assert.doesNotMatch(refused.why, /d4e5f6|increment-other/);
+    assert.deepEqual(await readClaims(log, project), [], "nothing claimed");
+    assert.deepEqual(worktrees(site), before, "no worktree made");
+
+    const beside = await makeWorkspace(as("A"), increment, "build form", { allOpenPulls: async () => undefined }, { despiteLocalBranches: true });
+    assert.ok(beside.ok && beside.status === "ready", JSON.stringify(beside));
+  });
+});
+
 test("5.47 a worktree git makes while printing to stderr is made and claimed; one git fails to make after its progress line is refused with git's own error, and leaves no claim, folder or branch behind", async () => {
   await withWorld(async ({ log, project, site, park, as }) => {
     const increment = await park("email form");

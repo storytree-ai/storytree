@@ -16,13 +16,13 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect, type Storytree } from "@storytree/library";
-import { createTestRole, dropTestRoles, testRoleUrl, withTestClient, withTestClientAs } from "@storytree/library/testing/pg";
+import { createTestRole, dropTestRoles, testRoleUrl, withTestClientAs } from "@storytree/library/testing/pg";
 
 import { approveTrunk, forgetTrunk, machineOf, recordImport, registerTrunk, TRUNKS_DATABASE, trunksOn } from "@storytree/project-and-caller";
 import { removeTempDir } from "@storytree/project-and-caller/testing/folders";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { machineNames, nameThisMachine, thisComputer } from "./machines.js";
-import { despiteDeadlocks } from "../testing/shared-tables.js";
+import { changeSharedTables } from "../testing/shared-tables.js";
 
 test("11.8 · The cloud sessions' account joins as an unnamed machine: it reads every trunk and machine name and records and approves its own trunk, and is refused a named machine's trunks, another project's, naming a machine, an import, any removal, and any change to the tables", async () => {
   const [project, other] = [uniqueProjectName(), uniqueProjectName()];
@@ -41,7 +41,7 @@ test("11.8 · The cloud sessions' account joins as an unnamed machine: it reads 
     assert.ok(await registerTrunk(onBox, { project, machine: box.id, machineName: box.name, folder: `/srv/${project}` }, "setup"));
     const grants = readFileSync(new URL("../../../../infra/library-host/cloud-session-trunks-grants.sql", import.meta.url), "utf8")
       .replaceAll(':"cloud_role"', `"${cloud}"`).replaceAll(":'cloud_role'", `'${cloud}'`).replaceAll(":'cloud_project'", `'${project}'`);
-    await despiteDeadlocks(() => withTestClient((client) => client.query(grants), TRUNKS_DATABASE));
+    await changeSharedTables(TRUNKS_DATABASE, (client) => client.query(grants));
 
     inCloud = await connect({ url: testRoleUrl(cloud) });
     // A join: it looks for its machine's trunks, records its checkout's, and approves it.
@@ -82,14 +82,14 @@ test("11.8 · The cloud sessions' account joins as an unnamed machine: it reads 
     }
     assert.deepEqual((await trunksOn(onBox, box.id)).filter((trunk) => trunk.project === project).map((trunk) => [trunk.folder, trunk.approvedBy]), [[`/srv/${project}`, "setup"]]);
   } finally {
-    await despiteDeadlocks(() => withTestClient(async (client) => {
+    await changeSharedTables(TRUNKS_DATABASE, async (client) => {
       // The shared database is left as it was: these rows gone, the account's grants and policies with it, the rules off.
       await client.query(`DROP OWNED BY "${cloud}"`);
       await client.query("DELETE FROM trunks WHERE project = ANY ($1)", [[project, other]]);
       await client.query("DELETE FROM imports WHERE project = ANY ($1)", [[project, other]]);
       await client.query("DELETE FROM machines WHERE id = ANY ($1)", [[box.id, laptop.id, container.id]]);
       await client.query("ALTER TABLE trunks DISABLE ROW LEVEL SECURITY");
-    }, TRUNKS_DATABASE));
+    });
     await Promise.allSettled([onBox.close(), inCloud?.close()]);
     await dropTestRoles([cloud]);
     await Promise.all(homes.map((home) => removeTempDir(home)));

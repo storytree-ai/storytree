@@ -14,6 +14,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@storytree/base-dev-loop": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/project-and-caller": "workspace:*"

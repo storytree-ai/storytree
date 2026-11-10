@@ -8,11 +8,13 @@
  *   on the same commit, a label's, would stretch a first-start-to-last-end span), the median of those whose runs all passed
  *   this week; and the system that bounded most of them, the system of that run's longest job.
  * - Each CI leg's median (6.7): a pull request's own checks (pull-request runs) and the merge queue (merge-queue runs), each
- *   the median of its passing runs this week, which the arc surface's CI bars are drawn against.
+ *   the median of its passing runs this week, which the arc surface's CI bars are drawn against; and each open pull request's
+ *   own checks estimate from the packages it touches (estimate.ts), which its bar is drawn against instead.
  * - The merge queue's reds: of this week's queue commits that ran to a verdict (one cancelled is passed over), how many failed.
  * - Going now: the pull requests with a run in CI, and those in the queue, as the last recording saw them; a run left going
  *   more than six hours before it is not counted.
  */
+import { ciEstimates, type CiEstimate } from "./estimate.js";
 import type { CiTimesDb } from "./store.js";
 
 /** The CI times reading: times in minutes. */
@@ -31,8 +33,11 @@ export interface CiTimesReading {
     readonly days: readonly (number | null)[];
   };
   readonly run: { readonly median?: number; readonly bound?: string; readonly runs: number };
-  /** Each CI leg's median passing run: a pull request's checks, then the merge queue; a leg with none passing has none. */
-  readonly legs: { readonly checks?: number; readonly queue?: number };
+  /**
+   * Each CI leg's median passing run: a pull request's checks, then the merge queue; a leg with none passing has none. And
+   * each open pull request's own checks estimate, from its packages (stage 3).
+   */
+  readonly legs: { readonly checks?: number; readonly queue?: number; readonly pulls: readonly CiEstimate[] };
   readonly queue: { readonly reds: number; readonly runs: number };
   readonly now: { readonly inCi: number; readonly inQueue: number };
 }
@@ -106,7 +111,7 @@ export async function ciTimesReading(db: CiTimesDb, project: string, now = new D
     readAt: reading.read_at.toISOString(),
     toMerge: { ...defined("median", median(thisWeek)), ...defined("was", median(between(twoWeeksAgo, weekAgo))), merged: thisWeek.length, days },
     run: { ...defined("median", median(passing.map(({ minutes: one }) => one))), ...defined("bound", bound), runs: passing.length },
-    legs: { ...defined("checks", legMedian("pull_request")), ...defined("queue", legMedian("merge_group")) },
+    legs: { ...defined("checks", legMedian("pull_request")), ...defined("queue", legMedian("merge_group")), pulls: await ciEstimates(db, project, now) },
     queue: { reds, runs: verdicts },
     now: { inCi: going("pull_request"), inQueue: going("merge_group") },
   };

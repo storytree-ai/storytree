@@ -43,6 +43,11 @@ export function takeWorktreeRun(work, { what }) {
   return { release };
 }
 
+/** What a run runs, for its record: the files named on its command line, relative to `root`, else its units. */
+export function runWhat({ root, files, units }) {
+  return files.length > 0 ? `files: ${files.map((file) => path.relative(root, path.resolve(file))).join(", ")}` : `units: ${units.join(", ")}`;
+}
+
 function alive(holder) {
   if (holder.pid === process.pid) return holder.token === TOKEN;
   try {

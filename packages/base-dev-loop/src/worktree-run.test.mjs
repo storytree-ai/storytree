@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { takeWorktreeRun } from "./worktree-run.mjs";
+import { runWhat, takeWorktreeRun } from "./worktree-run.mjs";
 
 function folder(t, prefix) {
   const made = realpathSync(mkdtempSync(path.join(tmpdir(), prefix)));
@@ -40,7 +40,14 @@ test("4.31 · a worktree's test run is held by one live run at a time: a second 
   assert.equal(existsSync(other), false, "a release removes the run's record");
 });
 
-test("4.31 · a second pnpm test in a worktree whose run holds its test Postgres is refused at once, naming the first, and the first run goes on to pass", { timeout: 180_000 }, async (t) => {
+test("4.31 · a run's record says what it runs: the files named on its command line, else its units", () => {
+  const root = path.resolve("/repo");
+  assert.equal(runWhat({ root, files: [path.join(root, "packages/a/src/x.test.mjs"), "packages/b/y.test.ts"], units: undefined }).replaceAll("\\", "/"),
+    `files: packages/a/src/x.test.mjs, ${path.relative(root, path.resolve("packages/b/y.test.ts")).replaceAll("\\", "/")}`);
+  assert.equal(runWhat({ root, files: [], units: ["packages/forest", "packages/cli"] }), "units: packages/forest, packages/cli");
+});
+
+test("4.31 · a second pnpm test in a worktree whose run holds its test Postgres is refused at once, naming the first, a run given a server's url is not, and the first run goes on to pass", { timeout: 180_000 }, async (t) => {
   const root = folder(t, "worktree-run-root-");
   const marks = folder(t, "worktree-run-marks-");
   const started = path.join(marks, "started");
@@ -78,6 +85,10 @@ test("waits for its finish mark", async () => {
   assert.equal(second.status, 1, secondOutput);
   assert.match(secondOutput, new RegExp(`test harness: another pnpm test \\(pid ${firstRun.pid}, files: tests/waits\\.test\\.mjs, started [^)]+\\) is running in this worktree`), secondOutput);
   assert.doesNotMatch(secondOutput, /test Postgres:|last lines of/, "the refused run starts no Postgres and shows no other run's logs");
+
+  // A run given a server's url starts no test Postgres here, so the first run's hold does not stop it.
+  const elsewhere = spawnSync(process.execPath, entry(quick), { cwd: repo, env: { ...env, STORYTREE_TEST_PG_URL: "postgres://unused" }, encoding: "utf8", timeout: 60_000 });
+  assert.equal(elsewhere.status, 0, `${elsewhere.stdout}${elsewhere.stderr}`);
 
   writeFileSync(finish, "");
   assert.equal(await firstEnded, 0, firstOutput);

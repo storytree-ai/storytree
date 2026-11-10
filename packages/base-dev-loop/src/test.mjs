@@ -119,7 +119,7 @@ import { keepPreviousServerLog } from "./server-log.mjs";
 import { namedFolders, parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
 import { stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
 import { runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } from "./unit-pool.mjs";
-import { takeWorktreeRun } from "./worktree-run.mjs";
+import { runWhat, takeWorktreeRun } from "./worktree-run.mjs";
 import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, TEST_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withinDeadline, withMacRetry } from "./unit-run.mjs";
 
 let root; // the repository the run tests, from testCommand's root
@@ -264,8 +264,7 @@ async function main() {
   // after queueing for the hold to fail at the server's start. A run given a server's url starts none, so takes none.
   let worktreeRun = { release: () => {} };
   if (!process.env.STORYTREE_TEST_PG_URL) {
-    const what = namedFiles ? `files: ${testArgs.filter((arg) => !arg.startsWith("-")).map((file) => path.relative(root, path.resolve(file))).join(", ")}` : `units: ${units.join(", ")}`;
-    worktreeRun = takeWorktreeRun(work, { what });
+    worktreeRun = takeWorktreeRun(work, { what: runWhat({ root, files: namedFiles ? testArgs.filter((arg) => !arg.startsWith("-")) : [], units }) });
     if (worktreeRun.refusal !== undefined) {
       console.error(`test harness: ${worktreeRun.refusal}`);
       return 1;

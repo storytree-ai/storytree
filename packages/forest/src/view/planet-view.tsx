@@ -8,7 +8,7 @@ import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARA
 import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
-import { arcEmphasis, openWorkLayer, openWorkMarks, rungLinks, sizeOpenWork } from "./open-work.js";
+import { openWorkLayer, openWorkMarks, rungLinks, sizeOpenWork } from "./open-work.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { islandRoadMarks, landFill, ringGate, type GatePick } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
@@ -62,7 +62,7 @@ export type PlanetViewProps = {
   /** The selected story's capability, picked on its territory, which is ringed in gold (3.91). */
   selectedCapability?: string | undefined;
   highlighted?: readonly string[] | undefined;
-  /** The capabilities the selected arc's open increments name, which are ringed and the rest dimmed; undefined with no arc selected (3.83). */
+  /** The capabilities the selected arc's open increments name, which are ringed; undefined with no arc selected (3.83). */
   circled?: readonly string[] | undefined;
   /** The contracts the selected arc's open increments link, whose edges' gates are ringed (3.92); undefined with no arc selected. */
   circledContracts?: readonly string[] | undefined;
@@ -145,9 +145,8 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
     const laidBy = docks;
     // Lane B has already centred the descriptors in the plate's own ground coordinates.
     const local = { ...island, x: 0, z: 0 };
-    // A session's hover outranks an arc's selection; an arc selected dims the islands it rings nothing on (3.83).
-    const emphasis = shownSurfaces.sessionTints && highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed")
-      : arcEmphasis(island.land?.territories ?? [], circled, rung);
+    // A session's hover dims the islands it holds none of; an arc selected dims nothing, its rings alone mark the work (ADR-1299).
+    const emphasis = shownSurfaces.sessionTints && highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed") : undefined;
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} pointed={pointed} radius={layout.radius}
         lighting={lighting} surfaces={shownSurfaces} gate={gate?.story === island.story ? gate.pick : undefined}
@@ -286,7 +285,7 @@ type TerritoriesProps = {
   story: string;
   /** How much of the island the eye's zoom shows (3.86). */
   detail: DetailStore;
-  /** The selected arc's open work, ringed, the rest dimmed (3.83). */
+  /** The selected arc's open work, ringed (3.83). */
   circled: ReadonlySet<string> | undefined;
   /** The links whose edges' contracts the selected arc's open work makes true, whose gates it rings (3.92). */
   rung?: ReadonlySet<string> | undefined;
@@ -406,9 +405,9 @@ type DrawnLand = { group: Group; map: TerritoryMap; roads: IslandRoads | undefin
 function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighting, surfaces, gate, picked, circled, rung, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
   const { invalidate, clock, camera, size, gl, scene } = useThree();
   const relief = drawn.relief, onLand = drawn.onLand;
-  // 3.83: the open work's rings round its settlements, and its dims, over the land as drawn now, at every zoom (ADR-1272 D2);
+  // 3.83: the open work's rings round its settlements, over the land as drawn now, at every zoom (ADR-1272 D2);
   // and the selected capability's gold ring (3.91).
-  const openWork = useMemo(() => openWorkLayer(openWorkMarks(drawn.map, circled, drawn.roads, picked, rung), drawn.group,
+  const openWork = useMemo(() => openWorkLayer(openWorkMarks(drawn.map, circled, drawn.roads, picked, rung),
     onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), sheetEyeZoom(camera, size)), [drawn, circled, picked, rung, radius, relief]);
   // 3.73: its marks' shaders compiled as they are built, hidden ones too, so the zoom that first shows them stalls on none.
   useEffect(() => {
@@ -416,9 +415,8 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
     return () => cancelAnimationFrame(frame);
   }, [gl, camera, scene, drawn, openWork]);
   useEffect(() => { invalidate(); return () => openWork.traverse((object) => {
-    const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void }; name: string };
-    // A dim lies on its territory's own geometry, which the land disposes.
-    if (!mark.name.startsWith("open-work-dim:")) mark.geometry?.dispose();
+    const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
+    mark.geometry?.dispose();
     mark.material?.dispose();
   }); }, [openWork, invalidate]);
   // 3.88: a picked gate's ring, on the roads as drawn now.

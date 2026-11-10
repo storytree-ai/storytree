@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { setImmediate as tick } from "node:timers/promises";
@@ -79,7 +79,7 @@ test("6.6 The app records only from a project folder whose origin is on GitHub, 
   const { db, project } = await store(t);
   const asked: string[] = [];
   const actions: ActionsReader = {
-    json: async (route) => { asked.push(route); return { workflow_runs: [], jobs: [], artifacts: [] }; },
+    json: async (route) => { asked.push(route); return route.includes("/pulls") ? [] : { workflow_runs: [], jobs: [], artifacts: [] }; },
     graphql: async () => ({ data: { search: { pageInfo: { hasNextPage: false }, nodes: [] } } }),
     download: async () => {},
   };
@@ -94,6 +94,31 @@ test("6.6 The app records only from a project folder whose origin is on GitHub, 
   await recordFromFolder(db, project, folder, actions);
   assert.ok(asked.every((route) => route.startsWith("repos/acme/shop/")) && asked.length > 0, "its origin's repository is asked");
   assert.equal((await ciTimesReading(db, project))?.repository, "acme/shop");
+});
+
+test("6.9 The app's own recording keeps each open pull request's scope too, by CI's own rule over the project's folder", async (t) => {
+  const { db, project } = await store(t);
+  const actions: ActionsReader = {
+    json: async (route) => {
+      if (route.startsWith("repos/acme/shop/pulls?state=open")) return route.endsWith("page=1") ? [{ number: 7, head: { sha: "f1" } }] : [];
+      if (route.startsWith("repos/acme/shop/pulls/7/files")) return [{ filename: "packages/forest/src/a.ts" }];
+      return { workflow_runs: [], jobs: [], artifacts: [] };
+    },
+    graphql: async () => ({ data: { search: { pageInfo: { hasNextPage: false }, nodes: [] } } }),
+    download: async () => {},
+  };
+  const folder = mkdtempSync(path.join(tmpdir(), "ci-times-folder-"));
+  t.after(() => removeTemp(folder));
+  execFileSync("git", ["-C", folder, "init", "-q"]);
+  execFileSync("git", ["-C", folder, "remote", "add", "origin", "git@github.com:acme/shop.git"]);
+  writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "acme" }));
+  for (const [dir, name, deps] of [["packages/forest", "@acme/forest", {}], ["packages/map", "@acme/map", { "@acme/forest": "workspace:*" }], ["packages/cli", "@acme/cli", {}]] as const) {
+    mkdirSync(path.join(folder, dir, "src"), { recursive: true });
+    writeFileSync(path.join(folder, dir, "package.json"), JSON.stringify({ name, dependencies: deps }));
+  }
+  await recordFromFolder(db, project, folder, actions);
+  const { rows } = await db.query<Record<string, unknown>>("SELECT pull, head_sha, every AS full, dirs FROM ci_pull_scopes WHERE project = $1", [project]);
+  assert.deepEqual(rows, [{ pull: 7, head_sha: "f1", full: false, dirs: ["packages/forest", "packages/map"] }], "its changed package and the one depending on it");
 });
 
 async function store(t: { after(fn: () => Promise<void>): void }): Promise<{ server: Awaited<ReturnType<typeof connect>>; db: CiTimesDb; project: string }> {

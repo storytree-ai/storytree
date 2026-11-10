@@ -14,8 +14,17 @@ const UNLINKED = { friction: "friction", resteer: "a re-steer" } as const;
 /**
  * Make note `from` rest on note `to`, keeping its other links. A link it already has writes nothing.
  * Refused, with nothing written, when either is not a live note or the link breaks a rule above.
+ * A question, open or settled, links the evidence it cites the same way, through its own editor (12.17).
  */
-export async function link(library: Library, from: string, to: string, writer?: WriteOptions): Promise<Note> {
+export async function link(library: Library, from: string, to: string, writer?: WriteOptions): Promise<Note | SchemaRecord<"question">> {
+  const question = await library.get(from);
+  if (question?.type === "question") {
+    const links = (question as SchemaRecord<"question">).fields.links ?? [];
+    if (links.includes(to)) return question as SchemaRecord<"question">;
+    const linked = await library.editQuestion(from, { links: [...links, to] }, writer);
+    if (linked === null) throw new LibrarianRefusal(`there is no live question ${from}`);
+    return linked;
+  }
   const note = await noteOf(library, from);
   const target = await noteOf(library, to);
   if (note.type === "friction" || note.type === "resteer") {

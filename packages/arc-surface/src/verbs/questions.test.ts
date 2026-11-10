@@ -1,6 +1,6 @@
 /**
- * Capability 3 · Arc surface: contracts 3.22 and 3.23, the `question` family's predict, prediction, score, prep and
- * deviation verbs (ADR-1231 D3), run with a caller on a fresh project's library and activity log on the real Postgres
+ * Capability 3 · Arc surface: contracts 3.22, 3.23, 3.32 and 3.33, the `question` family's predict, prediction, score, prep and
+ * deviation verbs (ADR-1231 D3) and its evidence links, run with a caller on a fresh project's library and activity log on the real Postgres
  * `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -114,4 +114,44 @@ test("3.23 · question deviation counts, per confidence band, the would-be answe
   assert.doesNotMatch(report, /medium/, "a band with no scored question is left out");
   assert.match(await run("deviation", { days: "1" }), /^Questions settled in the last 1 day: 5/m);
   await assert.rejects(run("deviation", { days: "soon" }), VerbRefusal);
+});
+
+test("3.32 · question new links the ids given with --links, comma-separated, as well as the records its words name; question show names each linked record by title on an Evidence line after Holding, and question list counts them right after the title", async (t) => {
+  const { library, run } = await opened(t);
+  const arc = await library.createArc({ title: "Launch", intent: "Ship it", endState: "It is live" });
+  const research = await library.recordDecision({ status: "accepted", title: "Mailgun's API is the simplest", text: "Measured." });
+  const named = await library.recordDecision({ status: "accepted", title: "One mail service", text: "One." });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "Steps." });
+
+  const raised = await run("new", { ...ASK, arc: arc.id, context: `As ${named.id} says`, links: research.id, hold: [increment.id] });
+  const id = /Raised question (question_[0-9a-f]{12})/.exec(raised)?.[1] ?? "";
+  assert.deepEqual(((await library.get(id))?.fields as { links?: string[] } | undefined)?.links, [research.id, named.id]);
+
+  const shown = await run("show", { question: id });
+  assert.match(shown, new RegExp(`Holding: ${increment.id}\\n\\nEvidence: Mailgun's API is the simplest \\[${research.id}\\], One mail service \\[${named.id}\\]$`));
+  await library.prepQuestion(id, { stance: "agrees" });
+  assert.match(await run("list", { arc: undefined }), new RegExp(`${id}  \\[${arc.id}\\]  Which mailer\\?  \\(2 linked\\)  \\(prepped: agrees\\)`));
+  const plain = await library.raiseQuestion({ arc: arc.id, ...ASK });
+  assert.doesNotMatch(await run("show", { question: plain.id }), /Evidence/, "a question citing nothing shows no Evidence line");
+  assert.match(await run("list", { arc: undefined }), new RegExp(`${plain.id}  \\[${arc.id}\\]  Which mailer\\?$`, "m"));
+  await assert.rejects(run("new", { ...ASK, arc: arc.id, links: arc.id, hold: [] }), /arc/, "a link to an arc is refused");
+});
+
+test("3.33 · question link-named links each named question's, or with --all every question's, live records its words name that it does not link yet, open or settled, and says how many it added", async (t) => {
+  const { library, run } = await opened(t);
+  const arc = await library.createArc({ title: "Launch", intent: "Ship it", endState: "It is live" });
+  const question = await library.raiseQuestion({ arc: arc.id, ...ASK });
+  const other = await library.raiseQuestion({ arc: arc.id, ...ASK });
+  const research = await library.recordDecision({ status: "accepted", title: "Mailgun's API is the simplest", text: "Measured." });
+  await library.editQuestion(question.id, { context: `See ${research.id}` });
+  await library.settleQuestion(question.id, { answer: "Mailgun" });
+  await library.editQuestion(other.id, { context: `Asked after ${question.id}` });
+
+  assert.equal(await run("link-named", { questions: [question.id], all: false }), `Linked 1 record ${question.id} names.`);
+  assert.deepEqual(((await library.get(question.id))?.fields as { links?: string[] } | undefined)?.links, [research.id]);
+  assert.equal(await run("link-named", { questions: [], all: true }), `Linked 1 record across 2 questions.`);
+  assert.deepEqual(((await library.get(other.id))?.fields as { links?: string[] } | undefined)?.links, [question.id]);
+  assert.equal(await run("link-named", { questions: [], all: true }), `Linked 0 records across 2 questions.`);
+  await assert.rejects(run("link-named", { questions: ["question_000000000000"], all: false }), (error: unknown) => error instanceof VerbRefusal && /no question/.test(error.message));
+  await assert.rejects(run("link-named", { questions: [], all: false }), VerbRefusal, "name a question or --all");
 });

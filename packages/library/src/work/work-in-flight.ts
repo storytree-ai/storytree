@@ -576,12 +576,20 @@ export class WorkInFlight {
   }
 
   /**
-   * Correct open question `id`'s wording in place, only the named fields; an optional one set to
-   * undefined is removed (12.7). Anything but its wording, or a settled question, is refused
-   * (RangeError) with nothing written. Null if `id` is not a live question.
+   * Correct open question `id`'s wording or links in place, only the named fields; an optional one set to
+   * undefined is removed (12.7). Anything but its wording or links, or a settled question's edit that does
+   * more than add links, is refused (RangeError) with nothing written. Null if `id` is not a live question.
    */
   editQuestion(id: string, fields: QuestionEdit, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(() => questions.editQuestion(this.#records, id, fields, options));
+  }
+
+  /**
+   * Link every live library record question `id`'s words name that it does not link yet, open or settled (12.18);
+   * nothing new writes nothing. Null if `id` is not a live question.
+   */
+  linkNamedEvidence(id: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+    return this.#serially(() => questions.linkNamedEvidence(this.#records, id, options));
   }
 
   /**

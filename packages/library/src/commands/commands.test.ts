@@ -928,3 +928,34 @@ test("17.23 · The open tool opens a contract on an edge whole, as it does a cap
   assert.match(opened.text, /Health: verified not-checked, reported not-checked\./);
   assert.deepEqual((opened.data as { contract: { edge: unknown } }).contract.edge, { id: edge.id, from: { id: link.id, title: link.fields.title }, to: { id: form.id, title: form.fields.title } });
 });
+
+test("17.25 · The open tool reads a question with an Evidence line naming each record it links by title, after Holding, and none when it links nothing", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const open = NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "open")!;
+  const context: NoteToolContext = {
+    library, project, session: "lane", folder: process.cwd(), writer: { actor: "session:lane" },
+    claims: async () => [],
+    notesRead: async () => [],
+    recordReads: async () => undefined,
+    presenterOf: async () => undefined,
+  };
+  const arc = await library.createArc({ title: "Launch", intent: "Ship it", endState: "It is live" });
+  const research = await library.recordDecision({ status: "accepted", title: "Mailgun's API is the simplest", text: "Measured." });
+  const ask = { arc: arc.id, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" };
+  const question = await library.raiseQuestion({ ...ask, links: [research.id] });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "Steps.", heldOn: [question.id] });
+
+  const opened = await open.act({ id: question.id }, context, WORDS);
+  assert.match(opened.text, new RegExp(`Holding: ${increment.id}\\nEvidence: Mailgun's API is the simplest \\[${research.id}\\]$`));
+  const plain = await library.raiseQuestion(ask);
+  assert.doesNotMatch((await open.act({ id: plain.id }, context, WORDS)).text, /Evidence/);
+});

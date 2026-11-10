@@ -16,6 +16,9 @@
  * `present` marks a question as being put to the owner by the calling session, through Session management's
  * presentQuestion, which refuses it while another live session is (its 5.36), and `--done` clears the mark; `list`
  * flags each question a live session is presenting.
+ * A question links the evidence it cites (contracts 3.32 and 3.33): `new --links` names it, beside the records its words
+ * name; `show` names each by title on its Evidence line and `list` counts them; `link-named` links the records named in
+ * a question's words that it does not link yet, for the backfill and the prep pass.
  * For the assistant pass (ADR-1231 D3, contracts 3.22 and 3.23): `predict` records its would-be answer, which only
  * `prediction` reads while the question is open (show and list never carry it); `prep` marks it prepped, which `list`
  * flags; `score` scores a settled one; `deviation` counts the scores per confidence band over a window.
@@ -32,7 +35,7 @@ const raise = verb({
     family: "question",
     name: "new",
     summary: "raise a question for the owner on an arc, optionally holding increments on it",
-    usage: "question new --arc <arc> --title <t> --stakes … --statement … --context … --options … [--analogy …] [--diagram …] [--recommendation …] [--hold <increment>]…",
+    usage: "question new --arc <arc> --title <t> --stakes … --statement … --context … --options … [--analogy …] [--diagram …] [--recommendation …] [--links a,b] [--hold <increment>]…",
   },
   tool: { absent: NO_TOOL },
   inputs: {
@@ -45,12 +48,14 @@ const raise = verb({
     analogy: { kind: "text", optional: true, describe: "an analogy, saying where it breaks" },
     diagram: { kind: "text", optional: true, describe: "a diagram" },
     recommendation: { kind: "text", optional: true, describe: "a recommendation, marked non-binding" },
+    links: { kind: "text", optional: true, describe: "the records it cites as evidence, comma-separated; those its words name are linked too" },
     hold: { kind: "text", many: true, optional: true, describe: "an increment on its arc to hold on it" },
   },
   writes: true,
-  async act({ hold: holds, ...given }, context: ArcVerbContext) {
+  async act({ hold: holds, links, ...given }, context: ArcVerbContext) {
     const fields: Record<string, unknown> = {};
     for (const [name, value] of Object.entries(given)) if (value !== undefined) fields[name] = valueOf(value);
+    if (links !== undefined) fields.links = links.split(",").map((id) => id.trim()).filter((id) => id !== "");
     const { library } = context;
     const arc = typeof fields.arc === "string" ? fields.arc : undefined;
     const increments = holds.length === 0 || arc === undefined ? [] : ((await library.arcView(arc))?.increments ?? []);
@@ -130,6 +135,8 @@ const show = verb({
       if (typeof fields[name] === "string") lines.push("", `${name[0]?.toUpperCase()}${name.slice(1)}:`, fields[name]);
     }
     if (held.length > 0) lines.push("", `Holding: ${held.join(", ")}`);
+    const evidence = await evidenceLine(library, record as SchemaRecord<"question">);
+    if (evidence !== undefined) lines.push("", evidence);
     return { text: lines.join("\n"), next: [{ command: `arc show ${String(fields.arc)}`, why: "see its arc" }] };
   },
 });
@@ -196,7 +203,9 @@ const list = verb({
     // A prepped question says the pass's stance; one reworded since its prep reads unprepared (Owner questions 12.15).
     const prepFlag = ({ fields: { prep } }: (typeof open)[number]) =>
       prep === undefined ? "" : prep.editedAt !== undefined ? "  (unprepared: edited since its prep)" : `  (prepped: ${prep.stance === "retire" ? "proposes retire" : prep.stance})`;
-    const line = (question: (typeof open)[number]) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}${prepFlag(question)}${flag(question.id)}`;
+    // Its evidence counted right after its title (3.32), where the voice door's catch_up reads it as the title's.
+    const linked = ({ fields: { links } }: (typeof open)[number]) => (links === undefined || links.length === 0 ? "" : `  (${links.length} linked)`);
+    const line = (question: (typeof open)[number]) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}${linked(question)}${prepFlag(question)}${flag(question.id)}`;
     const where = arc === undefined ? "across arcs" : `on ${arc}`;
     // Across arcs they stay off the list, but the arcs that hold them are named; one arc's own listing names them.
     const holding = [...new Set(parked.map((question) => question.fields.arc))];
@@ -406,8 +415,49 @@ const deviation = verb({
   },
 });
 
+const linkNamed = verb({
+  command: {
+    family: "question",
+    name: "link-named",
+    summary: "link the live records a question's words name that it does not link yet, open or settled: the backfill, and the prep pass's catch",
+    usage: "question link-named <question>… | --all",
+  },
+  tool: { absent: NO_TOOL },
+  inputs: {
+    questions: { kind: "text", word: 0, many: true, optional: true, describe: "the questions' ids" },
+    all: { kind: "switch", describe: "every question, open or settled" },
+  },
+  writes: true,
+  async act({ questions: given = [], all }, context: ArcVerbContext) {
+    const { library } = context;
+    if (given.length === 0 && all !== true) throw new VerbRefusal("name the questions to link, or give --all", { misuse: true });
+    const ids = all === true ? (await library.list("question")).map(({ id }) => id) : given;
+    let added = 0;
+    for (const id of ids) {
+      const record = await library.get(id);
+      const before = record?.type === "question" ? ((record.fields as { links?: readonly string[] }).links?.length ?? 0) : 0;
+      const linked = await library.linkNamedEvidence(id, context.writer);
+      if (linked === null) throw new VerbRefusal(`no question "${id}" in this project`);
+      added += (linked.fields.links?.length ?? 0) - before;
+    }
+    const records = `${added} ${added === 1 ? "record" : "records"}`;
+    return { text: ids.length === 1 && all !== true ? `Linked ${records} ${ids[0]} names.` : `Linked ${records} across ${ids.length} questions.` };
+  },
+});
+
+/** A question's Evidence line (3.32): each record it links, by title, or undefined when it links none. */
+async function evidenceLine(library: ArcVerbContext["library"], question: SchemaRecord<"question">): Promise<string | undefined> {
+  const links = question.fields.links ?? [];
+  if (links.length === 0) return undefined;
+  const named = await Promise.all(links.map(async (id) => {
+    const record = await library.get(id);
+    return record === null ? `${id} (no longer live)` : `${labelOf(record.fields as Readonly<Record<string, unknown>>)} [${id}]`;
+  }));
+  return `Evidence: ${named.join(", ")}`;
+}
+
 /** The question verbs, as the command line's `question` family lists them. */
-export const QUESTION_VERBS = [raise, show, present, settle, retire, move, list, check, renew, predict, prediction, score, prep, deviation];
+export const QUESTION_VERBS = [raise, show, present, settle, retire, move, list, check, renew, predict, prediction, score, prep, deviation, linkNamed];
 
 /** Words agents try for reading one question. */
 export const QUESTION_GUESSES: Readonly<Record<string, string>> = { read: "question show <id>", get: "question show <id>", open: "question show <id>" };

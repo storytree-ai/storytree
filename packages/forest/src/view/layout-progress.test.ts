@@ -8,7 +8,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { waitUntil } from "@storytree/test-waits";
-import { searchIsland, shelveOn, subscribeSearching, type SearchAnswer, type TerritorySearcher } from "../territories/kept-layout.js";
+import { keepArrangement, searchIsland, shelveOn, structureKey, subscribeSearching, type SearchAnswer, type TerritorySearcher } from "../territories/kept-layout.js";
 import { islandRoadsWhenRouted, subscribeRouting, type IslandRoads, type RoadsAsk } from "../territories/island-roads.js";
 import type { TerritoryMap } from "../territories/territories.js";
 import { LayoutProgress, onScreenIsland } from "./layout-progress.js";
@@ -17,7 +17,12 @@ afterEach(() => shelveOn(undefined));
 
 const shares = [{ capability: "a", lines: 900 }, { capability: "b", lines: 700 }];
 const ask = { shares, coast: [], links: [], docks: [] };
-const mark = (islands: readonly string[]) => renderToStaticMarkup(createElement(LayoutProgress, { islands }));
+const settled = '<div hidden="" data-layout="settled"></div>';
+/** The mark over `islands` named alone, as an island with no land yet is: settled is no mark the eye reads. */
+const mark = (islands: readonly string[]) => {
+  const html = renderToStaticMarkup(createElement(LayoutProgress, { islands: islands.map((story) => ({ story })) }));
+  return html === settled ? "" : html;
+};
 
 test("3.96 the map's top-left mark counts the islands whose layout is searched or whose roads are routed, and goes when none are", async () => {
   shelveOn(undefined);
@@ -34,7 +39,7 @@ test("3.96 the map's top-left mark counts the islands whose layout is searched o
     islandRoadsWhenRouted(roadsAsk, () => new Promise((resolve) => routed.push(resolve)), new AbortController().signal);
     assert.ok(searching > 0 && routing > 0, "both queues tell the mark when they change");
     const html = mark(["one", "two", "three", "four"]);
-    assert.match(html, /role="status"/);
+    assert.match(html, /role="status" data-layout="laying-out"/);
     assert.match(html, /laying out 3 of 4 islands/, "a search in flight, one waiting its turn and a routing each count");
     answers[0]!({ found: undefined });
     await waitUntil(() => answers.length === 2 || undefined, 2000, "the island waiting its turn searched");
@@ -53,6 +58,23 @@ test("3.96 the map's top-left mark counts the islands whose layout is searched o
     islandRoadsWhenRouted(island("eight"), () => new Promise(() => {}), gone.signal);
     assert.equal(mark(["five", "six", "seven", "eight"]), "", "islands let go are not counted");
   } finally { stopSearching(); stopRouting(); }
+});
+
+test("3.98 the map says it has settled once no island awaits its first layout, nor is searched or routed; until then its mark counts the islands awaiting one", () => {
+  shelveOn(undefined);
+  const searcher: TerritorySearcher = () => new Promise(() => {});
+  const progress = (islands: readonly { story: string; territories?: typeof shares }[]) => renderToStaticMarkup(createElement(LayoutProgress, { islands, searcher }));
+  const map = [{ story: "one", territories: shares }, { story: "two", territories: shares }, { story: "three" }];
+  const awaiting = progress(map);
+  assert.match(awaiting, /data-layout="laying-out"[^>]*>laying out 2 of 3 islands/, "two islands await their first search before any is asked, the one with no land none");
+  assert.doesNotMatch(awaiting, /data-layout="settled"/, "and the map has not settled");
+  keepArrangement("one", { key: structureKey(shares), seeds: { a: { x: 1, z: 0 } } });
+  assert.match(progress(map), /laying out 1 of 3 islands/, "an island kept no longer awaits");
+  keepArrangement("two", { key: structureKey(shares), seeds: { a: { x: 1, z: 0 } } });
+  assert.equal(progress(map), settled, "with every island kept and nothing searched or routed, one hidden mark says the map has settled");
+  searchIsland("three", { ...ask, shares: [...shares, { capability: "c", lines: 100 }] }, searcher);
+  assert.match(progress(map), /laying out 1 of 3 islands/, "an island searched again unsettles it");
+  assert.equal(progress([]), "", "a map with no islands yet has not settled: it has nothing laid out to say so of");
 });
 
 test("3.97 the island on screen is the one selected, else the island that joined the map last; the map's first islands name none", () => {

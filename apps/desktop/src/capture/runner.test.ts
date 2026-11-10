@@ -13,7 +13,7 @@ import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { openActivityLog } from "@storytree/session-management";
 import { removeTemp } from "@storytree/test-waits";
 
-import { browserProcess, closeBrowser, fakeBridge, outputFolder, runCapture, settle, withCapture } from "./index.js";
+import { browserProcess, captureSeed, closeBrowser, fakeBridge, outputFolder, pageStorage, runCapture, settle, settledMap, withCapture } from "./index.js";
 import { liveAnswers } from "./live.js";
 
 test("2.9 · capture settling awaits each requested frame after invalidating the globe", async t => {
@@ -77,6 +77,41 @@ test("2.16 · a capture's stand-in bridge hides every teaching card the page sho
   };
   assert.deepEqual(await cardsShown(), [false, false], "a card already in the page and one added later are both hidden, so none intercepts a capture's clicks");
   assert.deepEqual(await cardsShown({ teaching: "shown" }), [true, true], "a capture of the cards themselves opts back in to seeing them");
+});
+
+test("2.56 · a capture opens its seed's map with the layouts the seed kept already on the page, and waits for the map to say it has settled", async t => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  // The map's settled mark comes, goes again two frames later, then stays from the twentieth: a stand-in frame clock, as in
+  // 2.9, that lays the marks out by frame, not by time.
+  await page.route("http://capture.test/**", route => route.fulfill({ contentType: "text/html", body: `<body><script>
+    const mark = on => { document.querySelector("[data-layout]")?.remove(); const m = document.createElement("div"); m.dataset.layout = on ? "settled" : "laying-out"; document.body.append(m); };
+    mark(false);
+    let frame = 0;
+    const marks = { 3: true, 5: false, 20: true };
+    requestAnimationFrame = callback => setTimeout(() => { frame++; if (frame in marks) mark(marks[frame]); callback(performance.now()); }, 0);
+    window.lastMarkAt = () => frame >= 20 ? frame : undefined;
+  </script></body>` }));
+  const layouts = { "storytree.territories.story_a": "kept-a", "storytree.roads.story_a": "roads-a" };
+  await fakeBridge({}, { layouts }).install(page);
+  await page.goto("http://capture.test/index.html");
+  await page.evaluate(() => localStorage.setItem("storytree.territories.story_a", "searched-again"));
+  await page.reload();
+  assert.deepEqual(await pageStorage(page), { ...layouts, "storytree.territories.story_a": "searched-again", "storytree:setup:guide-seen:v1": "yes" },
+    "the seed's layouts are on the page before its scripts run, and one the page kept since is not put back over");
+  await settledMap(page, { frames: 12, timeoutMs: 30_000 });
+  assert.equal(await page.evaluate("lastMarkAt()"), 31, "a settled mark that goes again within the frames held is not taken as settled: the wait ends 12 frames after the last mark came");
+  await page.evaluate(() => document.querySelector("[data-layout]")!.remove());
+  await assert.rejects(settledMap(page, { timeoutMs: 20 }), /the map did not say it had settled within 20 ms/);
+  for (const name of ["code-rows", "forest"] as const) {
+    const { seed, layouts } = captureSeed(name);
+    const stories = seed.tree.stories.map(story => story.id).sort();
+    const kept = (shelf: string) => Object.keys(layouts).filter(key => key.startsWith(shelf)).map(key => key.slice(shelf.length)).sort();
+    assert.deepEqual(kept("storytree.roads."), stories, `the shared ${name} seed keeps roads for every island it draws`);
+    const arranged = kept("storytree.territories.");
+    assert.ok(arranged.length >= stories.length - 1 && arranged.every(story => stories.includes(story)), `and an arrangement for its islands, every one of them its own: ${arranged.join(", ")}`);
+  }
 });
 
 // Each probe owns its socket and finishes only after it closes. Global fetch leaves

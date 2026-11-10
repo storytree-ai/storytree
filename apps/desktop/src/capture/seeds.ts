@@ -27,15 +27,21 @@ const SEEDS = {
 
 export type CaptureSeedName = keyof typeof SEEDS;
 
-/** A fresh copy of a shared seed, with its code survey when it has one: a capture may change its copy freely. */
-export function captureSeed(name: CaptureSeedName): { seed: CaptureSeed; survey: SeededCaptureOptions["survey"] } {
+/**
+ * A fresh copy of a shared seed, with its code survey when it has one and the layouts its map kept once settled
+ * (`layouts.json.gz` beside it, refreshed by `layouts.mts` in code-rows): a capture may change its copy freely.
+ */
+export function captureSeed(name: CaptureSeedName): { seed: CaptureSeed; survey: SeededCaptureOptions["survey"]; layouts: Record<string, string> } {
   const { folder, seed, survey } = SEEDS[name];
   const read = (file: string): string => {
     const bytes = readFileSync(path.join(seeds, folder, file));
     return (file.endsWith(".gz") ? gunzipSync(bytes) : bytes).toString("utf8");
   };
-  return { seed: JSON.parse(read(seed)) as CaptureSeed, survey: survey === undefined ? undefined : JSON.parse(read(survey)) };
+  return { seed: JSON.parse(read(seed)) as CaptureSeed, survey: survey === undefined ? undefined : JSON.parse(read(survey)), layouts: JSON.parse(read("layouts.json.gz")) as Record<string, string> };
 }
+
+/** Where a shared seed's `layouts.json.gz` lies, which its `layouts.mts` refresh writes. */
+export const seedLayoutsFile = (name: CaptureSeedName): string => path.join(seeds, SEEDS[name].folder, "layouts.json.gz");
 
 /** A seed story's file, `packages/<package>/<path in the package>`, the story found by id or title; a story the seed lacks fails naming the ones it has. */
 export function seedFile(seed: { tree: { stories: readonly { id: string; title: string }[] } }, story: string, pathInPackage: string): string {

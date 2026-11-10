@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
 
 import { recordCiTimes, type ActionsReader } from "./record.js";
+import { ciScopeRule } from "./scope.js";
 import { ciTimesPool, type CiTimesDb } from "./store.js";
 
 const NOW = new Date("2026-11-10T12:00:00Z");
@@ -22,7 +24,7 @@ function run(id: number, fields: Partial<Run> & Pick<Run, "event" | "created_at"
 }
 
 /** The Actions API as GitHub answers it, over `runs`, each run's jobs and artifacts, a downloadable timing file per artifact, and the merged pull requests; every route asked is kept. */
-function actions(world: { runs: Run[]; jobs?: Record<number, Job[]>; artifacts?: Record<number, Artifact[]>; files?: Record<string, string>; pulls?: object[] }): ActionsReader & { asked: string[]; downloads: number[] } {
+function actions(world: { runs: Run[]; jobs?: Record<number, Job[]>; artifacts?: Record<number, Artifact[]>; files?: Record<string, string>; pulls?: object[]; open?: { number: number; sha: string; files: number | string[] }[] }): ActionsReader & { asked: string[]; downloads: number[] } {
   const asked: string[] = [];
   const downloads: number[] = [];
   return {
@@ -41,6 +43,18 @@ function actions(world: { runs: Run[]; jobs?: Record<number, Job[]>; artifacts?:
       if (jobs) return { jobs: world.jobs?.[Number(jobs[1])] ?? [] };
       const artifacts = /actions\/runs\/(\d+)\/artifacts$/.exec(where);
       if (artifacts) return { artifacts: world.artifacts?.[Number(artifacts[1])] ?? [] };
+      const page = <T>(all: T[]) => {
+        const size = Number(params.get("per_page") ?? "30");
+        const from = (Number(params.get("page") ?? "1") - 1) * size;
+        return all.slice(from, from + size);
+      };
+      if (where === `repos/${REPO}/pulls` && params.get("state") === "open") return page((world.open ?? []).map(({ number, sha }) => ({ number, head: { sha } })));
+      const files = /^repos\/acme\/shop\/pulls\/(\d+)\/files$/.exec(where);
+      if (files) {
+        const named = world.open?.find(({ number }) => number === Number(files[1]))?.files ?? [];
+        const all = typeof named === "number" ? Array.from({ length: named }, (_, i) => `packages/p${i}/x.ts`) : named;
+        return page(all.map((filename) => ({ filename })));
+      }
       throw new Error(`HTTP 404: ${route}`);
     },
     async graphql() {
@@ -67,7 +81,7 @@ async function store(t: { after(fn: () => Promise<void>): void }): Promise<{ db:
   const project = `t-${randomBytes(4).toString("hex")}`;
   t.after(async () => {
     try {
-      for (const table of ["ci_runs", "ci_pulls", "ci_unit_times", "ci_readings"]) await db.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
+      for (const table of ["ci_runs", "ci_pulls", "ci_unit_times", "ci_readings", "ci_pull_scopes"]) await db.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
     } finally {
       await storytree.close();
     }
@@ -118,7 +132,7 @@ test("6.1 Recording CI times keeps one row per pull-request and merge-queue run 
   assert.equal(github.asked.filter((route) => route.includes("/runs/1/attempts/")).length, 1, "a run's jobs are read once");
 });
 
-test("6.2 A passing merge-queue run's per-package test times are kept per unit and system from its timing artifacts; older runs' rows in the same file are not, and a run whose artifacts expired keeps none and is not asked again", async (t) => {
+test("6.2 A passing merge-queue run's per-package test times are kept per unit and system from its timing artifacts, each with the artifact (a system's shard) it came in; older runs' rows in the same file are not, and a run whose artifacts expired keeps none and is not asked again", async (t) => {
   const { db, project } = await store(t);
   const line = (row: object) => JSON.stringify(row);
   const world = {
@@ -141,10 +155,10 @@ test("6.2 A passing merge-queue run's per-package test times are kept per unit a
   };
   const github = actions(world);
   await recordCiTimes({ db, project, repository: REPO, actions: github, now: NOW, backfillDays: 2 });
-  const { rows } = await db.query<Record<string, unknown>>("SELECT run_id::int AS run, head_sha, platform, unit, ms, jobs, result, timed_out FROM ci_unit_times WHERE project = $1 ORDER BY platform", [project]);
+  const { rows } = await db.query<Record<string, unknown>>("SELECT run_id::int AS run, head_sha, platform, unit, ms, jobs, result, timed_out, artifact FROM ci_unit_times WHERE project = $1 ORDER BY platform", [project]);
   assert.deepEqual(rows, [
-    { run: 7, head_sha: "def", platform: "linux", unit: "packages/forest", ms: 61000, jobs: 2, result: "pass", timed_out: false },
-    { run: 7, head_sha: "def", platform: "win32", unit: "packages/cli", ms: 240000, jobs: 2, result: "pass", timed_out: false },
+    { run: 7, head_sha: "def", platform: "linux", unit: "packages/forest", ms: 61000, jobs: 2, result: "pass", timed_out: false, artifact: "test-timings-Linux-1" },
+    { run: 7, head_sha: "def", platform: "win32", unit: "packages/cli", ms: 240000, jobs: 2, result: "pass", timed_out: false, artifact: "test-timings-Windows-shard-1-1" },
   ]);
   assert.deepEqual(github.downloads, [7], "an expired artifact is not downloaded");
 
@@ -170,4 +184,58 @@ test("6.3 Each merged pull request's ready and merged times are kept: ready is i
     { pull: 5, ready_at: new Date("2026-11-09T09:00:00Z"), merged_at: new Date("2026-11-09T10:00:00Z") },
     { pull: 6, ready_at: new Date("2026-11-10T08:00:00Z"), merged_at: new Date("2026-11-10T08:40:00Z") },
   ]);
+});
+
+test("6.9 Recording CI times keeps each open pull request's scope, the packages its checks test, from its changed files: read again only when its head moves, all of them when it changes more files than GitHub lists, and dropped once it closes", async (t) => {
+  const { db, project } = await store(t);
+  const world = {
+    runs: [] as Run[],
+    open: [
+      { number: 12, sha: "a1", files: ["packages/forest/src/a.ts", "docs/x.md"] },
+      { number: 13, sha: "b1", files: ["package.json"] },
+      { number: 14, sha: "c1", files: 3000 },
+    ],
+  };
+  const github = actions(world);
+  /** What CI's own scope rule would decide: a package.json runs everything, else each file's package. */
+  const scopeOf = (files: readonly string[]) => files.includes("package.json") ? { full: true as const, dirs: [] } : { full: false as const, dirs: [...new Set(files.filter((file) => file.startsWith("packages/")).map((file) => file.split("/").slice(0, 2).join("/")))].sort() };
+  const scopes = async () => (await db.query<Record<string, unknown>>("SELECT pull, head_sha, every AS full, dirs FROM ci_pull_scopes WHERE project = $1 ORDER BY pull", [project])).rows;
+
+  const recorded = await recordCiTimes({ db, project, repository: REPO, actions: github, now: NOW, backfillDays: 2, scopeOf });
+  assert.equal(recorded.scopes, 3);
+  assert.deepEqual(await scopes(), [
+    { pull: 12, head_sha: "a1", full: false, dirs: ["packages/forest"] },
+    { pull: 13, head_sha: "b1", full: true, dirs: [] },
+    { pull: 14, head_sha: "c1", full: true, dirs: [] },
+  ]);
+  const filesAsked = () => github.asked.filter((route) => route.includes("/files")).map((route) => route.split("?")[0]!);
+  assert.equal(filesAsked().filter((route) => route.endsWith("/12/files")).length, 1);
+
+  world.open = [{ number: 12, sha: "a2", files: ["packages/cli/src/b.ts"] }, { number: 13, sha: "b1", files: ["package.json"] }];
+  await recordCiTimes({ db, project, repository: REPO, actions: github, now: new Date("2026-11-10T12:20:00Z"), backfillDays: 2, scopeOf });
+  assert.deepEqual(await scopes(), [
+    { pull: 12, head_sha: "a2", full: false, dirs: ["packages/cli"] },
+    { pull: 13, head_sha: "b1", full: true, dirs: [] },
+  ], "a moved head is read again; a closed pull request is dropped");
+  assert.equal(filesAsked().filter((route) => route.endsWith("/13/files")).length, 1, "an unmoved head is not read again");
+
+  await recordCiTimes({ db, project, repository: REPO, actions: github, now: new Date("2026-11-10T12:40:00Z"), backfillDays: 2 });
+  assert.equal((await scopes()).length, 2, "a recording with no scope rule leaves the scopes as they were");
+});
+
+test("6.9 An open pull request's scope is read by CI's own rule over the recording's checkout: its changed packages and every package depending on them, or every package for a change no package holds", (t) => {
+  const folder = mkdtempSync(path.join(tmpdir(), "ci-scope-"));
+  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  const pkg = (dir: string, name: string, deps: Record<string, string> = {}) => {
+    mkdirSync(path.join(folder, dir, "src"), { recursive: true });
+    writeFileSync(path.join(folder, dir, "package.json"), JSON.stringify({ name, dependencies: deps }));
+  };
+  pkg("packages/forest", "@acme/forest");
+  pkg("packages/map", "@acme/map", { "@acme/forest": "workspace:*" });
+  pkg("packages/cli", "@acme/cli");
+  writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "acme" }));
+  const scopeOf = ciScopeRule(folder);
+  assert.deepEqual(scopeOf(["packages/forest/src/a.ts"]), { full: false, dirs: ["packages/forest", "packages/map"] }, "its dependent too");
+  assert.deepEqual(scopeOf(["packages/cli/src/b.ts"]), { full: false, dirs: ["packages/cli"] });
+  assert.deepEqual(scopeOf(["README.md", "packages/cli/src/b.ts"]), { full: true, dirs: [] }, "a root file runs everything");
 });

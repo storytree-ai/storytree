@@ -74,6 +74,19 @@ function legText(leg: CiLeg): string {
     : leg.expected === undefined ? `${mins(leg.elapsed ?? 0)}, no factory median yet` : `${mins(leg.elapsed ?? 0)} of ${mins(leg.expected)} expected${TONES[leg.tone]}`;
   return `${LEG_NAMES[leg.name]}: ${said}`;
 }
+const SYSTEMS: Record<string, string> = { linux: "Linux", win32: "Windows", darwin: "macOS" };
+/** How many of an estimate's packages its hover names before it counts the rest. */
+const NAMED = 6;
+/** What a bar's expected times are from (3.35): its own checks estimate, named as rough with its packages and system, else the factory median. */
+function basisText(estimate: CiBar["estimate"]): string {
+  if (estimate === undefined) return "Expected from the factory median";
+  const names = estimate.packages.map((dir) => dir.split("/").at(-1)!);
+  const named = names.length > NAMED ? `${names.slice(0, NAMED).join(", ")} and ${names.length - NAMED} more` : names.join(", ");
+  const from = estimate.system === undefined ? "no timed package, setup alone"
+    : estimate.full ? `every package on ${SYSTEMS[estimate.system] ?? estimate.system}`
+    : `${names.length} package${names.length === 1 ? "" : "s"} on ${SYSTEMS[estimate.system] ?? estimate.system} (${named})`;
+  return `Checks expected from ${from}: a rough estimate; merge queue from the factory median`;
+}
 /** A CI leg's drawn length, the gap between the two and their height, in the bar's own pixels. */
 const CI_LEG = 90, CI_GAP = 4, CI_HEIGHT = 5;
 /**
@@ -87,9 +100,9 @@ function renderCiLeg(leg: CiLeg, index: number): string {
   const hatch = leg.phase === "waiting" ? `<path class="arc-ci-hatch" d="${Array.from({ length: CI_LEG / 5 }, (_, i) => `M${x + i * 5 + 0.5} ${CI_HEIGHT}L${x + i * 5 + 4.5} 0`).join("")}"/>` : "";
   return `<g class="arc-ci-leg arc-ci-${leg.name} arc-ci-${leg.phase} arc-ci-${leg.tone}"><rect class="arc-ci-track" x="${x}" width="${CI_LEG}" height="${CI_HEIGHT}" rx="2.5"/>${fill}${hatch}</g>`;
 }
-/** A pull request in CI's two-leg bar (3.34): its checks, then the merge queue, each filled by time over its factory median. */
+/** A pull request in CI's two-leg bar (3.34): its checks, then the merge queue, each filled by time over what it is expected to take (3.35). */
 function renderCiBar(bar: CiBar): string {
-  const title = [`Pull request #${bar.pr} in CI: ${bar.increment.title}`, ...bar.legs.map(legText), "Expected from the factory median",
+  const title = [`Pull request #${bar.pr} in CI: ${bar.increment.title}`, ...bar.legs.map(legText), basisText(bar.estimate),
     `Last change seen ${bar.seenAgo} min ago`].join("\n");
   const width = 2 * CI_LEG + CI_GAP;
   return `<span class="arc-ci" data-ci-pr="${bar.pr}" data-ci-increment="${escape(bar.increment.id)}" role="img" aria-label="${escape(title)}" title="${escape(title)}"><span class="arc-ci-pr" aria-hidden="true">#${bar.pr}</span>`

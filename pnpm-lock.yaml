@@ -331,6 +331,9 @@ importers:
 
   packages/ci-health:
     dependencies:
+      '@storytree/base-dev-loop':
+        specifier: workspace:*
+        version: link:../base-dev-loop
       '@storytree/library':
         specifier: workspace:*
         version: link:../library

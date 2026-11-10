@@ -19,7 +19,7 @@ async function store(t: { after(fn: () => Promise<void>): void }): Promise<{ db:
   const project = `t-${randomBytes(4).toString("hex")}`;
   t.after(async () => {
     try {
-      for (const table of ["ci_runs", "ci_pulls", "ci_unit_times", "ci_readings"]) await db.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
+      for (const table of ["ci_runs", "ci_pulls", "ci_unit_times", "ci_readings", "ci_pull_scopes"]) await db.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
     } finally {
       await storytree.close();
     }
@@ -90,9 +90,48 @@ test("6.7 The CI times reading gives each CI leg's factory median apart: a pull 
   for (const [sha, minutes] of [["a", 10], ["b", 12], ["c", 20]] as const) await run("pull_request", sha, minutes);
   await run("pull_request", "red", 2, "failure");
   await db.query("INSERT INTO ci_readings (project, repository, read_at) VALUES ($1, 'acme/shop', $2)", [project, ago(2)]);
-  assert.deepEqual((await ciTimesReading(db, project, NOW))?.legs, { checks: 12 }, "no passing queue run: no queue median");
+  assert.deepEqual((await ciTimesReading(db, project, NOW))?.legs, { checks: 12, pulls: [] }, "no passing queue run: no queue median");
 
   for (const [sha, minutes] of [["q1", 14], ["q2", 15], ["q3", 16]] as const) await run("merge_group", sha, minutes);
   await run("merge_group", "q4", 40, "failure");
-  assert.deepEqual((await ciTimesReading(db, project, NOW))?.legs, { checks: 12, queue: 15 });
+  assert.deepEqual((await ciTimesReading(db, project, NOW))?.legs, { checks: 12, queue: 15, pulls: [] });
+});
+
+test("6.10 The CI times reading gives each open pull request's checks estimate from its own packages: per system, its units' median times summed over the system's shards and jobs at once (never under its longest unit), on the slower system, plus setup", async (t) => {
+  const { db, project } = await store(t);
+  await db.query("INSERT INTO ci_readings (project, repository, read_at) VALUES ($1, 'acme/shop', $2)", [project, ago(2)]);
+  const unit = (run: number, at: number, platform: string, artifact: string, name: string, minutes: number, result = "pass") => db.query(
+    `INSERT INTO ci_unit_times (project, run_id, head_sha, platform, arch, unit, jobs, result, ms, timed_out, at, artifact)
+      VALUES ($1, $2, 'sha', $3, 'x64', $4, 2, $5, $6, false, $7, $8)`, [project, run, platform, name, result, minutes * 60_000, ago(at), artifact]);
+  // Three runs; each unit's median is the middle one's time. Linux runs in one job set, Windows in two shards.
+  for (const [run, at, scale] of [[1, DAY, 1], [2, 2 * DAY, 2], [3, 3 * DAY, 0.5]] as const) {
+    await unit(run, at, "linux", "test-timings-Linux-1", "packages/a", 4 * scale);
+    await unit(run, at, "linux", "test-timings-Linux-1", "packages/a/src/slow.test.ts", 2 * scale);
+    await unit(run, at, "linux", "test-timings-Linux-1", "packages/b", 2 * scale);
+    await unit(run, at, "linux", "test-timings-Linux-1", "packages/c", 16 * scale);
+    await unit(run, at, "win32", "test-timings-Windows-shard-1-1", "packages/a", 6 * scale);
+    await unit(run, at, "win32", "test-timings-Windows-shard-2-1", "packages/a/src/slow.test.ts", 3 * scale);
+    await unit(run, at, "win32", "test-timings-Windows-shard-1-1", "packages/b", 4 * scale);
+    await unit(run, at, "win32", "test-timings-Windows-shard-2-1", "packages/c", 12 * scale);
+  }
+  await unit(3, 3 * DAY, "linux", "test-timings-Linux-1", "packages/ab", 50, "fail");
+  // macOS no longer runs on a pull request: its old times are not the slowest system's.
+  await unit(9, 6 * DAY, "darwin", "test-timings-macOS-1", "packages/a", 90);
+  // Older than a week: not counted.
+  await unit(8, 9 * DAY, "linux", "test-timings-Linux-1", "packages/b", 600);
+  const scope = (pull: number, full: boolean, dirs: string[]) => db.query(
+    "INSERT INTO ci_pull_scopes (project, pull, head_sha, every, dirs, read_at) VALUES ($1, $2, 'h', $3, $4, $5)", [project, pull, full, dirs, ago(2)]);
+  await scope(11, false, ["packages/a"]);
+  await scope(12, true, []);
+  await scope(13, false, []);
+
+  const reading = await ciTimesReading(db, project, NOW);
+  assert.deepEqual(reading?.legs.pulls, [
+    // Linux: (4 + 2) / 2 jobs = 3, under its longest unit, 4. Windows: (6 + 3) / (2 shards x 2 jobs) = 2.25, under 6. Windows is slower: 6, plus 4 of setup.
+    { pull: 11, checks: 10, system: "win32", full: false, packages: ["packages/a"] },
+    // Linux: (4 + 2 + 2 + 16) / 2 = 12, under 16. Windows: (6 + 3 + 4 + 12) / 4 = 6.25, under 12. Linux is slower: 16, plus 4.
+    { pull: 12, checks: 20, system: "linux", full: true, packages: [] },
+    // Nothing to test (docs only): setup alone.
+    { pull: 13, checks: 4, full: false, packages: [] },
+  ]);
 });

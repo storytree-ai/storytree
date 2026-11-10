@@ -1,4 +1,4 @@
-// One live `pnpm test` at a time in a worktree, on its test Postgres (.pgtest/data): the run records itself in
+// Capability 4 · Running the tests. One live `pnpm test` at a time in a worktree, on its test Postgres (.pgtest/data): the run records itself in
 // .pgtest/run.json before it waits for any hold or starts a server, and a second run there is refused at once, naming
 // the first, rather than queueing behind the machine's lock to fail at the server's start (friction_f33f00f1da61).
 // Refused, never queued: a run waiting here while the gate's own test step waits on it would wait for good.

@@ -11,7 +11,7 @@
 import type { CapabilityWord } from "@storytree/forest-world/scene";
 import type { IslandRoads } from "../territories/island-roads.js";
 import { cutOpenings, QUIET_BORDER } from "./island-roads.js";
-import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, ShapeUtils, Vector2, type Vector3 } from "three";
+import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, type Object3D, ShapeUtils, Vector2, type Vector3 } from "three";
 
 /**
  * Each word's fill (ADR-0825 D3, ADR-0992): healthy green, unhealthy red, and yellow while not proven yet, which
@@ -77,6 +77,7 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
     mesh.userData = territory.mapped === true && territory.capability === undefined ? { territory: true, mapped: true } : territory.capability === undefined ? { territory: true }
       : { territory: true, ...(territory.mapped === true ? { mapped: true } : {}), capability: territory.capability, title: territory.title ?? territory.capability, ...(territory.description === undefined ? {} : { description: territory.description }), word: territory.status ?? "untested", ...(territory.parked === true ? { parked: true } : {}), ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
     mesh.renderOrder = 1;
+    groundOf.set(mesh, pieces);
     group.add(mesh);
     if (territory.capability === undefined && territory.mapped !== true) group.add(hatch(pieces, onSurface));
   });
@@ -93,6 +94,21 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
   lines.renderOrder = 2;
   group.add(lines);
   return group;
+}
+
+/** Each territory's land as convex pieces on the ground, so a rebuilt island knows what filled the land a new one takes (3.46). */
+const groundOf = new WeakMap<Object3D, readonly (readonly Point[])[]>();
+
+/**
+ * The territory of `before` whose land held the middle of `mark`'s largest piece: the fill a new territory was carved
+ * from (3.46), or none where `before` drew no territory there.
+ */
+export function filledUnder(before: Group, mark: Object3D): Mesh | undefined {
+  const area = (piece: readonly Point[]) => Math.abs(piece.reduce((sum, p, at) => { const q = piece[(at + 1) % piece.length]!; return sum + p.x * q.z - q.x * p.z; }, 0));
+  const largest = (groundOf.get(mark) ?? []).reduce<readonly Point[] | undefined>((best, piece) => best === undefined || area(piece) > area(best) ? piece : best, undefined);
+  if (largest === undefined) return undefined;
+  const middle = { x: largest.reduce((sum, p) => sum + p.x, 0) / largest.length, z: largest.reduce((sum, p) => sum + p.z, 0) / largest.length };
+  return before.children.find((old): old is Mesh => old.name.startsWith("territory:") && (groundOf.get(old) ?? []).some((piece) => inConvex(middle, piece)));
 }
 
 /** A territory's fill: its word's colour, parked's grey, mapped's brown for a mapped island's unexplored rest, or the uncharted-land ink for Unclaimed code. */

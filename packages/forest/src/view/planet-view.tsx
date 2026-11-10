@@ -351,11 +351,12 @@ type IslandLandProps = Omit<TerritoriesProps, "claimed"> & { tints: ReadonlyMap<
 
 /** The island's land as laid out (`map`), and its roads once routed. */
 function IslandLand(props: IslandLandProps) {
-  const { map, coast, links, docks, tints, radius } = props;
+  const { story, map, coast, links, docks, tints, radius } = props;
   // ADR-1236 D1: an island's links are one shared road network, with a gate wherever a road crosses a border.
-  // 3.82: routed off the page, so the territories draw at once and the roads when they arrive.
+  // 3.82: routed off the page, so the territories draw at once and the roads when they arrive, or at once from the
+  // story's roads kept on this computer when the island is laid out as they were routed for.
   const routedVersion = useSyncExternalStore(subscribeRoads, roadsVersion);
-  const ask = useMemo((): RoadsAsk | undefined => docks === undefined ? undefined : { map, links, docks, names: capabilityPlates(map) }, [map, links, docks]);
+  const ask = useMemo((): RoadsAsk | undefined => docks === undefined ? undefined : { story, map, links, docks, names: capabilityPlates(map) }, [story, map, links, docks]);
   const roads = useMemo(() => ask === undefined ? undefined : knownIslandRoads(ask), [ask, routedVersion]);
   useEffect(() => {
     if (ask === undefined || roads !== undefined) return;

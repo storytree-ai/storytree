@@ -78,6 +78,7 @@ import { shellEdits } from "./shell-edits.js";
 import type { HookClock } from "./timing.js";
 import { rememberedImports, SHELL_GUARD, shellGuard, watchImports, watchWorktree } from "./shell-guard.js";
 import { TEST_GUARD, testGuard } from "./test-guard.js";
+import { noteSessionStart, toolsStoppedAtTurnEnd, toolsStoppedNotice } from "./tools-stopped.js";
 
 /** What a hook is run with: the command's arguments (the harness first, then any flags) and its stdin. */
 export interface HookInput {
@@ -154,11 +155,13 @@ export function inCursor(input: unknown): boolean {
  * nothing to add. Cursor reads `additional_context`, and `continue` lets the prompt through; Pi's extension
  * returns the answer from before_agent_start, where a message is added for the model and, with `display` off, not shown.
  */
-export function promptAnswer(harness: string, context: readonly string[] | undefined, input: unknown): string | undefined {
+export function promptAnswer(harness: string, context: readonly string[] | undefined, input: unknown, shown?: string): string | undefined {
   if (context === undefined || context.length === 0 || (harness !== "cursor" && inCursor(input))) return undefined;
   const added = context.join("\n\n");
   if (harness === "pi") return JSON.stringify({ message: { customType: "storytree", content: added, display: false } });
-  return JSON.stringify(harness === "cursor" ? { continue: true, additional_context: added } : { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: added } });
+  if (harness === "cursor") return JSON.stringify({ continue: true, additional_context: added });
+  // Claude Code also shows the user a warning (`shown`) beside the prompt.
+  return JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: added }, ...(shown !== undefined && harness === "claude-code" ? { systemMessage: shown } : {}) });
 }
 
 /** A prompt the user sent, as each harness's prompt hook gives it (UserPromptSubmit; Cursor's beforeSubmitPrompt; Pi's before_agent_start). */
@@ -203,11 +206,14 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     if (harness === "codex" && typeof parsed === "object" && parsed !== null) {
       noteCodexHookRan({ storytreeHome: storytreeHome(), codexHome: process.env.CODEX_HOME || path.join(homedir(), ".codex") });
     }
+    // When a session started its tool server, for telling it later whether an update stopped that server (3.57).
+    if (event === "SessionStart") noteSessionStart(harness, parsed);
     // An older install's asking hook, until the next setup check replaces its registration.
     if (flags.includes(ASK_SETUP)) return;
     if (flags.includes(BIG_INJECTION)) return void (await fileBigInjection(parsed));
     // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).
-    if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed, git);
+    // It first tells a session whose storytree tools an update stopped, once (3.57).
+    if (flags.includes(CLOSE_OUT_REMINDER)) return toolsStoppedAtTurnEnd(harness, parsed, storytreeHome()) ?? closeOutReminder(harness, parsed, git);
     // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
     // The guard storytree's red and green builder agents run before each edit writes nothing either (3.50).
     if (flags.includes(TEST_GUARD)) return testGuard(harness, parsed, flags);
@@ -229,7 +235,9 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
         // Without a copy to hand it to, it is filed here; a failure is traced, never in the prompt's way.
         await (handOff === undefined ? fileBigInjection(JSON.parse(handed)).catch((error: unknown) => failed("hook", error)) : handOff(harness, handed, [BIG_INJECTION]));
       }
-      return promptAnswer(harness, yes === undefined ? context : [...yes, ...(context ?? [])], parsed);
+      // A session whose storytree tools an update stopped is told first, once, whether or not the library answers (3.57).
+      const stopped = toolsStoppedNotice(harness, parsed, storytreeHome());
+      return promptAnswer(harness, [...(stopped === undefined ? [] : [stopped.agent]), ...(yes ?? []), ...(context ?? [])], parsed, stopped?.user);
     }
     if (made === undefined) return;
     // After an edit the gate asked the user about, the user's yes is recorded on the increment (contract 3.34).

@@ -12,7 +12,9 @@
  *   make room; one dropped leaves the rest where they were kept, searching nothing.
  * - The search runs in the worker the page names (TERRITORY_WORKER_META), one at a time, never on the page: a page
  *   with no worker draws the start and searches nothing. Every island is laid out (ADR-1253 D2), so a search asked for
- *   another island waits its turn; one asked for a new structure of the island in flight overtakes it.
+ *   another island waits its turn; one asked for a new structure of the island in flight overtakes it. The island on
+ *   screen (`searchFirst`) is searched next, ahead of those that waited longer, at its full length (3.97); the islands
+ *   searched or waiting are counted by the map's top-left mark (3.96, `islandsSearching`).
  * - An island with nothing kept draws no territories while its first search runs or waits its turn, so they draw once,
  *   where they stay (3.95); a search that fails or finds nothing ends that wait, and the island draws its start.
  */
@@ -78,7 +80,8 @@ let version = 0;
  * every one read so far. */
 export function shelveOn(next: ArrangementShelf | undefined): void {
   shelf = next; kept.clear(); unanswered.clear(); version++;
-  inFlight?.overtaken.abort(); inFlight = undefined; waiting.clear();
+  inFlight?.overtaken.abort(); inFlight = undefined; waiting.clear(); onScreen = undefined;
+  queueChanged();
 }
 
 /** The arrangement kept for `story`, if any. */
@@ -124,6 +127,34 @@ export const keptVersion = (): number => version;
 let inFlight: { story: string; key: string; overtaken: AbortController } | undefined;
 /** The islands waiting their turn, in the order first asked, each with its latest ask. */
 const waiting = new Map<string, { ask: Omit<SearchAsk, "kept">; searcher: TerritorySearcher }>();
+/** The island on screen, searched next when it waits its turn (3.97). */
+let onScreen: string | undefined;
+
+/** Searches `story`'s island next whenever it waits its turn, ahead of those that waited longer (undefined for none, so
+ * the islands waiting go in the order asked); the search in flight is never overtaken, and no search is shortened (3.97). */
+export function searchFirst(story: string | undefined): void {
+  onScreen = story;
+}
+
+const queueListeners = new Set<() => void>();
+let queueVersion = 0, queueSeen = "[]";
+/** The islands whose search is in flight or waits its turn (3.96). */
+export function islandsSearching(): ReadonlySet<string> {
+  return new Set([...(inFlight === undefined ? [] : [inFlight.story]), ...waiting.keys()]);
+}
+/** Hears every change in the islands searched or waiting (React's useSyncExternalStore, with `searchingVersion`). */
+export function subscribeSearching(listener: () => void): () => void {
+  queueListeners.add(listener);
+  return () => { queueListeners.delete(listener); };
+}
+/** Changes whenever an island starts, ends or stops waiting for its search. */
+export const searchingVersion = (): number => queueVersion;
+function queueChanged(): void {
+  const now = JSON.stringify([...islandsSearching()].sort());
+  if (now === queueSeen) return;
+  queueSeen = now; queueVersion++;
+  for (const listener of queueListeners) listener();
+}
 
 /**
  * Asks `searcher` to search `story`'s island unless its kept arrangement was searched for this structure, or a search
@@ -133,6 +164,11 @@ const waiting = new Map<string, { ask: Omit<SearchAsk, "kept">; searcher: Territ
  * nothing.
  */
 export function searchIsland(story: string, ask: Omit<SearchAsk, "kept">, searcher: TerritorySearcher | undefined): void {
+  asked(story, ask, searcher);
+  queueChanged();
+}
+
+function asked(story: string, ask: Omit<SearchAsk, "kept">, searcher: TerritorySearcher | undefined): void {
   if (searcher === undefined) return;
   const key = structureKey(ask.shares), held = keptArrangement(story);
   if (held?.key === key) { waiting.delete(story); return; }
@@ -155,12 +191,17 @@ export function searchIsland(story: string, ask: Omit<SearchAsk, "kept">, search
   const done = () => {
     if (inFlight?.overtaken !== overtaken) return;
     inFlight = undefined;
-    // The next island waiting that still needs its search: one kept meanwhile for its structure is passed over.
-    for (const [next, { ask, searcher }] of waiting) {
+    // The next island waiting that still needs its search, the one on screen first: one kept meanwhile for its
+    // structure is passed over.
+    const order = [...waiting.keys()].sort((a, b) => Number(b === onScreen) - Number(a === onScreen));
+    for (const next of order) {
+      const turn = waiting.get(next);
+      if (turn === undefined) continue;
       waiting.delete(next);
-      searchIsland(next, ask, searcher);
+      asked(next, turn.ask, turn.searcher);
       if (inFlight !== undefined) break;
     }
+    queueChanged();
   };
   const none = () => { if (keptArrangement(story) === undefined && !unanswered.has(story)) { unanswered.add(story); told(); } };
   void searcher({ ...ask, ...(was && { kept: was.seeds }), ...(fixed.length > 0 && { fixed }) }, signal).then((answer) => {

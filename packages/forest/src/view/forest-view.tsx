@@ -17,6 +17,8 @@ import { LAUNCH_FACE, sheetFaces, type SheetFace } from "./globe-switches.js";
 import type { PlacedGlobeControls } from "./globe-guide.js";
 import { globeLocator, type GlobeLocator } from "./globe-locator.js";
 import { paintedScenes } from "./painted-scenes.js";
+import { LayoutProgress, onScreenIsland } from "./layout-progress.js";
+import { searchFirst } from "../territories/kept-layout.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
 
 export interface ForestView {
@@ -71,9 +73,13 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, capability: undefined, highlighted: undefined, circled: undefined, circledContracts: undefined, viewport: undefined, aside: 0,
   };
   const painted = paintedScenes(drawn.scene);
+  const onScreen = onScreenIsland();
 
   const render = (next: Partial<Drawn>): void => {
     drawn = { ...drawn, ...next };
+    const stories = drawn.scene.islands.map(island => island.story);
+    // 3.97: the island on screen, selected or else the newest, is searched before the others waiting.
+    searchFirst(onScreen(stories, drawn.selected));
     if (drawn.viewport === undefined) return;
     const layers = sheetFaces(drawn.face, library);
     container.dataset.view = "globe";
@@ -87,11 +93,15 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
           onPick={pick} onNote={pickNote} onControls={onControls} onPainted={painted.painted} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library}
           />
       </div>
-      <div className="forest-views" role="group" aria-label="Sheet faces">
-        {layers.offered.map(which => <button key={which} type="button"
-          data-globe-switch={which} aria-pressed={layers.pressed[which]} title={layers.offered.length > 1 ? LOOK_TITLE[which] : TILT_TITLE} onClick={() => turn(which)}>
-          {which === "stories" ? "Stories" : "Library"}
-        </button>)}
+      <div className="forest-top">
+        <div className="forest-views" role="group" aria-label="Sheet faces">
+          {layers.offered.map(which => <button key={which} type="button"
+            data-globe-switch={which} aria-pressed={layers.pressed[which]} title={layers.offered.length > 1 ? LOOK_TITLE[which] : TILT_TITLE} onClick={() => turn(which)}>
+            {which === "stories" ? "Stories" : "Library"}
+          </button>)}
+        </div>
+        {/* 3.96: beside the switches while any island is still laid out. */}
+        <LayoutProgress islands={stories} />
       </div>
       {/* The knowledge core's kind list unfolds under the Library button while it is pressed (knowledge core 5, D1). */}
       {layers.mode === "library" && <KnowledgeKinds core={core} />}

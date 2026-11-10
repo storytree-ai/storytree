@@ -23,4 +23,4 @@ Taken with `node --import tsx packages/forest/testing/view/panel-open-work/captu
 panel lists exactly the increments, in the order, that the library's annotated tree gives, and writes both into
 `measurements.json`.
 
-In the evidence bucket for #489, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `489/capability-open-work.png`, `489/capability-open-work-panel.png`.
+In the evidence bucket for #673, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `673/capability-open-work.png`, `673/capability-open-work-panel.png`.

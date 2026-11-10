@@ -18,7 +18,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { connect as connectTcp, createServer, type AddressInfo, type Server } from "node:net";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
@@ -43,6 +43,7 @@ import { CLOSE_OUT_REMINDER } from "./close-out-reminder.js";
 import { runGit, type Git } from "../activity/git.js";
 import { hookTools } from "./tools.js";
 import { AFTER_TOOL, codexToolArguments } from "./codex-delivery.js";
+import type { HookReading } from "./timing.js";
 import { queueFolder } from "./queue.js";
 import { readSettings, setLibrary, setSetting } from "@storytree/project-and-caller";
 import { takeTurn } from "./remote-turn.js";
@@ -138,6 +139,30 @@ async function linesOf(project: string, { starts = false } = {}): Promise<Line[]
     return (await log.since(project, 0)).lines.filter((line) => starts || (line.kind !== "machine-started" && line.kind !== "hook-times"));
   } finally {
     await log.close();
+  }
+}
+
+/**
+ * The hook readings `home`'s machine holds for `project`, those waiting in its file and those its log has taken, each
+ * counted once: the log is read before the file, because an upload only ever moves readings from the file to the log.
+ * Undefined while an upload holds some aside, read by neither, so a caller waits for it to finish; one it emptied and
+ * could not remove holds none.
+ */
+async function hookReadings(home: string, project: string): Promise<HookReading[] | undefined> {
+  const moving = () => readdirSync(home).some((name) => name.endsWith(".taking") && sizeOf(path.join(home, name)) > 0);
+  if (moving()) return undefined;
+  const uploaded = (await linesOf(project, { starts: true })).flatMap((line) => (line.kind === "hook-times" ? line.readings : []));
+  const times = path.join(home, "hook-times.jsonl");
+  const waiting = existsSync(times) ? readFileSync(times, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as HookReading) : [];
+  return moving() ? undefined : [...uploaded, ...waiting].sort((one, other) => one.at.localeCompare(other.at));
+}
+
+/** A file's size, or 0 once it is gone. */
+function sizeOf(file: string): number {
+  try {
+    return statSync(file).size;
+  } catch {
+    return 0;
   }
 }
 
@@ -1731,14 +1756,12 @@ test("3.41 Codex hands the tool server each event its handler's template carries
 
         // Each command hook's own reading says whether it reached the library: once a minute one takes its whole turn.
         // A reading waits on this machine until a look around the machine, which a whole turn hands on, uploads it.
-        type Reading = { at: string; event: string; parts: Record<string, number | undefined> };
-        const times = path.join(home, "hook-times.jsonl");
-        const readings = async (): Promise<Reading[]> => [
-          ...(existsSync(times) ? readFileSync(times, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as Reading) : []),
-          ...(await linesOf(project, { starts: true })).flatMap((line) => (line.kind === "hook-times" ? line.readings : [])),
-        ].filter((reading) => reading.event.endsWith(AFTER_TOOL)).sort((one, other) => one.at.localeCompare(other.at));
-        await waitUntil(async () => (await readings()).length >= events.length + 1, 25_000, "every hook's reading");
-        assert.deepEqual((await readings()).map((reading) => "connect" in reading.parts), [true, false, false, false, true]);
+        const readings = async () => (await hookReadings(home, project))?.filter((reading) => reading.event.endsWith(AFTER_TOOL));
+        const read = await waitUntil(async () => {
+          const all = await readings();
+          return all !== undefined && all.length >= events.length + 1 ? all : undefined;
+        }, 25_000, "every hook's reading");
+        assert.deepEqual(read.map((reading) => "connect" in reading.parts), [true, false, false, false, true]);
       } finally {
         await log.close();
       }
@@ -1876,14 +1899,12 @@ test("3.42 A Claude Code command hook, finding the tool server's note of its eve
         assert.deepEqual([kinds("no-tool-user-prompt-submit"), kinds("no-tool-post-tool-use-bash")], [["prompt-submitted"], ["command-run"]], "the command hook records what no tool delivered");
 
         // Each command hook's own reading says whether it reached the library: once a minute one takes its whole turn.
-        type Reading = { at: string; harness: string; event: string; parts: Record<string, number | undefined> };
-        const times = path.join(home, "hook-times.jsonl");
-        const readings = async (): Promise<Reading[]> => [
-          ...(existsSync(times) ? readFileSync(times, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as Reading) : []),
-          ...(await linesOf(project, { starts: true })).flatMap((line) => (line.kind === "hook-times" ? line.readings : [])),
-        ].filter((reading) => reading.harness === "claude-code" && !reading.event.includes("--upkeep")).sort((one, other) => one.at.localeCompare(other.at));
-        await waitUntil(async () => (await readings()).length >= events.length + 2, 25_000, "every hook's reading");
-        assert.deepEqual((await readings()).map((reading) => "connect" in reading.parts), [true, false, false, false, true, true]);
+        const readings = async () => (await hookReadings(home, project))?.filter((reading) => reading.harness === "claude-code" && !reading.event.includes("--upkeep"));
+        const read = await waitUntil(async () => {
+          const all = await readings();
+          return all !== undefined && all.length >= events.length + 2 ? all : undefined;
+        }, 25_000, "every hook's reading");
+        assert.deepEqual(read.map((reading) => "connect" in reading.parts), [true, false, false, false, true, true]);
       } finally {
         await log.close();
       }

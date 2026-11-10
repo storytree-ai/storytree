@@ -18,19 +18,32 @@ test("2.14 · A change to shared tables that meets another test's reader in a de
     await withTestClient(async (reader) => {
       // The reader holds the first table, as a test reading the log inside a transaction does.
       await reader.query("BEGIN");
-      await reader.query(`SELECT count(*) FROM ${first}`);
-      // The change takes the second table, then, a moment later, the first: the order a rules change meets it in.
-      const change = changeSharedTables(undefined, (client) =>
-        client.query(`LOCK TABLE ${second} IN ACCESS EXCLUSIVE MODE; SELECT pg_sleep(0.3); LOCK TABLE ${first} IN ACCESS EXCLUSIVE MODE`),
-      );
+      assert.equal((await reader.query(`SELECT count(*)::int AS n FROM ${first}`)).rows[0].n, 0);
+      // The change takes the second table and, once the reader waits on it, the first: the order a rules change meets
+      // it in. Postgres must then end one of them; the reader waited first, so its deadlock check would end the reader.
+      let attempts = 0;
+      const change = changeSharedTables(undefined, async (client) => {
+        attempts++;
+        await client.query("BEGIN");
+        await client.query(`LOCK TABLE ${second} IN ACCESS EXCLUSIVE MODE`);
+        if (attempts === 1) {
+          await waitUntil(async () => {
+            const waiting = await client.query("SELECT 1 FROM pg_locks WHERE relation = $1::regclass AND NOT granted", [second]);
+            return waiting.rowCount === 1;
+          }, 10_000, "the reader to wait on the second table");
+        }
+        await client.query(`LOCK TABLE ${first} IN ACCESS EXCLUSIVE MODE`);
+        await client.query("COMMIT");
+        return "made";
+      });
       await waitUntil(async () => {
-        const held = await reader.query("SELECT 1 FROM pg_locks WHERE relation = $1::regclass AND mode = 'AccessExclusiveLock' AND granted", [second]);
+        const held = await withTestClient((watcher) => watcher.query("SELECT 1 FROM pg_locks WHERE relation = $1::regclass AND mode = 'AccessExclusiveLock' AND granted", [second]));
         return held.rowCount === 1;
       }, 10_000, "the change to hold the second table");
-      // The reader now waits on the change, and the change will wait on the reader: Postgres must end one of them.
-      await reader.query(`SELECT count(*) FROM ${second}`);
+      assert.equal((await reader.query(`SELECT count(*)::int AS n FROM ${second}`)).rows[0].n, 0, "the reader's read is answered, not ended by a deadlock");
       await reader.query("COMMIT");
-      await change;
+      assert.equal(await change, "made");
+      assert.equal(attempts, 2, "the change gave up its first try and was made on the second");
     });
   } finally {
     await withTestClient((client) => client.query(`DROP TABLE IF EXISTS ${first}, ${second}`));

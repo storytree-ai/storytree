@@ -424,7 +424,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.predictQuestion("question_000000000000", { pick: 1, confidence: "high", why: "x" }), null, "null for no question");
   });
 
-  contract("12.13", "a settled question takes one score, for its would-be answer and its raiser's recommendation, with who scored it and when; an open or already scored question refuses it", async ({ work, flight, transactions }) => {
+  contract("12.13", "a settled question takes one score, for its would-be answer and its raiser's recommendation, with who scored it and when; an open or already scored question refuses it", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "Mailgun" });
     await flight.predictQuestion(question.id, { pick: 2, confidence: "medium", why: "SES is cheaper" });
@@ -452,6 +452,19 @@ for (const backend of [memory, postgres]) {
     assert.equal(alone?.fields.score?.recommendation, "match-with-changes");
     assert.equal(alone?.fields.score?.prediction, undefined);
     assert.equal(await flight.scoreQuestion("question_000000000000", { recommendation: "match", by: "lane" }), null, "null for no question");
+
+    // A recommendation that declines to recommend ("None: …", with its why) is none: unscored, and left out of the deviation.
+    const declined = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "None: the trial measures your reading, so a recommendation would bias it." });
+    await flight.predictQuestion(declined.id, { pick: 1, confidence: "low", why: "x" });
+    await flight.settleQuestion(declined.id, { answer: "Mailgun" });
+    await assert.rejects(flight.scoreQuestion(declined.id, { prediction: "match", recommendation: "different", by: "lane" }), RangeError, "a declined recommendation takes no verdict");
+    const unrecommended = await flight.scoreQuestion(declined.id, { prediction: "match", by: "lane" });
+    assert.equal(unrecommended?.fields.score?.recommendation, undefined);
+    const before = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "none — he reads it cold" });
+    await flight.settleQuestion(before.id, { answer: "SES" });
+    await records.edit(before.id, { score: { recommendation: "different", by: "lane", at: new Date().toISOString() } });
+    const { bands } = await flight.questionDeviation(new Date(0));
+    assert.equal(bands.reduce((sum, { recommendation }) => sum + recommendation.different, 0), 0, "a declined recommendation's verdict is not counted, even one scored before");
   });
 
   contract("12.15", "an open question carries a prep mark, set in place: when and its stance, with the reason; edited after its mark it reads unprepared, and settling keeps the mark", async ({ work, flight, transactions }) => {

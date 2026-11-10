@@ -10,7 +10,7 @@ import { removeTemp } from "@storytree/test-waits";
 import { capabilitiesCommand } from "./read.js";
 import { mapTools } from "./tools.js";
 
-test("2.7 the focus tool refuses a call that gives neither select nor crossing, or a crossing with a select that names no mapped story or with dry_run, before it reads anything", async () => {
+test("2.7 the focus tool refuses a call that gives neither select nor crossing, or a crossing with a select that names no imported story or with dry_run, before it reads anything", async () => {
   const tools: Record<string, (args: Record<string, unknown>, call: never) => Promise<unknown>> = {};
   const unreadHost = { imports: () => { throw new Error("read"); }, heldBack: () => undefined };
   mapTools(unreadHost).registerTools!((name, _description, _input, act) => { tools[name] = act as never; });
@@ -18,7 +18,7 @@ test("2.7 the focus tool refuses a call that gives neither select nor crossing, 
   const unread = () => { throw new Error("read"); };
   const call = { library: new Proxy({}, { get: unread }), storytree: new Proxy({}, { get: unread }), folder: "/nowhere" } as never;
   await assert.rejects(tools.focus!({}, call), /^Error: Give select, or crossing\.$/);
-  await assert.rejects(tools.focus!({ crossing: ["src"], select: "cap:2" }, call), /^Error: With crossing, select names a mapped story: story:<name>\.$/);
+  await assert.rejects(tools.focus!({ crossing: ["src"], select: "cap:2" }, call), /^Error: With crossing, select names an imported story: story:<name>\.$/);
   await assert.rejects(tools.focus!({ crossing: ["src"], mode: "dry_run" }, call), /^Error: A crossing answers counts or show\.$/);
 });
 

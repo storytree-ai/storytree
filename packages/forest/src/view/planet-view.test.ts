@@ -317,7 +317,7 @@ test("3.20 each territory is filled by its capability's word, green, red or yell
   assert.equal(fill(claimed, "territory:cap-healthy").opacity, fill(drawn, "territory:cap-healthy").opacity);
 });
 
-test("3.39 a mapped story is one brown island, whole: no territories, file circles or hatch; its land follows its lines up to a cap; with no survey it is still brown land", () => {
+test("3.39 an imported story is one brown island, whole: no territories, file circles or hatch; its land follows its lines up to a cap; with no survey it is still brown land", () => {
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
   const tree: AnnotatedTree = { arcs: [], stories: [
     { id: "cart", title: "cart", health, capabilities: [], mapped: { from: "/code/shop", package: "packages/cart", folders: ["packages/cart"] } },
@@ -328,12 +328,12 @@ test("3.39 a mapped story is one brown island, whole: no territories, file circl
   const scene = (lines?: number, read: AnnotatedTree = tree) => forestScene(read, [], workStates([]), lines === undefined ? {} : survey(lines));
   const cart = scene(2_000).islands[0]!;
   assert.deepEqual(cart.land, { territories: [{ mapped: true, lines: 2_000 }], files: [] }, "one mapped territory, and no file circles");
-  assert.equal(cart.area, 3_000, "a small mapped island's land follows its lines as a built island's does: 1.5 ground units² a line");
+  assert.equal(cart.area, 3_000, "a small imported island's land follows its lines as a built island's does: 1.5 ground units² a line");
   const huge = scene(200_000).islands;
   assert.equal(huge[0]!.area, MAPPED_ISLAND_CAP, "a very large one is capped");
   assert.ok(MAPPED_ISLAND_CAP < 300_000, "below the 300,000 ground units² 200,000 lines would have uncapped");
   assert.equal(huge[1]!.area, scene(2_000).islands[1]!.area, "and its built neighbour keeps its own land");
-  assert.notEqual(huge[0]!.key, cart.key, "a mapped island redraws when its code grows");
+  assert.notEqual(huge[0]!.key, cart.key, "an imported island redraws when its code grows");
   // A project whose only stories are mapped, before any survey or verification, opens on brown land.
   const unsurveyed = scene(undefined, { ...tree, unverified: true }).islands[0]!;
   assert.deepEqual(unsurveyed.land, { territories: [{ mapped: true, lines: 1 }], files: [] });
@@ -358,7 +358,7 @@ test("3.39 a mapped story is one brown island, whole: no territories, file circl
   assert.ok(Math.abs(brown.h - parked.h) > 0.3 && brown.s - parked.s > 0.1, "warm and plainly apart from parked's cool slate grey");
 });
 
-test("3.50 a mapped island draws each explored capability as a territory of its own beside one brown territory for the unexplored rest, none over another: green or red by its verified health, yellow with no tests tied; each is picked by its capability", () => {
+test("3.50 an imported island draws each explored capability as a territory of its own beside one brown territory for the unexplored rest, none over another: green or red by its verified health, yellow with no tests tied; each is picked by its capability", () => {
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
   const explored = (id: string, title: string, status: CapabilityWord, covers: string[]) => ({ id, title, description: `${title}, explored`, dependsOn: [], proposed: status === "proposed", status, contracts: [], health, covers });
   const tree: AnnotatedTree = { arcs: [], stories: [{ id: "app", title: "app", health, mapped: { from: "/code/app", package: ".", folders: ["."] },

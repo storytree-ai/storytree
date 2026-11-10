@@ -39,7 +39,7 @@ export const LONG_CONTRACT_TITLE = 300;
 
 /** A new story's fields. A mapped story is mapStories' alone to make, and a plugin's story importPluginPlan's. */
 export type NewStory = Omit<FieldsOf<"story">, "mapped" | "plugin">;
-/** One package of an imported folder, as mapStories maps it to a story (ADR-0993 D2). */
+/** One package of an imported folder, as mapStories maps it to a story (ADR-0993 D2). "Mapped" in this name and mapStories' means imported (ADR-1300 D3). */
 export interface MappedPackage {
   /** The package's folder relative to the imported folder ("." for the folder itself): what a later import matches on. */
   readonly package: string;
@@ -254,10 +254,11 @@ export class WorkModel {
   }
 
   /**
-   * Map the packages of the import `from` to stories (ADR-0993 D2, D6), the only way a story is made
-   * mapped: a package no live story of `from` maps gets a new mapped story, with no capabilities;
+   * Map the packages of the import `from` to stories (ADR-0993 D2, D6), the only way an imported story is
+   * made: a package no live story of `from` maps gets a new imported story, with no capabilities;
    * a live story of `from` whose package is not among `packages` is retired; every other story,
-   * of `from` or not, stands as it is, so the folders an agent has redrawn are kept.
+   * of `from` or not, stands as it is, so the folders an agent has redrawn are kept. The name keeps
+   * "map": here it means import, never an agent drawing capabilities on the story (ADR-1300 D3).
    */
   mapStories(from: string, packages: readonly MappedPackage[], options?: WriteOptions): Promise<MappedStories> {
     return this.#serially(async () => {

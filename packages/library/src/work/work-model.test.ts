@@ -523,7 +523,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), unwritten, "nothing was written");
   });
 
-  contract("4.12", "only mapStories makes a story mapped: a mapped field given to addStory or editStory is refused and nothing is written", async ({ work, records, transactions }) => {
+  contract("4.12", "only mapStories makes an imported story: a mapped field given to addStory or editStory is refused and nothing is written", async ({ work, records, transactions }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const before = await transactions.history();
     const mapped = { from: "/code/shop", package: ".", folders: ["."] };
@@ -535,7 +535,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await records.get(story.id))?.fields, { title: "Visitor can sign up" });
   });
 
-  contract("4.13", "mapStories adds a mapped story per new package, retires those of the same import whose package is gone, and leaves every other story as it stands", async ({ work, records }) => {
+  contract("4.13", "mapStories adds an imported story per new package, retires those of the same import whose package is gone, and leaves every other story as it stands", async ({ work, records }) => {
     const own = await work.addStory({ title: "Visitor can sign up" });
     const first = await work.mapStories("/code/shop", [
       { package: "packages/cart", title: "@shop/cart", description: "The cart", folders: ["packages/cart"] },
@@ -562,7 +562,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await records.get(own.id))?.fields, { title: "Visitor can sign up" }, "a story storytree built is untouched");
   });
 
-  contract("4.14", "the plan's tree carries a mapped story's import, package and folders as mapStories recorded them; a story storytree built carries none", async ({ work }) => {
+  contract("4.14", "the plan's tree carries an imported story's import, package and folders as mapStories recorded them; a story storytree built carries none", async ({ work }) => {
     const own = await work.addStory({ title: "Visitor can sign up" });
     const { added: [cart] } = await work.mapStories("/code/shop", [{ package: "packages/cart", title: "@shop/cart", folders: ["packages/cart"] }]);
     const { stories } = await work.projectTree();
@@ -579,14 +579,14 @@ for (const backend of [memory, postgres]) {
     assert.equal((await work.editContract(bare.id, { title: "3.4 Accepts a plus address, any case" }))?.fields.title, "3.4 · Accepts a plus address, any case", "a correction is written in the same form");
   });
 
-  contract("4.16", "a capability on a mapped story is planned with the folders and files of its import it covers, several roots allowed and written plainly; one with none, or a path outside its story's folders, is refused, as are covers on a built story", async ({ work, transactions }) => {
+  contract("4.16", "a capability on an imported story is planned with the folders and files of its import it covers, several roots allowed and written plainly; one with none, or a path outside its story's folders, is refused, as are covers on a built story", async ({ work, transactions }) => {
     const own = await work.addStory({ title: "Visitor can sign up" });
     const { added: [app] } = await work.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
     const { added: [cart] } = await work.mapStories("/code/shop", [{ package: "packages/cart", title: "@shop/cart", folders: ["packages/cart"] }]);
     const stats = await work.addCapability({ title: "Stats page", story: app!.id, covers: ["./app/(app)/stats/", "components\\stats", "lib/stats.ts"] });
     assert.deepEqual(stats.fields.covers, ["app/(app)/stats", "components/stats", "lib/stats.ts"], "each path from the imported folder, in one form");
     const before = await transactions.history();
-    await assert.rejects(work.addCapability({ title: "Checkout", story: app!.id }), schemaError("capability", ["covers"]), "a mapped story's capability says what it covers");
+    await assert.rejects(work.addCapability({ title: "Checkout", story: app!.id }), schemaError("capability", ["covers"]), "an imported story's capability says what it covers");
     await assert.rejects(work.addCapability({ title: "Checkout", story: cart!.id, covers: ["packages/pay"] }), schemaError("capability", ["covers"]), "outside its story's folders");
     await assert.rejects(work.addCapability({ title: "Checkout", story: cart!.id, covers: ["../elsewhere"] }), schemaError("capability", ["covers"]), "outside its import");
     await assert.rejects(work.addCapability({ title: "Email form", story: own.id, covers: ["src"] }), schemaError("capability", ["covers"]), "a built story's capabilities are found by their tests");
@@ -594,7 +594,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await work.addCapability({ title: "Cart lines", story: cart!.id, covers: ["packages/cart/src/lines"] })).fields.covers, ["packages/cart/src/lines"]);
   });
 
-  contract("4.17", "no two capabilities of a mapped story cover one file: a path equal to, inside or around another's is refused, naming the capability that covers it, on planning and on correcting", async ({ work, records, transactions }) => {
+  contract("4.17", "no two capabilities of an imported story cover one file: a path equal to, inside or around another's is refused, naming the capability that covers it, on planning and on correcting", async ({ work, records, transactions }) => {
     const { added: [app] } = await work.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
     const { added: [other] } = await work.mapStories("/code/admin", [{ package: ".", title: "admin", folders: ["."] }]);
     const stats = await work.addCapability({ title: "Stats page", story: app!.id, covers: ["app/stats", "lib/stats.ts"] });
@@ -610,7 +610,7 @@ for (const backend of [memory, postgres]) {
     assert.ok(await work.addCapability({ title: "Stats", story: other!.id, covers: ["app/stats"] }), "another story's capability may cover the same path");
     const charts = await work.addCapability({ title: "Charts", story: app!.id, covers: ["app/charts"] });
     await assert.rejects(work.editCapability(charts.id, { covers: ["app/charts", "app/stats/chart.ts"] }), schemaError("capability", ["covers"]));
-    await assert.rejects(work.editCapability(charts.id, { covers: undefined }), schemaError("capability", ["covers"]), "nor is a mapped story's capability left covering nothing");
+    await assert.rejects(work.editCapability(charts.id, { covers: undefined }), schemaError("capability", ["covers"]), "nor is an imported story's capability left covering nothing");
     assert.deepEqual((await work.editCapability(stats.id, { covers: ["app/stats"] }))?.fields.covers, ["app/stats"], "a capability's own paths never overlap itself");
     assert.deepEqual((await work.editCapability(charts.id, { covers: ["app/charts", "lib/stats.ts"] }))?.fields.covers, ["app/charts", "lib/stats.ts"], "a path its owner let go is free");
     assert.deepEqual(((await records.get(charts.id)) as SchemaRecord<"capability">).fields.covers, ["app/charts", "lib/stats.ts"]);
@@ -761,7 +761,7 @@ for (const backend of [memory, postgres]) {
     assert.equal((await transactions.history()).length, before.length + 2, "only the two writes outside the plugin's story were made");
   });
 
-  contract("4.27", "a plugin plan with a capability or contract carrying no number, a number twice, or a contract numbered under another capability is refused, as is adopting a mapped story or another plugin's, with nothing written", async ({ work, transactions }) => {
+  contract("4.27", "a plugin plan with a capability or contract carrying no number, a number twice, or a contract numbered under another capability is refused, as is adopting an imported story or another plugin's, with nothing written", async ({ work, transactions }) => {
     const mine = await work.addStory({ title: "Voice" });
     const { added: [mapped] } = await work.mapStories("/code/shop", [{ package: ".", title: "shop", folders: ["."] }]);
     const { story: theirs } = await work.importPluginPlan("notes", { story: { title: "Notes" }, capabilities: [] });
@@ -776,7 +776,7 @@ for (const backend of [memory, postgres]) {
     for (const capabilities of bad) {
       await assert.rejects(work.importPluginPlan("voice", { story: { title: "Voice" }, capabilities }, { adopt: mine.id }), SchemaError, JSON.stringify(capabilities));
     }
-    await assert.rejects(work.importPluginPlan("voice", { story: { title: "Voice" }, capabilities: [] }, { adopt: mapped!.id }), SchemaError, "a mapped story is its import's");
+    await assert.rejects(work.importPluginPlan("voice", { story: { title: "Voice" }, capabilities: [] }, { adopt: mapped!.id }), SchemaError, "an imported story is its import's");
     await assert.rejects(work.importPluginPlan("voice", { story: { title: "Voice" }, capabilities: [] }, { adopt: theirs }), SchemaError, "another plugin's story is its own");
     assert.deepEqual(await transactions.history(), before, "nothing was written");
   });

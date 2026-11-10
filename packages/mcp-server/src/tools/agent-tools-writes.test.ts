@@ -1174,7 +1174,7 @@ test("9.17 plan_capability, under an increment's claim, judges the story's capab
   });
 });
 
-test("12.1 import_project imports a folder into the project as mapped stories, one per package, naming them; a folder inside the project gets a readable refusal and nothing is written", async () => {
+test("12.1 import_project imports a folder into the project as imported stories, one per package, naming them; a folder inside the project gets a readable refusal and nothing is written", async () => {
   await withProject(async ({ folder, library }) => {
     const shop = path.join(folder, "..", "shop");
     mkdirSync(path.join(shop, "packages", "cart"), { recursive: true });
@@ -1262,7 +1262,7 @@ test("12.4 import_project on a folder already imported says the commit recorded 
   });
 });
 
-test("map 3.8 focus answers for a mapped story from the folder this machine imports it from", async () => {
+test("map 3.8 focus answers for an imported story from the folder this machine imports it from", async () => {
   await withProject(async ({ folder }) => {
     const shop = path.join(folder, "..", "shop");
     mkdirSync(path.join(shop, "src"), { recursive: true });
@@ -1272,13 +1272,13 @@ test("map 3.8 focus answers for a mapped story from the folder this machine impo
       assert.equal((await agent.call("import_project", { folder: "../shop" })).isError, false);
       const focused = await agent.call("focus", { select: "file:src/index.ts", up: 1, mode: "show" });
       assert.equal(focused.isError, false, focused.text);
-      assert.match(focused.text, /Mapped: 2/);
-      assert.match(focused.text, /story\s+story_\w+\s+shop\s+\[mapped\]/);
+      assert.match(focused.text, /Imported: 2/);
+      assert.match(focused.text, /story\s+story_\w+\s+shop\s+\[imported\]/);
     });
   });
 });
 
-test("map 3.9 focus with crossing counts the imports across a line in a mapped island, and lists them on show", async () => {
+test("map 3.9 focus with crossing counts the imports across a line in an imported island, and lists them on show", async () => {
   await withProject(async ({ folder }) => {
     const shop = path.join(folder, "..", "shop");
     mkdirSync(path.join(shop, "src", "ui"), { recursive: true });

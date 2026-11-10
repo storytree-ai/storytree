@@ -135,11 +135,11 @@ test('3.6 the lanes are the survey\'s derived capability edges with the recorded
   assert.deepEqual(forestScene(small, [], workStates([])).links, [{ from: 'b1', to: 'a1' }], 'with no survey the recorded links stand');
 });
 
-test('3.43 a built story whose package depends on a mapped story\'s has a lane from its island to the mapped island as a whole, lit when either is selected', () => {
+test('3.43 a built story whose package depends on an imported story\'s has a lane from its island to the imported island as a whole, lit when either is selected', () => {
   const mapped = { id: 'old', title: 'old', health, capabilities: [], mapped: { from: '/code/shop', package: 'packages/old', folders: ['packages/old'] } };
   const built = { id: 'new', title: 'new', health, capabilities: [capability('n1', [])] };
   const other = { id: 'b', title: 'b', health, capabilities: [capability('b1', [])] };
-  // new's package names the mapped old and the built b; only the mapped one has no capability edge to stand for it.
+  // new's package names the mapped old and the built b; only the imported one has no capability edge to stand for it.
   const survey = { new: { files: [], imports: [], dependsOn: ['old', 'b'] }, old: { files: [], imports: [], dependsOn: [], mapped: { folder: '/code/shop' } } };
   const scene = forestScene({ arcs: [], stories: [mapped, built, other] }, [], workStates([]), survey);
   assert.deepEqual(scene.links, [{ from: 'new', to: 'old' }], 'one lane, island to island; a built-to-built package dependency draws none');

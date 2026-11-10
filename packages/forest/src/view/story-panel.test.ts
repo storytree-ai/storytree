@@ -245,10 +245,10 @@ test("4.12 a healthy capability says nothing more, and a contract not re-run say
   assert.doesNotMatch(renderStoryPanel(notGreen(undefined), "cap"), /not re-run since/);
 });
 
-test("4.15 a mapped story's panel says it was here before storytree and is assumed to be working, with its files and lines, and shows no health", () => {
+test("4.15 an imported story's panel says it was here before storytree and is assumed to be working, with its files and lines, and shows no health", () => {
   const mapped: StoryPanel = { story: "m", title: "Cart", description: "no description yet", capabilities: [], mapped: { files: 2, lines: 1200 } };
   const html = renderStoryPanel(mapped, undefined);
-  assert.match(html, /class="panel-mapped"/);
+  assert.match(html, /class="panel-mapped"><strong>Imported:<\/strong>/);
   assert.match(html, /here before storytree/i);
   assert.match(html, /assumed to be working/);
   assert.match(html, /2 files, 1,200 lines/);

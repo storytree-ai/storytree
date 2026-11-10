@@ -730,7 +730,7 @@ test("9.14 show_plan lists live arcs and those closed yesterday or today; given 
   });
 });
 
-test("9.11 show_plan says a mapped story is mapped, here before storytree and assumed to be working, and gives it no health reading; a capability planned on it keeps its own", async () => {
+test("9.11 show_plan says an imported story is imported, here before storytree and assumed to be working, and gives it no health reading; a capability planned on it keeps its own", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { added: [shop] } = await library.mapStories("/code/shop", [{ package: ".", title: "shop", folders: ["."] }]);
@@ -739,14 +739,14 @@ test("9.11 show_plan says a mapped story is mapped, here before storytree and as
       const plan = await agent.call("show_plan");
       const lines = plan.text.split("\n");
       const story = lines.find((each) => each.includes(`(${shop!.id})`)) ?? "";
-      assert.match(story, /: mapped: here before storytree, and assumed to be working$/, plan.text);
+      assert.match(story, /: imported: here before storytree, and assumed to be working$/, plan.text);
       assert.doesNotMatch(story, /reported|verified|checked|passing/);
       assert.match(lines.find((each) => each.includes(`(${capability})`)) ?? "", /reported not checked, verified not checked/, plan.text);
     });
   });
 });
 
-test("9.12 plan_capability on a mapped story records what the agent explored with the folders and files it covers, refusing none or an overlap by naming the capability to correct, which edit_plan corrects", async () => {
+test("9.12 plan_capability on an imported story records what the agent explored with the folders and files it covers, refusing none or an overlap by naming the capability to correct, which edit_plan corrects", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { added: [app] } = await library.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);

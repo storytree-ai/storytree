@@ -64,7 +64,10 @@ import {
   launchToRecord,
   loginItemsFor,
   noUpdates,
+  keepTryingBehind,
   openAppLibrary,
+  openAtStartup,
+  type LibraryQuery,
   pageReads,
   PAGE_READS_CHANNELS,
   projectSelection,
@@ -85,7 +88,6 @@ import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANN
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/app-setup/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
-import { libraryProblem } from "@storytree/app/lifecycle/open-where-set";
 import { restartLimit } from "@storytree/app/updates/restart-limit";
 import { answerStartWhileInstalling, installUnderway } from "@storytree/app/updates/install-underway";
 import { appShutdown } from "@storytree/app/lifecycle/stopping";
@@ -129,7 +131,7 @@ import { lateReads, projectAnswers } from "./late-reads.js";
 import { keepPageInWindow } from "./page-window.js";
 import { keepTray } from "./tray.js";
 import { titleWindow } from "./window-title.js";
-import { bringWindowForward } from "./window-shown.js";
+import { bringWindowForward, showPageQuery } from "./window-shown.js";
 import { PLUGIN_SCHEME, pluginResponse, windowKinds, windowProjectRecords, windowStandIns } from "./stand-ins.js";
 import { checkPage, PAGE_SCHEME, pageResponse, pageUrl } from "./page-scheme.js";
 import { finishStartCheck, runWhenReady } from "./start-check.js";
@@ -222,7 +224,7 @@ let parts = windowStandIns({ surfaces: SURFACES, pageAnswers: PAGE_ANSWERS, page
 /** An installed app's release updater, which answers the gear's Updates panel in its place. */
 let releases: ReturnType<typeof followReleases>;
 /** What the window was opened with, so it can be opened again after it is closed. */
-let windowQuery: { project?: string; problem?: string } = {};
+let windowQuery: WindowQuery = {};
 /** Held here so it is not garbage-collected, which would remove the icon. */
 let tray: Tray | undefined;
 const lifecycle = background({
@@ -382,11 +384,9 @@ async function run(): Promise<void> {
     return;
   }
 
-  let problem: string | undefined;
-  let project: string | undefined;
   let errorsOpened: Promise<void> | undefined;
-  try {
-    phases.phase("opening the library");
+  /** Open the library where the settings say, and what the page reads through it; the project to show. */
+  const openLibrary = async (): Promise<string | undefined> => {
     // Where the library lives is the user's library setting: this app's own Postgres (the default),
     // or a Cloud SQL instance, when no Postgres is started here at all (ADR-0734, ADR-0735 D4).
     const opened = await openAppLibrary({
@@ -409,12 +409,14 @@ async function run(): Promise<void> {
       lineageOf: (name) => pages.projectLineage(name),
       buildsItself: (name) => pages.projectBuildsItself(name),
     });
-    project = (await projects.read(args.project)).current;
+    const current = (await projects.read(args.project)).current;
     if (!args.smoke) recordLaunch();
-  } catch (error) {
-    problem = libraryProblem(error);
-    console.error(problem);
-  }
+    return current;
+  };
+  phases.phase("opening the library");
+  // A library the network cannot reach yet (the computer just started) is waited for, the page saying so (lifecycle 1.46).
+  const started = await openAtStartup({ open: openLibrary, show: (query) => showPage(query, !args.background && !args.smoke), log: (line) => console.error(line), now: Date.now, sleep });
+  const [project, problem] = "opened" in started ? [started.opened, undefined] : [undefined, started.problem];
   build = await whichBuild();
   const canRestart = restartAllowed({
     stopping: stopping.stopping,
@@ -457,24 +459,50 @@ async function run(): Promise<void> {
     setReleaseChannel: (channel: unknown) => channels.set(channel),
   });
   console.log(`storytree 0.3: ${build}`);
-  windowQuery = { ...(problem === undefined ? {} : { problem }) };
+  windowQuery = problem === undefined ? {} : { problem };
   if (args.smoke) {
     phases.phase("opening the window");
     await smoke(openWindow(windowQuery), project);
   }
   else {
-    if (!args.background) openWindow(windowQuery);
+    showPage(windowQuery, !args.background);
     showTray();
+    libraryWork();
+    try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
+    // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (Session management 4.21).
+    setInterval(() => void reads?.lookAround(), LOOK_EVERY_MS).unref();
+    releases = followReleases({ restart: lifecycle.restart, canRestart, quiet }, home.dir, () => installing.read().choice);
+    // Behind the error page the app keeps trying a library it could not reach, and shows the project once it answers (lifecycle 1.47).
+    if ("unreachable" in started && started.unreachable) {
+      void keepTryingBehind({ open: openLibrary, opened: libraryWork, show: (query) => showPage(query, false), log: (line) => console.error(line), stopped: stopping.stopping, now: Date.now, sleep });
+    }
+  }
+
+  /** What the app does with its library once it is open: ask to report the errors it holds, and keep its backups. */
+  function libraryWork(): void {
     // An error the library holds that is not yet reported asks to be, until it is marked submitted (errors 9.6, ADR-1122).
     void errorsOpened?.then(() => errorRecords.settled())
       .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
       .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
-    try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
     if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });
-    // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (Session management 4.21).
-    setInterval(() => void reads?.lookAround(), LOOK_EVERY_MS).unref();
-    releases = followReleases({ restart: lifecycle.restart, canRestart, quiet }, home.dir, () => installing.read().choice);
   }
+}
+
+/** What the window's page is opened with: the project, or why the library is not open. */
+type WindowQuery = LibraryQuery & { project?: string };
+
+/** Wait `ms`, without holding the app open. */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms).unref());
+}
+
+/** Show `query` on every open window, and remember it for a window opened later; with none open, open one when `open`. */
+function showPage(query: WindowQuery, open: boolean): void {
+  windowQuery = query;
+  showPageQuery(BrowserWindow.getAllWindows(), query, {
+    load: (window, shown) => window.loadURL(pageUrl(shown)).catch(() => { /* the page's own error logging says it */ }),
+    open: open ? openWindow : undefined,
+  });
 }
 
 /** The tray icon, whose menu brings the window back or quits the app. */
@@ -600,12 +628,12 @@ function open(): PageReads {
   return reads;
 }
 
-function openWindow(query: { project?: string; problem?: string }): BrowserWindow {
+function openWindow(query: WindowQuery): BrowserWindow {
   return pageWindow(query).window;
 }
 
 /** The app's window on its page, and the page's load, which fails if the page cannot be loaded. */
-function pageWindow(query: { project?: string; problem?: string }): { window: BrowserWindow; loaded: Promise<void> } {
+function pageWindow(query: WindowQuery): { window: BrowserWindow; loaded: Promise<void> } {
   const window = new BrowserWindow({
     width: 1120,
     height: 860,

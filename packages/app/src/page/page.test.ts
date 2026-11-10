@@ -68,7 +68,7 @@ interface Drawn {
 }
 
 /** The page on stand-in surfaces; `answers` overrides the bridge and how each project's surfaces answer. */
-function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "projectSelection" | "readSurfaces" | "globe" | "pluginViews">> & {
+function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "waiting" | "projectSelection" | "readSurfaces" | "globe" | "pluginViews">> & {
   openView?: (name: string) => Promise<void>;
   plugins?: (on: (surface: string) => boolean) => Promise<{ stop(): void; failed: [] }>;
   kept?: AnnotatedTree;
@@ -92,6 +92,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     document,
     content,
     problem: null,
+    waiting: null,
     menu: { update: (chosen) => { menus.push(chosen); } },
     projectSelection: async () => { selections++; return selection; },
     readSurfaces: async () => surfaces,
@@ -197,6 +198,15 @@ test("2.22 · a page opened with a problem says the library could not be opened,
   assert.equal(on.body.dataset.state, "error");
   assert.equal(on.heading(), "The library could not be opened");
   assert.equal(on.line(), "the database refused the password");
+  assert.equal(on.selections, 0);
+});
+
+test("2.53 · a page opened while the app waits for the library says it is waiting, and why, and reads no projects", async (t) => {
+  const on = page(t, { waiting: "The library cannot be reached yet: the box did not answer" });
+  await settled();
+  assert.equal(on.body.dataset.state, "waiting");
+  assert.equal(on.heading(), "Waiting for the library");
+  assert.equal(on.line(), "The library cannot be reached yet: the box did not answer");
   assert.equal(on.selections, 0);
 });
 

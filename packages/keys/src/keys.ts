@@ -89,6 +89,17 @@ export function resolveKey(name: string, options: ResolveOptions = {}): string |
   return nonEmpty((options.env ?? process.env)[options.variable ?? variableOf(name)]);
 }
 
+/** What a command that fetches a key over the network (ssh, say) says when it could not reach its host, on Linux, macOS and Windows. */
+const COULD_NOT_CONNECT = /could not resolve hostname|name or service not known|nodename nor servname|no such host is known|temporary failure in name resolution|network is unreachable|no route to host|connection timed out|operation timed out|connection refused/i;
+
+/** A saved `!command` that failed. `unreachable`: it said it could not reach its host, which a later try may get past (the network not up yet). */
+export class KeyCommandError extends Error {
+  constructor(message: string, readonly unreachable: boolean) {
+    super(message);
+    this.name = "KeyCommandError";
+  }
+}
+
 /** What each `!command` printed, by command: each runs once per process. */
 const ran = new Map<string, string>();
 
@@ -100,8 +111,11 @@ function run(name: string, command: string): string {
     printed = execSync(command, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
   } catch (error) {
     // Never the command's output: it may hold the secret, or part of it.
-    const status = (error as { status?: number | null }).status;
-    throw new Error(`The command saved for key ${name} failed${typeof status === "number" ? ` (exit ${status})` : ""}: run it yourself to see why, or save the key again with \`storytree auth set ${name}\`.`);
+    const { status, stderr } = error as { status?: number | null; stderr?: unknown };
+    throw new KeyCommandError(
+      `The command saved for key ${name} failed${typeof status === "number" ? ` (exit ${status})` : ""}: run it yourself to see why, or save the key again with \`storytree auth set ${name}\`.`,
+      typeof stderr === "string" && COULD_NOT_CONNECT.test(stderr),
+    );
   }
   if (printed === "") throw new Error(`The command saved for key ${name} printed nothing: it must print the key.`);
   ran.set(command, printed);

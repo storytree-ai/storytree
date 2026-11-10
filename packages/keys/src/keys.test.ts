@@ -117,3 +117,21 @@ test("1.4: a !command entry runs once per process, and a failing one names the k
     return true;
   });
 });
+
+test("1.6: a !command that could not reach its host is marked unreachable, one refused for any other reason is not", (t) => {
+  const home = scratch(t);
+  const node = `"${process.execPath}"`;
+  saveKey("offline", `!${node} -e "process.stderr.write('ssh: Could not resolve hostname box: No such host is known.\\r\\n');process.exit(255)"`, { home });
+  assert.throws(() => resolveKey("offline", { home, env: {} }), (error: Error & { unreachable?: boolean }) => {
+    assert.match(error.message, /offline failed \(exit 255\)/);
+    assert.doesNotMatch(error.message, /hostname/);
+    assert.equal(error.unreachable, true);
+    return true;
+  });
+
+  saveKey("refused", `!${node} -e "process.stderr.write('user@box: Permission denied (publickey).\\r\\n');process.exit(255)"`, { home });
+  assert.throws(() => resolveKey("refused", { home, env: {} }), (error: Error & { unreachable?: boolean }) => {
+    assert.equal(error.unreachable, false);
+    return true;
+  });
+});

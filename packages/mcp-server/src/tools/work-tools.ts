@@ -200,7 +200,7 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "raise_question",
-    "Raise a question for the owner on an arc, instead of only asking in chat: what is at stake, the question, the context they need to answer it cold, and the options. Name the increments that cannot go on until they answer: those wait on the owner until it is settled, and your claims on those on this arc, with the capabilities you took for them, are released. For work not yet parked, raise the question first and then park the increment held_on it (park_increment), never park it first and hold it after.",
+    "Raise a question for the owner on an arc, instead of only asking in chat: what is at stake, the question, the context they need to answer it cold, and the options. Link the research and records it cites, so its reader reaches them from the question. Name the increments that cannot go on until they answer: those wait on the owner until it is settled, and your claims on those on this arc, with the capabilities you took for them, are released. For work not yet parked, raise the question first and then park the increment held_on it (park_increment), never park it first and hold it after.",
     z.object({
       arc: id("arc"),
       title: z.string().min(1).describe("A short name for it"),
@@ -209,6 +209,7 @@ export function registerWorkTools(define: Define): void {
       context: z.string().min(1).describe("What the owner needs to know to answer it"),
       options: z.string().min(1).describe("The options the owner has"),
       recommendation: z.string().min(1).optional().describe("Which option you recommend, and why"),
+      links: z.array(z.string().min(1)).optional().describe("The ids of the records it cites as evidence (research, decisions, notes, increments, other questions); those its words name are linked too"),
       holds: z.array(z.string().min(1)).optional().describe("The ids of the increments held until the owner answers"),
     }),
     async ({ holds, ...asked }, call) => {

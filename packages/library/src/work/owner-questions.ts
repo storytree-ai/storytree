@@ -8,6 +8,8 @@
  * still hold and how many days that is trusted for, 7 unless given. checkQuestion reads it fresh or
  * lapsed, renewQuestion re-stamps it, refusing a settled question, and lapsedQuestions is the
  * librarian's drain.
+ * A question links the evidence it cites (12.17, 12.18, ADR-1304): the ids it is raised with and every live library record its
+ * words name, never the plan or an arc; a settled question still gains a link, its wording frozen (12.7).
  * For the assistant pass (ADR-1231 D3), an open question takes a would-be answer (predictQuestion, 12.12), kept in its
  * own prediction record so no read of the question carries it (12.14), and a prep mark (prepQuestion, 12.15); settled,
  * it takes one score (scoreQuestion, 12.13), and questionDeviation counts the scores per confidence band (3.23).
@@ -16,9 +18,10 @@
  * correcting, moving and settling a question are here.
  */
 import { byCreation } from "../creation-order.js";
-import { checkReference, liveRecord } from "../references.js";
+import { KNOWLEDGE_KINDS } from "../knowledge/knowledge.js";
+import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import { VERDICTS, type FieldsOf } from "../schema/types.js";
+import { VERDICTS, type FieldsOf, type RecordType } from "../schema/types.js";
 
 /** A new question for the owner, on a live arc (capability 12). */
 export type NewQuestion = Omit<FieldsOf<"question">, "lifecycle" | "answer" | "settledAt" | "settledBy" | "verifiedAt">;
@@ -36,6 +39,8 @@ export interface QuestionEdit {
   readonly analogy?: string | undefined;
   readonly diagram?: string | undefined;
   readonly recommendation?: string | undefined;
+  /** The evidence it cites (12.17): a settled question takes this alone, keeping every link it had (12.7). */
+  readonly links?: readonly string[];
   /** The session putting it to the owner now (12.10), or undefined once it no longer is. */
   readonly presenting?: { readonly session: string; readonly since: string } | undefined;
 }
@@ -126,13 +131,30 @@ export class RetireRefusedError extends Error {
   }
 }
 
-/** The fields editQuestion changes: a question's wording (12.7), and who is putting it to the owner (12.10). */
-const QUESTION_WORDING: ReadonlySet<string> = new Set(["title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation", "presenting"]);
+/** The fields editQuestion changes: a question's wording (12.7), its evidence (12.17), and who is putting it to the owner (12.10). */
+const QUESTION_WORDING: ReadonlySet<string> = new Set(["title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation", "links", "presenting"]);
+
+/** The kinds a question links as its evidence (12.17): live library records, never the plan or an arc. */
+export const EVIDENCE_TYPES: readonly RecordType[] = ["decision", "definition", ...KNOWLEDGE_KINDS, "increment", "question"];
+
+const EVIDENCE: Expected = {
+  name: "library record",
+  types: EVIDENCE_TYPES,
+  why: "a question links the evidence it cites: notes, decisions, research, increments and other questions, never the plan or an arc",
+};
+
+/** A record id in a question's words; a dotted one (a voice note's, voice.note_…) is quoted, not linked. */
+const NAMED_ID = /(?<![\w.])[a-z]+_[0-9a-f]{12}\b/g;
+
+/** The words of a question that may name its evidence. */
+const NAMING_FIELDS = ["title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation"] as const;
 
 /**
  * Raise a question for the owner on a live arc (MissingReferenceError otherwise) that is not parked
  * (RangeError, with nothing written: a parked arc raises no questions, ADR-0835 D1), as `parked`
- * says. It is open, and stamped as verified now: the start of its review lease (12-a).
+ * says. It is open, and stamped as verified now: the start of its review lease (12-a). It links the
+ * ids it is given, each a live library record (MissingReferenceError otherwise, with nothing written),
+ * then every other live one its words name (12.17).
  */
 export async function raiseQuestion(
   records: SchemaRecords,
@@ -141,17 +163,41 @@ export async function raiseQuestion(
   options?: WriteOptions,
 ): Promise<SchemaRecord<"question">> {
   await checkReference(records, "arc", question.arc, "arc");
+  await checkReferences(records, "links", question.links, EVIDENCE);
   const arc = await liveRecord(records, question.arc, ["arc"]);
   if (arc !== null && parked(arc)) {
     throw new RangeError(
       `arc ${JSON.stringify(question.arc)} is parked, so it raises no questions (ADR-0835): write what you would ask into the arc's residue, its owning increment's body, to be raised when the arc is unparked`,
     );
   }
+  const links = [...new Set([...(question.links ?? []), ...(await namedEvidence(records, question))])];
   return records.create(
     "question",
-    { ...question, lifecycle: "open", verifiedAt: new Date().toISOString(), leaseDays: question.leaseDays ?? DEFAULT_QUESTION_LEASE_DAYS },
+    { ...question, ...(links.length === 0 ? {} : { links }), lifecycle: "open", verifiedAt: new Date().toISOString(), leaseDays: question.leaseDays ?? DEFAULT_QUESTION_LEASE_DAYS },
     options,
   );
+}
+
+/**
+ * Link every live library record question `id`'s words name that it does not link yet, after its other links (12.18),
+ * open or settled: the backfill, and the prep pass's catch of an id its raiser named but did not link. One with nothing
+ * new writes nothing. Null, with nothing written, if `id` is not a live question.
+ */
+export async function linkNamedEvidence(records: SchemaRecords, id: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+  const question = await liveRecord(records, id, ["question"]);
+  if (question === null) return null;
+  const links = question.fields.links ?? [];
+  const added = (await namedEvidence(records, question.fields)).filter((named) => named !== id && !links.includes(named));
+  if (added.length === 0) return question;
+  return (await records.edit(id, { links: [...links, ...added] }, options)) as SchemaRecord<"question"> | null;
+}
+
+/** The live library records a question's words name, in the order they are first named, each once (12.17). */
+async function namedEvidence(records: SchemaRecords, words: Partial<Record<(typeof NAMING_FIELDS)[number], string | undefined>>): Promise<string[]> {
+  const named = new Set(NAMING_FIELDS.flatMap((field) => words[field]?.match(NAMED_ID) ?? []));
+  const live: string[] = [];
+  for (const id of named) if ((await liveRecord(records, id, EVIDENCE_TYPES)) !== null) live.push(id);
+  return live;
 }
 
 /**
@@ -179,10 +225,11 @@ export async function renewQuestion(records: SchemaRecords, id: string, options?
 }
 
 /**
- * Correct open question `id`'s wording in place (12.7), or mark or clear the session putting it to
- * the owner (12.10): only the named fields change. Anything else (its arc, lifecycle, answer or
- * lease) is refused (RangeError), and so is editing a settled question, both with nothing written:
- * its answer stands, answered to the words it had.
+ * Correct open question `id`'s wording in place (12.7), its links (12.17), or mark or clear the session
+ * putting it to the owner (12.10): only the named fields change. Anything else (its arc, lifecycle,
+ * answer or lease) is refused (RangeError), and so is editing a settled question, except to add links
+ * keeping every one it had, and a link to anything but a live library record (MissingReferenceError),
+ * all with nothing written: its answer stands, answered to the words it had.
  * Null, with nothing written, if `id` is not a live question.
  */
 export async function editQuestion(records: SchemaRecords, id: string, fields: QuestionEdit, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
@@ -193,11 +240,15 @@ export async function editQuestion(records: SchemaRecords, id: string, fields: Q
   const question = await liveRecord(records, id, ["question"]);
   if (question === null) return null;
   if (question.fields.lifecycle === "settled") {
-    throw new RangeError(`question ${JSON.stringify(id)} is settled, so its wording cannot change: its answer stands`);
+    const kept = (question.fields.links ?? []).every((link) => fields.links?.includes(link) === true);
+    if (Object.keys(fields).some((key) => key !== "links") || !kept) {
+      throw new RangeError(`question ${JSON.stringify(id)} is settled, so its wording cannot change: its answer stands (it may only gain links, keeping those it has)`);
+    }
   }
+  await checkReferences(records, "links", fields.links, EVIDENCE);
   // Its wording corrected after its prep mark, it reads unprepared until it is prepped again (12.15).
   const { prep } = question.fields;
-  const reworded = prep !== undefined && Object.keys(fields).some((key) => key !== "presenting");
+  const reworded = prep !== undefined && Object.keys(fields).some((key) => key !== "presenting" && key !== "links");
   return (await records.edit(id, reworded ? { ...fields, prep: { ...prep, editedAt: new Date().toISOString() } } : fields, options)) as SchemaRecord<"question"> | null;
 }
 

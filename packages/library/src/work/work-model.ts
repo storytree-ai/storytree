@@ -310,7 +310,7 @@ export class WorkModel {
         if (own !== undefined) refuse("plugin", `${plugin}'s story is ${own.id}, not ${options.adopt}`);
         story = stories.find((candidate) => candidate.id === options.adopt);
         if (story === undefined) refuse("plugin", `${options.adopt} is not a live story to adopt`);
-        if (story!.fields.mapped !== undefined) refuse("plugin", `${story!.id} is mapped from ${story!.fields.mapped.from}, so it is that import's`);
+        if (story!.fields.mapped !== undefined) refuse("plugin", `${story!.id} is imported from ${story!.fields.mapped.from}, so it is that import's`);
         if (story!.fields.plugin !== undefined) refuse("plugin", `${story!.id} is ${story!.fields.plugin}'s story`);
       }
       const capabilities = new Map<number, SchemaRecord<"capability">>();
@@ -872,7 +872,7 @@ export class WorkModel {
       return undefined;
     }
     if (covers !== undefined && !Array.isArray(covers)) return given; // the schema refuses it in the write, naming the list
-    if (covers === undefined || covers.length === 0) refuse(`a capability of the mapped story ${story} names the folders and files of its import it covers`);
+    if (covers === undefined || covers.length === 0) refuse(`a capability of the imported story ${story} names the folders and files of its import it covers`);
     if (!covers!.every((cover) => typeof cover === "string" && cover !== "")) return given;
     const paths = given!.map((cover) => {
       const plain = path.posix.normalize(cover.replaceAll("\\", "/")).replace(/\/+$/, "") || ".";
@@ -1069,7 +1069,7 @@ function within(inner: string, outer: string): boolean {
 
 /** Refuse a `mapped` or `plugin` field: only mapStories makes a story mapped (ADR-0993 D2), and only importPluginPlan a plugin's. */
 function refuseMapped(fields: object): void {
-  if ("mapped" in fields) throw new SchemaError("story", [{ field: "mapped", problem: "a story is made mapped only by importing a project" }]);
+  if ("mapped" in fields) throw new SchemaError("story", [{ field: "mapped", problem: "only importing a project makes an imported story" }]);
   if ("plugin" in fields) throw new SchemaError("story", [{ field: "plugin", problem: "a story is made a plugin's only by importing its plan (storytree plugin import-plan)" }]);
 }
 

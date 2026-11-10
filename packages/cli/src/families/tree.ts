@@ -77,7 +77,7 @@ const view: Verb = {
     const unverified = plan.unverified === true;
     for (const story of stories) {
       // A mapped story carries no health of its own (ADR-0993 D3): it says what it is instead.
-      lines.push(`${story.title}  [${story.id}]  ${story.mapped === undefined ? healthOf(story.health, unverified) : "mapped: here before storytree, and assumed to be working"}`);
+      lines.push(`${story.title}  [${story.id}]  ${story.mapped === undefined ? healthOf(story.health, unverified) : "imported: here before storytree, and assumed to be working"}`);
       if (story.capabilities.length > 0) lines.push(numbersTaken(story.capabilities.map((capability) => capability.title)));
       story.capabilities.forEach((capability) => {
         lines.push(`  ${capability.title}  [${capability.id}]  ${healthOf(capability.health, unverified)}; ${capability.reportOnly ? NOT_VERIFIED : wordAndWhy(capability)}${claimOn(claims, capability.id)}`);

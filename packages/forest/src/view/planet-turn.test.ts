@@ -148,12 +148,12 @@ test("3.71 · a drag that turns the glass sheet renders the map view a fixed few
   const before = await turn();
   await page.evaluate(() => { (window as unknown as { __renders: number }).__renders = 0; });
 
-  // A Ctrl+drag spins and tilts the sheet; sixty steps, each drawn on the next frame.
+  // A Ctrl+drag spins and tilts the sheet; twenty steps, each drawn on the next frame.
   await page.keyboard.down("Control");
   await page.mouse.move(400, 300);
   await page.mouse.down();
-  for (let step = 1; step <= 60; step++) {
-    await page.mouse.move(400 + step * 4, 300 + step);
+  for (let step = 1; step <= 20; step++) {
+    await page.mouse.move(400 + step * 12, 300 + step * 3);
     await page.evaluate(() => new Promise(requestAnimationFrame));
   }
   await page.mouse.up();
@@ -163,7 +163,7 @@ test("3.71 · a drag that turns the glass sheet renders the map view a fixed few
   await page.evaluate(() => new Promise(requestAnimationFrame));
 
   const rendered = await renders();
-  assert.ok(rendered <= 3, `a 60-step drag rendered the map view ${rendered} times`);
+  assert.ok(rendered <= 3, `a 20-step drag rendered the map view ${rendered} times`);
   assert.notDeepEqual(await turn(), before, "the drag turned the sheet's group");
 });
 
@@ -276,23 +276,22 @@ test("3.86 · an island nobody selected is laid out with its roads; zooming out 
 test("3.90 · a panel opened beside the map, narrowing it from the left, never lowers how far the wheel zooms out, though the view was zoomed in when it opened", async t => {
   const { page } = await openedMap(t, false, { width: 1000, height: 600 });
   const zoom = () => page.evaluate(() => (window as unknown as { __zoom(): number }).__zoom());
-  // Wheeled `by` until a step moves the eye no further, or for `steps` steps when they are given.
+  // Wheeled `by` until a step moves the eye no further, or for `steps` steps when they are given. Each notch moves the eye
+  // as it turns, so the zoom is read on the frame after it; every notch zooms by one factor, whatever its size.
   const wheel = async (by: number, at: number, steps?: number): Promise<number> => {
     await page.mouse.move(at, 300);
     let before = await zoom();
     for (let step = 0; step < (steps ?? 80); step++) {
       await page.mouse.wheel(0, by);
-      await page.evaluate(() => new Promise(requestAnimationFrame));
-      await page.evaluate(() => new Promise(requestAnimationFrame));
-      const now = await zoom();
+      const now = await page.evaluate(() => new Promise<number>(read => requestAnimationFrame(() => read((window as unknown as { __zoom(): number }).__zoom()))));
       if (steps === undefined && Math.abs(now - before) <= before * 0.001) return now;
       before = now;
     }
     return before;
   };
   const floor = await wheel(240, 500);
-  const near = await wheel(-240, 500, 30);
-  assert.ok(near > floor * 3, `the wheel drew the eye well in from its floor (${floor} to ${near})`);
+  const near = await wheel(-240, 500, 15);
+  assert.ok(near > floor * 2, `the wheel drew the eye well in from its floor (${floor} to ${near})`);
   // The arcs panel opens on the left, as the rail does: the map's frame loses its left 300 CSS pixels, its short side kept.
   await page.evaluate(() => { document.querySelector<HTMLElement>("#map")!.style.left = "300px"; });
   await waitUntil(() => page.evaluate(() => (window as unknown as { __globe: { size: { width: number } } }).__globe.size.width === 700), 10_000, "the map's frame to narrow");

@@ -14,9 +14,9 @@ overrides:
   brace-expansion@2: ^2.1.7
 
 patchedDependencies:
-  app-builder-lib@26.15.3:
+  app-builder-lib:
     hash: aad7f35f155bcbc89d685273733e658196582a8d302620f10cf68ab9acdfc17d
-    path: patches/app-builder-lib@26.15.3.patch
+    path: patches/app-builder-lib.patch
 
 importers:
 

@@ -119,7 +119,7 @@
 !macroend
 
 ; The first update off a release from before the agents' tool copies (4.46, ADR-1296 D4, option C of
-; question_2811ad357110). electron-builder's uninstallOldVersion, patched (patches/app-builder-lib*.patch),
+; question_2811ad357110). electron-builder's uninstallOldVersion, patched (patches/app-builder-lib.patch),
 ; inserts these two macros. The old release's uninstaller runs its own check with no time limit for any
 ; process under its folder, and a session started before the app re-pointed it may still run that folder's
 ; agent-tools node.exe. So that node.exe, found by its image path, never by name alone, is stopped first;

@@ -148,7 +148,7 @@ test("5.23 · `plugin import-plan` from a git checkout retires only what a commi
   try {
     const library = await storytree.openProject(run);
     const importPlan = (from: string) => importVerb.act({ plugin: "voice", from } as never, { folder: home, project: run, library, session: "test" } as never, words);
-    const contracts = async () => (await library.projectTree()).stories.find(({ plugin }) => plugin === "voice")!.capabilities[0]!.contracts.map(({ id, title }) => [title, id]).sort(([a], [b]) => a.localeCompare(b));
+    const contracts = async () => (await library.projectTree()).stories.find(({ plugin }) => plugin === "voice")!.capabilities[0]!.contracts.map(({ id, title }) => [title, id] as const).sort(([a], [b]) => a.localeCompare(b));
 
     await importPlan(factory);
     const landed = await contracts();

@@ -523,11 +523,11 @@ test("3.34 · the rail reads each CI leg's factory median once mounted and every
   ticks.get(60_000)!();
   assert.equal(fill(), "95", "the clock moved: 14 of 14 minutes, held at 95%");
   assert.ok(document.querySelector(".arc-ci-checks.arc-ci-long"), "and amber");
-  assert.equal(document.querySelector(".arc-row"), row, "only the CI bar was drawn again: the lane's row is the node it was");
+  assert.ok(document.querySelector(".arc-row") === row, "only the CI bar was drawn again: the lane's row is the node it was");
   ticks.get(600_000)!();
   await waitUntil(() => fill() === "50", 2_000, "the CI bar drawn against the new median");
   assert.equal(asked, 2, "read again ten minutes on: 14 of a median now 28 minutes");
-  assert.equal(document.querySelector(".arc-row"), row, "a new median draws only the CI bar");
+  assert.ok(document.querySelector(".arc-row") === row, "a new median draws only the CI bar");
   ticks.get(600_000)!();
   await waitUntil(() => asked === 3, 2_000, "the third read");
   ticks.get(60_000)!();

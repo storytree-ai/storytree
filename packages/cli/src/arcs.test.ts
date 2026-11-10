@@ -773,7 +773,7 @@ test("4.23 `arc increment edit --machine <name>` names the one machine that can 
   });
 });
 
-test("4.21 `arc increment new --waits-on --wait-reason` parks an increment born waiting on each named increment; one flag without the other, or a blocker that is not an increment, is refused with nothing written", async () => {
+test("4.21 `arc increment new --waits-on --wait-reason` parks an increment born waiting on each named increment or capability's claim; one flag without the other, or a blocker that is neither, is refused with nothing written", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
@@ -785,6 +785,14 @@ test("4.21 `arc increment new --waits-on --wait-reason` parks an increment born 
       { on: mailer!.id, reason: "sends through them", forGood: false },
       { on: domain!.id, reason: "sends through them", forGood: false },
     ]);
+    // Split off onto a capability another open increment lists, born waiting on that capability's claim (ADR-1228 D1).
+    const story = await library.addStory({ title: "Mail" });
+    const form = await library.addCapability({ story: story.id, title: "Form" });
+    await library.addIncrement({ arc, title: "Email form", objective: "Build it", body: "…", capabilities: [form.id] } as never);
+    const split = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Form checks", "--objective", "Check", "--body", "Build it", "--capabilities", form.id, "--waits-on", form.id, "--wait-reason", "its claim is held"]);
+    assert.equal(split.code, 0, split.stderr);
+    const splitId = /increment_[0-9a-f]+/.exec(split.stdout)![0];
+    assert.deepEqual((await library.get(splitId))?.fields.waits, [{ on: form.id, reason: "its claim is held" }]);
 
     const before = (await library.changesSince(0)).cursor;
     for (const flags of [["--waits-on", mailer!.id], ["--wait-reason", "why"], ["--waits-on", arc, "--wait-reason", "why"]]) {

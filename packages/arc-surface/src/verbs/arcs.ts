@@ -423,7 +423,7 @@ const incrementNew = verb({
   tool: { absent: NO_TOOL },
   inputs: {
     ...PLAN_INPUTS,
-    "waits-on": { kind: "text", optional: true, describe: "the increments it is born waiting on, comma-separated" },
+    "waits-on": { kind: "text", optional: true, describe: "the increments, or capabilities whose claims, it is born waiting on, comma-separated" },
     "wait-reason": { kind: "text", optional: true, describe: "why it waits on them" },
     "wait-for": { kind: "text", optional: true, describe: "owner: it is born waiting for you" },
     "wait-note": { kind: "text", optional: true, describe: "with --wait-for owner: what you must do before it can start" },
@@ -432,10 +432,10 @@ const incrementNew = verb({
   },
   writes: true,
   async act({ "waits-on": waitsOn, "wait-reason": reason, "wait-for": waitFor, "wait-note": waitNote, "wait-why": waitWhy, "wait-rank": waitRank, ...given }, context: ArcVerbContext) {
-    // `--waits-on a,b --wait-reason <why>`: the increments a new one is born waiting on, all for the one reason; neither given, none.
+    // `--waits-on a,b --wait-reason <why>`: the increments, or capabilities' claims (ADR-1228 D1), a new one is born waiting on, all for the one reason; neither given, none.
     const on = listOf(waitsOn, "waits-on");
     if ((on !== undefined || reason !== undefined) && (on === undefined || on.length === 0 || reason === undefined)) {
-      throw new VerbRefusal("--waits-on and --wait-reason go together: the increments it waits on, and why", { misuse: true });
+      throw new VerbRefusal("--waits-on and --wait-reason go together: the increments or capabilities it waits on, and why", { misuse: true });
     }
     const waits = on === undefined ? {} : { waits: on.map((id) => ({ on: id, reason: reason! })) };
     // `--wait-for owner --wait-note <what>`: born waiting for the owner in the parking's one write, so the pool never reads it ready in between.

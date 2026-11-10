@@ -35,7 +35,7 @@ export class WaitLoopError extends Error {
 const ARC_BLOCKER = { name: "arc or increment", types: ["arc", "increment"] } as const;
 
 /** What an increment may wait on: an increment, whose landing releases it, or a capability, whose claim's release does (11.12). */
-const INCREMENT_BLOCKER = { name: "increment or capability", types: ["increment", "capability"] } as const;
+export const INCREMENT_BLOCKER = { name: "increment or capability", types: ["increment", "capability"] } as const;
 
 /** The open work a loop is looked for in: its arcs and open increments, as one reading gives them. */
 export interface WaitGraph {

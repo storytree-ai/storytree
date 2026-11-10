@@ -127,8 +127,11 @@ export const NAMED_STORY = "The library";
 
 /** The library's island selected and its panel open, still. */
 const NAMED_OPEN: Step[] = [{ kind: "island", island: { story: NAMED_STORY } }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }];
-/** The library's first capability picked by its name on the story's panel (ADR-1297), drawn afresh with every fold shut: its contracts listed. */
-const NAMED_CAPABILITY: Step[] = [...NAMED_OPEN, { kind: "click", selector: ".story-panel .panel-pick" }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }];
+/** The library's first capability picked by its name on the story's panel (ADR-1297), drawn afresh with every fold shut: its contracts listed.
+ * The island's land picks its territory's capability (3.15), whose panel lists no capabilities, so the story's name above it opens the story alone first. */
+const NAMED_CAPABILITY: Step[] = [...NAMED_OPEN, { kind: "click", selector: ".story-panel .panel-story-name", optional: true },
+  { kind: "wait", until: { selected: "island", panel: "open", still: true } }, { kind: "click", selector: ".story-panel .panel-pick" },
+  { kind: "wait", until: { selected: "island", panel: "open", still: true } }];
 const CONTRACT = ".story-panel .panel-fold[data-fold=contract] > .panel-handle";
 
 export const CATALOGUE: readonly LagAction[] = [

@@ -929,7 +929,7 @@ test("17.23 · The open tool opens a contract on an edge whole, as it does a cap
   assert.deepEqual((opened.data as { contract: { edge: unknown } }).contract.edge, { id: edge.id, from: { id: link.id, title: link.fields.title }, to: { id: form.id, title: form.fields.title } });
 });
 
-test("17.25 · The open tool reads a question with an Evidence line naming each record it links by title, after Holding, and none when it links nothing", async (t) => {
+test("17.25 · The open tool reads a question with an Evidence line naming each record it links by title, after Holding, or as no longer live once retired, and none when it links nothing", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {
@@ -958,4 +958,6 @@ test("17.25 · The open tool reads a question with an Evidence line naming each 
   assert.match(opened.text, new RegExp(`Holding: ${increment.id}\\nEvidence: Mailgun's API is the simplest \\[${research.id}\\]$`));
   const plain = await library.raiseQuestion(ask);
   assert.doesNotMatch((await open.act({ id: plain.id }, context, WORDS)).text, /Evidence/);
+  await library.retire(research.id, "overtaken");
+  assert.match((await open.act({ id: question.id }, context, WORDS)).text, new RegExp(`Evidence: ${research.id} \\(no longer live\\)$`), "a link whose record was retired says so");
 });

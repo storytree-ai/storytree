@@ -316,11 +316,11 @@ for (const backend of [memory, postgres]) {
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
     const kept = await knowledge.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest" });
     const named = await knowledge.recordDecision({ status: "accepted", title: "One mail service", text: "One." });
-    await flight.editQuestion(question.id, { links: [kept.id], context: `See ${named.id} and ${kept.id}.` });
+    await flight.editQuestion(question.id, { links: [kept.id], context: `See ${named.id} and ${kept.id}; ${question.id} asks it.` });
     const settled = await flight.settleQuestion(question.id, { answer: "Mailgun" });
 
     const linked = await flight.linkNamedEvidence(question.id);
-    assert.deepEqual(linked?.fields, { ...settled?.fields, links: [kept.id, named.id] });
+    assert.deepEqual(linked?.fields, { ...settled?.fields, links: [kept.id, named.id] }, "never itself");
     const history = await transactions.history();
     assert.deepEqual((await flight.linkNamedEvidence(question.id))?.fields, linked?.fields);
     assert.deepEqual(await transactions.history(), history, "nothing new to link writes nothing");

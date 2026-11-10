@@ -252,8 +252,8 @@ async function openQuestion(question: SchemaRecord<"question">, { library, prese
   if (links.length > 0) {
     const named = await Promise.all(links.map(async (id) => {
       const fields = (await library.get(id))?.fields as Readonly<Record<string, unknown>> | undefined;
-      const title = fields === undefined ? undefined : typeof fields.title === "string" ? fields.title : typeof fields.term === "string" ? fields.term : undefined;
-      return fields === undefined ? `${id} (no longer live)` : title === undefined ? id : `${title} [${id}]`;
+      // Every kind a question links has a title, or a definition's term.
+      return fields === undefined ? `${id} (no longer live)` : `${String(fields.title ?? fields.term)} [${id}]`;
     }));
     out.push(`Evidence: ${named.join(", ")}`);
   }

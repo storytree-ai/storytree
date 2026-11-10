@@ -116,7 +116,7 @@ test("3.23 · question deviation counts, per confidence band, the would-be answe
   await assert.rejects(run("deviation", { days: "soon" }), VerbRefusal);
 });
 
-test("3.32 · question new links the ids given with --links, comma-separated, as well as the records its words name; question show names each linked record by title on an Evidence line after Holding, and question list counts them right after the title", async (t) => {
+test("3.32 · question new links the ids given with --links, comma-separated, as well as the records its words name; question show names each linked record by title on an Evidence line after Holding, or as no longer live once retired, and question list counts them right after the title", async (t) => {
   const { library, run } = await opened(t);
   const arc = await library.createArc({ title: "Launch", intent: "Ship it", endState: "It is live" });
   const research = await library.recordDecision({ status: "accepted", title: "Mailgun's API is the simplest", text: "Measured." });
@@ -135,6 +135,8 @@ test("3.32 · question new links the ids given with --links, comma-separated, as
   assert.doesNotMatch(await run("show", { question: plain.id }), /Evidence/, "a question citing nothing shows no Evidence line");
   assert.match(await run("list", { arc: undefined }), new RegExp(`${plain.id}  \\[${arc.id}\\]  Which mailer\\?$`, "m"));
   await assert.rejects(run("new", { ...ASK, arc: arc.id, links: arc.id, hold: [] }), /arc/, "a link to an arc is refused");
+  await library.retire(named.id, "overtaken");
+  assert.match(await run("show", { question: id }), new RegExp(`, ${named.id} \\(no longer live\\)$`), "a link whose record was retired says so");
 });
 
 test("3.33 · question link-named links each named question's, or with --all every question's, live records its words name that it does not link yet, open or settled, and says how many it added", async (t) => {

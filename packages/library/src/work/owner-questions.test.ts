@@ -464,7 +464,8 @@ for (const backend of [memory, postgres]) {
     await flight.settleQuestion(before.id, { answer: "SES" });
     await records.edit(before.id, { score: { recommendation: "different", by: "lane", at: new Date().toISOString() } });
     const { bands } = await flight.questionDeviation(new Date(0));
-    assert.equal(bands.reduce((sum, { recommendation }) => sum + recommendation.different, 0), 0, "a declined recommendation's verdict is not counted, even one scored before");
+    const counted = bands.reduce((sum, { recommendation }) => ({ match: sum.match + recommendation.match, "match-with-changes": sum["match-with-changes"] + recommendation["match-with-changes"], different: sum.different + recommendation.different }), { match: 0, "match-with-changes": 0, different: 0 });
+    assert.deepEqual(counted, { match: 1, "match-with-changes": 1, different: 0 }, "the recommendations scored are counted; a declined one's verdict is not, even one scored before");
   });
 
   contract("12.15", "an open question carries a prep mark, set in place: when and its stance, with the reason; edited after its mark it reads unprepared, and settling keeps the mark", async ({ work, flight, transactions }) => {

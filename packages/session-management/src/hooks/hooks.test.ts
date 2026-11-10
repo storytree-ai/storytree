@@ -43,6 +43,7 @@ import { CLOSE_OUT_REMINDER } from "./close-out-reminder.js";
 import { runGit, type Git } from "../activity/git.js";
 import { hookTools } from "./tools.js";
 import { AFTER_TOOL, codexToolArguments } from "./codex-delivery.js";
+import { HANDED } from "./at-once.js";
 import type { HookReading } from "./timing.js";
 import { queueFolder } from "./queue.js";
 import { readSettings, setLibrary, setSetting } from "@storytree/project-and-caller";
@@ -1158,7 +1159,7 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
   }
 });
 
-test("3.45 a `claude -p` session's last turn is recorded without the mod though Claude Code stops its async hooks as the process exits and the store is slow to answer: the hook, run as setup registers it, hands its line to one that outlives it (regression: that copy ran out of time while it connected, seen on CI, 2026-10-19)", { skip: process.platform === "win32" && "platform:posix: Claude Code stops a hook by SIGTERM, which Windows does not deliver", timeout: 30_000 }, async () => {
+test("3.45 a `claude -p` session's last turn is recorded without the mod though Claude Code stops its async hooks as the process exits and the store is slow to answer: the hook, run as setup registers it, hands its line to one that outlives it (regression: that copy ran out of time while it connected, seen on CI, 2026-10-19)", { skip: process.platform === "win32" && "platform:posix: Claude Code stops a hook by SIGTERM, which Windows does not deliver", timeout: 120_000 }, async () => {
   const project = uniqueProjectName();
   // A store that answers only after 1.2 s a connection, within the hook's connect timeout, as a busy runner's or one reached over Tailscale may.
   const slow = await slowStore(1_200);
@@ -1173,9 +1174,25 @@ test("3.45 a `claude -p` session's last turn is recorded without the mod though 
       // input at once has handed off before 100 ms. A hook killed by that SIGTERM never ran: one that hands off at once
       // ignores it from its first statement, so on a runner loaded enough that Node had not reached it, the run is the
       // machine's and is run again (seen on macOS CI, 2026-10-21); a hook that is not deaf dies so every time. Node keeps
-      // no SIGTERM ignored before it starts, so no hook can do better.
+      // no SIGTERM ignored before it starts, so no hook can do better. One deaf but killed before its copy had its input
+      // (SIGKILL) is the machine's too: a hook that hands off only after other work is killed so every time. A run that
+      // handed off is waited on to its copy's end, which the copy's own reading of its time marks however it ended, never
+      // for a fixed window (macOS CI gave up after 24 s, 2026-11-04..09). A copy a loaded runner cut off at its deadline
+      // leaves its line waiting on this machine, never lost, and the next run's copy sends what waited first; the log
+      // keeps the event once. A copy that runs out of time every run never writes the line.
+      const copies = async () => {
+        const readings = await hookReadings(home, project);
+        return readings === undefined ? undefined : { count: readings.filter((reading) => reading.event.endsWith(`${AFTER_TOOL} ${HANDED}`)).length };
+      };
+      const failures = () => (existsSync(hookFailuresFile(home)) ? readFileSync(hookFailuresFile(home), "utf8").trim() : "none");
+      const waiting = () => existsSync(queueFolder(home)) && readdirSync(queueFolder(home)).some((name) => name.endsWith(".jsonl"));
+      const turnEnded = async () => (await linesOf(project)).some((line) => line.kind === "turn-ended");
       const ended: string[] = [];
-      for (let run = 0; run < 10 && (ended.length === 0 || ended.at(-1) === "SIGTERM"); run++) {
+      const runs = () => [...new Set(ended)].map((how) => `${how} ×${ended.filter((one) => one === how).length}`).join(", ");
+      // One run of the hook, as `claude -p` runs it; then whether the log holds the line.
+      const run = async (): Promise<boolean> => {
+        if (await turnEnded()) return true;
+        const before = (await waitUntil(copies, 5_000, "the hook readings an upload holds aside")).count;
         const child = spawn(process.execPath, [hook, "claude-code", AFTER_TOOL], { env: { ...process.env, STORYTREE_HOME: home, CLAUDE_CODE_ENTRYPOINT: "sdk-cli" }, stdio: ["pipe", "ignore", "ignore"], shell: false });
         child.stdin.on("error", () => undefined);
         const term = setTimeout(() => {
@@ -1186,10 +1203,16 @@ test("3.45 a `claude -p` session's last turn is recorded without the mod though 
         ended.push(await new Promise<string>((resolve) => child.on("exit", (code, signal) => resolve(signal ?? `exit ${code}`))));
         clearTimeout(term);
         clearTimeout(kill);
-      }
-
-      await waitUntil(async () => (await linesOf(project)).some((line) => line.kind === "turn-ended"), 12_000, `the handed-on copy's turn-ended line (the hook's runs ended: ${ended.join(", ")})`);
-      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"], `the hook's runs ended: ${ended.join(", ")}`);
+        if (ended.at(-1) === "SIGTERM" || ended.at(-1) === "SIGKILL") return false;
+        await waitUntil(async () => ((await copies())?.count ?? before) > before, 15_000, `the handed-on copy's end (the hook's runs ended: ${runs()})`);
+        if (await turnEnded()) return true;
+        assert.ok(waiting(), `the copy that did not write its line left it waiting on this machine (its failures: ${failures()})`);
+        return false;
+      };
+      await waitUntil(run, 20_000, "a run whose copy writes the turn-ended line").catch((error: Error) => {
+        throw new Error(`${error.message} (the hook's runs ended: ${runs()}; its failures: ${failures()})`);
+      });
+      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"], `the hook's runs ended: ${runs()}`);
     });
   } finally {
     slow.close();

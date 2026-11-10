@@ -45,12 +45,12 @@ async function crossingPatterns(text: string): Promise<string[]> {
 async function crossingStory(select: string | undefined): Promise<{ story?: string }> {
   if (select === undefined) return {};
   const { VerbRefusal } = await import("@storytree/library/verbs");
-  if (!select.startsWith("story:") || select.length === 6) throw new VerbRefusal("With --crossing, --select names a mapped story: story:<name>.", { misuse: true });
+  if (!select.startsWith("story:") || select.length === 6) throw new VerbRefusal("With --crossing, --select names an imported story: story:<name>.", { misuse: true });
   return { story: select.slice(6) };
 }
 
 const mapInputs = {
-  select: { kind: "text", describe: "file:<path>, cap:<id|number>, contract:<id|number>, story:<name> or diff:<range>; with --crossing, story:<mapped>", optional: true },
+  select: { kind: "text", describe: "file:<path>, cap:<id|number>, contract:<id|number>, story:<name> or diff:<range>; with --crossing, story:<imported>", optional: true },
   crossing: { kind: "text", describe: "the folders, file patterns or explored capabilities a line is drawn round, comma-separated", optional: true },
   capabilities: { kind: "switch", describe: "with --select story:<name>, the story's capabilities, each with its health, contracts, dependencies, and files with their lines of code" },
   ...SELECTION,
@@ -60,8 +60,8 @@ const map: Verb<typeof mapInputs> = {
   command: {
     family: "map",
     name: "map",
-    summary: "up follows dependencies; down follows dependents; --crossing counts the imports across a line in a mapped island; show refuses above 200 rows; JSON on every mode",
-    usage: "map --select story:<name> --capabilities [--json], or map --select file:<path>|cap:<id|number>|contract:<id|number>|story:<name>|diff:<range> [--up N] [--down N] [--kind story,capability,contract,file,test] [--dry-run|--show] [--json], or map --crossing <folder|pattern|cap:<id|number>,...> [--select story:<mapped>] [--show] [--json]",
+    summary: "up follows dependencies; down follows dependents; --crossing counts the imports across a line in an imported island; show refuses above 200 rows; JSON on every mode",
+    usage: "map --select story:<name> --capabilities [--json], or map --select file:<path>|cap:<id|number>|contract:<id|number>|story:<name>|diff:<range> [--up N] [--down N] [--kind story,capability,contract,file,test] [--dry-run|--show] [--json], or map --crossing <folder|pattern|cap:<id|number>,...> [--select story:<imported>] [--show] [--json]",
   },
   tool: { absent: "the focus tool serves the map to agents" },
   inputs: mapInputs,

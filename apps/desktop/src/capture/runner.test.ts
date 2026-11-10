@@ -83,12 +83,15 @@ test("2.56 · a capture opens its seed's map with the layouts the seed kept alre
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage();
-  // The map's settled mark comes, goes again within a frame or two, then stays: a stand-in frame clock, as in 2.9.
+  // The map's settled mark comes, goes again two frames later, then stays from the twentieth: a stand-in frame clock, as in
+  // 2.9, that lays the marks out by frame, not by time.
   await page.route("http://capture.test/**", route => route.fulfill({ contentType: "text/html", body: `<body><script>
-    requestAnimationFrame = callback => setTimeout(() => callback(performance.now()), 5);
     const mark = on => { document.querySelector("[data-layout]")?.remove(); const m = document.createElement("div"); m.dataset.layout = on ? "settled" : "laying-out"; document.body.append(m); };
     mark(false);
-    window.lay = () => { setTimeout(() => mark(true), 100); setTimeout(() => mark(false), 110); setTimeout(() => { mark(true); document.body.dataset.last = "yes"; }, 400); };
+    let frame = 0;
+    const marks = { 3: true, 5: false, 20: true };
+    requestAnimationFrame = callback => setTimeout(() => { frame++; if (frame in marks) mark(marks[frame]); callback(performance.now()); }, 0);
+    window.lastMarkAt = () => frame >= 20 ? frame : undefined;
   </script></body>` }));
   const layouts = { "storytree.territories.story_a": "kept-a", "storytree.roads.story_a": "roads-a" };
   await fakeBridge({}, { layouts }).install(page);
@@ -97,14 +100,17 @@ test("2.56 · a capture opens its seed's map with the layouts the seed kept alre
   await page.reload();
   assert.deepEqual(await pageStorage(page), { ...layouts, "storytree.territories.story_a": "searched-again", "storytree:setup:guide-seen:v1": "yes" },
     "the seed's layouts are on the page before its scripts run, and one the page kept since is not put back over");
-  await page.evaluate("lay()");
-  await settledMap(page, { frames: 12, timeoutMs: 5_000 });
-  assert.equal(await page.evaluate(() => document.body.dataset.last), "yes", "a settled mark that goes again within the frames held is not taken as settled");
+  await settledMap(page, { frames: 12, timeoutMs: 30_000 });
+  assert.equal(await page.evaluate("lastMarkAt()"), 31, "a settled mark that goes again within the frames held is not taken as settled: the wait ends 12 frames after the last mark came");
   await page.evaluate(() => document.querySelector("[data-layout]")!.remove());
-  await assert.rejects(settledMap(page, { timeoutMs: 300 }), /the map did not say it had settled within 300 ms/);
+  await assert.rejects(settledMap(page, { timeoutMs: 20 }), /the map did not say it had settled within 20 ms/);
   for (const name of ["code-rows", "forest"] as const) {
-    const kept = Object.keys(captureSeed(name).layouts);
-    assert.ok(kept.some(key => key.startsWith("storytree.territories.")) && kept.some(key => key.startsWith("storytree.roads.")), `the shared ${name} seed carries its map's kept layouts and roads`);
+    const { seed, layouts } = captureSeed(name);
+    const stories = seed.tree.stories.map(story => story.id).sort();
+    const kept = (shelf: string) => Object.keys(layouts).filter(key => key.startsWith(shelf)).map(key => key.slice(shelf.length)).sort();
+    assert.deepEqual(kept("storytree.roads."), stories, `the shared ${name} seed keeps roads for every island it draws`);
+    const arranged = kept("storytree.territories.");
+    assert.ok(arranged.length >= stories.length - 1 && arranged.every(story => stories.includes(story)), `and an arrangement for its islands, every one of them its own: ${arranged.join(", ")}`);
   }
 });
 

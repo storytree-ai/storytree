@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { type LandedIncrement, mergedPullRequests, moveStableBack, pinCoverage, type PinCandidate, pinStable, type PinPorts, type PlatformFeed, type StableManifest } from "./stable-pin.js";
-import { formerPin, publishStable, releaseFeed, sweptBy, type GithubRequest } from "./stable-github.js";
+import { formerPin, nightlyMacos, publishStable, releaseFeed, sweptBy, type GithubRequest } from "./stable-github.js";
 
 type PinCandidateFeeds = PinCandidate["feeds"];
 const RELEASES = "https://github.com/storytree-ai/storytree/releases/download";
@@ -28,6 +28,7 @@ function fixture() {
     published: [] as StableManifest[],
     race: false,
     swept: "question_pin: passed" as string | undefined,
+    macos: { tested: true, evidence: "macOS nightly run 7 tested main at a later commit" } as { tested: boolean; evidence: string },
   };
   const ports: PinPorts = {
     previous: async () => current,
@@ -36,6 +37,7 @@ function fixture() {
     pullRequests: async () => new Set(["531", "532"]),
     increments: async () => state.increments,
     swept: async () => state.swept,
+    macos: async () => state.macos,
     publish: async (manifest, bootstrap, expected) => {
       assert.deepEqual(bootstrap, { ps1: "published bootstrap" });
       if (state.race || expected !== current?.ref) throw new Error("Stable pin moved; retry from the new pin");
@@ -251,6 +253,35 @@ test("4.25 the sweep's pass is the routine's own pin question for that exact bui
   const question = (id: string, title: string, lifecycle: string) => ({ id, fields: { title, lifecycle } });
   assert.equal(sweptBy([question("question_a", "Pin 0.3.21 as stable?", "open"), question("question_b", "Pin 0.3.2 as stable?", "retired")], "0.3.2"), undefined);
   assert.match(sweptBy([question("question_c", "Pin 0.3.2 as stable?", "settled")], "0.3.2") ?? "", /^question_c\b/);
+});
+
+test("4.16 a build newer than main's last green nightly macOS run is refused, saying which run, an expedited fix included; a preview or a move back does not wait", async () => {
+  const { state, ports } = fixture();
+  state.macos = { tested: false, evidence: "main's last green nightly macOS run, 7, tested 1234567, before this build" };
+  await assert.rejects(pinStable("0.3.2", ports), /0\.3\.2 is newer than main's last green nightly macOS run, 7, tested 1234567.*macos-nightly\.yml/s);
+  await assert.rejects(pinStable("0.3.2", ports, false, "The forest drew nothing on 0.3.1"), /newer than main's last green nightly macOS run/);
+  assert.equal(state.published.length, 0);
+  assert.equal((await pinStable("0.3.2", ports, true)).version, "0.3.2");
+  state.macos = { tested: true, evidence: "macOS nightly run 8 tested main at 89abcde, which contains this build" };
+  assert.equal((await pinStable("0.3.2", ports)).pin.macos, "macOS nightly run 8 tested main at 89abcde, which contains this build");
+  state.candidate = { ...state.candidate, version: "0.3.3", commit: "b".repeat(40), installers: installers("0.3.3"), feeds: platformFeeds("0.3.3") };
+  await pinStable("0.3.3", ports);
+  state.macos = { tested: false, evidence: "no green nightly macOS run" };
+  state.candidate = { ...state.candidate, version: "0.3.2", commit: "a".repeat(40), installers: installers("0.3.2"), feeds: platformFeeds("0.3.2") };
+  assert.equal((await moveStableBack("0.3.2", ports)).version, "0.3.2");
+});
+
+test("4.16 the macOS run a pin stands on is main's latest green nightly run, and only when its commit is the build's or a later one containing it", async () => {
+  const run = (id: number, head_sha: string, conclusion: string | null, head_branch = "main") => ({ id, head_sha, head_branch, conclusion });
+  const later = new Set(["c".repeat(40)]);
+  const contains = async (head: string, commit: string) => head === commit || (later.has(head) && commit === "a".repeat(40));
+  assert.match((await nightlyMacos([run(9, "c".repeat(40), "success")], "a".repeat(40), contains)).evidence, /^macOS nightly run 9 tested main at cccccccccccc\b/);
+  assert.equal((await nightlyMacos([run(9, "c".repeat(40), "success")], "a".repeat(40), contains)).tested, true);
+  // The newest green run is the one that counts; a red run after it, or a run off another branch, tests nothing.
+  const refused = await nightlyMacos([run(11, "c".repeat(40), "failure"), run(10, "d".repeat(40), "success", "topic"), run(9, "e".repeat(40), "success"), run(8, "c".repeat(40), "success")], "a".repeat(40), contains);
+  assert.equal(refused.tested, false);
+  assert.match(refused.evidence, /main's last green nightly macOS run, 9, tested eeeeeeeeeeee/);
+  assert.deepEqual(await nightlyMacos([], "a".repeat(40), contains), { tested: false, evidence: "main has no green nightly macOS run" });
 });
 
 test("4.16 a former pin is read from the stable branch's history, a move back included, and a build only mentioned there is not one", async () => {

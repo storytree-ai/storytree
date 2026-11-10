@@ -36,6 +36,8 @@ export interface StableManifest {
     expedited?: string;
     /** What says this build passed its fresh-install sweep before the pin (4.25); absent on an expedited pin. */
     swept?: string;
+    /** The nightly macOS run on main that tested this build's commit or a later one containing it (ADR-1303 D3). */
+    macos?: string;
     /** The platforms this pin moved to its version. */
     covers?: ("windows" | FeedPlatform)[];
     increments: { id: string; title: string; pr: string; note?: string }[];
@@ -71,6 +73,8 @@ export interface PinPorts {
   cutover?(): Promise<PrCutover | undefined>;
   /** What says this build passed its fresh-install sweep (4.25), or undefined while none has. */
   swept(version: string): Promise<string | undefined>;
+  /** Whether main's latest green nightly macOS run tested `commit` (its own or a later main commit containing it), and the run that says so. */
+  macos(commit: string): Promise<{ tested: boolean; evidence: string }>;
   /** Publish atomically only while the channel still has the expected ref. */
   publish(manifest: StableManifest, bootstrap: Bootstraps, expectedRef?: string): Promise<void>;
   now(): string;
@@ -172,7 +176,9 @@ export async function moveStableBack(version: string, ports: PinPorts, preview =
 /**
  * `expedited` is the owner's reason for pinning an urgent fix without the 24-hour soak; the notes say it first. Any
  * other pin waits on the build's fresh-install sweep (4.25, the owner's answer on question_0e1c032af8b9): a preview
- * only reads, and an expedited fix waives the sweep as it waives the soak (ADR-1032 D7).
+ * only reads, and an expedited fix waives the sweep as it waives the soak (ADR-1032 D7). Every pin but a preview waits on
+ * macOS too: main's latest green nightly macOS run must have tested the build (ADR-1303 D3, the owner's answer on
+ * question_9eb0545bdaba), an expedited fix included, since a run by hand on main gives it one within the hour.
  */
 export async function pinStable(version: string, ports: PinPorts, preview = false, expedited?: string): Promise<StableManifest> {
   const build = buildNumber(version);
@@ -202,6 +208,10 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
   if (!preview && !expedited && !swept) {
     throw new Error(`storytree ${version} has not passed its fresh-install sweep, so it cannot be pinned yet. On the Mint box, packages/app-setup/testing/stable-acceptance/harness/fortnight.sh --now runs it on the stable candidate; an urgent fix is pinned with --expedited instead`);
   }
+  const macos = preview ? undefined : await ports.macos(candidate.commit);
+  if (macos && !macos.tested) {
+    throw new Error(`storytree ${version} is newer than ${macos.evidence}, so it cannot be pinned yet. Run macOS on main by hand (gh workflow run macos-nightly.yml --ref main, or Actions > macOS nightly > Run workflow) and pin once it passes`);
+  }
   const reachable = await ports.pullRequests(candidate.commit);
   const included = new Set(previous?.manifest.pin.includedIncrements ?? []);
   const cutover = await ports.cutover?.();
@@ -227,7 +237,7 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
     schema: 1, channel: "stable", version, ...(candidate.published ? { releaseDate: candidate.published } : {}),
     files: installers.map(({ url, sha512, size }) => ({ url, sha512, size })), releaseNotes, feeds,
     pin: { commit: candidate.commit, at: ports.now(), ...(previous ? { previous: previous.manifest.version } : {}), ...(expedited ? { expedited } : {}), ...(swept ? { swept } : {}),
-      covers: ["windows", ...platforms],
+      ...(macos ? { macos: macos.evidence } : {}), covers: ["windows", ...platforms],
       increments, includedIncrements: [...included] },
   };
   if (!preview) await ports.publish(manifest, candidate.bootstrap, previous?.ref);

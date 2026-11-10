@@ -27,6 +27,18 @@ test("5.1 any other refusal is not retried, however early", () => {
   assert.match(other.reason, /not one this job retries/);
 });
 
+// PR #706, run 42848031894: GitHub answered the enqueue with a transient GraphQL error, every check
+// green, and re-running the job unchanged enqueued it.
+const wentWrong = "gh: Something went wrong while executing your query. Please include `ABCD:1234:5678` when reporting this issue.";
+
+test("5.1 GitHub's transient 'Something went wrong' reply is retried inside the window and stops past it", () => {
+  assert.equal(enqueueDecision(wentWrong, 0).retry, true);
+  assert.equal(enqueueDecision(wentWrong, 240).retry, true);
+  const late = enqueueDecision(wentWrong, RETRY_WINDOW_SECONDS);
+  assert.equal(late.retry, false);
+  assert.match(late.reason, /Something went wrong/);
+});
+
 test("5.1 the land job's command line exits 0 to retry and 1 to stop, reading the refusal on stdin", () => {
   const script = fileURLToPath(new URL("./land-enqueue.mjs", import.meta.url));
   const run = (seconds, input) => {

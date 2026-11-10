@@ -215,6 +215,8 @@ export interface ContractNode {
   description?: string;
   /** The existing tests that prove it, as stored, when it names any (question_b5918c0ff273). */
   provedBy?: string[];
+  /** How it is proved, with its reason, as stored, once chosen (ADR-1294). */
+  proof?: { by: (typeof CONTRACT_PROOFS)[number]; reason: string };
 }
 
 export interface ArcNode {
@@ -672,6 +674,7 @@ export class WorkModel {
     const contractNode = (contract: SchemaRecord<"contract">): ContractNode => ({
       ...nodeOf(contract),
       ...(contract.fields.provedBy === undefined ? {} : { provedBy: [...contract.fields.provedBy] }),
+      ...(contract.fields.proof === undefined ? {} : { proof: { ...contract.fields.proof } }),
     });
     return {
       ...(anchor === undefined ? {} : { anchor }),

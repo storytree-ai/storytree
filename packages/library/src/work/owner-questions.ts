@@ -275,6 +275,11 @@ export async function predictQuestion(records: SchemaRecords, id: string, answer
   return records.create("prediction", { question: id, ...fields }, options);
 }
 
+/** Whether a raiser's recommendation recommends: one that declines ("None: …", with its why) is none (12.13). */
+function recommends(recommendation: string | undefined): boolean {
+  return recommendation !== undefined && !/^\s*none\b/i.test(recommendation);
+}
+
 /**
  * Score settled question `id` once, now (12.13): a verdict for its would-be answer if it has one, and for its raiser's
  * recommendation if it has one, each required where there is one and refused where there is none, with who scored it.
@@ -288,7 +293,7 @@ export async function scoreQuestion(records: SchemaRecords, id: string, score: S
   if (question.fields.lifecycle === "open") throw new RangeError(`question ${name} is open: it is scored once settled, against the owner's answer`);
   if (question.fields.score !== undefined) throw new RangeError(`question ${name} is already scored: it takes one score`);
   const predicted = (await questionPrediction(records, id)) !== null;
-  const recommended = question.fields.recommendation !== undefined;
+  const recommended = recommends(question.fields.recommendation);
   for (const [side, has, given] of [["a would-be answer", predicted, score.prediction], ["a recommendation", recommended, score.recommendation]] as const) {
     if (has && given === undefined) throw new RangeError(`question ${name} has ${side}, so its score needs a verdict for it`);
     if (!has && given !== undefined) throw new RangeError(`question ${name} has no ${side.slice(2)} to score`);
@@ -333,7 +338,7 @@ export async function questionDeviation(records: SchemaRecords, since: Date): Pr
     const band = bands.find((one) => one.band === (score.prediction === undefined ? "none" : (confidence.get(id) ?? "none")))!;
     band.questions += 1;
     if (score.prediction !== undefined) band.prediction[score.prediction] += 1;
-    if (score.recommendation !== undefined) band.recommendation[score.recommendation] += 1;
+    if (score.recommendation !== undefined && recommends(fields.recommendation)) band.recommendation[score.recommendation] += 1;
   }
   return {
     settled: settled.length,

@@ -148,15 +148,16 @@ test("5.23 · `plugin import-plan` from a git checkout retires only what a commi
   try {
     const library = await storytree.openProject(run);
     const importPlan = (from: string) => importVerb.act({ plugin: "voice", from } as never, { folder: home, project: run, library, session: "test" } as never, words);
-    const contracts = async () => (await library.projectTree()).stories.find(({ plugin }) => plugin === "voice")!.capabilities[0]!.contracts.map(({ id, title }) => [title, id]);
+    const contracts = async () => (await library.projectTree()).stories.find(({ plugin }) => plugin === "voice")!.capabilities[0]!.contracts.map(({ id, title }) => [title, id] as const).sort(([a], [b]) => a.localeCompare(b));
 
     await importPlan(factory);
     const landed = await contracts();
     assert.equal(landed.length, 2);
+    const oneTwo = landed.find(([title]) => title.startsWith("1.2"))!;
 
     const left = await importPlan(stale);
     assert.match(left.text, /: 0 added, 0 edited, 0 retired, 3 kept, 1 left\n/, "the stale folder retires nothing another lane landed");
-    assert.match(left.text, new RegExp(`${landed[1]![1]}.*merge the factory's main`));
+    assert.match(left.text, new RegExp(`${oneTwo[1]}.*merge the factory's main`));
     assert.deepEqual(await contracts(), landed, "1.2 stays live under its id");
 
     git(stale, "merge", "-q", "main");

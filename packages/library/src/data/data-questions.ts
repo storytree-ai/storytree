@@ -107,16 +107,18 @@ export class DataQuestions {
 
   /**
    * The live records whose title has a word starting with each of `words`, any case; ANSWER_ROWS at most. Current
-   * state first (the owner's option B on question_6931f1a08090): every other record, then decisions an accepted
-   * decision narrows in place, then history (resteers, friction, superseded decisions), each most recently changed first.
+   * state only unless `history` (the owner's option B on question_6931f1a08090): every other record, then decisions an
+   * accepted decision narrows in place, then, with `history`, resteers, friction and superseded decisions, each most
+   * recently changed first.
    */
-  async findByTitle(words: readonly string[]): Promise<TitleHit[]> {
+  async findByTitle(words: readonly string[], options: { readonly history?: boolean } = {}): Promise<TitleHit[]> {
     if (words.length === 0) return [];
     const namedBy = (field: "supersedes" | "narrows"): string =>
       `EXISTS (SELECT 1 FROM record other WHERE other.type = 'decision' AND other.fields->>'status' = 'accepted' AND other.fields->'${field}' ? record.id)`;
+    const current = options.history === true ? "" : `AND type NOT IN ('resteer', 'friction') AND NOT (type = 'decision' AND ${namedBy("supersedes")})`;
     const { rows } = await this.#pool.query<TitleHit>(
       `SELECT id, type, ${TITLE} AS title FROM record
-        WHERE type <> 'health' AND ${TITLE} ~* ALL($1::text[])
+        WHERE type <> 'health' AND ${TITLE} ~* ALL($1::text[]) ${current}
         ORDER BY CASE
                    WHEN type IN ('resteer', 'friction') THEN 2
                    WHEN type = 'decision' AND ${namedBy("supersedes")} THEN 2

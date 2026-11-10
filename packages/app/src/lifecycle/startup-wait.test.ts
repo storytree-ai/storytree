@@ -8,7 +8,7 @@ import { test } from "node:test";
 
 import { ConnectionError } from "@storytree/library";
 
-import { keepTrying, keepTryingBehind, openAtStartup, openPatiently, type LibraryQuery } from "./library-wait.js";
+import { keepTrying, keepTryingBehind, openAtStartup, openPatiently, type LibraryQuery } from "./startup-wait.js";
 
 /** A key command whose ssh could not reach the box, as @storytree/keys throws it, inside the app's own refusal. */
 function sshDown(): Error {

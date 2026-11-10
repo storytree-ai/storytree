@@ -291,6 +291,11 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(hits.find(({ note }) => note.id === narrowed.id)?.narrowedBy, [{ id: narrowing.id, number: narrowing.fields.number }]);
     assert.ok(hits.filter(({ note }) => note.id !== narrowed.id).every(({ narrowedBy }) => narrowedBy === undefined), "only the narrowed decision is marked");
     await assert.rejects(knowledge.rankAll("email", { kinds: ["arc" as "story"] }), /unknown kind to search: arc/);
+
+    const term = await knowledge.defineTerm({ term: "Email", meaning: "Mail." });
+    await assert.rejects(knowledge.recordDecision({ status: "accepted", title: "Narrows a term", text: "No.", narrows: [term.id] }), /narrows/, "a decision narrows only a decision");
+    await assert.rejects(knowledge.editNote(narrowing.id, { narrows: ["decision_000000000000"] }), /narrows/, "a narrowing names a live decision");
+    assert.deepEqual((await knowledge.decision(narrowing.id))?.record.fields.narrows, [narrowed.id], "a refused edit writes nothing");
   });
 
   contract("14.12", "a long note's late paragraph is embedded, so a search finds the note by what that paragraph says", async (embedder, { reopen }) => {

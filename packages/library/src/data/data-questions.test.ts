@@ -1,5 +1,5 @@
 /**
- * Capability 27 · Fixed data questions: contracts 27.1 to 27.5, the `library count`, `changes` (all of them or one writer's) and `find` commands and
+ * Capability 27 · Fixed data questions: contracts 27.1 to 27.6, the `library count`, `changes` (all of them or one writer's) and `find` commands and
  * `library read` by a decision's number, run through the library family on a fresh project's library on the real
  * Postgres `pnpm test` provides.
  */
@@ -31,7 +31,7 @@ async function world(t: TestContext): Promise<{ library: Library; run: (name: st
   return { library, run: async (name, inputs) => (await verbOf(name).act(inputs as never, context, WORDS)).text };
 }
 
-test("27.6 · library find lists current state first: other records, then decisions narrowed in place, then resteers, friction and superseded decisions, each most recently changed first", async (t) => {
+test("27.6 · library find gives current state: other records, then decisions narrowed in place, each most recently changed first; resteers, friction and superseded decisions come back, last and most recently changed first, only with --history", async (t) => {
   const { library, run } = await world(t);
   const current = await library.defineTerm({ term: "Mapped colour", meaning: "Green, red or yellow once explored." });
   const replaced = await library.recordDecision({ status: "accepted", title: "Mapped colour is grey", text: "D1. Grey." });
@@ -44,7 +44,10 @@ test("27.6 · library find lists current state first: other records, then decisi
   const friction = await library.writeKnowledge("friction", { title: "Mapped colour confusion", description: "Confused.", statement: "Two colours.", evidence: "Seen twice.", impact: "Stale answers." });
   await library.editNote(narrowed.id, { text: "D1. Brown, for the unexplored part." });
 
-  const order = (await run("find", { words: ["mapped", "colour"] })).split("\n").map((line) => /^\s+(\w+_[0-9a-f]{12})\s/.exec(line)?.[1]).filter((id) => id !== undefined);
+  const ids = async (history: boolean): Promise<string[]> =>
+    (await run("find", { words: ["mapped", "colour"], history })).split("\n").map((line) => /^\s+(\w+_[0-9a-f]{12})\s/.exec(line)?.[1]).filter((id) => id !== undefined);
+  assert.deepEqual(await ids(false), [current.id, narrowed.id], "current state only: no resteer, friction or superseded decision");
+  const order = await ids(true);
   assert.deepEqual(order.slice(0, 2), [current.id, narrowed.id], "current first, then the narrowed decision, though it was edited last");
   assert.deepEqual(new Set(order.slice(2)), new Set([replaced.id, resteer.id, friction.id]), "history last");
   assert.deepEqual(order.slice(2), [friction.id, resteer.id, replaced.id], "history most recently changed first");

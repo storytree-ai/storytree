@@ -497,7 +497,7 @@ test("1.21 · `storytree` mounts the families its story packages' manifests decl
     const health = await world.run(["health"]);
     assert.match(health.stdout, /^  storytree health worklist$/m, health.stdout + health.stderr);
     const workspace = await world.run(["workspace", "--help"]);
-    assert.match(workspace.stdout, /^storytree workspace: prepare or attach a workspace.*\n\n  storytree workspace <increment\|capability> --reason <text> \[--despite-open-pulls\]\n/, workspace.stdout + workspace.stderr);
+    assert.match(workspace.stdout, /^storytree workspace: prepare or attach a workspace.*\n\n  storytree workspace <increment\|capability> --reason <text> \[--despite-open-pulls\] \[--despite-local-branches\]\n/, workspace.stdout + workspace.stderr);
     assert.match(workspace.stdout, /^  storytree workspace attach <increment\|capability> \[--folder <directory>\] \[--ref <commit> --name <name>\] --reason <text>$/m);
     const bare = await world.run(["workspace", "increment_none"]);
     assert.equal(bare.code, 2, bare.stderr);

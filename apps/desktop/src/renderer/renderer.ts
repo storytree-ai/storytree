@@ -108,7 +108,8 @@ page = openProjectPage({
         core.onSelect(session => sessions.select(session));
         return sessions;
       },
-      ciTimes: (host) => mountCiTimes(host, { read: async () => window.storytree.ciTimes?.(name) }),
+      // Its in-CI count is the page's live reading's, the same branch states the arc lanes' CI bars and the sessions list read.
+      ciTimes: (host) => mountCiTimes(host, { read: async () => window.storytree.ciTimes?.(name), going: () => reading.held().fold.pullsInCi() }),
       take: (changes, lines) => core.take(changes, lines),
       libraryCard: (panel, onClose) => mountLibraryPanel(panel, core, onClose),
       teaching: (locate, reading, islands) => mountTeaching(content, { journal: seenCards, locate, reading, islands }),

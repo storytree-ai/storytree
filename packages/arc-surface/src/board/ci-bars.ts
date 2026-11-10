@@ -37,11 +37,6 @@ const HELD = 0.95;
 const HUNG = 2;
 const minutesSince = (at: string, now: Date) => Math.max(0, (now.getTime() - Date.parse(at)) / 60_000);
 
-/** Whether a pull request is in CI: its checks pending, or in the merge queue (1.7). */
-export function inCi(pull: Pick<PullState, "checks" | "queued">): boolean {
-  return pull.queued || pull.checks === "pending";
-}
-
 function running(name: CiLeg["name"], since: string, expected: number | undefined, now: Date): CiLeg {
   const elapsed = minutesSince(since, now);
   if (expected === undefined || expected <= 0) return { name, phase: "running", elapsed, fill: 0, tone: "on-time" };

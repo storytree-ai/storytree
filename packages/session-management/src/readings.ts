@@ -754,6 +754,23 @@ export class LogFold {
     return state === undefined ? undefined : { ...pullState(pr, state), at: state.at };
   }
 
+  /**
+   * How many open pull requests are in CI, their checks running, and how many in the merge queue, each by its latest
+   * branch-state line (4.48); undefined while it holds no branch state, so a reading not yet read, or a project no look
+   * reads, says no count rather than none.
+   */
+  pullsInCi(): { inCi: number; inQueue: number } | undefined {
+    if (this.#branchStates.size === 0) return undefined;
+    const latest = new Map<number, BranchState>();
+    for (const state of this.#branchStates.values()) {
+      if (!state.open || state.pr === undefined) continue;
+      const seen = latest.get(state.pr);
+      if (seen === undefined || Date.parse(state.at) > Date.parse(seen.at)) latest.set(state.pr, state);
+    }
+    const pulls = [...latest.values()].map((state) => ({ checks: state.checks, queued: state.queued === true })).filter(inCi);
+    return { inCi: pulls.filter(({ queued }) => !queued).length, inQueue: pulls.filter(({ queued }) => queued).length };
+  }
+
   /** A session's standing close-out, by what its lines said and its branches still open. */
   #closeOut(own: SessionFold, openWork: readonly string[]): CloseOut | undefined {
     if (own.closedOut === undefined || own.closedOut.reopened) return undefined;
@@ -769,6 +786,11 @@ export class LogFold {
     ];
     return disagreements.length === 0 ? { ...said, verified: true } : { ...said, verified: false, needsYou: `says safe, but ${disagreements.join("; ")}` };
   }
+}
+
+/** Whether a pull request is in CI: its checks pending, or in the merge queue (4.48): one test for the CI bars, the label and the count. */
+export function inCi(pull: { readonly checks?: PullState["checks"] | undefined; readonly queued: boolean }): boolean {
+  return pull.queued || pull.checks === "pending";
 }
 
 /** What a branch's state line says of its open pull request `pr`. */

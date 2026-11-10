@@ -6,7 +6,7 @@
  * each figure is. With nothing recorded there is no strip. It reads again every minute while it is mounted; the app records
  * again behind that read once the last recording is ten minutes old (runtime.ts).
  */
-import { ciTimesLines } from "./lines.js";
+import { ciTimesLines, type CiGoing } from "./lines.js";
 import type { CiTimesReading } from "./reading.js";
 
 /** How often the strip reads again while mounted. */
@@ -31,9 +31,9 @@ const STYLES = `
 
 const escape = (text: string) => text.replace(/[&<>"]/g, (one) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[one]!);
 
-/** The strip's inner markup for `reading` as of `now`: its four figures. */
-export function renderCiTimes(reading: CiTimesReading, now = new Date()): string {
-  const lines = ciTimesLines(reading, now);
+/** The strip's inner markup for `reading` as of `now`: its four figures, the last saying `going` when a live count is given (6.8). */
+export function renderCiTimes(reading: CiTimesReading, now = new Date(), going?: CiGoing): string {
+  const lines = ciTimesLines(reading, now, going);
   const spark = `<span class="ci-times-spark" aria-hidden="true"><span class="ci-times-spark-before">${escape(lines.spark.before)}</span>${escape(lines.spark.week)}</span>`;
   return [
     `<span class="ci-times-item" data-ci-times="to-merge">${escape(lines.toMerge)} ${spark}${lines.was === "" ? "" : ` ${escape(lines.was)}`}</span>`,
@@ -61,10 +61,11 @@ interface Sheet {
 }
 
 /**
- * Draw the CI times in `host` and keep them current: `read` gives the reading (the page's bridge), every `everyMs`. A read
- * that fails leaves the strip as it was. Stopping clears the timer; the page removes the host.
+ * Draw the CI times in `host` and keep them current: `read` gives the reading (the page's bridge), every `everyMs`, and
+ * `going`, when it counts one, the pull requests in CI now (6.8). A read that fails leaves the strip as it was. Stopping
+ * clears the timer; the page removes the host.
  */
-export function mountCiTimes(host: CiTimesHost, { read, everyMs = READ_EVERY_MS, now = () => new Date() }: { read(): Promise<CiTimesReading | undefined>; everyMs?: number; now?: () => Date }): { stop(): void } {
+export function mountCiTimes(host: CiTimesHost, { read, going = () => undefined, everyMs = READ_EVERY_MS, now = () => new Date() }: { read(): Promise<CiTimesReading | undefined>; going?: () => CiGoing | undefined; everyMs?: number; now?: () => Date }): { stop(): void } {
   const document = host.ownerDocument;
   const sheet = new document.defaultView!.CSSStyleSheet();
   sheet.replaceSync(STYLES);
@@ -75,8 +76,9 @@ export function mountCiTimes(host: CiTimesHost, { read, everyMs = READ_EVERY_MS,
     const reading = await read().catch(() => null);
     if (stopped || reading === null) return;
     host.hidden = reading === undefined;
-    host.innerHTML = reading === undefined ? "" : renderCiTimes(reading, now());
-    host.title = reading === undefined ? "" : ciTimesLines(reading, now()).detail;
+    const live = going();
+    host.innerHTML = reading === undefined ? "" : renderCiTimes(reading, now(), live);
+    host.title = reading === undefined ? "" : ciTimesLines(reading, now(), live).detail;
   };
   void draw();
   const timer = setInterval(() => void draw(), everyMs);

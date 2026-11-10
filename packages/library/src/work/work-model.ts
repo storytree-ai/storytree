@@ -16,7 +16,7 @@ import { isDeepStrictEqual } from "node:util";
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, couldBeId, DependencyLoopError, liveRecord } from "../references.js";
 import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
-import type { FieldsOf } from "../schema/types.js";
+import type { CONTRACT_PROOFS, FieldsOf } from "../schema/types.js";
 import { historyOf, PR_CUTOVER_ID, type PrCutover } from "./pr-cutover.js";
 
 /**

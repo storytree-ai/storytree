@@ -203,7 +203,7 @@ test("3.34 a pull request in CI draws a two-leg bar on its arc's lane: its check
   const state = (fields: object, seenAgo = 3) => line({ kind: "branch-state", session: "observer", of: "claude/ship", open: true, how: "ahead", pr: 12, ...fields }, ago(seenAgo));
   const expected = { checks: 14, queue: 15 };
   const view = (lines: Line[], medians: object = expected) => boardView(snapshot, [handedOver, ...lines], now, "active", undefined, medians);
-  const leg = (html: string, name: string) => html.match(new RegExp(`<span class="arc-ci-leg arc-ci-${name}[^"]*"[^>]*>(?:<span class="arc-ci-fill"[^>]*></span>)?</span>`))?.[0] ?? "";
+  const leg = (html: string, name: string) => html.match(new RegExp(`<g class="arc-ci-leg arc-ci-${name} .*?</g>`))?.[0] ?? "";
 
   const running = view([state({ checks: "pending", checksSince: ago(7) })]);
   const lane = running.lanes[0]!;
@@ -212,7 +212,8 @@ test("3.34 a pull request in CI draws a two-leg bar on its arc's lane: its check
     [[12, "shipping", [["running", 0.5, "on-time"], ["ahead", 0, "on-time"]]]]);
   let html = renderBoard(running, "ci");
   assert.match(leg(html, "checks"), /arc-ci-running/);
-  assert.match(leg(html, "checks"), /style="width:50%"/);
+  assert.match(leg(html, "checks"), /<rect class="arc-ci-fill" data-fill="50" x="0" width="45"/, "half of its 90 px");
+  assert.doesNotMatch(html, /style=/, "no inline style, which the page's content security policy refuses: the fill is an SVG width");
   assert.doesNotMatch(leg(html, "queue"), /arc-ci-fill/, "the queue not reached: no fill");
   const hover = html.match(/<span class="arc-ci"[^>]*title="([^"]*)"/)?.[1] ?? "";
   assert.match(hover, /Pull request #12 in CI: Ship the bar/);
@@ -222,22 +223,23 @@ test("3.34 a pull request in CI draws a two-leg bar on its arc's lane: its check
   assert.match(hover, /Last change seen 3 min ago/);
 
   html = renderBoard(view([state({ checks: "pending", checksSince: ago(20) })]), "ci");
-  assert.match(leg(html, "checks"), /arc-ci-long[^>]*>.*width:95%/, "past the median: held at 95%, amber");
+  assert.match(leg(html, "checks"), /arc-ci-long.*data-fill="95"/, "past the median: held at 95%, amber");
   assert.match(html, /Checks: 20 min of 14 min expected · running long/);
   html = renderBoard(view([state({ checks: "pending", checksSince: ago(30) })]), "ci");
   assert.match(leg(html, "checks"), /arc-ci-hung/, "at twice the median: red");
   assert.match(html, /well past: hung or flaky\?/);
 
   html = renderBoard(view([state({ checks: "pending" })]), "ci");
-  assert.match(leg(html, "checks"), /arc-ci-waiting/, "no check started: hatched");
+  assert.match(leg(html, "checks"), /arc-ci-waiting.*arc-ci-hatch/, "no check started: hatched");
   assert.doesNotMatch(leg(html, "checks"), /arc-ci-fill/);
+  assert.doesNotMatch(leg(html, "queue"), /arc-ci-hatch/, "a leg not reached is not hatched");
   assert.match(html, /Checks: waiting to run/);
 
   html = renderBoard(view([state({ checks: "passing", queued: true, checksSince: ago(40), queuedSince: ago(2), queueWaiting: true })]), "ci");
-  assert.match(leg(html, "checks"), /arc-ci-done[^>]*>.*width:100%/, "in the queue, its checks are done");
+  assert.match(leg(html, "checks"), /arc-ci-done.*data-fill="100"/, "in the queue, its checks are done");
   assert.match(leg(html, "queue"), /arc-ci-waiting/, "waiting its turn in the queue: hatched");
   html = renderBoard(view([state({ checks: "passing", queued: true, checksSince: ago(40), queuedSince: ago(6) })]), "ci");
-  assert.match(leg(html, "queue"), /arc-ci-running[^>]*>.*width:40%/, "6 of 15 minutes since it joined the queue");
+  assert.match(leg(html, "queue"), /arc-ci-running.*data-fill="40" x="94"/, "6 of 15 minutes since it joined the queue, drawn after the checks");
 
   html = renderBoard(view([state({ checks: "pending", checksSince: ago(7) })], {}), "ci");
   assert.match(html, /Checks: 7 min, no factory median yet/);

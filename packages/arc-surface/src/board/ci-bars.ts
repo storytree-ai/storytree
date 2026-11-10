@@ -17,7 +17,7 @@ export interface CiLeg {
   readonly phase: "waiting" | "running" | "done" | "ahead";
   /** Minutes since it started running, while it runs. */
   readonly elapsed?: number;
-  /** Its factory median in minutes, when there is one. */
+  /** Its factory median in minutes, while it runs and there is one. */
   readonly expected?: number;
   /** How full it is drawn, 0 to 1. */
   readonly fill: number;
@@ -51,8 +51,7 @@ function running(name: CiLeg["name"], since: string, expected: number | undefine
 
 /** A pull request in CI's two legs at `now`: the checks done once it is in the queue, the queue's leg timed from its latest joining. */
 export function ciLegs(pull: PullState, expected: CiExpected, now: Date): readonly [CiLeg, CiLeg] {
-  const median = (name: CiLeg["name"]) => (expected[name] === undefined ? {} : { expected: expected[name] });
-  const idle = (name: CiLeg["name"], phase: "waiting" | "done" | "ahead"): CiLeg => ({ name, phase, ...median(name), fill: phase === "done" ? 1 : 0, tone: "on-time" });
+  const idle = (name: CiLeg["name"], phase: "waiting" | "done" | "ahead"): CiLeg => ({ name, phase, fill: phase === "done" ? 1 : 0, tone: "on-time" });
   if (!pull.queued) {
     const checks = pull.checksSince === undefined ? idle("checks", "waiting") : running("checks", pull.checksSince, expected.checks, now);
     return [checks, idle("queue", "ahead")];

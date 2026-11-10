@@ -3,10 +3,12 @@ name: Own health
 # After CI completes for a change to main, run storytree 0.3's own stories' tests and record each
 # contract's VERIFIED health in the library (ADR-0744 D3-D4): `pnpm check:own-health`,
 # the same rules a hand run uses (packages/repo-checks/src/test-run), written as "storytree test run on CI"
-# with the commit in each note. Windows-only and macOS-only contracts need the passing Windows or
-# macOS evidence from that exact commit and CI attempt: the merge queue's passing run of it, which is where it is
-# tested now that the push run stands on that run's verdict (ci.yml's `queue-verdict`), else main's push run of it
-# (packages/repo-checks/src/test-run/main-commit.mjs). Never from a pull request's run: only main's own commits are recorded.
+# with the commit in each note. Windows-only contracts need the passing Windows evidence from that exact commit and
+# CI attempt: the merge queue's passing run of it, which is where it is tested now that the push run stands on that
+# run's verdict (ci.yml's `queue-verdict`), else main's push run of it. macOS-only contracts need the macOS evidence of a
+# passing nightly macOS run of that exact commit (macos-nightly.yml, ADR-1303 D2), whose completion starts this too, so
+# the commit it tested is recorded with it (packages/repo-checks/src/test-run/main-commit.mjs). Never from a pull
+# request's run: only main's own commits are recorded.
 # A contract proved by a named workflow job rather than a test (CI's Windows installer job, the release's Windows
 # update legs) is recorded from that job's verdict (packages/repo-checks/src/test-run/job-proofs.mjs).
 #
@@ -32,7 +34,7 @@ name: Own health
 
 on:
   workflow_run:
-    workflows: [CI]
+    workflows: [CI, macOS nightly]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -55,7 +57,8 @@ jobs:
     name: check required settings
     if: >-
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' &&
+      (github.event_name == 'workflow_run' && (github.event.workflow_run.event == 'push' ||
+      (github.event.workflow_run.name == 'macOS nightly' && github.event.workflow_run.conclusion == 'success')) &&
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
@@ -99,7 +102,8 @@ jobs:
     # One recording at a time. A run in progress finishes; a newer one waits, replacing any older one
     # still waiting. A delayed CI completion for an older commit must not overwrite newer health:
     # after acquiring this slot, a job whose commit is no longer main records main's newest passing
-    # commit instead, and nothing when that is not at or after its own.
+    # commit instead, and nothing when that is not at or after its own. A nightly macOS run's recording
+    # that a merge's replaces while it waits leaves that night's macOS evidence uncredited.
     # The group is on this job, not the workflow, so a preflight run never waits or is replaced.
     concurrency:
       group: own-health
@@ -107,7 +111,8 @@ jobs:
     if: >-
       !inputs.preflight && (
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' &&
+      (github.event_name == 'workflow_run' && (github.event.workflow_run.event == 'push' ||
+      (github.event.workflow_run.name == 'macOS nightly' && github.event.workflow_run.conclusion == 'success')) &&
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
@@ -116,7 +121,7 @@ jobs:
     # minutes most runs timed out unrecorded (increment_f3274849cc7e), so this leaves room to grow.
     timeout-minutes: 90
     permissions:
-      actions: read # download Windows and macOS evidence from the exact CI run
+      actions: read # download Windows and macOS evidence from the exact CI and nightly macOS runs
       contents: read
       id-token: write # GitHub's OIDC token, for joining the tailnet
     env:
@@ -141,7 +146,7 @@ jobs:
             // workflow_run's GITHUB_SHA is the current default branch, not the triggering commit.
             const own = context.payload.workflow_run?.head_sha ?? context.sha;
             const { data: main } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' });
-            const { sha, run, notices } = await chooseRecording({
+            const { sha, run, macos, notices } = await chooseRecording({
               github, repo: context.repo, own, mainHead: main.object.sha,
               triggering: context.eventName === 'workflow_run' ? context.payload.workflow_run : undefined,
             });
@@ -155,10 +160,16 @@ jobs:
             const jobs = await readJobProofs({ github, repo: context.repo, run });
             for (const notice of jobs.notices) core.notice(notice);
             core.setOutput('job-proofs', JSON.stringify(jobs.proofs));
+            const url = ({ id, run_attempt }) => `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${id}/attempts/${run_attempt}`;
+            if (macos !== undefined) {
+              core.setOutput('macos-run-id', macos.id);
+              core.setOutput('macos-attempt', macos.run_attempt);
+              core.setOutput('macos-run-url', url(macos));
+            }
             if (run === undefined) return;
             core.setOutput('run-id', run.id);
             core.setOutput('attempt', run.run_attempt);
-            core.setOutput('run-url', `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${run.id}/attempts/${run.run_attempt}`);
+            core.setOutput('run-url', url(run));
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         if: steps.evidence.outputs.current == 'true'
         with:
@@ -177,15 +188,15 @@ jobs:
           path: .pgtest/windows-evidence
           run-id: ${{ steps.evidence.outputs.run-id }}
           github-token: ${{ github.token }}
-      - name: Download this CI attempt's macOS evidence
+      - name: Download the nightly macOS run's evidence
         id: macos
-        if: steps.evidence.outputs.run-id != ''
+        if: steps.evidence.outputs.macos-run-id != ''
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: macos-test-evidence-${{ steps.evidence.outputs.attempt }}
+          name: macos-test-evidence-${{ steps.evidence.outputs.macos-attempt }}
           path: .pgtest/macos-evidence
-          run-id: ${{ steps.evidence.outputs.run-id }}
+          run-id: ${{ steps.evidence.outputs.macos-run-id }}
           github-token: ${{ github.token }}
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         if: steps.evidence.outputs.current == 'true'
@@ -223,7 +234,7 @@ jobs:
           STORYTREE_WINDOWS_EVIDENCE: ${{ steps.windows.outcome == 'success' && '.pgtest/windows-evidence' || '' }}
           STORYTREE_WINDOWS_RUN: ${{ steps.windows.outcome == 'success' && steps.evidence.outputs.run-url || '' }}
           STORYTREE_MACOS_EVIDENCE: ${{ steps.macos.outcome == 'success' && '.pgtest/macos-evidence' || '' }}
-          STORYTREE_MACOS_RUN: ${{ steps.macos.outcome == 'success' && steps.evidence.outputs.run-url || '' }}
+          STORYTREE_MACOS_RUN: ${{ steps.macos.outcome == 'success' && steps.evidence.outputs.macos-run-url || '' }}
           STORYTREE_JOB_PROOFS: ${{ steps.evidence.outputs.job-proofs }}
           # The health role's password, read only when connecting by address.
           PGPASSWORD: ${{ env.HEALTH_PG_ADDRESS != '' && secrets.HEALTH_PG_PASSWORD || '' }}

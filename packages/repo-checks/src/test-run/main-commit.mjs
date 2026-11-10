@@ -1,6 +1,6 @@
-// Capability 7 · Own health. Which main commit a run of .github/workflows/own-health.yml records, and the CI run
-// whose Windows and macOS evidence it may credit (ADR-0744 D3). The workflow's first step calls this through
-// actions/github-script, so `github` is its Octokit.
+// Capability 7 · Own health. Which main commit a run of .github/workflows/own-health.yml records, the CI run whose
+// Windows evidence it may credit (ADR-0744 D3), and the nightly macOS run whose macOS evidence it may. The workflow's
+// first step calls this through actions/github-script, so `github` is its Octokit.
 //
 // Each merge reaches main through the merge queue (ADR-0796), whose `merge_group` run tests the very commit main is
 // fast-forwarded to. Main's own push run of that commit is usually cancelled by the next merge, so a passing queue run of
@@ -9,9 +9,16 @@
 // A pull request's run never counts: it tested the branch merged with an older main, not main's commit. A push run that
 // passed on the queue's verdict ran no tests and carries no evidence (ci.yml's `queue-verdict`), so a passing queue run of
 // the commit is credited before a push run.
+//
+// Pull-request and queue runs test on Linux and Windows only (ADR-1303 D1): macOS tests main's head once a night
+// (.github/workflows/macos-nightly.yml, D2), whose completion starts own health too. Its macOS evidence is credited only
+// to the commit that run tested, so a merge's recording credits macOS only when the nightly tested that same commit.
 
 /** The prefix of the branch the merge queue tests main's next commit on. */
 const QUEUE = "gh-readonly-queue/main/";
+
+/** The workflow that tests main's head on macOS each night. */
+const NIGHTLY = "macos-nightly.yml";
 
 /** Whether `run` is a passing CI run of `sha` as main has it: main's push run, or the merge queue's run of that commit. */
 function passedAsMain(run, sha) {
@@ -23,8 +30,9 @@ function passedAsMain(run, sha) {
  * The commit to record and the passing run to credit, given the commit whose CI finished (`own`), main's head, and the
  * run that triggered this (`triggering`, absent for a run by hand). `own` is recorded when it is main's head or has a
  * passing run of its own; otherwise main's newest passing push run at or after it, or nothing. `sha` is undefined when
- * nothing is to be recorded; `run` is undefined when the commit has no passing run to credit.
- * @returns {Promise<{ sha?: string, run?: { id: number, run_attempt: number }, notices: string[] }>}
+ * nothing is to be recorded; `run` is undefined when the commit has no passing run to credit, and `macos` when no
+ * passing nightly macOS run of main tested it.
+ * @returns {Promise<{ sha?: string, run?: { id: number, run_attempt: number }, macos?: { id: number, run_attempt: number }, notices: string[] }>}
  */
 export async function chooseRecording({ github, repo, own, mainHead, triggering }) {
   const passing = async (filter) => (await github.rest.actions.listWorkflowRuns({ ...repo, workflow_id: "ci.yml", status: "success", per_page: 20, ...filter })).data.workflow_runs;
@@ -39,10 +47,22 @@ export async function chooseRecording({ github, repo, own, mainHead, triggering 
       return known;
     }
   };
+  /** The passing nightly macOS run of main at `sha`, if one tested it. */
+  const macosAt = async (sha) => {
+    try {
+      const { data } = await github.rest.actions.listWorkflowRuns({ ...repo, workflow_id: NIGHTLY, status: "success", branch: "main", head_sha: sha, per_page: 1 });
+      const [run] = data.workflow_runs.filter((run) => run.head_sha === sha && run.conclusion === "success" && run.head_branch === "main");
+      if (run === undefined) notices.push(`No passing nightly macOS run tested ${sha}; macOS-only contracts receive no credit.`);
+      return run;
+    } catch (error) {
+      notices.push(`Could not look for nightly macOS evidence at ${sha}: ${error.message}`);
+      return undefined;
+    }
+  };
   const atOwn = await evidenceAt(own, passedAsMain(triggering, own) ? triggering : undefined);
   if (atOwn !== undefined || mainHead === own) {
-    if (atOwn === undefined) notices.push(`No passing CI evidence for ${own}; Windows-only and macOS-only contracts receive no credit.`);
-    return { sha: own, run: atOwn, notices };
+    if (atOwn === undefined) notices.push(`No passing CI evidence for ${own}; Windows-only contracts receive no credit.`);
+    return { sha: own, run: atOwn, macos: await macosAt(own), notices };
   }
   const [newest] = await passing({ branch: "main", event: "push", per_page: 1 });
   const status = newest === undefined ? "none" : newest.head_sha === own ? "identical"
@@ -51,5 +71,5 @@ export async function chooseRecording({ github, repo, own, mainHead, triggering 
     return { notices: [...notices, `Main has moved beyond ${own}, which has no passing CI run, and no passing main commit is at or after it; this run records nothing.`] };
   }
   notices.push(`Main has moved beyond ${own}, which has no passing CI run; recording ${newest.head_sha}, main's newest commit whose CI passed.`);
-  return { sha: newest.head_sha, run: await evidenceAt(newest.head_sha, newest), notices };
+  return { sha: newest.head_sha, run: await evidenceAt(newest.head_sha, newest), macos: await macosAt(newest.head_sha), notices };
 }

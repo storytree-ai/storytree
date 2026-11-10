@@ -1,0 +1,81 @@
+name: macOS nightly
+
+# macOS is tested once a night on main's head, not on every pull request or merge-queue run (ADR-1303 D1, D2):
+# storytree has no macOS users today, and macOS was the system that bounded a run (research_0466f7e9ec83). This
+# runs what CI's macOS job ran (typecheck, lint, the repository's checks and the tests, in full), keeps
+# the macOS test evidence own health credits for the commit it tested (packages/repo-checks/src/test-run/main-commit.mjs,
+# contract 1.11's platform:darwin skips and the like), and saves main's macOS timing history for the next night.
+# Its completion starts own-health.yml, which records that commit with this run's macOS evidence beside the
+# merge queue's Windows evidence. The installer checks CI's macOS job ran on a change that reached the installer are
+# not repeated here: release-package.yml packages and install-checks the macOS app for every release.
+#
+# A red run here is a red on main (ADR-1303 D2): fixed forward, never left in the Actions tab. It can be run by hand
+# (Actions > macOS nightly > Run workflow) on main; a run on another branch credits nothing.
+
+on:
+  schedule:
+    # 03:17 UTC, off the hour GitHub's scheduled runs crowd.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: macos-nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: verify on macOS
+    runs-on: macos-latest
+    timeout-minutes: 35
+    steps:
+      # `pnpm test` ends itself by 31 minutes into the job (its deadline) and prints its table (ci.yml's platforms).
+      - name: Set the test run's deadline
+        shell: bash
+        run: echo "STORYTREE_TEST_DEADLINE=$(( $(date +%s) + 31 * 60 ))" >> "$GITHUB_ENV"
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      # pnpm 10.34.7, from package.json's packageManager field.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm check:seed-records
+      - run: pnpm check:leaks
+      - run: pnpm check:evidence
+      # The timing history of main's last macOS run, which this run's unit deadlines grow from (ci.yml's platforms).
+      - name: Restore main's test timing history
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: test-timings-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: test-timings-${{ runner.os }}-
+      - run: pnpm run test --full
+        env:
+          STORYTREE_UNIT_LIMIT_MS: 360000
+          STORYTREE_TEST_EVIDENCE: .pgtest/macos-evidence
+      # Only main's runs carry their times forward, a failed or cut one too: its kills grow the next run's deadline.
+      - name: Keep this run's test timing history for the next
+        if: always() && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: test-timings-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+      # Own health downloads this only from a passing run of main, so a failed attempt's evidence earns no credit.
+      - name: Preserve macOS test evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos-test-evidence-${{ github.run_attempt }}
+          path: .pgtest/macos-evidence
+          include-hidden-files: true
+          if-no-files-found: ${{ job.status == 'success' && 'error' || 'warn' }}
+          retention-days: 14

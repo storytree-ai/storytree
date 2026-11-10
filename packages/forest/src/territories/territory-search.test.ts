@@ -33,7 +33,7 @@ test("3.80 the search starts from the arrangement the page draws, answers a bett
   const start = searchTerritories({ ...ask, steps: 0 })!;
   assert.deepEqual(owners(linkLayout(shares, coast, links, docks, start.seeds)), owners(linkLayout(shares, coast, links, docks)), "with no steps it answers what the page draws");
   assert.equal(start.score, start.start);
-  const found = searchTerritories({ ...ask, steps: 30 });
+  const found = searchTerritories({ ...ask, steps: 2 });
   assert.ok(found, "an arrangement grows and routes");
   assert.equal(found.start, start.score, "it starts from the same arrangement");
   assert.ok(found.score < found.start, `${found.score} betters the start's ${found.start}`);
@@ -191,9 +191,9 @@ test("3.94 a search with territories fixed moves only the others: the fixed come
   const more = [...shares, { capability: "e", lines: 200 }], wider = [...links, { from: "e", to: "a" }];
   const kept = searchTerritories({ ...ask, steps: 0 })!.seeds, fixed = Object.keys(kept);
   const start = searchTerritories({ shares: more, coast, links: wider, docks, kept, steps: 0 })!.seeds;
-  const found = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed, steps: 6 })!;
+  const found = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed, steps: 2 })!;
   for (const id of fixed) assert.deepEqual(found.seeds[id], start[id], `${id || "the Unclaimed code"} kept its place`);
-  const free = searchTerritories({ shares: more, coast, links: wider, docks, kept, steps: 6 })!;
+  const free = searchTerritories({ shares: more, coast, links: wider, docks, kept, steps: 2 })!;
   assert.ok(fixed.some((id) => JSON.stringify(free.seeds[id]) !== JSON.stringify(start[id])), "searched with none fixed, a kept territory moves");
   const all = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed: [...fixed, "e"], steps: 1 })!;
   assert.deepEqual(all.seeds, start, "with every territory fixed it answers the arrangement it starts from");

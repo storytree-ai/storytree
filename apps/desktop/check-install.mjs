@@ -58,6 +58,7 @@ function checkUninstall(tools) {
   const neighbours = [0, 1].map(() => spawn(beside, ["-e", "setInterval(() => {}, 1000)"], { windowsHide: true, stdio: "ignore" }));
   const userEnv = Object.fromEntries(Object.entries(env).filter(([name]) => name.toLowerCase() !== "psmodulepath"));
   try {
+    checkOldUninstallerBounded(tools, userEnv, neighbours);
     execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 180_000, env: userEnv });
     for (const neighbour of neighbours) assert.doesNotThrow(() => process.kill(neighbour.pid, 0), "the reinstall left programs that are not storytree-0.3.exe running");
   } finally {
@@ -83,6 +84,43 @@ function checkUninstall(tools) {
   assert.equal(readFileSync(path.join(project, "notes.md"), "utf8"), "the user's work");
   assert.ok(!existsSync(path.join(installed, "storytree-0.3.exe")), "the app is removed");
   console.log("app setup 1.8 PASS (Windows x64): an update keeps storytree's home and connection; the uninstaller removes the app, home, library, update cache and Claude Code connection, and leaves the project and other settings");
+}
+
+/**
+ * 4.46: the first update off a release from before the agents' tool copies. A session that release
+ * started still runs its install folder's agent-tools node.exe, and its uninstaller (here, a copy of
+ * cmd.exe, which waits on its console whatever it is given) never returns. The setup must stop that
+ * node.exe by its path, end the old uninstaller at its time limit, install over the old files, and
+ * leave programs beside the folder running.
+ */
+function checkOldUninstallerBounded(tools, env, neighbours) {
+  const toolServer = spawn(path.join(tools, "node.exe"), ["-e", "setInterval(() => {}, 1000)"], { windowsHide: true, stdio: "ignore" });
+  const stalled = path.join(temp, "stalled uninstaller", "Uninstall storytree-0.3.exe");
+  mkdirSync(path.dirname(stalled), { recursive: true });
+  copyFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "cmd.exe"), stalled);
+  const root = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
+  const keys = execFileSync("reg", ["query", root], { encoding: "utf8" }).split(/\r?\n/).filter((line) => line.startsWith("HKEY_"));
+  const key = keys.find((candidate) => {
+    const read = spawnSync("reg", ["query", candidate, "/v", "UninstallString"], { encoding: "utf8" });
+    return read.status === 0 && read.stdout.includes(installed);
+  });
+  assert.ok(key, `an uninstall key names ${installed}`);
+  execFileSync("reg", ["add", key, "/v", "UninstallString", "/t", "REG_SZ", "/d", `"${stalled}" /currentuser`, "/f"]);
+  const started = Date.now();
+  try {
+    execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 300_000, env });
+    const seconds = Math.round((Date.now() - started) / 1000);
+    assert.throws(() => process.kill(toolServer.pid, 0), "the old installation's agent-tools node.exe was stopped");
+    for (const neighbour of neighbours) assert.doesNotThrow(() => process.kill(neighbour.pid, 0), "programs beside the install folder still run");
+    const left = execFileSync("tasklist", ["/FI", "IMAGENAME eq old-uninstaller.exe", "/FO", "CSV", "/NH"], { encoding: "utf8" });
+    assert.doesNotMatch(left, /old-uninstaller\.exe/i, "the old uninstaller was ended at its limit");
+    assert.equal(archiveVersion(path.join(installed, "resources", "app.asar")), version, "the update installed over the old files");
+    assert.ok(existsSync(path.join(installed, "storytree-0.3.exe")));
+    console.log(`4.46 PASS (Windows x64): an update whose old uninstaller never returns finished in ${seconds} s, stopped the old folder's agent-tools node.exe and left programs beside it running`);
+  } finally {
+    if (toolServer.exitCode === null) toolServer.kill();
+    spawnSync("taskkill", ["/F", "/T", "/IM", "old-uninstaller.exe"]);
+  }
 }
 
 /** The environment of a temporary user with an empty storytree home, for starting the installed app as Electron, under CI so it takes its check flags (lifecycle 1.39). */

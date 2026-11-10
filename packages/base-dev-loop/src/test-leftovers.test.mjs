@@ -147,18 +147,22 @@ test("4.20 · 4.21 · a folder whose files stay held for a while after its serve
   const steps = cleanups(t);
   const at = folder(steps, "leftovers-held-");
   writeFileSync(path.join(at, "file"), "x");
-  const heldUntil = Date.now() + 2_000;
+  let clock = 0;
+  const time = { now: () => clock, pause: (ms) => (clock += ms) };
   const codes = ["EPERM", "EBUSY", "EACCES", "ENOTEMPTY"];
   let tries = 0;
   removeFolder(at, {
+    ...time,
     rm: (target) => {
-      if (Date.now() < heldUntil) throw Object.assign(new Error(`${codes[tries % codes.length]}: held`), { code: codes[tries++ % codes.length] });
+      if (clock < 2_000) throw Object.assign(new Error(`${codes[tries % codes.length]}: held`), { code: codes[tries++ % codes.length] });
       rmSync(target, { recursive: true, force: true });
     },
   });
   assert.equal(existsSync(at), false, "removed once the hold lets go");
   assert.ok(tries > codes.length, "retried through every held code");
-  assert.throws(() => removeFolder(at, { budgetMs: 200, rm: () => { throw Object.assign(new Error("EPERM: still held"), { code: "EPERM" }); } }), /still held/);
+  clock = 0;
+  assert.throws(() => removeFolder(at, { ...time, rm: () => { throw Object.assign(new Error("EPERM: still held"), { code: "EPERM" }); } }), /still held/);
+  assert.ok(clock >= 10_000, "after retrying for the whole ten-second budget");
 });
 
 test("4.22 · a run's start removes storytree scratch folders in Temp older than three days, keeping a newer one and one a live server still uses", { timeout: 120_000 }, async (t) => {

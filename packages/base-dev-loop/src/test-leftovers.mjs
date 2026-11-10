@@ -101,14 +101,14 @@ const HELD = new Set(["EBUSY", "EPERM", "ENOTEMPTY", "EACCES"]);
  * throwing the last error. Synchronous, so a harness exiting can call it; @storytree/test-waits'
  * removeTemp, with the same codes and budget, is async.
  */
-export function removeFolder(at, { budgetMs = 10_000, rm = (target) => rmSync(target, { recursive: true, force: true }) } = {}) {
-  for (const until = Date.now() + budgetMs; ; ) {
+export function removeFolder(at, { budgetMs = 10_000, rm = (target) => rmSync(target, { recursive: true, force: true }), now = Date.now, pause = sleep } = {}) {
+  for (const until = now() + budgetMs; ; ) {
     try {
       rm(at);
       return;
     } catch (error) {
-      if (!HELD.has(error.code) || Date.now() >= until) throw error;
-      sleep(100);
+      if (!HELD.has(error.code) || now() >= until) throw error;
+      pause(100);
     }
   }
 }

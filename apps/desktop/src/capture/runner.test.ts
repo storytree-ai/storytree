@@ -134,6 +134,34 @@ test("a seed-and-views capture uses workspace Playwright and quiet bridge reads,
   await assert.rejects(readPage(origin), "a failed view also closes the server");
 });
 
+test("2.54 · a capture whose page never reaches ready fails naming the errors the page logged meanwhile", async t => {
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-not-ready-"));
+  t.after(() => { rmSync(folder, { recursive: true, force: true }); rmSync(outputFolder(folder), { recursive: true, force: true }); });
+  writeFileSync(path.join(folder, "index.html"), "<body>never ready</body>");
+  const handlers: Record<string, (event: unknown) => void> = {};
+  const page = {
+    on(event: string, handler: (event: unknown) => void) { handlers[event] = handler; return page; },
+    async exposeFunction() {},
+    async addInitScript() {},
+    async goto() {
+      handlers.pageerror!(new Error("the forest of storytree could not be read"));
+      handlers.console!({ type: () => "error", text: () => "a projectTree read failed" });
+    },
+    async waitForFunction() { throw new Error("page.waitForFunction: Timeout 60000ms exceeded."); },
+    async close() {},
+  } as unknown as Page;
+  const browser = Object.assign(new EventEmitter(), { isConnected: () => true, async newPage() { return page; }, async close() {} }) as unknown as Browser;
+  t.mock.method(chromium, "launch", async () => browser);
+  const seed = { projects: ["sample"], tree: { stories: [], arcs: [] }, changes: { changes: [], cursor: 0 }, lines: { lines: [], cursor: 0 }, covers: {} };
+
+  await assert.rejects(runCapture({ folder, dist: folder, seed, views: [] }), (error: Error) => {
+    assert.match(error.message, /Timeout 60000ms exceeded/, "the timeout itself is still named");
+    assert.match(error.message, /the forest of storytree could not be read/, "the page's script error is named");
+    assert.match(error.message, /a projectTree read failed/, "the page's console error is named");
+    return true;
+  });
+});
+
 test("2.38 · a capture on a live library answers the page with the app's own reads, its first activity read bounded to the newest lines and its changes folded and thinned by the page's filter", async t => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined || url === "") throw new Error("STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`, which starts a local Postgres.");

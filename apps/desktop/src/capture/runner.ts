@@ -156,7 +156,13 @@ async function views(context: CaptureContext, bridge: FakeBridge, options: Seede
   const viewContext = { ...context, page, bridge, errors, warnings, failed };
   await bridge.install(page);
   await page.goto(`${context.origin}/index.html`, { waitUntil: "domcontentloaded", timeout: 180_000 });
-  await bridge.ready(page);
+  try {
+    await bridge.ready(page);
+  } catch (error) {
+    // A page that never reaches ready has often already logged why: name that, not just the timeout.
+    if (errors.length === 0) throw error;
+    throw new Error(`${error instanceof Error ? error.message : String(error)}\nthe page logged meanwhile:\n${errors.map(each => `  ${each}`).join("\n")}`, { cause: error });
+  }
   await options.prepare?.(viewContext);
   const values: unknown[] = [];
   for (const view of options.views) {

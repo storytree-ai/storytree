@@ -134,7 +134,7 @@ test("a seed-and-views capture uses workspace Playwright and quiet bridge reads,
   await assert.rejects(readPage(origin), "a failed view also closes the server");
 });
 
-test("2.38 · a capture on a live library answers the page with the app's own reads, its first activity read bounded to the newest lines and its changes folded", async t => {
+test("2.38 · a capture on a live library answers the page with the app's own reads, its first activity read bounded to the newest lines and its changes folded and thinned by the page's filter", async t => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined || url === "") throw new Error("STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`, which starts a local Postgres.");
   const project = `t-${randomBytes(4).toString("hex")}`;
@@ -151,7 +151,7 @@ test("2.38 · a capture on a live library answers the page with the app's own re
   writeFileSync(path.join(folder, "index.html"), "<body>capture fixture</body>");
   // A busy library, small: eight lines where the capture's bound is three, and a story edited twice.
   const library = await storytree.openProject(project);
-  const story = await library.addStory({ title: "Visitor can sign up" });
+  const story = await library.addStory({ title: "Visitor can sign up", text: "Prose no surface reads" });
   await library.editStory(story.id, { title: "Visitor can join" });
   await library.addStory({ title: "Visitor can sign in" });
   await library.editStory(story.id, { title: "Visitor can join today" });
@@ -172,6 +172,8 @@ test("2.38 · a capture on a live library answers the page with the app's own re
       read.next = (await call("linesSince", [project, first.cursor]) as { lines: { session: string }[] }).lines.map(line => line.session);
       read.changes = (await call("changesSince", [project, 0]) as { changes: { recordId: string; action: string; record: { fields: { title?: string } } }[] }).changes
         .map(change => [change.action, change.record.fields.title]);
+      read.thinned = (await call("changesSince", [project, 0, { fields: ["title"], healthColumns: ["reported"] }]) as { changes: { record: { fields: Record<string, unknown> } }[] }).changes
+        .map(change => change.record.fields);
       read.tree = (await call("projectTree", [project]) as { stories: { title: string }[] }).stories.map(each => each.title);
     },
     async waitForFunction() {},
@@ -194,6 +196,8 @@ test("2.38 · a capture on a live library answers the page with the app's own re
   assert.deepEqual(read.next, ["S8"], "a later read follows on from the first's cursor");
   assert.deepEqual(read.changes, [["created", "Visitor can sign up"], ["created", "Visitor can sign in"], ["updated", "Visitor can join today"]],
     "each record's creation and only its latest later change, in the order they happened");
+  assert.deepEqual(read.thinned, [{ title: "Visitor can sign up" }, { title: "Visitor can sign in" }, { title: "Visitor can join today" }],
+    "a filter the page gives thins the changes as the app's own read does");
   assert.deepEqual((read.tree as string[]).toSorted(), ["Visitor can join today", "Visitor can sign in"], "the other reads are the app's own, on the live library");
 
   const projects = await storytree.listProjects();

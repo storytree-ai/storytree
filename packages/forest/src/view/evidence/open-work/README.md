@@ -40,3 +40,5 @@ waits up to 30 minutes for every island's territory search to land (3.95).
 In the evidence bucket for #519, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `519/no-arc-selected.png`, `519/no-arc-selected-the-library.png`, `519/arc-selected.png`, `519/arc-selected-far.png`, `519/arc-selected-the-library.png`, `519/arc-selected-the-arc-surface.png`, `519/before-dots-no-arc-selected-close.png`.
 
 In the evidence bucket for #536, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `536/arc-selected-floor.png`, `536/arc-selected.png`, `536/arc-selected-the-arc-surface.png`, `536/arc-selected-the-library.png`, `536/no-arc-selected.png`, `536/no-arc-selected-the-library.png`.
+
+In the evidence bucket for #671, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `671/before-sixth-run-dim-shades.png`, `671/arc-selected.png`, `671/arc-selected-floor.png`, `671/arc-selected-the-library.png`, `671/arc-selected-the-arc-surface.png`, `671/no-arc-selected.png`.

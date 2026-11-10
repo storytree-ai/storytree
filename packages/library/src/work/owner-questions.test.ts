@@ -1,5 +1,5 @@
 /**
- * Capability 12 · Owner questions (ADR-0640): one test per contract 12.1-12.13, 12.15 and 12.16 in the library story (12.14 is in commands.test.ts),
+ * Capability 12 · Owner questions (ADR-0640): one test per contract 12.1-12.13 and 12.15-12.18 in the library story (12.14 is in commands.test.ts),
  * and the half of 10.3 that waits for questions, each run on BOTH backends: a WorkModel, a
  * WorkInFlight and a Knowledge over a fresh MemoryTransactions, and those of a fresh Postgres
  * project, dropped afterwards, pass or fail.
@@ -256,7 +256,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await flight.lapsedQuestions(far), [], "a settled question is not drained");
   });
 
-  contract("12.7", "an open question's wording is corrected in place, only the named fields; its arc, lifecycle, answer and lease are not edited so, and a settled question's edit is refused with nothing written", async ({ work, flight, transactions }) => {
+  contract("12.7", "an open question's wording is corrected in place, only the named fields; its arc, lifecycle, answer and lease are not edited so, and a settled question refuses a wording edit, or a links edit that drops a link, with nothing written, but takes a links addition", async ({ flight, knowledge, transactions }) => {
     const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "Mailgun" });
 
@@ -268,12 +268,63 @@ for (const backend of [memory, postgres]) {
     const history = await transactions.history();
     await assert.rejects(flight.editQuestion(question.id, { arc: arc.id } as never), RangeError);
     await assert.rejects(flight.editQuestion(question.id, { answer: "Mailgun" } as never), RangeError);
-    await flight.settleQuestion(question.id, { answer: "Mailgun" });
+    const answered = await flight.settleQuestion(question.id, { answer: "Mailgun" });
     const settled = await transactions.history();
     await assert.rejects(flight.editQuestion(question.id, { options: "Too late" }), (error: unknown) => error instanceof RangeError && /settled/.test(error.message));
-    assert.deepEqual(await transactions.history(), settled, "nothing was written");
+    const research = await knowledge.recordDecision({ status: "accepted", title: "Mailgun's API is the simplest", text: "Measured." });
+    const other = await knowledge.recordDecision({ status: "accepted", title: "SES is the cheapest", text: "Priced." });
+    const evidence = await transactions.history();
+    await assert.rejects(flight.editQuestion(question.id, { links: [research.id], options: "Too late" }), (error: unknown) => error instanceof RangeError && /settled/.test(error.message));
+    assert.deepEqual(await transactions.history(), evidence, "nothing was written");
     assert.equal(history.length + 1, settled.length, "only the settlement was written");
+
+    const linked = await flight.editQuestion(question.id, { links: [research.id] });
+    assert.deepEqual(linked?.fields, { ...answered?.fields, links: [research.id] }, "a settled question gains a link, its answer standing");
+    const gained = await transactions.history();
+    await assert.rejects(flight.editQuestion(question.id, { links: [other.id] }), (error: unknown) => error instanceof RangeError && /settled/.test(error.message), "it keeps every link it had");
+    assert.deepEqual(await transactions.history(), gained, "nothing was written");
     assert.equal(await flight.editQuestion("question_000000000000", { options: "x" }), null, "null for no question");
+  });
+
+  contract("12.17", "a question is raised linking the evidence it cites: the ids it is given, then every live note, decision, increment or other question its words name, each once; a given link to the plan, an arc or no record is refused with nothing written", async ({ work, flight, knowledge, transactions }) => {
+    const arc = await flight.createArc(ARC);
+    const given = await knowledge.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest" });
+    const named = await knowledge.recordDecision({ status: "accepted", title: "One mail service", text: "One." });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    const earlier = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    const story = await work.addStory({ title: "Visitor can sign up" });
+
+    const question = await flight.raiseQuestion({
+      arc: arc.id,
+      ...ASK,
+      links: [given.id],
+      context: `As ${named.id} and ${given.id} say, ${increment.id} waits; ${earlier.id} asked first. Not ${story.id} nor ${arc.id}, nor question_000000000000 or voice.note_0123456789ab.`,
+    });
+    assert.deepEqual(question.fields.links, [given.id, named.id, increment.id, earlier.id], "given first, then named, each once, never the plan, an arc, a missing record or a voice note");
+    const plain = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    assert.equal(plain.fields.links, undefined, "a question citing nothing carries no links");
+
+    const history = await transactions.history();
+    for (const wrong of [story.id, arc.id, "question_000000000000"]) {
+      await assert.rejects(flight.raiseQuestion({ arc: arc.id, ...ASK, links: [wrong] }), MissingReferenceError, `a link to ${wrong} is refused`);
+    }
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+  });
+
+  contract("12.18", "linking a question's named evidence adds every live record its words name that it does not link yet, open or settled, keeping its links and wording; one with nothing new writes nothing", async ({ flight, knowledge, transactions }) => {
+    const arc = await flight.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    const kept = await knowledge.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest" });
+    const named = await knowledge.recordDecision({ status: "accepted", title: "One mail service", text: "One." });
+    await flight.editQuestion(question.id, { links: [kept.id], context: `See ${named.id} and ${kept.id}; ${question.id} asks it.` });
+    const settled = await flight.settleQuestion(question.id, { answer: "Mailgun" });
+
+    const linked = await flight.linkNamedEvidence(question.id);
+    assert.deepEqual(linked?.fields, { ...settled?.fields, links: [kept.id, named.id] }, "never itself");
+    const history = await transactions.history();
+    assert.deepEqual((await flight.linkNamedEvidence(question.id))?.fields, linked?.fields);
+    assert.deepEqual(await transactions.history(), history, "nothing new to link writes nothing");
+    assert.equal(await flight.linkNamedEvidence("question_000000000000"), null, "null for no question");
   });
 
   contract("12.10", "an open question carries the session putting it to the owner, set and cleared in place; settling clears it, and a settled question cannot carry one", async ({ work, flight, transactions }) => {

@@ -86,7 +86,7 @@ const FROM_FLIGHT = [
   "addIncrement", "advanceIncrement", "returnIncrement", "closeIncrement", "correctIncrementClosure", "moveIncrement", "editIncrement", "pendChange", "stalePending", "applyPending", "dropPending", "settleClosedPending", "openListing",
   "createArc", "editArc", "arcsFor", "parkArc", "unparkArc", "arcView", "arcViews", "boardArcs", "closedArcs",
   "addWait", "removeWait", "waitHolds", "addWaitFor", "removeWaitFor", "waitsFor", "holds",
-  "raiseQuestion", "settleQuestion", "questions", "heldOnQuestion", "checkQuestion", "renewQuestion", "editQuestion", "moveQuestion", "lapsedQuestions",
+  "raiseQuestion", "settleQuestion", "questions", "heldOnQuestion", "checkQuestion", "renewQuestion", "editQuestion", "linkNamedEvidence", "moveQuestion", "lapsedQuestions",
   "predictQuestion", "questionPrediction", "scoreQuestion", "prepQuestion", "questionDeviation",
 ] as const satisfies readonly (keyof Project["flight"])[];
 const FROM_HEALTH = ["reportHealth", "recordVerified", "recordUnclaimed", "markVerifiedPending", "health", "healthHistory"] as const satisfies readonly (keyof Project["health"])[];

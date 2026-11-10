@@ -31,7 +31,15 @@ export interface ContractLine {
   source?: HealthSource;
   /** The verdict storytree last saw for it, when the latest run did not reproduce it: "not re-run" (ADR-0825 D2). */
   lastSeen?: EarlierVerdict;
+  /**
+   * Agentic user acceptance testing's state, only on a contract whose proof is marked for it (ADR-1294 D1). It reads
+   * "not-run" until a run writes a verdict (increment_eab89906c217).
+   */
+  acceptance?: AcceptanceState;
 }
+
+/** Where agentic user acceptance testing stands on a contract marked for it. */
+export type AcceptanceState = "passed" | "failed" | "not-run";
 
 /** Why a capability is not healthy, and who moves it, with its contracts named for the owner (ADR-0825 D1). */
 export interface WhyLine {
@@ -179,6 +187,7 @@ function contractLine(contract: AnnotatedContract, trail: readonly HealthState[]
     ...(written(contract.health.verified) ? { verified: contract.health.verified.state } : {}),
     ...(written(contract.health.verified) && contract.health.verified.source !== undefined ? { source: contract.health.verified.source } : {}),
     ...(contract.health.verified.was === undefined ? {} : { lastSeen: contract.health.verified.was }),
+    ...(contract.proof?.by === "agentic-user-acceptance-testing" ? { acceptance: "not-run" as const } : {}),
   };
 }
 

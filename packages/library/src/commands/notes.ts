@@ -235,7 +235,7 @@ async function openField(id: string, field: string, context: NoteToolContext): P
 /** The words of a question shown whole, in the order the owner reads them. */
 const QUESTION_WORDS = ["stakes", "statement", "context", "options", "analogy", "diagram", "recommendation", "answer"] as const;
 
-/** A question whole: its arc and state, every field of its wording and answer, and the open increments held on it. */
+/** A question whole: its arc and state, every field of its wording and answer, the open increments held on it, and the evidence it links. */
 async function openQuestion(question: SchemaRecord<"question">, { library, presenterOf }: NoteToolContext): Promise<VerbAnswer> {
   const fields = question.fields as Readonly<Record<string, unknown>>;
   // A question another live session is putting to the owner says so, so he is not asked twice (Session management 5.36).
@@ -247,6 +247,16 @@ async function openQuestion(question: SchemaRecord<"question">, { library, prese
     if (typeof fields[name] === "string") out.push(`${name[0]?.toUpperCase()}${name.slice(1)}: ${fields[name]}`);
   }
   if (holding.length > 0) out.push(`Holding: ${holding.join(", ")}`);
+  // The evidence it cites, each by title (12.17); after Holding, where the voice door's read keeps it.
+  const links = question.fields.links ?? [];
+  if (links.length > 0) {
+    const named = await Promise.all(links.map(async (id) => {
+      const fields = (await library.get(id))?.fields as Readonly<Record<string, unknown>> | undefined;
+      // Every kind a question links has a title, or a definition's term.
+      return fields === undefined ? `${id} (no longer live)` : `${String(fields.title ?? fields.term)} [${id}]`;
+    }));
+    out.push(`Evidence: ${named.join(", ")}`);
+  }
   if (presenter !== undefined) out.push(`Being put to the owner by ${presenter.label} session ${presenter.session} since ${presenter.since}: do not ask him again.`);
   return { text: out.join("\n"), data: { question: { id: question.id, ...fields, holding, ...(presenter === undefined ? {} : { presenter }) } } };
 }

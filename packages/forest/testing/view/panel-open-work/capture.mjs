@@ -31,7 +31,7 @@ assert.ok(capability !== undefined, 'some capability has two or more open increm
 const expected = capability.openWork;
 
 const listed = page => page.evaluate(() => [...document.querySelectorAll('.story-panel .panel-open-work li')].map(li => ({
-  increment: li.dataset.incrementId, title: li.childNodes[0].textContent, active: li.classList.contains('active'),
+  increment: li.dataset.incrementId, title: li.childNodes[0].textContent.trimEnd(), active: li.classList.contains('active'),
 })));
 /** Stands the eye on its line of sight near, where an island's territories are large enough to click and its settlements show
  * (3.86), as the wheel would, and lets the map draw it (the open-work capture's close-up). */

@@ -53,9 +53,10 @@
 // cluster lives in .pgtest/data and is created on first use. The server listens on 127.0.0.1 only,
 // on a free port, and is ALWAYS stopped again: after a pass, after a failure, and on Ctrl-C. A run
 // is refused while another live run holds .pgtest/data, and a server that an interrupted run left
-// running is stopped before this one starts. Like every cluster local-postgres runs, it asks for
-// a password, which the url handed to the tests carries. Like the app's clients, the tests connect
-// as the ordinary role. Setup that makes roles or ends other connections uses the superuser's url,
+// running is stopped before this one starts. A second run in the worktree is refused before it waits
+// for any hold, naming the first run's pid, what it runs and when it started (.pgtest/run.json,
+// worktree-run.mjs). Like every cluster local-postgres runs, it asks for a password, which the url
+// handed to the tests carries. Like the app's clients, the tests connect as the ordinary role. Setup that makes roles or ends other connections uses the superuser's url,
 // handed apart as STORYTREE_TEST_PG_ADMIN_URL (with STORYTREE_TEST_PG_URL set, that one unless
 // STORYTREE_TEST_PG_ADMIN_URL is set as well).
 //
@@ -118,6 +119,7 @@ import { keepPreviousServerLog } from "./server-log.mjs";
 import { namedFolders, parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
 import { stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
 import { runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } from "./unit-pool.mjs";
+import { takeWorktreeRun } from "./worktree-run.mjs";
 import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, TEST_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withinDeadline, withMacRetry } from "./unit-run.mjs";
 
 let root; // the repository the run tests, from testCommand's root
@@ -258,13 +260,28 @@ async function main() {
     if (jobs > 1) console.log(`jobs: ${jobs} units at once (${jobsSource}), slowest first; each unit's output prints whole when it ends`);
     else if (jobsSource.startsWith("default:")) console.log(`jobs: 1 unit at a time (${jobsSource}); --jobs=<n> tests more at once`);
   }
-  phase = "waiting for the heavy-run lock";
-  // A run of named files tells its hold so (4.29): seconds of work, which a machine's hold may let pass its full runs' queue.
-  const release = await hold({ root, what: "pnpm test", stopped: () => interrupted, ...(namedFiles ? { scope: "files" } : {}) });
+  // One live run at a time on this worktree's test Postgres (4.31): a second is refused now, naming the first, not
+  // after queueing for the hold to fail at the server's start. A run given a server's url starts none, so takes none.
+  let worktreeRun = { release: () => {} };
+  if (!process.env.STORYTREE_TEST_PG_URL) {
+    const what = namedFiles ? `files: ${testArgs.filter((arg) => !arg.startsWith("-")).map((file) => path.relative(root, path.resolve(file))).join(", ")}` : `units: ${units.join(", ")}`;
+    worktreeRun = takeWorktreeRun(work, { what });
+    if (worktreeRun.refusal !== undefined) {
+      console.error(`test harness: ${worktreeRun.refusal}`);
+      return 1;
+    }
+  }
   try {
-    return await runHeavy(units);
+    phase = "waiting for the heavy-run lock";
+    // A run of named files tells its hold so (4.29): seconds of work, which a machine's hold may let pass its full runs' queue.
+    const release = await hold({ root, what: "pnpm test", stopped: () => interrupted, ...(namedFiles ? { scope: "files" } : {}) });
+    try {
+      return await runHeavy(units);
+    } finally {
+      release();
+    }
   } finally {
-    release();
+    worktreeRun.release();
   }
 }
 

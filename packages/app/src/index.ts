@@ -31,6 +31,7 @@ export type { ReleaseOptions } from "./updates/releases.js";
 export { buildLabel, checkoutSha, launchToRecord } from "./lifecycle/launch.js";
 export type { LaunchRecord } from "./lifecycle/launch.js";
 export { openAppLibrary } from "./lifecycle/open-where-set.js";
+export { keepTryingBehind, openAtStartup, type LibraryQuery } from "./lifecycle/startup-wait.js";
 export type { AppLibrary, AppLibraryOptions, StartedPostgres } from "./lifecycle/open-where-set.js";
 export { quitApp } from "./lifecycle/quit.js";
 export { loginItemsFor, SIGN_IN_LABEL, SIGN_IN_NAME, signIn } from "./lifecycle/sign-in.js";

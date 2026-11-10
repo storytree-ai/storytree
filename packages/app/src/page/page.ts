@@ -76,6 +76,8 @@ export interface PageParts<View extends ForestGlobe = ForestGlobe> {
   content: HTMLElement;
   /** The page's `?problem=`: the library could not be opened, and why. */
   problem: string | null;
+  /** The page's `?waiting=`: the app is still trying a library it cannot reach yet, and why. */
+  waiting: string | null;
   menu: { update(selection: ProjectSelection): void };
   projectSelection(): Promise<ProjectSelection>;
   readSurfaces(): Promise<SurfacesResult>;
@@ -341,6 +343,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
 
   const open = async (): Promise<void> => {
     if (parts.problem !== null) return showMessage("error", "The library could not be opened", parts.problem);
+    if (parts.waiting !== null) return showMessage("waiting", "Waiting for the library", parts.waiting);
     following = followProjects({
       // The projects poll every few seconds, so their answer is the page's word that the library answers again.
       read: () => parts.projectSelection().then((selection) => { parts.answered(); return selection; }),

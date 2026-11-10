@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { bringWindowForward, type ShownWindow } from "./window-shown.js";
+import { bringWindowForward, showPageQuery, type ShownWindow } from "./window-shown.js";
 
 /** A stand-in for Electron's window: each call it took, and every call throws once it is destroyed, as BrowserWindow's do. */
 function fakeWindow(name: string, { minimized = false, destroyed = false } = {}) {
@@ -33,4 +33,24 @@ test("1.27 · with the window closed, or only a destroyed one left, the window i
   const live = fakeWindow("live");
   bringWindowForward([live.window], { stopping: true, open: () => assert.fail("no window opens while the app is quitting") });
   assert.deepEqual(live.calls, []);
+});
+
+test("1.46 · a page query reloads every live window, or opens one when asked and none is; a start in the background opens none", () => {
+  const loaded: string[] = [];
+  const opened: string[] = [];
+  type Named = { name: string; isDestroyed(): boolean };
+  const load = (window: Named, query: string) => { loaded.push(`${window.name} ${query}`); };
+  const open = (query: string) => { opened.push(query); };
+  const live: Named = { name: "live", isDestroyed: () => false };
+  const gone: Named = { name: "gone", isDestroyed: () => true };
+  showPageQuery([live, gone], "waiting", { load, open });
+  assert.deepEqual(loaded, ["live waiting"]);
+  assert.deepEqual(opened, []);
+
+  showPageQuery([gone], "problem", { load, open });
+  assert.deepEqual(opened, ["problem"]);
+
+  showPageQuery<Named, string>([], "project", { load, open: undefined });
+  assert.deepEqual(opened, ["problem"], "a start in the background opens no window");
+  assert.deepEqual(loaded, ["live waiting"]);
 });

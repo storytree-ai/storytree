@@ -202,7 +202,7 @@ await runCapture({
     },
     expect: found => {
       assert.equal(found.opened.length, 2, 'a click opens the link\'s first contract');
-      assert.deepEqual(found.said, ['panel-badge badge-passing', 'panel-trail'], 'the agent\'s report and its trail, storytree\'s verdict on its handle, as a capability\'s contract shows');
+      assert.deepEqual(found.said, ['panel-trail'], 'its trail, the tests\' word on its handle and no agent\'s claim beside it, as a capability\'s contract shows');
     },
   }],
 });

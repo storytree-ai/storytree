@@ -31,7 +31,7 @@ const covers = z
   .array(z.string().min(1))
   .min(1)
   .optional()
-  .describe("On a mapped story only, and required there: the folders and files of its imported project this capability covers, each from the imported folder (a folder covers everything under it); none may overlap another capability's of the story");
+  .describe("On an imported story only, and required there: the folders and files of its imported project this capability covers, each from the imported folder (a folder covers everything under it); none may overlap another capability's of the story");
 
 const provedBy = z
   .array(z.string().min(1))
@@ -65,14 +65,14 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_story",
-    "Plan a story: something a user of the project can do, one package of its own, with its founding decision: what it is for, and the one choice that shapes it. Plan its capabilities next. A story is never a task: a task or ticket is an increment, with contracts on the capabilities it changes. On an existing codebase, call import_project first: each package it declares becomes a mapped story, and this refuses while the project's folder declares packages none of which has a story; after it, plan a story only for a new package built on them. Never move or restructure a user's code to fit storytree: a flat repository imports as it stands, as one mapped story.",
+    "Plan a story: something a user of the project can do, one package of its own, with its founding decision: what it is for, and the one choice that shapes it. Plan its capabilities next. A story is never a task: a task or ticket is an increment, with contracts on the capabilities it changes. On an existing codebase, call import_project first: each package it declares becomes an imported story, and this refuses while the project's folder declares packages none of which has a story; after it, plan a story only for a new package built on them. Never move or restructure a user's code to fit storytree: a flat repository imports as it stands, as one imported story.",
     z.object({ title, description, founding }),
     async ({ title: name, description: about, founding: decision }, { library, writer, folder }) => {
       // An existing codebase is imported before its stories are planned (9.23, ADR-0993, ADR-1071 D1).
       const unimported = await unimportedPackages(folder, library);
       if (unimported.length > 0) {
         return {
-          text: `Not planned: ${unimportedSentence(unimported)} Call import_project with this project's folder first: each package it declares becomes a mapped story, since a story is one package, and a flat repository with one manifest at its top is one story, mapped in place: never move its code to fit storytree. Then plan a story only for a new package built on them; the work itself, such as a task, is an increment, with contracts on the capabilities it changes.`,
+          text: `Not planned: ${unimportedSentence(unimported)} Call import_project with this project's folder first: each package it declares becomes an imported story, since a story is one package, and a flat repository with one manifest at its top is one story, imported in place: never move its code to fit storytree. Then plan a story only for a new package built on them; the work itself, such as a task, is an increment, with contracts on the capabilities it changes.`,
           refused: true,
           data: { unimported: unimported.map((one) => one.title) },
         };
@@ -88,7 +88,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_capability",
-    "Plan a capability: one part that makes a story work, with its founding decision: what it is for, and the one choice that shapes it. Leave its number off the title: it is given the story's next free one. Claim it before you build it. On a mapped story it is a capability you explored there, drawn as its own territory: give the folders and files it covers. Where it starts and ends is your call; one overlapping another of the story's is refused, naming that one, so correct it with edit_plan rather than adding another.",
+    "Plan a capability: one part that makes a story work, with its founding decision: what it is for, and the one choice that shapes it. Leave its number off the title: it is given the story's next free one. Claim it before you build it. On an imported story it is a capability you mapped there, drawn as its own territory: give the folders and files it covers. Where it starts and ends is your call; one overlapping another of the story's is refused, naming that one, so correct it with edit_plan rather than adding another.",
     z.object({
       story: id("story it belongs to"),
       title,
@@ -110,7 +110,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    `Plan a contract: one testable guarantee a capability makes. ${CONTRACT_PLACEMENT} Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again, and a test numbered for one that sits in another story's package, which credits that package's story, not this one. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On a mapped story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.`,
+    `Plan a contract: one testable guarantee a capability makes. ${CONTRACT_PLACEMENT} Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again, and a test numbered for one that sits in another story's package, which credits that package's story, not this one. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On an imported story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.`,
     z.object({
       capability: id("capability it belongs to").optional(),
       edge: id("edge it belongs to instead, a link inside one story: a loose contract, even one line, on how one capability depends on the other, numbered from the dependent capability").optional(),
@@ -190,7 +190,7 @@ export function registerPlanTools(define: Define): void {
       capability: z.string().min(1).optional().describe("A contract's capability, to move it: with no title given, a contract whose number is another capability's takes this one's next free number"),
       edge: z.string().min(1).optional().describe("A contract's edge, to move it onto that link inside its story"),
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
-      covers: covers.describe("A mapped story's capability's folders and files, replacing them"),
+      covers: covers.describe("An imported story's capability's folders and files, replacing them"),
       proved_by: provedBy.describe("A contract's existing tests that prove it, replacing them"),
       stories: z.array(z.string().min(1)).optional().describe("An arc's stories, replacing them"),
       intent: intent.optional(),
@@ -405,7 +405,7 @@ async function showPlan({ library, log, project, quietMs }: PlanReading, closed:
   if (tree.stories.length === 0) out.push(`The plan of ${quoted(project)} is empty: plan a story with plan_story.`);
   for (const story of tree.stories) {
     // A mapped story carries no health of its own (ADR-0993 D3): it says what it is instead.
-    out.push(`Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "mapped: here before storytree, and assumed to be working"}`);
+    out.push(`Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "imported: here before storytree, and assumed to be working"}`);
     for (const capability of story.capabilities) {
       out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`);
       for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}`);

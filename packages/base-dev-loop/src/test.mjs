@@ -113,10 +113,11 @@ import { fileURLToPath } from "node:url";
 
 import { DataDirInUseError, start } from "@storytree/local-postgres";
 
+import { resultsTable } from "./gate.mjs";
 import { floorRefusal, runtimeRefusal } from "./node-runtime.mjs";
 import { recordReds } from "./red-runs.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
-import { namedFolders, parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
+import { namedFolders, parseTestArgs, planRun, readWorkspace, RERUN_HINT, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
 import { stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
 import { runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } from "./unit-pool.mjs";
 import { runWhat, takeWorktreeRun } from "./worktree-run.mjs";
@@ -379,7 +380,7 @@ async function runTests(env, units) {
   } catch (error) {
     console.log(`test harness: could not add this run's times to the timing history: ${error.message}`);
   }
-  console.log(`\n${resultsTable(results, { reasons })}`);
+  console.log(`\n${resultsTable(results, { reasons, rerunHint: RERUN_HINT })}`);
   if (plannedShards !== undefined) process.stdout.write(`this was shard ${shard.index}/${shard.count}; every shard's units:\n${shardPlan(plannedShards)}`);
   return Object.values(results).every((result) => result === "pass") ? 0 : 1;
 }

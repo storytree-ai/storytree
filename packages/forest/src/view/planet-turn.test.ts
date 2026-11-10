@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { after, test } from "node:test";
 import { build } from "esbuild";
-import { chromium, type Browser, type Page } from "playwright-core";
+import { chromium, type Browser, type BrowserServer, type Page } from "playwright-core";
 import { waitUntil } from "@storytree/test-waits";
 
 /** Each bundle is built once for the file, and its tests each mount it on a fresh page. */
@@ -55,11 +55,15 @@ async function bundleMap(linked: boolean, late: boolean): Promise<string> {
 
 /** One browser for the file, launched on first use: each test opens its own page in a context of its own, so none sees another's
  * state, and the file pays one launch rather than one a test. */
+let server: Promise<BrowserServer> | undefined;
 let launched: Promise<Browser> | undefined;
-after(async () => { await (await launched)?.close(); });
+// Ended by killing its server: Playwright's close of a browser it launched waits for every pipe of Chrome's process, which a
+// loaded Windows runner left open after the last test, so the file never exited (PR #695; PR #1279's macOS hang in capture).
+after(async () => { await (await launched)?.close(); await (await server)?.kill(); });
 async function freshPage(t: { after(run: () => Promise<void>): void }, viewport: { width: number; height: number }): Promise<Page> {
   // Chrome is installed on the three CI runner images; no browser download during tests.
-  launched ??= chromium.launch({ channel: "chrome", headless: true });
+  server ??= chromium.launchServer({ channel: "chrome", headless: true });
+  launched ??= server.then(running => chromium.connect(running.wsEndpoint()));
   const page = await (await launched).newPage({ viewport });
   t.after(() => page.context().close());
   return page;

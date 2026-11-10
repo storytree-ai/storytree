@@ -213,6 +213,7 @@ test("3.34 a pull request in CI draws a two-leg bar on its arc's lane: its check
   let html = renderBoard(running, "ci");
   assert.match(leg(html, "checks"), /arc-ci-running/);
   assert.match(leg(html, "checks"), /<rect class="arc-ci-fill" data-fill="50" x="0" width="45"/, "half of its 90 px");
+  assert.match(html, /<svg viewBox="0 0 184 5" width="184" height="5"/, "two 90 px legs and the 4 px gap between them");
   assert.doesNotMatch(html, /style=/, "no inline style, which the page's content security policy refuses: the fill is an SVG width");
   assert.doesNotMatch(leg(html, "queue"), /arc-ci-fill/, "the queue not reached: no fill");
   const hover = html.match(/<span class="arc-ci"[^>]*title="([^"]*)"/)?.[1] ?? "";

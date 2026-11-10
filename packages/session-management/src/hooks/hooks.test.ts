@@ -1189,8 +1189,9 @@ test("3.45 a `claude -p` session's last turn is recorded without the mod though 
       const turnEnded = async () => (await linesOf(project)).some((line) => line.kind === "turn-ended");
       const ended: string[] = [];
       const runs = () => [...new Set(ended)].map((how) => `${how} ×${ended.filter((one) => one === how).length}`).join(", ");
-      for (const until = performance.now() + scaled(20_000); !(await turnEnded()); ) {
-        assert.ok(performance.now() < until, `no run's copy wrote the turn-ended line within ${scaled(20_000) / 1000} s (the hook's runs ended: ${runs()}; its failures: ${failures()})`);
+      // One run of the hook, as `claude -p` runs it; then whether the log holds the line.
+      const run = async (): Promise<boolean> => {
+        if (await turnEnded()) return true;
         const before = (await waitUntil(copies, 5_000, "the hook readings an upload holds aside")).count;
         const child = spawn(process.execPath, [hook, "claude-code", AFTER_TOOL], { env: { ...process.env, STORYTREE_HOME: home, CLAUDE_CODE_ENTRYPOINT: "sdk-cli" }, stdio: ["pipe", "ignore", "ignore"], shell: false });
         child.stdin.on("error", () => undefined);
@@ -1202,10 +1203,15 @@ test("3.45 a `claude -p` session's last turn is recorded without the mod though 
         ended.push(await new Promise<string>((resolve) => child.on("exit", (code, signal) => resolve(signal ?? `exit ${code}`))));
         clearTimeout(term);
         clearTimeout(kill);
-        if (ended.at(-1) === "SIGTERM" || ended.at(-1) === "SIGKILL") continue;
+        if (ended.at(-1) === "SIGTERM" || ended.at(-1) === "SIGKILL") return false;
         await waitUntil(async () => ((await copies())?.count ?? before) > before, 15_000, `the handed-on copy's end (the hook's runs ended: ${runs()})`);
-        if (!(await turnEnded())) assert.ok(waiting(), `the copy that did not write its line left it waiting on this machine (its failures: ${failures()})`);
-      }
+        if (await turnEnded()) return true;
+        assert.ok(waiting(), `the copy that did not write its line left it waiting on this machine (its failures: ${failures()})`);
+        return false;
+      };
+      await waitUntil(run, 20_000, "a run whose copy writes the turn-ended line").catch((error: Error) => {
+        throw new Error(`${error.message} (the hook's runs ended: ${runs()}; its failures: ${failures()})`);
+      });
       assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"], `the hook's runs ended: ${runs()}`);
     });
   } finally {

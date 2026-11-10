@@ -115,19 +115,19 @@ function contracts(line: CapabilityLine): string {
 }
 
 /**
- * Contracts, a capability's or a link's alike, each by its title and its state: storytree's verdict with its source where
- * one was written, else the agent's report, labelled as the agent's. Each opens one level deeper to its trail, the agent's
- * report beside storytree's, and when it was last seen if not re-run since.
+ * Contracts, a capability's or a link's alike, each by its title and its state in plain words: "tests pass", "tests fail"
+ * or "tests not run" with its source where something judged it, else the agent's claim, labelled as its claim and never
+ * as a check (ADR-1294 D1, question_ee767f05e0b9 part 4). Each opens one level deeper to its trail, and when it was last
+ * seen if not re-run since.
  */
 function contractList(contracts: readonly ContractLine[]): string {
   return `<ul class="panel-contracts">${contracts
     .map((contract) => {
-      const state = contract.verified === undefined ? badge("the agent reports", contract.reported) : badge("storytree saw", contract.verified, contract.source === undefined ? undefined : [contract.source]);
+      const state = contract.verified === undefined ? claim(contract.reported) : tests(contract.verified, contract.source);
       return `
       <li data-contract-id="${attribute(contract.id)}">${fold("contract", `<span class="panel-contract-said">${text(contract.title)} ${state}</span>`, `
         <span class="panel-health">
-          ${contract.verified === undefined ? "" : badge("the agent reports", contract.reported)}
-          <span class="panel-trail">${text(contract.trail)}</span>
+          <span class="panel-trail">${text(trail(contract.trail))}</span>
           ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
         </span>`)}</li>`;
     })
@@ -205,8 +205,21 @@ function day(at: string): string {
   return `${when.getUTCDate()} ${MONTHS[when.getUTCMonth()]}`;
 }
 
-function badge(who: string, state: HealthState, sources?: readonly HealthSource[]): string {
-  return `<span class="panel-badge badge-${state}">${text(who)}: ${HEALTH[state]}${sources === undefined || sources.length === 0 ? "" : `, ${FROM[sourceKey(sources)]}`}</span>`;
+/** The agent's trail on a contract, said as the agent's: a history of its reports, not a check (ADR-0630 D2). */
+function trail(words: string): string {
+  return words === "not reported yet" ? "the agent has not reported it yet" : `the agent reported it ${words}`;
+}
+
+/** The agent's own word on a contract nothing else judged: its claim, never a check. */
+function claim(state: HealthState): string {
+  return `<span class="panel-badge badge-${state}">the agent's claim: ${HEALTH[state]}</span>`;
+}
+
+/** What the tests said of a contract, in plain words, and where (ADR-1294 D1). */
+const TESTS: Readonly<Record<HealthState, string>> = { passing: "tests pass", failing: "tests fail", "not-checked": "tests not run" };
+
+function tests(state: HealthState, source: HealthSource | undefined): string {
+  return `<span class="panel-badge badge-${state}">${TESTS[state]}${source === undefined ? "" : `, ${FROM[source]}`}</span>`;
 }
 
 /** Where storytree saw a verdict, in words (ADR-1193 D3). */

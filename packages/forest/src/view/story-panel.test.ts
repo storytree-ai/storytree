@@ -68,10 +68,10 @@ test("4.6 a capability picked heads the panel, its story named small above it, t
   assert.equal(names(html).length, 0, "nor its list of capabilities");
   assert.equal(plainText(/<div class="panel-lead">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? ""), "Its lead.Its rest &lt;here&gt;.", "its whole description, with no fold");
   const items = [...html.matchAll(/<li data-contract-id="([^"]+)">[\s\S]*?<\/li>/g)].map(([item]) => fold(item, "contract")?.handle);
-  assert.deepEqual(items, ["next keeps its promise storytree saw: failing, from CI", "next says so the agent reports: passing"], "each contract by title with its own state");
+  assert.deepEqual(items, ["next keeps its promise tests fail, from CI", "next says so the agent's claim: passing"], "each contract by title with its own state");
   const opened = fold(/<li data-contract-id="k1">[\s\S]*?<\/li>/.exec(html)![0], "contract");
   assert.ok(opened?.hidden);
-  assert.match(plainText(opened!.body), /the agent reports: passing red, then green/, "a contract opens to the agent's report and its trail");
+  assert.equal(plainText(opened!.body).trim(), "the agent reported it red, then green", "a contract opens to its trail, said as the agent's");
   const kinds = [...html.matchAll(/data-fold="([^"]+)"/g)].map(([, kind]) => kind);
   assert.deepEqual(kinds, ["contract", "contract"], "no How it works, no Health and no Contracts fold");
   assert.doesNotMatch(html, /panel-state|What base does|base keeps its promise/, "no word of its own, and nothing of another capability");
@@ -102,7 +102,7 @@ function surface(html: string): string {
 
 test("4.12 the why line shows only for an unhealthy or untested capability or one the owner moves; a proposed one says nothing of it", () => {
   const proposed = (why: NonNullable<CapabilityLine["why"]>): string => renderStoryPanel({ ...panel, capabilities: [{ ...line("cap", "not-checked", "proposed"), why }] }, "cap");
-  assert.equal(surface(proposed({ reason: "not built", mover: "agent", contracts: [] })), "What cap does. Contracts cap keeps its promise the agent reports: not checked", "not built yet is no news");
+  assert.equal(surface(proposed({ reason: "not built", mover: "agent", contracts: [] })), "What cap does. Contracts cap keeps its promise the agent's claim: not checked", "not built yet is no news");
   assert.equal(whyLine(proposed({ reason: "needs owner", mover: "owner", contracts: ["8.1"] })), "Why not green: 8.1 needs something only you can give. You move this one.", "the owner's always shows");
   assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not built", mover: "agent", contracts: [] }), "cap")), "Why not green: it is not built yet. The agent moves this one.", "an untested one keeps it");
 });
@@ -188,13 +188,13 @@ test("4.40 a picked gate's panel gives each edge joining its pair, either way, i
   const contracts = fold(gate, "contracts");
   assert.equal(contracts?.handle, "Contracts · 2", "its state: the contracts counted on a handle");
   assert.equal(contracts?.hidden, true, "drawn closed, one click away");
-  assert.deepEqual([...gate.matchAll(/<li data-contract-id="([^"]+)"[^>]*>([\s\S]*?)<\/li>/g)].map(([, id, said]) => [id, fold(said!, "contract")?.handle]), [["e-1", "next reads &lt;base&gt; by id storytree saw: passing"], ["e-2", "next never writes base the agent reports: passing"]]);
+  assert.deepEqual([...gate.matchAll(/<li data-contract-id="([^"]+)"[^>]*>([\s\S]*?)<\/li>/g)].map(([, id, said]) => [id, fold(said!, "contract")?.handle]), [["e-1", "next reads &lt;base&gt; by id tests pass"], ["e-2", "next never writes base the agent's claim: passing"]]);
   assert.equal(plainText(gate).includes("failing"), false, "none failing, none said");
   const shared = { id: "k-1", title: "next reads base by id", reported: "failing" as const, trail: "green, then red", verified: "failing" as const, source: "ci" as const, lastSeen: { state: "passing" as const, at: "2026-09-27T10:00:00.000Z" } };
   const item = (html: string): string => /<li data-contract-id="k-1">[\s\S]*?<\/li>/.exec(html)?.[0] ?? "";
   const asGate = item(section(renderStoryPanel({ ...edged, edges: [{ ...edged.edges![0]!, contracts: [shared] }] }, "next", { gate: ["base", "next"] })));
   const asCapability = item(renderStoryPanel({ ...panel, capabilities: [{ ...panel.capabilities[1]!, contracts: [shared] }] }, "next"));
-  assert.equal(fold(asGate, "contract")?.handle, "next reads base by id storytree saw: failing, from CI", "each contract opens one level deeper, behind its title and state");
+  assert.equal(fold(asGate, "contract")?.handle, "next reads base by id tests fail, from CI", "each contract opens one level deeper, behind its title and state");
   assert.equal(asGate, asCapability, "to exactly what a capability's contract shows, no more");
   const failing = section(renderStoryPanel({ ...edged, edges: edged.edges!.map((edge) => ({ ...edge, contracts: edge.contracts.map((contract) => ({ ...contract, verified: "failing" as const })) })) }, "next", { gate: ["base", "next"], open: ["e-2"] }));
   const says = failing.indexOf('class="panel-link-failing"');
@@ -227,13 +227,13 @@ test("4.12 a capability that is not healthy says why above its description, who 
   assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "out of CI's reach", mover: "agent", contracts: ["3.4"] }), "cap")), "Why not green: 3.4 can only run on another platform. The agent moves this one.");
 });
 
-test("4.13 in a project nothing verifies, a built capability's detail says storytree does not check this project's tests yet, and its contracts show the agent's report, labelled as the agent's", () => {
+test("4.13 in a project nothing verifies, a built capability's detail says storytree does not check this project's tests yet, and its contracts show the agent's claim, labelled as the agent's", () => {
   const cap: CapabilityLine = { ...line("cap", "passing", "untested"), reportOnly: true };
   const html = renderStoryPanel({ ...panel, capabilities: [cap] }, "cap");
   const shown = (part: string): string => part.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const detail = /<section class="panel-detail[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
   assert.match(shown(detail), /^storytree does not check this project's tests yet\./);
-  assert.match(shown(detail), /cap keeps its promise the agent reports: passing/);
+  assert.match(shown(detail), /cap keeps its promise the agent's claim: passing/);
   assert.doesNotMatch(shown(html), /untested|no test names|moves this one|Why not green/);
 });
 
@@ -274,6 +274,25 @@ test("4.36 a story's panel lists its extra checks with what sets each off, and s
   assert.doesNotMatch(renderStoryPanel(panel, undefined), /extra-checks/);
 });
 
+test("4.5 a contract something judged reads tests pass, fail or not run, with where, and no agent's claim; one nothing judged shows the agent's claim, labelled as its claim", () => {
+  const shown = (part: string): string => part.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const base = line("cap", "passing", "unhealthy");
+  const contracts: CapabilityLine["contracts"] = [
+    { id: "k1", title: "2.1 · Saved", reported: "passing", trail: "red, then green", verified: "passing", source: "ci" },
+    { id: "k2", title: "2.2 · Refused", reported: "passing", trail: "green only", verified: "failing", source: "local" },
+    { id: "k3", title: "2.3 · Skipped", reported: "passing", trail: "green only", verified: "not-checked" },
+    { id: "k4", title: "2.4 · Unjudged", reported: "passing", trail: "red, then green" },
+  ];
+  const html = renderStoryPanel({ ...panel, capabilities: [{ ...base, contracts }] }, "cap");
+  const contract = (id: string): string => shown(new RegExp(`<li data-contract-id="${id}">[\\s\\S]*?</li>`).exec(html)?.[0] ?? "");
+  assert.match(contract("k1"), /^2\.1 · Saved tests pass, from CI the agent reported it red, then green$/);
+  assert.match(contract("k2"), /^2\.2 · Refused tests fail, verified locally the agent reported it green only$/);
+  assert.match(contract("k3"), /^2\.3 · Skipped tests not run the agent reported it green only$/);
+  for (const judged of ["k1", "k2", "k3"]) assert.doesNotMatch(contract(judged), /agent's claim/, "the agent's own claim is not shown where something judged it");
+  assert.match(contract("k4"), /^2\.4 · Unjudged the agent's claim: passing the agent reported it red, then green$/, "nothing judged it: its claim, labelled as the agent's");
+  assert.doesNotMatch(shown(html), /storytree saw|the agent reports/);
+});
+
 test("4.37 storytree's mark names its source on each contract: verified locally, from CI, or both; the reason says the source of what carries it; no source recorded, it says none", () => {
   const shown = (part: string): string => part.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const base = line("base", "passing", "unhealthy");
@@ -289,9 +308,9 @@ test("4.37 storytree's mark names its source on each contract: verified locally,
   const html = (selected: string) => renderStoryPanel({ ...panel, capabilities: [local, both, older] }, selected);
 
   const detail = (selected: string) => shown(/<section class="panel-detail[\s\S]*?<\/section>/.exec(html(selected))?.[0] ?? "");
-  assert.match(detail("base"), /base keeps its promise storytree saw: passing, verified locally/);
-  assert.match(detail("both"), /2\.1 · On CI .*storytree saw: failing, from CI/);
-  assert.match(detail("both"), /2\.2 · Local .*storytree saw: passing, verified locally/);
+  assert.match(detail("base"), /base keeps its promise tests pass, verified locally/);
+  assert.match(detail("both"), /2\.1 · On CI tests fail, from CI/);
+  assert.match(detail("both"), /2\.2 · Local tests pass, verified locally/);
   assert.equal(whyLine(html("both")), "Why not green: 2.1 is failing, from CI. The agent moves this one.");
   assert.equal(whyLine(html("older")), "Why not green: 3.1 is failing. The agent moves this one.");
   assert.doesNotMatch(detail("older"), /locally|from CI/);

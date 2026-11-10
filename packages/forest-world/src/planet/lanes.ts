@@ -1,5 +1,5 @@
-/** Capability 4 · The planet. Lanes at sea, routed on their own: chart dots at rest, a selection's share filled (contracts
- * 4.8–4.9, 4.41–4.42, 4.44, ADR-1261 D3–D4, ADR-1278), ported from 0.2's laneLayout and lane draw-on. */
+/** Capability 4 · The planet. Lanes at sea, routed on their own: fine dotted strands at rest, a selection's share filled
+ * (contracts 4.8–4.9, 4.41–4.42, 4.44, ADR-1261 D3–D4, ADR-1278), ported from 0.2's laneLayout and lane draw-on. */
 import { Vector3 } from 'three';
 import type { PlanetLanes } from './pathways.js';
 
@@ -37,9 +37,16 @@ export function seaLaneWidth(sharing: number): number {
   return Math.min(SEA_LANE_CAP, SEA_LANE_ONE + (SEA_LANE_CAP - SEA_LANE_ONE) * rise);
 }
 
-/** The chart dots at rest (ADR-1278 D1, as the picked mock C draws them): each dot's size against its stretch's lane width,
- * the distance between dots against their size, and how opaque they are, dimmed by `dim` under a selection. */
-export const LANE_DOTS = { size: 0.5, pitch: 2.1, opacity: 0.75, dim: 0.7 } as const;
+/** The chart dots at rest (ADR-1278 D1 as ADR-1307 narrows it): each dot's size against one lane's width,
+ * whatever shares its stretch, the distance between dots against their size, and how opaque they are, dimmed by `dim`
+ * under a selection. */
+export const LANE_DOTS = { size: 0.5, pitch: 3.1, opacity: 0.75, dim: 0.7 } as const;
+
+/** A stretch shared by several lanes at rest is drawn as that many dotted strands side by side, up to `cap` of them, the
+ * lanes above it carried by brighter dots (`restLanes`); strands lie `gap` lane widths apart and fan in over `fan` lane
+ * widths at each end of the stretch, where its lanes join their neighbours' strands or come ashore; every second strand's
+ * dots fall half their spacing along, between its neighbours'. */
+export const LANE_STRANDS = { cap: 4, gap: 1.1, fan: 9 } as const;
 
 /** The fewest pixels one lane is drawn across, as the picked mock draws it (ADR-1278 D3): zoomed out past it, every lane
  * size scales up together. */
@@ -56,33 +63,78 @@ export function laneScale(worldPerPixel: number): number {
 export interface RestStretch {
   /** The lane plan's segment it dots. */
   id: string;
-  /** Each dot's diameter in ground units. */
+  /** Each dot's diameter in ground units: one lane's dot, whatever shares the stretch. */
   size: number;
-  /** Where each dot lies, and the way along its route there. */
-  dots: { at: Vector3; along: Vector3 }[];
+  /** How many dotted strands it is drawn as: one a lane riding it, up to LANE_STRANDS.cap. */
+  strands: number;
+  /** The lanes each strand carries, by link, strand by strand from − to + across the route. */
+  carries: string[][];
+  /** How much brighter its dots are, 0 to 1, for the lanes riding it above the cap: rising with the square root of
+   * their count, full at SEA_LANE_FULL. */
+  bright: number;
+  /** Where each dot lies on its stretch's route, the way along the route there, its strand's place across the route at
+   * full spread (ground units at the lanes' own size, + on the side of `at` × `along`), and how far it lies from the
+   * stretch's two ends, by which its strand fans in (`strandSpread`). */
+  dots: { at: Vector3; along: Vector3; across: number; ends: readonly [number, number] }[];
   /** The islands of each lane riding it, by story. */
   islands: (readonly [string, string])[];
 }
 
-/** Every lane at rest, with nothing selected (ADR-1278 D1, ADR-1276 D1): each stretch of the merged routes once, as round
- * dots down its middle, about half its lane width (`seaLaneWidth` of every lane riding it) and spaced evenly about twice
- * their size apart, so a trunk carrying more links reads as bigger dots. */
+/** How far out of its stretch's middle a strand is drawn, 0 to 1 of its full place, `ends` from the stretch's two ends,
+ * every lane size scaled by `scale` (`laneScale`): in, at an end, so a stretch's strands meet its neighbours' and their
+ * port, and out over LANE_STRANDS.fan lane widths, easing both ways. The dots' shader draws the same. */
+export function strandSpread(ends: readonly [number, number], scale = 1): number {
+  const t = Math.min(1, Math.max(0, Math.min(...ends) / (LANE_STRANDS.fan * SEA_LANE_ONE * scale)));
+  return t * t * (3 - 2 * t);
+}
+
+/** Every lane at rest, with nothing selected (ADR-1278 D1 as ADR-1307 narrows it, ADR-1276 D1): each stretch of the
+ * merged routes once, as fine round dots of one lane's size spaced about three times their size apart, one dotted strand
+ * a lane riding it side by side across the route, up to LANE_STRANDS.cap strands, the lanes above it brightening the
+ * dots. Each lane keeps to the side of the stretch its route leaves by at either end, so strands fan out where lanes
+ * part without crossing. */
 export function restLanes(plan: PlanetLanes): RestStretch[] {
   const islands = new Map(plan.edges.map(edge => [`${edge.from}->${edge.to}`, edge.islands]));
+  const chains = new Map(plan.edges.map(edge => [`${edge.from}->${edge.to}`, edge.segments.map(ref => ref.id)]));
+  const segments = new Map(plan.segments.map(segment => [segment.id, segment]));
+  const size = SEA_LANE_ONE * LANE_DOTS.size;
   return plan.segments.flatMap(segment => {
-    const size = seaLaneWidth(segment.links.length) * LANE_DOTS.size, points = segment.points;
+    const points = segment.points;
     const walk = [0];
     for (let i = 1; i < points.length; i++) walk.push(walk[i - 1]! + points[i]!.distanceTo(points[i - 1]!));
     const length = walk.at(-1)!;
     if (!(length > 0)) return [];
+    // Which side each lane leaves by: towards the far end of the neighbouring stretch it rides on from either end.
+    const ends = [[points[0]!, points[1]!.clone().sub(points[0]!)], [points.at(-1)!, points.at(-1)!.clone().sub(points.at(-2)!)]] as const;
+    const side = (lane: string) => {
+      const chain = chains.get(lane) ?? [], at = chain.indexOf(segment.id);
+      return [chain[at - 1], chain[at + 1]].reduce((sum, id) => {
+        const next = id === undefined ? undefined : segments.get(id);
+        if (!next) return sum;
+        return sum + ends.reduce((total, [end, along]) => {
+          const near = next.points[0]!.distanceTo(end) < 1e-3 ? next.points : next.points.at(-1)!.distanceTo(end) < 1e-3 ? [...next.points].reverse() : undefined;
+          if (!near) return total;
+          const away = near[Math.min(near.length - 1, 4)]!.clone().sub(end).normalize();
+          return total + end.clone().normalize().cross(along).normalize().dot(away);
+        }, 0);
+      }, 0);
+    };
+    const lanes = segment.links.map(link => ({ link, side: side(link) })).sort((a, b) => a.side - b.side || (a.link < b.link ? -1 : 1));
+    const strands = Math.max(1, Math.min(LANE_STRANDS.cap, lanes.length));
+    const carries = Array.from({ length: strands }, (_, strand) => lanes.slice(Math.round(strand * lanes.length / strands), Math.round((strand + 1) * lanes.length / strands)).map(lane => lane.link));
     const count = Math.max(1, Math.round(length / (size * LANE_DOTS.pitch))), dots: RestStretch['dots'] = [];
-    for (let k = 0, i = 1; k < count; k++) {
-      const distance = (k + 0.5) * length / count;
-      while (i < points.length - 1 && walk[i]! < distance) i++;
-      const a = points[i - 1]!, b = points[i]!, t = (distance - walk[i - 1]!) / (walk[i]! - walk[i - 1]! || 1);
-      dots.push({ at: a.clone().lerp(b, t), along: b.clone().sub(a).normalize() });
+    for (let strand = 0; strand < strands; strand++) {
+      const across = (strand - (strands - 1) / 2) * LANE_STRANDS.gap * SEA_LANE_ONE;
+      for (let k = 0, i = 1; k < count; k++) {
+        // Every second strand's dots fall between its neighbours', so side by side they read as lines, not rungs.
+        const distance = Math.min(length, (k + 0.5 + (strand % 2) / 2) * length / count);
+        while (i < points.length - 1 && walk[i]! < distance) i++;
+        const a = points[i - 1]!, b = points[i]!, t = (distance - walk[i - 1]!) / (walk[i]! - walk[i - 1]! || 1);
+        dots.push({ at: a.clone().lerp(b, t), along: b.clone().sub(a).normalize(), across, ends: [distance, length - distance] });
+      }
     }
-    return [{ id: segment.id, size, dots, islands: segment.links.flatMap(link => islands.has(link) ? [islands.get(link)!] : []) }];
+    const bright = Math.min(1, Math.max(0, (Math.sqrt(lanes.length) - Math.sqrt(LANE_STRANDS.cap)) / (Math.sqrt(SEA_LANE_FULL) - Math.sqrt(LANE_STRANDS.cap))));
+    return [{ id: segment.id, size, strands, carries, bright, dots, islands: segment.links.flatMap(link => islands.has(link) ? [islands.get(link)!] : []) }];
   });
 }
 

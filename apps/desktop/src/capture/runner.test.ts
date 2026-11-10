@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { get } from "node:http";
 import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -11,6 +11,7 @@ import { chromium, type Browser, type Page } from "playwright-core";
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { openActivityLog } from "@storytree/session-management";
+import { removeTemp } from "@storytree/test-waits";
 
 import { browserProcess, closeBrowser, fakeBridge, outputFolder, runCapture, settle, withCapture } from "./index.js";
 import { liveAnswers } from "./live.js";
@@ -96,7 +97,7 @@ function readPage(url: string): Promise<string> {
 
 test("a seed-and-views capture uses workspace Playwright and quiet bridge reads, and closes its server and browser", async t => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-runner-"));
-  t.after(() => { rmSync(folder, { recursive: true, force: true }); rmSync(outputFolder(folder), { recursive: true, force: true }); });
+  t.after(async () => { await removeTemp(folder); await removeTemp(outputFolder(folder)); });
   writeFileSync(path.join(folder, "index.html"), "<body>capture fixture</body>");
   let call!: (method: string, args: unknown[]) => Promise<unknown>;
   let origin = "", closed = 0;
@@ -134,6 +135,34 @@ test("a seed-and-views capture uses workspace Playwright and quiet bridge reads,
   await assert.rejects(readPage(origin), "a failed view also closes the server");
 });
 
+test("2.54 · a capture whose page never reaches ready fails naming the errors the page logged meanwhile", async t => {
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-not-ready-"));
+  t.after(async () => { await removeTemp(folder); await removeTemp(outputFolder(folder)); });
+  writeFileSync(path.join(folder, "index.html"), "<body>never ready</body>");
+  const handlers: Record<string, (event: unknown) => void> = {};
+  const page = {
+    on(event: string, handler: (event: unknown) => void) { handlers[event] = handler; return page; },
+    async exposeFunction() {},
+    async addInitScript() {},
+    async goto() {
+      handlers.pageerror!(new Error("the forest of storytree could not be read"));
+      handlers.console!({ type: () => "error", text: () => "a projectTree read failed" });
+    },
+    async waitForFunction() { throw new Error("page.waitForFunction: Timeout 60000ms exceeded."); },
+    async close() {},
+  } as unknown as Page;
+  const browser = Object.assign(new EventEmitter(), { isConnected: () => true, async newPage() { return page; }, async close() {} }) as unknown as Browser;
+  t.mock.method(chromium, "launch", async () => browser);
+  const seed = { projects: ["sample"], tree: { stories: [], arcs: [] }, changes: { changes: [], cursor: 0 }, lines: { lines: [], cursor: 0 }, covers: {} };
+
+  await assert.rejects(runCapture({ folder, dist: folder, seed, views: [] }), (error: Error) => {
+    assert.match(error.message, /Timeout 60000ms exceeded/, "the timeout itself is still named");
+    assert.match(error.message, /the forest of storytree could not be read/, "the page's script error is named");
+    assert.match(error.message, /a projectTree read failed/, "the page's console error is named");
+    return true;
+  });
+});
+
 test("2.38 · a capture on a live library answers the page with the app's own reads, its first activity read bounded to the newest lines and its changes folded and thinned by the page's filter", async t => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined || url === "") throw new Error("STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`, which starts a local Postgres.");
@@ -145,8 +174,8 @@ test("2.38 · a capture on a live library answers the page with the app's own re
     await log.close();
     await storytree.close();
     await dropTestDatabases([`storytree_${project}`]);
-    rmSync(folder, { recursive: true, force: true });
-    rmSync(outputFolder(folder), { recursive: true, force: true });
+    await removeTemp(folder);
+    await removeTemp(outputFolder(folder));
   });
   writeFileSync(path.join(folder, "index.html"), "<body>capture fixture</body>");
   // A busy library, small: eight lines where the capture's bound is three, and a story edited twice.
@@ -210,7 +239,7 @@ test("2.38 · a capture on a live library answers the page with the app's own re
 // PR #1279's macOS run: the browser disconnected, then browser.close() never returned and 3.35 hit its timeout.
 test("2.13 · a capture whose browser disconnects but whose close never returns still ends, its server closed", { timeout: 10_000 }, async t => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-hung-close-"));
-  t.after(() => { rmSync(folder, { recursive: true, force: true }); rmSync(outputFolder(folder), { recursive: true, force: true }); });
+  t.after(async () => { await removeTemp(folder); await removeTemp(outputFolder(folder)); });
   writeFileSync(path.join(folder, "index.html"), "<body>hung close</body>");
   const events = new EventEmitter();
   const browser = Object.assign(events, {

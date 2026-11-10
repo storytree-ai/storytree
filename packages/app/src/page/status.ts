@@ -1,6 +1,6 @@
 /**
  * Capability 2 · Storytree projects. What the desktop page says about itself on its body and over its content: `data-state`
- * (loading, ready, empty, missing, error), the start's bar and `data-start`, the kept forest's `data-fresh="no"` mark, the notice
+ * (loading, ready, empty, missing, error, waiting), the start's bar and `data-start`, the kept forest's `data-fresh="no"` mark, the notice
  * over a forest whose first read failed, a message in place of the project, and `data-drew`, the census every mounted surface adds
  * its reading to, which the smoke check reads.
  */

@@ -78,6 +78,7 @@ page = openProjectPage({
   document,
   content,
   problem: new URLSearchParams(location.search).get("problem"),
+  waiting: new URLSearchParams(location.search).get("waiting"),
   menu: appMenu,
   projectSelection: () => window.storytree.projectSelection(),
   readSurfaces: () => window.storytree.readSurfaces(),

@@ -64,7 +64,11 @@ import {
   launchToRecord,
   loginItemsFor,
   noUpdates,
+  keepTrying,
+  KEEPS_TRYING,
+  libraryUnreachable,
   openAppLibrary,
+  openPatiently,
   pageReads,
   PAGE_READS_CHANNELS,
   projectSelection,
@@ -222,7 +226,7 @@ let parts = windowStandIns({ surfaces: SURFACES, pageAnswers: PAGE_ANSWERS, page
 /** An installed app's release updater, which answers the gear's Updates panel in its place. */
 let releases: ReturnType<typeof followReleases>;
 /** What the window was opened with, so it can be opened again after it is closed. */
-let windowQuery: { project?: string; problem?: string } = {};
+let windowQuery: WindowQuery = {};
 /** Held here so it is not garbage-collected, which would remove the icon. */
 let tray: Tray | undefined;
 const lifecycle = background({
@@ -384,9 +388,11 @@ async function run(): Promise<void> {
 
   let problem: string | undefined;
   let project: string | undefined;
+  /** The library could not be reached yet when the time to wait for it ran out, so the app keeps trying behind its error page. */
+  let unreachable = false;
   let errorsOpened: Promise<void> | undefined;
-  try {
-    phases.phase("opening the library");
+  /** Open the library where the settings say, and what the page reads through it; the project to show. */
+  const openLibrary = async (): Promise<string | undefined> => {
     // Where the library lives is the user's library setting: this app's own Postgres (the default),
     // or a Cloud SQL instance, when no Postgres is started here at all (ADR-0734, ADR-0735 D4).
     const opened = await openAppLibrary({
@@ -409,10 +415,25 @@ async function run(): Promise<void> {
       lineageOf: (name) => pages.projectLineage(name),
       buildsItself: (name) => pages.projectBuildsItself(name),
     });
-    project = (await projects.read(args.project)).current;
+    const current = (await projects.read(args.project)).current;
     if (!args.smoke) recordLaunch();
+    return current;
+  };
+  try {
+    phases.phase("opening the library");
+    // A library the network cannot reach yet (the computer just started) is waited for, the page saying so (lifecycle 1.46).
+    project = await openPatiently({
+      open: openLibrary,
+      waiting: (reason) => {
+        console.error(reason);
+        showPage({ waiting: reason }, !args.background && !args.smoke);
+      },
+      now: Date.now,
+      sleep,
+    });
   } catch (error) {
-    problem = libraryProblem(error);
+    unreachable = libraryUnreachable(error);
+    problem = unreachable ? `${libraryProblem(error)} ${KEEPS_TRYING}` : libraryProblem(error);
     console.error(problem);
   }
   build = await whichBuild();
@@ -457,13 +478,15 @@ async function run(): Promise<void> {
     setReleaseChannel: (channel: unknown) => channels.set(channel),
   });
   console.log(`storytree 0.3: ${build}`);
-  windowQuery = { ...(problem === undefined ? {} : { problem }) };
+  const query = problem === undefined ? {} : { problem };
   if (args.smoke) {
     phases.phase("opening the window");
+    for (const waited of BrowserWindow.getAllWindows()) waited.destroy();
+    windowQuery = query;
     await smoke(openWindow(windowQuery), project);
   }
   else {
-    if (!args.background) openWindow(windowQuery);
+    showPage(query, !args.background);
     showTray();
     // An error the library holds that is not yet reported asks to be, until it is marked submitted (errors 9.6, ADR-1122).
     void errorsOpened?.then(() => errorRecords.settled())
@@ -474,7 +497,47 @@ async function run(): Promise<void> {
     // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (Session management 4.21).
     setInterval(() => void reads?.lookAround(), LOOK_EVERY_MS).unref();
     releases = followReleases({ restart: lifecycle.restart, canRestart, quiet }, home.dir, () => installing.read().choice);
+    // Behind the error page the app keeps trying a library it could not reach, and shows the project once it answers (lifecycle 1.47).
+    if (unreachable) {
+      void keepTrying({
+        open: openLibrary,
+        opened: (current) => {
+          project = current;
+          console.log("library: answered after all");
+          if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });
+          void errorsOpened?.then(() => errorRecords.settled())
+            .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
+            .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
+          // The page reads the project chosen from the library itself, as it does when the library opens at once.
+          showPage({}, false);
+        },
+        failed: (error) => {
+          const said = libraryProblem(error);
+          console.error(said);
+          showPage({ problem: said }, false);
+        },
+        stopped: () => stopping.stopping(),
+        now: Date.now,
+        sleep,
+      });
+    }
   }
+}
+
+/** What the window's page is opened with: the project, or why the library is not open. */
+type WindowQuery = { project?: string; problem?: string; waiting?: string };
+
+/** Wait `ms`, without holding the app open. */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms).unref());
+}
+
+/** Show `query` on every open window, and remember it for a window opened later; with none open, open one when `open`. */
+function showPage(query: WindowQuery, open: boolean): void {
+  windowQuery = query;
+  const windows = BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed());
+  for (const window of windows) window.loadURL(pageUrl(query)).catch(() => { /* the page's own error logging says it */ });
+  if (windows.length === 0 && open) openWindow(query);
 }
 
 /** The tray icon, whose menu brings the window back or quits the app. */
@@ -600,12 +663,12 @@ function open(): PageReads {
   return reads;
 }
 
-function openWindow(query: { project?: string; problem?: string }): BrowserWindow {
+function openWindow(query: WindowQuery): BrowserWindow {
   return pageWindow(query).window;
 }
 
 /** The app's window on its page, and the page's load, which fails if the page cannot be loaded. */
-function pageWindow(query: { project?: string; problem?: string }): { window: BrowserWindow; loaded: Promise<void> } {
+function pageWindow(query: WindowQuery): { window: BrowserWindow; loaded: Promise<void> } {
   const window = new BrowserWindow({
     width: 1120,
     height: 860,

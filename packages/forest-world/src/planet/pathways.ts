@@ -353,13 +353,13 @@ function laidOnGlobe(network: TrailNetwork, prefix: string, grounds: ReadonlyMap
     const ends = [docks.get(`${segment.id}:0`), docks.get(`${segment.id}:${segment.points.length - 1}`)];
     // The router ends a lane on its island's charted coast; the dock is the nearest coast to that end, so any straight
     // line left between them on the chart is the snap from the router's polyline to the coast's, sampled at its step.
-    const points = [...ends[0] ? [chart(ends[0].point)] : [], ...routed, ...ends[1] ? [chart(ends[1].point)] : []]
+    const points = clearOfLand([...ends[0] ? [chart(ends[0].point)] : [], ...routed, ...ends[1] ? [chart(ends[1].point)] : []]
       .flatMap((point, i, all) => {
         if (i === 0) return [point];
         const from = all[i - 1]!, steps = Math.ceil(Math.hypot(point.x - from.x, point.y - from.y) / CHART_STEP);
         return Array.from({ length: steps }, (_, j) => j + 1 === steps ? point
           : { x: from.x + (point.x - from.x) * (j + 1) / steps, y: from.y + (point.y - from.y) * (j + 1) / steps });
-      });
+      }), grounds);
     const walk = [0];
     for (let i = 1; i < points.length; i++) walk.push(walk[i - 1]! + Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y));
     const length = walk.at(-1)!;
@@ -384,6 +384,66 @@ function laidOnGlobe(network: TrailNetwork, prefix: string, grounds: ReadonlyMap
     return { id: `${prefix}${segment.id}`, points: alongTheGlobe(world), links: [] as string[], unrouted };
   });
   return { segments, edges, docks, pairDocks };
+}
+
+/** How far apart, in chart units, the gentlest curve's control points are spaced, widest first: a stretch takes the
+ * widest whose curve keeps clear of land (`clearOfLand`), none at last (the route as the router drew it). */
+const CURVE_SPANS = [24, 18, 12, 9, 6, 4] as const;
+
+/** How near, in chart units, a curved lane may come to a coast away from its own docks: the routed lane keeps
+ * LANE_CLEARANCE off, and the curve may cut a bend by less than half of that. */
+const CURVE_KEEP = 2;
+
+/** `points` drawn as the gentlest curve that keeps clear of land (ADR-1307 D4, the owner, 2026-11-10: "fine dots
+ * with gentle curves"): the widest of CURVE_SPANS whose curve (`gentleCurve`) comes no nearer than CURVE_KEEP to any
+ * island's coast, except within that and a little more of its own two ends, which dock on a coast. */
+export function clearOfLand(points: readonly Point[], grounds: ReadonlyMap<string, Pick<Ground, 'centre' | 'r' | 'chartRings'>>): Point[] {
+  const [first, last] = [points[0]!, points.at(-1)!];
+  const near = (p: Point, q: Point, d: number) => Math.hypot(p.x - q.x, p.y - q.y) < d;
+  for (const span of CURVE_SPANS) {
+    const curve = gentleCurve(points, span, CHART_STEP);
+    const clear = curve.every(p => near(p, first, CURVE_KEEP + 2) || near(p, last, CURVE_KEEP + 2) || [...grounds.values()].every(g =>
+      !near(p, g.centre, g.r + CURVE_KEEP) || (!insideRings(p, g.chartRings) && !near(p, nearest(p, g.chartRings), CURVE_KEEP))));
+    if (clear) return curve;
+  }
+  return [...points];
+}
+
+/** Whether `p` lies inside a coast's rings (even-odd). */
+function insideRings(p: Point, rings: readonly (readonly Point[])[]): boolean {
+  let inside = false;
+  for (const ring of rings) for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i]!, b = ring[j]!;
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+/** A polyline's gentle curve: its points taken every about `span` along it (its ends kept), and a cubic B-spline through
+ * those, clamped to the two ends and sampled about every `step`. A right-angle bend becomes an arc of radius about two
+ * thirds of `span` that cuts the corner by about a quarter of `span`; a line shorter than two spans is kept as it is. */
+export function gentleCurve(points: readonly Point[], span: number, step: number): Point[] {
+  const walk = [0];
+  for (let i = 1; i < points.length; i++) walk.push(walk[i - 1]! + Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y));
+  const length = walk.at(-1)!, n = Math.round(length / span);
+  if (n < 2) return points.map(p => ({ x: p.x, y: p.y }));
+  let i = 1;
+  const control = Array.from({ length: n + 1 }, (_, k) => {
+    const d = k * length / n;
+    while (i < points.length - 1 && walk[i]! < d) i++;
+    const a = points[i - 1]!, b = points[i]!, t = (d - walk[i - 1]!) / (walk[i]! - walk[i - 1]! || 1);
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  });
+  const c = [control[0]!, control[0]!, ...control, control[n]!, control[n]!], per = Math.max(1, Math.ceil(length / n / step));
+  const out: Point[] = [];
+  for (let s = 0; s + 3 < c.length; s++) for (let j = s === 0 ? 0 : 1; j <= per; j++) {
+    const t = j / per, w = [(1 - t) ** 3 / 6, (3 * t ** 3 - 6 * t * t + 4) / 6, (-3 * t ** 3 + 3 * t * t + 3 * t + 1) / 6, t ** 3 / 6];
+    out.push({ x: w.reduce((sum, wk, k) => sum + wk * c[s + k]!.x, 0), y: w.reduce((sum, wk, k) => sum + wk * c[s + k]!.y, 0) });
+  }
+  // The clamped spline ends where the line does, but exactly, so a junction's segments still meet.
+  out[0] = { x: points[0]!.x, y: points[0]!.y };
+  out[out.length - 1] = { x: points.at(-1)!.x, y: points.at(-1)!.y };
+  return out;
 }
 
 /** Each capability link between islands on `laid`'s chain for its pair of islands, its docks and segments carrying it. */

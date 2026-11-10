@@ -792,7 +792,7 @@ test("4.21 `arc increment new --waits-on --wait-reason` parks an increment born 
     const split = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Form checks", "--objective", "Check", "--body", "Build it", "--capabilities", form.id, "--waits-on", form.id, "--wait-reason", "its claim is held"]);
     assert.equal(split.code, 0, split.stderr);
     const splitId = /increment_[0-9a-f]+/.exec(split.stdout)![0];
-    assert.deepEqual((await library.get(splitId))?.fields.waits, [{ on: form.id, reason: "its claim is held" }]);
+    assert.deepEqual(((await library.get(splitId))?.fields as { waits?: unknown }).waits, [{ on: form.id, reason: "its claim is held" }]);
 
     const before = (await library.changesSince(0)).cursor;
     for (const flags of [["--waits-on", mailer!.id], ["--wait-reason", "why"]]) {

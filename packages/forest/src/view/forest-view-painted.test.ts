@@ -2,14 +2,19 @@
  * draws an arc's open work on an edge's contracts, and none, without a fault (3.92). */
 import assert from "node:assert/strict";
 import path from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { build } from "esbuild";
-import { chromium } from "playwright-core";
+import { chromium, type Browser } from "playwright-core";
 import { scaled } from "@storytree/test-waits";
 
 /** The forest view opened on a two-story plan, the first's two capabilities joined by an edge holding a contract; `__show()`
  * hands it the plan again, `__circle(capabilities, contracts)` is its circle(), and `__drawn(ms)` is its drawn(), given up after `ms`. */
-async function viewBundle(): Promise<string> {
+function viewBundle(): Promise<string> {
+  return bundled ??= bundleView();
+}
+let bundled: Promise<string> | undefined;
+
+async function bundleView(): Promise<string> {
   const entry = `import { workStates } from "@storytree/arc-surface";
     import { createKnowledgeCore } from "@storytree/knowledge-core/view";
     import { forestScene, storyNodes } from ${JSON.stringify(path.join(import.meta.dirname, "../index.ts"))};
@@ -37,13 +42,21 @@ async function viewBundle(): Promise<string> {
   return result.outputFiles[0]!.text;
 }
 
+/** One browser for the file, launched on first use; each test opens its page in a context of its own. */
+let launched: Promise<Browser> | undefined;
+after(async () => { await (await launched)?.close(); });
+async function freshPage(t: { after(run: () => Promise<void>): void }) {
+  // Chrome is installed on the three CI runner images; no browser download during tests.
+  launched ??= chromium.launch({ channel: "chrome", headless: true });
+  const page = await (await launched).newPage({ viewport: { width: 800, height: 600 } });
+  t.after(() => page.context().close());
+  return page;
+}
+
 type Page = { __show(): void; __circle(capabilities: string[] | undefined, contracts: string[] | undefined): void; __drawn(ms: number): Promise<void>; __painted: number; __ready?: boolean };
 
 test("3.75 · the globe says when it has painted a frame of the scene on show, including a show that changed nothing", async t => {
-  // Chrome is installed on the three CI runner images; no browser download during tests.
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
-  t.after(() => browser.close());
-  const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+  const page = await freshPage(t);
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
   await page.addScriptTag({ content: await viewBundle() });
   await page.waitForFunction(() => (window as unknown as Page).__ready === true, undefined, { timeout: 60_000 });
@@ -57,9 +70,7 @@ test("3.75 · the globe says when it has painted a frame of the scene on show, i
 });
 
 test("3.92 · the forest view draws an arc's open work on an edge's contracts, and no arc, without a fault", async t => {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
-  t.after(() => browser.close());
-  const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+  const page = await freshPage(t);
   const faults: string[] = [];
   page.on("pageerror", error => faults.push(error.message));
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);

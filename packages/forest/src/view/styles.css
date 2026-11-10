@@ -53,11 +53,29 @@
   visibility: hidden;
 }
 
-.forest-views {
+/* The map's top left: the sheet's face switches, and beside them the layout mark while islands are laid out (3.96). */
+.forest-top {
   position: absolute;
   z-index: 50;
   top: 0.75rem;
   left: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.forest-layout-progress {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #485159;
+  border-radius: 8px;
+  background: #101418cc;
+  color: #dde3e6;
+  font-size: 12px;
+  font-style: italic;
+  pointer-events: none;
+}
+
+.forest-views {
   display: flex;
   gap: 2px;
   padding: 3px;

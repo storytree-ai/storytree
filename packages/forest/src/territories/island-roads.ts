@@ -15,6 +15,9 @@
  *   is open road, and a road under a third territory is in a tunnel: from a portal set back from each border it crosses, on
  *   the land of the territory on its road's side (Mick, 2026-11-07: "The tunnel entrance and exit should sit inside the
  *   capability that needs it"), and not drawn between (question_921aee319481).
+ * - Kept per story on this computer once routed, in the page's localStorage beside the kept arrangement (ADR-1252 D1),
+ *   under a key of the routing's version and the island exactly as laid out, so a restart draws an unchanged island's
+ *   roads at once (3.82); the islands still routing are counted by the map's top-left mark (3.96, `islandsRouting`).
  */
 import { LIBRARY_LAND, ontoCoast, openReach, type Link, type LinkDock } from "./link-layout.js";
 import { landArea, type Coast, type Point, type TerritoryMap } from "./territories.js";
@@ -77,7 +80,7 @@ export const widthOf = (n: number) => WIDTHS[n >= 8 ? 3 : n >= 4 ? 2 : n >= 2 ? 
  * has no posts (Mick, 2026-11-06). */
 export const inTunnelMouth = (roads: Pick<IslandRoads, "portals">, gate: { readonly at: Point }): boolean => roads.portals.some((p) => far(p.border, gate.at) < 1e-6);
 
-const routed = new WeakMap<TerritoryMap, { key: string; roads: IslandRoads }>();
+let routed = new WeakMap<TerritoryMap, { key: string; roads: IslandRoads }>();
 
 /** The roads and gates of `map` (the island as drawn, laid out by `links` and `docks`), its names at `names`; routed
  * once for the same map, links, docks and names, whoever asks. */
@@ -89,17 +92,90 @@ export function islandRoads(map: TerritoryMap, links: readonly Link[], docks: re
   return roads;
 }
 
-/** What routing an island's roads is asked: the island as drawn, its links, its docks and its names. */
-export type RoadsAsk = { readonly map: TerritoryMap; readonly links: readonly Link[]; readonly docks: readonly LinkDock[]; readonly names: readonly NameAnchor[] };
+/** What routing an island's roads is asked: the island as drawn, its links, its docks and its names, and its story,
+ * whose roads are kept on the page's storage when it names one. */
+export type RoadsAsk = { readonly map: TerritoryMap; readonly links: readonly Link[]; readonly docks: readonly LinkDock[]; readonly names: readonly NameAnchor[]; readonly story?: string };
 /** What the worker posts back for a `{ roads }` ask: the roads, or why routing failed. */
 export type RoadsAnswer = { roads: IslandRoads } | { error: string };
 /** Routes an island's roads somewhere, answering what `islandRoads` would; an aborted signal means the island was overtaken. */
 export type IslandRouter = (ask: RoadsAsk, signal: AbortSignal) => Promise<IslandRoads>;
 
-/** The roads already routed for the island `ask` names, if any, routing nothing. */
+/** The roads already routed for the island `ask` names, if any, routing nothing: kept in this run, or on the page's
+ * storage for its story under the island's key. */
 export function knownIslandRoads(ask: RoadsAsk): IslandRoads | undefined {
-  const known = routed.get(ask.map);
-  return known?.key === JSON.stringify([ask.links, ask.docks, ask.names]) ? known.roads : undefined;
+  const key = JSON.stringify([ask.links, ask.docks, ask.names]), known = routed.get(ask.map);
+  if (known?.key === key) return known.roads;
+  if (ask.story === undefined || unshelved.get(ask.map) === key) return undefined;
+  if (roadShelf === null) roadShelf = roadsShelf();
+  const stored = roadShelf?.read(ask.story);
+  if (stored?.key === storedKey(ask)) {
+    routed.set(ask.map, { key, roads: stored.roads });
+    return stored.roads;
+  }
+  unshelved.set(ask.map, key);
+  return undefined;
+}
+
+/** The version of the routing (route below): raised whenever a change to it routes an island's roads differently, so
+ * roads kept by an earlier version are routed again. */
+const ROUTING = 1;
+const ROADS_KEY = "storytree.roads.";
+/** Roads kept on the page's storage, per story, with the key of the island they were routed for. */
+export interface RoadsShelf { read(story: string): { key: string; roads: IslandRoads } | undefined; write(story: string, key: string, roads: IslandRoads): void }
+let roadShelf: RoadsShelf | undefined | null = null;
+/** The islands whose story's storage held no roads for them as laid out, so it is not read again. */
+let unshelved = new WeakMap<TerritoryMap, string>();
+
+/** Island roads are kept on `next` from now on (a test's own; undefined for none), forgetting every island routed so far. */
+export function shelveRoadsOn(next: RoadsShelf | undefined): void {
+  roadShelf = next; routed = new WeakMap(); unshelved = new WeakMap();
+}
+
+/** The key `ask`'s roads are kept under: the routing's version and a hash of the island exactly as laid out, its links,
+ * docks and names. */
+function storedKey(ask: RoadsAsk): string {
+  return `routing ${ROUTING} ${hashOf(JSON.stringify([ask.map, ask.links, ask.docks, ask.names]))}`;
+}
+
+/** A 53-bit hash of `text` (cyrb53), as hex. */
+function hashOf(text: string): string {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+}
+
+/** The page's localStorage as a shelf of roads, or none where the page has no storage or refuses it. An entry that cannot
+ * be read, or lacks a part of the roads, is none. */
+export function roadsShelf(storage: Pick<Storage, "getItem" | "setItem"> | undefined = pageStorage()): RoadsShelf | undefined {
+  if (storage === undefined) return undefined;
+  return {
+    read(story) {
+      try {
+        const kept = JSON.parse(storage.getItem(ROADS_KEY + story) ?? "null") as { key?: unknown; roads?: Record<string, unknown> } | null;
+        const roads = kept?.roads;
+        if (typeof kept?.key !== "string" || roads === undefined || roads === null) return undefined;
+        const lists = ["segments", "junctions", "gates", "passes", "portals", "tunnels", "towns", "settlements"] as const;
+        if (!lists.every((part) => Array.isArray(roads[part]))) return undefined;
+        return { key: kept.key, roads: { ...roads, towns: new Map(roads.towns as [string, Point][]), settlements: new Map(roads.settlements as [string, Settlement][]) } as unknown as IslandRoads };
+      } catch { return undefined; }
+    },
+    write(story, key, roads) {
+      try {
+        storage.setItem(ROADS_KEY + story, JSON.stringify({ key, roads: { ...roads, towns: [...roads.towns], settlements: [...roads.settlements] } }));
+      } catch { /* a full or refused storage keeps them for this run only */ }
+    },
+  };
+}
+
+/** The page's localStorage, or none where reading it throws (a page with no origin, or storage switched off). */
+function pageStorage(): Storage | undefined {
+  try { return (globalThis as { localStorage?: Storage }).localStorage; } catch { return undefined; }
 }
 
 /** Routes one island's roads, as the page would: what the worker answers a `{ roads }` ask with. */
@@ -125,13 +201,39 @@ export const roadsVersion = (): number => version;
 export const ROUTING_AT_ONCE = 2;
 let routing = 0;
 const waitingToRoute: (() => void)[] = [];
-/** Runs `route` once fewer than ROUTING_AT_ONCE routings are in flight; it is passed over if `signal` aborts first. */
-function inTurn(route: () => Promise<unknown>, signal: AbortSignal): void {
+/** How many routings of each story's island are in flight or wait their turn (3.96). */
+const routingFor = new Map<string, number>();
+const routingListeners = new Set<() => void>();
+let routingAt = 0;
+/** The islands whose roads are routing or wait their turn (3.96). */
+export function islandsRouting(): ReadonlySet<string> {
+  return new Set(routingFor.keys());
+}
+/** Hears every island that starts or stops routing (React's useSyncExternalStore, with `routingVersion`). */
+export function subscribeRouting(listener: () => void): () => void {
+  routingListeners.add(listener);
+  return () => { routingListeners.delete(listener); };
+}
+/** Changes whenever an island starts or stops routing. */
+export const routingVersion = (): number => routingAt;
+function counted(story: string, by: 1 | -1): void {
+  const was = routingFor.get(story) ?? 0, now = was + by;
+  if (now > 0) routingFor.set(story, now); else routingFor.delete(story);
+  if ((was > 0) === (now > 0)) return;
+  routingAt++;
+  for (const listener of routingListeners) listener();
+}
+/** Runs `route` once fewer than ROUTING_AT_ONCE routings are in flight; it is passed over if `signal` aborts first.
+ * `story`'s island counts as routing until it ends or is let go. */
+function inTurn(route: () => Promise<unknown>, signal: AbortSignal, story: string | undefined): void {
+  let pending = story !== undefined;
+  const settled = () => { if (!pending) return; pending = false; signal.removeEventListener("abort", settled); counted(story!, -1); };
+  if (pending) { counted(story!, 1); signal.addEventListener("abort", settled); }
   const start = () => {
     if (signal.aborted) { next(); return; }
     routing++;
     let ended = false;
-    const end = () => { if (ended) return; ended = true; routing--; signal.removeEventListener("abort", end); next(); };
+    const end = () => { if (ended) return; ended = true; routing--; signal.removeEventListener("abort", end); settled(); next(); };
     signal.addEventListener("abort", end);
     route().then(end, end);
   };
@@ -144,8 +246,8 @@ function next(): void {
 /**
  * An island's roads (3.82): those already routed for it at once, or undefined while `router` routes them off the page,
  * so its territories are drawn without waiting. A few islands route at a time (ROUTING_AT_ONCE), the rest in the order
- * asked. When they arrive they are kept for the island as laid out (`knownIslandRoads` has them) and every listener
- * hears it; an island overtaken first (`signal` aborted) keeps nothing, and one overtaken while it waits is not routed.
+ * asked. When they arrive they are kept for the island as laid out (`knownIslandRoads` has them), and on the page's
+ * storage for its story, and every listener hears it; an island overtaken first (`signal` aborted) keeps nothing, and one overtaken while it waits is not routed.
  */
 export function islandRoadsWhenRouted(ask: RoadsAsk, router: IslandRouter, signal: AbortSignal): IslandRoads | undefined {
   const known = knownIslandRoads(ask);
@@ -153,11 +255,15 @@ export function islandRoadsWhenRouted(ask: RoadsAsk, router: IslandRouter, signa
   inTurn(() => router(ask, signal).then((roads) => {
     if (signal.aborted) return;
     routed.set(ask.map, { key: JSON.stringify([ask.links, ask.docks, ask.names]), roads });
+    if (ask.story !== undefined) {
+      if (roadShelf === null) roadShelf = roadsShelf();
+      roadShelf?.write(ask.story, storedKey(ask), roads);
+    }
     version++;
     for (const listener of listeners) listener();
   }, (error: unknown) => {
     if (!signal.aborted) console.error("forest territories: routing the island's roads failed", error);
-  }), signal);
+  }), signal, ask.story);
   return undefined;
 }
 

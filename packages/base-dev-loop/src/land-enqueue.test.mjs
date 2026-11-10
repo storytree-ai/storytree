@@ -73,7 +73,7 @@ test("5.3 a reply that will not parse, with the pull request not in the queue, i
 });
 
 test("5.3 with no queue entry, no decision reads the pull request as enqueued", () => {
-  for (const reply of [unparseable, queued, expected, "some other refusal"]) {
+  for (const reply of [unparseable, queued, expected, wentWrong, "some other refusal"]) {
     for (const seconds of [0, 90, RETRY_WINDOW_SECONDS]) {
       assert.equal(enqueueDecision(reply, seconds).enqueued, false, `${reply} at ${seconds} s`);
     }

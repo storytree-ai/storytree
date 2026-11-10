@@ -165,14 +165,14 @@ test("6.8 Given a live count of the pull requests in CI and in the queue, the st
   assert.equal(lines(renderCiTimes(READING, NOW, live))[3], "In CI 4, in queue 0, live");
 
   const shown = host();
-  let count: { inCi: number; inQueue: number } | undefined = live;
-  const block = mountCiTimes(shown, { read: async () => READING, going: () => count, now: () => NOW, everyMs: 5 });
+  const block = mountCiTimes(shown, { read: async () => READING, going: () => live, now: () => NOW });
   t.after(() => block.stop());
+  const none = host();
+  const recorded = mountCiTimes(none, { read: async () => READING, going: () => undefined, now: () => NOW });
+  t.after(() => recorded.stop());
   await tick();
   assert.match(shown.innerHTML, /In CI 4, in queue 0, live/);
   assert.match(shown.title, /In CI and in queue: the open pull requests as their branch states say them now\./);
-  count = undefined;
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.match(shown.innerHTML, /In CI 2, in queue 1, 3 min ago/, "no live count: the recording's");
-  assert.match(shown.title, /In CI and in queue: as the last recording saw them/);
+  assert.match(none.innerHTML, /In CI 2, in queue 1, 3 min ago/, "no live count: the recording's");
+  assert.match(none.title, /In CI and in queue: as the last recording saw them/);
 });

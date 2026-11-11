@@ -399,3 +399,53 @@ test("3.102 · the first pick after an arc is selected draws its gold ring alone
   assert.ok(compiled.some(names => names.includes("picked-ring:one-b-cap")), "the gold ring's shader built as it is drawn");
   assert.deepEqual(compiled.filter(names => names.includes("territory-land") && !names.includes("knowledge-roots")), [], "the island's land not compiled again");
 });
+
+/** The sheet's turn as drawn: its group's quaternion and position. */
+const sheetTurn = (page: Page) => page.evaluate(() => {
+  const globe = (window as unknown as { __globe: { scene: { getObjectByName(name: string): { quaternion: { toArray(): number[] }; position: { toArray(): number[] } } } } }).__globe.scene.getObjectByName("globe");
+  return [...globe.quaternion.toArray(), ...globe.position.toArray()];
+});
+
+test("3.104 · a click on a story's name on the map selects that story, and a drag that starts on the name pans", async t => {
+  const { page } = await openedMap(t);
+  // As script text: a function written here would be named by the bundler's helper, which the page lacks.
+  await page.evaluate(`globalThis.__picks = []; globalThis.__show(["one", "two"], undefined, { onPick: (...pick) => globalThis.__picks.push(pick) });`);
+  const picks = () => page.evaluate(() => (window as unknown as { __picks: unknown[][] }).__picks);
+  const name = await page.locator('.planet-nameplate[data-story-id="two"]').boundingBox();
+  assert.ok(name !== null, "story two's name is drawn");
+  const middle = { x: name.x + name.width / 2, y: name.y + name.height / 2 };
+  await page.mouse.click(middle.x, middle.y);
+  assert.deepEqual((await picks()).at(-1)?.[0], "two", "the click on the name picked its story");
+
+  const before = await sheetTurn(page), picked = (await picks()).length;
+  await page.mouse.move(middle.x, middle.y);
+  await page.mouse.down();
+  for (let step = 1; step <= 5; step++) await page.mouse.move(middle.x + step * 12, middle.y + step * 6);
+  await page.mouse.up();
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  assert.notDeepEqual(await sheetTurn(page), before, "the drag from the name panned the sheet");
+  assert.equal((await picks()).length, picked, "the drag picked nothing");
+});
+
+test("3.106 · the Whole map button shows once the view is moved, returns it to its opening, and goes", async t => {
+  const { page } = await openedMap(t);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  // The map's own styles, as the app loads them: they let the button take the pointer the overlay's layer does not.
+  await page.addStyleTag({ path: path.join(import.meta.dirname, "styles.css") });
+  const button = page.locator("button.whole-map");
+  assert.equal(await button.count(), 0, "no button at the opening");
+  const opening = await sheetTurn(page);
+  await page.mouse.move(400, 300);
+  await page.mouse.down();
+  for (let step = 1; step <= 5; step++) await page.mouse.move(400 + step * 20, 300 + step * 10);
+  await page.mouse.up();
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  assert.notDeepEqual(await sheetTurn(page), opening, "the drag moved the sheet");
+  await button.waitFor({ state: "visible", timeout: 5_000 });
+  await button.click();
+  const near = (a: number[], b: number[]) => a.every((value, i) => Math.abs(value - b[i]!) < 1e-3);
+  let now: number[] = [];
+  await waitUntil(async () => near(now = await sheetTurn(page), opening), 10_000, "the sheet back at its opening");
+  assert.ok(near(now, opening));
+  await button.waitFor({ state: "detached", timeout: 5_000 });
+});

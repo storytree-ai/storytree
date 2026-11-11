@@ -12,6 +12,7 @@ import { territories } from "../territories/territories.js";
 import { focusRotation, markersApart, markerSpot } from "./planet-navigation.js";
 import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPointerMarkers, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
+import { STORY_PLATE_WIDTH } from "./nameplates.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const size = { width: 1440, height: 960 };
@@ -26,6 +27,17 @@ function sheet(depth: number) {
     record: { id, type: "story", version: 1, fields: { title: id }, createdAt: new Date(index).toISOString(), updatedAt: new Date(index).toISOString() } }));
   const scene = forestScene(tree, history, workStates([]));
   return sheetLayout(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
+}
+
+/** Five stories, each building on the one before (a chain), or building on nothing (a row): contract 1.10's two forests. */
+function five(chained: boolean) {
+  const ids = ["account", "comment", "feed", "articles", "follow"];
+  const tree: AnnotatedTree = { arcs: [], stories: ids.map((id, k) => ({ id, title: `Story ${id}`, health, capabilities: [
+    { id: `${id}-cap`, title: "A part", dependsOn: chained && k > 0 ? [`${ids[k - 1]}-cap`] : [], proposed: true, status: "proposed" as const, contracts: [], health },
+  ] })) };
+  const history = ids.map((id, index): Change => ({ seq: index + 1, recordId: id, type: "story", action: "created",
+    record: { id, type: "story", version: 1, fields: { title: id }, createdAt: new Date(index).toISOString(), updatedAt: new Date(index).toISOString() } }));
+  return sheetLayout(forestScene(tree, history, workStates([])), new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
 }
 
 /** The zoom a pose frames, in CSS pixels per ground unit at the middle of the view. */
@@ -114,6 +126,20 @@ test("3.52 on the glass sheet the eye rests at a tabletop tilt from above, the n
   }
   const far = sheetPanUnder(turn, { x: 1e7, y: 1e7 }, { x: 0, y: 0 }, extent), edge = sheetCentre(far);
   assert.ok(Math.abs(edge.x - extent.width / 2) < 1e-6 && Math.abs(edge.y - extent.height / 2) < 1e-6, "a pan stops with the sheet's north-east corner in the middle of the view");
+});
+
+test("1.10 a five-story chain, like a five-story row, opens on the glass sheet (where Home goes back to) with every island and the width of its nameplate inside the window, and no two of the chain's names overlapping", () => {
+  for (const chained of [true, false]) {
+    const layout = five(chained), opened = eye(sheetOpening(layout.extent, size), layout.extent);
+    const drawn = layout.islands.map(island => ({ story: island.story, at: opened.screen(sheetPoint(island.spot)) }));
+    for (const { story, at } of drawn) {
+      assert.ok(at.x - STORY_PLATE_WIDTH / 2 >= 0 && at.x + STORY_PLATE_WIDTH / 2 <= size.width && at.y > 0 && at.y < size.height,
+        `${chained ? "chain" : "row"}: ${story}'s nameplate in the window (${at.x.toFixed(0)}, ${at.y.toFixed(0)})`);
+    }
+    if (!chained) continue;
+    const across = drawn.map(({ at }) => at.x).sort((a, b) => a - b);
+    for (let k = 1; k < across.length; k++) assert.ok(across[k]! - across[k - 1]! >= STORY_PLATE_WIDTH, `neighbouring names clear each other (${(across[k]! - across[k - 1]!).toFixed(0)} px)`);
+  }
 });
 
 test("3.53 on the glass sheet, Home eases the view back to the one it opened on, however it was panned and zoomed", () => {

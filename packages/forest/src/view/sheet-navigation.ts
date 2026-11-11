@@ -10,11 +10,12 @@
  * (ADR-1060); nothing switches what a drag does.
  */
 import { Euler, Plane, Quaternion, Raycaster, Vector2, Vector3, type Camera, type Object3D } from "three";
-import { sheetPlaces, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
+import { NAMEPLATE_ROOM, SEA_GAP, sheetPlaces, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
 import { islandCoast, islandCoastReach } from "@storytree/forest-world/geometry";
 import { islandLayout, type LinkDock } from "../territories/link-layout.js";
 import { PLATE_CLEARANCE, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetPoint, sheetSpot, type SheetExtent, type SheetPoint } from "@storytree/forest-world/planet";
 import { isDrawn, type GlobePose } from "./globe-guide.js";
+import { STORY_PLATE_WIDTH } from "./nameplates.js";
 import type { ForestMode } from "./planet-navigation.js";
 
 /** Glass round the land on every side, in ground units. */
@@ -127,27 +128,49 @@ function focal(size: { height: number }): number {
 /**
  * The view the sheet opens on, and Home returns to (D4), at the top resting tilt: its whole height framed in perspective,
  * the north edge `CLEAR_TOP` below the window's top and the south edge `CLEAR_BOTTOM` above its bottom, from its west edge,
- * so the user scrolls east to follow the depth; a sheet narrower than the window sits in its middle.
+ * so the user scrolls east to follow the depth; a sheet narrower than the window sits in its middle. A sheet that would run
+ * past the window's width but fits it whole at `OPENING_FLOOR` or nearer is drawn smaller instead, its edges brought in
+ * alike, until its whole width fits, so a short chain opens with every island in view (1.10) and a deep library still
+ * scrolls east.
  * The perspective draws the near south half bigger than the far north half, so the middle of the view lies a little south
  * of the sheet's middle. At a `framing` asked for, the whole map is the same view zoomed: still from its west edge, or in the
  * middle once the sheet is narrower than the window (3.66).
  */
 export function sheetOpening(extent: SheetExtent, size: { width: number; height: number }, framing?: number): GlobePose {
   const f = focal(size), n = extent.height / 2;
-  // How far above and below the window's middle the north and south edges are drawn.
-  const above = Math.max(size.height / 2 - CLEAR_TOP, 0.5), below = Math.max(size.height / 2 - CLEAR_BOTTOM, 0.5);
   const sin = Math.sin(SHEET_TILT), cos = Math.cos(SHEET_TILT);
-  // North of the middle of the view the sheet runs `far` units, south of it `near`, in the ratio that draws each edge where
-  // it is kept; the eye stands `distance` off, or as far as a `framing` asked for puts it, with the middle of the view where
-  // the opening has it (3.66).
-  const ratio = above * (f * cos + below * sin) / (below * (f * cos - above * sin));
-  const far = 2 * n * ratio / (1 + ratio), near = 2 * n / (1 + ratio);
-  const zoom = framing === undefined ? f / (far * (f * cos - above * sin) / above) : Math.min(size.width, size.height) / (2 * framing * SHEET_RADIUS);
-  const distance = f / zoom, y = n - far;
+  // The view with the north and south edges drawn `scale` of the way from the window's middle to where they are kept.
+  const framed = (scale: number) => {
+    // How far above and below the window's middle the north and south edges are drawn.
+    const above = scale * Math.max(size.height / 2 - CLEAR_TOP, 0.5), below = scale * Math.max(size.height / 2 - CLEAR_BOTTOM, 0.5);
+    // North of the middle of the view the sheet runs `far` units, south of it `near`, in the ratio that draws each edge where
+    // it is kept; the eye stands `distance` off, or as far as a `framing` asked for puts it, with the middle of the view where
+    // the opening has it (3.66).
+    const ratio = above * (f * cos + below * sin) / (below * (f * cos - above * sin));
+    const far = 2 * n * ratio / (1 + ratio), near = 2 * n / (1 + ratio);
+    const zoom = framing === undefined ? f / (far * (f * cos - above * sin) / above) : Math.min(size.width, size.height) / (2 * framing * SHEET_RADIUS);
+    const closest = f / zoom - near * sin;
+    return { zoom, y: n - far, closest, fits: extent.width * f / closest <= size.width };
+  };
+  let view = framed(1);
+  if (framing === undefined && !view.fits) {
+    // The largest scale at which the whole width fits, taken only if names are still apart there.
+    let low = 0, high = 1;
+    for (let step = 0; step < 48; step++) {
+      const mid = (low + high) / 2;
+      if (framed(mid).fits) low = mid; else high = mid;
+    }
+    const whole = framed(low);
+    if (whole.fits && whole.zoom >= OPENING_FLOOR) view = whole;
+  }
   // The south-west corner, nearest the eye, comes to the window's left edge.
-  const closest = distance - near * sin, x = extent.width * f / closest <= size.width ? 0 : -extent.width / 2 + size.width * closest / (2 * f);
+  const { zoom, y, closest } = view, x = view.fits ? 0 : -extent.width / 2 + size.width * closest / (2 * f);
   return { turn: turnToIsland(sheetSpot({ x, y })), framing: framing ?? Math.min(size.width, size.height) / (2 * zoom * SHEET_RADIUS), sideOffset: 0 };
 }
+
+/** The farthest out a wide sheet opens whole, in CSS pixels per ground unit: neighbouring columns stand at least a sea gap and a
+ * nameplate's room apart (`sheetPlaces`), so at this zoom no two neighbouring columns' story names overlap (ADR-0917). */
+const OPENING_FLOOR = STORY_PLATE_WIDTH / (SEA_GAP + NAMEPLATE_ROOM);
 
 /** The place on the sheet in the middle of the view at `turn`. */
 export function sheetCentre(turn: GlobeTurn): SheetPoint {

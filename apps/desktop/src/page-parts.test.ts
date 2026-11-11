@@ -159,7 +159,7 @@ test("8.3 the page operations of a part this computer switches off are not answe
   }, ["app"]);
 
   const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args));
-  await assert.rejects(page.recordLag([]), /app is switched off on this computer\. Switch it on with: storytree settings set part app on/);
+  await assert.rejects(page.recordLag([]), /app is switched off on this computer\. Switch it on with: storytree settings set module app on/);
   assert.deepEqual(readReadings(home), [], "nothing was kept");
   assert.equal((await page.saveSetting("context-guidance", ["420000"])).ok, true, "the core's settings panel is still answered");
 });

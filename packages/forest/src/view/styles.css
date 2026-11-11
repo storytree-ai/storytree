@@ -97,6 +97,37 @@
   pointer-events: none;
 }
 
+/* What the map says while its project has no story, in the middle of the sheet (3.107). */
+.forest-empty-map {
+  position: absolute;
+  z-index: 40;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: min(26rem, calc(100% - 2rem));
+  padding: 0.9rem 1.1rem;
+  border: 1px solid #485159;
+  border-radius: 10px;
+  background: #101418e6;
+  color: #dde3e6;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.forest-empty-map p {
+  margin: 0 0 0.6rem;
+}
+
+.forest-empty-map button {
+  border: 1px solid #485159;
+  border-radius: 5px;
+  padding: 0.4rem 0.8rem;
+  background: #eadcae;
+  color: #101418;
+  font: inherit;
+  cursor: pointer;
+}
+
 .forest-views {
   display: flex;
   gap: 2px;
@@ -579,6 +610,24 @@
   font-weight: 600;
 }
 
+/* A row opens its increment in the rail's Arcs tab (4.48): it reads as its text until hovered or focused. */
+.panel-open-increment {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  /* A button lines up with its row's number by its first line, not its last. */
+  vertical-align: top;
+  cursor: pointer;
+}
+
+.panel-open-increment:hover,
+.panel-open-increment:focus-visible {
+  text-decoration: underline;
+}
+
 .panel-why .panel-mover {
   color: var(--muted);
 }
@@ -607,25 +656,34 @@
   gap: 0.4rem;
 }
 
-.panel-badge {
-  font-size: 0.78rem;
-  padding: 0.05rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid var(--none-line);
-  background: var(--none-bg);
-  color: var(--none-text);
+/* A contract's checks after its title, one icon each and no words (question_32b645261409): coloured as the map fills a
+   territory (territory-land.ts's WORD_FILL), green passed, red failed, yellow not run yet. Small, so the gear is not the
+   app's menu gear. */
+.panel-marks {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-left: 0.4rem;
+  vertical-align: -0.1rem;
 }
 
-.panel-badge.badge-passing {
-  border-color: var(--pass-line);
-  background: var(--pass-bg);
-  color: var(--pass-text);
+.panel-mark {
+  display: inline-flex;
 }
 
-.panel-badge.badge-failing {
-  border-color: var(--fail-line);
-  background: var(--fail-bg);
-  color: var(--fail-text);
+.panel-mark.state-passing {
+  color: #97C459;
+}
+
+.panel-mark.state-failing {
+  color: #E24B4A;
+}
+
+.panel-mark.state-not-checked {
+  color: #F2D16B;
+}
+
+.panel-check {
+  flex-basis: 100%;
 }
 
 .panel-contracts {

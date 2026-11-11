@@ -44,11 +44,11 @@ export function drawnIslands(globe: IslandsAndNotes | undefined): Box[] {
 
 /**
  * What is being read near `target` on the page, drawn now: the open story panel, the nameplates of its story and capability,
- * the project switcher and the Stories/Library switch, the CI times strip in the map's bottom-left while it shows, and the left
+ * the project switcher, the bar's gear and the Stories/Library switch, the CI times strip in the map's bottom-left while it shows, and the left
  * rail while it is open (for a card about the plan, only its tabs and what its panel draws), which no card covers.
  */
 export function readingNear(target: CardTarget, document: Document): Box[] {
-  const near = [...document.querySelectorAll<HTMLElement>(".story-panel:not([hidden]), .planet-nameplate, .app-factory, .forest-views, .ci-times:not([hidden])")].filter((element) =>
+  const near = [...document.querySelectorAll<HTMLElement>(".story-panel:not([hidden]), .planet-nameplate, .app-factory, .app-gear, .forest-views, .ci-times:not([hidden])")].filter((element) =>
     !element.classList.contains("planet-nameplate")
     || (target.story !== undefined && element.dataset.storyId === target.story)
     || (target.capability !== undefined && element.dataset.capabilityId === target.capability));

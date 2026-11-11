@@ -200,7 +200,7 @@ const stale = verb({
     const rows = claims.map((claim) =>
       `- ${claim.increment}: ${claim.label} session ${claim.holder} (${claim.reason}), last seen ${claim.lastSeenAt}${claim.branch === undefined ? "" : `, on ${claim.branch}`}. ${
         claim.route === "release"
-          ? `Gone: storytree workspace release ${claim.increment} --holder ${claim.holder} --reason <why>.`
+          ? `${claim.ended ? "Ended: its process stopped and it stayed quiet since" : "Gone"}: storytree workspace release ${claim.increment} --holder ${claim.holder} --reason <why>.`
           : "Quiet: ask its holder first, and release it only once it stays quiet."}`);
     return { text: [`${claims.length} claimed increment${claims.length === 1 ? " is" : "s are"} stale:`, ...rows, ...unread].join("\n") };
   },

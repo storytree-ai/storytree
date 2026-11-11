@@ -24,8 +24,9 @@ const measure = page => page.evaluate(() => {
   const story = document.body.dataset.teachingStory;
   const drawn = window.storytreeGlobe.islands().filter(one => one.visible && one.box !== undefined);
   const island = drawn.find(one => one.story === story);
-  // The bar's project switcher and the globe's Stories/Library switch, which no card covers (increment_176e36671e3c).
-  const switches = [...document.querySelectorAll('.app-factory, .forest-views')].map(one => one.getBoundingClientRect()).filter(one => one.width > 0)
+  // The bar's project switcher and gear and the globe's Stories/Library switch, which no card covers (increment_176e36671e3c,
+  // increment_ec73adabddb1).
+  const switches = [...document.querySelectorAll('.app-factory, .app-gear, .forest-views')].map(one => one.getBoundingClientRect()).filter(one => one.width > 0)
     .map(({ left, top, right, bottom }) => ({ left, top, right, bottom }));
   // The card's tie to its thing: a ring round it and a line to the card (3.10).
   const ties = card.querySelectorAll('.teaching-card-ring, .teaching-card-tie').length;
@@ -55,8 +56,8 @@ await runCapture({
       measure: ({ page }) => measure(page),
       expect: found => {
         assert.deepEqual([found.cards, found.kind], [1, 'arc']);
-        assert.equal(found.switches.length, 2, 'the project switcher and the Stories/Library switch are both on show');
-        assert.ok(found.switches.every(one => apart(found.card, one)), 'the plan card covers neither switch');
+        assert.equal(found.switches.length, 3, 'the project switcher, the gear and the Stories/Library switch are all on show');
+        assert.ok(found.switches.every(one => apart(found.card, one)), 'the plan card covers none of them');
       },
     },
     {
@@ -74,7 +75,7 @@ await runCapture({
         assert.ok(found.island !== undefined, 'its island is drawn');
         assert.ok(apart(found.card, found.island), 'the story card stays off its island');
         assert.ok(found.islands.every(box => apart(found.card, box)), 'and off every other island drawn');
-        assert.ok(found.switches.every(one => apart(found.card, one)), 'and off both switches');
+        assert.ok(found.switches.every(one => apart(found.card, one)), 'and off the switches and the gear');
         assert.equal(found.ties, 2, 'tied to its island by a ring and a line');
       },
     },
@@ -87,6 +88,8 @@ await runCapture({
       measure: ({ page }) => measure(page),
       expect: found => {
         assert.deepEqual([found.cards, found.kind], [1, 'story']);
+        assert.equal(found.switches.length, 3);
+        assert.ok(found.switches.every(one => apart(found.card, one)), 'grown taller, the card still covers no switch and not the gear');
         assert.ok(apart(found.card, found.island), 'taller, the story card still stays off its island');
         assert.ok(found.islands.every(box => apart(found.card, box)), 'and off every other island drawn');
         assert.equal(found.ties, 2, 'and is still tied to it');

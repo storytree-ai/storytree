@@ -8,6 +8,7 @@ import { codeSurveyReader, surveyCodeName, type ImportedFolder } from "./code-su
 import { buildGraph, type ProjectGraph } from "./graph.js";
 import { focus, formatFocus, type FocusAnswer, type FocusOptions } from "./focus.js";
 import { crossingsOf, formatCrossing, type CrossingAnswer, type CrossingOptions } from "./code-survey/crossings.js";
+import { formatLinks, linksOf, type LinksAnswer } from "./code-survey/links.js";
 import { capabilityTreeOf, formatCapabilityTree, type CapabilityTree } from "./capability-tree.js";
 
 type PlanReader = Pick<Library, "projectTree">;
@@ -99,6 +100,17 @@ export async function capabilitiesCommand(library: PlanReader, folder: string, s
   return json ? JSON.stringify(answer) : formatCapabilityTree(answer);
 }
 
+/** The links of the mapped story `select` names checked against its code's imports, read only when this is asked (3.15). */
+export async function linksProject(library: PlanReader, folder: string, select: string, imports: readonly ImportedFolder[] = []): Promise<LinksAnswer> {
+  const tree = await branchPlan(library, folder);
+  return linksOf(tree, await current.read(folder, tree, imports), await topOf(folder), select);
+}
+
+export async function linksCommand(library: PlanReader, folder: string, select: string, json = false, imports: readonly ImportedFolder[] = []): Promise<string> {
+  const answer = await linksProject(library, folder, select, imports);
+  return json ? JSON.stringify(answer) : formatLinks(answer);
+}
+
 /** The affected front door and diff focus share one map implementation and renderer. */
 export async function affectedCommand(library: PlanReader, folder: string, options: AffectedOptions, json = false): Promise<string> {
   const answer = await affectedProject(onBranch(library, folder), folder, options, current);
@@ -107,7 +119,7 @@ export async function affectedCommand(library: PlanReader, folder: string, optio
 
 export { changedOnMain };
 export { formatCrossing };
-export type { CrossingAnswer, CrossingOptions, ImportedFolder };
+export type { CrossingAnswer, CrossingOptions, ImportedFolder, LinksAnswer };
 
 /** How far back main's commits are read for the health worklist: longer than any merge's own-health run takes, so the library's bound decides. */
 const MAIN_READ_BACK = 24 * 60 * 60 * 1000;

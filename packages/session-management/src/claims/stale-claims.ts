@@ -1,9 +1,10 @@
 /**
  * Capability 5 · Claims. The session manager's one stale-claim worklist (ADR-0953 D4): the claimed increments
  * whose holder is quiet, with no command still running and no open pull request from the claim's branch, each
- * with its route. A holder that reads gone (no line for longer than a command may run, ADR-0754 D5), or whose
- * safe close-out is verified, is routed to release, through the manager's release (releaseFor, ADR-0944 D7); one
- * only quiet is routed to ask the holder first. Reading the worklist ends nothing: it replaces the hooks ending
+ * with its route. A holder that reads gone (no line for longer than a command may run, ADR-0754 D5), whose
+ * safe close-out is verified, or whose process stopped (4.41) and that stayed quiet past the quiet time since
+ * (ADR-1311 D2), is routed to release, through the manager's release (releaseFor, ADR-0944 D7); one only quiet is
+ * routed to ask the holder first. Reading the worklist ends nothing: it replaces the hooks ending
  * gone holders' claims themselves (ADR-0944 D6, retired). Release on merge, the restart ending and idle takeover
  * stand beside it (ADR-0953 D1, D2).
  */
@@ -26,8 +27,10 @@ export interface StaleClaim {
   readonly branch?: string;
   /** When the holder's latest line was written. */
   readonly lastSeenAt: string;
-  /** release: the holder is gone, so the manager releases it; ask: the holder is only quiet, so the manager asks it first. */
+  /** release: the holder is gone or ended, so the manager releases it; ask: the holder is only quiet, so the manager asks it first. */
   readonly route: "release" | "ask";
+  /** On a release: the holder's process stopped and it stayed quiet since, rather than reading gone (ADR-1311 D2). */
+  readonly ended?: true;
 }
 
 export interface StaleWorklist {
@@ -51,13 +54,14 @@ export interface StaleOptions {
 export async function staleClaims(context: { readonly log: ActivityLog; readonly project: string; readonly folder: string }, options: StaleOptions = {}): Promise<StaleWorklist> {
   const { log, project } = context;
   const now = options.now ?? new Date();
+  const quietMs = options.quietMs ?? idleAfterMs();
   const claimLines = await log.standing(project);
   const holders = holdersOf(claimLines);
   if (holders.length === 0) return { claims: [] };
   const [lines, beats] = await Promise.all([log.foldLines(project, holders, new Date(now.getTime() - COMMANDS_MS).toISOString()), log.beats.of(project, holders)]);
   const fold = LogFold.fromBounded(lines, claimLines);
   const restarted = options.restarted ?? thisRestart();
-  const quiet = fold.claims({ now, quietMs: options.quietMs ?? idleAfterMs(), beats, ...(restarted === undefined ? {} : { restarted }) })
+  const quiet = fold.claims({ now, quietMs, beats, ...(restarted === undefined ? {} : { restarted }) })
     .filter((claim): claim is Claim & { increment: string } => claim.increment !== undefined && claim.holder === "idle");
   if (quiet.length === 0) return { claims: [] };
   // GitHub is asked only when a quiet claim names a branch a pull request could come from.
@@ -70,6 +74,8 @@ export async function staleClaims(context: { readonly log: ActivityLog; readonly
     .map((claim): StaleClaim => {
       const session = sessions.get(claim.session);
       const gone = session?.state === "gone" || session?.closeOut?.verified === true;
+      // A stopped holder reads idle at once (4.41); one that stayed quiet the quiet time since has ended, not paused between turns.
+      const ended = !gone && claim.quiet?.because === "stopped" && now.getTime() - Date.parse(claim.quiet.since) > quietMs;
       return {
         increment: claim.increment,
         holder: claim.session,
@@ -78,7 +84,8 @@ export async function staleClaims(context: { readonly log: ActivityLog; readonly
         since: claim.since,
         ...(claim.branch === undefined ? {} : { branch: claim.branch }),
         lastSeenAt: session?.lastSeenAt ?? claim.since,
-        route: gone ? "release" : "ask",
+        route: gone || ended ? "release" : "ask",
+        ...(ended ? { ended: true as const } : {}),
       };
     })
     .sort((a, b) => a.since.localeCompare(b.since));

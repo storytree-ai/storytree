@@ -90,6 +90,7 @@ export function machineSecrets({ home = homedir(), sources = MACHINE_CREDENTIALS
 const occurrences = (texts, value) => texts.reduce((n, text) => n + text.split(value).length - 1, 0);
 
 const ZERO = /^0+$/;
+const ZEROS = "0".repeat(40);
 
 /** A blob's texts; one textsOf cannot open (a damaged archive) is read as its raw bytes, so it is still searched. */
 function readable(bytes) {
@@ -101,10 +102,11 @@ function readable(bytes) {
 }
 
 /**
- * The refusals for a push: for each update git hands the hook (local sha, remote sha), each commit not yet on
- * `remote`, and each file it adds or changes whose count of a machine value, or of a CodeQL pattern in a code file,
- * rises against the commit's first parent. `secrets` are one line a hit, naming the file, the commit and the kind,
- * never the value; `patterns` name the file, the line and the commit.
+ * The refusals for a push: for each update git hands the hook (local sha, remote sha), each commit no ref of
+ * `remote` holds, and each file it adds or changes whose count of a machine value, or of a CodeQL pattern in a code
+ * file, rises against every parent of the commit, so a merge of main is not charged with main's own text. `secrets`
+ * are one line a hit, naming the file, the commit and the kind, never the value; `patterns` name the file, the line
+ * and the commit.
  */
 export function pushProblems({ root, remote, updates, secrets }) {
   const git = (args, encoding = "utf8") => execFileSync("git", args, { cwd: root, encoding, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024 });
@@ -123,22 +125,25 @@ export function pushProblems({ root, remote, updates, secrets }) {
   for (const { localSha, remoteSha } of updates) {
     if (ZERO.test(localSha)) continue; // a deletion pushes no text
     const known = !ZERO.test(remoteSha) && spawnSync("git", ["cat-file", "-e", `${remoteSha}^{commit}`], { cwd: root }).status === 0;
-    const range = known ? [localSha, `^${remoteSha}`] : [localSha, "--not", notPushed];
+    const range = [localSha, ...(known ? [`^${remoteSha}`] : []), "--not", notPushed];
     for (const commit of git(["rev-list", ...range]).split("\n").filter(Boolean)) {
       if (seen.has(commit)) continue;
       seen.add(commit);
+      const others = git(["rev-list", "--parents", "-n", "1", commit]).trim().split(" ").slice(2);
+      const blobAt = (parent, file) => spawnSync("git", ["rev-parse", "--verify", "-q", `${parent}:${file}`], { cwd: root, encoding: "utf8" }).stdout.trim();
       const raw = git(["diff-tree", "-r", "-z", "--root", "-m", "--first-parent", "--no-renames", "--no-commit-id", "--diff-filter=AM", commit]).split("\0");
       for (let at = 0; at + 1 < raw.length; at += 2) {
         const [, , before, after] = raw[at].split(" ");
         const file = raw[at + 1];
         const added = textsAt(after);
         if (added.length === 0) continue;
-        const prior = textsAt(before);
-        const kinds = new Set(secrets.filter(({ value }) => occurrences(added, value) > occurrences(prior, value)).map(({ what }) => what));
+        const priors = [textsAt(before), ...others.map((parent) => textsAt(blobAt(parent, file) || ZEROS))];
+        const most = (count) => Math.max(...priors.map(count));
+        const kinds = new Set(secrets.filter(({ value }) => occurrences(added, value) > most((prior) => occurrences(prior, value))).map(({ what }) => what));
         for (const what of kinds) problems.push(`${file} (commit ${commit.slice(0, 10)}) adds the value of ${what}`);
         if (!CODE_FILE.test(file)) continue;
         const hits = added.flatMap((text) => sanitizationHits(file, text));
-        if (hits.length <= prior.flatMap((text) => sanitizationHits(file, text)).length) continue;
+        if (hits.length <= most((prior) => prior.flatMap((text) => sanitizationHits(file, text)).length)) continue;
         for (const hit of hits) patterns.push(`${file}:${hit.line} (commit ${commit.slice(0, 10)}) ${describe(hit)}`);
       }
     }

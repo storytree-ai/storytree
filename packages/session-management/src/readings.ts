@@ -385,6 +385,8 @@ interface SessionFold {
   finished: Set<string>;
   /** Until when the background tasks its latest turn left running keep it live, when that turn left any (5.66). */
   backgroundUntil?: number;
+  /** Its process stopped and has not started again (4.41, ADR-1311 D1): its claims stand, their holder idle. */
+  stopped?: true;
   closedOut?: { line: Line & { kind: "closed-out" }; reopened: boolean };
   name?: string;
   pointer?: Pointer;
@@ -587,9 +589,14 @@ export class LogFold {
     } else if (line.kind === "turn-ended" || line.kind === "session-started" || line.kind === "session-ended") own.running.clear();
     // The background tasks a turn left running (a gate queued behind the heavy-run lock, say) run on with no line of their
     // own, until a later turn ends with none, or the session starts again, within LONGEST_COMMAND_MS (5.66). Its end needs
-    // no clearing here: a session's end ends its claims.
+    // no clearing here: a stopped holder reads idle whatever it left running.
     if (line.kind === "turn-ended" && (line.background ?? 0) > 0) own.backgroundUntil = Date.parse(line.at) + LONGEST_COMMAND_MS;
     else if (line.kind === "turn-ended" || (line.kind === "session-started" && line.how !== "compact")) delete own.backgroundUntil;
+    // Its process stopping (4.41, ADR-1311 D1): its end line, or a turn's end saying its process exits with nothing left in
+    // the background, until it is prompted, starts again or claims. Each is judged by its latest line of these kinds alone,
+    // which FOLD_LINES keeps, so the bounded fold agrees.
+    if (line.kind === "session-ended" || (line.kind === "turn-ended" && line.exits === true && (line.background ?? 0) === 0)) own.stopped = true;
+    else if (line.kind === "turn-ended" || line.kind === "prompt-submitted" || line.kind === "claimed" || (line.kind === "session-started" && line.how !== "compact")) delete own.stopped;
     // Its close-out, and what came after it.
     if (line.kind === "closed-out") own.closedOut = { line, reopened: false };
     else if (own.closedOut !== undefined && (line.kind === "claimed" || line.kind === "prompt-submitted" || (line.kind === "session-started" && line.how !== "compact"))) own.closedOut.reopened = true;
@@ -714,7 +721,8 @@ export class LogFold {
       const closeOut = sessions.get(holder.session)?.closeOut;
       const because: QuietBecause | undefined = closeOut?.verified === true ? "closed-out"
         : diedIn(options.restarted, this.#machines.get(holder.session), seen) || this.#diedWithMachine(holder.session, seen) ? "restart"
-        : stoppedBy(options.beats?.get(holder.session), seen, now, running) ? "stopped"
+        // A stopped process wins over its later end marks, a recorded running command and a background task (4.41).
+        : own?.stopped === true || stoppedBy(options.beats?.get(holder.session), seen, now, running) ? "stopped"
         : now - Date.parse(seen) > quietMs && !running && !background ? (now - Date.parse(seen) > LONGEST_COMMAND_MS ? "gone" : "idle")
         : undefined;
       if (because !== undefined) return { ...holder, holder: "idle", quiet: { since: seen, because } } as Claim;

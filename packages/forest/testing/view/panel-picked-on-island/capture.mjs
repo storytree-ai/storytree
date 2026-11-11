@@ -48,10 +48,10 @@ const panel = page => page.evaluate(() => {
     title: aside?.querySelector('.panel-head h2')?.textContent,
     story: aside?.querySelector('.panel-head .panel-story-name')?.textContent,
     names: [...aside?.querySelectorAll('.panel-pick') ?? []].map(b => b.textContent),
-    contractStates: [...aside?.querySelectorAll('.panel-detail [data-contract-id] .panel-handle .panel-badge') ?? []].length,
+    contractStates: [...aside?.querySelectorAll('.panel-detail [data-contract-id] .panel-handle .panel-mark') ?? []].length,
     gate: aside?.querySelector('.panel-gate') !== null && aside?.querySelector('.panel-gate') !== undefined,
     links: [...aside?.querySelectorAll('.panel-gate h3') ?? []].map(h => ({ said: h.textContent, contracts: h.nextElementSibling?.querySelectorAll('[data-contract-id]').length ?? 0, state: (h.nextElementSibling?.classList.contains('panel-link-state') ? [h.nextElementSibling.querySelector('.panel-handle')?.textContent, h.nextElementSibling.querySelector('.panel-link-failing')?.textContent, h.nextElementSibling.querySelector('.panel-link-open')?.textContent].filter(Boolean).join(' ') : h.nextElementSibling?.textContent) ?? '' })),
-    tree: aside?.querySelectorAll('svg, .panel-tree, [data-open-tree], [role="button"]').length ?? 0,
+    tree: aside?.querySelectorAll('svg:not(.panel-mark > svg), .panel-tree, [data-open-tree], [role="button"]').length ?? 0,
     handles: [...aside?.querySelectorAll('.panel-handle') ?? []].filter(h => h.closest('.panel-fold-body[hidden]') === null).map(h => h.textContent),
     opened: [...aside?.querySelectorAll('.panel-handle[aria-expanded="true"]') ?? []].map(h => h.textContent),
     picked: (() => { const found = []; window.__globe.scene.traverse(o => { if (o.visible && o.name.startsWith('picked-ring:')) found.push(o.name.slice('picked-ring:'.length)); }); return found; })(),
@@ -120,7 +120,7 @@ await runCapture({
       assert.equal(found.story, 'The library', 'its story named small above its title');
       assert.deepEqual(found.names, [], 'nothing of the story\'s list');
       assert.ok(!found.handles.some(h => /How it works|Health|Contracts ·/.test(h)), 'no How it works, Health or Contracts fold');
-      assert.ok(found.contractStates > 0, 'each contract shows its state');
+      assert.ok(found.contractStates > 0, 'each contract shows its marks');
       assert.deepEqual(found.opened, [], 'every fold closed on the first pick');
     },
   }, {
@@ -202,7 +202,7 @@ await runCapture({
     },
     expect: found => {
       assert.equal(found.opened.length, 2, 'a click opens the link\'s first contract');
-      assert.deepEqual(found.said, ['panel-trail'], 'its trail, the tests\' word on its handle and no agent\'s claim beside it, as a capability\'s contract shows');
+      assert.deepEqual(found.said.filter(kind => kind !== 'panel-tests' && kind !== 'panel-last-seen'), ['panel-check', 'panel-trail'], 'its check in words, then the agent\'s trail, as a capability\'s contract shows (ADR-1320)');
     },
   }],
 });

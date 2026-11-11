@@ -11,7 +11,7 @@
  * never changes how a tree is drawn, and no session colour is the proven green or the "needs you"
  * amber. A missing hook never reads as an agent doing nothing (ADR-0626 D4): a holder whose session
  * has written no hook line is never faded as idle. A holder with hook evidence quiet past the quiet
- * time fades; landing, releasing or its window closing takes the wisp away. Folded subagents and
+ * time, or whose window closed, fades; landing or releasing takes the wisp away. Folded subagents and
  * lanes claim only in their parent's colour, through its wisp (ADR-0736 D4).
  */
 import { sessionColour } from "@storytree/session-management/claim-mark";

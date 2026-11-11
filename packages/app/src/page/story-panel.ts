@@ -18,6 +18,8 @@ export interface StoryPanelParts {
   libraryCard(panel: HTMLElement, onClose: () => void): () => void;
   /** Select nothing on the forest, as a click on empty space would. */
   deselect(): void;
+  /** Show increment `id` where the frame shows one: the rail's Arcs tab (2.57). */
+  openIncrement(id: string): void;
 }
 
 export interface StoryPanelView {
@@ -65,6 +67,13 @@ export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPan
   /** The HTML on the panel now and the story it was drawn for: news that renders the same changes nothing on screen. */
   let drawn: { html: string; story: string } | undefined;
 
+  // An open-work row's button opens its increment (forest 4.48, 2.57).
+  const onClick = (event: Event): void => {
+    const id = (event.target as Element).closest?.<HTMLElement>("[data-open-increment]")?.dataset.openIncrement;
+    if (id !== undefined) parts.openIncrement(id);
+  };
+  panel.addEventListener("click", onClick);
+
   const show = (): void => {
     if (parts.body.dataset.note !== undefined) {
       panel.hidden = false;
@@ -104,6 +113,7 @@ export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPan
     stop() {
       card?.();
       card = undefined;
+      panel.removeEventListener("click", onClick);
     },
   };
 }

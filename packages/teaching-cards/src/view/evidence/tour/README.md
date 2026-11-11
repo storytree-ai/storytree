@@ -3,7 +3,7 @@
 The real desktop page on the eight-story forest snapshot, opened as a fresh install would, with no answer to the tour kept
 (contracts 3.1, 3.5, 3.7). `node --import tsx packages/teaching-cards/testing/tour/capture.mjs` (append `--retake` to write here).
 
-Each view measures the card on show, and the boxes of the project switcher and the Stories/Library switch, which no card covers; and, for a card about an island, the boxes of its island and of every other island drawn,
+Each view measures the card on show, and the boxes of the bar's project switcher and gear and of the Stories/Library switch, which no card covers (the gear since increment_ec73adabddb1); and, for a card about an island, the boxes of its island and of every other island drawn,
 from the globe's locator (3.41), and checks the card overlaps none of them.
 
 Pictures, 1440 x 960:
@@ -18,7 +18,7 @@ Pictures, 1440 x 960:
 - `a-story-card-beside-its-island.png`: after Next, "This is a story.", clear of The library's island and of every other
   island drawn (it sat over most of The agent link on the right before increment_9d7ebe411313), and off the rail; a ring
   round The library and a line to the card say which island it explains, which the capture counts (increment_d0639d5f51b3).
-- `the-story-card-with-more-open.png`: after More, the taller card, still off its island and every other, still tied to it,
+- `the-story-card-with-more-open.png`: after More, the taller card, still off its island and every other and clear of the switches and the gear, still tied to it,
   its text scrolling above its buttons, which stay on show, its foot fading while more of it lies below.
 - `the-story-card-scrolled-to-its-end.png`: the text scrolled to its end, nothing faded, the buttons still on show.
 - `the-map-clear-after-end-tour.png`: after End tour, no card on the map.

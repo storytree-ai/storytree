@@ -47,7 +47,8 @@ const memory: Backend = {
     const transactions = new MemoryTransactions();
     const records = new SchemaRecords(transactions);
     const work = new WorkModel(records);
-    return { health: new HealthRecord(records, work), work, flight: new WorkInFlight(records), records, transactions, cleanup: async () => {} };
+    const flight = new WorkInFlight(records);
+    return { health: new HealthRecord(records, work, flight), work, flight, records, transactions, cleanup: async () => {} };
   },
 };
 
@@ -519,6 +520,37 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(health.recordVerified(sibling.id, "passing", { source: untyped("laptop") }), schemaError("health", ["source"]));
   });
 
+  contract("5.25", "a verified entry keeps the names of the tests that judged it, read back as written; one written without them has none", async ({ health, work }) => {
+    const { contract, sibling } = await smallPlan(work);
+    const tests = ["4.47 · the fold names its tests", "4.47 · a contract no run judged says neither"];
+    const written = await health.recordVerified(contract.id, "passing", { by: "storytree test run", source: "local", tests });
+    assert.deepEqual(written.tests, tests);
+    const read = (await health.health(contract.id)).verified;
+    assert.deepEqual(read.tests, tests);
+    const inTree = (await health.annotate()).stories[0]!.capabilities[0]!.contracts.find(({ id }) => id === contract.id)!;
+    assert.deepEqual(inTree.health.verified.tests, tests);
+
+    await health.recordVerified(sibling.id, "passing", { by: "storytree test run" });
+    assert.equal("tests" in (await health.health(sibling.id)).verified, false, "an entry written without test names has none");
+  });
+
+  contract("5.27", "a contract's newest verified entry read from CI is kept beside its newest verified entry, so a later local entry never replaces it; one CI never read carries none", async ({ health, work }) => {
+    const { contract, sibling } = await smallPlan(work);
+    const ci = await health.recordVerified(contract.id, "failing", { by: "the project's CI", source: "ci" });
+    const local = await health.recordVerified(contract.id, "passing", { by: "storytree test run", source: "local" });
+    const read = await health.health(contract.id);
+    assert.equal(read.verified.state, "passing", "the newest entry is the local one");
+    const { at, ...kept } = read.ci ?? {};
+    assert.deepEqual(kept, { state: "failing", by: "the project's CI", source: "ci" }, "CI's stays beside it");
+    assert.ok(at !== undefined && at >= ci.at && at <= local.at, "kept when CI wrote it");
+    const inTree = (await health.annotate()).stories[0]!.capabilities[0]!.contracts.find(({ id }) => id === contract.id)!;
+    assert.deepEqual(inTree.health.ci, read.ci);
+    assert.deepEqual((await health.healthHistory(contract.id)).map(({ at }) => at), [ci.at, local.at], "CI's kept copy is no extra entry");
+
+    await health.recordVerified(sibling.id, "passing", { by: "storytree test run", source: "local" });
+    assert.equal("ci" in (await health.health(sibling.id)), false, "CI never read it: none");
+  });
+
   contract("5.8", "a capability that is not healthy carries its reason in the annotated tree, and a healthy one none", async ({ health, work }) => {
     const { capability, contract, sibling } = await smallPlan(work);
     const whyOf = async () => (await health.annotate()).stories[0]!.capabilities.find(({ id }) => id === capability.id)!.why;
@@ -708,6 +740,72 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await openOf(other.id), [{ increment: second.id, title: "Second parked" }]);
     await flight.closeIncrement(second.id, { disposition: "withdrawn", note: "Not needed" });
     assert.equal(await openOf(other.id), undefined, "no open increment names it");
+  });
+
+  contract("5.28", "each open increment a capability carries says what still holds it: the work it waits on, by title and whether that is under way or ready to take, a claim, a question, or a wait for the owner or an event", async ({ health, work, flight }) => {
+    const { story, capability } = await smallPlan(work);
+    const harness = await work.addCapability({ title: "Test harness", story: story.id });
+    const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
+    const add = async (title: string, capabilities: string[], extra: { heldOn?: string[] } = {}) => {
+      const increment = await flight.addIncrement({ arc: arc.id, title, objective: "Test it", body: "Red then green", ...extra });
+      await flight.editIncrement(increment.id, { capabilities });
+      await later();
+      return increment;
+    };
+    const oracle = await add("Test harness and DB oracle", [harness.id]);
+    const task = await add("Task 1", [capability.id]);
+    await flight.addWait(task.id, oracle.id, "needs the harness");
+    const question = await flight.raiseQuestion({ arc: arc.id, title: "Copy?", stakes: "Blocks the form", statement: "Which words?", context: "None yet", options: "Short or long" });
+    const held = await add("Held task", [capability.id], { heldOn: [question.id] });
+    const owner = await add("Owner task", [capability.id]);
+    await flight.addWaitFor(owner.id, { releaser: "owner", note: "sign in to the store", why: "the build is published" });
+    const free = await add("Free task", [capability.id]);
+    const claimed = await add("Claim task", [capability.id]);
+    await flight.addWait(claimed.id, harness.id, "waits on its claim");
+    const mail = await flight.createArc({ title: "Mail", intent: "An intent", endState: "An end state", stories: [story.id] });
+    const after = await flight.createArc({ title: "After mail", intent: "An intent", endState: "An end state", stories: [story.id] });
+    await flight.addWait(after.id, mail.id, "needs mail first");
+    const arcWait = await flight.addIncrement({ arc: after.id, title: "Arc task", objective: "Test it", body: "Red then green" });
+    await flight.editIncrement(arcWait.id, { capabilities: [capability.id] });
+    const waitsOf = async () => new Map((await health.annotate()).stories[0]!.capabilities.find((one) => one.id === capability.id)!.openWork!.map(({ increment, waits }) => [increment, waits]));
+
+    let waits = await waitsOf();
+    assert.deepEqual(waits.get(task.id), [{ kind: "work", on: oracle.id, title: "Test harness and DB oracle", state: "ready" }], "a blocker nothing holds and nobody started is ready to take");
+    assert.deepEqual(waits.get(held.id), [{ kind: "question", on: question.id }]);
+    assert.deepEqual(waits.get(owner.id), [{ kind: "owner", note: "sign in to the store" }]);
+    assert.equal(waits.get(free.id), undefined, "nothing holds it");
+    assert.deepEqual(waits.get(claimed.id), [{ kind: "claim", on: harness.id, title: harness.fields.title }], "a claim wait, by its capability's title");
+    assert.deepEqual(waits.get(arcWait.id), [{ kind: "work", on: mail.id, title: "Mail" }], "its arc's wait on another arc, by that arc's title");
+    await flight.advanceIncrement(oracle.id, "active");
+    waits = await waitsOf();
+    assert.deepEqual(waits.get(task.id), [{ kind: "work", on: oracle.id, title: "Test harness and DB oracle", state: "active" }], "a started blocker is under way");
+    await flight.closeIncrement(oracle.id, { disposition: "landed", pr: "1" });
+    assert.equal((await waitsOf()).get(task.id), undefined, "a landed blocker holds nothing");
+  });
+
+  contract("5.26", "a capability one of whose contracts an open increment links carries that increment among its open work, as one the increment names does, once and in the same order", async ({ health, work, flight }) => {
+    const { story, capability, contract, sibling } = await smallPlan(work);
+    const other = await work.addCapability({ title: "Elsewhere", story: story.id });
+    const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
+    const add = async (title: string, edit: { capabilities?: string[]; links?: string[] }) => {
+      const increment = await flight.addIncrement({ arc: arc.id, title, objective: "Test it", body: "Red then green" });
+      await flight.editIncrement(increment.id, edit);
+      await later();
+      return increment;
+    };
+    const linking = await add("Links a contract", { links: [contract.id, sibling.id] });
+    const both = await add("Names it and links", { capabilities: [capability.id], links: [contract.id] });
+    const started = await add("Started, links it", { links: [sibling.id] });
+    await flight.advanceIncrement(started.id, "active");
+    const openOf = async (id: string) => (await health.annotate()).stories[0]!.capabilities.find((one) => one.id === id)!.openWork;
+    assert.deepEqual(await openOf(capability.id), [
+      { increment: started.id, title: "Started, links it", active: true },
+      { increment: linking.id, title: "Links a contract" },
+      { increment: both.id, title: "Names it and links" },
+    ], "linked as named: the active one first, then parked order, each once");
+    assert.equal(await openOf(other.id), undefined, "no open increment names it or links its contracts");
+    await flight.closeIncrement(started.id, { disposition: "withdrawn", note: "Not needed" });
+    assert.deepEqual((await openOf(capability.id))!.map(({ increment }) => increment), [linking.id, both.id], "a closed one is left off");
   });
 
   contract("5.14", "a proposed capability with at least one contract and every contract verified passing is on the worklist still not built and the agent's, marked that its contracts already pass; one with no contract or any contract not passing is not so marked", async ({ health, work }) => {

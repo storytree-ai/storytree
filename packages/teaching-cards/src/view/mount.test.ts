@@ -347,6 +347,17 @@ test("3.5 · a panel that opens after the card is shown moves the card off it", 
   teaching.stop();
 });
 
+test("3.5 · a row drawn into an open panel after the card is shown moves the card off it", async () => {
+  const reading: { left: number; top: number; right: number; bottom: number }[] = [];
+  const { document, host, teaching, at } = sized(reading, () => ({ x: 400, y: 300, visible: true }));
+  assert.deepEqual(at(), { left: "412px", top: "250px" }, "on the right while nothing is drawn there");
+  reading.push(panel);
+  host.append(document.createElement("li"));
+  await waitUntil(() => at().left === "88px", 2000, "the card to move off the row drawn under it");
+  assert.deepEqual(at(), { left: "88px", top: "250px" }, "on the left once the row is drawn");
+  teaching.stop();
+});
+
 test("3.5 · a window resized under the card places it again, clear of what is being read", () => {
   const reading: { left: number; top: number; right: number; bottom: number }[] = [];
   const { document, teaching, at } = sized(reading, () => ({ x: 400, y: 300, visible: true }));
@@ -444,7 +455,7 @@ test("3.9 · after Next with cards still to come, one quiet line says the tour i
   teaching.take({ ...oneStory, tree: { ...oneStory.tree, arcs: [{ id: "arc_1" }] } });
   assert.deepEqual([...host.querySelectorAll<HTMLElement>(".teaching-card")].map(one => one.dataset.kind), ["arc"]);
   host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
-  assert.match(tourOn(host)!.textContent ?? "", /comes when a story's parts appear\./, "then the next kind still to come");
+  assert.match(tourOn(host)!.textContent ?? "", /comes when a story's capabilities appear\./, "then the next kind still to come");
   // End tour on the line ends the tour and clears the map.
   tourOn(host)!.querySelector<HTMLButtonElement>("[data-end]")!.click();
   assert.equal(kept.tour(), "no");

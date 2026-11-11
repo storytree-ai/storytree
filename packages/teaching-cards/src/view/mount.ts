@@ -23,8 +23,9 @@ export type Reading = (target: Target) => readonly Box[];
 export type Islands = () => readonly Box[];
 
 const STYLES = `
+/* Opaque, so no label on the map behind a card reads through it. */
 .teaching-card { position: fixed; z-index: 20; max-width: 22rem; padding: .75rem .9rem; border-radius: .6rem;
-  background: rgba(20, 24, 32, .94); color: #f2f4f8; font: 14px/1.4 system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.35);
+  background: rgb(20, 24, 32); color: #f2f4f8; font: 14px/1.4 system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.35);
   box-sizing: border-box; max-height: min(24rem, calc(100vh - 24px)); overflow-y: auto; }
 /* Beneath an open menu, dialog or overlay surface (the app's gear menu is a popover, the first launch's sharing consent an overlay):
    hidden, so none of it shows past the overlay's edge, and back when it closes. */
@@ -198,9 +199,13 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     for (const old of shown.card.querySelectorAll(".teaching-card-ring, .teaching-card-tie")) old.remove();
     if (onShow) tie(shown.card, chosen, at, at.box);
   };
-  // A panel opened or closed on the page changes what is being read, so the card on show is placed again.
-  const opened = new (host.ownerDocument.defaultView ?? window).MutationObserver(place);
-  opened.observe(host, { subtree: true, attributeFilter: ["hidden"] });
+  // A panel opened or closed on the page, or a row drawn into one (an arc appearing in the rail's list), changes what is being
+  // read, so the card on show is placed again; never for a row drawn inside a card, where placing draws its own ring and line.
+  const opened = new (host.ownerDocument.defaultView ?? window).MutationObserver(records => {
+    const inCard = (node: Node): boolean => ((node.nodeType === 1 ? node as Element : node.parentElement)?.closest(".teaching-card") ?? null) !== null;
+    if (records.some(record => record.type === "attributes" || !inCard(record.target))) place();
+  });
+  opened.observe(host, { subtree: true, attributeFilter: ["hidden"], childList: true, characterData: true });
   host.ownerDocument.defaultView?.addEventListener("resize", place);
   /** A card element, a status rather than a dialog: it is read out without moving focus or holding the page. */
   const aside = (kind: string, html: string): HTMLElement => {
@@ -217,7 +222,7 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     shown = undefined;
   };
   const ask = (): void => {
-    const node = aside("tour", `<h3>Want a quick tour?</h3><p>Short cards can explain each part of your map the first time it appears. You can start it later from Help.</p>
+    const node = aside("tour", `<h3>Want a quick tour?</h3><p>Short cards can explain each thing on your map the first time it appears. You can start it later from Help.</p>
       <div class="teaching-card-actions"><button type="button" data-tour="yes">Show me</button><button type="button" data-tour="no">No thanks</button></div>`);
     for (const button of node.querySelectorAll<HTMLButtonElement>("[data-tour]")) button.addEventListener("click", () => journal.answer(button.dataset.tour === "yes" ? "yes" : "no"));
     host.append(node);
@@ -323,9 +328,9 @@ export function mountJournal(host: HTMLElement, { journal, library }: { journal:
   const open = (): void => {
     const seen = journal.seen();
     shelf.innerHTML = `<h3>What you've learned</h3>`
-      + (seen.length === 0 ? "<p>Cards appear here as you meet each part of storytree on your map.</p>"
+      + (seen.length === 0 ? "<p>Cards appear here as you meet each of storytree's things on your map.</p>"
         : `<ol>${seen.map(one => `<li><button type="button" data-journal-entry="${one.kind}">${escape(cardOf(one.kind).title)}</button></li>`).join("")}</ol>`)
-      // The tour, offered here to a user who has not taken it: a card explains each part of the map as it appears.
+      // The tour, offered here to a user who has not taken it: a card explains each thing on the map as it appears.
       + (journal.tour() === "yes" ? "" : `<p><button type="button" data-tour-start>Take the tour</button></p>`)
       + `<div data-journal-card hidden></div>`;
     for (const entry of shelf.querySelectorAll<HTMLButtonElement>("[data-journal-entry]")) {

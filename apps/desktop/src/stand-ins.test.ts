@@ -132,7 +132,7 @@ test("8.9 the app opens its projects with the kinds of record a factory plugin s
 
   declare({ ...reading, kind: "lag.reading" });
   assert.deepEqual(windowKinds(graph, standIns, ["lag"], log), []);
-  assert.deepEqual(logged, [`lag is switched off on this computer, and its stand-in my-lag's record kinds could not be read: my-lag's record kind "lag.reading" is not named my-lag.<kind>. Switch it on with: storytree settings set part lag on`]);
+  assert.deepEqual(logged, [`lag is switched off on this computer, and its stand-in my-lag's record kinds could not be read: my-lag's record kind "lag.reading" is not named my-lag.<kind>. Switch it on with: storytree settings set module lag on`]);
 });
 
 test("plugin-loader 5.19 · a factory plugin named as the part it stands in for offers the page only its own surface's view and channels while the part is off, never the part's own", (t) => {

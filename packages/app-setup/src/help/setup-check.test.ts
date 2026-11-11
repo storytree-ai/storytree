@@ -40,8 +40,8 @@ test("8.45 from the guide, checking a folder names each plugin in this computer'
 
   const factory = ((await help.checkSetupFolder()) ?? []).filter((line) => line.check === "factory");
 
-  assert.deepEqual(factory.map((line) => line.fix?.match(/`storytree settings set part \S+ plugin \S+`/)?.[0]), [
-    "`storytree settings set part micks-dev-loop plugin micks-dev-loop`",
-    "`storytree settings set part agent-pool plugin my-runner`",
+  assert.deepEqual(factory.map((line) => line.fix?.match(/`storytree settings set module \S+ plugin \S+`/)?.[0]), [
+    "`storytree settings set module micks-dev-loop plugin micks-dev-loop`",
+    "`storytree settings set module agent-pool plugin my-runner`",
   ]);
 });

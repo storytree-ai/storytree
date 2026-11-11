@@ -59,6 +59,8 @@ interface Drawn {
   waiting: ((count: number) => void) | undefined;
   /** How the arcs tell the page the open arc's capabilities. */
   opened: ((capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined) => void) | undefined;
+  /** The increments the arcs were asked to open. */
+  increments: string[];
   /** What the arcs were told to start reading after. */
   arcsStart: PromiseLike<unknown> | undefined;
   /** Who hears the page's one reading, in the order they subscribed: the forest's reading among them, as in the app. */
@@ -105,7 +107,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
     project(name, timed) {
       const mine: Drawn = {
         name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], gates: [], opens: [], details: [], folded: [],
-        kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, arcsStart: undefined, listeners: [], events: [],
+        kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, increments: [], arcsStart: undefined, listeners: [], events: [],
         view: {
           scenes: 0, disposed: false, circled: [], circledContracts: [], onSelect: () => {}, painted: deferred<void>(),
           show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, circle(capabilities, contracts) { mine.view.circled.push(capabilities); mine.view.circledContracts.push(contracts); }, dispose() { mine.view.disposed = true; },
@@ -124,7 +126,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
         states: { part: () => "planned", add() {} },
         kept: { read: () => mine.kept, write: (written) => { mine.kept = written; } },
         drawing: { read: () => kept as never, write: (written) => { kept = written; } },
-        arcs: (host, on) => { mine.events.push("arcs mounted"); mine.hosts.arcs = host; mine.waiting = on.onWaiting; mine.opened = on.onOpened; mine.arcsStart = on.startAfter; return surface("arcs"); },
+        arcs: (host, on) => { mine.events.push("arcs mounted"); mine.hosts.arcs = host; mine.waiting = on.onWaiting; mine.opened = on.onOpened; mine.arcsStart = on.startAfter; return { ...surface("arcs"), openIncrement: (id: string) => { mine.increments.push(id); } }; },
         openView: async (_holder, onSelect, options) => {
           mine.view.onSelect = onSelect;
           if (options.library) mine.mounted.push("library");
@@ -509,6 +511,11 @@ test("2.29 · teaching cards hear whether the project on show is the factory and
   boxed(views, { left: 600, top: 60, right: 760, bottom: 90 });
   assert.deepEqual(reading({ kind: "arc" }).map(box => box.left), [100, 500, 600], "the project switcher and the Stories/Library switch");
   assert.deepEqual(reading({ kind: "switch" }).map(box => box.left), [100, 500, 600], "the factory's card too, beside the switcher, never on it");
+  // The bar's gear (the app menu) too: a tall card with its More open reaches up to the bar's right end.
+  const gear = on.document.createElement("button");
+  gear.className = "app-gear";
+  boxed(gear, { left: 1400, top: 4, right: 1436, bottom: 40 });
+  assert.deepEqual(reading({ kind: "arc" }).map(box => box.left), [100, 500, 600, 1400], "the bar's gear, which a card never covers");
 });
 
 test("2.29 · a card about the map keeps off the whole rail; a card about the plan keeps off its tabs and what its panel shows, down to the last line drawn", async (t) => {
@@ -648,6 +655,20 @@ test("2.47 · the arc opened in the Arcs tab rings its open work on the map, and
   project.opened!(undefined, undefined);
   assert.deepEqual(project.view.circled, [["cap_a", "cap_b"], undefined]);
   assert.deepEqual(project.view.circledContracts, [["contract_a"], undefined], "the contracts its open work links, whose edges' gates the map rings");
+});
+
+test("2.57 · a click on an open-work row of the story panel puts the Arcs tab on show and asks the arcs to open that increment", async (t) => {
+  const on = page(t);
+  await settled();
+  on.heard();
+  await settled();
+  const project = on.last();
+  on.content.querySelector<HTMLButtonElement>('[data-rail-tab="sessions"]')!.click();
+  const panel = on.content.querySelector<HTMLElement>(".story-panel")!;
+  panel.insertAdjacentHTML("beforeend", `<button type="button" data-open-increment="inc-1">Build it</button>`);
+  panel.querySelector<HTMLButtonElement>("[data-open-increment]")!.click();
+  assert.equal(on.content.querySelector('[data-rail-tab="arcs"]')!.getAttribute("aria-selected"), "true", "the Arcs tab is on show");
+  assert.deepEqual(project.increments, ["inc-1"], "and the arcs open the increment");
 });
 
 test("2.55 · while a project's forest is on show the page mounts the CI times strip in its bottom-left, stops it when the project changes, and a teaching card keeps clear of it", async (t) => {

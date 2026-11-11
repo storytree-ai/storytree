@@ -3,9 +3,9 @@
  * with a one-line reason, and its session's edits count toward it. One live session holds a
  * capability at a time: a second is refused with the holder's name and picks other work, with no
  * queue (the owner's C1, ADR-0626 D3). A claim ends when its holder lands or releases it, when the
- * holder closes out or its session ends, or when another session takes it over after the holder has gone idle (its
- * claimed line names the holder, when it was last seen and why: idle, gone, restart or closed out; ADR-0953 D2), or
- * at once when the holder was last seen on this machine before it last started (contract 5.17).
+ * holder closes out, or when another session takes it over after the holder has gone idle (its claimed line names
+ * the holder, when it was last seen and why: idle, gone, restart, closed out or stopped; ADR-0953 D2), at once when
+ * the holder was last seen on this machine before it last started (contract 5.17) or its process stopped (4.41).
  *
  * - Claims are lines in the agent activity log (claimed, released, landed), and who holds what is
  *   worked out from them, with the holders' liveness from their sessions' latest lines. A holder

@@ -181,6 +181,14 @@ export function registerPlanTools(define: Define): void {
       description: z.string().min(1).optional().describe("A sentence on what passes between them"),
     }),
     async ({ from, to, description: about }, { library, writer }) => {
+      // A depends_on inside one story is already an edge (ADR-1282 D1), so the link the agent means is that one (F3.6).
+      const tree = await library.projectTree();
+      const there = tree.stories.flatMap((story) => story.edges ?? []).find((edge) => edge.from === from && edge.to === to);
+      if (there !== undefined) {
+        if (about !== undefined) await library.editEdge(there.id, { description: about }, writer);
+        const titled = (id: string): string => quoted(capabilityTitle(tree, id) ?? id);
+        return { text: `${titled(from)} already depends on ${titled(to)} through edge ${there.id}, which holds the link's contracts${about === undefined ? "" : ", and now its description"}. Plan them with plan_contract and edge ${there.id}.`, data: { id: there.id } };
+      }
       const edge = await library.addEdge({ from, to, ...optional({ description: about }) }, writer);
       return { text: `Planned edge ${edge.id}: ${from} depends on ${to}. Plan its contracts with plan_contract and edge ${edge.id}.`, data: { id: edge.id } };
     },
@@ -337,7 +345,8 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   const renumbered = move?.from !== undefined && to !== undefined && to !== move.from ? ` Renumbered ${move.from} to ${to}: rename its tests' titles to ${to}, since a test's number is what credits its contract.` : "";
   // Told, not refused, of another open increment already listing a capability this one newly lists (10.35, ADR-1228).
   const shared = kind === "increment" ? await library.openListing((listing ?? []).filter((capability) => !had.includes(capability)), target) : [];
-  return { text: [`Corrected ${kind} ${quoted(title)} (${target}).${renumbered}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
+  const placed = kind === "contract" && (changes.capability !== undefined || changes.edge !== undefined) ? placedSaid(await library.projectTree(), target, to) : "";
+  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
 }
 
 /**
@@ -517,6 +526,31 @@ function optional<T extends Record<string, unknown>>(fields: T): { [K in keyof T
 }
 
 /** The capability or contract `id` names in the plan, if it names one. */
+/** The title of capability `id` in `tree`, when it has one. */
+function capabilityTitle(tree: AnnotatedTree, id: string): string | undefined {
+  return tree.stories.flatMap((story) => story.capabilities).find((capability) => capability.id === id)?.title;
+}
+
+/**
+ * Where moved contract `id`, numbered `number`, now sits and the test title that proves it there (F3.7): a test's number
+ * credits a contract across its story, so one moved onto an edge keeps its tests, though its number may be another part's.
+ */
+function placedSaid(tree: AnnotatedTree, id: string, number: string | undefined): string {
+  const proves = (still: string): string => (number === undefined ? ` A test named in its proved_by ${still}proves it there.` : ` A test titled "${number} · …", or named in proved_by, ${still}proves it there under \`storytree health local\`.`);
+  for (const story of tree.stories) {
+    const capability = story.capabilities.find((node) => node.contracts.some((contract) => contract.id === id));
+    if (capability !== undefined) return `now on capability ${quoted(capability.title)}.${proves("")}`;
+    const edge = (story.edges ?? []).find((node) => node.contracts.some((contract) => contract.id === id));
+    if (edge === undefined) continue;
+    const from = capabilityTitle(tree, edge.from) ?? edge.from;
+    const to = capabilityTitle(tree, edge.to) ?? edge.to;
+    const owner = number === undefined ? undefined : story.capabilities.find((node) => /^(\d+) · /.exec(node.title)?.[1] === number.split(".")[0]);
+    const foreign = owner === undefined || owner.id === edge.from ? "" : ` Its number ${number} is ${quoted(owner.title)}'s, not the link's: the link's own contracts take ${quoted(from)}'s numbers, so retitle it with edit_plan if you want one of those.`;
+    return `now on edge ${quoted(from)} → ${quoted(to)} (${edge.id}).${proves("still ")}${foreign}`;
+  }
+  return "";
+}
+
 function partOf(tree: AnnotatedTree, id: string): { kind: "capability" | "contract" | "edge"; title: string } | undefined {
   for (const capability of tree.stories.flatMap((story) => story.capabilities)) {
     if (capability.id === id) return { kind: "capability", title: capability.title };

@@ -177,6 +177,38 @@ test("17.2 · The library declares search_notes, find_text, open, write_note and
   await assert.rejects(toolOf("write_note").act({ kind: "memory", fields: {}, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS), VerbRefusal);
 });
 
+test("17.26 · write_note files a decision on no guessed part: a part in links is refused naming front_cover_of, and two held parts with none named is refused asking which", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const write = NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "write_note")!;
+  const story = await library.addStory({ title: "Context service" });
+  const packets = await library.addCapability({ story: story.id, title: "4 · Packet compilation" });
+  const api = await library.addCapability({ story: story.id, title: "5 · HTTP API" });
+  const claims: HeldClaim[] = [
+    { session: "lane", capability: packets.id, since: "2026-11-11T15:00:00.000Z" },
+    { session: "lane", capability: api.id, since: "2026-11-11T15:01:00.000Z" },
+  ];
+  const context: NoteToolContext = {
+    library, project, session: "lane", folder: process.cwd(), writer: { actor: "session:lane" },
+    claims: async () => claims, notesRead: async () => [], recordReads: async () => {}, presenterOf: async () => undefined,
+  };
+  const note = { kind: "decision", fields: {}, title: "No cache", text: "Compile each packet fresh.", term: undefined, meaning: undefined, front_cover_of: undefined };
+
+  await assert.rejects(write.act({ ...note, links: [packets.id] }, context, WORDS), (error: Error) => error instanceof VerbRefusal && /"links" takes notes, not parts\. To file this decision on "4 · Packet compilation", pass front_cover_of: capability_/.test(error.message), "a part in links names the field that files a decision on it");
+  await assert.rejects(write.act({ ...note, links: [] }, context, WORDS), (error: Error) => error instanceof VerbRefusal && /You hold 2 parts, "4 · Packet compilation" \(capability_\w+\) and "5 · HTTP API" \(capability_\w+\), and named none: give front_cover_of/.test(error.message), "two held parts are not guessed between");
+  assert.deepEqual(await library.frontCovers(api.id), [], "nothing was filed on a guessed part");
+  const filed = await write.act({ ...note, links: [], front_cover_of: packets.id }, context, WORDS);
+  assert.deepEqual((await library.frontCovers(packets.id)).map(({ id }) => id), [(filed.data as { id: string }).id]);
+});
+
 test("17.4 · One field round-trips byte for byte: library read --field and the open tool's field give a record's stored value exactly, and library edit @file writes it back unchanged", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();

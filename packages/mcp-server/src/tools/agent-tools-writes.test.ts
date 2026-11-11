@@ -1506,3 +1506,42 @@ test("9.32 · edit_plan moving a contract to another capability says when its nu
     });
   });
 });
+
+test("9.34 · plan_edge on a link the story already has answers with that edge by title, not a refusal", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Context service", ...FOUNDED }));
+      const identity = idOf(await agent.call("plan_capability", { story, title: "Caller identity", ...FOUNDED }));
+      const api = idOf(await agent.call("plan_capability", { story, title: "HTTP API", depends_on: [identity], ...FOUNDED }));
+      const existing = (await library.projectTree()).stories[0]!.edges![0]!.id;
+
+      const again = await agent.call("plan_edge", { from: api, to: identity, description: "Asks who is calling" });
+      assert.notEqual(again.isError, true, again.text);
+      assert.equal(again.data.id, existing, "the link the story has is the edge");
+      assert.match(again.text, new RegExp(`"2 · HTTP API" already depends on "1 · Caller identity" through edge ${existing}.*plan_contract and edge ${existing}`), again.text);
+      const edges = (await library.projectTree()).stories[0]!.edges!;
+      assert.deepEqual(edges.map(({ id, description }) => ({ id, description })), [{ id: existing, description: "Asks who is calling" }], "no second edge, and the description is written on the one there is");
+    });
+  });
+});
+
+test("9.35 · edit_plan moving a contract says where it now sits and which test title proves it there", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Context service", ...FOUNDED }));
+      const identity = idOf(await agent.call("plan_capability", { story, title: "Caller identity", ...FOUNDED }));
+      const api = idOf(await agent.call("plan_capability", { story, title: "HTTP API", depends_on: [identity], ...FOUNDED }));
+      const edge = (await library.projectTree()).stories[0]!.edges![0]!.id;
+      const unknown = idOf(await agent.call("plan_contract", { capability: identity, title: "Unknown user gets no content" }));
+
+      const onEdge = await agent.call("edit_plan", { id: unknown, edge });
+      assert.equal(onEdge.isError, false, onEdge.text);
+      assert.match(onEdge.text, new RegExp(`Corrected contract "1\\.1 · Unknown user gets no content" \\(${unknown}\\): now on edge "2 · HTTP API" → "1 · Caller identity" \\(${edge}\\)\\. A test titled "1\\.1 · …", or named in proved_by, still proves it there under \`storytree health local\`\\.`), onEdge.text);
+      assert.match(onEdge.text, /Its number 1\.1 is "1 · Caller identity"'s, not the link's: the link's own contracts take "2 · HTTP API"'s numbers, so retitle it with edit_plan if you want one of those\./, onEdge.text);
+
+      const back = await agent.call("edit_plan", { id: unknown, capability: api });
+      assert.match(back.text, /now on capability "2 · HTTP API"/, back.text);
+      assert.match(back.text, /A test titled "2\.\d+ · …", or named in proved_by, proves it there/, back.text);
+    });
+  });
+});

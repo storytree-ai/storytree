@@ -21,7 +21,7 @@ export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) 
     button.disabled = busy;
     action = state.phase === "pending" ? "install" : "check";
     button.textContent = state.phase === "pending" ? "Restart to update" : "Check for updates";
-    pending(state.phase === "pending" ? `Update ready: storytree ${state.nextBuild ?? "update"}` : undefined);
+    pending(state.phase !== "pending" ? undefined : state.nextBuild === undefined ? "Update ready to install" : `Update ready: storytree ${state.nextBuild}`);
     status.hidden = state.phase === "idle";
     status.dataset.phase = state.phase;
     const [title, detail] = updateText(state, choice(), { channel: channel(), now: new Date() });

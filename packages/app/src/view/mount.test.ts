@@ -7,6 +7,7 @@ import { setImmediate } from "node:timers/promises";
 import { settingsActions } from "@storytree/project-and-caller/settings";
 import { Window, type HTMLButtonElement, type HTMLSelectElement } from "happy-dom";
 import { mountAppMenu } from "./index.js";
+import { removeTemp } from "@storytree/test-waits";
 import { fakeBridge } from "../../../../apps/desktop/src/capture/index.js";
 
 test("2.7 clicking the mounted menu sections switches their content and preserves settings, updates and Help actions", async (t) => {
@@ -258,7 +259,7 @@ test("4.47 the gear's update dot names the build waiting, on its hover and as th
       else Reflect.deleteProperty(globalThis, key);
     }
     await window.happyDOM.close();
-    rmSync(home, { recursive: true, force: true });
+    await removeTemp(home);
   });
   await setImmediate();
   const gear = host.querySelector<HTMLButtonElement>(".app-gear")!;

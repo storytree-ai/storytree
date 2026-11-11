@@ -14,7 +14,7 @@ export function renderAppMenu(): string {
     </svg>
   </button></header>
   <div id="app-menu" popover="auto" class="app-menu" role="dialog" aria-modal="true" aria-label="App menu">
-    <div class="app-menu-window">
+    <div class="app-menu-window"><button type="button" class="app-update-ready" data-app-update-ready hidden></button>
       <div class="app-menu-body">
         <nav class="app-menu-sections" aria-label="App sections">
           ${MENU_TABS.map((label) => `<button type="button" data-app-section="${label.toLowerCase()}" aria-controls="app-${label.toLowerCase()}" aria-pressed="${label === "Projects"}">${label}</button>`).join("")}

@@ -222,3 +222,56 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   await setImmediate();
   assert.equal(adds, 3);
 });
+
+test("4.47 the gear's update dot names the build waiting, on its hover and as the menu's first row, which opens Updates", async (t) => {
+  const window = new Window();
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-menu-"));
+  const globals = { document: window.document, CSSStyleSheet: window.CSSStyleSheet, HTMLElement: window.HTMLElement };
+  const previous = Object.fromEntries(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  Object.assign(globalThis, globals);
+  const host = window.document.createElement("header");
+  const background = window.document.createElement("main");
+  window.document.body.append(host, background);
+  const bridge = fakeBridge({});
+  Object.assign(window, { storytree: {
+    ...settingsActions(home),
+    standingDelegations: (...args: unknown[]) => bridge.call("standingDelegations", args),
+    readSurfaces: (...args: unknown[]) => bridge.call("readSurfaces", args),
+    saveSurface: (...args: unknown[]) => bridge.call("saveSurface", args),
+  } });
+  const menu = mountAppMenu(host as unknown as HTMLElement, {
+    background: background as unknown as HTMLElement,
+    async chooseProject() { throw new Error("not switching projects in this test"); },
+    onChosen() {}, onError(error) { throw error; }, onSurfacesChanged() {},
+    mountHelp() { return { open() {}, close() {}, stop() {} }; },
+    async checkForUpdates(action) {
+      return action === "status"
+        ? { phase: "pending", runningBuild: "0.3.2700", nextBuild: "0.3.2741" }
+        : { phase: "restarting", runningBuild: "0.3.2700", nextBuild: "0.3.2741" };
+    },
+  });
+  t.after(async () => {
+    menu.stop();
+    for (const key of Object.keys(globals)) {
+      const descriptor = previous[key];
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await window.happyDOM.close();
+    rmSync(home, { recursive: true, force: true });
+  });
+  await setImmediate();
+  const gear = host.querySelector<HTMLButtonElement>(".app-gear")!;
+  const row = host.querySelector<HTMLButtonElement>("[data-app-update-ready]")!;
+  assert.equal(gear.title, "Update ready: storytree 0.3.2741");
+  assert.equal(row.hidden, false);
+  assert.equal(row.textContent, "Update ready: storytree 0.3.2741");
+  assert.equal(host.querySelector(".app-menu-window")!.firstElementChild, row, "the line is the menu's first row");
+  row.click();
+  await setImmediate();
+  assert.deepEqual([...host.querySelectorAll(".app-menu-content > section")].filter((node) => !node.hasAttribute("hidden")).map((node) => node.id), ["app-updates"]);
+  host.querySelector<HTMLButtonElement>("[data-app-updates]")!.click();
+  await setImmediate();
+  assert.equal(gear.title, "App menu", "nothing waits once the update is installing");
+  assert.equal(row.hidden, true);
+});

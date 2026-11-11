@@ -44,6 +44,11 @@ export interface FocusAnswer {
   readonly loops?: readonly (readonly string[])[];
   readonly rows?: readonly FocusRow[];
   readonly diff?: DiffSummary;
+  /**
+   * A focus on a capability counts, not lists, the contracts of another capability and of a link it is not on, unless
+   * contract is a kind asked for (contract 2.9): each owner, a capability or a link, with how many it holds.
+   */
+  readonly folded?: readonly { readonly id: string; readonly kind: "capability" | "link"; readonly title: string; readonly contracts: number }[];
   /** A mapped island's file: its imports are read only by a crossing, which this names (contract 3.14, ADR-0993 D6). */
   readonly blackBox?: { readonly path: string; readonly crossing: readonly string[]; readonly mode: "show" };
 }
@@ -116,14 +121,30 @@ export function mapDepth(value: number | undefined, fallback: number): number {
 
 export function focus(graph: ProjectGraph, options: FocusOptions, limits: { ceiling?: number; exists?: OnDisk } = {}): FocusAnswer {
   const node = selectNode(graph, options.select, limits.exists);
-  const answer = focusNodes(graph, [node.id], options, limits);
+  const answer = focusNodes(graph, [node.id], options, { ...limits, ...(node.kind === "capability" && !options.kind?.includes("contract") ? { fold: neighbourOf(graph, node.id) } : {}) });
   // A mapped story's survey carries no imports, so its file's 0 importers would read as a missing edge.
   if (node.health !== "mapped" || (node.kind !== "file" && node.kind !== "test") || node.path === undefined) return answer;
   return { ...answer, blackBox: { path: node.path, crossing: [node.path], mode: "show" } };
 }
 
+type Folded = NonNullable<FocusAnswer["folded"]>[number];
+type Fold = (row: FocusRow) => Omit<Folded, "contracts"> | undefined;
+
+/** Who holds a contract a focus on this capability reaches, when that is another capability or a link it is not on. */
+function neighbourOf(graph: ProjectGraph, capability: string): Fold {
+  const byId = new Map(graph.nodes.map(node => [node.id, node]));
+  const owner = new Map(graph.edges.filter(edge => edge.kind === "belongs-to" && byId.get(edge.from)?.kind === "contract").map(edge => [edge.from, edge.to]));
+  return row => {
+    if (row.kind !== "contract") return undefined;
+    const link = row.onEdge;
+    if (link) return link.from === capability || link.to === capability ? undefined : { id: link.id, kind: "link", title: `${link.fromTitle} depends on ${link.toTitle}` };
+    const cap = owner.get(row.id);
+    return cap === undefined || cap === capability ? undefined : { id: cap, kind: "capability", title: byId.get(cap)?.title ?? cap };
+  };
+}
+
 /** Shared traversal for one focused node or the changed nodes of a diff. Filters never block traversal. */
-export function focusNodes(graph: ProjectGraph, selected: readonly string[], options: Omit<FocusOptions, "select">, limits: { ceiling?: number } = {}): FocusAnswer {
+export function focusNodes(graph: ProjectGraph, selected: readonly string[], options: Omit<FocusOptions, "select">, limits: { ceiling?: number; fold?: Fold } = {}): FocusAnswer {
   const bothDefault = options.up === undefined && options.down === undefined;
   const up = mapDepth(options.up, bothDefault ? 1 : 0);
   const down = mapDepth(options.down, bothDefault ? 1 : 0);
@@ -159,13 +180,19 @@ export function focusNodes(graph: ProjectGraph, selected: readonly string[], opt
 }
 
 /** One aggregation and ceiling for normal focus and diff impact. Filtering follows every walk. */
-export function focusRows(graph: ProjectGraph, selected: readonly string[], rows: readonly FocusRow[], options: Omit<FocusOptions, "select">, limits: { ceiling?: number } = {}): FocusAnswer {
+export function focusRows(graph: ProjectGraph, selected: readonly string[], rows: readonly FocusRow[], options: Omit<FocusOptions, "select">, limits: { ceiling?: number; fold?: Fold } = {}): FocusAnswer {
   const mode = options.mode ?? "counts";
   if (!["counts", "dry_run", "show"].includes(mode)) throw new Error("Map mode must be counts, dry_run or show.");
   if (options.kind?.some(kind => !KINDS.includes(kind))) throw new Error(`Map kind must be one of ${KINDS.join(", ")}.`);
   const ceiling = limits.ceiling ?? SHOW_CEILING;
-  const shown = rows.filter(node => !options.kind || options.kind.includes(node.kind))
-    .sort((a, b) => a.depth - b.depth || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  const folded = new Map<string, Folded>();
+  const shown = rows.filter(node => !options.kind || options.kind.includes(node.kind)).filter(row => {
+    const owner = limits.fold?.(row);
+    if (owner) folded.set(owner.id, { ...owner, contracts: (folded.get(owner.id)?.contracts ?? 0) + 1 });
+    return !owner;
+  })
+    // A link's contracts follow a capability's own at their depth, so they never read as its own (contract 2.10).
+    .sort((a, b) => a.depth - b.depth || a.kind.localeCompare(b.kind) || Number(!!a.onEdge) - Number(!!b.onEdge) || a.id.localeCompare(b.id));
   const byDepth = new Map<number, Map<NodeKind, number>>();
   const byKind = new Map<NodeKind, number>();
   const tally = { health: { healthy: 0, failing: 0, untested: 0 }, mapped: 0 };
@@ -183,6 +210,7 @@ export function focusRows(graph: ProjectGraph, selected: readonly string[], rows
     mode, selected, rowCount: shown.length, estimatedTokens: Math.ceil(JSON.stringify(shown).length / 4), healthSource: graph.healthSource,
     counts, refused, ceiling,
     ...(loops.length === 0 ? {} : { loops }),
+    ...(folded.size === 0 ? {} : { folded: [...folded.values()] }),
     hints: ["Narrow with a smaller --up/--down depth or --kind story,capability,contract,file,test.", "Use --dry-run to estimate, then --show for every row."],
     ...(mode === "show" && !refused ? { rows: shown } : {}),
   };
@@ -206,8 +234,9 @@ export function formatFocus(answer: FocusAnswer): string {
     const { path, crossing } = answer.blackBox;
     lines.push(`${path} is in a mapped island, a black box: its imports are read only through a crossing, so this answer shows no file that imports it or that it imports. To list its importers: crossing: ${JSON.stringify(crossing)}, mode: show (map --crossing ${crossing.join(",")} --show).`);
   }
+  if (answer.folded) lines.push(`Not listed: ${answer.folded.map(({ id, kind, title, contracts }) => `${contracts} contract${contracts === 1 ? "" : "s"} ${kind === "link" ? "on the link" : "of"} ${title} (${id})`).join("; ")}. Select a capability, or give kind contract, to list them.`);
   for (const loop of answer.loops ?? []) lines.push(`Loop of roads among mapped stories, reported, refusing nothing: ${[...loop, loop[0]].join(" → ")}`);
-  for (const row of answer.rows ?? []) lines.push(`${row.depth}  ${row.kind}  ${row.id}  ${row.title}  [${row.health}]${row.snapshot ? ` [${row.snapshot}]` : ""}${row.changes ? ` [${row.changes.join(", ")}]` : ""}${row.unresolved ? ` unresolved: ${row.unresolved}` : ""}${row.onEdge ? `  on ${row.onEdge.id}: ${row.onEdge.from} depends on ${row.onEdge.to}` : ""}${(row.elsewhere ?? []).map(test => `  ${elsewhereSaid(test)}`).join("")}${row.edge.length ? `  ${row.edge.map(edge => `${edge.kind} (${edge.provenance}${edge.snapshot ? `, ${edge.snapshot}` : ""}): ${edge.from} -> ${edge.to}`).join("; ")}` : ""}`);
+  for (const row of answer.rows ?? []) lines.push(`${row.depth}  ${row.kind}  ${row.id}  ${row.title}  [${row.health}]${row.snapshot ? ` [${row.snapshot}]` : ""}${row.changes ? ` [${row.changes.join(", ")}]` : ""}${row.unresolved ? ` unresolved: ${row.unresolved}` : ""}${row.onEdge ? `  on the link ${row.onEdge.fromTitle} depends on ${row.onEdge.toTitle} (${row.onEdge.id})` : ""}${(row.elsewhere ?? []).map(test => `  ${elsewhereSaid(test)}`).join("")}${row.edge.length ? `  ${row.edge.map(edge => `${edge.kind} (${edge.provenance}${edge.snapshot ? `, ${edge.snapshot}` : ""}): ${edge.from} -> ${edge.to}`).join("; ")}` : ""}`);
   if (!answer.rows) lines.push(...answer.hints);
   return lines.join("\n");
 }

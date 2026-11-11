@@ -450,8 +450,7 @@ test("3.10 · a card taken to a corner while its thing is on show is still tied 
   assert.deepEqual([ring.style.left, ring.style.top, ring.style.width, ring.style.height], ["492px", "292px", "16px", "16px"], "a small ring at its point");
   const { from, to } = ends(card.querySelector<HTMLElement>(".teaching-card-tie")!);
   near(from, [684, 484], "from the card's corner nearest the point");
-  const reach = Math.hypot(to[0] - 500, to[1] - 300);
-  assert.ok(Math.abs(reach - 8) < 0.01, "to the ring's edge");
+  near(to, [500 + 8 / Math.SQRT2, 300 + 8 / Math.SQRT2], "to the ring's edge, on the card's side of it");
   teaching.stop();
 });
 

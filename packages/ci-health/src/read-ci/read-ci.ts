@@ -123,7 +123,7 @@ async function filesOf(git: Git, commit: string, mapped: readonly string[]): Pro
 }
 
 /** Each job a run did not skip, with its conclusion, the test results its log holds, as its platform's, and the folders its log scoped the tests to. */
-async function jobResults(github: GitHub, repository: string, run: number): Promise<{ conclusion: string | undefined; results: ReturnType<typeof parseTestLog>; scope?: ReturnType<typeof scopeOfLog> }[]> {
+async function jobResults(github: GitHub, repository: string, run: number): Promise<{ conclusion: string | undefined; platform?: string; results: ReturnType<typeof parseTestLog>; scope?: ReturnType<typeof scopeOfLog> }[]> {
   // A job the run skipped ran nothing and has no log: GitHub answers its log with 404.
   const jobs: { id: number; conclusion?: string; name?: string; labels?: string[] }[] = ((await github.json(`repos/${repository}/actions/runs/${run}/jobs`)).jobs ?? [])
     .filter((job: { conclusion?: string }) => job.conclusion !== "skipped");
@@ -132,7 +132,7 @@ async function jobResults(github: GitHub, repository: string, run: number): Prom
     const onPlatform = (log: string) => parseTestLog(log).map((result) => (platform === undefined ? result : { ...result, platform }));
     try {
       const log = await github.text(`repos/${repository}/actions/jobs/${job.id}/logs`);
-      return { conclusion: job.conclusion, results: onPlatform(log), scope: scopeOfLog(log) };
+      return { conclusion: job.conclusion, platform, results: onPlatform(log), scope: scopeOfLog(log) };
     } catch (error) {
       // Cancellation can leave no log, but a job that started may still hold test evidence.
       const said = String((error as { stderr?: string })?.stderr ?? error);
@@ -165,7 +165,7 @@ export async function readProjectCi({ library, git, github }: { library: Library
   // newest older run that scoped it in, until a run that scoped everything in.
   const tree = await library.projectTree();
   // Each run's verdicts, by the run they were judged from.
-  const byRun = new Map<number, { commit: string; run: string; verdicts: Map<string, Verdict> }>();
+  const byRun = new Map<number, { commit: string; run: string; platformsSeen: Set<string>; verdicts: Map<string, Verdict> }>();
   const done = new Set<string>();
   let newest: { run: Run; tests: number; unmatched: ReturnType<typeof judgeRun>["unmatched"]; files: { path: string; text: string }[] } | undefined;
   for (const run of candidates.filter(({ conclusion }) => conclusion !== "cancelled")) {
@@ -186,7 +186,9 @@ export async function readProjectCi({ library, git, github }: { library: Library
     const proofs = proofsAt(tree, files);
     const { verdicts, unmatched } = judgeRun(proofs, results);
     newest ??= { run, tests: results.length, unmatched, files };
-    const fromRun = byRun.get(run.id) ?? { commit: run.head_sha.slice(0, 12), run: run.html_url, verdicts: new Map<string, Verdict>() };
+    // The platforms its jobs ran on: a pass from one it had no job on (main's macOS, run nightly) stands against that platform's skip.
+    const platformsSeen = new Set(jobs.flatMap(({ conclusion, platform }) => (conclusion === "cancelled" || platform === undefined ? [] : [platform])));
+    const fromRun = byRun.get(run.id) ?? { commit: run.head_sha.slice(0, 12), run: run.html_url, platformsSeen, verdicts: new Map<string, Verdict>() };
     byRun.set(run.id, fromRun);
     // A story is judged by a run that scoped in every package it owns.
     for (const story of proofs.filter(({ package: own, packages }) => !done.has(own) && (scoped === undefined || packages.every((name) => scoped.has(`packages/${name}`))))) {
@@ -203,8 +205,8 @@ export async function readProjectCi({ library, git, github }: { library: Library
 
   // Each run's verdicts are written as a test run's are (record.ts), naming the commit and the run they were seen at.
   const counts = { passing: 0, failing: 0, notChecked: 0 };
-  for (const { commit: seen, run: url, verdicts } of byRun.values()) {
-    const written = await recordHealth(library, new Map([...verdicts.keys()].map((id) => [id, id])), verdicts, { by: VERIFIED_BY_PROJECT_CI, source: "ci", commit: seen, run: url });
+  for (const { commit: seen, run: url, platformsSeen, verdicts } of byRun.values()) {
+    const written = await recordHealth(library, new Map([...verdicts.keys()].map((id) => [id, id])), verdicts, { by: VERIFIED_BY_PROJECT_CI, source: "ci", commit: seen, run: url }, { platformsSeen });
     counts.passing += written.passing;
     counts.failing += written.failing;
     counts.notChecked += [...verdicts.values()].filter(({ state, skipped }) => state === "not-checked" && skipped > 0).length;

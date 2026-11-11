@@ -176,7 +176,7 @@ test("5.2 · a turn whose let-go never comes holds a flush only until the pointe
   recorder.flush();
   recorder.turnFrame(2050 + 9_000);
   assert.equal(recorder.pending, true, "a pointer held still under the limit is still a turn");
-  assert.deepEqual(sent, []);
+  assert.equal(sent.length, 0);
   recorder.turnFrame(2050 + 10_001);
   assert.equal(recorder.pending, false, "held still past the limit, the turn ends unrecorded");
   assert.deepEqual(sent.flat().map((reading) => reading.name), ["close-panel"], "and the flush waiting on it goes");

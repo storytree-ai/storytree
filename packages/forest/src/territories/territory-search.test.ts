@@ -213,13 +213,18 @@ test("3.94 a search with territories fixed moves only the others: the fixed come
   assert.deepEqual(all.seeds, start, "with every territory fixed it answers the arrangement it starts from");
 });
 
-test("3.94 a capability added to a kept island takes its land beside the kept territories: each kept name still stands on its own territory", { timeout: 120_000 }, () => {
+test("3.94 a capability added to a kept island takes its land beside the kept territories, from where it starts to what the search finds: each kept territory, the Unclaimed code's included, keeps most of its land and its name stands on it", { timeout: 120_000 }, () => {
   const more = [...shares, { capability: "e", lines: 200 }], wider = [...links, { from: "e", to: "a" }];
-  const kept = searchTerritories({ ...ask, steps: 0 })!.seeds;
-  const names = capabilityPlates(linkLayout(shares, coast, links, docks, kept));
-  const found = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed: Object.keys(kept), steps: 2 })!;
-  const after = linkLayout(more, coast, wider, docks, found.seeds);
-  for (const name of names) assert.equal(territoryAt(after, name.x, name.z)?.capability, name.capability, `${name.capability}'s name stands where it stood`);
+  const kept = searchTerritories({ ...ask, steps: 0 })!.seeds, before = linkLayout(shares, coast, links, docks, kept);
+  for (const steps of [0, 2]) {
+    const found = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed: Object.keys(kept), steps })!;
+    const after = linkLayout(more, coast, wider, docks, found.seeds);
+    before.territories.forEach(({ capability }, t) => {
+      const land = before.cells.filter((cell) => cell.territory === t), still = land.filter((cell) => territoryAt(after, cell.site.x, cell.site.z)?.capability === capability);
+      assert.ok(still.length >= 0.85 * land.length, `after ${steps} steps ${capability ?? "the Unclaimed code"} keeps ${still.length} of its ${land.length} cells`);
+    });
+    for (const name of capabilityPlates(before)) assert.equal(territoryAt(after, name.x, name.z)?.capability, name.capability, `after ${steps} steps ${name.capability}'s name stands where it stood`);
+  }
 });
 
 test("3.80 an arrangement kept before the search's score changed is searched again, once, for the island's structure", () => {

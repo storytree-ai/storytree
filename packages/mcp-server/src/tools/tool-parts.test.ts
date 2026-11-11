@@ -130,7 +130,7 @@ export const families = [{ name: "health", summary: "my own health", order: 18, 
 
       writeFileSync(path.join(plugin, "package.json"), manifest("other.reading"));
       await withAgent(folder, { setup: { storytreeHome: home } }, async (agent) => {
-        assert.match(agent.instructions() ?? "", /experiments is switched off on this computer, and its stand-in my-health's record kinds could not be read: my-health's record kind "other\.reading" is not named my-health\.<kind>\. Switch it on with: storytree settings set part experiments on/);
+        assert.match(agent.instructions() ?? "", /experiments is switched off on this computer, and its stand-in my-health's record kinds could not be read: my-health's record kind "other\.reading" is not named my-health\.<kind>\. Switch it on with: storytree settings set module experiments on/);
       });
     } finally {
       rmSync(home, { recursive: true, force: true });

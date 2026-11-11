@@ -153,8 +153,8 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
   for (const { plugin, part } of report.unnamedPlugins ?? []) lines.push({
     check: "factory",
     state: "needs-attention",
-    message: `This computer's factory holds the plugin ${plugin}, which no part setting names, so nothing of it is mounted.`,
-    fix: `Only after the user says yes, name it with \`storytree settings set part ${part} plugin ${plugin}\`, then start a new session.`,
+    message: `This computer's factory holds the plugin ${plugin}, which no module setting names, so nothing of it is mounted.`,
+    fix: `Only after the user says yes, name it with \`storytree settings set module ${part} plugin ${plugin}\`, then start a new session.`,
   });
   lines.push(project.status === "set up"
     ? { check: "project", state: "ok", message: `This folder is storytree project ${JSON.stringify(project.name)}.` }

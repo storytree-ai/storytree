@@ -24,16 +24,16 @@ export interface PluginPlace extends VerbPlace {
 const refused = (error: unknown): VerbRefusal => new VerbRefusal(error instanceof Error ? error.message : String(error));
 
 const contract = verb({
-  command: { family: "plugin", name: "contract", summary: "what a factory plugin must contain for this storytree to load it in a part's place" },
+  command: { family: "plugin", name: "contract", summary: "what a factory plugin must contain for this storytree to load it in a module's place" },
   tool: {
     name: "plugin_contract",
-    description: "What a factory plugin must contain for this storytree to load it in the place of one of its parts: the package.json manifest, the plugin interface version this storytree honours, each kind a part can be stood in with, and a verb's shape and answer. Read it before writing a plugin.",
+    description: "What a factory plugin must contain for this storytree to load it in the place of one of its modules: the package.json manifest, the plugin interface version this storytree honours, each kind a module can be stood in with, and a verb's shape and answer. Read it before writing a plugin.",
   },
   inputs: {},
   callerless: true,
   async act() {
     const { contractSaid } = await import("./contract.js");
-    return { text: contractSaid(), next: [{ command: "plugin new <plugin> --for <part>", tool: "new_plugin", why: "start a plugin of this shape" }] };
+    return { text: contractSaid(), next: [{ command: "plugin new <plugin> --for <module>", tool: "new_plugin", why: "start a plugin of this shape" }] };
   },
 });
 
@@ -41,11 +41,11 @@ const create = verb({
   command: { family: "plugin", name: "new", summary: "start a plugin in this computer's factory folder that this storytree loads" },
   tool: {
     name: "new_plugin",
-    description: "Start a factory plugin in this computer's factory folder: a package.json with storytree's manifest and a verbs module this storytree loads, to edit into a stand-in for one of storytree's parts, or a plugin that adds one. Then check_plugin, and switch it in with `storytree settings set part <part> plugin <plugin>`, or add it under its own name with `storytree settings set part <plugin> plugin <plugin>`.",
+    description: "Start a factory plugin in this computer's factory folder: a package.json with storytree's manifest and a verbs module this storytree loads, to edit into a stand-in for one of storytree's modules, or a plugin that adds one. Then check_plugin, and switch it in with `storytree settings set module <module> plugin <plugin>`, or add it under its own name with `storytree settings set module <plugin> plugin <plugin>`.",
   },
   inputs: {
     plugin: { kind: "text", word: 0, describe: "the plugin's name: its folder in the factory's plugins folder, in lower-case letters, digits and dashes" },
-    for: { kind: "text", optional: true, describe: "the part it will stand in for, as `storytree settings show` names it; none for a plugin that adds a part of its own" },
+    for: { kind: "text", optional: true, describe: "the module it will stand in for, as `storytree settings show` names it; none for a plugin that adds a module of its own" },
   },
   callerless: true,
   async act({ plugin, for: part }) {
@@ -59,8 +59,8 @@ const create = verb({
     const next = [
       { command: `plugin check ${plugin}`, tool: "check_plugin", why: "check this storytree would load it, after each edit" },
       part === undefined
-        ? { command: `settings set part ${plugin} plugin ${plugin}`, why: `add ${plugin}, standing in for no part, under its own name` }
-        : { command: `settings set part ${part} plugin ${plugin}`, why: `switch ${part} off with ${plugin} in its place` },
+        ? { command: `settings set module ${plugin} plugin ${plugin}`, why: `add ${plugin}, standing in for no module, under its own name` }
+        : { command: `settings set module ${part} plugin ${plugin}`, why: `switch ${part} off with ${plugin} in its place` },
       { command: "plugin contract", tool: "plugin_contract", why: "what a plugin may contain" },
       { command: `health plugin ${plugin}`, why: `run its tests and record them on the contracts of a story titled ${plugin}` },
     ];
@@ -75,11 +75,11 @@ const check = verb({
   command: { family: "plugin", name: "check", summary: "say whether this storytree would load a plugin in your factory, and why not, switching nothing" },
   tool: {
     name: "check_plugin",
-    description: "Say whether this storytree would load a plugin in this computer's factory folder in a part's place, and why not: it loads the plugin as a host does and reads its verb families as a door mounts them, switching nothing. For a plugin standing in for a part, it lists the commands and tools that part provides and the plugin does not.",
+    description: "Say whether this storytree would load a plugin in this computer's factory folder in a module's place, and why not: it loads the plugin as a host does and reads its verb families as a door mounts them, switching nothing. For a plugin standing in for a module, it lists the commands and tools that module provides and the plugin does not.",
   },
   inputs: {
     plugin: { kind: "text", word: 0, describe: "the plugin's name: its folder in the factory's plugins folder" },
-    for: { kind: "text", optional: true, describe: "the part it stands in for, when neither its manifest (`plugin new --for` writes it) nor this computer's setting names one" },
+    for: { kind: "text", optional: true, describe: "the module it stands in for, when neither its manifest (`plugin new --for` writes it) nor this computer's setting names one" },
   },
   callerless: true,
   async act({ plugin, for: named }, { hostVerbs }: PluginPlace) {
@@ -96,12 +96,12 @@ const check = verb({
     const lacks = host === undefined ? undefined : await lackingLine(factoryFolder().folder, plugin, named, host);
     const ownName = host !== undefined && Object.hasOwn(host.graph, plugin)
       ? `or switch ${plugin} off with the plugin of its name in its place`
-      : "or add it under its own name, standing in for no part";
+      : "or add it under its own name, standing in for no module";
     return {
       text: `${plugin} would load: it adds ${adds}.${keeps}${lacks === undefined ? "" : `\n${lacks}`}`,
       next: [
-        { command: `settings set part <part> plugin ${plugin}`, why: "switch a part off with it in its place" },
-        { command: `settings set part ${plugin} plugin ${plugin}`, why: ownName },
+        { command: `settings set module <module> plugin ${plugin}`, why: "switch a module off with it in its place" },
+        { command: `settings set module ${plugin} plugin ${plugin}`, why: ownName },
         ...(checked.adds.recordKinds === undefined ? [] : [{ command: "plugin fence", tool: "fence_plugin", why: "fence its roles in this project's library, as the database's owner" }]),
       ],
     };
@@ -137,7 +137,7 @@ const removeRecords = verb({
     const parts = Object.entries(readStandIns().plugins).filter(([, named]) => named === plugin).map(([part]) => part).sort();
     if (parts.length > 0) {
       throw new VerbRefusal(`${plugin} is switched on: it stands in for ${parts.join(", ")} on this computer. Its records are removed only once it is switched off, and switching it off removes none of them.`, {
-        next: parts.map((part) => ({ command: `settings set part ${part} on`, why: `switch ${plugin} off, with ${part} back on` })),
+        next: parts.map((part) => ({ command: `settings set module ${part} on`, why: `switch ${plugin} off, with ${part} back on` })),
       });
     }
     try {
@@ -216,7 +216,7 @@ const fence = verb({
     ]);
     const standIns = readStandIns();
     const plugins = [...new Set(Object.values(standIns.plugins))].sort();
-    if (plugins.length === 0) return { text: "This computer mounts no factory plugin, so there is no role to fence.", next: [{ command: "settings set part <part> plugin <plugin>", why: "switch a part off with a plugin in its place" }] };
+    if (plugins.length === 0) return { text: "This computer mounts no factory plugin, so there is no role to fence.", next: [{ command: "settings set module <module> plugin <plugin>", why: "switch a module off with a plugin in its place" }] };
     const library = locateLibrary();
     if (!library.found) throw new VerbRefusal(library.message);
     const lines: string[] = [];
@@ -250,5 +250,5 @@ export const PLUGIN_FAMILIES: readonly VerbFamily<VerbPlace>[] = [
 
 /** What the MCP server's card says of these tools (ADR-1021: guidance travels with its part). */
 export const pluginGuidance: readonly string[] = [
-  "To make a plugin in the user's factory standing in for a storytree part, read `plugin_contract` first, start it with `new_plugin`, and call `check_plugin` after each edit: it says whether storytree would load it, and why not. Switching a plugin off keeps its records; remove them with `remove_plugin_records` only when the user asked for the plugin removed, otherwise ask them first. `fence_plugin` fences a mounted plugin's database roles, when the user asks. `import_plugin_plan` imports a plugin's own plan.",
+  "To make a plugin in the user's factory standing in for a storytree module, read `plugin_contract` first, start it with `new_plugin`, and call `check_plugin` after each edit: it says whether storytree would load it, and why not. Switching a plugin off keeps its records; remove them with `remove_plugin_records` only when the user asked for the plugin removed, otherwise ask them first. `fence_plugin` fences a mounted plugin's database roles, when the user asks. `import_plugin_plan` imports a plugin's own plan.",
 ];

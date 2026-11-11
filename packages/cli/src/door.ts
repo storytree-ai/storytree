@@ -264,14 +264,14 @@ async function dispatch(argv: readonly string[], heard: Heard, context: Context)
   if (off !== undefined) {
     heard.verb = `storytree ${family!.name}`;
     const { offSaid } = await import("@storytree/plugin-loader");
-    throw new Refusal(`storytree ${family!.name} is not mounted: ${offSaid(off)}`, { next: [{ command: `storytree settings set part ${off.because} on`, why: "switch it on" }] });
+    throw new Refusal(`storytree ${family!.name} is not mounted: ${offSaid(off)}`, { next: [{ command: `storytree settings set module ${off.because} on`, why: "switch it on" }] });
   }
   if (family === undefined) {
     const pointed = [`${first} ${rest[0]}`, first].find((words) => Object.hasOwn(POINTERS, words));
     if (pointed !== undefined) return pointedBy(pointed, pointed === first ? rest : rest.slice(1), heard, context);
     const held = await unnamedHolderOf(first);
     if (held !== undefined) {
-      const naming = `storytree settings set part ${held.part} plugin ${held.plugin}`;
+      const naming = `storytree settings set module ${held.part} plugin ${held.plugin}`;
       throw new Refusal(`storytree has no "${first}": it is a family of the factory plugin ${held.plugin}, which this computer does not name. Name it with: ${naming}`, { code: 2, next: [{ command: naming, why: `mount ${held.plugin}'s families here` }] });
     }
     const named = FAMILIES.filter((candidate) => candidate.waitsOn === undefined).map((candidate) => ({ name: candidate.name, command: candidate.name }));

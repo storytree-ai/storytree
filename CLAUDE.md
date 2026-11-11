@@ -8,7 +8,7 @@ The text above that marker is written by hand, and it counts toward the file's 4
 - A fresh or stale worktree is installed at session start (`packages/base-dev-loop/src/provision-worktree.mjs`).
 - `pnpm gate` runs typecheck, scoped tests and the repository's own checks in one foreground run, with a
   PASS / FAIL / NOT RUN table. On a computer that names Mick's factory plugin (`storytree settings set
-  part micks-dev-loop plugin micks-dev-loop`) it also runs that plugin's checks: the guidance check when
+  module micks-dev-loop plugin micks-dev-loop`) it also runs that plugin's checks: the guidance check when
   generated roles changed (otherwise NOT RUN with the reason; after editing a role or note in the library,
   use `pnpm run gate --guidance`, even if regeneration left no Git diff), check:plan-edges every time
   (a capability depending on another story's against the code's package direction fails it when the branch

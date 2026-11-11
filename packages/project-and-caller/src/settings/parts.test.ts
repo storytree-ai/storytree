@@ -1,4 +1,4 @@
-/** Capability 2 · Settings, contract 2.17: a part of the host switched off and on, and the parts `settings show` lists. */
+/** Capability 2 · Settings, contract 2.17: a module of the host switched off and on, and the modules `settings show` lists. */
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -13,12 +13,12 @@ import { factoryFolder, makeFactoryFolder, readStandIns, setFactory } from "./se
 /** A host's parts: the core, and forest with arc-surface standing on it. */
 const parts = ["arc-surface", "forest", "library", "project-and-caller"];
 
-test("2.17 `settings set part <part> off` switches a part of the host off and `on` back on, saying every part now off with the part each stands on and that hosts take it as they start, and `settings show` lists each part on, off, off with another or always on; the core, a part the host lacks and a state but on or off are refused, saving nothing", async () => {
+test("2.17 `settings set module <module> off` switches a module of the host off and `on` back on, saying every module now off with the module each stands on and that hosts take it as they start, and `settings show` lists each module on, off, off with another or always on; the core, a module the host lacks and a state but on or off are refused, saving nothing", async () => {
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
 
     assert.deepEqual(switchPart("forest", "off", parts, home), ["forest"]);
-    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { "parts-off": ["forest"] });
+    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { "modules-off": ["forest"] });
     const switched = new Map([["forest", "forest"], ["arc-surface", "forest"]]);
     const said = switchedSaid(switched);
     assert.match(said, /^Switched off on this computer: arc-surface \(with forest, which it stands on\), forest\./);
@@ -30,18 +30,18 @@ test("2.17 `settings set part <part> off` switches a part of the host off and `o
     assert.match(partsSaid(parts, new Map()), /^  forest: on$/m);
 
     assert.deepEqual(switchPart("forest", "on", parts, home), []);
-    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { "parts-off": [] });
-    assert.match(switchedSaid(new Map()), /^No part is switched off on this computer\./);
+    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { "modules-off": [] });
+    assert.match(switchedSaid(new Map()), /^No module is switched off on this computer\./);
 
-    for (const [part, state, refusal] of [["library", "off", /library is the core/], ["lag", "off", /no part called lag.*arc-surface, forest\.$/], ["forest", "maybe", /on or off/]] as const) {
+    for (const [part, state, refusal] of [["library", "off", /library is the core/], ["lag", "off", /no module called lag.*arc-surface, forest\.$/], ["forest", "maybe", /on or off/]] as const) {
       assert.throws(() => switchPart(part, state, parts, home), (error: unknown) => error instanceof Error && refusal.test(error.message));
     }
     assert.throws(() => switchPart("forest", "maybe", parts, home), (error: unknown) => error instanceof VerbRefusal && error.misuse === true);
-    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { "parts-off": [] }, "a refused switch saves nothing");
+    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { "modules-off": [] }, "a refused switch saves nothing");
   });
 });
 
-test("2.20 `settings set factory <folder>` chooses this computer's factory folder, an existing folder, saved as its full path: an empty one is given the factory's shape, a factory is accepted, and any other folder is refused with why, left as it was and not saved; `settings set part <part> plugin <plugin>` switches the part off and names the factory plugin standing in for it, which readStandIns reads with the folder and `settings show` lists; `on` switches it back on and drops the stand-in, and a plugin with no name is refused, saving nothing", async () => {
+test("2.20 `settings set factory <folder>` chooses this computer's factory folder, an existing folder, saved as its full path: an empty one is given the factory's shape, a factory is accepted, and any other folder is refused with why, left as it was and not saved; `settings set module <module> plugin <plugin>` switches the module off and names the factory plugin standing in for it, which readStandIns reads with the folder and `settings show` lists; `on` switches it back on and drops the stand-in, and a plugin with no name is refused, saving nothing", async () => {
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
     assert.throws(() => setFactory(path.join(home, "no-such"), home), /no folder/);
@@ -67,27 +67,27 @@ test("2.20 `settings set factory <folder>` chooses this computer's factory folde
     assert.equal(readStandIns(home).plugins.voice, "voice");
     assert.deepEqual(switchPart("voice", "on", parts, home), ["forest"]);
     assert.equal(readStandIns(home).plugins.voice, undefined);
-    assert.throws(() => switchPart("voice", "on", parts, home), /no part called voice/, "a part the host lacks and no setting names is still refused");
+    assert.throws(() => switchPart("voice", "on", parts, home), /no module called voice/, "a part the host lacks and no setting names is still refused");
 
     assert.throws(() => switchPart("forest", "plugin", parts, home), /names the plugin/);
     assert.deepEqual(switchPart("forest", "on", parts, home), []);
     assert.deepEqual(readStandIns(home).plugins, {});
     const { "factory-switched": _switched, "stand-ins-history": _history, ...saved } = JSON.parse(readFileSync(file, "utf8"));
-    assert.deepEqual(saved, { factory: path.join(home, "factory"), "parts-off": [], "stand-ins": {}, "stand-ins-switched": {} });
+    assert.deepEqual(saved, { factory: path.join(home, "factory"), "modules-off": [], "stand-ins": {}, "stand-ins-switched": {} });
   });
 });
 
-test("2.26 · `settings set part <plugin> plugin <plugin>` adds a factory plugin that stands in for no part under its own name, and `settings set part` and `settings show` say it is added by that plugin, not that a part is switched off; a part no host has and no setting names, switched to a plugin of another name, is refused naming both forms, saving nothing", async () => {
+test("2.26 · `settings set module <plugin> plugin <plugin>` adds a factory plugin that stands in for no module under its own name, and `settings set module` and `settings show` say it is added by that plugin, not that a module is switched off; a module no host has and no setting names, switched to a plugin of another name, is refused naming both forms, saving nothing", async () => {
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
     assert.throws(() => switchPart("forrest", "plugin", parts, home, "my-forest"), (error: unknown) => error instanceof VerbRefusal
-      && /no part called forrest here\. Parts: arc-surface, forest\./.test(error.message) && /settings set part my-forest plugin my-forest/.test(error.message));
+      && /no module called forrest here\. Modules: arc-surface, forest\./.test(error.message) && /settings set module my-forest plugin my-forest/.test(error.message));
     assert.equal(existsSync(file), false, "a refused switch saves nothing");
 
     assert.deepEqual(switchPart("my-extra", "plugin", parts, home, "my-extra"), ["my-extra"]);
     const standIns = readStandIns(home).plugins;
     const switched = new Map([["my-extra", "my-extra"]]);
-    assert.match(switchedSaid(switched, standIns, parts), /^Added on this computer: my-extra \(by the factory plugin my-extra\)\.\nNo part is switched off on this computer\./);
+    assert.match(switchedSaid(switched, standIns, parts), /^Added on this computer: my-extra \(by the factory plugin my-extra\)\.\nNo module is switched off on this computer\./);
     assert.match(partsSaid([...parts, "my-extra"], switched, standIns, {}, {}, parts), /^  my-extra: added by the factory plugin my-extra$/m);
     assert.deepEqual(switchPart("my-extra", "on", parts, home), [], "and dropped again");
   });

@@ -22,7 +22,7 @@ test("28.12 every byte a library connection receives, its handshake included, is
     assert.equal([...counted.values()].reduce((sum, total) => sum + total.bytes, 0), received(), "every byte the server sent is counted, once");
 
     const names = await withTestClient(async (client) =>
-      (await client.query<{ name: string }>("SELECT application_name AS name FROM pg_stat_activity WHERE datname = $1", [`storytree_${project.name}`])).rows.map((row) => row.name),
+      (await client.query<{ name: string }>("SELECT application_name AS name FROM pg_stat_activity WHERE datname = $1 AND backend_type = 'client backend'", [`storytree_${project.name}`])).rows.map((row) => row.name),
     );
     assert.ok(names.length > 0);
     for (const name of names) assert.match(name, new RegExp(` ${process.pid} arc show$`));

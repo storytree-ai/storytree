@@ -52,6 +52,9 @@ function seenAt(writer: Writer): string {
  * platform (one missing from `platformsSeen`) cannot re-run a test that only runs there, so a passing verdict from
  * elsewhere stands against its `platform:<os>` skip; so does one whose skipped tests that platform's run never reached.
  * A contract retired since the run read it is skipped, not written, and named in `retired` as `<number> (<id>)`.
+ * A verdict kept in its column whose follow-up write (the owner's FYI on a turn red or green again, a release of work
+ * waiting on it) the writer's database role refuses is named in `untold` the same way, and the rest are recorded: CI's
+ * role may write only health (infra/library-host/grants.sql), and one such turn sank whole runs (3.20).
  * @param contractIds contract number -> id
  * @param options the platforms whose CI evidence the run read; all, when absent
  */
@@ -61,9 +64,10 @@ export async function recordHealth(
   verdicts: ReadonlyMap<string, RecordedVerdict>,
   writer: Writer,
   { platformsSeen }: { platformsSeen?: ReadonlySet<string> } = {},
-): Promise<{ passing: number; failing: number; notChecked: number; marked: number; retired?: string[] }> {
+): Promise<{ passing: number; failing: number; notChecked: number; marked: number; retired?: string[]; untold?: string[] }> {
   const written = { passing: 0, failing: 0, notChecked: 0, marked: 0 };
   const retired: string[] = [];
+  const untold: string[] = [];
   for (const [number, verdict] of verdicts) {
     const id = contractIds.get(number);
     if (verdict.state !== "not-checked" && id === undefined) throw new Error(`there is no contract ${number} in the library to record its health on`);
@@ -75,7 +79,12 @@ export async function recordHealth(
       }
       const at = seenAt(writer);
       const note = at === "" ? verdict.note : `${verdict.note ?? ""},${at}`;
-      await library.recordVerified(id!, verdict.state, { by: writer.by, source: writer.source, ...(note === undefined || note === "" ? {} : { note }) });
+      try {
+        await library.recordVerified(id!, verdict.state, { by: writer.by, source: writer.source, ...(note === undefined || note === "" ? {} : { note }) });
+      } catch (error) {
+        if (!(isPrivilegeRefusal(error) && (await kept(library, id!, verdict.state, writer.by, note)))) throw error;
+        untold.push(`${number} (${id})`);
+      }
       written[verdict.state]++;
     } catch (error) {
       // Retired on the library after the run read its plan (runs 40092872110, 40103014567): one contract gone sinks no run.
@@ -83,7 +92,18 @@ export async function recordHealth(
       retired.push(`${number} (${id})`);
     }
   }
-  return retired.length === 0 ? written : { ...written, retired };
+  return { ...written, ...(retired.length === 0 ? {} : { retired }), ...(untold.length === 0 ? {} : { untold }) };
+}
+
+/** Whether `error` is Postgres refusing for want of a privilege, as row-level security refuses a row (SQLSTATE 42501). */
+function isPrivilegeRefusal(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "42501";
+}
+
+/** Whether contract `id`'s verified column holds the verdict just written: the refusal came after it, not to it. */
+async function kept(library: Pick<Library, "health">, id: string, state: string, by: string, note: string | undefined): Promise<boolean> {
+  const { verified } = await library.health(id);
+  return verified.state === state && verified.by === by && (verified.note ?? "") === (note ?? "");
 }
 
 /**

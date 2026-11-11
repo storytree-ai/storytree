@@ -106,6 +106,7 @@ export async function checkStory(library, story, writer, { root, folders, eviden
       `${written.notChecked} not checked, ${written.marked} of them marked with a skip's kind or as not re-run. The reported column is untouched.`,
   );
   if (written.retired !== undefined) log(`skipped ${written.retired.length} contract(s) retired on the library since this run read the plan, so nothing was recorded on them: ${written.retired.join(", ")}`);
+  if (written.untold !== undefined) log(`recorded ${written.untold.length} verdict(s) whose follow-up write (the owner's FYI on a turn red or green again, a release of waiting work) this writer's library role may not make, so it was not made: ${written.untold.join(", ")}`);
   return true;
 }
 

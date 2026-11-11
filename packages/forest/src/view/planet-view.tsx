@@ -8,7 +8,7 @@ import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARA
 import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
-import { openWorkLayer, openWorkMarks, ringedCapabilities, rungLinks, sizeOpenWork } from "./open-work.js";
+import { IslandOpenWork, openWorkMarks, ringedCapabilities, rungLinks, sizeOpenWork } from "./open-work.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { islandRoadMarks, landFill, ringGate, type GatePick } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
@@ -17,7 +17,8 @@ import { islandRelief, type IslandRelief } from "../territories/island-relief.js
 import { islandReliefMarks } from "./island-relief.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { islandLayoutSteps, type Link } from "../territories/link-layout.js";
-import { awaitingFirstLayout, keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
+import { useLayingOut } from "./layout-progress.js";
+import { awaitingLayout, keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
 import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, feedbackPick, answerFeedbackPicks, type ForestMode, type PickedGate } from "./planet-navigation.js";
 import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
@@ -325,14 +326,19 @@ function Territories(props: TerritoriesProps) {
   const [joined] = useState(() => sinceFirstIsland(clock));
   // 3.80: laid out from the arrangement the search kept for it, and searched off the page when there is none for its structure.
   const kept = useSyncExternalStore(subscribeKept, keptVersion);
-  // 3.95: with nothing kept, none of its territories draw until its first search lands; then they trace on, once.
+  // 3.95: until what is kept places every territory, none of them draw while its search runs; then they trace on, once.
   const searcher = useMemo(() => pageTerritorySearcher(), []);
-  const awaiting = awaitingFirstLayout(story, land.territories, searcher);
+  const awaiting = awaitingLayout(story, land.territories, searcher);
   const [waited, setWaited] = useState(awaiting);
   useEffect(() => { if (awaiting) setWaited(true); }, [awaiting]);
   // 3.87: settled in its turns, a few of the fine cut's cells or one try at growing to each, so opening a map of many
   // islands never lays out one of them, let alone several, in one task.
-  const map = useBuiltInSteps(function* () { return awaiting ? undefined : yield* islandLayoutSteps(story, land.territories, coast, links, docks); }, [story, land, coast, links, docks, kept, awaiting]);
+  const asked = useMemo(() => ({}), [story, land, coast, links, docks, kept, awaiting]);
+  const built = useBuiltInSteps(function* () { return { asked, map: awaiting ? undefined : yield* islandLayoutSteps(story, land.territories, coast, links, docks) }; }, [asked]);
+  const map = built?.map;
+  // 3.101: until its land is laid out for its docks as they are now, the island holds the map's mark as laying out; then
+  // its IslandLand holds it until that land is drawn.
+  useLayingOut(story, docks !== undefined && built?.asked === asked && map !== undefined);
   useEffect(() => { if (docks !== undefined) searchIsland(story, { shares: land.territories, coast, links, docks }, searcher); }, [story, land, coast, links, docks, searcher]);
   return map === undefined || awaiting ? null : <IslandLand {...props} land={land} coast={coast} docks={docks} tints={tints} pointed={pointed} map={map} joined={waited ? Infinity : joined} />;
 }
@@ -366,7 +372,8 @@ function IslandLand(props: IslandLandProps) {
   }, [ask, roads]);
   // 3.87: its meshes built in their turns, the land's at once and again with its relief and roads when they arrive, the
   // relief, the land, the relief's marks and the roads' each a step of its own, so the biggest island's fits a task.
-  const drawn = useBuiltInSteps(function* (): Generator<void, DrawnLand, void> {
+  const asked = useMemo(() => ({}), [map, coast, tints, radius, roads]);
+  const built = useBuiltInSteps(function* (): Generator<void, { asked: object; drawn: DrawnLand }, void> {
     // 3.78: and every territory a plateau above its open land, a ramp where a road climbs onto one.
     const relief = roads === undefined ? undefined : islandRelief(map, roads);
     if (relief !== undefined) yield;
@@ -386,8 +393,11 @@ function IslandLand(props: IslandLandProps) {
     }
     // 3.86: every island's marks stand where they were built, so the frame never recomputes their matrices, shown or hidden.
     group.traverse((mark) => { if (mark !== group) { mark.updateMatrix(); mark.matrixAutoUpdate = false; } });
-    return { group, map, roads, relief, onLand };
-  }, [map, coast, tints, radius, roads]);
+    return { asked, drawn: { group, map, roads, relief, onLand } };
+  }, [asked]);
+  const drawn = built?.drawn;
+  // 3.101: the island holds the map's mark until its land is drawn as laid out now, with its roads once they are routed.
+  useLayingOut(story, built?.asked === asked);
   return drawn === undefined ? null : <DrawnIsland {...props} drawn={drawn} />;
 }
 
@@ -408,18 +418,23 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
   const relief = drawn.relief, onLand = drawn.onLand;
   // 3.83: the open work's rings round its settlements, over the land as drawn now, at every zoom (ADR-1272 D2);
   // and the selected capability's gold ring (3.91).
-  const openWork = useMemo(() => openWorkLayer(openWorkMarks(drawn.map, circled, drawn.roads, picked, rung),
-    onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), sheetEyeZoom(camera, size)), [drawn, circled, picked, rung, radius, relief]);
-  // 3.73: its marks' shaders compiled as they are built, hidden ones too, so the zoom that first shows them stalls on none.
+  // 3.102: a pick redraws its gold ring alone, leaving the arc's rings and their shader as they stand.
+  const openWork = useMemo(() => new IslandOpenWork(), []);
+  useEffect(() => () => openWork.dispose(), [openWork]);
+  const onOpenWork = useMemo(() => onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), [radius, relief]);
+  // 3.73: its marks' shaders compiled as they are built, hidden ones too, so the zoom that first shows them stalls on none;
+  // the land once per drawing, the open work's layers as each is drawn anew.
   useEffect(() => {
-    const frame = requestAnimationFrame(() => { gl.compile(drawn.group, camera, scene); gl.compile(openWork, camera, scene); });
+    const frame = requestAnimationFrame(() => gl.compile(drawn.group, camera, scene));
     return () => cancelAnimationFrame(frame);
-  }, [gl, camera, scene, drawn, openWork]);
-  useEffect(() => { invalidate(); return () => openWork.traverse((object) => {
-    const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
-    mark.geometry?.dispose();
-    mark.material?.dispose();
-  }); }, [openWork, invalidate]);
+  }, [gl, camera, scene, drawn]);
+  useLayoutEffect(() => {
+    const fresh = openWork.show(openWorkMarks(drawn.map, circled, drawn.roads, picked, rung), onOpenWork, sheetEyeZoom(camera, size));
+    invalidate();
+    if (fresh.length === 0) return;
+    const frame = requestAnimationFrame(() => { for (const layer of fresh) gl.compile(layer, camera, scene); });
+    return () => cancelAnimationFrame(frame);
+  }, [openWork, drawn, circled, picked, rung, onOpenWork, gl, camera, scene, invalidate]);
   // 3.88: a picked gate's ring, on the roads as drawn now.
   const gateRing = useMemo(() => drawn.group.getObjectByName("gate-ring") as Group | undefined, [drawn]);
   useLayoutEffect(() => {
@@ -452,7 +467,7 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
     const zoom = sheetEyeZoom(camera, size);
     if (marks.frame(clock.getElapsedTime(), { zoom, eye: camera.quaternion, reduced: reducedMotion() })) invalidate();
     // 3.86: the open work's rings keep their line's width on screen at the zoom the eye shows, as a flag keeps its size.
-    if (openWork.children.length > 0 && sizeOpenWork(openWork, zoom * (openWork.matrixWorld.getMaxScaleOnAxis() || 1))) invalidate();
+    if (openWork.size(zoom * (openWork.root.matrixWorld.getMaxScaleOnAxis() || 1))) invalidate();
     // 3.88: and a picked gate's ring.
     if (gateRing !== undefined && gateRing.children.length > 0 && sizeOpenWork(gateRing, zoom * (gateRing.matrixWorld.getMaxScaleOnAxis() || 1))) invalidate();
   });
@@ -485,7 +500,7 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
     invalidate();
   }, [drawn, level, surfaces, invalidate]);
   useEffect(() => () => disposeMarks(drawn.group), [drawn]);
-  return <><primitive object={drawn.group} /><primitive object={marks.root} />{surfaces.territories !== false && <primitive object={openWork} />}</>;
+  return <><primitive object={drawn.group} /><primitive object={marks.root} />{surfaces.territories !== false && <primitive object={openWork.root} />}</>;
 }
 
 

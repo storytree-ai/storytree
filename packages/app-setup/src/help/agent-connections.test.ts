@@ -60,6 +60,7 @@ test("3.13 the guide's agents are the ones this computer runs, connected only wh
   const done = await help.connectAgent("claude-code");
   assert.deepEqual([done.agent, done.connected], ["Claude Code", true]);
   assert.match(done.next, /check_setup/);
+  assert.match(done.where ?? "", /Claude Code's user settings/, "where it was written reaches the guide, for its fold");
   assert.equal(JSON.parse(readFileSync(path.join(user, ".claude.json"), "utf8")).mcpServers.storytree.command, path.join(own, node), "the app's own tools, with no delivery record");
   assert.deepEqual((await listed()).map((found) => found.connected), [true]);
   await assert.rejects(help.connectAgent("nobody"), /Choose an agent this computer runs/);

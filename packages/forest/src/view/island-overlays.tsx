@@ -6,8 +6,8 @@ import type { Island } from "@storytree/forest";
 import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
 import type { Coast } from "../territories/territories.js";
 import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
-import { awaitingFirstLayout, keptVersion, pageTerritorySearcher, subscribeKept } from "../territories/kept-layout.js";
-import { capabilityPlates, facing, fadedPlates, nameMoves, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
+import { awaitingLayout, keptVersion, pageTerritorySearcher, subscribeKept } from "../territories/kept-layout.js";
+import { capabilityPlates, crowdedNames, facing, mapFrame, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 import type { DetailStore } from "./zoom-detail.js";
 
@@ -52,9 +52,9 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
   const level = useSyncExternalStore(detail?.subscribe ?? NEVER, detail?.get ?? NEAR);
   // Near only: every island's names at once, from the whole map's zoom, cost the page a frame in two (evidence/zoom-detail).
   const named = level === "near";
-  // 3.95: an island awaiting its first search names no territory, and says it is laying them out.
+  // 3.95: an island awaiting the search that places every territory names none, and says it is laying them out.
   const searcher = useMemo(() => pageTerritorySearcher(), []);
-  const awaiting = island.land !== undefined && awaitingFirstLayout(island.story, island.land.territories, searcher);
+  const awaiting = island.land !== undefined && awaitingLayout(island.story, island.land.territories, searcher);
   const plates = useMemo(() => named && !awaiting && island.land !== undefined ? capabilityPlates(islandLayout(island.story, island.land.territories, coast, links, docks)) : [], [named, awaiting, island.story, island.land, coast, links, docks, kept]);
   const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
   // Its opacity is a variable, so a crowded plate's fade (styles.css) can take it to nothing and back.
@@ -77,7 +77,7 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
 const NEVER = () => () => {};
 const NEAR = () => "near" as const;
 
-/** Whenever the globe draws, fade the story names that overlap another, none moving (ADR-0917), and move apart the capability names that overlap (3.33). */
+/** Whenever the globe draws, fade the story names that overlap another or that the map's frame cuts, none moving (ADR-0917, 3.4), and move apart the capability names that overlap (3.33). */
 export function NameplateCrowd({ selected }: { selected: string | undefined }) {
   const gl = useThree(state => state.gl);
   const invalidate = useThree(state => state.invalidate);
@@ -89,12 +89,13 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
     const labels = [...host.querySelectorAll<HTMLElement>(".planet-nameplate[data-story-id]")];
     const shown = labels.filter(onScreen).map(label => ({ story: label.dataset.storyId!, box: label.getBoundingClientRect(),
       facing: Number(label.dataset.facing ?? 0), dimmed: label.dataset.dimmed !== undefined }));
-    const faded = fadedPlates(shown, selected);
-    for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));
-    // A capability's name is never hidden: where names overlap they are moved apart (3.33).
+    // A capability's name is never hidden: where names overlap they are moved apart, and off a story's name shown (3.33).
     const capabilities = [...host.querySelectorAll<HTMLElement>(".planet-nameplate.capability")].filter(onScreen);
-    const moves = nameMoves(capabilities.map(label => ({ capability: label.dataset.capabilityId!, box: label.getBoundingClientRect(),
-      given: { x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) }, size: Number(label.dataset.size ?? 0) })));
+    // The map shows only where its canvas lies in the window: a story's name cut by the rail's edge or the window's fades (3.4).
+    const frame = mapFrame(gl.domElement.getBoundingClientRect(), { width: innerWidth, height: innerHeight });
+    const { faded, moves } = crowdedNames(shown, selected, capabilities.map(label => ({ capability: label.dataset.capabilityId!, box: label.getBoundingClientRect(),
+      given: { x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) }, size: Number(label.dataset.size ?? 0) })), frame);
+    for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));
     for (const label of capabilities) {
       const move = moves.get(label.dataset.capabilityId!);
       if (move === undefined) continue;

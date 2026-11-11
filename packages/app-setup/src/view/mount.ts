@@ -1,12 +1,14 @@
 /** Capability 3 · First-run guide. */
 import type { FeedbackAccount, SetupHelpBridge } from "../help/bridge.js";
+import type { JourneyBridge } from "../journey-events/bridge.js";
 import { draftSaid, feedbackText } from "../journey-events/feedback.js";
 import { addedSentence } from "./add-project.js";
 import { guideOffered, rememberGuideDismissed } from "./first-run.js";
 import { guideFor, platformOf, recoveryRequest, type GuidePlatform } from "./guide.js";
 
 /** A single help surface survives empty/error states and project switching in the thin frame. */
-export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, options: { returnFocus?: HTMLElement; embedded?: boolean; onOpen?: () => void; platform?: GuidePlatform | undefined } = {}): { open(): void; close(): void; stop(): void } {
+/** `readJourney`, where the app asks for a sharing choice: on a first launch the guide waits for its ask to be answered (3.21). */
+export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge & Partial<Pick<JourneyBridge, "readJourney">>, options: { returnFocus?: HTMLElement; embedded?: boolean; onOpen?: () => void; platform?: GuidePlatform | undefined } = {}): { open(): void; close(): void; stop(): void } {
   // The troubleshooting shown is the platform's the app runs on (3.15), read from Electron's user agent unless given.
   const platform = "platform" in options ? options.platform : platformOf(globalThis.navigator?.userAgent ?? "");
   const entry = options.embedded ? null : document.createElement("div");
@@ -135,7 +137,19 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
         said.textContent = "Connecting…";
         void bridge.connectAgent(each.harness).then((result) => {
           said.textContent = result.next;
-          if (result.connected) { row.replaceChildren(name, " is connected. ", said); void agents(); }
+          if (result.connected) {
+            row.replaceChildren(name, " is connected. ", said);
+            // Where it was written is for a reader who asks: folded, one step away.
+            if (result.where !== undefined) {
+              const where = document.createElement("details");
+              where.dataset.connectWhere = "";
+              const summary = document.createElement("summary");
+              summary.textContent = "Details";
+              where.append(summary, result.where);
+              row.append(" ", where);
+            }
+            void agents();
+          }
           else button.disabled = false;
         }).catch((error: unknown) => {
           console.error(`app-setup guide: ${each.agent} could not be connected`, error);
@@ -302,10 +316,32 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
   panel.querySelector("[data-close-help]")?.addEventListener("click", close);
   if (!options.embedded) document.addEventListener("keydown", key, true);
   if (guideOffered(() => localStorage)) {
-    if (options.embedded) queueMicrotask(() => { if (!stopped) (options.onOpen ?? open)(); });
-    else open();
+    const offer = () => { if (stopped) return; if (options.embedded) (options.onOpen ?? open)(); else open(); };
+    if (bridge.readJourney === undefined) {
+      if (options.embedded) queueMicrotask(offer);
+      else open();
+    } else void sharingAnswered(bridge.readJourney, () => stopped).then(offer);
   }
   return { open, close, stop() { stopped = true; document.removeEventListener("keydown", key, true); entry?.remove(); panel.remove(); } };
+}
+
+/**
+ * Resolves once the first launch's sharing ask is answered, so it is asked alone, before the guide opens over it (3.21): at
+ * once when it was answered before, and when sharing cannot be read, since a failed read never holds the guide back.
+ */
+function sharingAnswered(read: JourneyBridge["readJourney"], stopped: () => boolean): Promise<void> {
+  return new Promise((answered) => {
+    const check = async (): Promise<void> => {
+      let pending: boolean;
+      try { pending = (await read()).consent === "pending"; } catch { pending = false; }
+      if (pending && !stopped()) return;
+      document.removeEventListener("storytree-journey-changed", changed);
+      answered();
+    };
+    const changed = () => { void check(); };
+    document.addEventListener("storytree-journey-changed", changed);
+    void check();
+  });
 }
 
 function messageOf(error: unknown): string {

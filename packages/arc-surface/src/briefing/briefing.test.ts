@@ -74,15 +74,15 @@ test("5.3 a settled question published with only its title and answer opens on t
 const work = (id: string, extra: Partial<FieldsOf<"increment">> = {}) => record(id, "increment", { arc: "a", title: `Build ${id}`, objective: `Objective of ${id}`, body: "planning body", status: "proposal", parked: "2026-09-27T00:00:00Z", ...extra });
 const closed = (id: string, disposition: "landed" | "failed", pr?: string) => work(id, { status: "closed", outcome: { date: "2026-09-20", disposition, ...(pr ? { pr } : {}), note: `Closed ${id}` } });
 
-test("5.5 the increments table gives each increment one short cell of chips, open work first (waiting, in progress, to take), then not completed, then landed", () => {
+test("5.5 the increments table gives each increment one short cell of chips, open work first (waiting, in progress, to take), then not completed, then landed; a holder reads active now, or idle for its minutes", () => {
   const arc = { arc: record("a", "arc", { title: "Arc a", intent: "a", endState: "Done" }), state: "active" as const,
     questions: [record("q1", "question", { arc: "a", title: "Which release?", lifecycle: "open", statement: "s", stakes: "s", context: "c", options: "o" })],
     increments: [closed("l1", "landed", "storytree-ai/storytree#131"), closed("l2", "landed"), closed("f1", "failed"), work("free"), work("held"), work("owner", { heldOn: ["q1"] }),
-      work("other"), work("event"), work("passed"), work("blocked", { capabilities: ["c1"] }), work("holder", { capabilities: ["c1"] })] };
-  const claim = (increment: string, session: string) => ({ seq: 1, project: "p", session, harness: "claude-code", source: "hook" as const, kind: "claimed" as const, increment, reason: "Working", at: "2026-09-27T00:00:00Z" });
+      work("other"), work("event"), work("passed"), work("blocked", { capabilities: ["c1"] }), work("holder", { capabilities: ["c1"] }), work("busy")] };
+  const claim = (increment: string, session: string, at = "2026-09-27T00:00:00Z") => ({ seq: 1, project: "p", session, harness: "claude-code", source: "hook" as const, kind: "claimed" as const, increment, reason: "Working", at });
   const board = boardView({ arcs: [arc], heldOn: { owner: ["q1"] }, waits: { other: [{ on: "event", reason: "after event", forGood: false }, { on: "free", reason: "after free", forGood: false }] },
     waitsFor: { event: [{ releaser: "event", note: "vendor ships", checkBack: "2999-01-02", holds: true }], passed: [{ releaser: "event", note: "review window", checkBack: "2020-01-01", holds: false }] } },
-    [claim("held", "s1"), claim("holder", "s2")], new Date("2026-09-27T00:12:00Z"));
+    [claim("held", "s1"), claim("holder", "s2"), claim("busy", "s3", "2026-09-27T00:11:40Z")], new Date("2026-09-27T00:12:00Z"));
   const rows = incrementRows(board.lanes[0]!);
   const cells = Object.fromEntries(rows.map(({ id, chips }) => [id, chips.map(({ text }) => text)]));
   assert.deepEqual(cells.owner, ["you"]);
@@ -90,7 +90,8 @@ test("5.5 the increments table gives each increment one short cell of chips, ope
   assert.deepEqual(cells.event, ["event"]);
   assert.deepEqual(cells.passed, ["check-back passed"]);
   assert.deepEqual(cells.blocked, ["blocked"]);
-  assert.match(cells.held!.join(), /12 min quiet/);
+  assert.match(cells.held!.join(), / · idle 12 min$/);
+  assert.match(cells.busy!.join(), / · active now$/, "a holder heard from this minute is active, never \"0 min quiet\"");
   assert.deepEqual(cells.free, ["to take"]);
   assert.deepEqual(cells.f1, ["not completed"]);
   assert.deepEqual(cells.l1, ["#131"]);

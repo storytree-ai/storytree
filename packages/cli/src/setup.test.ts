@@ -71,7 +71,8 @@ test("2.1 / 2.4 / 2.5 / 2.6: installed connect chooses both, retries unchanged a
   assertExitCode(first, 0);
   assert.match(first.stdout, /Claude Code: tools connected; hooks not verified/);
   assert.match(first.stdout, /Codex: tools connected; hooks waiting for you to trust them in Codex\.[^]*type \/hooks/);
-  assert.match(first.stdout, /Start a new agent session in the folder/);
+  assert.match(first.stdout, /first time you start Claude Code in your project's folder/);
+  assert.match(first.stdout, /Written to Claude Code's user settings/);
   const claude = readFileSync(u.settings, "utf8");
   const codex = readFileSync(path.join(u.codex, "config.toml"), "utf8");
   assert.deepEqual(JSON.parse(claude).mcpServers.storytree.args, [u.mcp]);

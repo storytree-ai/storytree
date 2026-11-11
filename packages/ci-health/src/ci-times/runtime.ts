@@ -3,7 +3,8 @@
  * beside the library. While the page shows it, the app records again once the last recording is ten minutes old, in the
  * background and one at a time per project, from the project's folder on this machine through the user's `gh`: so a user
  * with no scheduled recorder (no Mint box, no watcher) still gets the strip, and its live count stays near current. The
- * reading is answered at once, never waiting on a recording; a recording that fails is tried again at the next ask.
+ * reading is answered at once, never waiting on a recording; a recording that fails is tried again at the next ask, and one
+ * the library's close cuts short stops there, writing nothing more and saying nothing.
  */
 import type { Storytree } from "@storytree/library";
 
@@ -37,13 +38,26 @@ export function ciTimesAnswers(frame: CiTimesPageFrame, { record = (db, project,
       const reading = await ciTimesReading(db, project, now());
       const stale = reading === undefined || now().getTime() - Date.parse(reading.readAt) >= RECORD_AFTER_MS;
       if (stale && !recording.has(project)) {
-        const started = frame.library().projectFolder(project).then((folder) => (folder === undefined ? undefined : record(db, project, folder)))
-          .catch((error: unknown) => console.error(`The CI times of ${project} could not be recorded: ${error instanceof Error ? error.message : String(error)}`))
+        const started = frame.library().projectFolder(project).then((folder) => (folder === undefined ? undefined : record(untilEnded(db), project, folder)))
+          .catch((error: unknown) => {
+            if (error instanceof LibraryClosed) return;
+            console.error(`The CI times of ${project} could not be recorded: ${error instanceof Error ? error.message : String(error)}`);
+          })
           .finally(() => recording.delete(project));
         recording.set(project, started.then(() => undefined));
       }
       return reading;
     },
+  };
+}
+
+/** The library closed while a recording was under way: the recording stops there, which is no failure. */
+class LibraryClosed extends Error {}
+
+/** `db`, refusing every write once its pool has begun to end, as the app's quit or update handoff ends it. */
+function untilEnded(db: CiTimesDb): CiTimesDb {
+  return {
+    query: (text, values) => ((db as { ending?: boolean }).ending === true ? Promise.reject(new LibraryClosed("the library closed")) : db.query(text, values)),
   };
 }
 

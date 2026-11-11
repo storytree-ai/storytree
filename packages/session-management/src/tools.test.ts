@@ -65,5 +65,5 @@ test("5.71 · The report reply names the contract by title, calls it the agent's
   assert.match(unseen, new RegExp(`^Reported "5\\.2 · Every packet matches the oracle" \\(${id}\\) green: your report, a claim until storytree's own run confirms it \\(storytree's own run has not verified it yet\\)\\. Run \`storytree health local\``), unseen);
   const { at } = await library.recordVerified(id, "passing");
   const red = (await reportContract(library, { contract: id, result: "red" }, caller)).text;
-  assert.match(red, new RegExp(`^Reported "5\\.2 · Every packet matches the oracle" \\(${id}\\) red: your report, and storytree's own run last verified it passing at ${at.replace(/\./g, "\\.")}\\. Run \`storytree health local\`.*then make it pass and report it green`), red);
+  assert.match(red, new RegExp(`^Reported "5\\.2 · Every packet matches the oracle" \\(${id}\\) red: your report, and storytree's own run last verified it passing at ${at.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\. Run \`storytree health local\`.*then make it pass and report it green`), red);
 });

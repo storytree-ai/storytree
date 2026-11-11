@@ -242,6 +242,16 @@ test("17.28 · A decision filed on a part answers with that part's and each part
   assert.match(filed.text, /"3 · Store" \(capability_\w+\), which depends on it: no description written\. It has no contracts\./, "a part linking to it, with no description, said so");
   assert.match(filed.text, /correct it with edit_plan\./);
   assert.doesNotMatch(filed.text, /Disk|Writes pages/, "a part two links away is not quoted");
+
+  // The command line's library new answers the same, naming its own way to correct; a story quotes only itself.
+  const create = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "new")!;
+  const person: LibraryVerbContext = { ...context, testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const decision = (on: string) => ({ "<kind>": "decision", "<fields>": { status: "accepted", authority: JSON.stringify({ basis: "agent-derived", scribedBy: "person:owner", at: "2026-11-12T00:00:00.000Z" }), title: "No cache", text: "Fresh.", frontCoverOf: on } });
+  const made = await create.act(decision(packets.id), person, WORDS);
+  assert.match(made.text, /It is filed on "4 · Packet compilation"[^\n]*\n[^]*"5 · HTTP API" \(capability_\w+\), which depends on it: Serves compiled packets over HTTP\.[^]*"2 · Disk" \(capability_\w+\), which it depends on: Writes pages to disk\.[^]*correct it with `storytree library edit`\./);
+  assert.doesNotMatch(made.text, /3 · Store/, "two links away from packets");
+  const onStory = await create.act(decision(story.id), person, WORDS);
+  assert.match(onStory.text, /It is filed on "Context service" \(story_\w+\): no description written\. It has no contracts\.\nIf this decision/);
 });
 
 test("17.4 · One field round-trips byte for byte: library read --field and the open tool's field give a record's stored value exactly, and library edit @file writes it back unchanged", async (t) => {

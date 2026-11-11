@@ -410,7 +410,7 @@ export async function partsBeside(library: Library, id: string, correct: string)
       const on = capability.dependsOn.includes(node.id);
       const from = node.dependsOn.includes(id);
       if (!on && !from) return [];
-      return [quote(node, node.contracts, on && from ? ", which it depends on and which depends on it" : on ? ", which it depends on" : ", which depends on it")];
+      return [quote(node, node.contracts, on ? ", which it depends on" : ", which depends on it")];
     });
     if (near.length > 0) out.push("One link from it on the map:", ...near.map((line) => `- ${line}`));
   }

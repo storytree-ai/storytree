@@ -13,7 +13,7 @@ import { borderLength, networkScore, searchTerritories } from "./territory-searc
 import { islandRoads, roadMeasures } from "./island-roads.js";
 import { answerSearch } from "./search-worker.js";
 import { capabilityPlates } from "../view/nameplates.js";
-import { landArea, territoryAt, type Coast, type TerritoryMap } from "./territories.js";
+import { insideOf, landArea, territoryAt, type Coast, type TerritoryMap } from "./territories.js";
 
 // An island of The library's size, so its scale is 1 and kept seeds are in its own units.
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
@@ -104,6 +104,18 @@ test("3.80 a territory reaching into its neighbours' land costs the arrangement 
   assert.equal(inmost(0).length + inmost(1).length, 6);
   assert.ok(borderLength(island, reaching) > borderLength(island, held), "more border between them");
   assert.ok(networkScore(island, reaching, m)! > networkScore(island, held, m)!, "the compact arrangement scores better on the same network");
+});
+
+test("3.80 the border the search measures is the border drawn: on a lumpy coast, every stretch of land between two territories, a short one at a bay's head included", () => {
+  // Three lobes, so bays reach in between them, at The library's size so both are in its units.
+  const ring = Array.from({ length: 120 }, (_, i) => { const t = (i * Math.PI) / 60, r = 1 + 0.25 * Math.sin(3 * t + 1) + 0.1 * Math.sin(5 * t + 4); return { x: r * Math.cos(t), z: r * Math.sin(t) }; });
+  const k = Math.sqrt(LIBRARY_LAND / landArea([ring])), lumpy: Coast = [ring.map((p) => ({ x: p.x * k, z: p.z * k }))];
+  const dock = [{ local: lumpy[0]![0]!, links: ["z1->a"] }];
+  const map = linkLayout(shares, lumpy, links, dock), island = prepareIsland(shares, lumpy, links, dock)!;
+  const drawn = map.borders.filter((b) => b.between.every((c) => map.cells[c]!.territory >= 0))
+    .flatMap((b) => insideOf(b.from, b.to, lumpy)).reduce((sum, { from, to }) => sum + Math.hypot(to.x - from.x, to.z - from.z), 0);
+  assert.ok(drawn > 0);
+  assert.ok(Math.abs(borderLength(island, owners(map)) - drawn) < 1e-6, `measured ${borderLength(island, owners(map))}, drawn ${drawn}`);
 });
 
 test("3.80 a kept arrangement for the island's structure draws from its seeds and asks no search; a change of structure asks one, seeded from what is drawn, and keeps what it finds", async () => {

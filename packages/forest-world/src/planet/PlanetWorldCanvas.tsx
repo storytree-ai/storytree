@@ -93,7 +93,7 @@ export interface PlanetWorldCanvasProps {
   /** Every island drawn as its coast line alone over clear glass, hiding nothing beneath it: the glass sheet's Library look
    * (ADR-1061 D2, ADR-1062 D3). */
   hollow?: boolean | undefined;
-  /** Given, the canvas tells its host the lanes notice (undefined once there is none, and on unmount) and lays none over
+  /** Given, the canvas tells its host the lanes notice each time it changes (undefined once there is none) and lays none over
    * itself, so the host shows it where nothing covers it (4.45); without it the notice sits in the canvas's bottom right (4.35). */
   onLanesNotice?: ((notice: LanesNotice | undefined) => void) | undefined;
 }
@@ -261,7 +261,6 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
   const exterior = globeExterior(surface, surfaces);
   const noticeText = exterior.roads && drawing.issue ? `${pathways.lanes.edges.length > 0 ? 'Some lanes could not be drawn.' : 'Lanes could not be drawn.'} Island health and selection are still available.` : undefined;
   useEffect(() => onLanesNotice?.(noticeText === undefined ? undefined : { text: noticeText, issue: drawing.issue! }), [onLanesNotice, noticeText, drawing.issue]);
-  useEffect(() => () => onLanesNotice?.(undefined), [onLanesNotice]);
   const docks = useMemo(() => islandDocks(pathways, drawing.routing), [pathways, drawing.routing]);
   const docksOn = useCallback((story: string) => docks === undefined ? undefined : docks.get(story) ?? NO_DOCKS, [docks]);
   // 4.8, 4.40: the lanes end just off the selected island's ports.

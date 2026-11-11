@@ -12,12 +12,12 @@ export function nameplateAt(names: readonly DrawnName[], cursor: { x: number; y:
   return named === undefined ? undefined : named.capability === undefined ? { story: named.story } : { story: named.story, capability: named.capability };
 }
 
-/** The names shown in `host`, the map's overlays: none turned away, hidden or faded as crowded (3.4). */
+/** The names shown in `host`, the map's overlays: none hidden (an overlay turned away is not displayed) or faded as crowded (3.4). */
 export function drawnNames(host: ParentNode): DrawnName[] {
   return [...host.querySelectorAll<HTMLElement>(".planet-nameplate")].flatMap(label => {
-    const story = label.dataset.storyId ?? label.dataset.islandId, box = label.getBoundingClientRect();
-    if (story === undefined || label.classList.contains("crowded") || label.style.visibility === "hidden" || box.width === 0) return [];
-    const capability = label.dataset.capabilityId;
+    const story = label.dataset.storyId ?? label.dataset.islandId;
+    if (story === undefined || label.classList.contains("crowded") || !label.checkVisibility()) return [];
+    const capability = label.dataset.capabilityId, box = label.getBoundingClientRect();
     return [capability === undefined ? { story, box } : { story, capability, box }];
   });
 }

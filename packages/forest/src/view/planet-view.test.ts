@@ -5,7 +5,7 @@ import { Color, DoubleSide, Group, LineBasicMaterial, LineSegments, Mesh, MeshBa
 import { workStates } from "@storytree/arc-surface";
 import { forestDrawn, forestScene, MAPPED_ISLAND_CAP, MIN_ISLAND_AREA, storyNodes } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
-import { globeFraming, globeHover, ignoresClick, isGlobeDrag, markerSpot, pickClick, pickGlobe, pickIsland } from "./planet-navigation.js";
+import { globeFraming, globeHover, isGlobeDrag, markerSpot, pickGlobe, pickIsland } from "./planet-navigation.js";
 import { sheetLayout, sheetMarkers } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
 import { lightTerritories, MAPPED_FILL, PARKED_FILL, territoryLand, WORD_FILL } from "./territory-land.js";
@@ -109,8 +109,7 @@ test("3.66 the zoom a stop at the whole map frames it at: 1.18 radii across half
   assert.ok(fills("far") < 0.7, "room around: the planet stands well inside the window");
 });
 
-/** An island on an 800px square view, its left half the territory of `cap-a`, its right half no part's. */
-function halfClaimedIsland() {
+test("3.15 a click on a capability's territory picks its story with that capability; Unclaimed land picks the story alone", () => {
   const land = {
     radius: 2,
     territories: [{ capability: "cap-a" }, {}],
@@ -131,22 +130,9 @@ function halfClaimedIsland() {
   camera.position.z = 40;
   camera.updateMatrixWorld();
   const box = { left: 0, top: 0, width: 800, height: 800 };
-  return { world, camera, box };
-}
-
-test("3.15 a click on a capability's territory picks its story with that capability; Unclaimed land picks the story alone", () => {
-  const { world, camera, box } = halfClaimedIsland();
   assert.deepEqual(pickGlobe(world, camera, box, { x: 300, y: 400 }, "forest"), { kind: "story", id: "story", capability: "cap-a" });
   assert.deepEqual(pickGlobe(world, camera, box, { x: 500, y: 400 }, "forest"), { kind: "story", id: "story" });
   assert.equal(world.getObjectByName("territory-borders")?.userData.borders, 1);
-});
-
-test("3.105 with an arc selected a click on land that is no part is ignored; on a part, or with no arc, it picks as before", () => {
-  const { world, camera, box } = halfClaimedIsland();
-  const bare = pickClick(world, camera, box, { x: 500, y: 400 }, "forest"), part = pickClick(world, camera, box, { x: 300, y: 400 }, "forest");
-  assert.equal(ignoresClick(bare, true), true, "bare land, an arc selected");
-  assert.equal(ignoresClick(bare, false), false, "bare land, no arc");
-  assert.equal(ignoresClick(part, true), false, "a part's territory, an arc selected");
 });
 
 test("3.32 pointing at a capability's territory shows its full name, without its number, and its description's first paragraph", () => {

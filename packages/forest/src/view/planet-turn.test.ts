@@ -13,9 +13,9 @@ const bundles = new Map<string, Promise<string>>();
  * `__show(titles)` hands it the plan again, a live update, with the stories' titles as given. `linked` gives each story a
  * second capability its first depends on, and story one's first depends on story two's, so each island has roads.
  * `__show(titles, story, more)` shows it with that story selected, and the map view's other props `more` gives (an arc's rings, a pick), `__core` is its knowledge core, and `__flushSync` commits the map's scene at once. `__zoom()` reads the eye's zoom the map shows its detail by. */
-function mapBundle(linked = false, { late = false }: { late?: boolean } = {}): Promise<string> {
-  const key = JSON.stringify([linked, late]);
-  if (!bundles.has(key)) bundles.set(key, bundleMap(linked, late));
+function mapBundle(linked = false, { late = false, unclaimed = false }: { late?: boolean; unclaimed?: boolean } = {}): Promise<string> {
+  const key = JSON.stringify([linked, late, unclaimed]);
+  if (!bundles.has(key)) bundles.set(key, bundleMap(linked, late, unclaimed));
   return bundles.get(key)!;
 }
 /** Counts, as `__pending`, the page's work still to come: the frames asked for and the turns handed to the next task (a
@@ -33,7 +33,7 @@ const PENDING_WORK = `globalThis.__pending = 0; {
   globalThis.clearTimeout = id => { turns.delete(id); count(); unlater(id); };
 }
 `;
-async function bundleMap(linked: boolean, late: boolean): Promise<string> {
+async function bundleMap(linked: boolean, late: boolean, unclaimed: boolean): Promise<string> {
   const entry = `import { createElement } from "react";
     import { createRoot } from "react-dom/client";
     import { flushSync } from "@react-three/fiber";
@@ -44,6 +44,8 @@ async function bundleMap(linked: boolean, late: boolean): Promise<string> {
     import { LayoutProgress } from ${JSON.stringify(path.join(import.meta.dirname, "layout-progress.tsx"))};
     import { sheetEyeZoom } from "@storytree/forest-world/planet";
     const linked = ${JSON.stringify(linked)};
+    // Unclaimed: story one is surveyed with as much code in no part as in its part, so its island has land no part's.
+    const survey = ${JSON.stringify(unclaimed)} ? { one: { files: [{ path: "a.ts", lines: 100, capability: "one-cap" }, { path: "b.ts", lines: 100 }], imports: [] } } : {};
     const health = { reported: { state: "passing" }, verified: { state: "passing" } };
     const capability = (id, dependsOn = []) => ({ id: id + "-cap", title: "1 · " + id, dependsOn, proposed: false, status: "healthy", contracts: [], health });
     const capabilities = id => !linked ? [capability(id)]
@@ -56,7 +58,7 @@ async function bundleMap(linked: boolean, late: boolean): Promise<string> {
     // The map's top-left mark over the same islands, as the forest view mounts it (3.96, 3.98, 3.101).
     const mark = createRoot(document.body.appendChild(document.createElement("div")));
     globalThis.__show = (titles, selected, more = {}) => {
-      const scene = forestScene(plan(titles), history, workStates([]));
+      const scene = forestScene(plan(titles), history, workStates([]), survey);
       root.render(createElement(PlanetView, { core, scene, places, wisps: [], selected, onPick: () => {}, onNote: () => {}, ...more }));
       mark.render(createElement(LayoutProgress, { islands: scene.islands.map(island => ({ story: island.story, territories: island.land?.territories })) }));
     };
@@ -92,10 +94,10 @@ async function freshPage(t: { after(run: () => Promise<void>): void }, viewport:
 }
 
 /** A page with the map mounted, once it has opened and stopped rendering. */
-async function openedMap(t: { after(run: () => Promise<void>): void }, linked = false, viewport = { width: 800, height: 600 }) {
+async function openedMap(t: { after(run: () => Promise<void>): void }, linked = false, viewport = { width: 800, height: 600 }, { unclaimed = false } = {}) {
   const page = await freshPage(t, viewport);
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
-  await page.addScriptTag({ content: await mapBundle(linked) });
+  await page.addScriptTag({ content: await mapBundle(linked, { unclaimed }) });
   await page.waitForFunction(() => {
     const { __globe: globe, __nav: nav } = window as unknown as { __globe?: { scene: { getObjectByName(name: string): unknown } }; __nav?: unknown };
     return nav !== undefined && globe?.scene.getObjectByName("planet:two") !== undefined;
@@ -416,6 +418,13 @@ test("3.104 · a click on a story's name on the map selects that story, and a dr
   const middle = { x: name.x + name.width / 2, y: name.y + name.height / 2 };
   await page.mouse.click(middle.x, middle.y);
   assert.deepEqual((await picks()).at(-1)?.[0], "two", "the click on the name picked its story");
+  // A name faded as crowded, or not displayed, names nothing: the click falls to the water under it.
+  for (const hide of ["label.classList.add('crowded')", "label.parentElement.style.display = 'none'"]) {
+    await page.evaluate(`{ const label = document.querySelector('.planet-nameplate[data-story-id="two"]'); ${hide}; }`);
+    await page.mouse.click(middle.x, middle.y);
+    assert.equal((await picks()).at(-1)?.[0], undefined, `a click on the name hidden by ${hide} picked nothing`);
+    await page.evaluate(`{ const label = document.querySelector('.planet-nameplate[data-story-id="two"]'); label.classList.remove('crowded'); label.parentElement.style.display = ''; }`);
+  }
 
   const before = await sheetTurn(page), picked = (await picks()).length;
   await page.mouse.move(middle.x, middle.y);
@@ -425,6 +434,19 @@ test("3.104 · a click on a story's name on the map selects that story, and a dr
   await page.evaluate(() => new Promise(requestAnimationFrame));
   assert.notDeepEqual(await sheetTurn(page), before, "the drag from the name panned the sheet");
   assert.equal((await picks()).length, picked, "the drag picked nothing");
+
+  // Near, a part's name shows; drawn off its land, over the water, a click on it still picks that part.
+  const part = page.locator('.planet-nameplate.capability[data-capability-id="two-cap"]');
+  await page.mouse.move(400, 300);
+  for (let step = 0; step < 40 && await part.count() === 0; step++) {
+    await page.mouse.wheel(0, -240);
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+  }
+  await part.evaluate(label => { label.style.translate = "0px 160px"; });
+  const partBox = await part.boundingBox();
+  assert.ok(partBox !== null, "part two-cap's name is drawn, near");
+  await page.mouse.click(partBox.x + partBox.width / 2, partBox.y + partBox.height / 2);
+  assert.deepEqual((await picks()).at(-1)?.slice(0, 2), ["two", "two-cap"], "the click on the part's name picked its part");
 });
 
 test("3.106 · the Whole map button shows once the view is moved, returns it to its opening, and goes", async t => {
@@ -448,4 +470,32 @@ test("3.106 · the Whole map button shows once the view is moved, returns it to 
   await waitUntil(async () => near(now = await sheetTurn(page), opening), 10_000, "the sheet back at its opening");
   assert.ok(near(now, opening));
   await button.waitFor({ state: "detached", timeout: 5_000 });
+});
+
+test("3.105 · while an arc is selected, a click on island land that is no part picks nothing, and on a part still picks it; with no arc, bare land picks its story", async t => {
+  const { page } = await openedMap(t, false, undefined, { unclaimed: true });
+  const show = (arc: boolean) => page.evaluate(`globalThis.__picks ??= []; globalThis.__show(["one", "two"], undefined, { ${arc ? "circled: [], " : ""}onPick: (...pick) => globalThis.__picks.push(pick) });`);
+  const picks = () => page.evaluate(() => JSON.stringify((window as unknown as { __picks: unknown[][] }).__picks));
+  await show(false);
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  const names = await page.locator(".planet-nameplate").evaluateAll(labels => labels.map(label => label.getBoundingClientRect().toJSON() as DOMRect));
+  const onName = (x: number, y: number) => names.some(box => x >= box.left - 4 && x <= box.right + 4 && y >= box.top - 4 && y <= box.bottom + 4);
+  // Found on the map as drawn: a point on island one's land in no part, away from any name, and one on its part.
+  let bare: { x: number; y: number } | undefined, part: { x: number; y: number } | undefined;
+  for (let y = 10; y < 600 && (bare === undefined || part === undefined); y += 20) for (let x = 10; x < 800; x += 20) {
+    if (onName(x, y)) continue;
+    await page.mouse.click(x, y);
+    const last = JSON.parse(await picks()).at(-1) as unknown[] | undefined;
+    if (last?.[0] === "one" && last[1] === null && last[2] === null) bare ??= { x, y };
+    if (last?.[0] === "one" && last[1] === "one-cap") part ??= { x, y };
+  }
+  assert.ok(bare !== undefined && part !== undefined, "island one has land in no part and land in its part, both picked with no arc");
+
+  await show(true);
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  const before = JSON.parse(await picks()).length;
+  await page.mouse.click(bare.x, bare.y);
+  assert.equal(JSON.parse(await picks()).length, before, "the click on land in no part picked nothing while the arc is selected");
+  await page.mouse.click(part.x, part.y);
+  assert.deepEqual(JSON.parse(await picks()).at(-1)?.slice(0, 2), ["one", "one-cap"], "the click on the part still picked it");
 });

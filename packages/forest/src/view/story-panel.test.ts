@@ -119,6 +119,17 @@ test("4.6 a story's surface says how many of its capabilities need the owner, on
   assert.ok(html.indexOf("panel-needs-you") > html.indexOf("What s is. Why."), "under the story's lead");
 });
 
+test("4.6 a story's surface marks which of its capabilities need the owner, by name, so its count points somewhere", () => {
+  const owner = (id: string): CapabilityLine => ({ ...line(id, "not-checked", "untested"), why: { reason: "needs owner", mover: "owner", contracts: ["8.1"] } });
+  const agent: CapabilityLine = { ...line("a", "failing", "unhealthy"), why: { reason: "failing", mover: "agent", contracts: ["1.1"] } };
+  const html = renderStoryPanel({ ...panel, capabilities: [agent, owner("x"), line("h", "passing", "healthy"), owner("y")] }, undefined);
+  const marked = [...html.matchAll(/<li([^>]*)><button type="button" class="panel-pick" data-pick-capability="([^"]+)">[\s\S]*?<\/button>([\s\S]*?)<\/li>/g)]
+    .filter(([, attributes, , after]) => /needs-you/.test(attributes!) && plainText(after!) === "needs you")
+    .map(([, , id]) => id);
+  assert.deepEqual(marked, ["x", "y"], "the rows the owner moves, and no other, say so");
+  assert.deepEqual(names(html).map(([id]) => id), ["a", "x", "h", "y"], "in build order still, each name unchanged");
+});
+
 test("4.8 the panel draws no tree, card or pop-out: its one pick is a story's capability names, each a button naming the capability it opens", () => {
   const html = renderStoryPanel(panel, undefined);
   assert.doesNotMatch(html, /<svg|panel-tree|data-open-tree|role="button"|tabindex/, "no tree and no card to click");

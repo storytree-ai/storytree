@@ -49,6 +49,45 @@ test("4.10 a copy that does not install releases says it does not update itself"
   assert.match(detail, /does not update itself/);
 });
 
+test("4.7 up to date names the running build, the channel it checked and when; a check on an earlier day names that day", () => {
+  const checkedAt = new Date(2026, 10, 11, 14, 2).toISOString();
+  const [title, detail] = updateText({ ...at, phase: "up-to-date", channel: "alpha", checkedAt }, undefined, { channel: "alpha", now: new Date(2026, 10, 11, 15, 30) });
+  assert.equal(title, "Up to date");
+  assert.match(detail, /0\.3\.400/);
+  assert.match(detail, /alpha/);
+  assert.match(detail, /14:02/);
+  assert.doesNotMatch(detail, /2026-11-11/, "today's check needs no date");
+  assert.match(updateText({ ...at, phase: "up-to-date", channel: "alpha", checkedAt }, undefined, { channel: "alpha", now: new Date(2026, 10, 12, 9, 0) })[1], /2026-11-11 14:02/);
+});
+
+test("4.7 after the update channel changes in the gear, the last check's up to date is no longer shown as current", async () => {
+  const window = new Window();
+  const host = window.document.createElement("div");
+  host.innerHTML = renderAppMenu();
+  let kept: "stable" | "alpha" = "stable";
+  const checked = { phase: "up-to-date", runningBuild: "0.3.2259", channel: "stable", checkedAt: new Date().toISOString() } as const;
+  let channel: ReturnType<typeof mountReleaseChannel> | undefined;
+  const updates = mountUpdates(host as unknown as HTMLElement, async () => checked, () => {}, () => undefined, () => channel?.channel());
+  channel = mountReleaseChannel(host as unknown as HTMLElement, {
+    async read() { return { available: true, channel: kept }; },
+    async set(next) { kept = next; return { available: true, channel: kept }; },
+  }, () => updates.refresh());
+  await setImmediate();
+  const status = () => host.querySelector("#app-update-status")!.textContent;
+  assert.match(status(), /Up to date.*stable/);
+
+  const alpha = host.querySelector('input[value="alpha"]') as HTMLInputElement;
+  alpha.checked = true;
+  alpha.dispatchEvent(new window.Event("change", { bubbles: true }));
+  await setImmediate();
+  await setImmediate();
+  assert.doesNotMatch(status(), /Up to date/);
+  assert.match(status(), /alpha/);
+  assert.match(status(), /Check for updates/);
+  updates.stop();
+  channel.stop();
+});
+
 test("4.14 the Updates section shows the install choice that is on, saves a change, and keeps the old one when a change is refused", async () => {
   const window = new Window();
   const host = window.document.createElement("div");

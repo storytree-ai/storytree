@@ -509,6 +509,11 @@ test("2.29 · teaching cards hear whether the project on show is the factory and
   boxed(views, { left: 600, top: 60, right: 760, bottom: 90 });
   assert.deepEqual(reading({ kind: "arc" }).map(box => box.left), [100, 500, 600], "the project switcher and the Stories/Library switch");
   assert.deepEqual(reading({ kind: "switch" }).map(box => box.left), [100, 500, 600], "the factory's card too, beside the switcher, never on it");
+  // The bar's gear (the app menu) too: a tall card with its More open reaches up to the bar's right end.
+  const gear = on.document.createElement("button");
+  gear.className = "app-gear";
+  boxed(gear, { left: 1400, top: 4, right: 1436, bottom: 40 });
+  assert.deepEqual(reading({ kind: "arc" }).map(box => box.left), [100, 500, 600, 1400], "the bar's gear, which a card never covers");
 });
 
 test("2.30 · each start mark is sent once, and what the forest drew joins the page's census", async (t) => {

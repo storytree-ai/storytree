@@ -1,7 +1,7 @@
 // The first-time cards are offered as a tour and never block the map (increment_b29c14f6f748; contracts 3.5, 3.7, 3.8): the real
 // desktop page on the eight-story forest snapshot, opened as a fresh install would, with no answer to the tour kept. Three views:
 // the ask in its corner, the plan's card at the Arcs tab after "Show me", the story's card beside its island after "Got it",
-// and the map clear after "End tour".
+// the same card with More open, and the map clear after "End tour".
 // `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/tour). Measures each card's box against the
 // box of the island it explains and of every other island drawn, so "never over an island" is measured, not only seen.
 import assert from 'node:assert/strict';
@@ -24,8 +24,9 @@ const measure = page => page.evaluate(() => {
   const story = document.body.dataset.teachingStory;
   const drawn = window.storytreeGlobe.islands().filter(one => one.visible && one.box !== undefined);
   const island = drawn.find(one => one.story === story);
-  // The bar's project switcher and the globe's Stories/Library switch, which no card covers (increment_176e36671e3c).
-  const switches = [...document.querySelectorAll('.app-factory, .forest-views')].map(one => one.getBoundingClientRect()).filter(one => one.width > 0)
+  // The bar's project switcher and gear and the globe's Stories/Library switch, which no card covers (increment_176e36671e3c,
+  // increment_ec73adabddb1).
+  const switches = [...document.querySelectorAll('.app-factory, .app-gear, .forest-views')].map(one => one.getBoundingClientRect()).filter(one => one.width > 0)
     .map(({ left, top, right, bottom }) => ({ left, top, right, bottom }));
   return { cards: document.querySelectorAll('.teaching-card').length, kind: card.dataset.kind, card: { left, top, right, bottom }, island: island?.box, islands: drawn.map(one => one.box), switches };
 });
@@ -51,8 +52,8 @@ await runCapture({
       measure: ({ page }) => measure(page),
       expect: found => {
         assert.deepEqual([found.cards, found.kind], [1, 'arc']);
-        assert.equal(found.switches.length, 2, 'the project switcher and the Stories/Library switch are both on show');
-        assert.ok(found.switches.every(one => apart(found.card, one)), 'the plan card covers neither switch');
+        assert.equal(found.switches.length, 3, 'the project switcher, the gear and the Stories/Library switch are all on show');
+        assert.ok(found.switches.every(one => apart(found.card, one)), 'the plan card covers none of them');
       },
     },
     {
@@ -70,7 +71,21 @@ await runCapture({
         assert.ok(found.island !== undefined, 'its island is drawn');
         assert.ok(apart(found.card, found.island), 'the story card stays off its island');
         assert.ok(found.islands.every(box => apart(found.card, box)), 'and off every other island drawn');
-        assert.ok(found.switches.every(one => apart(found.card, one)), 'and off both switches');
+        assert.ok(found.switches.every(one => apart(found.card, one)), 'and off the switches and the gear');
+      },
+    },
+    {
+      name: 'the-story-card-with-more-open',
+      prepare: async ({ page, settle }) => {
+        await page.getByRole('button', { name: 'More', exact: true }).click();
+        await until(page, () => document.querySelector('.teaching-card [data-more]')?.getAttribute('aria-expanded') === 'true');
+        await settle(page);
+      },
+      measure: ({ page }) => measure(page),
+      expect: found => {
+        assert.deepEqual([found.cards, found.kind], [1, 'story']);
+        assert.equal(found.switches.length, 3);
+        assert.ok(found.switches.every(one => apart(found.card, one)), 'grown taller, the card still covers no switch and not the gear');
       },
     },
     {

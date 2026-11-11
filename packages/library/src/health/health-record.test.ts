@@ -724,6 +724,31 @@ for (const backend of [memory, postgres]) {
     assert.equal(await openOf(other.id), undefined, "no open increment names it");
   });
 
+  contract("5.26", "a capability one of whose contracts an open increment links carries that increment among its open work, as one the increment names does, once and in the same order", async ({ health, work, flight }) => {
+    const { story, capability, contract, sibling } = await smallPlan(work);
+    const other = await work.addCapability({ title: "Elsewhere", story: story.id });
+    const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
+    const add = async (title: string, edit: { capabilities?: string[]; links?: string[] }) => {
+      const increment = await flight.addIncrement({ arc: arc.id, title, objective: "Test it", body: "Red then green" });
+      await flight.editIncrement(increment.id, edit);
+      await later();
+      return increment;
+    };
+    const linking = await add("Links a contract", { links: [contract.id, sibling.id] });
+    const both = await add("Names it and links", { capabilities: [capability.id], links: [contract.id] });
+    const started = await add("Started, links it", { links: [sibling.id] });
+    await flight.advanceIncrement(started.id, "active");
+    const openOf = async (id: string) => (await health.annotate()).stories[0]!.capabilities.find((one) => one.id === id)!.openWork;
+    assert.deepEqual(await openOf(capability.id), [
+      { increment: started.id, title: "Started, links it", active: true },
+      { increment: linking.id, title: "Links a contract" },
+      { increment: both.id, title: "Names it and links" },
+    ], "linked as named: the active one first, then parked order, each once");
+    assert.equal(await openOf(other.id), undefined, "no open increment names it or links its contracts");
+    await flight.closeIncrement(started.id, { disposition: "withdrawn", note: "Not needed" });
+    assert.deepEqual((await openOf(capability.id))!.map(({ increment }) => increment), [linking.id, both.id], "a closed one is left off");
+  });
+
   contract("5.14", "a proposed capability with at least one contract and every contract verified passing is on the worklist still not built and the agent's, marked that its contracts already pass; one with no contract or any contract not passing is not so marked", async ({ health, work }) => {
     const { story, capability, contract, sibling } = await smallPlan(work);
     const empty = await work.addCapability({ title: "Nothing promised", story: story.id });

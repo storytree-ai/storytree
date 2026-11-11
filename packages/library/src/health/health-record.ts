@@ -436,7 +436,8 @@ export class HealthRecord {
    */
   async annotate(tree?: ProjectTree, parked: ReadonlyMap<string, readonly ParkedOn[]> = new Map()): Promise<AnnotatedTree> {
     const plan = tree ?? (await this.#work.projectTree());
-    const [entries, open] = await Promise.all([this.#entries(), this.#openWork()]);
+    const owners = new Map(plan.stories.flatMap((story) => story.capabilities.flatMap((capability) => capability.contracts.map((contract) => [contract.id, capability.id] as const))));
+    const [entries, open] = await Promise.all([this.#entries(), this.#openWork(owners)]);
     const unverified = ![...entries.values()].some(({ fields }) => fields.column === "verified");
     return {
       ...(unverified ? { unverified } : {}),
@@ -469,14 +470,18 @@ export class HealthRecord {
     };
   }
 
-  /** Each capability an open increment names, with those increments: the active ones first, then the rest in parked order (ADR-1253 D1). */
-  async #openWork(): Promise<Map<string, OpenIncrement[]>> {
+  /**
+   * Each capability an open increment names, or owns a contract one links (`owners`: contract id to its capability), with those
+   * increments, each once: the active ones first, then the rest in parked order (ADR-1253 D1).
+   */
+  async #openWork(owners: ReadonlyMap<string, string>): Promise<Map<string, OpenIncrement[]>> {
     // An increment is parked as it is made, and keeps that time when returned to proposal, so parked order is creation order.
-    const increments = await this.#records.select("increment", ["title", "status", "capabilities"], { not: { status: "closed" } });
+    const increments = await this.#records.select("increment", ["title", "status", "capabilities", "links"], { not: { status: "closed" } });
     const ordered = increments.sort((a, b) => Number(b.fields.status === "active") - Number(a.fields.status === "active") || byCreation(a, b));
     const named = new Map<string, OpenIncrement[]>();
     for (const { id, fields } of ordered) {
-      for (const capability of new Set(fields.capabilities ?? [])) {
+      const linked = (fields.links ?? []).flatMap((link) => owners.get(link) ?? []);
+      for (const capability of new Set([...(fields.capabilities ?? []), ...linked])) {
         named.set(capability, [...(named.get(capability) ?? []), { increment: id, title: fields.title, ...(fields.status === "active" ? { active: true as const } : {}) }]);
       }
     }

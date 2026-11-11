@@ -51,7 +51,7 @@ export function decisionsDiagram({ seconds }: { seconds?: number } = {}): string
     // Still, every beat's caption reads at once, one after the other, as the drawing shows every beat at once.
     + `<p class="tour-diagram-captions">`
     + `<span class="diagram-caption diagram-caption-1">An island: one story on the globe.</span>`
-    + `<span class="diagram-caption diagram-caption-2">A decision is glued beneath it.</span>`
-    + `<span class="diagram-caption diagram-caption-3">What it stands on goes deeper, a tunnel down to the core, where decisions about no one part gather.</span>`
+    + `<span class="diagram-caption diagram-caption-2">Its decisions hang beneath it, on its shelf: the blue dots.</span>`
+    + `<span class="diagram-caption diagram-caption-3">Those they stand on hang deeper, a tunnel down to the core, where the decisions about no one part gather: the pale dots.</span>`
     + `</p></figure>`;
 }

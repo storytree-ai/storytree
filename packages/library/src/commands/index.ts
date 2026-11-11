@@ -65,7 +65,7 @@ export interface HeldClaim {
 export interface LibraryVerbContext extends VerbContext {
   claims(): Promise<readonly HeldClaim[]>;
   testedNumbers(capability: string): Promise<{ readonly tested: readonly string[]; readonly untested: readonly string[] }>;
-  /** Whether this computer's factory folder holds the plugin `plugin`, which `settings set part` can mount; unsaid when the door cannot tell. */
+  /** Whether this computer's factory folder holds the plugin `plugin`, which `settings set module` can mount; unsaid when the door cannot tell. */
   pluginInFactory?(plugin: string): Promise<boolean>;
 }
 
@@ -175,7 +175,7 @@ async function dormantSaid(context: LibraryVerbContext, words: DoorWords, kinds?
   const dormant = (await context.library.dormantKinds()).filter(({ kind }) => kinds === undefined || kinds.includes(kind));
   return Promise.all(dormant.map(async ({ kind, count }) => {
     const plugin = kind.slice(0, kind.indexOf("."));
-    const mount = words.say({ command: `settings set part ${plugin} plugin ${plugin}` });
+    const mount = words.say({ command: `settings set module ${plugin} plugin ${plugin}` });
     const how = await context.pluginInFactory?.(plugin) === false ? `${plugin} is not in this computer's factory, so it cannot be mounted here` : `mount it with ${mount}`;
     return `${count} ${kind} ${count === 1 ? "record is" : "records are"} dormant here: ${count === 1 ? "its" : "their"} plugin, ${plugin}, is not mounted on this computer; ${how}.`;
   }));

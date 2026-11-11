@@ -54,14 +54,14 @@ const WORDS = `The tools name things in the library's words; to the user, say ${
 const CLOSING = "If storytree says it isn't running, carry on without it.";
 
 /**
- * The habits card, as the tool server hands it to the agent, without the sections of the parts `off` switches off, and
- * with those of each factory plugin `standIns` names in its part's place.
+ * The habits card, as the tool server hands it to the agent, without the sections of the modules `off` switches off, and
+ * with those of each factory plugin `standIns` names in its module's place.
  */
 export function habitsCard(off: readonly string[] = [], standIns: StandIns = { plugins: {} }): string {
   const composed = standIn(GUIDANCE, "guidance", standIns);
   const { mounted, off: switched } = mount(composed, off);
   const servedBy = new Set(Object.values(composed.standsIn ?? {}));
   const unserved = switched.filter(({ part }) => !servedBy.has(part));
-  const said = unserved.length === 0 ? [] : [`Switched off on this computer, so not served here: ${unserved.map(({ part }) => part).join(", ")}. The user switches one on with: storytree settings set part <part> on`];
+  const said = unserved.length === 0 ? [] : [`Switched off on this computer, so not served here: ${unserved.map(({ part }) => part).join(", ")}. The user switches one on with: storytree settings set module <module> on`];
   return [`${OPENING} ${SETUP}`, ...mounted, WORDS, ...said, CLOSING].join("\n\n");
 }

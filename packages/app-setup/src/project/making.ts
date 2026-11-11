@@ -1,6 +1,6 @@
 /**
  * Capability 6 · Make a folder a project (ADR-0969 D3, ADR-0757). After the user says yes, a folder becomes a storytree
- * project: the one check every way of adding a project goes through (the installer, the app's Add project,
+ * project: the one check every way of adding a project goes through (the installer, the app's Add a project…,
  * `storytree doctor --set-up`, the agent's set_up_project), then the project opened (naming the user's factory,
  * whose starter pack it reads, the first time), the folder recorded and approved as this machine's trunk, the marker left,
  * and the app's choice recorded. Reading which project a folder belongs to is Session management's project routing,
@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import path from "node:path";
 
 import { ProjectGoneError, type Storytree } from "@storytree/library";
+import { ACTIONS } from "@storytree/shown-words";
 import { forgetProjectActivity } from "@storytree/session-management";
 import { approveTrunk, findProject, forgetTrunk, inMainCheckout, keepOnThisComputer, machineOf, PROJECT_FILE, ProjectFolderError, recordProjectChoice, registerTrunk, rememberApproval, ROOT_MARKER_FILE, storytreeHome, trunkedProjects, trunksOn, type Trunk } from "@storytree/project-and-caller";
 
@@ -284,10 +285,11 @@ export function suggestedName(folder: string): string {
 
 /**
  * What check_setup says in `folder`, which isn't a storytree project: that it isn't, and how the user
- * can add it. The agent is not told to offer setup (ADR-0752 D3); the user adds projects deliberately.
+ * can add it, naming the app's control by its shown word (ADR-1315 D1). The agent is not told to offer setup (ADR-0752 D3);
+ * the user adds projects deliberately.
  */
 export function notAProjectYet(folder: string, name: string = suggestedName(folder)): string {
-  return `This folder is not a storytree project, so storytree records nothing here; carry on with the user's request. The user can add it as a project: Add project in the storytree app, \`storytree doctor --set-up ${name}\` in a terminal here, or by asking you to set it up.`;
+  return `This folder is not a storytree project, so storytree records nothing here; carry on with the user's request. The user can add it as a project: ${ACTIONS.addProject} in the storytree app, \`storytree doctor --set-up ${name}\` in a terminal here, or by asking you to set it up.`;
 }
 
 /** `name`, or the first of `name-2`, `name-3`… that is no project yet, within the project-name length. */

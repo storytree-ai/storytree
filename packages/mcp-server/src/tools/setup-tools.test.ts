@@ -107,7 +107,7 @@ test("app-setup 8.4 setup records the chosen project only after a successful yes
         assert.equal(checked.isError, false, checked.text);
         assert.deepEqual(checked.data.project, { status: "ask", suggestion: name });
         assert.match(checked.text, /not a storytree project/);
-        assert.match(checked.text, /Add project/);
+        assert.match(checked.text, /Add a project… in the storytree app/, "the app's control by its shown word (ADR-1315 D1)");
         assert.match(checked.text, /storytree doctor --set-up/);
         assert.doesNotMatch(checked.text, /[Aa]sk the user|set_up_project/, "the agent is not told to offer setup (ADR-0752 D3)");
         assert.equal(existsSync(path.join(folder, PROJECT_FILE)), false, "no marker before a yes");

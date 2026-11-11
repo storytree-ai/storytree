@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { Group, Quaternion, Vector3, type Camera, type Object3D } from "three";
 import { claimTints, replayWisps, selectionLanes, shownPointers, type ClaimTint, type PointerTint, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
-import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARANCE, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, UnderTheGlass, usePlanetGrowth, type IslandDock, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
+import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARANCE, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, UnderTheGlass, usePlanetGrowth, type IslandDock, type LanesNotice, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
 import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
@@ -70,11 +70,13 @@ export type PlanetViewProps = {
   /** Hears a click on an island, or undefined for empty space. */
   onPick: (story: string | undefined, capability?: string, gate?: readonly [string, string]) => void;
   onNote: (note: string) => void;
+  /** Given, the canvas tells it that some lanes could not be drawn and lays no notice of its own (4.45), for the page's top row (3.103). */
+  onLanesNotice?: ((notice: LanesNotice | undefined) => void) | undefined;
 };
 
 /** The forest drawn on the glass sheet, depth running west to east (ADR-1043): the user tilts it from above to below
  * (ADR-1062 D2); `mode` changes only its look, never the eye (D3). */
-export function PlanetView({ core, scene, places, wisps: live, selected, selectedCapability, highlighted, circled: circledList, circledContracts, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, recordedSessions }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, selectedCapability, highlighted, circled: circledList, circledContracts, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, recordedSessions, onLanesNotice }: PlanetViewProps) {
   // In the glass sheet's Library the glass is clear and the islands hollow outlines with their names over the knowledge, from
   // every angle (ADR-1061 D2, ADR-1062 D3): the button pressed decides, never the side the eye is on.
   const outlines = mode === "library";
@@ -167,7 +169,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} floor={floor} sideOffset={cameraOffset} sheet={layout.extent} hollow={outlines}
     globe={globe} offset={turned.current.centre} inside={inside}
-    rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth}>
+    rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth} onLanesNotice={onLanesNotice}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={titles}
       rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onGate={setGate} onNote={onNote} mode={mode} sheet={layout.extent}
       sideOffset={sideOffset ?? 0} aside={aside}

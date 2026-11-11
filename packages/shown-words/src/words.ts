@@ -27,13 +27,19 @@ export const ACTIONS = {
   copyRequest: "Copy request for your agent",
 } as const satisfies Record<string, string>;
 
+/** Where code stands on the map, keyed by its name in code: code no part reaches (the map's `unclaimed`) is shown in
+ * words that name no claim on work, which "Unclaimed" did. */
+export const PLACES = {
+  unclaimed: "Not in any part",
+} as const satisfies Record<string, string>;
+
 /** A word as two rows would clash on it: lower case, without a trailing ellipsis. */
 function bare(word: string): string {
   return word.replace(/…$/, "").trim().toLowerCase();
 }
 
 /** The words that name more than one row of `table` (the shown words by default), bare; empty when none does. */
-export function sharedWords(table: Record<string, string | Word> = { ...CONCEPTS, ...ACTIONS }): string[] {
+export function sharedWords(table: Record<string, string | Word> = { ...CONCEPTS, ...ACTIONS, ...PLACES }): string[] {
   const named = new Map<string, Set<string>>();
   for (const [row, shown] of Object.entries(table)) {
     for (const word of typeof shown === "string" ? [shown] : [shown.one, shown.many]) {

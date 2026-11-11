@@ -91,7 +91,9 @@ const settle = verb({
   async act({ question: id, answer, decision }, context: ArcVerbContext) {
     const settled = await context.library.settleQuestion(id, { answer: answer as string, ...(decision === undefined ? {} : { decision }) }, context.writer);
     if (settled === null) throw new VerbRefusal(`no question "${id}" in this project`);
-    return { text: `Settled question ${id}.`, next: [{ command: `arc show ${settled.fields.arc}`, why: "see what it released" }] };
+    const released = settled.released.map(({ id: held, title }) => `${held} (${title})`);
+    const said = released.length === 0 ? "" : ` Released ${released.join(", ")}, which no longer ${released.length === 1 ? "waits" : "wait"} on it.`;
+    return { text: `Settled question ${id}.${said}`, next: [{ command: `arc show ${settled.fields.arc}`, why: "see what it released" }] };
   },
 });
 

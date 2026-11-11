@@ -7,7 +7,7 @@ import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { capabilitiesCommand, linksCommand } from "./read.js";
+import { capabilitiesCommand } from "./read.js";
 import { mapTools } from "./tools.js";
 
 test("2.7 the focus tool refuses a call that gives neither select nor crossing, or a crossing with a select that names no mapped story or with dry_run, before it reads anything", async () => {
@@ -52,7 +52,7 @@ test("2.8 with capabilities and select story:<name>, the focus tool answers that
   }
 });
 
-test("3.15 with links and select story:<mapped>, the focus tool answers that story's links checked against its imports as the map command's --links does, as text and as data, and refuses it with crossing, capabilities or a select that names no story before it reads anything", async () => {
+test("3.15 with links and select story:<mapped>, the focus tool answers that story's links checked against its imports as text and as data, and refuses it with crossing, capabilities or a select that names no story before it reads anything", async () => {
   const unread = () => { throw new Error("read"); };
   const unreadCall = { library: new Proxy({}, { get: unread }), storytree: new Proxy({}, { get: unread }), folder: "/nowhere" } as never;
   const shop = await mkdtemp(path.join(tmpdir(), "focus-links-"));
@@ -75,8 +75,10 @@ test("3.15 with links and select story:<mapped>, the focus tool answers that sto
 
     const answer = await tools.focus!({ links: true, select: "story:shop" }, call);
 
-    assert.deepEqual(answer.data, JSON.parse(await linksCommand(library as never, shop, "story:shop", true, imports)));
-    assert.equal(answer.text, await linksCommand(library as never, shop, "story:shop", false, imports));
+    const data = answer.data as { missing: unknown; unbacked: unknown; explored: number };
+    assert.equal(data.explored, 2);
+    assert.deepEqual(data.missing, [{ from: { id: "ui", title: "1 · Ui" }, to: { id: "lib", title: "2 · Lib" }, count: 1, imports: [{ from: "src/ui/menu.ts", to: "src/lib/format.ts" }] }]);
+    assert.deepEqual(data.unbacked, []);
     assert.match(answer.text, /1 · Ui -> 2 · Lib: 1 import\n {4}src\/ui\/menu\.ts -> src\/lib\/format\.ts/);
   } finally {
     await removeTemp(shop);

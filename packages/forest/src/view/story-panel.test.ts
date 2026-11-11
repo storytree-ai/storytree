@@ -435,5 +435,11 @@ test("4.54 a capability with no contracts of its own says how many sit on each o
   assert.doesNotMatch(html, /No contracts yet|5\.12/, "neither the old line nor a link it is not on");
   const mixed = renderStoryPanel(story([inbound, { from: "caller", fromTitle: "Caller identity", to: "audit", toTitle: "Audit", contracts: [{ ...passing("e4", "5.13 · the audit records the caller"), gear: { state: "failing" as const } }] }]), "caller");
   assert.match(said(mixed), /No contracts on this part; 2 on its link from HTTP API \(5\.10, 5\.11\) and 1 on its link to Audit \(5\.13\), 2 verified passing and 1 verified failing\./);
+  const unnumbered = renderStoryPanel(story([{ ...inbound, contracts: [passing("u1", "names it"), passing("u2", "refuses"), passing("u3", "logs")] }]), "caller");
+  assert.match(said(unnumbered), /No contracts on this part; 3 on its link from HTTP API, all 3 verified passing\./, "no numbers to name, and three counted as all");
+  const unrun = { id: "n1", title: "5.14 · not run", reported: "passing" as const, trail: "green only" };
+  const accepted = { ...unrun, id: "n2", title: "5.15 · accepted", acceptance: "passed" as const };
+  const gearless = renderStoryPanel(story([{ ...inbound, contracts: [unrun, accepted, { ...unrun, id: "n3", title: "5.16 · gear not run", gear: { state: "not-checked" as const } }] }]), "caller");
+  assert.match(said(gearless), /3 on its link from HTTP API \(5\.14, 5\.15, 5\.16\), 2 not run yet and 1 passed acceptance testing\./, "the agent's report says nothing; acceptance testing speaks where no gear does");
   assert.match(renderStoryPanel(story([{ ...inbound, contracts: [] }]), "caller"), /No contracts yet\./, "a link with no contracts leaves the part saying it has none");
 });

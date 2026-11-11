@@ -60,8 +60,9 @@ type Pending = {
 const answered = (start: PageState, page: PageState) => page.progress || page.selected !== start.selected || page.note !== start.note
   || page.panelOpen !== start.panelOpen || page.mode !== start.mode || page.sessionSelected !== start.sessionSelected;
 
-/** A drag turning the map: when it began, in which view, whether it moved, its frame times, and once let go, when and the frames since. */
-type Turning = { at: number; view: "forest" | "library"; moved: boolean; frames: number[]; ended?: { at: number; frames: number } };
+/** A drag turning the map: when it began, in which view, whether it moved, its frame times, the frame time it last moved by (`stirred`
+ * when it moved since the last frame), and once let go, when and the frames since. */
+type Turning = { at: number; view: "forest" | "library"; moved: boolean; frames: number[]; movedAt: number; stirred: boolean; ended?: { at: number; frames: number } };
 
 export function createRecorder(options: RecorderOptions) {
   const actions = fieldActions(options.catalogue);
@@ -89,12 +90,13 @@ export function createRecorder(options: RecorderOptions) {
     if (flushWanted && turning === undefined) send();
   }
 
-  /** The turn under way is over: a turn that moved is one reading of its frames, the Long Animation Frames over it counted. */
-  function endTurn(done: Turning & { ended: NonNullable<Turning["ended"]> }): void {
+  /** The turn under way is over: a turn that moved and was let go is one reading of its frames, the Long Animation Frames over it
+   * counted. */
+  function endTurn(done: Turning): void {
     turning = undefined;
-    const action = turnActions.find((one) => one.turns === done.view);
-    if (done.moved && action !== undefined) {
-      const loaf = frames.filter((e) => e.start + e.duration >= done.at && e.start <= done.ended.at);
+    const action = turnActions.find((one) => one.turns === done.view), ended = done.ended;
+    if (done.moved && ended !== undefined && action !== undefined) {
+      const loaf = frames.filter((e) => e.start + e.duration >= done.at && e.start <= ended.at);
       const read = turnFrames(done.frames, action.budget.frameMs);
       readings.push({
         name: action.field, response: 0, longFrames: loaf.length, longestFrame: Math.round(Math.max(0, ...loaf.map((e) => e.duration))), settled: 0, progress: false,
@@ -127,19 +129,25 @@ export function createRecorder(options: RecorderOptions) {
     },
     /** A press at `at` that turns the map (`sheetDrag`'s spin) in `view`: a turn begins. */
     turnStart(at: number, view: "forest" | "library"): void {
-      turning = { at, view, moved: false, frames: [] };
+      turning = { at, view, moved: false, frames: [], movedAt: at, stirred: false };
     },
     /** The pressed pointer moved: the turn turned the map. */
     turnMove(): void {
-      if (turning !== undefined && turning.ended === undefined) turning.moved = true;
+      if (turning !== undefined && turning.ended === undefined) turning.moved = turning.stirred = true;
     },
     /** A frame of the turn under way, at its frame time. Once let go, its reading is finished this many frames later, as an
-     * action's is after settled, so the Long Animation Frame entries over it have arrived. */
+     * action's is after settled, so the Long Animation Frame entries over it have arrived. A press held still past the action
+     * limit is no turn: its let-go was lost (a pointerup the page never heard), so it ends unrecorded and holds no flush. */
     turnFrame(at: number): void {
       const under = turning;
       if (under === undefined) return;
-      if (under.ended === undefined) under.frames.push(at);
-      else if (++under.ended.frames >= FRAMES_AFTER_SETTLED) endTurn({ ...under, ended: under.ended });
+      if (under.ended !== undefined) {
+        if (++under.ended.frames >= FRAMES_AFTER_SETTLED) endTurn(under);
+        return;
+      }
+      if (under.stirred) [under.movedAt, under.stirred] = [at, false];
+      if (at - under.movedAt > limitMs) endTurn(under);
+      else under.frames.push(at);
     },
     /** The press let go, or was cancelled, at `at`. */
     turnEnd(at: number): void {

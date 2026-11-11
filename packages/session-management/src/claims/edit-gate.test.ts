@@ -212,7 +212,7 @@ test("5.65 a refused edit to an imported file no capability covers, under an inc
   }
 });
 
-test("5.70 a session whose claims lapsed without its asking (the session manager released them) and that has claimed nothing since is told so by its next refused edit: which work, when, why, and the claim that takes it again; work it released itself is not called lapsed", async () => {
+test("5.70 a session whose claims lapsed without its asking (the session manager released them, or another session took them over while its process was stopped) and that has claimed nothing since is told so by its next refused edit: which work, when, why or who took it, and the claim that takes it again; work it released itself is not called lapsed", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   const log = await openActivityLog(testServerUrl());
@@ -277,6 +277,19 @@ test("5.70 a session whose claims lapsed without its asking (the session manager
       await lapse();
       await closed(as("B"), mine, "withdrawn");
       assert.equal((await gate())?.lapsed, undefined, "work closed after it lapsed is not offered to claim again");
+
+      // A's process stops between turns, and B takes its work over in the gap (ADR-1311 D3).
+      const next = (await library.addIncrement({ arc: arc.id, title: "stats chart", objective: "stats chart", body: "stats chart" })).id;
+      assert.equal((await claim(as("A"), next, "driving the stats chart")).ok, true);
+      assert.equal((await claim(as("A"), stats, "the stats chart itself")).ok, true);
+      await log.append(project, { session: "A", harness: "claude-code", source: "hook", folder: checkout, kind: "session-ended", reason: "other" });
+      const takeover = await claim({ ...as("B"), harness: "codex" }, next, "taking up the stats chart");
+      assert.equal(takeover.ok && takeover.takenOverFrom?.session, "A");
+      assert.equal((await claim({ ...as("B"), harness: "codex" }, stats, "the stats chart itself")).ok, true);
+      const resumed = await gate();
+      const takenAt = resumed?.lapsed?.[0]?.at ?? "";
+      assert.deepEqual(resumed?.lapsed, [{ by: "takeover", at: takenAt, taker: "B", label: "Codex", increment: next, capabilities: [stats] }], "the work B holds now is A's lapse, taken over");
+      assert.match(refusalMessage(resumed!), new RegExp(`Your claim on ${next}, with ${stats} under it, lapsed at ${takenAt}: Codex session B took it over while your session was stopped`), "says who took it");
     });
   } finally {
     try {

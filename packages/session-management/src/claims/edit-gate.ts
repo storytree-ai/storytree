@@ -151,11 +151,12 @@ async function refusalsOf(context: GateContext, checkout: string, files: readonl
 /**
  * `refusals`, each naming the work the session's claims lapsed on when it holds no increment of `claims` now (5.70):
  * holding none may be a claim lost without its asking, which the refusal says first. Work another session has
- * claimed since is that session's, and the refusal names it already.
+ * claimed since is that session's, and the refusal names it already, unless it took it over from this one: then
+ * the refusal says who took it (ADR-1311 D3).
  */
 async function withLapses(context: GateContext, claims: readonly Claim[], refusals: EditRefusal[]): Promise<EditRefusal[]> {
   if (claims.some((claim) => claim.session === context.session && claim.increment !== undefined)) return refusals;
-  const lapsed = (await lapsesOf(context.log, context.project, context.session)).filter((lapse) => !claims.some((claim) => claim.increment === lapse.increment));
+  const lapsed = (await lapsesOf(context.log, context.project, context.session)).filter((lapse) => lapse.by === "takeover" || !claims.some((claim) => claim.increment === lapse.increment));
   return lapsed.length === 0 ? refusals : refusals.map((refusal) => ({ ...refusal, lapsed }));
 }
 

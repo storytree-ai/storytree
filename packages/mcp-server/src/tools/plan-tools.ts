@@ -525,7 +525,6 @@ function optional<T extends Record<string, unknown>>(fields: T): { [K in keyof T
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as { [K in keyof T]: Exclude<T[K], undefined> };
 }
 
-/** The capability or contract `id` names in the plan, if it names one. */
 /** The title of capability `id` in `tree`, when it has one. */
 function capabilityTitle(tree: AnnotatedTree, id: string): string | undefined {
   return tree.stories.flatMap((story) => story.capabilities).find((capability) => capability.id === id)?.title;
@@ -551,6 +550,7 @@ function placedSaid(tree: AnnotatedTree, id: string, number: string | undefined)
   return "";
 }
 
+/** The capability or contract `id` names in the plan, if it names one. */
 function partOf(tree: AnnotatedTree, id: string): { kind: "capability" | "contract" | "edge"; title: string } | undefined {
   for (const capability of tree.stories.flatMap((story) => story.capabilities)) {
     if (capability.id === id) return { kind: "capability", title: capability.title };

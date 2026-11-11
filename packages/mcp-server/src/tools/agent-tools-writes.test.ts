@@ -1539,6 +1539,10 @@ test("9.35 · edit_plan moving a contract says where it now sits and which test 
       assert.match(onEdge.text, new RegExp(`Corrected contract "1\\.1 · Unknown user gets no content" \\(${unknown}\\): now on edge "2 · HTTP API" → "1 · Caller identity" \\(${edge}\\)\\. A test titled "1\\.1 · …", or named in proved_by, still proves it there under \`storytree health local\`\\.`), onEdge.text);
       assert.match(onEdge.text, /Its number 1\.1 is "1 · Caller identity"'s, not the link's: the link's own contracts take "2 · HTTP API"'s numbers, so retitle it with edit_plan if you want one of those\./, onEdge.text);
 
+      const own = idOf(await agent.call("plan_contract", { capability: api, title: "Answers in JSON" }));
+      const ownOnEdge = await agent.call("edit_plan", { id: own, edge });
+      assert.match(ownOnEdge.text, new RegExp(`: now on edge "2 · HTTP API" → "1 · Caller identity" \\(${edge}\\)\\. A test titled "2\\.1 · …", or named in proved_by, still proves it there under \`storytree health local\`\\.$`), "a number that is the link's own is said to be fine by saying nothing of it");
+
       const back = await agent.call("edit_plan", { id: unknown, capability: api });
       assert.match(back.text, /now on capability "2 · HTTP API"/, back.text);
       assert.match(back.text, /A test titled "2\.\d+ · …", or named in proved_by, proves it there/, back.text);

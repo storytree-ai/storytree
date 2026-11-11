@@ -31,6 +31,7 @@ import path from "node:path";
 import type { AnnotatedStory, AnnotatedTree, Library, PendingChange, SchemaRecord } from "@storytree/library";
 
 import { readClaims, type Claim, type ClaimContext } from "./claims.js";
+import { lapseMessage, lapsesOf, type Lapse } from "./lapses.js";
 
 /** A file an edit tool is about to write, and its text after the edit when the tool gives it whole (a new file has none on disk yet). */
 export interface EditedFile {
@@ -54,11 +55,13 @@ export interface ImportedFolderPlace {
 /** A capability the session's increment lists on a story mapped from the imported folder, with the folders and files it covers now. */
 export type ListedCover = { readonly capability: string; readonly title: string; readonly covers: readonly string[] };
 
-export type EditRefusal =
+/** Every refusal may name `lapsed`: the work the session's claims lapsed on since it last claimed, when it holds no increment now (5.70). */
+export type EditRefusal = (
   | { readonly refused: "imported"; readonly file: string; readonly folder: string; readonly increment?: string; readonly covering?: { readonly capability: string; readonly title: string }; readonly listed?: readonly ListedCover[] }
   | { readonly refused: "ask"; readonly file: string; readonly folder: string; readonly capability: string; readonly title: string; readonly increment: string }
   | { readonly refused: "unlisted"; readonly capability: string; readonly title: string; readonly file: string; readonly increment: string; readonly listed: readonly string[] }
-  | { readonly refused: "held"; readonly capability: string; readonly title: string; readonly file: string; readonly holder: Claim; readonly on?: string };
+  | { readonly refused: "held"; readonly capability: string; readonly title: string; readonly file: string; readonly holder: Claim; readonly on?: string }
+) & { readonly lapsed?: readonly Lapse[] };
 
 /**
  * Why the context's session may not edit `files` in the checkout at `checkout` now, or undefined when
@@ -120,7 +123,7 @@ async function refusalsOf(context: GateContext, checkout: string, files: readonl
       });
       refusals.push({ refused: "held", capability, title, file, holder, ...(listing === undefined ? {} : { on: listing.increment! }) });
       if (every) continue;
-      return refusals;
+      return withLapses(context, claims, refusals);
     }
     if (driving !== undefined && !mine.some((claim) => lists.get(claim.increment!)!.includes(capability))) {
       if (explored.some((edit) => edit.file === file && edit.covering?.capability === capability)) continue;
@@ -128,7 +131,7 @@ async function refusalsOf(context: GateContext, checkout: string, files: readonl
       if (!every) return refusals;
     }
   }
-  if (refusals.length > 0) return refusals;
+  if (refusals.length > 0) return withLapses(context, claims, refusals);
   // Imported code: the increment must list the explored capability covering the file, and the user must have said yes, or be asked.
   const listedByMe = (capability: string): boolean => mine.some((claim) => lists.get(claim.increment!)!.includes(capability));
   let yeses: Promise<AllowedCapability[]> | undefined;
@@ -136,13 +139,24 @@ async function refusalsOf(context: GateContext, checkout: string, files: readonl
   for (const { imported, file, covering } of explored) {
     if (driving === undefined || covering === undefined || !listedByMe(covering.capability)) {
       const listed = driving === undefined || covering !== undefined ? [] : listedOf(tree, imported, lists.get(driving)!);
-      return [{ refused: "imported", file, folder: imported.folder, ...(driving === undefined ? {} : { increment: driving }), ...(covering === undefined ? {} : { covering }), ...(listed.length === 0 ? {} : { listed }) }];
+      return withLapses(context, claims, [{ refused: "imported", file, folder: imported.folder, ...(driving === undefined ? {} : { increment: driving }), ...(covering === undefined ? {} : { covering }), ...(listed.length === 0 ? {} : { listed }) }]);
     }
     yeses ??= yesesOn(context, [...new Set(mine.map((claim) => claim.increment!))]);
     if ((await yeses).some((yes) => yes.capability === covering.capability && covered(yes.covers, file))) continue;
     ask ??= { refused: "ask", file, folder: imported.folder, capability: covering.capability, title: covering.title, increment: driving };
   }
   return ask === undefined ? [] : [ask];
+}
+
+/**
+ * `refusals`, each naming the work the session's claims lapsed on when it holds no increment of `claims` now (5.70):
+ * holding none may be a claim lost without its asking, which the refusal says first. Work another session has
+ * claimed since is that session's, and the refusal names it already.
+ */
+async function withLapses(context: GateContext, claims: readonly Claim[], refusals: EditRefusal[]): Promise<EditRefusal[]> {
+  if (claims.some((claim) => claim.session === context.session && claim.increment !== undefined)) return refusals;
+  const lapsed = (await lapsesOf(context.log, context.project, context.session)).filter((lapse) => !claims.some((claim) => claim.increment === lapse.increment));
+  return lapsed.length === 0 ? refusals : refusals.map((refusal) => ({ ...refusal, lapsed }));
 }
 
 /**
@@ -289,6 +303,11 @@ function listedOf(tree: AnnotatedTree, imported: ImportedFolderPlace, capabiliti
 
 /** What the agent is told when its edit is refused, or `after` its shell command made it: why, and the way through. */
 export function refusalMessage(refusal: EditRefusal, after = false): string {
+  const said = refusalReason(refusal, after);
+  return refusal.lapsed === undefined ? said : said.replace(/^\[storytree\] /, () => `[storytree] ${lapseMessage(refusal.lapsed!)} `);
+}
+
+function refusalReason(refusal: EditRefusal, after: boolean): string {
   if (refusal.refused === "imported") {
     const where = `${refusal.file} in ${refusal.folder}, code the project imports`;
     if (refusal.listed !== undefined && refusal.listed.length > 0) {

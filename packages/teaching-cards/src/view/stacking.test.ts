@@ -59,6 +59,9 @@ test("3.1 · the decision card with More open, drawing and all, keeps Next and E
   assert.equal(await page.locator(".teaching-card").getAttribute("data-kind"), "decision");
   await page.locator(".teaching-card [data-more]").click();
   assert.ok(await page.locator(".teaching-card .tour-diagram").isVisible(), "its depth draws the decision");
+  // Taller than a 24rem card's text could show, the drawing still shows whole: a card that draws is not held to 24rem.
+  const drawing = (await page.locator(".teaching-card .tour-diagram").boundingBox())!, text = (await page.locator(".teaching-card .teaching-card-text").boundingBox())!;
+  assert.ok(drawing.y >= text.y && drawing.y + drawing.height <= text.y + text.height, `the drawing whole inside the card's text: ${JSON.stringify({ drawing, text })}`);
   for (const name of ["Next", "End tour"]) {
     const button = page.getByRole("button", { name, exact: true });
     const box = (await button.boundingBox())!;
@@ -67,4 +70,25 @@ test("3.1 · the decision card with More open, drawing and all, keeps Next and E
     const drawn = await button.evaluate(one => { const { left, top, right, bottom } = one.getBoundingClientRect(); const at = document.elementFromPoint((left + right) / 2, (top + bottom) / 2); return at !== null && one.contains(at); });
     assert.ok(drawn, `${name} shows without scrolling inside the card`);
   }
+});
+
+test("3.5 · with More open a card stays short enough to find a place clear of the map's islands: its text scrolls above its buttons, which stay on show", async t => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  await page.setContent(`<main id="content"></main>`);
+  await page.addScriptTag({ content: await teachingBundle() });
+  await page.evaluate(() => (window as unknown as { teach(): void }).teach());
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  const card = (await page.locator(".teaching-card").boundingBox())!;
+  const buttons = (await page.locator(".teaching-card-actions").boundingBox())!;
+  assert.ok(card.height <= 384, `no taller than 24rem in a tall window, where the story's depth alone is taller (${card.height}px)`);
+  assert.ok(buttons.y >= card.y && buttons.y + buttons.height <= card.y + card.height, "its buttons inside the card, on show");
+  const text = page.locator(".teaching-card .teaching-card-text");
+  assert.equal(await text.evaluate(element => element.scrollHeight > element.clientHeight), true, "its text scrolls within it");
+  const fades = () => text.evaluate(element => getComputedStyle(element).maskImage !== "none");
+  assert.equal(await fades(), true, "and its foot fades while more of it lies below");
+  await text.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await page.waitForFunction(() => !document.querySelector(".teaching-card .teaching-card-text")!.hasAttribute("data-more-below"));
+  assert.equal(await fades(), false, "scrolled to its end, nothing fades");
 });

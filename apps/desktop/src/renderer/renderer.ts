@@ -100,7 +100,7 @@ page = openProjectPage({
       kept: keptTree(name),
       drawing: keptDrawing(name),
       arcs: (host, on) => mountArcSurface(host, { project: name, reads, reading, ...on, ciExpected: async () => (await window.storytree.ciTimes?.(name))?.legs }),
-      openView: (holder, onSelect, { library, opening }) => openForestView(holder, onSelect, core, { library, opening: opening as GlobeOpening | undefined }),
+      openView: (holder, onSelect, { library, opening }) => openForestView(holder, onSelect, core, { library, opening: opening as GlobeOpening | undefined, openGuide: () => appMenu.openHelp() }),
       sessions: (view, host) => {
         const sessions = mountSessionsList(host, { project: name, reads, reading,
           onHighlight: stories => view.highlight(stories), onWisps: wisps => view.showWisps(wisps),

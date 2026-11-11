@@ -351,11 +351,8 @@ test("3.5 · a row drawn into an open panel after the card is shown moves the ca
   const reading: { left: number; top: number; right: number; bottom: number }[] = [];
   const { document, host, teaching, at } = sized(reading, () => ({ x: 400, y: 300, visible: true }));
   assert.deepEqual(at(), { left: "412px", top: "250px" }, "on the right while nothing is drawn there");
-  const list = document.createElement("ol");
-  host.append(list);
-  await new Promise(resolve => setTimeout(resolve, 0));
   reading.push(panel);
-  list.append(document.createElement("li"));
+  host.append(document.createElement("li"));
   await waitUntil(() => at().left === "88px", 2000, "the card to move off the row drawn under it");
   assert.deepEqual(at(), { left: "88px", top: "250px" }, "on the left once the row is drawn");
   teaching.stop();

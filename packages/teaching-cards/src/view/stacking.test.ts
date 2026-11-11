@@ -15,7 +15,7 @@ async function teachingBundle(): Promise<string> {
   return result.outputFiles[0]!.text;
 }
 
-test("3.4 · an open popover or modal dialog draws over the card on show: the card hides while it is open and comes back when it closes", async t => {
+test("3.4 · an open popover, modal dialog or overlay surface draws over the card on show: the card hides while it is open and comes back when it closes", async t => {
   // Chrome is installed on the three CI runner images; no browser download during tests.
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   t.after(() => browser.close());
@@ -23,7 +23,7 @@ test("3.4 · an open popover or modal dialog draws over the card on show: the ca
   // A menu like the gear's: a popover below a bar the card may overlap, and a modal dialog.
   await page.setContent(`<header style="position:fixed;inset:0 0 auto;height:48px;z-index:7;background:#101418"></header>
     <div id="menu" popover="auto" style="position:fixed;inset:48px 0 0;margin:0;width:100%;height:auto;background:rgb(0 0 0 / .25)">menu</div>
-    <dialog id="ask">ask</dialog><main id="content"></main>`);
+    <dialog id="ask">ask</dialog><section id="consent" data-surface-layer="overlay" hidden>consent</section><main id="content"></main>`);
   await page.addScriptTag({ content: await teachingBundle() });
   await page.evaluate(() => (window as unknown as { teach(): void }).teach());
   const card = page.locator(".teaching-card");
@@ -38,4 +38,10 @@ test("3.4 · an open popover or modal dialog draws over the card on show: the ca
   assert.equal(await card.isVisible(), false, "a modal dialog hides it too");
   await page.evaluate(() => document.querySelector<HTMLDialogElement>("#ask")!.close());
   assert.equal(await card.isVisible(), true);
+
+  // An overlay surface on show, like the first launch's sharing consent, which is neither a popover nor a dialog.
+  await page.evaluate(() => { document.querySelector<HTMLElement>("#consent")!.hidden = false; });
+  assert.equal(await card.isVisible(), false, "an overlay surface on show hides it too");
+  await page.evaluate(() => { document.querySelector<HTMLElement>("#consent")!.hidden = true; });
+  assert.equal(await card.isVisible(), true, "and it comes back when the overlay is answered");
 });

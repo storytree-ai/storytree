@@ -4,6 +4,7 @@ import { setImmediate } from "node:timers/promises";
 import { Window } from "happy-dom";
 
 import type { SetupHelpBridge } from "../help/bridge.js";
+import type { JourneyBridge } from "../journey-events/bridge.js";
 import { mountAddProject, mountDeleteProject, mountRemoveProject, mountSetupHelp } from "./index.js";
 import { platformOf } from "./guide.js";
 
@@ -26,7 +27,7 @@ afterEach(async () => {
 });
 
 const unused = async (): Promise<never> => { throw new Error("Unexpected help bridge call"); };
-function helpBridge(overrides: Partial<SetupHelpBridge> = {}): SetupHelpBridge {
+function helpBridge(overrides: Partial<SetupHelpBridge & JourneyBridge> = {}): SetupHelpBridge {
   return {
     agentConnections: async () => [], agentsToConnect: async () => [], connectAgent: unused, readSetupLicense: unused, checkSetupFolder: unused,
     factoryFolder: unused, chooseFactory: unused, addProject: unused, removeProject: unused, projectSentence: unused, setProjectSentence: unused, deletableProjects: unused, deleteProject: unused,
@@ -53,6 +54,35 @@ test("3.1 the mounted guide opens with no project and its Help entry reopens it 
   } finally { mounted.stop(); }
 });
 
+test("3.21 on a first launch the sharing ask comes first, alone: the guide opens once it is answered, at once when it was answered before, and anyway when sharing cannot be read", async () => {
+  const state = (consent: "pending" | "on" | "off") => ({ consent, available: true, installId: "i", queued: 0 });
+  let consent: "pending" | "on" | "off" | "unreadable" = "pending";
+  let opened = 0;
+  const mounted = mountSetupHelp(document.body, helpBridge({
+    readJourney: async () => { if (consent === "unreadable") throw new Error("no main process"); return state(consent); },
+  }), { embedded: true, onOpen: () => { opened++; } });
+  try {
+    await setImmediate();
+    assert.equal(opened, 0, "the guide waits while the sharing ask is open");
+    consent = "off";
+    document.dispatchEvent(new window.Event("storytree-journey-changed") as unknown as Event);
+    await setImmediate();
+    assert.equal(opened, 1, "answering the ask opens the guide");
+  } finally { mounted.stop(); }
+  for (const before of ["on", "unreadable"] as const) {
+    window.localStorage.clear();
+    consent = before;
+    opened = 0;
+    const again = mountSetupHelp(document.body, helpBridge({
+      readJourney: async () => { if (consent === "unreadable") throw new Error("no main process"); return state(consent); },
+    }), { embedded: true, onOpen: () => { opened++; } });
+    try {
+      await setImmediate();
+      assert.equal(opened, 1, `sharing ${before}: the guide opens with no wait`);
+    } finally { again.stop(); }
+  }
+});
+
 test("3.13 the guide's first run offers to connect each agent this computer runs and to add a project through the folder picker, and does neither unasked", async () => {
   const connected: unknown[] = [];
   let picked = 0;
@@ -77,8 +107,26 @@ test("3.13 the guide's first run offers to connect each agent this computer runs
     document.querySelector<HTMLButtonElement>("[data-guide-add-project]")!.click();
     await setImmediate();
     assert.equal(picked, 1);
-    assert.match(document.querySelector("[data-guide-add-status]")!.textContent!, /\/work\/site is now project “site”/);
+    assert.match(document.querySelector("[data-guide-add-status]")!.textContent!, /^Project “site” is set up in \/work\/site, and the app shows it\./);
     assert.match(document.querySelector("[data-guide-add-status]")!.textContent!, /Commit the \.storytree folder/, "it says to commit the folder");
+  } finally { mounted.stop(); }
+});
+
+test("3.13 a connected agent's line leads with what it means for the user; where storytree wrote it is one step away, folded", async () => {
+  const mounted = mountSetupHelp(document.body, helpBridge({
+    agentsToConnect: async () => [{ harness: "claude-code", agent: "Claude Code", connected: false }],
+    connectAgent: async () => ({ agent: "Claude Code", connected: true, next: "Not yet verified: it is checked when you start it.", where: "Written to Claude Code's user settings." }),
+  }));
+  try {
+    await setImmediate();
+    const offer = document.querySelector<HTMLElement>("[data-connect]")!;
+    offer.querySelector<HTMLButtonElement>("[data-connect-agent=claude-code]")!.click();
+    await setImmediate();
+    assert.match(offer.textContent!, /Claude Code is connected\. Not yet verified/);
+    const where = offer.querySelector<HTMLDetailsElement>("details[data-connect-where]")!;
+    assert.equal(where.open, false, "folded at rest");
+    assert.equal(where.querySelector("summary")!.textContent, "Details");
+    assert.match(where.textContent!, /Written to Claude Code's user settings\./);
   } finally { mounted.stop(); }
 });
 

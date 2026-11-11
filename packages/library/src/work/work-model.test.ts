@@ -1051,6 +1051,25 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(work.importPluginPlan("voice", plan({ by: "test-criterion", reason: "" } as never)), schemaError("contract", ["proof"]));
     assert.deepEqual(await transactions.history(), before, "nothing was written");
   });
+
+  contract("4.48", "a contract moved onto an edge, or retitled there, with a new title carrying no number keeps its own number; one with no number moved onto an edge gets its dependent capability's next free one, past its tests", async ({ work, records }) => {
+    const shop = await work.addStory({ title: "Shopper checks out" });
+    const cart = await work.addCapability({ title: "1 · Cart", story: shop.id });
+    const pay = await work.addCapability({ title: "2 · Payment", story: shop.id, dependsOn: [cart.id] });
+    const loose = await work.addCapability({ title: "Basket notes", story: shop.id });
+    await work.editCapability(loose.id, { title: "Basket notes" });
+    await work.addContract({ title: "Charges the card", capability: pay.id });
+    const kept = await work.addContract({ title: "Keeps the basket", capability: cart.id });
+    const bare = await work.addContract({ title: "Notes a gift", capability: loose.id });
+    const plain = await work.addContract({ title: "Notes a coupon", capability: loose.id });
+    const reads = (await records.list("edge")).find(({ fields }) => fields.from === pay.id)!;
+    const titleOf = (record: SchemaRecord<"contract"> | null) => record?.fields.title;
+
+    assert.equal(titleOf(await work.editContract(kept.id, { edge: reads.id, title: "Payment reads the basket" })), "1.1 · Payment reads the basket", "a bare new title keeps the contract's number");
+    assert.equal(titleOf(await work.editContract(kept.id, { title: "Payment reads the whole basket" })), "1.1 · Payment reads the whole basket", "so does a bare retitle on the edge");
+    assert.equal(titleOf(await work.editContract(bare.id, { edge: reads.id }, { testedNumbers: ["2.2"] })), "2.3 · Notes a gift", "past the dependent's contracts and its tests");
+    assert.equal(titleOf(await work.editContract(plain.id, { edge: reads.id, title: "Payment applies the coupon" })), "2.4 · Payment applies the coupon", "a bare title on a contract with no number");
+  });
 }
 
 /**

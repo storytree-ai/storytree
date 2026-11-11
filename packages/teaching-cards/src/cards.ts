@@ -112,7 +112,7 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
   },
   decision: {
     title: "A decision, kept with the work.",
-    line: "As your agents build, they decide how things should work, and why. Storytree keeps each decision inside the globe.",
+    line: "As your agents build, they decide how things should work, and why. Storytree keeps them all: press Library at the top of the map to see them through the globe, and pick one to read it.",
     what: "A decision is a note in your project's library. It sits on the shelf of the story or part it shaped; one about no one part gathers at the core.",
     why: "Every new agent session starts on its first day. Keeping decisions with the work means the next session doesn't relearn them, and you don't explain them again.",
     how: "Before an agent changes a part, it reads that part's shelf. Storytree records each note a session opens, so you can see what the work stood on.",
@@ -128,6 +128,10 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
   },
 };
 
-export function cardOf(kind: Kind): Card {
-  return { kind, ...CARDS[kind] };
+/** The decision card's line on a map whose Library surface is switched off, and with it the Library switch at the top of the map. */
+const LIBRARY_OFF = "As your agents build, they decide how things should work, and why. Storytree keeps them all in your project's library: switch Library on in the menu's Surfaces to see them through the globe, and pick one to read it.";
+
+/** Each kind's card, as true of the map on show: the decision card names the Library switch only while that surface is on. */
+export function cardOf(kind: Kind, { library = true }: { library?: boolean | undefined } = {}): Card {
+  return { kind, ...CARDS[kind], ...(kind === "decision" && !library ? { line: LIBRARY_OFF } : {}) };
 }

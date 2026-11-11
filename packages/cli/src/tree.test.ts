@@ -328,13 +328,13 @@ test("10.12 `storytree contract report <contract> --result red|green [--note <te
 
     const red = await world.run(["contract", "report", contract.id, "--result", "red", "--note", "written, fails on the missing check"], session);
     assert.equal(red.code, 0, red.stderr);
-    assert.ok(red.stdout.startsWith(`Reported ${contract.id} red.`), red.stdout);
+    assert.ok(red.stdout.startsWith(`Reported "4.1 · Rejects an email with no @" (${contract.id}) red: your report`), red.stdout);
     let health = await library.health(contract.id);
     assert.deepEqual([health.reported.state, health.reported.by, health.reported.note, health.verified.state], ["failing", "claude-code claude-1", "written, fails on the missing check", "not-checked"]);
 
     const green = await world.run(["contract", "report", contract.id, "--result", "green"], session);
     assert.equal(green.code, 0, green.stderr);
-    assert.ok(green.stdout.startsWith(`Reported ${contract.id} green.`), green.stdout);
+    assert.ok(green.stdout.startsWith(`Reported "4.1 · Rejects an email with no @" (${contract.id}) green: your report`), green.stdout);
     health = await library.health(contract.id);
     assert.deepEqual([health.reported.state, health.reported.by, health.reported.note, health.verified.state], ["passing", "claude-code claude-1", undefined, "not-checked"]);
     const shown = await world.run(["contract", "show", contract.id]);

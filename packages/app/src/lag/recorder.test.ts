@@ -162,3 +162,30 @@ test("5.3 · a drag that turns the map becomes one reading of its frames, named 
   recorder.flush();
   assert.deepEqual(sent.slice(1), [[{ name: "turn-library", response: 0, longFrames: 0, longestFrame: 0, settled: 0, progress: false, frames: { p50: 17, p95: 17, max: 17, over: 0 } }]]);
 });
+
+test("5.2 · a turn whose let-go never comes holds a flush only until the pointer has been still past the action limit", () => {
+  const { sent, recorder } = recording();
+  recorder.input(1000, open("story_a"));
+  recorder.frame(1016, closed);
+  recorder.frame(1033, closed);
+  recorder.frame(1050, closed);
+  // A right-drag turns the map, and its pointerup is lost: the press is never let go.
+  recorder.turnStart(2000, "forest");
+  recorder.turnMove();
+  for (const at of [2016, 2033, 2050]) recorder.turnFrame(at);
+  recorder.flush();
+  recorder.turnFrame(2050 + 9_000);
+  assert.equal(recorder.pending, true, "a pointer held still under the limit is still a turn");
+  assert.equal(sent.length, 0);
+  recorder.turnFrame(2050 + 10_001);
+  assert.equal(recorder.pending, false, "held still past the limit, the turn ends unrecorded");
+  assert.deepEqual(sent.flat().map((reading) => reading.name), ["close-panel"], "and the flush waiting on it goes");
+
+  // Readings taken afterwards reach the app at the next flush.
+  recorder.input(20_000, open("story_a"));
+  recorder.frame(20_016, closed);
+  recorder.frame(20_033, closed);
+  recorder.frame(20_050, closed);
+  recorder.flush();
+  assert.deepEqual(sent.flat().map((reading) => reading.name), ["close-panel", "close-panel"]);
+});

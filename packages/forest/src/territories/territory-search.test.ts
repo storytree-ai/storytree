@@ -8,7 +8,7 @@ import { afterEach, test } from "node:test";
 
 import { quietFor, waitUntil } from "@storytree/test-waits";
 import { islandLayout, LIBRARY_LAND, linkLayout, prepareIsland, type Seeds } from "./link-layout.js";
-import { awaitingFirstLayout, keepArrangement, keptArrangement, pageTerritorySearcher, searchFirst, searchInWorker, searchIsland, shelveOn, storageShelf, structureKey, subscribeKept, type SearchAnswer, type SearchAsk, type SearchWorker, type TerritorySearcher } from "./kept-layout.js";
+import { awaitingLayout, keepArrangement, keptArrangement, pageTerritorySearcher, searchFirst, searchInWorker, searchIsland, shelveOn, storageShelf, structureKey, subscribeKept, type SearchAnswer, type SearchAsk, type SearchWorker, type TerritorySearcher } from "./kept-layout.js";
 import { borderLength, networkScore, searchTerritories } from "./territory-search.js";
 import { islandRoads, roadMeasures } from "./island-roads.js";
 import { answerSearch } from "./search-worker.js";
@@ -153,38 +153,52 @@ test("3.94 a new link or a lane moved to another dock keeps the island's kept se
   assert.equal(keptArrangement("t")?.key, structureKey(shares.filter((s) => s.capability !== "d")), "kept again under the new structure");
 });
 
-test("3.95 an island with nothing kept awaits its first search where the page offers one, until the search keeps what it found; one that fails or finds nothing ends the wait, and an island added to awaits nothing", async () => {
+test("3.95 an island whose kept arrangement does not place every territory awaits its search where the page offers one, until the search keeps what it found; one that fails or finds nothing ends the wait, and an island with a territory dropped awaits nothing", async () => {
   shelveOn(undefined);
   const asked: { story: string; answer: (a: SearchAnswer) => void }[] = [];
   const searcher = (story: string): TerritorySearcher => () => new Promise((answer) => asked.push({ story, answer }));
-  assert.equal(awaitingFirstLayout("s", shares, undefined), false, "a page with no search draws its start at once");
-  assert.equal(awaitingFirstLayout("s", shares.slice(0, 1), searcher("s")), false, "nor does an island with one territory, which has nothing to arrange");
-  assert.equal(awaitingFirstLayout("s", shares, searcher("s")), true, "an island with nothing kept awaits its first search, before it is asked");
+  assert.equal(awaitingLayout("s", shares, undefined), false, "a page with no search draws its start at once");
+  assert.equal(awaitingLayout("s", shares.slice(0, 1), searcher("s")), false, "nor does an island with one territory, which has nothing to arrange");
+  assert.equal(awaitingLayout("s", shares, searcher("s")), true, "an island with nothing kept awaits its first search, before it is asked");
   searchIsland("s", ask, searcher("s"));
   searchIsland("t", ask, searcher("t"));
   searchIsland("u", ask, searcher("u"));
   searchIsland("w", ask, () => Promise.reject(new Error("the worker died")));
-  assert.equal(awaitingFirstLayout("t", shares, searcher("t")), true, "and while it waits its turn");
+  assert.equal(awaitingLayout("t", shares, searcher("t")), true, "and while it waits its turn");
   let heard = 0;
   const stop = subscribeKept(() => { heard++; });
   asked[0]!.answer({ found: { seeds: { a: { x: 1, z: 0 } }, score: 0, start: 0 } });
   await waitUntil(() => keptArrangement("s") !== undefined, 2000, "the first search's answer kept");
-  assert.equal(awaitingFirstLayout("s", shares, searcher("s")), false, "the island draws once its search keeps an arrangement");
+  assert.equal(awaitingLayout("s", shares, searcher("s")), false, "the island draws once its search keeps an arrangement");
   await waitUntil(() => asked.length === 2, 2000, "the next island searched");
   asked[1]!.answer({ found: undefined });
-  await waitUntil(() => !awaitingFirstLayout("t", shares, searcher("t")), 2000, "a search that finds nothing ends the wait");
+  await waitUntil(() => !awaitingLayout("t", shares, searcher("t")), 2000, "a search that finds nothing ends the wait");
   assert.equal(keptArrangement("t"), undefined, "with nothing kept: the island draws its start");
   await waitUntil(() => asked.length === 3, 2000, "the last island searched");
   asked[2]!.answer({ error: "no worker" });
-  await waitUntil(() => !awaitingFirstLayout("u", shares, searcher("u")), 2000, "a search that answers an error ends the wait");
-  await waitUntil(() => !awaitingFirstLayout("w", shares, searcher("w")), 2000, "a search that throws ends the wait");
+  await waitUntil(() => !awaitingLayout("u", shares, searcher("u")), 2000, "a search that answers an error ends the wait");
+  await waitUntil(() => !awaitingLayout("w", shares, searcher("w")), 2000, "a search that throws ends the wait");
   assert.equal(heard, 4, "the page hears the arrangement kept and each wait ended, once each");
   stop();
-  keepArrangement("v", { key: structureKey(shares), seeds: { a: { x: 1, z: 0 } } });
-  searchIsland("v", { ...ask, shares: [...shares, { capability: "e", lines: 200 }] }, searcher("v"));
-  assert.equal(awaitingFirstLayout("v", shares, searcher("v")), false, "a territory added to a kept island draws at once (3.94)");
+  const seeds = { "": { x: 0, z: 0 }, a: { x: 1, z: 0 }, b: { x: 2, z: 0 }, c: { x: 3, z: 0 }, d: { x: 4, z: 0 } };
+  const more = [...shares, { capability: "e", lines: 200 }], fewer = shares.filter((s) => s.capability !== "d");
+  keepArrangement("v", { key: structureKey(shares), seeds });
+  assert.equal(awaitingLayout("v", shares, searcher("v")), false, "a kept island draws at once");
+  assert.equal(awaitingLayout("v", more, searcher("v")), true, "a territory added to it awaits the search that places it, before it is asked");
+  searchIsland("v", { ...ask, shares: more }, searcher("v"));
+  assert.equal(awaitingLayout("v", more, searcher("v")), true, "and while it runs");
+  asked.at(-1)!.answer({ found: { seeds: { ...seeds, e: { x: 5, z: 0 } }, score: 0, start: 0 } });
+  await waitUntil(() => !awaitingLayout("v", more, searcher("v")), 2000, "the island draws once that search keeps an arrangement");
+  keepArrangement("x", { key: structureKey(shares), seeds });
+  searchIsland("x", { ...ask, shares: more }, searcher("x"));
+  asked.at(-1)!.answer({ found: undefined });
+  await waitUntil(() => !awaitingLayout("x", more, searcher("x")), 2000, "a search for the added structure that finds nothing ends its wait");
+  assert.equal(awaitingLayout("x", [...more, { capability: "f", lines: 100 }], searcher("x")), true, "but not the wait of a structure it was not asked for");
+  assert.equal(awaitingLayout("v", fewer, searcher("v")), false, "a territory dropped from a kept island draws at once");
+  keepArrangement("y", { key: JSON.stringify(["score 1", ["a"]]), seeds: { a: { x: 1, z: 0 } } });
+  assert.equal(awaitingLayout("y", shares, searcher("y")), false, "an arrangement kept under an older score still places its island while it is searched again");
   shelveOn(undefined);
-  assert.equal(awaitingFirstLayout("t", shares, searcher("t")), true, "a new shelf forgets the waits ended");
+  assert.equal(awaitingLayout("t", shares, searcher("t")), true, "a new shelf forgets the waits ended");
 });
 
 test("3.94 a search with territories fixed moves only the others: the fixed come back where the island is drawn from", { timeout: 120_000 }, () => {

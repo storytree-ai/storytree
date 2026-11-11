@@ -27,6 +27,8 @@ export interface MapReading {
   lines: readonly { kind: string; capability?: string | undefined; increment?: string | undefined }[];
   /** Whether the project on show is the user's factory (ADR-1048 D3). */
   factory?: boolean;
+  /** Whether the Library surface is switched on, and with it the Library switch at the top of the map; on unless said. */
+  library?: boolean;
 }
 
 /** The factory's parts, by the kinds of record they are in its library (library's SYSTEM_KINDS). */

@@ -332,8 +332,9 @@ test("13.1 a note written with no place named while holding a claim goes onto th
       assert.deepEqual((await noteFields(library, latest)).links, [second]);
       assert.deepEqual((await noteFields(library, named)).links, [founding]);
 
-      // Holding a capability whose shelf is empty, as one made through the library itself can be: nothing is added, and the agent is told.
+      // Holding only a capability whose shelf is empty, as one made through the library itself can be: nothing is added, and the agent is told.
       const link = (await library.addCapability({ title: "Confirmation link", story })).id;
+      await agent.call("release", { capability: form });
       await agent.call("claim", { capability: link, reason: "building the confirmation link" });
       const unshelved = await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Links expire after a day" });
       assert.equal(unshelved.isError, false);

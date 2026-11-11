@@ -14,8 +14,8 @@
  *   its wording and answer, and the open increments held on it. An arc is refused.
  * - An artifact is corrected in place through editNote (ADR-0641 D2 step 3): only the fields given change, and its
  *   old wording stays in its history.
- * - A new artifact with no place named goes onto the shelf of the capability the session claimed most recently
- *   (ADR-0627 D4): a decision becomes one of its front covers; a definition or other artifact kind links to the cover
+ * - A new artifact with no place named goes onto the shelf of the capability the session holds (ADR-0627 D4), and
+ *   one held among several is never guessed: it is refused, asking which (17.26): a decision becomes one of its front covers; a definition or other artifact kind links to the cover
  *   the session last opened on that shelf, else to the shelf's first book; with an empty shelf nothing is added, and
  *   the agent is told. A session holding no claim gets no default, and a place the agent names always wins.
  */
@@ -136,7 +136,7 @@ const writeNote = verb({
   command: NO_COMMAND("new"),
   tool: {
     name: "write_note",
-    description: "Write an artifact: a decision (title and text), definition (term and meaning), or principle, guardrail, pattern, process, agent, techstack, check, research or experiment (required fields in fields). Use record_friction and record_resteer for their evidence rules. With no place named, it goes onto the shelf of the capability you claimed most recently.",
+    description: "Write an artifact: a decision (title and text), definition (term and meaning), or principle, guardrail, pattern, process, agent, techstack, check, research or experiment (required fields in fields). Use record_friction and record_resteer for their evidence rules. With no place named, it goes onto the shelf of the capability you hold; holding more than one, name which.",
   },
   writes: true,
   inputs: {
@@ -329,6 +329,15 @@ async function writeArtifact(args: NoteArgs, context: NoteToolContext): Promise<
   if (missing.length > 0 || extra.length > 0) throw new VerbRefusal(`A ${args.kind} is written with ${needs.join(" and ")}${extra.length > 0 ? `, not ${extra.join(" or ")}` : ""}.`);
   if (args.front_cover_of !== undefined && args.kind !== "decision") throw new VerbRefusal("Only a decision can be a front cover.");
 
+  // A story or capability named in links is where the writer meant to file it: say the field that does (F5.4).
+  for (const id of links ?? []) {
+    const part = await context.library.get(id);
+    if (part?.type !== "story" && part?.type !== "capability") continue;
+    const title = quoted((part.fields as { title: string }).title);
+    throw new VerbRefusal(args.kind === "decision"
+      ? `"links" takes notes, not parts. To file this decision on ${title}, pass front_cover_of: ${id}.`
+      : `"links" takes notes, not parts. To file this ${args.kind} on ${title}, link a decision on its shelf (open ${id} lists them).`);
+  }
   let place: { links?: string[]; frontCoverOf?: string } = {
     ...(links === undefined ? {} : { links }),
     ...(args.front_cover_of === undefined ? {} : { frontCoverOf: args.front_cover_of }),
@@ -336,7 +345,14 @@ async function writeArtifact(args: NoteArgs, context: NoteToolContext): Promise<
   let placed = "where you named";
   let emptyShelf: string | undefined;
   if (links === undefined && args.front_cover_of === undefined) {
-    const held = await latestClaim(context);
+    const holding = await heldCapabilities(context);
+    // Two held parts and none named is a guess storytree does not make: it asks which (F5.4).
+    if (holding.length > 1) {
+      const titled = await Promise.all(holding.map(async (id) => `${quoted(((await context.library.get(id))?.fields as { title?: string } | undefined)?.title ?? id)} (${id})`));
+      const which = args.kind === "decision" ? "give front_cover_of with the one this decision belongs to" : "give links with a decision on the shelf of the one it belongs to";
+      throw new VerbRefusal(`You hold ${holding.length} parts, ${titled.slice(0, -1).join(", ")} and ${titled.at(-1)}, and named none: ${which}.`);
+    }
+    const held = holding[0];
     if (held === undefined) placed = "with no place: you hold no claim, so name its links (or, for a decision, the node it is a front cover of) to file it";
     else if (args.kind === "decision") {
       place = { frontCoverOf: held };
@@ -368,10 +384,10 @@ function write(library: Library, args: NoteArgs, fields: NoteArgs["fields"] | un
   }
 }
 
-/** The capability the calling session claimed most recently of those it still holds. */
-async function latestClaim(context: NoteToolContext): Promise<string | undefined> {
+/** The capabilities the calling session holds, in the order it claimed them. */
+async function heldCapabilities(context: NoteToolContext): Promise<string[]> {
   const mine = (await context.claims()).filter((held) => held.session === context.session && held.capability !== undefined);
-  return mine.sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0)).at(-1)?.capability;
+  return [...new Set(mine.sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0)).map((held) => held.capability!))];
 }
 
 /** The cover on `shelf` the calling session opened most recently, if it opened any. */

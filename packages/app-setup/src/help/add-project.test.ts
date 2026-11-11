@@ -90,7 +90,7 @@ test("3.6 the project the app shows when none was chosen, the first on this comp
   assert.ok((await library.listProjects()).includes(first), "and it is not deleted");
 });
 
-test("3.17 Add project on a folder whose marker names a project this computer's library lacks sets it up here under that name, replacing the marker, and says why, never \"already project\"", async (t) => {
+test("3.17 Add project on a folder whose marker names a project this computer's library lacks sets it up here under that name, replacing the marker, and says it is set up before why, never \"already project\"", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-app-add-missing-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
@@ -115,7 +115,10 @@ test("3.17 Add project on a folder whose marker names a project this computer's 
   assert.deepEqual(added, { status: "set up", project: checkbox, folder: picked, replaced: checkbox });
   assert.ok((await library.listProjects()).includes(checkbox), "the project is in this computer's library now");
   assert.equal(JSON.parse(readFileSync(path.join(picked, ".storytree", "project.json"), "utf8")).project, checkbox);
-  assert.match(addedSentence(added!), /set up here as a new project: its marker named a project this computer's library does not have/);
+  const said = addedSentence(added!);
+  assert.ok(said.startsWith(`Project “${checkbox}” is set up in ${picked}.`), `it leads with the project set up: ${said}`);
+  assert.ok(said.indexOf("Commit the .storytree folder") < said.indexOf("library does not have"), "the commit step comes before why the project is new here");
+  assert.match(said, /its marker named “checkbox-t-[0-9a-f]+”, a project this computer's library does not have/);
 });
 
 test("3.19 Add project on a folder whose code is only in languages the map cannot read says so in its reply, naming them and what still works", async (t) => {

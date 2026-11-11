@@ -8,9 +8,9 @@ import type { ReleaseChannel, ReleaseChannelState } from "../updates/release-cha
 /**
  * Plain, live status inside the gear; closing the menu never cancels an update. The status is read
  * every minute as well, so a downloaded release waiting to install is announced (`pending`) and can
- * be installed now from the same button.
+ * be installed now from the same button. `pending` hears the line naming the build waiting, or undefined when none is (4.47).
  */
-export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) => Promise<UpdateState>, pending: (waiting: boolean) => void = () => {}, choice: () => InstallChoice | undefined = () => undefined) {
+export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) => Promise<UpdateState>, pending: (ready: string | undefined) => void = () => {}, choice: () => InstallChoice | undefined = () => undefined, channel: () => ReleaseChannel | undefined = () => undefined) {
   const button = host.querySelector<HTMLButtonElement>("[data-app-updates]")!;
   const status = host.querySelector<HTMLElement>("#app-update-status")!;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -21,13 +21,13 @@ export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) 
     button.disabled = busy;
     action = state.phase === "pending" ? "install" : "check";
     button.textContent = state.phase === "pending" ? "Restart to update" : "Check for updates";
-    pending(state.phase === "pending");
+    pending(state.phase !== "pending" ? undefined : state.nextBuild === undefined ? "Update ready to install" : `Update ready: storytree ${state.nextBuild}`);
     status.hidden = state.phase === "idle";
     status.dataset.phase = state.phase;
-    const [title, detail] = updateText(state, choice());
-    const heading = document.createElement("strong");
+    const [title, detail] = updateText(state, choice(), { channel: channel(), now: new Date() });
+    const heading = host.ownerDocument.createElement("strong");
     heading.textContent = title;
-    const text = document.createElement("span");
+    const text = host.ownerDocument.createElement("span");
     text.textContent = detail;
     status.replaceChildren(heading, text);
     timer = setTimeout(() => void read("status"), busy ? 200 : 60_000);
@@ -52,17 +52,36 @@ export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) 
   return { stop() { stopped = true; clearTimeout(timer); button.removeEventListener("click", check); }, refresh() { if (!stopped) void read("status"); } };
 }
 
-export function updateText(state: UpdateState, choice?: InstallChoice): readonly [string, string] {
+/** `channel` is the one the gear now follows, and `now` the time the line is drawn at. */
+export function updateText(state: UpdateState, choice?: InstallChoice, at: { channel?: ReleaseChannel | undefined; now?: Date } = {}): readonly [string, string] {
   switch (state.phase) {
     case "idle": return ["", ""];
     case "checking": return ["Checking for updates…", "Looking for the latest build."];
-    case "up-to-date": return ["Up to date", `Running ${state.runningBuild}.`];
+    case "up-to-date": return upToDate(state, at.channel, at.now ?? new Date());
     case "pending": return ["Update ready to install", `storytree ${state.nextBuild ?? "update"} is ready. ${state.reason ?? waitingFor(choice)} Restart now to install it: the app is back in a minute or two.`];
     case "ready": return ["Restart waiting", `${state.nextBuild ?? "The new build"} restarts the app by itself as soon as the library finishes writing a snapshot or a seed.`];
     case "restarting": return ["Restarting…", `Opening ${state.nextBuild ?? "the new build"}.`];
     case "failed": return ["Couldn’t update", `${state.reason ?? "The check failed."} The running app is unchanged. Try again.`];
     case "unavailable": return ["Updates unavailable", "This copy of storytree does not install releases, so it does not update itself."];
   }
+}
+
+/** Up to date as of its check, on the channel it followed; a check on a channel the gear has since left says so instead (4.7). */
+function upToDate(state: UpdateState, channel: ReleaseChannel | undefined, now: Date): readonly [string, string] {
+  if (channel !== undefined && state.channel !== undefined && channel !== state.channel) {
+    return ["Channel changed", `Now following ${channel}, still running ${state.runningBuild}. Check for updates to look for ${channel}’s newest build; the app also checks by itself within three minutes.`];
+  }
+  if (state.checkedAt === undefined) return ["Up to date", `Running ${state.runningBuild}.`];
+  const newest = state.channel === undefined ? "the newest build" : `the newest on ${state.channel}`;
+  return ["Up to date", `Running ${state.runningBuild}, ${newest} as of ${checkedTime(new Date(state.checkedAt), now)}.`];
+}
+
+/** A check's local time, with its day when it was not today. */
+function checkedTime(checked: Date, now: Date): string {
+  const two = (n: number) => String(n).padStart(2, "0");
+  const time = `${two(checked.getHours())}:${two(checked.getMinutes())}`;
+  const sameDay = checked.toDateString() === now.toDateString();
+  return sameDay ? time : `${checked.getFullYear()}-${two(checked.getMonth() + 1)}-${two(checked.getDate())} ${time}`;
 }
 
 /** When a downloaded release waiting to install will install itself, by the user's choice (4.13). */
@@ -178,7 +197,7 @@ export function mountInstallChoice(host: HTMLElement, bridge: InstallChoiceBridg
 export interface ReleaseChannelBridge { read: UpdatesBridge["readReleaseChannel"]; set: UpdatesBridge["setReleaseChannel"] }
 
 /** The Updates section's Update channel choice; shown only where the app installs releases. */
-export function mountReleaseChannel(host: HTMLElement, bridge: ReleaseChannelBridge | undefined) {
+export function mountReleaseChannel(host: HTMLElement, bridge: ReleaseChannelBridge | undefined, changed: () => void = () => {}) {
   const field = host.querySelector<HTMLElement>("[data-app-release-channel]")!;
   const radios = [...field.querySelectorAll<HTMLInputElement>('input[name="app-release-channel"]')];
   const error = field.querySelector<HTMLElement>("[data-app-release-channel-error]")!;
@@ -202,7 +221,7 @@ export function mountReleaseChannel(host: HTMLElement, bridge: ReleaseChannelBri
     const previous = kept;
     for (const radio of radios) radio.disabled = true;
     error.hidden = true;
-    bridge.set(wanted).then(show, (reason: unknown) => {
+    bridge.set(wanted).then((state) => { show(state); changed(); }, (reason: unknown) => {
       console.error("app updates: the update channel could not be changed", reason);
       if (stopped) return;
       show({ available: true, channel: previous });
@@ -216,7 +235,7 @@ export function mountReleaseChannel(host: HTMLElement, bridge: ReleaseChannelBri
     if (stopped) return;
     unreadable(field, error, reason);
   });
-  return { stop() { stopped = true; field.removeEventListener("change", change); } };
+  return { stop() { stopped = true; field.removeEventListener("change", change); }, channel: () => kept };
 }
 
 /** A choice whose first read failed: shown with the failure and nothing to change, rather than hidden. */

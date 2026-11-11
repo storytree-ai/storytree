@@ -294,14 +294,17 @@ test("4.4 linux: an AppImage its menu entry started with --no-sandbox, where the
   assert.deepEqual(launches, [{ execPath: feed.appImage, args: ["--no-sandbox"] }]);
 });
 
-test("4.7 Check for updates checks the release feed now, shares a check already running, and says the app is up to date with its running build", async (t) => {
+test("4.7 Check for updates checks the release feed now, shares a check already running, and says the app is up to date with its running build, its channel and when it checked", async (t) => {
   const feed = await fixture(t);
-  const updater = feed.updater(async () => assert.fail("nothing newer to install"), async () => true);
+  const updater = feed.updater(async () => assert.fail("nothing newer to install"), async () => true, async () => true, "alpha");
+  const before = Date.now();
   const automatic = updater.check();
   updater.request("check");
   assert.equal(await automatic, "current");
   assert.equal(feed.checks, 1, "the asked check joined the automatic one");
-  assert.deepEqual(updater.request("status"), { phase: "up-to-date", runningBuild: "0.3.1" });
+  const { checkedAt, ...current } = updater.request("status");
+  assert.deepEqual(current, { phase: "up-to-date", runningBuild: "0.3.1", channel: "alpha" });
+  assert.ok(checkedAt !== undefined && Date.parse(checkedAt) >= before && Date.parse(checkedAt) <= Date.now(), `checked at ${checkedAt}, while the check ran`);
   updater.request("check");
   while (updater.request("status").phase === "checking") await new Promise(resolve => setImmediate(resolve));
   assert.equal(feed.checks, 2, "asking again checks now");
@@ -464,6 +467,7 @@ test("4.24 a channel switch takes effect on the next check: the other channel's 
   channel = "stable";
   assert.equal(await updater.check(), "current", "stable's 0.3.2 is older than the running build, which stays");
   assert.equal(updater.request("status").phase, "up-to-date");
+  assert.equal(updater.request("status").channel, "stable", "up to date names the channel it checked");
   assert.equal(updater.request("status").nextBuild, undefined, "alpha's download is not offered on stable");
   feed.stable = "0.3.7";
   assert.equal(await updater.check(), "waiting");

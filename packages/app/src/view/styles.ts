@@ -43,6 +43,8 @@ main[data-rail-dragging] { cursor: col-resize; user-select: none; }
 .app-menu, .app-menu * { box-sizing: border-box; }
 .app-menu-window { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; overflow: hidden; border: 1px solid #485159; border-radius: 12px; background: #101418; box-shadow: 0 8px 30px rgb(0 0 0 / .25); }
 .app-menu button { font: inherit; }
+.app-update-ready { flex: none; padding: 10px 20px; border: 0; border-bottom: 1px solid #485159; background: transparent; color: #eceae3; text-align: left; cursor: pointer; }
+.app-update-ready::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 10px; border-radius: 50%; background: #e0b252; }
 [data-app-updates] { border: 1px solid #485159; border-radius: 6px; padding: 7px 12px; background: transparent; color: #eceae3; cursor: pointer; }
 .app-menu button:hover { background: #262a2f; }
 .app-menu button:disabled { color: #a9b0ba; opacity: .6; cursor: default; background: transparent; }

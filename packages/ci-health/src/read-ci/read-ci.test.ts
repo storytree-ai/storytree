@@ -299,6 +299,29 @@ test("3.7 each job's results are read as its platform's: a test skipped on Windo
   assert.equal(second!.verified.skip, "owner", "the skip's kind is recorded, so the worklist says who moves it");
 });
 
+test("3.16 · a reading whose run had no macOS job leaves a contract's earlier macOS pass standing against its platform:darwin skip, and one whose macOS job skipped it takes the pass away", async (t) => {
+  // Main's push runs test Linux and Windows only, macOS nightly (ADR-1303): one wrote over Get storytree 1.11's macOS pass.
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const darwinSkip = "ok 1 - 1.1 your information page shows the form # SKIP platform:darwin-arm64: only an Apple Silicon Mac can run it";
+  const job = (id: number, name: string, label: string) => ({ id, conclusion: "success", name, labels: [label] });
+  const read = async (jobs: { id: number; conclusion: string; name: string; labels: string[] }[], logs: Record<number, string>) => {
+    const asked = github(pushRunsOnTrunk(commit), "", jobs);
+    asked.text = async (route) => [logs[Number(/jobs\/(\d+)\/logs$/.exec(route)?.[1])], "ok 2 - 1.2 missing details show the error"].join("\n");
+    const reading = await readProjectCi({ library, git: gitIn(folder), github: asked });
+    assert.equal(reading.written, true, reading.written ? "" : reading.why);
+    return (await library.health(contracts[0]!))!.verified;
+  };
+  const linux = job(71, "verify on Linux", "ubuntu-latest");
+  const windows = job(72, "verify on Windows", "windows-latest");
+  const mac = job(73, "verify on macOS", "macos-latest");
+  assert.equal((await read([linux, mac], { 71: darwinSkip, 73: "ok 1 - 1.1 your information page shows the form" })).state, "passing", "the macOS job passed it");
+  assert.equal((await read([linux, windows], { 71: darwinSkip, 72: darwinSkip })).state, "passing", "a run with no macOS job could not re-run it, so the macOS pass stands");
+  const taken = await read([linux, mac], { 71: darwinSkip, 73: darwinSkip });
+  assert.equal(taken.state, "not-checked", "a run whose macOS job skipped it did not reproduce the pass");
+  assert.equal(taken.skip, "platform:darwin");
+});
+
 test("3.8 a cancelled push run, superseded before its slowest job finished, is passed over: the newest finished push run that ran to its end is read, and a branch whose every finished run was cancelled writes nothing and says why", async (t) => {
   const { library, contracts } = await shopLibrary(t);
   const { folder, commit } = projectFolder(t);

@@ -631,13 +631,26 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
     const library = await openNamedProject(storytree, where.project, where.identity);
     const named = definitionsNamedIn(prompt, (await library.definitions()).map(({ id, fields }) => ({ id, ...fields })));
     const fresh = notYetGiven(session, named);
-    const nudge = harness === "claude-code" ? await contextNudge(storytree, where.project, session) : undefined;
+    const [nudge, lapsed] = await Promise.all([harness === "claude-code" ? contextNudge(storytree, where.project, session) : undefined, lapsedAtPrompt(storytree, where.project, session)]);
     const definitions = fresh.length === 0 ? undefined : definitionsContext(fresh);
-    const context = [...(definitions === undefined ? [] : [definitions]), ...(nudge === undefined ? [] : [nudge])];
+    // A lapse comes first: the agent is to take its claims again before it edits (3.58).
+    const context = [...(lapsed === undefined ? [] : [lapsed]), ...(definitions === undefined ? [] : [definitions]), ...(nudge === undefined ? [] : [nudge])];
     const report = definitions === undefined ? undefined : bigInjectionReport(session, fresh, definitions);
     return { ...(context.length === 0 ? {} : { context }), ...(report === undefined ? {} : { report }) };
   } finally {
     await storytree.close();
+  }
+}
+
+/** What the prompt says of `session`'s claims that lapsed since it last claimed (3.58), or undefined for none. */
+async function lapsedAtPrompt(storytree: Storytree, project: string, session: string): Promise<string | undefined> {
+  // Loaded here, not at the top: a static import would load the log on every hook's start (3.3).
+  const [{ openActivityLog }, { lapseNotice }] = await Promise.all([import("../activity/index.js"), import("../claims/lapses.js")]);
+  const log = await openActivityLog(storytree);
+  try {
+    return await lapseNotice(log, project, session);
+  } finally {
+    await log.close();
   }
 }
 

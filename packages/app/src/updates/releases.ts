@@ -253,7 +253,7 @@ export class ReleaseUpdater {
     if (!this.downloaded) {
       const result = await this.base.checkForUpdates();
       if (this.stopped) return "stopped";
-      if (!result?.isUpdateAvailable) { this.set("up-to-date"); return "current"; }
+      if (!result?.isUpdateAvailable) { this.set("up-to-date", { ...(this.selectedChannel === undefined ? {} : { channel: this.selectedChannel }), checkedAt: new Date().toISOString() }); return "current"; }
       servedFromRelease(this.base, result.updateInfo);
       this.cancellation = result.cancellationToken;
       await this.base.downloadUpdate(result.cancellationToken);

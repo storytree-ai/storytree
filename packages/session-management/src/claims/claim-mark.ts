@@ -4,9 +4,9 @@
  * both read it.
  */
 
-/** Hues a session may wear: clear of the "needs you" amber and of every green (30°–170°). */
+/** Hues a session may wear: clear of the "needs you" amber and of every green (30°–170°), and of red (320°–30°), the alarm colour. */
 const FIRST_HUE = 170;
-const HUE_SPAN = 220;
+const HUE_SPAN = 150;
 
 /** A session's own colour, the same on every read, shared by its wisps, its row and its flags. */
 export function sessionColour(session: string): string {

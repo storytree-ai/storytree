@@ -24,8 +24,9 @@ const STYLES = `
 .teaching-card { position: fixed; z-index: 20; max-width: 22rem; padding: .75rem .9rem; border-radius: .6rem;
   background: rgba(20, 24, 32, .94); color: #f2f4f8; font: 14px/1.4 system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.35);
   max-height: calc(100vh - 24px); overflow-y: auto; }
-/* Beneath an open menu or dialog (the app's gear menu is a popover): hidden, so none of it shows past the overlay's edge, and back when it closes. */
-:root:has(:popover-open, dialog:modal) .teaching-card { display: none; }
+/* Beneath an open menu, dialog or overlay surface (the app's gear menu is a popover, the first launch's sharing consent an overlay):
+   hidden, so none of it shows past the overlay's edge, and back when it closes. */
+:root:has(:popover-open, dialog:modal, [data-surface-layer="overlay"]:not([hidden])) .teaching-card { display: none; }
 .teaching-card h3 { margin: 0 0 .25rem; font-size: 15px; }
 .teaching-card p, .teaching-journal p { margin: .25rem 0; }
 .teaching-card [data-depth] h4, .teaching-journal h4 { margin: .5rem 0 0; font-size: 13px; }
@@ -153,7 +154,7 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
   const next = (): void => {
     const found = waiting.shift();
     if (found === undefined) return;
-    const card = cardOf(found.kind);
+    const card = cardOf(found.kind, { library: last?.library });
     const node = aside(found.kind, `<h3>${escape(card.title)}</h3><p>${escape(card.line)}</p><div data-depth hidden>${depth(card)}</div>
       <div class="teaching-card-actions"><button type="button" data-more aria-expanded="false">More</button><button type="button" data-dismiss>Got it</button><button type="button" data-end>End tour</button></div>`);
     const more = node.querySelector<HTMLButtonElement>("[data-more]")!;
@@ -211,14 +212,17 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
   };
 }
 
-/** The journal of cards seen, in `host` (Help's page for it): each listed in order, chosen to show again with its depth. */
-export function mountJournal(host: HTMLElement, { journal }: { journal: Journal }): { open(): void; close(): void; stop(): void } {
+/**
+ * The journal of cards seen, in `host` (Help's page for it): each listed in order, chosen to show again with its depth, as true
+ * of the map as `library` says it is now (whether the Library surface is on; on unless said).
+ */
+export function mountJournal(host: HTMLElement, { journal, library }: { journal: Journal; library?: () => boolean | undefined }): { open(): void; close(): void; stop(): void } {
   const unstyle = adoptStyles(host.ownerDocument);
   const shelf = host.ownerDocument.createElement("section");
   shelf.className = "teaching-journal";
   host.append(shelf);
   const show = (kind: Kind): void => {
-    const card = cardOf(kind);
+    const card = cardOf(kind, { library: library?.() });
     const box = shelf.querySelector<HTMLElement>("[data-journal-card]")!;
     box.dataset.kind = kind;
     box.hidden = false;

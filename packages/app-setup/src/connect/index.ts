@@ -33,6 +33,8 @@ export interface ConnectionResult {
    */
   readonly hooks: "not verified" | "waiting for you to trust them in Codex" | "running";
   readonly next: string;
+  /** Where the connection was written, for a reader who asks: kept out of `next`, which says only what the user does. */
+  readonly where?: string;
 }
 export interface DisconnectionResult {
   readonly harness: Harness;
@@ -101,7 +103,8 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
   const hook = hookCommand(options.installed);
   for (const harness of new Set(options.harnesses)) {
     const settingsFile = where.files[harness];
-    const result = (tools: ConnectionResult["tools"], next: string, hooks: ConnectionResult["hooks"] = "not verified") => results.push({ harness, settingsFile, tools, hooks, next: harness === "codex" && elevated ? `${next} ${ELEVATED}` : next });
+    const result = (tools: ConnectionResult["tools"], next: string, hooks: ConnectionResult["hooks"] = "not verified", where?: string) =>
+      results.push({ harness, settingsFile, tools, hooks, next: harness === "codex" && elevated ? `${next} ${ELEVATED}` : next, ...(where === undefined ? {} : { where }) });
     try {
       const installed = installedToolServerCommand(options.installed.command, options.installed.args[0]);
       if (options.installed.args.length !== 1 || ![installed.command, installed.args[0]].every((file) => statSync(file).isFile())) throw new Error("Missing installed tools");
@@ -156,7 +159,9 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       // Antigravity's hooks are known from the documentation it ships, not from a session (agy runs no prompt unsigned).
       else if (harness === "antigravity") result(tools, "Tools connected in user settings and storytree's hooks added to Antigravity's hooks.json; hooks not verified. Start a new agy session in the folder of your project and call check_setup.");
       else if (harness === "pi") result(tools, "Tools connected in user settings and storytree's Pi extension installed; hooks not verified. Start a new Pi session in the folder of your project and call check_setup.");
-      else result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.");
+      // Claude Code's: what the user does in their words, and where it was written one step away (Fable's F1.7).
+      else result(tools, "Not yet verified: that happens the first time you start Claude Code in your project's folder and approve its check. If storytree does not hear from it, ask the agent to run check_setup; it names each missing hook until its event is received.",
+        "not verified", "Written to Claude Code's user settings; project or managed settings can override it.");
     } catch {
       // Do not copy a CLI's stdout/stderr (which can include settings or credentials) into the result.
       const reason = harness === "codex" ? " Check that codex mcp list --json succeeds and hooks.json contains a valid JSON object." : " Check that the file contains a valid JSON object.";

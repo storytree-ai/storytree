@@ -171,6 +171,27 @@ test("1.8: the uninstall's report is kept in a file that names what stayed and h
   assert.ok(kept.includes(m.installDir), "it names the folder whose going means the uninstall is done");
 });
 
+test("1.8: removing the library also removes the empty factory folder the app made, so no ~/.storytree is left", async (t) => {
+  const m = await installedMachine(t);
+  rmSync(m.old);
+  // What the app makes as it starts when no factory is chosen (2.21): the default folder, with an empty plugins folder.
+  mkdirSync(path.join(m.user, ".storytree", "your-factory", "plugins"), { recursive: true });
+  const report = await uninstall({ ...m.options, library: "remove" });
+  assert.equal(report.complete, true, report.lines.join("\n"));
+  assert.equal(existsSync(path.join(m.user, ".storytree")), false);
+});
+
+test("1.8: a factory folder holding the user's plugins stays, and the user is told where", async (t) => {
+  const m = await installedMachine(t);
+  const factory = path.join(m.user, ".storytree", "your-factory");
+  mkdirSync(path.join(factory, "plugins", "mine"), { recursive: true });
+  writeFileSync(path.join(factory, "plugins", "mine", "plugin.json"), "the user's plugin");
+  const report = await uninstall({ ...m.options, library: "remove" });
+  assert.equal(report.complete, true, report.lines.join("\n"));
+  assert.equal(readFileSync(path.join(factory, "plugins", "mine", "plugin.json"), "utf8"), "the user's plugin");
+  assert.ok(report.lines.some((line) => line.includes(factory)), "the user is told where their factory stayed");
+});
+
 test("1.8: keeping the library leaves only the library behind", async (t) => {
   const m = await installedMachine(t);
   // What the app leaves in its home beside the library: its browser data, logs and launch record.

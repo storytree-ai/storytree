@@ -339,9 +339,14 @@ export async function reportContract(
     by: `${caller.harness ?? "agent"} ${caller.session}`,
     ...(note === undefined ? {} : { note }),
   });
+  // A report is the agent's word until storytree's own run sees it, so the reply asks for that run (F4.3).
+  const title = ((await library.get(contract))?.fields as { title?: string } | undefined)?.title;
+  const named = title === undefined ? contract : `"${title}" (${contract})`;
+  const { verified } = await library.health(contract);
+  const seen = verified.at === undefined || verified.state === "not-checked" ? "storytree's own run has not verified it yet" : `storytree's own run last verified it ${verified.state} at ${verified.at}`;
   return result === "red"
-    ? { text: `Reported ${contract} red. Now make it pass and report it green.`, data: { reported: "failing" } }
-    : { text: `Reported ${contract} green.`, data: { reported: "passing" } };
+    ? { text: `Reported ${named} red: your report, and ${seen}. Run \`storytree health local\` in your shell so the plan shows a verified red, then make it pass and report it green.`, data: { reported: "failing" } }
+    : { text: `Reported ${named} green: your report, a claim until storytree's own run confirms it (${seen}). Run \`storytree health local\` in your shell.`, data: { reported: "passing" } };
 }
 
 function registerLandingTools(define: Define, landing: Landing | undefined): void {

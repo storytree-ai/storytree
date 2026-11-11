@@ -1270,6 +1270,18 @@ test("8.32 a numbered test carries its contract's number whatever its test file'
   }
 });
 
+test("8.60 the untested list never names a contract whose proved_by tests storytree verified, passing or failing; one they never ran is still named", () => {
+  const verified = (state: string) => ({ reported: { state: "not-checked" }, verified: { state } });
+  const contracts = [
+    { title: "3.1 · totals", provedBy: ["tests/test_total.py::test_total"], health: verified("passing") },
+    { title: "3.2 · rounds", provedBy: ["tests/test_total.py::test_round"], health: verified("failing") },
+    { title: "3.3 · never run", provedBy: ["tests/test_total.py::test_never"], health: verified("not-checked") },
+    { title: "3.4 · no link", health: verified("passing") },
+  ];
+  const plan = { arcs: [], stories: [{ id: "story-total", title: "Total", capabilities: [{ id: "cap-total", title: "3 · Total", contracts }] }] } as unknown as AnnotatedTree;
+  assert.deepEqual(untestedContracts(plan, "cap-total", []), ["3.3 · never run", "3.4 · no link"]);
+});
+
 test("8.40 reading a capability's story tests says whether its story's package was seen in the checkout: a story with no package there, and no pytest numbers, is unseen; testedNumbers still reads the numbers alone", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-seen-"));
   const contracts = [{ title: "1.1 · adds" }];

@@ -88,11 +88,17 @@ export function mountAppMenu(host: HTMLElement, options: {
   const deleteProject = options.mountDeleteProject?.(menu.querySelector<HTMLElement>("[data-app-delete-project]")!, async () => { await options.onChosen(); });
   const factory = options.mountFactory?.(menu.querySelector<HTMLElement>("[data-app-factory]")!);
   const installChoice = mountInstallChoice(menu, options.installChoice, undefined, () => updates.refresh());
-  const updates = mountUpdates(menu, options.checkForUpdates, (waiting) => {
-    gear.toggleAttribute("data-update-pending", waiting);
-    gear.title = waiting ? "App menu: an update is ready to install" : "App menu";
-  }, installChoice.choice);
-  const releaseChannel = mountReleaseChannel(menu, options.releaseChannel);
+  // The gear's dot names the build waiting, on its hover and as the menu's first row, which opens Updates (4.47).
+  const updateReady = menu.querySelector<HTMLButtonElement>("[data-app-update-ready]")!;
+  updateReady.addEventListener("click", () => selectSection("updates"));
+  const updates = mountUpdates(menu, options.checkForUpdates, (ready) => {
+    gear.toggleAttribute("data-update-pending", ready !== undefined);
+    gear.title = ready ?? "App menu";
+    updateReady.hidden = ready === undefined;
+    updateReady.textContent = ready ?? "";
+  }, installChoice.choice, () => releaseChannel.channel());
+  // A switch redraws the last check's line, which no longer says what the new channel offers.
+  const releaseChannel = mountReleaseChannel(menu, options.releaseChannel, () => updates.refresh());
   const signIn = mountSignIn(menu, options.signIn);
   let section = "projects";
   let stopped = false;

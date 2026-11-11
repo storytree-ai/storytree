@@ -617,7 +617,9 @@ export class WorkModel {
    * by another live contract of the capability is refused as addContract refuses it. A contract moved,
    * with no title given, to a numbered capability its number's leading part is not, takes that
    * capability's next free number as addContract gives it, past `testedNumbers`, so its number says
-   * where it is; the rest of its title is kept. Returns null, and writes nothing, if `id` is not a live contract.
+   * where it is; the rest of its title is kept. One left on an edge whose title carries no number, given or kept,
+   * keeps its own number, or, having none, takes the edge's dependent capability's next free one, past `testedNumbers`,
+   * so a test can name it. Returns null, and writes nothing, if `id` is not a live contract.
    */
   editContract(id: string, fields: ContractEdit, options?: ContractWriteOptions): Promise<SchemaRecord<"contract"> | null> {
     const { testedNumbers: tested = [], ...write } = options ?? {};
@@ -631,6 +633,12 @@ export class WorkModel {
       const owner: ContractEdit = fields.edge !== undefined && !("capability" in fields) ? { capability: undefined } : fields.capability !== undefined && !("edge" in fields) ? { edge: undefined } : {};
       const renumbered = fields.title === undefined && fields.capability !== undefined && fields.capability !== own.fields.capability ? await this.#movedTitle(own.fields.title, fields.capability, tested) : undefined;
       if (renumbered !== undefined) fields = { ...fields, title: renumbered };
+      const onEdge = { ...own.fields, ...fields, ...owner };
+      // On an edge, a title with no number keeps the contract's own, or takes its dependent capability's next free one.
+      if (onEdge.edge !== undefined && onEdge.capability === undefined && (fields.title !== undefined || fields.edge !== undefined) && typeof onEdge.title === "string" && contractNumber(onEdge.title) === undefined) {
+        const number = contractNumber(own.fields.title);
+        fields = { ...fields, title: number !== undefined ? `${number} · ${onEdge.title}` : await this.#numbered(onEdge.title, (await this.#fromOf(onEdge.edge))!, tested) };
+      }
       const after = { ...own.fields, ...fields, ...owner };
       if (fields.title !== undefined || fields.capability !== undefined || fields.edge !== undefined) {
         const title = after.title;

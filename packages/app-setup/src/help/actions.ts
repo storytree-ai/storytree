@@ -78,7 +78,7 @@ export function setupHelpActions(options: {
     async connectAgent(harness) {
       if (typeof harness !== "string" || !(HARNESS_IDS as readonly string[]).includes(harness)) throw new Error("Choose an agent this computer runs.");
       const [result] = await connectAgents({ ...options.connections, harnesses: [harness as Harness], installed: installed() });
-      return { agent: watchedHarness(harness)?.label ?? harness, connected: result!.tools !== "not connected", next: result!.next };
+      return { agent: watchedHarness(harness)?.label ?? harness, connected: result!.tools !== "not connected", next: result!.next, ...(result!.where === undefined ? {} : { where: result!.where }) };
     },
     async checkSetupFolder() {
       const folder = await options.chooseFolder();

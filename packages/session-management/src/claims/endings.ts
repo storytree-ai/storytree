@@ -10,9 +10,10 @@
  * - Its branch's pull request merged after it was taken (ADR-0643 D3): a "merged" line naming the holder.
  * - Its increment closed, whoever closes it and whatever the disposition: a "closed" line, which ends
  *   every claim on the increment and every capability claim taken under it (ADR-0944 D5, ADR-0949 D4).
- * - Its session ended: a "session-ended" line, which the harness hooks write.
  * - A release (by the holder or the manager) leaves an active increment nobody's work in progress, so
- *   it is a proposal again (5.29); a landing, merge, close or session end does not return it.
+ *   it is a proposal again (5.29); a landing, merge or close does not return it.
+ * A session's end ends none: its process stopped, so its holder reads idle at once and its claims stand
+ * until another session takes them over or one of these ends them (ADR-1311 D1, 4.41, in readings.ts).
  *
  * Imports types alone, so the activity log's query can take its predicate without an import cycle.
  */
@@ -21,7 +22,7 @@ import type { IncrementStatus, Library, Line, NewLine, WriteOptions } from "@sto
 import type { LockedLog } from "../activity/activity-log.js";
 
 /** The kinds of line that end a claim. */
-export const ENDING_KINDS = ["released", "landed", "merged", "closed", "session-ended"] as const;
+export const ENDING_KINDS = ["released", "landed", "merged", "closed"] as const;
 
 /** Why a claim ends, as its writer says it. */
 export type Ending =
@@ -98,8 +99,6 @@ export function ends(line: Line, id: string, held: Held): boolean {
       return held.session === line.holder && id === (line.increment ?? line.capability);
     case "closed":
       return id === line.increment || held.under === line.increment;
-    case "session-ended":
-      return held.session === line.session;
     default:
       return false;
   }
@@ -113,8 +112,7 @@ export const ENDS_STANDING = `(
       (e.kind = 'released' AND coalesce(e.holder, e.session) = l.session AND (e.id = l.id OR e.id = l.under))
       OR (e.kind = 'landed' AND e.session = l.session AND e.id = l.id)
       OR (e.kind = 'merged' AND e.holder = l.session AND e.id = l.id)
-      OR (e.kind = 'closed' AND (e.id = l.id OR e.id = l.under))
-      OR (e.kind = 'session-ended' AND e.session = l.session))`;
+      OR (e.kind = 'closed' AND (e.id = l.id OR e.id = l.under)))`;
 
 /** ENDING_KINDS as an SQL list. */
 export const ENDING_KINDS_SQL = ENDING_KINDS.map((kind) => `'${kind}'`).join(", ");

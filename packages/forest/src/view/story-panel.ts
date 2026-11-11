@@ -7,10 +7,8 @@
  * click opens (ADR-1287; ./panel-folds.ts works them). The island draws the capability tree and the territories carry
  * health, so the panel draws neither (ADR-1285). Every word from the library is written as text, never as HTML.
  */
-import type { AcceptanceState, CapabilityLine, ContractLine, StoryPanel, WhyLine } from "@storytree/forest";
+import type { AcceptanceState, CapabilityLine, CheckReading, ContractLine, StoryPanel, WhyLine } from "@storytree/forest";
 import type { HealthSource, HealthState } from "@storytree/library";
-
-const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
 
 /**
  * The panel's HTML: `selected`, the capability picked, when it is one of the story's, else the story alone; no capability
@@ -83,9 +81,9 @@ function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string], o
     </section>`;
 }
 
-/** How many of a link's contracts storytree last saw failing, in its state line; with none, nothing. */
+/** How many of a link's contracts wear a red gear, in its state line; with none, nothing. */
 function failing(contracts: readonly ContractLine[]): string {
-  const count = contracts.filter(({ verified }) => verified === "failing").length;
+  const count = contracts.filter(({ gear }) => gear?.state === "failing").length;
   return count === 0 ? "" : `<span class="panel-link-failing">${count} failing</span>`;
 }
 
@@ -116,26 +114,48 @@ function contracts(line: CapabilityLine): string {
 }
 
 /**
- * Contracts, a capability's or a link's alike, each by its title and its state in plain words: "tests pass", "tests fail"
- * or "tests not run" with its source where something judged it, else the agent's claim, labelled as its claim and never
- * as a check (ADR-1294 D1, question_ee767f05e0b9 part 4); a contract marked for agentic user acceptance testing also
- * says where that stands, and an unmarked one says nothing of it. Each opens one level deeper to its trail, the tests that last
- * judged it and the day they ran with their result (Fable's F2.4), and when it was last seen if not re-run since.
+ * Contracts, a capability's or a link's alike, each by its title and, after it, one small icon per check it has and no words
+ * (question_32b645261409, Mick's answer A): a gear for storytree's run of its tests, a robot for agentic user acceptance
+ * testing, each green passed, red failed or yellow not run yet. The agent's report colours nothing (ADR-0630). Each opens one
+ * level deeper to every check in full words, the agent's trail said as the agent's, the tests that last judged it (Fable's
+ * F2.4), and when it was last seen if not re-run since.
  */
 function contractList(contracts: readonly ContractLine[]): string {
   return `<ul class="panel-contracts">${contracts
     .map((contract) => {
-      const state = contract.verified === undefined ? claim(contract.reported) : tests(contract.verified, contract.source);
-      const acceptance = contract.acceptance === undefined ? "" : ` ${accepted(contract.acceptance)}`;
+      const icons = [
+        ...(contract.gear === undefined ? [] : [mark("gear", contract.gear.state, run(contract.gear))]),
+        ...(contract.acceptance === undefined ? [] : [mark("robot", ACCEPTANCE[contract.acceptance].state, accepted(contract.acceptance))]),
+      ].join("");
       return `
-      <li data-contract-id="${attribute(contract.id)}">${fold("contract", `<span class="panel-contract-said">${text(contract.title)} ${state}${acceptance}</span>`, `
+      <li data-contract-id="${attribute(contract.id)}">${fold("contract", `<span class="panel-contract-said">${text(contract.title)}</span><span class="panel-marks">${icons}</span>`, `
         <span class="panel-health">
+          ${contract.gear === undefined ? "" : `<span class="panel-check">${text(run(contract.gear))}</span>`}
+          ${contract.local === undefined ? "" : `<span class="panel-check">${text(run(contract.local))}</span>`}
+          ${contract.acceptance === undefined ? "" : `<span class="panel-check">${text(accepted(contract.acceptance))}</span>`}
           <span class="panel-trail">${text(trail(contract.trail))}</span>
-          ${contract.ran === undefined ? "" : ran(contract.ran, contract.verified, contract.source)}
+          ${contract.ran?.tests === undefined || contract.ran.tests.length === 0 ? "" : testedBy(contract.ran.tests)}
           ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
         </span>`)}</li>`;
     })
     .join("")}</ul>`;
+}
+
+/** The icons a contract row draws, each a shape alone, never words (the app's menu gear is larger and grey). */
+const ICONS: Readonly<Record<"gear" | "robot", string>> = {
+  gear: `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M7 1h2l.4 2 1.3.6 1.7-1.2 1.4 1.4-1.2 1.7.6 1.3 2 .4v2l-2 .4-.6 1.3 1.2 1.7-1.4 1.4-1.7-1.2-1.3.6-.4 2H7l-.4-2-1.3-.6-1.7 1.2-1.4-1.4 1.2-1.7-.6-1.3-2-.4V7l2-.4.6-1.3-1.2-1.7 1.4-1.4 1.7 1.2 1.3-.6zM8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg>`,
+  robot: `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M7.25 1h1.5v2H12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.25zM5.5 6.25a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm5 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM5.5 10.5v1h5v-1zM0 6h1.5v4H0zm14.5 0H16v4h-1.5z"/></svg>`,
+};
+
+/** One check's icon, coloured by its state; its words are for a screen reader alone. */
+function mark(kind: "gear" | "robot", state: HealthState, words: string): string {
+  return `<span class="panel-mark mark-${kind} state-${state}" data-mark="${kind}" data-state="${state}" role="img" aria-label="${attribute(words)}">${ICONS[kind]}</span>`;
+}
+
+/** What storytree's run said, in full words: "storytree's run: fails, from CI, 11 Nov"; a run not yet made has no where or when. */
+function run({ state, source, at }: CheckReading): string {
+  if (state === "not-checked") return "storytree's run: not run yet";
+  return `storytree's run: ${state === "passing" ? "passes" : "fails"}${source === undefined ? "" : `, ${FROM[source]}`}${at === undefined ? "" : `, ${day(at)}`}`;
 }
 
 /**
@@ -212,12 +232,10 @@ function day(at: string): string {
 /** How many tests the fold names before saying how many more there are. */
 const TESTS_NAMED = 3;
 
-/** The run that last judged a contract: the tests it named, when it kept them, then the day it ran, its result and where. */
-function ran({ at, tests }: NonNullable<ContractLine["ran"]>, state: HealthState | undefined, source: HealthSource | undefined): string {
-  const more = (tests?.length ?? 0) - TESTS_NAMED;
-  const named = tests === undefined || tests.length === 0 ? "" : `<span class="panel-tests">tested by ${text(tests.slice(0, TESTS_NAMED).join("; "))}${more > 0 ? ` and ${more} more` : ""}</span>`;
-  const result = state === "failing" ? "tests failed" : "tests passed";
-  return `${named}<span class="panel-last-ran">last ran ${day(at)}: ${result}${source === undefined ? "" : `, ${FROM[source]}`}</span>`;
+/** The tests that last judged a contract, when its entry kept them. */
+function testedBy(tests: readonly string[]): string {
+  const more = tests.length - TESTS_NAMED;
+  return `<span class="panel-tests">tested by ${text(tests.slice(0, TESTS_NAMED).join("; "))}${more > 0 ? ` and ${more} more` : ""}</span>`;
 }
 
 /** The agent's trail on a contract, said as the agent's: a history of its reports, not a check (ADR-0630 D2). */
@@ -225,27 +243,15 @@ function trail(words: string): string {
   return words === "not reported yet" ? "the agent has not reported it yet" : `the agent reported it ${words}`;
 }
 
-/** The agent's own word on a contract nothing else judged: its claim, never a check. */
-function claim(state: HealthState): string {
-  return `<span class="panel-badge badge-${state}">the agent's claim: ${HEALTH[state]}</span>`;
-}
-
-/** What the tests said of a contract, in plain words, and where (ADR-1294 D1). */
-const TESTS: Readonly<Record<HealthState, string>> = { passing: "tests pass", failing: "tests fail", "not-checked": "tests not run" };
-
-function tests(state: HealthState, source: HealthSource | undefined): string {
-  return `<span class="panel-badge badge-${state}">${TESTS[state]}${source === undefined ? "" : `, ${FROM[source]}`}</span>`;
-}
-
-/** Agentic user acceptance testing's state on a contract marked for it, in full words, never "UAT" (ADR-1294 D1). */
-const ACCEPTANCE: Readonly<Record<AcceptanceState, { words: string; badge: HealthState }>> = {
-  passed: { words: "passed", badge: "passing" },
-  failed: { words: "failed", badge: "failing" },
-  "not-run": { words: "not run", badge: "not-checked" },
+/** Agentic user acceptance testing's state on a contract marked for it, its robot's colour and its words, never "UAT" (ADR-1294 D1). */
+const ACCEPTANCE: Readonly<Record<AcceptanceState, { words: string; state: HealthState }>> = {
+  passed: { words: "passed", state: "passing" },
+  failed: { words: "failed", state: "failing" },
+  "not-run": { words: "not run yet", state: "not-checked" },
 };
 
 function accepted(state: AcceptanceState): string {
-  return `<span class="panel-badge badge-${ACCEPTANCE[state].badge}">agentic user acceptance testing: ${ACCEPTANCE[state].words}</span>`;
+  return `agentic user acceptance testing: ${ACCEPTANCE[state].words}`;
 }
 
 /** Where storytree saw a verdict, in words (ADR-1193 D3). */

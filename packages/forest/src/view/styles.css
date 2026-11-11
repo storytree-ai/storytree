@@ -606,25 +606,34 @@
   gap: 0.4rem;
 }
 
-.panel-badge {
-  font-size: 0.78rem;
-  padding: 0.05rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid var(--none-line);
-  background: var(--none-bg);
-  color: var(--none-text);
+/* A contract's checks after its title, one icon each and no words (question_32b645261409): coloured as the map fills a
+   territory (territory-land.ts's WORD_FILL), green passed, red failed, yellow not run yet. Small, so the gear is not the
+   app's menu gear. */
+.panel-marks {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-left: 0.4rem;
+  vertical-align: -0.1rem;
 }
 
-.panel-badge.badge-passing {
-  border-color: var(--pass-line);
-  background: var(--pass-bg);
-  color: var(--pass-text);
+.panel-mark {
+  display: inline-flex;
 }
 
-.panel-badge.badge-failing {
-  border-color: var(--fail-line);
-  background: var(--fail-bg);
-  color: var(--fail-text);
+.panel-mark.state-passing {
+  color: #97C459;
+}
+
+.panel-mark.state-failing {
+  color: #E24B4A;
+}
+
+.panel-mark.state-not-checked {
+  color: #F2D16B;
+}
+
+.panel-check {
+  flex-basis: 100%;
 }
 
 .panel-contracts {

@@ -699,6 +699,34 @@ test("9.4 show_plan gives each capability's word, and for one not healthy its re
   });
 });
 
+test("9.36 show_plan gives each capability's description and the decisions on its shelf, founding first, by title and id, and says when it has neither", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { story, capability } = await planned(agent);
+      await agent.call("edit_plan", { id: capability, description: "Takes the visitor's email and checks it" });
+      const [founding] = await library.frontCovers(capability);
+      const later = await library.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest", frontCoverOf: capability });
+      const rest = [];
+      for (const title of ["Check the domain", "Lower-case it", "Refuse disposable ones"]) rest.push(await library.recordDecision({ status: "accepted", title, text: "Because", frontCoverOf: capability }));
+      const bare = idOf(await agent.call("plan_capability", { story, title: "Password form", ...FOUNDED }));
+      for (const cover of await library.frontCovers(bare)) await library.retire(cover.id, "testing a bare shelf");
+
+      const plan = await agent.call("show_plan");
+      const lines = plan.text.split("\n");
+      const under = (id: string) => lines.slice(lines.findIndex((line) => line.includes(`(${id})`)) + 1, lines.findIndex((line) => line.includes(`(${id})`)) + 3).join("\n");
+      assert.match(under(capability), /Takes the visitor's email and checks it/, plan.text);
+      assert.match(under(capability), new RegExp(`founded on "Email first" \\(${founding!.id}[,)].*; also "Send through Mailgun" \\(${later.id}, ADR-\\d{4}\\)`), plan.text);
+      assert.match(under(capability), new RegExp(`"Lower-case it" \\(${rest[1]!.id}, ADR-\\d{4}\\), and 1 more \\(open ${capability} lists them\\)`), plan.text);
+      assert.doesNotMatch(under(capability), /Refuse disposable ones/, plan.text);
+      assert.match(under(bare), /No description yet/, plan.text);
+      assert.match(under(bare), /No decision on its shelf yet/, plan.text);
+      const shown = (plan.data.stories as { capabilities: { id: string; decisions: { id: string; title: string }[] }[] }[])[0]!.capabilities;
+      assert.deepEqual(shown.find((each) => each.id === capability)?.decisions.map(({ id }) => id), [founding!.id, later.id, ...rest.map(({ id }) => id)]);
+      assert.deepEqual(shown.find((each) => each.id === bare)?.decisions, []);
+    });
+  });
+});
+
 test("9.14 show_plan lists live arcs and those closed yesterday or today; given closed (today, yesterday, week) or from and to, only the arcs closed in that window", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

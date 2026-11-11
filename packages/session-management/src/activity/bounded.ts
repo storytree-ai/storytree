@@ -101,8 +101,7 @@ export function selectLines(project: string, filter: LineFilter): { text: string
 
 /**
  * The claim lines that decide who holds what now (capability 5): for each capability or increment
- * whose latest claim no later line ended, every claim line on it and the end lines of the sessions
- * that claimed it. Closing the increment a capability claim names as `under`, whoever closes it, or its
+ * whose latest claim no later line ended, every claim line on it. Closing the increment a capability claim names as `under`, whoever closes it, or its
  * holder releasing that increment, ends it too (ADR-0944 D5, ADR-0949 D4). Folded in order they give the standing claims, in the order a fold of the whole
  * log gives them; ended claims, however many, send nothing.
  */
@@ -117,14 +116,9 @@ WITH latest AS (
 ), standing AS (
   SELECT l.id, l.session FROM latest l WHERE NOT EXISTS (
     SELECT 1 FROM endings e WHERE e.seq > l.seq AND ${ENDS_STANDING})
-), claimers AS (
-  SELECT DISTINCT session FROM activity
-  WHERE project = $1 AND kind = 'claimed' AND coalesce(detail->>'increment', detail->>'capability') IN (SELECT id FROM standing)
 )
 SELECT ${ROW}, detail FROM activity
-WHERE project = $1 AND (
-  (kind IN ('claimed', 'released', 'landed', 'merged', 'closed') AND coalesce(detail->>'increment', detail->>'capability') IN (SELECT id FROM standing))
-  OR (kind = 'session-ended' AND session IN (SELECT session FROM claimers)))
+WHERE project = $1 AND kind IN ('claimed', ${ENDING_KINDS_SQL}) AND coalesce(detail->>'increment', detail->>'capability') IN (SELECT id FROM standing)
 ORDER BY seq`;
 
 /** The latest start each machine recorded (Session management 4.29): one line a machine, however often it started. */

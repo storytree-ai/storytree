@@ -271,7 +271,7 @@ test("5.51 a holder whose heartbeat stopped a minute ago, or whose session ended
   });
 });
 
-test('5.3 when A reports it landed, the claim ends and a "landed" line is written; a release, or A\'s session ending, also ends it', async () => {
+test('5.3 when A reports it landed, the claim ends and a "landed" line is written; a release also ends it', async () => {
   await withWorld(async ({ log, project, emailForm, as }) => {
     assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
     const landed = await land(as("A"), emailForm);
@@ -283,10 +283,6 @@ test('5.3 when A reports it landed, the claim ends and a "landed" line is writte
     assert.equal((await claim(as("A"), emailForm, "one more change")).ok, true);
     assert.deepEqual(await release(as("A"), emailForm), { ok: true });
     assert.deepEqual(await readClaims(log, project), [], "releasing ended it");
-
-    assert.equal((await claim(as("A"), emailForm, "and another")).ok, true);
-    await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "session-ended", reason: "other" });
-    assert.deepEqual(await readClaims(log, project), [], "A's session ending ended it");
   });
 });
 
@@ -477,6 +473,45 @@ test("5.66 a background task a turn left running keeps its holder live only as l
       } else assert.equal(await holder(31 * 60 * 1000), "idle", `${after}: the session's background tasks went with it`);
     });
   }
+});
+
+test("4.41 a session whose process stopped (its end line, or a print-mode turn's end saying it exits) reads idle at once and keeps its claims: another session's claim takes one over at once, and a resumed turn finds the rest its own and live again; the stopped reading wins over a later exit line and a background task (ADR-1311 D1)", async () => {
+  await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
+    const quietMs = 30 * 60 * 1000;
+    const reading = async (now: Date) => {
+      const bounded = await readClaims(log, project, { quietMs, now });
+      assert.deepEqual(bounded, claimsFrom((await log.since(project, 0)).lines, { quietMs, now }), "the board and the bounded reader agree");
+      return bounded.map(({ capability, session, holder, quiet }) => ({ capability, session, holder, because: quiet?.because }));
+    };
+    const own = { session: "A", harness: "claude-code", source: "hook" } as const;
+    assert.ok((await claim(as("A"), emailForm, "building the email form")).ok);
+    assert.ok((await claim(as("A"), passwordReset, "and the reset")).ok);
+    await log.append(project, { ...own, kind: "prompt-submitted" });
+    await log.append(project, { ...own, kind: "turn-ended", background: 1 });
+    const ended = await log.append(project, { ...own, kind: "session-ended", reason: "other" });
+    // The pool's runner writes its own exit line after the harness's end (runner.mjs).
+    await log.append(project, { ...own, source: "tool", kind: "turn-ended", background: 0, exits: true });
+    const soon = new Date(Date.parse(ended.at) + 1_000);
+    assert.deepEqual(await reading(soon), [
+      { capability: emailForm, session: "A", holder: "idle", because: "stopped" },
+      { capability: passwordReset, session: "A", holder: "idle", because: "stopped" },
+    ], "its claims stand, idle at once, though its turn left a task in the background");
+
+    const taken = await claim(as("B"), emailForm, "taking up the email form");
+    assert.ok(taken.ok && taken.takenOverFrom?.session === "A", "another session takes it over at once");
+    await log.append(project, { ...own, kind: "session-started", how: "resume" });
+    assert.deepEqual((await reading(new Date(Date.now() + 1_000))).map(({ capability, session, holder }) => [capability, session, holder]),
+      [[passwordReset, "A", "live"], [emailForm, "B", "live"]], "the resumed turn finds what nobody took its own and live again");
+
+    // B runs in print mode: its turn's end says its process exits with it, and no end line follows.
+    const printed = { session: "B", harness: "codex", source: "hook" } as const;
+    await log.append(project, { ...printed, kind: "prompt-submitted" });
+    const exited = await log.append(project, { ...printed, kind: "turn-ended", background: 0, exits: true });
+    assert.deepEqual((await reading(new Date(Date.parse(exited.at) + 1_000))).find(({ capability }) => capability === emailForm),
+      { capability: emailForm, session: "B", holder: "idle", because: "stopped" });
+    await log.append(project, { ...printed, kind: "prompt-submitted" });
+    assert.equal((await reading(new Date(Date.now() + 1_000))).find(({ capability }) => capability === emailForm)?.holder, "live", "its next prompt takes them up again");
+  });
 });
 
 test("5.17 a holder last seen on this machine before it restarted is taken over at once; one seen since, or on another machine, stays protected (regression: a resuming lane waited 30 minutes behind its dead predecessor, 2026-10-01)", async () => {

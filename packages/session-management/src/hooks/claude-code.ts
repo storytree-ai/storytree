@@ -19,8 +19,10 @@
  *   2026-09-27 in Claude Code 2.1.283), with the same `tool_input` and `tool_use_id`, and `error`.
  * - UserPromptSubmit carries the `prompt`: its line says the session's turn began, without the words.
  * - Stop fires when the agent finishes its turn, and lists the `background_tasks` still running. In print mode (`claude -p`,
- *   CLAUDE_CODE_ENTRYPOINT exactly "sdk-cli") the process exits with the turn and cuts SessionEnd short, so its line says so (3.54);
- *   an SDK host (sdk-ts, sdk-py) may run more turns.
+ *   CLAUDE_CODE_ENTRYPOINT exactly "sdk-cli") the process exits with the turn, so its line says so (3.54); its SessionEnd
+ *   then writes a line each exit where Claude Code's mod is loaded (337 starts and 337 ends on the Mint box), but is
+ *   unreliable without it (Claude Code issue #79702). Either reads as the process stopping, never as its claims ending
+ *   (4.41). An SDK host (sdk-ts, sdk-py) may run more turns.
  * - SubagentStop fires when a subagent finishes (its own turn's end, instead of Stop), under its parent's `session_id`, with the
  *   subagent's `agent_id`, the id the Agent tool's `tool_response` gave it (shaped from Claude Code 2.1.284's hook schema). A
  *   foreground subagent's end comes before the Agent call's PostToolUse, a background one's after it.

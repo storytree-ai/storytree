@@ -166,4 +166,11 @@ test("2.57 · the rail shows a tab asked for from outside, shown again if it was
   assert.equal(on.side().hidden, false, "a collapsed rail is shown");
   assert.equal(on.document.querySelector('[data-rail-tab="arcs"]')!.getAttribute("aria-selected"), "true", "with the tab asked for on show");
   assert.equal(on.document.querySelector<HTMLElement>("#rail-arcs")!.hidden, false);
+
+  const document = on.document;
+  const content = document.createElement("main");
+  document.body.append(content);
+  const sessionsOnly = mountRail(content, { project: "shop", tabs: ["sessions"], storage: memory() })!;
+  sessionsOnly.show("arcs");
+  assert.equal(content.querySelector(".side-rail")!.getAttribute("data-surface-id"), "sessions", "a rail with no such tab keeps the one on show");
 });

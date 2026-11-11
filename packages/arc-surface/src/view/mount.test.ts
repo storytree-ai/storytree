@@ -561,6 +561,7 @@ test("3.39 · opening an increment from outside selects its arc, opens its queue
     boardArcs: async () => {
       await ready;
       return [
+        { arc: record("alone", "arc", { title: "Alone", intent: "Go alone", endState: "e", priority: 1 }), increments: [], questions: [], state: "active" },
         { arc: record("first", "arc", { title: "First", intent: "Go first", endState: "e" }), increments: [landed], questions: [], state: "active" },
         { arc: record("next", "arc", { title: "Next", intent: "Go next", endState: "e" }), increments: [open], questions: [], state: "active" },
       ];
@@ -574,6 +575,7 @@ test("3.39 · opening an increment from outside selects its arc, opens its queue
   read();
   await waitUntil(() => document.querySelector('details[data-fold-key="rail:next:increment:i_open"]') !== null, 2000, "the board that shows the increment");
   assert.equal(document.querySelector('[data-arc-queue="first"]')!.getAttribute("aria-expanded"), "true", "the queue head the increment's arc waits behind is opened");
+  assert.equal(document.querySelector('[data-arc-queue="alone"]')!.getAttribute("aria-expanded"), "false", "and no other");
   assert.equal(document.querySelector('.arc-queue-chip[data-arc-select="next"]')!.getAttribute("aria-pressed"), "true", "its arc is selected");
   assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:next:increment:i_open"]')!.open, true, "and its row is open");
   assert.deepEqual(told, [[]], "the host hears the arc selected, as a click would tell it");

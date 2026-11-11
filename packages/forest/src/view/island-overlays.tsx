@@ -7,7 +7,7 @@ import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@stor
 import type { Coast } from "../territories/territories.js";
 import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
 import { awaitingLayout, keptVersion, pageTerritorySearcher, subscribeKept } from "../territories/kept-layout.js";
-import { capabilityPlates, facing, fadedPlates, nameMoves, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
+import { capabilityPlates, crowdedNames, facing, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 import type { DetailStore } from "./zoom-detail.js";
 
@@ -89,13 +89,11 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
     const labels = [...host.querySelectorAll<HTMLElement>(".planet-nameplate[data-story-id]")];
     const shown = labels.filter(onScreen).map(label => ({ story: label.dataset.storyId!, box: label.getBoundingClientRect(),
       facing: Number(label.dataset.facing ?? 0), dimmed: label.dataset.dimmed !== undefined }));
-    const faded = fadedPlates(shown, selected);
-    for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));
     // A capability's name is never hidden: where names overlap they are moved apart, and off a story's name shown (3.33).
     const capabilities = [...host.querySelectorAll<HTMLElement>(".planet-nameplate.capability")].filter(onScreen);
-    const moves = nameMoves(capabilities.map(label => ({ capability: label.dataset.capabilityId!, box: label.getBoundingClientRect(),
-      given: { x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) }, size: Number(label.dataset.size ?? 0) })),
-      shown.filter(plate => !faded.has(plate.story)).map(plate => plate.box));
+    const { faded, moves } = crowdedNames(shown, selected, capabilities.map(label => ({ capability: label.dataset.capabilityId!, box: label.getBoundingClientRect(),
+      given: { x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) }, size: Number(label.dataset.size ?? 0) })));
+    for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));
     for (const label of capabilities) {
       const move = moves.get(label.dataset.capabilityId!);
       if (move === undefined) continue;

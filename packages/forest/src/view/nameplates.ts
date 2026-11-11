@@ -111,6 +111,13 @@ export function nameMoves(names: readonly { capability: string; box: Box; given:
   return changed;
 }
 
+/** Which story names fade (`fadedPlates`), and the moves that take the capability names shown off each other and off the story
+ * names that still show, never off one faded (3.33). */
+export function crowdedNames(stories: readonly ShownPlate[], selected: string | undefined, names: Parameters<typeof nameMoves>[0]): { faded: Set<string>; moves: Map<string, Move> } {
+  const faded = fadedPlates(stories, selected);
+  return { faded, moves: nameMoves(names, stories.filter(plate => !faded.has(plate.story)).map(plate => plate.box)) };
+}
+
 /** The globe's south as it lies on a plate turned by `plate` on the unturned globe: the way to its south pole along the surface, in the plate's own ground (x, z). */
 export function southOnPlate(plate: Quaternion): Point {
   const south = new Vector3(0, -1, 0).applyQuaternion(plate.clone().invert());

@@ -6,7 +6,7 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, facesEye, facing, fadedPlates, NAME_OVERLAP_SLACK, nameMoves, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
+import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, NAME_OVERLAP_SLACK, nameMoves, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -133,4 +133,18 @@ test("3.33 a capability name over a story's name shown is moved off it, the stor
     || at.bottom <= story.top + NAME_OVERLAP_SLACK || story.bottom <= at.top + NAME_OVERLAP_SLACK;
   assert.ok(apart, `moved by ${JSON.stringify(look)}, it clears the story's name`);
   assert.equal(moves.has("knowledge"), false, "a name clear of the story's stays on its point, though the larger");
+});
+
+test("3.33 a capability name is moved off the story names that show, never off one faded", () => {
+  const box = (left: number, top: number, width = 120, height = 20) => ({ left, top, right: left + width, bottom: top + height });
+  // Two story names overlap and the more edge-on fades (ADR-0917); one capability name lies over each, and over no other.
+  const stories = [{ story: "shown", box: box(0, 0), facing: 0.9 }, { story: "faded", box: box(100, 15), facing: 0.2 }];
+  const names = [
+    { capability: "over shown", box: box(10, 5, 50, 10), size: 3, given: { x: 0, y: 0 } },
+    { capability: "over faded", box: box(160, 25, 50, 16), size: 2, given: { x: 0, y: 0 } },
+  ];
+  const { faded, moves } = crowdedNames(stories, undefined, names);
+  assert.deepEqual([...faded], ["faded"], "the edge-on name fades");
+  assert.ok(moves.has("over shown"), "the name over a story's name shown moves");
+  assert.equal(moves.has("over faded"), false, "the name over a faded one stays on its point");
 });

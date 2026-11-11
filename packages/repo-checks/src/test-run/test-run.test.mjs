@@ -53,6 +53,18 @@ test("7.1 judge: a contract passes only if every test it has passed; any failure
   assert.deepEqual(unmapped.map(({ name }) => name), ["robustness [memory] no number", "9.9 a contract the story does not have"]);
 });
 
+test("7.17 · judge: each passing or failing verdict names the tests counted for it, with the suites around each; a not-checked one names none", () => {
+  const result = (name, status, suites = []) => ({ name, suites, file: "/repo/a.test.ts", status });
+  const { verdicts } = judge({
+    contracts: ["1.1", "1.2", "1.3"],
+    results: [result("1.1 one", "passed"), result("inside", "passed", ["1.1 around it"]), result("1.2 two", "failed"), result("1.3 three", "skipped")],
+    coverage: () => new Set(),
+  });
+  assert.deepEqual(verdicts.get("1.1").tests, ["1.1 one", "1.1 around it › inside"]);
+  assert.deepEqual(verdicts.get("1.2").tests, ["1.2 two"]);
+  assert.equal("tests" in verdicts.get("1.3"), false);
+});
+
 test("7.1 judge: a test file that produced no results leaves the contracts it holds not checked, never failing, and names the file", () => {
   const crashed = "C:\\repo\\packages\\library\\src\\transactions\\pg.test.ts";
   const { verdicts, crashedFiles } = judge({

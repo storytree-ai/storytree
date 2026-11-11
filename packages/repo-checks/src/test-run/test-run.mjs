@@ -190,7 +190,7 @@ function moduleFile(target) {
 }
 
 /**
- * @typedef {{ number: string, state: "passing" | "failing" | "not-checked", passed: number, failed: number, skipped: number, total: number, note?: string, reason?: string, skip?: "owner" | "other" | `platform:${string}`, crashed?: true, unrun?: true }} Verdict
+ * @typedef {{ number: string, state: "passing" | "failing" | "not-checked", passed: number, failed: number, skipped: number, total: number, note?: string, reason?: string, skip?: "owner" | "other" | `platform:${string}`, crashed?: true, unrun?: true, tests?: string[] }} Verdict
  */
 
 /**
@@ -239,14 +239,14 @@ export function judge({ contracts, results, coverage, show = (file) => file, pre
   const verdicts = new Map();
   for (const number of contracts) {
     const own = tests.get(number);
-    const { note, ...judged } = verdictOf(own);
+    const { note, tests: named, ...judged } = verdictOf(own);
     const counts = { passed: judged.passed, failed: judged.failed, skipped: judged.skipped, total: judged.total };
     const ciRuns = [...new Set(own.map((test) => test.ciRun).filter(Boolean))];
     /** @type {Verdict} */
     let verdict;
     if (judged.state !== "failing" && crashedUnder.has(number)) {
       verdict = { number, state: "not-checked", ...counts, crashed: true, reason: `${show(crashedUnder.get(number))} produced no results (its process died before running any test)` };
-    } else if (judged.state !== "not-checked") verdict = { number, state: judged.state, ...counts, note: `${note}${ciRuns.map((run) => `; ${run}`).join("")}` };
+    } else if (judged.state !== "not-checked") verdict = { number, state: judged.state, ...counts, note: `${note}${ciRuns.map((run) => `; ${run}`).join("")}`, ...(named === undefined ? {} : { tests: named }) };
     else {
       const unrun = judged.skip !== undefined && own.every(({ status, unrun }) => status !== "skipped" || unrun === true);
       verdict = { number, state: "not-checked", ...counts, ...(judged.skip === undefined ? {} : { skip: judged.skip }), reason: note, ...(unrun ? { unrun } : {}) };

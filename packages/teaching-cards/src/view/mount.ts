@@ -23,8 +23,9 @@ export type Reading = (target: Target) => readonly Box[];
 export type Islands = () => readonly Box[];
 
 const STYLES = `
+/* Opaque, so no label on the map behind a card reads through it. */
 .teaching-card { position: fixed; z-index: 20; max-width: 22rem; padding: .75rem .9rem; border-radius: .6rem;
-  background: rgba(20, 24, 32, .94); color: #f2f4f8; font: 14px/1.4 system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.35);
+  background: rgb(20, 24, 32); color: #f2f4f8; font: 14px/1.4 system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.35);
   box-sizing: border-box; max-height: min(24rem, calc(100vh - 24px)); overflow-y: auto; }
 /* Beneath an open menu, dialog or overlay surface (the app's gear menu is a popover, the first launch's sharing consent an overlay):
    hidden, so none of it shows past the overlay's edge, and back when it closes. */

@@ -40,7 +40,7 @@ interface Drawn {
   stopped: string[];
   view: ForestGlobe & { scenes: number; disposed: boolean; circled: (readonly string[] | undefined)[]; circledContracts: (readonly string[] | undefined)[]; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
   reading: Reading | undefined;
-  teaching: { factory: boolean }[];
+  teaching: { factory: boolean; library: boolean | undefined }[];
   locate: Parameters<ProjectParts["teaching"]>[0] | undefined;
   readingNear: Parameters<ProjectParts["teaching"]>[1] | undefined;
   islands: Parameters<ProjectParts["teaching"]>[2] | undefined;
@@ -139,7 +139,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
           mine.locate = locate;
           mine.readingNear = readingNear;
           mine.islands = islands;
-          return { take: (reading) => { mine.teaching.push({ factory: reading.factory }); }, stop: () => { mine.stopped.push("teaching"); } };
+          return { take: (reading) => { mine.teaching.push({ factory: reading.factory, library: reading.library }); }, stop: () => { mine.stopped.push("teaching"); } };
         },
         plugins: (on) => answers.plugins!(on),
         // The forest's reading hears the page's reading and asks its tree on its first news, as forestReading does.
@@ -445,7 +445,7 @@ test("2.50 · a gate picked on the map opens its story's panel on the pair it jo
   assert.equal(project.rendered.at(-1), second!.id);
 });
 
-test("2.29 · teaching cards hear whether the project on show is the factory, and each card is placed beside its target", async (t) => {
+test("2.29 · teaching cards hear whether the project on show is the factory and whether its Library is on, and each card is placed beside its target", async (t) => {
   const islands = [{ story: story.id, x: 10, y: 20, visible: true, box: { left: 0, top: 10, right: 20, bottom: 30 } }, { story: "story_unboxed", x: 1, y: 2, visible: true },
     { story: "story_behind", x: 40, y: 50, visible: false, box: { left: 30, top: 40, right: 50, bottom: 60 } }, { story: "story_near", x: 70, y: 80, visible: true, box: { left: 60, top: 70, right: 80, bottom: 90 } }];
   const on = page(t, {
@@ -454,7 +454,11 @@ test("2.29 · teaching cards hear whether the project on show is the factory, an
   });
   await settled();
   on.land();
-  assert.deepEqual(on.last().teaching, [{ factory: true }]);
+  assert.deepEqual(on.last().teaching, [{ factory: true, library: true }]);
+  const off = page(t, { readSurfaces: async () => ({ ok: true, value: [{ id: "library", on: false, settings: [] }] as never }) });
+  await settled();
+  off.land();
+  assert.deepEqual(off.last().teaching.map(heard => heard.library), [false], "a map whose Library is switched off says so to its cards");
 
   const locate = on.last().locate!;
   assert.deepEqual(locate({ kind: "capability", story: story.id }), { x: 10, y: 20, visible: true, box: { left: 0, top: 10, right: 20, bottom: 30 } }, "with its island's box, which the card keeps clear of");

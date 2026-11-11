@@ -50,6 +50,20 @@ test("3.1 · a fired card shows beside its thing, takes no focus and blocks noth
   teaching.stop();
 });
 
+test("1.2 · a fired decision card on a map whose Library is switched off names no Library switch", () => {
+  const { host, store } = page();
+  const kept = journal(store);
+  for (const kind of ["story"] as const) kept.mark(kind);
+  const teaching = mountTeaching(host, { journal: kept, locate: () => undefined });
+  const decided = { ...oneStory, changes: [{ type: "decision", recordId: "decision_1", action: "created", record: { fields: {} } }] };
+  teaching.take({ ...decided, library: false });
+  const card = host.querySelector<HTMLElement>(".teaching-card")!;
+  assert.equal(card.dataset.kind, "decision");
+  assert.doesNotMatch(card.textContent ?? "", /press Library/);
+  assert.match(card.textContent ?? "", /Surfaces/);
+  teaching.stop();
+});
+
 test("3.1 · a card at the window's right edge sits to the left of its point, inside the window", () => {
   const { document, host, store } = page();
   const view = document.defaultView as unknown as { innerWidth: number; innerHeight: number };

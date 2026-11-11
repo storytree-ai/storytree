@@ -63,7 +63,7 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   /** Hand the knowledge core the library's changes and the log's lines. */
   take(changes: Changes, lines: News["lines"]): void;
   libraryCard(panel: HTMLElement, onClose: () => void): () => void;
-  teaching(locate: (target: CardTarget) => Place | undefined, reading: (target: CardTarget) => Box[], islands: () => Box[]): { take(reading: { tree: AnnotatedTree; changes: Changes; lines: Held["lines"]; factory: boolean }): void; stop(): void };
+  teaching(locate: (target: CardTarget) => Place | undefined, reading: (target: CardTarget) => Box[], islands: () => Box[]): { take(reading: { tree: AnnotatedTree; changes: Changes; lines: Held["lines"]; factory: boolean; library: boolean }): void; stop(): void };
   /** Mount the factory's stand-in surfaces (ADR-1174) that `on` says are on. */
   plugins(on: (surface: string) => boolean): Promise<{ stop(): void; failed: readonly { surface: string; why: string }[] }>;
   reading(options: Pick<ForestReadingOptions, "onTree" | "onError" | "onSettled" | "survey">): { stop(): void };
@@ -303,7 +303,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
         view.show(scene, new Map(storyNodes(fresh, history(), survey).map((node) => [node.id, node.place])));
         project.take(history(), news.lines);
         status.sayWhatWasDrawn(forestDrawn(scene));
-        mine.teaching?.take({ tree: fresh, changes: history(), lines: page.held().lines, factory: onFactory });
+        mine.teaching?.take({ tree: fresh, changes: history(), lines: page.held().lines, factory: onFactory, library: surfaceOn(surfaces, "library") });
         if (!panelHost.hidden) panel.show();
         project.kept.write(fresh);
         project.drawing.write(drawingOf(fresh, history(), states, survey));

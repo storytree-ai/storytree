@@ -153,7 +153,7 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
   const next = (): void => {
     const found = waiting.shift();
     if (found === undefined) return;
-    const card = cardOf(found.kind);
+    const card = cardOf(found.kind, { library: last?.library });
     const node = aside(found.kind, `<h3>${escape(card.title)}</h3><p>${escape(card.line)}</p><div data-depth hidden>${depth(card)}</div>
       <div class="teaching-card-actions"><button type="button" data-more aria-expanded="false">More</button><button type="button" data-dismiss>Got it</button><button type="button" data-end>End tour</button></div>`);
     const more = node.querySelector<HTMLButtonElement>("[data-more]")!;

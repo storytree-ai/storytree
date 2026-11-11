@@ -80,7 +80,10 @@ export function registerWorkTools(define: Define): void {
       if (refused !== undefined) return { text: refused, refused: true };
       const done = await call.library.closeIncrement(increment, defined({ disposition: meant, pr: pull, note: why }), call.writer);
       if (done === null) return noIncrement(increment);
-      const saved = { text: `Closed ${quoted(done.fields.title)} (${increment}), ${meant}.`, data: { id: increment, disposition: meant } };
+      // A close with no note leaves its arc's history no sentence of what changed, so only then is one asked for (F5.6, ADR-0786 D2).
+      const correction = `storytree arc increment correct-closure ${increment} --disposition ${meant}${pull === undefined ? "" : ` --pr ${JSON.stringify(pull)}`} --note … --reason "adds its note"`;
+      const ask = why === undefined ? ` ${quoted(done.fields.title)} (${increment}) closed with no note, and its note is what its arc's history shows under it: say what changed in behaviour, in a sentence, with \`${correction}\` in your shell.` : "";
+      const saved = { text: `Closed ${quoted(done.fields.title)} (${increment}), ${meant}.${ask}`, data: { id: increment, disposition: meant } };
       await closed(claimContext(call), increment, meant);
       try { call.journey?.incrementClosed?.(done.fields.outcome?.disposition); } catch { /* Observation cannot fail a completed close. */ }
       return afterWrite(saved, async () => {

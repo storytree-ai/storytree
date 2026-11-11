@@ -575,6 +575,23 @@ test("10.1 it parks an increment, starts it by claiming it, and closes it landed
   });
 });
 
+test("10.21 close_increment closing an increment with no note says its arc's history then shows no sentence of what changed, and how to add that note; a close with a note says nothing of it", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const bare = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build it", body: "Red then green" }));
+      const told = idOf(await agent.call("park_increment", { arc, title: "Welcome email", objective: "Send one", body: "After sign-up" }));
+
+      const asked = await agent.call("close_increment", { increment: bare, disposition: "landed", pr: "#12" });
+      assert.equal(asked.isError, false, asked.text);
+      assert.ok(asked.text.includes(`"Email form" (${bare}) closed with no note, and its note is what its arc's history shows under it: say what changed in behaviour, in a sentence, with \`storytree arc increment correct-closure ${bare} --disposition landed --pr "#12" --note … --reason "adds its note"\` in your shell.`), asked.text);
+      const quiet = await agent.call("close_increment", { increment: told, disposition: "landed", pr: "#13", note: "A new user gets a welcome email." });
+      assert.equal(quiet.isError, false, quiet.text);
+      assert.doesNotMatch(quiet.text, /note/, "a close with a note is not asked for one");
+    });
+  });
+});
+
 test("10.1 a committed close remains successful when a newer sibling schema prevents reading its arc", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     await withAgent(folder, codex("closing-agent"), async (agent) => {

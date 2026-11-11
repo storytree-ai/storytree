@@ -1,7 +1,7 @@
 /**
  * Capability 3 · Hooks, contract 3.17 (ADR-0758 D4): when a Claude Code or Codex turn, or a Pi run, ends in
  * a storytree project on a branch whose work has reached main, and the session has not closed out, the
- * Stop hook (Pi's agent_before_settle) asks it to, once. Real git in a throwaway repository with an origin beside it; the close-out
+ * Stop hook (Pi's agent_before_settle) asks it to, once; a pool lane, whose runner closes it out, is never asked. Real git in a throwaway repository with an origin beside it; the close-out
  * is written to the real log on the Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -16,9 +16,12 @@ import { git, withTempDir } from "@storytree/project-and-caller/testing/folders"
 import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { CLOSE_OUT_REMINDER, runHook } from "./index.js";
 
-test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-out is asked, once, to close out; a fresh branch with no commits of its own (made by checkout or as a workspace), a branch still ahead, main, a stop the reminder caused, or a session that closed out is not", async () => {
+test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-out is asked, once, to close out; a fresh branch with no commits of its own (made by checkout or as a workspace), a branch still ahead, main, a stop the reminder caused, a session that closed out, or a pool lane its runner started is not", async () => {
   const project = uniqueProjectName();
   const was = process.env.STORYTREE_HOME;
+  // This test may itself run inside a pool lane: the interactive sessions below carry no lane marker.
+  const lane = process.env.STORYTREE_LANE_RUN;
+  delete process.env.STORYTREE_LANE_RUN;
   try {
     await withTempDir(async (dir) => {
       const origin = path.join(dir, "origin.git");
@@ -57,6 +60,14 @@ test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-ou
       assert.match(reminder.reason ?? "", /fix-login/);
       assert.match(reminder.reason ?? "", /storytree session close-out --safe yes\|no --why/);
       assert.equal(await stop(asked), undefined, "asked once per session");
+      // A pool lane: its runner set its marker on the engine, and closes it out at the engine's exit (ADR-1314 D3).
+      process.env.STORYTREE_LANE_RUN = "4242-lane";
+      try {
+        assert.equal(await stop(randomUUID()), undefined, "a pool lane is not asked");
+        assert.equal(await stop(randomUUID(), {}, "codex"), undefined, "a Codex pool lane is not asked");
+      } finally {
+        delete process.env.STORYTREE_LANE_RUN;
+      }
       const codex = JSON.parse((await stop(randomUUID(), {}, "codex")) ?? "{}") as { decision?: string };
       assert.equal(codex.decision, "block", "a Codex session is asked the same way");
       // Pi's run settling, as its extension forwards agent_before_settle: asked by an entry in the model's context and one continuation.
@@ -85,6 +96,7 @@ test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-ou
   } finally {
     if (was === undefined) delete process.env.STORYTREE_HOME;
     else process.env.STORYTREE_HOME = was;
+    if (lane !== undefined) process.env.STORYTREE_LANE_RUN = lane;
     await dropTestProjects([project]);
   }
 });

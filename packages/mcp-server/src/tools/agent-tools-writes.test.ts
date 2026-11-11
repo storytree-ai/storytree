@@ -1541,11 +1541,33 @@ test("9.35 · edit_plan moving a contract says where it now sits and which test 
 
       const own = idOf(await agent.call("plan_contract", { capability: api, title: "Answers in JSON" }));
       const ownOnEdge = await agent.call("edit_plan", { id: own, edge });
-      assert.match(ownOnEdge.text, new RegExp(`: now on edge "2 · HTTP API" → "1 · Caller identity" \\(${edge}\\)\\. A test titled "2\\.1 · …", or named in proved_by, still proves it there under \`storytree health local\`\\.$`), "a number that is the link's own is said to be fine by saying nothing of it");
+      assert.match(ownOnEdge.text, new RegExp(`: now on edge "2 · HTTP API" → "1 · Caller identity" \\(${edge}\\)\\. A test titled "2\\.1 · …", or named in proved_by, still proves it there under \`storytree health local\`\\.`), ownOnEdge.text);
+      assert.doesNotMatch(ownOnEdge.text, /Its number/, "a number that is the link's own is said to be fine by saying nothing of it");
 
       const back = await agent.call("edit_plan", { id: unknown, capability: api });
       assert.match(back.text, /now on capability "2 · HTTP API"/, back.text);
       assert.match(back.text, /A test titled "2\.\d+ · …", or named in proved_by, proves it there/, back.text);
+    });
+  });
+});
+
+test("9.37 · edit_plan moving a contract onto a link that leaves its part with no live contracts of its own names that part and says to plan its own behaviour contract or leave it bare knowingly; a move that leaves it contracts says nothing of it", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Context service", ...FOUNDED }));
+      const identity = idOf(await agent.call("plan_capability", { story, title: "Caller identity", ...FOUNDED }));
+      const api = idOf(await agent.call("plan_capability", { story, title: "HTTP API", depends_on: [identity], ...FOUNDED }));
+      const edge = (await library.projectTree()).stories[0]!.edges![0]!.id;
+      const unknown = idOf(await agent.call("plan_contract", { capability: identity, title: "Unknown user gets no content" }));
+      const known = idOf(await agent.call("plan_contract", { capability: identity, title: "Known user gets their content" }));
+      const bare = /now has no contracts of its own/;
+
+      const kept = await agent.call("edit_plan", { id: unknown, edge });
+      assert.equal(kept.isError, false, kept.text);
+      assert.doesNotMatch(kept.text, bare, "a part left a contract of its own is said nothing of");
+      const left = await agent.call("edit_plan", { id: known, edge });
+      assert.match(left.text, new RegExp(`if you want one of those\\. "1 · Caller identity" \\(${identity}\\) now has no contracts of its own: plan its own behaviour contract \\(plan_contract\\), or leave it bare knowingly\\.$`), left.text);
+      assert.doesNotMatch((await agent.call("edit_plan", { id: known, capability: api })).text, bare, "only a move onto a link says it");
     });
   });
 });

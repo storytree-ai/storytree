@@ -6,7 +6,7 @@
 import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
-import { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
+import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
 import { elsewhereSaid, type MapNode } from "@storytree/map";
 import { readMap } from "@storytree/map/read";
@@ -334,6 +334,8 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   // A contract moved to another capability with no title given takes that capability's next number, past its tests (4.45).
   const move = kind === "contract" && changes.capability !== undefined && changes.title === undefined ? await movedNumber(target, changes.capability, call) : undefined;
   const options = move === undefined ? writer : { ...writer, testedNumbers: move.tested };
+  // The part a contract moved onto a link leaves, said when the move leaves it with none of its own (9.37).
+  const leaves = kind === "contract" && changes.edge !== undefined ? ((await library.get(target))?.fields as { capability?: string } | undefined)?.capability : undefined;
   const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live }, options);
   if (done === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
   if ("held" in done) {
@@ -346,7 +348,8 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   // Told, not refused, of another open increment already listing a capability this one newly lists (10.35, ADR-1228).
   const shared = kind === "increment" ? await library.openListing((listing ?? []).filter((capability) => !had.includes(capability)), target) : [];
   const placed = kind === "contract" && to !== undefined && (changes.capability !== undefined || changes.edge !== undefined) ? placedSaid(await library.projectTree(), target, to) : "";
-  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
+  const bare = await bareSaid(library, leaves, "plan_contract");
+  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
 }
 
 /**

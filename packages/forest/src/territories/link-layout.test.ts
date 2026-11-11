@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { islandLayout, islandLayoutSteps, linkLayout, LIBRARY_LAND } from "./link-layout.js";
-import { islandTerritories, territoryAt, type Coast, type TerritoryMap } from "./territories.js";
+import { islandTerritories, onLand, territoryAt, type Coast, type TerritoryMap } from "./territories.js";
 
 /** A round coast of `radius`, as a polygon of 96 sides. */
 const round = (radius: number): Coast => [Array.from({ length: 96 }, (_, i) => ({ x: radius * Math.cos(i * Math.PI / 48), z: radius * Math.sin(i * Math.PI / 48) }))];
@@ -102,4 +102,37 @@ test("3.87 · an island's layout settles in steps, a later one for each part of 
   assert.ok(map.cells.length > islandTerritories([...shares], round(r)).cells.length, "cut finer than the map's own");
   assert.ok(map.cells.some((cell) => cell.territory === -1 && far(cell.site, east(r).local) < 11), "open land round the dock");
   assert.ok(cellsOf(map, "a").some((cell) => cell.neighbours.some((n) => map.cells[n]!.territory === -1)), "a lane's capability borders it");
+});
+
+test("3.76 on a lumpy coast every territory is drawn in one piece: its cells join only across edges with land on them, never across a bay", () => {
+  let state = 7;
+  const random = () => { state = (state * 1103515245 + 12345) & 0x7fffffff; return state / 0x7fffffff; };
+  // A coast with three and five lobes, so bays reach in between them.
+  const lumpy = (r: number): Coast => {
+    const [a, b, k3, k5] = [random() * 6, random() * 6, 0.15 + random() * 0.15, random() * 0.15];
+    return [Array.from({ length: 120 }, (_, i) => { const t = (i * Math.PI) / 60, s = r * (1 + k3 * Math.sin(3 * t + a) + k5 * Math.sin(5 * t + b)); return { x: s * Math.cos(t), z: s * Math.sin(t) }; })];
+  };
+  const close = (p: { x: number; z: number }, q: { x: number; z: number }) => Math.abs(p.x - q.x) < 1e-5 && Math.abs(p.z - q.z) < 1e-5;
+  // Whether two cells' shared edge has any land on it, as the drawing clips each cell to the land.
+  const joined = (map: TerritoryMap, a: number, b: number) => {
+    const common = map.cells[a]!.polygon.filter((p) => map.cells[b]!.polygon.some((q) => close(p, q)));
+    if (common.length < 2) return false;
+    const [p, q] = [common[0]!, common.at(-1)!];
+    return Array.from({ length: 40 }, (_, k) => (k + 0.5) / 40).some((f) => onLand({ x: p.x + f * (q.x - p.x), z: p.z + f * (q.z - p.z) }, map.coast!));
+  };
+  const split: string[] = [];
+  for (let island = 0; island < 12; island++) {
+    const r = 30 + random() * 60, coast = lumpy(r), n = 3 + Math.floor(random() * 6);
+    const held = Array.from({ length: n }, (_, k) => ({ capability: `c${k}`, lines: 1 + Math.floor(random() * 900) }));
+    const ring = coast[0]!, dock = { local: ring[Math.floor(random() * ring.length)]!, links: ["z->c0"] };
+    const laid = linkLayout(held, coast, held.slice(1).map((share, k) => ({ from: share.capability, to: `c${k}` })), [dock]);
+    for (const [name, map] of [["laid out", laid], ["the map's own cut", islandTerritories(held, coast)]] as const) {
+      map.territories.forEach((territory, t) => {
+        const mine = map.cells.filter((cell) => cell.territory === t).map((cell) => cell.index), seen = new Set(mine.slice(0, 1));
+        for (const queue = [...seen]; queue.length;) { const c = queue.pop()!; for (const other of mine) if (!seen.has(other) && joined(map, c, other)) { seen.add(other); queue.push(other); } }
+        if (seen.size !== mine.length) split.push(`island ${island}, ${name}: ${territory.capability} in ${mine.length - seen.size} cells apart`);
+      });
+    }
+  }
+  assert.deepEqual(split, [], "no territory drawn in two pieces");
 });

@@ -11,6 +11,8 @@
  *   weight, the cells along the longer axis in the same proportion, and each half again, so every
  *   territory is one connected run of cells.
  * - A border is the edge two cells of different territories share.
+ * - Cells are neighbours only across an edge with JOIN of a cell's side on the land: two lobes of a coast meet over
+ *   a bay, and a territory joined across it would be drawn in two pieces.
  */
 
 export type Point = { readonly x: number; readonly z: number };
@@ -26,8 +28,10 @@ export type Cell = {
   readonly site: Point;
   /** The cell's outline, counter-clockwise. */
   readonly polygon: readonly Point[];
-  /** The cells it shares an edge with. */
+  /** The cells it shares an edge with on the land, so a territory joined through them is drawn in one piece. */
   readonly neighbours: readonly number[];
+  /** Every cell it shares an edge with, on the land or over the sea, so a short stretch of land between two still gets its border. */
+  readonly touching: readonly number[];
   /** Its territory, by position in `territories`. */
   readonly territory: number;
 };
@@ -54,6 +58,8 @@ export const MIN_SHARE = 5 / 246;
 /** The round coast, as a polygon of this many sides. */
 const COAST_SIDES = 64;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+/** How much of a cell's side (the root of its mean area) must lie on the land for the cells across it to be neighbours. */
+const JOIN = 0.15;
 
 /** An edge of a cell's outline, with the cell across it (-1 on the coast). */
 type Edge = { from: Point; to: Point; across: number };
@@ -85,15 +91,23 @@ export function* territoriesInSteps(shares: readonly TerritoryShare[], outline: 
     outlines.push(voronoiCell(sites, at, radius));
     if ((at + 1) % CELLS_A_STEP === 0) yield;
   }
-  const touching = outlines.map(() => new Set<number>());
-  outlines.forEach((edges, at) => { for (const edge of edges) if (edge.across >= 0) { touching[at]!.add(edge.across); touching[edge.across]!.add(at); } });
-  const neighbours = touching.map((set) => [...set].sort((a, b) => a - b));
+  const side = Math.sqrt(land / Math.max(1, count));
+  const ashore = (edge: Edge) => coast === undefined || insideOf(edge.from, edge.to, coast).reduce((sum, { from, to }) => sum + Math.hypot(to.x - from.x, to.z - from.z), 0) >= JOIN * side;
+  const [touching, joined] = [outlines.map(() => new Set<number>()), outlines.map(() => new Set<number>())];
+  outlines.forEach((edges, at) => {
+    for (const edge of edges) if (edge.across > at) {
+      touching[at]!.add(edge.across); touching[edge.across]!.add(at);
+      if (ashore(edge)) { joined[at]!.add(edge.across); joined[edge.across]!.add(at); }
+    }
+  });
+  const sorted = (sets: Set<number>[]) => sets.map((set) => [...set].sort((a, b) => a - b));
+  const [neighbours, touches] = [sorted(joined), sorted(touching)];
 
   const owner = new Array<number>(count).fill(0);
   const counts = atLeast(apportion(held.map((share) => share.lines), count), Math.max(1, Math.min(Math.floor(count / Math.max(1, held.length)), Math.round(MIN_SHARE * count))));
   yield* share(sites.map((_, at) => at), held.map((_, at) => at), counts, sites, neighbours, owner);
 
-  const cells = sites.map((site, at): Cell => ({ index: at, site, polygon: outlines[at]!.map((edge) => edge.from), neighbours: neighbours[at]!, territory: owner[at]! }));
+  const cells = sites.map((site, at): Cell => ({ index: at, site, polygon: outlines[at]!.map((edge) => edge.from), neighbours: neighbours[at]!, touching: touches[at]!, territory: owner[at]! }));
   const borders = outlines.flatMap((edges, at) =>
     edges.filter((edge) => edge.across > at && owner[edge.across] !== owner[at]).map((edge): Border => ({ from: edge.from, to: edge.to, between: [at, edge.across] })));
   return coast === undefined ? { radius, territories: held, cells, borders } : { radius, coast, territories: held, cells, borders };
@@ -139,6 +153,26 @@ export function onLand(p: Point, coast: Coast): boolean {
     }
   }
   return inside;
+}
+
+/** The pieces of the segment from `from` to `to` that lie on the land. */
+export function insideOf(from: Point, to: Point, coast: Coast): { from: Point; to: Point }[] {
+  const cuts = [0, 1];
+  const d = { x: to.x - from.x, z: to.z - from.z };
+  for (const ring of coast) {
+    ring.forEach((a, i) => {
+      const b = ring[(i + 1) % ring.length]!;
+      const e = { x: b.x - a.x, z: b.z - a.z };
+      const denominator = d.x * e.z - d.z * e.x;
+      if (denominator === 0) return;
+      const t = ((a.x - from.x) * e.z - (a.z - from.z) * e.x) / denominator;
+      const u = ((a.x - from.x) * d.z - (a.z - from.z) * d.x) / denominator;
+      if (t > 0 && t < 1 && u >= 0 && u <= 1) cuts.push(t);
+    });
+  }
+  cuts.sort((a, b) => a - b);
+  const at = (t: number): Point => ({ x: from.x + t * d.x, z: from.z + t * d.z });
+  return cuts.slice(1).flatMap((t, i) => (onLand(at((cuts[i]! + t) / 2), coast) && t > cuts[i]! ? [{ from: at(cuts[i]!), to: at(t) }] : []));
 }
 
 /** The land's area: its outer loops less its lakes. */

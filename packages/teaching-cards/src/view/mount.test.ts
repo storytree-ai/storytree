@@ -375,6 +375,13 @@ test("3.5 · a card beside its island that would cover a neighbouring island sli
   teaching.stop();
 });
 
+test("3.5 · a card whose point is a tab above a list being read sits under the list, below its point, before any corner", () => {
+  const tabs = { left: 0, top: 48, right: 432, bottom: 88 }, list = { left: 0, top: 88, right: 432, bottom: 160 };
+  const { teaching, at } = sized([tabs, list], () => ({ x: 135, y: 67, visible: true }));
+  assert.deepEqual(at(), { left: "12px", top: "172px" }, "12px under the list, as near its point as the window lets it");
+  teaching.stop();
+});
+
 test("3.5 · a card that covers a neighbouring island wherever it sits beside its own takes a corner clear of every island", () => {
   const { teaching, at } = sized([], () => ({ x: 500, y: 300, visible: true }), [{ left: 150, top: 120, right: 850, bottom: 480 }]);
   assert.deepEqual(at(), { left: "684px", top: "484px" }, "the bottom-right corner, below the islands");
@@ -469,4 +476,53 @@ test("3.9 · on the factory's map the quiet line names the factory's parts still
   host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
   assert.match(tourOn(host)!.textContent ?? "", /comes when your factory holds a role\./);
   teaching.stop();
+});
+
+/** Where a tie's line starts and ends, read from its place, length and turn. */
+function ends(line: HTMLElement): { from: [number, number]; to: [number, number] } {
+  const x = parseFloat(line.style.left), y = parseFloat(line.style.top), length = parseFloat(line.style.width);
+  const turn = parseFloat(/rotate\((-?[\d.e-]+)rad\)/.exec(line.style.transform)![1]!);
+  return { from: [x, y], to: [x + length * Math.cos(turn), y + length * Math.sin(turn)] };
+}
+
+const near = (actual: [number, number], expected: [number, number], message: string) =>
+  assert.ok(Math.abs(actual[0] - expected[0]) < 0.01 && Math.abs(actual[1] - expected[1]) < 0.01, `${message}: ${actual} is not ${expected}`);
+
+test("3.10 · a card beside its island draws a ring round the island and a line from its nearest edge to the ring", () => {
+  const island = { left: 300, top: 250, right: 500, bottom: 350 };
+  const { teaching, card } = sized([], () => ({ x: 400, y: 300, visible: true, box: island }));
+  // Right of the island: the card is at 512, 250, 300 × 100.
+  const ring = card.querySelector<HTMLElement>(".teaching-card-ring")!;
+  assert.ok(ring, "a ring round its island");
+  assert.deepEqual([ring.style.left, ring.style.top, ring.style.width, ring.style.height], ["294px", "244px", "212px", "112px"], "round the island's box, just outside it");
+  const line = card.querySelector<HTMLElement>(".teaching-card-tie")!;
+  const { from, to } = ends(line);
+  near(from, [512, 300], "the line leaves the card's edge facing the island");
+  near(to, [506, 300], "and ends on the ring");
+  teaching.stop();
+});
+
+test("3.10 · a card taken to a corner while its thing is on show is still tied to it; a ring marks a point with no island", () => {
+  const { teaching, card } = sized([], () => ({ x: 500, y: 300, visible: true }), [{ left: 150, top: 120, right: 850, bottom: 480 }]);
+  // The bottom-right corner, 684, 484.
+  const ring = card.querySelector<HTMLElement>(".teaching-card-ring")!;
+  assert.deepEqual([ring.style.left, ring.style.top, ring.style.width, ring.style.height], ["492px", "292px", "16px", "16px"], "a small ring at its point");
+  const { from, to } = ends(card.querySelector<HTMLElement>(".teaching-card-tie")!);
+  near(from, [684, 484], "from the card's corner nearest the point");
+  near(to, [500 + 8 / Math.SQRT2, 300 + 8 / Math.SQRT2], "to the ring's edge, on the card's side of it");
+  teaching.stop();
+});
+
+test("3.10 · a card whose thing is off screen, and the tour's ask, are tied to nothing", () => {
+  const { teaching, card } = sized([], () => ({ x: 500, y: 300, visible: false }));
+  assert.ok(card.querySelector(".teaching-card-ring") === null, "no ring for a thing off screen");
+  assert.ok(card.querySelector(".teaching-card-tie") === null, "and no line");
+  teaching.stop();
+  const { host, store } = page({ unanswered: true });
+  const asked = mountTeaching(host, { journal: journal(store), locate: () => ({ x: 120, y: 80, visible: true }) });
+  asked.take(oneStory);
+  const ask = host.querySelector<HTMLElement>(".teaching-card")!;
+  assert.equal(ask.dataset.kind, "tour");
+  assert.ok(ask.querySelector(".teaching-card-tie") === null, "the ask is tied to nothing");
+  asked.stop();
 });

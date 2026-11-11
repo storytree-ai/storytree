@@ -9,3 +9,6 @@ at its own centre.
   height and scrolls as one, so Next and End tour sit at 977 to 998 px, below the window, reached only by scrolling inside it.
 - `decision-card-more-open-after.png`: only the card's text scrolls; Next and End tour stay at its foot, at 915 to 936 px,
   on show.
+- Since increment_d0639d5f51b3 a card with More open is at most 24rem tall (contract 3.5), so here it stands at 560 to 944 px,
+  its text scrolling above Next and End tour (911 to 932 px, still drawn at their centres); the drawing lies below the Why
+  and is reached by scrolling the text, whose foot fades while more of it lies below.

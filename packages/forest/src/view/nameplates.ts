@@ -31,18 +31,29 @@ const overlaps = (box: Box, other: Box) => box.left + NAME_OVERLAP_SLACK < other
   && box.top + NAME_OVERLAP_SLACK < other.bottom && other.top + NAME_OVERLAP_SLACK < box.bottom;
 
 
+/** The part of the window the map shows in: its canvas's box, cut to the window's (3.4). */
+export function mapFrame(canvas: Box, window: { width: number; height: number }): Box {
+  return { left: Math.max(canvas.left, 0), top: Math.max(canvas.top, 0), right: Math.min(canvas.right, window.width), bottom: Math.min(canvas.bottom, window.height) };
+}
+
+/** Whether a name's box runs past the map's frame by more than its rounded ends and padding: some letter is cut. */
+const clipped = (box: Box, frame: Box) => box.left + NAME_OVERLAP_SLACK < frame.left || box.right - NAME_OVERLAP_SLACK > frame.right
+  || box.top + NAME_OVERLAP_SLACK < frame.top || box.bottom - NAME_OVERLAP_SLACK > frame.bottom;
+
 /**
  * Which story names fade where names overlap on screen (ADR-0917): no name moves off its island to clear another. The selected
  * story's shows first, then the names not dimmed, each the more squarely its island faces the eye the sooner; a name that would
- * overlap one already shown fades.
+ * overlap one already shown fades. A name the map's `frame` cuts (the rail's edge, the window's) fades too, the selected one
+ * also, and crowds no other (3.4).
  */
-export function fadedPlates(plates: readonly ShownPlate[], selected?: string): Set<string> {
+export function fadedPlates(plates: readonly ShownPlate[], selected?: string, frame?: Box): Set<string> {
   const order = [...plates].sort((a, b) => Number(b.story === selected) - Number(a.story === selected)
     || Number(a.dimmed ?? false) - Number(b.dimmed ?? false) || b.facing - a.facing);
   // Taken in order, each name shows if it clears the names already shown; the rest fade. A faded name fades no other.
   const shown: Box[] = [], faded = new Set<string>();
   for (const plate of order) {
-    if (shown.some(other => overlaps(plate.box, other))) faded.add(plate.story);
+    if (frame !== undefined && clipped(plate.box, frame)) faded.add(plate.story);
+    else if (shown.some(other => overlaps(plate.box, other))) faded.add(plate.story);
     else shown.push(plate.box);
   }
   return faded;
@@ -111,10 +122,10 @@ export function nameMoves(names: readonly { capability: string; box: Box; given:
   return changed;
 }
 
-/** Which story names fade (`fadedPlates`), and the moves that take the capability names shown off each other and off the story
- * names that still show, never off one faded (3.33). */
-export function crowdedNames(stories: readonly ShownPlate[], selected: string | undefined, names: Parameters<typeof nameMoves>[0]): { faded: Set<string>; moves: Map<string, Move> } {
-  const faded = fadedPlates(stories, selected);
+/** Which story names fade (`fadedPlates`, within the map's `frame`), and the moves that take the capability names shown off each
+ * other and off the story names that still show, never off one faded (3.33). */
+export function crowdedNames(stories: readonly ShownPlate[], selected: string | undefined, names: Parameters<typeof nameMoves>[0], frame?: Box): { faded: Set<string>; moves: Map<string, Move> } {
+  const faded = fadedPlates(stories, selected, frame);
   return { faded, moves: nameMoves(names, stories.filter(plate => !faded.has(plate.story)).map(plate => plate.box)) };
 }
 

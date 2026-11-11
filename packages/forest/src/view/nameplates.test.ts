@@ -6,7 +6,7 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, NAME_OVERLAP_SLACK, nameMoves, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
+import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, mapFrame, NAME_OVERLAP_SLACK, nameMoves, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -147,4 +147,28 @@ test("3.33 a capability name is moved off the story names that show, never off o
   assert.deepEqual([...faded], ["faded"], "the edge-on name fades");
   assert.ok(moves.has("over shown"), "the name over a story's name shown moves");
   assert.equal(moves.has("over faded"), false, "the name over a faded one stays on its point");
+});
+
+test("3.4 a story's name that runs past the map's frame, under the rail or out of the window, fades as crowded and crowds no other", () => {
+  const box = (left: number, top: number) => ({ left, top, right: left + 112, bottom: top + 33 });
+  // As the five-story row showed them at 1440 x 960 after a quarter turn and four notches in: the map's frame runs from the
+  // rail's edge at x 432 to the window's edge.
+  const frame = { left: 432, top: 48, right: 1440, bottom: 960 };
+  const row = [
+    { story: "read and write", box: box(397, 499), facing: 1 }, { story: "comment", box: box(556, 498), facing: 1 },
+    { story: "account", box: box(820, 498), facing: 1 }, { story: "follow", box: box(1360, 498), facing: 1 },
+    { story: "under the rail", box: box(286, 498), facing: 1 },
+  ];
+  assert.deepEqual([...fadedPlates(row, undefined, frame)].sort(), ["follow", "read and write", "under the rail"],
+    "a name cut by the rail's edge or the window's fades; names wholly inside the frame show");
+  assert.deepEqual([...fadedPlates(row, "follow", frame)].includes("follow"), true, "the selected story's name fades too: the frame covers it");
+  // A clipped name fades, so the name it would have overlapped shows.
+  const pair = [{ story: "clipped", box: box(1340, 100), facing: 1 }, { story: "inside", box: box(1300, 110), facing: 0.5 }];
+  assert.deepEqual([...fadedPlates(pair, undefined, frame)], ["clipped"]);
+  // A name whose rounded end meets the frame's edge covers no letter past it: it shows.
+  assert.deepEqual([...fadedPlates([{ story: "edge", box: box(429, 200), facing: 1 }], undefined, frame)], []);
+  // The frame is the map's canvas cut to the window: a canvas running past the window's right shows only to the window's edge.
+  const cut = mapFrame({ left: 432, top: 48, right: 1600, bottom: 960 }, { width: 1440, height: 960 });
+  assert.deepEqual(cut, frame);
+  assert.deepEqual([...fadedPlates(row, undefined, cut)].sort(), ["follow", "read and write", "under the rail"], "a name past the window's edge fades, though the canvas runs on");
 });

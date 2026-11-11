@@ -491,10 +491,15 @@
   font-size: 0.9rem;
 }
 
-/* A contract is a handle too: its title in the panel's own colour, its state beside it. */
+/* A contract is a handle too: its title in the panel's own colour, its state beside it. The title takes the row's room,
+   so every row's icons end at its right edge, one column whether the title wraps or not (contract 4.53). */
 .panel-contracts .panel-handle {
   color: var(--text);
   font-weight: 400;
+}
+
+.panel-contracts .panel-contract-said {
+  flex: 1;
 }
 
 /* What passes between a gate's two parts, under its link's heading (Fable's F3.1). */

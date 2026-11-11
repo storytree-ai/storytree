@@ -26,7 +26,7 @@
 import { drawnIsland, grownFrom, prepareIsland, seedKind, seedPoints, settle, sharedEdge, startSeeds, type PreparedIsland, type Seeds } from "./link-layout.js";
 import { roadMeasures, type RoadMeasures } from "./island-roads.js";
 import { capabilityPlates } from "../view/nameplates.js";
-import { insideOf } from "../view/territory-land.js";
+import { insideOf } from "./territories.js";
 import type { SearchAsk } from "./kept-layout.js";
 
 /** The mock's steps, its starting temperature and how far it cools, and its random seed. */
@@ -54,7 +54,7 @@ export function borderLength(island: PreparedIsland, owners: readonly number[]):
   if (edges === undefined) {
     const { cells, coast = [] } = island.fine, found: (readonly [number, number, number])[] = [];
     cells.forEach((cell, at) => {
-      for (const n of cell.neighbours) {
+      for (const n of cell.touching) {
         const edge = n > at ? sharedEdge(cell, cells[n]!) : undefined;
         // A cell at the coast reaches past it: only the edge's stretch on the land is border.
         if (edge) found.push([at, n, insideOf(edge[0], edge[1], coast).reduce((s, p) => s + Math.hypot(p.to.x - p.from.x, p.to.z - p.from.z), 0)]);

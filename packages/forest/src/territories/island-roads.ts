@@ -20,9 +20,8 @@
  *   roads at once (3.82); the islands still routing are counted by the map's top-left mark (3.96, `islandsRouting`).
  */
 import { LIBRARY_LAND, ontoCoast, openReach, type Link, type LinkDock } from "./link-layout.js";
-import { landArea, type Coast, type Point, type TerritoryMap } from "./territories.js";
+import { insideOf, landArea, type Coast, type Point, type TerritoryMap } from "./territories.js";
 import { roadNetwork, type BorderSeg, type Net, type NetLink } from "./road-network.js";
-import { insideOf } from "../view/territory-land.js";
 import { TERRITORY_WORKER_META } from "./kept-layout.js";
 import { RELIEF } from "./island-relief.js";
 

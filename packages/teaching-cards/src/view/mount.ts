@@ -1,9 +1,10 @@
 /**
  * Capability 3 · Cards and journal on screen. The cards are a tour the user is offered, never imposed: until they say yes
  * to it, only the ask shows, in a corner. A fired card shows beside the thing it explains, clear of its island and as clear
- * of the other islands as it can be, one at a time, and never takes focus or blocks the map; any card ends the tour. The journal lists the cards seen and shows one again.
+ * of the other islands as it can be, one at a time, and never takes focus or blocks the map; any card ends the tour. Between
+ * cards, while kinds are still to come, a quiet line in a corner says the tour is on. The journal lists the cards seen and shows one again.
  */
-import { cardOf, type Card, type Kind } from "../cards.js";
+import { cardOf, KINDS, type Card, type Kind } from "../cards.js";
 import { encounters, type Encounter, type MapReading, type Target } from "../encounters.js";
 import type { Journal } from "../journal.js";
 import { decisionsDiagram } from "./diagram.js";
@@ -31,24 +32,31 @@ const STYLES = `
 .teaching-card p, .teaching-journal p { margin: .25rem 0; }
 .teaching-card [data-depth] h4, .teaching-journal h4 { margin: .5rem 0 0; font-size: 13px; }
 .teaching-card-actions { display: flex; gap: .5rem; margin-top: .5rem; }
+.teaching-card [data-more] { padding: 0; border: 0; background: none; color: #9cc3e8; font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+.teaching-card[data-kind="on"] { padding: .4rem .7rem; background: rgba(20, 24, 32, .8); color: #c4cad4; font-size: 13px; }
+.teaching-card[data-kind="on"] p { display: inline; margin: 0 .5rem 0 0; }
+.teaching-card[data-kind="on"] button { font-size: 12px; }
 .teaching-journal ol { padding-left: 1.25rem; }
 .tour-diagram { margin: .5rem 0 0; max-width: 24rem; }
 .tour-diagram-title { font-size: 13px; font-weight: 650; }
 .tour-diagram-view { display: block; width: 100%; height: auto; }
 .tour-diagram-captions { margin: .25rem 0 0; }
-.diagram-caption-1, .diagram-caption-2 { display: none; }
+.diagram-caption { display: block; }
 .diagram-globe { fill: #141c21; stroke: #5b7f8c; stroke-width: 2; stroke-dasharray: 7 6; }
 .diagram-land { fill: #bdd6a6; } .diagram-underside { fill: #6b5a46; } .diagram-tree { fill: #6f9a5c; }
-.diagram-glue { stroke: #7fb2e5; stroke-width: 2; } .diagram-decision { fill: #7fb2e5; }
+.diagram-glue { stroke: #7fb2e5; stroke-width: 2; } .diagram-decision { fill: #7fb2e5; } .diagram-cover { fill: #f2d27a; }
 .diagram-link { stroke: #7fb2e5; stroke-width: 1.2; opacity: .55; }
 .diagram-tunnel { fill: none; stroke: #7fb2e5; stroke-width: 1; stroke-dasharray: 3 5; opacity: .5; }
-.diagram-core { fill: url(#tour-diagram-core); } .diagram-loose { fill: #a5c5d1; opacity: .6; }
+.diagram-core { fill: url(#tour-diagram-core); } .diagram-loose { fill: #e4e8ee; opacity: .75; }
 `;
 
 /** Pixels between a card and its point, and kept clear at the window's edges. */
 const GAP = 12;
 /** Pixels between a card in a corner and the window's edges. */
 const CORNER = 16;
+
+/** The kinds only a factory's map holds, and the empty map's, which never comes again once a product's map holds anything. */
+const FACTORY_ONLY: readonly Kind[] = ["factory", "role", "note", "check"];
 
 /** How much of `boxes` a card at `card` covers, in square pixels. */
 function covered(card: Box, boxes: readonly Box[]): number {
@@ -85,15 +93,15 @@ function adoptStyles(document: Document): () => void {
 export function mountTeaching(host: HTMLElement, { journal, locate, reading = () => [], islands = () => [] }: { journal: Journal; locate: Locate; reading?: Reading; islands?: Islands }): { take(reading: MapReading): void; stop(): void } {
   const unstyle = adoptStyles(host.ownerDocument);
   const waiting: Encounter[] = [];
-  /** The card on show, or the tour's ask. */
-  let shown: { card: HTMLElement; kind: Kind | "tour"; target: Target } | undefined;
+  /** The card on show, the tour's ask, or its line saying it is on between cards. */
+  let shown: { card: HTMLElement; kind: Kind | "tour" | "on"; target: Target } | undefined;
   /** The map's last reading, to start the tour on at once when the user says yes. */
   let last: MapReading | undefined;
 
   const place = (): void => {
     if (shown === undefined) return;
-    // The ask is about no one thing: it keeps to a corner.
-    const at = shown.kind === "tour" ? undefined : locate(shown.target);
+    // The ask and the line between cards are about no one thing: they keep to a corner.
+    const at = shown.kind === "tour" || shown.kind === "on" ? undefined : locate(shown.target);
     const onShow = at !== undefined && at.visible;
     shown.card.classList.toggle("teaching-card-corner", !onShow);
     const { width, height } = shown.card.getBoundingClientRect();
@@ -151,12 +159,24 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     shown = { card: node, kind: "tour", target: { kind: "map" } };
     place();
   };
+  /** Between cards, with a kind still to come on this map: one quiet line that the tour is on, and what brings the next card. */
+  const on = (): void => {
+    const seen = journal.seen();
+    const coming = KINDS.find(kind => kind !== "empty" && (last?.factory === true || !FACTORY_ONLY.includes(kind)) && !seen.some(was => was.kind === kind));
+    if (coming === undefined) return;
+    const node = aside("on", `<p>Tour on: the next card comes when ${escape(cardOf(coming).comes)}.</p><button type="button" data-end>End tour</button>`);
+    node.querySelector("[data-end]")!.addEventListener("click", () => journal.answer("no"));
+    host.append(node);
+    shown = { card: node, kind: "on", target: { kind: "map" } };
+    place();
+  };
   const next = (): void => {
     const found = waiting.shift();
-    if (found === undefined) return;
+    if (found === undefined) { on(); return; }
     const card = cardOf(found.kind, { library: last?.library });
-    const node = aside(found.kind, `<h3>${escape(card.title)}</h3><p>${escape(card.line)}</p><div data-depth hidden>${depth(card)}</div>
-      <div class="teaching-card-actions"><button type="button" data-more aria-expanded="false">More</button><button type="button" data-dismiss>Got it</button><button type="button" data-end>End tour</button></div>`);
+    const node = aside(found.kind, `<h3>${escape(card.title)}</h3><p>${escape(card.line)}</p>
+      <button type="button" data-more aria-expanded="false">More</button><div data-depth hidden>${depth(card)}</div>
+      <div class="teaching-card-actions"><button type="button" data-dismiss>Next</button><button type="button" data-end>End tour</button></div>`);
     const more = node.querySelector<HTMLButtonElement>("[data-more]")!;
     more.addEventListener("click", () => {
       const open = node.querySelector<HTMLElement>("[data-depth]")!.hidden;
@@ -188,6 +208,8 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     if (tour === "no") return;
     const queued = (kind: Kind) => shown?.kind === kind || waiting.some(one => one.kind === kind);
     waiting.push(...journal.unseen(found).filter(one => !queued(one.kind)));
+    // A card come to the map takes the place of the line saying the tour is on.
+    if (shown?.kind === "on" && waiting.length > 0) hide();
     if (shown !== undefined) place();
     else if (tour === "yes") next();
     else if (waiting.length > 0) ask();

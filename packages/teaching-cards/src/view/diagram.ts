@@ -12,7 +12,7 @@
 const centre = { x: 220, y: 250 }, radius = 200, deepest = 4;
 const depthAt = (depth: number) => centre.y - radius * (1 - 0.8 * depth / Math.max(deepest + 1, 5));
 // Each depth's decisions, spread around the island's line as the real ones are: wider apart near the surface, closer near the centre.
-const decisions = [[0], [-1, 1], [-1, 0, 1], [-1, 1]].flatMap((spread, index) => spread.map(side => ({ depth: index + 1, x: centre.x + side * 9 * (1 - index * .18), y: depthAt(index + 1) })));
+const decisions = [[0], [-1, 1], [-1, 0, 1], [-1, 1]].flatMap((spread, index) => spread.map(side => ({ depth: index + 1, x: centre.x + side * 14 * (1 - index * .12), y: depthAt(index + 1) })));
 // Each links to the nearest decision one step shallower: the chain of links that sets its depth.
 const above = (decision: (typeof decisions)[number]) => decisions.filter(other => other.depth === decision.depth - 1)
   .reduce((best, other) => Math.abs(other.x - decision.x) < Math.abs(best.x - decision.x) ? other : best);
@@ -37,20 +37,21 @@ export function decisionsDiagram({ seconds }: { seconds?: number } = {}): string
     // Beat 2: a decision glued to the island's underside.
     + `<g class="diagram-beat diagram-beat-2">`
     + `<line class="diagram-glue" x1="${cover!.x}" y1="66" x2="${cover!.x}" y2="${cover!.y}"></line>`
-    + `<circle class="diagram-decision" cx="${cover!.x}" cy="${cover!.y}" r="6"></circle>`
+    + `<circle class="diagram-decision diagram-cover" cx="${cover!.x}" cy="${cover!.y}" r="7"></circle>`
     + `</g>`
     // Beat 3: the decisions it stands on, one step deeper each, a tunnel down to the core and the loose notes there.
     + `<g class="diagram-beat diagram-beat-3">`
-    + `<path class="diagram-tunnel" d="M206 66 L${centre.x - 14} ${centre.y - 46} M234 66 L${centre.x + 14} ${centre.y - 46}"></path>`
+    + `<path class="diagram-tunnel" d="M200 66 L${centre.x - 20} ${centre.y - 46} M240 66 L${centre.x + 20} ${centre.y - 46}"></path>`
     + `<circle class="diagram-core" cx="${centre.x}" cy="${centre.y}" r="56"></circle>`
     + loose.map(([x, y]) => `<circle class="diagram-loose" cx="${centre.x + x!}" cy="${centre.y + y!}" r="3"></circle>`).join("")
     + beneath.map((decision, index) => `<g class="diagram-deeper"${timed("--deeper", index / beneath.length)}>`
       + `<line class="diagram-link" x1="${above(decision).x}" y1="${above(decision).y}" x2="${decision.x}" y2="${decision.y}"></line>`
-      + `<circle class="diagram-decision" cx="${decision.x}" cy="${decision.y}" r="5"></circle></g>`).join("")
+      + `<circle class="diagram-decision" cx="${decision.x}" cy="${decision.y}" r="4"></circle></g>`).join("")
     + `</g></svg>`
+    // Still, every beat's caption reads at once, one after the other, as the drawing shows every beat at once.
     + `<p class="tour-diagram-captions">`
     + `<span class="diagram-caption diagram-caption-1">An island: one story on the globe.</span>`
-    + `<span class="diagram-caption diagram-caption-2">A decision is glued beneath it.</span>`
-    + `<span class="diagram-caption diagram-caption-3">What it stands on goes deeper: a tunnel down to the core.</span>`
+    + `<span class="diagram-caption diagram-caption-2">A decision hangs beneath it, on its shelf: the bright dot.</span>`
+    + `<span class="diagram-caption diagram-caption-3">The decisions it stands on hang deeper, the blue dots, a tunnel down to the core, where the decisions about no one part gather: the pale dots.</span>`
     + `</p></figure>`;
 }

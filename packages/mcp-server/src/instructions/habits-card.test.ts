@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.21 in
+ * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.22 in
  * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is the app setup's setup check.
@@ -18,6 +18,7 @@ import { storyParts } from "@storytree/plugin-loader";
 import { SMALL_FIXES_ARC } from "@storytree/app-setup/project";
 import { setupGuidance } from "@storytree/app-setup/setup";
 import { decisionRights, readStandIns } from "@storytree/project-and-caller";
+import { CONCEPTS } from "@storytree/shown-words";
 import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */
@@ -306,6 +307,18 @@ test("7.21 · the card handed at session start and plan_contract's description s
     const planContract = tools.find((tool) => tool.name === "plan_contract")?.description ?? "";
     for (const [where, text] of [["the served card", served], ["plan_contract's description", planContract]] as const) {
       assert.ok(text.includes("plan from where you found each fault, not from the test list"), `${where} plans from the diagnosis, not the tests`);
+    }
+  } finally {
+    await session.close();
+  }
+});
+
+test("7.22 · the card handed at session start says the tools use the library's words for capability, arc and increment, and names the shown word the user sees for each, read from the one table of shown words (ADR-1318)", async () => {
+  const session = await sessionStart();
+  try {
+    const served = session.client.getInstructions() ?? "";
+    for (const concept of ["capability", "arc", "increment"] as const) {
+      assert.ok(served.includes(`"${CONCEPTS[concept].one}" for ${concept}`), `the served card names no shown word for ${concept}`);
     }
   } finally {
     await session.close();

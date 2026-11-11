@@ -222,7 +222,7 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     shown = undefined;
   };
   const ask = (): void => {
-    const node = aside("tour", `<h3>Want a quick tour?</h3><p>Short cards can explain each part of your map the first time it appears. You can start it later from Help.</p>
+    const node = aside("tour", `<h3>Want a quick tour?</h3><p>Short cards can explain each thing on your map the first time it appears. You can start it later from Help.</p>
       <div class="teaching-card-actions"><button type="button" data-tour="yes">Show me</button><button type="button" data-tour="no">No thanks</button></div>`);
     for (const button of node.querySelectorAll<HTMLButtonElement>("[data-tour]")) button.addEventListener("click", () => journal.answer(button.dataset.tour === "yes" ? "yes" : "no"));
     host.append(node);
@@ -328,9 +328,9 @@ export function mountJournal(host: HTMLElement, { journal, library }: { journal:
   const open = (): void => {
     const seen = journal.seen();
     shelf.innerHTML = `<h3>What you've learned</h3>`
-      + (seen.length === 0 ? "<p>Cards appear here as you meet each part of storytree on your map.</p>"
+      + (seen.length === 0 ? "<p>Cards appear here as you meet each of storytree's things on your map.</p>"
         : `<ol>${seen.map(one => `<li><button type="button" data-journal-entry="${one.kind}">${escape(cardOf(one.kind).title)}</button></li>`).join("")}</ol>`)
-      // The tour, offered here to a user who has not taken it: a card explains each part of the map as it appears.
+      // The tour, offered here to a user who has not taken it: a card explains each thing on the map as it appears.
       + (journal.tour() === "yes" ? "" : `<p><button type="button" data-tour-start>Take the tour</button></p>`)
       + `<div data-journal-card hidden></div>`;
     for (const entry of shelf.querySelectorAll<HTMLButtonElement>("[data-journal-entry]")) {

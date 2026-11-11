@@ -455,7 +455,7 @@ test("3.9 · after Next with cards still to come, one quiet line says the tour i
   teaching.take({ ...oneStory, tree: { ...oneStory.tree, arcs: [{ id: "arc_1" }] } });
   assert.deepEqual([...host.querySelectorAll<HTMLElement>(".teaching-card")].map(one => one.dataset.kind), ["arc"]);
   host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
-  assert.match(tourOn(host)!.textContent ?? "", /comes when a story's parts appear\./, "then the next kind still to come");
+  assert.match(tourOn(host)!.textContent ?? "", /comes when a story's capabilities appear\./, "then the next kind still to come");
   // End tour on the line ends the tour and clears the map.
   tourOn(host)!.querySelector<HTMLButtonElement>("[data-end]")!.click();
   assert.equal(kept.tour(), "no");

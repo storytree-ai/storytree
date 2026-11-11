@@ -1021,6 +1021,10 @@ importers:
         version: 7.0.2
 
   packages/teaching-cards:
+    dependencies:
+      '@storytree/shown-words':
+        specifier: workspace:*
+        version: link:../shown-words
     devDependencies:
       '@storytree/arc-surface':
         specifier: workspace:*

@@ -13,7 +13,7 @@ export interface Word {
 /** ADR-1019 D1's concepts, keyed by their name in code and the library. */
 export const CONCEPTS = {
   story: { one: "story", many: "stories" },
-  capability: { one: "part", many: "parts" },
+  capability: { one: "capability", many: "capabilities" },
   arc: { one: "plan", many: "plans" },
   increment: { one: "piece of work", many: "pieces of work" },
   contract: { one: "contract", many: "contracts" },
@@ -27,10 +27,10 @@ export const ACTIONS = {
   copyRequest: "Copy request for your agent",
 } as const satisfies Record<string, string>;
 
-/** Where code stands on the map, keyed by its name in code: code no part reaches (the map's `unclaimed`) is shown in
- * words that name no claim on work, which "Unclaimed" did. */
+/** Where code stands on the map, keyed by its name in code: code no capability reaches (the map's `unclaimed`) is shown
+ * in words that name no claim on work, which "Unclaimed" did. */
 export const PLACES = {
-  unclaimed: "Not in any part",
+  unclaimed: "Not in any capability",
 } as const satisfies Record<string, string>;
 
 /** A word as two rows would clash on it: lower case, without a trailing ellipsis. */

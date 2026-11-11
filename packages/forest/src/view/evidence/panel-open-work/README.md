@@ -24,3 +24,18 @@ panel lists exactly the increments, in the order, that the library's annotated t
 `measurements.json`.
 
 In the evidence bucket for #673, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `673/capability-open-work.png`, `673/capability-open-work-panel.png`.
+
+## The opened row names its arc (contract 3.39, increment_99857e7fa4ba)
+
+The capture's second step clicks the first open-work row, which puts the rail's Arcs tab on show with that increment's arc
+selected and its row open. In a long expansion the arc's own row scrolls out above the opened row, so the row now names its
+arc first ("Arc", then the arc's title, above its objective) until an arc is picked by hand; when the arc's row and the
+opened row fit in the lanes together, the lanes scroll the arc's row to their top instead of only bringing the row into view.
+
+At this capture (2026-11-12, on the Mint box) the opened increment, "Contracts the agent plans sit where its own diagnosis
+puts each fault, unasked", sat far below its arc's row, which was out of view (`arcInView: false` in `measurements.json`),
+and its row read "Arc · Storytree is hardened on a local setup" (`arcNamed`). The capture asserts the row names its arc.
+
+- `open-work-row-opens.png`: the whole page after the row's click, the Arcs tab on show and the opened row naming its arc.
+
+In the evidence bucket for #775, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `775/open-work-row-opens.png`.

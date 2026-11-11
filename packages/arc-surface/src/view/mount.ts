@@ -16,8 +16,9 @@ import type { ArcQueue } from "../waits/waits.js";
 export interface ArcSurface {
   stop(): void;
   /**
-   * Show increment `id` (3.39): its arc selected, the queue head it waits behind opened, its row open and scrolled into view. Asked
-   * before a board shows it, it waits for the draw that does.
+   * Show increment `id` (3.39): its arc selected, the queue head it waits behind opened, its row open, naming its arc, and
+   * scrolled into view, its arc's row at the top of the lanes when both fit. Asked before a board shows it, it waits for the draw
+   * that does.
    */
   openIncrement(id: string): void;
 }
@@ -73,12 +74,15 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   const queues = new Set<string>();
   /** The increment asked to be shown and not drawn yet (3.39). */
   let asked: string | undefined;
+  /** The increment last shown from outside, whose row names its arc until an arc is picked by hand (3.39). */
+  let named: string | undefined;
   /** Selects the asked increment's arc and opens its queue head and its row, once the board holds it; returns its row's fold key. */
   const take = (board: BoardView): string | undefined => {
     const id = asked;
     const lane = id === undefined ? undefined : board.lanes.find(({ view }) => view.increments.some((work) => work.id === id));
     if (!lane) return undefined;
     asked = undefined;
+    named = id;
     opened = lane.id;
     const head = board.queues.find((queue) => holds(queue, lane.id));
     if (head) queues.add(head.arc.id);
@@ -118,7 +122,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     // 3.20: a refresh that changes nothing keeps its nodes, so a selection in the expansion holds.
     // 3.34: the CI bars are written into their own holders, so the clock and the medians' read move them and nothing else.
     const write = () => {
-      const html = renderBoard(next.board!, opened, queues, perRow, true);
+      const html = renderBoard(next.board!, opened, queues, perRow, true, named);
       if (html !== drawn) { body.innerHTML = html; drawn = html; ciDrawn.clear(); }
       for (const holder of body.querySelectorAll<HTMLElement>("[data-ci-lane]")) {
         const id = holder.dataset.ciLane!;
@@ -139,7 +143,12 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     if (focusedFold) [...root.querySelectorAll<HTMLElement>("details[data-fold-key]")].find((detail) => detail.dataset.foldKey === focusedFold)?.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
     const lanes = body.querySelector(".arc-lanes");
     if (lanes) lanes.scrollTop = lanesTop;
-    row?.scrollIntoView?.({ block: "nearest" });
+    // An increment shown from outside brings its arc's row, which holds its title, to the top of the lanes when both fit (3.39).
+    if (row) {
+      const headTop = [...body.querySelectorAll<HTMLElement>("[data-arc-select]")].find((button) => button.dataset.arcSelect === opened)?.getBoundingClientRect().top;
+      if (lanes && headTop !== undefined && row.getBoundingClientRect().bottom - headTop <= lanes.clientHeight) lanes.scrollTop += headTop - lanes.getBoundingClientRect().top;
+      else row.scrollIntoView?.({ block: "nearest" });
+    }
     const folded = [...body.querySelectorAll<HTMLElement>("[data-folded-ids]")].flatMap((node) => node.dataset.foldedIds!.split(" "));
     sayDrawn({
       arcs: [...new Set([...body.querySelectorAll<HTMLElement>("[data-arc-id]")].map((node) => node.dataset.arcId!))],
@@ -168,13 +177,14 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     // arc's chip selects it, its expansion drawn under the chips (4.1).
     const picked = button.dataset.arcSelect;
     if (picked) {
+      named = undefined;
       const row = button.classList.contains("arc-lane");
       if (opened === picked) { opened = undefined; if (row) queues.delete(picked); }
       else { opened = picked; if (row) queues.add(picked); }
       if (state) draw(state);
     }
-    if (button.dataset.arcScope) { scope = button.dataset.arcScope as BoardScope; opened = undefined; watching.setScope(scope); remember(); }
-    if (button.dataset.closedRange) { closedRange = { preset: button.dataset.closedRange as "today" | "yesterday" | "week" }; opened = undefined; watching.setClosedRange(closedRange); }
+    if (button.dataset.arcScope) { scope = button.dataset.arcScope as BoardScope; opened = undefined; named = undefined; watching.setScope(scope); remember(); }
+    if (button.dataset.closedRange) { closedRange = { preset: button.dataset.closedRange as "today" | "yesterday" | "week" }; opened = undefined; named = undefined; watching.setClosedRange(closedRange); }
     if (button.dataset.arcQueue) {
       const id = button.dataset.arcQueue;
       if (queues.has(id)) queues.delete(id); else queues.add(id);
@@ -198,7 +208,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     const shown = state?.board?.closed;
     if (!shown) return;
     closedRange = input.hasAttribute("data-closed-from") ? { from: input.value, to: shown.to } : { from: shown.from, to: input.value };
-    opened = undefined; watching.setClosedRange(closedRange);
+    opened = undefined; named = undefined; watching.setClosedRange(closedRange);
   });
   root.addEventListener("toggle", (event) => {
     const detail = event.target as HTMLDetailsElement;

@@ -73,7 +73,7 @@ test("3.21 `health tell` tells the owner each verdict turn of the last twelve ho
     { contract: "contract_aaaaaaaaaaaa", title: "Red: 4.45 · Updates", at: "2026-11-11T06:02:13.000Z", released: ["increment_bbbbbbbbbbbb"] },
     { contract: "contract_cccccccccccc", title: "Green again: 3.49 · Opening fresh", at: "2026-11-11T06:57:35.000Z", released: [] },
   ];
-  const library = { tellUntold: async (from: string) => (asked.push(from), asked.length === 1 ? turns : []) } as unknown as Library;
+  const library = { tellUntold: async (from: string) => (asked.push(from), [turns, turns.slice(1), []][asked.length - 1]!) } as unknown as Library;
   const tell = HEALTH_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "tell")!;
   const context = { library, project: "p", session: "test", folder: tmpdir() };
 
@@ -81,9 +81,11 @@ test("3.21 `health tell` tells the owner each verdict turn of the last twelve ho
   const told = await tell.act({}, context, WORDS);
   const hours = (Date.now() - Date.parse(asked[0]!)) / 3_600_000;
   assert.ok(hours >= 12 && hours <= 12 + (Date.now() - started) / 3_600_000 + 0.01, `twelve hours back by default, not ${hours}`);
-  for (const said of ["2", "Red: 4.45 · Updates", "increment_bbbbbbbbbbbb", "Green again: 3.49 · Opening fresh"]) assert.ok(told.text.includes(said), `it says ${said}`);
+  assert.match(told.text, /^Told 2 verdict turns /);
+  for (const said of ["Red: 4.45 · Updates (verdict at 2026-11-11T06:02:13.000Z); released increment_bbbbbbbbbbbb", "Green again: 3.49 · Opening fresh (verdict at 2026-11-11T06:57:35.000Z)"]) assert.ok(told.text.includes(said), `it says ${said}`);
 
-  const quiet = await tell.act({ hours: 3 }, context, WORDS);
+  const one = await tell.act({ hours: 3 }, context, WORDS);
   assert.ok(Math.abs(Date.now() - Date.parse(asked[1]!) - 3 * 3_600_000) < 60_000, "the hours given");
-  assert.match(quiet.text, /[Nn]othing/);
+  assert.match(one.text, /^Told 1 verdict turn /);
+  assert.match((await tell.act({}, context, WORDS)).text, /^Nothing untold/);
 });

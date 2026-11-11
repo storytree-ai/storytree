@@ -85,7 +85,7 @@ export interface SetupOptions {
   readonly unnamedPlugins?: () => readonly UnnamedPlugin[];
 }
 
-/** A factory plugin no part setting names, and the part `storytree settings set part <part> plugin <plugin>` names it as. */
+/** A factory plugin no part setting names, and the part `storytree settings set module <module> plugin <plugin>` names it as. */
 export interface UnnamedPlugin {
   readonly plugin: string;
   readonly part: string;

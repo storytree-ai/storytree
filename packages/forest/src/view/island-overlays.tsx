@@ -20,7 +20,7 @@ const PLATE_LIFT = 2;
 /**
  * A story's nameplate, its top edge at a fixed point just south of the island's coast, turning with the island; once the
  * eye is near (3.86), a smaller nameplate on each of its capabilities' territories (below a claimed one's flag); while a
- * story is selected the other stories' plates dim. No plate takes a pointer from the land beneath it.
+ * story is selected the other stories' plates dim. No plate takes a pointer: the map reads a click's names at its release (3.104), so a drag from one pans.
  */
 export function Nameplates({ island, spot, coast, links = [], docks, radius, selected, dimmed = false, claimed = new Map(), detail }: {
   island: Island; spot: PlanetSpot; coast: Coast; radius: number; selected: string | undefined; dimmed?: boolean;
@@ -69,7 +69,7 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
       </Overlay>
     </group>
     {plates.map(plate => <Overlay key={plate.capability} position={surface(plate).toArray()} center zIndexRange={[25, 21]} style={{ pointerEvents: "none" }}>
-      <div className="forest-label planet-nameplate capability" data-capability-id={plate.capability} data-size={plate.size} data-claimed={claimed.has(plate.capability) ? "" : undefined}>{plate.title}</div>
+      <div className="forest-label planet-nameplate capability" data-capability-id={plate.capability} data-island-id={island.story} data-size={plate.size} data-claimed={claimed.has(plate.capability) ? "" : undefined}>{plate.title}</div>
     </Overlay>)}
   </>;
 }

@@ -299,8 +299,8 @@ test("app-setup 8.45 the doctor names each plugin in this computer's factory tha
     const ran = await world.run(["doctor"], user.env);
 
     assert.equal(ran.code, 0, ran.stderr);
-    assert.match(ran.stdout, /micks-dev-loop.*`storytree settings set part micks-dev-loop plugin micks-dev-loop`/);
-    assert.match(ran.stdout, /my-runner.*`storytree settings set part agent-pool plugin my-runner`/);
+    assert.match(ran.stdout, /micks-dev-loop.*`storytree settings set module micks-dev-loop plugin micks-dev-loop`/);
+    assert.match(ran.stdout, /my-runner.*`storytree settings set module agent-pool plugin my-runner`/);
     assert.doesNotMatch(ran.stdout, /ci-health/);
   });
 });

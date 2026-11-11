@@ -27,6 +27,8 @@ async function box(t, extra = {}) {
   const counts = [5, 4];
   return {
     lanesDir, events, lines, briefs, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
+    // No machine file: the computer's own (the laptop's machine-only one) would skip every untagged increment here.
+    home: lanesDir, env: {},
     say: (line) => lines.push(line), argsOf: async () => "", maxLanes: async () => 5,
     // A clear box: the real reading (/proc on a busy CI runner) would hold dispatch back (pace.mjs).
     pace: async () => undefined, briefPaths: undefined, laneRepo: undefined, projects: () => [{ name: "storytree" }],

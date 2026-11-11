@@ -188,3 +188,31 @@ test("1.8 · a push that names the remote by its URL is checked over the branch'
   assert.match(said.join("\n"), /src\/edit\.ts:1/);
   assert.ok(!said.join("\n").includes("src/view.ts"), "the replace already on main is not the branch's");
 });
+
+test("1.8 · a branch already on origin that merges main is checked over its own commits: a replace main added passes, through main's commits and the merge, and one the branch adds is refused", (t) => {
+  const { home, root, git } = machine(t);
+  git("checkout", "-q", "-b", "lane");
+  writeFileSync(path.join(root, "readme.md"), "a project, by a lane\n");
+  git("commit", "-q", "-am", "lane");
+  const pushed = git("rev-parse", "HEAD").trim();
+  git("push", "-q", "--no-verify", "origin", "lane");
+  git("checkout", "-q", "main");
+  mkdirSync(path.join(root, "src"));
+  writeFileSync(path.join(root, "src", "view.ts"), 'export const plain = (html: string): string => html.replace(/<[^>]+>/g, "");\n');
+  git("add", ".");
+  git("commit", "-q", "-m", "main's replace");
+  git("push", "-q", "--no-verify", "origin", "main");
+  git("checkout", "-q", "lane");
+  git("merge", "-q", "--no-ff", "-m", "merge main", "main");
+  const merged = git("rev-parse", "HEAD").trim();
+  const said = [];
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/lane ${merged} refs/heads/lane ${pushed}\n`, home, sources: [], error: (line) => said.push(line) }), 0, said.join("\n"));
+
+  writeFileSync(path.join(root, "src", "edit.ts"), 'export const bare = (html: string): string => html.replace(/<[^>]+>/g, "");\n');
+  git("add", ".");
+  git("commit", "-q", "-m", "the lane's replace");
+  const added = git("rev-parse", "HEAD").trim();
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/lane ${added} refs/heads/lane ${pushed}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
+  assert.match(said.join("\n"), /src\/edit\.ts:1/);
+  assert.ok(!said.join("\n").includes("src/view.ts"), said.join("\n"));
+});

@@ -234,7 +234,7 @@ export function drawnIsland(island: PreparedIsland, owners: readonly number[]): 
   const cells = fine.cells.map((cell, at): Cell => ({ ...cell, site: times(cell.site, scale), polygon: cell.polygon.map((p) => times(p, scale)), territory: owners[at]! }));
   const borders: Border[] = [];
   fine.cells.forEach((cell, at) => {
-    for (const n of cell.neighbours) if (n > at && owners[n] !== owners[at]) {
+    for (const n of cell.touching) if (n > at && owners[n] !== owners[at]) {
       const edge = sharedEdge(cells[at]!, cells[n]!);
       if (edge) borders.push({ from: edge[0], to: edge[1], between: [at, n] });
     }

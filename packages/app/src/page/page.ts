@@ -54,7 +54,7 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
    * The arcs, in `host` (the rail's Arcs tab); `onWaiting` hears what waits on the owner there, the tab's badge. They read nothing
    * until `startAfter`, the page's start settled or the forest's first read failed (2.40), so the start does not wait on them.
    */
-  arcs(host: HTMLElement, on: { onFreshDraw(): void; onWaiting(count: number): void; onOpened(capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined): void; startAfter: PromiseLike<void> }): { stop(): void };
+  arcs(host: HTMLElement, on: { onFreshDraw(): void; onWaiting(count: number): void; onOpened(capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined): void; startAfter: PromiseLike<void> }): { stop(): void; openIncrement(id: string): void };
   openView(holder: HTMLElement, onSelect: (selection: ForestSelection) => void, options: { library: boolean; opening: string | undefined }): Promise<View>;
   /** The sessions list in `host` (the rail's Sessions tab), joined to `view` and the knowledge core both ways. */
   sessions(view: View, host: HTMLElement): { stop(): void };
@@ -110,7 +110,7 @@ interface Showing {
   page?: PageReading;
   reading?: { stop(): void };
   view?: ForestGlobe;
-  arcs?: { stop(): void };
+  arcs?: { stop(): void; openIncrement(id: string): void };
   sessions?: { stop(): void };
   ciTimes?: { stop(): void };
   rail?: Rail;
@@ -251,6 +251,8 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       folds: (host) => project.foldPanel(host),
       libraryCard: (host, onClose) => project.libraryCard(host, onClose),
       deselect: () => mine.view?.select(undefined),
+      // The map has no view of an increment: the rail's Arcs tab shows it (2.57).
+      openIncrement: (id) => { rail?.show("arcs"); mine.arcs?.openIncrement(id); },
     });
     mine.panel = panel;
     const view = await project.openView(holder, (selection) => {

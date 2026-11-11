@@ -53,6 +53,7 @@ const mapInputs = {
   select: { kind: "text", describe: "file:<path>, cap:<id|number>, contract:<id|number>, story:<name> or diff:<range>; with --crossing, story:<mapped>", optional: true },
   crossing: { kind: "text", describe: "the folders, file patterns or explored capabilities a line is drawn round, comma-separated", optional: true },
   capabilities: { kind: "switch", describe: "with --select story:<name>, the story's capabilities, each with its health, contracts, dependencies, and files with their lines of code" },
+  links: { kind: "switch", describe: "with --select story:<mapped>, the imports between its explored capabilities' files that no link covers, and the links no import backs" },
   ...SELECTION,
 } as const;
 
@@ -60,8 +61,8 @@ const map: Verb<typeof mapInputs> = {
   command: {
     family: "map",
     name: "map",
-    summary: "up follows dependencies; down follows dependents; --crossing counts the imports across a line in a mapped island; show refuses above 200 rows; JSON on every mode",
-    usage: "map --select story:<name> --capabilities [--json], or map --select file:<path>|cap:<id|number>|contract:<id|number>|story:<name>|diff:<range> [--up N] [--down N] [--kind story,capability,contract,file,test] [--dry-run|--show] [--json], or map --crossing <folder|pattern|cap:<id|number>,...> [--select story:<mapped>] [--show] [--json]",
+    summary: "up follows dependencies; down follows dependents; --crossing counts the imports across a line in a mapped island; --links checks a mapped story's links against its imports; show refuses above 200 rows; JSON on every mode",
+    usage: "map --select story:<name> --capabilities [--json], or map --select story:<mapped> --links [--json], or map --select file:<path>|cap:<id|number>|contract:<id|number>|story:<name>|diff:<range> [--up N] [--down N] [--kind story,capability,contract,file,test] [--dry-run|--show] [--json], or map --crossing <folder|pattern|cap:<id|number>,...> [--select story:<mapped>] [--show] [--json]",
   },
   tool: { absent: "the focus tool serves the map to agents" },
   inputs: mapInputs,
@@ -74,12 +75,17 @@ const map: Verb<typeof mapInputs> = {
       const { VerbRefusal } = await import("@storytree/library/verbs");
       throw new VerbRefusal("--capabilities answers for one story: --select story:<name>, with no --crossing.", { misuse: true });
     }
+    if (input.links && (input.capabilities || input.crossing !== undefined || !/^story:./.test(input.select ?? ""))) {
+      const { VerbRefusal } = await import("@storytree/library/verbs");
+      throw new VerbRefusal("--links checks one mapped story: --select story:<name>, with no --crossing or --capabilities.", { misuse: true });
+    }
     const options = await selection(input);
     const crossing = input.crossing === undefined ? undefined : { patterns: await crossingPatterns(input.crossing), ...await crossingStory(input.select), mode: input.show ? "show" as const : "counts" as const };
-    const [{ capabilitiesCommand, crossingCommand, mapCommand }, { importsOf, machineOf, storytreeHome }] = await Promise.all([import("./read.js"), import("@storytree/project-and-caller")]);
+    const [{ capabilitiesCommand, crossingCommand, linksCommand, mapCommand }, { importsOf, machineOf, storytreeHome }] = await Promise.all([import("./read.js"), import("@storytree/project-and-caller")]);
     if (context.server === undefined) throw new Error("the map reads this machine's imports from the library server, which this door did not open");
     // The folders this machine imports, where the map reads the mapped stories (ADR-0993 D2).
     const imports = await importsOf(context.server, context.library.name, machineOf(storytreeHome()).id);
+    if (input.links) return { text: await linksCommand(context.library, context.folder, input.select!, input.json, imports) };
     if (input.capabilities) return { text: await capabilitiesCommand(context.library, context.folder, input.select!, input.json, imports) };
     if (crossing !== undefined) return { text: await crossingCommand(context.library, context.folder, crossing, input.json, imports) };
     return { text: await mapCommand(context.library, context.folder, { select: input.select!, ...options }, input.json, imports) };

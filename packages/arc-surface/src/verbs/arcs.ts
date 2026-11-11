@@ -27,6 +27,7 @@ import { beforeCutover, listedNotice, pullSaid, type ArcView, type Holds, type N
 
 import { recentWindow, windowOf, type ClosedRange } from "../board/closed-range.js";
 import { questionsBehind } from "../work-states/board-states.js";
+import { oversizedSaid } from "./arc-size.js";
 import { holdsNow } from "./claimed.js";
 import { labelOf, listOf, releasedAsking, type ArcVerbContext } from "./context.js";
 import { recent } from "./recent.js";
@@ -107,6 +108,8 @@ const show = verb({
     const { arc, state, increments, questions } = view;
     const lines = [`${arc.fields.title}  [${arc.id}]  ${stateOf(view)}`, "", `Intent: ${arc.fields.intent}`, `End state: ${arc.fields.endState}`];
     if (arc.fields.priority !== undefined) lines.push(`Priority: ${arc.fields.priority}`);
+    const oversized = oversizedSaid(increments.length);
+    if (oversized !== undefined) lines.push(oversized);
     for (const line of holdsOn(holds, arc.id)) lines.push(`This arc ${line}`);
     const open = increments.filter((increment) => increment.fields.status !== "closed");
     const closed = increments.filter((increment) => increment.fields.status === "closed");
@@ -581,7 +584,7 @@ const incrementCorrectClosure = verb({
 });
 
 const incrementMove = verb({
-  command: { family: "arc increment", name: "move", summary: "re-home an increment on another live arc, keeping its identity and lifecycle" },
+  command: { family: "arc increment", name: "move", summary: "re-home an increment on another live arc, keeping its identity and lifecycle; splitting an arc, move its open increments before its closed ones, or a destination closed meanwhile refuses them until `arc park`, move, `arc unpark`" },
   tool: { absent: "the MCP server's own move_increment moves an increment" },
   inputs: {
     increment: { kind: "text", word: 0, describe: "the increment's id" },

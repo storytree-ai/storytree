@@ -597,7 +597,7 @@ test("3.7 at each prompt, every matching project definition is added for the age
   }
 });
 
-test("3.58 at each prompt, a session whose claims lapsed without its asking (the session manager released them between its own resumed turns) is told which work, when, why, and the claim that takes it again; one that claimed since, or released the work itself, is told nothing", async () => {
+test("3.58 at each prompt, a session whose claims lapsed without its asking (the session manager released them, or another session took them over, between its own resumed turns) is told which work, when, why, and the claim that takes it again or who took it; one that claimed since, or released the work itself, is told nothing", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   const log = await openActivityLog(testServerUrl());
@@ -643,6 +643,15 @@ test("3.58 at each prompt, a session whose claims lapsed without its asking (the
       await lapse();
       assert.equal((await claim({ ...as, session: `${project}-other` }, work, "taking up the stats page")).ok, true);
       assert.equal(await ask(), undefined, "work another session claimed since is not offered to claim again");
+
+      // The process stops between turns, and another session takes the work over in the gap (ADR-1311 D3).
+      const next = (await library.addIncrement({ arc: arc.id, title: "stats chart", objective: "stats chart", body: "stats chart" })).id;
+      assert.equal((await claim(as, next, "driving the stats chart")).ok, true);
+      await log.append(project, { session, harness: "claude-code", source: "hook", folder, kind: "session-ended", reason: "other" });
+      const taker = `${project}-taker`;
+      const taken = await claim({ ...as, session: taker, harness: "codex" }, next, "taking up the stats chart");
+      assert.equal(taken.ok && taken.takenOverFrom?.session, session);
+      assert.match((await ask()) ?? "", new RegExp(`Your claim on ${next} lapsed at .*: Codex session ${taker} took it over`), "the resumed turn is told who took its work, while the taker holds it");
     });
   } finally {
     try {
@@ -1999,6 +2008,9 @@ test("3.42 A Claude Code command hook, finding the tool server's note of its eve
 test("3.46 a hook runs no git in a downloaded folder whose marker names a project: not at a session's start, after a shell command, nor at a turn's end; in the approved checkout it does, with the repository's own file-system monitor never started", async () => {
   const project = uniqueProjectName();
   const was = process.env.STORYTREE_HOME;
+  // This test may itself run inside a pool lane, whose marker would keep the turn-end hook from reading git.
+  const lane = process.env.STORYTREE_LANE_RUN;
+  delete process.env.STORYTREE_LANE_RUN;
   try {
     await withTempDir(async (dir) => {
       const home = storytreeHome(dir, true);
@@ -2044,6 +2056,7 @@ test("3.46 a hook runs no git in a downloaded folder whose marker names a projec
   } finally {
     if (was === undefined) delete process.env.STORYTREE_HOME;
     else process.env.STORYTREE_HOME = was;
+    if (lane !== undefined) process.env.STORYTREE_LANE_RUN = lane;
     await dropTestProjects([project]);
   }
 });

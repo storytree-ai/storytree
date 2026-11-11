@@ -29,8 +29,8 @@ export interface MapNode {
   readonly snapshot?: SnapshotOrigin;
   readonly changes?: readonly ChangeLabel[];
   readonly unresolved?: string;
-  /** A contract on an edge (ADR-1282 D1): the edge, and its capabilities, `from` depending on `to`. */
-  readonly onEdge?: { readonly id: string; readonly from: string; readonly to: string };
+  /** A contract on an edge (ADR-1282 D1): the edge, and its capabilities, `from` depending on `to`, with their titles. */
+  readonly onEdge?: { readonly id: string; readonly from: string; readonly to: string; readonly fromTitle: string; readonly toTitle: string };
 }
 export interface MapEdge {
   readonly from: string;
@@ -102,10 +102,11 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
       }
     }
     // An edge's contract is the link's, never either capability's own, yet a focus on either lists it, as on that edge.
+    const capTitle = new Map(story.capabilities.map(cap => [cap.id, cap.title]));
     for (const link of story.edges ?? []) {
       for (const contract of link.contracts) {
         const number = /^\s*(\d+\.\d+)\b/.exec(contract.title)?.[1];
-        add({ id: contract.id, kind: "contract", title: contract.title, story: story.id, health: healthOf(contract.health, healthSource), onEdge: { id: link.id, from: link.from, to: link.to }, ...(number === undefined ? {} : { number }) });
+        add({ id: contract.id, kind: "contract", title: contract.title, story: story.id, health: healthOf(contract.health, healthSource), onEdge: { id: link.id, from: link.from, to: link.to, fromTitle: capTitle.get(link.from) ?? link.from, toTitle: capTitle.get(link.to) ?? link.to }, ...(number === undefined ? {} : { number }) });
         edge(contract.id, link.from, "on-edge", "declared");
         edge(contract.id, link.to, "on-edge", "declared");
       }

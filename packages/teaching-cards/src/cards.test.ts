@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { CONCEPTS } from "@storytree/shown-words";
+
 import { cardOf, KINDS } from "./index.js";
 
 test("1.1 · every kind has a card with a title and a line at once, and what, why, how and its decisions for More", () => {
@@ -45,4 +47,15 @@ test("1.3 · the plan's card says where the plan is on screen: under Arcs, an ar
   assert.match(plan.line, /under Arcs/);
   assert.match(plan.line, /an arc is a goal/);
   assert.match(plan.line, /pieces of work that reach it/);
+});
+
+test("1.4 · the cards name a capability by the shown-words table's word for it, and no card says part", () => {
+  const { one, many } = CONCEPTS.capability;
+  const card = cardOf("capability");
+  assert.match(card.title, new RegExp(`\\b${one}\\b`));
+  assert.match(card.line, new RegExp(`\\b${many}\\b`));
+  for (const kind of KINDS) {
+    const said = Object.values(cardOf(kind)).filter((text) => typeof text === "string").join(" ");
+    assert.doesNotMatch(said, /\bparts?\b/i, `the ${kind} card never calls a capability a part (ADR-1322 D3)`);
+  }
 });

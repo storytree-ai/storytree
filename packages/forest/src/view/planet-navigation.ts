@@ -191,6 +191,12 @@ export function pickClick(world: Object3D, camera: Camera,
   return { gate, hit: { kind: "story", id: gate.story, gate: gate.pick.between } };
 }
 
+/** 3.105: whether a click `clicked` (from `pickClick`) is let go: while an arc is selected, one on land that is no part or gate,
+ * so a near miss on the arc's rings and gates opens no story. */
+export function ignoresClick(clicked: { gate: PickedGate | undefined; hit: Selection }, arcSelected: boolean): boolean {
+  return arcSelected && clicked.gate === undefined && clicked.hit?.kind === "story" && clicked.hit.capability === undefined;
+}
+
 /** Project the drawn points; in Forest, solid land before a point occludes it. */
 export function pickGlobe(world: Object3D, camera: Camera,
   box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): Selection {

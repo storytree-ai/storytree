@@ -418,7 +418,7 @@ export class WorkInFlight {
    * Move an increment to another arc, keeping its id, lifecycle, waits and claims; its history
    * records the move with `reason`. The arc must be live (MissingReferenceError otherwise). Open
    * work cannot move into a closed arc (ADR-0792 D2, RangeError), while completed history may move
-   * there during arc decomposition without reopening it. Null, with nothing written, if `id` is
+   * there during arc decomposition without reopening it; the refusal names the way back (park the arc, move, unpark). Null, with nothing written, if `id` is
    * not a live increment. Moving the last open work off an arc closes it, clearing the waits on it (10.33).
    */
   moveIncrement(id: string, arc: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
@@ -427,7 +427,10 @@ export class WorkInFlight {
       if (increment === null) return null;
       await checkReference(this.#records, "arc", arc, "arc");
       if (increment.fields.status !== "closed" && (await this.arcView(arc))?.state === "closed") {
-        throw new RangeError(`arc ${JSON.stringify(arc)} is closed and takes nothing new: move ${JSON.stringify(id)} to a live arc`);
+        throw new RangeError(
+          `arc ${JSON.stringify(arc)} is closed and takes nothing new: move ${JSON.stringify(id)} to a live arc, or, splitting an arc, ` +
+            `move open increments before closed ones; to reopen this one for it, \`arc park ${arc}\`, move it, then \`arc unpark ${arc}\``,
+        );
       }
       const moved = (await this.#records.edit(id, { arc }, { ...options, reason })) as SchemaRecord<"increment"> | null;
       await this.#clearAfter(() => this.#clearIfClosed(increment.fields.arc, options));

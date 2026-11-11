@@ -18,7 +18,7 @@ const map = territories(shares, 10);
 const area = (polygon: readonly { x: number; z: number }[]) =>
   Math.abs(polygon.reduce((sum, p, at) => { const q = polygon[(at + 1) % polygon.length]!; return sum + p.x * q.z - q.x * p.z; }, 0)) / 2;
 
-test("3.14 each capability is one connected territory whose share of the island follows its share of the lines, Unclaimed code its own, bordered where two territories meet", () => {
+test("3.14 each capability is one connected territory whose share of the island follows its share of the lines, code in no capability its own, bordered where two territories meet", () => {
   assert.deepEqual(map.territories.map(({ capability }) => capability), ["cap-a", "cap-b", "cap-c", undefined]);
   const total = map.cells.reduce((sum, cell) => sum + area(cell.polygon), 0);
   map.territories.forEach((territory, at) => {

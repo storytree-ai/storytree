@@ -43,6 +43,7 @@ import { FYI_FAMILY } from "./fyi.js";
 import { MEDIA_FAMILY } from "./media.js";
 export { mediaGuidance } from "./media.js";
 import { editDecision, recordDecision } from "../librarian/decision-log/index.js";
+import { partsBeside } from "./notes.js";
 import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
@@ -363,10 +364,13 @@ const create = verb({
     const options = numbers === undefined ? { ...context.writer!, ...pending } : { ...context.writer!, testedNumbers: [...numbers.tested] };
     const written = await withIdLists(fields, (fields) => write(context.library, fields, options));
     const untested = numbers?.untested ?? [];
-    const open = untested.length === 0 ? "" : `\nNo numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, planned but not built; if this contract repeats one of them, retire it and build that one:${untested.map((title) => `\n  - ${title}`).join("")}`;
+    // Counted, not named, so the answer stays short however many there are (3.21, F2.10).
+    const one = untested.length === 1;
+    const open = untested.length === 0 ? "" : `\n${untested.length} other ${one ? "contract" : "contracts"} of this capability ${one ? "has" : "have"} no test yet. If this one repeats ${one ? "it" : "any of them"}, retire it and build that one (list ${one ? "it" : "them"} with \`storytree map --select cap:${String(fields.capability)} --down 1 --kind contract --show\`).`;
     const long = kind === "contract" && String(fields.title ?? "").length > LONG_CONTRACT_TITLE;
     const advice = long ? `\nIts title runs past ${LONG_CONTRACT_TITLE} characters, which often means more than one contract: ${CONTRACT_DEFINITION} Split it with \`storytree library edit\` and \`storytree library new contract\` if so.` : "";
-    return { text: `Wrote ${kind} ${written.id}.${open}${advice}`, next: [{ command: `library read ${written.id}`, why: "read it back" }] };
+    const beside = kind === "decision" && typeof fields.frontCoverOf === "string" ? await partsBeside(context.library, fields.frontCoverOf, "`storytree library edit`") : undefined;
+    return { text: `Wrote ${kind} ${written.id}.${open}${advice}${beside === undefined ? "" : `\n${beside}`}`, next: [{ command: `library read ${written.id}`, why: "read it back" }] };
   },
 });
 

@@ -243,15 +243,52 @@ test("1.5 a contract on an edge joins the graph with its own health, on the edge
   ] } as unknown as AnnotatedTree;
   const built = buildGraph(joined, {});
   const selected = focus(built, { select: "contract:2.7", up: 1, mode: "show" });
-  assert.deepEqual(selected.rows?.find(row => row.depth === 0), { id: onEdge.id, kind: "contract", title: onEdge.title, story: "app", health: "failing", onEdge: { id: "edge-1", from: "projects", to: "cache" }, number: "2.7", depth: 0, edge: [] });
+  assert.deepEqual(selected.rows?.find(row => row.depth === 0), { id: onEdge.id, kind: "contract", title: onEdge.title, story: "app", health: "failing", onEdge: { id: "edge-1", from: "projects", to: "cache", fromTitle: "2 · Projects", toTitle: "3 · Cache" }, number: "2.7", depth: 0, edge: [] });
   assert.deepEqual(selected.rows?.filter(row => row.depth === 1).map(row => row.id).sort(), ["cache", "projects"]);
   assert.deepEqual(focus(built, { select: "cap:projects", down: 1, kind: ["contract"], mode: "show" }).rows?.map(row => row.id), [promise.id, onEdge.id]);
   assert.deepEqual(focus(built, { select: "cap:cache", down: 1, kind: ["contract"], mode: "show" }).rows?.map(row => row.id), [onEdge.id]);
-  assert.match(formatFocus(selected), /projects-read-storage .*on edge-1: projects depends on cache/);
+  assert.match(formatFocus(selected), /projects-read-storage .*on the link 2 · Projects depends on 3 · Cache \(edge-1\)/);
   assert.deepEqual(built.edges.filter(edge => edge.from === onEdge.id).map(edge => [edge.kind, edge.to]), [["on-edge", "projects"], ["on-edge", "cache"]], "the edge's contract is the link's, not either capability's own");
   const fromTarget = formatFocus(focus(built, { select: "cap:cache", down: 1, kind: ["contract"], mode: "show" }));
-  assert.match(fromTarget, /projects-read-storage .*on edge-1: projects depends on cache .*on-edge \(declared\): projects-read-storage -> cache/);
+  assert.match(fromTarget, /projects-read-storage .*on the link 2 · Projects depends on 3 · Cache \(edge-1\) .*on-edge \(declared\): projects-read-storage -> cache/);
   assert.doesNotMatch(fromTarget, /belongs-to/);
+});
+
+/** One story of four parts as a guided run planned it: Packet API holds most contracts, and two links hold their own. */
+function packets() {
+  const contract = (id: string, title: string) => ({ id, title, health });
+  const part = (id: string, title: string, dependsOn: string[], contracts: ReturnType<typeof contract>[]) => ({ id, title, proposed: false, status: "healthy", health, dependsOn, contracts });
+  const plan = { arcs: [], stories: [{ id: "packets", title: "Packets", health, capabilities: [
+    part("retrieval", "1 · Retrieval", [], [contract("r-1", "1.1 · Retrieval keeps to the tenant")]),
+    part("compilation", "3 · Packet compilation", [], []),
+    part("api", "4 · Packet API", ["retrieval", "compilation"], [contract("a-1", "4.1 · The API answers"), contract("a-2", "4.2 · The API refuses a stranger"), contract("a-3", "4.3 · The API pages")]),
+  ], edges: [
+    { id: "api-retrieval", from: "api", to: "retrieval", contracts: [contract("0r", "4.19 · The API passes the user to retrieval")] },
+    { id: "api-compilation", from: "api", to: "compilation", contracts: [contract("0c", "4.20 · The API passes the user to compilation")] },
+  ] }] } as unknown as AnnotatedTree;
+  return buildGraph(plan, {});
+}
+
+test("2.9 a focus on a capability counts another capability's contracts and those on a link it is not on, listing none of them, unless contract is a kind asked for", () => {
+  const built = packets();
+  const answer = focus(built, { select: "cap:retrieval", up: 2, down: 2, mode: "show" });
+  assert.deepEqual(answer.rows?.filter(row => row.kind === "contract").map(row => row.id), ["r-1", "0r"], "its own contract and its own link's are listed");
+  assert.deepEqual(answer.folded, [{ id: "api", kind: "capability", title: "4 · Packet API", contracts: 3 }, { id: "api-compilation", kind: "link", title: "4 · Packet API depends on 3 · Packet compilation", contracts: 1 }]);
+  assert.equal(answer.rowCount, answer.rows?.length);
+  assert.equal(answer.counts.byKind.contract, 2);
+  assert.match(formatFocus(answer), /Not listed: 3 contracts of 4 · Packet API \(api\); 1 contract on the link 4 · Packet API depends on 3 · Packet compilation \(api-compilation\)\. Select a capability, or give kind contract, to list them\./);
+  assert.deepEqual(focus(built, { select: "cap:retrieval", up: 2, down: 2, mode: "counts" }).folded, answer.folded, "counts say the same");
+  const asked = focus(built, { select: "cap:retrieval", up: 2, down: 2, kind: ["contract"], mode: "show" });
+  assert.deepEqual(asked.rows?.map(row => row.id).sort(), ["0c", "0r", "a-1", "a-2", "a-3", "r-1"]);
+  assert.equal(asked.folded, undefined);
+  assert.equal(focus(built, { select: "story:Packets", up: 2, down: 2, mode: "show" }).folded, undefined, "a story's contracts are all its own");
+});
+
+test("2.10 a focus row of a contract on a link names the link by both capabilities' titles, and comes after the capability's own contracts at its depth", () => {
+  const built = packets();
+  const answer = focus(built, { select: "cap:api", down: 1, kind: ["contract"], mode: "show" });
+  assert.deepEqual(answer.rows?.map(row => row.id), ["a-1", "a-2", "a-3", "0c", "0r"]);
+  assert.match(formatFocus(answer), /0r {2}4\.19 · The API passes the user to retrieval {2}\[healthy\] {2}on the link 4 · Packet API depends on 1 · Retrieval \(api-retrieval\)/);
 });
 
 test("4.1 a change to a file of either capability an edge joins reaches the edge's contract and the other capability", () => {

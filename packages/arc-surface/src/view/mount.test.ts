@@ -535,3 +535,115 @@ test("3.34 · the rail reads each CI leg's factory median once mounted and every
   surface.stop();
   assert.equal(ticks.has(600_000), false, "stopped, it reads no more");
 });
+
+test("3.39 · opening an increment from outside selects its arc, opens its queue head and its row, landed or not, and waits for a board that shows it", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const open = record("i_open", "increment", { arc: "next", title: "Build next", objective: "o", body: "b", status: "proposal" });
+  const landed = record("i_landed", "increment", { arc: "first", title: "Built first", objective: "o", body: "b", status: "closed", outcome: { date: "2026-11-01", disposition: "landed" } });
+  let read!: () => void;
+  const ready = new Promise<void>((resolve) => { read = resolve; });
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    boardArcs: async () => {
+      await ready;
+      return [
+        { arc: record("alone", "arc", { title: "Alone", intent: "Go alone", endState: "e", priority: 1 }), increments: [], questions: [], state: "active" },
+        { arc: record("first", "arc", { title: "First", intent: "Go first", endState: "e" }), increments: [landed], questions: [], state: "active" },
+        { arc: record("next", "arc", { title: "Next", intent: "Go next", endState: "e" }), increments: [open], questions: [], state: "active" },
+      ];
+    },
+    closedArcs: async () => [],
+    holds: async () => ({ waits: { next: [{ on: "first", reason: "after first", forGood: false }] }, heldOn: {} }),
+  };
+  const told: (readonly string[] | undefined)[] = [];
+  surface = mountArcSurface(document.body, { project: "p", reads, onOpened: (capabilities) => { told.push(capabilities); }, timers: { now: () => Date.parse("2026-11-03T00:00:00Z"), every: () => () => {} } });
+  surface.openIncrement("i_open");
+  read();
+  await waitUntil(() => document.querySelector('details[data-fold-key="rail:next:increment:i_open"]') !== null, 2000, "the board that shows the increment");
+  assert.equal(document.querySelector('[data-arc-queue="first"]')!.getAttribute("aria-expanded"), "true", "the queue head the increment's arc waits behind is opened");
+  assert.equal(document.querySelector('[data-arc-queue="alone"]')!.getAttribute("aria-expanded"), "false", "and no other");
+  assert.equal(document.querySelector('.arc-queue-chip[data-arc-select="next"]')!.getAttribute("aria-pressed"), "true", "its arc is selected");
+  assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:next:increment:i_open"]')!.open, true, "and its row is open");
+  assert.deepEqual(told, [[]], "the host hears the arc selected, as a click would tell it");
+  surface.openIncrement("i_landed");
+  await settle();
+  assert.equal(document.querySelector('[data-arc-select="first"].arc-lane')!.getAttribute("aria-pressed"), "true", "a landed increment's arc is selected");
+  assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:first:landed"]')!.open, true, "its landed fold opens");
+  assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:first:increment:i_landed"]')!.open, true, "and so does its row");
+});
+
+test("3.39 · an increment opened from outside names its arc in its row, and is scrolled into view with its arc's row at the top of the lanes when both fit, nearest when they do not", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  // The lanes show 300 px from 100 px down the page; the queued arc's chip sits 400 px into them, its increment's row below it.
+  let rowAt = { top: 600, bottom: 640 };
+  const scrolled: unknown[] = [];
+  const prototype = page.HTMLElement.prototype as unknown as HTMLElement;
+  const lanesOf = (element: Element) => element.closest<HTMLElement>(".arc-lanes");
+  Object.defineProperty(prototype, "clientHeight", { configurable: true, get(this: HTMLElement) { return this.classList.contains("arc-lanes") ? 300 : 0; } });
+  Object.defineProperty(prototype, "getBoundingClientRect", { configurable: true, value(this: HTMLElement) {
+    const scroll = lanesOf(this)?.scrollTop ?? 0;
+    const at = this.classList.contains("arc-lanes") ? { top: 100, bottom: 400 }
+      : this.matches('.arc-queue-chip[data-arc-select="next"]') ? { top: 400, bottom: 420 }
+      : this.matches('details[data-fold-key="rail:next:increment:i_open"]') ? rowAt : { top: 0, bottom: 0 };
+    const shift = this.classList.contains("arc-lanes") ? 0 : 100 - scroll;
+    return { top: at.top + shift, bottom: at.bottom + shift, height: at.bottom - at.top, left: 0, right: 0, width: 0, x: 0, y: at.top + shift };
+  } });
+  Object.defineProperty(prototype, "scrollIntoView", { configurable: true, value(this: HTMLElement, options: unknown) { scrolled.push([this.dataset.foldKey, options]); } });
+  const open = record("i_open", "increment", { arc: "next", title: "Build next", objective: "o", body: "b", status: "proposal" });
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    boardArcs: async () => [
+      { arc: record("first", "arc", { title: "First", intent: "Go first", endState: "e" }), increments: [], questions: [], state: "active" },
+      { arc: record("next", "arc", { title: "Next", intent: "Go next", endState: "e" }), increments: [open], questions: [], state: "active" },
+    ],
+    closedArcs: async () => [],
+    holds: async () => ({ waits: { next: [{ on: "first", reason: "after first", forGood: false }] }, heldOn: {} }),
+  };
+  surface = mountArcSurface(document.body, { project: "p", reads, timers: { now: () => Date.parse("2026-11-03T00:00:00Z"), every: () => () => {} } });
+  await waitUntil(() => document.querySelector(".arc-lanes") !== null, 2000, "the board");
+  surface.openIncrement("i_open");
+  await settle();
+  assert.equal(document.querySelector<HTMLElement>(".arc-lanes")!.scrollTop, 400, "the arc's chip, holding its title, is scrolled to the top of the lanes, its opened row in view below it");
+  assert.deepEqual(scrolled, [], "so the row needs no scroll of its own");
+  const named = () => [...document.querySelectorAll('details[data-fold-key="rail:next:increment:i_open"] .arc-increment-detail dt')].find((dt) => dt.textContent === "Arc")?.nextElementSibling?.textContent;
+  assert.equal(named(), "Next", "the opened row names its arc, readable however far above its arc's row sits");
+  document.querySelector<HTMLElement>(".arc-lanes")!.scrollTop = 0;
+  rowAt = { top: 900, bottom: 940 };
+  surface.openIncrement("i_open");
+  await settle();
+  assert.equal(document.querySelector<HTMLElement>(".arc-lanes")!.scrollTop, 0, "an arc too far above its row to show both is not scrolled to");
+  assert.deepEqual(scrolled, [["rail:next:increment:i_open", { block: "nearest" }]], "the row is scrolled into view instead");
+  document.querySelector<HTMLElement>('.arc-lane[data-arc-select="first"]')!.click();
+  document.querySelector<HTMLElement>('.arc-queue-chip[data-arc-select="next"]')!.click();
+  await settle();
+  assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:next:increment:i_open"]')!.open, true, "picked again by hand, its arc shows the row still open");
+  assert.equal(named(), undefined, "but under an arc picked by hand, which is in view, no row names it");
+});

@@ -11,7 +11,8 @@
  * reminder for when its work does merge (friction_996acd8c8260). The close-out and the reminder
  * are each remembered per session beside the prompt hook's ledgers. The reading, not this, checks
  * the answer (Session management 4.12). It runs no git in a checkout this machine does not know as
- * approved (contract 3.46).
+ * approved (contract 3.46). A pool lane is never asked: the variable its runner sets on every engine it starts
+ * (STORYTREE_LANE_RUN) marks it, and that runner records its close-out when the engine exits for good (ADR-1314 D3).
  */
 import { currentBranch } from "../activity/branch.js";
 import { runGit, type Git } from "../activity/git.js";
@@ -23,14 +24,17 @@ export const CLOSE_OUT_REMINDER = "--close-out-reminder";
 
 const MAIN_BRANCHES = new Set(["main", "master"]);
 
+/** The variable a pool lane's runner sets on every engine it starts (micks-agent-runner's, and agent-pool's, LANE_RUN). */
+export const LANE_RUN = "STORYTREE_LANE_RUN";
+
 /** Remember that `session` closed out on this machine, so the reminder no longer asks it. */
 export function rememberClosedOut(session: string): void {
   notYetGivenIds(session, ["closed-out"], "close-outs");
 }
 
 /** The Stop hook's output (Pi's agent_before_settle answer) asking the agent to close out, or undefined when it is not to be asked. */
-export function closeOutReminder(harness: string, input: unknown, git: Git = runGit): string | undefined {
-  if ((harness !== "claude-code" && harness !== "codex" && harness !== "pi") || typeof input !== "object" || input === null) return undefined;
+export function closeOutReminder(harness: string, input: unknown, git: Git = runGit, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (env[LANE_RUN] || (harness !== "claude-code" && harness !== "codex" && harness !== "pi") || typeof input !== "object" || input === null) return undefined;
   const { hook_event_name: event, session_id: session, cwd: folder, stop_hook_active: again, outcome, continue: continuing } = input as Record<string, unknown>;
   // A turn the reminder itself caused is never asked again. Pi's run is asked only when it completed (an Escape
   // aborts it) and nothing else is continuing it: it settles again after that.

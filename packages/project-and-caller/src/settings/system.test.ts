@@ -14,13 +14,13 @@ test("2.18 `settings set system <name> off|on` keeps settings.json's system-off 
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
     assert.deepEqual(readSystemSwitches(home), { off: [], on: [] });
-    writeFileSync(file, JSON.stringify({ "parts-off": ["forest"] }));
+    writeFileSync(file, JSON.stringify({ "modules-off": ["forest"] }));
 
     assert.deepEqual(switchSystem("all", "off", home), { off: ["all"], on: [] });
     assert.deepEqual(switchSystem("notes", "on", home), { off: ["all"], on: ["notes"] });
     assert.deepEqual(switchSystem("Test first", "off", home), { off: ["Test first", "all"], on: ["notes"] });
     assert.deepEqual(switchSystem("notes", "off", home), { off: ["Test first", "all", "notes"], on: [] }, "off takes a name out of the on list");
-    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { "parts-off": ["forest"], "system-off": ["Test first", "all", "notes"], "system-on": [] });
+    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { "modules-off": ["forest"], "system-off": ["Test first", "all", "notes"], "system-on": [] });
     assert.deepEqual(readSystemSwitches(home), { off: ["Test first", "all", "notes"], on: [] });
 
     assert.deepEqual(switchSystem("all", "on", home), { off: ["Test first", "notes"], on: [] }, "all on clears all, adding nothing");

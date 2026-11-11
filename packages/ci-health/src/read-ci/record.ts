@@ -29,6 +29,8 @@ export type RecordedVerdict = {
   crashed?: true;
   /** Its skipped tests were never reached by the run of the platform they need (its scope left their package out). */
   unrun?: true;
+  /** The names of the tests that judged a passing or failing verdict, written with it. */
+  tests?: readonly string[];
 };
 
 /** The CI systems whose evidence credits a `platform:<os>` skip, by Node's platform name. */
@@ -46,7 +48,8 @@ function seenAt(writer: Writer): string {
 }
 
 /**
- * Write each verdict to its contract's VERIFIED column, by `writer`, with its tally and where it was seen as the note.
+ * Write each verdict to its contract's VERIFIED column, by `writer`, with its tally and where it was seen as the note,
+ * and a passing or failing one with the names of the tests that judged it, when it carries them.
  * A not-checked verdict is written only when its tests were skipped or crashed; one whose column already says the same
  * is not written again, so its note keeps the commit it was first not re-run at. A run that saw no CI evidence for a
  * platform (one missing from `platformsSeen`) cannot re-run a test that only runs there, so a passing verdict from
@@ -80,7 +83,7 @@ export async function recordHealth(
       const at = seenAt(writer);
       const note = at === "" ? verdict.note : `${verdict.note ?? ""},${at}`;
       try {
-        await library.recordVerified(id!, verdict.state, { by: writer.by, source: writer.source, ...(note === undefined || note === "" ? {} : { note }) });
+        await library.recordVerified(id!, verdict.state, { by: writer.by, source: writer.source, ...(note === undefined || note === "" ? {} : { note }), ...(verdict.tests === undefined ? {} : { tests: verdict.tests }) });
       } catch (error) {
         if (!(isPrivilegeRefusal(error) && (await kept(library, id!, verdict.state, writer.by, note)))) throw error;
         untold.push(`${number} (${id})`);

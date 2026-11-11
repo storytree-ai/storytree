@@ -276,3 +276,50 @@ test("4.47 the gear's update dot names the build waiting, on its hover and as th
   assert.equal(gear.title, "App menu", "nothing waits once the update is installing");
   assert.equal(row.hidden, true);
 });
+
+test("2.58 the app menu opens on Help when asked from outside the gear, as the empty map's First-run guide button asks", async (t) => {
+  const window = new Window();
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-menu-"));
+  const globals = { document: window.document, CSSStyleSheet: window.CSSStyleSheet, HTMLElement: window.HTMLElement };
+  const previous = Object.fromEntries(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  Object.assign(globalThis, globals);
+  const host = window.document.createElement("header");
+  const background = window.document.createElement("main");
+  window.document.body.append(host, background);
+  const bridge = fakeBridge({});
+  Object.assign(window, { storytree: {
+    ...settingsActions(home),
+    standingDelegations: (...args: unknown[]) => bridge.call("standingDelegations", args),
+    readSurfaces: (...args: unknown[]) => bridge.call("readSurfaces", args),
+    saveSurface: (...args: unknown[]) => bridge.call("saveSurface", args),
+  } });
+  const help: string[] = [];
+  const menu = mountAppMenu(host as unknown as HTMLElement, {
+    background: background as unknown as HTMLElement,
+    async chooseProject() { throw new Error("not switching projects in this test"); },
+    onChosen() {}, onError(error) { throw error; }, onSurfacesChanged() {},
+    mountHelp() { return { open() { help.push("open"); }, close() { help.push("close"); }, stop() {} }; },
+    async checkForUpdates() { return { phase: "idle", runningBuild: "0.3.test" }; },
+  });
+  t.after(async () => {
+    menu.stop();
+    for (const key of Object.keys(globals)) {
+      const descriptor = previous[key];
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await window.happyDOM.close();
+    await removeTemp(home);
+  });
+  // Native popovers are the real browser capture's; here the menu's own opening is counted.
+  const popover = host.querySelector("#app-menu")!;
+  let open = false, shown = 0;
+  Object.assign(popover, { showPopover: () => { open = true; shown++; }, matches: (selector: string) => selector === ":popover-open" && open });
+  menu.openHelp();
+  assert.equal(shown, 1, "the menu opens");
+  assert.deepEqual([...host.querySelectorAll(".app-menu-content > section")].filter((node) => !node.hasAttribute("hidden")).map((node) => node.id), ["app-help"]);
+  assert.equal(host.querySelector('[data-app-section="help"]')!.getAttribute("aria-pressed"), "true");
+  assert.deepEqual(help, ["open"], "on Help, which draws its guide");
+  menu.openHelp();
+  assert.equal(shown, 1, "an open menu is not opened again");
+});

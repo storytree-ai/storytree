@@ -9,6 +9,7 @@ import { ARC_GUESSES, ARC_INNER, ARC_VERBS } from "./arcs.js";
 import type { ArcVerbContext } from "./context.js";
 import { QUESTION_GUESSES, QUESTION_VERBS } from "./questions.js";
 
+export { ARC_SIZE_LIMIT, oversizedSaid } from "./arc-size.js";
 export type { ArcVerbContext } from "./context.js";
 
 export const ARC_FAMILIES: readonly VerbFamily<ArcVerbContext>[] = [

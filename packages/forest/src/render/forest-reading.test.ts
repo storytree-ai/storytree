@@ -338,7 +338,7 @@ test("7.27 a health change re-recording the state the tree already shows draws f
   assert.equal(asked, 3, "another change to the tree's records still reads it");
 });
 
-test("7.24 the sessions list and the forest re-read the plan only when their news holds a change to a story, capability, contract, arc or health record, or to an increment that names a capability or that the tree's open work lists; other news draws from the tree they have, and their first news always reads", async () => {
+test("7.24 the sessions list and the forest re-read the plan only when their news holds a change to a story, capability, contract, arc or health record, or to an increment that names a capability, links a record or that the tree's open work lists; other news draws from the tree they have, and their first news always reads", async () => {
   let asked = 0;
   const counted = { projectTree: async () => { asked++; return tree; } };
   // A health change as the page passes one on: a contract's reported state moving.
@@ -360,8 +360,10 @@ test("7.24 the sessions list and the forest re-read the plan only when their new
   assert.equal(asked, 7, "an increment naming a capability reads the tree");
   assert.equal(await treeAfter(counted, "shop", increment("increment_1", { title: "Task 1: packets hold only what the user may see" }), listing), tree);
   assert.equal(asked, 8, "an increment the open work lists reads the tree, whatever it names now");
+  assert.equal(await treeAfter(counted, "shop", increment("increment_4", { title: "Task 4", links: ["contract_1"] }), listing), tree);
+  assert.equal(asked, 9, "an increment linking a record reads the tree: a contract it links lists it under that contract's capability");
   assert.equal(await treeAfter(counted, "shop", increment("increment_3", { title: "Unplanned" }), listing), listing);
-  assert.equal(asked, 8, "an increment naming no capability, which no open work lists, leaves the tree as it was");
+  assert.equal(asked, 9, "an increment naming no capability, which no open work lists, leaves the tree as it was");
 
   // The forest hears its news so: a decision's change draws the tree it has, a health change reads it.
   const asks = [[], ["decision"], ["health"]];

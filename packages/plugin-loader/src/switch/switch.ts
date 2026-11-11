@@ -102,7 +102,7 @@ export function mount<Part>(composition: Composition<Part>, off: readonly string
 export function offSaid({ part, because, failed }: SwitchedOff): string {
   const why = because === part ? "" : ` because ${because}, which it stands on, is off`;
   const standIn = failed === undefined ? "" : `, and ${failed}`;
-  return `${part} is switched off on this computer${why}${standIn}. Switch it on with: storytree settings set part ${because} on`;
+  return `${part} is switched off on this computer${why}${standIn}. Switch it on with: storytree settings set module ${because} on`;
 }
 
 /** A declared verb, as far as what it provides: its command, with a name unless it is absent, and its tool, likewise. */

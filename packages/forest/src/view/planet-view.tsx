@@ -11,7 +11,7 @@ import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { IslandOpenWork, openWorkMarks, ringedCapabilities, rungLinks, sizeOpenWork } from "./open-work.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { islandRoadMarks, landFill, ringGate, type GatePick } from "./island-roads.js";
-import { capabilityPlates } from "./nameplates.js";
+import { capabilityPlates, drawnNames, nameplateAt } from "./nameplates.js";
 import { islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, roadsVersion, subscribeRoads, type IslandRoads, type RoadsAsk } from "../territories/island-roads.js";
 import { islandRelief, type IslandRelief } from "../territories/island-relief.js";
 import { islandReliefMarks } from "./island-relief.js";
@@ -20,7 +20,7 @@ import { islandLayoutSteps, type Link } from "../territories/link-layout.js";
 import { useLayingOut } from "./layout-progress.js";
 import { awaitingLayout, keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
-import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, feedbackPick, answerFeedbackPicks, type ForestMode, type PickedGate } from "./planet-navigation.js";
+import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, ignoresClick, feedbackPick, answerFeedbackPicks, type ForestMode, type PickedGate } from "./planet-navigation.js";
 import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
@@ -171,7 +171,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
     globe={globe} offset={turned.current.centre} inside={inside}
     rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth} onLanesNotice={onLanesNotice}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={titles}
-      rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onGate={setGate} onNote={onNote} mode={mode} sheet={layout.extent}
+      rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onGate={setGate} onNote={onNote} mode={mode} sheet={layout.extent} arcSelected={circledList !== undefined}
       sideOffset={sideOffset ?? 0} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
@@ -517,7 +517,9 @@ export const NAVIGATION_SEAM = "__storytreeCaptureNavigation";
 /** What Navigation hands a capture build's `NAVIGATION_SEAM`. */
 export type CapturedNavigation = { rotation: Quaternion; onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void };
 
-function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onGate, onNote, mode, showFailures, sideOffset, aside, sheet }: {
+function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onGate, onNote, mode, showFailures, sideOffset, aside, sheet, arcSelected = false }: {
+  /** An arc is selected: a click on land that is no part or gate is let go (3.105). */
+  arcSelected?: boolean;
   /** Hears a click on a gate (3.88), and undefined for a click on anything else. */
   onGate: (gate: PickedGate | undefined) => void;
   onPose: (pose: GlobePose) => void;
@@ -548,8 +550,11 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const opening = { framing: sheetOpening(sheet, size).framing, sideOffset };
   const [hover, setHover] = useState<{ title: string; detail?: string; x: number; y: number }>();
   const opened = useRef(false);
-  // Until the user or a guide moves the sheet, it keeps to its opening as the sheet changes size.
+  // Until the user or a guide moves the sheet, it keeps to its opening as the sheet changes size; while moved, the Whole map
+  // button shows (3.106).
   const touched = useRef(false);
+  const [away, setAway] = useState(false);
+  const touch = (moved: boolean): void => { touched.current = moved; setAway(moved); };
   const lastMarkers = useRef("");
   const [markers, setMarkers] = useState<ScreenMarker[]>([]);
   // The big sphere turns by a hair to slide the sheet under the eye; the eye never rolls.
@@ -560,6 +565,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   // The mode read by the pointer's handlers, so a press of Stories or Library never re-makes them mid-drag.
   const modeNow = useRef(mode);
   modeNow.current = mode;
+  const arcNow = useRef(arcSelected);
+  arcNow.current = arcSelected;
   // How far the glass sheet is spun about its upright axis from its starting heading (ADR-1060 D2), and the compass's reading of it.
   const heading = useRef(0);
   // Read to a tenth of a degree; the compass alone renders as it turns, never the view around it (3.71).
@@ -599,7 +606,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const spinTo = useCallback((to: number, seconds: number) => {
     cancelAnimationFrame(spinning.current.frame);
     spinning.current.to = to;
-    touched.current = true;
+    touch(true);
     if (reducedMotion() || seconds === 0) { heading.current = to; turnTo(turn.current); invalidate(); return; }
     const from = heading.current, start = performance.now();
     const step = (): void => {
@@ -618,12 +625,12 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     const next = sheetSpinTilt(heading.current, tilt.current, drag);
     spinning.current.to = heading.current = next.heading;
     tilting.current.to = tilt.current = next.tilt;
-    touched.current = true;
+    touch(true);
   }, []);
   const spinBy = useCallback((clockwise: number) => {
     cancelAnimationFrame(spinning.current.frame);
     spinning.current.to = heading.current = sheetSpin(heading.current, clockwise, seesUnderside(tilt.current));
-    touched.current = true;
+    touch(true);
   }, []);
   useEffect(() => () => cancelAnimationFrame(spinning.current.frame), []);
   // The handle remains stable while its host reads the latest scene, camera and callbacks.
@@ -649,7 +656,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const guideFrameAt = useRef(0);
   const placedAside = useRef(aside);
   if (controls.current === undefined) controls.current = {
-    stop: stop => { const started = guide.current!.stop(stop); if (started) { opened.current = touched.current = true; guideFrameAt.current = performance.now(); } return started; },
+    stop: stop => { const started = guide.current!.stop(stop); if (started) { opened.current = true; touch(true); guideFrameAt.current = performance.now(); } return started; },
     position: target => guide.current!.position(target),
     cancel: () => guide.current!.cancel(),
     moving: () => guide.current!.moving(),
@@ -710,7 +717,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     const back = sheetHome(spinning.current.to);
     spinTo(back.heading, 0.6);
     tiltTo(back.tilt, 0.6);
-    touched.current = false;
+    touch(false);
     if (!guide.current!.home({ turn, ...besideAside.current!.home(size) })) return;
     guideFrameAt.current = performance.now();
   };
@@ -734,9 +741,9 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       event.preventDefault();
       if (key.kind === "home") goHome.current!();
       else if (key.kind === "spin") { if (!event.repeat) host.current.spinTo(sheetSpin(spinning.current.to, key.by * Math.PI / 2, seesUnderside(tilt.current)), 0.35); }
-      else if (key.kind === "tilt") { touched.current = true; host.current.tiltTo(sheetTiltBy(tilting.current.to, key.by * TILT_STEP), 0.25); }
+      else if (key.kind === "tilt") { touch(true); host.current.tiltTo(sheetTiltBy(tilting.current.to, key.by * TILT_STEP), 0.25); }
       else {
-        touched.current = true;
+        touch(true);
         keys.held.add(key.key);
         if (keys.frame === 0) { keys.at = performance.now(); keys.frame = requestAnimationFrame(panning); }
       }
@@ -835,7 +842,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       if (down !== undefined) {
         if (event.pointerId !== down.id) return;
         down.dragged ||= isGlobeDrag(down, { x: event.clientX, y: event.clientY });
-        touched.current = true;
+        touch(true);
         guide.current!.cancel();
         const drag = { x: event.clientX - down.last.x, y: event.clientY - down.last.y };
         // A drag pans, keeping the place grabbed under the pointer, or spins the sheet about its upright axis with its
@@ -855,9 +862,14 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       down = undefined;
       if (twisted || from === undefined || from.id !== event.pointerId || from.dragged || from.spin || isGlobeDrag(from, { x: event.clientX, y: event.clientY })) return;
       clearHover();
+      // 3.104: a click on a name picks what it names, a part's name before its story's; the names take no pointer, so a drag
+      // that starts on one pans.
+      const named = picking() === "forest" && element.parentElement !== null ? nameplateAt(drawnNames(element.parentElement), { x: event.clientX, y: event.clientY }) : undefined;
+      if (named !== undefined) { onGate(undefined); onPick(named.story, named.capability); return; }
       // 3.88: a gate is ringed and selects its island with the pair it joins; any other click puts the ring out. A road
       // takes no click, so a click on one picks what lies under it (3.15).
       const clicked = pickClick(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, picking());
+      if (ignoresClick(clicked, arcNow.current)) return;
       onGate(clicked.gate);
       const hit = clicked.hit;
       if (hit?.kind === "note") onNote(hit.id);
@@ -865,7 +877,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     };
     const onWheel = (event: WheelEvent): void => {
       guide.current!.cancel(); clearHover();
-      touched.current = true;
+      touch(true);
       // A sideways scroll pans east and west; the wheel's zoom is the canvas's own.
       if (event.deltaX !== 0) dragTo(turn.current = panBy({ x: -event.deltaX, y: 0 }, middleOfView()));
     };
@@ -919,6 +931,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
         // The guide's stop pans the island into view at the zoom the user chose.
         if (!controls.current!.stop({ target: { kind: "story", story: marker.story } })) turnTo(marker.turn);
       }}>!</button>)}
+    {away && <button type="button" className="whole-map" style={aside > 0 ? { marginRight: aside } : undefined}
+      title="Back to the whole map, as it opened (Home)" onClick={() => goHome.current!()}>Whole map</button>}
     <SheetCompass compass={compass.current} aside={aside} onHome={() => goHome.current!()} />
   </Overlay>;
 }

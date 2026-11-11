@@ -7,6 +7,7 @@ import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_P
 import { z } from "zod";
 
 import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
+import { oversizedSaid } from "@storytree/arc-surface/verbs";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
 import { elsewhereSaid, type MapNode } from "@storytree/map";
 import { readMap } from "@storytree/map/read";
@@ -118,7 +119,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    `Plan a contract: one testable guarantee a capability makes. ${CONTRACT_PLACEMENT} Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again, and a test numbered for one that sits in another story's package, which credits that package's story, not this one. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On a mapped story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.`,
+    `Plan a contract: one testable guarantee a capability makes. ${CONTRACT_PLACEMENT} Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also counts the capability's other contracts no numbered test carries yet, planned but not built, which the focus tool lists: build one of those rather than plan it again. It names a test numbered for one that sits in another story's package, which credits that package's story, not this one. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On a mapped story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.`,
     z.object({
       capability: id("capability it belongs to").optional(),
       edge: id("edge it belongs to instead, a link inside one story: a loose contract, even one line, on how one capability depends on the other, numbered from the dependent capability").optional(),
@@ -159,7 +160,9 @@ export function registerPlanTools(define: Define): void {
       const orphans = await orphanTests(call, owner, contract.fields.title, tested);
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is the one ${orphans.length === 1 ? "it proves" : "one proves"}, give it that number with edit_plan.`;
       const untested = untestedContracts(tree, owner, tested);
-      const open = untested.length === 0 ? "" : ` No numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, planned but not built: ${untested.map(quoted).join(", ")}. If this contract repeats one of them, retire it and build that one.`;
+      // Counted, not named, so the reply stays short however many there are (9.13, F2.10).
+      const one = untested.length === 1;
+      const open = untested.length === 0 ? "" : ` ${untested.length} other ${one ? "contract" : "contracts"} of this capability ${one ? "has" : "have"} no test yet. If this one repeats ${one ? "it" : "any of them"}, retire it and build that one (list ${one ? "it" : "them"} with \`focus\`, select "cap:${owner}", down 1, kind contract).`;
       const elsewhere = await testsElsewhere(call, owner, untested);
       const strays = Object.entries(elsewhere).map(([title, tests]) => ` ${quoted(title)}: ${tests.map(elsewhereSaid).join("; ")}.`).join("");
       const long = contract.fields.title.length > LONG_CONTRACT;
@@ -451,6 +454,8 @@ async function showPlan({ library, log, project, quietMs }: PlanReading, closed:
     const priority = priorityOf.get(arc.id);
     const day = closedOn.get(arc.id);
     out.push(`Arc ${quoted(arc.title)} (${arc.id})${priority === undefined ? "" : `, priority ${priority},`}${day === undefined ? "" : `, closed ${day},`} grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
+    const oversized = oversizedSaid(incrementsOf.get(arc.id)?.length ?? 0);
+    if (oversized !== undefined) out.push(`  ${oversized}`);
     for (const increment of incrementsOf.get(arc.id) ?? []) {
       out.push(`  Increment ${quoted(increment.fields.title)} (${increment.id}): ${increment.fields.status}; ${heldBy(increment.id)}`);
     }

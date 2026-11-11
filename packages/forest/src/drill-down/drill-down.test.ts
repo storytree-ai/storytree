@@ -73,27 +73,36 @@ test("4.4 a contract reported red, then green, says so; one reported only green 
   ]);
 });
 
-test("4.5 storytree's own column shows beside the agent's only where something wrote it", () => {
-  const tree: AnnotatedTree = { stories: [story("s", capability("c", [], [contract("seen", "passing", "passing"), contract("unseen", "passing")]))], arcs: [] };
+test("4.5 each contract's gear takes CI's newest reading wherever CI read it, so a later local pass never turns a failing CI green; with no CI reading it takes the local run's; with neither it reads not run", () => {
+  const ciAt = "2026-11-11T09:00:00.000Z";
+  const localAt = "2026-11-12T09:00:00.000Z";
+  const both: AnnotatedContract = { id: "both", title: "both works", health: { reported: { state: "not-checked" }, verified: { state: "passing", at: localAt, source: "local" }, ci: { state: "failing", at: ciAt, source: "ci" } } };
+  const onCi: AnnotatedContract = { id: "on-ci", title: "on CI works", health: { reported: { state: "not-checked" }, verified: { state: "passing", at: ciAt, source: "ci" }, ci: { state: "passing", at: ciAt, source: "ci" } } };
+  const local: AnnotatedContract = { id: "local", title: "local works", health: { reported: { state: "not-checked" }, verified: { state: "failing", at: localAt, source: "local" } } };
+  const tree: AnnotatedTree = { stories: [story("s", capability("c", [], [both, onCi, local, contract("unseen", "passing")]))], arcs: [] };
   const [line] = drillDown(tree, "s", workStates([]), [])?.capabilities ?? [];
-  assert.deepEqual(line?.contracts.map(({ id, verified }) => [id, verified]), [
-    ["seen", "passing"],
-    ["unseen", undefined],
+  assert.deepEqual(line?.contracts.map(({ id, gear, local: alsoLocal }) => [id, gear, alsoLocal]), [
+    ["both", { state: "failing", source: "ci", at: ciAt }, { state: "passing", source: "local", at: localAt }],
+    ["on-ci", { state: "passing", source: "ci", at: ciAt }, undefined],
+    ["local", { state: "failing", source: "local", at: localAt }, undefined],
+    ["unseen", { state: "not-checked" }, undefined],
   ]);
-  assert.equal(line?.verified, "not-checked", "the capability shows storytree's column too, rolled up, since one of its contracts has an entry");
+  assert.equal(line?.verified, "failing", "the capability shows storytree's column too, rolled up, since one of its contracts has an entry");
   const bare = drillDown({ stories: [story("t", capability("d", [], [contract("x", "failing")]))], arcs: [] }, "t", workStates([]), []);
   assert.equal(bare?.capabilities[0]?.verified, undefined);
 });
 
-test("4.45 a contract marked for agentic user acceptance testing carries its state, not run until a run writes one; an unmarked contract carries none", () => {
+test("4.45 a contract marked for agentic user acceptance testing carries its robot, not run until a run writes a verdict, and a gear only where storytree's run reached it; an unmarked contract carries a gear and no robot", () => {
   const marked: AnnotatedContract = { ...contract("marked", "passing"), proof: { by: "agentic-user-acceptance-testing", reason: "a user sees it on screen" } };
+  const reached: AnnotatedContract = { ...contract("reached", "passing", "passing"), proof: { by: "agentic-user-acceptance-testing", reason: "a user sees it on screen" } };
   const tested: AnnotatedContract = { ...contract("tested", "passing"), proof: { by: "test-criterion", reason: "a test reads it" } };
-  const tree: AnnotatedTree = { stories: [story("s", capability("c", [], [marked, tested, contract("bare", "passing")]))], arcs: [] };
+  const tree: AnnotatedTree = { stories: [story("s", capability("c", [], [marked, reached, tested, contract("bare", "passing")]))], arcs: [] };
   const lines = drillDown(tree, "s", workStates([]), [])?.capabilities[0]?.contracts ?? [];
-  assert.deepEqual(lines.map(({ id, acceptance }) => [id, acceptance]), [
-    ["marked", "not-run"],
-    ["tested", undefined],
-    ["bare", undefined],
+  assert.deepEqual(lines.map(({ id, acceptance, gear }) => [id, acceptance, gear?.state]), [
+    ["marked", "not-run", undefined],
+    ["reached", "not-run", "passing"],
+    ["tested", undefined, "not-checked"],
+    ["bare", undefined, "not-checked"],
   ]);
 });
 
@@ -143,8 +152,8 @@ test("4.40 a story's edges carry their own contracts as a capability's contract 
   const tree: AnnotatedTree = { stories: [{ ...story("s", capability("login", ["accounts"], [contract("k1", "passing")]), capability("accounts", [])), edges: [edge] }], arcs: [] };
   const panel = drillDown(tree, "s", workStates([]), reports("e-k", "failing", "passing"));
   assert.deepEqual(panel?.edges, [{ from: "login", fromTitle: "The login", to: "accounts", toTitle: "The accounts", contracts: [
-    { id: "e-k", title: "login asks accounts by id", reported: "passing", trail: "red, then green", verified: "failing" },
-    { id: "e-l", title: "login never writes accounts", reported: "passing", trail: "not reported yet", lastSeen: was },
+    { id: "e-k", title: "login asks accounts by id", reported: "passing", trail: "red, then green", verified: "failing", ran: { at: new Date(0).toISOString() }, gear: { state: "failing", at: new Date(0).toISOString() } },
+    { id: "e-l", title: "login never writes accounts", reported: "passing", trail: "not reported yet", lastSeen: was, gear: { state: "not-checked" } },
   ] }], "the same readings, trail and last-seen a capability's contract carries; the agent's report is not storytree's verdict");
   assert.deepEqual(panel?.capabilities.find(({ id }) => id === "login")?.contracts.map(({ id }) => id), ["k1"], "its own contracts stay its own");
   assert.equal("edges" in (drillDown({ stories: [story("t", capability("alone", []))], arcs: [] }, "t", workStates([]), []) ?? {}), false, "a story with no edges carries none");
@@ -229,4 +238,34 @@ test("4.46 a story's edge carries its description to the panel, and one with non
   const edges = drillDown(tree, "s", workStates([]), [])?.edges;
   assert.equal(edges?.[0]?.description, "Login passes accounts the resolved user, never the request's tenant.");
   assert.equal("description" in (edges?.[1] ?? {}), false, "no description, no field");
+});
+
+test("4.47 a contract a run judged carries when that run was and the tests it named; one judged before names were kept carries only when; one no run judged carries neither", () => {
+  const at = "2026-11-12T09:00:00.000Z";
+  const tests = ["8.1 · the fold names its tests"];
+  const tree: AnnotatedTree = {
+    stories: [story("s", capability("cap", [], [numbered("c1", "8.1 · Named", { state: "failing", at, tests }), numbered("c2", "8.2 · Unnamed", { state: "passing", at }), numbered("c3", "8.3 · Never", { state: "not-checked" }), numbered("c4", "8.4 · Skipped", { state: "not-checked", skip: "other", at })], null, "untested"))],
+    arcs: [],
+  };
+  const [named, unnamed, never, skipped] = drillDown(tree, "s", workStates([]), [])?.capabilities[0]?.contracts ?? [];
+  assert.deepEqual(named?.ran, { at, tests });
+  assert.deepEqual(unnamed?.ran, { at });
+  assert.equal(never?.ran, undefined);
+  assert.equal(skipped?.ran, undefined, "a skip is no run of its tests");
+});
+
+test("4.49 each open increment a capability carries keeps what still holds it, for the lead to name", () => {
+  const open = [{ increment: "inc-1", title: "Task 1", waits: [{ kind: "work" as const, on: "inc-0", title: "Harness", state: "ready" as const }, { kind: "owner" as const, note: "sign in" }] }, { increment: "inc-2", title: "Free" }];
+  const tree: AnnotatedTree = { stories: [story("s", { ...capability("busy", []), openWork: open })], arcs: [] };
+  assert.deepEqual(drillDown(tree, "s", workStates([]), [])?.capabilities[0]?.openWork, open);
+});
+
+test("4.53 a capability's contracts, and a link's, come in the order their numbers say, 6.2 before 6.10, with any unnumbered after them in the library's order", () => {
+  const titled = (id: string, title: string): AnnotatedContract => ({ ...contract(id, "passing"), title });
+  const listed = [titled("a", "6.3 · c"), titled("loose", "no number"), titled("b", "6.10 · j"), titled("c", "6.1 · a"), titled("d", "6.2 · b")];
+  const edge = { id: "edge-1", from: "c", to: "d", contracts: [titled("e2", "7.2 · y"), titled("e1", "7.1 · x")] };
+  const tree: AnnotatedTree = { stories: [{ ...story("s", capability("c", ["d"], listed), capability("d", [])), edges: [edge] }], arcs: [] };
+  const panel = drillDown(tree, "s", workStates([]), []);
+  assert.deepEqual(panel?.capabilities.find(({ id }) => id === "c")?.contracts.map(({ id }) => id), ["c", "d", "a", "b", "loose"]);
+  assert.deepEqual(panel?.edges?.[0]?.contracts.map(({ id }) => id), ["e1", "e2"]);
 });

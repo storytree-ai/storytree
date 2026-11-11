@@ -23,7 +23,7 @@ export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; r
   surfaces: { hosts: "the desktop app", shape: "{ id, name, description, switchable, within?, follows?, settings: [] }: a surface of the window" },
   pageAnswers: { hosts: "the desktop app", shape: "an answer the window's page asks the app for, by channel" },
   pageChannels: { hosts: "the desktop app", shape: "a channel the window's page may ask the app on" },
-  guidance: { hosts: "the MCP server's habits card", shape: "a paragraph of the card (a string), placed where the part's own sections were, or before the card's closing line for a plugin that adds a part" },
+  guidance: { hosts: "the MCP server's habits card", shape: "a paragraph of the card (a string), placed where the module's own sections were, or before the card's closing line for a plugin that adds a module" },
   gateSteps: { hosts: "the base dev loop's gate", shape: "{ name, when?, command }: when({ root, ...flags }) => { run, reason? } says whether it runs (absent, it always does), command({ root }) => { command, args, shell? } the process it runs from the project's root" },
   armChecks: {
     hosts: "the command line and the MCP server",
@@ -35,7 +35,7 @@ export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; r
 
 /** The verbs module a new plugin starts with: one family, with one verb that needs no project and answers with text. */
 function verbsModule(name: string): string {
-  return `// The verbs this plugin adds: plain command families, as storytree's own parts declare them. Nothing of storytree's
+  return `// The verbs this plugin adds: plain command families, as storytree's own modules declare them. Nothing of storytree's
 // is imported; a host hands each verb's act its input and its place. The whole contract: storytree plugin contract
 export const PLUGIN_FAMILIES = [
   {
@@ -206,7 +206,7 @@ export function checkPlugin(folder: string | undefined, plugin: string): PluginC
     const message = (error as Error).message;
     if (!problems.includes(message)) problems.push(message);
   }
-  if (problems.length === 0 && Object.keys(adds).length === 0) problems.push(`${plugin}'s storytree manifest names none of the kinds a part can be stood in with (${Object.keys(STAND_IN_KINDS).join(", ")})`);
+  if (problems.length === 0 && Object.keys(adds).length === 0) problems.push(`${plugin}'s storytree manifest names none of the kinds a module can be stood in with (${Object.keys(STAND_IN_KINDS).join(", ")})`);
   return { loads: problems.length === 0, adds, problems };
 }
 
@@ -214,19 +214,19 @@ export function checkPlugin(folder: string | undefined, plugin: string): PluginC
 export function contractSaid(): string {
   const kinds = Object.entries(STAND_IN_KINDS).map(([kind, { hosts, shape }]) => `  ${kind} (mounted by ${hosts}): ${shape}`);
   return [
-    "A factory plugin is a folder in your factory's plugins folder, <factory>/plugins/<plugin>/, that stands in for one of storytree's parts while that part is switched off: `storytree settings set part <part> plugin <plugin>`. `storytree settings set part <part> on` restores storytree's own.",
+    "A factory plugin is a folder in your factory's plugins folder, <factory>/plugins/<plugin>/, that stands in for one of storytree's modules while that module is switched off: `storytree settings set module <module> plugin <plugin>`. `storytree settings set module <module> on` restores storytree's own.",
     "",
     "Its package.json:",
     "  \"type\": \"module\",",
     "  \"exports\": { \"./verbs\": \"./verbs.js\" }: each module the manifest names, by a subpath inside the plugin's folder;",
     `  "storytree": { "interface": ${PLUGIN_INTERFACE}, "<kind>": [{ "from": "./verbs", "export": "PLUGIN_FAMILIES" }] }:`,
     `    interface is the version of storytree's plugin interface it is written for: this storytree honours ${PLUGIN_INTERFACE}, and leaves a plugin naming another, or none, unmounted;`,
-    "    for, optional, names the part it stands in for, so `storytree plugin check` lists what that part provides that the plugin does not;",
+    "    for, optional, names the module it stands in for, so `storytree plugin check` lists what that module provides that the plugin does not;",
     "    each kind lists { from, export }: an exported subpath, and the name that module exports a list of declarations under.",
     "",
     "Each module is ready-to-run JavaScript (an ES module with no top-level await) that imports nothing of storytree's: it exports plain declarations, and a host hands their work its context.",
     "",
-    "The kinds a part can be stood in with, and one declaration of each:",
+    "The kinds a module can be stood in with, and one declaration of each:",
     ...kinds,
     "",
     "Its long-running services, which the service host of each machine whose settings turn one on runs:",
@@ -251,6 +251,6 @@ export function contractSaid(): string {
     "    act(input, place) => Promise<{ text, next?: [{ command?, tool?, why }], data? }> }",
     "  Without callerless, the place also holds the project's library, its name and the calling session.",
     "",
-    "`storytree plugin new <plugin> --for <part>` starts one of this shape in your factory, and `storytree plugin check <plugin>` says whether this storytree would load it, and why not, switching nothing.",
+    "`storytree plugin new <plugin> --for <module>` starts one of this shape in your factory, and `storytree plugin check <plugin>` says whether this storytree would load it, and why not, switching nothing.",
   ].join("\n");
 }

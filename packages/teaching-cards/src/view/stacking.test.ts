@@ -92,3 +92,28 @@ test("3.5 · with More open a card stays short enough to find a place clear of t
   await page.waitForFunction(() => !document.querySelector(".teaching-card .teaching-card-text")!.hasAttribute("data-more-below"));
   assert.equal(await fades(), false, "scrolled to its end, nothing fades");
 });
+
+test("3.1 · nothing on the map behind the decision card shows through it: a white label behind the card leaves its background its own colour", async t => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  // A map label as bright as can be, filling the window behind the card.
+  await page.setContent(`<div style="position:fixed;inset:0;background:#fff"></div><main id="content"></main>`);
+  await page.addScriptTag({ content: await teachingBundle({ seen: ["story"], at: { x: 1000, y: 480 } }) });
+  await page.evaluate(() => (window as unknown as { teach(): void }).teach());
+  await page.locator(".teaching-card [data-more]").click();
+  const card = (await page.locator(".teaching-card").boundingBox())!;
+  // A pixel in the card's padding, where only its background is drawn.
+  const shot = await page.screenshot({ clip: { x: Math.round(card.x + 4), y: Math.round(card.y + card.height / 2), width: 1, height: 1 } });
+  const pixel = await page.evaluate(async data => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${data}`;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext("2d")!;
+    context.drawImage(image, 0, 0);
+    return [...context.getImageData(0, 0, 1, 1).data.slice(0, 3)];
+  }, shot.toString("base64"));
+  assert.deepEqual(pixel, [20, 24, 32], "the card's own background, with none of the white behind it mixed in");
+});

@@ -5,7 +5,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { sessionTools, type ToolCall } from "./tools.js";
+import { connect } from "@storytree/library";
+import { testServerUrl, uniqueProjectName } from "@storytree/library/testing/pg";
+
+import { reportContract, sessionTools, type ToolCall } from "./tools.js";
 
 type Act = (args: Record<string, unknown>, call: { owner: undefined; locate: { dataDir: string } }) => Promise<{ text: string; data?: Record<string, unknown> }>;
 
@@ -40,4 +43,27 @@ test("5.16 the claim and make_workspace tools take a reason longer than 40 chara
   for (const [name, args] of [["claim", { capability: "capability_a", reason }], ["make_workspace", { increment: "increment_a", reason }]] as const) {
     await assert.rejects(acts.get(name)!(args, call), /read or wrote the library/, `${name} goes on to the library`);
   }
+});
+
+test("5.71 · The report reply names the contract by title, calls it the agent's report, says when storytree's own run last saw it, and asks for storytree health local", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const story = await library.addStory({ title: "Context service" });
+  const capability = await library.addCapability({ story: story.id, title: "5 · Packets" });
+  const { id } = await library.addContract({ capability: capability.id, title: "5.2 · Every packet matches the oracle" });
+  const caller = { writer: {}, session: "s" };
+
+  const unseen = (await reportContract(library, { contract: id, result: "green" }, caller)).text;
+  assert.match(unseen, new RegExp(`^Reported "5\\.2 · Every packet matches the oracle" \\(${id}\\) green: your report, a claim until storytree's own run confirms it \\(storytree's own run has not verified it yet\\)\\. Run \`storytree health local\``), unseen);
+  const { at } = await library.recordVerified(id, "passing");
+  const red = (await reportContract(library, { contract: id, result: "red" }, caller)).text;
+  assert.match(red, new RegExp(`^Reported "5\\.2 · Every packet matches the oracle" \\(${id}\\) red: your report, and storytree's own run last verified it passing at ${at.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\. Run \`storytree health local\`.*then make it pass and report it green`), red);
 });

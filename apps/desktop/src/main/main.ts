@@ -683,6 +683,13 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
     const state = await pageState(window);
     phases.phase(`reading the page (${state})`);
     project = await window.webContents.executeJavaScript("document.body.dataset.project") as string | undefined;
+    // A first launch opens the first-run guide in the settings menu, and offers the teaching cards' tour, over the forest:
+    // close the one and decline the other, as a person would, so the screenshot shows the forest.
+    await window.webContents.executeJavaScript(`(() => {
+      const menu = document.querySelector("[data-app-close]")?.closest("[popover]");
+      if (menu?.matches(":popover-open")) menu.querySelector("[data-app-close]").click();
+      document.querySelector('[data-tour="no"]')?.click();
+    })()`);
     // Open one capability, as a click would, so the screenshot shows contracts too: the first
     // whose verified column is not passing, else the first.
     const opened = (await window.webContents.executeJavaScript(`(() => {

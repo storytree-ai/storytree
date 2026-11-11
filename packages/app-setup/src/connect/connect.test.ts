@@ -297,6 +297,17 @@ test("2.6 connecting Codex names the one-time trust step until one of its hooks 
   assert.equal(claude!.hooks, "not verified", "Claude Code runs hooks without asking; its session check verifies them");
 });
 
+test("2.6 connecting Claude Code says, in the reader's words, that it is not yet verified and that starting it in the project's folder verifies it; where it was written is kept apart, one step away", async (t) => {
+  const f = fixture(t);
+  const [claude] = await connectAgents({ ...f.options, harnesses: ["claude-code"] });
+  assert.equal(claude!.hooks, "not verified");
+  assert.match(claude!.next, /^Not yet verified/);
+  assert.match(claude!.next, /first time you start Claude Code in your project's folder/);
+  assert.match(claude!.next, /check_setup/, "the way on when storytree does not hear from it");
+  assert.doesNotMatch(claude!.next, /settings|registration/, "the settings detail is not said at rest");
+  assert.match(claude!.where ?? "", /Claude Code's user settings.*project or managed settings can override/);
+});
+
 test("2.6 connecting Codex from an administrator terminal says Codex cannot run commands from one and to open it from a normal terminal; Claude Code, or a normal terminal, hears nothing of it", async (t) => {
   const f = fixture(t);
   const [codex, claude] = await connectAgents({ ...f.options, elevated: async () => true, harnesses: ["codex", "claude-code"] });

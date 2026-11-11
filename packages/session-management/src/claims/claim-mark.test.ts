@@ -21,3 +21,10 @@ test("5.39 the pennant runs from the pole's top out to its tip and back, and a q
   assert.ok(widest(quiet)[1] < widest(held)[1], "drooped");
   assert.deepEqual(pennantOutline(0.5, 0)[0], [0.3, 13], "it scales with k");
 });
+
+test("5.39 no session wears red, the alarm colour where red means failing: every hue stays clear of 320° to 30°", () => {
+  for (let n = 0; n < 2000; n++) {
+    const hue = Number(/^hsl\((\d+),/u.exec(sessionColour(`session-${n}`))![1]);
+    assert.ok(hue >= 170 && hue < 320, `session-${n} wears hue ${hue}`);
+  }
+});

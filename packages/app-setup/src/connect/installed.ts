@@ -44,7 +44,7 @@ export async function runInstalledConnection(action: "connect" | "disconnect", c
   const options = { harnesses: chosen as Harness[], installed: deliveredCommand() };
   if (action === "connect") {
     const results = await connectAgents(options);
-    const text = results.map((result) => `${label(result.harness)}: tools ${result.tools}; hooks ${result.hooks}.\n${result.next}`).join("\n\n");
+    const text = results.map((result) => `${label(result.harness)}: tools ${result.tools}; hooks ${result.hooks}.\n${result.next}${result.where === undefined ? "" : `\n${result.where}`}`).join("\n\n");
     if (results.some((result) => result.tools === "not connected")) throw new Error(text);
     return text;
   }

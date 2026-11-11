@@ -67,3 +67,28 @@ test("5.71 · The report reply names the contract by title, calls it the agent's
   const red = (await reportContract(library, { contract: id, result: "red" }, caller)).text;
   assert.match(red, new RegExp(`^Reported "5\\.2 · Every packet matches the oracle" \\(${id}\\) red: your report, and storytree's own run last verified it passing at ${at.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\. Run \`storytree health local\`.*then make it pass and report it green`), red);
 });
+
+test("5.72 · The report reply asks for one line on what wrong fix the contract's test catches, saved as its description, only when the contract has no description", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const story = await library.addStory({ title: "Context service" });
+  const capability = await library.addCapability({ story: story.id, title: "5 · Packets" });
+  const bare = await library.addContract({ capability: capability.id, title: "5.2 · Every packet matches the oracle" });
+  const told = await library.addContract({ capability: capability.id, title: "5.3 · A late packet is dropped", description: "Catches a fix that queues late packets instead of dropping them." });
+  const caller = { writer: {}, session: "s" };
+
+  for (const result of ["red", "green"] as const) {
+    const asked = (await reportContract(library, { contract: bare.id, result }, caller)).text;
+    assert.match(asked, new RegExp(`"5\\.2 · Every packet matches the oracle" \\(${bare.id}\\) has no description: say in one line what wrong fix its test catches, and save it as its description with edit_plan, or \`storytree library edit ${bare.id} --description …\`\\.$`), asked);
+    const quiet = (await reportContract(library, { contract: told.id, result }, caller)).text;
+    assert.doesNotMatch(quiet, /description/, "a contract that has one is not asked again");
+  }
+});

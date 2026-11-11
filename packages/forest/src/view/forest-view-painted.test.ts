@@ -107,6 +107,19 @@ test("3.107 · the map says why it is empty once a read finds no stories, its bu
   await page.evaluate(ms => { const win = window as unknown as Page; win.__showEmpty(); return win.__drawn(ms); }, scaled(20_000));
   await box.waitFor({ timeout: 10_000 });
   assert.match(await box.innerText(), /Nothing on the map yet/);
+  // News that changes nothing on show leaves the box as it is: no node of it is replaced, rewritten or restyled.
+  const changes = await page.evaluate(async () => {
+    const shown = document.querySelector("#map .forest-empty-map")!;
+    const seen: MutationRecord[] = [];
+    const watch = new MutationObserver(records => seen.push(...records));
+    watch.observe(document.querySelector("#map")!, { subtree: true, childList: true, attributes: true, characterData: true });
+    (window as unknown as Page).__showEmpty();
+    (window as unknown as Page).__showEmpty();
+    await new Promise(settle => setTimeout(settle, 200));
+    watch.disconnect();
+    return { same: document.querySelector("#map .forest-empty-map") === shown, onBox: seen.filter(record => shown.contains(record.target) || record.target.contains(shown)).length };
+  });
+  assert.deepEqual(changes, { same: true, onBox: 0 }, "unchanged news redraws nothing on the empty map");
   if (process.env.STORYTREE_EMPTY_MAP_PICTURE) await page.screenshot({ path: process.env.STORYTREE_EMPTY_MAP_PICTURE });
   await box.getByRole("button", { name: "First-run guide" }).click();
   assert.equal(await page.evaluate(() => (window as unknown as Page).__guided), 1, "the button opens the guide");

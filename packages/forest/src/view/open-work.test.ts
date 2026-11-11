@@ -6,13 +6,13 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Mesh, MeshBasicMaterial, Vector3 } from "three";
+import { Mesh, MeshBasicMaterial, type Object3D, Vector3 } from "three";
 
 import { islandRoads } from "../territories/island-roads.js";
 import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
-import { OPEN_WORK, openWorkLayer, openWorkMarks, PICK_GOLD, ringedCapabilities, RING_LEAST_PX, RING_PX, rungLinks, sizeOpenWork } from "./open-work.js";
+import { IslandOpenWork, OPEN_WORK, openWorkLayer, openWorkMarks, PICK_GOLD, ringedCapabilities, RING_LEAST_PX, RING_PX, rungLinks, sizeOpenWork } from "./open-work.js";
 
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
 const coast: Coast = [Array.from({ length: 96 }, (_, i) => ({ x: R * Math.cos(i * Math.PI / 48), z: R * Math.sin(i * Math.PI / 48) }))];
@@ -147,4 +147,43 @@ test("3.99 · an arc selected rings each capability its open increments name and
   assert.deepEqual([...ringedCapabilities(["d"], ["contract_b1"], owned)!].sort(), ["b", "d"], "named and linked alike");
   assert.deepEqual([...ringedCapabilities(["d"], undefined, owned)!], ["d"]);
   assert.equal(ringedCapabilities(undefined, undefined, owned), undefined, "no arc selected rings nothing (3.84)");
+});
+
+test("3.102 · a pick after an arc is selected draws only its gold ring: the arc's rings stand, and no ring's material is made or freed", () => {
+  const work = new IslandOpenWork(), arc = new Set(["a", "c"]);
+  const meshes = () => { const found: Mesh[] = []; work.root.traverse((o) => { if (o instanceof Mesh) found.push(o); }); return found; };
+  const names = (layers: readonly Object3D[]) => layers.flatMap((layer) => layer.children.map(({ name }) => name)).sort();
+  const freed: string[] = [];
+  const watch = () => { for (const mesh of meshes()) if (mesh.material instanceof MeshBasicMaterial && mesh.material.userData.watched !== true) {
+    mesh.material.userData.watched = true;
+    mesh.material.addEventListener("dispose", () => freed.push(mesh.name));
+  } };
+  assert.deepEqual(names(work.show(openWorkMarks(map, arc, roads), flat, 2)), ["open-work-ring:a", "open-work-ring:c"], "the arc selected: its rings drawn");
+  watch();
+  const standing = new Map(meshes().map((mesh) => [mesh.name, mesh]));
+  assert.deepEqual(names(work.show(openWorkMarks(map, arc, roads, "c"), flat, 2)), ["picked-ring:c"], "the first pick after it draws its gold ring alone");
+  for (const [name, mesh] of standing) assert.equal(work.root.getObjectByName(name), mesh, `${name} stands, not rebuilt`);
+  watch();
+  const gold = (work.root.getObjectByName("picked-ring:c") as Mesh).material;
+  assert.deepEqual(names(work.show(openWorkMarks(map, arc, roads, "a"), flat, 2)), ["picked-ring:a"], "another pick: its gold ring alone");
+  assert.equal((work.root.getObjectByName("picked-ring:a") as Mesh).material, gold, "in the same gold material");
+  assert.equal(work.root.getObjectByName("picked-ring:c"), undefined, "the last pick's ring gone");
+  for (const [name, mesh] of standing) assert.equal(work.root.getObjectByName(name), mesh, `${name} still stands`);
+  assert.deepEqual(names(work.show(openWorkMarks(map, arc, roads, "a"), flat, 2)), [], "the same marks again draw nothing");
+  assert.deepEqual(freed, [], "no ring's material freed, so its shader stays built");
+  assert.equal(new Set(meshes().map(({ material }) => material)).size, 2, "one material for the arc's rings, one for the pick's");
+  assert.deepEqual(names(work.show(openWorkMarks(map, undefined, roads, "a"), flat, 2)), [], "the arc put away: nothing new to draw");
+  assert.deepEqual(meshes().map(({ name }) => name), ["picked-ring:a"], "its rings gone, the pick's standing");
+  work.show(openWorkMarks(map, new Set(["a"]), roads, "a"), flat, 2);
+  const geometries = new Map(meshes().map((mesh) => [mesh.name, mesh.geometry]));
+  assert.ok(work.size(0.5), "redrawn for another zoom");
+  for (const mesh of meshes()) {
+    assert.notEqual(mesh.geometry, geometries.get(mesh.name), `${mesh.name} redrawn`);
+    const spread = reaches(mesh, roads.settlements.get("a")!.at);
+    assert.ok(Math.abs(Math.max(...spread) - Math.min(...spread) - RING_PX / 0.5) < 1e-3, `${mesh.name}'s line RING_PX wide on screen at the new zoom`);
+  }
+  assert.equal(work.size(0.5), false, "a still eye redraws nothing");
+  work.dispose();
+  assert.deepEqual(freed.sort(), ["open-work-ring:a", "picked-ring:c"], "freed once the island goes");
+  assert.deepEqual(meshes(), [], "and its rings with them");
 });

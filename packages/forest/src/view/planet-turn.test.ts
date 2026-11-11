@@ -12,7 +12,7 @@ const bundles = new Map<string, Promise<string>>();
 /** The real map view, bundled for the browser and mounted on a two-story plan: the capture seam counts its renders.
  * `__show(titles)` hands it the plan again, a live update, with the stories' titles as given. `linked` gives each story a
  * second capability its first depends on, and story one's first depends on story two's, so each island has roads.
- * `__show(titles, story)` shows it with that story selected, `__core` is its knowledge core, and `__flushSync` commits the map's scene at once. `__zoom()` reads the eye's zoom the map shows its detail by. */
+ * `__show(titles, story, more)` shows it with that story selected, and the map view's other props `more` gives (an arc's rings, a pick), `__core` is its knowledge core, and `__flushSync` commits the map's scene at once. `__zoom()` reads the eye's zoom the map shows its detail by. */
 function mapBundle(linked = false, { late = false }: { late?: boolean } = {}): Promise<string> {
   const key = JSON.stringify([linked, late]);
   if (!bundles.has(key)) bundles.set(key, bundleMap(linked, late));
@@ -55,9 +55,9 @@ async function bundleMap(linked: boolean, late: boolean): Promise<string> {
     const core = globalThis.__core = createKnowledgeCore("app"), root = createRoot(document.querySelector("#map"));
     // The map's top-left mark over the same islands, as the forest view mounts it (3.96, 3.98, 3.101).
     const mark = createRoot(document.body.appendChild(document.createElement("div")));
-    globalThis.__show = (titles, selected) => {
+    globalThis.__show = (titles, selected, more = {}) => {
       const scene = forestScene(plan(titles), history, workStates([]));
-      root.render(createElement(PlanetView, { core, scene, places, wisps: [], selected, onPick: () => {}, onNote: () => {} }));
+      root.render(createElement(PlanetView, { core, scene, places, wisps: [], selected, onPick: () => {}, onNote: () => {}, ...more }));
       mark.render(createElement(LayoutProgress, { islands: scene.islands.map(island => ({ story: island.story, territories: island.land?.territories })) }));
     };
     globalThis.__flushSync = flushSync;
@@ -370,4 +370,32 @@ test("3.73 · roads that arrive hidden, after the map opened, have their shader 
     return missing;
   });
   assert.deepEqual(uncompiled, []);
+});
+
+test("3.102 · the first pick after an arc is selected draws its gold ring alone, its shader built before it draws, and builds the island's land no more", async t => {
+  const { page } = await openedMap(t, true);
+  type Drawn = { uuid: string; name: string; material?: object; traverse(visit: (object: Drawn) => void): void };
+  type Globe = { gl: { compile(object: Drawn, ...rest: unknown[]): unknown; properties: { get(material: object): { currentProgram?: unknown } } }; scene: Drawn };
+  type Page = { __globe: Globe; __pending: number; __compiled: string[][]; __flushSync(run: () => void): void; __show(titles: string[], selected: string, more: object): void };
+  const arc = { circled: ["one-cap", "one-b-cap"] };
+  const rings = () => page.evaluate(() => {
+    const { __globe: globe, __pending: pending } = window as unknown as Page, found: Record<string, { uuid: string; compiled: boolean }> = {};
+    globe.scene.traverse(object => { if (/^(open-work|picked)-ring:/.test(object.name)) found[object.name] = { uuid: object.uuid, compiled: globe.gl.properties.get(object.material!).currentProgram !== undefined }; });
+    return pending === 0 ? found : undefined;
+  });
+  await page.evaluate(arc => (window as unknown as Page).__show(["one", "two"], "one", arc), arc);
+  await waitUntil(async () => Object.values(await rings() ?? {}).filter(({ compiled }) => compiled).length === 2, 10_000, "the arc's two rings drawn and compiled");
+  const before = (await rings())!;
+  // What is compiled from here on, by the names it holds; the pick committed at once and its rings read before a frame draws.
+  await page.evaluate(arc => {
+    const page = window as unknown as Page, gl = page.__globe.gl, compile = gl.compile.bind(gl), compiled: string[][] = page.__compiled = [];
+    gl.compile = (object, ...rest) => { const names: string[] = []; object.traverse(({ name }) => { if (name !== "") names.push(name); }); compiled.push(names); return compile(object, ...rest); };
+    page.__flushSync(() => page.__show(["one", "two"], "one", { ...arc, selectedCapability: "one-b-cap" }));
+  }, arc);
+  await waitUntil(async () => (await rings())?.["picked-ring:one-b-cap"]?.compiled === true, 10_000, "the pick's gold ring drawn and compiled");
+  const after = (await rings())!;
+  for (const name of Object.keys(before)) assert.equal(after[name]?.uuid, before[name]!.uuid, `${name} stands, not drawn anew`);
+  const compiled = await page.evaluate(() => (window as unknown as Page).__compiled);
+  assert.ok(compiled.some(names => names.includes("picked-ring:one-b-cap")), "the gold ring's shader built as it is drawn");
+  assert.deepEqual(compiled.filter(names => names.includes("territory-land") && !names.includes("knowledge-roots")), [], "the island's land not compiled again");
 });

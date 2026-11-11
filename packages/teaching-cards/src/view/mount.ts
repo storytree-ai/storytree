@@ -45,6 +45,8 @@ const STYLES = `
 .teaching-card:has(> .teaching-card-text) { display: flex; flex-direction: column; overflow: hidden; }
 .teaching-card-text { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(242, 244, 248, .45) transparent; }
 .teaching-card-text[data-more-below] { mask-image: linear-gradient(to bottom, #000 calc(100% - 2.5rem), transparent); }
+/* The decision card's drawing is taller than a 24rem card's text can show whole, so a card drawing one takes the window's height. */
+.teaching-card:has([data-depth]:not([hidden]) .tour-diagram) { max-height: calc(100vh - 24px); }
 .teaching-card-text + .teaching-card-actions { flex: none; }
 .teaching-card [data-more] { padding: 0; border: 0; background: none; color: #9cc3e8; font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
 .teaching-card[data-kind="on"] { padding: .4rem .7rem; background: rgba(20, 24, 32, .8); color: #c4cad4; font-size: 13px; }

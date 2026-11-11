@@ -8,7 +8,7 @@ import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARA
 import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
-import { openWorkLayer, openWorkMarks, ringedCapabilities, rungLinks, sizeOpenWork } from "./open-work.js";
+import { IslandOpenWork, openWorkMarks, ringedCapabilities, rungLinks, sizeOpenWork } from "./open-work.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { islandRoadMarks, landFill, ringGate, type GatePick } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
@@ -418,18 +418,23 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
   const relief = drawn.relief, onLand = drawn.onLand;
   // 3.83: the open work's rings round its settlements, over the land as drawn now, at every zoom (ADR-1272 D2);
   // and the selected capability's gold ring (3.91).
-  const openWork = useMemo(() => openWorkLayer(openWorkMarks(drawn.map, circled, drawn.roads, picked, rung),
-    onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), sheetEyeZoom(camera, size)), [drawn, circled, picked, rung, radius, relief]);
-  // 3.73: its marks' shaders compiled as they are built, hidden ones too, so the zoom that first shows them stalls on none.
+  // 3.102: a pick redraws its gold ring alone, leaving the arc's rings and their shader as they stand.
+  const openWork = useMemo(() => new IslandOpenWork(), []);
+  useEffect(() => () => openWork.dispose(), [openWork]);
+  const onOpenWork = useMemo(() => onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), [radius, relief]);
+  // 3.73: its marks' shaders compiled as they are built, hidden ones too, so the zoom that first shows them stalls on none;
+  // the land once per drawing, the open work's layers as each is drawn anew.
   useEffect(() => {
-    const frame = requestAnimationFrame(() => { gl.compile(drawn.group, camera, scene); gl.compile(openWork, camera, scene); });
+    const frame = requestAnimationFrame(() => gl.compile(drawn.group, camera, scene));
     return () => cancelAnimationFrame(frame);
-  }, [gl, camera, scene, drawn, openWork]);
-  useEffect(() => { invalidate(); return () => openWork.traverse((object) => {
-    const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
-    mark.geometry?.dispose();
-    mark.material?.dispose();
-  }); }, [openWork, invalidate]);
+  }, [gl, camera, scene, drawn]);
+  useLayoutEffect(() => {
+    const fresh = openWork.show(openWorkMarks(drawn.map, circled, drawn.roads, picked, rung), onOpenWork, sheetEyeZoom(camera, size));
+    invalidate();
+    if (fresh.length === 0) return;
+    const frame = requestAnimationFrame(() => { for (const layer of fresh) gl.compile(layer, camera, scene); });
+    return () => cancelAnimationFrame(frame);
+  }, [openWork, drawn, circled, picked, rung, onOpenWork, gl, camera, scene, invalidate]);
   // 3.88: a picked gate's ring, on the roads as drawn now.
   const gateRing = useMemo(() => drawn.group.getObjectByName("gate-ring") as Group | undefined, [drawn]);
   useLayoutEffect(() => {
@@ -462,7 +467,7 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
     const zoom = sheetEyeZoom(camera, size);
     if (marks.frame(clock.getElapsedTime(), { zoom, eye: camera.quaternion, reduced: reducedMotion() })) invalidate();
     // 3.86: the open work's rings keep their line's width on screen at the zoom the eye shows, as a flag keeps its size.
-    if (openWork.children.length > 0 && sizeOpenWork(openWork, zoom * (openWork.matrixWorld.getMaxScaleOnAxis() || 1))) invalidate();
+    if (openWork.size(zoom * (openWork.root.matrixWorld.getMaxScaleOnAxis() || 1))) invalidate();
     // 3.88: and a picked gate's ring.
     if (gateRing !== undefined && gateRing.children.length > 0 && sizeOpenWork(gateRing, zoom * (gateRing.matrixWorld.getMaxScaleOnAxis() || 1))) invalidate();
   });
@@ -495,7 +500,7 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
     invalidate();
   }, [drawn, level, surfaces, invalidate]);
   useEffect(() => () => disposeMarks(drawn.group), [drawn]);
-  return <><primitive object={drawn.group} /><primitive object={marks.root} />{surfaces.territories !== false && <primitive object={openWork} />}</>;
+  return <><primitive object={drawn.group} /><primitive object={marks.root} />{surfaces.territories !== false && <primitive object={openWork.root} />}</>;
 }
 
 

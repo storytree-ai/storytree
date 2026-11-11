@@ -502,6 +502,21 @@ test("3.10 · a card beside its island draws a ring round the island and a line 
   teaching.stop();
 });
 
+test("3.10 · a card left of its island, or below it, draws its line from the edge facing the island to the ring", () => {
+  // No room on the island's right in a 1000 px window: the card sits on its left, at 288, 250.
+  const left = sized([], () => ({ x: 700, y: 300, visible: true, box: { left: 600, top: 250, right: 800, bottom: 350 } }));
+  const beside = ends(left.card.querySelector<HTMLElement>(".teaching-card-tie")!);
+  near(beside.from, [588, 300], "from the card's right edge");
+  near(beside.to, [594, 300], "to the ring's left side");
+  left.teaching.stop();
+  // An island too wide for a card on either side: the card sits below it, at 350, 212.
+  const under = sized([], () => ({ x: 500, y: 150, visible: true, box: { left: 100, top: 100, right: 900, bottom: 200 } }));
+  const below = ends(under.card.querySelector<HTMLElement>(".teaching-card-tie")!);
+  near(below.from, [500, 212], "from the card's top edge");
+  near(below.to, [500, 206], "up to the ring's foot");
+  under.teaching.stop();
+});
+
 test("3.10 · a card taken to a corner while its thing is on show is still tied to it; a ring marks a point with no island", () => {
   const { teaching, card } = sized([], () => ({ x: 500, y: 300, visible: true }), [{ left: 150, top: 120, right: 850, bottom: 480 }]);
   // The bottom-right corner, 684, 484.

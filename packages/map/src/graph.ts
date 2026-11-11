@@ -12,7 +12,7 @@ export interface MapNode {
   readonly id: string;
   readonly kind: NodeKind;
   readonly title: string;
-  /** A mapped story and its files read mapped, in place of a health they do not carry (ADR-0993 D3). */
+  /** An imported story and its files read "mapped", in place of a health they do not carry (ADR-0993 D3); the word means imported, and the map's text says so (ADR-1300 D3). */
   readonly health: MapHealth | "mapped";
   /** A mapped story in a loop of roads among mapped stories: the titles round it, its own first. */
   readonly loop?: readonly string[];

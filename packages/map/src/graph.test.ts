@@ -154,7 +154,7 @@ test("1.1 a dependent's prefixed proof joins the named package's promise and pre
   assert.ok(built.edges.some(edge => edge.from === "test:packages/session-management/src/local.test.ts" && edge.to === "local-proof" && edge.kind === "tests"));
 });
 
-test("3.7 a mapped story, and a file of its imported folder by either path, answer counts first with the word mapped and no health word, naming a loop", () => {
+test("3.7 an imported story, and a file of its imported folder by either path, answer counts first with the word imported and no health word, naming a loop", () => {
   const mapped = (pkg: string) => ({ from: "https://example.test/shop.git", package: pkg, folders: [pkg] });
   const plan = { arcs: [], stories: [
     { id: "cart", title: "@shop/cart", health, capabilities: [], mapped: mapped("packages/cart") },
@@ -170,19 +170,19 @@ test("3.7 a mapped story, and a file of its imported folder by either path, answ
   assert.equal(counts.counts.mapped, 3);
   assert.deepEqual(counts.loops, [["@shop/cart", "@shop/pay"], ["@shop/pay", "@shop/cart"]]);
   const text = formatFocus(counts);
-  assert.match(text, /Mapped: 3/);
+  assert.match(text, /Imported: 3/);
   assert.match(text, /@shop\/cart → @shop\/pay → @shop\/cart/);
   assert.doesNotMatch(text, /health|healthy|failing|untested|verified/i);
 
   const file = "file:/code/shop/packages/cart/src/index.ts";
   const shown = focus(built, { select: "file:packages/cart/src/index.ts", up: 1, mode: "show" });
   assert.deepEqual(shown.rows?.map(row => [row.id, row.health]), [[file, "mapped"], ["cart", "mapped"]]);
-  assert.match(formatFocus(shown), /\[mapped\]/);
+  assert.match(formatFocus(shown), /\[imported\]/);
   assert.doesNotMatch(formatFocus(shown), /health|healthy|failing|untested|verified/i);
   assert.equal(focus(built, { select: "file:/code/shop/packages/cart/src/index.ts", up: 0, mode: "show" }).rows?.[0]?.id, file, "its full path selects it too");
 });
 
-test("1.3 a mapped file an explored capability covers implements it, and the map answers for either; the capability reads untested (proposed) until it has a contract, as the forest draws it, its files and story staying mapped", () => {
+test("1.3 an imported file an explored capability covers implements it, and the map answers for either; the capability reads untested (proposed) until it has a contract, as the forest draws it, its files and story staying mapped", () => {
   const explored = { id: "stats", title: "1 · Stats page", proposed: true, status: "proposed", health: { ...health, verified: { state: "not-checked" } }, dependsOn: [], contracts: [], covers: ["app/stats"] };
   const plan = { arcs: [], stories: [{ id: "app", title: "app", health, capabilities: [explored], mapped: { from: "/code/app", package: ".", folders: ["."] } }] } as unknown as AnnotatedTree;
   const survey = { app: { files: [{ path: "app/stats/page.tsx", lines: 40, capability: "stats" }, { path: "app/home.tsx", lines: 9 }], imports: [], tests: [], mapped: { folder: "/code/app" } } };
@@ -200,7 +200,7 @@ test("1.3 a mapped file an explored capability covers implements it, and the map
   assert.equal(later.nodes.find(node => node.id === "stats")?.health, "untested", "given a contract, it is read as any capability");
 });
 
-test("3.14 focus on a mapped island's file says the island is a black box read only through a crossing, and names the crossing that lists its importers", () => {
+test("3.14 focus on an imported island's file says the island is a black box read only through a crossing, and names the crossing that lists its importers", () => {
   const plan = { arcs: [], stories: [{ id: "shop", title: "shop", health, capabilities: [], mapped: { from: "/code/shop", package: ".", folders: ["."] } }] } as unknown as AnnotatedTree;
   const built = buildGraph(plan, { shop: { files: [{ path: "src/db.py", lines: 9 }, { path: "src/app.py", lines: 4 }], imports: [], tests: [], mapped: { folder: "/code/shop" } } });
   const answer = focus(built, { select: "file:src/db.py" });

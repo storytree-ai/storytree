@@ -1217,7 +1217,7 @@ test("8.30 a story that owns several packages has each package's files surveyed 
   }
 });
 
-test("8.44 reading a mapped story's tests finds its numbered titles where it was imported from: the checkout itself when that is the import (by its top or its origin), else the folder this machine imports it from; a mapped story whose import is neither is unseen", async () => {
+test("8.44 reading an imported story's tests finds its numbered titles where it was imported from: the checkout itself when that is the import (by its top or its origin), else the folder this machine imports it from; an imported story whose import is neither is unseen", async () => {
   const repo = await mkdtemp(path.join(tmpdir(), "code-survey-mapped-tests-"));
   const elsewhere = await mkdtemp(path.join(tmpdir(), "code-survey-mapped-elsewhere-"));
   const from = "https://github.com/shop/shop.git";

@@ -71,7 +71,7 @@ function snapshot(root: string): string[] {
   });
 }
 
-/** The project's mapped stories, by package. */
+/** The project's imported stories, by package. */
 async function mapped(library: Library): Promise<Record<string, SchemaRecord<"story">["fields"]>> {
   const stories = await library.list("story");
   return Object.fromEntries(stories.flatMap((story) => (story.fields.mapped === undefined ? [] : [[story.fields.mapped.package, story.fields]])));
@@ -101,7 +101,7 @@ test("12.1 importing a folder records it beside the trunk, with its repository a
       "packages/cart": { title: "@shop/cart", description: "The basket", mapped: { from: "https://github.com/shop/shop.git", package: "packages/cart", folders: ["packages/cart"] } },
       "packages/pay": { title: "@shop/pay", mapped: { from: "https://github.com/shop/shop.git", package: "packages/pay", folders: ["packages/pay"] } },
     });
-    assert.deepEqual((await library.list("capability")).filter((capability) => imported.added.some((story) => story.id === capability.fields.story)), [], "a mapped story has no capabilities");
+    assert.deepEqual((await library.list("capability")).filter((capability) => imported.added.some((story) => story.id === capability.fields.story)), [], "an imported story has no capabilities");
     const machine = machineOf(home);
     assert.deepEqual(await importsOf(storytree, library.name, machine.id), [
       { project: library.name, machine: machine.id, machineName: machine.name, folder: shop, repository: "https://github.com/shop/shop.git", commit, approvedBy: "import" },
@@ -120,7 +120,7 @@ test("12.1 importing a folder records it beside the trunk, with its repository a
   });
 });
 
-test("12.2 importing again adds the packages that are new, retires the stories whose package is gone, and leaves every other mapped story as it stands", async () => {
+test("12.2 importing again adds the packages that are new, retires the stories whose package is gone, and leaves every other imported story as it stands", async () => {
   await withProject(async ({ dir, home, storytree, library }) => {
     const shop = path.join(dir, "shop");
     write(shop, { "package.json": { workspaces: { packages: ["packages/*"] } }, "packages/cart/package.json": { name: "cart" }, "packages/pay/package.json": { name: "pay" } });

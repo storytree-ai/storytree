@@ -71,6 +71,7 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
     const cells = land.cells.filter((cell) => cell.territory === at && cell.polygon.length >= 3).map((cell) => cell.polygon);
     const pieces = cells.flatMap((cell) => land3 === undefined ? [cell] : land3.map((triangle) => clipToConvex(triangle, cell)).filter((piece) => piece.length >= 3));
     const mesh = new Mesh(fan(pieces, onSurface), territoryFill(territory));
+    // territory:mapped is an imported story's unexplored land: its "mapped" means imported (ADR-1300 D3).
     mesh.name = `territory:${territory.capability ?? (territory.mapped === true ? "mapped" : "unclaimed")}`;
     // A capability a running session claims keeps its fill and its borders; the flag says who holds it (ADR-0968 D1).
     const claimant = territory.capability === undefined ? undefined : claimed.get(territory.capability);

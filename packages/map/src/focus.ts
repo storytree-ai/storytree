@@ -201,13 +201,13 @@ export function formatFocus(answer: FocusAnswer): string {
   if (answer.refused) lines.push(`Show refused: ${answer.rowCount} rows exceeds the ceiling of ${answer.ceiling}. Narrow the selection.`);
   for (const [depth, kinds] of Object.entries(answer.counts.byDepth)) lines.push(`Depth ${depth}: ${Object.entries(kinds).map(([kind, count]) => `${kind} ${count}`).join(", ")}`);
   if (health) lines.push(`Health: ${Object.entries(answer.counts.health).map(([state, count]) => `${state} ${count}`).join(", ")}`);
-  if (answer.counts.mapped > 0) lines.push(`Mapped: ${answer.counts.mapped}`);
+  if (answer.counts.mapped > 0) lines.push(`Imported: ${answer.counts.mapped}`);
   if (answer.blackBox) {
     const { path, crossing } = answer.blackBox;
-    lines.push(`${path} is in a mapped island, a black box: its imports are read only through a crossing, so this answer shows no file that imports it or that it imports. To list its importers: crossing: ${JSON.stringify(crossing)}, mode: show (map --crossing ${crossing.join(",")} --show).`);
+    lines.push(`${path} is in an imported island, a black box: its imports are read only through a crossing, so this answer shows no file that imports it or that it imports. To list its importers: crossing: ${JSON.stringify(crossing)}, mode: show (map --crossing ${crossing.join(",")} --show).`);
   }
-  for (const loop of answer.loops ?? []) lines.push(`Loop of roads among mapped stories, reported, refusing nothing: ${[...loop, loop[0]].join(" → ")}`);
-  for (const row of answer.rows ?? []) lines.push(`${row.depth}  ${row.kind}  ${row.id}  ${row.title}  [${row.health}]${row.snapshot ? ` [${row.snapshot}]` : ""}${row.changes ? ` [${row.changes.join(", ")}]` : ""}${row.unresolved ? ` unresolved: ${row.unresolved}` : ""}${row.onEdge ? `  on ${row.onEdge.id}: ${row.onEdge.from} depends on ${row.onEdge.to}` : ""}${(row.elsewhere ?? []).map(test => `  ${elsewhereSaid(test)}`).join("")}${row.edge.length ? `  ${row.edge.map(edge => `${edge.kind} (${edge.provenance}${edge.snapshot ? `, ${edge.snapshot}` : ""}): ${edge.from} -> ${edge.to}`).join("; ")}` : ""}`);
+  for (const loop of answer.loops ?? []) lines.push(`Loop of roads among imported stories, reported, refusing nothing: ${[...loop, loop[0]].join(" → ")}`);
+  for (const row of answer.rows ?? []) lines.push(`${row.depth}  ${row.kind}  ${row.id}  ${row.title}  [${row.health === "mapped" ? "imported" : row.health}]${row.snapshot ? ` [${row.snapshot}]` : ""}${row.changes ? ` [${row.changes.join(", ")}]` : ""}${row.unresolved ? ` unresolved: ${row.unresolved}` : ""}${row.onEdge ? `  on ${row.onEdge.id}: ${row.onEdge.from} depends on ${row.onEdge.to}` : ""}${(row.elsewhere ?? []).map(test => `  ${elsewhereSaid(test)}`).join("")}${row.edge.length ? `  ${row.edge.map(edge => `${edge.kind} (${edge.provenance}${edge.snapshot ? `, ${edge.snapshot}` : ""}): ${edge.from} -> ${edge.to}`).join("; ")}` : ""}`);
   if (!answer.rows) lines.push(...answer.hints);
   return lines.join("\n");
 }

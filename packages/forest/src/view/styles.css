@@ -97,6 +97,37 @@
   pointer-events: none;
 }
 
+/* What the map says while its project has no story, in the middle of the sheet (3.107). */
+.forest-empty-map {
+  position: absolute;
+  z-index: 40;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: min(26rem, calc(100% - 2rem));
+  padding: 0.9rem 1.1rem;
+  border: 1px solid #485159;
+  border-radius: 10px;
+  background: #101418e6;
+  color: #dde3e6;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.forest-empty-map p {
+  margin: 0 0 0.6rem;
+}
+
+.forest-empty-map button {
+  border: 1px solid #485159;
+  border-radius: 5px;
+  padding: 0.4rem 0.8rem;
+  background: #eadcae;
+  color: #101418;
+  font: inherit;
+  cursor: pointer;
+}
+
 .forest-views {
   display: flex;
   gap: 2px;

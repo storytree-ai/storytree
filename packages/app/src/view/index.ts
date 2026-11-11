@@ -149,6 +149,12 @@ export function mountAppMenu(host: HTMLElement, options: {
   document.addEventListener("keydown", key, true);
 
   return {
+    /** Open the menu on Help, as the empty map's First-run guide button asks (2.58); an open menu stays as it is. */
+    openHelp(): void {
+      if (menu.matches(":popover-open")) return;
+      selectSection("help");
+      menu.showPopover();
+    },
     update({ projects, current, factory: place }: ProjectSelection): void {
       shown = current !== undefined && projects.includes(current) ? current : undefined;
       projectSentence?.refresh();

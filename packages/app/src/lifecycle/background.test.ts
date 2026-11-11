@@ -114,6 +114,38 @@ test("1.7 restarting into an update stops the database once, and the new build s
   assert.deepEqual(await runs(false, true), ["database stopping", "relaunch b/app with its window", "exit 0"], "a start during the restart is not swallowed");
 });
 
+test("1.7 a restart into an update whose stopping hangs still starts the installer and exits once the bounded wait is over, and says so", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const done: string[] = [];
+  const app = background({
+    // A late writer hit the closed pool, and the rest of the stop never finished.
+    stopDatabase: () => new Promise<void>(() => {}),
+    exit: (code) => done.push(`exit ${code}`),
+    relaunch: (target) => done.push(`relaunch ${target?.execPath}`),
+    stopWithin: 1000,
+    error: (line) => done.push(line),
+  });
+  const restarting = app.restart({ execPath: "installer.exe", args: ["--updated"] }, false);
+  await Promise.resolve();
+  t.mock.timers.tick(999);
+  await Promise.resolve();
+  assert.deepEqual(done, [], "within the bound it waits for the stop");
+  t.mock.timers.tick(1);
+  await restarting;
+  assert.deepEqual(done, ["stopping the app took longer than 1 s, so it exits without waiting", "relaunch installer.exe", "exit 0"]);
+});
+
+test("1.7 a restart whose relaunch throws still exits", async () => {
+  let exited: number | undefined;
+  const app = background({
+    stopDatabase: async () => {},
+    exit: (code) => { exited = code; },
+    relaunch: () => { throw new Error("relaunch refused"); },
+  });
+  await app.restart({ execPath: "installer.exe", args: [] }, false).catch(() => {});
+  assert.equal(exited, 0);
+});
+
 test("1.7 asking the app to quit from outside stops it as the tray's Quit does: the database once, then exit, and it does not open again", async () => {
   const done: string[] = [];
   let finishStopping = (): void => {};

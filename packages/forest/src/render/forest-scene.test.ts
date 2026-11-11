@@ -76,6 +76,16 @@ test("3.92 the scene carries each story's edges that hold contracts, by their co
   assert.equal("edges" in forestScene(tree, history, workStates([])), false, "a plan with no edge holding a contract carries none");
 });
 
+test("3.99 the scene carries each capability's own contracts' ids, and none for a capability that has none", () => {
+  const { tree, history } = project();
+  const contract = (id: string) => ({ id, title: `Contract ${id}`, health: NO_HEALTH });
+  const [signUp, ...rest] = tree.stories;
+  const [first, ...others] = signUp!.capabilities;
+  const planned: AnnotatedTree = { ...tree, stories: [{ ...signUp!, capabilities: [{ ...first!, contracts: [contract("contract_a"), contract("contract_b")] }, ...others] }, ...rest] };
+  assert.deepEqual(forestScene(planned, history, workStates([])).contracts, [{ capability: first!.id, contracts: ["contract_a", "contract_b"] }]);
+  assert.equal("contracts" in forestScene(tree, history, workStates([])), false, "a plan whose capabilities hold no contract carries none");
+});
+
 test("3.67 each plumbing call the survey marks between two stories is one island-to-island entry per kind, with its files, and is a link like any other", () => {
   const { tree, history } = project();
   const file = (from: string, extra: object = {}) => ({ from, typeOnly: false, ...extra });

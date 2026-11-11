@@ -12,7 +12,7 @@ import { islandRoads } from "../territories/island-roads.js";
 import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
-import { OPEN_WORK, openWorkLayer, openWorkMarks, PICK_GOLD, RING_LEAST_PX, RING_PX, rungLinks, sizeOpenWork } from "./open-work.js";
+import { OPEN_WORK, openWorkLayer, openWorkMarks, PICK_GOLD, ringedCapabilities, RING_LEAST_PX, RING_PX, rungLinks, sizeOpenWork } from "./open-work.js";
 
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
 const coast: Coast = [Array.from({ length: 96 }, (_, i) => ({ x: R * Math.cos(i * Math.PI / 48), z: R * Math.sin(i * Math.PI / 48) }))];
@@ -139,4 +139,12 @@ test("3.92 · an arc selected whose open work makes an edge's contract true ring
   const hits: unknown[] = [];
   ring.raycast({} as never, hits as never);
   assert.equal(hits.length, 0, "it takes no pointer");
+});
+
+test("3.99 · an arc selected rings each capability its open increments name and each one owning a contract they link, before any claims it", () => {
+  const owned = [{ capability: "a", contracts: ["contract_a1", "contract_a2"] }, { capability: "b", contracts: ["contract_b1"] }, { capability: "c", contracts: ["contract_c1"] }];
+  assert.deepEqual([...ringedCapabilities([], ["contract_a2", "contract_c1", "contract_edge"], owned)!].sort(), ["a", "c"], "planned work, no capability named yet, rings the parts its contracts sit on");
+  assert.deepEqual([...ringedCapabilities(["d"], ["contract_b1"], owned)!].sort(), ["b", "d"], "named and linked alike");
+  assert.deepEqual([...ringedCapabilities(["d"], undefined, owned)!], ["d"]);
+  assert.equal(ringedCapabilities(undefined, undefined, owned), undefined, "no arc selected rings nothing (3.84)");
 });

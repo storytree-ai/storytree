@@ -248,6 +248,25 @@
   .planet-mini-globe, .forest-top { transition: none; }
 }
 
+/* 3.106: shown while the view is moved from its opening, under the compass and clear of the top row's notice (3.103); a
+   click goes Home, as the compass does. */
+.whole-map {
+  position: absolute;
+  top: calc(0.5rem + 64px + 0.4rem);
+  right: 0.5rem;
+  transition: margin-right 0.6s ease-in-out;
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid #7d8a94;
+  border-radius: 999px;
+  background: #16212a;
+  color: #e6ecf0;
+  font: 600 0.8rem system-ui, sans-serif;
+}
+.whole-map:hover, .whole-map:focus-visible { border-color: #eadcae; outline: none; }
+@media (prefers-reduced-motion: reduce) { .whole-map { transition: none; } }
+
 .planet-edge-marker {
   position: absolute;
   transform: translate(-50%, -50%);

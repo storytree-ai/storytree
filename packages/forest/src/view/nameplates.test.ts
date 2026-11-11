@@ -6,7 +6,7 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, mapFrame, NAME_OVERLAP_SLACK, nameMoves, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
+import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, mapFrame, NAME_OVERLAP_SLACK, nameMoves, nameplateAt, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -171,4 +171,13 @@ test("3.4 a story's name that runs past the map's frame, under the rail or out o
   const cut = mapFrame({ left: 432, top: 48, right: 1600, bottom: 960 }, { width: 1440, height: 960 });
   assert.deepEqual(cut, frame);
   assert.deepEqual([...fadedPlates(row, undefined, cut)].sort(), ["follow", "read and write", "under the rail"], "a name past the window's edge fades, though the canvas runs on");
+});
+
+test("3.104 a click names what the name under it names: a part's name before its story's, and a name it falls outside names nothing", () => {
+  const story = { story: "one", box: { left: 100, top: 100, right: 200, bottom: 130 } };
+  const part = { story: "one", capability: "one-cap", box: { left: 150, top: 110, right: 230, bottom: 125 } };
+  assert.deepEqual(nameplateAt([story, part], { x: 120, y: 115 }), { story: "one" });
+  assert.deepEqual(nameplateAt([story, part], { x: 160, y: 115 }), { story: "one", capability: "one-cap" });
+  assert.deepEqual(nameplateAt([part, story], { x: 160, y: 115 }), { story: "one", capability: "one-cap" });
+  assert.equal(nameplateAt([story, part], { x: 90, y: 115 }), undefined);
 });

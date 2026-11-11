@@ -2,6 +2,26 @@
 import { Quaternion, Vector3 } from "three";
 import type { Coast, Point, TerritoryMap } from "../territories/territories.js";
 
+/** A name on the map as drawn: the story it is on, the part it names if it is a part's, and its box in the window. */
+export type DrawnName = { readonly story: string; readonly capability?: string; readonly box: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number } };
+
+/** 3.104: what the name under `cursor` names, a part's name before its story's, which it may lie over; none, off every name. */
+export function nameplateAt(names: readonly DrawnName[], cursor: { x: number; y: number }): { story: string; capability?: string } | undefined {
+  const under = names.filter(({ box }) => cursor.x >= box.left && cursor.x <= box.right && cursor.y >= box.top && cursor.y <= box.bottom);
+  const named = under.find(name => name.capability !== undefined) ?? under[0];
+  return named === undefined ? undefined : named.capability === undefined ? { story: named.story } : { story: named.story, capability: named.capability };
+}
+
+/** The names shown in `host`, the map's overlays: none hidden (an overlay turned away is not displayed) or faded as crowded (3.4). */
+export function drawnNames(host: ParentNode): DrawnName[] {
+  return [...host.querySelectorAll<HTMLElement>(".planet-nameplate")].flatMap(label => {
+    const story = label.dataset.storyId ?? label.dataset.islandId;
+    if (story === undefined || label.classList.contains("crowded") || !label.checkVisibility()) return [];
+    const capability = label.dataset.capabilityId, box = label.getBoundingClientRect();
+    return [capability === undefined ? { story, box } : { story, capability, box }];
+  });
+}
+
 /** How far past the coast a story's nameplate starts, in ground units. */
 export const NAMEPLATE_GAP = 3;
 

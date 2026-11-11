@@ -175,6 +175,9 @@ export const CATALOGUE: readonly LagAction[] = [
     owner: TURNING_THE_MAP },
   { name: "turn-library", setup: [...RESET, { kind: "click", selector: "[data-globe-switch=library]" }, { kind: "wait", until: { mode: "library", still: true } }],
     perform: [{ kind: "turn" }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "turn-library", turns: "library", owner: TURNING_THE_MAP },
+  // 3.106: an arrow key pans the view off its opening, so the Whole map button shows; its click eases the view home.
+  { name: "whole-map", setup: [...RESET, { kind: "key", key: "ArrowRight" }, { kind: "wait", until: { still: true } }],
+    perform: [{ kind: "click", selector: "button.whole-map" }], settled: { still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: TURNING_THE_MAP },
   { name: "idle", setup: RESET, perform: [{ kind: "idle", ms: 10_000 }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: THE_CANVAS },
 ];
 

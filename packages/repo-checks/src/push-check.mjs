@@ -139,7 +139,7 @@ export function pushProblems({ root, remote, updates, secrets }) {
         if (!CODE_FILE.test(file)) continue;
         const hits = added.flatMap((text) => sanitizationHits(file, text));
         if (hits.length <= prior.flatMap((text) => sanitizationHits(file, text)).length) continue;
-        for (const { line, regex } of hits) patterns.push(`${file}:${line} (commit ${commit.slice(0, 10)}) ${describe(regex)}`);
+        for (const hit of hits) patterns.push(`${file}:${hit.line} (commit ${commit.slice(0, 10)}) ${describe(hit)}`);
       }
     }
   }

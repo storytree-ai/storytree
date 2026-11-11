@@ -14,7 +14,7 @@ import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { presentTerritories } from "./globe-surfaces.js";
 import { gateOf, islandRoadMarks, landFill, LIT, PORTAL, ringGate, ROAD } from "./island-roads.js";
-import { RING_PX, sizeOpenWork } from "./open-work.js";
+import { openWorkLayer, openWorkMarks, RING_PX, sizeOpenWork } from "./open-work.js";
 import { answerFeedbackPicks, FEEDBACK_PICK_EVENT, feedbackPick, gateAfterSelection, pickClick } from "./planet-navigation.js";
 import { GLYPHS, kindOf, settlementSymbols, SYMBOL_INK } from "./settlement-symbols.js";
 import { territoryLand } from "./territory-land.js";
@@ -251,6 +251,32 @@ test("3.15 · a road takes no click: a click on one picks the capability's terri
   marks.traverse((o) => named.push(o.name));
   assert.deepEqual(named.filter((n) => n.startsWith("road-lit")), [], "no road is drawn to be lit gold");
   assert.ok(roads.gates.every((_, i) => `#${((marks.getObjectByName(`gate-face:${i}:1`) as Mesh).material as MeshBasicMaterial).color.getHexString()}` !== LIT.gold), "and no gate face is gold");
+});
+
+test("3.88 · a click inside a ringed gate's ring, off its tiny posts, picks the gate; a click outside every ring still picks the land under it (3.15)", () => {
+  const land = territoryLand(map, flat, coast, new Map(), roads), relief = islandRelief(map, roads);
+  const world = new Group();
+  world.name = "planet:story";
+  const i = roads.gates.findIndex((g) => g.entrances.includes("d->c")), gate = roads.gates[i]!;
+  const marks = openWorkMarks(map, new Set(), roads, undefined, new Set(["d->c"]));
+  world.add(land, islandRoadMarks(roads, flat, landFill(map, land), relief), openWorkLayer(marks, (p) => new Vector3(p.x, relief.height + 0.05, p.z), 50));
+  const ring = marks.gates!.find((g) => g.gate === i)!, across = { x: -gate.along.z, z: gate.along.x };
+  const inside = { x: gate.at.x + across.x * ring.radius * 0.7, z: gate.at.z + across.z * ring.radius * 0.7 };
+  assert.deepEqual(clickAt(world, inside), { gate: { story: "story", pick: { gate: i, between: ["c", "d"] } }, hit: { kind: "story", id: "story", gate: ["c", "d"] } },
+    "inside the ring, off the posts: the gate and its island with the pair it joins");
+  for (const sign of [-1, 1]) world.getObjectByName(`gate-post:${i}:${sign}`)!.visible = false;
+  assert.equal(clickAt(world, inside).gate, undefined, "zoomed out, where its posts are not drawn, the ring picks no gate");
+  for (const sign of [-1, 1]) world.getObjectByName(`gate-post:${i}:${sign}`)!.visible = true;
+  const bare = new Group();
+  bare.name = "planet:story";
+  bare.add(territoryLand(map, flat, coast, new Map(), roads));
+  const outside = map.cells.map((c) => c.site).find((p) => (marks.gates ?? []).every((g) => Math.hypot(g.x - p.x, g.z - p.z) > g.radius * 3)
+    && roads.gates.every((g) => Math.hypot(g.at.x - p.x, g.at.z - p.z) > 4))!;
+  assert.deepEqual(clickAt(world, outside), { gate: undefined, hit: clickAt(bare, outside).hit }, "outside every ring: the land under it");
+  const unringed = roads.gates.findIndex((g, k) => k !== i && Math.hypot(g.at.x - gate.at.x, g.at.z - gate.at.z) > ring.radius * 3);
+  assert.ok(unringed >= 0, "another gate, far from the ringed one");
+  const other = roads.gates[unringed]!, near = { x: other.at.x + across.x * ring.radius * 0.7, z: other.at.z + across.z * ring.radius * 0.7 };
+  assert.equal(clickAt(world, near).gate, undefined, "beside a gate no ring marks, the land as before");
 });
 
 test("3.88 · a tunnel portal that stands as its road's gate is picked as that gate; any other portal picks nothing of its own", () => {

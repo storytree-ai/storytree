@@ -47,14 +47,11 @@ export function holdLayingOut(story: string): () => void {
  * (its roads, the island drawn under it) counts first and the mark shows no gap.
  */
 export function useLayingOut(story: string, laidOut: boolean): void {
-  const held = useRef<{ story: string; letGo: () => void } | undefined>(undefined);
-  useLayoutEffect(() => {
-    if (laidOut || held.current?.story === story) return;
-    held.current?.letGo();
-    held.current = { story, letGo: holdLayingOut(story) };
-  }, [story, laidOut]);
-  useEffect(() => { if (laidOut) { held.current?.letGo(); held.current = undefined; } }, [laidOut]);
-  useLayoutEffect(() => () => { held.current?.letGo(); held.current = undefined; }, []);
+  // `story` is the island's own, the same for as long as it is mounted.
+  const letGo = useRef<(() => void) | undefined>(undefined);
+  useLayoutEffect(() => { if (!laidOut) letGo.current ??= holdLayingOut(story); }, [story, laidOut]);
+  useEffect(() => { if (laidOut) { letGo.current?.(); letGo.current = undefined; } }, [laidOut]);
+  useLayoutEffect(() => () => { letGo.current?.(); letGo.current = undefined; }, []);
 }
 
 /** An island on the map, with its land's territories once it has land. */

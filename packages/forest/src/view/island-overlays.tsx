@@ -91,10 +91,11 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
       facing: Number(label.dataset.facing ?? 0), dimmed: label.dataset.dimmed !== undefined }));
     const faded = fadedPlates(shown, selected);
     for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));
-    // A capability's name is never hidden: where names overlap they are moved apart (3.33).
+    // A capability's name is never hidden: where names overlap they are moved apart, and off a story's name shown (3.33).
     const capabilities = [...host.querySelectorAll<HTMLElement>(".planet-nameplate.capability")].filter(onScreen);
     const moves = nameMoves(capabilities.map(label => ({ capability: label.dataset.capabilityId!, box: label.getBoundingClientRect(),
-      given: { x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) }, size: Number(label.dataset.size ?? 0) })));
+      given: { x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) }, size: Number(label.dataset.size ?? 0) })),
+      shown.filter(plate => !faded.has(plate.story)).map(plate => plate.box));
     for (const label of capabilities) {
       const move = moves.get(label.dataset.capabilityId!);
       if (move === undefined) continue;

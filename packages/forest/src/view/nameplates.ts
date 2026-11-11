@@ -58,10 +58,10 @@ const moved = (box: Box, { x, y }: Move): Box => ({ left: box.left + x, right: b
  * territory's (more cells) down, each name stays on its point if it clears the names already placed; otherwise it takes the
  * shortest move, by the side of a name in its way or a step past the next one in its way, that clears them all, and failing
  * those it steps down past the names in its way until none is. Only names in each other's way move, so a name clear of the
- * others stays on its own territory.
+ * others stays on its own territory. The story names shown (`stories`) are in every name's way and never move.
  */
-export function spreadCapabilities(names: readonly { capability: string; box: Box; size: number }[]): Map<string, Move> {
-  const placed: Box[] = [], moves = new Map<string, Move>();
+export function spreadCapabilities(names: readonly { capability: string; box: Box; size: number }[], stories: readonly Box[] = []): Map<string, Move> {
+  const placed: Box[] = [...stories], moves = new Map<string, Move>();
   const clear = (box: Box) => !placed.some(other => overlaps(box, other));
   const inWay = (at: Box) => placed.filter(other => overlaps(at, other));
   // The moves that put `box` just past one side of `other`: within the slack, by a pixel less, so the screen's fractions of a
@@ -98,10 +98,11 @@ export function spreadCapabilities(names: readonly { capability: string; box: Bo
 /**
  * The moves to give capability names shown on screen at `box`, each having been given `given` (3.33): each is judged from its own
  * point, its box with that move taken back off, and only a name whose move changes by half a pixel or more is listed, so names
- * already apart stay still from one frame to the next.
+ * already apart stay still from one frame to the next. The story names shown at `stories` stay where they are, and the names
+ * are moved off them.
  */
-export function nameMoves(names: readonly { capability: string; box: Box; given: Move; size: number }[]): Map<string, Move> {
-  const moves = spreadCapabilities(names.map(({ capability, box, given, size }) => ({ capability, box: moved(box, { x: -given.x, y: -given.y }), size })));
+export function nameMoves(names: readonly { capability: string; box: Box; given: Move; size: number }[], stories: readonly Box[] = []): Map<string, Move> {
+  const moves = spreadCapabilities(names.map(({ capability, box, given, size }) => ({ capability, box: moved(box, { x: -given.x, y: -given.y }), size })), stories);
   const changed = new Map<string, Move>();
   for (const { capability, given } of names) {
     const move = moves.get(capability)!;

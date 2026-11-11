@@ -116,3 +116,21 @@ test("3.33 where a selected island's capability names overlap, they are moved ap
   });
   assert.deepEqual([...nameMoves(shownMoved)], [], "names already moved apart stay still on the next frame");
 });
+
+test("3.33 a capability name over a story's name shown is moved off it, the story's name staying where it is", () => {
+  const box = (left: number, top: number, width = 80, height = 30) => ({ left, top, right: left + width, bottom: top + height });
+  // As The knowledge core showed them: Look inside and inspect an artifact over the story's own name, Knowledge under its shelves clear.
+  const story = box(1100, 205, 110, 44);
+  const names = [
+    { capability: "look inside", box: box(1135, 185, 115, 28), size: 2, given: { x: 0, y: 0 } },
+    { capability: "knowledge", box: box(1030, 98, 115, 28), size: 6, given: { x: 0, y: 0 } },
+  ];
+  const moves = nameMoves(names, [story]);
+  const look = moves.get("look inside");
+  assert.ok(look !== undefined, "the name over the story's is moved");
+  const at = { left: names[0]!.box.left + look.x, right: names[0]!.box.right + look.x, top: names[0]!.box.top + look.y, bottom: names[0]!.box.bottom + look.y };
+  const apart = at.right <= story.left + NAME_OVERLAP_SLACK || story.right <= at.left + NAME_OVERLAP_SLACK
+    || at.bottom <= story.top + NAME_OVERLAP_SLACK || story.bottom <= at.top + NAME_OVERLAP_SLACK;
+  assert.ok(apart, `moved by ${JSON.stringify(look)}, it clears the story's name`);
+  assert.equal(moves.has("knowledge"), false, "a name clear of the story's stays on its point, though the larger");
+});

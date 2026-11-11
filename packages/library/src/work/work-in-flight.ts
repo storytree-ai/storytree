@@ -39,10 +39,10 @@ const FROM_HIS_ANSWER = /\b(?:voice\.note|question)_[0-9a-f]{12}\b/;
 
 /** Where an increment is in its lifecycle. */
 export type IncrementStatus = (typeof INCREMENT_STATUSES)[number];
-/** An arc's state: worked out from its increments, except for the owner's "parked". */
-/** A settled question, with the open increments settling it released, by id and title (10.41). */
+/** A settled question, with the open increments settling it released, by id and title (10.39). */
 export type SettledQuestion = SchemaRecord<"question"> & { released: { id: string; title: string }[] };
 
+/** An arc's state: worked out from its increments, except for the owner's "parked". */
 export type ArcState = "active" | "parked" | "closed";
 /** How an increment closed. */
 export type Disposition = NonNullable<FieldsOf<"increment">["outcome"]>["disposition"];
@@ -660,7 +660,7 @@ export class WorkInFlight {
    * Settle a question with the owner's answer, and the live decision that carried it, if one did
    * (capability 12), taking it off every increment's heldOn in the same step (10.39) and clearing the
    * waits on its arc if that now reads closed (10.33), with the open increments it released, oldest
-   * first, by id and title (10.41). Null if `id` is not a live question.
+   * first, by id and title (10.39). Null if `id` is not a live question.
    */
   settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SettledQuestion | null> {
     return this.#serially(async () => {

@@ -43,7 +43,7 @@ const STYLES = `
 .diagram-caption { display: block; }
 .diagram-globe { fill: #141c21; stroke: #5b7f8c; stroke-width: 2; stroke-dasharray: 7 6; }
 .diagram-land { fill: #bdd6a6; } .diagram-underside { fill: #6b5a46; } .diagram-tree { fill: #6f9a5c; }
-.diagram-glue { stroke: #7fb2e5; stroke-width: 2; } .diagram-decision { fill: #7fb2e5; }
+.diagram-glue { stroke: #7fb2e5; stroke-width: 2; } .diagram-decision { fill: #7fb2e5; } .diagram-cover { fill: #f2d27a; }
 .diagram-link { stroke: #7fb2e5; stroke-width: 1.2; opacity: .55; }
 .diagram-tunnel { fill: none; stroke: #7fb2e5; stroke-width: 1; stroke-dasharray: 3 5; opacity: .5; }
 .diagram-core { fill: url(#tour-diagram-core); } .diagram-loose { fill: #e4e8ee; opacity: .75; }

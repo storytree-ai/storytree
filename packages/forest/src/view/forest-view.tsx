@@ -115,9 +115,9 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   };
   const pick = (story: string | undefined, capability?: string, gate?: readonly [string, string]): void => selection.picked(story, capability, gate);
   const pickNote = (note: string): void => selection.note(note);
-  const onLanesNotice = (notice: LanesNotice | undefined): void => {
-    if (notice?.text !== drawn.lanesNotice?.text || notice?.issue !== drawn.lanesNotice?.issue) render({ lanesNotice: notice });
-  };
+  // The canvas tells it only when the notice changes (4.45); the one it sends as it unmounts, on dispose, draws nothing.
+  const onLanesNotice = (notice: LanesNotice | undefined): void => { if (!disposed) render({ lanesNotice: notice }); };
+  let disposed = false;
   const onKey = (event: KeyboardEvent): void => selection.key(event.key);
   let controls: PlacedGlobeControls | undefined;
   const onControls = (next: PlacedGlobeControls | undefined): void => { controls = next; };
@@ -169,6 +169,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       observer.disconnect();
       shown.disconnect();
       stopPicks?.();
+      disposed = true;
       root.unmount();
       container.replaceChildren();
     },

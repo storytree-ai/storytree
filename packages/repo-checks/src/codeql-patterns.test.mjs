@@ -97,6 +97,7 @@ const STRING_PARTIAL = code([
   String.raw`export const dotted = (at: string): RegExp => new RegExp(at.replaceAll(".", "\\."));`,
   String.raw`export const first = (at: string): RegExp => new RegExp(at.replace(".", "\\."));`,
   String.raw`export const slashed = (at: string): RegExp => new RegExp(at.replaceAll("/", "\\/"));`,
+  String.raw`export const quoted = (text: string): string => text.replaceAll("x", "\\x").replaceAll(".", "\\.");`,
 ]);
 
 const STRING_ESCAPES = code([
@@ -116,6 +117,6 @@ test("8.12 · pnpm lint refuses a replace of a one-character string pattern othe
   const exit = await lint({ root, rules: RULES.filter(({ name }) => name === "codeql-patterns"), log: (line) => lines.push(line) });
   assert.equal(exit, 1, lines.join("\n"));
   const refused = lines.filter((line) => line.startsWith("codeql-patterns: "));
-  assert.deepEqual(refused.map((line) => /^codeql-patterns: (\S+:\d+) /.exec(line)?.[1]), ["packages/view/src/partial.test.ts:1", "packages/view/src/partial.test.ts:2", "packages/view/src/partial.test.ts:3"], lines.join("\n"));
+  assert.deepEqual(refused.map((line) => /^codeql-patterns: (\S+:\d+) /.exec(line)?.[1]), ["packages/view/src/partial.test.ts:1", "packages/view/src/partial.test.ts:2", "packages/view/src/partial.test.ts:3", "packages/view/src/partial.test.ts:4", "packages/view/src/partial.test.ts:4"], lines.join("\n"));
   assert.match(refused[0], /js\/incomplete-sanitization/, "names the CodeQL rule it stands in for");
 });

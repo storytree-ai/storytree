@@ -760,6 +760,13 @@ for (const backend of [memory, postgres]) {
     const owner = await add("Owner task", [capability.id]);
     await flight.addWaitFor(owner.id, { releaser: "owner", note: "sign in to the store", why: "the build is published" });
     const free = await add("Free task", [capability.id]);
+    const claimed = await add("Claim task", [capability.id]);
+    await flight.addWait(claimed.id, harness.id, "waits on its claim");
+    const mail = await flight.createArc({ title: "Mail", intent: "An intent", endState: "An end state", stories: [story.id] });
+    const after = await flight.createArc({ title: "After mail", intent: "An intent", endState: "An end state", stories: [story.id] });
+    await flight.addWait(after.id, mail.id, "needs mail first");
+    const arcWait = await flight.addIncrement({ arc: after.id, title: "Arc task", objective: "Test it", body: "Red then green" });
+    await flight.editIncrement(arcWait.id, { capabilities: [capability.id] });
     const waitsOf = async () => new Map((await health.annotate()).stories[0]!.capabilities.find((one) => one.id === capability.id)!.openWork!.map(({ increment, waits }) => [increment, waits]));
 
     let waits = await waitsOf();
@@ -767,6 +774,8 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(waits.get(held.id), [{ kind: "question", on: question.id }]);
     assert.deepEqual(waits.get(owner.id), [{ kind: "owner", note: "sign in to the store" }]);
     assert.equal(waits.get(free.id), undefined, "nothing holds it");
+    assert.deepEqual(waits.get(claimed.id), [{ kind: "claim", on: harness.id, title: harness.fields.title }], "a claim wait, by its capability's title");
+    assert.deepEqual(waits.get(arcWait.id), [{ kind: "work", on: mail.id, title: "Mail" }], "its arc's wait on another arc, by that arc's title");
     await flight.advanceIncrement(oracle.id, "active");
     waits = await waitsOf();
     assert.deepEqual(waits.get(task.id), [{ kind: "work", on: oracle.id, title: "Test harness and DB oracle", state: "active" }], "a started blocker is under way");

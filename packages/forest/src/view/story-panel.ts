@@ -208,12 +208,12 @@ const REASON: Readonly<Record<WhyLine["reason"], (carrying: number, of: number) 
 /**
  * Under its title (4.49, ADR-0825 D1): why it is not green, in counts of its contracts, and who moves it. A contract counts as
  * failing by its gear, so a CI failure counts though a later local run passed it (question_32b645261409); any failing gear
- * makes the reason failing, else the library's reason stands, shown only when it matters. The agent's work is named by the
+ * on a built capability makes the reason failing, else the library's reason stands, shown only when it matters. The agent's work is named by the
  * open increment that moves it, with what it waits on; the owner's says he moves it. Everything the library says is text.
  */
 function lead(line: CapabilityLine): string {
   const failing = line.contracts.filter(({ gear }) => gear?.state === "failing");
-  const reason: WhyLine | undefined = failing.length > 0 && line.why?.reason !== "not built"
+  const reason: WhyLine | undefined = failing.length > 0 && line.status !== "proposed" && line.why?.reason !== "not built"
     ? { reason: "failing", mover: "agent", contracts: failing.map(({ id }) => id), ...(line.why?.reason === "failing" && line.why.since !== undefined ? { since: line.why.since } : {}), ...gearSources(failing) }
     : line.why !== undefined && mattersWhy(line.status, line.why) ? line.why : undefined;
   if (reason === undefined) return "";

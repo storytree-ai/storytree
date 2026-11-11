@@ -404,6 +404,10 @@ test("4.49 a capability's lead says why it is not green in counts of its contrac
   assert.equal(whyLine(cap({})), "Why not green: 2 of 4 contracts fail, from CI. No open work moves it yet.");
   assert.equal(whyLine(cap({ status: "healthy", why: undefined as never })), "Why not green: 2 of 4 contracts fail, from CI. No open work moves it yet.", "a CI failure shows though a later local run passed it");
 
+  assert.equal(whyLine(cap({ openWork: [{ ...task, waits: [{ kind: "claim", on: "cap-9", title: "Test harness" }, { kind: "event", note: "the next release build" }] }] })), "Why not green: 2 of 4 contracts fail, from CI. Task 1 moves it; it waits on another session's claim on Test harness and an outside event: the next release build.");
+  assert.doesNotMatch(cap({ status: "proposed", why: { reason: "not built", mover: "agent", contracts: [] } }), /panel-why/, "a proposed one says nothing of it, failing gears or not");
+  assert.doesNotMatch(cap({ status: "proposed", why: undefined as never }), /panel-why/);
+
   const unnamed = four.map((one) => ({ ...one, gear: { state: "not-checked" as const } }));
   assert.equal(whyLine(cap({ status: "untested", contracts: unnamed, why: { reason: "no test names it", mover: "agent", contracts: ["3.2", "3.3", "3.4"] } })), "Why not green: no test names 3 of 4 contracts. No open work moves it yet.");
   assert.equal(whyLine(cap({ status: "untested", contracts: unnamed, why: { reason: "needs owner", mover: "owner", contracts: ["3.1"] }, openWork: [task] })), "Why not green: 1 of 4 contracts needs something only you can give. You move this one.");

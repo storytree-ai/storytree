@@ -7,6 +7,7 @@ import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_P
 import { z } from "zod";
 
 import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
+import { oversizedSaid } from "@storytree/arc-surface/verbs";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
 import { elsewhereSaid, type MapNode } from "@storytree/map";
 import { readMap } from "@storytree/map/read";
@@ -453,6 +454,8 @@ async function showPlan({ library, log, project, quietMs }: PlanReading, closed:
     const priority = priorityOf.get(arc.id);
     const day = closedOn.get(arc.id);
     out.push(`Arc ${quoted(arc.title)} (${arc.id})${priority === undefined ? "" : `, priority ${priority},`}${day === undefined ? "" : `, closed ${day},`} grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
+    const oversized = oversizedSaid(incrementsOf.get(arc.id)?.length ?? 0);
+    if (oversized !== undefined) out.push(`  ${oversized}`);
     for (const increment of incrementsOf.get(arc.id) ?? []) {
       out.push(`  Increment ${quoted(increment.fields.title)} (${increment.id}): ${increment.fields.status}; ${heldBy(increment.id)}`);
     }

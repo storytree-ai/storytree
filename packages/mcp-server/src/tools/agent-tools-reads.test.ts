@@ -1040,3 +1040,25 @@ test("6.106 a knowledge note a tool writes for a session that has read outside t
     });
   });
 });
+
+test("9.38 show_plan says an arc holding more than 20 increments, open and closed together, is due for decomposition under its arc line, and says nothing of one holding 20", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const filled = async (title: string, count: number) => {
+        const arc = idOf(await agent.call("plan_arc", { title, intent: "Ship it", end_state: "Shipped" }));
+        for (let at = 0; at < count; at++) {
+          const increment = await library.addIncrement({ arc, title: `${title} ${at}`, objective: "Ship it", body: "Red then green" });
+          if (at === 0) await library.closeIncrement(increment.id, { pr: "#1", disposition: "landed" });
+        }
+        return arc;
+      };
+      const big = await filled("Hardening", 21);
+      const small = await filled("Docs", 20);
+
+      const lines = (await agent.call("show_plan")).text.split("\n");
+      const after = (arc: string) => lines[lines.findIndex((line) => line.startsWith("Arc ") && line.includes(`(${arc})`)) + 1] ?? "";
+      assert.match(after(big), /^ {2}Due for decomposition: it holds 21 increments, open and closed, more than 20; ADR-1321 asks for a split into goal-scoped arcs, moving closed history with `arc increment move`\.$/, lines.join("\n"));
+      assert.match(after(small), /^ {2}Increment /, lines.join("\n"));
+    });
+  });
+});

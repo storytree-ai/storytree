@@ -12,7 +12,7 @@
  *
  * Everything here is a pure function of what the app hands the page, so it is tested without one.
  */
-import type { AnnotatedContract, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, Change, EarlierVerdict, HealthColumn, HealthSource, HealthState } from "@storytree/library";
+import type { AnnotatedContract, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, Change, EarlierVerdict, HealthColumn, HealthSource, HealthState, OpenWait } from "@storytree/library";
 
 
 import { grove, type PartStates } from "../capability-tree/capability-tree.js";
@@ -91,8 +91,11 @@ export interface CapabilityLine {
   reportOnly?: true;
   /** The arcs that park it, when it is not proven and parked on purpose (ADR-0992 D6): its card names them. */
   parkedOn?: { arc: string; title: string }[];
-  /** The open increments naming it, in the library's order: the active ones first, then parked order (ADR-1253 D1). */
-  openWork?: { increment: string; title: string; active?: true }[];
+  /**
+   * The open increments naming it, in the library's order: the active ones first, then parked order (ADR-1253 D1), each with
+   * what still holds it, when something does (5.28): the first is the one the lead names as moving it (4.49).
+   */
+  openWork?: { increment: string; title: string; active?: true; waits?: OpenWait[] }[];
 }
 
 /** An edge of the story (ADR-1282 D1): one capability depending on another of the story, with the edge's own contracts. */
@@ -170,7 +173,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
         ...(capability.why === undefined ? {} : { why: whyLine(capability.why, capability.contracts, contracts) }),
         ...(capability.reportOnly ? { reportOnly: true as const } : {}),
         ...(capability.parkedOn === undefined ? {} : { parkedOn: capability.parkedOn.map(({ arc, title }) => ({ arc, title })) }),
-        ...(capability.openWork === undefined ? {} : { openWork: capability.openWork.map(({ increment, title, active }) => ({ increment, title, ...(active ? { active } : {}) })) }),
+        ...(capability.openWork === undefined ? {} : { openWork: capability.openWork.map(({ increment, title, active, waits }) => ({ increment, title, ...(active ? { active } : {}), ...(waits === undefined ? {} : { waits: waits.map((wait) => ({ ...wait })) }) })) }),
       },
     ];
   });

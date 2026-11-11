@@ -166,7 +166,7 @@ function run({ state, source, at }: CheckReading): string {
 function capability(line: CapabilityLine): string {
   return `
     <section class="panel-detail" data-capability-id="${attribute(line.id)}">
-      ${line.reportOnly || line.why === undefined || !mattersWhy(line.status, line.why) ? "" : why(line.why)}
+      ${line.reportOnly ? "" : lead(line)}
       ${line.reportOnly ? `<p class="panel-why report-only">${text(NOT_VERIFIED)}.</p>` : ""}
       ${line.parkedOn === undefined ? "" : parked(line.parkedOn)}
       ${description(line.description, "panel-lead")}
@@ -190,21 +190,67 @@ function needsYou(capabilities: readonly CapabilityLine[]): string {
 /** What a report-only capability says in place of a reason (ADR-0630); the library's words, kept here as the panel's. */
 const NOT_VERIFIED = "storytree does not check this project's tests yet";
 
-/** The reason in the owner's words, by what carries it. */
-const REASON: Readonly<Record<WhyLine["reason"], (named: string) => string>> = {
+/** How many of a capability's contracts carry a reason: "2 of 4 contracts". */
+function counted(carrying: number, of: number): string {
+  return `${carrying} of ${of} contract${of === 1 ? "" : "s"}`;
+}
+
+/** The reason in the owner's words, by how many of how many contracts carry it; none carrying it, said of the capability. */
+const REASON: Readonly<Record<WhyLine["reason"], (carrying: number, of: number) => string>> = {
   "not built": () => "it is not built yet",
-  failing: (named) => `${named} ${/ and |, /.test(named) ? "are" : "is"} failing`,
-  "not re-run": (named) => `${named} ${/ and |, /.test(named) ? "were" : "was"} not re-run`,
-  "no test names it": (named) => `no test names ${named}`,
-  "out of CI's reach": (named) => `${named} can only run on another platform`,
-  "needs owner": (named) => `${named} needs something only you can give`,
+  failing: (carrying, of) => (carrying === 0 ? "it is failing" : `${counted(carrying, of)} ${carrying === 1 ? "fails" : "fail"}`),
+  "not re-run": (carrying, of) => `${counted(carrying, of)} ${carrying === 1 ? "was" : "were"} not re-run`,
+  "no test names it": (carrying, of) => (carrying === 0 ? "no test names it" : `no test names ${counted(carrying, of)}`),
+  "out of CI's reach": (carrying, of) => `${counted(carrying, of)} can only run on another platform`,
+  "needs owner": (carrying, of) => `${counted(carrying, of)} ${carrying === 1 ? "needs" : "need"} something only you can give`,
 };
 
-/** Under its word: why it is not green and who moves it (ADR-0825 D1). Everything the library says is text. */
-function why({ reason, mover, contracts, since, sources }: WhyLine): string {
-  const named = contracts.length < 2 ? (contracts[0] ?? "it") : `${contracts.slice(0, -1).join(", ")} and ${contracts.at(-1)}`;
-  const sentence = REASON[reason](reason === "not built" ? "" : named);
-  return `<p class="panel-why mover-${mover}"><strong>Why not green:</strong> ${text(sentence)}${sources === undefined ? "" : `, ${FROM[sourceKey(sources)]}`}${since === undefined || reason === "not re-run" ? "" : `, since ${day(since)}`}. <span class="panel-mover">${mover === "owner" ? "You move this one." : "The agent moves this one."}</span></p>`;
+/**
+ * Under its title (4.49, ADR-0825 D1): why it is not green, in counts of its contracts, and who moves it. A contract counts as
+ * failing by its gear, so a CI failure counts though a later local run passed it (question_32b645261409); any failing gear
+ * makes the reason failing, else the library's reason stands, shown only when it matters. The agent's work is named by the
+ * open increment that moves it, with what it waits on; the owner's says he moves it. Everything the library says is text.
+ */
+function lead(line: CapabilityLine): string {
+  const failing = line.contracts.filter(({ gear }) => gear?.state === "failing");
+  const reason: WhyLine | undefined = failing.length > 0 && line.why?.reason !== "not built"
+    ? { reason: "failing", mover: "agent", contracts: failing.map(({ id }) => id), ...(line.why?.reason === "failing" && line.why.since !== undefined ? { since: line.why.since } : {}), ...gearSources(failing) }
+    : line.why !== undefined && mattersWhy(line.status, line.why) ? line.why : undefined;
+  if (reason === undefined) return "";
+  const { mover, since, sources } = reason;
+  const sentence = REASON[reason.reason](reason.contracts.length, line.contracts.length);
+  return `<p class="panel-why mover-${mover}"><strong>Why not green:</strong> ${text(sentence)}${sources === undefined ? "" : `, ${FROM[sourceKey(sources)]}`}${since === undefined || reason.reason === "not re-run" ? "" : `, since ${day(since)}`}. <span class="panel-mover">${text(mover === "owner" ? "You move this one." : moves(line.openWork))}</span></p>`;
+}
+
+/** The sources failing gears were read from, local before CI, when they say. */
+function gearSources(contracts: readonly ContractLine[]): { sources?: HealthSource[] } {
+  const said = (["local", "ci"] as const).filter((source) => contracts.some(({ gear }) => gear?.source === source));
+  return said.length === 0 ? {} : { sources: [...said] };
+}
+
+/** The open increment that moves it, the first in the library's order, and what holds it, else that it is under way or ready to take. */
+function moves(work: CapabilityLine["openWork"]): string {
+  const next = work?.[0];
+  if (next === undefined) return "No open work moves it yet.";
+  if (next.waits !== undefined && next.waits.length > 0) return `${next.title} moves it; it waits on ${and(next.waits.map(waitSaid))}.`;
+  return `${next.title} moves it; ${next.active ? "it is under way" : "it is ready to take"}.`;
+}
+
+/** One thing holding an increment, as the lead says it. */
+function waitSaid(wait: NonNullable<NonNullable<CapabilityLine["openWork"]>[number]["waits"]>[number]): string {
+  switch (wait.kind) {
+    case "work": return `${wait.title}${wait.state === "active" ? ", which is under way" : wait.state === "ready" ? ", which is ready to take" : ""}`;
+    case "claim": return `another session's claim on ${wait.title}`;
+    case "question": return "your answer to a question";
+    case "owner": return `you: ${wait.note}`;
+    case "event": return `an outside event: ${wait.note}`;
+  }
+}
+
+/** Phrases joined as a sentence says them: "a", "a and b", "a, b and c"; with a comma inside one, the last after ", and". */
+function and(phrases: readonly string[]): string {
+  if (phrases.length < 2) return phrases[0] ?? "";
+  return `${phrases.slice(0, -1).join(", ")}${phrases.some((phrase) => phrase.includes(",")) ? ", and" : " and"} ${phrases.at(-1)}`;
 }
 
 /** Why a grey territory is grey (ADR-0992 D6): the arcs that park it, by title. */

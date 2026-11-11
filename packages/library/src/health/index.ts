@@ -3,6 +3,7 @@ export { capabilityStatus, capabilityWhy, HealthRecord, heldBack, NOT_VERIFIED, 
 export type {
   AnnotatedCapability,
   OpenIncrement,
+  OpenWait,
   AnnotatedContract,
   AnnotatedEdge,
   AnnotatedStory,

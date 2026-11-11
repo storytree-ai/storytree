@@ -18,7 +18,7 @@ import { byCreation } from "../creation-order.js";
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, RecordType } from "../schema/types.js";
-import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, ParkedOn, ProjectTree, StoryNode, WorkInFlight, WorkModel } from "../work/index.js";
+import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, Holds, ParkedOn, ProjectTree, StoryNode, WorkInFlight, WorkModel } from "../work/index.js";
 
 /** A column's state. A column with no entry reads `not-checked`, never `passing`. */
 export type HealthState = FieldsOf<"health">["state"];
@@ -144,12 +144,25 @@ export interface AnnotatedCapability extends Omit<CapabilityNode, "contracts"> {
   openWork?: OpenIncrement[];
 }
 
-/** An open increment naming a capability, by id and title, marked when it is active (claimed and under way). */
+/** An open increment naming a capability, by id and title, marked when it is active (claimed and under way), with what still holds it. */
 export interface OpenIncrement {
   increment: string;
   title: string;
   active?: true;
+  /** What still holds it, in the order the library reads them (5.28); absent when nothing does. */
+  waits?: OpenWait[];
 }
+
+/**
+ * One thing still holding an open increment (5.28): other work, by its title, `active` when it is an increment under way
+ * and `ready` when it is one nobody started that nothing holds; a capability's claim, by the capability's title; an
+ * owner's question; or a wait for the owner or an outside event, with its note.
+ */
+export type OpenWait =
+  | { kind: "work"; on: string; title: string; state?: "active" | "ready" }
+  | { kind: "claim"; on: string; title: string }
+  | { kind: "question"; on: string }
+  | { kind: "owner" | "event"; note: string };
 
 /**
  * Why a capability is not healthy (ADR-0825 D1), from a closed set: `not built` while it is
@@ -265,10 +278,13 @@ const ROLLED_UP: Partial<Readonly<Record<RecordType, string>>> = {
 export class HealthRecord {
   readonly #records: SchemaRecords;
   readonly #work: WorkModel;
-  readonly #flight: Pick<WorkInFlight, "releaseOnVerdict"> | undefined;
+  readonly #flight: Pick<WorkInFlight, "releaseOnVerdict" | "holds"> | undefined;
 
-  /** Given `flight`, a failing verified verdict releases the increments waiting on an event about its contract (10.44). */
-  constructor(records: SchemaRecords, work: WorkModel, flight?: Pick<WorkInFlight, "releaseOnVerdict">) {
+  /**
+   * Given `flight`, a failing verified verdict releases the increments waiting on an event about its contract (10.44), and
+   * each capability's open work says what holds it (5.28).
+   */
+  constructor(records: SchemaRecords, work: WorkModel, flight?: Pick<WorkInFlight, "releaseOnVerdict" | "holds">) {
     this.#records = records;
     this.#work = work;
     this.#flight = flight;
@@ -481,16 +497,38 @@ export class HealthRecord {
    */
   async #openWork(owners: ReadonlyMap<string, string>): Promise<Map<string, OpenIncrement[]>> {
     // An increment is parked as it is made, and keeps that time when returned to proposal, so parked order is creation order.
-    const increments = await this.#records.select("increment", ["title", "status", "capabilities", "links"], { not: { status: "closed" } });
+    const [increments, holds] = await Promise.all([this.#records.select("increment", ["title", "status", "capabilities", "links"], { not: { status: "closed" } }), this.#flight?.holds()]);
     const ordered = increments.sort((a, b) => Number(b.fields.status === "active") - Number(a.fields.status === "active") || byCreation(a, b));
+    const said = holds === undefined ? undefined : await this.#waitsSaid(holds, increments);
     const named = new Map<string, OpenIncrement[]>();
     for (const { id, fields } of ordered) {
       const linked = (fields.links ?? []).flatMap((link) => owners.get(link) ?? []);
+      const waits = said?.(id) ?? [];
       for (const capability of new Set([...(fields.capabilities ?? []), ...linked])) {
-        named.set(capability, [...(named.get(capability) ?? []), { increment: id, title: fields.title, ...(fields.status === "active" ? { active: true as const } : {}) }]);
+        named.set(capability, [...(named.get(capability) ?? []), { increment: id, title: fields.title, ...(fields.status === "active" ? { active: true as const } : {}), ...(waits.length === 0 ? {} : { waits: waits.map((wait) => ({ ...wait })) }) }]);
       }
     }
     return named;
+  }
+
+  /** What still holds each open increment, as OpenWait says it (5.28), from one reading of the project's holds. */
+  async #waitsSaid(holds: Holds, increments: readonly { id: string; fields: { title: string; status: string } }[]): Promise<(id: string) => OpenWait[]> {
+    const open = new Map(increments.map((increment) => [increment.id, increment]));
+    // An arc waited on is named by its title, read only when some wait is on one.
+    const onArc = Object.values(holds.waits).some((held) => held.some(({ on, claim }) => !claim && !open.has(on)));
+    const arcs = new Map(onArc ? (await this.#records.select("arc", ["title"])).map(({ id, fields }) => [id, fields.title]) : []);
+    const holding = (id: string): boolean => (holds.waits[id]?.length ?? 0) > 0 || (holds.heldOn[id]?.length ?? 0) > 0 || (holds.waitsFor?.[id] ?? []).some((wait) => wait.holds);
+    const work = (on: string): OpenWait => {
+      const blocker = open.get(on);
+      if (blocker === undefined) return { kind: "work", on, title: arcs.get(on) ?? on };
+      const state = blocker.fields.status === "active" ? "active" : holding(on) ? undefined : "ready";
+      return { kind: "work", on, title: blocker.fields.title, ...(state === undefined ? {} : { state }) };
+    };
+    return (id) => [
+      ...(holds.waits[id] ?? []).map((hold): OpenWait => (hold.claim ? { kind: "claim", on: hold.on, title: hold.title ?? hold.on } : work(hold.on))),
+      ...(holds.heldOn[id] ?? []).map((on): OpenWait => ({ kind: "question", on })),
+      ...(holds.waitsFor?.[id] ?? []).filter((wait) => wait.holds).map(({ releaser, note }): OpenWait => ({ kind: releaser, note })),
+    ];
   }
 
   /**

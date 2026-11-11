@@ -35,7 +35,8 @@ export interface MapNode {
 export interface MapEdge {
   readonly from: string;
   readonly to: string;
-  readonly kind: "belongs-to" | "depends-on" | "implements" | "imports" | "tests";
+  /** `on-edge` joins a contract on an edge to each capability the edge joins: the link's, neither capability's own. */
+  readonly kind: "belongs-to" | "depends-on" | "implements" | "imports" | "on-edge" | "tests";
   readonly provenance: "declared" | "inferred";
   readonly snapshot?: SnapshotOrigin;
 }
@@ -100,13 +101,13 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
         edge(contract.id, cap.id, "belongs-to", "declared");
       }
     }
-    // An edge's contract belongs to both capabilities it joins, so a focus on either lists it beside its own.
+    // An edge's contract is the link's, never either capability's own, yet a focus on either lists it, as on that edge.
     for (const link of story.edges ?? []) {
       for (const contract of link.contracts) {
         const number = /^\s*(\d+\.\d+)\b/.exec(contract.title)?.[1];
         add({ id: contract.id, kind: "contract", title: contract.title, story: story.id, health: healthOf(contract.health, healthSource), onEdge: { id: link.id, from: link.from, to: link.to }, ...(number === undefined ? {} : { number }) });
-        edge(contract.id, link.from, "belongs-to", "declared");
-        edge(contract.id, link.to, "belongs-to", "declared");
+        edge(contract.id, link.from, "on-edge", "declared");
+        edge(contract.id, link.to, "on-edge", "declared");
       }
     }
   }

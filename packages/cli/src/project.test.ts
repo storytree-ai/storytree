@@ -80,7 +80,7 @@ test("3.6: project delete says who loses the records and needs the name typed; r
   });
 });
 
-test("3.23 a folder whose project was deleted (from another computer) is refused by a command run there, saying so, and the project is not made again", async () => {
+test("a folder whose project was deleted (from another computer) is refused by a command run there, saying so, and the project is not made again", async () => {
   await inWorld(command, async ({ project, folder, elsewhere, home, run }) => {
     const server = await connect({ url: testServerUrl() });
     try {

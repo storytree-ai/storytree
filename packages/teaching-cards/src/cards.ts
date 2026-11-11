@@ -5,6 +5,11 @@
  * (packages/website/src/tour-copy.ts) so it reads true on the user's own project, not the tour's shop.
  */
 
+import { CONCEPTS } from "@storytree/shown-words";
+
+/** A capability's shown word, one and many, from the one table (ADR-1322 D1). */
+const { one: capability, many: capabilities } = CONCEPTS.capability;
+
 /**
  * The kinds a card teaches, in the order cards show when several appear at once. The factory and its parts (a role, a
  * note, a check) show only on the user's factory (ADR-1048 D3).
@@ -91,43 +96,43 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
     line: "Your project is made from stories: each is something someone can do with it, and shows here as an island.",
     what: "A story is one journey a user of your project can take, such as signing in or checking out. Its code lives in its own package.",
     why: "Grouping code by what it lets someone do shows you where a change belongs, and what it can reach.",
-    how: "Select an island to see its parts, and its shipping lanes at sea: each lane is a dependency and runs one way, between a story and the story it needs, and storytree refuses a loop.",
+    how: `Select an island to see its ${capabilities}, and its shipping lanes at sea: each lane is a dependency and runs one way, between a story and the story it needs, and storytree refuses a loop.`,
     decisions: [adr(819, "A package for each story"), adr(839, "Islands sit in rows by dependency depth"), adr(847, "Dependencies run one way")],
     comes: "a story appears",
   },
   capability: {
-    title: "A part of a story.",
-    line: "Each story is broken into the parts that make it work. Each part is a territory on its island.",
-    what: "A part, called a capability, is one piece of how a story works. It makes guarantees, called contracts, that its tests check.",
+    title: `A ${capability} of a story.`,
+    line: `Each story is broken into the ${capabilities} that make it work. Each ${capability} is a territory on its island.`,
+    what: `A ${capability} is one piece of how a story works. It makes guarantees, called contracts, that its tests check.`,
     why: "You can see where the code went and which contracts it serves, without opening a file.",
-    how: "Once a part has code, each dot in its territory is a file, sized by its lines, in the part whose tests reach it. A part with no code yet has an equal share of the island.",
+    how: `Once a ${capability} has code, each dot in its territory is a file, sized by its lines, in the ${capability} whose tests reach it. A ${capability} with no code yet has an equal share of the island.`,
     decisions: [adr(804, "Code islands: land, territories and file circles"), adr(838, "Every line of code belongs to a capability")],
-    comes: "a story's parts appear",
+    comes: `a story's ${capabilities} appear`,
   },
   claim: {
     title: "An agent claimed this.",
-    line: "Agents claim the parts they will work on before they start, so each can see what the others are on.",
-    what: "A claim is a flag in its session's colour, standing in the part a session is changing.",
+    line: `Agents claim the ${capabilities} they will work on before they start, so each can see what the others are on.`,
+    what: `A claim is a flag in its session's colour, standing in the ${capability} a session is changing.`,
     why: "Two agents editing the same thing is how work gets lost. A claim says who is on what before anyone writes.",
     how: "A second claim on the same work is turned away, so the agent picks other work instead. Claims end when the work lands, or when the session lets them go.",
     decisions: [adr(643, "Claims, the wait refusal and release on merge"), adr(758, "A session leaves the list by a verified close-out")],
-    comes: "an agent claims a part",
+    comes: `an agent claims a ${capability}`,
   },
   health: {
     title: "Health.",
-    line: "Once a part is built, its colour says whether something has checked it: yellow is not proved yet, green is passing.",
-    what: "A part's health is rolled up from its contracts' test results; red means a test that names it is failing.",
+    line: `Once a ${capability} is built, its colour says whether something has checked it: yellow is not proved yet, green is passing.`,
+    what: `A ${capability}'s health is rolled up from its contracts' test results; red means a test that names it is failing.`,
     why: "You can see what has been proved and what still needs checking, without taking an agent's word for it.",
     how: "As your tests run, storytree matches each result to the contract it checks. A colour counts only when something other than the agent checked it; saying 'done' doesn't count.",
     decisions: [adr(623, "Minimal viable TDD: red, then green"), adr(744, "Health says what was checked"), adr(825, "Every card that isn't green says why, and who moves it")],
-    comes: "a part is built",
+    comes: `a ${capability} is built`,
   },
   decision: {
     title: "A decision, kept with the work.",
     line: "As your agents build, they decide how things should work, and why. Storytree keeps them all: press Library at the top of the map to see them through the globe, and pick one to read it.",
-    what: "A decision is a note in your project's library. It sits on the shelf of the story or part it shaped; one about no one part gathers at the core.",
+    what: `A decision is a note in your project's library. It sits on the shelf of the story or ${capability} it shaped; one about no one story or ${capability} gathers at the core.`,
     why: "Every new agent session starts on its first day. Keeping decisions with the work means the next session doesn't relearn them, and you don't explain them again.",
-    how: "Before an agent changes a part, it reads that part's shelf. Storytree records each note a session opens, so you can see what the work stood on.",
+    how: `Before an agent changes a ${capability}, it reads that ${capability}'s shelf. Storytree records each note a session opens, so you can see what the work stood on.`,
     decisions: [adr(627, "Every story and capability has a shelf of front covers"), adr(631, "Decisions about the whole project sit on no shelf")],
     comes: "your agents record a decision",
   },

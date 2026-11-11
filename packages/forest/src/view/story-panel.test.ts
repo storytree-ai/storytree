@@ -350,3 +350,20 @@ test("4.37 storytree's mark names its source on each contract: verified locally,
   assert.doesNotMatch(detail("older"), /locally|from CI/);
 });
 
+
+test("4.47 a contract's fold names the tests that last judged it and says the day they ran and their result; without names it says only when and how; with no run it says neither", () => {
+  const base = line("cap", "not-checked", "untested");
+  const at = "2026-11-12T09:00:00.000Z";
+  const opened = (contract: Partial<CapabilityLine["contracts"][number]>): string => {
+    const html = renderStoryPanel({ ...panel, capabilities: [{ ...base, contracts: [{ ...base.contracts[0]!, ...contract }] }] }, "cap");
+    return plainText(fold(html, "contract")?.body.split("</li>")[0] ?? "");
+  };
+  const tests = ["4.47 · the fold names <its> tests", "4.47 · a second", "4.47 · a third", "4.47 · a fourth"];
+  const named = opened({ verified: "failing", source: "ci", ran: { at, tests } });
+  assert.match(named, /tested by 4\.47 · the fold names &lt;its&gt; tests; 4\.47 · a second; 4\.47 · a third and 1 more/);
+  assert.match(named, /last ran 12 Nov: tests failed, from CI/);
+  const unnamed = opened({ verified: "passing", source: "local", ran: { at } });
+  assert.match(unnamed, /last ran 12 Nov: tests passed, verified locally/);
+  assert.doesNotMatch(unnamed, /tested by/);
+  assert.doesNotMatch(opened({}), /tested by|last ran/);
+});

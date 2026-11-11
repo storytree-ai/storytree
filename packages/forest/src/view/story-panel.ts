@@ -119,8 +119,8 @@ function contracts(line: CapabilityLine): string {
  * Contracts, a capability's or a link's alike, each by its title and its state in plain words: "tests pass", "tests fail"
  * or "tests not run" with its source where something judged it, else the agent's claim, labelled as its claim and never
  * as a check (ADR-1294 D1, question_ee767f05e0b9 part 4); a contract marked for agentic user acceptance testing also
- * says where that stands, and an unmarked one says nothing of it. Each opens one level deeper to its trail, and when it was last
- * seen if not re-run since.
+ * says where that stands, and an unmarked one says nothing of it. Each opens one level deeper to its trail, the tests that last
+ * judged it and the day they ran with their result (Fable's F2.4), and when it was last seen if not re-run since.
  */
 function contractList(contracts: readonly ContractLine[]): string {
   return `<ul class="panel-contracts">${contracts
@@ -131,6 +131,7 @@ function contractList(contracts: readonly ContractLine[]): string {
       <li data-contract-id="${attribute(contract.id)}">${fold("contract", `<span class="panel-contract-said">${text(contract.title)} ${state}${acceptance}</span>`, `
         <span class="panel-health">
           <span class="panel-trail">${text(trail(contract.trail))}</span>
+          ${contract.ran === undefined ? "" : ran(contract.ran, contract.verified, contract.source)}
           ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
         </span>`)}</li>`;
     })
@@ -206,6 +207,17 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 function day(at: string): string {
   const when = new Date(at);
   return `${when.getUTCDate()} ${MONTHS[when.getUTCMonth()]}`;
+}
+
+/** How many tests the fold names before saying how many more there are. */
+const TESTS_NAMED = 3;
+
+/** The run that last judged a contract: the tests it named, when it kept them, then the day it ran, its result and where. */
+function ran({ at, tests }: NonNullable<ContractLine["ran"]>, state: HealthState | undefined, source: HealthSource | undefined): string {
+  const more = (tests?.length ?? 0) - TESTS_NAMED;
+  const named = tests === undefined || tests.length === 0 ? "" : `<span class="panel-tests">tested by ${text(tests.slice(0, TESTS_NAMED).join("; "))}${more > 0 ? ` and ${more} more` : ""}</span>`;
+  const result = state === "failing" ? "tests failed" : "tests passed";
+  return `${named}<span class="panel-last-ran">last ran ${day(at)}: ${result}${source === undefined ? "" : `, ${FROM[source]}`}</span>`;
 }
 
 /** The agent's trail on a contract, said as the agent's: a history of its reports, not a check (ADR-0630 D2). */

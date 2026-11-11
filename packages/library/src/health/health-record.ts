@@ -41,6 +41,8 @@ export interface HealthColumn {
   was?: EarlierVerdict;
   /** Where the verdict was seen, when the writer said: verified locally, or read from CI (ADR-1193 D3). */
   source?: HealthSource;
+  /** The names of the tests whose results made the verdict, when the writer said. */
+  tests?: string[];
 }
 
 /** Where a verdict was seen: by a run on this computer through storytree, or read from CI. */
@@ -71,6 +73,7 @@ export interface HealthOptions extends WriteOptions {
   readonly skip?: SkipKind;
   readonly was?: EarlierVerdict;
   readonly source?: HealthSource;
+  readonly tests?: readonly string[];
 }
 
 /** A verdict's turn told after it was written (5.24): the contract, the FYI's title, the verdict's time and the work it released. */
@@ -97,6 +100,8 @@ export interface HealthEntry {
   was?: EarlierVerdict;
   /** Where it was seen, when the writer said. */
   source?: HealthSource;
+  /** The tests that judged it, when the writer said. */
+  tests?: string[];
 }
 
 /** A contract in the annotated tree, with its own health. */
@@ -285,7 +290,7 @@ export class HealthRecord {
   async recordVerified(contractId: string, state: HealthState, options: HealthOptions = {}): Promise<HealthEntry> {
     const earlier = await this.#lastVerdict(contractId);
     const entry = await this.#write("verified", contractId, state, options);
-    const { by: _by, note: _note, skip: _skip, was: _was, source: _source, ...write } = options;
+    const { by: _by, note: _note, skip: _skip, was: _was, source: _source, tests: _tests, ...write } = options;
     await this.#tell(contractId, earlier, entry, write);
     return entry;
   }
@@ -519,7 +524,7 @@ export class HealthRecord {
 
   /** Save the entry as the record of node `nodeId`'s column (or its pending mark, or a capability's unclaimed reading), checked inside the write. */
   async #save(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed"): Promise<HealthEntry> {
-    const { by, note, skip, was, source } = options;
+    const { by, note, skip, was, source, tests } = options;
     const actor = options.actor ?? by;
     const record = await this.#records.create(
       "health",
@@ -532,6 +537,7 @@ export class HealthRecord {
         ...(skip === undefined ? {} : { skip }),
         ...(was === undefined ? {} : { was: was.state, wasAt: was.at }),
         ...(source === undefined ? {} : { source }),
+        ...(tests === undefined ? {} : { tests: [...tests] }),
       },
       { id: healthId(nodeId, kept), ...(actor === undefined ? {} : { actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) },
     );
@@ -722,7 +728,7 @@ function contractReason(verified: HealthColumn): HealthReason | undefined {
 
 /** An entry: a health record's fields, and when they were written. Each optional field only when there is one. */
 function entryOf(fields: FieldsOf<"health">, at: string): HealthEntry {
-  const { column, state, by, note, skip, was, wasAt, source } = fields;
+  const { column, state, by, note, skip, was, wasAt, source, tests } = fields;
   return {
     column,
     state,
@@ -732,5 +738,6 @@ function entryOf(fields: FieldsOf<"health">, at: string): HealthEntry {
     ...(skip === undefined ? {} : { skip: skip as SkipKind }),
     ...(was === undefined || wasAt === undefined ? {} : { was: { state: was, at: wasAt } }),
     ...(source === undefined ? {} : { source }),
+    ...(tests === undefined ? {} : { tests }),
   };
 }

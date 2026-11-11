@@ -7,7 +7,7 @@ import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
-import { recordHealth, type RecordedVerdict } from "../index.js";
+import { recordHealth, verdictOf, type RecordedVerdict } from "../index.js";
 
 /** A project in the test Postgres with one story, one capability and contracts 1.1 to 1.4, dropped afterwards; their ids by number. */
 async function kettle(t: { after(fn: () => Promise<void>): void }): Promise<{ lib: Library; contractIds: Map<string, string> }> {
@@ -59,6 +59,19 @@ test("3.1 · recordHealth writes as the writer it is given: a run on CI says so,
   const { verified } = await lib.health(contractIds.get("1.1")!);
   assert.equal(verified.by, "storytree test run on CI");
   assert.equal(verified.note, "2/2 tests passed, at commit 9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6");
+});
+
+test("3.22 · a verdict judged from a run's results names its tests, and recordHealth writes those names on each passing or failing contract's verified entry", async (t) => {
+  const { lib, contractIds } = await kettle(t);
+  const passing = verdictOf([
+    { name: "1.1 · it does a", suites: [], status: "passed" },
+    { name: "keeps the rest", suites: ["1.1 · it does a, nested"], status: "passed" },
+  ]);
+  assert.deepEqual(passing.tests, ["1.1 · it does a", "1.1 · it does a, nested › keeps the rest"]);
+  const failing = verdictOf([{ name: "1.2 · it does b", suites: [], status: "failed", message: "expected b" }]);
+  await recordHealth(lib, contractIds, new Map<string, RecordedVerdict>([["1.1", passing], ["1.2", failing]]), { by: "storytree test run", source: "local" });
+  assert.deepEqual((await lib.health(contractIds.get("1.1")!)).verified.tests, ["1.1 · it does a", "1.1 · it does a, nested › keeps the rest"]);
+  assert.deepEqual((await lib.health(contractIds.get("1.2")!)).verified.tests, ["1.2 · it does b"]);
 });
 
 test("3.16 · recordHealth records a skip's kind, marks a verdict the run did not reproduce as not re-run at the commit, and writes the same mark only once", async (t) => {

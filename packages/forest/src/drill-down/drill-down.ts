@@ -31,6 +31,8 @@ export interface ContractLine {
   source?: HealthSource;
   /** The verdict storytree last saw for it, when the latest run did not reproduce it: "not re-run" (ADR-0825 D2). */
   lastSeen?: EarlierVerdict;
+  /** The run that last judged it passing or failing: when, and the tests it named, when its entry kept them (Fable's F2.4). */
+  ran?: { at: string; tests?: string[] };
   /**
    * Agentic user acceptance testing's state, only on a contract whose proof is marked for it (ADR-1294 D1). It reads
    * "not-run" until a run writes a verdict (increment_eab89906c217).
@@ -190,6 +192,7 @@ function contractLine(contract: AnnotatedContract, trail: readonly HealthState[]
     ...(written(contract.health.verified) ? { verified: contract.health.verified.state } : {}),
     ...(written(contract.health.verified) && contract.health.verified.source !== undefined ? { source: contract.health.verified.source } : {}),
     ...(contract.health.verified.was === undefined ? {} : { lastSeen: contract.health.verified.was }),
+    ...ranOf(contract.health.verified),
     ...(contract.proof?.by === "agentic-user-acceptance-testing" ? { acceptance: "not-run" as const } : {}),
   };
 }
@@ -213,6 +216,12 @@ function sourcesOf(lines: readonly ContractLine[]): HealthSource[] | undefined {
 
 /** The sources, in the order they are said. */
 const SOURCES: readonly HealthSource[] = ["local", "ci"];
+
+/** The run a verified column's passing or failing entry records, with the tests it named; a not-checked one is no run of its tests. */
+function ranOf({ state, at, tests }: HealthColumn): { ran?: NonNullable<ContractLine["ran"]> } {
+  if (at === undefined || state === "not-checked") return {};
+  return { ran: { at, ...(tests === undefined ? {} : { tests: [...tests] }) } };
+}
 
 /** Whether a column has an entry: a contract's column carries its time once something wrote it. */
 function written(column: HealthColumn): boolean {

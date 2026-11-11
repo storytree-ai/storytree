@@ -143,7 +143,7 @@ test("4.40 a story's edges carry their own contracts as a capability's contract 
   const tree: AnnotatedTree = { stories: [{ ...story("s", capability("login", ["accounts"], [contract("k1", "passing")]), capability("accounts", [])), edges: [edge] }], arcs: [] };
   const panel = drillDown(tree, "s", workStates([]), reports("e-k", "failing", "passing"));
   assert.deepEqual(panel?.edges, [{ from: "login", fromTitle: "The login", to: "accounts", toTitle: "The accounts", contracts: [
-    { id: "e-k", title: "login asks accounts by id", reported: "passing", trail: "red, then green", verified: "failing" },
+    { id: "e-k", title: "login asks accounts by id", reported: "passing", trail: "red, then green", verified: "failing", ran: { at: new Date(0).toISOString() } },
     { id: "e-l", title: "login never writes accounts", reported: "passing", trail: "not reported yet", lastSeen: was },
   ] }], "the same readings, trail and last-seen a capability's contract carries; the agent's report is not storytree's verdict");
   assert.deepEqual(panel?.capabilities.find(({ id }) => id === "login")?.contracts.map(({ id }) => id), ["k1"], "its own contracts stay its own");
@@ -229,4 +229,18 @@ test("4.46 a story's edge carries its description to the panel, and one with non
   const edges = drillDown(tree, "s", workStates([]), [])?.edges;
   assert.equal(edges?.[0]?.description, "Login passes accounts the resolved user, never the request's tenant.");
   assert.equal("description" in (edges?.[1] ?? {}), false, "no description, no field");
+});
+
+test("4.47 a contract a run judged carries when that run was and the tests it named; one judged before names were kept carries only when; one no run judged carries neither", () => {
+  const at = "2026-11-12T09:00:00.000Z";
+  const tests = ["8.1 · the fold names its tests"];
+  const tree: AnnotatedTree = {
+    stories: [story("s", capability("cap", [], [numbered("c1", "8.1 · Named", { state: "failing", at, tests }), numbered("c2", "8.2 · Unnamed", { state: "passing", at }), numbered("c3", "8.3 · Never", { state: "not-checked" }), numbered("c4", "8.4 · Skipped", { state: "not-checked", skip: "other", at })], null, "untested"))],
+    arcs: [],
+  };
+  const [named, unnamed, never, skipped] = drillDown(tree, "s", workStates([]), [])?.capabilities[0]?.contracts ?? [];
+  assert.deepEqual(named?.ran, { at, tests });
+  assert.deepEqual(unnamed?.ran, { at });
+  assert.equal(never?.ran, undefined);
+  assert.equal(skipped?.ran, undefined, "a skip is no run of its tests");
 });

@@ -123,7 +123,7 @@ async function filesOf(git: Git, commit: string, mapped: readonly string[]): Pro
 }
 
 /** Each job a run did not skip, with its conclusion, the test results its log holds, as its platform's, and the folders its log scoped the tests to. */
-async function jobResults(github: GitHub, repository: string, run: number): Promise<{ conclusion: string | undefined; platform?: string; results: ReturnType<typeof parseTestLog>; scope?: ReturnType<typeof scopeOfLog> }[]> {
+async function jobResults(github: GitHub, repository: string, run: number): Promise<{ conclusion: string | undefined; platform: string | undefined; results: ReturnType<typeof parseTestLog>; scope?: ReturnType<typeof scopeOfLog> }[]> {
   // A job the run skipped ran nothing and has no log: GitHub answers its log with 404.
   const jobs: { id: number; conclusion?: string; name?: string; labels?: string[] }[] = ((await github.json(`repos/${repository}/actions/runs/${run}/jobs`)).jobs ?? [])
     .filter((job: { conclusion?: string }) => job.conclusion !== "skipped");
@@ -136,7 +136,7 @@ async function jobResults(github: GitHub, repository: string, run: number): Prom
     } catch (error) {
       // Cancellation can leave no log, but a job that started may still hold test evidence.
       const said = String((error as { stderr?: string })?.stderr ?? error);
-      if (job.conclusion === "cancelled" && /\bHTTP 404\b/.test(said)) return { conclusion: job.conclusion, results: [] };
+      if (job.conclusion === "cancelled" && /\bHTTP 404\b/.test(said)) return { conclusion: job.conclusion, platform, results: [] };
       throw error;
     }
   }));

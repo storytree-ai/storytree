@@ -18,8 +18,9 @@ export function addedSentence(added: AddedFolder, shown = ""): string {
   // A folder whose code the map cannot read is told so after what it became (3.19).
   const { unreadable, ...folder } = added;
   if (unreadable !== undefined) return `${addedSentence(folder, shown)} ${unreadableSentence(unreadable)}`;
-  if (added.status === "set up" && added.replaced !== undefined) return `${added.folder} is now project “${added.project}”${shown}, set up here as a new project: its marker named a project this computer's library does not have, “${added.replaced}”. ${COMMIT_STORYTREE}`;
-  if (added.status === "set up") return `${added.folder} is now project “${added.project}”${shown}. ${COMMIT_STORYTREE}`;
+  // What was done leads; why a marker's project is new here comes after the step it asks for (3.17).
+  if (added.status === "set up" && added.replaced !== undefined) return `Project “${added.project}” is set up in ${added.folder}${shown}. ${COMMIT_STORYTREE} It is new here because its marker named “${added.replaced}”, a project this computer's library does not have.`;
+  if (added.status === "set up") return `Project “${added.project}” is set up in ${added.folder}${shown}. ${COMMIT_STORYTREE}`;
   if (added.status === "brought back") return `${added.folder} is project “${added.project}” again, with its records${shown}.`;
   return `${added.folder} is already project “${added.project}”.`;
 }

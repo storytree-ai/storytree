@@ -8,7 +8,7 @@ import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARA
 import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
-import { openWorkLayer, openWorkMarks, rungLinks, sizeOpenWork } from "./open-work.js";
+import { openWorkLayer, openWorkMarks, ringedCapabilities, rungLinks, sizeOpenWork } from "./open-work.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { islandRoadMarks, landFill, ringGate, type GatePick } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
@@ -133,9 +133,9 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
   const detail = useMemo(() => new DetailStore(), []);
   const underSheet = useMemo((): CoreUnderSheet => ({ ...under, selected }), [under, selected]);
   const links = useKept(layout.scene.links ?? NO_LINKS, JSON.stringify);
-  // ADR-1253 D1: the selected arc's open work ringed.
-  const circledKey = circledList === undefined ? undefined : JSON.stringify(circledList);
-  const circled = useMemo(() => circledList === undefined ? undefined : new Set(circledList), [circledKey]);
+  // ADR-1253 D1: the selected arc's open work ringed, and 3.99: each part one of its linked contracts sits on.
+  const circled = useKept(useMemo(() => ringedCapabilities(circledList, circledContracts, scene.contracts ?? []), [circledList, circledContracts, scene.contracts]),
+    (ringed) => ringed === undefined ? "none" : JSON.stringify([...ringed].sort()));
   // 3.92: and the gates of the edges whose contracts it makes true.
   const rung = useKept(useMemo(() => rungLinks(scene.edges ?? [], circledContracts), [scene.edges, circledContracts]), (links) => links === undefined ? "none" : JSON.stringify([...links]));
   // 5.8: a session's pointer pulses on the selected arc's open work, or anywhere when it is for a question; the camera stays his.

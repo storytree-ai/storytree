@@ -5,7 +5,8 @@
  * width on screen at any zoom, as a claim's flag keeps its size (ADR-1062 D1), and is never less than `RING_LEAST_PX` across
  * (3.86). With no arc selected open work draws nothing (3.84). A selected capability gets the same ring in the pick's gold,
  * outside any blue one, so a pick reads one way and blue keeps meaning open work (3.91). Open work that makes an edge's contract
- * true rings that edge's gate the same, one gate per linked pair (3.92, ADR-1279 D4, ADR-1253 D3).
+ * true rings that edge's gate the same, one gate per linked pair (3.92, ADR-1279 D4, ADR-1253 D3), and open work that links a
+ * capability's own contract rings that capability, so planned work shows its parts before a session claims it (3.99).
  */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Vector3 } from "three";
 import type { IslandRoads } from "../territories/island-roads.js";
@@ -46,6 +47,16 @@ export function rungLinks(edges: readonly { from: string; to: string; contracts:
   if (contracts === undefined) return undefined;
   const open = new Set(contracts);
   return new Set(edges.flatMap(({ from, to, contracts: held }) => held.some((id) => open.has(id)) ? [`${from}->${to}`] : []));
+}
+
+/**
+ * The capabilities the selected arc's open work rings: those its open increments name (`named`; undefined, no arc selected,
+ * rings none) and each of `owned` holding one of the `contracts` they link, so planned work rings before any claims it (3.99).
+ */
+export function ringedCapabilities(named: readonly string[] | undefined, contracts: readonly string[] | undefined, owned: readonly { capability: string; contracts: readonly string[] }[]): ReadonlySet<string> | undefined {
+  if (named === undefined) return undefined;
+  const open = new Set(contracts ?? []);
+  return new Set([...named, ...owned.flatMap(({ capability, contracts: held }) => held.some((id) => open.has(id)) ? [capability] : [])]);
 }
 
 /**

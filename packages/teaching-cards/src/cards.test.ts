@@ -24,4 +24,8 @@ test("1.1 · every kind has a card with a title and a line at once, and what, wh
   assert.match(factory.how, /reaches every product/);
   assert.match(factory.how, /stays its own/);
   assert.deepEqual(factory.decisions.map(decision => decision.number), [1040, 1041, 1048]);
+  // The decision card says where on screen the user finds a decision: the map's Library switch, then a note picked there.
+  const decision = cardOf("decision");
+  assert.match(decision.line, /Library/);
+  assert.match(decision.line, /pick one/);
 });

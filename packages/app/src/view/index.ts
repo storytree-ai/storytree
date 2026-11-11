@@ -91,8 +91,9 @@ export function mountAppMenu(host: HTMLElement, options: {
   const updates = mountUpdates(menu, options.checkForUpdates, (waiting) => {
     gear.toggleAttribute("data-update-pending", waiting);
     gear.title = waiting ? "App menu: an update is ready to install" : "App menu";
-  }, installChoice.choice);
-  const releaseChannel = mountReleaseChannel(menu, options.releaseChannel);
+  }, installChoice.choice, () => releaseChannel.channel());
+  // A switch redraws the last check's line, which no longer says what the new channel offers.
+  const releaseChannel = mountReleaseChannel(menu, options.releaseChannel, () => updates.refresh());
   const signIn = mountSignIn(menu, options.signIn);
   let section = "projects";
   let stopped = false;

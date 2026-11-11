@@ -46,9 +46,10 @@ const SETUP = "Start every session with `check_setup`, and do what it says. If t
 
 /**
  * The tools keep the library's words, and people see one fixed set of shown words (ADR-1318): the card reads them from
- * the one table, so it and the app cannot drift.
+ * the one table, so it and the app cannot drift. The card was full (ADR-1113 D1), so the claim section gave up what the
+ * claim tool's own reason already says.
  */
-const WORDS = `The tools name things in the library's words: capability, arc, increment. When you speak to the user, say what the app shows: ${(["capability", "arc", "increment"] as const).map((concept) => `"${CONCEPTS[concept].one}" for ${concept}`).join(", ")}.`;
+const WORDS = `The tools name things in the library's words; to the user, say ${(["capability", "arc", "increment"] as const).map((concept) => `"${CONCEPTS[concept].one}" for ${concept}`).join(", ")}.`;
 
 const CLOSING = "If storytree says it isn't running, carry on without it.";
 

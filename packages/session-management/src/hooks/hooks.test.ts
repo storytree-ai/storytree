@@ -1999,6 +1999,9 @@ test("3.42 A Claude Code command hook, finding the tool server's note of its eve
 test("3.46 a hook runs no git in a downloaded folder whose marker names a project: not at a session's start, after a shell command, nor at a turn's end; in the approved checkout it does, with the repository's own file-system monitor never started", async () => {
   const project = uniqueProjectName();
   const was = process.env.STORYTREE_HOME;
+  // This test may itself run inside a pool lane, whose marker would keep the turn-end hook from reading git.
+  const lane = process.env.STORYTREE_LANE_RUN;
+  delete process.env.STORYTREE_LANE_RUN;
   try {
     await withTempDir(async (dir) => {
       const home = storytreeHome(dir, true);
@@ -2044,6 +2047,7 @@ test("3.46 a hook runs no git in a downloaded folder whose marker names a projec
   } finally {
     if (was === undefined) delete process.env.STORYTREE_HOME;
     else process.env.STORYTREE_HOME = was;
+    if (lane !== undefined) process.env.STORYTREE_LANE_RUN = lane;
     await dropTestProjects([project]);
   }
 });

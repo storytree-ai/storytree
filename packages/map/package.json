@@ -18,6 +18,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@storytree/shown-words": "workspace:*",
     "@babel/parser": "^7.29.9",
     "smol-toml": "1.9.1",
     "tree-sitter-python": "0.25.0",

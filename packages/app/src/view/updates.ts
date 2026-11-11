@@ -8,9 +8,9 @@ import type { ReleaseChannel, ReleaseChannelState } from "../updates/release-cha
 /**
  * Plain, live status inside the gear; closing the menu never cancels an update. The status is read
  * every minute as well, so a downloaded release waiting to install is announced (`pending`) and can
- * be installed now from the same button.
+ * be installed now from the same button. `pending` hears the line naming the build waiting, or undefined when none is (4.47).
  */
-export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) => Promise<UpdateState>, pending: (waiting: boolean) => void = () => {}, choice: () => InstallChoice | undefined = () => undefined, channel: () => ReleaseChannel | undefined = () => undefined) {
+export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) => Promise<UpdateState>, pending: (ready: string | undefined) => void = () => {}, choice: () => InstallChoice | undefined = () => undefined, channel: () => ReleaseChannel | undefined = () => undefined) {
   const button = host.querySelector<HTMLButtonElement>("[data-app-updates]")!;
   const status = host.querySelector<HTMLElement>("#app-update-status")!;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -21,7 +21,7 @@ export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) 
     button.disabled = busy;
     action = state.phase === "pending" ? "install" : "check";
     button.textContent = state.phase === "pending" ? "Restart to update" : "Check for updates";
-    pending(state.phase === "pending");
+    pending(state.phase !== "pending" ? undefined : state.nextBuild === undefined ? "Update ready to install" : `Update ready: storytree ${state.nextBuild}`);
     status.hidden = state.phase === "idle";
     status.dataset.phase = state.phase;
     const [title, detail] = updateText(state, choice(), { channel: channel(), now: new Date() });

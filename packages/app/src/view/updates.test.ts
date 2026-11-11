@@ -295,3 +295,19 @@ test("4.29 Open at sign-in and its error line are not displayed while hidden", a
   assert.equal(window.getComputedStyle(label.querySelector(".app-sign-in-error")!).display, "none", "no old failure stays on show");
   signIn.stop();
 });
+
+test("4.47 an update waiting with no build named still reads as an update ready, and nothing waiting reads as nothing", async () => {
+  const window = new Window();
+  const host = window.document.createElement("div");
+  host.innerHTML = renderAppMenu();
+  let state: { phase: "pending" | "restarting"; runningBuild: string } = { phase: "pending", runningBuild: "0.3.400" };
+  const heard: (string | undefined)[] = [];
+  const updates = mountUpdates(host as unknown as HTMLElement, async () => state, (ready) => heard.push(ready));
+  await setImmediate();
+  state = { phase: "restarting", runningBuild: "0.3.400" };
+  updates.refresh();
+  await setImmediate();
+  updates.stop();
+  assert.deepEqual(heard, ["Update ready to install", undefined]);
+  await window.happyDOM.close();
+});

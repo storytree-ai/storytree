@@ -456,15 +456,14 @@ test("3.10 · a card taken to a corner while its thing is on show is still tied 
 
 test("3.10 · a card whose thing is off screen, and the tour's ask, are tied to nothing", () => {
   const { teaching, card } = sized([], () => ({ x: 500, y: 300, visible: false }));
-  assert.equal(card.querySelector(".teaching-card-ring"), null);
-  assert.equal(card.querySelector(".teaching-card-tie"), null);
+  assert.ok(card.querySelector(".teaching-card-ring") === null, "no ring for a thing off screen");
+  assert.ok(card.querySelector(".teaching-card-tie") === null, "and no line");
   teaching.stop();
-  const { document, host, store } = page({ unanswered: true });
-  void document;
+  const { host, store } = page({ unanswered: true });
   const asked = mountTeaching(host, { journal: journal(store), locate: () => ({ x: 120, y: 80, visible: true }) });
   asked.take(oneStory);
   const ask = host.querySelector<HTMLElement>(".teaching-card")!;
   assert.equal(ask.dataset.kind, "tour");
-  assert.equal(ask.querySelector(".teaching-card-tie"), null);
+  assert.ok(ask.querySelector(".teaching-card-tie") === null, "the ask is tied to nothing");
   asked.stop();
 });

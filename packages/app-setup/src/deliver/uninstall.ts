@@ -10,7 +10,7 @@ import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { installedToolServerCommand, removeConnections, type InstalledToolServerCommand, type RunHarness } from "../connect/index.js";
-import { locateApp, storytreeHome } from "@storytree/project-and-caller";
+import { factoryFolder, locateApp, storytreeHome } from "@storytree/project-and-caller";
 import { watchedHarness } from "@storytree/project-and-caller/caller";
 import { toolPaths } from "./payload.js";
 
@@ -158,6 +158,19 @@ function writeReport(file: string, installDir: string, report: UninstallReport):
 
 const remove = (target: string) => rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
 
+/** The factory folder storytree makes itself when none is chosen (2.21), or undefined when one was chosen or cannot be read. */
+function defaultFactory(home: string): string | undefined {
+  try {
+    const factory = factoryFolder(home);
+    return factory.chosen ? undefined : factory.folder;
+  } catch { return undefined; }
+}
+
+/** Whether `folder` holds folders only, as the app made it (an empty `plugins`), and no file of the user's. */
+function holdsNoFiles(folder: string): boolean {
+  return readdirSync(folder, { withFileTypes: true }).every((entry) => entry.isDirectory() && holdsNoFiles(path.join(folder, entry.name)));
+}
+
 export async function uninstall(options: UninstallOptions): Promise<UninstallReport> {
   const report = await removeInstallation(options);
   if (options.reportFile !== undefined) writeReport(options.reportFile, options.installDir, report);
@@ -213,7 +226,13 @@ async function removeInstallation(options: UninstallOptions): Promise<UninstallR
       for (const name of readdirSync(options.home)) if (!library.has(name)) remove(path.join(options.home, name));
       lines.push(`Your library was kept in ${options.home}. Reinstalling storytree picks it up again; delete that folder to remove it.`);
     } else {
+      const factory = defaultFactory(options.home);
       remove(options.home);
+      // The app made its default factory beside the home: it goes too, unless the user has put plugins in it.
+      if (factory !== undefined && existsSync(factory)) {
+        if (holdsNoFiles(factory)) remove(factory);
+        else lines.push(`Your factory was kept in ${factory}: it holds your own plugins. Delete that folder to remove it.`);
+      }
       // ~/.storytree may also hold 0.2's files: it goes only when nothing else is in it.
       const parent = path.dirname(options.home);
       if (path.basename(parent) === ".storytree" && existsSync(parent) && readdirSync(parent).length === 0) rmdirSync(parent);

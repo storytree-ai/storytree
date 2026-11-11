@@ -568,6 +568,8 @@
   color: inherit;
   font: inherit;
   text-align: start;
+  /* A button lines up with its row's number by its first line, not its last. */
+  vertical-align: top;
   cursor: pointer;
 }
 

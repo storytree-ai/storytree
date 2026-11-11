@@ -84,3 +84,12 @@ test("5.9 · an island pulses a gate pointer only when both its capabilities are
   const posts = gatePosts([{ at: { x: 1, z: 2 }, between: ["also", "mine"] }, { at: { x: 5, z: 5 }, between: ["also", "mine"] }]);
   assert.deepEqual([...posts], [["also|mine", { x: 1, z: 2 }]], "it pulses at the first gate a road makes between the pair");
 });
+
+test("3.92 a live update that only puts a contract on an edge or a capability is drawn, so the selected arc's open work rings its gate before any claim", () => {
+  const shown = forestScene(tree("A"), [], workStates([]));
+  const edge = { from: "cap_x", to: "cap_y", contracts: ["contract_1"] };
+  const onShow = { scene: { ...shown, edges: [edge], contracts: [{ capability: "cap_x", contracts: ["contract_2"] }] }, places: places() };
+  assert.equal(nextScene(onShow, { ...onShow.scene, edges: [{ ...edge }], contracts: [{ capability: "cap_x", contracts: ["contract_2"] }] }, places()), undefined, "the same edges and contracts are not drawn again");
+  assert.notEqual(nextScene(onShow, { ...onShow.scene, edges: [{ ...edge, contracts: ["contract_1", "contract_3"] }] }, places()), undefined, "a contract planned on an edge is drawn");
+  assert.notEqual(nextScene(onShow, { ...onShow.scene, contracts: [{ capability: "cap_x", contracts: ["contract_2", "contract_4"] }] }, places()), undefined, "a contract planned on a capability is drawn");
+});

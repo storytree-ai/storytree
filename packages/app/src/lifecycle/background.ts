@@ -69,22 +69,43 @@ export interface BackgroundOptions {
   relaunch?: (target: Launch | undefined, inBackground: boolean) => void;
   /** The restarts in a row, which a restart asks before it stops anything (contract 4.35). */
   limit?: Pick<RestartLimit, "mayRestart">;
+  /**
+   * How long, in milliseconds, stopping may take before the app relaunches and exits without waiting for it, so a stop that
+   * hangs never leaves a windowless app holding the single-instance lock; by default, long enough for Postgres's own stop.
+   */
+  stopWithin?: number;
+  /** Says a stop that outlasted `stopWithin`. */
+  error?: (line: string) => void;
 }
 
-export function background({ stopPages, stopDatabase, exit, relaunch, limit }: BackgroundOptions): Background {
+/** pg_ctl's fast stop, then its immediate one, each waits up to a minute; this leaves half a minute more for the rest. */
+const STOP_WITHIN_MS = 150_000;
+
+export function background({ stopPages, stopDatabase, exit, relaunch, limit, stopWithin = STOP_WITHIN_MS, error }: BackgroundOptions): Background {
   let quitting: Promise<void> | undefined;
   /** What to start once stopped: a restart's target, or this build again ("self"). */
   let next: { target: Launch | undefined; shown: boolean } | undefined;
   const stop = (code: number): Promise<void> => {
     quitting ??= (async () => {
-      stopPages?.();
-      await stopDatabase();
-    })()
-      .catch(() => {})
-      .then(() => {
-        if (next !== undefined) relaunch?.(next.target, !next.shown);
-        exit(code);
+      let bound: ReturnType<typeof setTimeout> | undefined;
+      const outlasted = new Promise<void>((resolve) => {
+        bound = setTimeout(() => {
+          error?.(`stopping the app took longer than ${stopWithin / 1000} s, so it exits without waiting`);
+          resolve();
+        }, stopWithin);
       });
+      const stopped = (async () => {
+        stopPages?.();
+        await stopDatabase();
+      })().catch(() => {});
+      await Promise.race([stopped, outlasted]);
+      clearTimeout(bound);
+      try {
+        if (next !== undefined) relaunch?.(next.target, !next.shown);
+      } finally {
+        exit(code);
+      }
+    })();
     return quitting;
   };
   return {

@@ -236,6 +236,8 @@ const lifecycle = background({
     app.exit(verdict.exitCode(code));
   },
   relaunch,
+  // A stop that hangs (a late writer on the closed library, say) is cut short, so a restart into an update still runs its installer.
+  error: (line) => verdict.error(line),
   // After five restarts in a row the app stops restarting itself, and the stop is an error the user is asked to report (updates 4.35).
   ...(args.smoke || args.startCheck || args.callbackCheck ? {} : {
     limit: restartLimit({ file: path.join(home.dir, "restarts.json"), stopped: message => errorRecords.record("restarts-stopped", message) }),

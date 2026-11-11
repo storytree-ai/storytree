@@ -185,6 +185,39 @@ test("6.6 While the strip is on show the app records again once the last recordi
   assert.equal((await db.query<{ n: number }>("SELECT count(*)::int AS n FROM ci_readings WHERE project = 'no-such-project'")).rows[0]!.n, 0);
 });
 
+test("6.6 A recording under way when the library closes writes nothing more to it, and says no error", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const server = await connect({ url });
+  t.after(() => server.close().catch(() => {}));
+  const project = `t-${randomBytes(4).toString("hex")}`;
+  await server.openProject(project);
+  t.after(async () => {
+    const again = await connect({ url });
+    try { await again.dropProject(project); } finally { await again.close(); }
+  });
+  const logged: unknown[] = [];
+  t.mock.method(console, "error", (line: unknown) => logged.push(line));
+  let finish!: () => void;
+  let recorded!: Promise<void>;
+  const answers = ciTimesAnswers({ server: () => server, library: () => ({ projectFolder: async () => "/work/shop" }) }, {
+    now: () => NOW,
+    record: (into, name) => {
+      recorded = new Promise<void>((resolve) => { finish = resolve; })
+        .then(() => into.query("INSERT INTO ci_readings (project, repository, read_at) VALUES ($1, 'acme/shop', $2)", [name, NOW]))
+        .then(() => undefined);
+      return recorded;
+    },
+  });
+  await answers.ciTimes(project);
+  await tick();
+  await server.close();
+  finish();
+  await recorded.catch(() => {});
+  await tick();
+  assert.deepEqual(logged, [], "the closed library is not written to, and no error is said");
+});
+
 test("6.8 Given a live count of the pull requests in CI and in the queue, the strip says it, live, rather than the last recording's; without one it says the recording's", async (t) => {
   const live = { inCi: 4, inQueue: 0 };
   assert.equal(lines(renderCiTimes(READING, NOW, live))[3], "In CI 4, in queue 0, live");

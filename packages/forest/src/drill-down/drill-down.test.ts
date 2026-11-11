@@ -259,3 +259,13 @@ test("4.49 each open increment a capability carries keeps what still holds it, f
   const tree: AnnotatedTree = { stories: [story("s", { ...capability("busy", []), openWork: open })], arcs: [] };
   assert.deepEqual(drillDown(tree, "s", workStates([]), [])?.capabilities[0]?.openWork, open);
 });
+
+test("4.53 a capability's contracts, and a link's, come in the order their numbers say, 6.2 before 6.10, with any unnumbered after them in the library's order", () => {
+  const titled = (id: string, title: string): AnnotatedContract => ({ ...contract(id, "passing"), title });
+  const listed = [titled("a", "6.3 · c"), titled("loose", "no number"), titled("b", "6.10 · j"), titled("c", "6.1 · a"), titled("d", "6.2 · b")];
+  const edge = { id: "edge-1", from: "c", to: "d", contracts: [titled("e2", "7.2 · y"), titled("e1", "7.1 · x")] };
+  const tree: AnnotatedTree = { stories: [{ ...story("s", capability("c", ["d"], listed), capability("d", [])), edges: [edge] }], arcs: [] };
+  const panel = drillDown(tree, "s", workStates([]), []);
+  assert.deepEqual(panel?.capabilities.find(({ id }) => id === "c")?.contracts.map(({ id }) => id), ["c", "d", "a", "b", "loose"]);
+  assert.deepEqual(panel?.edges?.[0]?.contracts.map(({ id }) => id), ["e1", "e2"]);
+});

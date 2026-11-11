@@ -267,7 +267,7 @@ test("4.47 the gear's update dot names the build waiting, on its hover and as th
   assert.equal(gear.title, "Update ready: storytree 0.3.2741");
   assert.equal(row.hidden, false);
   assert.equal(row.textContent, "Update ready: storytree 0.3.2741");
-  assert.equal(host.querySelector(".app-menu-window")!.firstElementChild, row, "the line is the menu's first row");
+  assert.ok(host.querySelector(".app-menu-window")!.firstElementChild === row, "the line is the menu's first row");
   row.click();
   await setImmediate();
   assert.deepEqual([...host.querySelectorAll(".app-menu-content > section")].filter((node) => !node.hasAttribute("hidden")).map((node) => node.id), ["app-updates"]);

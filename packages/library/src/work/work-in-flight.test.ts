@@ -1061,6 +1061,19 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await heldOn(both.id), [other.id], "its other holds stay");
   });
 
+  contract("10.41", "settling a question returns the open increments it released, oldest first, by id and title, one held on it just before among them", async ({ flight }) => {
+    const arc = await flight.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    const open = await flight.addIncrement({ arc: arc.id, ...WORK, title: "Welcome email", heldOn: [question.id] });
+    const closed = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id] });
+    await flight.closeIncrement(closed.id, { disposition: "withdrawn", note: "overtaken" });
+    const reheld = await flight.addIncrement({ arc: arc.id, ...WORK, title: "Receipt email" });
+    await flight.editIncrement(reheld.id, { heldOn: [question.id] });
+    await flight.addIncrement({ arc: arc.id, ...WORK, title: "Free" });
+    const settled = await flight.settleQuestion(question.id, { answer: "Mailgun" });
+    assert.deepEqual(settled?.released, [{ id: open.id, title: "Welcome email" }, { id: reheld.id, title: "Receipt email" }]);
+  });
+
   contract("10.40", "retiring a question releases every increment held on it, open or closed, and retires it in one step", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });

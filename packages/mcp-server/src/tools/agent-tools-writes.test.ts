@@ -243,7 +243,7 @@ test("9.2 it retires a contract and then a capability with a reason, and each is
   });
 });
 
-test("10.3 it raises a question on an arc and holds an increment on it, which a claim then finds waiting on the owner; it settles the question with his answer, which releases the increment; retiring a held question releases the increments held on it, naming them, and a record that is not a question is refused", async () => {
+test("10.3 it raises a question on an arc and holds an increment on it, which a claim then finds waiting on the owner; it settles the question with his answer, which releases the increment, naming it; retiring a held question releases the increments held on it, naming them, and a record that is not a question is refused", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -259,6 +259,8 @@ test("10.3 it raises a question on an arc and holds an increment on it, which a 
 
       const settled = await agent.call("settle_question", { question, answer: "Mailgun: its API is the simplest" });
       assert.equal(settled.isError, false, settled.text);
+      assert.match(settled.text, new RegExp(`Released "Welcome email" \\(${welcome}\\)`));
+      assert.deepEqual(settled.data.released, [{ id: welcome, title: "Welcome email" }]);
       assert.equal((await library.arcView(arc))?.questions.find((one) => one.id === question)?.fields.answer, "Mailgun: its API is the simplest");
       assert.deepEqual(await library.heldOnQuestion(welcome), [], "his answer released it");
       assert.equal((await agent.call("claim", { increment: welcome, reason: "driving it" })).isError, false);

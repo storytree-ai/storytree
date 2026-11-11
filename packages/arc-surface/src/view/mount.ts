@@ -144,10 +144,11 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     const lanes = body.querySelector(".arc-lanes");
     if (lanes) lanes.scrollTop = lanesTop;
     // An increment shown from outside brings its arc's row, which holds its title, to the top of the lanes when both fit (3.39).
-    const head = row && lanes ? [...body.querySelectorAll<HTMLElement>("[data-arc-select]")].find((button) => button.dataset.arcSelect === opened) : undefined;
-    const headTop = head?.getBoundingClientRect().top;
-    if (row && lanes && headTop !== undefined && row.getBoundingClientRect().bottom - headTop <= lanes.clientHeight) lanes.scrollTop += headTop - lanes.getBoundingClientRect().top;
-    else row?.scrollIntoView?.({ block: "nearest" });
+    if (row) {
+      const headTop = [...body.querySelectorAll<HTMLElement>("[data-arc-select]")].find((button) => button.dataset.arcSelect === opened)?.getBoundingClientRect().top;
+      if (lanes && headTop !== undefined && row.getBoundingClientRect().bottom - headTop <= lanes.clientHeight) lanes.scrollTop += headTop - lanes.getBoundingClientRect().top;
+      else row.scrollIntoView?.({ block: "nearest" });
+    }
     const folded = [...body.querySelectorAll<HTMLElement>("[data-folded-ids]")].flatMap((node) => node.dataset.foldedIds!.split(" "));
     sayDrawn({
       arcs: [...new Set([...body.querySelectorAll<HTMLElement>("[data-arc-id]")].map((node) => node.dataset.arcId!))],

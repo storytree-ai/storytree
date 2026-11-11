@@ -153,7 +153,7 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
   const next = (): void => {
     const found = waiting.shift();
     if (found === undefined) return;
-    const card = cardOf(found.kind);
+    const card = cardOf(found.kind, { library: last?.library });
     const node = aside(found.kind, `<h3>${escape(card.title)}</h3><p>${escape(card.line)}</p><div data-depth hidden>${depth(card)}</div>
       <div class="teaching-card-actions"><button type="button" data-more aria-expanded="false">More</button><button type="button" data-dismiss>Got it</button><button type="button" data-end>End tour</button></div>`);
     const more = node.querySelector<HTMLButtonElement>("[data-more]")!;
@@ -211,14 +211,17 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
   };
 }
 
-/** The journal of cards seen, in `host` (Help's page for it): each listed in order, chosen to show again with its depth. */
-export function mountJournal(host: HTMLElement, { journal }: { journal: Journal }): { open(): void; close(): void; stop(): void } {
+/**
+ * The journal of cards seen, in `host` (Help's page for it): each listed in order, chosen to show again with its depth, as true
+ * of the map as `library` says it is now (whether the Library surface is on; on unless said).
+ */
+export function mountJournal(host: HTMLElement, { journal, library }: { journal: Journal; library?: () => boolean | undefined }): { open(): void; close(): void; stop(): void } {
   const unstyle = adoptStyles(host.ownerDocument);
   const shelf = host.ownerDocument.createElement("section");
   shelf.className = "teaching-journal";
   host.append(shelf);
   const show = (kind: Kind): void => {
-    const card = cardOf(kind);
+    const card = cardOf(kind, { library: library?.() });
     const box = shelf.querySelector<HTMLElement>("[data-journal-card]")!;
     box.dataset.kind = kind;
     box.hidden = false;

@@ -9,7 +9,7 @@ import { noteCodexHookRan } from "@storytree/session-management";
 
 import { launcherFile, registerHooks, runSetupCheck, verifyHooks } from "../setup/index.js";
 import { agentsOnThisComputer, connectAgents, disconnectAgents, installedToolServerCommand, type RunHarness } from "./index.js";
-import { deliveredCommand } from "./installed.js";
+import { connectedText, deliveredCommand } from "./installed.js";
 import { makeDevHome, removeDevHome } from "./dev-home.js";
 
 const legacy = '# user comment\nmodel = "kept"\n[mcp_servers.legacy]\ncommand = "storytree-02"\n';
@@ -306,6 +306,15 @@ test("2.6 connecting Claude Code says, in the reader's words, that it is not yet
   assert.match(claude!.next, /check_setup/, "the way on when storytree does not hear from it");
   assert.doesNotMatch(claude!.next, /settings|registration/, "the settings detail is not said at rest");
   assert.match(claude!.where ?? "", /Claude Code's user settings.*project or managed settings can override/);
+});
+
+test("2.6 a terminal's connect says where Claude Code's connection was written, on its own line after the next step; an agent with nothing to say there adds no line", async (t) => {
+  const f = fixture(t);
+  const [claude, codex] = await connectAgents({ ...f.options, harnesses: ["claude-code", "codex"] });
+  const [claudeText, codexText] = connectedText([claude!, codex!]).split("\n\n");
+  assert.deepEqual(claudeText!.split("\n"), ["Claude Code: tools connected; hooks not verified.", claude!.next, claude!.where]);
+  assert.equal(codex!.where, undefined);
+  assert.deepEqual(codexText!.split("\n"), [`Codex: tools connected; hooks ${codex!.hooks}.`, codex!.next]);
 });
 
 test("2.6 connecting Codex from an administrator terminal says Codex cannot run commands from one and to open it from a normal terminal; Claude Code, or a normal terminal, hears nothing of it", async (t) => {

@@ -260,6 +260,25 @@ test("5.70 a session whose claims lapsed without its asking (its session ended, 
       const own = await gate();
       assert.equal(own?.refused, "imported");
       assert.equal(own?.lapsed, undefined, "work A released itself did not lapse");
+
+      const end = () => log.append(project, { session: "A", harness: "claude-code", source: "hook", folder: checkout, kind: "session-ended", reason: "other" });
+      assert.equal((await claim(as("A"), mine, "driving it again")).ok, true);
+      await end();
+      assert.equal((await claim(as("B"), mine, "taking up the stats page")).ok, true);
+      const taken = await gate();
+      assert.equal(taken?.refused === "held" ? taken.holder.session : taken?.refused, "B", "work another session claimed since is refused naming that holder");
+      assert.equal(taken?.lapsed, undefined, "and is not called A's lapse");
+      assert.equal((await release(as("B"), mine)).ok, true);
+
+      assert.equal((await claim(as("A"), mine, "driving it again")).ok, true);
+      await log.append(project, { session: "watcher", source: "tool", kind: "merged", increment: mine, holder: "A", branch: "claude/stats", pr: 7 });
+      await end();
+      assert.equal((await gate())?.lapsed, undefined, "work a merge ended before the session did is not lapsed");
+
+      assert.equal((await claim(as("A"), mine, "driving it again")).ok, true);
+      await end();
+      await closed(as("B"), mine, "withdrawn");
+      assert.equal((await gate())?.lapsed, undefined, "work closed after it lapsed is not offered to claim again");
     });
   } finally {
     try {

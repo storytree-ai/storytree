@@ -199,9 +199,13 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     for (const old of shown.card.querySelectorAll(".teaching-card-ring, .teaching-card-tie")) old.remove();
     if (onShow) tie(shown.card, chosen, at, at.box);
   };
-  // A panel opened or closed on the page changes what is being read, so the card on show is placed again.
-  const opened = new (host.ownerDocument.defaultView ?? window).MutationObserver(place);
-  opened.observe(host, { subtree: true, attributeFilter: ["hidden"] });
+  // A panel opened or closed on the page, or a row drawn into one (an arc appearing in the rail's list), changes what is being
+  // read, so the card on show is placed again; never for a row drawn inside a card, where placing draws its own ring and line.
+  const opened = new (host.ownerDocument.defaultView ?? window).MutationObserver(records => {
+    const inCard = (node: Node): boolean => ((node.nodeType === 1 ? node as Element : node.parentElement)?.closest(".teaching-card") ?? null) !== null;
+    if (records.some(record => record.type === "attributes" || !inCard(record.target))) place();
+  });
+  opened.observe(host, { subtree: true, attributeFilter: ["hidden"], childList: true, characterData: true });
   host.ownerDocument.defaultView?.addEventListener("resize", place);
   /** A card element, a status rather than a dialog: it is read out without moving focus or holding the page. */
   const aside = (kind: string, html: string): HTMLElement => {

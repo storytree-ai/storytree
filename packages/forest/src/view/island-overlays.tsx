@@ -77,7 +77,7 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
 const NEVER = () => () => {};
 const NEAR = () => "near" as const;
 
-/** Whenever the globe draws, fade the story names that overlap another, none moving (ADR-0917), and move apart the capability names that overlap (3.33). */
+/** Whenever the globe draws, fade the story names that overlap another or that the map's frame cuts, none moving (ADR-0917, 3.4), and move apart the capability names that overlap (3.33). */
 export function NameplateCrowd({ selected }: { selected: string | undefined }) {
   const gl = useThree(state => state.gl);
   const invalidate = useThree(state => state.invalidate);
@@ -91,8 +91,11 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
       facing: Number(label.dataset.facing ?? 0), dimmed: label.dataset.dimmed !== undefined }));
     // A capability's name is never hidden: where names overlap they are moved apart, and off a story's name shown (3.33).
     const capabilities = [...host.querySelectorAll<HTMLElement>(".planet-nameplate.capability")].filter(onScreen);
+    // The map shows only where its canvas lies in the window: a story's name cut by the rail's edge or the window's fades (3.4).
+    const canvas = gl.domElement.getBoundingClientRect();
+    const frame = { left: Math.max(canvas.left, 0), top: Math.max(canvas.top, 0), right: Math.min(canvas.right, innerWidth), bottom: Math.min(canvas.bottom, innerHeight) };
     const { faded, moves } = crowdedNames(shown, selected, capabilities.map(label => ({ capability: label.dataset.capabilityId!, box: label.getBoundingClientRect(),
-      given: { x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) }, size: Number(label.dataset.size ?? 0) })));
+      given: { x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) }, size: Number(label.dataset.size ?? 0) })), frame);
     for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));
     for (const label of capabilities) {
       const move = moves.get(label.dataset.capabilityId!);

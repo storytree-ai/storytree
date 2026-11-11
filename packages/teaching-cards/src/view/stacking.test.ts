@@ -60,7 +60,7 @@ test("3.1 · the decision card with More open, drawing and all, keeps Next and E
   await page.locator(".teaching-card [data-more]").click();
   assert.ok(await page.locator(".teaching-card .tour-diagram").isVisible(), "its depth draws the decision");
   // Taller than a 24rem card's text could show, the drawing still shows whole: a card that draws is not held to 24rem.
-  const [drawing, text] = await Promise.all([".tour-diagram", ".teaching-card-text"].map(async one => (await page.locator(`.teaching-card ${one}`).boundingBox())!));
+  const drawing = (await page.locator(".teaching-card .tour-diagram").boundingBox())!, text = (await page.locator(".teaching-card .teaching-card-text").boundingBox())!;
   assert.ok(drawing.y >= text.y && drawing.y + drawing.height <= text.y + text.height, `the drawing whole inside the card's text: ${JSON.stringify({ drawing, text })}`);
   for (const name of ["Next", "End tour"]) {
     const button = page.getByRole("button", { name, exact: true });

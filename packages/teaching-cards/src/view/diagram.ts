@@ -48,9 +48,10 @@ export function decisionsDiagram({ seconds }: { seconds?: number } = {}): string
       + `<line class="diagram-link" x1="${above(decision).x}" y1="${above(decision).y}" x2="${decision.x}" y2="${decision.y}"></line>`
       + `<circle class="diagram-decision" cx="${decision.x}" cy="${decision.y}" r="5"></circle></g>`).join("")
     + `</g></svg>`
+    // Still, every beat's caption reads at once, one after the other, as the drawing shows every beat at once.
     + `<p class="tour-diagram-captions">`
     + `<span class="diagram-caption diagram-caption-1">An island: one story on the globe.</span>`
     + `<span class="diagram-caption diagram-caption-2">A decision is glued beneath it.</span>`
-    + `<span class="diagram-caption diagram-caption-3">What it stands on goes deeper: a tunnel down to the core.</span>`
+    + `<span class="diagram-caption diagram-caption-3">What it stands on goes deeper, a tunnel down to the core, where decisions about no one part gather.</span>`
     + `</p></figure>`;
 }

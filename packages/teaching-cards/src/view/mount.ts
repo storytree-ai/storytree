@@ -40,7 +40,6 @@ const STYLES = `
 .tour-diagram-title { font-size: 13px; font-weight: 650; }
 .tour-diagram-view { display: block; width: 100%; height: auto; }
 .tour-diagram-captions { margin: .25rem 0 0; }
-.diagram-caption-1, .diagram-caption-2 { display: none; }
 .diagram-globe { fill: #141c21; stroke: #5b7f8c; stroke-width: 2; stroke-dasharray: 7 6; }
 .diagram-land { fill: #bdd6a6; } .diagram-underside { fill: #6b5a46; } .diagram-tree { fill: #6f9a5c; }
 .diagram-glue { stroke: #7fb2e5; stroke-width: 2; } .diagram-decision { fill: #7fb2e5; }

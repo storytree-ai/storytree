@@ -61,6 +61,18 @@ export const CI_TIMES_SCHEMA: readonly string[] = [
     repository  text NOT NULL,
     read_at     timestamptz NOT NULL
   )`,
+  // The timing artifact each per-package test time came in: a sharded system's runs leave one per shard (stage 3).
+  `ALTER TABLE ci_unit_times ADD COLUMN IF NOT EXISTS artifact text`,
+  // One row per open pull request: the packages its checks test (`every`: all of them), read from its changed files at `head_sha`.
+  `CREATE TABLE IF NOT EXISTS ci_pull_scopes (
+    project     text NOT NULL,
+    pull        integer NOT NULL,
+    head_sha    text NOT NULL,
+    every       boolean NOT NULL,
+    dirs        text[] NOT NULL,
+    read_at     timestamptz NOT NULL,
+    PRIMARY KEY (project, pull)
+  )`,
 ];
 
 /** What the CI times are read and written through: the database's pool. */

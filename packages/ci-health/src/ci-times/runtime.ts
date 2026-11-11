@@ -47,11 +47,14 @@ export function ciTimesAnswers(frame: CiTimesPageFrame, { record = (db, project,
   };
 }
 
-/** Record from `folder`'s GitHub origin, if it has one, through `actions` (the user's `gh` by default); a folder with none records nothing. */
+/**
+ * Record from `folder`'s GitHub origin, if it has one, through `actions` (the user's `gh` by default), with each open pull
+ * request's scope by CI's own rule over `folder`, as `health times` records it; a folder with none records nothing.
+ */
 export async function recordFromFolder(db: CiTimesDb, project: string, folder: string, actions?: ActionsReader): Promise<void> {
-  const [{ ghActions, recordCiTimes }, { gitIn, repositoryOf }] = await Promise.all([import("./record.js"), import("../read-ci/read-ci.js")]);
+  const [{ ghActions, recordCiTimes }, { gitIn, repositoryOf }, { ciScopeRule }] = await Promise.all([import("./record.js"), import("../read-ci/read-ci.js"), import("./scope.js")]);
   const repository = repositoryOf(await gitIn(folder)(["remote", "get-url", "origin"]).catch(() => ""));
-  if (repository !== undefined) await recordCiTimes({ db, project, repository, actions: actions ?? ghActions() });
+  if (repository !== undefined) await recordCiTimes({ db, project, repository, actions: actions ?? ghActions(), scopeOf: ciScopeRule(folder) });
 }
 
 /** The main process's side, named in CI health's manifest (`pageAnswers`): the desktop answers the page's CI times read with it. */

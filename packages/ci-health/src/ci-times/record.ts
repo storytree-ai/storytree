@@ -12,6 +12,8 @@
  *   rows; CI keeps them for two days): only the rows that run wrote, by their time, and never the history carried in the same
  *   file. A run is read once; one whose artifacts expired keeps none.
  * - Each merged pull request's ready (its last ready-for-review, else when it was opened) and merged times.
+ * - Given the project's scope rule (CI's own, from its checkout), each open pull request's scope: the packages its checks
+ *   test, from its changed files, read again only when its head moves; a pull request no longer open is dropped (stage 3).
  *
  * Every write is an upsert, so a scheduled run, the app and a person at the command line may all record.
  */
@@ -39,7 +41,12 @@ export interface CiTimesRecorded {
   readonly pulls: number;
   /** Per-package test times recorded. */
   readonly units: number;
+  /** Open pull requests whose scope was read. */
+  readonly scopes: number;
 }
+
+/** What a pull request's checks test, given its changed files: every package (`full`), or the package dirs listed. */
+export type ScopeRule = (files: readonly string[]) => { readonly full: boolean; readonly dirs: readonly string[] };
 
 /** The events whose runs a pull request waits on. */
 const EVENTS = ["pull_request", "merge_group"] as const;
@@ -54,6 +61,8 @@ const AT_ONCE = 8;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** How close to its run's start and end a timing row must be written to be that run's. */
 const RUN_SLACK_MS = 60 * 1000;
+/** The most changed files GitHub lists for a pull request: one that lists this many may change more, so it tests everything. */
+const FILES_LISTED = 3000;
 
 /** `gh`, as the recorder uses it: the Actions API, GraphQL and `gh run download`. */
 export function ghActions(command = "gh"): ActionsReader {
@@ -72,8 +81,8 @@ export function ghActions(command = "gh"): ActionsReader {
 }
 
 /** Record `project`'s CI times from `repository` (owner/name) into `db`, as of `now`. */
-export async function recordCiTimes({ db, project, repository, actions, now = new Date(), backfillDays = BACKFILL_DAYS, jobsPerPass = JOBS_PER_PASS }: {
-  db: CiTimesDb; project: string; repository: string; actions: ActionsReader; now?: Date; backfillDays?: number; jobsPerPass?: number;
+export async function recordCiTimes({ db, project, repository, actions, now = new Date(), backfillDays = BACKFILL_DAYS, jobsPerPass = JOBS_PER_PASS, scopeOf }: {
+  db: CiTimesDb; project: string; repository: string; actions: ActionsReader; now?: Date; backfillDays?: number; jobsPerPass?: number; scopeOf?: ScopeRule;
 }): Promise<CiTimesRecorded> {
   const since = await recordFrom(db, project, now, backfillDays);
   let runs = 0;
@@ -88,12 +97,13 @@ export async function recordCiTimes({ db, project, repository, actions, now = ne
   await readBounds(db, project, repository, actions, jobsPerPass);
   const units = await readTimings(db, project, repository, actions);
   const pulls = await recordPulls(db, project, repository, actions, since);
+  const scopes = scopeOf === undefined ? 0 : await recordScopes(db, project, repository, actions, scopeOf, now);
   await db.query(
     `INSERT INTO ci_readings (project, repository, read_at) VALUES ($1, $2, $3)
       ON CONFLICT (project) DO UPDATE SET repository = EXCLUDED.repository, read_at = EXCLUDED.read_at`,
     [project, repository, now],
   );
-  return { runs, pulls, units };
+  return { runs, pulls, units, scopes };
 }
 
 /** Where this recording starts: an hour before the last, or the oldest run it left going, never further back than the backfill. */
@@ -177,7 +187,7 @@ async function eachAtMost<T>(items: readonly T[], limit: number, act: (item: T) 
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
 }
 
-type TimingRow = { at?: string; platform?: string; arch?: string; unit?: string; result?: string; ms?: number; timedOut?: boolean; jobs?: number };
+type TimingRow = { at?: string; platform?: string; arch?: string; unit?: string; result?: string; ms?: number; timedOut?: boolean; jobs?: number; artifact?: string };
 
 /** The per-package test times of each passing merge-queue run not yet read. */
 async function readTimings(db: CiTimesDb, project: string, repository: string, actions: ActionsReader): Promise<number> {
@@ -198,9 +208,9 @@ async function readTimings(db: CiTimesDb, project: string, repository: string, a
           const at = Date.parse(row.at ?? "");
           if (row.unit === undefined || !(at >= from && at <= to) || row.platform === undefined || typeof row.ms !== "number") continue;
           await db.query(
-            `INSERT INTO ci_unit_times (project, run_id, head_sha, platform, arch, unit, jobs, result, ms, timed_out, at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT DO NOTHING`,
-            [project, run.run_id, run.head_sha, row.platform, row.arch ?? "", row.unit, row.jobs ?? 1, row.result ?? "", Math.round(row.ms), row.timedOut === true, row.at]);
+            `INSERT INTO ci_unit_times (project, run_id, head_sha, platform, arch, unit, jobs, result, ms, timed_out, at, artifact)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) ON CONFLICT DO NOTHING`,
+            [project, run.run_id, run.head_sha, row.platform, row.arch ?? "", row.unit, row.jobs ?? 1, row.result ?? "", Math.round(row.ms), row.timedOut === true, row.at, row.artifact ?? null]);
           units++;
         }
       } finally {
@@ -212,16 +222,19 @@ async function readTimings(db: CiTimesDb, project: string, repository: string, a
   return units;
 }
 
-/** Every row of every `.jsonl` file under `folder`, a line that is not JSON passed over. */
+/** Every row of every `.jsonl` file under `folder`, with the artifact (the folder `gh run download` unpacked it into) it came in; a line that is not JSON passed over. */
 function timingRows(folder: string): TimingRow[] {
-  return readdirSync(folder, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".jsonl")).flatMap((file) =>
-    readFileSync(path.join(folder, file), "utf8").split("\n").flatMap((line) => {
+  return readdirSync(folder, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".jsonl")).flatMap((file) => {
+    const [first, ...rest] = file.split(/[\\/]/);
+    const artifact = rest.length > 0 ? { artifact: first! } : {};
+    return readFileSync(path.join(folder, file), "utf8").split("\n").flatMap((line) => {
       try {
-        return line.trim() === "" ? [] : [JSON.parse(line) as TimingRow];
+        return line.trim() === "" ? [] : [{ ...(JSON.parse(line) as TimingRow), ...artifact }];
       } catch {
         return [];
       }
-    }));
+    });
+  });
 }
 
 const MERGED = `query($q: String!, $after: String) {
@@ -252,4 +265,32 @@ async function recordPulls(db: CiTimesDb, project: string, repository: string, a
     after = search?.pageInfo?.hasNextPage ? search.pageInfo.endCursor : undefined;
   } while (after !== undefined);
   return pulls;
+}
+
+/** Each open pull request's scope under `scopeOf`, its files read only when its head moved since; the scopes of those no longer open dropped. */
+async function recordScopes(db: CiTimesDb, project: string, repository: string, actions: ActionsReader, scopeOf: ScopeRule, now: Date): Promise<number> {
+  const open: { number: number; head: { sha: string } }[] = [];
+  for (let page = 1; ; page++) {
+    const listed = (await actions.json(`repos/${repository}/pulls?state=open&per_page=100&page=${page}`)) ?? [];
+    open.push(...listed);
+    if (listed.length < 100) break;
+  }
+  await db.query("DELETE FROM ci_pull_scopes WHERE project = $1 AND NOT (pull = ANY($2::int[]))", [project, open.map(({ number }) => number)]);
+  const { rows } = await db.query<{ pull: number; head_sha: string }>("SELECT pull, head_sha FROM ci_pull_scopes WHERE project = $1", [project]);
+  const read = new Map(rows.map(({ pull, head_sha }) => [pull, head_sha]));
+  const moved = open.filter(({ number, head }) => read.get(number) !== head.sha);
+  await eachAtMost(moved, AT_ONCE, async ({ number, head }) => {
+    const files: string[] = [];
+    for (let page = 1; ; page++) {
+      const listed: { filename: string }[] = (await actions.json(`repos/${repository}/pulls/${number}/files?per_page=100&page=${page}`)) ?? [];
+      files.push(...listed.map(({ filename }) => filename));
+      if (listed.length < 100 || files.length >= FILES_LISTED) break;
+    }
+    const scope = files.length >= FILES_LISTED ? { full: true, dirs: [] } : scopeOf(files);
+    await db.query(
+      `INSERT INTO ci_pull_scopes (project, pull, head_sha, every, dirs, read_at) VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (project, pull) DO UPDATE SET head_sha = EXCLUDED.head_sha, every = EXCLUDED.every, dirs = EXCLUDED.dirs, read_at = EXCLUDED.read_at`,
+      [project, number, head.sha, scope.full, scope.full ? [] : [...scope.dirs], now]);
+  });
+  return moved.length;
 }

@@ -17,6 +17,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { removeTemp } from "@storytree/test-waits";
 
+import { resultsTable as gateTable } from "./gate.mjs";
 import {
   changedFiles,
   classify,
@@ -24,7 +25,7 @@ import {
   parseTestArgs,
   planRun,
   readWorkspace,
-  resultsTable,
+  RERUN_HINT,
   scopeFor,
   scopeLine,
   unitGlobs,
@@ -642,6 +643,7 @@ test("2.3 --help prints the runner's usage, and an unknown flag is refused namin
 });
 
 test("the results table shows each unit PASS, FAIL or NOT RUN, and how to rerun the failures", () => {
+  const resultsTable = (results) => gateTable(results, { rerunHint: RERUN_HINT });
   const table = resultsTable({ "packages/cli": "pass", "packages/forest": "fail", "apps/desktop": "not run" });
   assert.match(table, /PASS\s+packages\/cli/);
   assert.match(table, /FAIL\s+packages\/forest/);

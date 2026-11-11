@@ -247,3 +247,40 @@ test("3.34 a pull request in CI draws a two-leg bar on its arc's lane: its check
   assert.equal(view([state({ checks: "failing", checksSince: ago(7) })]).lanes[0]!.ci.length, 0, "red, out of CI: no bar");
   assert.equal(view([state({ checks: "failing", checksSince: ago(7) })]).lanes[0]!.bars.find(({ id }) => id === "shipping")?.reading.state, "queued");
 });
+
+test("3.35 a pull request in CI with its own checks estimate draws its checks leg against it, and the hover names the packages summed, the system assumed and that the estimate is rough; one without keeps the factory median", () => {
+  const now = new Date("2026-11-11T12:00:00Z");
+  const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString();
+  const ci = arc("ci"); ci.increments.push(record("shipping", "increment", { arc: "ci", title: "Ship the bar", objective: "o", body: "b", status: "active" }, "2026-11-10"), noted("free", "ci"));
+  const merging: NoteWait = { releaser: "event", note: "PR #12 merges", checkBack: "2999-01-01", holds: true };
+  const snapshot: BoardSnapshot = { arcs: [ci], heldOn: {}, waits: {}, waitsFor: { shipping: [merging] } };
+  let seq = 0;
+  const line = (fields: object, at: string) => ({ project: "p", source: "tool", seq: ++seq, at, ...fields }) as Line;
+  const handedOver = line({ kind: "claimed", harness: "watcher", session: "pull-request-12", increment: "shipping", reason: "handed over" }, ago(20));
+  const checking = line({ kind: "branch-state", session: "observer", of: "claude/ship", open: true, how: "ahead", pr: 12, checks: "pending", checksSince: ago(7) }, ago(3));
+  const hoverOf = (html: string) => html.match(/<span class="arc-ci"[^>]*title="([^"]*)"/)?.[1] ?? "";
+  const draw = (expected: object) => {
+    const view = boardView(snapshot, [handedOver, checking], now, "active", undefined, expected);
+    return { legs: view.lanes[0]!.ci[0]!.legs, hover: hoverOf(renderBoard(view, "ci")) };
+  };
+
+  const own = draw({ checks: 14, queue: 15, pulls: [{ pull: 12, checks: 10, system: "win32", full: false, packages: ["packages/arc-surface", "packages/forest"] }, { pull: 99, checks: 30, system: "linux", full: true, packages: [] }] });
+  assert.deepEqual([own.legs[0].expected, own.legs[0].fill], [10, 0.7], "7 of its own 10 minutes, not the factory's 14");
+  assert.match(own.hover, /Checks: 7 min of 10 min expected/);
+  assert.match(own.hover, /Checks expected from 2 packages on Windows \(arc-surface, forest\): a rough estimate/);
+  assert.match(own.hover, /merge queue from the factory median/);
+  assert.doesNotMatch(own.hover, /Expected from the factory median/);
+
+  const everything = draw({ checks: 14, queue: 15, pulls: [{ pull: 12, checks: 20, system: "linux", full: true, packages: [] }] });
+  assert.match(everything.hover, /Checks expected from every package on Linux: a rough estimate/);
+
+  const many = draw({ checks: 14, queue: 15, pulls: [{ pull: 12, checks: 12, system: "darwin", full: false, packages: ["a", "b", "c", "d", "e", "f", "g", "h"].map((name) => `packages/${name}`) }] });
+  assert.match(many.hover, /Checks expected from 8 packages on macOS \(a, b, c, d, e, f and 2 more\): a rough estimate/, "past six, the rest are counted");
+  const untimed = draw({ checks: 14, queue: 15, pulls: [{ pull: 12, checks: 4, full: false, packages: [] }] });
+  assert.equal(untimed.legs[0].expected, 4);
+  assert.match(untimed.hover, /Checks expected from no timed package, setup alone: a rough estimate/);
+
+  const none = draw({ checks: 14, queue: 15, pulls: [{ pull: 99, checks: 30, system: "linux", full: true, packages: [] }] });
+  assert.equal(none.legs[0].expected, 14, "no estimate of its own: the factory median");
+  assert.match(none.hover, /Expected from the factory median/);
+});

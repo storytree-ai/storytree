@@ -1,8 +1,8 @@
 /** Capability 3 · Arc surface. */
-import { logReading, pullOf, type LogReading } from "@storytree/session-management/readings";
+import { inCi, logReading, pullOf, type LogReading } from "@storytree/session-management/readings";
 import type { BoardArcView, Hold, Line, NoteWait, PrCutover } from "@storytree/library";
 import type { ClosedRange } from "./closed-range.js";
-import { ciLegs, inCi, type CiBar, type CiExpected } from "./ci-bars.js";
+import { ciEstimate, ciLegs, type CiBar, type CiExpected } from "./ci-bars.js";
 import { agentsOnBoard, type ArcWork, type BoardAgent } from "../agents/agents.js";
 import { arcQueues, waitsOnBoard, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
 import { arcState, incrementState, questionsBehind, type ArcState, type IncrementReading } from "../work-states/board-states.js";
@@ -116,7 +116,8 @@ export function openContracts(view: Pick<BoardArcView, "increments">): string[] 
 
 /**
  * The log is the lines themselves, or a reading that holds its claims folded and keeps its claim lines. `expected` is each CI
- * leg's factory median (CI health 6.7) a pull request in CI is drawn against; without it its legs have none (3.34).
+ * leg's factory median (CI health 6.7) a pull request in CI is drawn against, and each pull request's own checks estimate drawn
+ * against instead (6.10, 3.35); without them its legs have none (3.34).
  */
 export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogReading, now: Date, scope: BoardScope = "active", quietMs?: number, expected: CiExpected = {}): BoardView {
   const logged = logReading(log);
@@ -158,7 +159,8 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
       const pr = increment.fields.status === "closed" || claim === undefined ? undefined : pullOf(claim.session);
       const pull = pr === undefined ? undefined : logged.fold.openPull(pr);
       const building = pull !== undefined && inCi(pull);
-      if (building) ci.push({ pr: pull.number, increment: { id: increment.id, title: increment.fields.title }, legs: ciLegs(pull, expected, now), seenAgo: Math.max(0, Math.floor((now.getTime() - Date.parse(pull.at)) / 60_000)) });
+      const estimate = building ? ciEstimate(pull, expected) : undefined;
+      if (building) ci.push({ pr: pull.number, increment: { id: increment.id, title: increment.fields.title }, legs: ciLegs(pull, expected, now), ...(estimate === undefined ? {} : { estimate }), seenAgo: Math.max(0, Math.floor((now.getTime() - Date.parse(pull.at)) / 60_000)) });
       const reading = incrementState(increment.fields, { waits: snapshot.waits[increment.id] ?? [], heldOn: snapshot.heldOn[increment.id] ?? [], waitsFor: noteWaits, behind, ...(claim ? { claim } : {}), ...(increment.fields.status === "closed" ? {} : withBlocker(blockedBy(increment))), ...(building ? { inCi: true } : {}) });
       return { id: increment.id, title: increment.fields.title, reading,
         agents: claim ? [claim] : [], waits: waits.on(increment.id), noteWaits,

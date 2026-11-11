@@ -35,7 +35,7 @@ export type WorkspaceRefusal =
   | Exclude<ClaimAnswer, { ok: true }>
   | ListedHeld
   | { ok: false; refused: "yours"; claim: Claim }
-  | { ok: false; refused: "no-workspace"; why: string; openPulls?: readonly OpenPullForWork[] };
+  | { ok: false; refused: "no-workspace"; why: string; openPulls?: readonly OpenPullForWork[]; localBranches?: readonly LocalBranchForWork[] };
 
 /** A capability on the increment's list another live session holds: `listed` names it (5.59). */
 export type ListedHeld = Held & { listed: string };
@@ -44,6 +44,15 @@ export type ListedHeld = Held & { listed: string };
 export interface OpenPullForWork {
   readonly number: number;
   readonly branch: string;
+}
+
+/** A local branch made for the work with commits main does not have, as a no-workspace refusal carries it (5.69). */
+export interface LocalBranchForWork {
+  readonly branch: string;
+  /** How many of its commits freshly fetched origin's main does not have. */
+  readonly ahead: number;
+  /** The worktree that has it checked out, when one does. */
+  readonly folder?: string;
 }
 
 export interface ClaimedWorkspace {
@@ -69,6 +78,8 @@ export type WorkspaceAnswer =
 export interface WorkspaceOptions {
   /** Make the workspace even though open pull requests are already for this work (5.25). */
   readonly despiteOpenPulls?: boolean;
+  /** Make the workspace even though local branches made for this work have commits main does not (5.69). */
+  readonly despiteLocalBranches?: boolean;
   /** The caps a new worktree's setup copies within. */
   readonly setupLimits?: SetupLimits;
 }
@@ -109,6 +120,8 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
   const fetched = fetchMain(repository, main);
   if (fetched !== undefined) return fetched;
   const base = `origin/${main}`;
+  const unlanded = options.despiteLocalBranches === true ? undefined : localBranchesRefusal(repository, id, base);
+  if (unlanded !== undefined) return unlanded;
   if (context.harness === "codex") {
     return { ok: true, status: "prepared", ref: run(repository, ["rev-parse", `refs/remotes/${base}`]).trim(), name: nameFor(id).replace(/-+/g, "-"), base };
   }
@@ -291,6 +304,44 @@ async function openPullsRefusal(context: WorkspaceContext, id: string, watch: Me
     why: `${id} already has open pull requests: ${named}. Carry one on (check its branch out into a worktree with git worktree add, then attach that folder) or close it, or make a workspace despite them`,
     openPulls: forId.map(([branch, pull]) => ({ number: pull.number, branch })),
   };
+}
+
+/**
+ * Why a new workspace would rebuild work an earlier session left on this computer: the local branches
+ * made for `id` (`<harness>/<id's name>-<suffix>`) with commits `base` does not have, each with the
+ * worktree that has it checked out. Undefined when there is none (5.69).
+ */
+function localBranchesRefusal(repository: string, id: string, base: string): WorkspaceRefusal | undefined {
+  const made = new RegExp(`(?:^|/)${stemFor(id)}-[a-z0-9]+$`);
+  const folders = worktreeFolders(repository);
+  const found: LocalBranchForWork[] = [];
+  for (const branch of run(repository, ["for-each-ref", "--format=%(refname:short)", "refs/heads/"]).split(/\r?\n/)) {
+    if (!made.test(branch)) continue;
+    const ahead = Number(run(repository, ["rev-list", "--count", `refs/remotes/${base}..refs/heads/${branch}`]).trim());
+    if (!(ahead > 0)) continue;
+    const folder = folders.get(branch);
+    found.push({ branch, ahead, ...(folder === undefined ? {} : { folder }) });
+  }
+  if (found.length === 0) return undefined;
+  const named = found.map((one) => `${one.branch}, ${one.ahead} commit${one.ahead === 1 ? "" : "s"} ahead of ${base}${one.folder === undefined ? "" : `, checked out at ${one.folder}`}`).join("; ");
+  return {
+    ok: false,
+    refused: "no-workspace",
+    why: `${id} already has local work main does not: ${named}. Carry it on (claim ${id} from inside its worktree, or check the branch out into one with git worktree add and attach that folder) or delete the branch, or make a workspace despite it`,
+    localBranches: found,
+  };
+}
+
+/** Each branch a worktree of the repository has checked out, with that worktree's folder. */
+function worktreeFolders(repository: string): Map<string, string> {
+  const folders = new Map<string, string>();
+  for (const entry of run(repository, ["worktree", "list", "--porcelain"]).split(/\r?\n\r?\n/)) {
+    const lines = entry.split(/\r?\n/);
+    const folder = lines.find((line) => line.startsWith("worktree "))?.slice("worktree ".length);
+    const branch = lines.find((line) => line.startsWith("branch refs/heads/"))?.slice("branch refs/heads/".length);
+    if (folder !== undefined && branch !== undefined) folders.set(branch, path.resolve(folder));
+  }
+  return folders;
 }
 
 /** The linked worktree `folder` is in, and its branch (empty when detached); undefined in the main checkout or outside git. */

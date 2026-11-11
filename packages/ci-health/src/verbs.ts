@@ -60,14 +60,15 @@ const times = verb({
   tool: { absent: "recording CI times is a step for its terminal, or the Mint box's schedule; the map shows the reading" },
   inputs: {},
   async act(_input, { project, folder, server }) {
-    const [{ ghActions, recordCiTimes }, { ciTimesReading }, { ciTimesText }, { ciTimesPool }, { gitIn, repositoryOf }] = await Promise.all([
+    const [{ ghActions, recordCiTimes }, { ciTimesReading }, { ciTimesText }, { ciTimesPool }, { gitIn, repositoryOf }, { ciScopeRule }] = await Promise.all([
       import("./ci-times/record.js"), import("./ci-times/reading.js"), import("./ci-times/lines.js"), import("./ci-times/store.js"), import("./read-ci/read-ci.js"),
+      import("./ci-times/scope.js"),
     ]);
     const repository = repositoryOf(await gitIn(folder)(["remote", "get-url", "origin"]).catch(() => ""));
     if (repository === undefined) return { text: "This project has no GitHub origin, so storytree has no CI runs to time; nothing was recorded." };
     if (server === undefined) throw new VerbRefusal("CI times are kept beside the library, and this door has no library server open.");
     const db = await ciTimesPool(server);
-    const recorded = await recordCiTimes({ db, project, repository, actions: ghActions() });
+    const recorded = await recordCiTimes({ db, project, repository, actions: ghActions(), scopeOf: ciScopeRule(folder) });
     const reading = await ciTimesReading(db, project);
     return { text: [`Recorded ${recorded.runs} runs, ${recorded.pulls} merged pull requests and ${recorded.units} per-package test times from ${repository}.`, ...(reading === undefined ? [] : [ciTimesText(reading)])].join("\n") };
   },

@@ -29,14 +29,19 @@ const make = verb({
     family: "workspace",
     name: "workspace",
     summary: "make a claimed Claude Code workspace or prepare a Codex app workspace",
-    usage: "workspace <increment|capability> --reason <text> [--despite-open-pulls]",
+    usage: "workspace <increment|capability> --reason <text> [--despite-open-pulls] [--despite-local-branches]",
   },
   tool: ownTool("make_workspace"),
-  inputs: { work, reason, "despite-open-pulls": { kind: "switch", describe: "make it beside the work's open pull request" } },
-  async act({ work: id, reason: why, "despite-open-pulls": despiteOpenPulls }, context: SessionVerbContext) {
+  inputs: {
+    work,
+    reason,
+    "despite-open-pulls": { kind: "switch", describe: "make it beside the work's open pull request" },
+    "despite-local-branches": { kind: "switch", describe: "make it beside local branches of the work that main does not have" },
+  },
+  async act({ work: id, reason: why, "despite-open-pulls": despiteOpenPulls, "despite-local-branches": despiteLocalBranches }, context: SessionVerbContext) {
     agentOnly(context);
     const { makeWorkspace } = await import("./workspace.js");
-    const made = await makeWorkspace(context, id, why, {}, { despiteOpenPulls });
+    const made = await makeWorkspace(context, id, why, {}, { despiteOpenPulls, despiteLocalBranches });
     if (!made.ok) throw new VerbRefusal(workspaceRefusalText(id, made));
     if (made.status === "prepared") {
       const { ref, name } = made;
@@ -413,6 +418,10 @@ export function workspaceRefusalText(id: string, answer: WorkspaceRefusal): stri
       // The refusal words the open pull requests; the command line names its own way past them (5.25).
       if (answer.openPulls !== undefined) {
         return `Workspace setup refused: ${answer.why}: storytree workspace ${id} --reason <text> --despite-open-pulls.`;
+      }
+      // Likewise the local branches (5.69).
+      if (answer.localBranches !== undefined) {
+        return `Workspace setup refused: ${answer.why}: storytree workspace ${id} --reason <text> --despite-local-branches.`;
       }
       return `Workspace setup refused: ${answer.why}.`;
   }

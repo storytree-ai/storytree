@@ -168,16 +168,17 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
 
   define(
     "make_workspace",
-    "Make a claimed Claude Code workspace, or prepare a Codex app workspace: check the work is free and fetch main. For Codex, pass the returned ref and name to the app's create_worktree, then call attach_workspace with its returned folder. Refused if held, waiting or already yours; pick other work. Refused too if an open pull request was already made for the work, naming it: carry that one on, or close it, or pass despite_open_pulls to build beside it.",
+    "Make a claimed Claude Code workspace, or prepare a Codex app workspace: check the work is free and fetch main. For Codex, pass the returned ref and name to the app's create_worktree, then call attach_workspace with its returned folder. Refused if held, waiting or already yours; pick other work. Refused too if an open pull request was already made for the work, naming it: carry that one on, or close it, or pass despite_open_pulls to build beside it. Refused too if a local branch made for the work has commits main does not, naming it and its worktree: carry it on, or delete it, or pass despite_local_branches to build beside it.",
     z.object({
       ...part,
       reason: z.string().min(1).describe("What you are about to do, of any length: until you name your session, its row in the sessions list reads this, cut at a word to 40 characters"),
       despite_open_pulls: z.boolean().optional().describe("Make it even though open pull requests were already made for this work; only once you have read them and know why"),
+      despite_local_branches: z.boolean().optional().describe("Make it even though local branches made for this work have commits main does not; only once you have read them and know why"),
     }),
-    async ({ capability, increment, reason, despite_open_pulls }, call) => {
+    async ({ capability, increment, reason, despite_open_pulls, despite_local_branches }, call) => {
       const id = capability ?? increment;
       if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true, data: { made: false } };
-      const made = await makeWorkspace(claimContext(call), id, reason, {}, { despiteOpenPulls: despite_open_pulls === true });
+      const made = await makeWorkspace(claimContext(call), id, reason, {}, { despiteOpenPulls: despite_open_pulls === true, despiteLocalBranches: despite_local_branches === true });
       if (!made.ok) return { text: await workspaceRefusalText(call.library, id, made), refused: true, data: { made: false } };
       if (made.status === "prepared") {
         const { ref, name, base, status } = made;

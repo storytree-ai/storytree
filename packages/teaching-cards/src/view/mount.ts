@@ -23,7 +23,11 @@ export type Islands = () => readonly Box[];
 const STYLES = `
 .teaching-card { position: fixed; z-index: 20; max-width: 22rem; padding: .75rem .9rem; border-radius: .6rem;
   background: rgba(20, 24, 32, .94); color: #f2f4f8; font: 14px/1.4 system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.35);
-  max-height: calc(100vh - 24px); overflow-y: auto; }
+  max-height: min(24rem, calc(100vh - 24px)); overflow-y: auto; display: flex; flex-direction: column; }
+/* With More open the depth scrolls inside the card, between its line and its buttons, so a card stays short enough to find a
+   place clear of the islands and its buttons stay on show. */
+.teaching-card > * { flex-shrink: 0; }
+.teaching-card > [data-depth] { flex-shrink: 1; min-height: 3rem; overflow-y: auto; }
 /* Beneath an open menu, dialog or overlay surface (the app's gear menu is a popover, the first launch's sharing consent an overlay):
    hidden, so none of it shows past the overlay's edge, and back when it closes. */
 :root:has(:popover-open, dialog:modal, [data-surface-layer="overlay"]:not([hidden])) .teaching-card { display: none; }

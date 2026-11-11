@@ -29,7 +29,9 @@ const measure = page => page.evaluate(() => {
     .map(({ left, top, right, bottom }) => ({ left, top, right, bottom }));
   // The card's tie to its thing: a ring round it and a line to the card (3.10).
   const ties = card.querySelectorAll('.teaching-card-ring, .teaching-card-tie').length;
-  return { cards: document.querySelectorAll('.teaching-card').length, kind: card.dataset.kind, card: { left, top, right, bottom }, island: island?.box, islands: drawn.map(one => one.box), switches, ties };
+  const shown = card.querySelector('.teaching-card-actions')?.getBoundingClientRect();
+  const actions = shown === undefined ? undefined : { left: shown.left, top: shown.top, right: shown.right, bottom: shown.bottom };
+  return { cards: document.querySelectorAll('.teaching-card').length, kind: card.dataset.kind, card: { left, top, right, bottom }, island: island?.box, islands: drawn.map(one => one.box), switches, ties, actions };
 });
 const apart = (a, b) => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
 
@@ -86,7 +88,9 @@ await runCapture({
       expect: found => {
         assert.deepEqual([found.cards, found.kind], [1, 'story']);
         assert.ok(apart(found.card, found.island), 'taller, the story card still stays off its island');
+        assert.ok(found.islands.every(box => apart(found.card, box)), 'and off every other island drawn');
         assert.equal(found.ties, 2, 'and is still tied to it');
+        assert.ok(found.actions.top >= found.card.top && found.actions.bottom <= found.card.bottom, 'its buttons on show, its depth scrolling above them');
       },
     },
     {

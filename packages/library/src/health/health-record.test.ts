@@ -920,6 +920,76 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await told(() => health.reportHealth(sibling.id, "failing")), [], "an agent's report is no verdict");
     assert.equal(((await records.get(fix.id))?.fields as { waitsFor?: unknown }).waitsFor, undefined, "the release 10.44 does is unchanged");
   });
+
+  contract("5.24", "a verified verdict's turn since a given time that told nothing, its writer's role refusing the FYI (3.20), is told at the verdict's own time: red, green again, and a fix it was waiting on released as still red; a turn told when it was written, a verdict that stayed as it was and a second telling tell nothing more", async ({ work, flight, records }) => {
+    const health = new HealthRecord(records, work, flight);
+    const ci = new HealthRecord(onlyHealth(records), work);
+    const onCi = (id: string, state: "passing" | "failing", by: string) =>
+      ci.recordVerified(id, state, { by, source: "ci" }).catch((error: { code?: string }) => {
+        if (error.code !== "42501") throw error;
+      });
+    const { capability, contract, sibling } = await smallPlan(work);
+    const gone = await work.addContract({ title: "Retired since", capability: capability.id });
+    for (const id of [contract.id, sibling.id, gone.id]) await health.recordVerified(id, "passing", { by: "run 1" });
+    await later();
+    const from = new Date().toISOString();
+    const fyis = async () => (await records.list("fyi")).map(({ fields }) => fields).sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+    const verdictAt = async (id: string) => (await health.health(id)).verified.at!;
+
+    await onCi(gone.id, "failing", "CI run 2");
+    await records.retire(gone.id, "no longer promised");
+    await onCi(contract.id, "failing", "CI run 2");
+    const redAt = await verdictAt(contract.id);
+    await onCi(contract.id, "failing", "CI run 3");
+    await health.recordVerified(sibling.id, "failing", { by: "a local run" });
+    await onCi(sibling.id, "passing", "CI run 4");
+    const greenAt = await verdictAt(sibling.id);
+    const arc = await flight.createArc({ title: "Fix sign-up", intent: "An intent", endState: "An end state" });
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    const fix = await flight.addIncrement({ arc: arc.id, title: "Fix the email check", objective: "Do it", body: "The steps.", capabilities: [capability.id], waitsFor: [{ releaser: "event", note: "the next run", checkBack: tomorrow }] });
+    const before = new Set((await fyis()).map((fyi) => `${fyi.about} ${fyi.at} ${fyi.title}`));
+
+    const turns = await health.tellUntold(from);
+    assert.deepEqual(turns.map(({ contract: id, at }) => [id, at]), [[contract.id, redAt], [sibling.id, greenAt]], "the red and the green again CI could not tell; not the turn told locally, nor a retired contract's");
+    const told = (await fyis()).filter((fyi) => !before.has(`${fyi.about} ${fyi.at} ${fyi.title}`));
+    assert.deepEqual(told.map(({ about, at }) => [about, at]), [[contract.id, redAt], [sibling.id, greenAt]], "one FYI each, at the verdict's own time");
+    for (const said of ["Red", "Rejects a bad email", "CI run 2"]) assert.ok(`${told[0]!.title} ${told[0]!.what}`.includes(said), `the red FYI says ${said}`);
+    for (const said of ["Green again", "Accepts a plus address", "CI run 4"]) assert.ok(`${told[1]!.title} ${told[1]!.what}`.includes(said), `the green FYI says ${said}`);
+    assert.deepEqual(((await records.get(fix.id))?.fields as { waitsFor?: unknown[] }).waitsFor, [{ releaser: "event", note: "the next run", checkBack: tomorrow }], "a fix made to wait after the red is not released by it");
+
+    await onCi(contract.id, "failing", "CI run 5");
+    const [uncured, ...more] = await health.tellUntold(from);
+    assert.deepEqual(more, [], "only the red the fix waited on is new");
+    assert.deepEqual(uncured!.released, [fix.id], "the fix it waited on is released");
+    assert.equal(((await records.get(fix.id))?.fields as { waitsFor?: unknown[] }).waitsFor, undefined);
+    assert.ok((await fyis()).at(-1)!.title.startsWith("Still red after a fix"));
+
+    const recheck = await flight.addIncrement({ arc: arc.id, title: "Re-check the plus address", objective: "Do it", body: "The steps.", links: [sibling.id], waitsFor: [{ releaser: "event", note: "the next run", checkBack: tomorrow }] });
+    const unreleased = await fyis();
+    await new HealthRecord(records, work).recordVerified(sibling.id, "failing", { by: "a run with no work in flight" });
+    assert.equal((await fyis()).length, unreleased.length + 1, "a writer with no work in flight tells the red but releases nothing");
+    const [releasing, ...others] = await health.tellUntold(from);
+    assert.deepEqual(others, []);
+    assert.deepEqual(releasing!.released, [recheck.id], "the red already told releases the work it could not");
+    assert.equal((await fyis()).length, unreleased.length + 1, "and is not told twice");
+
+    const count = (await fyis()).length;
+    assert.deepEqual(await health.tellUntold(from), [], "told once, never again");
+    assert.equal((await fyis()).length, count);
+  });
+}
+
+/** `records` as CI's database role writes through it (infra/library-host/grants.sql): health only, anything else refused as row-level security refuses it. */
+function onlyHealth(records: SchemaRecords): SchemaRecords {
+  const refused = (): Promise<never> => Promise.reject(Object.assign(new Error('new row violates row-level security policy for table "record_event"'), { code: "42501" }));
+  return new Proxy(records, {
+    get(target, key) {
+      if (key === "create") return (type: RecordType, ...rest: unknown[]) => (type === "health" ? (target.create as (...args: unknown[]) => unknown)(type, ...rest) : refused());
+      if (key === "edit") return refused;
+      const value: unknown = Reflect.get(target, key);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
 }
 
 /** Past the current millisecond, so the next write's time sorts after the last one's. */

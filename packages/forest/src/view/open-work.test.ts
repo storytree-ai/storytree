@@ -174,7 +174,16 @@ test("3.102 · a pick after an arc is selected draws only its gold ring: the arc
   assert.equal(new Set(meshes().map(({ material }) => material)).size, 2, "one material for the arc's rings, one for the pick's");
   assert.deepEqual(names(work.show(openWorkMarks(map, undefined, roads, "a"), flat, 2)), [], "the arc put away: nothing new to draw");
   assert.deepEqual(meshes().map(({ name }) => name), ["picked-ring:a"], "its rings gone, the pick's standing");
-  assert.ok(work.size(0.5), "every ring redrawn for another zoom");
+  work.show(openWorkMarks(map, new Set(["a"]), roads, "a"), flat, 2);
+  const geometries = new Map(meshes().map((mesh) => [mesh.name, mesh.geometry]));
+  assert.ok(work.size(0.5), "redrawn for another zoom");
+  for (const mesh of meshes()) {
+    assert.notEqual(mesh.geometry, geometries.get(mesh.name), `${mesh.name} redrawn`);
+    const spread = reaches(mesh, roads.settlements.get("a")!.at);
+    assert.ok(Math.abs(Math.max(...spread) - Math.min(...spread) - RING_PX / 0.5) < 1e-3, `${mesh.name}'s line RING_PX wide on screen at the new zoom`);
+  }
+  assert.equal(work.size(0.5), false, "a still eye redraws nothing");
   work.dispose();
   assert.deepEqual(freed.sort(), ["open-work-ring:a", "picked-ring:c"], "freed once the island goes");
+  assert.deepEqual(meshes(), [], "and its rings with them");
 });

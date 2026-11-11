@@ -282,7 +282,7 @@ test("7.19 · the card handed at session start says that once an imported reposi
   }
 });
 
-test("7.20 · the card handed at session start and plan_contract's description say a contract goes on the part whose behaviour it pins, even when its test drives the whole service through one entry point, and a guarantee about what passes between two parts goes on their edge (regression: the sixth checkbox guided run planned all 21 contracts on its HTTP entry point, 2026-11-09)", async () => {
+test("7.20 · the card handed at session start and plan_contract's description say a contract goes on the part whose behaviour it pins, and a guarantee about what passes between two parts goes on their edge, even when every test drives the whole service through one entry point (regression: the sixth checkbox guided run planned all 21 contracts on its HTTP entry point, 2026-11-09)", async () => {
   const session = await sessionStart();
   try {
     const served = session.client.getInstructions() ?? "";

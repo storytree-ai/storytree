@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, test } from "node:test";
 import { build } from "esbuild";
 import { chromium, type Browser, type BrowserServer } from "playwright-core";
+import { endChrome } from "./end-chrome.js";
 import { scaled } from "@storytree/test-waits";
 
 /** The forest view opened on a two-story plan, the first's two capabilities joined by an edge holding a contract; `__show()`
@@ -45,9 +46,9 @@ async function bundleView(): Promise<string> {
 /** One browser for the file, launched on first use; each test opens its page in a context of its own. */
 let server: Promise<BrowserServer> | undefined;
 let launched: Promise<Browser> | undefined;
-// Ended by killing its server: Playwright's close of a browser it launched waits for every pipe of Chrome's process, which a
-// loaded Windows runner left open after the last test, so the file never exited (PR #695; PR #1279's macOS hang in capture).
-after(async () => { await (await launched)?.close(); await (await server)?.kill(); });
+// Ended without waiting on Chrome's pipes, which a loaded Windows runner left open after the last test, so the file never exited
+// (PR #695, then PR #720 when awaiting the server's kill hung the same way; 3.100).
+after(async () => { endChrome(await server, await launched); });
 async function freshPage(t: { after(run: () => Promise<void>): void }) {
   // Chrome is installed on the three CI runner images; no browser download during tests.
   server ??= chromium.launchServer({ channel: "chrome", headless: true });

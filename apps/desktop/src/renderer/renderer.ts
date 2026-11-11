@@ -4,6 +4,7 @@
  * again and what the page says about itself (`data-state`, `data-drew`, `data-fresh`, `data-selected`, `data-start`), all of which
  * the smoke check and the lag run read. Nothing here decides: each decision is the page's, tested there.
  */
+import { surfaceOn } from "@storytree/app/surfaces";
 import { openProjectPage, type ProjectPage } from "@storytree/app/page";
 import { mountAppMenu } from "@storytree/app/view";
 import { mountAddProject, mountDeleteProject, mountFactory, mountProjectSentence, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
@@ -34,6 +35,8 @@ declare global {
 const content = element("content");
 /** The cards seen, kept for this user on this machine, so a kind is taught once across projects (Learning as you build). */
 const seenCards = journal(window.localStorage);
+/** Whether the Library surface was on at the page's last read of the surfaces, which Help's journal shows its cards by. */
+let libraryOn = true;
 /** The story panel's folds, which keep the kinds the user opened across picks and projects until the app restarts (ADR-1284 D1). */
 const folds = panelFolds();
 let page: ProjectPage | undefined;
@@ -51,7 +54,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
   // Help holds the setup guide and, below it, the journal of teaching cards seen.
   mountHelp: (host, returnFocus, onOpen) => {
     const setup = mountSetupHelp(host, window.storytree, { returnFocus, embedded: true, onOpen });
-    const learned = mountJournal(host, { journal: seenCards });
+    const learned = mountJournal(host, { journal: seenCards, library: () => libraryOn });
     return {
       open() { setup.open(); learned.open(); },
       close() { setup.close(); learned.close(); },
@@ -82,7 +85,12 @@ page = openProjectPage({
   waiting: new URLSearchParams(location.search).get("waiting"),
   menu: appMenu,
   projectSelection: () => window.storytree.projectSelection(),
-  readSurfaces: () => window.storytree.readSurfaces(),
+  // The page reads the surfaces at each draw; Help's journal shows its cards as the last read says the Library is.
+  readSurfaces: async () => {
+    const read = await window.storytree.readSurfaces();
+    libraryOn = !read.ok || surfaceOn(read.value, "library");
+    return read;
+  },
   startMark: (name) => window.storytree.startMark(name),
   failed: (what, error) => outage.failed(what, error),
   answered: () => outage.answered(),

@@ -64,6 +64,24 @@ test("1.2 · a fired decision card on a map whose Library is switched off names 
   teaching.stop();
 });
 
+test("1.2 · a decision card reopened from Help's journal while the Library is switched off names no Library switch", () => {
+  const { host, store } = page();
+  const kept = journal(store);
+  kept.mark("decision");
+  let library = false;
+  const shelf = mountJournal(host, { journal: kept, library: () => library });
+  const reopened = () => {
+    shelf.open();
+    host.querySelector<HTMLButtonElement>('[data-journal-entry="decision"]')!.click();
+    return host.querySelector<HTMLElement>("[data-journal-card]")!.textContent ?? "";
+  };
+  assert.doesNotMatch(reopened(), /press Library/);
+  assert.match(reopened(), /Surfaces/);
+  library = true;
+  assert.match(reopened(), /press Library at the top of the map/, "read again each time it is shown");
+  shelf.stop();
+});
+
 test("3.1 · a card at the window's right edge sits to the left of its point, inside the window", () => {
   const { document, host, store } = page();
   const view = document.defaultView as unknown as { innerWidth: number; innerHeight: number };

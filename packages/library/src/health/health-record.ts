@@ -61,6 +61,11 @@ export interface EarlierVerdict {
 export interface NodeHealth {
   reported: HealthColumn;
   verified: HealthColumn;
+  /**
+   * A contract's newest verified entry read from CI, kept beside its newest verified entry of any source, so a later local
+   * run never replaces it (question_32b645261409: the map's gear takes CI's over local); absent where CI never read it.
+   */
+  ci?: HealthColumn;
 }
 
 /**
@@ -524,11 +529,13 @@ export class HealthRecord {
     if (target?.type !== "contract") {
       throw new MissingReferenceError("node", contractId, "contract", target?.type, target === null ? undefined : ROLLED_UP[target.type]);
     }
-    return this.#save(column, contractId, state, options, kept);
+    const entry = await this.#save(column, contractId, state, options, kept);
+    if (kept === "verified" && options.source === "ci") await this.#save(column, contractId, state, options, "ci");
+    return entry;
   }
 
   /** Save the entry as the record of node `nodeId`'s column (or its pending mark, or a capability's unclaimed reading), checked inside the write. */
-  async #save(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed"): Promise<HealthEntry> {
+  async #save(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed" | "ci"): Promise<HealthEntry> {
     const { by, note, skip, was, source, tests } = options;
     const actor = options.actor ?? by;
     const record = await this.#records.create(
@@ -570,8 +577,8 @@ function verdictOf(entry: HealthEntry): "passing" | "failing" | undefined {
   return entry.state === "not-checked" ? entry.was?.state : entry.state;
 }
 
-/** The id of the record holding a contract's column, one record per contract and column, or its pending mark. */
-function healthId(contractId: string, column: HealthColumnName | "pending" | "unclaimed"): string {
+/** The id of the record holding a contract's column, one record per contract and column, or its pending mark, or CI's kept verdict. */
+function healthId(contractId: string, column: HealthColumnName | "pending" | "unclaimed" | "ci"): string {
   return `health_${contractId}_${column}`;
 }
 
@@ -615,9 +622,11 @@ function waitingOnNamed(named: NamedOnMain | undefined, why: CapabilityWhy, cont
 
 /** A contract's own health: each column's latest entry, or not-checked. */
 function ownHealth(contractId: string, entries: ReadonlyMap<string, SchemaRecord<"health">>): NodeHealth {
+  const ci = entries.get(healthId(contractId, "ci"));
   return {
     reported: columnOf(entries.get(healthId(contractId, "reported"))),
     verified: columnOf(entries.get(healthId(contractId, "verified"))),
+    ...(ci === undefined ? {} : { ci: columnOf(ci) }),
   };
 }
 

@@ -34,10 +34,25 @@ export interface ContractLine {
   /** The run that last judged it passing or failing: when, and the tests it named, when its entry kept them (Fable's F2.4). */
   ran?: { at: string; tests?: string[] };
   /**
-   * Agentic user acceptance testing's state, only on a contract whose proof is marked for it (ADR-1294 D1). It reads
-   * "not-run" until a run writes a verdict (increment_eab89906c217).
+   * The gear: storytree's run of its tests, coloured by CI's newest reading wherever CI read it, else by the newest reading,
+   * else not run (question_32b645261409, Mick's answer A with CI over local). Every contract not marked for agentic user
+   * acceptance testing has one; a marked one only where a run reached it.
+   */
+  gear?: CheckReading;
+  /** The newest reading, a local run's, when it came after the CI reading the gear shows: said in the opened row alone. */
+  local?: CheckReading;
+  /**
+   * Agentic user acceptance testing's state, only on a contract whose proof is marked for it (ADR-1294 D1): the robot. It
+   * reads "not-run" until a run writes a verdict (increment_eab89906c217).
    */
   acceptance?: AcceptanceState;
+}
+
+/** One reading of storytree's run of a contract's tests: its state, where it was seen and when, where its entry says. */
+export interface CheckReading {
+  state: HealthState;
+  source?: HealthSource;
+  at?: string;
 }
 
 /** Where agentic user acceptance testing stands on a contract marked for it. */
@@ -193,8 +208,26 @@ function contractLine(contract: AnnotatedContract, trail: readonly HealthState[]
     ...(written(contract.health.verified) && contract.health.verified.source !== undefined ? { source: contract.health.verified.source } : {}),
     ...(contract.health.verified.was === undefined ? {} : { lastSeen: contract.health.verified.was }),
     ...ranOf(contract.health.verified),
+    ...gearOf(contract),
     ...(contract.proof?.by === "agentic-user-acceptance-testing" ? { acceptance: "not-run" as const } : {}),
   };
+}
+
+/**
+ * A contract's gear, from storytree's run alone: CI's newest reading wherever CI read it, so a later local pass never hides a
+ * failing CI, with that local reading kept beside it for the opened row; else the newest reading; else not run. A contract
+ * marked for agentic user acceptance testing has a gear only where a run reached it.
+ */
+function gearOf({ health: { verified, ci }, proof }: AnnotatedContract): Pick<ContractLine, "gear" | "local"> {
+  const newest = written(verified) ? verified : undefined;
+  const shown = ci ?? newest;
+  if (shown === undefined) return proof?.by === "agentic-user-acceptance-testing" ? {} : { gear: { state: "not-checked" } };
+  const later = ci !== undefined && newest !== undefined && newest.source !== "ci" && newest.at! > ci.at! ? newest : undefined;
+  return { gear: checkReadingOf(shown), ...(later === undefined ? {} : { local: checkReadingOf(later) }) };
+}
+
+function checkReadingOf({ state, source, at }: HealthColumn): CheckReading {
+  return { state, ...(source === undefined ? {} : { source }), ...(at === undefined ? {} : { at }) };
 }
 
 /**

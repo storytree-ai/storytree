@@ -533,6 +533,23 @@ for (const backend of [memory, postgres]) {
     assert.equal("tests" in (await health.health(sibling.id)).verified, false, "an entry written without test names has none");
   });
 
+  contract("5.27", "a contract's newest verified entry read from CI is kept beside its newest verified entry, so a later local entry never replaces it; one CI never read carries none", async ({ health, work }) => {
+    const { contract, sibling } = await smallPlan(work);
+    const ci = await health.recordVerified(contract.id, "failing", { by: "the project's CI", source: "ci" });
+    const local = await health.recordVerified(contract.id, "passing", { by: "storytree test run", source: "local" });
+    const read = await health.health(contract.id);
+    assert.equal(read.verified.state, "passing", "the newest entry is the local one");
+    const { at, ...kept } = read.ci ?? {};
+    assert.deepEqual(kept, { state: "failing", by: "the project's CI", source: "ci" }, "CI's stays beside it");
+    assert.ok(at !== undefined && at >= ci.at && at <= local.at, "kept when CI wrote it");
+    const inTree = (await health.annotate()).stories[0]!.capabilities[0]!.contracts.find(({ id }) => id === contract.id)!;
+    assert.deepEqual(inTree.health.ci, read.ci);
+    assert.deepEqual((await health.healthHistory(contract.id)).map(({ at }) => at), [ci.at, local.at], "CI's kept copy is no extra entry");
+
+    await health.recordVerified(sibling.id, "passing", { by: "storytree test run", source: "local" });
+    assert.equal("ci" in (await health.health(sibling.id)), false, "CI never read it: none");
+  });
+
   contract("5.8", "a capability that is not healthy carries its reason in the annotated tree, and a healthy one none", async ({ health, work }) => {
     const { capability, contract, sibling } = await smallPlan(work);
     const whyOf = async () => (await health.annotate()).stories[0]!.capabilities.find(({ id }) => id === capability.id)!.why;

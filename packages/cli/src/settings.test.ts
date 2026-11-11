@@ -377,7 +377,7 @@ export const families = [{ name: "my-health", summary: "my own health, from my f
     assert.equal((await world.run(["settings", "set", "module", "my-health", "on"])).code, 0);
     const dormant = await world.run(["library", "list", "my-health.reading"]);
     assert.equal(dormant.code, 0, dormant.stderr);
-    assert.match(dormant.stdout, /^1 my-health\.reading record is dormant here: its plugin, my-health, is not mounted on this computer; mount it with storytree settings set part my-health plugin my-health\.$/m);
+    assert.match(dormant.stdout, /^1 my-health\.reading record is dormant here: its plugin, my-health, is not mounted on this computer; mount it with storytree settings set module my-health plugin my-health\.$/m);
     rmSync(plugin, { recursive: true, force: true });
     const absent = await world.run(["library", "list", "my-health.reading"]);
     assert.match(absent.stdout, /^1 my-health\.reading record is dormant here: its plugin, my-health, is not mounted on this computer; my-health is not in this computer's factory, so it cannot be mounted here\.$/m);

@@ -341,7 +341,7 @@ test("17.14 · library list, search, phrase and exact say how many records of a 
     library, project, session: "curator", folder: tmpdir(), writer: { actor: "session:curator" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }),
     ...(inFactory === undefined ? {} : { pluginInFactory: async (plugin: string) => inFactory && plugin === "voice" }),
   });
-  const said = "2 voice.note records are dormant here: their plugin, voice, is not mounted on this computer; mount it with storytree settings set part voice plugin voice.";
+  const said = "2 voice.note records are dormant here: their plugin, voice, is not mounted on this computer; mount it with storytree settings set module voice plugin voice.";
   const unmounted = await storytree.openProject(project);
   const here = contextOf(unmounted, true);
 

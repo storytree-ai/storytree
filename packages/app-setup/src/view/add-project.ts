@@ -1,6 +1,7 @@
 /** Capability 3 · First-run guide. */
 import type { AddedFolder, SetupHelpBridge } from "../help/bridge.js";
 import { unreadableSentence } from "@storytree/map/languages";
+import { ACTIONS } from "@storytree/shown-words";
 
 import { COMMIT_STORYTREE } from "../project/storytree-folder.js";
 
@@ -25,11 +26,11 @@ export function addedSentence(added: AddedFolder, shown = ""): string {
   return `${added.folder} is already project “${added.project}”.`;
 }
 
-/** Add project, in the app menu's Projects section: the native folder picker, then the new project on show. */
+/** Add a project…, in the app menu's Projects section: the native folder picker, then the new project on show. */
 export function mountAddProject(host: HTMLElement, bridge: Pick<SetupHelpBridge, "addProject">, options: { onAdded(project: string): Promise<void> }): { stop(): void; add(): void } {
   const root = document.createElement("div");
   root.className = "setup-help setup-add-project";
-  root.innerHTML = `<button type="button" data-add-project>Add project…</button><p class="setup-add-project-status" data-add-project-status role="status"></p>`;
+  root.innerHTML = `<button type="button" data-add-project>${ACTIONS.addProject}</button><p class="setup-add-project-status" data-add-project-status role="status"></p>`;
   host.append(root);
   const button = root.querySelector<HTMLButtonElement>("[data-add-project]")!;
   const status = root.querySelector<HTMLElement>("[data-add-project-status]")!;
@@ -38,7 +39,7 @@ export function mountAddProject(host: HTMLElement, bridge: Pick<SetupHelpBridge,
   const say = (text: string, failed = false, project?: string) => { status.textContent = text; status.setAttribute("role", failed ? "alert" : "status"); named = project; };
   const gone = (event: Event) => { if (named !== undefined && (event as CustomEvent<string>).detail === named) say(""); };
   root.ownerDocument.addEventListener(PROJECT_GONE, gone);
-  /** The picker, then the project added on show; the app bar's "New project…" starts it too. */
+  /** The picker, then the project added on show; the app bar's "Add a project…" starts it too. */
   function add(): void {
     if (button.disabled) return;
     button.disabled = true;

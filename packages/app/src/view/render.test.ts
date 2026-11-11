@@ -5,7 +5,7 @@ import { renderAppMenu, renderNoProjects, renderProjectPicker } from "./render.j
 test("2.5: the empty page explains adding a project from the bar's project list or the command line", () => {
   const html = renderNoProjects();
   assert.match(html, /<h1>No projects yet<\/h1>/);
-  assert.match(html, /New project… in the project list at the top left/);
+  assert.match(html, /Add a project… in the project list at the top left/);
   assert.match(html, /<code>storytree doctor --set-up &lt;name&gt;<\/code> in the folder/);
 });
 
@@ -50,13 +50,13 @@ test("2.6–2.8 the app bar holds the gear, with the project dropdown's place at
   assert.match(html, /role="status"[^>]*aria-live="polite"/);
 });
 
-test("2.1 the Projects tab lists every product, the one on show selected, every name escaped, and ends with New project…", () => {
+test("2.1 the Projects tab lists every product, the one on show selected, every name escaped, and ends with Add a project…", () => {
   const html = renderProjectPicker(["app", "storytree", '<odd> & "quoted"'], "storytree", "app");
   assert.match(html, /<select[^>]*id="project"[^>]*aria-label="Projects"/);
   assert.match(html, /<option value="storytree" selected>storytree<\/option>/);
   assert.match(html, /&lt;odd&gt; &amp; &quot;quoted&quot;/);
-  assert.match(html, /<option value="" data-app-new-project>New project…<\/option><\/select>/, "New project… is the last entry");
-  assert.equal([...renderProjectPicker([], undefined, undefined).matchAll(/<option/g)].length, 1, "with no projects, just New project…");
+  assert.match(html, /<option value="" data-app-new-project>Add a project…<\/option><\/select>/, "Add a project… is the last entry");
+  assert.equal([...renderProjectPicker([], undefined, undefined).matchAll(/<option/g)].length, 1, "with no projects, just Add a project…");
 });
 
 test("2.15 the bar's factory tab is an icon named Software factory, outside the Projects list, which always reads Projects", () => {

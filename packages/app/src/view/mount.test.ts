@@ -99,7 +99,7 @@ test("2.7 clicking the mounted menu sections switches their content and preserve
   assert.equal(sharing.at(-1), "stop");
 });
 
-test("2.15 the app bar's factory icon switches straight to the factory, its Projects tab switches products and offers New project…, and the product on show is named with a copy button", async (t) => {
+test("2.15 the app bar's factory icon switches straight to the factory, its Projects tab switches products and offers Add a project…, and the product on show is named with a copy button", async (t) => {
   const window = new Window();
   const home = mkdtempSync(path.join(tmpdir(), "storytree-menu-"));
   const copied: string[] = [];
@@ -156,7 +156,7 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   assert.ok(select(), "the dropdown is in the always-visible bar, outside the gear's overlay");
   assert.equal(host.querySelectorAll("select#project").length, 1, "one switcher, not two");
   assert.equal(select().value, "my-site");
-  assert.deepEqual([...select().options].map((option) => option.textContent), ["my-site", "other-site", "New project…"], "products only: the factory is its own tab");
+  assert.deepEqual([...select().options].map((option) => option.textContent), ["my-site", "other-site", "Add a project…"], "products only: the factory is its own tab");
   assert.doesNotMatch(bar().textContent, /your factory/i);
   assert.equal(projectsTab().getAttribute("aria-current"), "true", "on a product, Projects is the selected tab");
   assert.equal(factoryTab().hasAttribute("aria-current"), false);
@@ -185,11 +185,11 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   menu.update({ projects, current: "other-site", factory: { place: "none" } });
   assert.equal(factoryTab().getAttribute("aria-disabled"), "true");
   assert.equal(factoryTab().title, "No factory yet");
-  assert.deepEqual([...select().options].map((option) => option.textContent), ["my-factory", "my-site", "other-site", "New project…"]);
+  assert.deepEqual([...select().options].map((option) => option.textContent), ["my-factory", "my-site", "other-site", "Add a project…"]);
   factoryTab().click();
   await setImmediate();
   assert.deepEqual(chosen, ["my-factory", "other-site"], "a greyed factory icon switches nothing");
-  // New project… opens the gear on Projects and starts Add project, leaving the project on show selected.
+  // Add a project… opens the gear on Projects and starts Add project, leaving the project on show selected.
   select().selectedIndex = select().options.length - 1;
   select().dispatchEvent(new window.Event("change"));
   await setImmediate();
@@ -197,7 +197,7 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   assert.equal(opened, 1, "the gear's overlay opens");
   assert.equal(select().value, "other-site");
   assert.equal(host.querySelector("#app-projects")!.hasAttribute("hidden"), false);
-  assert.deepEqual(chosen, ["my-factory", "other-site"], "New project… switches nothing by itself");
+  assert.deepEqual(chosen, ["my-factory", "other-site"], "Add a project… switches nothing by itself");
   // A refused choice says why beside the tabs and leaves them free, on the project still on show, to retry.
   refused = true;
   await choose("my-site");
@@ -205,19 +205,19 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   assert.match(bar().querySelector("[data-app-project-error]")!.textContent, /Couldn’t switch project: the library is not reachable/);
   assert.equal(select().disabled, false);
   assert.equal(select().value, "other-site");
-  // New project… after a refusal puts the stale reason away.
+  // Add a project… after a refusal puts the stale reason away.
   select().selectedIndex = select().options.length - 1;
   select().dispatchEvent(new window.Event("change"));
   await setImmediate();
   assert.equal(adds, 2);
-  assert.equal(bar().querySelector("[data-app-project-error]")!.hasAttribute("hidden"), true, "New project… clears the refusal's reason");
+  assert.equal(bar().querySelector("[data-app-project-error]")!.hasAttribute("hidden"), true, "Add a project… clears the refusal's reason");
   refused = false;
   await choose("my-site");
   assert.deepEqual(chosen, ["my-factory", "other-site", "my-site"]);
   assert.equal(bar().querySelector("[data-app-project-error]")!.hasAttribute("hidden"), true);
-  // With no projects at all, the dropdown holds only New project…
+  // With no projects at all, the dropdown holds only Add a project…
   menu.update({ projects: [], current: undefined });
-  assert.deepEqual([...select().options].map((option) => option.textContent), ["New project…"]);
+  assert.deepEqual([...select().options].map((option) => option.textContent), ["Add a project…"]);
   select().selectedIndex = 0;
   select().dispatchEvent(new window.Event("change"));
   await setImmediate();

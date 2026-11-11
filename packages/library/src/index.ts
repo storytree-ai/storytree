@@ -79,6 +79,7 @@ export type {
   AnnotatedTree,
   CapabilityStatus,
   CapabilityWhy,
+  OpenWait,
   HealthWorkItem,
   ChangedOnMain,
   NamedOnMain,

@@ -104,8 +104,8 @@ function surface(html: string): string {
 test("4.12 the why line shows only for an unhealthy or untested capability or one the owner moves; a proposed one says nothing of it", () => {
   const proposed = (why: NonNullable<CapabilityLine["why"]>): string => renderStoryPanel({ ...panel, capabilities: [{ ...line("cap", "not-checked", "proposed"), why }] }, "cap");
   assert.equal(surface(proposed({ reason: "not built", mover: "agent", contracts: [] })), "What cap does. Contracts cap keeps its promise", "not built yet is no news");
-  assert.equal(whyLine(proposed({ reason: "needs owner", mover: "owner", contracts: ["8.1"] })), "Why not green: 8.1 needs something only you can give. You move this one.", "the owner's always shows");
-  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not built", mover: "agent", contracts: [] }), "cap")), "Why not green: it is not built yet. The agent moves this one.", "an untested one keeps it");
+  assert.equal(whyLine(proposed({ reason: "needs owner", mover: "owner", contracts: ["8.1"] })), "Why not green: 1 of 1 contract needs something only you can give. You move this one.", "the owner's always shows");
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not built", mover: "agent", contracts: [] }), "cap")), "Why not green: it is not built yet. No open work moves it yet.", "an untested one keeps it");
 });
 
 test("4.6 a story's surface says how many of its capabilities need the owner, only when he moves one", () => {
@@ -157,7 +157,7 @@ test("4.14 a parked capability's detail keeps its reason and says it is parked, 
   const said = /<p class="panel-parked"[^>]*>([\s\S]*?)<\/p>/.exec(one)?.[1];
   assert.ok(said !== undefined, "a line saying it is parked");
   assert.equal(plainText(said), "Parked on Identity &lt;beta&gt;: shelved on purpose.");
-  assert.equal(whyLine(one), "Why not green: it is not built yet. The agent moves this one.", "and its reason");
+  assert.equal(whyLine(one), "Why not green: it is not built yet. No open work moves it yet.", "and its reason");
   assert.ok(one.indexOf("panel-parked") > one.indexOf("panel-why") && one.indexOf("panel-parked") < one.indexOf("panel-contracts"));
   assert.match(parked(["Identity", "Journey events"]), /Parked on Identity and Journey events:/);
   assert.equal(renderStoryPanel(base, "cap").includes("panel-parked"), false, "one not parked says nothing of it");
@@ -241,18 +241,18 @@ test("4.46 a picked gate's panel shows each link's description directly under th
   assert.match(plainText(without), /^The next depends on The base\. Contracts · 1/, "and no placeholder");
 });
 
-test("4.12 a capability that is not healthy says why above its description, who moves it, and its contracts by number", () => {
-  const agent = renderStoryPanel(notGreen({ reason: "no test names it", mover: "agent", contracts: ["1.2", "1.3"] }), "cap");
-  assert.equal(whyLine(agent), "Why not green: no test names 1.2 and 1.3. The agent moves this one.");
+test("4.12 a capability that is not healthy says why above its description, and who moves it", () => {
+  const agent = renderStoryPanel(notGreen({ reason: "no test names it", mover: "agent", contracts: ["1.2"] }), "cap");
+  assert.equal(whyLine(agent), "Why not green: no test names 1 of 1 contract. No open work moves it yet.");
   assert.ok(agent.indexOf("panel-why") > agent.indexOf("panel-detail") && agent.indexOf("panel-why") < agent.indexOf("panel-lead"), "at the top of its detail, above its description");
   const owner = renderStoryPanel(notGreen({ reason: "needs owner", mover: "owner", contracts: ["8.1"], since: "2026-09-27T10:00:00.000Z" }), "cap");
-  assert.equal(whyLine(owner), "Why not green: 8.1 needs something only you can give, since 27 Sep. You move this one.");
+  assert.equal(whyLine(owner), "Why not green: 1 of 1 contract needs something only you can give, since 27 Sep. You move this one.");
   assert.match(owner, /class="panel-why mover-owner"/);
-  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not built", mover: "agent", contracts: [] }), "cap")), "Why not green: it is not built yet. The agent moves this one.");
-  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "failing", mover: "agent", contracts: ["2.1"] }), "cap")), "Why not green: 2.1 is failing. The agent moves this one.");
-  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not re-run", mover: "agent", contracts: ["2.1"] }), "cap")), "Why not green: 2.1 was not re-run. The agent moves this one.");
-  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not re-run", mover: "agent", contracts: ["2.1"], since: "2026-10-01T06:00:00.000Z" }), "cap")), "Why not green: 2.1 was not re-run. The agent moves this one.", "its date is on the contract row: the day it was last seen, not the day the skip was written");
-  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "out of CI's reach", mover: "agent", contracts: ["3.4"] }), "cap")), "Why not green: 3.4 can only run on another platform. The agent moves this one.");
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not built", mover: "agent", contracts: [] }), "cap")), "Why not green: it is not built yet. No open work moves it yet.");
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "failing", mover: "agent", contracts: ["2.1"] }), "cap")), "Why not green: 1 of 1 contract fails. No open work moves it yet.");
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not re-run", mover: "agent", contracts: ["2.1"] }), "cap")), "Why not green: 1 of 1 contract was not re-run. No open work moves it yet.");
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not re-run", mover: "agent", contracts: ["2.1"], since: "2026-10-01T06:00:00.000Z" }), "cap")), "Why not green: 1 of 1 contract was not re-run. No open work moves it yet.", "its date is on the contract row: the day it was last seen, not the day the skip was written");
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "out of CI's reach", mover: "agent", contracts: ["3.4"] }), "cap")), "Why not green: 1 of 1 contract can only run on another platform. No open work moves it yet.");
 });
 
 test("4.13 in a project nothing verifies, a built capability's detail says storytree does not check this project's tests yet, its contracts' marks read not run, and the agent's report shows only in the opened row, labelled as the agent's", () => {
@@ -367,8 +367,8 @@ test("4.37 a contract's opened row names the source of each reading storytree sa
   assert.match(row(html("base"), "base-k").opened, /^storytree's run: passes, verified locally /);
   assert.match(row(html("both"), "k1").opened, /^storytree's run: fails, from CI /);
   assert.match(row(html("both"), "k2").opened, /^storytree's run: passes, verified locally /);
-  assert.equal(whyLine(html("both")), "Why not green: 2.1 is failing, from CI. The agent moves this one.");
-  assert.equal(whyLine(html("older")), "Why not green: 3.1 is failing. The agent moves this one.");
+  assert.equal(whyLine(html("both")), "Why not green: 1 of 2 contracts fails, from CI. No open work moves it yet.");
+  assert.equal(whyLine(html("older")), "Why not green: 1 of 1 contract fails. No open work moves it yet.");
   assert.match(row(html("older"), "older-k").opened, /^storytree's run: fails the agent/, "no source recorded: none said");
 });
 
@@ -388,4 +388,27 @@ test("4.47 a contract's fold names the tests that last judged it; the day they r
   assert.match(unnamed, /storytree's run: passes, verified locally, 12 Nov/);
   assert.doesNotMatch(unnamed, /tested by/);
   assert.doesNotMatch(opened({}), /tested by|storytree's run/);
+});
+
+test("4.49 a capability's lead says why it is not green in counts of its contracts, failing counted by each contract's gear, and names the open increment that moves it with what it waits on, or that it is under way or ready to take", () => {
+  const contract = (id: string, gear: NonNullable<CapabilityLine["contracts"][number]["gear"]>) => ({ id, title: `${id} · Keeps it`, reported: "passing" as const, trail: "green only", gear });
+  const four = [contract("3.1", { state: "failing", source: "ci" }), contract("3.2", { state: "failing", source: "ci" }), contract("3.3", { state: "passing", source: "ci" }), contract("3.4", { state: "not-checked" })];
+  const cap = (fields: Partial<CapabilityLine>): string => renderStoryPanel({ ...panel, capabilities: [{ ...line("cap", "passing", "unhealthy"), contracts: four, why: { reason: "failing", mover: "agent", contracts: ["3.1"] }, ...fields }] }, "cap");
+  const task = { increment: "inc-1", title: "Task 1" };
+
+  assert.equal(whyLine(cap({ openWork: [{ ...task, waits: [{ kind: "work", on: "inc-0", title: "Test harness and DB oracle", state: "ready" }] }] })), "Why not green: 2 of 4 contracts fail, from CI. Task 1 moves it; it waits on Test harness and DB oracle, which is ready to take.", "counted by the gear, CI over the newer local pass the library's reason read, and no id list");
+  assert.equal(whyLine(cap({ openWork: [{ ...task, waits: [{ kind: "work", on: "inc-0", title: "Harness", state: "active" }, { kind: "question", on: "question-1" }] }] })), "Why not green: 2 of 4 contracts fail, from CI. Task 1 moves it; it waits on Harness, which is under way, and your answer to a question.");
+  assert.equal(whyLine(cap({ openWork: [{ ...task, waits: [{ kind: "owner", note: "sign in to the store" }] }] })), "Why not green: 2 of 4 contracts fail, from CI. Task 1 moves it; it waits on you: sign in to the store.");
+  assert.equal(whyLine(cap({ openWork: [{ ...task, active: true }, { increment: "inc-2", title: "Later" }] })), "Why not green: 2 of 4 contracts fail, from CI. Task 1 moves it; it is under way.", "the first open increment, the active one");
+  assert.equal(whyLine(cap({ openWork: [task] })), "Why not green: 2 of 4 contracts fail, from CI. Task 1 moves it; it is ready to take.");
+  assert.equal(whyLine(cap({})), "Why not green: 2 of 4 contracts fail, from CI. No open work moves it yet.");
+  assert.equal(whyLine(cap({ status: "healthy", why: undefined as never })), "Why not green: 2 of 4 contracts fail, from CI. No open work moves it yet.", "a CI failure shows though a later local run passed it");
+
+  assert.equal(whyLine(cap({ openWork: [{ ...task, waits: [{ kind: "claim", on: "cap-9", title: "Test harness" }, { kind: "event", note: "the next release build" }] }] })), "Why not green: 2 of 4 contracts fail, from CI. Task 1 moves it; it waits on another session's claim on Test harness and an outside event: the next release build.");
+  assert.doesNotMatch(cap({ status: "proposed", why: { reason: "not built", mover: "agent", contracts: [] } }), /panel-why/, "a proposed one says nothing of it, failing gears or not");
+  assert.doesNotMatch(cap({ status: "proposed", why: undefined as never }), /panel-why/);
+
+  const unnamed = four.map((one) => ({ ...one, gear: { state: "not-checked" as const } }));
+  assert.equal(whyLine(cap({ status: "untested", contracts: unnamed, why: { reason: "no test names it", mover: "agent", contracts: ["3.2", "3.3", "3.4"] } })), "Why not green: no test names 3 of 4 contracts. No open work moves it yet.");
+  assert.equal(whyLine(cap({ status: "untested", contracts: unnamed, why: { reason: "needs owner", mover: "owner", contracts: ["3.1"] }, openWork: [task] })), "Why not green: 1 of 4 contracts needs something only you can give. You move this one.");
 });

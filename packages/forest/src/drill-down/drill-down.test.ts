@@ -253,3 +253,9 @@ test("4.47 a contract a run judged carries when that run was and the tests it na
   assert.equal(never?.ran, undefined);
   assert.equal(skipped?.ran, undefined, "a skip is no run of its tests");
 });
+
+test("4.49 each open increment a capability carries keeps what still holds it, for the lead to name", () => {
+  const open = [{ increment: "inc-1", title: "Task 1", waits: [{ kind: "work" as const, on: "inc-0", title: "Harness", state: "ready" as const }, { kind: "owner" as const, note: "sign in" }] }, { increment: "inc-2", title: "Free" }];
+  const tree: AnnotatedTree = { stories: [story("s", { ...capability("busy", []), openWork: open })], arcs: [] };
+  assert.deepEqual(drillDown(tree, "s", workStates([]), [])?.capabilities[0]?.openWork, open);
+});

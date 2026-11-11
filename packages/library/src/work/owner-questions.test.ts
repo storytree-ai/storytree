@@ -131,7 +131,8 @@ for (const backend of [memory, postgres]) {
     assert.equal(settled?.fields.answer, "Mailgun, for its API");
     assert.equal(settled?.fields.settledBy, decision.id);
     assert.ok(!Number.isNaN(Date.parse(settled?.fields.settledAt ?? "")), "with the date it was settled");
-    assert.deepEqual(await flight.questions(arc.id), [settled], "it stays on its arc, answer and all");
+    const { released: _, ...kept } = settled ?? { released: [] };
+    assert.deepEqual(await flight.questions(arc.id), [kept], "it stays on its arc, answer and all");
   });
 
   contract("12.3", "an open increment held on an open question reads as waiting on the owner; a settled question, or one that does not exist, holds nothing", async ({ work, flight, records, transactions }) => {

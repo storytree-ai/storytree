@@ -1,6 +1,6 @@
 /**
- * Capability 3 · Arc surface: contracts 3.13, 3.14 and 3.24, `arc status`, and 3.25 and 3.26, a wait on a capability's claim as the
- * board, `arc show` and `arc waits` read it, run with a caller on a fresh project's library and activity log on the real
+ * Capability 3 · Arc surface: contracts 3.13, 3.14 and 3.24, `arc status`, 3.25 and 3.26, a wait on a capability's claim as the
+ * board, `arc show` and `arc waits` read it, and 3.40, an arc past its size tripwire, run with a caller on a fresh project's library and activity log on the real
  * Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -242,4 +242,36 @@ test("3.26 · a wait on a capability's claim reads cleared on the board, in `arc
   assert.match(await shown(), new RegExp(`waits on ${surface.id}: refused: another session holds it`));
   assert.doesNotMatch(await shown(), new RegExp(`waits on ${queue.id}`));
   assert.deepEqual((await bar()).waits.map(({ id }) => id), [surface.id]);
+});
+
+test("3.40 · an arc holding more than 20 increments, open and closed together, reads as due for decomposition in `arc show` and `arc status`, saying how many it holds and that ADR-1321 asks for a split moving closed history with `arc increment move`; one holding 20 shows no flag, and closing work on either behaves as before", async (t) => {
+  const { library, log, project } = await aProject(t);
+  const context: ArcVerbContext = { library, log, project, session: "person:test", folder: "/work", writer: { actor: "person:test" } };
+  const arcVerbs = ARC_FAMILIES.find((family) => family.name === "arc")!.verbs;
+  const verbNamed = (name: string) => arcVerbs.find((one) => "name" in one.command && one.command.name === name) as Verb<VerbInputs, ArcVerbContext>;
+  const filled = async (title: string, count: number) => {
+    const arc = await anArc(library, title);
+    const made = [];
+    for (let at = 0; at < count; at++) made.push(await work(library, arc.id, `${title} ${at}`));
+    // Ten of them closed, so the count is open and closed together.
+    for (const increment of made.slice(0, 10)) await library.closeIncrement(increment.id, { disposition: "landed", pr: "#1" });
+    return arc;
+  };
+  const big = await filled("Hardening", 21);
+  const small = await filled("Docs", 20);
+  const flag = "Due for decomposition: it holds 21 increments, open and closed, more than 20; ADR-1321 asks for a split into goal-scoped arcs, moving closed history with `arc increment move`.";
+
+  const shownBig = (await verbNamed("show").act({ arc: big.id }, context, WORDS)).text.split("\n");
+  assert.ok(shownBig.includes(flag), shownBig.join("\n"));
+  const shownSmall = (await verbNamed("show").act({ arc: small.id }, context, WORDS)).text;
+  assert.doesNotMatch(shownSmall, /decomposition/, shownSmall);
+
+  const lines = (await status.act({}, context, WORDS)).text.split("\n");
+  assert.ok(lines.find((line) => line.includes(big.id))?.endsWith(`. ${flag}`), lines.join("\n"));
+  assert.doesNotMatch(lines.find((line) => line.includes(small.id)) ?? "", /decomposition/, lines.join("\n"));
+
+  // A flag, never a refusal: work parks onto the big arc and closes on it as before.
+  const more = await work(library, big.id, "Hardening 21");
+  await library.closeIncrement(more.id, { disposition: "landed", pr: "#2" });
+  assert.ok((await verbNamed("show").act({ arc: big.id }, context, WORDS)).text.includes("it holds 22 increments"));
 });

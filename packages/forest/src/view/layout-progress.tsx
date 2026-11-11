@@ -7,11 +7,11 @@
  *   waiting island's name stays.
  * - 3.98: the islands still awaiting their first territory search count in that mark too, and once none awaits, is searched or
  *   is routed, a hidden mark says the map has settled (`data-layout="settled"`), the one signal a capture waits on.
- * - 3.101: an island whose land is not yet laid out as its docks are now, kept or not, holds the map unsettled too: a
- *   chain's docks come after its kept islands drew, and each is laid out again for them.
+ * - 3.101: an island on the map whose land is not yet laid out and drawn for its docks and roads as they are now, kept or
+ *   not, holds the map unsettled too: a chain's docks come after its kept islands drew, and each is laid out again for them.
  * - 3.97: the island on screen, the one selected, else the island that joined the map last, is searched next.
  */
-import React, { useEffect, useMemo, useSyncExternalStore } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
 import { awaitingFirstLayout, islandsSearching, keptVersion, pageTerritorySearcher, searchingVersion, subscribeKept, subscribeSearching, type TerritorySearcher } from "../territories/kept-layout.js";
 import type { TerritoryShare } from "../territories/territories.js";
@@ -42,11 +42,19 @@ export function holdLayingOut(story: string): () => void {
 }
 
 /**
- * Holds `story`'s island as laying out while it is mounted and not `laidOut` (3.101). The hold lets go in the commit
- * that lays it out, before the effects of what that commit mounts ask its roads, so the mark shows no gap between them.
+ * Holds `story`'s island as laying out while it is mounted and not `laidOut` (3.101). The hold is taken in the commit that
+ * mounts it, before a frame can draw it, and let go after the effects of the commit that lays it out, so what they start
+ * (its roads, the island drawn under it) counts first and the mark shows no gap.
  */
 export function useLayingOut(story: string, laidOut: boolean): void {
-  useEffect(() => laidOut ? undefined : holdLayingOut(story), [story, laidOut]);
+  const held = useRef<{ story: string; letGo: () => void } | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (laidOut || held.current?.story === story) return;
+    held.current?.letGo();
+    held.current = { story, letGo: holdLayingOut(story) };
+  }, [story, laidOut]);
+  useEffect(() => { if (laidOut) { held.current?.letGo(); held.current = undefined; } }, [laidOut]);
+  useLayoutEffect(() => () => { held.current?.letGo(); held.current = undefined; }, []);
 }
 
 /** An island on the map, with its land's territories once it has land. */

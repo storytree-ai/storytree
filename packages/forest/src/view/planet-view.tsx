@@ -336,7 +336,8 @@ function Territories(props: TerritoriesProps) {
   const asked = useMemo(() => ({}), [story, land, coast, links, docks, kept, awaiting]);
   const built = useBuiltInSteps(function* () { return { asked, map: awaiting ? undefined : yield* islandLayoutSteps(story, land.territories, coast, links, docks) }; }, [asked]);
   const map = built?.map;
-  // 3.101: until its land is laid out for its docks as they are now, the island holds the map's mark as laying out.
+  // 3.101: until its land is laid out for its docks as they are now, the island holds the map's mark as laying out; then
+  // its IslandLand holds it until that land is drawn.
   useLayingOut(story, docks !== undefined && built?.asked === asked && map !== undefined);
   useEffect(() => { if (docks !== undefined) searchIsland(story, { shares: land.territories, coast, links, docks }, searcher); }, [story, land, coast, links, docks, searcher]);
   return map === undefined || awaiting ? null : <IslandLand {...props} land={land} coast={coast} docks={docks} tints={tints} pointed={pointed} map={map} joined={waited ? Infinity : joined} />;
@@ -371,7 +372,8 @@ function IslandLand(props: IslandLandProps) {
   }, [ask, roads]);
   // 3.87: its meshes built in their turns, the land's at once and again with its relief and roads when they arrive, the
   // relief, the land, the relief's marks and the roads' each a step of its own, so the biggest island's fits a task.
-  const drawn = useBuiltInSteps(function* (): Generator<void, DrawnLand, void> {
+  const asked = useMemo(() => ({}), [map, coast, tints, radius, roads]);
+  const built = useBuiltInSteps(function* (): Generator<void, { asked: object; drawn: DrawnLand }, void> {
     // 3.78: and every territory a plateau above its open land, a ramp where a road climbs onto one.
     const relief = roads === undefined ? undefined : islandRelief(map, roads);
     if (relief !== undefined) yield;
@@ -391,8 +393,11 @@ function IslandLand(props: IslandLandProps) {
     }
     // 3.86: every island's marks stand where they were built, so the frame never recomputes their matrices, shown or hidden.
     group.traverse((mark) => { if (mark !== group) { mark.updateMatrix(); mark.matrixAutoUpdate = false; } });
-    return { group, map, roads, relief, onLand };
-  }, [map, coast, tints, radius, roads]);
+    return { asked, drawn: { group, map, roads, relief, onLand } };
+  }, [asked]);
+  const drawn = built?.drawn;
+  // 3.101: the island holds the map's mark until its land is drawn as laid out now, with its roads once they are routed.
+  useLayingOut(story, built?.asked === asked);
   return drawn === undefined ? null : <DrawnIsland {...props} drawn={drawn} />;
 }
 

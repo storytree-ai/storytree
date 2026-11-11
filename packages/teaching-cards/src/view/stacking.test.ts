@@ -45,3 +45,19 @@ test("3.4 · an open popover, modal dialog or overlay surface draws over the car
   await page.evaluate(() => { document.querySelector<HTMLElement>("#consent")!.hidden = true; });
   assert.equal(await card.isVisible(), true, "and it comes back when the overlay is answered");
 });
+
+test("3.5 · with More open a card stays short enough to find a place clear of the map's islands: its depth scrolls above its buttons, which stay on show", async t => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  await page.setContent(`<main id="content"></main>`);
+  await page.addScriptTag({ content: await teachingBundle() });
+  await page.evaluate(() => (window as unknown as { teach(): void }).teach());
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  const card = (await page.locator(".teaching-card").boundingBox())!;
+  const buttons = (await page.locator(".teaching-card-actions").boundingBox())!;
+  assert.ok(card.height <= 384, `no taller than 24rem in a tall window, where the story's depth alone is taller (${card.height}px)`);
+  assert.ok(buttons.y >= card.y && buttons.y + buttons.height <= card.y + card.height, "its buttons inside the card, on show");
+  const scrolls = await page.locator(".teaching-card [data-depth]").evaluate(element => element.scrollHeight > element.clientHeight);
+  assert.equal(scrolls, true, "the depth scrolls within it");
+});

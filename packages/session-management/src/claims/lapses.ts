@@ -1,5 +1,6 @@
 /**
- * Capability 5 · Claims: the claims a session lost without asking, so the gate that next refuses it can say so (5.70).
+ * Capability 5 · Claims: the claims a session lost without asking, so the gate that next refuses it can say so (5.70),
+ * and the prompt hook at its next turn's start (3.58).
  * A claim lapses when its session ends (a "session-ended" line, which Claude Code writes each time a headless
  * `claude -p` turn's process exits, though `--resume` carries the same session on) or when the session manager
  * releases it from its stale-claim worklist. Work the session released, landed or saw close or merge is not lapsed,
@@ -8,6 +9,7 @@
 import type { Line } from "@storytree/library";
 
 import type { ActivityLog } from "../activity/index.js";
+import { readClaims } from "./claims.js";
 import { ends } from "./endings.js";
 
 /** One increment a session's claim on lapsed, with the capabilities it held under it, and the line that ended them. */
@@ -76,4 +78,16 @@ export function lapseMessage(lapses: readonly Lapse[]): string {
     const with_ = lapse.capabilities.length === 0 ? "" : `, with ${lapse.capabilities.join(", ")} under it,`;
     return `Your claim on ${lapse.increment}${with_} lapsed at ${lapse.at}: ${why}. Take it again before you edit (the claim tool, or \`storytree workspace claim ${ids} --reason …\`).`;
   }).join(" ");
+}
+
+/**
+ * What a turn's start tells `session` of its lapsed claims (3.58), or undefined for none: on a checkout no gate refuses,
+ * its edits would otherwise go through unclaimed. Work another session holds now is that session's, and not offered.
+ */
+export async function lapseNotice(log: ActivityLog, project: string, session: string): Promise<string | undefined> {
+  const lapses = await lapsesOf(log, project, session);
+  if (lapses.length === 0) return undefined;
+  const claims = await readClaims(log, project);
+  const free = lapses.filter((lapse) => !claims.some((claim) => claim.increment === lapse.increment));
+  return free.length === 0 ? undefined : `[storytree] ${lapseMessage(free)}`;
 }

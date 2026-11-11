@@ -22,3 +22,5 @@ The same view, More open, retaken before and after the card's background went fr
 - `decision-card-more-open-before.png`: main: the map's "The agent link" label shows faintly through the card, left of the drawing.
 - `decision-card-more-open-after.png`: the card is opaque, so nothing on the map behind it shows. Its text's foot still fades
   over "The decisions behind it" (contract 3.5, since increment_d0639d5f51b3), so the cut-off list reads as going on.
+
+In the evidence bucket for #759, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `759/decision-card-more-open-before.png`, `759/decision-card-more-open-after.png`.

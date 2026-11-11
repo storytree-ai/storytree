@@ -444,6 +444,11 @@
   font-weight: 400;
 }
 
+/* What passes between a gate's two parts, under its link's heading (Fable's F3.1). */
+.panel-link-description {
+  margin: 0 0 0.3rem;
+}
+
 /* A gate's link in one state line (ADR-1284 D4): its Contracts handle, how many are failing, then the open work that
    rings it, with the opened contracts below at full width. The fold's body stays its handle's next sibling, as the folds find it. */
 .panel-link-state {

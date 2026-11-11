@@ -1,6 +1,6 @@
 // The first-time cards are offered as a tour and never block the map (increment_b29c14f6f748; contracts 3.5, 3.7, 3.8): the real
 // desktop page on the eight-story forest snapshot, opened as a fresh install would, with no answer to the tour kept. Three views:
-// the ask in its corner, the plan's card at the Arcs tab after "Show me", the story's card beside its island after "Got it",
+// the ask in its corner, the plan's card at the Arcs tab after "Show me", the story's card beside its island after "Next",
 // and the map clear after "End tour".
 // `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/tour). Measures each card's box against the
 // box of the island it explains and of every other island drawn, so "never over an island" is measured, not only seen.
@@ -60,7 +60,7 @@ await runCapture({
       prepare: async ({ page, settle }) => {
         // The story's card: the island it explains is the forest's first story.
         await page.evaluate(story => { document.body.dataset.teachingStory = story; }, seed.tree.stories[0].id);
-        await page.getByRole('button', { name: 'Got it', exact: true }).click();
+        await page.getByRole('button', { name: 'Next', exact: true }).click();
         await until(page, () => document.querySelector('.teaching-card')?.dataset.kind === 'story');
         await settle(page);
       },

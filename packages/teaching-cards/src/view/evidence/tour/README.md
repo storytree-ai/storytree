@@ -9,11 +9,11 @@ from the globe's locator (3.41), and checks the card overlaps none of them.
 Pictures, 1440 x 960:
 
 - `the-ask.png`: before any card, only "Want a quick tour?" shows, in the bottom-right corner, with Show me and No thanks.
-- `the-plan-card-after-show-me.png`: after Show me, the first card, the plan's, at the rail's Arcs tab, with More, Got it
-  and End tour. (The snapshot holds no increments, so its arcs read as plans with work still to do.) It sits below the tab,
+- `the-plan-card-after-show-me.png`: after Show me, the first card, the plan's, at the rail's Arcs tab, saying the plan
+  lives there, under Arcs (contract 1.3), with More as a quiet link and two buttons, Next and End tour. (The snapshot holds no increments, so its arcs read as plans with work still to do.) It sits below the tab,
   clear of the bar's project switcher and of the Stories/Library switch, which the capture measures (before
   increment_176e36671e3c it overlapped the switcher here, and the fifth guided run saw it over Stories too), and says what a plan is without saying the agent made one.
-- `a-story-card-beside-its-island.png`: after Got it, "This is a story." beside The library's island, on its left, clear of
+- `a-story-card-beside-its-island.png`: after Next, "This is a story." beside The library's island, on its left, clear of
   it and of every other island drawn (it sat over most of The agent link on the right before increment_9d7ebe411313).
 - `the-map-clear-after-end-tour.png`: after End tour, no card on the map.
 

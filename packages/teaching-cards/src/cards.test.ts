@@ -39,3 +39,10 @@ test("1.2 · the decision card names the Library switch only when it is on, and 
   // Only the decision card reads the switch.
   assert.deepEqual(cardOf("story", { library: false }), cardOf("story"));
 });
+
+test("1.3 · the plan's card says where the plan is on screen: under Arcs, an arc a goal with its pieces of work under it", () => {
+  const plan = cardOf("arc");
+  assert.match(plan.line, /under Arcs/);
+  assert.match(plan.line, /an arc is a goal/);
+  assert.match(plan.line, /pieces of work that reach it/);
+});

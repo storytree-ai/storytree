@@ -209,6 +209,51 @@ test("17.26 · write_note files a decision on no guessed part: a part in links i
   assert.deepEqual((await library.frontCovers(packets.id)).map(({ id }) => id), [(filed.data as { id: string }).id]);
 });
 
+test("17.28 · A decision filed on a part answers with that part's and each part one link from it on the map: their descriptions and contract titles quoted, a part with none said so, the edit_plan sentence, and nothing of a part two links away", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const write = NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "write_note")!;
+  const story = await library.addStory({ title: "Context service" });
+  const api = await library.addCapability({ story: story.id, title: "5 · HTTP API", description: "Serves compiled packets over HTTP." });
+  const packets = await library.addCapability({ story: story.id, title: "4 · Packet compilation", description: "Compiles a packet per request; caches packets." });
+  const store = await library.addCapability({ story: story.id, title: "3 · Store" });
+  const disk = await library.addCapability({ story: story.id, title: "2 · Disk", description: "Writes pages to disk." });
+  await library.addEdge({ from: api.id, to: packets.id });
+  await library.addEdge({ from: store.id, to: api.id });
+  await library.addEdge({ from: packets.id, to: disk.id });
+  await library.addContract({ capability: packets.id, title: "4.3 · A packet asked for twice is compiled once" });
+  await library.addContract({ capability: api.id, title: "5.1 · GET /packet answers with the packet" });
+  const context: NoteToolContext = {
+    library, project, session: "lane", folder: process.cwd(), writer: { actor: "session:lane" },
+    claims: async () => [], notesRead: async () => [], recordReads: async () => {}, presenterOf: async () => undefined,
+  };
+
+  const filed = await write.act({ kind: "decision", fields: {}, title: "No cache", text: "Compile each packet fresh.", links: [], term: undefined, meaning: undefined, front_cover_of: api.id }, context, WORDS);
+  assert.match(filed.text, /It is filed on "5 · HTTP API" \(capability_\w+\): Serves compiled packets over HTTP\. It has contracts "5\.1 · GET \/packet answers with the packet"\./, "the part filed on, quoted");
+  assert.match(filed.text, /"4 · Packet compilation" \(capability_\w+\), which it depends on: Compiles a packet per request; caches packets\. It has contracts "4\.3 · A packet asked for twice is compiled once"\./, "a part it links to, quoted");
+  assert.match(filed.text, /"3 · Store" \(capability_\w+\), which depends on it: no description written\. It has no contracts\./, "a part linking to it, with no description, said so");
+  assert.match(filed.text, /correct it with edit_plan\./);
+  assert.doesNotMatch(filed.text, /Disk|Writes pages/, "a part two links away is not quoted");
+
+  // The command line's library new answers the same, naming its own way to correct; a story quotes only itself.
+  const create = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "new")!;
+  const person: LibraryVerbContext = { ...context, testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const decision = (on: string) => ({ "<kind>": "decision", "<fields>": { status: "accepted", authority: JSON.stringify({ basis: "agent-derived", scribedBy: "person:owner", at: "2026-11-12T00:00:00.000Z" }), title: "No cache", text: "Fresh.", frontCoverOf: on } });
+  const made = await create.act(decision(packets.id), person, WORDS);
+  assert.match(made.text, /It is filed on "4 · Packet compilation"[^\n]*\n[^]*"5 · HTTP API" \(capability_\w+\), which depends on it: Serves compiled packets over HTTP\.[^]*"2 · Disk" \(capability_\w+\), which it depends on: Writes pages to disk\.[^]*correct it with `storytree library edit`\./);
+  assert.doesNotMatch(made.text, /3 · Store/, "two links away from packets");
+  const onStory = await create.act(decision(story.id), person, WORDS);
+  assert.match(onStory.text, /It is filed on "Context service" \(story_\w+\): no description written\. It has no contracts\.\nIf this decision/);
+});
+
 test("17.4 · One field round-trips byte for byte: library read --field and the open tool's field give a record's stored value exactly, and library edit @file writes it back unchanged", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();

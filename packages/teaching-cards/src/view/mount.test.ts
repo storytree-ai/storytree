@@ -460,3 +460,13 @@ test("3.9 · no quiet line once every kind that can come on this map is seen, no
   assert.deepEqual([...unanswered.host.querySelectorAll<HTMLElement>(".teaching-card")].map(one => one.dataset.kind), ["tour"]);
   asked.stop();
 });
+
+test("3.9 · on the factory's map the quiet line names the factory's parts still to come", () => {
+  const { host, store } = page();
+  const teaching = mountTeaching(host, { journal: journal(store), locate: () => undefined });
+  teaching.take({ tree: { stories: [], arcs: [] }, changes: [], lines: [], factory: true });
+  assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "factory");
+  host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
+  assert.match(tourOn(host)!.textContent ?? "", /comes when your factory holds a role\./);
+  teaching.stop();
+});

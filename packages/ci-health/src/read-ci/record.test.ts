@@ -108,3 +108,31 @@ test("3.17 · recordHealth writes its writer's source on every entry it writes, 
   await recordHealth(lib, contractIds, new Map([["1.1", { state: "failing", note: "1/2 tests passed" }]]), { by: "a local test run", source: "local" });
   assert.equal((await lib.health(id("1.1"))).verified.source, "local");
 });
+
+test("3.20 · a verdict kept in its column whose follow-up write the writer's role refuses is named untold, and the rest are recorded; a refused verdict still fails", async (t) => {
+  const { lib, contractIds } = await kettle(t);
+  // CI's library role may write only health (infra/library-host/grants.sql): its verdict lands, then the FYI a turn to
+  // red writes is refused with row-level security's insufficient_privilege (runs 42965732858, 42972444829).
+  const refused = Object.assign(new Error('new row violates row-level security policy for table "record_event"'), { code: "42501" });
+  let refuseVerdict = false;
+  const ci: Pick<Library, "recordVerified" | "health"> = {
+    health: (id) => lib.health(id),
+    recordVerified: async (id, state, options) => {
+      if (refuseVerdict) throw refused;
+      const entry = await lib.recordVerified(id, state, options);
+      if (id === contractIds.get("1.1")) throw refused;
+      return entry;
+    },
+  };
+  const verdicts = new Map<string, RecordedVerdict>([
+    ["1.1", { state: "failing", note: "1/2 tests passed" }],
+    ["1.2", { state: "passing", note: "2/2 tests passed" }],
+  ]);
+  const written = await recordHealth(ci, contractIds, verdicts, { by: "storytree test run on CI", source: "ci" });
+  assert.deepEqual(written, { passing: 1, failing: 1, notChecked: 0, marked: 0, untold: [`1.1 (${contractIds.get("1.1")})`] });
+  assert.equal((await lib.health(contractIds.get("1.1")!)).verified.state, "failing");
+  assert.equal((await lib.health(contractIds.get("1.2")!)).verified.state, "passing", "the verdicts after it are recorded");
+
+  refuseVerdict = true;
+  await assert.rejects(recordHealth(ci, contractIds, new Map([["1.3", { state: "passing", note: "1/1 tests passed" }]]), { by: "storytree test run on CI", source: "ci" }), /row-level security/);
+});

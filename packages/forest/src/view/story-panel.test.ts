@@ -176,6 +176,16 @@ test("4.38 a capability's detail lists its open work in the order given, each by
   assert.equal(renderStoryPanel(base, "cap").includes('data-fold="open-work"'), false, "one with no open work lists none");
 });
 
+test("4.48 each open-work row is a button that names its increment, so it is reached by keyboard and opens it", () => {
+  const base = notGreen(undefined);
+  const html = renderStoryPanel({ ...base, capabilities: [{ ...base.capabilities[0]!, openWork: [
+    { increment: "inc-2", title: "Started <first>", active: true },
+    { increment: "inc-\"1", title: "Parked first" },
+  ] }] }, "cap");
+  const buttons = [...html.matchAll(/<li [^>]*><button type="button" class="panel-open-increment" data-open-increment="([^"]+)">([\s\S]*?)<\/button><\/li>/g)].map(([, id, said]) => [id, plainText(said!)]);
+  assert.deepEqual(buttons, [["inc-2", "Started &lt;first&gt; (in progress)"], ["inc-&quot;1", "Parked first"]]);
+});
+
 test("4.40 a picked gate's panel gives each edge joining its pair, either way, its sentence and one state line, its contracts behind a counted handle, each opening as a capability's does, and how many are failing", () => {
   const edged: StoryPanel = { ...panel, edges: [
     { from: "next", fromTitle: "The next", to: "base", toTitle: "The base", contracts: [{ id: "e-1", title: "next reads <base> by id", reported: "passing", trail: "green only", verified: "passing" }, { id: "e-2", title: "next never writes base", reported: "passing", trail: "green only" }] },

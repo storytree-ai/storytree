@@ -560,6 +560,22 @@
   font-weight: 600;
 }
 
+/* A row opens its increment in the rail's Arcs tab (4.48): it reads as its text until hovered or focused. */
+.panel-open-increment {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.panel-open-increment:hover,
+.panel-open-increment:focus-visible {
+  text-decoration: underline;
+}
+
 .panel-why .panel-mover {
   color: var(--muted);
 }

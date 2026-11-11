@@ -33,7 +33,7 @@ import { openActivityLog } from "../activity/index.js";
 import { buildHook } from "../testing/hook-bin.js";
 import { readContext } from "../context/index.js";
 import { machineOf, recordImport } from "@storytree/project-and-caller";
-import { claim, readClaims, release } from "../claims/index.js";
+import { claim, readClaims, release, releaseFor } from "../claims/index.js";
 import { EDIT_GATE } from "./edit-gate.js";
 import { DEADLINE_MS } from "./deadlines.js";
 import { SHELL_GUARD } from "./shell-guard.js";
@@ -597,7 +597,7 @@ test("3.7 at each prompt, every matching project definition is added for the age
   }
 });
 
-test("3.58 at each prompt, a session whose claims lapsed without its asking (its session ended between its own resumed turns) is told which work, when, why, and the claim that takes it again; one that claimed since, or released the work itself, is told nothing", async () => {
+test("3.58 at each prompt, a session whose claims lapsed without its asking (the session manager released them between its own resumed turns) is told which work, when, why, and the claim that takes it again; one that claimed since, or released the work itself, is told nothing", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   const log = await openActivityLog(testServerUrl());
@@ -622,11 +622,16 @@ test("3.58 at each prompt, a session whose claims lapsed without its asking (its
       assert.equal((await claim(as, page, "the stats page itself")).ok, true);
       assert.equal(await ask(), undefined, "nothing lapsed while it holds its work");
 
-      // The turn's `claude -p` process exits, and its SessionEnd hook ends every claim the session holds.
-      const ended = await log.append(project, { session, harness: "claude-code", source: "hook", folder, kind: "session-ended", reason: "other" });
+      // The turn's `claude -p` process exits and its SessionEnd hook writes an end line: its process stopped, its claims stand (4.41).
+      await log.append(project, { session, harness: "claude-code", source: "hook", folder, kind: "session-ended", reason: "other" });
+      assert.equal(await ask(), undefined, "the resumed turn still holds its work, so nothing lapsed");
+
+      const lapse = () => releaseFor({ ...as, session: `${project}-manager`, quietMs: 0 }, work, session, "quiet for an hour");
+      assert.equal((await lapse()).ok, true);
+      const released = (await log.lines(project, { kinds: ["released"], where: { holder: session } })).at(-1)!;
       const told = (await ask()) ?? "";
-      assert.match(told, new RegExp(`Your claim on ${work}, with ${page} under it, lapsed at ${ended.at}`), "the resumed turn is told what lapsed and when");
-      assert.match(told, /your session ended \(its harness said "other"\)/, "and why");
+      assert.match(told, new RegExp(`Your claim on ${work}, with ${page} under it, lapsed at ${released.at}`), "the resumed turn is told what lapsed and when");
+      assert.match(told, /the session manager released it \(quiet for an hour\)/, "and why");
       assert.match(told, new RegExp(`storytree workspace claim ${work} ${page} --reason`), "and the claim that takes it again");
 
       assert.equal((await claim(as, work, "driving it again")).ok, true);
@@ -635,7 +640,7 @@ test("3.58 at each prompt, a session whose claims lapsed without its asking (its
       assert.equal(await ask(), undefined, "work it released itself did not lapse");
 
       assert.equal((await claim(as, work, "driving it again")).ok, true);
-      await log.append(project, { session, harness: "claude-code", source: "hook", folder, kind: "session-ended", reason: "other" });
+      await lapse();
       assert.equal((await claim({ ...as, session: `${project}-other` }, work, "taking up the stats page")).ok, true);
       assert.equal(await ask(), undefined, "work another session claimed since is not offered to claim again");
     });

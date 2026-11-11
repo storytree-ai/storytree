@@ -6,6 +6,7 @@
  * The page mounts only the globe, and loads none of 0.2's pine kit: no island carries a tree (ADR-0804 D1).
  */
 import { createRoot } from "react-dom/client";
+import type { LanesNotice } from "@storytree/forest-world/planet";
 import type { ForestScene, SessionWisp } from "@storytree/forest";
 import { KnowledgeKinds, KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { PlanetView } from "./planet-view.js";
@@ -17,7 +18,8 @@ import { LAUNCH_FACE, sheetFaces, type SheetFace } from "./globe-switches.js";
 import type { PlacedGlobeControls } from "./globe-guide.js";
 import { globeLocator, type GlobeLocator } from "./globe-locator.js";
 import { paintedScenes } from "./painted-scenes.js";
-import { LayoutProgress, onScreenIsland } from "./layout-progress.js";
+import { onScreenIsland } from "./layout-progress.js";
+import { ForestTop } from "./forest-top.js";
 import { searchFirst } from "../territories/kept-layout.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
 
@@ -55,6 +57,8 @@ interface Drawn {
   viewport: { width: number; height: number } | undefined;
   /** CSS pixels of the page's right the story panel or note card covers (3.40). */
   aside: number;
+  /** That some lanes could not be drawn, shown in the top row (3.103). */
+  lanesNotice: LanesNotice | undefined;
 }
 
 /**
@@ -70,7 +74,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
   const root = createRoot(container);
   let drawn: Drawn = {
-    face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, capability: undefined, highlighted: undefined, circled: undefined, circledContracts: undefined, viewport: undefined, aside: 0,
+    face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, capability: undefined, highlighted: undefined, circled: undefined, circledContracts: undefined, viewport: undefined, aside: 0, lanesNotice: undefined,
   };
   const painted = paintedScenes(drawn.scene);
   const onScreen = onScreenIsland();
@@ -91,18 +95,10 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
         <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
           selected={drawn.selected} selectedCapability={drawn.capability} highlighted={drawn.highlighted} circled={drawn.circled} circledContracts={drawn.circledContracts}
           onPick={pick} onNote={pickNote} onControls={onControls} onPainted={painted.painted} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library}
-          />
+          onLanesNotice={onLanesNotice} />
       </div>
-      <div className="forest-top">
-        <div className="forest-views" role="group" aria-label="Sheet faces">
-          {layers.offered.map(which => <button key={which} type="button"
-            data-globe-switch={which} aria-pressed={layers.pressed[which]} title={layers.offered.length > 1 ? LOOK_TITLE[which] : TILT_TITLE} onClick={() => turn(which)}>
-            {which === "stories" ? "Stories" : "Library"}
-          </button>)}
-        </div>
-        {/* 3.96: beside the switches while any island is still laid out. */}
-        <LayoutProgress islands={drawn.scene.islands.map(island => ({ story: island.story, territories: island.land?.territories }))} />
-      </div>
+      <ForestTop layers={layers} onTurn={turn} notice={drawn.lanesNotice} aside={drawn.aside}
+        islands={drawn.scene.islands.map(island => ({ story: island.story, territories: island.land?.territories }))} />
       {/* The knowledge core's kind list unfolds under the Library button while it is pressed (knowledge core 5, D1). */}
       {layers.mode === "library" && <KnowledgeKinds core={core} />}
     </>);
@@ -119,6 +115,8 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   };
   const pick = (story: string | undefined, capability?: string, gate?: readonly [string, string]): void => selection.picked(story, capability, gate);
   const pickNote = (note: string): void => selection.note(note);
+  // The canvas tells it only when the notice changes (4.45).
+  const onLanesNotice = (notice: LanesNotice | undefined): void => render({ lanesNotice: notice });
   const onKey = (event: KeyboardEvent): void => selection.key(event.key);
   let controls: PlacedGlobeControls | undefined;
   const onControls = (next: PlacedGlobeControls | undefined): void => { controls = next; };
@@ -175,13 +173,6 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     },
   };
 }
-
-/** What the face buttons say they do: change the look and leave the view where it is, and how to tilt the sheet by hand (ADR-1062 D2, D3). */
-const TILT_TITLE = "Tilt the sheet: R and F, or right-drag up and down";
-const LOOK_TITLE: Record<SheetFace, string> = {
-  stories: `Smoked glass and solid islands; the view stays where it is. ${TILT_TITLE}`,
-  library: `Clear glass and outlined islands, so the notes beneath show; the view stays where it is. ${TILT_TITLE}`,
-};
 
 /** Mount the Library panel, the knowledge core's card for the note picked, in the slot the story panel also uses. */
 export function mountLibraryPanel(container: HTMLElement, core: KnowledgeCore, onClose: () => void): () => void {

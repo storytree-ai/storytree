@@ -159,7 +159,7 @@ test("5.2 settling needs an answer", async () => {
   });
 });
 
-test("5.3 a held increment reads as waiting on you until its question is settled", async () => {
+test("5.3 a held increment reads as waiting on you until its question is settled, and the settle names it as released", async () => {
   await inWorld(command, async (world) => {
     const { arc, increment } = await arcWithWork(world);
 
@@ -174,7 +174,8 @@ test("5.3 a held increment reads as waiting on you until its question is settled
     const held = await world.run(["arc", "show", arc]);
     assert.match(held.stdout, new RegExp(`waiting on you: question ${question}`));
 
-    await world.run(["question", "settle", question, "--answer", "Mailgun"]);
+    const settled = await world.run(["question", "settle", question, "--answer", "Mailgun"]);
+    assert.match(settled.stdout, new RegExp(`Released ${increment} \\(`));
     const released = await world.run(["arc", "show", arc]);
     assert.doesNotMatch(released.stdout, /waiting on you: question/);
   });

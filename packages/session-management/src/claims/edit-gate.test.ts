@@ -212,7 +212,7 @@ test("5.65 a refused edit to an imported file no capability covers, under an inc
   }
 });
 
-test("5.70 a session whose claims lapsed without its asking (its session ended, or the session manager released them) and that has claimed nothing since is told so by its next refused edit: which work, when, why, and the claim that takes it again; work it released itself is not called lapsed", async () => {
+test("5.70 a session whose claims lapsed without its asking (the session manager released them) and that has claimed nothing since is told so by its next refused edit: which work, when, why, and the claim that takes it again; work it released itself is not called lapsed", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   const log = await openActivityLog(testServerUrl());
@@ -235,25 +235,25 @@ test("5.70 a session whose claims lapsed without its asking (its session ended, 
       assert.equal((await gate())?.refused, "ask", "while A holds the increment, the edit is the user's to allow");
       assert.equal((await gate())?.lapsed, undefined, "nothing lapsed while A holds its work");
 
-      // A headless turn's process exits, and Claude Code's SessionEnd hook writes the line that ends every claim A holds.
-      const ended = await log.append(project, { session: "A", harness: "claude-code", source: "hook", folder: checkout, kind: "session-ended", reason: "other" });
+      // A headless turn's process exits and its SessionEnd hook writes an end line: its process stopped, its claims stand (4.41).
+      await log.append(project, { session: "A", harness: "claude-code", source: "hook", folder: checkout, kind: "session-ended", reason: "other" });
+      assert.deepEqual([(await gate())?.refused, (await gate())?.lapsed], ["ask", undefined], "A still holds its work, so nothing lapsed");
+
+      // The session manager releases a quiet holder's claim (ADR-0944 D7).
+      const lapse = () => releaseFor(as("manager", { quietMs: 0 }), mine, "A", "quiet for an hour");
+      assert.equal((await lapse()).ok, true);
       const lapsed = await gate();
       assert.equal(lapsed?.refused, "imported", "holding nothing now, A is refused");
-      assert.deepEqual(lapsed?.lapsed, [{ by: "session-ended", at: ended.at, reason: "other", increment: mine, capabilities: [stats] }]);
+      const at = lapsed?.lapsed?.[0]?.at ?? "";
+      assert.deepEqual(lapsed?.lapsed, [{ by: "manager", at, reason: "quiet for an hour", increment: mine, capabilities: [stats] }]);
       const told = refusalMessage(lapsed!);
-      assert.match(told, new RegExp(`Your claim on ${mine}, with ${stats} under it, lapsed at ${ended.at}`), "says what lapsed and when");
-      assert.match(told, /your session ended/, "and why");
+      assert.match(told, new RegExp(`Your claim on ${mine}, with ${stats} under it, lapsed at ${at}`), "says what lapsed and when");
+      assert.match(told, /the session manager released it \(quiet for an hour\)/, "and why");
       assert.match(told, new RegExp(`storytree workspace claim ${mine} ${stats} --reason`), "and the claim that takes it again");
       assert.ok(told.indexOf("lapsed") < told.indexOf("list it on an increment"), "the lapse comes before the general way on");
 
       assert.equal((await claim(as("A"), mine, "driving the stats page again")).ok, true);
       assert.equal((await gate())?.lapsed, undefined, "claiming again ends the notice");
-
-      // The session manager releases a quiet holder's claim (ADR-0944 D7).
-      assert.equal((await releaseFor(as("manager", { quietMs: 0 }), mine, "A", "quiet for an hour")).ok, true);
-      const released = await gate();
-      assert.deepEqual(released?.lapsed?.map(({ by, increment }) => [by, increment]), [["manager", mine]]);
-      assert.match(refusalMessage(released!), /the session manager released it \(quiet for an hour\)/);
 
       assert.equal((await claim(as("A"), mine, "driving it once more")).ok, true);
       assert.equal((await release(as("A"), mine)).ok, true);
@@ -261,9 +261,8 @@ test("5.70 a session whose claims lapsed without its asking (its session ended, 
       assert.equal(own?.refused, "imported");
       assert.equal(own?.lapsed, undefined, "work A released itself did not lapse");
 
-      const end = () => log.append(project, { session: "A", harness: "claude-code", source: "hook", folder: checkout, kind: "session-ended", reason: "other" });
       assert.equal((await claim(as("A"), mine, "driving it again")).ok, true);
-      await end();
+      await lapse();
       assert.equal((await claim(as("B"), mine, "taking up the stats page")).ok, true);
       const taken = await gate();
       assert.equal(taken?.refused === "held" ? taken.holder.session : taken?.refused, "B", "work another session claimed since is refused naming that holder");
@@ -272,11 +271,10 @@ test("5.70 a session whose claims lapsed without its asking (its session ended, 
 
       assert.equal((await claim(as("A"), mine, "driving it again")).ok, true);
       await log.append(project, { session: "watcher", source: "tool", kind: "merged", increment: mine, holder: "A", branch: "claude/stats", pr: 7 });
-      await end();
-      assert.equal((await gate())?.lapsed, undefined, "work a merge ended before the session did is not lapsed");
+      assert.equal((await gate())?.lapsed, undefined, "work a merge ended is not lapsed");
 
       assert.equal((await claim(as("A"), mine, "driving it again")).ok, true);
-      await end();
+      await lapse();
       await closed(as("B"), mine, "withdrawn");
       assert.equal((await gate())?.lapsed, undefined, "work closed after it lapsed is not offered to claim again");
     });

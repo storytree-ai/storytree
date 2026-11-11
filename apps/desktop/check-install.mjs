@@ -228,7 +228,7 @@ try {
   }
   assert.equal(JSON.parse(readFileSync(path.join(armTools, "payload.json"), "utf8")).arch, "arm64");
   execFileSync(node, [path.join(tools, "storytree-deliver.mjs"), "inspect", installed, process.arch], { timeout: 30_000 });
-  assert.match(readFileSync(path.join(release, "latest.yml"), "utf8"), new RegExp(`version: ${version.replaceAll(".", "\\.")}(?:\\s|$)`));
+  assert.match(readFileSync(path.join(release, "latest.yml"), "utf8"), new RegExp(`version: ${version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`));
   console.log(`4.4 PASS: NSIS installed ${version}; its Electron, Postgres and update configuration work`);
   console.log("4.17 PASS (Windows x64): the installed app's main process started with a throwaway home, reached its handlers and exited 0");
   console.log("1.41 PASS (Windows x64): the packaged app's page loaded from its own scheme, with file:// extra privileges off, and its road worker answered");

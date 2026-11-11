@@ -472,7 +472,7 @@ test("3.15 `new contract` numbers past the capability's contracts and the number
   });
 });
 
-test("3.21 `new contract`'s answer names the capability's other contracts that no numbered test carries yet, as plan_contract does", async () => {
+test("3.21 `new contract`'s answer counts the capability's other contracts that no numbered test carries yet and says to list them with `storytree map`, as plan_contract does", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const story = await library.addStory({ title: "The shop" });
@@ -486,9 +486,9 @@ test("3.21 `new contract`'s answer names the capability's other contracts that n
 
     const written = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Totals its items"]);
     assert.equal(written.code, 0, written.stderr);
-    assert.match(written.stdout, /1\.2 · Refuses a sold-out item/, "the untested contract planned earlier is named");
+    assert.match(written.stdout, new RegExp(`1 other contract of this capability has no test yet\\. If this one repeats it, retire it and build that one \\(list it with \`storytree map --select cap:${capability.id} --down 1 --kind contract --show\`\\)\\.`), written.stdout);
+    assert.doesNotMatch(written.stdout, /Refuses a sold-out item/, "the untested contract is counted, not named");
     assert.doesNotMatch(written.stdout, /lane/, "a user's project has no lanes");
-    assert.doesNotMatch(written.stdout, /1\.1 · Holds an item|1\.3 · Totals its items/, "neither the tested contract nor the one just written is named");
   });
 });
 

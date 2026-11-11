@@ -86,11 +86,11 @@ test("1.11: the pinned darwin-arm64 runtime runs on an Apple Silicon Mac", {
 
 test("1.11: a Linux runtime is pinned to Node's linux-x64 archive and its executable; x64 only", () => {
   const pinned = linuxRuntime("x64");
-  assert.equal(pinned.url, "https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-x64.tar.gz");
-  assert.equal(pinned.entry, "node-v24.22.1-linux-x64/bin/node");
+  assert.equal(pinned.url, "https://nodejs.org/dist/v24.22.3/node-v24.22.3-linux-x64.tar.gz");
+  assert.equal(pinned.entry, "node-v24.22.3-linux-x64/bin/node");
   // Node's published SHASUMS256.txt for the archive; the archive's bin/node measured from it.
-  assert.equal(pinned.sha256, "eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c");
-  assert.equal(pinned.executableSha256, "e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb");
+  assert.equal(pinned.sha256, "061ec3e3062115705b56b51fa9cc330ab50d34b6969387d4e4b1a50c6809acc2");
+  assert.equal(pinned.executableSha256, "a7ec1b37e6ff9d187e4198c5b6df9a4eb1c74dd31804fb3bac55cc4ceca1ac01");
   assert.throws(() => linuxRuntime("arm64" as "x64"), /x64/);
 });
 

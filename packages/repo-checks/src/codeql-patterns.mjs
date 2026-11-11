@@ -10,6 +10,8 @@
 //   backslash, its regex one character, a class or a group of either, none of which is backslash (`/\./g, "\\."`).
 //   A backslash already in the text is left bare, so it escapes the next character instead. A pattern that matches
 //   backslash too (the full escape `/[.*+?^${}()|[\]\\]/g, "\\$&"`, a range over it, `\W`, a negated class) passes.
+//   A string pattern of one character other than backslash (`replaceAll(".", "\\.")`) is the same shape, and with
+//   `replace` it escapes only the first (increment_82d197743d7b).
 //
 // It reads the code alone (Babel's parser), so a pattern inside a string or comment is never refused. A fix session
 // that meets a new pattern adds it here, beside this one, with its numbered test.
@@ -136,15 +138,15 @@ function removesTag(source) {
   return rest !== undefined && rest !== "" && !/^(?:[+*?]|\{\d+(?:,\d*)?\})\??$/.test(rest);
 }
 
-/** The regex, shown as `/source/flags`, when `call` is a replace by a backslash-led string of a pattern that matches
- * only characters it lists, backslash not among them. */
+/** The pattern, shown as `/source/flags` or `"c"`, when `call` is a replace by a backslash-led string of a pattern
+ * that matches only characters it lists, backslash not among them: a regex, or a string of one character. */
 function partialEscape(call) {
   const method = methodOf(call);
   if (method !== "replace" && method !== "replaceAll") return undefined;
   const [pattern, replacement] = call.arguments;
-  const regex = regexOf(pattern);
-  if (regex === undefined || !literal(replacement)?.startsWith("\\") || !missesBackslash(regex.source)) return undefined;
-  return escapesBackslashFirst(call.callee.object) ? undefined : `/${regex.source}/${regex.flags}`;
+  const escaped = escapedBy(pattern);
+  if (escaped === undefined || !literal(replacement)?.startsWith("\\") || escaped.backslash !== "misses") return undefined;
+  return escapesBackslashFirst(call.callee.object) ? undefined : escaped.shown;
 }
 
 /** Whether `node` is a chain of replaces one of which escapes backslash by a backslash, as `.replace(/\\/g, "\\\\")`. */
@@ -152,18 +154,22 @@ function escapesBackslashFirst(node) {
   for (let call = node; call?.type === "CallExpression" || call?.type === "OptionalCallExpression"; call = call.callee.object) {
     const method = methodOf(call);
     if (method !== "replace" && method !== "replaceAll") return false;
-    const regex = regexOf(call.arguments[0]);
-    if (regex !== undefined && literal(call.arguments[1])?.startsWith("\\") && matchesBackslash(regex.source)) return true;
+    if (literal(call.arguments[1])?.startsWith("\\") && escapedBy(call.arguments[0])?.backslash === "matches") return true;
   }
   return false;
 }
 
-const CLASS_ESCAPES = /^[dDwWsSbBpPkcxuv0-9]$/;
+/** A replace's pattern as shown and whether it "matches" or "misses" a backslash: a regex of one character, a class
+ * or a group of either, or a string of one character; undefined for any other. */
+function escapedBy(node) {
+  const regex = regexOf(node);
+  if (regex !== undefined) return { shown: `/${regex.source}/${regex.flags}`, backslash: characters(regex.source) };
+  const text = literal(node);
+  if (text?.length !== 1) return undefined;
+  return { shown: JSON.stringify(text), backslash: text === "\\" ? "matches" : "misses" };
+}
 
-/** Whether a regex source is one character, a class or a group of either, and never matches a backslash. */
-const missesBackslash = (source) => characters(source) === "misses";
-/** Whether a regex source is one character, a class or a group of either, and matches a backslash. */
-const matchesBackslash = (source) => characters(source) === "matches";
+const CLASS_ESCAPES = /^[dDwWsSbBpPkcxuv0-9]$/;
 
 /** For a regex source of one character, a class or a group of either: whether it "matches" a backslash or "misses"
  * it; undefined for any other source. */

@@ -85,7 +85,7 @@ try {
 
   const built = readdirSync(release);
   for (const name of [`storytree-0.3-${version}-mac-arm64.zip`, "latest-mac.yml"]) assert.ok(built.includes(name), `${name} was not built`);
-  assert.match(readFileSync(path.join(release, "latest-mac.yml"), "utf8"), new RegExp(`version: ${version.replaceAll(".", "\\.")}(?:\\s|$)`));
+  assert.match(readFileSync(path.join(release, "latest-mac.yml"), "utf8"), new RegExp(`version: ${version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`));
   console.log(`4.4 PASS (macOS arm64): built ${version} as a zip; its Electron, Postgres and update configuration work; signature ${adHoc ? "ad-hoc" : "Developer ID"}, hardened runtime, verified deep and strict`);
   console.log("4.17 PASS (macOS arm64): the app's main process started with a throwaway home, reached its handlers and exited 0");
   console.log("1.41 PASS (macOS arm64): the packaged app's page loaded from its own scheme, with file:// extra privileges off, and its road worker answered");

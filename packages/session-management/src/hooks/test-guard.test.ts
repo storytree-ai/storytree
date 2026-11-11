@@ -32,7 +32,7 @@ test("3.50 with --test-guard red a Claude Code edit of a source file is refused,
   // Test files, judged by the path inside the session's folder: the folder's own "tests-of-mine" parent counts for nothing.
   for (const file of ["tests/test_cart.py", "test/cart.py", "shop/test_cart.py", "shop/cart_test.py", "conftest.py", "pkg/cart_test.go", "src/cart.test.ts", "src/cart.spec.js", "src/__tests__/cart.ts"]) {
     assert.equal(await edit("red", path.join(folder, file)), undefined, `red may edit ${file}`);
-    assert.match(denied(await edit("green", path.join(folder, file))), new RegExp(path.basename(file).replace(".", "\\.")), `green may not edit ${file}`);
+    assert.match(denied(await edit("green", path.join(folder, file))), new RegExp(path.basename(file).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `green may not edit ${file}`);
   }
   assert.equal(await edit("green", source), undefined);
 

@@ -92,3 +92,30 @@ test("8.11 · pnpm lint refuses a replace that escapes some characters by a back
   assert.match(refused[0], /js\/incomplete-sanitization/, "names the CodeQL rule it stands in for");
   assert.ok(refused[0].includes(code([String.raw`/[.*+?^#{}()|[\]\\]/g, "\\#&"`])), "points at the full escape");
 });
+
+const STRING_PARTIAL = code([
+  String.raw`export const dotted = (at: string): RegExp => new RegExp(at.replaceAll(".", "\\."));`,
+  String.raw`export const first = (at: string): RegExp => new RegExp(at.replace(".", "\\."));`,
+  String.raw`export const slashed = (at: string): RegExp => new RegExp(at.replaceAll("/", "\\/"));`,
+]);
+
+const STRING_ESCAPES = code([
+  String.raw`export const slashes = (text: string): string => text.replaceAll("\\", "\\\\").replaceAll("'", "\\'");`,
+  String.raw`export const dashed = (text: string): string => text.replaceAll(".", "-");`,
+  String.raw`export const words = (text: string): string => text.replaceAll("ab", "\\ab");`,
+]);
+
+test("8.12 · pnpm lint refuses a replace of a one-character string pattern other than backslash by a backslash-led string (replaceAll(\".\", \"\\\\.\")), CodeQL's incomplete sanitization, naming file and line; a chain that escapes backslash first and a replacement without a backslash pass", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "codeql-patterns-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages", "view", "src"), { recursive: true });
+  writeFileSync(path.join(root, "packages", "view", "src", "partial.test.ts"), STRING_PARTIAL);
+  writeFileSync(path.join(root, "packages", "view", "src", "full.ts"), STRING_ESCAPES);
+
+  const lines = [];
+  const exit = await lint({ root, rules: RULES.filter(({ name }) => name === "codeql-patterns"), log: (line) => lines.push(line) });
+  assert.equal(exit, 1, lines.join("\n"));
+  const refused = lines.filter((line) => line.startsWith("codeql-patterns: "));
+  assert.deepEqual(refused.map((line) => /^codeql-patterns: (\S+:\d+) /.exec(line)?.[1]), ["packages/view/src/partial.test.ts:1", "packages/view/src/partial.test.ts:2", "packages/view/src/partial.test.ts:3"], lines.join("\n"));
+  assert.match(refused[0], /js\/incomplete-sanitization/, "names the CodeQL rule it stands in for");
+});

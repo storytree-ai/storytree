@@ -96,13 +96,13 @@ export function lapseMessage(lapses: readonly Lapse[]): string {
 
 /**
  * What a turn's start tells `session` of its lapsed claims (3.58), or undefined for none: on a checkout no gate refuses,
- * its edits would otherwise go through unclaimed. Work another session holds now is that session's, and not offered.
+ * its edits would otherwise go through unclaimed. Work the manager released that another session holds now is that
+ * session's, and not offered; work another session took over is told with who took it, even while it holds it (ADR-1311 D3).
  */
 export async function lapseNotice(log: ActivityLog, project: string, session: string): Promise<string | undefined> {
   const lapses = await lapsesOf(log, project, session);
   if (lapses.length === 0) return undefined;
   const claims = await readClaims(log, project);
-  // Takeovers are told here once 3.58 says so, beside the refused edit's (5.70); until then, only the manager's releases.
-  const free = lapses.filter((lapse) => lapse.by === "manager" && !claims.some((claim) => claim.increment === lapse.increment));
-  return free.length === 0 ? undefined : `[storytree] ${lapseMessage(free)}`;
+  const told = lapses.filter((lapse) => lapse.by === "takeover" || !claims.some((claim) => claim.increment === lapse.increment));
+  return told.length === 0 ? undefined : `[storytree] ${lapseMessage(told)}`;
 }

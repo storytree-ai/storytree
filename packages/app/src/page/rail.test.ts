@@ -156,3 +156,21 @@ test("2.45 · the left rail's width and whether it is collapsed are kept in the 
   const garbled = open(memory({ "storytree.app.rail.v1": "{not json" }));
   assert.deepEqual([garbled.side().hidden, garbled.now()], [false, 432], "a kept value it cannot read is the default");
 });
+
+test("2.57 · the rail shows a tab asked for from outside, shown again if it was collapsed", () => {
+  const on = open();
+  on.document.querySelector<HTMLButtonElement>('[data-rail-tab="sessions"]')!.click();
+  on.toggle.click();
+  assert.equal(on.side().hidden, true);
+  on.rail.show("arcs");
+  assert.equal(on.side().hidden, false, "a collapsed rail is shown");
+  assert.equal(on.document.querySelector('[data-rail-tab="arcs"]')!.getAttribute("aria-selected"), "true", "with the tab asked for on show");
+  assert.equal(on.document.querySelector<HTMLElement>("#rail-arcs")!.hidden, false);
+
+  const document = on.document;
+  const content = document.createElement("main");
+  document.body.append(content);
+  const sessionsOnly = mountRail(content, { project: "shop", tabs: ["sessions"], storage: memory() })!;
+  sessionsOnly.show("arcs");
+  assert.equal(content.querySelector(".side-rail")!.getAttribute("data-surface-id"), "sessions", "a rail with no such tab keeps the one on show");
+});

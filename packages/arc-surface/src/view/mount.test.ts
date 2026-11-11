@@ -535,3 +535,53 @@ test("3.34 · the rail reads each CI leg's factory median once mounted and every
   surface.stop();
   assert.equal(ticks.has(600_000), false, "stopped, it reads no more");
 });
+
+test("3.39 · opening an increment from outside selects its arc, opens its queue head and its row, landed or not, and waits for a board that shows it", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const open = record("i_open", "increment", { arc: "next", title: "Build next", objective: "o", body: "b", status: "proposal" });
+  const landed = record("i_landed", "increment", { arc: "first", title: "Built first", objective: "o", body: "b", status: "closed", outcome: { date: "2026-11-01", disposition: "landed" } });
+  let read!: () => void;
+  const ready = new Promise<void>((resolve) => { read = resolve; });
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    boardArcs: async () => {
+      await ready;
+      return [
+        { arc: record("alone", "arc", { title: "Alone", intent: "Go alone", endState: "e", priority: 1 }), increments: [], questions: [], state: "active" },
+        { arc: record("first", "arc", { title: "First", intent: "Go first", endState: "e" }), increments: [landed], questions: [], state: "active" },
+        { arc: record("next", "arc", { title: "Next", intent: "Go next", endState: "e" }), increments: [open], questions: [], state: "active" },
+      ];
+    },
+    closedArcs: async () => [],
+    holds: async () => ({ waits: { next: [{ on: "first", reason: "after first", forGood: false }] }, heldOn: {} }),
+  };
+  const told: (readonly string[] | undefined)[] = [];
+  surface = mountArcSurface(document.body, { project: "p", reads, onOpened: (capabilities) => { told.push(capabilities); }, timers: { now: () => Date.parse("2026-11-03T00:00:00Z"), every: () => () => {} } });
+  surface.openIncrement("i_open");
+  read();
+  await waitUntil(() => document.querySelector('details[data-fold-key="rail:next:increment:i_open"]') !== null, 2000, "the board that shows the increment");
+  assert.equal(document.querySelector('[data-arc-queue="first"]')!.getAttribute("aria-expanded"), "true", "the queue head the increment's arc waits behind is opened");
+  assert.equal(document.querySelector('[data-arc-queue="alone"]')!.getAttribute("aria-expanded"), "false", "and no other");
+  assert.equal(document.querySelector('.arc-queue-chip[data-arc-select="next"]')!.getAttribute("aria-pressed"), "true", "its arc is selected");
+  assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:next:increment:i_open"]')!.open, true, "and its row is open");
+  assert.deepEqual(told, [[]], "the host hears the arc selected, as a click would tell it");
+  surface.openIncrement("i_landed");
+  await settle();
+  assert.equal(document.querySelector('[data-arc-select="first"].arc-lane')!.getAttribute("aria-pressed"), "true", "a landed increment's arc is selected");
+  assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:first:landed"]')!.open, true, "its landed fold opens");
+  assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:first:increment:i_landed"]')!.open, true, "and so does its row");
+});

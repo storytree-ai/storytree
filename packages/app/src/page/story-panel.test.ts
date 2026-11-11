@@ -19,6 +19,7 @@ function setup() {
   body.dataset.selected = "s";
   let title = "one";
   const writes: string[] = [];
+  const opened: string[] = [];
   let proto: object | null = host;
   let set: PropertyDescriptor | undefined;
   while (set === undefined && proto !== null) { set = Object.getOwnPropertyDescriptor(proto, "innerHTML"); proto = Object.getPrototypeOf(proto); }
@@ -34,8 +35,9 @@ function setup() {
     },
     libraryCard: (panel) => { panel.replaceChildren(); panel.append(document.createElement("article") as never); return () => {}; }, // the card takes the panel
     deselect: () => {},
+    openIncrement: (id) => { opened.push(id); },
   });
-  return { host, body, view, writes, change: (next: string) => { title = next; } };
+  return { host, body, view, writes, opened, change: (next: string) => { title = next; } };
 }
 
 test("2.51 · news that leaves the panel's content unchanged rebuilds nothing", () => {
@@ -90,4 +92,13 @@ test("2.51 · a story deselected and selected again is drawn again, though its H
   assert.equal(writes.length, 2, "the story is drawn again");
   assert.equal(host.hidden, false);
   assert.equal(host.querySelector("h2")?.textContent, "one", "and is what the panel shows");
+});
+
+test("2.57 · a click on an open-work row's button, or on what it holds, opens its increment", () => {
+  const { host, view, opened } = setup();
+  view.show();
+  host.insertAdjacentHTML("beforeend", `<ol><li><button type="button" data-open-increment="inc-1">Build it <span>(in progress)</span></button></li></ol>`);
+  host.querySelector<HTMLElement>("[data-open-increment] span")!.click();
+  host.querySelector<HTMLElement>("h2")!.click();
+  assert.deepEqual(opened, ["inc-1"], "only the row's button opens anything");
 });

@@ -194,10 +194,10 @@ function parked(arcs: NonNullable<CapabilityLine["parkedOn"]>): string {
   return `<p class="panel-parked">Parked on ${text(named)}: shelved on purpose.</p>`;
 }
 
-/** The open work naming it, in the library's order (ADR-1253 D1): read here, not drawn on the map. */
+/** The open work naming it, in the library's order (ADR-1253 D1): read here, not drawn on the map; each row's button opens its increment (4.48). */
 function openWork(increments: NonNullable<CapabilityLine["openWork"]>): string {
   return fold("open-work", `Open work · ${increments.length}`, `<ol class="panel-open-work">${increments
-    .map(({ increment, title, active }) => `<li data-increment-id="${attribute(increment)}"${active ? ` class="active"` : ""}>${text(title)}${active ? ` <span class="panel-muted">(in progress)</span>` : ""}</li>`)
+    .map(({ increment, title, active }) => `<li data-increment-id="${attribute(increment)}"${active ? ` class="active"` : ""}><button type="button" class="panel-open-increment" data-open-increment="${attribute(increment)}">${text(title)}${active ? ` <span class="panel-muted">(in progress)</span>` : ""}</button></li>`)
     .join("")}</ol>`);
 }
 

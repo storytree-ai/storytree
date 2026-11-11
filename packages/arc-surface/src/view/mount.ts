@@ -3,6 +3,7 @@ import type { BoardReads } from "../board/reads.js";
 import { isBoardSnapshot, watchBoard, type BoardState } from "../board/live-board.js";
 import { pageKept } from "../live-reading/kept.js";
 import { openCapabilities, openContracts, type BoardScope } from "../board/board.js";
+import type { BoardView } from "../board/board.js";
 import type { ClosedRange } from "../board/closed-range.js";
 import type { ArcDrawn } from "../board/smoke.js";
 import { pageTimers, type Timers } from "../live-reading/live-reading.js";
@@ -10,8 +11,18 @@ import type { CiExpected } from "../board/ci-bars.js";
 import type { PageReading } from "../live-reading/page-reading.js";
 import { copyIcon, renderBoard, renderCiBars } from "./render.js";
 import { readPreferences, writePreferences } from "./preferences.js";
+import type { ArcQueue } from "../waits/waits.js";
 
-export interface ArcSurface { stop(): void }
+export interface ArcSurface {
+  stop(): void;
+  /**
+   * Show increment `id` (3.39): its arc selected, the queue head it waits behind opened, its row open and scrolled into view. Asked
+   * before a board shows it, it waits for the draw that does.
+   */
+  openIncrement(id: string): void;
+}
+/** Whether `queue` is the arc `arc` or holds it queued behind it, however deep. */
+const holds = (queue: ArcQueue, arc: string): boolean => queue.arc.id === arc || queue.queued.some((queued) => holds(queued, arc));
 /** How often the CI legs' factory medians are read again (3.34): the recorder adds a run's time at most this often. */
 const EXPECTED_EVERY_MS = 10 * 60_000;
 /**
@@ -60,6 +71,21 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     return width > 0 ? Math.floor((width + 3) / 19) : perRow;
   };
   const queues = new Set<string>();
+  /** The increment asked to be shown and not drawn yet (3.39). */
+  let asked: string | undefined;
+  /** Selects the asked increment's arc and opens its queue head and its row, once the board holds it; returns its row's fold key. */
+  const take = (board: BoardView): string | undefined => {
+    const id = asked;
+    const lane = id === undefined ? undefined : board.lanes.find(({ view }) => view.increments.some((work) => work.id === id));
+    if (!lane) return undefined;
+    asked = undefined;
+    opened = lane.id;
+    const head = board.queues.find((queue) => holds(queue, lane.id));
+    if (head) queues.add(head.arc.id);
+    const key = `rail:${lane.id}:increment:${id}`;
+    folds.add(key);
+    return key;
+  };
   const remember = () => writePreferences(options.project, { scope });
   const sayDrawn = (drawn?: ArcDrawn) => {
     const current = JSON.parse(document.body.dataset.drew ?? "{}");
@@ -77,6 +103,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     status.setAttribute("role", next.status === "error" ? "alert" : "status");
     // A failed read retains the last good board, explicitly stale.
     if (!next.board) return;
+    const shown = take(next.board);
     const lane = next.board.lanes.find(({ id }) => id === opened);
     if (!lane) opened = undefined;
     tellOpened(lane === undefined ? undefined : { capabilities: openCapabilities(lane.view), contracts: openContracts(lane.view) });
@@ -104,11 +131,15 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     // A strip is cut to the width it is drawn at, so a first draw, or one at a new width, is drawn again once measured.
     const measured = measure();
     if (measured !== perRow) { perRow = measured; write(); }
+    // An increment shown from outside opens the folds it sits in too: a landed one's sits in the landed fold.
+    const row = shown === undefined ? undefined : [...root.querySelectorAll<HTMLDetailsElement>("details[data-fold-key]")].find((detail) => detail.dataset.foldKey === shown);
+    for (let fold = row?.parentElement?.closest<HTMLElement>("details[data-fold-key]"); fold; fold = fold.parentElement?.closest<HTMLElement>("details[data-fold-key]")) folds.add(fold.dataset.foldKey!);
     for (const detail of root.querySelectorAll<HTMLDetailsElement>("details[data-fold-key]")) detail.open = folds.has(detail.dataset.foldKey!);
     if (focusAttribute) [...root.querySelectorAll<HTMLElement>("button")].find((button) => button.getAttribute(focusAttribute) === focusKey)?.focus({ preventScroll: true });
     if (focusedFold) [...root.querySelectorAll<HTMLElement>("details[data-fold-key]")].find((detail) => detail.dataset.foldKey === focusedFold)?.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
     const lanes = body.querySelector(".arc-lanes");
     if (lanes) lanes.scrollTop = lanesTop;
+    row?.scrollIntoView?.({ block: "nearest" });
     const folded = [...body.querySelectorAll<HTMLElement>("[data-folded-ids]")].flatMap((node) => node.dataset.foldedIds!.split(" "));
     sayDrawn({
       arcs: [...new Set([...body.querySelectorAll<HTMLElement>("[data-arc-id]")].map((node) => node.dataset.arcId!))],
@@ -127,6 +158,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   const stopExpected = options.ciExpected ? (options.timers ?? pageTimers).every(EXPECTED_EVERY_MS, readExpected) : () => undefined;
   const surface: ArcSurface = {
     stop() { watching.stop(); stopExpected(); resizes?.disconnect(); sayDrawn(); root.remove(); },
+    openIncrement(id) { asked = id; if (state) draw(state); },
   };
   root.addEventListener("click", (event) => {
     const button = (event.target as Element).closest<HTMLButtonElement>("button");

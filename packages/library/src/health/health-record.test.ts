@@ -952,9 +952,11 @@ for (const backend of [memory, postgres]) {
     const turns = await health.tellUntold(from);
     assert.deepEqual(turns.map(({ contract: id, at }) => [id, at]), [[contract.id, redAt], [sibling.id, greenAt]], "the red and the green again CI could not tell; not the turn told locally, nor a retired contract's");
     const told = (await fyis()).filter((fyi) => !before.has(`${fyi.about} ${fyi.at} ${fyi.title}`));
-    assert.deepEqual(told.map(({ about, at }) => [about, at]), [[contract.id, redAt], [sibling.id, greenAt]], "one FYI each, at the verdict's own time");
-    for (const said of ["Red", "Rejects a bad email", "CI run 2"]) assert.ok(`${told[0]!.title} ${told[0]!.what}`.includes(said), `the red FYI says ${said}`);
-    for (const said of ["Green again", "Accepts a plus address", "CI run 4"]) assert.ok(`${told[1]!.title} ${told[1]!.what}`.includes(said), `the green FYI says ${said}`);
+    assert.equal(told.length, 2);
+    const toldAbout = new Map(told.map((fyi) => [fyi.about, fyi]));
+    assert.deepEqual(new Map([...toldAbout].map(([about, { at }]) => [about, at])), new Map([[contract.id, redAt], [sibling.id, greenAt]]), "one FYI each, at the verdict's own time, in no promised order: the two can share a millisecond");
+    for (const said of ["Red", "Rejects a bad email", "CI run 2"]) assert.ok(`${toldAbout.get(contract.id)!.title} ${toldAbout.get(contract.id)!.what}`.includes(said), `the red FYI says ${said}`);
+    for (const said of ["Green again", "Accepts a plus address", "CI run 4"]) assert.ok(`${toldAbout.get(sibling.id)!.title} ${toldAbout.get(sibling.id)!.what}`.includes(said), `the green FYI says ${said}`);
     assert.deepEqual(((await records.get(fix.id))?.fields as { waitsFor?: unknown[] }).waitsFor, [{ releaser: "event", note: "the next run", checkBack: tomorrow }], "a fix made to wait after the red is not released by it");
 
     await onCi(contract.id, "failing", "CI run 5");
@@ -962,7 +964,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(more, [], "only the red the fix waited on is new");
     assert.deepEqual(uncured!.released, [fix.id], "the fix it waited on is released");
     assert.equal(((await records.get(fix.id))?.fields as { waitsFor?: unknown[] }).waitsFor, undefined);
-    assert.ok((await fyis()).at(-1)!.title.startsWith("Still red after a fix"));
+    assert.ok((await fyis()).some(({ about, title }) => about === contract.id && title.startsWith("Still red after a fix")));
 
     const recheck = await flight.addIncrement({ arc: arc.id, title: "Re-check the plus address", objective: "Do it", body: "The steps.", links: [sibling.id], waitsFor: [{ releaser: "event", note: "the next run", checkBack: tomorrow }] });
     const unreleased = await fyis();

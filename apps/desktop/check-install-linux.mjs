@@ -62,8 +62,8 @@ try {
 
   assert.ok(readdirSync(release).includes("latest-linux.yml"), "latest-linux.yml was not built");
   const feed = readFileSync(path.join(release, "latest-linux.yml"), "utf8");
-  assert.match(feed, new RegExp(`version: ${version.replaceAll(".", "\\.")}(?:\\s|$)`));
-  assert.match(feed, new RegExp(`path: storytree-0\\.3-${version.replaceAll(".", "\\.")}-linux-x86_64\\.AppImage`));
+  assert.match(feed, new RegExp(`version: ${version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`));
+  assert.match(feed, new RegExp(`path: storytree-0\\.3-${version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-linux-x86_64\\.AppImage`));
   console.log(`4.4 PASS (Linux x64): built ${version} as an AppImage with latest-linux.yml; its Electron, Postgres and update configuration work from the AppImage's own contents`);
   console.log("4.17 PASS (Linux x64): the app's main process started with a throwaway home, reached its handlers and exited 0");
   console.log("1.41 PASS (Linux x64): the packaged app's page loaded from its own scheme, with file:// extra privileges off, and its road worker answered");

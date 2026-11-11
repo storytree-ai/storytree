@@ -84,6 +84,8 @@ export interface EdgeLine {
   fromTitle: string;
   to: string;
   toTitle: string;
+  /** What passes between the two, in its own words; absent when nobody has written it. */
+  description?: string;
   /** Its contracts, each a line as a capability's contracts carry, never either capability's own. */
   contracts: ContractLine[];
 }
@@ -156,11 +158,12 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
     ];
   });
 
-  const edges = (found.edges ?? []).map(({ from, to, contracts }): EdgeLine => ({
+  const edges = (found.edges ?? []).map(({ from, to, description, contracts }): EdgeLine => ({
     from,
     fromTitle: byId.get(from)?.title ?? from,
     to,
     toTitle: byId.get(to)?.title ?? to,
+    ...(description === undefined ? {} : { description }),
     contracts: contracts.map((contract) => contractLine(contract, trails.get(contract.id) ?? [])),
   }));
 

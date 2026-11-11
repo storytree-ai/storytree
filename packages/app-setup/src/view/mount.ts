@@ -5,6 +5,7 @@ import { draftSaid, feedbackText } from "../journey-events/feedback.js";
 import { addedSentence } from "./add-project.js";
 import { guideOffered, rememberGuideDismissed } from "./first-run.js";
 import { guideFor, platformOf, recoveryRequest, type GuidePlatform } from "./guide.js";
+import { ACTIONS } from "@storytree/shown-words";
 
 /** A single help surface survives empty/error states and project switching in the thin frame. */
 /** `readJourney`, where the app asks for a sharing choice: on a first launch the guide waits for its ask to be answered (3.21). */
@@ -32,7 +33,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge & Part
       <button type="button" data-page="feedback" aria-pressed="false">Send feedback</button>
     </nav>
     <div data-content="guide"><div class="setup-help-agents" data-agents role="status" hidden></div>${guideFor(platform)}
-      <div class="setup-help-actions"><button type="button" data-check>Check a folder…</button><button type="button" data-recover>Copy request for your agent</button></div>
+      <div class="setup-help-actions"><button type="button" data-check>${ACTIONS.checkFolder}</button><button type="button" data-recover>${ACTIONS.copyRequest}</button></div>
       <p data-check-status role="status"></p>
       <div class="setup-help-diagnostics" data-diagnostics hidden></div>
       <details><summary>Request to paste into your agent</summary><p data-request></p></details>

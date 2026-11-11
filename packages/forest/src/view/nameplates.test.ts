@@ -6,7 +6,7 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, facesEye, facing, fadedPlates, NAME_OVERLAP_SLACK, nameMoves, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
+import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, mapFrame, NAME_OVERLAP_SLACK, nameMoves, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -115,4 +115,60 @@ test("3.33 where a selected island's capability names overlap, they are moved ap
     return { capability, size, given, box: { left: box.left + given.x, right: box.right + given.x, top: box.top + given.y, bottom: box.bottom + given.y } };
   });
   assert.deepEqual([...nameMoves(shownMoved)], [], "names already moved apart stay still on the next frame");
+});
+
+test("3.33 a capability name over a story's name shown is moved off it, the story's name staying where it is", () => {
+  const box = (left: number, top: number, width = 80, height = 30) => ({ left, top, right: left + width, bottom: top + height });
+  // As The knowledge core showed them: Look inside and inspect an artifact over the story's own name, Knowledge under its shelves clear.
+  const story = box(1100, 205, 110, 44);
+  const names = [
+    { capability: "look inside", box: box(1135, 185, 115, 28), size: 2, given: { x: 0, y: 0 } },
+    { capability: "knowledge", box: box(1030, 98, 115, 28), size: 6, given: { x: 0, y: 0 } },
+  ];
+  const moves = nameMoves(names, [story]);
+  const look = moves.get("look inside");
+  assert.ok(look !== undefined, "the name over the story's is moved");
+  const at = { left: names[0]!.box.left + look.x, right: names[0]!.box.right + look.x, top: names[0]!.box.top + look.y, bottom: names[0]!.box.bottom + look.y };
+  const apart = at.right <= story.left + NAME_OVERLAP_SLACK || story.right <= at.left + NAME_OVERLAP_SLACK
+    || at.bottom <= story.top + NAME_OVERLAP_SLACK || story.bottom <= at.top + NAME_OVERLAP_SLACK;
+  assert.ok(apart, `moved by ${JSON.stringify(look)}, it clears the story's name`);
+  assert.equal(moves.has("knowledge"), false, "a name clear of the story's stays on its point, though the larger");
+});
+
+test("3.33 a capability name is moved off the story names that show, never off one faded", () => {
+  const box = (left: number, top: number, width = 120, height = 20) => ({ left, top, right: left + width, bottom: top + height });
+  // Two story names overlap and the more edge-on fades (ADR-0917); one capability name lies over each, and over no other.
+  const stories = [{ story: "shown", box: box(0, 0), facing: 0.9 }, { story: "faded", box: box(100, 15), facing: 0.2 }];
+  const names = [
+    { capability: "over shown", box: box(10, 5, 50, 10), size: 3, given: { x: 0, y: 0 } },
+    { capability: "over faded", box: box(160, 25, 50, 16), size: 2, given: { x: 0, y: 0 } },
+  ];
+  const { faded, moves } = crowdedNames(stories, undefined, names);
+  assert.deepEqual([...faded], ["faded"], "the edge-on name fades");
+  assert.ok(moves.has("over shown"), "the name over a story's name shown moves");
+  assert.equal(moves.has("over faded"), false, "the name over a faded one stays on its point");
+});
+
+test("3.4 a story's name that runs past the map's frame, under the rail or out of the window, fades as crowded and crowds no other", () => {
+  const box = (left: number, top: number) => ({ left, top, right: left + 112, bottom: top + 33 });
+  // As the five-story row showed them at 1440 x 960 after a quarter turn and four notches in: the map's frame runs from the
+  // rail's edge at x 432 to the window's edge.
+  const frame = { left: 432, top: 48, right: 1440, bottom: 960 };
+  const row = [
+    { story: "read and write", box: box(397, 499), facing: 1 }, { story: "comment", box: box(556, 498), facing: 1 },
+    { story: "account", box: box(820, 498), facing: 1 }, { story: "follow", box: box(1360, 498), facing: 1 },
+    { story: "under the rail", box: box(286, 498), facing: 1 },
+  ];
+  assert.deepEqual([...fadedPlates(row, undefined, frame)].sort(), ["follow", "read and write", "under the rail"],
+    "a name cut by the rail's edge or the window's fades; names wholly inside the frame show");
+  assert.deepEqual([...fadedPlates(row, "follow", frame)].includes("follow"), true, "the selected story's name fades too: the frame covers it");
+  // A clipped name fades, so the name it would have overlapped shows.
+  const pair = [{ story: "clipped", box: box(1340, 100), facing: 1 }, { story: "inside", box: box(1300, 110), facing: 0.5 }];
+  assert.deepEqual([...fadedPlates(pair, undefined, frame)], ["clipped"]);
+  // A name whose rounded end meets the frame's edge covers no letter past it: it shows.
+  assert.deepEqual([...fadedPlates([{ story: "edge", box: box(429, 200), facing: 1 }], undefined, frame)], []);
+  // The frame is the map's canvas cut to the window: a canvas running past the window's right shows only to the window's edge.
+  const cut = mapFrame({ left: 432, top: 48, right: 1600, bottom: 960 }, { width: 1440, height: 960 });
+  assert.deepEqual(cut, frame);
+  assert.deepEqual([...fadedPlates(row, undefined, cut)].sort(), ["follow", "read and write", "under the rail"], "a name past the window's edge fades, though the canvas runs on");
 });

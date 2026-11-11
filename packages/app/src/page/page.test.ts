@@ -516,6 +516,34 @@ test("2.29 · teaching cards hear whether the project on show is the factory and
   assert.deepEqual(reading({ kind: "arc" }).map(box => box.left), [100, 500, 600, 1400], "the bar's gear, which a card never covers");
 });
 
+test("2.29 · a card about the map keeps off the whole rail; a card about the plan keeps off its tabs and what its panel shows, down to the last line drawn", async (t) => {
+  const on = page(t);
+  await settled();
+  on.land();
+  const reading = on.last().readingNear!;
+  on.content.querySelector(".side-rail")?.remove();
+  const rail = on.document.createElement("aside");
+  rail.className = "side-rail";
+  rail.innerHTML = `<div class="side-rail-tabs"><button>Sessions</button><button data-rail-tab="arcs">Arcs<span hidden></span></button></div>`
+    + `<div class="side-rail-panel" hidden><p>a session</p></div><div class="side-rail-panel"><div class="fills"><div class="scopes"><button>Active</button></div><p>No active arcs.</p><span class="gone"></span></div></div>`;
+  on.document.body.append(rail);
+  const boxed = (selector: string, box: { left: number; top: number; right: number; bottom: number }) => {
+    rail.querySelector<HTMLElement>(selector)!.getBoundingClientRect = () => ({ ...box, width: box.right - box.left, height: box.bottom - box.top }) as DOMRect;
+  };
+  rail.getBoundingClientRect = () => ({ left: 0, top: 48, right: 432, bottom: 960, width: 432, height: 912 }) as DOMRect;
+  boxed(".side-rail-tabs", { left: 0, top: 48, right: 432, bottom: 88 });
+  boxed(".side-rail-panel:not([hidden])", { left: 0, top: 88, right: 432, bottom: 960 });
+  boxed(".fills", { left: 0, top: 88, right: 432, bottom: 960 });
+  boxed(".scopes button", { left: 18, top: 94, right: 72, bottom: 114 });
+  boxed(".side-rail-panel:not([hidden]) p", { left: 18, top: 136, right: 120, bottom: 156 });
+  assert.deepEqual(reading({ kind: "story", story: story.id }), [{ left: 0, top: 48, right: 432, bottom: 960 }], "the rail, all of it, beside the map a story's card explains");
+  assert.deepEqual(reading({ kind: "arc" }), [{ left: 0, top: 48, right: 432, bottom: 156 }], "the plan's card: the tabs and the panel down to its last line, not its empty rest, nor the hidden tab's panel");
+  assert.deepEqual(reading({ kind: "question" }), [{ left: 0, top: 48, right: 432, bottom: 156 }]);
+  rail.getBoundingClientRect = () => ({ left: 0, top: 48, right: 0, bottom: 960, width: 0, height: 912 }) as DOMRect;
+  assert.deepEqual(reading({ kind: "story", story: story.id }), [], "a collapsed rail is not read");
+  assert.deepEqual(reading({ kind: "arc" }), []);
+});
+
 test("2.30 · each start mark is sent once, and what the forest drew joins the page's census", async (t) => {
   const on = page(t);
   await settled();

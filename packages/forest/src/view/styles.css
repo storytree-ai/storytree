@@ -53,7 +53,8 @@
   visibility: hidden;
 }
 
-/* The map's top left: the sheet's face switches, and beside them the layout mark while islands are laid out (3.96). */
+/* The map's top left: the sheet's face switches, and beside them the layout mark while islands are laid out (3.96) and
+   the lanes notice (3.103). Its right, set inline, stops it short of the compass and the panel; the notice wraps inside. */
 .forest-top {
   position: absolute;
   z-index: 50;
@@ -62,6 +63,27 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  pointer-events: none;
+  transition: right 0.6s ease-in-out; /* keeps pace with the compass moving aside for the panel (3.40) */
+}
+
+.forest-top > * {
+  flex: none;
+}
+
+.forest-top > .forest-views {
+  pointer-events: auto;
+}
+
+.forest-top > .forest-lanes-notice {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+  background: #352b20;
+  color: #ffe1ac;
+  font-size: 12px;
+  pointer-events: none;
 }
 
 .forest-layout-progress {
@@ -192,7 +214,7 @@
 .sheet-compass .mini-globe-label { font-size: 10px; paint-order: stroke; stroke: #16212a; stroke-width: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .planet-mini-globe { transition: none; }
+  .planet-mini-globe, .forest-top { transition: none; }
 }
 
 .planet-edge-marker {
@@ -442,6 +464,11 @@
 .panel-contracts .panel-handle {
   color: var(--text);
   font-weight: 400;
+}
+
+/* What passes between a gate's two parts, under its link's heading (Fable's F3.1). */
+.panel-link-description {
+  margin: 0 0 0.3rem;
 }
 
 /* A gate's link in one state line (ADR-1284 D4): its Contracts handle, how many are failing, then the open work that

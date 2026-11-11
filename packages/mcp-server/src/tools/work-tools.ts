@@ -80,7 +80,10 @@ export function registerWorkTools(define: Define): void {
       if (refused !== undefined) return { text: refused, refused: true };
       const done = await call.library.closeIncrement(increment, defined({ disposition: meant, pr: pull, note: why }), call.writer);
       if (done === null) return noIncrement(increment);
-      const saved = { text: `Closed ${quoted(done.fields.title)} (${increment}), ${meant}.`, data: { id: increment, disposition: meant } };
+      // A close with no note leaves its arc's history no sentence of what changed, so only then is one asked for (F5.6, ADR-0786 D2).
+      const correction = `storytree arc increment correct-closure ${increment} --disposition ${meant}${pull === undefined ? "" : ` --pr ${JSON.stringify(pull)}`} --note … --reason "adds its note"`;
+      const ask = why === undefined ? ` ${quoted(done.fields.title)} (${increment}) closed with no note, and its note is what its arc's history shows under it: say what changed in behaviour, in a sentence, with \`${correction}\` in your shell.` : "";
+      const saved = { text: `Closed ${quoted(done.fields.title)} (${increment}), ${meant}.${ask}`, data: { id: increment, disposition: meant } };
       await closed(claimContext(call), increment, meant);
       try { call.journey?.incrementClosed?.(done.fields.outcome?.disposition); } catch { /* Observation cannot fail a completed close. */ }
       return afterWrite(saved, async () => {
@@ -258,7 +261,7 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "settle_question",
-    "Settle a question with the owner's answer, in their own words, and the decision that carried it if one did. Work held on it goes on.",
+    "Settle a question with the owner's answer, in their own words, and the decision that carried it if one did. Work held on it goes on, and the answer names that work.",
     z.object({
       question: id("question"),
       answer: z.string().min(1).describe("The owner's answer, in their own words"),
@@ -267,7 +270,9 @@ export function registerWorkTools(define: Define): void {
     async ({ question, answer, decision }, { library, writer }) => {
       const settled = await library.settleQuestion(question, defined({ answer, decision }), writer);
       if (settled === null) return { text: `There is no question ${question} in this project.`, refused: true };
-      return { text: `Settled ${quoted(settled.fields.title)} (${question}). Work held on it goes on.`, data: { id: question } };
+      const freed = settled.released.map(({ id: held, title }) => `${quoted(title)} (${held})`);
+      const goesOn = freed.length === 0 ? "" : ` Released ${freed.join(", ")}, which no longer ${freed.length === 1 ? "waits" : "wait"} on it.`;
+      return { text: `Settled ${quoted(settled.fields.title)} (${question}).${goesOn}`, data: { id: question, released: settled.released } };
     },
   );
 

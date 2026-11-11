@@ -131,6 +131,40 @@ test("1.8 · the push check refuses a push whose commits add a tag-removing glob
   assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/strips ${next} refs/heads/strips ${head}\n`, home, sources: [], error: (line) => said.push(line) }), 0, "the replace was already pushed");
 });
 
+test("1.9 · the push check refuses a push whose commits add a partial backslash escape to a code file (PR #724's /\\./g), CodeQL's incomplete sanitization, naming file, commit and line; the full escape passes", (t) => {
+  const { home, root, git } = machine(t);
+  git("checkout", "-q", "-b", "escapes");
+  mkdirSync(path.join(root, "src"));
+  writeFileSync(path.join(root, "src", "at.test.ts"), String.raw`export const at = (stamp: string): RegExp => new RegExp(stamp.replace(/\./g, "\\."));` + "\n");
+  writeFileSync(path.join(root, "src", "full.ts"), String.raw`export const full = (text: string): string => text.replace(/[.*+?^$\{}()|[\]\\]/g, "\\$&");`.replace("$\\{", "${") + "\n");
+  git("add", ".");
+  git("commit", "-q", "-m", "escape");
+  const head = git("rev-parse", "HEAD").trim();
+  const said = [];
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/escapes ${head} refs/heads/escapes ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
+  const refusal = said.join("\n");
+  assert.match(refusal, /src\/at\.test\.ts:1 \(commit \w+\) escapes /);
+  assert.match(refusal, /js\/incomplete-sanitization/);
+  assert.ok(!refusal.includes("full.ts"), refusal);
+});
+
+test("1.10 · the push check refuses a push whose commits add a one-character string pattern replaced by a backslash-led string (replaceAll(\".\", \"\\\\.\")), CodeQL's incomplete sanitization, naming file, commit and line; the full escape passes", (t) => {
+  const { home, root, git } = machine(t);
+  git("checkout", "-q", "-b", "escapes");
+  mkdirSync(path.join(root, "src"));
+  writeFileSync(path.join(root, "src", "at.test.ts"), String.raw`export const at = (stamp: string): RegExp => new RegExp(stamp.replaceAll(".", "\\."));` + "\n");
+  writeFileSync(path.join(root, "src", "full.ts"), String.raw`export const full = (text: string): string => text.replaceAll("\\", "\\\\").replaceAll(".", "\\.");` + "\n");
+  git("add", ".");
+  git("commit", "-q", "-m", "escape");
+  const head = git("rev-parse", "HEAD").trim();
+  const said = [];
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/escapes ${head} refs/heads/escapes ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
+  const refusal = said.join("\n");
+  assert.match(refusal, /src\/at\.test\.ts:1 \(commit \w+\) escapes /);
+  assert.match(refusal, /js\/incomplete-sanitization/);
+  assert.ok(!refusal.includes("full.ts"), refusal);
+});
+
 test("1.8 · a push that names the remote by its URL is checked over the branch's own commits, as a push to origin is: a replace already on a remote-tracking ref passes, one the branch adds is refused", (t) => {
   const { dir, home, root, git } = machine(t);
   const url = path.join(dir, "remote.git");

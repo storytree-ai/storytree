@@ -110,6 +110,7 @@ const LIBRARY_API = [
   "recordVerified",
   "recordUnclaimed",
   "markVerifiedPending",
+  "tellUntold",
   "health",
   "healthHistory",
   "healthWorklist",

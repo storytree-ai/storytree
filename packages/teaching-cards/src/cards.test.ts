@@ -5,8 +5,8 @@ import { cardOf, KINDS } from "./index.js";
 
 test("1.1 · every kind has a card with a title and a line at once, and what, why, how and its decisions for More", () => {
   assert.deepEqual([...KINDS], ["empty", "factory", "role", "note", "check", "arc", "story", "capability", "claim", "health", "decision", "question"]);
-  // Each kind says its own thing at every depth: no two kinds share a title, a line, a what, a why or a how.
-  for (const field of ["title", "line", "what", "why", "how"] as const) {
+  // Each kind says its own thing at every depth: no two kinds share a title, a line, a what, a why, a how or what brings it.
+  for (const field of ["title", "line", "what", "why", "how", "comes"] as const) {
     const said = KINDS.map(kind => cardOf(kind)[field].trim());
     assert.ok(said.every(text => text !== ""), `every kind has its ${field}`);
     assert.equal(new Set(said).size, KINDS.length, `each kind's ${field} is its own`);
@@ -38,4 +38,11 @@ test("1.2 · the decision card names the Library switch only when it is on, and 
   assert.match(off, /Surfaces/);
   // Only the decision card reads the switch.
   assert.deepEqual(cardOf("story", { library: false }), cardOf("story"));
+});
+
+test("1.3 · the plan's card says where the plan is on screen: under Arcs, an arc a goal with its pieces of work under it", () => {
+  const plan = cardOf("arc");
+  assert.match(plan.line, /under Arcs/);
+  assert.match(plan.line, /an arc is a goal/);
+  assert.match(plan.line, /pieces of work that reach it/);
 });

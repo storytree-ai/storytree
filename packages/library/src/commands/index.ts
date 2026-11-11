@@ -530,7 +530,9 @@ const edit = verb({
     }
     const changed = Object.keys(values).join(", ");
     const removed = remove.length === 0 ? "" : `${changed === "" ? "" : ", "}removed ${remove.join(", ")}`;
-    return { text: `Edited ${record.type} ${id}: ${changed}${removed}.`, next: [{ command: `library read ${id}`, why: "read it back" }] };
+    const from = record.type === "contract" && Object.hasOwn(values, "edge") ? (record.fields as { capability?: string }).capability : undefined;
+    const bare = await bareSaid(library, from, `library new contract --capability ${from} --title <title>`);
+    return { text: `Edited ${record.type} ${id}: ${changed}${removed}.${bare}`, next: [{ command: `library read ${id}`, why: "read it back" }] };
   },
 });
 
@@ -741,6 +743,17 @@ const undo = verb({
 export { NOTE_TOOLS, type Found, type NoteRead, type NoteToolContext, type Presenter } from "./notes.js";
 // The plan-edit rule both front doors call (ADR-0966 D1, ADR-0793).
 export { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "../work/plan-hold.js";
+
+/**
+ * What a contract's move onto a link left its part, `capability`, as both front doors say it (question_db632f671942's
+ * option D): a sentence naming the part when it now has no live contracts of its own, with the step its own work needs,
+ * `plan` naming how this door plans a contract; nothing while it keeps one (ADR-1282 D2 moves them as work touches them).
+ */
+export async function bareSaid(library: Library, capability: string | undefined, plan: string): Promise<string> {
+  const part = capability === undefined ? undefined : (await library.projectTree()).stories.flatMap((story) => story.capabilities).find((node) => node.id === capability);
+  if (part === undefined || part.contracts.length > 0) return "";
+  return ` "${part.title}" (${part.id}) now has no contracts of its own: plan its own behaviour contract (${plan}), or leave it bare knowingly.`;
+}
 
 /** The library's command family, which the package's manifest names under `verbs` (ADR-1033), first among `storytree`'s. */
 export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{

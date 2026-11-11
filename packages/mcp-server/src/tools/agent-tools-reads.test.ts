@@ -575,6 +575,23 @@ test("10.1 it parks an increment, starts it by claiming it, and closes it landed
   });
 });
 
+test("10.21 close_increment closing an increment with no note says its arc's history then shows no sentence of what changed, and how to add that note; a close with a note says nothing of it", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const bare = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build it", body: "Red then green" }));
+      const told = idOf(await agent.call("park_increment", { arc, title: "Welcome email", objective: "Send one", body: "After sign-up" }));
+
+      const asked = await agent.call("close_increment", { increment: bare, disposition: "landed", pr: "#12" });
+      assert.equal(asked.isError, false, asked.text);
+      assert.ok(asked.text.includes(`"Email form" (${bare}) closed with no note, and its note is what its arc's history shows under it: say what changed in behaviour, in a sentence, with \`storytree arc increment correct-closure ${bare} --disposition landed --pr "#12" --note … --reason "adds its note"\` in your shell.`), asked.text);
+      const quiet = await agent.call("close_increment", { increment: told, disposition: "landed", pr: "#13", note: "A new user gets a welcome email." });
+      assert.equal(quiet.isError, false, quiet.text);
+      assert.doesNotMatch(quiet.text, /note/, "a close with a note is not asked for one");
+    });
+  });
+});
+
 test("10.1 a committed close remains successful when a newer sibling schema prevents reading its arc", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     await withAgent(folder, codex("closing-agent"), async (agent) => {
@@ -695,6 +712,34 @@ test("9.4 show_plan gives each capability's word, and for one not healthy its re
       const shown = (plan.data.stories as { capabilities: { id: string; status: string; why?: { reason: string; mover: string; contracts: string[] } }[] }[])[0]?.capabilities[0];
       assert.equal(shown?.status, "untested");
       assert.deepEqual(shown?.why && { reason: shown.why.reason, mover: shown.why.mover, contracts: shown.why.contracts }, { reason: "needs owner", mover: "owner", contracts: [owner] });
+    });
+  });
+});
+
+test("9.36 show_plan gives each capability's description and the decisions on its shelf, founding first, by title and id, and says when it has neither", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { story, capability } = await planned(agent);
+      await agent.call("edit_plan", { id: capability, description: "Takes the visitor's email and checks it" });
+      const [founding] = await library.frontCovers(capability);
+      const later = await library.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest", frontCoverOf: capability });
+      const rest = [];
+      for (const title of ["Check the domain", "Lower-case it", "Refuse disposable ones"]) rest.push(await library.recordDecision({ status: "accepted", title, text: "Because", frontCoverOf: capability }));
+      const bare = idOf(await agent.call("plan_capability", { story, title: "Password form", ...FOUNDED }));
+      for (const cover of await library.frontCovers(bare)) await library.retire(cover.id, "testing a bare shelf");
+
+      const plan = await agent.call("show_plan");
+      const lines = plan.text.split("\n");
+      const under = (id: string) => lines.slice(lines.findIndex((line) => line.includes(`(${id})`)) + 1, lines.findIndex((line) => line.includes(`(${id})`)) + 3).join("\n");
+      assert.match(under(capability), /Takes the visitor's email and checks it/, plan.text);
+      assert.match(under(capability), new RegExp(`founded on "Email first" \\(${founding!.id}[,)].*; also "Send through Mailgun" \\(${later.id}, ADR-\\d{4}\\)`), plan.text);
+      assert.match(under(capability), new RegExp(`"Lower-case it" \\(${rest[1]!.id}, ADR-\\d{4}\\), and 1 more \\(open ${capability} lists them\\)`), plan.text);
+      assert.doesNotMatch(under(capability), /Refuse disposable ones/, plan.text);
+      assert.match(under(bare), /No description yet/, plan.text);
+      assert.match(under(bare), /No decision on its shelf yet/, plan.text);
+      const shown = (plan.data.stories as { capabilities: { id: string; decisions: { id: string; title: string }[] }[] }[])[0]!.capabilities;
+      assert.deepEqual(shown.find((each) => each.id === capability)?.decisions.map(({ id }) => id), [founding!.id, later.id, ...rest.map(({ id }) => id)]);
+      assert.deepEqual(shown.find((each) => each.id === bare)?.decisions, []);
     });
   });
 });

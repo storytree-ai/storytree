@@ -37,7 +37,7 @@ test("2.13 the panel offers a Postgres address as a third library location, save
     assert.match(html, /<option value="local">On this computer<\/option>/);
     assert.match(html, /<option value="cloudsql">Google Cloud SQL<\/option>/);
     assert.match(html, /<option value="postgres" selected>[^<]+<\/option>/);
-    assert.match(html, new RegExp(`<input name="address"[^>]* value="${address.replaceAll("/", "\\/")}"`));
+    assert.match(html, new RegExp(`<input name="address"[^>]* value="${address.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
   });
 });
 

@@ -3,10 +3,10 @@
  * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type HealthState, type NodeHealth } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
-import { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
+import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
 import { elsewhereSaid, type MapNode } from "@storytree/map";
 import { readMap } from "@storytree/map/read";
@@ -334,6 +334,8 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   // A contract moved to another capability with no title given takes that capability's next number, past its tests (4.45).
   const move = kind === "contract" && changes.capability !== undefined && changes.title === undefined ? await movedNumber(target, changes.capability, call) : undefined;
   const options = move === undefined ? writer : { ...writer, testedNumbers: move.tested };
+  // The part a contract moved onto a link leaves, said when the move leaves it with none of its own (9.37).
+  const leaves = kind === "contract" && changes.edge !== undefined ? ((await library.get(target))?.fields as { capability?: string } | undefined)?.capability : undefined;
   const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live }, options);
   if (done === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
   if ("held" in done) {
@@ -346,7 +348,8 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   // Told, not refused, of another open increment already listing a capability this one newly lists (10.35, ADR-1228).
   const shared = kind === "increment" ? await library.openListing((listing ?? []).filter((capability) => !had.includes(capability)), target) : [];
   const placed = kind === "contract" && to !== undefined && (changes.capability !== undefined || changes.edge !== undefined) ? placedSaid(await library.projectTree(), target, to) : "";
-  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
+  const bare = await bareSaid(library, leaves, "plan_contract");
+  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
 }
 
 /**
@@ -404,7 +407,8 @@ async function showPlan({ library, log, project, quietMs }: PlanReading, closed:
   // The arcs as the board reads them (10.22): live ones and the recently closed, or a window's closed arcs alone.
   const now = Date.now();
   const arcRead = closed === undefined ? library.boardArcs({ from: dayOf(now, -1), to: dayOf(now, 1) }) : library.closedArcs(closed);
-  const [tree, views, claims, inView] = await Promise.all([library.projectTree(), arcRead, readClaims(log, project, { quietMs }), readSessions(log, project, { quietMs, of: "in-view" })]);
+  const [tree, views, claims, inView, decisions] = await Promise.all([library.projectTree(), arcRead, readClaims(log, project, { quietMs }), readSessions(log, project, { quietMs, of: "in-view" }), library.decisions()]);
+  const shelfOf = shelvesOf(decisions);
   const closedOn = new Map(views.map((view) => [view.arc.id, view.closed]));
   const arcs = tree.arcs.filter((arc) => closedOn.has(arc.id));
   const incrementsOf = new Map(views.map((view) => [view.arc.id, view.increments]));
@@ -428,6 +432,9 @@ async function showPlan({ library, log, project, quietMs }: PlanReading, closed:
     out.push(`Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "mapped: here before storytree, and assumed to be working"}`);
     for (const capability of story.capabilities) {
       out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`);
+      // Its reason, for the agent to read before it changes the part (F3.8, ADR-0627): what it is for, and its shelf.
+      out.push(capability.description === undefined ? "    No description yet: say what it is for with edit_plan." : `    About: ${capability.description.replace(/\s+/g, " ").trim()}`);
+      out.push(`    ${shelfSaid(capability.id, shelfOf.get(capability.id) ?? [])}`);
       for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}; ${proofSaid(contract)}`);
     }
     // Its edges, each a link inside the story holding its own contracts (ADR-1282 D1).
@@ -458,12 +465,43 @@ async function showPlan({ library, log, project, quietMs }: PlanReading, closed:
     data: {
       ...(tree.anchor === undefined ? {} : { anchor: tree.anchor }),
       gaps,
-      stories: tree.stories,
+      stories: tree.stories.map((story) => ({ ...story, capabilities: story.capabilities.map((capability) => ({ ...capability, decisions: shelfOf.get(capability.id) ?? [] })) })),
       arcs,
       claims,
       sessions,
     },
   };
+}
+
+/** A decision on a shelf as show_plan gives it: enough to read it whole with open or library read. */
+interface Spine {
+  id: string;
+  title: string;
+  number?: number;
+}
+
+/** Every story's and capability's shelf (ADR-0627): its live front covers, founding first, a superseded one left for its successor. */
+function shelvesOf(decisions: readonly DecisionView[]): Map<string, Spine[]> {
+  const shelves = new Map<string, Spine[]>();
+  for (const { record, status } of decisions) {
+    const node = record.fields.frontCoverOf;
+    if (node === undefined || status === "superseded") continue;
+    const { title, number } = record.fields;
+    shelves.set(node, [...(shelves.get(node) ?? []), { id: record.id, title, ...(number === undefined ? {} : { number }) }]);
+  }
+  return shelves;
+}
+
+/** How many of a shelf's decisions show_plan names before it counts the rest, so a large shelf cannot flood the reply. */
+const SHELF_SHOWN = 4;
+
+/** A capability's shelf in one line: its founding decision, then the next few, each by title and id, the rest counted. */
+function shelfSaid(id: string, shelf: readonly Spine[]): string {
+  if (shelf.length === 0) return "No decision on its shelf yet: record its founding decision with write_note.";
+  const spine = ({ id: decision, title, number }: Spine) => `${quoted(title)} (${decision}${number === undefined ? "" : `, ADR-${String(number).padStart(4, "0")}`})`;
+  const [founding, ...rest] = shelf.slice(0, SHELF_SHOWN);
+  const more = shelf.length - SHELF_SHOWN;
+  return `Decisions: founded on ${spine(founding!)}${rest.length === 0 ? "" : `; also ${rest.map(spine).join(", ")}`}${more > 0 ? `, and ${more} more (open ${id} lists them)` : ""}.`;
 }
 
 /** The project's sentence as show_plan and edit_plan say it, a half not yet written said so. */

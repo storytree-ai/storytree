@@ -17,9 +17,12 @@ function page({ unanswered = false } = {}) {
   return { document, host, store };
 }
 
+/** A card on show, not the tour's line saying it is on between cards (3.9). */
+const CARD = '.teaching-card:not([data-kind="on"])';
+
 const oneStory = { tree: { stories: [{ id: "story_a", capabilities: [] }], arcs: [] }, changes: [], lines: [] };
 
-test("3.1 · a fired card shows beside its thing, takes no focus and blocks nothing; More opens its depth and Got it takes it away", () => {
+test("3.1 · a fired card shows beside its thing, takes no focus and blocks nothing; More opens its depth and Next takes it away", () => {
   const { document, host, store } = page();
   const button = document.createElement("button");
   document.body.append(button);
@@ -43,10 +46,10 @@ test("3.1 · a fired card shows beside its thing, takes no focus and blocks noth
   assert.match(depth.textContent ?? "", /Why/);
   assert.match(depth.textContent ?? "", /Decision 819: A package for each story/, "More names the decisions behind it");
   card.querySelector<HTMLButtonElement>("[data-dismiss]")!.click();
-  assert.ok(host.querySelector(".teaching-card") === null);
+  assert.ok(host.querySelector(CARD) === null);
   // Seen once, it does not come back for the same reading.
   teaching.take(oneStory);
-  assert.ok(host.querySelector(".teaching-card") === null);
+  assert.ok(host.querySelector(CARD) === null);
   teaching.stop();
 });
 
@@ -122,7 +125,7 @@ test("3.1 · a target off screen puts its card in the corner, and the next card 
   card.querySelector<HTMLButtonElement>("[data-dismiss]")!.click();
   assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "capability");
   host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
-  assert.ok(host.querySelector(".teaching-card") === null, "each card shows once");
+  assert.ok(host.querySelector(CARD) === null, "each card shows once");
   teaching.stop();
   assert.ok(host.querySelector(".teaching-card") === null);
 });
@@ -203,7 +206,7 @@ test("3.8 · a card still waiting whose thing is gone from the map, or done, nev
   teaching.take(planned("proposal"));
   teaching.take(planned("closed"));
   host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
-  assert.ok(host.querySelector(".teaching-card") === null, "no plan tip after the plan is done");
+  assert.ok(host.querySelector(CARD) === null, "no plan tip after the plan is done");
   assert.ok(!kept.seen().some(one => one.kind === "arc"), "never shown, so never marked seen");
   teaching.stop();
 });
@@ -372,6 +375,13 @@ test("3.5 · a card beside its island that would cover a neighbouring island sli
   teaching.stop();
 });
 
+test("3.5 · a card whose point is a tab above a list being read sits under the list, below its point, before any corner", () => {
+  const tabs = { left: 0, top: 48, right: 432, bottom: 88 }, list = { left: 0, top: 88, right: 432, bottom: 160 };
+  const { teaching, at } = sized([tabs, list], () => ({ x: 135, y: 67, visible: true }));
+  assert.deepEqual(at(), { left: "12px", top: "172px" }, "12px under the list, as near its point as the window lets it");
+  teaching.stop();
+});
+
 test("3.5 · a card that covers a neighbouring island wherever it sits beside its own takes a corner clear of every island", () => {
   const { teaching, at } = sized([], () => ({ x: 500, y: 300, visible: true }), [{ left: 150, top: 120, right: 850, bottom: 480 }]);
   assert.deepEqual(at(), { left: "684px", top: "484px" }, "the bottom-right corner, below the islands");
@@ -390,7 +400,7 @@ test("3.6 · the empty-map card on show is taken away once the map holds an isla
   const teaching = mountTeaching(host, { journal: journal(store), locate: () => undefined });
   teaching.take({ tree: { stories: [], arcs: [] }, changes: [], lines: [] });
   assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "empty");
-  // An import draws its island with no click on Got it.
+  // An import draws its island with no click on Next.
   teaching.take(oneStory);
   const cards = [...host.querySelectorAll<HTMLElement>(".teaching-card")];
   assert.deepEqual(cards.map(card => card.dataset.kind), ["story"]);
@@ -410,4 +420,124 @@ test("3.6 · an empty-map card still waiting when the map gains an island never 
   assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "story");
   assert.ok(!kept.seen().some(one => one.kind === "empty"), "never shown, so never marked seen");
   teaching.stop();
+});
+
+/** The tour's quiet line, when it is on show. */
+const tourOn = (host: HTMLElement) => host.querySelector<HTMLElement>('.teaching-card[data-kind="on"]');
+
+test("3.9 · after Next with cards still to come, one quiet line says the tour is on and what brings the next card; that card takes its place", () => {
+  const { host, store } = page();
+  const kept = journal(store);
+  const teaching = mountTeaching(host, { journal: kept, locate: () => undefined });
+  teaching.take(oneStory);
+  const card = host.querySelector<HTMLElement>(".teaching-card")!;
+  const actions = [...card.querySelectorAll<HTMLButtonElement>(".teaching-card-actions button")].map(button => button.textContent);
+  assert.deepEqual(actions, ["Next", "End tour"], "two buttons: one moves on, one ends");
+  card.querySelector<HTMLButtonElement>("[data-dismiss]")!.click();
+  const line = tourOn(host)!;
+  assert.ok(line, "the quiet line shows");
+  assert.equal(host.querySelectorAll(".teaching-card").length, 1);
+  assert.ok(line.classList.contains("teaching-card-corner"), "in a corner");
+  assert.match(line.textContent ?? "", /Tour on: the next card comes when your agent plans\./, "the first kind still to come is the plan");
+  assert.deepEqual(kept.seen().map(one => one.kind), ["story"], "the line marks nothing seen");
+  // The plan appears: its card takes the line's place.
+  teaching.take({ ...oneStory, tree: { ...oneStory.tree, arcs: [{ id: "arc_1" }] } });
+  assert.deepEqual([...host.querySelectorAll<HTMLElement>(".teaching-card")].map(one => one.dataset.kind), ["arc"]);
+  host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
+  assert.match(tourOn(host)!.textContent ?? "", /comes when a story's parts appear\./, "then the next kind still to come");
+  // End tour on the line ends the tour and clears the map.
+  tourOn(host)!.querySelector<HTMLButtonElement>("[data-end]")!.click();
+  assert.equal(kept.tour(), "no");
+  assert.ok(host.querySelector(".teaching-card") === null);
+  teaching.stop();
+});
+
+test("3.9 · no quiet line once every kind that can come on this map is seen, nor before the user says yes", () => {
+  const { host, store } = page();
+  const kept = journal(store);
+  for (const kind of ["arc", "capability", "claim", "health", "decision", "question"] as const) kept.mark(kind);
+  const teaching = mountTeaching(host, { journal: kept, locate: () => undefined });
+  teaching.take(oneStory);
+  host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
+  assert.ok(host.querySelector(".teaching-card") === null, "the factory's kinds and the empty map's never come on a product's grown map");
+  teaching.stop();
+  const unanswered = page({ unanswered: true });
+  const asked = mountTeaching(unanswered.host, { journal: journal(unanswered.store), locate: () => undefined });
+  asked.take(oneStory);
+  assert.deepEqual([...unanswered.host.querySelectorAll<HTMLElement>(".teaching-card")].map(one => one.dataset.kind), ["tour"]);
+  asked.stop();
+});
+
+test("3.9 · on the factory's map the quiet line names the factory's parts still to come", () => {
+  const { host, store } = page();
+  const teaching = mountTeaching(host, { journal: journal(store), locate: () => undefined });
+  teaching.take({ tree: { stories: [], arcs: [] }, changes: [], lines: [], factory: true });
+  assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "factory");
+  host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
+  assert.match(tourOn(host)!.textContent ?? "", /comes when your factory holds a role\./);
+  teaching.stop();
+});
+
+/** Where a tie's line starts and ends, read from its place, length and turn. */
+function ends(line: HTMLElement): { from: [number, number]; to: [number, number] } {
+  const x = parseFloat(line.style.left), y = parseFloat(line.style.top), length = parseFloat(line.style.width);
+  const turn = parseFloat(/rotate\((-?[\d.e-]+)rad\)/.exec(line.style.transform)![1]!);
+  return { from: [x, y], to: [x + length * Math.cos(turn), y + length * Math.sin(turn)] };
+}
+
+const near = (actual: [number, number], expected: [number, number], message: string) =>
+  assert.ok(Math.abs(actual[0] - expected[0]) < 0.01 && Math.abs(actual[1] - expected[1]) < 0.01, `${message}: ${actual} is not ${expected}`);
+
+test("3.10 · a card beside its island draws a ring round the island and a line from its nearest edge to the ring", () => {
+  const island = { left: 300, top: 250, right: 500, bottom: 350 };
+  const { teaching, card } = sized([], () => ({ x: 400, y: 300, visible: true, box: island }));
+  // Right of the island: the card is at 512, 250, 300 × 100.
+  const ring = card.querySelector<HTMLElement>(".teaching-card-ring")!;
+  assert.ok(ring, "a ring round its island");
+  assert.deepEqual([ring.style.left, ring.style.top, ring.style.width, ring.style.height], ["294px", "244px", "212px", "112px"], "round the island's box, just outside it");
+  const line = card.querySelector<HTMLElement>(".teaching-card-tie")!;
+  const { from, to } = ends(line);
+  near(from, [512, 300], "the line leaves the card's edge facing the island");
+  near(to, [506, 300], "and ends on the ring");
+  teaching.stop();
+});
+
+test("3.10 · a card left of its island, or below it, draws its line from the edge facing the island to the ring", () => {
+  // No room on the island's right in a 1000 px window: the card sits on its left, at 288, 250.
+  const left = sized([], () => ({ x: 700, y: 300, visible: true, box: { left: 600, top: 250, right: 800, bottom: 350 } }));
+  const beside = ends(left.card.querySelector<HTMLElement>(".teaching-card-tie")!);
+  near(beside.from, [588, 300], "from the card's right edge");
+  near(beside.to, [594, 300], "to the ring's left side");
+  left.teaching.stop();
+  // An island too wide for a card on either side: the card sits below it, at 350, 212.
+  const under = sized([], () => ({ x: 500, y: 150, visible: true, box: { left: 100, top: 100, right: 900, bottom: 200 } }));
+  const below = ends(under.card.querySelector<HTMLElement>(".teaching-card-tie")!);
+  near(below.from, [500, 212], "from the card's top edge");
+  near(below.to, [500, 206], "up to the ring's foot");
+  under.teaching.stop();
+});
+
+test("3.10 · a card taken to a corner while its thing is on show is still tied to it; a ring marks a point with no island", () => {
+  const { teaching, card } = sized([], () => ({ x: 500, y: 300, visible: true }), [{ left: 150, top: 120, right: 850, bottom: 480 }]);
+  // The bottom-right corner, 684, 484.
+  const ring = card.querySelector<HTMLElement>(".teaching-card-ring")!;
+  assert.deepEqual([ring.style.left, ring.style.top, ring.style.width, ring.style.height], ["492px", "292px", "16px", "16px"], "a small ring at its point");
+  const { from, to } = ends(card.querySelector<HTMLElement>(".teaching-card-tie")!);
+  near(from, [684, 484], "from the card's corner nearest the point");
+  near(to, [500 + 8 / Math.SQRT2, 300 + 8 / Math.SQRT2], "to the ring's edge, on the card's side of it");
+  teaching.stop();
+});
+
+test("3.10 · a card whose thing is off screen, and the tour's ask, are tied to nothing", () => {
+  const { teaching, card } = sized([], () => ({ x: 500, y: 300, visible: false }));
+  assert.ok(card.querySelector(".teaching-card-ring") === null, "no ring for a thing off screen");
+  assert.ok(card.querySelector(".teaching-card-tie") === null, "and no line");
+  teaching.stop();
+  const { host, store } = page({ unanswered: true });
+  const asked = mountTeaching(host, { journal: journal(store), locate: () => ({ x: 120, y: 80, visible: true }) });
+  asked.take(oneStory);
+  const ask = host.querySelector<HTMLElement>(".teaching-card")!;
+  assert.equal(ask.dataset.kind, "tour");
+  assert.ok(ask.querySelector(".teaching-card-tie") === null, "the ask is tied to nothing");
+  asked.stop();
 });

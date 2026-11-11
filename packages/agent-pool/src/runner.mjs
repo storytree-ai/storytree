@@ -320,14 +320,17 @@ async function sessionOf(log) {
   return (await readOptional(sessionFile(log)))?.trim() || /"(?:session_id|thread_id)":"([^"]+)"/.exec(await readOptional(log) ?? "")?.[1];
 }
 
-/** Release every claim a lane's session still holds (its noticeboard lines), giving the ids released; a refusal is said, never thrown. */
+/**
+ * Release every claim a lane's session still holds (its noticeboard lines, by their holder field), giving the ids released; a
+ * claim a hand-over moved to its pull request's holder is that holder's, so it stands. A refusal is said, never thrown.
+ */
 async function releaseClaims({ session, reason, storytree, dated }) {
   const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${String(error.message).split("\n")[0]}`); return ""; });
   const released = [];
   if (!session) return released;
   for (const line of (await tell(["noticeboard"])).split("\n")) {
     const held = /^\s*- (?:increment|capability) (\S+)\s/.exec(line);
-    if (held && line.includes(` ${session} `)) {
+    if (held && line.includes(` ${session} (`)) {
       await tell(["workspace", "release", held[1], "--holder", session, "--reason", reason]);
       released.push(held[1]);
     }
@@ -466,6 +469,15 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     if (increment) await laneFailed({ increment, project, why: `killed out of memory (its scope's limit, ${memoryMax} bytes)`, logs, lane: await sessionOf(logs.at(-1)), started: began, failed, storytree, day, dated });
     return OUT_OF_MEMORY;
   };
+  // A lane that ends for good, not requeued and not recorded failed, releases what its session still holds, so its increment
+  // is offered at once; a signal's kill is a requeue and releases nothing (1.30).
+  const ended = async (code, from) => {
+    if (result.signaled) return code;
+    const lane = await sessionOf(from);
+    const released = await releaseClaims({ session: lane, reason: "the lane ended; released by the lane runner", storytree, dated });
+    if (released.length) dated(`released ${lane}'s claims at the lane's end: ${released.join(", ")}`);
+    return code;
+  };
   // The first engine's start frees the slot its starter reserved (3.32): from then on the process table counts it.
   const memoryMax = await laneMemoryMax(settings);
   // Every engine run, however it ended (a signal or out of memory included), leaves its session reading exited (1.29).
@@ -536,7 +548,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
         why = result.stalled ? "its log stopped growing while the library and GitHub did not answer" : `it exited ${result.code} on a connection error`;
         continue;
       }
-      if (result.code === 0 && (!before || leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads })))) return 0;
+      if (result.code === 0 && (!before || leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads })))) return ended(0, resumed.log);
       break;
     }
     // The resume failed or left the work unfinished (or there was no session to resume): residue, and a fresh lane that starts from what it left.
@@ -569,7 +581,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
         lane: session, started: began, failed, storytree, day, dated, release: false });
       return 1;
     }
-    return result.code;
+    return ended(result.code, resumed.log);
   }
   const fastFail = Number(env.FAST_FAIL_S ?? 120);
   if (result.code !== 0 && (now() - started) / 1000 < fastFail) {
@@ -579,8 +591,9 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   // A slow failing exit of the engine's own (not a signal: an operator's stop) that left nothing is a failed lane.
   if (before && result.code !== 0 && !result.signaled && !leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads }))) {
     await laneFailed({ increment, project, why: `exit ${result.code} with no report and no push`, logs: [last.log], lane: await sessionOf(last.log), started: began, failed, storytree, day, dated });
+    return result.code;
   }
-  return result.code;
+  return ended(result.code, last.log);
 }
 
 async function showStatus({ home, env, now = Date.now, say = console.log }) {

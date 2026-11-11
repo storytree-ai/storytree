@@ -206,13 +206,13 @@ async function stoodSince(records: SchemaRecords, id: string, event: string | un
  * Take question `id` off the heldOn of every increment that names it, open or closed, keeping their
  * other holds, as the question is settled (10.39) or retired (10.40); the increments released, oldest first.
  */
-export async function releaseHolders(records: SchemaRecords, id: string, options?: WriteOptions): Promise<string[]> {
+export async function releaseHolders(records: SchemaRecords, id: string, options?: WriteOptions): Promise<SchemaRecord<"increment">[]> {
   const heldBy = (await records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true).sort(byCreation);
   for (const increment of heldBy) {
     const rest = (increment.fields.heldOn ?? []).filter((held) => held !== id);
     await records.edit(increment.id, { heldOn: rest.length === 0 ? undefined : rest }, options);
   }
-  return heldBy.map((increment) => increment.id);
+  return heldBy;
 }
 
 /**

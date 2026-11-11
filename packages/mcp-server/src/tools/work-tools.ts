@@ -261,7 +261,7 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "settle_question",
-    "Settle a question with the owner's answer, in their own words, and the decision that carried it if one did. Work held on it goes on.",
+    "Settle a question with the owner's answer, in their own words, and the decision that carried it if one did. Work held on it goes on, and the answer names that work.",
     z.object({
       question: id("question"),
       answer: z.string().min(1).describe("The owner's answer, in their own words"),
@@ -270,7 +270,9 @@ export function registerWorkTools(define: Define): void {
     async ({ question, answer, decision }, { library, writer }) => {
       const settled = await library.settleQuestion(question, defined({ answer, decision }), writer);
       if (settled === null) return { text: `There is no question ${question} in this project.`, refused: true };
-      return { text: `Settled ${quoted(settled.fields.title)} (${question}). Work held on it goes on.`, data: { id: question } };
+      const freed = settled.released.map(({ id: held, title }) => `${quoted(title)} (${held})`);
+      const goesOn = freed.length === 0 ? "" : ` Released ${freed.join(", ")}, which no longer ${freed.length === 1 ? "waits" : "wait"} on it.`;
+      return { text: `Settled ${quoted(settled.fields.title)} (${question}).${goesOn}`, data: { id: question, released: settled.released } };
     },
   );
 

@@ -39,6 +39,9 @@ const FROM_HIS_ANSWER = /\b(?:voice\.note|question)_[0-9a-f]{12}\b/;
 
 /** Where an increment is in its lifecycle. */
 export type IncrementStatus = (typeof INCREMENT_STATUSES)[number];
+/** A settled question, with the open increments settling it released, by id and title (10.39). */
+export type SettledQuestion = SchemaRecord<"question"> & { released: { id: string; title: string }[] };
+
 /** An arc's state: worked out from its increments, except for the owner's "parked". */
 export type ArcState = "active" | "parked" | "closed";
 /** How an increment closed. */
@@ -656,14 +659,17 @@ export class WorkInFlight {
   /**
    * Settle a question with the owner's answer, and the live decision that carried it, if one did
    * (capability 12), taking it off every increment's heldOn in the same step (10.39) and clearing the
-   * waits on its arc if that now reads closed (10.33). Null if `id` is not a live question.
+   * waits on its arc if that now reads closed (10.33), with the open increments it released, by id
+   * and title (10.39). Null if `id` is not a live question.
    */
-  settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+  settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SettledQuestion | null> {
     return this.#serially(async () => {
       const settled = await questions.settleQuestion(this.#records, id, settlement, options);
-      if (settled !== null) await waitWrites.releaseHolders(this.#records, id, options);
-      if (settled !== null) await this.#clearAfter(() => this.#clearIfClosed(settled.fields.arc, options));
-      return settled;
+      if (settled === null) return null;
+      const heldBy = await waitWrites.releaseHolders(this.#records, id, options);
+      await this.#clearAfter(() => this.#clearIfClosed(settled.fields.arc, options));
+      const released = heldBy.filter((increment) => increment.fields.status !== "closed").map(({ id: held, fields }) => ({ id: held, title: fields.title }));
+      return { ...settled, released };
     });
   }
 
@@ -689,7 +695,7 @@ export class WorkInFlight {
       const heldBy = await waitWrites.releaseHolders(this.#records, id, options);
       await this.#records.retire(id, reason, options);
       await this.#clearAfter(() => this.#clearIfClosed(question.fields.arc, options));
-      return heldBy;
+      return heldBy.map((increment) => increment.id);
     });
   }
 

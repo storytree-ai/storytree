@@ -137,7 +137,7 @@ function titlesIn(text, prefix) {
   const lead = prefix === undefined ? "" : `${prefix.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&")}\\s+`;
   const titles = [...text.matchAll(new RegExp(`[\\w$.]\\s*\\(\\s*["'\`]${lead}(\\d+\\.\\d+[^"'\`\\r\\n]*)`, "g"))].map(([, title]) => title);
   for (const [, name] of text.matchAll(/[\w$.]\s*\(\s*(?:`\$\{\s*)?([A-Za-z_$][\w$]*)\s*[,)}]/g)) {
-    const constant = text.match(new RegExp(`\\bconst\\s+${name.replaceAll("$", "\\$")}\\s*=\\s*["'\`]${lead}(\\d+\\.\\d+[^"'\`\\r\\n]*)`));
+    const constant = text.match(new RegExp(`\\bconst\\s+${name.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&")}\\s*=\\s*["'\`]${lead}(\\d+\\.\\d+[^"'\`\\r\\n]*)`));
     if (constant !== null) titles.push(constant[1]);
   }
   return titles;

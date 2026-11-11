@@ -285,15 +285,17 @@ export async function storyTests(root: string, tree: AnnotatedTree, capability: 
 
 /**
  * The titles of `capability`'s planned contracts whose number none of `tested` carries (the numbers
- * {@link testedNumbers} reads), in plan order; none for a capability `tree` lacks.
+ * {@link testedNumbers} reads), in plan order; none for a capability `tree` lacks. A contract whose provedBy tests
+ * storytree verified, passing or failing, is tested as health counts it, whatever their names carry (8.60).
  */
 export function untestedContracts(tree: AnnotatedTree, capability: string, tested: readonly string[]): string[] {
   const proven = new Set(tested);
   const contracts = tree.stories.flatMap((story) => story.capabilities).find((part) => part.id === capability)?.contracts ?? [];
-  return contracts.map((contract) => contract.title).filter((title) => {
-    const number = /^(\d+\.\d+) · /.exec(title)?.[1];
-    return number !== undefined && !proven.has(number);
-  });
+  return contracts.filter((contract) => {
+    const number = /^(\d+\.\d+) · /.exec(contract.title)?.[1];
+    const ran = contract.provedBy !== undefined && contract.health?.verified.state !== undefined && contract.health.verified.state !== "not-checked";
+    return number !== undefined && !proven.has(number) && !ran;
+  }).map((contract) => contract.title);
 }
 
 /** A file as last read: kept while its disk fingerprint or Git blob is unchanged. */

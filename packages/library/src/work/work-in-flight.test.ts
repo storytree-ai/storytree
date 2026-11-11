@@ -1127,6 +1127,25 @@ for (const backend of [memory, postgres]) {
     await health.recordVerified(lag.id, "failing", { by: "lag run 254" });
     assert.equal((await transactions.history()).length, history.length + 1, "a released increment is not written again");
   });
+
+  contract("10.45", "a failing verdict told later, as of its place in history, releases only an increment whose event wait stood unchanged from that place to now: one made to wait, or made to wait again, after it keeps its wait", async ({ work, flight, records, transactions }) => {
+    const story = await work.addStory({ title: "Map" });
+    const render = await work.addCapability({ title: "Story node render", story: story.id });
+    const lag = await work.addContract({ title: "3.49 · A fresh start opens within its bound", capability: render.id });
+    const arc = await flight.createArc(ARC);
+    const day = (ahead: number) => new Date(Date.now() + ahead * 86_400_000).toISOString().slice(0, 10);
+    const event = { releaser: "event" as const, note: "the next lag run", checkBack: day(1) };
+    const stood = await flight.addIncrement({ arc: arc.id, title: "Re-measure 3.49", ...BARE_WORK, links: [lag.id], waitsFor: [event] });
+    const rewaited = await flight.addIncrement({ arc: arc.id, title: "Fix the render", ...BARE_WORK, capabilities: [render.id], waitsFor: [event] });
+    const asOf = (await transactions.history()).at(-1)!.seq;
+    await flight.addWaitFor(rewaited.id, { ...event, note: "the run after PR #600", checkBack: day(2) });
+    const later = await flight.addIncrement({ arc: arc.id, title: "Re-check 3.49", ...BARE_WORK, links: [lag.id], waitsFor: [event] });
+
+    const released = await flight.releaseOnVerdict(lag.id, render.id, "VERDICT: 3.49 verified failing.", {}, asOf);
+    assert.deepEqual(released, [stood.id], "only the wait that stood since the verdict is released");
+    assert.equal(((await records.get(stood.id))?.fields as { waitsFor?: unknown[] }).waitsFor, undefined);
+    for (const kept of [rewaited, later]) assert.equal(((await records.get(kept.id))?.fields as { waitsFor?: unknown[] }).waitsFor?.length, 1, `${kept.fields.title} keeps its wait`);
+  });
 }
 
 

@@ -11,6 +11,8 @@
  * repository needed (ADR-1193 D1, D2: the health ladder's local rung), on the command line only for the same reason.
  * `health times` (capability 6) records the project's CI times from its GitHub Actions beside the library and prints the
  * averages the map's bottom-left strip shows; the Mint box runs it on a schedule, and the app while it shows the strip.
+ * `health tell` (capability 3, 3.21) tells the owner each verdict turn CI's role could not (it writes only health, 3.20):
+ * the Mint box's factory-health tick runs it as the library's owner (question_67e971f31102's answer, option A).
  */
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
 
@@ -107,7 +109,20 @@ const local = verb({
   },
 });
 
+const tell = verb({
+  command: { family: "health", name: "tell", summary: "tell the owner by FYI each verified verdict turn of the last hours that its writer's role could not tell (CI's writes only health), and release the work a red was waiting for" },
+  tool: { absent: "a step for the Mint box's schedule, under the library owner's account (factory-health.sh)" },
+  inputs: { hours: { kind: "count", optional: true, describe: "how many hours back to look for verdicts told to no one; 12 when not given" } },
+  async act({ hours = 12 }, { library }) {
+    const turns = await library.tellUntold(new Date(Date.now() - hours * 3_600_000).toISOString());
+    if (turns.length === 0) return { text: `Nothing untold: every verified verdict turn of the last ${hours} hours was already told.` };
+    return {
+      text: [`Told ${turns.length} verdict ${turns.length === 1 ? "turn" : "turns"} its writer could not:`, ...turns.map(({ title, at, released }) => `  ${title} (verdict at ${at})${released.length === 0 ? "" : `; released ${released.join(", ")}`}`)].join("\n"),
+    };
+  },
+});
+
 /** The command line's `health` family, 18th among `storytree`'s families. */
 export const HEALTH_FAMILIES: readonly VerbFamily[] = [
-  { name: "health", summary: "the health worklist, and reading a project's CI, a local run of its own tests, or a factory plugin's own tests, into its verified health; recording its CI times", order: 18, verbs: [worklist, ci, times, local, plugin] },
+  { name: "health", summary: "the health worklist, and reading a project's CI, a local run of its own tests, or a factory plugin's own tests, into its verified health; recording its CI times", order: 18, verbs: [worklist, ci, times, local, plugin, tell] },
 ];

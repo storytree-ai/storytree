@@ -37,3 +37,5 @@ puts each fault, unasked", sat far below its arc's row, which was out of view (`
 and its row read "Arc · Storytree is hardened on a local setup" (`arcNamed`). The capture asserts the row names its arc.
 
 - `open-work-row-opens.png`: the whole page after the row's click, the Arcs tab on show and the opened row naming its arc.
+
+In the evidence bucket for #775, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `775/open-work-row-opens.png`.

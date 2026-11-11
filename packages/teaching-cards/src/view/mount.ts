@@ -32,6 +32,10 @@ const STYLES = `
 .teaching-card p, .teaching-journal p { margin: .25rem 0; }
 .teaching-card [data-depth] h4, .teaching-journal h4 { margin: .5rem 0 0; font-size: 13px; }
 .teaching-card-actions { display: flex; gap: .5rem; margin-top: .5rem; }
+/* A card with depth scrolls only its text: Next and End tour stay below it, on show however tall More makes the card. */
+.teaching-card:has(> .teaching-card-text) { display: flex; flex-direction: column; overflow: hidden; }
+.teaching-card-text { min-height: 0; overflow-y: auto; }
+.teaching-card-text + .teaching-card-actions { flex: none; }
 .teaching-card [data-more] { padding: 0; border: 0; background: none; color: #9cc3e8; font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
 .teaching-card[data-kind="on"] { padding: .4rem .7rem; background: rgba(20, 24, 32, .8); color: #c4cad4; font-size: 13px; }
 .teaching-card[data-kind="on"] p { display: inline; margin: 0 .5rem 0 0; }
@@ -174,8 +178,8 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     const found = waiting.shift();
     if (found === undefined) { on(); return; }
     const card = cardOf(found.kind, { library: last?.library });
-    const node = aside(found.kind, `<h3>${escape(card.title)}</h3><p>${escape(card.line)}</p>
-      <button type="button" data-more aria-expanded="false">More</button><div data-depth hidden>${depth(card)}</div>
+    const node = aside(found.kind, `<div class="teaching-card-text"><h3>${escape(card.title)}</h3><p>${escape(card.line)}</p>
+      <button type="button" data-more aria-expanded="false">More</button><div data-depth hidden>${depth(card)}</div></div>
       <div class="teaching-card-actions"><button type="button" data-dismiss>Next</button><button type="button" data-end>End tour</button></div>`);
     const more = node.querySelector<HTMLButtonElement>("[data-more]")!;
     more.addEventListener("click", () => {

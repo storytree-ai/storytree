@@ -33,7 +33,7 @@ import { openActivityLog } from "../activity/index.js";
 import { buildHook } from "../testing/hook-bin.js";
 import { readContext } from "../context/index.js";
 import { machineOf, recordImport } from "@storytree/project-and-caller";
-import { claim, readClaims } from "../claims/index.js";
+import { claim, readClaims, release } from "../claims/index.js";
 import { EDIT_GATE } from "./edit-gate.js";
 import { DEADLINE_MS } from "./deadlines.js";
 import { SHELL_GUARD } from "./shell-guard.js";
@@ -594,6 +594,58 @@ test("3.7 at each prompt, every matching project definition is added for the age
   } finally {
     await storytree.close();
     await dropTestProjects([project]);
+  }
+});
+
+test("3.58 at each prompt, a session whose claims lapsed without its asking (its session ended between its own resumed turns) is told which work, when, why, and the claim that takes it again; one that claimed since, or released the work itself, is told nothing", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  const log = await openActivityLog(testServerUrl());
+  try {
+    const library = await storytree.openProject(project);
+    const story = (await library.addStory({ title: "Viewer" })).id;
+    const page = (await library.addCapability({ title: "Stats page", story })).id;
+    const arc = await library.createArc({ title: "Stats", intent: "A stats page", endState: "Stats shown", stories: [story] });
+    const work = (await library.addIncrement({ arc: arc.id, title: "stats page", objective: "stats page", body: "stats page", capabilities: [page] })).id;
+    await withTempDir(async (dir) => {
+      const folder = await projectFolder(dir, project);
+      const home = storytreeHome(dir, true);
+      const session = `${project}-lapsed`;
+      const as = { log, library, project, session, harness: "claude-code", folder };
+      const ask = async () => {
+        const ran = await runHook("claude-code", prompted("claude-code", folder, "carry on", session), home, [], { CLAUDE_CODE_ENTRYPOINT: "sdk-cli" });
+        assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
+        return addedContext(ran);
+      };
+
+      assert.equal((await claim(as, work, "driving the stats page")).ok, true);
+      assert.equal((await claim(as, page, "the stats page itself")).ok, true);
+      assert.equal(await ask(), undefined, "nothing lapsed while it holds its work");
+
+      // The turn's `claude -p` process exits, and its SessionEnd hook ends every claim the session holds.
+      const ended = await log.append(project, { session, harness: "claude-code", source: "hook", folder, kind: "session-ended", reason: "other" });
+      const told = (await ask()) ?? "";
+      assert.match(told, new RegExp(`Your claim on ${work}, with ${page} under it, lapsed at ${ended.at}`), "the resumed turn is told what lapsed and when");
+      assert.match(told, /your session ended \(its harness said "other"\)/, "and why");
+      assert.match(told, new RegExp(`storytree workspace claim ${work} ${page} --reason`), "and the claim that takes it again");
+
+      assert.equal((await claim(as, work, "driving it again")).ok, true);
+      assert.equal(await ask(), undefined, "claiming again ends the notice");
+      assert.equal((await release(as, work)).ok, true);
+      assert.equal(await ask(), undefined, "work it released itself did not lapse");
+
+      assert.equal((await claim(as, work, "driving it again")).ok, true);
+      await log.append(project, { session, harness: "claude-code", source: "hook", folder, kind: "session-ended", reason: "other" });
+      assert.equal((await claim({ ...as, session: `${project}-other` }, work, "taking up the stats page")).ok, true);
+      assert.equal(await ask(), undefined, "work another session claimed since is not offered to claim again");
+    });
+  } finally {
+    try {
+      await log.close();
+      await storytree.close();
+    } finally {
+      await dropTestProjects([project]);
+    }
   }
 });
 

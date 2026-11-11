@@ -261,7 +261,7 @@ test("3.2 the mounted guide checks a folder and copies its recovery request when
   } finally { mounted.stop(); }
 });
 
-test("3.4 Add project asks the picker bridge, shows the chosen project and leaves selection alone on cancellation; the app bar's New project… starts it too", async () => {
+test("3.4 Add a project… asks the picker bridge, shows the chosen project and leaves selection alone on cancellation; the app bar's Add a project… starts it too", async () => {
   const selected: string[] = [];
   let picks = 0;
   const mounted = mountAddProject(document.body, {
@@ -269,6 +269,7 @@ test("3.4 Add project asks the picker bridge, shows the chosen project and leave
   }, { onAdded: async (project) => { selected.push(project); } });
   try {
     const button = document.querySelector<HTMLButtonElement>("[data-add-project]")!;
+    assert.equal(button.textContent, "Add a project…", "one name for adding a project everywhere");
     button.click();
     assert.equal(button.disabled, true);
     await setImmediate();
@@ -287,6 +288,19 @@ test("3.4 Add project asks the picker bridge, shows the chosen project and leave
     mounted.add();
     await setImmediate();
     assert.equal(picks, 3, "one picker at a time");
+  } finally { mounted.stop(); }
+});
+
+test("3.3 · the guide names adding a project in the app by the control's own name, says each setup step is optional, and calls a story's capabilities its parts", () => {
+  const mounted = mountSetupHelp(document.body, helpBridge(), { platform: "linux" });
+  try {
+    const panel = document.querySelector("#setup-help-panel")!;
+    assert.equal(panel.querySelector("[data-guide-add-project]")!.textContent, "Add a project…");
+    const inTheApp = [...panel.querySelectorAll("li")].find((item) => /In the app:/.test(item.textContent!))!;
+    assert.match(inTheApp.textContent!, /Projects → Add a project…, then choose the folder/);
+    assert.match(panel.textContent!, /Each step is optional/);
+    assert.doesNotMatch(panel.textContent!, /Both steps|capabilities/);
+    assert.match(panel.textContent!, /a story and its parts appear/);
   } finally { mounted.stop(); }
 });
 

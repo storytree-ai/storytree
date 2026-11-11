@@ -11,7 +11,7 @@ import { waitUntil } from "@storytree/test-waits";
 import { keepArrangement, searchIsland, shelveOn, structureKey, subscribeSearching, type SearchAnswer, type TerritorySearcher } from "../territories/kept-layout.js";
 import { islandRoadsWhenRouted, subscribeRouting, type IslandRoads, type RoadsAsk } from "../territories/island-roads.js";
 import type { TerritoryMap } from "../territories/territories.js";
-import { LayoutProgress, onScreenIsland } from "./layout-progress.js";
+import { holdLayingOut, LayoutProgress, onScreenIsland } from "./layout-progress.js";
 
 afterEach(() => shelveOn(undefined));
 
@@ -75,6 +75,21 @@ test("3.98 the map says it has settled once no island awaits its first layout, n
   searchIsland("three", { ...ask, shares: [...shares, { capability: "c", lines: 100 }] }, searcher);
   assert.match(progress(map), /laying out 1 of 3 islands/, "an island searched again unsettles it");
   assert.equal(progress([]), "", "a map with no islands yet has not settled: it has nothing laid out to say so of");
+});
+
+test("3.101 an island whose land is not yet laid out as its docks are now keeps the map unsettled, kept or not, until it lets go", () => {
+  shelveOn(undefined);
+  const searcher: TerritorySearcher = () => new Promise(() => {});
+  const progress = () => renderToStaticMarkup(createElement(LayoutProgress, { islands: [{ story: "one", territories: shares }, { story: "two" }], searcher }));
+  keepArrangement("one", { key: structureKey(shares), seeds: { a: { x: 1, z: 0 } } });
+  assert.equal(progress(), settled, "a kept island, nothing searched or routed");
+  const letGo = holdLayingOut("one"), again = holdLayingOut("one");
+  assert.match(progress(), /data-layout="laying-out"[^>]*>laying out 1 of 2 islands/, "held while its land is laid out again for docks that came after the layout it kept");
+  letGo();
+  letGo();
+  assert.match(progress(), /laying out 1 of 2 islands/, "each hold lets go once, and the island stays held while another holds it");
+  again();
+  assert.equal(progress(), settled, "settled once nothing holds it");
 });
 
 test("3.97 the island on screen is the one selected, else the island that joined the map last; the map's first islands name none", () => {

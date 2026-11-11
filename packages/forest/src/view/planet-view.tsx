@@ -17,6 +17,7 @@ import { islandRelief, type IslandRelief } from "../territories/island-relief.js
 import { islandReliefMarks } from "./island-relief.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { islandLayoutSteps, type Link } from "../territories/link-layout.js";
+import { useLayingOut } from "./layout-progress.js";
 import { awaitingFirstLayout, keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
 import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, feedbackPick, answerFeedbackPicks, type ForestMode, type PickedGate } from "./planet-navigation.js";
@@ -332,7 +333,11 @@ function Territories(props: TerritoriesProps) {
   useEffect(() => { if (awaiting) setWaited(true); }, [awaiting]);
   // 3.87: settled in its turns, a few of the fine cut's cells or one try at growing to each, so opening a map of many
   // islands never lays out one of them, let alone several, in one task.
-  const map = useBuiltInSteps(function* () { return awaiting ? undefined : yield* islandLayoutSteps(story, land.territories, coast, links, docks); }, [story, land, coast, links, docks, kept, awaiting]);
+  const asked = useMemo(() => ({}), [story, land, coast, links, docks, kept, awaiting]);
+  const built = useBuiltInSteps(function* () { return { asked, map: awaiting ? undefined : yield* islandLayoutSteps(story, land.territories, coast, links, docks) }; }, [asked]);
+  const map = built?.map;
+  // 3.101: until its land is laid out for its docks as they are now, the island holds the map's mark as laying out.
+  useLayingOut(story, docks !== undefined && built?.asked === asked && map !== undefined);
   useEffect(() => { if (docks !== undefined) searchIsland(story, { shares: land.territories, coast, links, docks }, searcher); }, [story, land, coast, links, docks, searcher]);
   return map === undefined || awaiting ? null : <IslandLand {...props} land={land} coast={coast} docks={docks} tints={tints} pointed={pointed} map={map} joined={waited ? Infinity : joined} />;
 }

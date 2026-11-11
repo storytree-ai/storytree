@@ -80,6 +80,12 @@ test("1.2 · a decision card reopened from Help's journal while the Library is s
   library = true;
   assert.match(reopened(), /press Library at the top of the map/, "read again each time it is shown");
   shelf.stop();
+  // A journal told nothing of the Library shows it on.
+  const told = mountJournal(host, { journal: kept });
+  told.open();
+  host.querySelector<HTMLButtonElement>('[data-journal-entry="decision"]')!.click();
+  assert.match(host.querySelector("[data-journal-card]")!.textContent ?? "", /press Library at the top of the map/);
+  told.stop();
 });
 
 test("3.1 · a card at the window's right edge sits to the left of its point, inside the window", () => {

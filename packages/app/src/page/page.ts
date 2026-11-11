@@ -95,6 +95,8 @@ export interface PageParts<View extends ForestGlobe = ForestGlobe> {
 }
 
 export interface ProjectPage {
+  /** Whether the Library surface was on at the last read of the surfaces, which Help's journal shows its cards by; on until read. */
+  libraryOn(): boolean;
   /** Read the projects again now; `redraw` draws the project on show again even when nothing changed. */
   refresh(redraw?: boolean): Promise<void>;
   /** A surface was switched or set in the Surfaces menu: draw the project on show again, as the settings now say. */
@@ -127,6 +129,8 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
   let current: string | undefined;
   /** Whether the project on show is the user's factory, which its teaching cards read (ADR-1048 D3). */
   let onFactory = false;
+  /** Whether the Library surface was on at the last read of the surfaces. */
+  let libraryOn = true;
   let following: ReturnType<typeof followProjects> | undefined;
   const marked = new Set<string>();
 
@@ -213,6 +217,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     if (read?.ok === false) parts.failed("the surfaces could not be read, so every surface is on", read.error);
     if (showing !== mine) return;
     const surfaces = read?.ok === true ? read.value : [];
+    libraryOn = surfaceOn(surfaces, "library");
     const withDetails = surfaceOn(surfaces, "capability-details");
     const globeOpening = surfaceSetting(surfaces, "globe", "opening-zoom");
     const project = parts.project(name, timed);
@@ -303,7 +308,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
         view.show(scene, new Map(storyNodes(fresh, history(), survey).map((node) => [node.id, node.place])));
         project.take(history(), news.lines);
         status.sayWhatWasDrawn(forestDrawn(scene));
-        mine.teaching?.take({ tree: fresh, changes: history(), lines: page.held().lines, factory: onFactory, library: surfaceOn(surfaces, "library") });
+        mine.teaching?.take({ tree: fresh, changes: history(), lines: page.held().lines, factory: onFactory, library: libraryOn });
         if (!panelHost.hidden) panel.show();
         project.kept.write(fresh);
         project.drawing.write(drawingOf(fresh, history(), states, survey));
@@ -372,6 +377,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
   });
 
   return {
+    libraryOn: () => libraryOn,
     refresh: (again) => following?.refresh(again) ?? Promise.resolve(),
     surfacesChanged: () => current !== undefined && showing !== undefined ? redraw(current) : Promise.resolve(),
     choiceFailed(error) {

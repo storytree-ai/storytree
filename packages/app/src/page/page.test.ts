@@ -459,6 +459,9 @@ test("2.29 · teaching cards hear whether the project on show is the factory and
   await settled();
   off.land();
   assert.deepEqual(off.last().teaching.map(heard => heard.library), [false], "a map whose Library is switched off says so to its cards");
+  assert.equal(off.page.libraryOn(), false, "and to Help's journal");
+  assert.equal(on.page.libraryOn(), true);
+  assert.equal(page(t, { readSurfaces: () => new Promise(() => {}) }).page.libraryOn(), true, "on until the surfaces are read");
 
   const locate = on.last().locate!;
   assert.deepEqual(locate({ kind: "capability", story: story.id }), { x: 10, y: 20, visible: true, box: { left: 0, top: 10, right: 20, bottom: 30 } }, "with its island's box, which the card keeps clear of");

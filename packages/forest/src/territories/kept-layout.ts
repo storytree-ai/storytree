@@ -15,8 +15,10 @@
  *   another island waits its turn; one asked for a new structure of the island in flight overtakes it. The island on
  *   screen (`searchFirst`) is searched next, ahead of those that waited longer, at its full length (3.97); the islands
  *   searched or waiting are counted by the map's top-left mark (3.96, `islandsSearching`).
- * - An island with nothing kept draws no territories while its first search runs or waits its turn, so they draw once,
- *   where they stay (3.95); a search that fails or finds nothing ends that wait, and the island draws its start.
+ * - An island whose kept arrangement does not place every territory it has (nothing kept, or a territory added) draws
+ *   no territories while the search for it runs or waits its turn, so they draw once, where they stay, and are never
+ *   shown in a place they then leave (3.95); a search that fails or finds nothing ends the wait for the structure it was
+ *   asked for, and the island draws its start.
  */
 import type { Link, LinkDock, Seeds } from "./link-layout.js";
 import type { Coast, TerritoryShare } from "./territories.js";
@@ -101,13 +103,23 @@ export function keepArrangement(story: string, arrangement: KeptArrangement): vo
   told();
 }
 
-/** The islands whose first search failed or found nothing, which draw their start. */
-const unanswered = new Set<string>();
+/** Each island whose search failed or found nothing, with the structure key it was searched for: it draws its start. */
+const unanswered = new Map<string, string>();
+
+/** Whether what is kept for `story` places every territory of `shares`: kept for this structure, or under this score with
+ * a seed for each (a territory dropped), or under an older score, which draws as it was until it is searched again. */
+function placed(story: string, shares: readonly TerritoryShare[]): boolean {
+  const held = keptArrangement(story);
+  if (held === undefined) return false;
+  if (held.key === structureKey(shares) || !sameScore(held.key)) return true;
+  return shares.every((s) => held.seeds[s.capability ?? ""] !== undefined);
+}
 
 /** Whether `story`'s island of `shares` draws no territories yet (3.95): `searcher` would search it, it has more than one
- * territory to arrange, nothing is kept for it, and no search for it has failed or found nothing. */
-export function awaitingFirstLayout(story: string, shares: readonly TerritoryShare[], searcher: TerritorySearcher | undefined): boolean {
-  return searcher !== undefined && shares.length > 1 && keptArrangement(story) === undefined && !unanswered.has(story);
+ * territory to arrange, what is kept for it does not place every one, and no search for this structure has failed or
+ * found nothing. */
+export function awaitingLayout(story: string, shares: readonly TerritoryShare[], searcher: TerritorySearcher | undefined): boolean {
+  return searcher !== undefined && shares.length > 1 && !placed(story, shares) && unanswered.get(story) !== structureKey(shares);
 }
 
 function told(): void {
@@ -115,13 +127,13 @@ function told(): void {
   for (const listener of listeners) listener();
 }
 
-/** Hears every arrangement kept from now on, and every first search that ends with none (React's useSyncExternalStore,
+/** Hears every arrangement kept from now on, and every search that ends with none (React's useSyncExternalStore,
  * with `keptVersion`). */
 export function subscribeKept(listener: () => void): () => void {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
 }
-/** Changes whenever an arrangement is kept, or an island's first search ends with none. */
+/** Changes whenever an arrangement is kept, or an island's search ends with none. */
 export const keptVersion = (): number => version;
 
 let inFlight: { story: string; key: string; overtaken: AbortController } | undefined;
@@ -203,7 +215,7 @@ function asked(story: string, ask: Omit<SearchAsk, "kept">, searcher: TerritoryS
     }
     queueChanged();
   };
-  const none = () => { if (keptArrangement(story) === undefined && !unanswered.has(story)) { unanswered.add(story); told(); } };
+  const none = () => { if (keptArrangement(story)?.key !== key && unanswered.get(story) !== key) { unanswered.set(story, key); told(); } };
   void searcher({ ...ask, ...(was && { kept: was.seeds }), ...(fixed.length > 0 && { fixed }) }, signal).then((answer) => {
     if (!signal.aborted) {
       if ("error" in answer) console.error("forest territories: the territory search failed", answer.error);

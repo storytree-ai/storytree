@@ -27,7 +27,8 @@ const STYLES = `
 /* With More open the depth scrolls inside the card, between its line and its buttons, so a card stays short enough to find a
    place clear of the islands and its buttons stay on show. */
 .teaching-card > * { flex-shrink: 0; }
-.teaching-card > [data-depth] { flex-shrink: 1; min-height: 3rem; overflow-y: auto; }
+.teaching-card > [data-depth] { flex-shrink: 1; min-height: 3rem; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(242, 244, 248, .45) transparent; }
+.teaching-card > [data-depth][data-more-below] { mask-image: linear-gradient(to bottom, #000 calc(100% - 2.5rem), transparent); }
 /* Beneath an open menu, dialog or overlay surface (the app's gear menu is a popover, the first launch's sharing consent an overlay):
    hidden, so none of it shows past the overlay's edge, and back when it closes. */
 :root:has(:popover-open, dialog:modal, [data-surface-layer="overlay"]:not([hidden])) .teaching-card { display: none; }
@@ -217,13 +218,18 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     const node = aside(found.kind, `<h3>${escape(card.title)}</h3><p>${escape(card.line)}</p><div data-depth hidden>${depth(card)}</div>
       <div class="teaching-card-actions"><button type="button" data-more aria-expanded="false">More</button><button type="button" data-dismiss>Got it</button><button type="button" data-end>End tour</button></div>`);
     const more = node.querySelector<HTMLButtonElement>("[data-more]")!;
+    const deep = node.querySelector<HTMLElement>("[data-depth]")!;
+    // While more of the depth lies below than it shows, its foot fades, so a line cut at its edge reads as one that goes on.
+    const below = (): void => { deep.toggleAttribute("data-more-below", deep.scrollHeight - deep.scrollTop - deep.clientHeight > 1); };
+    deep.addEventListener("scroll", below);
     more.addEventListener("click", () => {
-      const open = node.querySelector<HTMLElement>("[data-depth]")!.hidden;
-      node.querySelector<HTMLElement>("[data-depth]")!.hidden = !open;
+      const open = deep.hidden;
+      deep.hidden = !open;
       more.setAttribute("aria-expanded", String(open));
       more.textContent = open ? "Less" : "More";
       // Taller now, so placed again to stay inside the window.
       place();
+      below();
     });
     node.querySelector("[data-dismiss]")!.addEventListener("click", () => {
       hide();

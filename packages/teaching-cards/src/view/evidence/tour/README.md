@@ -18,7 +18,8 @@ Pictures, 1440 x 960:
   island drawn (it sat over most of The agent link on the right before increment_9d7ebe411313), and off the rail; a ring
   round The library and a line to the card say which island it explains, which the capture counts (increment_d0639d5f51b3).
 - `the-story-card-with-more-open.png`: after More, the taller card, still off its island and every other, still tied to it,
-  its depth scrolling above its buttons, which stay on show.
+  its depth scrolling above its buttons, which stay on show, its foot fading while more of it lies below.
+- `the-story-card-scrolled-to-its-end.png`: the depth scrolled to its end, nothing faded, the buttons still on show.
 - `the-map-clear-after-end-tour.png`: after End tour, no card on the map.
 
 In the evidence bucket for #584, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `584/the-ask.png`, `584/the-plan-card-after-show-me.png`, `584/a-story-card-beside-its-island.png`, `584/the-map-clear-after-end-tour.png`.

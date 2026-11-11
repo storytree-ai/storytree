@@ -94,6 +94,19 @@ await runCapture({
       },
     },
     {
+      name: 'the-story-card-scrolled-to-its-end',
+      prepare: async ({ page, settle }) => {
+        await page.locator('.teaching-card [data-depth]').evaluate(element => { element.scrollTop = element.scrollHeight; });
+        await until(page, () => !document.querySelector('.teaching-card [data-depth]').hasAttribute('data-more-below'));
+        await settle(page);
+      },
+      measure: ({ page }) => measure(page),
+      expect: found => {
+        assert.equal(found.ties, 2, 'still tied to its island');
+        assert.ok(found.actions.top >= found.card.top && found.actions.bottom <= found.card.bottom, 'the depth read to its end, its buttons still on show');
+      },
+    },
+    {
       name: 'the-map-clear-after-end-tour',
       prepare: async ({ page, settle }) => {
         await page.getByRole('button', { name: 'End tour', exact: true }).click();

@@ -58,6 +58,11 @@ test("3.5 · with More open a card stays short enough to find a place clear of t
   const buttons = (await page.locator(".teaching-card-actions").boundingBox())!;
   assert.ok(card.height <= 384, `no taller than 24rem in a tall window, where the story's depth alone is taller (${card.height}px)`);
   assert.ok(buttons.y >= card.y && buttons.y + buttons.height <= card.y + card.height, "its buttons inside the card, on show");
-  const scrolls = await page.locator(".teaching-card [data-depth]").evaluate(element => element.scrollHeight > element.clientHeight);
-  assert.equal(scrolls, true, "the depth scrolls within it");
+  const depth = page.locator(".teaching-card [data-depth]");
+  assert.equal(await depth.evaluate(element => element.scrollHeight > element.clientHeight), true, "the depth scrolls within it");
+  const fades = () => depth.evaluate(element => getComputedStyle(element).maskImage !== "none");
+  assert.equal(await fades(), true, "and its foot fades while more of it lies below");
+  await depth.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await page.waitForFunction(() => !document.querySelector(".teaching-card [data-depth]")!.hasAttribute("data-more-below"));
+  assert.equal(await fades(), false, "scrolled to its end, nothing fades");
 });

@@ -790,6 +790,9 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
+      '@storytree/shown-words':
+        specifier: workspace:*
+        version: link:../shown-words
       zod:
         specifier: ^4.6.5
         version: 4.6.5

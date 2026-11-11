@@ -743,10 +743,18 @@ for (const backend of [memory, postgres]) {
     const openArc = await flight.createArc(ARC);
     const open = await flight.addIncrement({ arc: openArc.id, ...WORK });
     const history = await transactions.history();
-    await assert.rejects(flight.moveIncrement(open.id, to.id, "new work"), (error: unknown) => error instanceof RangeError && error.message.includes("closed"));
+    let refusal = "";
+    await assert.rejects(flight.moveIncrement(open.id, to.id, "new work"), (error: unknown) => error instanceof RangeError && (refusal = error.message).includes("closed"));
     await assert.rejects(flight.moveIncrement(increment.id, "arc_000000000000", "nowhere"), MissingReferenceError);
     assert.deepEqual(await transactions.history(), history, "nothing was written");
     assert.equal(await flight.moveIncrement("increment_000000000000", to.id, "ghost"), null);
+
+    // The refusal names the way back for an arc split in the wrong order: park it, move the open work, unpark it.
+    assert.match(refusal, new RegExp(`arc park ${to.id}.*arc unpark ${to.id}`));
+    await flight.parkArc(to.id);
+    await flight.moveIncrement(open.id, to.id, "new work");
+    await flight.unparkArc(to.id);
+    assert.equal((await flight.arcView(to.id))?.state, "active", "the open work it now holds keeps it active");
   });
 
   contract("10.4", "an arc's intent and end state are required, and an arc written before they were is upgraded to carry them", async ({ work, flight, records, transactions }) => {

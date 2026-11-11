@@ -581,7 +581,7 @@ const incrementCorrectClosure = verb({
 });
 
 const incrementMove = verb({
-  command: { family: "arc increment", name: "move", summary: "re-home an increment on another live arc, keeping its identity and lifecycle" },
+  command: { family: "arc increment", name: "move", summary: "re-home an increment on another live arc, keeping its identity and lifecycle; splitting an arc, move its open increments before its closed ones, or a destination closed meanwhile refuses them until `arc park`, move, `arc unpark`" },
   tool: { absent: "the MCP server's own move_increment moves an increment" },
   inputs: {
     increment: { kind: "text", word: 0, describe: "the increment's id" },

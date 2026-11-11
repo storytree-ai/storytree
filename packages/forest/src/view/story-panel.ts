@@ -25,7 +25,7 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
   if (shown !== undefined) return `${head(shown.title, panel.title)}${capability(shown)}`;
   return `${head(panel.title)}
     ${description(panel.description, "panel-sentences")}
-    ${panel.mapped === undefined ? "" : mapped(panel.mapped)}
+    ${panel.mapped === undefined ? "" : mapped(panel.mapped, panel.capabilities)}
     ${needsYou(panel.capabilities)}
     ${details ? names(panel.capabilities) : ""}
     ${panel.checks === undefined || panel.checks.length === 0 ? "" : extraChecks(panel.checks)}`;
@@ -87,10 +87,15 @@ function failing(contracts: readonly ContractLine[]): string {
   return count === 0 ? "" : `<span class="panel-link-failing">${count} failing</span>`;
 }
 
-/** What a mapped story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. */
-function mapped({ files, lines }: NonNullable<StoryPanel["mapped"]>): string {
+/**
+ * What a mapped story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. It is
+ * assumed to be working only until storytree holds a reading on any of its parts: a gear passing or failing, or a robot
+ * passed or failed (Fable's F2.7).
+ */
+function mapped({ files, lines }: NonNullable<StoryPanel["mapped"]>, capabilities: readonly CapabilityLine[]): string {
   const counts = files === undefined || lines === undefined ? "" : ` ${files.toLocaleString("en-GB")} file${files === 1 ? "" : "s"}, ${lines.toLocaleString("en-GB")} line${lines === 1 ? "" : "s"}.`;
-  return `<p class="panel-mapped"><strong>Mapped:</strong> here before storytree, and assumed to be working.${counts}</p>`;
+  const read = capabilities.some(({ contracts }) => contracts.some(({ gear, acceptance }) => (gear !== undefined && gear.state !== "not-checked") || (acceptance !== undefined && acceptance !== "not-run")));
+  return `<p class="panel-mapped"><strong>Mapped:</strong> here before storytree${read ? "." : ", and assumed to be working."}${counts}</p>`;
 }
 
 type ExtraCheck = NonNullable<StoryPanel["checks"]>[number];

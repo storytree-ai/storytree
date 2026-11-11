@@ -41,6 +41,7 @@ async function bundleMap(linked: boolean, late: boolean): Promise<string> {
     import { createKnowledgeCore } from "@storytree/knowledge-core/view";
     import { forestScene, storyNodes } from ${JSON.stringify(path.join(import.meta.dirname, "../index.ts"))};
     import { PlanetView } from ${JSON.stringify(path.join(import.meta.dirname, "planet-view.tsx"))};
+    import { LayoutProgress } from ${JSON.stringify(path.join(import.meta.dirname, "layout-progress.tsx"))};
     import { sheetEyeZoom } from "@storytree/forest-world/planet";
     const linked = ${JSON.stringify(linked)};
     const health = { reported: { state: "passing" }, verified: { state: "passing" } };
@@ -52,8 +53,13 @@ async function bundleMap(linked: boolean, late: boolean): Promise<string> {
       record: { id, type: "story", version: 1, fields: { title: id }, createdAt: new Date(index).toISOString(), updatedAt: new Date(index).toISOString() } }));
     const places = new Map(storyNodes(plan(["one", "two"]), history).map(node => [node.id, node.place]));
     const core = globalThis.__core = createKnowledgeCore("app"), root = createRoot(document.querySelector("#map"));
-    globalThis.__show = (titles, selected) => root.render(createElement(PlanetView, { core, scene: forestScene(plan(titles), history, workStates([])), places, wisps: [],
-      selected, onPick: () => {}, onNote: () => {} }));
+    // The map's top-left mark over the same islands, as the forest view mounts it (3.96, 3.98, 3.101).
+    const mark = createRoot(document.body.appendChild(document.createElement("div")));
+    globalThis.__show = (titles, selected) => {
+      const scene = forestScene(plan(titles), history, workStates([]));
+      root.render(createElement(PlanetView, { core, scene, places, wisps: [], selected, onPick: () => {}, onNote: () => {} }));
+      mark.render(createElement(LayoutProgress, { islands: scene.islands.map(island => ({ story: island.story, territories: island.land?.territories })) }));
+    };
     globalThis.__flushSync = flushSync;
     globalThis.__zoom = () => sheetEyeZoom(globalThis.__globe.camera, globalThis.__globe.size);
     if (${JSON.stringify(late)}) {
@@ -161,6 +167,28 @@ test("3.87 · islands that arrive as the map opens, after it first drew, have th
   assert.ok(!seen.land.roads, "its land was first drawn before its roads came");
   assert.ok(seen.land.whole, "its borders stand whole on the first frame its land is drawn");
   assert.ok(seen.roads.whole, "and on the first frame its roads are drawn");
+});
+
+test("3.101 · once its islands are on the map, it says it has settled only on a frame where each one's land is drawn with its roads", async t => {
+  const page = await freshPage(t, { width: 800, height: 600 });
+  await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
+  // Every turn the page hands on comes 300 ms late, so each island stands on the sheet many frames before it is laid out.
+  await page.evaluate(() => {
+    const later = window.setTimeout.bind(window);
+    window.setTimeout = ((run: () => void, ms?: number) => later(run, ms ? ms : 300)) as typeof window.setTimeout;
+  });
+  // Linked, so each island is laid out by its docks and has roads.
+  await page.addScriptTag({ content: await mapBundle(true) });
+  // Each frame both islands stand on the sheet, until the mark first reads settled: whose land and roads are drawn then.
+  await page.addScriptTag({ content: `(function look() {
+    const islands = ["one", "two"].map(story => window.__globe?.scene.getObjectByName("planet:" + story));
+    const shown = islands.every(island => island?.visible === true);
+    if (!shown || document.querySelector('[data-layout="settled"]') === null) { requestAnimationFrame(look); return; }
+    window.__settled = islands.map(island => ({ land: island.getObjectByName("territory-land") !== undefined, roads: island.getObjectByName("island-roads") !== undefined }));
+  })();` });
+  await waitUntil(() => page.evaluate(() => (window as unknown as { __settled?: unknown }).__settled !== undefined), 60_000, "the mark to say the map has settled");
+  const drawn = await page.evaluate(() => (window as unknown as { __settled: unknown }).__settled);
+  assert.deepEqual(drawn, [{ land: true, roads: true }, { land: true, roads: true }], "each island's land and roads drawn on the first frame the map says it has settled");
 });
 
 test("3.71 · a drag that turns the glass sheet renders the map view a fixed few times, however many steps it takes, and the sheet still turns", async t => {

@@ -489,6 +489,9 @@ test("3.21 `new contract`'s answer counts the capability's other contracts that 
     assert.match(written.stdout, new RegExp(`1 other contract of this capability has no test yet\\. If this one repeats it, retire it and build that one \\(list it with \`storytree map --select cap:${capability.id} --down 1 --kind contract --show\`\\)\\.`), written.stdout);
     assert.doesNotMatch(written.stdout, /Refuses a sold-out item/, "the untested contract is counted, not named");
     assert.doesNotMatch(written.stdout, /lane/, "a user's project has no lanes");
+
+    const more = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Empties the cart"]);
+    assert.match(more.stdout, /2 other contracts of this capability have no test yet\. If this one repeats any of them, retire it and build that one \(list them with `storytree map/, more.stdout);
   });
 });
 

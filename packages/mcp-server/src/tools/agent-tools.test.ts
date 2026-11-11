@@ -634,7 +634,8 @@ test("9.13 plan_contract's reply counts the capability's other contracts that no
       writeFileSync(path.join(src, "cart.test.js"), 'import { test } from "node:test";\ntest("1.1 adds", () => {});\n');
       await agent.call("plan_contract", { capability, title: "1.1 · Adds an item" });
       await agent.call("plan_contract", { capability, title: "Refuses a sold-out item" });
-      await agent.call("plan_contract", { capability, title: "Keeps the cart across visits" });
+      const second = await agent.call("plan_contract", { capability, title: "Keeps the cart across visits" });
+      assert.match(second.text, /1 other contract of this capability has no test yet\. If this one repeats it, retire it and build that one \(list it with `focus`/, second.text);
 
       const planned = await agent.call("plan_contract", { capability, title: "Removes an item" });
       assert.equal(planned.isError, false, planned.text);

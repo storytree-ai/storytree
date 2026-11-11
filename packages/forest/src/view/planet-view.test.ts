@@ -109,7 +109,7 @@ test("3.66 the zoom a stop at the whole map frames it at: 1.18 radii across half
   assert.ok(fills("far") < 0.7, "room around: the planet stands well inside the window");
 });
 
-test("3.15 a click on a capability's territory picks its story with that capability; Unclaimed land picks the story alone", () => {
+test("3.15 a click on a capability's territory picks its story with that capability; land in no capability picks the story alone", () => {
   const land = {
     radius: 2,
     territories: [{ capability: "cap-a" }, {}],

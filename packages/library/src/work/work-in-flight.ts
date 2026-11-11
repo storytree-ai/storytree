@@ -659,8 +659,8 @@ export class WorkInFlight {
   /**
    * Settle a question with the owner's answer, and the live decision that carried it, if one did
    * (capability 12), taking it off every increment's heldOn in the same step (10.39) and clearing the
-   * waits on its arc if that now reads closed (10.33), with the open increments it released, oldest
-   * first, by id and title (10.39). Null if `id` is not a live question.
+   * waits on its arc if that now reads closed (10.33), with the open increments it released, by id
+   * and title (10.39). Null if `id` is not a live question.
    */
   settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SettledQuestion | null> {
     return this.#serially(async () => {

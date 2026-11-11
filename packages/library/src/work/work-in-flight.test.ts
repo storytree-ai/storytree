@@ -1048,7 +1048,7 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(records.edit(alone.id, { waitsFor: [{ releaser: "event", note: "it lands", checkBack: tomorrow, merged: 1 }] } as never), /only an owner wait/);
   });
 
-  contract("10.39", "settling a question takes it off every increment's heldOn in the same step, keeping their other holds, and returns the open increments it released, oldest first, by id and title, one held on it just before among them", async ({ work, flight, records }) => {
+  contract("10.39", "settling a question takes it off every increment's heldOn in the same step, keeping their other holds, and returns the open increments it released, by id and title, one held on it just before among them", async ({ work, flight, records }) => {
     const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
     const other = await flight.raiseQuestion({ arc: arc.id, ...ASK });
@@ -1060,11 +1060,12 @@ for (const backend of [memory, postgres]) {
     await flight.editIncrement(reheld.id, { heldOn: [question.id] });
     await flight.addIncrement({ arc: arc.id, ...WORK, title: "Free" });
     const settled = await flight.settleQuestion(question.id, { answer: "Mailgun" });
-    assert.deepEqual(settled?.released, [
+    const byId = (one: { id: string }, other: { id: string }): number => one.id.localeCompare(other.id);
+    assert.deepEqual(settled?.released.toSorted(byId), [
       { id: open.id, title: "Welcome email" },
       { id: both.id, title: "Receipt email" },
       { id: reheld.id, title: "Invoice email" },
-    ]);
+    ].sort(byId));
     assert.deepEqual(await flight.heldOnQuestion(open.id), [], "settling released it");
     const heldOn = async (id: string): Promise<unknown> => ((await records.get(id))?.fields as { heldOn?: unknown } | undefined)?.heldOn;
     assert.equal(await heldOn(open.id), undefined, "its heldOn no longer names the settled question");

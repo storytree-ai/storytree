@@ -46,11 +46,18 @@ function description(words: string, kind: string): string {
   return `<div class="${kind}">${paragraphs.map((paragraph) => `<p>${text(paragraph)}</p>`).join("")}</div>`;
 }
 
-/** A story's capabilities by name, in build order, each a button that opens that capability (ADR-1297); with none, nothing. */
+/**
+ * A story's capabilities by name, in build order, each a button that opens that capability (ADR-1297), and each the owner
+ * moves marked "needs you" after its name, so the "n capabilities need you" line points at its rows; with none, nothing.
+ */
 function names(capabilities: readonly CapabilityLine[]): string {
   if (capabilities.length === 0) return "";
   return `<ul class="panel-capabilities" aria-label="Capabilities">${capabilities
-    .map(({ id, title }) => `<li><button type="button" class="panel-pick" data-pick-capability="${attribute(id)}">${text(title)}</button></li>`)
+    .map(({ id, title, why }) => {
+      const owner = why?.mover === "owner";
+      const button = `<button type="button" class="panel-pick" data-pick-capability="${attribute(id)}">${text(title)}</button>`;
+      return owner ? `<li class="needs-you">${button} <span class="panel-needs-you-mark">needs you</span></li>` : `<li>${button}</li>`;
+    })
     .join("")}</ul>`;
 }
 

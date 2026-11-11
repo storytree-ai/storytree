@@ -98,7 +98,8 @@ try {
       },
       expect: found => assert.deepEqual(found, expected.map(({ increment, title, active }) => ({ increment, title, active: active === true }))),
     }, {
-      // 4.48, 2.57, 3.39: the first row's click puts the rail's Arcs tab on show with that increment's arc selected and its row open.
+      // 4.48, 2.57, 3.39: the first row's click puts the rail's Arcs tab on show with that increment's arc selected, its row open,
+      // naming its arc, and the arc's own row in view above it when both fit.
       name: 'open-work-row-opens',
       prepare: async ({ page, settle }) => {
         await page.locator('[data-rail-tab="sessions"]').click().catch(() => undefined);
@@ -110,8 +111,16 @@ try {
         tab: document.querySelector('[data-rail-tab][aria-selected="true"]')?.dataset.railTab,
         open: document.querySelector(`details[data-fold-key$=":increment:${id}"]`)?.open === true,
         selected: document.querySelector('.arc-lane[aria-pressed="true"], .arc-queue-chip[aria-pressed="true"]')?.dataset.arcSelect,
+        // 3.39: whether the selected arc's row, which holds its title, is in the lanes' view beside its opened increment,
+        arcInView: (() => {
+          const lanes = document.querySelector('.arc-lanes')?.getBoundingClientRect();
+          const head = document.querySelector('.arc-lane[aria-pressed="true"], .arc-queue-chip[aria-pressed="true"]')?.getBoundingClientRect();
+          return lanes !== undefined && head !== undefined && head.top >= lanes.top - 1 && head.bottom <= lanes.bottom + 1;
+        })(),
+        // and the opened row names its arc, however far above it the arc's row sits.
+        arcNamed: [...document.querySelectorAll(`details[data-fold-key$=":increment:${id}"] .arc-increment-detail dt`)].find(dt => dt.textContent === 'Arc')?.nextElementSibling?.textContent,
       }), expected[0].increment)),
-      expect: opened => assert.deepEqual({ tab: opened.tab, open: opened.open }, { tab: 'arcs', open: true }),
+      expect: opened => assert.deepEqual({ tab: opened.tab, open: opened.open, named: typeof opened.arcNamed === 'string' && opened.arcNamed.length > 0 }, { tab: 'arcs', open: true, named: true }),
     }],
   });
 } finally {

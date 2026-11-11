@@ -928,6 +928,36 @@ test("17.22 · library new edge and library new contract --edge write an edge an
 });
 
 
+test("17.27 · library edit --edge moving a contract onto a link that leaves its part with no live contracts of its own names that part and says to plan its own behaviour contract or leave it bare knowingly; a move that leaves it contracts says nothing of it", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const edit = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "edit")!;
+  const context: LibraryVerbContext = {
+    library, project, session: "person:owner", folder: tmpdir(), writer: { actor: "person:owner" },
+    claims: async () => [],
+    testedNumbers: async () => ({ tested: [], untested: [] }),
+  };
+  const story = await library.addStory({ title: "Context service" });
+  const identity = await library.addCapability({ story: story.id, title: "Caller identity" });
+  const api = await library.addCapability({ story: story.id, title: "HTTP API" });
+  const edge = await library.addEdge({ from: api.id, to: identity.id });
+  const unknown = await library.addContract({ capability: identity.id, title: "Unknown user gets no content" });
+  const known = await library.addContract({ capability: identity.id, title: "Known user gets their content" });
+
+  const kept = await edit.act({ "<id>": unknown.id, "<fields>": { edge: edge.id }, live: false }, context, WORDS);
+  assert.equal(kept.text, `Edited contract ${unknown.id}: edge.`, "a part left a contract of its own is said nothing of");
+  const bare = await edit.act({ "<id>": known.id, "<fields>": { edge: edge.id }, live: false }, context, WORDS);
+  assert.equal(bare.text, `Edited contract ${known.id}: edge. "1 · Caller identity" (${identity.id}) now has no contracts of its own: plan its own behaviour contract (library new contract --capability ${identity.id} --title <title>), or leave it bare knowingly.`);
+});
+
 test("17.23 · The open tool opens a contract on an edge whole, as it does a capability's: its title, its statement, the edge and the two capabilities it joins, and its health (increment_fb8e17883110)", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();

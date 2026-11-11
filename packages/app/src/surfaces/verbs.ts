@@ -88,15 +88,13 @@ const set = verb({
       const chosen = setFactory(words[1]!, undefined, { through: "command line", ...(session === undefined ? {} : { session }) });
       return { text: chosenSaid(chosen) };
     }
-    // `part` was this command's word before ADR-1322 D2 named storytree's switchable pieces modules: still taken, saying the new one.
-    if ((words[0] === "module" || words[0] === "part") && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
+    if (words[0] === "module" && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
       const graph = await parts();
       const off = switchPart(words[1]!, words[2]!, Object.keys(graph), undefined, words[3], { through: "command line", ...(session === undefined ? {} : { session }) });
       const standIns = readStandIns();
-      const renamed = words[0] === "part" ? [`(\`settings set part\` is now \`storytree settings set module ${words.slice(1).join(" ")}\`.)`] : [];
       const said = switchedSaid(switchedHere(graph, off), standIns.plugins, Object.keys(graph));
-      if (words[2] === "on" || hostVerbs === undefined) return { text: [said, ...renamed].join("\n") };
-      return { text: [said, ...await takenSaid(words[1]!, graph, off, standIns, await hostVerbs()), ...renamed].join("\n") };
+      if (words[2] === "on" || hostVerbs === undefined) return { text: said };
+      return { text: [said, ...await takenSaid(words[1]!, graph, off, standIns, await hostVerbs())].join("\n") };
     }
     if (words[0] === "system" && words.length === 3) return { text: systemSaid(switchSystem(words[1]!, words[2]!)) };
     if (words[0] === "service" && words.length === 3) return { text: servicesSaid(switchService(words[1]!, words[2]!)) };

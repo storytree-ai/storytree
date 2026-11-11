@@ -100,15 +100,6 @@ test("project-and-caller 2.20 · 2.26 · A module in none of the host's modules,
   assert.doesNotMatch((await named("show").act({}, place, words)).text, /^  voice: /m);
 });
 
-test("project-and-caller 2.17 · the old spelling `settings set part <part> off|on` still switches the module, and says the new spelling", async (t) => {
-  const dir = home(t);
-  const place: SettingsPlace = { folder: dir, surfaces: async () => declared, parts: async () => graph };
-  const off = (await named("set").act({ words: ["part", "forest", "off"] }, place, words)).text;
-  assert.deepEqual(JSON.parse(readFileSync(path.join(dir, "settings.json"), "utf8"))["modules-off"], ["forest"]);
-  assert.match(off, /`settings set part` is now `storytree settings set module forest off`/);
-  assert.doesNotMatch((await named("set").act({ words: ["module", "forest", "on"] }, place, words)).text, /settings set part/, "the new spelling says nothing of the old");
-});
-
 test("3.19 `settings show`'s factory line names where a plugin's contract is read, and how to start and check one", async (t) => {
   const dir = home(t);
   const shown = await named("show").act({}, { folder: dir, surfaces: async () => declared, parts: async () => graph }, words);

@@ -59,7 +59,7 @@ export const MIN_SHARE = 5 / 246;
 const COAST_SIDES = 64;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 /** How much of a cell's side (the root of its mean area) must lie on the land for the cells across it to be neighbours. */
-const JOIN = 0.15;
+const JOIN = 0.05;
 
 /** An edge of a cell's outline, with the cell across it (-1 on the coast). */
 type Edge = { from: Point; to: Point; across: number };

@@ -104,7 +104,7 @@ test("3.87 · an island's layout settles in steps, a later one for each part of 
   assert.ok(cellsOf(map, "a").some((cell) => cell.neighbours.some((n) => map.cells[n]!.territory === -1)), "a lane's capability borders it");
 });
 
-test("3.76 on a lumpy coast every territory is drawn in one piece: its cells join only across edges with land on them, never across a bay", () => {
+test("3.14, 3.76 on a lumpy coast every territory is drawn in one piece, laid out by its links or on the map's own cut: its cells join only across edges with land on them, never across a bay", () => {
   let state = 7;
   const random = () => { state = (state * 1103515245 + 12345) & 0x7fffffff; return state / 0x7fffffff; };
   // A coast with three and five lobes, so bays reach in between them.

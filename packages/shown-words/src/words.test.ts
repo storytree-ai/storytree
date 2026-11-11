@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import { ACTIONS, CONCEPTS, PLACES, sharedWords } from "./index.js";
 
-test("1.1 each concept and each action has one shown word, and no shown word names two things", () => {
+test("1.1 · each concept and each action has one shown word, and no shown word names two things", () => {
   assert.equal(CONCEPTS.capability.one, "part", "ADR-1019 D1: a capability is shown as a part");
   assert.equal(ACTIONS.addProject, "Add a project…", "F1.5: one name for adding a project");
   assert.equal(PLACES.unclaimed, "Not in any part", "F3.8: code no part reaches has its own words");

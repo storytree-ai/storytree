@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.20 in
+ * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.21 in
  * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is the app setup's setup check.
@@ -282,15 +282,30 @@ test("7.19 · the card handed at session start says that once an imported reposi
   }
 });
 
-test("7.20 · the card handed at session start and plan_contract's description say a contract goes on the part whose behaviour it pins, even when its test drives the whole service through one entry point, and a guarantee about what passes between two parts goes on their edge (regression: the sixth checkbox guided run planned all 21 contracts on its HTTP entry point, 2026-11-09)", async () => {
+test("7.20 · the card handed at session start and plan_contract's description say a contract goes on the part whose behaviour it pins, a guarantee between two parts on their edge, even when every test drives one entry point (regression: the sixth checkbox guided run planned all 21 contracts on its HTTP entry point, 2026-11-09)", async () => {
   const session = await sessionStart();
   try {
     const served = session.client.getInstructions() ?? "";
     const { tools } = await session.client.listTools();
     const planContract = tools.find((tool) => tool.name === "plan_contract")?.description ?? "";
     for (const [where, text] of [["the served card", served], ["plan_contract's description", planContract]] as const) {
-      assert.ok(text.includes("A contract goes on the part whose behaviour it pins, even when its test drives the whole service through one entry point"), `${where} places a contract on the part it pins`);
-      assert.ok(text.includes("a guarantee about what passes between two parts goes on their edge"), `${where} places a guarantee between two parts on their edge`);
+      assert.ok(text.includes("A contract goes on the part whose behaviour it pins"), `${where} places a contract on the part it pins`);
+      assert.ok(text.includes("even when every test drives one entry point"), `${where} places it there though the tests enter elsewhere`);
+      assert.ok(text.includes("a guarantee between two parts on their edge"), `${where} places a guarantee between two parts on their edge`);
+    }
+  } finally {
+    await session.close();
+  }
+});
+
+test("7.21 · the card handed at session start and plan_contract's description say to plan contracts from where each fault was found, not from the test list (regression: the ninth checkbox guided run put all 15 planned contracts on its HTTP entry point, 2026-11-12)", async () => {
+  const session = await sessionStart();
+  try {
+    const served = session.client.getInstructions() ?? "";
+    const { tools } = await session.client.listTools();
+    const planContract = tools.find((tool) => tool.name === "plan_contract")?.description ?? "";
+    for (const [where, text] of [["the served card", served], ["plan_contract's description", planContract]] as const) {
+      assert.ok(text.includes("plan from where you found each fault, not from the test list"), `${where} plans from the diagnosis, not the tests`);
     }
   } finally {
     await session.close();

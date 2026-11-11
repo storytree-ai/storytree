@@ -7,7 +7,7 @@ import { after, test } from "node:test";
 import { build } from "esbuild";
 import { chromium, type Browser, type BrowserServer } from "playwright-core";
 import { endChrome } from "./end-chrome.js";
-import { scaled } from "@storytree/test-waits";
+import { quietFor, scaled } from "@storytree/test-waits";
 
 /** The forest view opened on a two-story plan, the first's two capabilities joined by an edge holding a contract; `__show()`
  * hands it the plan again, `__showEmpty()` a read with no stories, `__guided` counts its first-run guide opened, `__circle(capabilities, contracts)` is its circle(), and `__drawn(ms)` is its drawn(), given up after `ms`. */
@@ -108,18 +108,17 @@ test("3.107 · the map says why it is empty once a read finds no stories, its bu
   await box.waitFor({ timeout: 10_000 });
   assert.match(await box.innerText(), /Nothing on the map yet/);
   // News that changes nothing on show leaves the box as it is: no node of it is replaced, rewritten or restyled.
-  const changes = await page.evaluate(async () => {
+  await page.evaluate(() => {
     const shown = document.querySelector("#map .forest-empty-map")!;
-    const seen: MutationRecord[] = [];
-    const watch = new MutationObserver(records => seen.push(...records));
-    watch.observe(document.querySelector("#map")!, { subtree: true, childList: true, attributes: true, characterData: true });
-    (window as unknown as Page).__showEmpty();
-    (window as unknown as Page).__showEmpty();
-    await new Promise(settle => setTimeout(settle, 200));
-    watch.disconnect();
-    return { same: document.querySelector("#map .forest-empty-map") === shown, onBox: seen.filter(record => shown.contains(record.target) || record.target.contains(shown)).length };
+    const win = window as unknown as Page & { __boxChanged: () => boolean };
+    let changed = false;
+    new MutationObserver(records => { changed ||= records.some(record => shown.contains(record.target) || record.target.contains(shown)); })
+      .observe(document.querySelector("#map")!, { subtree: true, childList: true, attributes: true, characterData: true });
+    win.__boxChanged = () => changed || document.querySelector("#map .forest-empty-map") !== shown;
+    win.__showEmpty();
+    win.__showEmpty();
   });
-  assert.deepEqual(changes, { same: true, onBox: 0 }, "unchanged news redraws nothing on the empty map");
+  await quietFor(() => page.evaluate(() => (window as unknown as { __boxChanged: () => boolean }).__boxChanged()), 200, "unchanged news redrawing the empty map");
   if (process.env.STORYTREE_EMPTY_MAP_PICTURE) await page.screenshot({ path: process.env.STORYTREE_EMPTY_MAP_PICTURE });
   await box.getByRole("button", { name: "First-run guide" }).click();
   assert.equal(await page.evaluate(() => (window as unknown as Page).__guided), 1, "the button opens the guide");

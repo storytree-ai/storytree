@@ -345,7 +345,7 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   const renumbered = move?.from !== undefined && to !== undefined && to !== move.from ? ` Renumbered ${move.from} to ${to}: rename its tests' titles to ${to}, since a test's number is what credits its contract.` : "";
   // Told, not refused, of another open increment already listing a capability this one newly lists (10.35, ADR-1228).
   const shared = kind === "increment" ? await library.openListing((listing ?? []).filter((capability) => !had.includes(capability)), target) : [];
-  const placed = kind === "contract" && (changes.capability !== undefined || changes.edge !== undefined) ? placedSaid(await library.projectTree(), target, to) : "";
+  const placed = kind === "contract" && to !== undefined && (changes.capability !== undefined || changes.edge !== undefined) ? placedSaid(await library.projectTree(), target, to) : "";
   return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
 }
 
@@ -534,8 +534,8 @@ function capabilityTitle(tree: AnnotatedTree, id: string): string | undefined {
  * Where moved contract `id`, numbered `number`, now sits and the test title that proves it there (F3.7): a test's number
  * credits a contract across its story, so one moved onto an edge keeps its tests, though its number may be another part's.
  */
-function placedSaid(tree: AnnotatedTree, id: string, number: string | undefined): string {
-  const proves = (still: string): string => (number === undefined ? ` A test named in its proved_by ${still}proves it there.` : ` A test titled "${number} · …", or named in proved_by, ${still}proves it there under \`storytree health local\`.`);
+function placedSaid(tree: AnnotatedTree, id: string, number: string): string {
+  const proves = (still: string): string => ` A test titled "${number} · …", or named in proved_by, ${still}proves it there under \`storytree health local\`.`;
   for (const story of tree.stories) {
     const capability = story.capabilities.find((node) => node.contracts.some((contract) => contract.id === id));
     if (capability !== undefined) return `now on capability ${quoted(capability.title)}.${proves("")}`;
@@ -543,7 +543,7 @@ function placedSaid(tree: AnnotatedTree, id: string, number: string | undefined)
     if (edge === undefined) continue;
     const from = capabilityTitle(tree, edge.from) ?? edge.from;
     const to = capabilityTitle(tree, edge.to) ?? edge.to;
-    const owner = number === undefined ? undefined : story.capabilities.find((node) => /^(\d+) · /.exec(node.title)?.[1] === number.split(".")[0]);
+    const owner = story.capabilities.find((node) => /^(\d+) · /.exec(node.title)?.[1] === number.split(".")[0]);
     const foreign = owner === undefined || owner.id === edge.from ? "" : ` Its number ${number} is ${quoted(owner.title)}'s, not the link's: the link's own contracts take ${quoted(from)}'s numbers, so retitle it with edit_plan if you want one of those.`;
     return `now on edge ${quoted(from)} → ${quoted(to)} (${edge.id}).${proves("still ")}${foreign}`;
   }

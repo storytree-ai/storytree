@@ -370,7 +370,8 @@ async function writeArtifact(args: NoteArgs, context: NoteToolContext): Promise<
     }
   }
   const note = await write(context.library, args, fields, place, context.writer!);
-  return { text: `Wrote a ${args.kind} (${note.id}) ${placed}.`, data: { id: note.id, ...(emptyShelf === undefined ? {} : { shelf: "empty" }) } };
+  const beside = place.frontCoverOf === undefined ? undefined : await partsBeside(context.library, place.frontCoverOf, "edit_plan");
+  return { text: `Wrote a ${args.kind} (${note.id}) ${placed}.${beside === undefined ? "" : `\n${beside}`}`, data: { id: note.id, ...(emptyShelf === undefined ? {} : { shelf: "empty" }) } };
 }
 
 function write(library: Library, args: NoteArgs, fields: NoteArgs["fields"] | undefined, place: { links?: string[]; frontCoverOf?: string }, writer: WriteOptions): Promise<Note> {
@@ -382,6 +383,39 @@ function write(library: Library, args: NoteArgs, fields: NoteArgs["fields"] | un
     default:
       return library.writeKnowledge(args.kind as KnowledgeKind, { ...fields, ...place } as never, writer);
   }
+}
+
+/**
+ * What a decision filed on part `id` stands beside (question_dffa215d411e): the part and each part one link from it
+ * on the map (an edge or a stored dependency, either way; never two links), each with its description and its
+ * contracts' titles quoted, and a sentence saying to correct with `correct` any the decision overtook. Undefined
+ * when `id` is no live story or capability.
+ */
+export async function partsBeside(library: Library, id: string, correct: string): Promise<string | undefined> {
+  const tree = await library.projectTree();
+  const story = tree.stories.find((node) => node.id === id);
+  const capabilities = tree.stories.flatMap((node) => node.capabilities);
+  const part = story ?? capabilities.find((node) => node.id === id);
+  if (part === undefined) return undefined;
+  const quote = (node: { id: string; title: string; description?: string }, contracts: readonly ContractNode[], how = "") => {
+    const description = node.description?.trim() ? node.description.trim() : "no description written";
+    const titles = contracts.length === 0 ? "no contracts" : `contracts ${contracts.map((contract) => quoted(contract.title)).join(", ")}`;
+    return `${quoted(node.title)} (${node.id})${how}: ${description}${/[.!?]$/.test(description) ? "" : "."} It has ${titles}.`;
+  };
+  const out = [`It is filed on ${quote(part, "contracts" in part ? part.contracts : [])}`];
+  if (story === undefined) {
+    const capability = part as CapabilityNode;
+    const near = capabilities.flatMap((node) => {
+      if (node.id === id) return [];
+      const on = capability.dependsOn.includes(node.id);
+      const from = node.dependsOn.includes(id);
+      if (!on && !from) return [];
+      return [quote(node, node.contracts, on && from ? ", which it depends on and which depends on it" : on ? ", which it depends on" : ", which depends on it")];
+    });
+    if (near.length > 0) out.push("One link from it on the map:", ...near.map((line) => `- ${line}`));
+  }
+  out.push(`If this decision overtook any of these descriptions or contracts, correct it with ${correct}.`);
+  return out.join("\n");
 }
 
 /** The capabilities the calling session holds, in the order it claimed them. */

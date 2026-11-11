@@ -648,6 +648,14 @@
   font-weight: 600;
 }
 
+/* Each capability that line counts, marked after its name in the same weight, so the count points somewhere. */
+.panel-needs-you-mark {
+  margin-left: 0.4rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .panel-last-seen {
   flex-basis: 100%;
   color: var(--muted);

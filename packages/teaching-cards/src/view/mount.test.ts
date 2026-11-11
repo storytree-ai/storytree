@@ -86,6 +86,11 @@ test("1.2 · a decision card reopened from Help's journal while the Library is s
   host.querySelector<HTMLButtonElement>('[data-journal-entry="decision"]')!.click();
   assert.match(host.querySelector("[data-journal-card]")!.textContent ?? "", /press Library at the top of the map/);
   told.stop();
+  const unread = mountJournal(host, { journal: kept, library: () => undefined });
+  unread.open();
+  host.querySelector<HTMLButtonElement>('[data-journal-entry="decision"]')!.click();
+  assert.match(host.querySelector("[data-journal-card]")!.textContent ?? "", /press Library at the top of the map/, "nor one whose reading is not in yet");
+  unread.stop();
 });
 
 test("3.1 · a card at the window's right edge sits to the left of its point, inside the window", () => {

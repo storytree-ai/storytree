@@ -51,7 +51,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
   // Help holds the setup guide and, below it, the journal of teaching cards seen.
   mountHelp: (host, returnFocus, onOpen) => {
     const setup = mountSetupHelp(host, window.storytree, { returnFocus, embedded: true, onOpen });
-    const learned = mountJournal(host, { journal: seenCards, library: () => page?.libraryOn() ?? true });
+    const learned = mountJournal(host, { journal: seenCards, library: () => page?.libraryOn() });
     return {
       open() { setup.open(); learned.open(); },
       close() { setup.close(); learned.close(); },

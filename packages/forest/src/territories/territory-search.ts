@@ -17,7 +17,11 @@
  *   others draws a border along each side of it, so it grows outward instead.
  * - It starts from the arrangement the page draws (link-layout.ts's start, or the kept seeds) and answers the best it
  *   found, never worse than that start. The territories it is asked to fix keep their start's seeds, so a territory
- *   added to a kept island finds its place and the rest only make room (3.94). A step routes the whole network (0.3 to 0.7 s an island), so it runs off the page.
+ *   added to a kept island finds its place and the rest only make room (3.94). Each cell a fixed territory held where its
+ *   kept seeds draw the island without the newcomers, and loses, costs the arrangement 5, and each newcomer starts from
+ *   the cell of its kind that loses them fewest, so it takes the room it is given rather than pushing a placed territory,
+ *   and its name, aside (the eighth guided run's sixth part moved all five). A step routes the whole network (0.3 to
+ *   0.7 s an island), so it runs off the page.
  */
 import { drawnIsland, grownFrom, prepareIsland, seedKind, seedPoints, settle, sharedEdge, startSeeds, type PreparedIsland, type Seeds } from "./link-layout.js";
 import { roadMeasures, type RoadMeasures } from "./island-roads.js";
@@ -30,6 +34,8 @@ const STEPS = 300, HEAT = 20, COOL = 0.03, SEED = 43;
 
 /** What a tunnel costs an arrangement, and a unit of border between two territories. */
 export const TUNNEL = 100, BORDER = 0.2;
+/** What an arrangement pays for each cell a fixed territory held before the newcomers and loses. */
+const PLACE = 5;
 
 /** The score of an arrangement's network, lower better; undefined when a link finds no road. */
 export function networkScore(island: PreparedIsland, owners: readonly number[], m: RoadMeasures): number | undefined {
@@ -67,17 +73,21 @@ export function searchTerritories(ask: SearchAsk): { seeds: Seeds; score: number
   const { shares, coast, links, docks, kept, fixed = [], steps = STEPS } = ask;
   const island = prepareIsland(shares, coast, links, docks);
   if (island === undefined) return undefined;
+  const held = new Set(fixed), placed = landBefore(ask, island, held);
+  const moved = (owners: readonly number[]) => placed === undefined ? 0 : PLACE * displacement(island, owners, placed);
   const evaluate = (seeds: readonly number[], owners = grownFrom(island, seeds)) => {
     if (owners === undefined) return undefined;
     const map = drawnIsland(island, owners), s = networkScore(island, owners, roadMeasures(map, links, docks, capabilityPlates(map)));
-    return s === undefined ? undefined : { seeds, s };
+    return s === undefined ? undefined : { seeds, s: s + moved(owners) };
   };
-  // The start is what the page draws: the seeds the seed walk grew it from.
-  const first = startSeeds(island, kept), grown = first && settle(island, first);
-  if (grown === undefined) return undefined;
+  // The start is what the page draws, the seeds the seed walk grew it from, with each territory not fixed moved to
+  // where the fixed lose least.
+  const first = startSeeds(island, kept), settled = first && settle(island, first);
+  if (settled === undefined) return undefined;
+  const grown = placed === undefined ? settled : leastMoved(island, settled, held, placed);
   let state = SEED;
   const random = () => { state = (state * 1103515245 + 12345) & 0x7fffffff; return state / 0x7fffffff; };
-  const held = new Set(fixed), mutate = mutation(island, random, island.ids.map((id) => !held.has(id)));
+  const mutate = mutation(island, random, island.ids.map((id) => !held.has(id)));
   let here = evaluate(grown.seeds, grown.owners);
   for (let tries = 0; here === undefined && tries < steps; tries++) here = evaluate(mutate(grown.seeds));
   if (here === undefined) return undefined;
@@ -110,4 +120,46 @@ function mutation(island: PreparedIsland, random: () => number, free: readonly b
     }
     return out;
   };
+}
+
+/** Which fixed territory held each of the island's cells where its kept seeds draw the island without the territories
+ * not fixed (undefined for none), or undefined when every territory is fixed or none is. */
+function landBefore(ask: SearchAsk, island: PreparedIsland, held: ReadonlySet<string>): (string | undefined)[] | undefined {
+  if (held.size === 0 || island.ids.every((id) => held.has(id))) return undefined;
+  const before = prepareIsland(ask.shares.filter((s) => held.has(s.capability ?? "")), ask.coast, ask.links, ask.docks);
+  const seeds = before && startSeeds(before, ask.kept), grown = before && seeds && settle(before, seeds);
+  if (grown === undefined) return undefined;
+  const cells = before!.fine.cells;
+  // A cell's site lies in the cell of the earlier cut whose site is nearest it.
+  return island.fine.cells.map(({ site }) => {
+    let at = 0, d = Infinity;
+    cells.forEach((cell, c) => { const dd = Math.hypot(cell.site.x - site.x, cell.site.z - site.z); if (dd < d) { d = dd; at = c; } });
+    const o = grown.owners[at]!;
+    return o >= 0 ? before!.ids[o] : undefined;
+  });
+}
+
+/** How many cells a fixed territory held in `land` another holds in `owners`. */
+function displacement(island: PreparedIsland, owners: readonly number[], land: readonly (string | undefined)[]): number {
+  let taken = 0;
+  owners.forEach((o, c) => { if (land[c] !== undefined && (o < 0 || island.ids[o] !== land[c])) taken++; });
+  return taken;
+}
+
+/** `start` with each territory not `held` moved, one at a time, to the free cell of its kind growing from which the
+ * held territories lose fewest of the cells `placed` gives them. */
+function leastMoved(island: PreparedIsland, start: { owners: number[]; seeds: readonly number[] }, held: ReadonlySet<string>, placed: readonly (string | undefined)[]): { owners: number[]; seeds: readonly number[] } {
+  let best = { ...start, moved: displacement(island, start.owners, placed) };
+  island.ids.forEach((id, t) => {
+    if (held.has(id)) return;
+    const kind = seedKind(island, t), taken = new Set(best.seeds);
+    for (const c of island.main) {
+      if (!kind[c] || taken.has(c)) continue;
+      const seeds = [...best.seeds];
+      seeds[t] = c;
+      const owners = grownFrom(island, seeds), moved = owners === undefined ? Infinity : displacement(island, owners, placed);
+      if (moved < best.moved) best = { owners: owners!, seeds, moved };
+    }
+  });
+  return best;
 }

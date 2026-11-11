@@ -213,6 +213,15 @@ test("3.94 a search with territories fixed moves only the others: the fixed come
   assert.deepEqual(all.seeds, start, "with every territory fixed it answers the arrangement it starts from");
 });
 
+test("3.94 a capability added to a kept island takes its land beside the kept territories: each kept name still stands on its own territory", { timeout: 120_000 }, () => {
+  const more = [...shares, { capability: "e", lines: 200 }], wider = [...links, { from: "e", to: "a" }];
+  const kept = searchTerritories({ ...ask, steps: 0 })!.seeds;
+  const names = capabilityPlates(linkLayout(shares, coast, links, docks, kept));
+  const found = searchTerritories({ shares: more, coast, links: wider, docks, kept, fixed: Object.keys(kept), steps: 2 })!;
+  const after = linkLayout(more, coast, wider, docks, found.seeds);
+  for (const name of names) assert.equal(territoryAt(after, name.x, name.z)?.capability, name.capability, `${name.capability}'s name stands where it stood`);
+});
+
 test("3.80 an arrangement kept before the search's score changed is searched again, once, for the island's structure", () => {
   shelveOn(undefined);
   const asked: SearchAsk[] = [];

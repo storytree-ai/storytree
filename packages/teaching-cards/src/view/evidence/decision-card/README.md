@@ -14,3 +14,11 @@ at its own centre.
   one does, so the drawing is never cut: its text's foot fades while more of it lies below.
 
 In the evidence bucket for #755, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `755/decision-card/decision-card-more-open-after.png`, `755/decision-card/decision-card-scrolled-to-its-end-after.png`.
+
+## No map label reads through the card (increment_5832aa5f8879)
+
+The same view, More open, retaken before and after the card's background went from 94% to fully opaque (contract 3.1).
+
+- `decision-card-more-open-before.png`: main: the map's "The agent link" label shows faintly through the card, left of the drawing.
+- `decision-card-more-open-after.png`: the card is opaque, so nothing on the map behind it shows. Its text's foot still fades
+  over "The decisions behind it" (contract 3.5, since increment_d0639d5f51b3), so the cut-off list reads as going on.

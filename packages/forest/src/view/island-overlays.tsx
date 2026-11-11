@@ -6,7 +6,7 @@ import type { Island } from "@storytree/forest";
 import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
 import type { Coast } from "../territories/territories.js";
 import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
-import { awaitingFirstLayout, keptVersion, pageTerritorySearcher, subscribeKept } from "../territories/kept-layout.js";
+import { awaitingLayout, keptVersion, pageTerritorySearcher, subscribeKept } from "../territories/kept-layout.js";
 import { capabilityPlates, facing, fadedPlates, nameMoves, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 import type { DetailStore } from "./zoom-detail.js";
@@ -52,9 +52,9 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
   const level = useSyncExternalStore(detail?.subscribe ?? NEVER, detail?.get ?? NEAR);
   // Near only: every island's names at once, from the whole map's zoom, cost the page a frame in two (evidence/zoom-detail).
   const named = level === "near";
-  // 3.95: an island awaiting its first search names no territory, and says it is laying them out.
+  // 3.95: an island awaiting the search that places every territory names none, and says it is laying them out.
   const searcher = useMemo(() => pageTerritorySearcher(), []);
-  const awaiting = island.land !== undefined && awaitingFirstLayout(island.story, island.land.territories, searcher);
+  const awaiting = island.land !== undefined && awaitingLayout(island.story, island.land.territories, searcher);
   const plates = useMemo(() => named && !awaiting && island.land !== undefined ? capabilityPlates(islandLayout(island.story, island.land.territories, coast, links, docks)) : [], [named, awaiting, island.story, island.land, coast, links, docks, kept]);
   const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
   // Its opacity is a variable, so a crowded plate's fade (styles.css) can take it to nothing and back.

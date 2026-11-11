@@ -13,7 +13,7 @@
  */
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
-import { awaitingFirstLayout, islandsSearching, keptVersion, pageTerritorySearcher, searchingVersion, subscribeKept, subscribeSearching, type TerritorySearcher } from "../territories/kept-layout.js";
+import { awaitingLayout, islandsSearching, keptVersion, pageTerritorySearcher, searchingVersion, subscribeKept, subscribeSearching, type TerritorySearcher } from "../territories/kept-layout.js";
 import type { TerritoryShare } from "../territories/territories.js";
 import { islandsRouting, routingVersion, subscribeRouting } from "../territories/island-roads.js";
 
@@ -58,7 +58,7 @@ export function useLayingOut(story: string, laidOut: boolean): void {
 export interface LaidIsland { readonly story: string; readonly territories?: readonly TerritoryShare[] | undefined }
 
 /**
- * The map's top-left mark: how many of `islands` still await their first layout, are searched, are routed or are held as
+ * The map's top-left mark: how many of `islands` still await their layout, are searched, are routed or are held as
  * not yet laid out; once none
  * is, a hidden mark that the map has settled, and nothing while the map has no islands. `searcher` is the page's own
  * territory search unless one is given.
@@ -72,7 +72,7 @@ export function LayoutProgress({ islands, searcher: given }: { islands: readonly
   const busy = useMemo(() => {
     const searched = islandsSearching(), routed = islandsRouting();
     return islands.filter(({ story, territories }) => searched.has(story) || routed.has(story) || heldFor.has(story)
-      || (territories !== undefined && awaitingFirstLayout(story, territories, searcher))).length;
+      || (territories !== undefined && awaitingLayout(story, territories, searcher))).length;
   }, [islands, searcher, searching, routing, kept, holding]);
   if (islands.length === 0) return null;
   if (busy === 0) return <div hidden data-layout="settled" />;

@@ -88,7 +88,9 @@ function tie(card: HTMLElement, at: Box, point: { x: number; y: number }, box: B
     // From the card's point nearest the thing's, to the round ring's edge on the way.
     from = [Math.max(at.left, Math.min(point.x, at.right)), Math.max(at.top, Math.min(point.y, at.bottom))];
     const reach = Math.hypot(from[0] - point.x, from[1] - point.y);
-    to = reach === 0 ? from : [point.x + (from[0] - point.x) * DOT / reach, point.y + (from[1] - point.y) * DOT / reach];
+    // A card edge already inside the ring draws no line.
+    const scale = DOT / Math.max(reach, DOT);
+    to = [point.x + (from[0] - point.x) * scale, point.y + (from[1] - point.y) * scale];
   } else {
     const [x0, x1] = facing([at.left, at.right], [around.left, around.right]), [y0, y1] = facing([at.top, at.bottom], [around.top, around.bottom]);
     from = [x0, y0]; to = [x1, y1];

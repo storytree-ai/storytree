@@ -425,8 +425,8 @@ test("app-setup 8.45 check_setup names each plugin in this computer's factory th
       const checked = await agent.call("check_setup");
       const factory = (checked.data.lines as { check: string; message: string; fix?: string }[]).filter((line) => line.check === "factory");
       assert.equal(factory.length, 2, JSON.stringify(checked.data.lines));
-      assert.match(checked.text, /micks-dev-loop.*`storytree settings set part micks-dev-loop plugin micks-dev-loop`/);
-      assert.match(checked.text, /my-runner.*`storytree settings set part agent-pool plugin my-runner`/);
+      assert.match(checked.text, /micks-dev-loop.*`storytree settings set module micks-dev-loop plugin micks-dev-loop`/);
+      assert.match(checked.text, /my-runner.*`storytree settings set module agent-pool plugin my-runner`/);
       assert.doesNotMatch(checked.text, /ci-health/);
     });
   });

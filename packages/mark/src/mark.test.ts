@@ -3,21 +3,16 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { SHAPES, SMALL_SHAPES } from "./drawing.js";
 import { COLOURWAYS, ICNS_TYPES, ICO_SIZES, PNG_SIZES, iconPath, markSvg, readIcns, readIco, readPng, renderMark } from "./index.js";
 
-const roles = { ocean: "var(--o)", land: "var(--l)", tree: "var(--t)", leaf: "var(--f)" };
+const roles = { edge: "var(--o)", sheet: "var(--l)", tree: "var(--t)", leaf: "var(--f)" };
 
-/** Every element that paints, with the colour it paints in (a group's colour belongs to its children). */
-function painted(svg: string): { tag: string; colour: string }[] {
-  const out: { tag: string; colour: string }[] = [];
-  const stack: (string | undefined)[] = [];
-  for (const [, close, tag, attrs, selfClosing] of svg.matchAll(/<(\/?)(\w+)([^>]*?)(\/?)>/g)) {
-    if (close) { stack.pop(); continue; }
-    const own = /(?:fill|stroke)="([^"]+)"/.exec(attrs ?? "")?.[1];
-    const colour = own ?? stack.at(-1);
-    if (tag !== "g" && tag !== "svg" && colour !== undefined) out.push({ tag: tag!, colour });
-    if (!selfClosing) stack.push(colour);
+/** Every element that paints, with the colour it paints in and the slant it is drawn under. */
+function painted(svg: string): { tag: string; colour: string; slant: string | undefined }[] {
+  const out: { tag: string; colour: string; slant: string | undefined }[] = [];
+  for (const [, tag, attrs] of svg.matchAll(/<(\w+)([^>]*?)\/?>/g)) {
+    const colour = /(?:fill|stroke)="([^"]+)"/.exec(attrs ?? "")?.[1];
+    if (tag !== "svg" && colour !== undefined) out.push({ tag: tag!, colour, slant: /transform="([^"]+)"/.exec(attrs ?? "")?.[1] });
   }
   return out;
 }
@@ -26,37 +21,45 @@ test("1.1 · given four role colours, the SVG fills each role's shapes with its 
   const svg = markSvg(roles);
   assert.match(svg, /viewBox="0 0 104 104"/);
   const shapes = painted(svg);
-  const count = (colour: string, tag?: string) => shapes.filter((s) => s.colour === colour && (tag === undefined || s.tag === tag)).length;
-  assert.equal(count(roles.ocean, "circle"), 1, "the globe is ocean");
-  assert.equal(count(roles.land), 4, "three islets and the main island are land");
-  assert.equal(count(roles.tree, "path"), 4, "the tree's four lines are tree");
-  assert.equal(count(roles.tree, "circle"), 2, "the root and the fork are tree");
-  assert.equal(count(roles.leaf, "circle"), 3, "the three outer dots are leaf");
-  assert.equal(shapes.length, 14, "nothing else is drawn: no tile without a canvas");
+  const of = (colour: string, tag: string) => shapes.filter((s) => s.colour === colour && s.tag === tag);
+  assert.equal(of(roles.edge, "path").length, 1, "the sheet's edge is the edge role");
+  assert.equal(of(roles.sheet, "path").length, 1, "the map sheet is the sheet role");
+  assert.equal(of(roles.tree, "path").length, 1, "the trunk is tree");
+  assert.equal(of(roles.leaf, "circle").length, 4, "the canopy's four circles are leaf");
+  assert.equal(shapes.length, 7, "nothing else is drawn");
+  assert.doesNotMatch(svg, /<rect/, "no tile without a canvas: the only rectangle the mark ever draws is the tile");
+  assert.deepEqual(shapes.map((s) => s.colour).slice(0, 2), [roles.edge, roles.sheet], "the edge lies under the sheet, the tree on top");
+
+  // The tree is drawn on the sheet: trunk and canopy lie under the sheet's own slant, and the edge under another.
+  const slant = of(roles.sheet, "path")[0]!.slant;
+  assert.match(slant ?? "", /^matrix\(/, "the sheet lies at a slant");
+  for (const s of [...of(roles.tree, "path"), ...of(roles.leaf, "circle")]) assert.equal(s.slant, slant, `the ${s.tag} lies on the sheet`);
+  assert.notEqual(of(roles.edge, "path")[0]!.slant, slant);
+
   const colours = [...svg.matchAll(/(?:fill|stroke)="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(new Set(colours), new Set(Object.values(roles)), "no colour the caller did not give");
   assert.doesNotMatch(svg, /#[0-9a-f]{3,8}\b|rgb\(/i);
 
-  assert.throws(() => markSvg({ ocean: "#000", land: "#111", tree: "#222" } as never), /leaf/);
+  assert.throws(() => markSvg({ edge: "#000", sheet: "#111", tree: "#222" } as never), /leaf/);
 });
 
 test("1.2 · given a canvas or a named colourway, the SVG draws the tile in the canvas colour and the mark in that colourway's roles", () => {
   const tiled = painted(markSvg({ ...roles, canvas: "var(--c)" }));
-  assert.equal(tiled.length, 15);
-  assert.deepEqual(tiled[0], { tag: "rect", colour: "var(--c)" }, "the tile is drawn first, behind the mark");
+  assert.equal(tiled.length, 8);
+  assert.deepEqual(tiled[0], { tag: "rect", colour: "var(--c)", slant: undefined }, "the tile is drawn first, behind the mark, upright");
   assert.match(markSvg({ ...roles, canvas: "var(--c)" }), /<rect[^>]*width="104"[^>]*height="104"[^>]*rx="24"/);
 
   assert.deepEqual(Object.keys(COLOURWAYS).sort(), ["day", "night"]);
   for (const [name, way] of Object.entries(COLOURWAYS)) {
     const shapes = painted(markSvg(name));
     assert.equal(shapes[0]!.colour, way.canvas);
-    assert.equal(shapes.find((s) => s.tag === "circle")!.colour, way.ocean, `${name}: the globe`);
-    assert.deepEqual(new Set(shapes.map((s) => s.colour)), new Set([way.canvas, way.ocean, way.land, way.tree, way.leaf]));
+    assert.equal(shapes[2]!.colour, way.sheet, `${name}: the sheet`);
+    assert.deepEqual(new Set(shapes.map((s) => s.colour)), new Set([way.canvas, way.sheet, way.edge, way.tree, way.leaf]));
   }
   assert.throws(() => markSvg("dusk"), /day.*night/);
 });
 
-test("2.1 · each committed PNG holds the mark rendered at its size in its colourway: the small-size drawing at 16, the master at every other size", () => {
+test("2.1 · each committed PNG holds the mark rendered at its size in its colourway", () => {
   assert.deepEqual(PNG_SIZES, [16, 32, 48, 64, 128, 256, 512, 1024]);
   for (const name of Object.keys(COLOURWAYS)) {
     const way = COLOURWAYS[name]!;
@@ -69,17 +72,24 @@ test("2.1 · each committed PNG holds the mark rendered at its size in its colou
       const fresh = renderMark(name, size);
       assert.ok(Buffer.from(png.pixels).equals(Buffer.from(fresh)), `${file} is not the mark's render: run pnpm --filter @storytree/mark icons`);
     }
-    // 16 is the small-size drawing (ADR-0999), 32 and up the master: just below the tile's top edge, box y 6.5 to 13, only
-    // the small-size globe (radius 50) reaches; the master's (radius 36) leaves canvas there.
-    const pixel = (px: Uint8Array, size: number, x: number, y: number) => [...px.subarray((y * size + x) * 4, (y * size + x) * 4 + 4)];
-    assert.deepEqual(pixel(renderMark(name, 16), 16, 8, 1), [...hex(way.ocean), 255], `${name}: at 16 the globe fills the tile`);
-    assert.deepEqual(pixel(renderMark(name, 32), 32, 17, 2), [...hex(way.canvas), 255], `${name}: at 32 the master's globe leaves the canvas`);
-    // What the render shows: transparent beyond the tile's rounded corner, canvas inside the tile, ocean inside the globe.
+    // At 16 pixels the one drawing still reads: the trunk keeps at least one pixel that is nearly the tree's colour.
+    const far = (a: number[], b: number[]) => Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!);
+    const tiny = renderMark(name, 16);
+    const nearest = Math.min(...Array.from({ length: 256 }, (_, i) => far([...tiny.subarray(i * 4, i * 4 + 3)], hex(way.tree))));
+    assert.ok(nearest <= 0.25 * far(hex(way.sheet), hex(way.tree)), `${name}: at 16 the trunk is a smudge, ${Math.round(nearest)} from the tree's colour`);
+    // What the render shows, at points of the 104 box: transparent beyond the tile's rounded corner, canvas above the sheet,
+    // and on the slanted sheet its own colour, the canopy and the trunk, with the edge showing below it.
     const big = renderMark(name, 1024);
-    const at = (x: number, y: number) => [...big.subarray((y * 1024 + x) * 4, (y * 1024 + x) * 4 + 4)];
-    assert.equal(at(2, 2)[3], 0, `${name}: the corner is transparent`);
-    assert.deepEqual(at(512, 40), [...hex(way.canvas), 255], `${name}: the tile is canvas`);
-    assert.deepEqual(at(512, 200), [...hex(way.ocean), 255], `${name}: the globe is ocean`);
+    const at = (x: number, y: number) => {
+      const [px, py] = [Math.round((x * 1024) / 104), Math.round((y * 1024) / 104)];
+      return [...big.subarray((py * 1024 + px) * 4, (py * 1024 + px) * 4 + 4)];
+    };
+    assert.equal(at(0.2, 0.2)[3], 0, `${name}: the corner is transparent`);
+    assert.deepEqual(at(52, 4), [...hex(way.canvas), 255], `${name}: the tile is canvas`);
+    assert.deepEqual(at(18.25, 35.15), [...hex(way.sheet), 255], `${name}: the sheet's near corner`);
+    assert.deepEqual(at(47.2, 37.2), [...hex(way.leaf), 255], `${name}: the canopy`);
+    assert.deepEqual(at(58, 66), [...hex(way.tree), 255], `${name}: the trunk`);
+    assert.deepEqual(at(50.5, 85.4), [...hex(way.edge), 255], `${name}: the edge below the sheet`);
   }
 });
 
@@ -97,27 +107,6 @@ test("2.2 · each colourway's .ico and .icns hold the committed PNGs at the size
       assert.ok(entry.png.equals(readFileSync(iconPath(name, `${ICNS_TYPES[entry.type]}.png`))), `${name} .icns ${entry.type}`);
     }
   }
-});
-
-test("2.1 · the small-size drawing is the master's own shapes: the globe fills the tile, the islets go, the island and tree grow 1.75 times and the tree is bolder", () => {
-  const globe = (shapes: readonly (typeof SHAPES)[number][]) => shapes.find((s) => s.role === "ocean")!;
-  assert.deepEqual(globe(SMALL_SHAPES), { kind: "circle", role: "ocean", cx: 52, cy: 52, r: 50 }, "the globe fills the 104 tile");
-  assert.equal(SMALL_SHAPES.filter((s) => s.kind === "ellipse").length, 0, "no islets");
-  const island = (shapes: readonly (typeof SHAPES)[number][]) => shapes.find((s) => s.kind === "blob")!;
-  const [master, small] = [island(SHAPES), island(SMALL_SHAPES)];
-  assert.ok(master.kind === "blob" && small.kind === "blob");
-  assert.equal(small.curves, master.curves, "the island is the master's own outline");
-  assert.equal(small.frame.s, 1.75 * master.frame.s);
-  const roles = (shapes: readonly (typeof SHAPES)[number][]) => shapes.map((s) => `${s.kind}:${s.role}`);
-  assert.deepEqual(roles(SMALL_SHAPES), roles(SHAPES).filter((r) => r !== "ellipse:land"), "the master's shapes and roles in the master's order");
-  const leaf = (shapes: readonly (typeof SHAPES)[number][]) => shapes.find((s) => s.role === "leaf")!;
-  const line = (shapes: readonly (typeof SHAPES)[number][]) => shapes.find((s) => s.kind === "line")!;
-  const [ml, sl] = [leaf(SHAPES), leaf(SMALL_SHAPES)];
-  assert.ok(ml.kind === "circle" && sl.kind === "circle");
-  assert.ok(sl.r > 1.75 * ml.r, "the leaf dots are bolder than the plain 1.75 times");
-  const [mw, sw] = [line(SHAPES), line(SMALL_SHAPES)];
-  assert.ok(mw.kind === "line" && sw.kind === "line");
-  assert.ok(sw.width * sw.frame.s > 1.75 * mw.width * mw.frame.s, "the tree's lines are bolder than the plain 1.75 times");
 });
 
 function hex(colour: string): number[] {

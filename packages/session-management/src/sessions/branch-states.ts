@@ -7,7 +7,8 @@
  * - GitHub is asked about merges from any machine, in one call for every branch, so a backlog
  *   drains in one look: a merge is the same everywhere. In a second call, made alongside, it is
  *   asked for every open pull request (contract 4.24): an open branch's line carries its pull
- *   request, whether it is a draft, its checks and whether it waits in the merge queue, and is
+ *   request, whether it is a draft, its checks and whether it waits in the merge queue, with when
+ *   its checks started and when it joined the queue (contract 4.47), and is
  *   written again when any of those changes. GitHub not answering erases none of them. Whether a
  *   branch is ahead of the main line,
  *   or deleted, is asked of git on the machine its lines were written on, in the folder they name
@@ -70,7 +71,7 @@ const ORIGIN_TIMEOUT_MS = 5_000;
 
 type BranchState = Extract<NewLine, { kind: "branch-state" }>;
 /** What a line says of a branch's pull request: the one that merged it, or its open one with that one's state. */
-type Pull = Pick<BranchState, "pr" | "draft" | "checks" | "queued">;
+type Pull = Pick<BranchState, "pr" | "draft" | "checks" | "queued" | "checksSince" | "queuedSince" | "queueWaiting">;
 /**
  * A branch's state as one look found it. `how` is unknown when only GitHub was asked (the line
  * keeps the one it had); `pull` is unknown when GitHub did not answer (the line keeps its own).
@@ -249,12 +250,14 @@ async function seenHere(folder: string, runner: GitRunner, limit: number): Promi
 /** What a line says of an open pull request, or of none. */
 function pullOf(pull: OpenPull | undefined): Pull {
   if (pull === undefined) return {};
-  return { pr: pull.number, ...(pull.draft ? { draft: true } : {}), ...(pull.checks === undefined ? {} : { checks: pull.checks }), ...(pull.queued ? { queued: true } : {}) };
+  return { pr: pull.number, ...(pull.draft ? { draft: true } : {}), ...(pull.checks === undefined ? {} : { checks: pull.checks }), ...(pull.queued ? { queued: true } : {}),
+    ...(pull.checksSince === undefined ? {} : { checksSince: pull.checksSince }), ...(pull.queuedSince === undefined ? {} : { queuedSince: pull.queuedSince }), ...(pull.queueWaiting ? { queueWaiting: true } : {}) };
 }
 
 /** Whether `line` already says `pull`. */
 function samePull(pull: Pull, line: Pull | undefined): boolean {
-  return pull.pr === line?.pr && pull.draft === line?.draft && pull.checks === line?.checks && pull.queued === line?.queued;
+  return pull.pr === line?.pr && pull.draft === line?.draft && pull.checks === line?.checks && pull.queued === line?.queued
+    && pull.checksSince === line?.checksSince && pull.queuedSince === line?.queuedSince && pull.queueWaiting === line?.queueWaiting;
 }
 
 /** The latest `branch-state` line for each branch. */

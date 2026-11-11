@@ -13,7 +13,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
 
-import type { AnnotatedTree } from "@storytree/library";
+import { connect, type AnnotatedTree } from "@storytree/library";
+import { randomBytes } from "node:crypto";
+import { ciTimesPool } from "@storytree/ci-health/store";
 
 import { readReadings } from "@storytree/app/lag";
 import { readSettings } from "@storytree/project-and-caller";
@@ -107,6 +109,40 @@ test("8.2 the forest's code survey its manifest names is answered from what the 
   const survey = await page.codeSurvey("shop");
   assert.deepEqual(survey["story-shop"]?.files, [{ path: "src/claim.ts", lines: 1 }]);
   assert.deepEqual(await page.codeSurvey("elsewhere"), {}, "a project with no checkout here has no survey");
+});
+
+test("8.2 CI health's CI times read its manifest names is answered from the open library's server: the page reads the project's last recording", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const project = `t-${randomBytes(4).toString("hex")}`;
+  await storytree.openProject(project);
+  const db = await ciTimesPool(storytree);
+  t.after(async () => {
+    try {
+      await db.query("DELETE FROM ci_readings WHERE project = $1", [project]);
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  // Recorded a minute ago, so the read starts no recording of its own.
+  await db.query("INSERT INTO ci_readings (project, repository, read_at) VALUES ($1, 'acme/shop', now() - interval '1 minute')", [project]);
+  const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+  answerPageParts({ handle: (channel, listener) => { handlers.set(channel, listener); } }, pageAnswers, pageChannels, {
+    home: tmpdir(),
+    appVersion: "0.3.99",
+    library: () => ({ projectFolder: async () => undefined, projectTree: async () => { throw new Error("not read"); }, projectImports: async () => [] }),
+    treeRead: () => undefined,
+    surveyWorker: "",
+    ...NO_FEEDBACK,
+    server: () => storytree,
+  });
+
+  const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args));
+  const reading = await page.ciTimes!(project);
+  assert.equal(reading?.repository, "acme/shop");
+  assert.deepEqual(reading?.now, { inCi: 0, inQueue: 0 });
 });
 
 test("8.3 the page operations of a part this computer switches off are not answered: each of its channels refuses, saying the part is off and how to switch it on, and the rest are answered", async (t) => {

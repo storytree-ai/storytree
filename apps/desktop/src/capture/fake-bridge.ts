@@ -16,7 +16,7 @@ export interface FakeBridge {
   readonly defaulted: readonly string[];
   /** Rejects, naming the method, at the first call the fake cannot answer; never resolves. */
   readonly unanswered: Promise<never>;
-  /** Put the fake on `page` as window.storytree, the first-run guide's memory and the teaching cards' hiding, before the page's own scripts run. */
+  /** Put the fake on `page` as window.storytree, the first-run guide's memory, the teaching cards' hiding and the seed's layouts, before the page's own scripts run. */
   install(page: Page): Promise<void>;
   /** Wait until `page`'s body reads data-state=ready, failing at once on an unanswered call. */
   ready(page: Page, timeoutMs?: number): Promise<void>;
@@ -44,7 +44,16 @@ const GUIDE_SEEN = `try { localStorage.setItem("storytree:setup:guide-seen:v1", 
  */
 const TEACHING_HIDDEN = `new MutationObserver(() => { for (const card of document.querySelectorAll(".teaching-card")) card.style.display = "none"; }).observe(document, { childList: true, subtree: true });`;
 
+/**
+ * `layouts` put in the page's localStorage before its scripts run, each key the page has not already kept. Text for the
+ * same reason as PAGE_BRIDGE.
+ */
+const keptLayouts = (layouts: Readonly<Record<string, string>>): string =>
+  `try { for (const [key, value] of Object.entries(${JSON.stringify(layouts)})) if (localStorage.getItem(key) === null) localStorage.setItem(key, value); } catch { /* about:blank has no storage */ }`;
+
 export interface FakeBridgeOptions {
+  /** The map's kept island layouts and roads, as localStorage entries (a shared seed's `layouts`), so its islands search none they hold. */
+  layouts?: Readonly<Record<string, string>> | undefined;
   /** "unseen" for a capture of the first-run guide itself: the page then opens as a first launch. */
   guide?: "seen" | "unseen" | undefined;
   /** "shown" for a capture of the teaching cards themselves; otherwise every card is hidden. */
@@ -110,6 +119,8 @@ const QUIET: StorytreeBridge = {
   codeSurvey: async () => ({}),
   recordLag: async () => {},
   feedbackSetup: async () => ({ offered: false, surfaces: [] }),
+  // No CI times recorded: no strip in the map's corner unless a capture hands it a reading.
+  ciTimes: async () => undefined,
   captureForFeedback: async () => undefined,
   sendFeedback: async () => { throw new Error("a capture's stand-in bridge writes no feedback"); },
   // Data, not a method: a capture mounts no factory plugin's views.
@@ -129,7 +140,7 @@ function startFromLines({ lines, cursor }: Lines, kinds: readonly string[]) {
 }
 
 /** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */
-export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", teaching = "hidden" }: FakeBridgeOptions = {}): FakeBridge {
+export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", teaching = "hidden", layouts }: FakeBridgeOptions = {}): FakeBridge {
   let refuse!: (error: Error) => void;
   const unanswered = new Promise<never>((_, reject) => (refuse = reject));
   unanswered.catch(() => {});
@@ -169,6 +180,7 @@ export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", 
       await page.addInitScript(PAGE_BRIDGE);
       if (guide === "seen") await page.addInitScript(GUIDE_SEEN);
       if (teaching === "hidden") await page.addInitScript(TEACHING_HIDDEN);
+      if (layouts !== undefined) await page.addInitScript(keptLayouts(layouts));
     },
     async ready(page, timeoutMs = 60_000) {
       await Promise.race([page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: timeoutMs }), unanswered]);

@@ -104,7 +104,8 @@ jobs:
             # queued`, `... is expected`, `... is in progress`, `... have not succeeded`). Whether a
             # refusal is tried again, for how long, is packages/base-dev-loop/src/land-enqueue.mjs's call
             # (five minutes: PR #1684 was refused for 75 s and more), and so is a reply that will not
-            # parse while the pull request is not in the queue. Every try is at expectedHeadOid,
+            # parse, or GitHub's transient "Something went wrong while executing your query", while the
+            # pull request is not in the queue. Every try is at expectedHeadOid,
             # and only while the pull request's head is still the commit `verify` passed: a newer
             # push has a run of its own.
             rule=packages/base-dev-loop/src/land-enqueue.mjs

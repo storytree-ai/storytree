@@ -39,7 +39,9 @@ test("3.42 the lag catalogue names each action by what it opens, picks its islan
   // A fold handle is clicked once on the panel of the library's first capability, picked by its name (ADR-1287, ADR-1297): its answer
   // and its frames are measured.
   assert.deepEqual(by.get("click-fold")!.perform, [{ kind: "click", selector: ".story-panel [data-fold] > .panel-handle" }]);
-  assert.deepEqual(by.get("click-fold")!.setup.slice(-4), [{ kind: "island", island: { story: "The library" } },
+  // The island's land picks its territory's capability (3.15), so the story's name above it is clicked first, to list the story's capabilities.
+  assert.deepEqual(by.get("click-fold")!.setup.slice(-6), [{ kind: "island", island: { story: "The library" } },
+    { kind: "wait", until: { selected: "island", panel: "open", still: true } }, { kind: "click", selector: ".story-panel .panel-story-name", optional: true },
     { kind: "wait", until: { selected: "island", panel: "open", still: true } }, { kind: "click", selector: ".story-panel .panel-pick" },
     { kind: "wait", until: { selected: "island", panel: "open", still: true } }]);
   assert.deepEqual(by.get("library-and-back")!.settled, { mode: "forest", still: true });
@@ -73,7 +75,8 @@ test("3.42 the lag catalogue opens a contract on the panel of the library's firs
     assert.deepEqual(action.perform, [{ kind: "click", selector: ".story-panel .panel-fold[data-fold=contract] > .panel-handle" }]);
     assert.deepEqual(action.settled, { fold: "contract" });
     // Each starts from nothing selected, so the panel is drawn afresh with every contract shut, then picks the first capability by its name.
-    assert.deepEqual(action.setup.slice(-5), [{ kind: "wait", until: { mode: "forest", panel: "closed", still: true } }, { kind: "island", island: { story: "The library" } },
+    assert.deepEqual(action.setup.slice(-7), [{ kind: "wait", until: { mode: "forest", panel: "closed", still: true } }, { kind: "island", island: { story: "The library" } },
+      { kind: "wait", until: { selected: "island", panel: "open", still: true } }, { kind: "click", selector: ".story-panel .panel-story-name", optional: true },
       { kind: "wait", until: { selected: "island", panel: "open", still: true } }, { kind: "click", selector: ".story-panel .panel-pick" },
       { kind: "wait", until: { selected: "island", panel: "open", still: true } }]);
     assert.deepEqual(action.owner, { capability: "capability_f0ffead428df", contract: "contract_e2f4b79c7350" });

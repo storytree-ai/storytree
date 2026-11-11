@@ -62,6 +62,8 @@ export interface SeededCaptureOptions extends CaptureOptions {
   guide?: FakeBridgeOptions["guide"];
   /** The teaching cards are hidden unless "shown", for a capture of the cards themselves. */
   teaching?: FakeBridgeOptions["teaching"];
+  /** The map's kept layouts to open with (a shared seed's `layouts`); without them every island searches from nothing. */
+  layouts?: FakeBridgeOptions["layouts"];
   viewport?: ViewportSize;
   prepare?: (context: CapturePage) => unknown | Promise<unknown>;
   views: CaptureView[];
@@ -76,6 +78,30 @@ export async function settle(page: Page, frames = 12): Promise<void> {
       await new Promise(requestAnimationFrame);
     }
   })(${JSON.stringify(frames)})`);
+}
+
+/**
+ * Waits until the map says it has settled (the forest's `data-layout="settled"` mark, 3.98) and says so for `frames`
+ * frames running, so an island between its search landing and its roads being asked is not taken as laid out.
+ */
+export async function settledMap(page: Page, { frames = 12, timeoutMs = 180_000 }: { frames?: number; timeoutMs?: number } = {}): Promise<void> {
+  // A string for the same reason as settle's.
+  const held = await page.evaluate(`(async ({ frames, timeoutMs }) => {
+    const until = performance.now() + timeoutMs;
+    for (let run = 0; run < frames;) {
+      if (performance.now() > until) return false;
+      globalThis.__globe?.invalidate();
+      await new Promise(requestAnimationFrame);
+      run = document.querySelector('[data-layout="settled"]') === null ? 0 : run + 1;
+    }
+    return true;
+  })(${JSON.stringify({ frames, timeoutMs })})`);
+  if (held !== true) throw new Error(`the map did not say it had settled within ${timeoutMs} ms: ${await page.evaluate(`document.querySelector('[data-layout="laying-out"]')?.textContent ?? "no layout mark on the page"`)}`);
+}
+
+/** Every localStorage entry the page holds: what a refresh of a seed's `layouts` reads back from a settled map. */
+export async function pageStorage(page: Page): Promise<Record<string, string>> {
+  return page.evaluate(() => Object.fromEntries(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key) ?? ""])));
 }
 
 const MIME: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".map": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".glb": "model/gltf-binary" };
@@ -124,7 +150,7 @@ export async function runCapture(options: SeededCaptureOptions): Promise<unknown
       ...(seed === undefined ? {} : seeded(seed)),
       ...(survey === undefined ? {} : { codeSurvey: async () => survey }),
       ...answers,
-    }, { guide: options.guide, teaching: options.teaching });
+    }, { guide: options.guide, teaching: options.teaching, layouts: options.layouts });
     return views(context, bridge, options);
   });
 }

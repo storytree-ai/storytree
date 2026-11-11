@@ -17,7 +17,7 @@ test("2.11 · the empty page shows storytree's mark in the page theme's colours,
   assert.match(mark, /aria-hidden="true"/);
   assert.match(mark, /viewBox="0 0 104 104"/, "the mark's own drawing");
   const colours = [...mark.matchAll(/(?:fill|stroke)="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(new Set(colours), new Set(["var(--mark-ocean)", "var(--mark-land)", "var(--mark-tree)", "var(--mark-leaf)"]), "every role from the theme, no colour of its own");
+  assert.deepEqual(new Set(colours), new Set(["var(--mark-edge)", "var(--mark-sheet)", "var(--mark-tree)", "var(--mark-leaf)"]), "every role from the theme, no colour of its own");
   assert.doesNotMatch(mark, /<rect/, "the page is the canvas");
 });
 

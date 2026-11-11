@@ -1,7 +1,8 @@
 /** Capability 3 · Arc surface. */
-import { logReading, type LogReading } from "@storytree/session-management/readings";
+import { inCi, logReading, pullOf, type LogReading } from "@storytree/session-management/readings";
 import type { BoardArcView, Hold, Line, NoteWait, PrCutover } from "@storytree/library";
 import type { ClosedRange } from "./closed-range.js";
+import { ciEstimate, ciLegs, type CiBar, type CiExpected } from "./ci-bars.js";
 import { agentsOnBoard, type ArcWork, type BoardAgent } from "../agents/agents.js";
 import { arcQueues, waitsOnBoard, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
 import { arcState, incrementState, questionsBehind, type ArcState, type IncrementReading } from "../work-states/board-states.js";
@@ -41,6 +42,8 @@ export interface Lane {
   priority?: number;
   view: BoardArcView;
   bars: Bar[];
+  /** Its increments' handed-over pull requests in CI, one bar each, in bar order (3.34). */
+  ci: CiBar[];
   agents: BoardAgent[];
   state: ArcState;
   chip: string;
@@ -111,11 +114,15 @@ export function openContracts(view: Pick<BoardArcView, "increments">): string[] 
   return [...new Set(view.increments.filter(({ fields }) => fields.status !== "closed").flatMap(({ fields }) => (fields.links ?? []).filter((id) => id.startsWith("contract_"))))].sort();
 }
 
-/** The log is the lines themselves, or a reading that holds its claims folded and keeps its claim lines. */
-export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogReading, now: Date, scope: BoardScope = "active", quietMs?: number): BoardView {
-  const reading = logReading(log);
-  const { lines } = reading;
-  const agents = agentsOnBoard(reading, now, quietMs);
+/**
+ * The log is the lines themselves, or a reading that holds its claims folded and keeps its claim lines. `expected` is each CI
+ * leg's factory median (CI health 6.7) a pull request in CI is drawn against, and each pull request's own checks estimate drawn
+ * against instead (6.10, 3.35); without them its legs have none (3.34).
+ */
+export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogReading, now: Date, scope: BoardScope = "active", quietMs?: number, expected: CiExpected = {}): BoardView {
+  const logged = logReading(log);
+  const { lines } = logged;
+  const agents = agentsOnBoard(logged, now, quietMs);
   // The library read with no claims reads every wait on a capability's claim as holding; it holds only while a live session holds that capability (ADR-1228 D1, library 11.12).
   const claimed = claimedNow(agents.all, snapshot.arcs.flatMap(({ increments }) => increments));
   snapshot = { ...snapshot, waits: claimWaitsNow(snapshot.waits, claimed) };
@@ -143,11 +150,18 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
       const bTime = bClosed ? b.fields.outcome?.date ?? b.updatedAt : b.fields.parked ?? b.createdAt;
       return time(aTime) - time(bTime) || a.id.localeCompare(b.id);
     });
+    const ci: CiBar[] = [];
     const bars = ordered.map((increment): Bar => {
       const claim = agents.on(increment.id);
       const noteWaits = snapshot.waitsFor?.[increment.id] ?? [];
       const behind = questionsBehind(increment.id, snapshot);
-      const reading = incrementState(increment.fields, { waits: snapshot.waits[increment.id] ?? [], heldOn: snapshot.heldOn[increment.id] ?? [], waitsFor: noteWaits, behind, ...(claim ? { claim } : {}), ...(increment.fields.status === "closed" ? {} : withBlocker(blockedBy(increment))) });
+      // 3.34: the pull request its claim is held for, as the open-pulls look last wrote it (Session management 4.47).
+      const pr = increment.fields.status === "closed" || claim === undefined ? undefined : pullOf(claim.session);
+      const pull = pr === undefined ? undefined : logged.fold.openPull(pr);
+      const building = pull !== undefined && inCi(pull);
+      const estimate = building ? ciEstimate(pull, expected) : undefined;
+      if (building) ci.push({ pr: pull.number, increment: { id: increment.id, title: increment.fields.title }, legs: ciLegs(pull, expected, now), ...(estimate === undefined ? {} : { estimate }), seenAgo: Math.max(0, Math.floor((now.getTime() - Date.parse(pull.at)) / 60_000)) });
+      const reading = incrementState(increment.fields, { waits: snapshot.waits[increment.id] ?? [], heldOn: snapshot.heldOn[increment.id] ?? [], waitsFor: noteWaits, behind, ...(claim ? { claim } : {}), ...(increment.fields.status === "closed" ? {} : withBlocker(blockedBy(increment))), ...(building ? { inCi: true } : {}) });
       return { id: increment.id, title: increment.fields.title, reading,
         agents: claim ? [claim] : [], waits: waits.on(increment.id), noteWaits,
         questionsBehind: (reading.behind ?? []).map((question) => questionTitles.get(question) ?? question), holdsUp: waits.heldUpBy(increment.id),
@@ -169,7 +183,7 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     const laneWaits = state !== "queued" ? waits.on(arc.id)
       : [...new Map(bars.flatMap((bar) => bar.waits).map((wait) => [wait.id, wait])).values()];
     const noteWaits = bars.flatMap((bar) => bar.noteWaits.filter(({ holds }) => holds).map((wait): LaneNoteWait => ({ ...wait, increment: { id: bar.id, title: bar.title } })));
-    return { id: arc.id, title: arc.fields.title, ...(arc.fields.priority === undefined ? {} : { priority: arc.fields.priority }), view, bars, agents: holders, state, chip, ...(state === "ready" && idleHolders.length ? { idle: { chip: idleChip(idleHolders), agents: idleHolders } } : {}), count, lastActivity, waits: laneWaits, noteWaits, holdsUp: waits.heldUpBy(arc.id), ...(snapshot.cutover ? { cutover: snapshot.cutover } : {}) };
+    return { id: arc.id, title: arc.fields.title, ...(arc.fields.priority === undefined ? {} : { priority: arc.fields.priority }), view, bars, ci, agents: holders, state, chip, ...(state === "ready" && idleHolders.length ? { idle: { chip: idleChip(idleHolders), agents: idleHolders } } : {}), count, lastActivity, waits: laneWaits, noteWaits, holdsUp: waits.heldUpBy(arc.id), ...(snapshot.cutover ? { cutover: snapshot.cutover } : {}) };
   // ADR-0963 D2: ranked arcs first, 1 first, unranked last; one priority keeps the state and activity order.
   }).sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity) || rank[a.state] - rank[b.state] || b.lastActivity - a.lastActivity || a.id.localeCompare(b.id));
   return { scope, lanes, queues: arcQueues(lanes) };

@@ -35,7 +35,7 @@ const laid = (radius: number, among: typeof links = links) => {
   const coast = round(radius), map = linkLayout(shares, coast, among, docks(radius));
   return { map, roads: islandRoads(map, among, docks(radius), names(map)) };
 };
-const library = laid(LIBRARY_RADIUS);
+const library = laid(LIBRARY_RADIUS), small = laid(LIBRARY_RADIUS / 2);
 /** Every link the island's roads should carry: each one at home, and each dock's arrival or way out per capability. */
 const LINKS = ["d->a", "e->d", "e->b", "arrive:0->a", "arrive:0->b", "c->leave:1"];
 /** Each link's way, as the segments carrying it joined end to end. */
@@ -157,13 +157,13 @@ const eightShares = [488, 525, 216, 207, 563, 351, 636, 617].map((lines, i) => (
 const eightLinks = [{ from: "d", to: "f" }, { from: "f", to: "d" }, { from: "g", to: "e" }, { from: "b", to: "e" }, { from: "b", to: "e" }, { from: "h", to: "e" },
   { from: "c", to: "f" }, { from: "e", to: "d" }, { from: "b", to: "g" }, { from: "z0", to: "a" }, { from: "z1", to: "d" }, { from: "z2", to: "h" }];
 const eightDocks = [{ local: { x: 87.58148475977568, z: 1.530795131118608 }, links: ["z0->a", "z1->d", "z2->h"] }];
+const eightMap = linkLayout(eightShares, round(LIBRARY_RADIUS), eightLinks, eightDocks), eight = islandRoads(eightMap, eightLinks, eightDocks, names(eightMap));
 
 test("3.77 an arrival whose capability's land meets the open land comes in from the open land, never under a third territory (Mick, 2026-11-06)", () => {
   const meetsOpen = (map: TerritoryMap, capability: string) => {
     const at = map.territories.findIndex((t) => t.capability === capability);
     return map.borders.some((b) => { const pair = b.between.map((c) => map.cells[c]!.territory); return pair.includes(-1) && pair.includes(at); });
   };
-  const eightMap = linkLayout(eightShares, round(LIBRARY_RADIUS), eightLinks, eightDocks), eight = islandRoads(eightMap, eightLinks, eightDocks, names(eightMap));
   assert.ok(meetsOpen(eightMap, "d") && eight.segments.some((s) => s.links.includes("arrive:0->d")), "d's land meets the open land, and its arrival has a road");
   for (const [map, roads] of [[library.map, library.roads], [sixMap, six], [eightMap, eight]] as const) {
     for (const key of new Set(roads.portals.flatMap((p) => p.links))) {
@@ -183,8 +183,7 @@ test("3.77 a road leaves the capability that depends with no gate, and its one g
 test("3.77 two gates on one island stand apart where their border has room: their posts at least GATE_POSTS_APART apart, never touching (Mick, 2026-11-08)", () => {
   // A gate's posts stand either side of its opening, wider where a ramp climbs to it from the open land (island-roads.ts in view).
   const reach = (g: IslandRoads["gates"][number]) => (g.between.includes("open") ? Math.max(g.opening, RELIEF.ramp.width) : g.opening) / 2 + RELIEF.post.side;
-  const eightMap = linkLayout(eightShares, round(LIBRARY_RADIUS), eightLinks, eightDocks);
-  const islands = [library.roads, six, islandRoads(eightMap, eightLinks, eightDocks, names(eightMap))];
+  const islands = [library.roads, six, eight];
   let pairs = 0;
   for (const roads of islands) {
     const gates = roads.gates.filter((g) => !inTunnelMouth(roads, g));
@@ -198,7 +197,6 @@ test("3.77 two gates on one island stand apart where their border has room: thei
 });
 
 test("3.77 a small island's roads are routed at The library's size and drawn at its own, widths and gates scaled with it", () => {
-  const small = laid(LIBRARY_RADIUS / 2);
   assert.ok(small.roads.segments.length > 0);
   const lib = Math.min(...library.roads.segments.map((s) => s.width)), mine = Math.min(...small.roads.segments.map((s) => s.width));
   assert.ok(Math.abs(mine - lib / 2) < 0.02, "half the size, half as wide");
@@ -247,8 +245,8 @@ test("3.79 each settlement's symbol is 3.4, 4.0 or 4.7 across by the roads meeti
 });
 
 test("3.79 each settlement's whole symbol stands clear of every name and every border, so of every gate", () => {
-  for (const radius of [LIBRARY_RADIUS, LIBRARY_RADIUS / 2]) {
-    const { map, roads } = laid(radius), S = radius / LIBRARY_RADIUS;
+  for (const [{ map, roads }, radius] of [[library, LIBRARY_RADIUS], [small, LIBRARY_RADIUS / 2]] as const) {
+    const S = radius / LIBRARY_RADIUS;
     for (const [id, { at, size }] of roads.settlements) {
       const half = size / 2;
       const inside = (p: Point) => Math.abs(p.x - at.x) <= half && Math.abs(p.z - at.z) <= half;
@@ -266,8 +264,9 @@ test("3.79 each settlement's whole symbol stands clear of every name and every b
   }
 });
 
+/** The Library-sized island asked again: a map of its own each time, since the page keeps an island's roads by its map. */
 const fresh = (): RoadsAsk => {
-  const coast = round(LIBRARY_RADIUS), map = linkLayout(shares, coast, links, docks(LIBRARY_RADIUS));
+  const map = structuredClone(library.map);
   return { map, links, docks: docks(LIBRARY_RADIUS), names: names(map) };
 };
 const carried = (roads: IslandRoads) => [...new Set(roads.segments.flatMap((s) => s.links))].sort();
@@ -286,7 +285,7 @@ test("3.82 selecting an island draws its territories without waiting on its road
     assert.equal(islandRoadsWhenRouted(ask, router, new AbortController().signal), undefined, "nothing is routed on the page while it is drawn");
     assert.deepEqual(asked, [ask], "the router is asked for the island");
     assert.equal(knownIslandRoads(ask), undefined);
-    const roads = islandRoads(fresh().map, ask.links, ask.docks, ask.names);
+    const roads = library.roads;
     answers[0]!.resolve(roads);
     await waitUntil(() => heard === 1 || undefined, 2000, "the roads to arrive");
     assert.equal(knownIslandRoads(ask), roads, "the roads are kept for the island when they arrive");
@@ -301,7 +300,7 @@ test("3.82 an island's routed roads outlive the run on the page's storage: after
   shelveRoadsOn(roadsShelf(storage));
   try {
     const { router, asked, answers } = byHand(), shown = new AbortController().signal;
-    const ask = { ...fresh(), story: "s" }, routedElsewhere = fresh(), roads = islandRoads(routedElsewhere.map, ask.links, ask.docks, ask.names);
+    const ask = { ...fresh(), story: "s" }, roads = library.roads;
     islandRoadsWhenRouted(ask, router, shown);
     answers[0]!.resolve(roads);
     await waitUntil(() => knownIslandRoads(ask) ?? undefined, 2000, "the roads to arrive");
@@ -343,7 +342,7 @@ test("3.82 an island overtaken before its roads arrive keeps none, and says noth
   const overtaken = new AbortController(), other = fresh();
   islandRoadsWhenRouted(other, router, overtaken.signal);
   overtaken.abort();
-  answers[0]!.resolve(islandRoads(fresh().map, other.links, other.docks, other.names));
+  answers[0]!.resolve(library.roads);
   const failing = new AbortController(), third = fresh();
   islandRoadsWhenRouted(third, router, failing.signal);
   failing.abort();
@@ -362,12 +361,12 @@ test("3.82 every island's roads route a few at a time: the rest wait their turn,
   for (const { ask, shown } of islands) islandRoadsWhenRouted(ask, router, shown.signal);
   assert.equal(asked.length, ROUTING_AT_ONCE, `${ROUTING_AT_ONCE} islands route at once`);
   islands[ROUTING_AT_ONCE]!.shown.abort();
-  answers[0]!.resolve(islandRoads(fresh().map, islands[0]!.ask.links, islands[0]!.ask.docks, islands[0]!.ask.names));
+  answers[0]!.resolve(library.roads);
   await waitUntil(() => asked.length === ROUTING_AT_ONCE + 1 || undefined, 2000, "the next island waiting to route");
   assert.equal(asked.at(-1), islands[ROUTING_AT_ONCE + 1]!.ask, "the island let go is passed over");
   islands[1]!.shown.abort();
   answers[1]!.reject(new Error("overtaken"));
-  answers[2]!.resolve(islandRoads(fresh().map, islands[3]!.ask.links, islands[3]!.ask.docks, islands[3]!.ask.names));
+  answers[2]!.resolve(library.roads);
   await quietFor(() => asked.length > ROUTING_AT_ONCE + 1, 100, "an island let go routed");
 });
 
@@ -398,7 +397,7 @@ test("3.82 the roads route in the territory worker the page names, else on the p
 });
 
 test("3.82 a routing in a worker answers what it posts, fails on the error it posts, ends it when overtaken, and falls back to the page when it fails to load", async () => {
-  const ask = fresh(), roads = islandRoads(ask.map, ask.links, ask.docks, ask.names);
+  const ask = fresh(), roads = library.roads;
   const worker = (ended: string[], then: (w: RoadsWorker) => void): RoadsWorker => {
     const w: RoadsWorker = { postMessage() { queueMicrotask(() => then(w)); }, terminate() { ended.push("ended"); }, onmessage: null, onerror: null };
     return w;

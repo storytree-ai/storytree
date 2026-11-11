@@ -12,7 +12,8 @@
 // HTML page, not JSON, back (`invalid character '<' ...`) and GitHub had queued it in that run. So
 // the job reads the pull request's merge-queue entry after every failure: an entry means it is
 // enqueued, whatever the reply said. A reply that will not parse, with no entry, is retried like the
-// refusals above.
+// refusals above, and so is GitHub's transient GraphQL error `Something went wrong while executing
+// your query` (PR #706 run 42848031894: every check green, and re-running the job enqueued it).
 //
 // Command line, for the land job: `node land-enqueue.mjs <seconds since the first try> [<the pull
 // request's mergeQueueEntry state, empty if none>]` with the reply on stdin; it prints what it
@@ -27,6 +28,9 @@ const NOT_YET_READ = /Required status check "[^"]+" is (in progress|queued|expec
 
 /** What gh says when GitHub's reply is not JSON (an HTML error page). */
 const UNPARSEABLE = /invalid character '<' looking for beginning of value|unexpected end of JSON input/;
+
+/** GitHub's transient GraphQL failure, which a later try gets past. */
+const WENT_WRONG = /Something went wrong while executing your query/;
 
 /**
  * @param {string} refusal what GitHub answered the enqueue
@@ -54,6 +58,20 @@ export function enqueueDecision(refusal, elapsedSeconds, queueState = "") {
       retry: true,
       enqueued: false,
       reason: `GitHub's reply to the enqueue would not parse, and the pull request is not in the merge queue (${elapsedSeconds} s of ${RETRY_WINDOW_SECONDS} s): trying again.`,
+    };
+  }
+  if (WENT_WRONG.test(refusal)) {
+    if (elapsedSeconds >= RETRY_WINDOW_SECONDS) {
+      return {
+        retry: false,
+        enqueued: false,
+        reason: `GitHub still answered the enqueue "Something went wrong while executing your query" after ${elapsedSeconds} s of tries, and the pull request is not in the merge queue. Not enqueued; re-run this job to try again.`,
+      };
+    }
+    return {
+      retry: true,
+      enqueued: false,
+      reason: `GitHub answered the enqueue "Something went wrong while executing your query", and the pull request is not in the merge queue (${elapsedSeconds} s of ${RETRY_WINDOW_SECONDS} s): trying again.`,
     };
   }
   if (!NOT_YET_READ.test(refusal)) {

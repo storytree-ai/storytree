@@ -34,8 +34,6 @@ import { execFileSync } from "node:child_process";
 import { existsSync, globSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { resultsTable as baseTable } from "./gate.mjs";
-
 const WORKSPACE_ROOTS = ["packages", "apps"];
 const INFRA = "infra";
 const DOCS = "docs/";
@@ -684,7 +682,5 @@ function hasTests(root, dir) {
   return globSync(`${dir}/src/**/*.test.{ts,mjs}`, { cwd: root, exclude: (name) => path.basename(String(name)) === "node_modules" }).length > 0;
 }
 
-/** Each unit's result, PASS, FAIL or NOT RUN: the base dev loop's table, with the test runner's rerun hint unless a caller replaces or omits it. */
-export function resultsTable(results, { reasons = {}, rerunHint = "rerun only these: pnpm run test --rerun-failed" } = {}) {
-  return baseTable(results, { reasons, rerunHint });
-}
+/** The test runner's hint under its results table when a unit did not pass. Kept here, not the table itself, so this module imports nothing of the gate's (the desktop bundles it to read open pull requests' scopes, 6.9). */
+export const RERUN_HINT = "rerun only these: pnpm run test --rerun-failed";

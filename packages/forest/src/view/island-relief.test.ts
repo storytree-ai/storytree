@@ -35,6 +35,11 @@ const at = (p: Point, d: Point, k: number): Point => ({ x: p.x + d.x * k, z: p.z
 /** The territory whose cell outline holds `p` (-1 open land), read from the outlines, not the sites. */
 const territoryOf = (p: Point) => map.cells.find((c) => c.polygon.every((a, i) => { const b = c.polygon[(i + 1) % c.polygon.length]!; return (b.x - a.x) * (p.z - a.z) - (b.z - a.z) * (p.x - a.x) >= -1e-9; }))?.territory;
 const open = map.cells.filter((c) => c.territory < 0);
+// Six capabilities where the arrivals climb onto a by open road, and b's road to e goes under a third territory.
+const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
+const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
+  { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }];
+const six = linkLayout(sixShares, coast, sixLinks, docks), sixRoads = islandRoads(six, sixLinks, docks, capabilityPlates(six)), sixRelief = islandRelief(six, sixRoads);
 
 test("3.78 every territory on the selected island stands one plateau's height above its open land, all at one height", () => {
   assert.ok(open.length > 0 && relief.height > 0);
@@ -61,11 +66,6 @@ test("3.78 a ramp only where a road climbs from the open land onto a territory, 
 });
 
 test("3.78 open road onto the open land climbs a ramp with no gate; a road in a tunnel climbs none, a low rise standing over it from mouth to mouth (ADR-1253 D3, question_921aee319481)", () => {
-  // Six capabilities where the arrivals climb onto a by open road, and b's road to e goes under a third territory.
-  const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
-  const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
-  { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }];
-  const six = linkLayout(sixShares, coast, sixLinks, docks), sixRoads = islandRoads(six, sixLinks, docks, capabilityPlates(six)), sixRelief = islandRelief(six, sixRoads);
   const gateless = sixRelief.ramps.filter((r) => r.gate === undefined);
   assert.ok(gateless.length > 0 && gateless.every((r) => sixRoads.passes.some((p) => far(p.at, r.at) < 1e-9)), "a ramp at open road");
   assert.ok(sixRoads.portals.length > 0 && sixRoads.tunnels.length > 0);
@@ -98,10 +98,6 @@ test("3.78 open road onto the open land climbs a ramp with no gate; a road in a 
 
 test("3.78 a tunnel too short for a rise along it stands under a flat-topped knoll, reaching past both its mouths and no wider than a rise (question_921aee319481)", () => {
   // The six capabilities' tunnel cut down to a short way under the middle of its land, a mouth at each end.
-  const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
-  const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
-  { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }];
-  const six = linkLayout(sixShares, coast, sixLinks, docks), sixRoads = islandRoads(six, sixLinks, docks, capabilityPlates(six));
   const long = sixRoads.tunnels[0]!, mid = long.pts[Math.floor(long.pts.length / 2)]!, d = { x: long.pts.at(-1)!.x - long.pts[0]!.x, z: long.pts.at(-1)!.z - long.pts[0]!.z }, l = Math.hypot(d.x, d.z);
   const along = { x: d.x / l, z: d.z / l }, ends = [at(mid, along, -1.5), at(mid, along, 1.5)] as const;
   const short = { ...sixRoads, tunnels: [{ pts: [ends[0], mid, ends[1]], links: long.links }], portals: ends.map((m) => ({ ...sixRoads.portals[0]!, at: m })) };
@@ -117,10 +113,6 @@ test("3.78 a tunnel too short for a rise along it stands under a flat-topped kno
 });
 
 test("3.78 a tunnel's rise drawn over it, shaded by the light: lighter on its side toward the light than away (question_921aee319481)", () => {
-  const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
-  const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
-  { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }];
-  const six = linkLayout(sixShares, coast, sixLinks, docks), sixRoads = islandRoads(six, sixLinks, docks, capabilityPlates(six)), sixRelief = islandRelief(six, sixRoads);
   const land = territoryLand(six, flat, coast, new Map(), sixRoads), marks = islandReliefMarks(sixRelief, flat, landFill(six, land));
   const rise = marks.getObjectByName("relief-rise") as Mesh;
   assert.ok(rise !== undefined, "the rise drawn");
@@ -227,17 +219,19 @@ test("3.78 the roads follow the relief, and every gate's posts stand up from the
 
 test("3.78 a road leaving a gate or open road onto the open land runs straight down its ramp to the ramp's foot, never across its side (Mick, 2026-11-07)", () => {
   // Islands whose roads leave their gates at an angle: the four and six above, and others laid out by other links.
-  const islands = [{ shares, links }, ...[
-    [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" }, { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }],
+  const laid = [...[
     [{ from: "z1", to: "a" }, { from: "z2", to: "c" }, { from: "b", to: "a" }, { from: "d", to: "b" }, { from: "e", to: "d" }, { from: "f", to: "c" }],
     [{ from: "z1", to: "b" }, { from: "z2", to: "a" }, { from: "a", to: "c" }, { from: "c", to: "d" }, { from: "d", to: "e" }, { from: "e", to: "f" }, { from: "f", to: "a" }],
   ].map((l) => ({ shares: ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i })), links: l })),
   // And one whose open road climbs a ramp onto a plateau to a tunnel's mouth set back on it.
   { shares: ["a", "b", "c", "d", "e", "f", "g"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability}`, lines: 823 - 100 * i })),
     links: [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "b", to: "a" }, { from: "c", to: "b" }, { from: "d", to: "c" }, { from: "e", to: "d" }, { from: "f", to: "b" }, { from: "g", to: "f" }] }];
+  const islands = [{ r: roads, rel: relief }, { r: sixRoads, rel: sixRelief }, ...laid.map((island) => {
+    const m = linkLayout(island.shares, coast, island.links, docks), r = islandRoads(m, island.links, docks, capabilityPlates(m));
+    return { r, rel: islandRelief(m, r) };
+  })];
   let ramps = 0;
-  for (const island of islands) {
-    const m = linkLayout(island.shares, coast, island.links, docks), r = islandRoads(m, island.links, docks, capabilityPlates(m)), rel = islandRelief(m, r);
+  for (const { r, rel } of islands) {
     for (const ramp of rel.ramps) {
       // The road through the ramp's top, walked from there onto the ramp.
       const road = r.segments.find((s) => s.pts.some((p, i) => i > 0 && toSegment(ramp.at, s.pts[i - 1]!, p) < 1e-6))!;

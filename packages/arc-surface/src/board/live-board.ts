@@ -5,6 +5,7 @@ import type { Kept } from "../live-reading/kept.js";
 import type { Timers } from "../live-reading/live-reading.js";
 import { pageReading, type PageReading } from "../live-reading/page-reading.js";
 import { boardView, waitingOnYou, type BoardScope, type BoardSnapshot, type BoardView } from "./board.js";
+import type { CiExpected } from "./ci-bars.js";
 import { covers, dayOf, recentWindow, windowOf, type ClosedRange } from "./closed-range.js";
 import { readBoard, type BoardReads } from "./reads.js";
 
@@ -35,6 +36,8 @@ export function watchBoard({ project, reads, timers, kept, scope: startScope = "
   let error: string | undefined;
   let quietMs: number | undefined;
   let range = closedRange;
+  /** Each CI leg's factory median a pull request in CI is drawn against, as last read (3.34). */
+  let expected: CiExpected = {};
   // 3.12: a Closed range past the routine read's two days is asked for whole, and never kept.
   let rangeAsked: { key: string; arcs?: BoardSnapshot["arcs"] } | undefined;
   const keyOf = ({ from, to }: { from: string; to: string }) => `${from}/${to}`;
@@ -57,7 +60,7 @@ export function watchBoard({ project, reads, timers, kept, scope: startScope = "
     });
   };
   const viewOf = (shown: BoardSnapshot): BoardView => {
-    if (scope !== "closed") return boardView(shown, log, new Date(now), scope, quietMs);
+    if (scope !== "closed") return boardView(shown, log, new Date(now), scope, quietMs, expected);
     const { arcs, reading } = closedArcs(shown);
     const window = windowOf(range, now);
     return { ...boardView({ ...shown, arcs }, log, new Date(now), scope, quietMs), closed: { range, from: window.from, to: dayOf(Date.parse(`${window.to}T12:00:00`), -1), reading } };
@@ -116,5 +119,7 @@ export function watchBoard({ project, reads, timers, kept, scope: startScope = "
   return {
     setScope(next: BoardScope) { scope = next; askClosed(); draw(); },
     setClosedRange(next: ClosedRange) { range = next; askClosed(); draw(); },
+    /** Each CI leg's factory median, newly read (3.34). */
+    setExpected(next: CiExpected) { expected = next; draw(); },
     stop() { stopped = true; stopHearing(); own?.stop(); } };
 }

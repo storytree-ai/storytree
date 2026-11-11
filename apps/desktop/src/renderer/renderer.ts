@@ -15,6 +15,7 @@ import { journal } from "@storytree/teaching-cards";
 import { mountJournal, mountTeaching } from "@storytree/teaching-cards/view";
 import { mountLagRecorder } from "@storytree/app/lag/view";
 import { mountFeedbackCorner } from "@storytree/surface-feedback/view";
+import { mountCiTimes } from "@storytree/ci-health/view";
 import { outageSaidOnce } from "@storytree/library/connection-error";
 
 import type { StorytreeBridge } from "../bridge.js";
@@ -98,7 +99,7 @@ page = openProjectPage({
       states: keptWorkStates(),
       kept: keptTree(name),
       drawing: keptDrawing(name),
-      arcs: (host, on) => mountArcSurface(host, { project: name, reads, reading, ...on }),
+      arcs: (host, on) => mountArcSurface(host, { project: name, reads, reading, ...on, ciExpected: async () => (await window.storytree.ciTimes?.(name))?.legs }),
       openView: (holder, onSelect, { library, opening }) => openForestView(holder, onSelect, core, { library, opening: opening as GlobeOpening | undefined }),
       sessions: (view, host) => {
         const sessions = mountSessionsList(host, { project: name, reads, reading,
@@ -107,6 +108,8 @@ page = openProjectPage({
         core.onSelect(session => sessions.select(session));
         return sessions;
       },
+      // Its in-CI count is the page's live reading's, the same branch states the arc lanes' CI bars and the sessions list read.
+      ciTimes: (host) => mountCiTimes(host, { read: async () => window.storytree.ciTimes?.(name), going: () => reading.held().fold.pullsInCi() }),
       take: (changes, lines) => core.take(changes, lines),
       libraryCard: (panel, onClose) => mountLibraryPanel(panel, core, onClose),
       teaching: (locate, reading, islands) => mountTeaching(content, { journal: seenCards, locate, reading, islands }),

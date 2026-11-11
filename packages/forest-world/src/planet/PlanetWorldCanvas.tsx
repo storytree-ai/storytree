@@ -82,7 +82,7 @@ export interface PlanetWorldCanvasProps {
   /** Positive moves the rendered sheet right in CSS pixels, leaving room for an adjacent card. */
   sideOffset?: number | undefined;
   /** The selection's lit links, their share of each lane filled pale at sea, with a port at each dock they come ashore at
-   * on the selected island; none by default. At rest every lane is drawn as chart dots (ADR-1278 D1). */
+   * on the selected island; none by default. At rest every lane is drawn as fine dotted strands (ADR-1278 D1 as ADR-1307 narrows it). */
   lanes?: readonly LitLink[];
   /** A recorded growth to replay (capability 12): islands rise, lanes show once both their islands have, and plate
    * children read `usePlanetGrowth`. */

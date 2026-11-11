@@ -101,7 +101,7 @@ export interface PageFrame {
   /** Every surface the mounted stories declare, switches and named canvases alike, with the story declaring it. */
   readonly declaredSurfaces: readonly DeclaredSurface[];
   /** The open library's server, asked at call time: none before the library opens. */
-  server(): { listProjects: Storytree["listProjects"]; openProject(name: string, options?: { create?: boolean }): Promise<Pick<Library, "sendFeedback">> } | undefined;
+  server(): { listProjects: Storytree["listProjects"]; openProject(name: string, options?: { create?: boolean }): Promise<Pick<Library, "sendFeedback">>; ownDatabase: Storytree["ownDatabase"] } | undefined;
   /** A JPEG of the app's window as it is now (its own page only), or of the part `rect` names; none when there is no window. */
   captureWindow(rect?: { x: number; y: number; width: number; height: number }): Promise<Uint8Array | undefined>;
 }

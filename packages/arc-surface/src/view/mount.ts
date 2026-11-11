@@ -5,12 +5,15 @@ import { pageKept } from "../live-reading/kept.js";
 import { openCapabilities, openContracts, type BoardScope } from "../board/board.js";
 import type { ClosedRange } from "../board/closed-range.js";
 import type { ArcDrawn } from "../board/smoke.js";
-import type { Timers } from "../live-reading/live-reading.js";
+import { pageTimers, type Timers } from "../live-reading/live-reading.js";
+import type { CiExpected } from "../board/ci-bars.js";
 import type { PageReading } from "../live-reading/page-reading.js";
-import { copyIcon, renderBoard } from "./render.js";
+import { copyIcon, renderBoard, renderCiBars } from "./render.js";
 import { readPreferences, writePreferences } from "./preferences.js";
 
 export interface ArcSurface { stop(): void }
+/** How often the CI legs' factory medians are read again (3.34): the recorder adds a run's time at most this often. */
+const EXPECTED_EVERY_MS = 10 * 60_000;
 /**
  * The Arcs tab of the app's left rail (3.1): its lanes fill `host`, read for as long as it is mounted, whichever tab is on
  * show; an arc's row, clicked, selects it and opens its expansion under the row, and nothing opens over the map. `onFreshDraw` is told once, when the surface first
@@ -18,8 +21,10 @@ export interface ArcSurface { stop(): void }
  * owner across the active arcs, the Arcs tab's badge. Given `startAfter`, the page's start, it reads nothing until that settles (3.9).
  * `onOpened` hears the capabilities the selected arc's open increments name, and the contracts they link, once each, whenever they
  * change, and undefined once no arc is selected (3.27), which the map circles (ADR-1253 D1) and rings the gates of (ADR-1279 D4).
+ * `ciExpected` reads each CI leg's factory median (CI health 6.7), once mounted and every ten minutes, which a pull request's
+ * CI bar is drawn against (3.34); the clock that moves the board moves its fill.
  */
-export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading; startAfter?: PromiseLike<unknown>; onFreshDraw?: () => void; onWaiting?: (count: number) => void; onOpened?: (capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined) => void }): ArcSurface {
+export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading; startAfter?: PromiseLike<unknown>; onFreshDraw?: () => void; onWaiting?: (count: number) => void; onOpened?: (capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined) => void; ciExpected?: () => PromiseLike<CiExpected | undefined> }): ArcSurface {
   const root = document.createElement("div");
   root.className = "arc-surface-mount";
   root.innerHTML = `<section class="arc-rail" aria-label="Arcs" data-surface-id="arcs"><div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;
@@ -34,8 +39,10 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   let state: BoardState | undefined;
   /** Whether a board was read fresh since this mount. */
   let readFresh = false;
-  /** The lanes' HTML as last written. */
+  /** The lanes' HTML as last written, their CI bars left out. */
   let drawn: string | undefined;
+  /** Each lane's CI bars as last written into their holder, by arc (3.34). */
+  const ciDrawn = new Map<string, string>();
   let waiting: number | undefined;
   /** What `onOpened` was last told, as a key, so a refresh that changes nothing tells nothing. */
   let toldOpened: string | undefined;
@@ -82,9 +89,16 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     // The lanes keep their place while the scope holds.
     const lanesTop = sameScope ? body.querySelector(".arc-lanes")?.scrollTop ?? 0 : 0;
     // 3.20: a refresh that changes nothing keeps its nodes, so a selection in the expansion holds.
+    // 3.34: the CI bars are written into their own holders, so the clock and the medians' read move them and nothing else.
     const write = () => {
-      const html = renderBoard(next.board!, opened, queues, perRow);
-      if (html !== drawn) { body.innerHTML = html; drawn = html; }
+      const html = renderBoard(next.board!, opened, queues, perRow, true);
+      if (html !== drawn) { body.innerHTML = html; drawn = html; ciDrawn.clear(); }
+      for (const holder of body.querySelectorAll<HTMLElement>("[data-ci-lane]")) {
+        const id = holder.dataset.ciLane!;
+        const lane = next.board!.lanes.find((one) => one.id === id);
+        const bars = lane ? renderCiBars(lane) : "";
+        if (ciDrawn.get(id) !== bars) { holder.innerHTML = bars; ciDrawn.set(id, bars); }
+      }
     };
     write();
     // A strip is cut to the width it is drawn at, so a first draw, or one at a new width, is drawn again once measured.
@@ -107,8 +121,12 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   const resizes = typeof ResizeObserver === "function" ? new ResizeObserver(() => { if (state && measure() !== perRow) draw(state); }) : undefined;
   resizes?.observe(body);
   const watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), scope, closedRange, onState: draw });
+  // 3.34: an unreadable median keeps the last one read; the next read tries again.
+  const readExpected = () => { if (options.ciExpected) void Promise.resolve(options.ciExpected()).then((read) => { if (read) watching.setExpected(read); }, () => undefined); };
+  readExpected();
+  const stopExpected = options.ciExpected ? (options.timers ?? pageTimers).every(EXPECTED_EVERY_MS, readExpected) : () => undefined;
   const surface: ArcSurface = {
-    stop() { watching.stop(); resizes?.disconnect(); sayDrawn(); root.remove(); },
+    stop() { watching.stop(); stopExpected(); resizes?.disconnect(); sayDrawn(); root.remove(); },
   };
   root.addEventListener("click", (event) => {
     const button = (event.target as Element).closest<HTMLButtonElement>("button");

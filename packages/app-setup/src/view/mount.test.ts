@@ -291,7 +291,7 @@ test("3.4 Add a project… asks the picker bridge, shows the chosen project and 
   } finally { mounted.stop(); }
 });
 
-test("3.3 · the guide names adding a project in the app by the control's own name, says each setup step is optional, and calls a story's capabilities its parts", () => {
+test("3.3 · the guide names adding a project in the app by the control's own name, says each setup step is optional, and calls a story's capabilities by the table's word for them", () => {
   const mounted = mountSetupHelp(document.body, helpBridge(), { platform: "linux" });
   try {
     const panel = document.querySelector("#setup-help-panel")!;
@@ -299,8 +299,8 @@ test("3.3 · the guide names adding a project in the app by the control's own na
     const inTheApp = [...panel.querySelectorAll("li")].find((item) => /In the app:/.test(item.textContent!))!;
     assert.match(inTheApp.textContent!, /Projects → Add a project…, then choose the folder/);
     assert.match(panel.textContent!, /Each step is optional/);
-    assert.doesNotMatch(panel.textContent!, /Both steps|capabilities/);
-    assert.match(panel.textContent!, /a story and its parts appear/);
+    assert.doesNotMatch(panel.textContent!, /Both steps|\bparts?\b/);
+    assert.match(panel.textContent!, /a story and its capabilities appear/);
   } finally { mounted.stop(); }
 });
 

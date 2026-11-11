@@ -1,7 +1,9 @@
 // The real app, run in CI (lifecycle 1.30, the owner's option A on question_c34fd1a7f98b): seed a throwaway home's
 // library with one project, one story and one capability, then start the built app on it with `--smoke --stress`, and
 // exit with the app's own exit code. That code is red when the page did not draw the project, and when the main process
-// logged any error, one raised while it quits included. Run with tsx from the checkout's root after
+// logged any error, one raised while it quits included. The sharing choice is made beforehand (off), as the capture kit's
+// stand-in bridge reads it, so the picture shows the forest and not the first launch's consent dialog over it. The
+// project has a story, so a change shown only on an empty project is not drawn here. Run with tsx from the checkout's root after
 // `pnpm --filter @storytree/desktop build`, under a display (CI: `xvfb-run -a`); any further arguments go to the app
 // (`--ozone-platform=headless` where there is none). No real app data is used.
 import { spawn } from "node:child_process";
@@ -9,6 +11,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { openJourney } from "@storytree/app-setup/journey-events";
 import { connect } from "@storytree/library";
 import { findBinaries, start } from "@storytree/local-postgres";
 
@@ -22,6 +25,8 @@ const STRESS_ROUNDS = "3";
 
 let code = 1;
 try {
+  const journey = openJourney({ home: appHome().dir, appVersion: "0.3.0" });
+  try { journey.choose(false); } finally { journey.close(); }
   const postgres = await start({ dataDir: appHome().pgdata, owner: APP_OWNER, bin: findBinaries({ resolveFrom: desktop }) });
   try {
     const storytree = await connect({ url: postgres.url });

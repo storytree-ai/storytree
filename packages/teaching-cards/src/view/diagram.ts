@@ -16,7 +16,7 @@ const decisions = [[0], [-1, 1], [-1, 0, 1], [-1, 1]].flatMap((spread, index) =>
 // Each links to the nearest decision one step shallower: the chain of links that sets its depth.
 const above = (decision: (typeof decisions)[number]) => decisions.filter(other => other.depth === decision.depth - 1)
   .reduce((best, other) => Math.abs(other.x - decision.x) < Math.abs(best.x - decision.x) ? other : best);
-// The notes about no one part, loose in the core.
+// The notes about no one story or capability, loose in the core.
 const loose = [[-22, -14], [14, -26], [26, 4], [-8, 12], [-30, 16], [6, -6], [18, 24], [-16, -32]];
 
 /** The drawing as markup, its beats timed over `seconds` when given. */
@@ -52,6 +52,6 @@ export function decisionsDiagram({ seconds }: { seconds?: number } = {}): string
     + `<p class="tour-diagram-captions">`
     + `<span class="diagram-caption diagram-caption-1">An island: one story on the globe.</span>`
     + `<span class="diagram-caption diagram-caption-2">A decision hangs beneath it, on its shelf: the bright dot.</span>`
-    + `<span class="diagram-caption diagram-caption-3">The decisions it stands on hang deeper, the blue dots, a tunnel down to the core, where the decisions about no one part gather: the pale dots.</span>`
+    + `<span class="diagram-caption diagram-caption-3">The decisions it stands on hang deeper, the blue dots, a tunnel down to the core, where the decisions about no one story or capability gather: the pale dots.</span>`
     + `</p></figure>`;
 }

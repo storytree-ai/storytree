@@ -11,6 +11,9 @@
   "scripts": {
     "typecheck": "tsc -p ."
   },
+  "dependencies": {
+    "@storytree/shown-words": "workspace:*"
+  },
   "devDependencies": {
     "@storytree/arc-surface": "workspace:*",
     "@storytree/test-waits": "workspace:*",

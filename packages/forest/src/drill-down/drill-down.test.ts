@@ -221,3 +221,12 @@ test("4.37 each contract storytree saw carries the source of its verdict, its ca
   assert.equal(third?.sources, undefined, "no contract with a source recorded: none");
   assert.equal(third?.why?.sources, undefined);
 });
+
+test("4.46 a story's edge carries its description to the panel, and one with none carries no description at all", () => {
+  const said = { id: "edge-1", from: "login", to: "accounts", description: "Login passes accounts the resolved user, never the request's tenant.", contracts: [] };
+  const bare = { id: "edge-2", from: "accounts", to: "audit", contracts: [] };
+  const tree: AnnotatedTree = { stories: [{ ...story("s", capability("login", ["accounts"]), capability("accounts", ["audit"]), capability("audit", [])), edges: [said, bare] }], arcs: [] };
+  const edges = drillDown(tree, "s", workStates([]), [])?.edges;
+  assert.equal(edges?.[0]?.description, "Login passes accounts the resolved user, never the request's tenant.");
+  assert.equal("description" in (edges?.[1] ?? {}), false, "no description, no field");
+});

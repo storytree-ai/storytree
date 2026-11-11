@@ -213,6 +213,22 @@ test("4.40 a picked gate's panel gives each edge joining its pair, either way, i
   assert.equal(renderStoryPanel(edged, "next").includes("panel-gate"), false, "no gate picked, no gate section");
 });
 
+test("4.46 a picked gate's panel shows each link's description directly under that link's heading, and nothing extra for a link with none", () => {
+  const section = (html: string): string => /<section class="panel-gate"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
+  const said = "The next passes <base> the resolved user, never the request's tenant.";
+  const contracts = [{ id: "e-1", title: "next reads base by id", reported: "passing" as const, trail: "green only" }];
+  const links: StoryPanel = { ...panel, edges: [
+    { from: "next", fromTitle: "The next", to: "base", toTitle: "The base", description: said, contracts },
+    { from: "base", fromTitle: "The base", to: "next", toTitle: "The next", contracts: [] },
+  ] };
+  const gate = section(renderStoryPanel(links, "next", { gate: ["base", "next"] }));
+  assert.match(plainText(gate), /^The next depends on The base\. The next passes &lt;base&gt; the resolved user, never the request's tenant\. Contracts · 1/, "under its heading, before its state line");
+  const bare = section(renderStoryPanel({ ...links, edges: [links.edges![1]!] }, "next", { gate: ["base", "next"] }));
+  const without = section(renderStoryPanel({ ...links, edges: [{ from: "next", fromTitle: "The next", to: "base", toTitle: "The base", contracts }] }, "next", { gate: ["base", "next"] }));
+  assert.equal(bare.includes("panel-link-description"), false, "a link with none has no slot");
+  assert.match(plainText(without), /^The next depends on The base\. Contracts · 1/, "and no placeholder");
+});
+
 test("4.12 a capability that is not healthy says why above its description, who moves it, and its contracts by number", () => {
   const agent = renderStoryPanel(notGreen({ reason: "no test names it", mover: "agent", contracts: ["1.2", "1.3"] }), "cap");
   assert.equal(whyLine(agent), "Why not green: no test names 1.2 and 1.3. The agent moves this one.");

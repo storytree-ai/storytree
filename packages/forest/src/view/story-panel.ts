@@ -62,8 +62,8 @@ function fold(kind: string, handle: string, inside: string): string {
 }
 
 /**
- * A picked gate: the edges joining its two capabilities, whichever depends on which, each saying so and then its state in
- * one line: its own contracts behind "Contracts · n", each opening as a capability's does, never either capability's
+ * A picked gate: the edges joining its two capabilities, whichever depends on which, each saying so, then what passes
+ * between them in its own words when someone wrote them (Fable's F3.1), and then its state in one line: its own contracts behind "Contracts · n", each opening as a capability's does, never either capability's
  * (ADR-1282 D1), and "open work on this link" when the opened arc's open work links one of them, the reason the gate is
  * ringed; one with none says so, with no handle (ADR-1284 D4). After the handle, how many of them storytree last saw
  * failing, when any are.
@@ -73,8 +73,9 @@ function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string], o
   return `
     <section class="panel-gate" aria-label="Gate">
       ${links.length === 0 ? `<p class="panel-muted">No link joins these two capabilities directly.</p>` : links
-        .map(({ fromTitle, toTitle, contracts }) => `
+        .map(({ fromTitle, toTitle, description, contracts }) => `
           <h3>${text(fromTitle)} depends on ${text(toTitle)}.</h3>
+          ${description === undefined ? "" : `<p class="panel-link-description">${text(description)}</p>`}
           ${contracts.length === 0
             ? `<p class="panel-muted">No contracts on this link yet.</p>`
             : `<div class="panel-link-state">${fold("contracts", `Contracts · ${contracts.length}`, contractList(contracts))}${failing(contracts)}${contracts.some(({ id }) => open?.includes(id) === true) ? `<span class="panel-link-open">open work on this link</span>` : ""}</div>`}`)

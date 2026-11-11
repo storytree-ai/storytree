@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { HARNESS_IDS, watchedHarness } from "@storytree/project-and-caller/caller";
 import { storytreeHome } from "@storytree/project-and-caller";
-import { connectAgents, disconnectAgents, installedToolServerCommand, type Harness } from "./index.js";
+import { connectAgents, disconnectAgents, installedToolServerCommand, type ConnectionResult, type Harness } from "./index.js";
 
 /**
  * finish's record names the tools; before finish has run (the app never launched), the tools are the
@@ -35,6 +35,11 @@ export function deliveredCommandIfAny(home: string, helperDir: string) {
 
 const label = (harness: Harness) => watchedHarness(harness)?.label ?? harness;
 
+/** What a terminal's connect says of each agent: its state, the user's next step, and where it was written when that is said. */
+export function connectedText(results: readonly ConnectionResult[]): string {
+  return results.map((result) => `${label(result.harness)}: tools ${result.tools}; hooks ${result.hooks}.\n${result.next}${result.where === undefined ? "" : `\n${result.where}`}`).join("\n\n");
+}
+
 /** Output and exit status describe each agent independently; registration never attests hooks. */
 export async function runInstalledConnection(action: "connect" | "disconnect", chosen: readonly string[]): Promise<string> {
   if (chosen.length === 0 || chosen.some((name) => !(HARNESS_IDS as readonly string[]).includes(name))) {
@@ -44,7 +49,7 @@ export async function runInstalledConnection(action: "connect" | "disconnect", c
   const options = { harnesses: chosen as Harness[], installed: deliveredCommand() };
   if (action === "connect") {
     const results = await connectAgents(options);
-    const text = results.map((result) => `${label(result.harness)}: tools ${result.tools}; hooks ${result.hooks}.\n${result.next}`).join("\n\n");
+    const text = connectedText(results);
     if (results.some((result) => result.tools === "not connected")) throw new Error(text);
     return text;
   }

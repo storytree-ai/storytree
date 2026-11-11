@@ -105,7 +105,8 @@ const because = (name: string, reason: string) => reason ? `${name}: ${reason}` 
 const waitText = (wait: NamedWait) => `${because(workText(wait), wait.reason)}${wait.warning ? ` — ${wait.warning}` : ""}`;
 const noteText = (wait: NoteWait) => !wait.holds ? `check-back passed ${wait.checkBack}: ${wait.note}`
   : wait.releaser === "owner" ? `waits for you: ${wait.note}` : `waits for an event: ${wait.note} (check back ${wait.checkBack})`;
-const agentText = (agent: BoardAgent) => `${agent.label} · ${agent.quietMinutes} min quiet`;
+/** "active now" while the holder was heard from this minute, then "idle N min": a count of quiet minutes read backwards at zero. */
+const agentText = (agent: BoardAgent) => `${agent.label} · ${agent.quietMinutes === 0 ? "active now" : `idle ${agent.quietMinutes} min`}`;
 /** "storytree-ai/storytree#131", ".../pull/131" and "131" all read "#131". */
 const prNumber = (pr: string) => `#${/(\d+)\D*$/u.exec(pr)?.[1] ?? pr}`;
 /** A closure's pull request as its chip says it: the old repository's (or a deleted one's) when it closed before the cut-over. */

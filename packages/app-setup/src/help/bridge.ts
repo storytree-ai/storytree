@@ -55,6 +55,8 @@ export interface AgentConnected {
   agent: string;
   connected: boolean;
   next: string;
+  /** Where the connection was written, shown one step away. */
+  where?: string;
 }
 
 /** A project's sentence as Settings → Projects shows it: what the project is, and who it is for. */

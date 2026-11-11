@@ -101,8 +101,8 @@ test("3.2 a claimed increment's oval carries its holder's flag in the session's 
   const fill = (id: string) => bar(id).match(/<path class="arc-flag-pennant" d="M[^"]+Z" fill="([^"]+)"/)?.[1];
   const tipOut = (id: string) => Math.max(...[...bar(id).match(/d="M([^"]+)Z"/)![1]!.matchAll(/(-?[\d.]+),/g)].map(([, x]) => Number(x)));
   assert.match(bar("i1"), /<svg class="arc-agent-mark"[^>]*data-agent-session="idle-one"[^>]*data-work-id="i1"[^>]*data-agent-label="[^"]+"/, "mount reads the holder from its flag");
-  assert.equal(fill("i2"), "hsl(314, 80%, 68%)", "the live holder's own session colour, as the globe wears it");
-  assert.equal(fill("i1"), "hsl(211, 53.33%, 64%)", "the idle holder's, greyed: from hsl(211, 80%, 68%)");
+  assert.equal(fill("i2"), "hsl(244, 80%, 68%)", "the live holder's own session colour, as the globe wears it");
+  assert.equal(fill("i1"), "hsl(261, 53.33%, 64%)", "the idle holder's, greyed: from hsl(261, 80%, 68%)");
   assert.ok(tipOut("i1") < tipOut("i2") * 0.5, "the idle holder's pennant is furled");
   assert.doesNotMatch(bar("i3"), /<svg/);
   assert.doesNotMatch(html, /●/, "no dot");

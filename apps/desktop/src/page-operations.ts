@@ -5,7 +5,6 @@
  */
 import type { AnnotatedTree, Library, Storytree } from "@storytree/library";
 import { isUnreachable, LIBRARY_UNREACHABLE } from "@storytree/library/connection-error";
-import { asReader } from "@storytree/library/reads";
 import { mount, offSaid, type Composition } from "@storytree/plugin-loader/switch";
 
 /** A story's page operations: each method of its bridge, and the channel that method travels on. */
@@ -66,10 +65,7 @@ export function sayOutagesOnce(handlers: PageHandlers, log: (line: string) => vo
   };
 }
 
-/**
- * The main process's side: each declared channel is answered by the same-named method of `answers`, given the page's
- * arguments, as the reader "app <method>", so the library's bytes it pulls are counted against that operation (8.11).
- */
+/** The main process's side: each declared channel is answered by the same-named method of `answers`, given the page's arguments. */
 export function answerPage<Channels extends Readonly<Record<string, string>>>(
   handlers: PageHandlers,
   channels: Channels,
@@ -78,7 +74,7 @@ export function answerPage<Channels extends Readonly<Record<string, string>>>(
 ): void {
   for (const [method, channel] of Object.entries(channels)) {
     const answer = answers[method] as (...args: unknown[]) => unknown;
-    handlers.handle(channel, (_event: unknown, ...args: unknown[]) => asReader(`app ${method}`, () => answer.apply(answers, args)));
+    handlers.handle(channel, (_event: unknown, ...args: unknown[]) => answer.apply(answers, args));
   }
 }
 

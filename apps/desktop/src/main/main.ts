@@ -129,7 +129,7 @@ import { CLEAR_FIRST_LAUNCH } from "./smoke-first-launch.js";
 import { smokeElectronFiles, smokePhases } from "./smoke-phases.js";
 import { stressWindow, windowSteps } from "./smoke-stress.js";
 import { smokeVerdict } from "./smoke-verdict.js";
-import { lateReads, projectAnswers } from "./late-reads.js";
+import { lateReads, projectAnswers, readerPerChannel } from "./late-reads.js";
 import { keepPageInWindow } from "./page-window.js";
 import { keepTray } from "./tray.js";
 import { titleWindow } from "./window-title.js";
@@ -152,7 +152,7 @@ declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 let build = app.isPackaged ? packagedBuild(app.getVersion()) : "";
 const args = parseArgs(process.argv, { packaged: app.isPackaged, env: process.env });
 // What the app reads from its library is the app's, whatever its argv[1] (none packaged, --updated after an update);
-// each page operation's read is that operation's (page-operations.ts, 8.11).
+// each page operation's read is that operation's (late-reads.ts, 8.11).
 nameReader("app");
 // In a smoke check, every main-process error logged turns its exit red, and no error box waits for a person (lifecycle 1.30).
 const verdict = smokeVerdict({ smoke: args.smoke, log: line => console.error(line) });
@@ -297,7 +297,7 @@ async function run(): Promise<void> {
   phases.phase("starting the app's handlers");
   answerStartMarks(ipcMain, START_MARK, marks);
   // Every page operation is answered through one outage guard: a library that cannot be reached is said once in app.log, not a stack per poll (page bridge 8.8).
-  const page = sayOutagesOnce(ipcMain, (line) => console.error(line));
+  const page = sayOutagesOnce(readerPerChannel(ipcMain), (line) => console.error(line));
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
   const appVersion = runningVersion({ packaged: app.isPackaged, packagedVersion: () => app.getVersion(), appPath: app.getAppPath() });
   // The journey stays in the frame, not in a manifest (ADR-1030 D4): the frame is its client too, telling it of the launch,

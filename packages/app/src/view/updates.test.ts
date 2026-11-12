@@ -259,8 +259,8 @@ test("4.49 the Updates section names the build running once, under its lead, apa
   let state: { phase: "idle" | "up-to-date" | "pending" | "failed"; runningBuild: string; nextBuild?: string; channel?: "stable"; checkedAt?: string } = { phase: "idle", runningBuild: "0.3.2700" };
   const updates = mountUpdates(host as unknown as HTMLElement, async () => state);
   await setImmediate();
-  const running = host.querySelector<HTMLElement>("[data-app-running-build]")!;
-  assert.notEqual(running.closest(".app-section-description"), null, "it is said in the section's lead");
+  const running = host.querySelector("[data-app-running-build]") as unknown as HTMLElement;
+  assert.ok(running.closest(".app-section-description") !== null, "it is said in the section's lead");
   assert.equal(running.hidden, false, "named at rest, with nothing waiting and the status line hidden");
   assert.equal(running.textContent, "Running storytree 0.3.2700.");
 
@@ -287,7 +287,7 @@ test("4.49 the Updates section names the build running once, under its lead, apa
   unnamed.innerHTML = renderAppMenu();
   const none = mountUpdates(unnamed as unknown as HTMLElement, async () => ({ phase: "failed", runningBuild: "" }));
   await setImmediate();
-  assert.equal(unnamed.querySelector<HTMLElement>("[data-app-running-build]")!.hidden, true, "nothing named, nothing shown");
+  assert.equal(unnamed.querySelector("[data-app-running-build]")!.hasAttribute("hidden"), true, "nothing named, nothing shown");
   none.stop();
   await window.happyDOM.close();
 });

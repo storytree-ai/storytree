@@ -14,7 +14,7 @@ import { removeTemp } from "@storytree/test-waits";
 import { readersReady } from "./code-survey.js";
 import { drawImportedStory } from "./drawing.js";
 import { formatLinks, linksOf } from "./links.js";
-import { codeSurveyReader } from "./read-survey.js";
+import { codeSurveyReader, drawImport } from "./read-survey.js";
 
 const REPOSITORY = "https://example.test/shop.git";
 
@@ -113,6 +113,47 @@ test("3.15 the links check resolves each import as the drawing does, so a map st
     const answer = await linksOf(drawn, survey, trunk, "story:tinydb");
     assert.equal(answer.covering, 4);
     assert.deepEqual([answer.missing, answer.unbacked, answer.unchecked], [[], [], []], "the drawing's own links are each backed, and it misses none");
+  } finally {
+    await removeTemp(folder);
+    await removeTemp(trunk);
+  }
+});
+
+/** A Next.js app: its files import each other by its tsconfig's `@/` alias and by a package's name, never by a relative path. */
+const NEXT = {
+  "tsconfig.json": "{\n  // as Next.js writes it\n  \"compilerOptions\": { \"baseUrl\": \".\", \"paths\": { \"@/*\": [\"./*\"], }, },\n}\n",
+  "package.json": JSON.stringify({ name: "taxonomy" }),
+  "app/page.tsx": "import { Button } from \"@/components/button\";\nimport { cn } from \"@/lib/utils\";\nexport default () => Button(cn());\n",
+  "components/button.tsx": "import { cn } from \"@/lib/utils\";\nimport { ui } from \"@acme/ui\";\nexport const Button = (name: string) => cn(name, ui);\n",
+  "lib/utils.ts": "export const cn = (...names: unknown[]) => names.join(\" \");\n",
+  "packages/ui/package.json": JSON.stringify({ name: "@acme/ui", main: "src/index.ts" }),
+  "packages/ui/src/index.ts": "export const ui = 1;\n",
+};
+
+test("3.15 the links check reads imports by a tsconfig path alias and by a package's name as the drawing does, so the drawing of an app importing only by them reports no missing and no unbacked link", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "links-next-"));
+  const trunk = await mkdtemp(path.join(tmpdir(), "links-trunk-"));
+  try {
+    for (const [file, text] of Object.entries(NEXT)) {
+      await mkdir(path.dirname(path.join(folder, file)), { recursive: true });
+      await writeFile(path.join(folder, file), text);
+    }
+    const mapped = { from: folder, package: ".", folders: ["."] };
+    const drawing = await drawImport({ mapped } as never, folder, []);
+    assert.deepEqual(drawing.links, [
+      { from: "app", to: "components" },
+      { from: "app", to: "lib" },
+      { from: "components", to: "lib" },
+      { from: "components", to: "packages/ui/src" },
+    ], "the drawing read from disk resolves the alias and the package's name");
+    const idOf = (title: string) => `cap-${title}`;
+    const drawn = { arcs: [], stories: [{ id: "story-next", title: "taxonomy", mapped, capabilities: drawing.capabilities.map(({ title, covers }, at) =>
+      capability(idOf(title), `${at + 1} · ${title}`, drawing.links.filter(({ from }) => from === title).map(({ to }) => idOf(to)), [...covers])) }] } as unknown as AnnotatedTree;
+    const survey = await codeSurveyReader({ checkout: "current" }).read(trunk, drawn, [{ folder }]);
+
+    const answer = await linksOf(drawn, survey, trunk, "story:taxonomy");
+    assert.equal(answer.covering, 4);
+    assert.deepEqual([answer.missing, answer.unbacked, answer.unchecked], [[], [], []], "each of the drawing's links is backed by an import the check reads");
   } finally {
     await removeTemp(folder);
     await removeTemp(trunk);

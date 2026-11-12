@@ -4,6 +4,7 @@
  * which of them are tests, what titles its tests carry, what a file imports and what it declares are its reader's.
  * JavaScript and TypeScript are read by the reader in code-survey.ts; a further language is a further reader.
  */
+import type { PathAliases } from "./tsconfig.js";
 
 /** A file of a story's package; the disk reader tags helpers outside src as test support. */
 export type SourceFile = { readonly path: string; readonly text: string; readonly testSupport?: boolean };
@@ -11,9 +12,12 @@ export type SourceFile = { readonly path: string; readonly text: string; readonl
 /**
  * A package's literal exports, in the same coordinates as its source files; with the packages it depends on and the
  * parts its storytree manifest declares by kind, each a module subpath and the export it names, when its manifest was read.
+ * An imported story's packages carry their main, and the tsconfigs its code is read under, each by its folder (8.62).
  */
 export type SurveyPackage = {
   readonly root: string; readonly name: string; readonly exports: Readonly<Record<string, string>>; readonly imports?: Readonly<Record<string, string>>;
+  readonly main?: string;
+  readonly tsconfigs?: readonly { readonly dir: string; readonly aliases: PathAliases }[];
   readonly deps?: readonly string[];
   readonly parts?: Readonly<Record<string, readonly { readonly from: string; readonly export: string }[]>>;
 };

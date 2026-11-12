@@ -30,16 +30,17 @@ test("3.42 the lag catalogue names each action by what it opens, picks its islan
 
   // The first entries, by name: an island is opened by its size or its story's name, never a point, and settles on that island's panel.
   const by = new Map(CATALOGUE.map(action => [action.name, action]));
-  assert.deepEqual([...by.keys()], ["open-fewest-island", "open-most-island", "open-named-island", "open-island-after-arc", "open-app-kept", "open-app-fresh", "close-panel",
+  assert.deepEqual([...by.keys()], ["open-fewest-island", "open-most-island", "open-named-island", "open-part-after-arc", "open-app-kept", "open-app-fresh", "close-panel",
     "click-fold", "open-fold", "open-contract", "library-and-back", "open-library-note", "open-session-row", "hover-sweep", "turn-forest", "turn-library", "whole-map", "idle"]);
   assert.deepEqual(["open-fewest-island", "open-most-island", "open-named-island"].map(name => by.get(name)!.perform),
     [[{ kind: "island", island: "fewest" }], [{ kind: "island", island: "most" }], [{ kind: "island", island: { story: "The library" } }]]);
   assert.deepEqual(by.get("open-named-island")!.settled, { selected: "island", panel: "open", still: true });
-  // The first pick right after an arc is selected (3.102): the arc is selected on the Arcs tab, rung on the island, then the island is
-  // opened as open-named-island opens it, under 4.16's budget, so a pick that rebuilds the arc's rings shows as a slow answer or frame.
-  const afterArc = by.get("open-island-after-arc")!;
+  // The first pick right after an arc is selected (3.102): the arc is selected on the Arcs tab, rung on the island, then one of the
+  // island's parts is picked by its name on the map, as the field's user picks it once the arc has closed the panel (3.104, 3.105),
+  // settling on that island's panel open under 4.16's budget, so a pick that rebuilds the arc's rings shows as a slow answer or frame.
+  const afterArc = by.get("open-part-after-arc")!;
   assert.deepEqual(afterArc.setup.slice(-3), [{ kind: "idle", ms: 500 }, { kind: "click", selector: ".arc-lane[aria-pressed=false]" }, { kind: "idle", ms: 300 }]);
-  assert.deepEqual([afterArc.perform, afterArc.settled, afterArc.owner], [by.get("open-named-island")!.perform, by.get("open-named-island")!.settled,
+  assert.deepEqual([afterArc.perform, afterArc.settled, afterArc.owner], [[{ kind: "part", island: { story: "The library" } }], by.get("open-named-island")!.settled,
     { capability: "capability_f0ffead428df", contract: "contract_f93fcab7b3c3" }]);
   assert.deepEqual(by.get("close-panel")!.settled, { selected: "none", panel: "closed" });
   // A fold handle is clicked once on the panel of the library's first capability, picked by its name (ADR-1287, ADR-1297): its answer

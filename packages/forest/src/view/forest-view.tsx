@@ -17,6 +17,7 @@ import { globeFraming } from "./planet-navigation.js";
 import { LAUNCH_FACE, sheetFaces, type SheetFace } from "./globe-switches.js";
 import type { PlacedGlobeControls } from "./globe-guide.js";
 import { globeLocator, type GlobeLocator } from "./globe-locator.js";
+import { drawnNames } from "./nameplates.js";
 import { paintedScenes } from "./painted-scenes.js";
 import { onScreenIsland } from "./layout-progress.js";
 import { ForestTop } from "./forest-top.js";
@@ -128,7 +129,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   const onControls = (next: PlacedGlobeControls | undefined): void => { controls = next; };
   const page = window as { storytreeGlobe?: GlobeLocator };
   page.storytreeGlobe = globeLocator({ controls: () => controls, scene: () => drawn.scene,
-    box: () => (container.querySelector("canvas") ?? container).getBoundingClientRect(), aside: () => measuredAside() });
+    box: () => (container.querySelector("canvas") ?? container).getBoundingClientRect(), aside: () => measuredAside(), names: () => drawnNames(container) });
   window.addEventListener("keydown", onKey);
 
   // The right-hand slot (the story panel or the Library's note card) is the globe's sibling; the globe moves aside for

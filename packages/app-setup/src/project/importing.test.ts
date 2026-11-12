@@ -284,6 +284,13 @@ test("12.10 a redraw keeps what was written: an unchanged capability keeps its i
     const onIndex = await library.addContract({ capability: index.id, title: "Totals the basket" });
     const onMoney = await library.addContract({ capability: money.id, title: "Sums" });
     const onTax = await library.addContract({ capability: tax.id, title: "Charges tax" });
+    // A contract on a drawn edge, one on an edge the code never made, and another story's link to the index.
+    const indexToMoney = (await library.list("edge")).find((edge) => edge.fields.from === index.id && edge.fields.to === money.id)!;
+    const onIndexEdge = await library.addContract({ edge: indexToMoney.id, title: "Hands the sum over" });
+    const handDrawn = await library.addEdge({ from: tax.id, to: money.id });
+    const onHandEdge = await library.addContract({ edge: handDrawn.id, title: "Converts" });
+    const elsewhere = await library.addStory({ title: "Elsewhere" });
+    const user = await library.addCapability({ story: elsewhere.id, title: "Uses the index", dependsOn: [index.id] });
 
     // The money folder splits (two files into fx/, two new beside it); the tax folder imports the index, closing a loop.
     rmSync(path.join(shop, "src/money"), { recursive: true });
@@ -310,6 +317,10 @@ test("12.10 a redraw keeps what was written: an unchanged capability keeps its i
       onMoney.fields,
       onTax.fields,
     ], "no contract is dropped: the index's moves to the loop holding its file, keeping its number");
+    for (const contract of [onIndexEdge, onHandEdge]) {
+      assert.deepEqual(contracts.get(contract.id), { title: contract.fields.title, capability: tax.id }, "an edge's contract moves, keeping its title, to the capability holding its dependent's files");
+    }
+    assert.deepEqual(((await library.get(user.id)) as SchemaRecord<"capability"> | null)?.fields.dependsOn, [tax.id], "another story's link to a retired capability goes to the one holding its files");
     const named = (capability: SchemaRecord<"capability">) => ({ id: capability.id, title: byId.get(capability.id)?.fields.title ?? capability.fields.title });
     const sorted = <T extends { id: string }>(list: T[]) => list.sort((x, y) => x.id.localeCompare(y.id));
     assert.deepEqual(again.redrawn, [{

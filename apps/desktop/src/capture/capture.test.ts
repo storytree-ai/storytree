@@ -233,6 +233,32 @@ test("2.18 · a retaken capture names the evidence upload for its pictures, neve
   assert.match(said.join("\n"), /pnpm evidence:upload --pr <n>/, "and that a retake's pictures are uploaded");
 });
 
+test("2.61 · a capture run to check it starts its scratch folder empty, and keeps what it takes for the rest of the run", t => {
+  const tmp = mkdtempSync(path.join(tmpdir(), "storytree-scratch-"));
+  t.after(() => removeTemp(tmp));
+  t.mock.method(console, "error", () => {});
+  const run = { argv: ["node", "capture.mjs"], tmp };
+  const folder = path.join(checkout, "packages", "forest", "evidence", "panel-picked-on-island");
+  const scratch = outputFolder(folder, run);
+  mkdirSync(path.join(scratch, "older"), { recursive: true });
+  writeFileSync(path.join(scratch, "a-shot-no-longer-taken.png"), "stale");
+  writeFileSync(path.join(scratch, "older", "measurements.json"), "stale");
+  assert.equal(captureOutput(folder, run), scratch);
+  assert.deepEqual(readdirSync(scratch), [], "an older run's pictures are gone before this run takes any");
+  writeFileSync(path.join(scratch, "this-run.png"), "taken");
+  captureOutput(folder, run);
+  assert.deepEqual(readdirSync(scratch), ["this-run.png"], "a later call in the same run keeps what the run took");
+});
+
+test("2.61 · a retake never empties the evidence folder it writes into", t => {
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-retake-"));
+  t.after(() => removeTemp(folder));
+  t.mock.method(console, "error", () => {});
+  writeFileSync(path.join(folder, "README.md"), "kept");
+  captureOutput(folder, { argv: ["node", "capture.mjs", "--retake"], tmp: folder });
+  assert.deepEqual(readdirSync(folder), ["README.md"]);
+});
+
 test("2.18 an evidence build writes its bundle to the checkout's ignored build folder, leaving nothing new beside the evidence it serves", () => {
   const files = (folder: string) => readdirSync(folder, { recursive: true }).map(String).sort();
   for (const [name, args, build] of [["sessions-list", [], "production"], ["view/pathway-repair", [checkout, "2-18-check"], "2-18-check"]] as const) {

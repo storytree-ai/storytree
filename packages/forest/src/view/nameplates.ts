@@ -22,6 +22,11 @@ export function drawnNames(host: ParentNode): DrawnName[] {
   });
 }
 
+/** The boxes of the map's controls drawn over it in `host`, the map's overlays: the Whole map button while it shows, and the compass (3.106). */
+export function mapControls(host: ParentNode): Box[] {
+  return [...host.querySelectorAll<HTMLElement>(".whole-map, .sheet-compass")].map(control => control.getBoundingClientRect());
+}
+
 /** How far past the coast a story's nameplate starts, in ground units. */
 export const NAMEPLATE_GAP = 3;
 

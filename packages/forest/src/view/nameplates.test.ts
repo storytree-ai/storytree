@@ -1,12 +1,13 @@
 /** The globe's nameplates: a story's fixed just south of its island, its capabilities' on their own land; where story names overlap, one fades; overlapping capability names move apart. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { Window } from "happy-dom";
 import { Euler, Quaternion, Vector3 } from "three";
 import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, mapFrame, NAME_OVERLAP_SLACK, nameMoves, nameplateAt, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
+import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, mapControls, mapFrame, NAME_OVERLAP_SLACK, nameMoves, nameplateAt, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -192,6 +193,19 @@ test("3.106 · the map's controls (the Whole map button, the compass) cover no n
   const move = moves.get("under the compass");
   assert.ok(move !== undefined, "a capability's name under a control moves");
   const at = { left: 880 + move.x, top: 80 + move.y, right: 960 + move.x, bottom: 96 + move.y };
+  // The controls are read from the map's overlays, where the page draws them: the button while it shows, and the compass.
+  const page = new Window().document, host = page.createElement("div");
+  const placed = (className: string, box: { left: number; top: number; right: number; bottom: number }) => {
+    const element = page.createElement(className === "whole-map" ? "button" : "div");
+    element.className = className;
+    element.getBoundingClientRect = () => ({ ...box, x: box.left, y: box.top, width: box.right - box.left, height: box.bottom - box.top }) as never;
+    host.appendChild(element);
+  };
+  placed("planet-mini-globe sheet-compass", compass);
+  placed("forest-label planet-nameplate", stories[0]!.box);
+  assert.deepEqual(mapControls(host as never).map(({ left, top, right, bottom }) => ({ left, top, right, bottom })), [compass], "at the opening view, no Whole map button: the compass only");
+  placed("whole-map", button);
+  assert.deepEqual(mapControls(host as never).map(({ left, top, right, bottom }) => ({ left, top, right, bottom })), [compass, button]);
   for (const control of [button, compass]) assert.ok(at.right - NAME_OVERLAP_SLACK <= control.left || at.left + NAME_OVERLAP_SLACK >= control.right
     || at.bottom - NAME_OVERLAP_SLACK <= control.top || at.top + NAME_OVERLAP_SLACK >= control.bottom, "moved off every control");
 });

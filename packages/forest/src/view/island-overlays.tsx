@@ -7,7 +7,7 @@ import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@stor
 import type { Coast } from "../territories/territories.js";
 import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
 import { awaitingLayout, keptVersion, pageTerritorySearcher, subscribeKept } from "../territories/kept-layout.js";
-import { capabilityPlates, crowdedNames, facing, mapFrame, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
+import { capabilityPlates, crowdedNames, facing, mapControls, mapFrame, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 import type { DetailStore } from "./zoom-detail.js";
 import { LayingOutLabel } from "./layout-progress.js";
@@ -95,7 +95,7 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
     // The map shows only where its canvas lies in the window: a story's name cut by the rail's edge or the window's fades (3.4).
     const frame = mapFrame(gl.domElement.getBoundingClientRect(), { width: innerWidth, height: innerHeight });
     // The map's controls drawn over it cover no name: a story's under one fades, a capability's moves off it (3.106).
-    const controls = [...host.querySelectorAll<HTMLElement>(".whole-map, .sheet-compass")].map(control => control.getBoundingClientRect()).filter(box => box.width > 0);
+    const controls = mapControls(host);
     const { faded, moves } = crowdedNames(shown, selected, capabilities.map(label => ({ capability: label.dataset.capabilityId!, box: label.getBoundingClientRect(),
       given: { x: Number(label.dataset.moveX ?? 0), y: Number(label.dataset.moveY ?? 0) }, size: Number(label.dataset.size ?? 0) })), frame, controls);
     for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));

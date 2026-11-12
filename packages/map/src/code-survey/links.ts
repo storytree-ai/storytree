@@ -53,7 +53,7 @@ export async function linksOf(
   const wanted = select.startsWith("story:") ? select.slice(6) : select;
   const story = tree.stories.find((each) => each.id === wanted || each.title.toLowerCase() === wanted.toLowerCase());
   const mapped = story === undefined ? undefined : survey[story.id]?.mapped;
-  if (story === undefined || story.mapped === undefined || mapped === undefined) throw new Error(`${wanted} is not a mapped story this machine imports.`);
+  if (story === undefined || story.mapped === undefined || mapped === undefined) throw new Error(`${wanted} is not an imported story this machine imports.`);
   const island = posix(mapped.folder);
   const named = new Map<string, Named>();
   for (const each of tree.stories) for (const { id, title } of each.capabilities) named.set(id, { id, title });

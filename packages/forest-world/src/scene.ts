@@ -47,7 +47,7 @@ export interface IslandLand {
   /**
    * Each territory's capability, title, description, word and lines (equal weights of 1 before survey); no capability or word for Unclaimed code.
    * `parked` when its capability is not proven and parked on purpose (ADR-0992), so it is filled grey;
-   * `mapped` for a mapped story's one territory, the whole island, filled brown (ADR-0993 D3).
+   * `mapped` for an imported story's one territory, the whole island, filled brown (ADR-0993 D3): its "mapped" means imported (ADR-1300 D3).
    */
   territories: readonly { capability?: string; title?: string; description?: string; status?: CapabilityWord; parked?: true; mapped?: true; lines: number }[];
   files: readonly { path: string; lines: number; capability?: string }[];

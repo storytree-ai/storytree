@@ -231,7 +231,7 @@ test("2.7 · a skipped pytest test, which -rA names only by its file and line, i
   assert.deepEqual(unmatched, []);
 });
 
-test("2.8 · an imported story's pytest files are those under the folders its code was mapped from (`.` the project's top), each file the story's whose folder holding it is deepest, so a flat project's tests/ credit its one story and a workspace member's tests credit the member; a story storytree built keeps its packages/<name>/ tests", () => {
+test("2.8 · an imported story's pytest files are those under the folders its code was imported from (`.` the project's top), each file the story's whose folder holding it is deepest, so a flat project's tests/ credit its one story and a workspace member's tests credit the member; a story storytree built keeps its packages/<name>/ tests", () => {
   const story = (id: string, title: string, contract: string, folder?: string): PlanTree["stories"][number] =>
     ({ id, title, ...(folder === undefined ? {} : { mapped: { folders: [folder] } }), capabilities: [{ id: `cap_${id}`, title: "1 · Api", contracts: [{ id: contract, title: "1.1 · it answers" }] }] });
   const tree: PlanTree = { stories: [story("story_root", "checkbox", "c_root_11", "."), story("story_sdk", "checkbox-sdk", "c_sdk_11", "libs/sdk"), story("story_web", "web", "c_web_11")] };

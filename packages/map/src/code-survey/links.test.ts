@@ -40,7 +40,7 @@ const SHOP = {
   "src/index.ts": "import { format } from \"./lib/format.js\";\nexport const shop = format;\n",
 };
 
-test("3.15 for a mapped story the map lists each import between two explored capabilities' files that no link covers, and each link between two of them that no import backs, with the imports behind each; a link it cannot check is named", async () => {
+test("3.15 for an imported story the map lists each import between two explored capabilities' files that no link covers, and each link between two of them that no import backs, with the imports behind each; a link it cannot check is named", async () => {
   const shop = await mkdtemp(path.join(tmpdir(), "links-shop-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "links-trunk-"));
   try {
@@ -74,7 +74,7 @@ test("3.15 for a mapped story the map lists each import between two explored cap
     assert.equal(capped.refused, true);
     assert.deepEqual(capped.missing.map(({ imports, count }) => [imports.length, count]), [[0, 2], [0, 1]], "above the ceiling each link keeps its count, never a cut list");
 
-    await assert.rejects(linksOf(tree, survey, trunk, "story:Built"), /not a mapped story/);
+    await assert.rejects(linksOf(tree, survey, trunk, "story:Built"), /not an imported story/);
   } finally {
     await rm(shop, { recursive: true, force: true });
     await rm(trunk, { recursive: true, force: true });

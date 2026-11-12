@@ -121,7 +121,7 @@ test("10.6 in a project whose health nothing verifies, each part gives the agent
   });
 });
 
-test("10.8 a mapped story's line says it is mapped, here before storytree and assumed to be working, with no health of its own; a capability planned on it keeps its own", async () => {
+test("10.8 an imported story's line says it is imported, here before storytree and assumed to be working, with no health of its own; a capability planned on it keeps its own", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const { added: [shop] } = await library.mapStories("/code/shop", [{ package: ".", title: "shop", folders: ["."] }]);
@@ -132,7 +132,7 @@ test("10.8 a mapped story's line says it is mapped, here before storytree and as
     assert.equal(ran.code, 0, ran.stderr);
     const lines = ran.stdout.split(/\r?\n/);
     const line = (id: string): string => lines.find((each) => each.includes(`[${id}]`)) ?? "";
-    assert.match(line(shop!.id), /\]  mapped: here before storytree, and assumed to be working$/, ran.stdout);
+    assert.match(line(shop!.id), /\]  imported: here before storytree, and assumed to be working$/, ran.stdout);
     assert.doesNotMatch(line(shop!.id), /agent says|verified/);
     assert.match(line(capability.id), /agent says not checked/, ran.stdout);
   });

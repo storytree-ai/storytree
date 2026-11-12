@@ -875,7 +875,7 @@ for (const backend of [memory, postgres]) {
     assert.equal((await itemOf(capability.id)).failure, note, "the one contract still failing says why");
   });
 
-  contract("5.16", "an explored capability of a mapped story has no health until it has a contract: no reason, and off the worklist; given a contract, it is read as any capability", async ({ health, work }) => {
+  contract("5.16", "an explored capability of an imported story has no health until it has a contract: no reason, and off the worklist; given a contract, it is read as any capability", async ({ health, work }) => {
     const { added: [app] } = await work.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
     const stats = await work.addCapability({ title: "Stats page", story: app!.id, covers: ["app/stats"] });
     const built = await work.addStory({ title: "Visitor can sign up" });
@@ -931,7 +931,7 @@ for (const backend of [memory, postgres]) {
     }
   });
 
-  contract("5.21", "an explored capability of a mapped story with a verified result tied to it takes its verified word and reason even while proposed; with none tied it stays proposed, and a built story's stays proposed whatever its health", async ({ health, work }) => {
+  contract("5.21", "an explored capability of an imported story with a verified result tied to it takes its verified word and reason even while proposed; with none tied it stays proposed, and a built story's stays proposed whatever its health", async ({ health, work }) => {
     const { added: [app] } = await work.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
     const retrieval = await work.addCapability({ title: "Retrieval", story: app!.id, covers: ["app/retrieval"] });
     const api = await work.addCapability({ title: "API", story: app!.id, covers: ["app/api"] });

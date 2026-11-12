@@ -367,6 +367,8 @@ export const RECORD_SCHEMAS = {
        * from CI. Added on version 1, optional, so an entry written before it reads with no source.
        */
       source: z.enum(["local", "ci"]).optional(),
+      /** The names of the tests whose results made a verified verdict, each with the suites around it. Optional, so no version bump. */
+      tests: z.array(z.string()).optional(),
     })
     .strict(),
   /**

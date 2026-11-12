@@ -58,14 +58,14 @@ export type CrossingAnswer = {
 };
 
 export const CROSSING_NOTE = "Code that uses these files through the database or events, or by a name the map cannot resolve, is not counted.";
-const CEILING = 200;
+export const CEILING = 200;
 const EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"];
 const COMPILED = { ".js": [".ts", ".tsx"], ".jsx": [".tsx"], ".mjs": [".mts"], ".cjs": [".cts"] } as Record<string, string[]>;
 
 const posix = (file: string): string => path.resolve(file).split(path.sep).join("/");
 
 /** A known file of the line's world: where it is, which side it is on, and its path as rows show it. */
-type Known = { readonly full: string; readonly side: "island" | "built"; readonly shown: string; readonly story: string };
+export type Known = { readonly full: string; readonly side: "island" | "built"; readonly shown: string; readonly story: string };
 
 /** The file `base` names, trying TypeScript's and Node's spellings, among `known`. */
 function fileAt(base: string, known: ReadonlyMap<string, Known>): string | undefined {
@@ -136,55 +136,14 @@ function patternOf(pattern: string): RegExp {
   return new RegExp(`^${parts.join("/").replace(/^\.\*\//, "(?:.*/)?").replace(/\/\.\*\//g, "/(?:.*/)?")}(?:/.*)?$`);
 }
 
-/** What crosses the line `options` draws in a mapped island of `survey`, read from disk (`readText`) only now. */
-export async function crossingsOf(
-  tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>, checkout: string, options: CrossingOptions,
-  { ceiling = CEILING, readText = async (file: string) => (await import("node:fs/promises")).readFile(file, "utf8") }: { ceiling?: number; readText?: (file: string) => Promise<string> } = {},
-): Promise<CrossingAnswer> {
-  const mode = options.mode ?? "counts";
+/**
+ * Every file a mapped island's imports are read against (its mapped files and every built story's files and tests), and
+ * a reader of one file's imports among them: the crossing (3.9) and the links check (3.15) read imports through this one.
+ */
+export async function islandImports(
+  tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>, checkout: string, island: string, readText: (file: string) => Promise<string>,
+): Promise<{ readonly islandStories: AnnotatedTree["stories"]; readonly known: ReadonlyMap<string, Known>; readonly importsFrom: (file: Known) => Promise<string[]> }> {
   const mapped = tree.stories.filter((story) => story.mapped !== undefined && survey[story.id]?.mapped !== undefined);
-  let candidates = mapped;
-  if (options.story !== undefined) {
-    const wanted = options.story.toLowerCase();
-    candidates = mapped.filter((story) => story.id === options.story || story.title.toLowerCase() === wanted);
-    if (candidates.length === 0) throw new Error(`${options.story} is not an imported story this machine imports.`);
-  }
-  if (options.patterns.length === 0) throw new Error("Name the folders or file patterns the line is drawn round.");
-
-  // An explored capability stands for the paths it covers, within its own story.
-  const named = options.patterns.filter((pattern) => pattern.startsWith("cap:"));
-  const covering = new Map<string, readonly string[]>();
-  for (const pattern of named) {
-    const wanted = pattern.slice(4);
-    const found = candidates.flatMap((story) => story.capabilities
-      .filter((capability) => capability.id === wanted || /^\s*(\d+)\s*·/.exec(capability.title)?.[1] === wanted)
-      .map((capability) => ({ story, capability })));
-    if (found.length === 0) throw new Error(`${pattern} is not a capability of an imported story this machine imports.`);
-    if (found.length > 1) throw new Error(`Ambiguous ${pattern}; use an id: ${found.map(({ story, capability }) => `${capability.id} (${story.title})`).join(", ")}`);
-    const { story, capability } = found[0]!;
-    if (capability.covers === undefined) throw new Error(`${pattern} (${capability.title}) covers no files: it is not an explored capability. Give its folders.`);
-    covering.set(story.id, [...covering.get(story.id) ?? [], ...capability.covers]);
-  }
-
-  // The files the line takes, by full path, with the import each belongs to.
-  const inside = new Map<string, { readonly folder: string; readonly story: string }>();
-  for (const story of candidates) {
-    const folder = posix(survey[story.id]!.mapped!.folder);
-    const given = [...options.patterns.filter((pattern) => !pattern.startsWith("cap:")), ...covering.get(story.id) ?? []];
-    const relative = given.flatMap((pattern) => {
-      if (!path.isAbsolute(pattern)) return [pattern];
-      const full = posix(pattern);
-      return full === folder ? ["."] : full.startsWith(`${folder}/`) ? [full.slice(folder.length + 1)] : [];
-    });
-    const matchers = relative.map((pattern) => pattern === "." ? /^/ : patternOf(pattern));
-    for (const file of survey[story.id]!.files) {
-      if (matchers.some((matcher) => matcher.test(file.path))) inside.set(`${folder}/${file.path}`, { folder, story: story.id });
-    }
-  }
-  if (inside.size === 0) throw new Error(`No imported file matches ${options.patterns.join(", ")}.`);
-  const folders = [...new Set([...inside.values()].map(({ folder }) => folder))];
-  if (folders.length > 1) throw new Error(`The line takes files of two imports (${folders.join(", ")}); name an imported story with --select story:<name>, or give full paths.`);
-  const island = folders[0]!;
   const islandStories = mapped.filter((story) => posix(survey[story.id]!.mapped!.folder) === island);
 
   // Every file the line's world knows: the island's mapped files and every built story's files and tests.
@@ -253,6 +212,60 @@ export async function crossingsOf(
     const found = await Promise.all(specifiersOf({ path: file.full, text }).map((specifier) => resolve(file, specifier)));
     return found.filter((to): to is string => to !== undefined);
   }
+
+  return { islandStories, known, importsFrom };
+}
+
+/** What crosses the line `options` draws in a mapped island of `survey`, read from disk (`readText`) only now. */
+export async function crossingsOf(
+  tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>, checkout: string, options: CrossingOptions,
+  { ceiling = CEILING, readText = async (file: string) => (await import("node:fs/promises")).readFile(file, "utf8") }: { ceiling?: number; readText?: (file: string) => Promise<string> } = {},
+): Promise<CrossingAnswer> {
+  const mode = options.mode ?? "counts";
+  const mapped = tree.stories.filter((story) => story.mapped !== undefined && survey[story.id]?.mapped !== undefined);
+  let candidates = mapped;
+  if (options.story !== undefined) {
+    const wanted = options.story.toLowerCase();
+    candidates = mapped.filter((story) => story.id === options.story || story.title.toLowerCase() === wanted);
+    if (candidates.length === 0) throw new Error(`${options.story} is not an imported story this machine imports.`);
+  }
+  if (options.patterns.length === 0) throw new Error("Name the folders or file patterns the line is drawn round.");
+
+  // An explored capability stands for the paths it covers, within its own story.
+  const named = options.patterns.filter((pattern) => pattern.startsWith("cap:"));
+  const covering = new Map<string, readonly string[]>();
+  for (const pattern of named) {
+    const wanted = pattern.slice(4);
+    const found = candidates.flatMap((story) => story.capabilities
+      .filter((capability) => capability.id === wanted || /^\s*(\d+)\s*·/.exec(capability.title)?.[1] === wanted)
+      .map((capability) => ({ story, capability })));
+    if (found.length === 0) throw new Error(`${pattern} is not a capability of an imported story this machine imports.`);
+    if (found.length > 1) throw new Error(`Ambiguous ${pattern}; use an id: ${found.map(({ story, capability }) => `${capability.id} (${story.title})`).join(", ")}`);
+    const { story, capability } = found[0]!;
+    if (capability.covers === undefined) throw new Error(`${pattern} (${capability.title}) covers no files: it is not an explored capability. Give its folders.`);
+    covering.set(story.id, [...covering.get(story.id) ?? [], ...capability.covers]);
+  }
+
+  // The files the line takes, by full path, with the import each belongs to.
+  const inside = new Map<string, { readonly folder: string; readonly story: string }>();
+  for (const story of candidates) {
+    const folder = posix(survey[story.id]!.mapped!.folder);
+    const given = [...options.patterns.filter((pattern) => !pattern.startsWith("cap:")), ...covering.get(story.id) ?? []];
+    const relative = given.flatMap((pattern) => {
+      if (!path.isAbsolute(pattern)) return [pattern];
+      const full = posix(pattern);
+      return full === folder ? ["."] : full.startsWith(`${folder}/`) ? [full.slice(folder.length + 1)] : [];
+    });
+    const matchers = relative.map((pattern) => pattern === "." ? /^/ : patternOf(pattern));
+    for (const file of survey[story.id]!.files) {
+      if (matchers.some((matcher) => matcher.test(file.path))) inside.set(`${folder}/${file.path}`, { folder, story: story.id });
+    }
+  }
+  if (inside.size === 0) throw new Error(`No imported file matches ${options.patterns.join(", ")}.`);
+  const folders = [...new Set([...inside.values()].map(({ folder }) => folder))];
+  if (folders.length > 1) throw new Error(`The line takes files of two imports (${folders.join(", ")}); name an imported story with --select story:<name>, or give full paths.`);
+  const island = folders[0]!;
+  const { islandStories, known, importsFrom } = await islandImports(tree, survey, checkout, island, readText);
 
   const rows: CrossingRow[] = [];
   const files = [...known.values()];

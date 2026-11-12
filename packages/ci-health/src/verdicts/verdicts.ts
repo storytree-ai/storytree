@@ -94,7 +94,7 @@ function pytestTests(text: string): PytestTest[] {
   return tests;
 }
 
-export type Verdict = { state: "passing" | "failing" | "not-checked"; passed: number; failed: number; skipped: number; total: number; note: string; skip?: SkipKind };
+export type Verdict = { state: "passing" | "failing" | "not-checked"; passed: number; failed: number; skipped: number; total: number; note: string; skip?: SkipKind; tests?: string[] };
 
 /**
  * Each story's proofs, from the files at the run's commit (repository paths): the tests of every package it owns, wherever they sit in
@@ -301,25 +301,28 @@ export function judgeRun(proofs: readonly StoryProofs[], reported: readonly Test
  * A contract's verdict from its tests' results, the one rule every run is judged by (a CI log's or a junit report's): it
  * passes only if it has tests and every one passed; any failure fails it; a skipped test is no pass, so a skip leaves it
  * not checked, with its kind, as does having no tests. Passing and failing carry the tally as the note, not checked the
- * skips and their reasons; a failing one adds the first line of the first message its failed tests carry.
+ * skips and their reasons; a failing one adds the first line of the first message its failed tests carry. Passing and
+ * failing also name the tests that judged it, each with the suites around it, when its results carry names.
  */
-export function verdictOf(own: readonly { readonly status: TestResult["status"]; readonly message?: string }[]): Verdict {
+export function verdictOf(own: readonly { readonly status: TestResult["status"]; readonly message?: string; readonly name?: string; readonly suites?: readonly string[] }[]): Verdict {
   const passed = own.filter(({ status }) => status === "passed").length;
   const failed = own.filter(({ status }) => status === "failed").length;
   const skipped = own.filter(({ status }) => status === "skipped").length;
   const counts = { passed, failed, skipped, total: own.length };
   const tally = `${passed}/${own.length} tests passed`;
+  const named = own.flatMap(({ name, suites }) => (name === undefined ? [] : [[...(suites ?? []), name].join(" › ")]));
+  const tests = named.length === 0 ? {} : { tests: named };
   if (failed > 0) {
     // The first failure's message, so a failing reading says why without its run's log (friction_b8ae83aa48e5).
     const first = own.find(({ status, message }) => status === "failed" && message?.trim())?.message?.trim().split("\n")[0]?.trim();
-    return { state: "failing", ...counts, note: first === undefined ? tally : `${tally}; first failure: ${clipped(first)}` };
+    return { state: "failing", ...counts, note: first === undefined ? tally : `${tally}; first failure: ${clipped(first)}`, ...tests };
   }
   if (own.length === 0) return { state: "not-checked", ...counts, note: "no test ran" };
   if (skipped > 0) {
     const reasons = [...new Set(own.flatMap(({ status, message }) => (status === "skipped" && message ? [message] : [])))];
     return { state: "not-checked", ...counts, skip: skipKind(reasons), note: `${skipped} of ${own.length} tests skipped${reasons.length > 0 ? ` (${reasons.join("; ")})` : ""}` };
   }
-  return { state: "passing", ...counts, note: tally };
+  return { state: "passing", ...counts, note: tally, ...tests };
 }
 
 /** The most of a failure's message a note quotes. */

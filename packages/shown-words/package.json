@@ -1,0 +1,16 @@
+{
+  "name": "@storytree/shown-words",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Shown words (ADR-1019 D3 as extended): the one table of the words a person is shown for storytree's things and actions, which the app and the first-run guide read. It depends on no workspace package, so every surface can read it.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": { "typecheck": "tsc -p ." },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

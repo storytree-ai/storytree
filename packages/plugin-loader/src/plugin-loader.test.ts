@@ -203,7 +203,7 @@ test("5.2 a stand-in that cannot be loaded (no factory folder, no such plugin, n
   }
 });
 
-test("5.21 · the factory plugin this computer's setting does not name that declares a family is found by the family's name, with the part `settings set part` names it as: its manifest's `for`, else its own name; a named plugin, one that cannot be loaded, or no factory folder finds none", (t) => {
+test("5.21 · the factory plugin this computer's setting does not name that declares a family is found by the family's name, with the part `settings set module` names it as: its manifest's `for`, else its own name; a named plugin, one that cannot be loaded, or no factory folder finds none", (t) => {
   const quality = { ...verbsPlugin, files: { "verbs.js": `export const verbs = [{ name: "quality" }];\n` } };
   const folder = factory(t, {
     "micks-dev-loop": quality,
@@ -220,7 +220,7 @@ test("5.21 · the factory plugin this computer's setting does not name that decl
   assert.equal(unnamedOwnerOf({ folder: path.join(folder, "plugins", "broken"), plugins: {} }, "verbs", "quality"), undefined, "a folder with no plugins in it finds none");
 });
 
-test("5.22 · every factory plugin with a storytree manifest this computer's setting does not name is listed, in name order, with the part `settings set part` names it as; a named plugin, one with no manifest or one that cannot be read, one whose manifest declares nothing to mount (only a plan), and no factory folder list none", (t) => {
+test("5.22 · every factory plugin with a storytree manifest this computer's setting does not name is listed, in name order, with the part `settings set module` names it as; a named plugin, one with no manifest or one that cannot be read, one whose manifest declares nothing to mount (only a plan), and no factory folder list none", (t) => {
   const folder = factory(t, {
     "micks-dev-loop": verbsPlugin,
     "my-runner": { ...verbsPlugin, manifest: { ...verbsPlugin.manifest, for: "agent-pool" } },
@@ -292,7 +292,7 @@ test("5.5 `plugin new <plugin>` starts a plugin in this computer's factory folde
   const { act, factory } = await pluginVerb(t, "new");
   const answer = await act({ plugin: "my-health", for: "ci-health" });
   assert.match(answer.text, /my-health/);
-  assert.ok(answer.next!.some((step) => step.command === "settings set part ci-health plugin my-health"), "it names the switch that mounts it");
+  assert.ok(answer.next!.some((step) => step.command === "settings set module ci-health plugin my-health"), "it names the switch that mounts it");
   const record = answer.next!.find((step) => step.command === "health plugin my-health");
   assert.ok(record !== undefined && record.tool === undefined, "it names the command that records its tests, which has no tool");
   const { mounted } = mount(standIn<{ name: string; verbs: { act: (input: object, place: object) => Promise<{ text: string }> }[] }>(builtIn as never, "verbs", { folder: factory, plugins: { "ci-health": "my-health" } }), ["ci-health"]);
@@ -307,14 +307,14 @@ test("5.5 `plugin new <plugin>` starts a plugin in this computer's factory folde
   await assert.rejects(act({ plugin: "../escape" }), /not a plugin's name/);
 });
 
-test("5.13 · a factory plugin that stands in for no part is added under its own name: `plugin new <plugin>` with no --for, and `plugin check`, name `settings set part <plugin> plugin <plugin>`, and every host mounts it, after its own parts, while the setting names it, and not once it no longer does", async (t) => {
+test("5.13 · a factory plugin that stands in for no part is added under its own name: `plugin new <plugin>` with no --for, and `plugin check`, name `settings set module <plugin> plugin <plugin>`, and every host mounts it, after its own parts, while the setting names it, and not once it no longer does", async (t) => {
   const { act, factory } = await pluginVerb(t, "new");
   const answer = await act({ plugin: "my-extra" });
-  assert.ok(answer.next!.some((step) => step.command === "settings set part my-extra plugin my-extra"), "it names the switch that adds it");
+  assert.ok(answer.next!.some((step) => step.command === "settings set module my-extra plugin my-extra"), "it names the switch that adds it");
   const { PLUGIN_FAMILIES } = await import("./factory/verbs.js");
   const check = PLUGIN_FAMILIES[0]!.verbs.find((each) => "name" in each.command && each.command.name === "check")!;
   const checked = await check.act({ plugin: "my-extra" } as never, { folder: factory } as never, { door: "command", say: (step) => step.command! });
-  assert.ok(checked.next!.some((step) => step.command === "settings set part my-extra plugin my-extra"), "check names it too");
+  assert.ok(checked.next!.some((step) => step.command === "settings set module my-extra plugin my-extra"), "check names it too");
   const added = standIn<{ name: string }>(builtIn as never, "verbs", { folder: factory, plugins: { "my-extra": "my-extra" } });
   assert.deepEqual(mount(added, ["my-extra"]).mounted.map((family) => family.name ?? family), ["health", "globe", "my-extra"]);
   assert.deepEqual(mount(added, ["my-extra"]).off, [], "no part of the host is off for it");
@@ -426,7 +426,7 @@ test("5.9 `plugin remove-records <plugin>` refuses a plugin switched on, removin
   setPartOff("ci-health", true, home, "voice");
   const refusal = await act({ plugin: "voice", yes: true }, { library }).then(() => undefined, (error: Error & { next?: readonly { command?: string }[] }) => error);
   assert.match(refusal?.message ?? "", /voice is switched on: it stands in for ci-health/);
-  assert.deepEqual(refusal?.next?.map(({ command }) => command), ["settings set part ci-health on"]);
+  assert.deepEqual(refusal?.next?.map(({ command }) => command), ["settings set module ci-health on"]);
   assert.deepEqual(removed, [], "nothing is removed while it is switched on");
 
   setPartOff("ci-health", false, home);
@@ -572,7 +572,7 @@ test("5.19 · a factory plugin named as the part it stands in for mounts alone i
   const { PLUGIN_FAMILIES } = await import("./factory/verbs.js");
   const check = PLUGIN_FAMILIES[0]!.verbs.find((each) => "name" in each.command && each.command.name === "check")!;
   const checked = await check.act({ plugin: "ci-health" } as never, { folder: home, hostVerbs: async () => host } as never, { door: "command", say: (step) => step.command! });
-  const own = checked.next!.find((step) => step.command === "settings set part ci-health plugin ci-health");
+  const own = checked.next!.find((step) => step.command === "settings set module ci-health plugin ci-health");
   assert.equal(own?.why, "or switch ci-health off with the plugin of its name in its place");
   const lacking = await check.act({ plugin: "ci-health", for: "ci-health" } as never, { folder: home, hostVerbs: async () => host } as never, { door: "command", say: (step) => step.command! });
   assert.match(lacking.text, /^ci-health stands in for ci-health, which provides what ci-health does not: the command health worklist\.$/m);

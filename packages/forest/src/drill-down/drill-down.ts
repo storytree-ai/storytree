@@ -12,7 +12,7 @@
  *
  * Everything here is a pure function of what the app hands the page, so it is tested without one.
  */
-import type { AnnotatedContract, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, Change, EarlierVerdict, HealthColumn, HealthSource, HealthState } from "@storytree/library";
+import type { AnnotatedContract, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, Change, EarlierVerdict, HealthColumn, HealthSource, HealthState, OpenWait } from "@storytree/library";
 
 
 import { grove, type PartStates } from "../capability-tree/capability-tree.js";
@@ -31,11 +31,28 @@ export interface ContractLine {
   source?: HealthSource;
   /** The verdict storytree last saw for it, when the latest run did not reproduce it: "not re-run" (ADR-0825 D2). */
   lastSeen?: EarlierVerdict;
+  /** The run that last judged it passing or failing: when, and the tests it named, when its entry kept them (Fable's F2.4). */
+  ran?: { at: string; tests?: string[] };
   /**
-   * Agentic user acceptance testing's state, only on a contract whose proof is marked for it (ADR-1294 D1). It reads
-   * "not-run" until a run writes a verdict (increment_eab89906c217).
+   * The gear: storytree's run of its tests, coloured by CI's newest reading wherever CI read it, else by the newest reading,
+   * else not run (question_32b645261409, Mick's answer A with CI over local). Every contract not marked for agentic user
+   * acceptance testing has one; a marked one only where a run reached it.
+   */
+  gear?: CheckReading;
+  /** The newest reading, a local run's, when it came after the CI reading the gear shows: said in the opened row alone. */
+  local?: CheckReading;
+  /**
+   * Agentic user acceptance testing's state, only on a contract whose proof is marked for it (ADR-1294 D1): the robot. It
+   * reads "not-run" until a run writes a verdict (increment_eab89906c217).
    */
   acceptance?: AcceptanceState;
+}
+
+/** One reading of storytree's run of a contract's tests: its state, where it was seen and when, where its entry says. */
+export interface CheckReading {
+  state: HealthState;
+  source?: HealthSource;
+  at?: string;
 }
 
 /** Where agentic user acceptance testing stands on a contract marked for it. */
@@ -74,8 +91,11 @@ export interface CapabilityLine {
   reportOnly?: true;
   /** The arcs that park it, when it is not proven and parked on purpose (ADR-0992 D6): its card names them. */
   parkedOn?: { arc: string; title: string }[];
-  /** The open increments naming it, in the library's order: the active ones first, then parked order (ADR-1253 D1). */
-  openWork?: { increment: string; title: string; active?: true }[];
+  /**
+   * The open increments naming it, in the library's order: the active ones first, then parked order (ADR-1253 D1), each with
+   * what still holds it, when something does (5.28): the first is the one the lead names as moving it (4.49).
+   */
+  openWork?: { increment: string; title: string; active?: true; waits?: OpenWait[] }[];
 }
 
 /** An edge of the story (ADR-1282 D1): one capability depending on another of the story, with the edge's own contracts. */
@@ -84,6 +104,8 @@ export interface EdgeLine {
   fromTitle: string;
   to: string;
   toTitle: string;
+  /** What passes between the two, in its own words; absent when nobody has written it. */
+  description?: string;
   /** Its contracts, each a line as a capability's contracts carry, never either capability's own. */
   contracts: ContractLine[];
 }
@@ -135,7 +157,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
   const capabilities = grove(found, states).flatMap(({ capability: id }): CapabilityLine[] => {
     const capability = id === undefined ? undefined : byId.get(id);
     if (capability === undefined) return [];
-    const contracts = capability.contracts.map((contract) => contractLine(contract, trails.get(contract.id) ?? []));
+    const contracts = numbered(capability.contracts).map((contract) => contractLine(contract, trails.get(contract.id) ?? []));
     const seen = contracts.flatMap(({ verified }) => (verified === undefined ? [] : [verified]));
     const sources = sourcesOf(contracts);
     return [
@@ -151,23 +173,34 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
         ...(capability.why === undefined ? {} : { why: whyLine(capability.why, capability.contracts, contracts) }),
         ...(capability.reportOnly ? { reportOnly: true as const } : {}),
         ...(capability.parkedOn === undefined ? {} : { parkedOn: capability.parkedOn.map(({ arc, title }) => ({ arc, title })) }),
-        ...(capability.openWork === undefined ? {} : { openWork: capability.openWork.map(({ increment, title, active }) => ({ increment, title, ...(active ? { active } : {}) })) }),
+        ...(capability.openWork === undefined ? {} : { openWork: capability.openWork.map(({ increment, title, active, waits }) => ({ increment, title, ...(active ? { active } : {}), ...(waits === undefined ? {} : { waits: waits.map((wait) => ({ ...wait })) }) })) }),
       },
     ];
   });
 
-  const edges = (found.edges ?? []).map(({ from, to, contracts }): EdgeLine => ({
+  const edges = (found.edges ?? []).map(({ from, to, description, contracts }): EdgeLine => ({
     from,
     fromTitle: byId.get(from)?.title ?? from,
     to,
     toTitle: byId.get(to)?.title ?? to,
-    contracts: contracts.map((contract) => contractLine(contract, trails.get(contract.id) ?? [])),
+    ...(description === undefined ? {} : { description }),
+    contracts: numbered(contracts).map((contract) => contractLine(contract, trails.get(contract.id) ?? [])),
   }));
 
   const files = survey[found.id]?.files ?? [];
   const mapped = found.mapped === undefined ? undefined : files.length === 0 ? {} : { files: files.length, lines: files.reduce((sum, file) => sum + file.lines, 0) };
   const checks = extraChecks(found);
   return { story: found.id, title: found.title, description: sentences(found.description), capabilities, ...(edges.length === 0 ? {} : { edges }), ...(mapped === undefined ? {} : { mapped }), ...(checks.length === 0 ? {} : { checks }) };
+}
+
+/** Contracts in the order their numbers say ("6.2 · …" before "6.10 · …"), the unnumbered after them, each kept in the library's order. */
+function numbered<T extends { title: string }>(contracts: readonly T[]): T[] {
+  const number = (title: string): number[] | undefined => /^(\d+)\.(\d+) · /.exec(title)?.slice(1).map(Number);
+  return [...contracts].sort((one, other) => {
+    const [a, b] = [number(one.title), number(other.title)];
+    if (a === undefined || b === undefined) return a === b ? 0 : a === undefined ? 1 : -1;
+    return a[0]! - b[0]! || a[1]! - b[1]!;
+  });
 }
 
 /** `story`'s own extra checks, then each of its capabilities'. */
@@ -187,8 +220,27 @@ function contractLine(contract: AnnotatedContract, trail: readonly HealthState[]
     ...(written(contract.health.verified) ? { verified: contract.health.verified.state } : {}),
     ...(written(contract.health.verified) && contract.health.verified.source !== undefined ? { source: contract.health.verified.source } : {}),
     ...(contract.health.verified.was === undefined ? {} : { lastSeen: contract.health.verified.was }),
+    ...ranOf(contract.health.verified),
+    ...gearOf(contract),
     ...(contract.proof?.by === "agentic-user-acceptance-testing" ? { acceptance: "not-run" as const } : {}),
   };
+}
+
+/**
+ * A contract's gear, from storytree's run alone: CI's newest reading wherever CI read it, so a later local pass never hides a
+ * failing CI, with that local reading kept beside it for the opened row; else the newest reading; else not run. A contract
+ * marked for agentic user acceptance testing has a gear only where a run reached it.
+ */
+function gearOf({ health: { verified, ci }, proof }: AnnotatedContract): Pick<ContractLine, "gear" | "local"> {
+  const newest = written(verified) ? verified : undefined;
+  const shown = ci ?? newest;
+  if (shown === undefined) return proof?.by === "agentic-user-acceptance-testing" ? {} : { gear: { state: "not-checked" } };
+  const later = ci !== undefined && newest !== undefined && newest.source !== "ci" && newest.at! > ci.at! ? newest : undefined;
+  return { gear: checkReadingOf(shown), ...(later === undefined ? {} : { local: checkReadingOf(later) }) };
+}
+
+function checkReadingOf({ state, source, at }: HealthColumn): CheckReading {
+  return { state, ...(source === undefined ? {} : { source }), ...(at === undefined ? {} : { at }) };
 }
 
 /**
@@ -210,6 +262,12 @@ function sourcesOf(lines: readonly ContractLine[]): HealthSource[] | undefined {
 
 /** The sources, in the order they are said. */
 const SOURCES: readonly HealthSource[] = ["local", "ci"];
+
+/** The run a verified column's passing or failing entry records, with the tests it named; a not-checked one is no run of its tests. */
+function ranOf({ state, at, tests }: HealthColumn): { ran?: NonNullable<ContractLine["ran"]> } {
+  if (at === undefined || state === "not-checked") return {};
+  return { ran: { at, ...(tests === undefined ? {} : { tests: [...tests] }) } };
+}
 
 /** Whether a column has an entry: a contract's column carries its time once something wrote it. */
 function written(column: HealthColumn): boolean {

@@ -44,6 +44,8 @@ export interface Rail {
   panel(tab: RailTab): HTMLElement;
   /** What waits on the owner in the arcs; none hides the badge. */
   badge(count: number): void;
+  /** Puts `tab` on show, as its click would, and shows the rail if it was collapsed (2.57). */
+  show(tab: RailTab): void;
   stop(): void;
 }
 
@@ -203,6 +205,10 @@ export function mountRail(content: HTMLElement, options: { project: string; tabs
 
   return {
     panel: (tab) => rail.querySelector<HTMLElement>(`#rail-${tab}`)!,
+    show(tab) {
+      if (tabs.includes(tab)) choose(tab);
+      if (collapsed) setCollapsed(false);
+    },
     badge(count) {
       if (!badge) return;
       badge.hidden = count === 0;

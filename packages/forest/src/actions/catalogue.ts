@@ -138,6 +138,12 @@ export const CATALOGUE: readonly LagAction[] = [
   openIsland("open-fewest-island", "fewest"),
   openIsland("open-most-island", "most"),
   openIsland("open-named-island", { story: NAMED_STORY }),
+  // The first pick right after an arc is selected (3.102), where the guided runs on Windows caught a slow answer and frame: on the Arcs
+  // tab, any arc selected is let go, then the first is selected, its rings drawn on the islands its increments name, before the pick.
+  { ...openIsland("open-island-after-arc", { story: NAMED_STORY }),
+    setup: [...RESET, { kind: "click", selector: "[data-rail-tab=arcs][aria-selected=false]", optional: true },
+      { kind: "click", selector: ".arc-lane[aria-pressed=true]", optional: true }, { kind: "idle", ms: 500 },
+      { kind: "click", selector: ".arc-lane[aria-pressed=false]" }, { kind: "idle", ms: 300 }] },
   // Opening the app is a real start of the page: the kept forest the last start left, or none, until the globe is settled. A start
   // has no input, so the field recorder cannot tell one from what the page shows, and files none.
   { name: "open-app-kept", setup: [], perform: [{ kind: "start", forget: [] }], settled: { start: "settled" }, budget: DEFAULT_BUDGET, limitMs: 60_000, owner: OPENING_THE_APP },
@@ -169,6 +175,9 @@ export const CATALOGUE: readonly LagAction[] = [
     owner: TURNING_THE_MAP },
   { name: "turn-library", setup: [...RESET, { kind: "click", selector: "[data-globe-switch=library]" }, { kind: "wait", until: { mode: "library", still: true } }],
     perform: [{ kind: "turn" }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "turn-library", turns: "library", owner: TURNING_THE_MAP },
+  // 3.106: an arrow key pans the view off its opening, so the Whole map button shows; its click eases the view home.
+  { name: "whole-map", setup: [...RESET, { kind: "key", key: "ArrowRight" }, { kind: "wait", until: { still: true } }],
+    perform: [{ kind: "click", selector: "button.whole-map" }], settled: { still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: TURNING_THE_MAP },
   { name: "idle", setup: RESET, perform: [{ kind: "idle", ms: 10_000 }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: THE_CANVAS },
 ];
 

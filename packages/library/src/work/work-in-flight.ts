@@ -36,9 +36,14 @@ import { checkedWaitFor, INCREMENT_BLOCKER, type WaitWrite } from "./wait-writes
 
 /** The owner's voice note or one of his questions, named in an increment's body or links: work that came from his answer. */
 const FROM_HIS_ANSWER = /\b(?:voice\.note|question)_[0-9a-f]{12}\b/;
+/** A question named in text. */
+const QUESTION = /\bquestion_[0-9a-f]{12}\b/g;
 
 /** Where an increment is in its lifecycle. */
 export type IncrementStatus = (typeof INCREMENT_STATUSES)[number];
+/** A settled question, with the open increments settling it released, by id and title (10.39). */
+export type SettledQuestion = SchemaRecord<"question"> & { released: { id: string; title: string }[] };
+
 /** An arc's state: worked out from its increments, except for the owner's "parked". */
 export type ArcState = "active" | "parked" | "closed";
 /** How an increment closed. */
@@ -267,7 +272,7 @@ export class WorkInFlight {
    * remedies or increment it waits on that is not live). A wait given at birth needs no loop check,
    * since nothing can wait on a record not yet written. It is a proposal, stamped with when it was parked, or, given an
    * `outcome`, born closed. A proposal whose capabilities list names a capability already on another open increment's
-   * list is refused (RangeError), naming that increment, its title and its arc, so a second drain routes to the one
+   * list is refused (RangeError), naming every such increment, its title and its arc, so a second drain routes to the one
    * already parked (10.35): unless it is born waiting on that increment, as a later step of a split is, or on the claim of
    * every capability they share, as work split off a held capability is (ADR-1228 D1).
    */
@@ -280,10 +285,11 @@ export class WorkInFlight {
       if (outcome === undefined) {
         // Born waiting on that increment, or on the claim of every capability it shares (ADR-1228 D1), it follows that work.
         const follows = new Set((fields.waits ?? []).map(({ on }) => on));
-        const shared = (await this.openListing(fields.capabilities ?? [])).find((other) => !follows.has(other.increment) && !other.capabilities.every((capability) => follows.has(capability)));
-        if (shared !== undefined) {
-          const claims = shared.capabilities.map((capability) => `${capability}'s claim`).join(" and ");
-          throw new RangeError(`${listedSaid(shared)}: route this work to that increment, or, if it follows that one, park it waiting on it, or, if it waits only for the capability, on ${claims}`);
+        const shared = (await this.openListing(fields.capabilities ?? [])).filter((other) => !follows.has(other.increment) && !other.capabilities.every((capability) => follows.has(capability)));
+        if (shared.length > 0) {
+          // Every overlap in the one refusal, so a wide list learns its waits from one try (friction_e8ef03cd89fa).
+          const claims = shared.flatMap((other) => other.capabilities).map((capability) => `${capability}'s claim`).join(" and ");
+          throw new RangeError(`${shared.map(listedSaid).join("; ")}: route this work to the increment it belongs to, or, if it follows one, park it waiting on each it follows, or, if it waits only for a capability, on ${claims}`);
         }
       }
       const waitsFor = fields.waitsFor?.map(checkedWaitFor);
@@ -378,11 +384,14 @@ export class WorkInFlight {
    * What a check run on the owner's answer found reaches him (ADR-1259, 10.42): an increment whose body or links name his
    * voice note or a question of his, landed with a note and no pull request to show for it, records an FYI carrying that
    * note, which `fyi list`, the shared briefing and voice offer until it is marked heard. A pull request is told as a
-   * landing already, and a close that did not land found nothing to tell.
+   * landing already, and a close that did not land found nothing to tell. Nor does a close whose note names a question
+   * its increment did not already name (ADR-1259 D2): that result is a new question, which reaches him as that question.
    */
   async #offerFindings({ id, fields }: SchemaRecord<"increment">, close: CloseInput, options?: WriteOptions): Promise<void> {
     if (close.disposition !== "landed" || close.pr !== undefined || close.note === undefined) return;
-    if (!FROM_HIS_ANSWER.test([fields.body, ...(fields.links ?? [])].join("\n"))) return;
+    const from = [fields.body, ...(fields.links ?? [])].join("\n");
+    if (!FROM_HIS_ANSWER.test(from)) return;
+    if ((close.note.match(QUESTION) ?? []).some((question) => !from.includes(question))) return;
     const fyi = { title: `What your answer found: ${fields.title}`, what: close.note, about: id, by: options?.actor ?? "storytree", at: new Date().toISOString() };
     await this.#records.create("fyi", fyi, options);
   }
@@ -415,7 +424,7 @@ export class WorkInFlight {
    * Move an increment to another arc, keeping its id, lifecycle, waits and claims; its history
    * records the move with `reason`. The arc must be live (MissingReferenceError otherwise). Open
    * work cannot move into a closed arc (ADR-0792 D2, RangeError), while completed history may move
-   * there during arc decomposition without reopening it. Null, with nothing written, if `id` is
+   * there during arc decomposition without reopening it; the refusal names the way back (park the arc, move, unpark). Null, with nothing written, if `id` is
    * not a live increment. Moving the last open work off an arc closes it, clearing the waits on it (10.33).
    */
   moveIncrement(id: string, arc: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
@@ -424,7 +433,10 @@ export class WorkInFlight {
       if (increment === null) return null;
       await checkReference(this.#records, "arc", arc, "arc");
       if (increment.fields.status !== "closed" && (await this.arcView(arc))?.state === "closed") {
-        throw new RangeError(`arc ${JSON.stringify(arc)} is closed and takes nothing new: move ${JSON.stringify(id)} to a live arc`);
+        throw new RangeError(
+          `arc ${JSON.stringify(arc)} is closed and takes nothing new: move ${JSON.stringify(id)} to a live arc, or, splitting an arc, ` +
+            `move open increments before closed ones; to reopen this one for it, \`arc park ${arc}\`, move it, then \`arc unpark ${arc}\``,
+        );
       }
       const moved = (await this.#records.edit(id, { arc }, { ...options, reason })) as SchemaRecord<"increment"> | null;
       await this.#clearAfter(() => this.#clearIfClosed(increment.fields.arc, options));
@@ -502,10 +514,11 @@ export class WorkInFlight {
 
   /**
    * Release each open increment whose event wait is about contract `contract`, on a failing verdict (10.44): one that
-   * links it or lists its `capability` has its event wait cleared and `verdict` written at the top of its body. The ids released.
+   * links it or lists its `capability` has its event wait cleared and `verdict` written at the top of its body. Given
+   * `asOf`, a verdict's history place when it is told later, only a wait that stood unchanged since then (10.45). The ids released.
    */
-  releaseOnVerdict(contract: string, capability: string | undefined, verdict: string, options?: WriteOptions): Promise<string[]> {
-    return this.#serially(() => waitWrites.releaseOnVerdict(this.#records, contract, capability, verdict, options));
+  releaseOnVerdict(contract: string, capability: string | undefined, verdict: string, options?: WriteOptions, asOf?: number): Promise<string[]> {
+    return this.#serially(() => waitWrites.releaseOnVerdict(this.#records, contract, capability, verdict, options, asOf));
   }
 
   /**
@@ -655,14 +668,17 @@ export class WorkInFlight {
   /**
    * Settle a question with the owner's answer, and the live decision that carried it, if one did
    * (capability 12), taking it off every increment's heldOn in the same step (10.39) and clearing the
-   * waits on its arc if that now reads closed (10.33). Null if `id` is not a live question.
+   * waits on its arc if that now reads closed (10.33), with the open increments it released, by id
+   * and title (10.39). Null if `id` is not a live question.
    */
-  settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+  settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SettledQuestion | null> {
     return this.#serially(async () => {
       const settled = await questions.settleQuestion(this.#records, id, settlement, options);
-      if (settled !== null) await waitWrites.releaseHolders(this.#records, id, options);
-      if (settled !== null) await this.#clearAfter(() => this.#clearIfClosed(settled.fields.arc, options));
-      return settled;
+      if (settled === null) return null;
+      const heldBy = await waitWrites.releaseHolders(this.#records, id, options);
+      await this.#clearAfter(() => this.#clearIfClosed(settled.fields.arc, options));
+      const released = heldBy.filter((increment) => increment.fields.status !== "closed").map(({ id: held, fields }) => ({ id: held, title: fields.title }));
+      return { ...settled, released };
     });
   }
 
@@ -688,7 +704,7 @@ export class WorkInFlight {
       const heldBy = await waitWrites.releaseHolders(this.#records, id, options);
       await this.#records.retire(id, reason, options);
       await this.#clearAfter(() => this.#clearIfClosed(question.fields.arc, options));
-      return heldBy;
+      return heldBy.map((increment) => increment.id);
     });
   }
 

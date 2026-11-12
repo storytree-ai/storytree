@@ -41,9 +41,9 @@ export interface CommandPlace extends VerbPlace {
   journey: Context["journey"];
   out(text: string): void;
   surfaces(): Promise<readonly SurfaceDeclaration[]>;
-  /** The host's parts, each with the parts it stands on (ADR-1095): what `settings set part` switches. */
+  /** The host's parts, each with the parts it stands on (ADR-1095): what `settings set module` switches. */
   parts(): Promise<PartsGraph>;
-  /** The host's command families, each with the part that declares it: what `settings set part` says a switch takes away, and `plugin check` a stand-in lacks. */
+  /** The host's command families, each with the part that declares it: what `settings set module` says a switch takes away, and `plugin check` a stand-in lacks. */
   hostVerbs(): Promise<Composition<ProvidingFamily>>;
   /** The records the parts this computer mounts keep for a project outside its library, which `project delete` forgets with it. */
   projectRecords(): Promise<readonly ProjectRecords[]>;

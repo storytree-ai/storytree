@@ -7,7 +7,7 @@ const WORDS: DoorWords = { door: "command", say: (step) => step.command ?? step.
 const unopened = new Proxy({}, { get: (_target, name) => { throw new Error(`the library was read: ${String(name)}`); } });
 const context = { folder: process.cwd(), project: "p", session: "s", library: unopened, server: unopened } as unknown as VerbContext;
 const bare = (name: string) => MAP_FAMILIES.find((family) => family.name === name)!.bare!;
-const given = { select: undefined, crossing: undefined, capabilities: false, given: undefined, range: undefined, up: undefined, down: undefined, kind: undefined, "dry-run": false, show: false, json: false };
+const given = { select: undefined, crossing: undefined, capabilities: false, links: false, given: undefined, range: undefined, up: undefined, down: undefined, kind: undefined, "dry-run": false, show: false, json: false };
 
 async function refused(name: string, input: Record<string, unknown>): Promise<VerbRefusal> {
   const error = await bare(name).act({ ...given, ...input }, context, WORDS).then(() => undefined, (thrown: unknown) => thrown);
@@ -23,6 +23,9 @@ test("3.4 the map command, declared as Code map's map and affected families, ref
   assert.match((await refused("map", { crossing: " , " })).message, /Name the folders/);
   assert.match((await refused("map", { crossing: "src", select: "file:x" })).message, /names an imported story/);
   assert.match((await refused("map", { capabilities: true, select: "cap:2" })).message, /answers for one story/);
+  for (const words of [{ select: "cap:2" }, { select: "story:x", crossing: "src" }, { select: "story:x", capabilities: true }]) {
+    assert.match((await refused("map", { links: true, ...words })).message, /--links checks one imported story/);
+  }
   assert.match((await refused("affected", { given: "a..b", range: "c..d" })).message, /Give one range/);
   assert.match((await refused("affected", { show: true, "dry-run": true })).message, /either --show or --dry-run/);
 });

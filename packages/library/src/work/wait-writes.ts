@@ -14,6 +14,7 @@
 import { byCreation } from "../creation-order.js";
 import { checkReference, liveRecord } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
+import type { FieldsOf } from "../schema/types.js";
 import type { Wait, WaitFor } from "./waits.js";
 
 /**
@@ -167,14 +168,18 @@ export async function removeWaitFor(records: SchemaRecords, id: string, releaser
 /**
  * Release each open increment whose event wait is about contract `contract` (10.44): one that links it or lists its
  * `capability`. Its event wait is cleared and `verdict` written at the top of its body, in one write whose history keeps
- * `verdict` as the reason; its other waits stay. The ids of the increments released, oldest first.
+ * `verdict` as the reason; its other waits stay. Given `asOf`, the history place of a verdict told after it was written,
+ * only an increment whose event wait stood unchanged from that place to now is released: one made to wait after the
+ * verdict waits for a later run (10.45). The ids of the increments released, oldest first.
  */
-export async function releaseOnVerdict(records: SchemaRecords, contract: string, capability: string | undefined, verdict: string, options?: WriteOptions): Promise<string[]> {
+export async function releaseOnVerdict(records: SchemaRecords, contract: string, capability: string | undefined, verdict: string, options?: WriteOptions, asOf?: number): Promise<string[]> {
   const open = await records.select("increment", ["body", "links", "capabilities", "waitsFor"], { not: { status: "closed" } });
-  const about = open
+  const waiting = open
     .filter(({ fields }) => fields.waitsFor?.some((wait) => wait.releaser === "event") === true)
     .filter(({ fields }) => fields.links?.includes(contract) === true || (capability !== undefined && fields.capabilities?.includes(capability) === true))
     .sort(byCreation);
+  const stood = asOf === undefined ? waiting.map(() => true) : await Promise.all(waiting.map(({ id, fields }) => stoodSince(records, id, eventWaitOf(fields.waitsFor), asOf)));
+  const about = waiting.filter((_, index) => stood[index]);
   for (const { id, fields } of about) {
     const event = fields.waitsFor!.find((wait) => wait.releaser === "event")!;
     const rest = fields.waitsFor!.filter((wait) => wait !== event);
@@ -184,17 +189,30 @@ export async function releaseOnVerdict(records: SchemaRecords, contract: string,
   return about.map(({ id }) => id);
 }
 
+/** An increment's event wait as one comparable word, or undefined when it has none. */
+function eventWaitOf(waitsFor: readonly WaitFor[] | undefined): string | undefined {
+  const event = waitsFor?.find((wait) => wait.releaser === "event");
+  return event === undefined ? undefined : `${event.note}\n${event.checkBack}`;
+}
+
+/** Whether increment `id` held event wait `event` at history place `asOf` and in every change of it since. */
+async function stoodSince(records: SchemaRecords, id: string, event: string | undefined, asOf: number): Promise<boolean> {
+  const [[then], since] = await Promise.all([records.history({ id, upTo: asOf, newest: 1 }), records.history({ id, since: asOf })]);
+  if (then === undefined) return false;
+  return [then, ...since].every((change) => eventWaitOf((records.current(change.record).fields as FieldsOf<"increment">).waitsFor) === event);
+}
+
 /**
  * Take question `id` off the heldOn of every increment that names it, open or closed, keeping their
  * other holds, as the question is settled (10.39) or retired (10.40); the increments released, oldest first.
  */
-export async function releaseHolders(records: SchemaRecords, id: string, options?: WriteOptions): Promise<string[]> {
+export async function releaseHolders(records: SchemaRecords, id: string, options?: WriteOptions): Promise<SchemaRecord<"increment">[]> {
   const heldBy = (await records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true).sort(byCreation);
   for (const increment of heldBy) {
     const rest = (increment.fields.heldOn ?? []).filter((held) => held !== id);
     await records.edit(increment.id, { heldOn: rest.length === 0 ? undefined : rest }, options);
   }
-  return heldBy.map((increment) => increment.id);
+  return heldBy;
 }
 
 /**

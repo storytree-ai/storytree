@@ -25,7 +25,7 @@ export function mountAppMenu(host: HTMLElement, options: {
   installChoice?: InstallChoiceBridge;
   /** Which release channel the app follows, where it installs releases (updates 4.24). */
   releaseChannel?: ReleaseChannelBridge;
-  /** The app setup's Add project control; it reports the project added, which is then shown. `add` starts it from the bar's "New project…". */
+  /** The app setup's Add project control; it reports the project added, which is then shown. `add` starts it from the bar's "Add a project…". */
   mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void; add(): void };
   /** The app setup's project sentence for the project on show: what it is and who it is for, edited in place (ADR-1085 D1 as narrowed). */
   mountProjectSentence?(host: HTMLElement, current: () => string | undefined): { stop(): void; refresh(): void };
@@ -149,12 +149,18 @@ export function mountAppMenu(host: HTMLElement, options: {
   document.addEventListener("keydown", key, true);
 
   return {
+    /** Open the menu on Help, as the empty map's First-run guide button asks (2.58); an open menu stays as it is. */
+    openHelp(): void {
+      if (menu.matches(":popover-open")) return;
+      selectSection("help");
+      menu.showPopover();
+    },
     update({ projects, current, factory: place }: ProjectSelection): void {
       shown = current !== undefined && projects.includes(current) ? current : undefined;
       projectSentence?.refresh();
       removeProject?.refresh();
       deleteProject?.refresh();
-      // The bar's tabs: the factory's icon switches straight to it, and Projects lists the products, "New project…" opening
+      // The bar's tabs: the factory's icon switches straight to it, and Projects lists the products, "Add a project…" opening
       // the gear's Projects to add one. Drawn again only when they change, so a poll does not close a picker the user has open.
       const factoryName = factoryOf(place, shown);
       const drawn = renderProjectPicker(projects, shown, factoryName);

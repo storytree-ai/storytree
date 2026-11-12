@@ -41,16 +41,17 @@ test("2.1–2.4 the board names each window, reason, quiet age and missing hooks
   assert.equal(idle.quietMinutes, 41);
 });
 
-test("2.2 every claim-ending event removes the holder, and a running command follows Session management's live reading", () => {
+test("2.2 every claim-ending event removes the holder, a window closing leaves it on the work idle, and a running command follows Session management's live reading", () => {
   const endings: NewLine[] = [
     { kind: "released", source: "tool", session: "s1", increment: "i" },
     { kind: "closed", source: "tool", session: "s1", increment: "i", disposition: "landed" },
-    { kind: "session-ended", source: "hook", session: "s1" },
     { kind: "merged", source: "tool", session: "observer", holder: "s1", increment: "i", branch: "build", pr: 42 },
   ];
   for (const end of endings) {
     assert.equal(agentsOnBoard([...lines, { ...end, seq: 6, at: at(6).toISOString(), project: "p" }], at(42)).on("i"), undefined, end.kind);
   }
+  const closed = agentsOnBoard([...lines, { kind: "session-ended", source: "hook", session: "s1", seq: 6, at: at(6).toISOString(), project: "p" }], at(7)).on("i");
+  assert.deepEqual([closed?.session, closed?.holder], ["s1", "idle"], "its process stopped: it still holds the work, idle at once (ADR-1311 D1)");
   assert.equal(agentsOnBoard([...lines, { kind: "landed", source: "tool", session: "s2", capability: "part", seq: 6, at: at(6).toISOString(), project: "p" }], at(42)).on("part"), undefined);
   assert.equal(agentsOnBoard([...lines, { kind: "command-started", source: "hook", session: "s1", command: "tests", call: "c", seq: 6, at: at(6).toISOString(), project: "p" }], at(90)).on("i")?.activity, "live");
 });

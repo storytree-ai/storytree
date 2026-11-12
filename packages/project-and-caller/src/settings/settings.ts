@@ -163,6 +163,7 @@ interface Stored {
   library?: LibraryLocation;
   surfaces?: SurfaceChoices;
   experiment?: ExperimentArm;
+  "modules-off"?: readonly string[];
   "parts-off"?: readonly string[];
   factory?: string;
   "factory-switched"?: FactorySwitched;
@@ -279,8 +280,9 @@ export function readExperiment(home: string = storytreeHome()): ExperimentArm | 
 }
 
 /**
- * The story parts switched off on this computer (ADR-1092 D2, ADR-1095), by part name, sorted; none when it names none.
- * Read on its own, like the library, since every host reads it as it starts; a damaged value is reported naming the file.
+ * The modules switched off on this computer (ADR-1092 D2, ADR-1095, ADR-1322 D2), by name, sorted; none when it names
+ * none. Read on its own, like the library, since every host reads it as it starts; a damaged value is reported naming the
+ * file. A file that names none under modules-off is read under the old parts-off key, so no computer's settings break.
  */
 export function readPartsOff(home: string = storytreeHome()): readonly string[] {
   const file = path.join(home, "settings.json");
@@ -294,10 +296,11 @@ export function readPartsOff(home: string = storytreeHome()): readonly string[] 
   try {
     const stored: unknown = JSON.parse(text);
     if (stored === null || typeof stored !== "object" || Array.isArray(stored)) throw new Error("expected a JSON object of setting names and values");
-    const value = (stored as Record<string, unknown>)[PARTS_OFF];
-    return value === undefined ? [] : checkedPartsOff(value);
+    const named = stored as Record<string, unknown>;
+    const old = named[PARTS_OFF] === undefined ? undefined : checkedPartsOff(named[PARTS_OFF], PARTS_OFF);
+    return named[MODULES_OFF] === undefined ? old ?? [] : checkedPartsOff(named[MODULES_OFF], MODULES_OFF);
   } catch (error) {
-    throw new Error(`Invalid settings file "${file}": ${(error as Error).message} Repair it before storytree can say which parts are switched off.`, { cause: error });
+    throw new Error(`Invalid settings file "${file}": ${(error as Error).message} Repair it before storytree can say which modules are switched off.`, { cause: error });
   }
 }
 
@@ -435,7 +438,7 @@ export function setSystemSwitch(name: string, off: boolean, home: string = story
 export function setPartOff(part: string, off: boolean, home: string = storytreeHome(), plugin?: string, by: FactorySwitcher = { through: "command line" }, now: Date = new Date()): readonly string[] {
   if (CORE.includes(part)) refuse(`${part} is the core, which every host stands on, so it is never switched off.`);
   const stored = readStored(home);
-  const rest = (stored[PARTS_OFF] ?? []).filter((one) => one !== part);
+  const rest = (stored[MODULES_OFF] ?? stored[PARTS_OFF] ?? []).filter((one) => one !== part);
   const parts = off ? [...rest, part].sort() : rest;
   const { [part]: _dropped, ...standIns } = stored[STAND_INS] ?? {};
   const named = off && plugin !== undefined ? { ...standIns, [part]: plugin } : standIns;
@@ -447,7 +450,9 @@ export function setPartOff(part: string, off: boolean, home: string = storytreeH
   const backed = was === undefined ? history : { ...history, [part]: [...(history[part] ?? []), { plugin: was, ...(inRecord === undefined ? {} : { in: inRecord }), back: { ...by, at: now.toISOString() } }] };
   write(home, {
     ...stored,
-    [PARTS_OFF]: parts,
+    [MODULES_OFF]: parts,
+    // A file that had the old key keeps it in step, so a storytree that reads only that key (an older checkout on the same computer) reads the same.
+    ...(stored[PARTS_OFF] === undefined ? {} : { [PARTS_OFF]: parts }),
     ...(stored[STAND_INS] === undefined && plugin === undefined ? {} : { [STAND_INS]: named }),
     ...(stored[STAND_INS_SWITCHED] === undefined && plugin === undefined ? {} : { [STAND_INS_SWITCHED]: recorded }),
     ...(was === undefined ? {} : { [STAND_INS_HISTORY]: backed }),
@@ -666,13 +671,15 @@ function checkedExperiment(value: unknown): ExperimentArm {
   return { name, arm, denies: { tools, commands } };
 }
 
+const MODULES_OFF = "modules-off";
+/** The key the modules switched off were saved under before ADR-1322 D2 named them modules: still read. */
 const PARTS_OFF = "parts-off";
 
 /** The core, never switched off: this story's own copy of the plugin loader's (ADR-1017 D2). */
 export const CORE: readonly string[] = ["library", "plugin-loader", "project-and-caller"];
 
-function checkedPartsOff(value: unknown): readonly string[] {
-  if (!Array.isArray(value) || !value.every((one) => typeof one === "string" && one !== "")) refuse(`${PARTS_OFF} must list the names of the story parts switched off, such as ["forest"].`);
+function checkedPartsOff(value: unknown, key: string): readonly string[] {
+  if (!Array.isArray(value) || !value.every((one) => typeof one === "string" && one !== "")) refuse(`${key} must list the names of the modules switched off, such as ["forest"].`);
   return [...new Set(value as string[])].sort();
 }
 
@@ -799,8 +806,8 @@ function readStored(home: string): Stored {
         settings.experiment = checkedExperiment(value);
         continue;
       }
-      if (name === PARTS_OFF) {
-        settings[PARTS_OFF] = checkedPartsOff(value);
+      if (name === MODULES_OFF || name === PARTS_OFF) {
+        settings[name] = checkedPartsOff(value, name);
         continue;
       }
       if (name === "factory") {

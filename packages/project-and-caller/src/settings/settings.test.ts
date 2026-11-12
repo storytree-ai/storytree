@@ -271,7 +271,7 @@ test("2.15 settings.json may name the experiment and arm a lane runs in, and the
   });
 });
 
-test("2.16 settings.json may name the story parts switched off on this computer: switched off and on by name, read back sorted, the other settings untouched; the core is refused with the reason, and a damaged value is reported naming the file", async () => {
+test("2.16 settings.json may name the modules switched off on this computer, under modules-off: switched off and on by name, read back sorted, the other settings untouched; the core is refused with the reason, and a damaged value is reported naming the file", async () => {
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
     assert.deepEqual(agentLink.readPartsOff(home), [], "no settings file: nothing off");
@@ -282,21 +282,38 @@ test("2.16 settings.json may name the story parts switched off on this computer:
     assert.deepEqual(agentLink.readPartsOff(home), ["arc-surface", "forest"]);
     assert.equal(agentLink.readSettings(home)["idle-after"].value, "10m", "the other settings still read beside it");
     assert.deepEqual(agentLink.setPartOff("forest", false, home), ["arc-surface"]);
+    assert.deepEqual(JSON.parse(readFileSync(file, "utf8"))["modules-off"], ["arc-surface"], "saved under modules-off");
 
     for (const core of ["library", "plugin-loader", "project-and-caller"]) {
       assert.throws(() => agentLink.setPartOff(core, true, home), new RegExp(`${core} is the core`));
     }
     assert.deepEqual(agentLink.readPartsOff(home), ["arc-surface"], "a refused switch writes nothing");
 
-    for (const damaged of ["forest", [""], [1], null]) {
-      writeFileSync(file, JSON.stringify({ "parts-off": damaged }));
-      for (const read of [() => agentLink.readPartsOff(home), () => agentLink.readSettings(home)]) {
-        assert.throws(read, (error: unknown) => {
-          assert.ok(error instanceof Error && error.message.includes(file) && /parts-off/.test(error.message), String(error));
-          return true;
-        }, JSON.stringify(damaged));
+    for (const key of ["modules-off", "parts-off"]) {
+      for (const damaged of ["forest", [""], [1], null]) {
+        writeFileSync(file, JSON.stringify({ [key]: damaged }));
+        for (const read of [() => agentLink.readPartsOff(home), () => agentLink.readSettings(home)]) {
+          assert.throws(read, (error: unknown) => {
+            assert.ok(error instanceof Error && error.message.includes(file) && error.message.includes(key), String(error));
+            return true;
+          }, JSON.stringify(damaged));
+        }
       }
     }
+  });
+});
+
+test("2.30 · a settings file that names its switched-off modules under the old parts-off key still reads them, and a switch keeps that key in step beside modules-off, so a storytree that reads only the old key reads the same", async () => {
+  await withTempDir((home) => {
+    const file = path.join(home, "settings.json");
+    writeFileSync(file, JSON.stringify({ "parts-off": ["voice", "agent-pool"], "stand-ins": { voice: "voice" } }));
+    assert.deepEqual(agentLink.readPartsOff(home), ["agent-pool", "voice"], "the old key read");
+    assert.deepEqual(agentLink.setPartOff("forest", true, home), ["agent-pool", "forest", "voice"]);
+    const saved = JSON.parse(readFileSync(file, "utf8"));
+    assert.deepEqual(saved["modules-off"], ["agent-pool", "forest", "voice"]);
+    assert.deepEqual(saved["parts-off"], ["agent-pool", "forest", "voice"], "the old key kept in step");
+    assert.deepEqual(agentLink.setPartOff("voice", false, home), ["agent-pool", "forest"]);
+    assert.deepEqual(agentLink.readPartsOff(home), ["agent-pool", "forest"]);
   });
 });
 

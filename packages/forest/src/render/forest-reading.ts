@@ -83,14 +83,15 @@ type TreeNewsChange = { readonly type: string; readonly recordId?: string; reado
  * Whether `news` changes the tree: a change to one of its records (7.24), except a health record that re-records the
  * state `last` already shows for its contract's column (7.27). Agents' test runs re-record health every few seconds,
  * mostly unchanged; skipping those leaves only an entry's time and author stale (ADR-0836: stale before slow). An
- * increment's change counts when it could move a capability's open work (ADR-1253 D1): it names a capability, or `last`
- * already lists it under one.
+ * increment's change counts when it could move a capability's open work (ADR-1253 D1): it names a capability, links a
+ * record (a contract it links lists it under that contract's capability), or `last` already lists it under one.
  */
 function changesTree(news: { readonly changes: readonly TreeNewsChange[] }, last: AnnotatedTree): boolean {
   let listed: Set<string> | undefined;
   const movesOpenWork = (change: TreeNewsChange): boolean => {
     if (change.type !== "increment") return false;
-    if (((change.record?.fields as { capabilities?: readonly string[] } | undefined)?.capabilities ?? []).length > 0) return true;
+    const fields = change.record?.fields as { capabilities?: readonly string[]; links?: readonly string[] } | undefined;
+    if ((fields?.capabilities ?? []).length > 0 || (fields?.links ?? []).length > 0) return true;
     listed ??= new Set(last.stories.flatMap((story) => story.capabilities.flatMap((capability) => (capability.openWork ?? []).map(({ increment }) => increment))));
     return change.recordId !== undefined && listed.has(change.recordId);
   };

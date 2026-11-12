@@ -18,7 +18,7 @@ import { byCreation } from "../creation-order.js";
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, RecordType } from "../schema/types.js";
-import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, ParkedOn, ProjectTree, StoryNode, WorkInFlight, WorkModel } from "../work/index.js";
+import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, Holds, ParkedOn, ProjectTree, StoryNode, WorkInFlight, WorkModel } from "../work/index.js";
 
 /** A column's state. A column with no entry reads `not-checked`, never `passing`. */
 export type HealthState = FieldsOf<"health">["state"];
@@ -41,6 +41,8 @@ export interface HealthColumn {
   was?: EarlierVerdict;
   /** Where the verdict was seen, when the writer said: verified locally, or read from CI (ADR-1193 D3). */
   source?: HealthSource;
+  /** The names of the tests whose results made the verdict, when the writer said. */
+  tests?: string[];
 }
 
 /** Where a verdict was seen: by a run on this computer through storytree, or read from CI. */
@@ -59,6 +61,11 @@ export interface EarlierVerdict {
 export interface NodeHealth {
   reported: HealthColumn;
   verified: HealthColumn;
+  /**
+   * A contract's newest verified entry read from CI, kept beside its newest verified entry of any source, so a later local
+   * run never replaces it (question_32b645261409: the map's gear takes CI's over local); absent where CI never read it.
+   */
+  ci?: HealthColumn;
 }
 
 /**
@@ -71,6 +78,15 @@ export interface HealthOptions extends WriteOptions {
   readonly skip?: SkipKind;
   readonly was?: EarlierVerdict;
   readonly source?: HealthSource;
+  readonly tests?: readonly string[];
+}
+
+/** A verdict's turn told after it was written (5.24): the contract, the FYI's title, the verdict's time and the work it released. */
+export interface ToldTurn {
+  contract: string;
+  title: string;
+  at: string;
+  released: string[];
 }
 
 /** One health entry, as it was written. */
@@ -89,6 +105,8 @@ export interface HealthEntry {
   was?: EarlierVerdict;
   /** Where it was seen, when the writer said. */
   source?: HealthSource;
+  /** The tests that judged it, when the writer said. */
+  tests?: string[];
 }
 
 /** A contract in the annotated tree, with its own health. */
@@ -126,12 +144,25 @@ export interface AnnotatedCapability extends Omit<CapabilityNode, "contracts"> {
   openWork?: OpenIncrement[];
 }
 
-/** An open increment naming a capability, by id and title, marked when it is active (claimed and under way). */
+/** An open increment naming a capability, by id and title, marked when it is active (claimed and under way), with what still holds it. */
 export interface OpenIncrement {
   increment: string;
   title: string;
   active?: true;
+  /** What still holds it, in the order the library reads them (5.28); absent when nothing does. */
+  waits?: OpenWait[];
 }
+
+/**
+ * One thing still holding an open increment (5.28): other work, by its title, `active` when it is an increment under way
+ * and `ready` when it is one nobody started that nothing holds; a capability's claim, by the capability's title; an
+ * owner's question; or a wait for the owner or an outside event, with its note.
+ */
+export type OpenWait =
+  | { kind: "work"; on: string; title: string; state?: "active" | "ready" }
+  | { kind: "claim"; on: string; title: string }
+  | { kind: "question"; on: string }
+  | { kind: "owner" | "event"; note: string };
 
 /**
  * Why a capability is not healthy (ADR-0825 D1), from a closed set: `not built` while it is
@@ -247,10 +278,13 @@ const ROLLED_UP: Partial<Readonly<Record<RecordType, string>>> = {
 export class HealthRecord {
   readonly #records: SchemaRecords;
   readonly #work: WorkModel;
-  readonly #flight: Pick<WorkInFlight, "releaseOnVerdict"> | undefined;
+  readonly #flight: Pick<WorkInFlight, "releaseOnVerdict" | "holds"> | undefined;
 
-  /** Given `flight`, a failing verified verdict releases the increments waiting on an event about its contract (10.44). */
-  constructor(records: SchemaRecords, work: WorkModel, flight?: Pick<WorkInFlight, "releaseOnVerdict">) {
+  /**
+   * Given `flight`, a failing verified verdict releases the increments waiting on an event about its contract (10.44), and
+   * each capability's open work says what holds it (5.28).
+   */
+  constructor(records: SchemaRecords, work: WorkModel, flight?: Pick<WorkInFlight, "releaseOnVerdict" | "holds">) {
     this.#records = records;
     this.#work = work;
     this.#flight = flight;
@@ -277,26 +311,77 @@ export class HealthRecord {
   async recordVerified(contractId: string, state: HealthState, options: HealthOptions = {}): Promise<HealthEntry> {
     const earlier = await this.#lastVerdict(contractId);
     const entry = await this.#write("verified", contractId, state, options);
-    if (state === "not-checked" || (state === "passing" && earlier !== "failing")) return entry;
-    const contract = (await liveRecord(this.#records, contractId, ["contract"]))!;
+    const { by: _by, note: _note, skip: _skip, was: _was, source: _source, tests: _tests, ...write } = options;
+    await this.#tell(contractId, earlier, entry, write);
+    return entry;
+  }
+
+  /**
+   * Tell what recordVerified could not, for each verified verdict written since `from` (an ISO 8601 time) whose writer's
+   * database role refused its FYI and its release (CI's may write only health, 3.20): a turn red, still red after a fix it
+   * releases, or green again is told as recordVerified tells it, at the verdict's own time, and a failing one releases
+   * only work whose event wait stood unchanged since the verdict (10.45). A turn already told (an FYI of its title about the
+   * contract at that time) and a verdict that stayed as it was tell nothing, so telling again tells nothing more (5.24). The turns told, in history order.
+   */
+  async tellUntold(from: string, options: WriteOptions = {}): Promise<ToldTurn[]> {
+    const [changes, fyis] = await Promise.all([
+      this.#records.history({ types: ["health"], healthColumns: ["verified"], from }),
+      this.#records.history({ types: ["fyi"], actions: ["created"], from }),
+    ]);
+    const told = new Set(fyis.map(({ record }) => { const { about, at, title } = this.#records.current(record).fields as FieldsOf<"fyi">; return `${about} ${at} ${title}`; }));
+    const byContract = new Map<string, { seq: number; entry: HealthEntry }[]>();
+    for (const change of changes) {
+      const fields = this.#records.current(change.record).fields as FieldsOf<"health">;
+      if (change.action === "retired" || change.recordId !== healthId(fields.node, "verified")) continue;
+      byContract.set(fields.node, [...(byContract.get(fields.node) ?? []), { seq: change.seq, entry: entryOf(fields, change.at) }]);
+    }
+    const turns: { seq: number; turn: ToldTurn }[] = [];
+    for (const [contractId, entries] of byContract) {
+      const [before] = await this.#records.history({ id: healthId(contractId, "verified"), upTo: entries[0]!.seq - 1, newest: 1 });
+      let earlier = before === undefined || before.action === "retired" ? undefined : verdictOf(entryOf(this.#records.current(before.record).fields as FieldsOf<"health">, before.at));
+      for (const { seq, entry } of entries) {
+        const turn = await this.#tell(contractId, earlier, entry, options, { asOf: seq, told });
+        if (turn !== undefined) turns.push({ seq, turn });
+        earlier = verdictOf(entry);
+      }
+    }
+    return turns.sort((a, b) => a.seq - b.seq).map(({ turn }) => turn);
+  }
+
+  /**
+   * What a verified `entry` on contract `contractId` sets off after `earlier`, the verdict before it: a failing one
+   * releases the work waiting on an event about the contract (10.44; given `asOf`, only work whose wait stood since,
+   * 10.45), and a turn red, a red that released a fix, or a turn green again records an FYI, unless `told` holds one
+   * already (`<contract> <at> <title>`). The turn, when there was one to tell or work released.
+   */
+  async #tell(contractId: string, earlier: "passing" | "failing" | undefined, entry: HealthEntry, write: WriteOptions, { asOf, told = new Set() }: { asOf?: number; told?: ReadonlySet<string> } = {}): Promise<ToldTurn | undefined> {
+    const { state } = entry;
+    if (state === "not-checked" || (state === "passing" && earlier !== "failing")) return undefined;
+    const contract = await liveRecord(this.#records, contractId, ["contract"]);
+    if (contract === null) return undefined;
     const by = [entry.by, entry.source].filter((part) => part !== undefined).join(", ");
-    const { by: _by, note: _note, skip: _skip, was: _was, source: _source, ...write } = options;
-    const told = { about: contractId, by: entry.by ?? "storytree", at: entry.at };
+    const fyi = { about: contractId, by: entry.by ?? "storytree", at: entry.at };
     if (state === "passing") {
-      await this.#records.create("fyi", { ...told, title: `Green again: ${contract.fields.title}`, what: `${contract.fields.title} was verified passing${by === "" ? "" : ` by ${by}`} at ${entry.at}, after failing.` }, write);
-      return entry;
+      const title = `Green again: ${contract.fields.title}`;
+      if (told.has(`${contractId} ${entry.at} ${title}`)) return undefined;
+      await this.#records.create("fyi", { ...fyi, title, what: `${contract.fields.title} was verified passing${by === "" ? "" : ` by ${by}`} at ${entry.at}, after failing.` }, write);
+      return { contract: contractId, title, at: entry.at, released: [] };
     }
     const verdict = `VERDICT ${entry.at}: ${contract.fields.title} verified failing${by === "" ? "" : ` by ${by}`}${entry.note === undefined ? "." : `: ${entry.note}.`}`;
-    const released = this.#flight === undefined ? [] : await this.#flight.releaseOnVerdict(contractId, contract.fields.capability, verdict, write);
-    if (earlier === "failing" && released.length === 0) return entry;
-    const routed = (await this.#records.select("increment", ["title", "links", "capabilities"], { not: { status: "closed" } }))
-      .filter(({ fields }) => fields.links?.includes(contractId) === true || (contract.fields.capability !== undefined && fields.capabilities?.includes(contract.fields.capability) === true))
-      .sort(byCreation);
-    const doing = routed.length === 0 ? "Being done: nothing routed, as no open increment lists its capability or links it." : `Being done: routed to ${routed.map(({ id, fields }) => `${id} (${fields.title})`).join(", ")}.`;
+    const released = this.#flight === undefined ? [] : await this.#flight.releaseOnVerdict(contractId, contract.fields.capability, verdict, write, asOf);
+    if (earlier === "failing" && released.length === 0) return undefined;
     const title = earlier === "failing" ? `Still red after a fix: ${contract.fields.title}` : `Red: ${contract.fields.title}`;
-    const after = released.length === 0 ? "" : ` It was still failing on the run ${released.join(", ")} waited for, so that work is ready again.`;
-    await this.#records.create("fyi", { ...told, title, what: `${verdict}${after} ${doing}` }, write);
-    return entry;
+    const already = told.has(`${contractId} ${entry.at} ${title}`);
+    if (already && released.length === 0) return undefined;
+    if (!already) {
+      const routed = (await this.#records.select("increment", ["title", "links", "capabilities"], { not: { status: "closed" } }))
+        .filter(({ fields }) => fields.links?.includes(contractId) === true || (contract.fields.capability !== undefined && fields.capabilities?.includes(contract.fields.capability) === true))
+        .sort(byCreation);
+      const doing = routed.length === 0 ? "Being done: nothing routed, as no open increment lists its capability or links it." : `Being done: routed to ${routed.map(({ id, fields }) => `${id} (${fields.title})`).join(", ")}.`;
+      const after = released.length === 0 ? "" : ` It was still failing on the run ${released.join(", ")} waited for, so that work is ready again.`;
+      await this.#records.create("fyi", { ...fyi, title, what: `${verdict}${after} ${doing}` }, write);
+    }
+    return { contract: contractId, title, at: entry.at, released };
   }
 
   /** The last passing or failing verdict in contract `contractId`'s verified column: a not-checked entry keeps the one it did not reproduce. */
@@ -372,7 +457,8 @@ export class HealthRecord {
    */
   async annotate(tree?: ProjectTree, parked: ReadonlyMap<string, readonly ParkedOn[]> = new Map()): Promise<AnnotatedTree> {
     const plan = tree ?? (await this.#work.projectTree());
-    const [entries, open] = await Promise.all([this.#entries(), this.#openWork()]);
+    const owners = new Map(plan.stories.flatMap((story) => story.capabilities.flatMap((capability) => capability.contracts.map((contract) => [contract.id, capability.id] as const))));
+    const [entries, open] = await Promise.all([this.#entries(), this.#openWork(owners)]);
     const unverified = ![...entries.values()].some(({ fields }) => fields.column === "verified");
     return {
       ...(unverified ? { unverified } : {}),
@@ -405,18 +491,44 @@ export class HealthRecord {
     };
   }
 
-  /** Each capability an open increment names, with those increments: the active ones first, then the rest in parked order (ADR-1253 D1). */
-  async #openWork(): Promise<Map<string, OpenIncrement[]>> {
+  /**
+   * Each capability an open increment names, or owns a contract one links (`owners`: contract id to its capability), with those
+   * increments, each once: the active ones first, then the rest in parked order (ADR-1253 D1).
+   */
+  async #openWork(owners: ReadonlyMap<string, string>): Promise<Map<string, OpenIncrement[]>> {
     // An increment is parked as it is made, and keeps that time when returned to proposal, so parked order is creation order.
-    const increments = await this.#records.select("increment", ["title", "status", "capabilities"], { not: { status: "closed" } });
+    const [increments, holds] = await Promise.all([this.#records.select("increment", ["title", "status", "capabilities", "links"], { not: { status: "closed" } }), this.#flight?.holds()]);
     const ordered = increments.sort((a, b) => Number(b.fields.status === "active") - Number(a.fields.status === "active") || byCreation(a, b));
+    const said = holds === undefined ? undefined : await this.#waitsSaid(holds, increments);
     const named = new Map<string, OpenIncrement[]>();
     for (const { id, fields } of ordered) {
-      for (const capability of new Set(fields.capabilities ?? [])) {
-        named.set(capability, [...(named.get(capability) ?? []), { increment: id, title: fields.title, ...(fields.status === "active" ? { active: true as const } : {}) }]);
+      const linked = (fields.links ?? []).flatMap((link) => owners.get(link) ?? []);
+      const waits = said?.(id) ?? [];
+      for (const capability of new Set([...(fields.capabilities ?? []), ...linked])) {
+        named.set(capability, [...(named.get(capability) ?? []), { increment: id, title: fields.title, ...(fields.status === "active" ? { active: true as const } : {}), ...(waits.length === 0 ? {} : { waits: waits.map((wait) => ({ ...wait })) }) }]);
       }
     }
     return named;
+  }
+
+  /** What still holds each open increment, as OpenWait says it (5.28), from one reading of the project's holds. */
+  async #waitsSaid(holds: Holds, increments: readonly { id: string; fields: { title: string; status: string } }[]): Promise<(id: string) => OpenWait[]> {
+    const open = new Map(increments.map((increment) => [increment.id, increment]));
+    // An arc waited on is named by its title, read only when some wait is on one.
+    const onArc = Object.values(holds.waits).some((held) => held.some(({ on, claim }) => !claim && !open.has(on)));
+    const arcs = new Map(onArc ? (await this.#records.select("arc", ["title"])).map(({ id, fields }) => [id, fields.title]) : []);
+    const holding = (id: string): boolean => (holds.waits[id]?.length ?? 0) > 0 || (holds.heldOn[id]?.length ?? 0) > 0 || (holds.waitsFor?.[id] ?? []).some((wait) => wait.holds);
+    const work = (on: string): OpenWait => {
+      const blocker = open.get(on);
+      if (blocker === undefined) return { kind: "work", on, title: arcs.get(on) ?? on };
+      const state = blocker.fields.status === "active" ? "active" : holding(on) ? undefined : "ready";
+      return { kind: "work", on, title: blocker.fields.title, ...(state === undefined ? {} : { state }) };
+    };
+    return (id) => [
+      ...(holds.waits[id] ?? []).map((hold): OpenWait => (hold.claim ? { kind: "claim", on: hold.on, title: hold.title ?? hold.on } : work(hold.on))),
+      ...(holds.heldOn[id] ?? []).map((on): OpenWait => ({ kind: "question", on })),
+      ...(holds.waitsFor?.[id] ?? []).filter((wait) => wait.holds).map(({ releaser, note }): OpenWait => ({ kind: releaser, note })),
+    ];
   }
 
   /**
@@ -455,12 +567,14 @@ export class HealthRecord {
     if (target?.type !== "contract") {
       throw new MissingReferenceError("node", contractId, "contract", target?.type, target === null ? undefined : ROLLED_UP[target.type]);
     }
-    return this.#save(column, contractId, state, options, kept);
+    const entry = await this.#save(column, contractId, state, options, kept);
+    if (kept === "verified" && options.source === "ci") await this.#save(column, contractId, state, options, "ci");
+    return entry;
   }
 
   /** Save the entry as the record of node `nodeId`'s column (or its pending mark, or a capability's unclaimed reading), checked inside the write. */
-  async #save(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed"): Promise<HealthEntry> {
-    const { by, note, skip, was, source } = options;
+  async #save(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed" | "ci"): Promise<HealthEntry> {
+    const { by, note, skip, was, source, tests } = options;
     const actor = options.actor ?? by;
     const record = await this.#records.create(
       "health",
@@ -473,6 +587,7 @@ export class HealthRecord {
         ...(skip === undefined ? {} : { skip }),
         ...(was === undefined ? {} : { was: was.state, wasAt: was.at }),
         ...(source === undefined ? {} : { source }),
+        ...(tests === undefined ? {} : { tests: [...tests] }),
       },
       { id: healthId(nodeId, kept), ...(actor === undefined ? {} : { actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) },
     );
@@ -495,8 +610,13 @@ export class HealthRecord {
   }
 }
 
-/** The id of the record holding a contract's column, one record per contract and column, or its pending mark. */
-function healthId(contractId: string, column: HealthColumnName | "pending" | "unclaimed"): string {
+/** The verdict an entry keeps: its own, or the one a not-checked entry did not reproduce. */
+function verdictOf(entry: HealthEntry): "passing" | "failing" | undefined {
+  return entry.state === "not-checked" ? entry.was?.state : entry.state;
+}
+
+/** The id of the record holding a contract's column, one record per contract and column, or its pending mark, or CI's kept verdict. */
+function healthId(contractId: string, column: HealthColumnName | "pending" | "unclaimed" | "ci"): string {
   return `health_${contractId}_${column}`;
 }
 
@@ -540,9 +660,11 @@ function waitingOnNamed(named: NamedOnMain | undefined, why: CapabilityWhy, cont
 
 /** A contract's own health: each column's latest entry, or not-checked. */
 function ownHealth(contractId: string, entries: ReadonlyMap<string, SchemaRecord<"health">>): NodeHealth {
+  const ci = entries.get(healthId(contractId, "ci"));
   return {
     reported: columnOf(entries.get(healthId(contractId, "reported"))),
     verified: columnOf(entries.get(healthId(contractId, "verified"))),
+    ...(ci === undefined ? {} : { ci: columnOf(ci) }),
   };
 }
 
@@ -658,7 +780,7 @@ function contractReason(verified: HealthColumn): HealthReason | undefined {
 
 /** An entry: a health record's fields, and when they were written. Each optional field only when there is one. */
 function entryOf(fields: FieldsOf<"health">, at: string): HealthEntry {
-  const { column, state, by, note, skip, was, wasAt, source } = fields;
+  const { column, state, by, note, skip, was, wasAt, source, tests } = fields;
   return {
     column,
     state,
@@ -668,5 +790,6 @@ function entryOf(fields: FieldsOf<"health">, at: string): HealthEntry {
     ...(skip === undefined ? {} : { skip: skip as SkipKind }),
     ...(was === undefined || wasAt === undefined ? {} : { was: { state: was, at: wasAt } }),
     ...(source === undefined ? {} : { source }),
+    ...(tests === undefined ? {} : { tests }),
   };
 }

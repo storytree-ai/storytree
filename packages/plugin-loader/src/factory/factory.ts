@@ -107,7 +107,7 @@ export function pluginParts(folder: string | undefined, plugin: string, kind: st
   });
 }
 
-/** A factory plugin this computer's setting does not name, with the part `settings set part <part> plugin <plugin>` names it as. */
+/** A factory plugin this computer's setting does not name, with the part `settings set module <module> plugin <plugin>` names it as. */
 export interface UnnamedPlugin {
   readonly plugin: string;
   /** The part its manifest's `for` names, else its own name (a plugin that adds a part of its own). */

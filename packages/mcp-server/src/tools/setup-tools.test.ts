@@ -107,7 +107,7 @@ test("app-setup 8.4 setup records the chosen project only after a successful yes
         assert.equal(checked.isError, false, checked.text);
         assert.deepEqual(checked.data.project, { status: "ask", suggestion: name });
         assert.match(checked.text, /not a storytree project/);
-        assert.match(checked.text, /Add project/);
+        assert.match(checked.text, /Add a project… in the storytree app/, "the app's control by its shown word (ADR-1315 D1)");
         assert.match(checked.text, /storytree doctor --set-up/);
         assert.doesNotMatch(checked.text, /[Aa]sk the user|set_up_project/, "the agent is not told to offer setup (ADR-0752 D3)");
         assert.equal(existsSync(path.join(folder, PROJECT_FILE)), false, "no marker before a yes");
@@ -425,8 +425,8 @@ test("app-setup 8.45 check_setup names each plugin in this computer's factory th
       const checked = await agent.call("check_setup");
       const factory = (checked.data.lines as { check: string; message: string; fix?: string }[]).filter((line) => line.check === "factory");
       assert.equal(factory.length, 2, JSON.stringify(checked.data.lines));
-      assert.match(checked.text, /micks-dev-loop.*`storytree settings set part micks-dev-loop plugin micks-dev-loop`/);
-      assert.match(checked.text, /my-runner.*`storytree settings set part agent-pool plugin my-runner`/);
+      assert.match(checked.text, /micks-dev-loop.*`storytree settings set module micks-dev-loop plugin micks-dev-loop`/);
+      assert.match(checked.text, /my-runner.*`storytree settings set module agent-pool plugin my-runner`/);
       assert.doesNotMatch(checked.text, /ci-health/);
     });
   });

@@ -3,6 +3,7 @@ export { capabilityStatus, capabilityWhy, HealthRecord, heldBack, NOT_VERIFIED, 
 export type {
   AnnotatedCapability,
   OpenIncrement,
+  OpenWait,
   AnnotatedContract,
   AnnotatedEdge,
   AnnotatedStory,
@@ -23,4 +24,5 @@ export type {
   PendingRun,
   HealthSource,
   SkipKind,
+  ToldTurn,
 } from "./health-record.js";

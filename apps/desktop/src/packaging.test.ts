@@ -281,7 +281,7 @@ test("4.22 a release rehearsal never drafts, uploads or publishes, and checks on
     for (const name of rest) writeFileSync(path.join(release, name), "");
     const incomplete = run("rehearse");
     assert.notEqual(incomplete.status, 0);
-    assert.match(incomplete.stderr, new RegExp(first.replaceAll(".", "\\.")));
+    assert.match(incomplete.stderr, new RegExp(first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     writeFileSync(path.join(release, first), "");
     const complete = run("rehearse");
     assert.equal(complete.status, 0, complete.stderr);

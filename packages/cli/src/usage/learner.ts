@@ -1,7 +1,7 @@
 /**
  * Capability 14 · Reading the doors' use. The learner, one step of the friction drain every landing runs (ADR-1045 D7):
- * no timer and no model. It reads the 28 days of door-answered lines to the drain, learns from them (./learn.ts) and acts
- * on the lesson, so a second drain duplicates nothing.
+ * no timer and no model. It reads the 28 days of door-answered lines to the drain as the log tallies them, never every
+ * line, learns from them (./learn.ts) and acts on the lesson, so a second drain duplicates nothing.
  *
  * - A pointer is written as a `door-pointer` line in the activity log, the data the command line reads (ADR-1045 D4), with
  *   the evidence that made it; a pointer that fell back is a line with no target. The latest line for a word in a place is
@@ -19,7 +19,7 @@
  * - Door gaps are reported in the drain's answer, never cut.
  * - Last, the weekly doors check (./doors-check.ts, ADR-1090 D2) runs when a week has passed since the last one.
  */
-import type { Library, NewLine, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { Library, Line, NewLine, SchemaRecord, WriteOptions } from "@storytree/library";
 import { CaptureError, recordFriction, reinforceFriction } from "@storytree/session-management/friction";
 
 import { checkDoors } from "./doors-check.js";
@@ -39,7 +39,11 @@ const GAPS_SHOWN = 5;
 
 /** What the learner reads and writes through: the project's log and library, the drain's writer and session, the doors' surfaces, and the arcs it writes on. */
 export interface LearnerWorld {
-  readonly log: DoorsLog & { append(project: string, line: NewLine, options?: { readonly at?: string }): Promise<unknown> };
+  readonly log: DoorsLog & {
+    append(project: string, line: NewLine, options?: { readonly at?: string }): Promise<unknown>;
+    /** The window's door-answered lines counted on the server (Session management 2.18): its own copy of the call (ADR-1017 D2). */
+    doorTally(project: string, since: string): Promise<{ readonly sessions: number; readonly first?: string; readonly calls: ReadonlyMap<string, number>; readonly steps: readonly Line[] }>;
+  };
   /** The session running the drain, which a pointer's line is written on. */
   readonly caller: { readonly session: string; readonly harness?: string };
   readonly project: string;
@@ -57,12 +61,14 @@ export interface LearnerWorld {
 export async function learnInDrain(world: LearnerWorld): Promise<string[]> {
   for (const arc of [world.arcs.wants, world.arcs.cuts]) if ((await world.library.get(arc))?.type !== "arc") return [];
   const since = new Date(world.now.getTime() - BARS.days * DAY_MS).toISOString();
-  const lines = (await world.log.lines(world.project, { kinds: ["door-answered"], since })).flatMap((line) => doorLineOf(line) ?? []);
+  // Counted on the server, with only the lines a refusal or a pointer is judged by sent whole: never every line of the 28 days.
+  const tally = await world.log.doorTally(world.project, since);
+  const lines = tally.steps.flatMap((line) => doorLineOf(line) ?? []);
   const pointers = (await world.log.lines(world.project, { kinds: ["door-pointer"], latestBy: ["where", "word"] })).flatMap((line) =>
     line.kind === "door-pointer" ? [{ where: line.where, word: line.word, ...(line.to === undefined ? {} : { to: line.to }), others: line.others, at: new Date(line.at).toISOString() } satisfies Pointer] : []);
   const mounted = await mountedAt(world);
-  const lesson = learnDoors(lines, world.surfaces, since, pointers, mounted);
-  const said = [`The doors learner read ${lines.length} door-answered lines from ${lesson.sessions} sessions over ${BARS.days} days (ADR-1045 D4 to D6).`];
+  const lesson = learnDoors({ sessions: tally.sessions, ...(tally.first === undefined ? {} : { first: tally.first }), calls: tally.calls, lines }, world.surfaces, since, pointers, mounted);
+  const said = [`The doors learner read ${[...tally.calls.values()].reduce((sum, count) => sum + count, 0)} door-answered lines from ${lesson.sessions} sessions over ${BARS.days} days (ADR-1045 D4 to D6).`];
   said.push(...await writePointers(world, lesson.pointers, lesson.fallbacks));
   said.push(...await fileWants(world, lesson.wants, lines));
   said.push(...lesson.cuts === undefined

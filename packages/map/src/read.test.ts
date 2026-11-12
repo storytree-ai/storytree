@@ -69,7 +69,7 @@ test("3.6 in a branch's checkout the map reads the plan with that branch's incre
   }
 });
 
-test("3.11 with --capabilities, the map answers a selected story's capabilities in one read: each with its health word and reason, its contracts, the capabilities it depends on, and its source files with their lines of code, tests left out; --json gives it as data", async () => {
+test("3.11 with --capabilities, the map answers a selected story's capabilities in one read: each with its health word and reason, its contracts, the capabilities it depends on, and its source files with their lines of code, tests left out, then the story's files in no capability under \"Not in any capability\"; --json gives it as data", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "map-capabilities-"));
   try {
     await mkdir(path.join(folder, "packages/app/src"), { recursive: true });
@@ -98,7 +98,7 @@ test("3.11 with --capabilities, the map answers a selected story's capabilities 
     assert.match(text, /2 · Projects  \[projects\]  healthy; 2 lines in 1 file; 1 contract; depends on saving/);
     assert.match(text, /3 · Saving  \[saving\]  untested — no test names it, the agent's to move: 3\.1; 0 lines in 0 files/);
     assert.match(text, /packages\/app\/src\/view\.ts  2/);
-    assert.match(text, /\n  Unclaimed: 1 line in 1 file\n    packages\/app\/src\/lone\.ts  1$/);
+    assert.match(text, /\n  Not in any capability: 1 line in 1 file\n    packages\/app\/src\/lone\.ts  1$/);
     await assert.rejects(capabilitiesCommand(library, folder, "story:Nothing"), /Map selection not found: story:Nothing/);
   } finally {
     await removeTemp(folder);

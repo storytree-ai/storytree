@@ -32,6 +32,9 @@ function run(text: string, electron: object): Record<string, unknown> {
 
 const isNodes = (name: string) => name.startsWith("node:") || builtinModules.includes(name);
 
+/** All a sandboxed preload's `require` answers in Electron 44 (its sandboxed renderer's loadable modules); Buffer and process are globals there, not modules. */
+const SANDBOX_LOADABLE = ["electron", "electron/common", "electron/renderer", "events", "node:events", "timers", "node:timers", "url", "node:url"];
+
 test("4.37 · the main process bundles whole into main.cjs: it loads nothing from outside it but Node's own modules, Electron and the optional modules it never loads or loads lazily, so a packaged app needs no node_modules", { timeout: 120_000 }, async () => {
   const { outside } = await bundled({ ...mainBuild(dist), entryPoints: [fileURLToPath(new URL("./main.ts", import.meta.url))] });
   const optional = [
@@ -45,7 +48,8 @@ test("4.37 · the main process bundles whole into main.cjs: it loads nothing fro
 
 test("8.10 · the preload script, bundled as the app bundles it, gives the page the bridge as `storytree` and nothing else, with the main process's answers on sign-in for feedback and stand-ins", { timeout: 60_000 }, async () => {
   const { text, outside } = await bundled({ ...preloadBuild(dist), entryPoints: [fileURLToPath(new URL("../preload/preload.ts", import.meta.url))] });
-  assert.deepEqual([...outside].filter((name) => !isNodes(name)), ["electron"]);
+  assert.deepEqual([...outside].filter((name) => !SANDBOX_LOADABLE.includes(name)), [], "the page's preload runs sandboxed, where any other module is not found and the bridge is never set");
+  assert.ok(outside.has("electron"));
   const opened = (answers: Record<string, unknown>) => {
     const exposed: Record<string, Record<string, unknown>> = {};
     const invoked: unknown[][] = [];

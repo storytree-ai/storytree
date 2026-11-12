@@ -623,7 +623,7 @@ test("9.7 plan_contract numbers a new contract past the numbers its capability's
   });
 });
 
-test("9.13 plan_contract's reply names the capability's other contracts that no numbered test carries yet, so one is built rather than planned again, in words a user's project knows (no lanes)", async () => {
+test("9.13 plan_contract's reply counts the capability's other contracts that no numbered test carries yet and says to list them with focus, so one is built rather than planned again, in words a user's project knows (no lanes)", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
@@ -634,13 +634,16 @@ test("9.13 plan_contract's reply names the capability's other contracts that no 
       writeFileSync(path.join(src, "cart.test.js"), 'import { test } from "node:test";\ntest("1.1 adds", () => {});\n');
       await agent.call("plan_contract", { capability, title: "1.1 · Adds an item" });
       await agent.call("plan_contract", { capability, title: "Refuses a sold-out item" });
+      const second = await agent.call("plan_contract", { capability, title: "Keeps the cart across visits" });
+      assert.match(second.text, /1 other contract of this capability has no test yet\. If this one repeats it, retire it and build that one \(list it with `focus`/, second.text);
 
       const planned = await agent.call("plan_contract", { capability, title: "Removes an item" });
       assert.equal(planned.isError, false, planned.text);
-      assert.match(planned.text, /1\.3 · Removes an item/);
-      assert.match(planned.text, /1\.2 · Refuses a sold-out item/, "the untested contract planned earlier is named");
+      assert.match(planned.text, /1\.4 · Removes an item/);
+      assert.match(planned.text, /2 other contracts of this capability have no test yet\. If this one repeats any of them, retire it and build that one \(list them with `focus`, select "cap:capability_\w+", down 1, kind contract\)\./, planned.text);
+      assert.doesNotMatch(planned.text, /Refuses a sold-out item|Keeps the cart/, "the untested contracts are counted, not named");
       assert.doesNotMatch(planned.text, /lane/, "a user's project has no lanes");
-      assert.deepEqual(planned.data.untested, ["1.2 · Refuses a sold-out item"], "neither the tested contract nor the one just planned is named");
+      assert.deepEqual(planned.data.untested, ["1.2 · Refuses a sold-out item", "1.3 · Keeps the cart across visits"], "neither the tested contract nor the one just planned is in the data");
     });
   });
 });

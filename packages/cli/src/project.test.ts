@@ -7,12 +7,31 @@ import { after, before, test } from "node:test";
 import { connect } from "@storytree/library";
 
 import { projectsOnThisComputer } from "@storytree/app-setup";
+import { recordProjectChoice } from "@storytree/project-and-caller";
 
-import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
+import { BuiltCommand, dropTestProjects, inWorld, storytree, testServerUrl, uniqueProjectName } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
+
+/**
+ * The app in `home` shows another project while `body` runs, as a computer where the user works on
+ * one project and deletes another does: with none chosen the app shows the first project on the
+ * shared test server, which could be the one the test deletes.
+ */
+async function showingAnother(home: string, body: () => Promise<void>): Promise<void> {
+  const other = uniqueProjectName();
+  const server = await connect({ url: testServerUrl() });
+  try {
+    await server.openProject(other);
+    recordProjectChoice(path.join(home, "project-choice.json"), other);
+    await body();
+  } finally {
+    await server.close();
+    await dropTestProjects([other]);
+  }
+}
 
 test("project remove takes a project off this computer's list and keeps its records; an unknown name is refused", async () => {
   await inWorld(command, async ({ project, home, run, library }) => {
@@ -46,16 +65,18 @@ test("3.6: project delete says who loses the records and needs the name typed; r
     assert.notEqual(inUse.code, 0);
     assert.match(inUse.stderr, /in use/);
 
-    const deleted = await storytree(command.script, ["project", "delete", project, "--confirm", project], { cwd: elsewhere, home });
-    assert.equal(deleted.code, 0, deleted.stderr);
-    const snapshot = /snapshot (?:is )?(?:in|at) (\S+\.json)/.exec(deleted.stdout)?.[1];
-    assert.ok(snapshot !== undefined && existsSync(snapshot), deleted.stdout);
-    const after = await connect({ url: testServerUrl() });
-    try {
-      assert.equal((await after.listProjects()).includes(project), false);
-    } finally {
-      await after.close();
-    }
+    await showingAnother(home, async () => {
+      const deleted = await storytree(command.script, ["project", "delete", project, "--confirm", project], { cwd: elsewhere, home });
+      assert.equal(deleted.code, 0, deleted.stderr);
+      const snapshot = /snapshot (?:is )?(?:in|at) (\S+\.json)/.exec(deleted.stdout)?.[1];
+      assert.ok(snapshot !== undefined && existsSync(snapshot), deleted.stdout);
+      const after = await connect({ url: testServerUrl() });
+      try {
+        assert.equal((await after.listProjects()).includes(project), false);
+      } finally {
+        await after.close();
+      }
+    });
   });
 });
 
@@ -67,8 +88,10 @@ test("a folder whose project was deleted (from another computer) is refused by a
     } finally {
       await server.close();
     }
-    const deleted = await storytree(command.script, ["project", "delete", project, "--confirm", project, "--no-snapshot"], { cwd: elsewhere, home });
-    assert.equal(deleted.code, 0, deleted.stderr);
+    await showingAnother(home, async () => {
+      const deleted = await storytree(command.script, ["project", "delete", project, "--confirm", project, "--no-snapshot"], { cwd: elsewhere, home });
+      assert.equal(deleted.code, 0, deleted.stderr);
+    });
     writeFileSync(path.join(folder, ".storytree.json"), `${JSON.stringify({ project })}\n`); // the other computer's folder still names it
 
     const listed = await run(["arc", "list"]);

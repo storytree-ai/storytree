@@ -5,6 +5,7 @@
  * territories needs no call per capability.
  */
 import type { AnnotatedTree, CapabilityStatus, CapabilityWhy } from "@storytree/library";
+import { PLACES } from "@storytree/shown-words";
 
 import { packageOf } from "./code-survey/code-survey.js";
 import type { ProjectSurvey } from "./code-survey/read-survey.js";
@@ -60,7 +61,7 @@ export function capabilityTreeOf(tree: AnnotatedTree, survey: ProjectSurvey, sel
   };
 }
 
-/** The tree as text: a line per capability, its files indented under it, then the unclaimed files. */
+/** The tree as text: a line per capability, its files indented under it, then the files in no part, under their shown words. */
 export function formatCapabilityTree(answer: CapabilityTree): string {
   const fileLines = (files: readonly TreeFile[]): string[] => files.map(file => `    ${file.path}  ${file.lines}`);
   const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? "" : "s"}`;
@@ -72,7 +73,7 @@ export function formatCapabilityTree(answer: CapabilityTree): string {
     lines.push(...fileLines(cap.files));
   }
   if (answer.unclaimed.length > 0) {
-    lines.push(`  Unclaimed: ${plural(answer.unclaimed.reduce((sum, file) => sum + file.lines, 0), "line")} in ${plural(answer.unclaimed.length, "file")}`);
+    lines.push(`  ${PLACES.unclaimed}: ${plural(answer.unclaimed.reduce((sum, file) => sum + file.lines, 0), "line")} in ${plural(answer.unclaimed.length, "file")}`);
     lines.push(...fileLines(answer.unclaimed));
   }
   return lines.join("\n");

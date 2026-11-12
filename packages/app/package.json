@@ -40,7 +40,8 @@
     "pg": "^8.23.0",
     "@storytree/project-and-caller": "workspace:*",
     "@storytree/forest": "workspace:*",
-    "@storytree/plugin-loader": "workspace:*"
+    "@storytree/plugin-loader": "workspace:*",
+    "@storytree/shown-words": "workspace:*"
   },
   "devDependencies": {
     "@storytree/local-postgres": "workspace:*",

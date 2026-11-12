@@ -195,6 +195,9 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
+      '@storytree/shown-words':
+        specifier: workspace:*
+        version: link:../shown-words
       electron-updater:
         specifier: 6.8.9
         version: 6.8.9
@@ -250,6 +253,9 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
+      '@storytree/shown-words':
+        specifier: workspace:*
+        version: link:../shown-words
       posthog-node:
         specifier: 5.55.0
         version: 5.55.0
@@ -474,6 +480,9 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
+      '@storytree/shown-words':
+        specifier: workspace:*
+        version: link:../shown-words
       react:
         specifier: ^19.1.1
         version: 19.3.0
@@ -708,6 +717,9 @@ importers:
       '@babel/parser':
         specifier: ^7.29.9
         version: 7.29.9
+      '@storytree/shown-words':
+        specifier: workspace:*
+        version: link:../shown-words
       smol-toml:
         specifier: 1.9.1
         version: 1.9.1
@@ -781,6 +793,9 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
+      '@storytree/shown-words':
+        specifier: workspace:*
+        version: link:../shown-words
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -977,6 +992,18 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
+  packages/shown-words:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
   packages/surface-feedback:
     dependencies:
       '@storytree/library':
@@ -1000,6 +1027,10 @@ importers:
         version: 7.0.2
 
   packages/teaching-cards:
+    dependencies:
+      '@storytree/shown-words':
+        specifier: workspace:*
+        version: link:../shown-words
     devDependencies:
       '@storytree/arc-surface':
         specifier: workspace:*

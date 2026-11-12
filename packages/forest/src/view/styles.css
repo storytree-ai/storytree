@@ -53,7 +53,8 @@
   visibility: hidden;
 }
 
-/* The map's top left: the sheet's face switches, and beside them the layout mark while islands are laid out (3.96). */
+/* The map's top left: the sheet's face switches, and beside them the layout mark while islands are laid out (3.96) and
+   the lanes notice (3.103). Its right, set inline, stops it short of the compass and the panel; the notice wraps inside. */
 .forest-top {
   position: absolute;
   z-index: 50;
@@ -62,6 +63,40 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  pointer-events: none;
+  transition: right 0.6s ease-in-out; /* keeps pace with the compass moving aside for the panel (3.40) */
+}
+
+.forest-top > * {
+  flex: none;
+}
+
+.forest-top > .forest-views {
+  pointer-events: auto;
+}
+
+.forest-top > .forest-lanes-notice {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+  background: #352b20;
+  color: #ffe1ac;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+/* 3.108: the selected arc's open work counted, in its rings' pale cyan. */
+.forest-top > .forest-open-work {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #8fe3f5;
+  border-radius: 8px;
+  background: #101418cc;
+  color: #dde3e6;
+  font-size: 12px;
+  pointer-events: none;
 }
 
 .forest-layout-progress {
@@ -73,6 +108,37 @@
   font-size: 12px;
   font-style: italic;
   pointer-events: none;
+}
+
+/* What the map says while its project has no story, in the middle of the sheet (3.107). */
+.forest-empty-map {
+  position: absolute;
+  z-index: 40;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: min(26rem, calc(100% - 2rem));
+  padding: 0.9rem 1.1rem;
+  border: 1px solid #485159;
+  border-radius: 10px;
+  background: #101418e6;
+  color: #dde3e6;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.forest-empty-map p {
+  margin: 0 0 0.6rem;
+}
+
+.forest-empty-map button {
+  border: 1px solid #485159;
+  border-radius: 5px;
+  padding: 0.4rem 0.8rem;
+  background: #eadcae;
+  color: #101418;
+  font: inherit;
+  cursor: pointer;
 }
 
 .forest-views {
@@ -192,8 +258,27 @@
 .sheet-compass .mini-globe-label { font-size: 10px; paint-order: stroke; stroke: #16212a; stroke-width: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .planet-mini-globe { transition: none; }
+  .planet-mini-globe, .forest-top { transition: none; }
 }
+
+/* 3.106: shown while the view is moved from its opening, under the compass and clear of the top row's notice (3.103); a
+   click goes Home, as the compass does. */
+.whole-map {
+  position: absolute;
+  top: calc(0.5rem + 64px + 0.4rem);
+  right: 0.5rem;
+  transition: margin-right 0.6s ease-in-out;
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid #7d8a94;
+  border-radius: 999px;
+  background: #16212a;
+  color: #e6ecf0;
+  font: 600 0.8rem system-ui, sans-serif;
+}
+.whole-map:hover, .whole-map:focus-visible { border-color: #eadcae; outline: none; }
+@media (prefers-reduced-motion: reduce) { .whole-map { transition: none; } }
 
 .planet-edge-marker {
   position: absolute;
@@ -438,10 +523,20 @@
   font-size: 0.9rem;
 }
 
-/* A contract is a handle too: its title in the panel's own colour, its state beside it. */
+/* A contract is a handle too: its title in the panel's own colour, its state beside it. The title takes the row's room,
+   so every row's icons end at its right edge, one column whether the title wraps or not (contract 4.53). */
 .panel-contracts .panel-handle {
   color: var(--text);
   font-weight: 400;
+}
+
+.panel-contracts .panel-contract-said {
+  flex: 1;
+}
+
+/* What passes between a gate's two parts, under its link's heading (Fable's F3.1). */
+.panel-link-description {
+  margin: 0 0 0.3rem;
 }
 
 /* A gate's link in one state line (ADR-1284 D4): its Contracts handle, how many are failing, then the open work that
@@ -533,6 +628,24 @@
   font-weight: 600;
 }
 
+/* A row opens its increment in the rail's Arcs tab (4.48): it reads as its text until hovered or focused. */
+.panel-open-increment {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  /* A button lines up with its row's number by its first line, not its last. */
+  vertical-align: top;
+  cursor: pointer;
+}
+
+.panel-open-increment:hover,
+.panel-open-increment:focus-visible {
+  text-decoration: underline;
+}
+
 .panel-why .panel-mover {
   color: var(--muted);
 }
@@ -545,6 +658,14 @@
 /* A story's one line saying how many of its capabilities the owner moves (ADR-1284 D2), weighted as "You move this one" is. */
 .panel-needs-you {
   color: var(--text);
+  font-weight: 600;
+}
+
+/* Each capability that line counts, marked after its name in the same weight, so the count points somewhere. */
+.panel-needs-you-mark {
+  margin-left: 0.4rem;
+  color: var(--text);
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
@@ -561,25 +682,34 @@
   gap: 0.4rem;
 }
 
-.panel-badge {
-  font-size: 0.78rem;
-  padding: 0.05rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid var(--none-line);
-  background: var(--none-bg);
-  color: var(--none-text);
+/* A contract's checks after its title, one icon each and no words (question_32b645261409): coloured as the map fills a
+   territory (territory-land.ts's WORD_FILL), green passed, red failed, yellow not run yet. Small, so the gear is not the
+   app's menu gear. */
+.panel-marks {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-left: 0.4rem;
+  vertical-align: -0.1rem;
 }
 
-.panel-badge.badge-passing {
-  border-color: var(--pass-line);
-  background: var(--pass-bg);
-  color: var(--pass-text);
+.panel-mark {
+  display: inline-flex;
 }
 
-.panel-badge.badge-failing {
-  border-color: var(--fail-line);
-  background: var(--fail-bg);
-  color: var(--fail-text);
+.panel-mark.state-passing {
+  color: #97C459;
+}
+
+.panel-mark.state-failing {
+  color: #E24B4A;
+}
+
+.panel-mark.state-not-checked {
+  color: #F2D16B;
+}
+
+.panel-check {
+  flex-basis: 100%;
 }
 
 .panel-contracts {

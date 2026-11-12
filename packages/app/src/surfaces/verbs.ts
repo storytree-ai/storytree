@@ -2,7 +2,7 @@
  * Capability 3 · Surfaces. `storytree settings show` and `settings set`, declared once (ADR-0969 D2, ADR-1033): each of the
  * user's settings, where the library lives, and the app's surfaces (3.7), shown and set offline. They need no caller. The
  * surfaces are the host's, composed from its story packages' manifests (ADR-0750, ADR-1021), so the door hands them on its
- * place. So are its parts (ADR-1095): `settings set part` switches one off or on for this computer, which every host reads
+ * place. So are its modules (ADR-1095, ADR-1322 D2): `settings set module` switches one off or on for this computer, which every host reads
  * as it starts, or off with a plugin in this computer's factory folder (`settings set factory`) standing in for it, and `settings set system` switches roles, checks and notes off or on for what agents read (ADR-1092 D2).
  * `settings set service <part>/<service>` turns a part's declared service on or off for this computer (ADR-1180 D2).
  * The command line mounts them as its `settings` family (SETTINGS_FAMILIES); they have no tool. `switch_factory` is the
@@ -76,7 +76,7 @@ const set = verb({
     family: "settings",
     name: "set",
     summary: "save a setting for your user account",
-    usage: "settings set <name> <value> | settings set library <local | cloudsql <instance> <user> | postgres <address>> | settings set surface <surface> <on | off | <setting> <choice>> | settings set factory <folder> | settings set part <part> <on | off | plugin <plugin>> | settings set system <all | roles | checks | notes | <title or id>> <on | off> | settings set service <part>/<service> <on | off>",
+    usage: "settings set <name> <value> | settings set library <local | cloudsql <instance> <user> | postgres <address>> | settings set surface <surface> <on | off | <setting> <choice>> | settings set factory <folder> | settings set module <module> <on | off | plugin <plugin>> | settings set system <all | roles | checks | notes | <title or id>> <on | off> | settings set service <module>/<service> <on | off>",
   },
   tool: { absent: "the user's settings are the person's own, set from a terminal" },
   inputs: { words: { kind: "text", word: 0, many: true, describe: "the setting's name and its value" } },
@@ -88,7 +88,7 @@ const set = verb({
       const chosen = setFactory(words[1]!, undefined, { through: "command line", ...(session === undefined ? {} : { session }) });
       return { text: chosenSaid(chosen) };
     }
-    if (words[0] === "part" && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
+    if (words[0] === "module" && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
       const graph = await parts();
       const off = switchPart(words[1]!, words[2]!, Object.keys(graph), undefined, words[3], { through: "command line", ...(session === undefined ? {} : { session }) });
       const standIns = readStandIns();
@@ -179,7 +179,7 @@ function switchedSaid({ through, session, at }: FactorySwitched): string {
 /** This computer's factory folder, whose plugins may stand in for a part switched off: storytree's own, or one switched to. */
 function factorySaid({ folder, chosen, switched }: { folder: string; chosen: boolean; switched?: FactorySwitched }): string {
   const said = !chosen ? `${folder} (storytree's own, the default)` : switched === undefined ? folder : `${folder} (${switchedSaid(switched)})`;
-  return `factory: ${said}\n  The folder of your own factory, whose plugins (plugins/<plugin>/) may stand in for a part you switch off with \`storytree settings set part <part> plugin <plugin>\`. Choose another with \`storytree settings set factory <folder>\`.\n  What a plugin must contain: \`storytree plugin contract\`. Start one with \`storytree plugin new <plugin> --for <part>\`, and check this storytree would load it with \`storytree plugin check <plugin>\`.`;
+  return `factory: ${said}\n  The folder of your own factory, whose plugins (plugins/<plugin>/) may stand in for a module you switch off with \`storytree settings set module <module> plugin <plugin>\`. Choose another with \`storytree settings set factory <folder>\`.\n  What a plugin must contain: \`storytree plugin contract\`. Start one with \`storytree plugin new <plugin> --for <module>\`, and check this storytree would load it with \`storytree plugin check <plugin>\`.`;
 }
 
 function surfacesSaid(surfaces: readonly SurfaceReading[]): string {

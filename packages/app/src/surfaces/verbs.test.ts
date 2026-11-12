@@ -82,31 +82,31 @@ test("3.16 An agent switches this computer's factory folder with the declared sw
   assert.ok(refused instanceof VerbRefusal && /not a factory/.test(refused.message), String(refused));
 });
 
-test("project-and-caller 2.23 `settings set part <part> plugin <plugin>` records the calling session from the command line, and `settings show` says who switched the stand-in and when; `on` switches it back with no record", async (t) => {
+test("project-and-caller 2.23 `settings set module <module> plugin <plugin>` records the calling session from the command line, and `settings show` says who switched the stand-in and when; `on` switches it back with no record", async (t) => {
   const dir = home(t);
   const place: SettingsPlace = { folder: dir, session: "s-9", surfaces: async () => declared, parts: async () => graph };
-  await named("set").act({ words: ["part", "forest", "plugin", "my-forest"] }, place, words);
+  await named("set").act({ words: ["module", "forest", "plugin", "my-forest"] }, place, words);
   assert.match((await named("show").act({}, place, words)).text, /^  forest: off, my-forest stands in for it \(switched by session s-9 from the command line, \d{4}-\d\d-\d\dT/m);
-  await named("set").act({ words: ["part", "forest", "on"] }, place, words);
+  await named("set").act({ words: ["module", "forest", "on"] }, place, words);
   assert.deepEqual(JSON.parse(readFileSync(path.join(dir, "settings.json"), "utf8"))["stand-ins-switched"], {});
 });
 
-test("project-and-caller 2.20 · 2.26 · A part in none of the host's parts, one that has left the base or one a factory plugin adds, is switched to a factory plugin of its own name by `settings set part`, which says the plugin adds it, as `settings show` does, and switched back", async (t) => {
+test("project-and-caller 2.20 · 2.26 · A module in none of the host's modules, one that has left the base or one a factory plugin adds, is switched to a factory plugin of its own name by `settings set module`, which says the plugin adds it, as `settings show` does, and switched back", async (t) => {
   const dir = home(t);
   const place: SettingsPlace = { folder: dir, surfaces: async () => declared, parts: async () => graph };
-  assert.match((await named("set").act({ words: ["part", "voice", "plugin", "voice"] }, place, words)).text, /^Added on this computer: voice \(by the factory plugin voice\)\.\nNo part is switched off on this computer\./);
+  assert.match((await named("set").act({ words: ["module", "voice", "plugin", "voice"] }, place, words)).text, /^Added on this computer: voice \(by the factory plugin voice\)\.\nNo module is switched off on this computer\./);
   assert.match((await named("show").act({}, place, words)).text, /^  voice: added by the factory plugin voice \(switched from the command line, /m);
-  assert.match((await named("set").act({ words: ["part", "voice", "on"] }, place, words)).text, /^No part is switched off on this computer\./);
+  assert.match((await named("set").act({ words: ["module", "voice", "on"] }, place, words)).text, /^No module is switched off on this computer\./);
   assert.doesNotMatch((await named("show").act({}, place, words)).text, /^  voice: /m);
 });
 
 test("3.19 `settings show`'s factory line names where a plugin's contract is read, and how to start and check one", async (t) => {
   const dir = home(t);
   const shown = await named("show").act({}, { folder: dir, surfaces: async () => declared, parts: async () => graph }, words);
-  assert.match(shown.text, /^factory: [^]*`storytree plugin contract`[^]*`storytree plugin new <plugin> --for <part>`[^]*`storytree plugin check <plugin>`/m);
+  assert.match(shown.text, /^factory: [^]*`storytree plugin contract`[^]*`storytree plugin new <plugin> --for <module>`[^]*`storytree plugin check <plugin>`/m);
 });
 
-test("project-and-caller 2.25 `settings set service <part>/<service> on|off` turns a service on or off for this computer and says what is on, and `settings show` lists the services turned on", async (t) => {
+test("project-and-caller 2.25 `settings set service <module>/<service> on|off` turns a service on or off for this computer and says what is on, and `settings show` lists the services turned on", async (t) => {
   const dir = home(t);
   const place: SettingsPlace = { folder: dir, surfaces: async () => declared, parts: async () => graph };
   assert.match((await named("set").act({ words: ["service", "voice/listen", "on"] }, place, words)).text, /^Turned on on this computer: voice\/listen\./);
@@ -125,12 +125,12 @@ const hostVerbs = {
   graph: { ...graph, "ci-health": ["library"] },
 };
 
-test("plugin-loader 4.3 · `settings set part <part> off` or `plugin <plugin>` names the command families, commands and tools the parts it switches off take away, and those the plugin adds in their place", async (t) => {
+test("plugin-loader 4.3 · `settings set module <module> off` or `plugin <plugin>` names the command families, commands and tools the modules it switches off take away, and those the plugin adds in their place", async (t) => {
   const dir = home(t);
   const place: SettingsPlace = { folder: dir, surfaces: async () => declared, parts: async () => hostVerbs.graph, hostVerbs: async () => hostVerbs };
-  const off = (await named("set").act({ words: ["part", "ci-health", "off"] }, place, words)).text;
+  const off = (await named("set").act({ words: ["module", "ci-health", "off"] }, place, words)).text;
   assert.match(off, /^ci-health takes away the command family health: health worklist, health ci\.$/m);
-  const forest = (await named("set").act({ words: ["part", "forest", "off"] }, place, words)).text;
+  const forest = (await named("set").act({ words: ["module", "forest", "off"] }, place, words)).text;
   assert.match(forest, /^forest takes away the command family globe: globe spin; and the tool spin_globe\.$/m);
   assert.match(forest, /^arc-surface, which stands on forest, takes away nothing of the command line or the MCP server's\.$/m);
   assert.doesNotMatch(forest, /^ci-health takes away/m, "only what this switch takes away is said");
@@ -141,8 +141,8 @@ test("plugin-loader 4.3 · `settings set part <part> off` or `plugin <plugin>` n
   writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "laptop-health", type: "module", exports: { "./verbs": "./verbs.js" }, storytree: { interface: 1, verbs: [{ from: "./verbs", export: "verbs" }] } }));
   writeFileSync(path.join(plugin, "verbs.js"), `export const verbs = [{ name: "laptop-health", summary: "s", order: 40, verbs: [{ command: { family: "laptop-health", name: "worklist", summary: "s" }, tool: { name: "laptop_worklist", description: "d" }, inputs: {}, async act() { return { text: "" }; } }] }];\n`);
   await named("set").act({ words: ["factory", path.join(dir, "factory")] }, place, words);
-  const swapped = (await named("set").act({ words: ["part", "ci-health", "plugin", "laptop-health"] }, place, words)).text;
+  const swapped = (await named("set").act({ words: ["module", "ci-health", "plugin", "laptop-health"] }, place, words)).text;
   assert.match(swapped, /^ci-health takes away the command family health: health worklist, health ci\.$/m);
   assert.match(swapped, /^laptop-health adds in its place the command family laptop-health: laptop-health worklist; and the tool laptop_worklist\.$/m);
-  assert.doesNotMatch((await named("set").act({ words: ["part", "ci-health", "on"] }, place, words)).text, /takes away/);
+  assert.doesNotMatch((await named("set").act({ words: ["module", "ci-health", "on"] }, place, words)).text, /takes away/);
 });

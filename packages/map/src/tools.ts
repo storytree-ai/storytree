@@ -11,7 +11,8 @@ import { formatCapabilityTree } from "./capability-tree.js";
 import { formatFocus } from "./focus.js";
 import { formatCrossing } from "./code-survey/crossings.js";
 import type { ImportedFolder } from "./code-survey/read-survey.js";
-import { capabilityTreeProject, crossingProject, focusProject, healthWorklistAt } from "./read.js";
+import { formatLinks } from "./code-survey/links.js";
+import { capabilityTreeProject, crossingProject, focusProject, healthWorklistAt, linksProject } from "./read.js";
 
 /** What a tool has for one call, of what the server hands it. */
 interface ToolCall {
@@ -56,7 +57,7 @@ export function mapTools({ imports: importsOf, heldBack }: ToolHost): ToolExtens
     registerTools(define) {
       define(
         "focus",
-        "Focus the project's map on file:<path>, cap:<id|number>, contract:<id|number>, or story:<name>. Up follows dependencies; down follows dependents, each to a depth. Counts are the default; dry_run estimates detail and show returns every row or refuses above the ceiling. Reads the current checkout. Give crossing (folders or file patterns in an imported island, from its import's folder, full paths, or cap:<id|number> for an explored capability's folders and files) to count the files outside that import files inside and the files inside that import files outside, before changing or adopting a part; select may then name an imported story to draw the line among its files only, and show lists each import. Give capabilities with select story:<name> for that story's capabilities in one read: each with its health, contracts, dependencies, and files with their lines of code.",
+        "Focus the project's map on file:<path>, cap:<id|number>, contract:<id|number>, or story:<name>. Up follows dependencies; down follows dependents, each to a depth. Counts are the default; dry_run estimates detail and show returns every row or refuses above the ceiling. Reads the current checkout. Give crossing (folders or file patterns in an imported island, from its import's folder, full paths, or cap:<id|number> for an explored capability's folders and files) to count the files outside that import files inside and the files inside that import files outside, before changing or adopting a part; select may then name an imported story to draw the line among its files only, and show lists each import. Give capabilities with select story:<name> for that story's capabilities in one read: each with its health, contracts, dependencies, and files with their lines of code. Give links with select story:<imported> to check an imported story's links against its code's imports: each import between two explored capabilities' files that no link covers, and each link no import backs, with the imports behind each.",
         z.object({
           select: z.string().min(1).optional(),
           crossing: z.array(z.string().min(1)).min(1).optional(),
@@ -65,13 +66,19 @@ export function mapTools({ imports: importsOf, heldBack }: ToolHost): ToolExtens
           kind: z.array(z.enum(["story", "capability", "contract", "file", "test"])).optional(),
           mode: z.enum(["counts", "dry_run", "show"]).optional(),
           capabilities: z.boolean().optional(),
+          links: z.boolean().optional(),
         }),
-        async ({ select, crossing, up, down, kind, mode, capabilities }, { library, storytree, folder }) => {
+        async ({ select, crossing, up, down, kind, mode, capabilities, links }, { library, storytree, folder }) => {
           if (capabilities === true && (crossing !== undefined || !select?.startsWith("story:"))) throw new Error("capabilities answers for one story: select story:<name>, with no crossing.");
+          if (links === true && (capabilities === true || crossing !== undefined || !/^story:./.test(select ?? ""))) throw new Error("links checks one imported story: select story:<name>, with no crossing or capabilities.");
           if (crossing === undefined && select === undefined) throw new Error("Give select, or crossing.");
           if (crossing !== undefined && select !== undefined && !/^story:./.test(select)) throw new Error("With crossing, select names an imported story: story:<name>.");
           if (crossing !== undefined && mode === "dry_run") throw new Error("A crossing answers counts or show.");
           const imports = await importsOf(storytree, library.name);
+          if (links === true) {
+            const answer = await linksProject(library, folder, select!, imports);
+            return { text: formatLinks(answer), data: { ...answer } };
+          }
           if (capabilities === true) {
             const answer = await capabilityTreeProject(library, folder, select!, imports);
             return { text: formatCapabilityTree(answer), data: { ...answer } };

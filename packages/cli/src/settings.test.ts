@@ -143,7 +143,7 @@ test("1.37 · a family a switched-off part declares is not listed, and asking fo
   const home = path.join(dir, "home");
   const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
 
-  const off = await invoke(["settings", "set", "part", "arc-surface", "off"]);
+  const off = await invoke(["settings", "set", "module", "arc-surface", "off"]);
   assert.equal(off.code, 0, off.stderr);
   assert.match(off.stdout, /Switched off on this computer: app \(with arc-surface, which it stands on\), arc-surface, forest \(with arc-surface/);
 
@@ -155,21 +155,21 @@ test("1.37 · a family a switched-off part declares is not listed, and asking fo
 
   const arc = await invoke(["arc", "list"]);
   assert.equal(arc.code, 1, arc.stdout);
-  assert.match(arc.stderr, /storytree arc is not mounted: arc-surface is switched off on this computer\. Switch it on with: storytree settings set part arc-surface on/);
+  assert.match(arc.stderr, /storytree arc is not mounted: arc-surface is switched off on this computer\. Switch it on with: storytree settings set module arc-surface on/);
   const app = await invoke(["app"]);
   assert.match(app.stderr, /app is switched off on this computer because arc-surface, which it stands on, is off/);
 
-  const on = await invoke(["settings", "set", "part", "arc-surface", "on"]);
+  const on = await invoke(["settings", "set", "module", "arc-surface", "on"]);
   assert.equal(on.code, 0, on.stderr);
   assert.match((await invoke([])).stdout, /^  arc\b/m);
 
-  const mapOff = await invoke(["settings", "set", "part", "map", "off"]);
+  const mapOff = await invoke(["settings", "set", "module", "map", "off"]);
   assert.equal(mapOff.code, 0, mapOff.stderr);
   const withoutMap = await invoke([]);
   for (const family of ["map", "affected"]) assert.doesNotMatch(withoutMap.stdout, new RegExp(`^  ${family}\\b`, "m"), family);
   const map = await invoke(["map", "--select", "story:any"]);
   assert.equal(map.code, 1, map.stdout);
-  assert.match(map.stderr, /storytree map is not mounted: map is switched off on this computer\. Switch it on with: storytree settings set part map on/);
+  assert.match(map.stderr, /storytree map is not mounted: map is switched off on this computer\. Switch it on with: storytree settings set module map on/);
 });
 
 test("1.41 · with CI health switched off, `storytree` starts and lists every family but its, asking for it says it is switched off, and `project delete` is handed no project records, no base part keeping any now code review is a factory plugin's (ADR-1170 D2, ADR-1209)", async (t) => {
@@ -182,7 +182,7 @@ test("1.41 · with CI health switched off, `storytree` starts and lists every fa
   assert.match(listed.stdout, /^  health\b/m, "health is listed with it on");
   assert.deepEqual(await projectRecords(home), [], "no base part hands project delete records of its own");
 
-  assert.equal((await invoke(["settings", "set", "part", "ci-health", "off"])).code, 0);
+  assert.equal((await invoke(["settings", "set", "module", "ci-health", "off"])).code, 0);
   const off = await invoke([]);
   assert.equal(off.code, 0, off.stderr);
   assert.doesNotMatch(off.stdout, /^  health\b/m, "health is not listed");
@@ -215,14 +215,14 @@ export const families = [{ name: "health", summary: "my own health, from my fact
   return folder;
 }
 
-test("plugin-loader 4.3 · 5.15 · through the command line, `settings set part ci-health plugin my-health` names what ci-health takes away and what my-health adds in its place, and `plugin check my-health --for ci-health` lists ci-health's commands my-health lacks", async (t) => {
+test("plugin-loader 4.3 · 5.15 · through the command line, `settings set module ci-health plugin my-health` names what ci-health takes away and what my-health adds in its place, and `plugin check my-health --for ci-health` lists ci-health's commands my-health lacks", async (t) => {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-taken-")));
   t.after(() => removeTemp(dir));
   const home = path.join(dir, "home");
   const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
   assert.equal((await invoke(["settings", "set", "factory", healthPlugin(dir)])).code, 0);
 
-  const switched = await invoke(["settings", "set", "part", "ci-health", "plugin", "my-health"]);
+  const switched = await invoke(["settings", "set", "module", "ci-health", "plugin", "my-health"]);
   assert.equal(switched.code, 0, switched.stderr);
   assert.match(switched.stdout, /^ci-health takes away the command family health: health worklist, health ci\b/m);
   assert.match(switched.stdout, /^my-health adds in its place the command family health: health check; and the tool my_health_check\.$/m);
@@ -231,14 +231,14 @@ test("plugin-loader 4.3 · 5.15 · through the command line, `settings set part 
   assert.match(checked.stdout, /^my-health stands in for ci-health, which provides what my-health does not: the commands health worklist, health ci\b/m);
 });
 
-test("plugin-loader 5.19 · a factory plugin named ci-health, switched in with `settings set part ci-health plugin ci-health`, mounts its own health family alone in ci-health's place, runs, and is said to add its own commands, not ci-health's", async (t) => {
+test("plugin-loader 5.19 · a factory plugin named ci-health, switched in with `settings set module ci-health plugin ci-health`, mounts its own health family alone in ci-health's place, runs, and is said to add its own commands, not ci-health's", async (t) => {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-same-name-")));
   t.after(() => removeTemp(dir));
   const home = path.join(dir, "home");
   const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
   assert.equal((await invoke(["settings", "set", "factory", healthPlugin(dir, "ci-health")])).code, 0);
 
-  const switched = await invoke(["settings", "set", "part", "ci-health", "plugin", "ci-health"]);
+  const switched = await invoke(["settings", "set", "module", "ci-health", "plugin", "ci-health"]);
   assert.equal(switched.code, 0, switched.stderr);
   assert.match(switched.stdout, /^ci-health adds in its place the command family health: health check; and the tool my_health_check\.$/m);
   const listed = (await invoke([])).stdout;
@@ -260,10 +260,10 @@ test("1.47 · a family only a factory plugin this computer does not name declare
   const refused = await invoke(["my-extra", "hello"]);
   assert.notEqual(refused.code, 0);
   assert.match(refused.stderr, /storytree has no "my-extra": it is a family of the factory plugin my-extra, which this computer does not name\./);
-  assert.match(refused.stderr, /storytree settings set part my-extra plugin my-extra/);
+  assert.match(refused.stderr, /storytree settings set module my-extra plugin my-extra/);
   assert.match((await invoke(["nowhere-family"])).stderr, /storytree has no "nowhere-family"\n/);
 
-  assert.equal((await invoke(["settings", "set", "part", "my-extra", "plugin", "my-extra"])).code, 0);
+  assert.equal((await invoke(["settings", "set", "module", "my-extra", "plugin", "my-extra"])).code, 0);
   assert.equal((await invoke(["my-extra", "hello"])).code, 0);
 
   writeFileSync(path.join(home, "settings.json"), "{ not json");
@@ -271,7 +271,7 @@ test("1.47 · a family only a factory plugin this computer does not name declare
   assert.match(unread.stderr, /storytree has no "my-extra"\n/, "a settings file that cannot be read names no plugin, and the word is refused as before");
 });
 
-test("1.40 · with a factory folder chosen and `settings set part ci-health plugin my-health`, the command line lists and runs the factory plugin's family where ci-health's was, its verb handed the door's place; `settings set part ci-health on` mounts ci-health's own again", async (t) => {
+test("1.40 · with a factory folder chosen and `settings set module ci-health plugin my-health`, the command line lists and runs the factory plugin's family where ci-health's was, its verb handed the door's place; `settings set module ci-health on` mounts ci-health's own again", async (t) => {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-stand-in-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
@@ -279,7 +279,7 @@ test("1.40 · with a factory folder chosen and `settings set part ci-health plug
   const folder = healthPlugin(dir);
 
   assert.equal((await invoke(["settings", "set", "factory", folder])).code, 0);
-  const standIn = await invoke(["settings", "set", "part", "ci-health", "plugin", "my-health"]);
+  const standIn = await invoke(["settings", "set", "module", "ci-health", "plugin", "my-health"]);
   assert.equal(standIn.code, 0, standIn.stderr);
   assert.match(standIn.stdout, /ci-health \(my-health stands in for it\)/);
 
@@ -289,14 +289,14 @@ test("1.40 · with a factory folder chosen and `settings set part ci-health plug
   assert.equal(ran.stdout.trim().split("\n")[0], `my health is fine in ${dir}`);
   assert.match((await invoke(["settings", "show"])).stdout, /^  ci-health: off, my-health stands in for it \(switched (by session \S+ )?from the command line, \d{4}-\d\d-\d\dT[^)]*\)$/m);
 
-  assert.equal((await invoke(["settings", "set", "part", "ci-health", "on"])).code, 0);
+  assert.equal((await invoke(["settings", "set", "module", "ci-health", "on"])).code, 0);
   const restored = (await invoke([])).stdout;
   assert.doesNotMatch(restored, /my own health/);
   assert.match(restored, /^  health\s+the health worklist, and reading a project's CI/m, "ci-health's own family is mounted again");
   assert.notEqual((await invoke(["health", "check"])).code, 0, "and the plugin's verb is gone with it");
 });
 
-test("plugin-loader 5.13 · a fresh `plugin new my-extra`, with no --for, is added with `settings set part my-extra plugin my-extra`: the command line lists and runs its verb, `settings show` says the plugin adds it, and `settings set part my-extra on` takes it away again", async (t) => {
+test("plugin-loader 5.13 · a fresh `plugin new my-extra`, with no --for, is added with `settings set module my-extra plugin my-extra`: the command line lists and runs its verb, `settings show` says the plugin adds it, and `settings set module my-extra on` takes it away again", async (t) => {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-added-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
@@ -304,7 +304,7 @@ test("plugin-loader 5.13 · a fresh `plugin new my-extra`, with no --for, is add
 
   const made = await invoke(["plugin", "new", "my-extra"]);
   assert.equal(made.code, 0, made.stderr);
-  const added = await invoke(["settings", "set", "part", "my-extra", "plugin", "my-extra"]);
+  const added = await invoke(["settings", "set", "module", "my-extra", "plugin", "my-extra"]);
   assert.equal(added.code, 0, added.stderr);
   assert.match(added.stdout, /^Added on this computer: my-extra \(by the factory plugin my-extra\)\./m);
 
@@ -314,7 +314,7 @@ test("plugin-loader 5.13 · a fresh `plugin new my-extra`, with no --for, is add
   assert.equal(ran.stdout.trim().split("\n")[0], `my-extra is mounted, called in ${dir}`);
   assert.match((await invoke(["settings", "show"])).stdout, /^  my-extra: added by the factory plugin my-extra \(switched /m);
 
-  assert.equal((await invoke(["settings", "set", "part", "my-extra", "on"])).code, 0);
+  assert.equal((await invoke(["settings", "set", "module", "my-extra", "on"])).code, 0);
   assert.doesNotMatch((await invoke([])).stdout, /what my-extra adds/);
   assert.notEqual((await invoke(["my-extra", "hello"])).code, 0, "and its verb is gone with it");
 });
@@ -336,7 +336,7 @@ test("1.44 · a factory plugin mounted in a switched-off part's place writes its
 export const families = [{ name: "health", summary: "my own health, from my factory", order: 18, verbs: [note] }];
 `);
     assert.equal((await world.run(["settings", "set", "factory", folder])).code, 0);
-    assert.equal((await world.run(["settings", "set", "part", "ci-health", "plugin", "my-health"])).code, 0);
+    assert.equal((await world.run(["settings", "set", "module", "ci-health", "plugin", "my-health"])).code, 0);
 
     const noted = await world.run(["health", "note", "steady"]);
     assert.equal(noted.code, 0, noted.stderr);
@@ -346,7 +346,7 @@ export const families = [{ name: "health", summary: "my own health, from my fact
     assert.match(live.stdout, /^my-health\.reading_\S+  \[my-health\.reading\]  schema 1$/m);
     assert.match(live.stdout, /^words: steady$/m);
 
-    assert.equal((await world.run(["settings", "set", "part", "ci-health", "on"])).code, 0);
+    assert.equal((await world.run(["settings", "set", "module", "ci-health", "on"])).code, 0);
     const dormant = await world.run(["library", "read", id]);
     assert.equal(dormant.code, 0, dormant.stderr);
     assert.match(dormant.stdout, /\[my-health\.reading\]  schema 1  dormant: its plugin is not mounted on this computer$/m);
@@ -370,14 +370,14 @@ test("1.46 · library list of a plugin's kind this computer does not mount says 
 export const families = [{ name: "my-health", summary: "my own health, from my factory", order: 18, verbs: [note] }];
 `);
     assert.equal((await world.run(["settings", "set", "factory", folder])).code, 0);
-    assert.equal((await world.run(["settings", "set", "part", "my-health", "plugin", "my-health"])).code, 0);
+    assert.equal((await world.run(["settings", "set", "module", "my-health", "plugin", "my-health"])).code, 0);
     assert.equal((await world.run(["my-health", "note", "steady"])).code, 0);
     assert.match((await world.run(["library", "list", "my-health.reading"])).stdout, /^1 my-health\.reading records:$/m, "mounted, it lists as before");
 
-    assert.equal((await world.run(["settings", "set", "part", "my-health", "on"])).code, 0);
+    assert.equal((await world.run(["settings", "set", "module", "my-health", "on"])).code, 0);
     const dormant = await world.run(["library", "list", "my-health.reading"]);
     assert.equal(dormant.code, 0, dormant.stderr);
-    assert.match(dormant.stdout, /^1 my-health\.reading record is dormant here: its plugin, my-health, is not mounted on this computer; mount it with storytree settings set part my-health plugin my-health\.$/m);
+    assert.match(dormant.stdout, /^1 my-health\.reading record is dormant here: its plugin, my-health, is not mounted on this computer; mount it with storytree settings set module my-health plugin my-health\.$/m);
     rmSync(plugin, { recursive: true, force: true });
     const absent = await world.run(["library", "list", "my-health.reading"]);
     assert.match(absent.stdout, /^1 my-health\.reading record is dormant here: its plugin, my-health, is not mounted on this computer; my-health is not in this computer's factory, so it cannot be mounted here\.$/m);

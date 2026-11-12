@@ -101,8 +101,7 @@ export function selectLines(project: string, filter: LineFilter): { text: string
 
 /**
  * The claim lines that decide who holds what now (capability 5): for each capability or increment
- * whose latest claim no later line ended, every claim line on it and the end lines of the sessions
- * that claimed it. Closing the increment a capability claim names as `under`, whoever closes it, or its
+ * whose latest claim no later line ended, every claim line on it. Closing the increment a capability claim names as `under`, whoever closes it, or its
  * holder releasing that increment, ends it too (ADR-0944 D5, ADR-0949 D4). Folded in order they give the standing claims, in the order a fold of the whole
  * log gives them; ended claims, however many, send nothing.
  */
@@ -117,14 +116,9 @@ WITH latest AS (
 ), standing AS (
   SELECT l.id, l.session FROM latest l WHERE NOT EXISTS (
     SELECT 1 FROM endings e WHERE e.seq > l.seq AND ${ENDS_STANDING})
-), claimers AS (
-  SELECT DISTINCT session FROM activity
-  WHERE project = $1 AND kind = 'claimed' AND coalesce(detail->>'increment', detail->>'capability') IN (SELECT id FROM standing)
 )
 SELECT ${ROW}, detail FROM activity
-WHERE project = $1 AND (
-  (kind IN ('claimed', 'released', 'landed', 'merged', 'closed') AND coalesce(detail->>'increment', detail->>'capability') IN (SELECT id FROM standing))
-  OR (kind = 'session-ended' AND session IN (SELECT session FROM claimers)))
+WHERE project = $1 AND kind IN ('claimed', ${ENDING_KINDS_SQL}) AND coalesce(detail->>'increment', detail->>'capability') IN (SELECT id FROM standing)
 ORDER BY seq`;
 
 /** The latest start each machine recorded (Session management 4.29): one line a machine, however often it started. */
@@ -317,3 +311,33 @@ export const SESSION_COUNT = "SELECT count(DISTINCT session) AS count FROM activ
 export function countValues(project: string): unknown[] {
   return [project, ABOUT_OTHERS];
 }
+
+/** A window's door-answered lines, from $2 (ISO 8601) on: the window the doors learner reads (contract 2.18). */
+const DOOR_WINDOW = "SELECT seq, session, at, detail FROM activity WHERE project = $1 AND kind = 'door-answered' AND at >= $2::timestamptz";
+
+/** The window's door-answered lines counted on the server: how many sessions wrote one, the first one's time, and the calls of each verb. */
+export const DOOR_COUNTS = `
+WITH w AS (${DOOR_WINDOW})
+SELECT count(DISTINCT session) AS sessions, min(at) AS first,
+  coalesce((SELECT json_object_agg(verb, calls) FROM (SELECT detail->>'verb' AS verb, count(*) AS calls FROM w GROUP BY 1) AS v), '{}') AS calls
+FROM w`;
+
+/**
+ * The window's door-answered lines a refusal or a pointer is judged by, and no other: each command refused as unknown
+ * with its word and the session's next line, whatever its door, and each call a pointer ran with the session's next
+ * command. Read in order, they follow each refusal and pointed call as every line of the window would.
+ */
+export const DOOR_STEPS = `
+WITH w AS (
+  SELECT seq, session, detail->>'door' = 'command' AS command,
+    detail->>'door' = 'command' AND detail->>'outcome' = 'unknown' AND detail ? 'word' AS refusal,
+    detail ? 'pointedFrom' AS pointed
+  FROM (${DOOR_WINDOW}) AS window_lines
+), after_any AS (
+  SELECT seq, refusal OR pointed AS step, lag(refusal) OVER (PARTITION BY session ORDER BY seq) AS follows FROM w
+), after_command AS (
+  SELECT seq, lag(pointed) OVER (PARTITION BY session ORDER BY seq) AS follows FROM w WHERE command
+)
+SELECT ${ROW}, detail FROM activity
+WHERE project = $1 AND seq IN (SELECT seq FROM after_any WHERE step OR follows UNION SELECT seq FROM after_command WHERE follows)
+ORDER BY seq`;

@@ -3,15 +3,16 @@
  * byte the server sends a library connection, its handshake and TLS included, is counted against the reader that asked
  * for it, so a shared server's egress can be ranked by reader rather than guessed from socket counters.
  *
- * - The reader is the process's (a command names it, `arc show`, before it connects; by default the script it runs),
- *   or, for a call made inside asReader, that call's (a tool server names each tool's call).
+ * - The reader is the process's (a command names it, `arc show`, before it connects; by default the script it runs, or
+ *   "no script (<executable>)" when it runs none, contract 28.13), or, for a call made inside asReader, that call's (a
+ *   tool server names each tool's call, the desktop app each page operation's).
  * - A connection's application_name names the process's reader (server.ts), so pg_stat_activity says who holds it.
  * - The counts stay in this process until takeReads hands them over: the activity log records them as a bounded
  *   total per machine, reader and day, never a line per statement, last as the pool it records through ends (atEnd).
  * - A connection whose socket keeps no byte count (one over a WebSocket) is not counted.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
-import { basename } from "node:path";
+import { win32 } from "node:path";
 
 import type { Pool, PoolClient } from "pg";
 
@@ -22,7 +23,17 @@ export interface ReadTotal {
   readonly statements: number;
 }
 
-let processReader = basename(process.argv[1] ?? "") || "unnamed";
+/**
+ * The reader a process is before it names one: the script it runs (argv[1]'s file name), or, when argv[1] is empty or a
+ * flag (a packaged Electron app, one its updater relaunched with --updated), that it runs none, with its executable.
+ */
+export function scriptReader(argv: readonly string[]): string {
+  const [executable = "", script = ""] = argv;
+  if (script !== "" && !script.startsWith("-")) return win32.basename(script);
+  return executable === "" ? "no script" : `no script (${win32.basename(executable)})`;
+}
+
+let processReader = scriptReader(process.argv);
 const calling = new AsyncLocalStorage<string>();
 const counted = new Map<string, { bytes: number; statements: number }>();
 
@@ -41,8 +52,8 @@ export function asReader<T>(name: string, call: () => T): T {
   return calling.run(name, call);
 }
 
-/** The reader a read made here is counted against. */
-function readerNow(): string {
+/** The reader a read made here is counted against: the asReader call's it runs in, else the process's. */
+export function readerName(): string {
   return calling.getStore() ?? processReader;
 }
 
@@ -106,10 +117,10 @@ export function countReads(client: PoolClient): void {
     add(reader, now - charged, statements);
     charged = now;
   };
-  charge(readerNow(), 0);
+  charge(readerName(), 0);
   const query = client.query as (...args: unknown[]) => unknown;
   (client as { query: unknown }).query = function counting(this: unknown, ...args: unknown[]): unknown {
-    const reader = readerNow();
+    const reader = readerName();
     const settled = () => charge(reader, 1);
     const last = args.length - 1;
     const callback = args[last];

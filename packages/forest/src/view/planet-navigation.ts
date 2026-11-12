@@ -118,8 +118,10 @@ function pickLand(ray: Raycaster, world: Object3D): { story: string; capability?
 export type PickedGate = { readonly story: string; readonly pick: GatePick };
 
 /**
- * The gate on an island's land under the pointer (3.88): only when it is the first of the land's marks the ray meets, so land
- * standing before it hides it. Roads take no ray, so one never stands in its way (3.15).
+ * The gate on an island's land under the pointer (3.88): when it is the first of the land's marks the ray meets, so land
+ * standing before it hides it; or, when that first mark is the island's land round it, the ringed gate whose ring the pointer
+ * is inside, the nearest first, while its posts are drawn, so a gate whose posts are a few pixels across is still picked
+ * by its ring. Roads take no ray, so one never stands in its way, and beside a gate no ring marks the land is picked (3.15).
  */
 export function pickGate(world: Object3D, camera: Camera,
   box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }): PickedGate | undefined {
@@ -134,10 +136,41 @@ export function pickGate(world: Object3D, camera: Camera,
       if (object.name.startsWith("planet:")) story = object.name.slice("planet:".length);
     }
     if (story === undefined) continue;
-    const pick = gateOf(hit.object);
+    const pick = gateOf(hit.object) ?? ringedGate(hit.object, ray);
     return pick === undefined ? undefined : { story, pick };
   }
   return undefined;
+}
+
+/** The ringed gate on the island of `land` whose ring, as drawn, `ray` passes inside, the nearest its centre first, while
+ * the gate's posts are drawn; none if it passes inside no ring. */
+function ringedGate(land: Object3D, ray: Raycaster): GatePick | undefined {
+  let planet: Object3D | null = land;
+  while (planet !== null && !planet.name.startsWith("planet:")) planet = planet.parent;
+  if (planet === null) return undefined;
+  const drawnGates = new Map<number, GatePick>();
+  planet.traverse((mark) => {
+    const pick = gateOf(mark);
+    if (pick !== undefined && isDrawn(mark)) drawnGates.set(pick.gate, pick);
+  });
+  let best: { pick: GatePick; off: number } | undefined;
+  planet.traverse((mark) => {
+    if (!mark.name.startsWith("open-work-gate:") || !isDrawn(mark)) return;
+    const pick = drawnGates.get(Number(mark.name.slice("open-work-gate:".length)));
+    const shape = mark.userData.ring as { centre: { x: number; z: number }; drawn: number; width: number } | undefined;
+    const onSurface = mark.parent?.userData.onSurface as ((point: { x: number; z: number }) => Vector3) | undefined;
+    if (pick === undefined || shape === undefined || onSurface === undefined) return;
+    const { centre, drawn, width } = shape;
+    const at = (x: number, z: number) => mark.localToWorld(onSurface({ x: centre.x + x, z: centre.z + z }));
+    const middle = at(0, 0), east = at(drawn, 0).sub(middle), south = at(0, drawn).sub(middle);
+    const normal = new Vector3().crossVectors(east, south).normalize();
+    const along = ray.ray.direction.dot(normal);
+    if (Math.abs(along) < 1e-9) return;
+    const meets = ray.ray.origin.clone().addScaledVector(ray.ray.direction, middle.clone().sub(ray.ray.origin).dot(normal) / along);
+    const off = meets.distanceTo(middle);
+    if (off <= east.length() * (1 + width / 2 / drawn) && (best === undefined || off < best.off)) best = { pick, off };
+  });
+  return best?.pick;
 }
 
 /** What stays picked once `selected` is the selection: a gate's ring stays while its own island is selected, as the click on
@@ -156,6 +189,12 @@ export function pickClick(world: Object3D, camera: Camera,
   const gate = mode === "forest" ? pickGate(world, camera, box, cursor) : undefined;
   if (gate === undefined) return { gate: undefined, hit: pickGlobe(world, camera, box, cursor, mode) };
   return { gate, hit: { kind: "story", id: gate.story, gate: gate.pick.between } };
+}
+
+/** 3.105: whether a click `clicked` (from `pickClick`) is let go: while an arc is selected, one on land that is no part or gate,
+ * so a near miss on the arc's rings and gates opens no story. */
+export function ignoresClick(clicked: { gate: PickedGate | undefined; hit: Selection }, arcSelected: boolean): boolean {
+  return arcSelected && clicked.gate === undefined && clicked.hit?.kind === "story" && clicked.hit.capability === undefined;
 }
 
 /** Project the drawn points; in Forest, solid land before a point occludes it. */

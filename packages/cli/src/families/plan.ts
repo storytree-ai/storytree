@@ -8,7 +8,7 @@
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
 
-const USAGE = "plan [--closed today|yesterday|week | --from <YYYY-MM-DD> --to <YYYY-MM-DD>]";
+const USAGE = "plan [--id <story|capability|arc> | --closed today|yesterday|week | --from <YYYY-MM-DD> --to <YYYY-MM-DD>]";
 
 const CLOSED = ["today", "yesterday", "week"] as const;
 
@@ -25,18 +25,19 @@ const show: Verb = {
       import("@storytree/project-and-caller"),
       context.activityContext(),
     ]);
-    const answer = await planAnswer({ library, log, project, quietMs: idleAfterMs() }, { closed: closed as (typeof CLOSED)[number] | undefined, from: args.text("from"), to: args.text("to") });
+    const answer = await planAnswer({ library, log, project, quietMs: idleAfterMs() }, { closed: closed as (typeof CLOSED)[number] | undefined, from: args.text("from"), to: args.text("to"), id: args.text("id") });
     if (answer.refused === true) throw new Refusal(answer.text);
     return { text: answer.text };
   },
 };
 
-/** A word after `plan` (or `show`) is most often a record's id: name the commands that read one thing on the plan. */
+/** A word after `plan` (or `show`) is most often a record's id: name the commands that read one thing on the plan, `--id` first. */
 function wordsRefused(word: string): Refusal {
   const read = `storytree library read ${word}`;
-  return new Refusal(`storytree plan takes no words, only flags\nusage: storytree ${USAGE}\nTo read one record, run ${read}; one arc, storytree arc show <arc>`, {
+  const part = `storytree plan --id ${word}`;
+  return new Refusal(`storytree plan takes no words, only flags\nusage: storytree ${USAGE}\nTo read one story, capability or arc of the plan, run ${part}; one record, ${read}; one arc, storytree arc show <arc>`, {
     code: 2,
-    next: [{ command: read, why: "read that record" }, { command: "storytree arc show <arc>", why: "an arc with its increments and questions" }],
+    next: [{ command: part, why: "that story, capability or arc of the plan" }, { command: read, why: "read that record" }, { command: "storytree arc show <arc>", why: "an arc with its increments and questions" }],
   });
 }
 

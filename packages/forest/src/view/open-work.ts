@@ -8,7 +8,7 @@
  * true rings that edge's gate the same, one gate per linked pair (3.92, ADR-1279 D4, ADR-1253 D3), and open work that links a
  * capability's own contract rings that capability, so planned work shows its parts before a session claims it (3.99).
  */
-import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Vector3 } from "three";
+import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Object3D, type Vector3 } from "three";
 import type { IslandRoads } from "../territories/island-roads.js";
 import type { Point, TerritoryMap } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
@@ -60,6 +60,16 @@ export function ringedCapabilities(named: readonly string[] | undefined, contrac
 }
 
 /**
+ * How many parts and links the selected arc's open work rings across the whole `scene`, as the rings count them (3.99, 3.92),
+ * whether or not they are on screen; undefined with no arc selected (3.108).
+ */
+export function openWorkCount(scene: { contracts?: readonly { capability: string; contracts: readonly string[] }[]; edges?: readonly { from: string; to: string; contracts: readonly string[] }[] },
+  named: readonly string[] | undefined, contracts: readonly string[] | undefined): { parts: number; links: number } | undefined {
+  const parts = ringedCapabilities(named, contracts, scene.contracts ?? []);
+  return parts === undefined ? undefined : { parts: parts.size, links: rungLinks(scene.edges ?? [], contracts ?? [])!.size };
+}
+
+/**
  * The open work on `map` for the selected arc's open increments' capabilities (`circled`; undefined, no arc selected): a ring
  * round each named capability's settlement on `roads` (sized to it, with room), or round its nameplate where it has none, and
  * round each gate on `roads` a link of `rung` enters (3.92); and round the selected capability (`picked`), if it is on the island, a ring outside that one (3.91).
@@ -87,21 +97,80 @@ type RingShape = { readonly centre: Point; readonly radius: number; readonly lea
  * The marks of `marks` on the land: each ring (the selected capability's in gold) placed by `onSurface`, drawn for an eye at `zoom` (CSS px per ground unit) until `sizeOpenWork` draws it for another. Nothing
  * in it takes a pointer, so a click still picks the land.
  */
-export function openWorkLayer(marks: OpenWorkMarks, onSurface: (point: Point) => Vector3, zoom: number): Group {
+export function openWorkLayer(marks: OpenWorkMarks, onSurface: (point: Point) => Vector3, zoom: number, inks: OpenWorkInks = openWorkInks()): Group {
   const group = new Group();
   group.name = "open-work";
   group.userData.onSurface = onSurface;
-  const flat = (colour: string, opacity: number) => new MeshBasicMaterial({ color: new Color(colour), transparent: true, opacity, side: DoubleSide, forceSinglePass: true, depthWrite: false });
   const add = (mesh: Mesh, name: string, order: number) => { mesh.name = name; mesh.renderOrder = order; mesh.raycast = () => {}; group.add(mesh); };
-  const ink = flat(OPEN_WORK, 0.95);
   // Over the roads, under the settlements, names and flags that stand on them.
-  for (const { capability, x, z, radius } of marks.rings) add(hollowRing({ x, z }, radius, RING_LEAST_PX, ink, onSurface, zoom), `open-work-ring:${capability}`, 5);
-  for (const { gate, x, z, radius } of marks.gates ?? []) add(hollowRing({ x, z }, radius, RING_LEAST_PX, ink, onSurface, zoom), `open-work-gate:${gate}`, 5);
+  for (const { capability, x, z, radius } of marks.rings) add(hollowRing({ x, z }, radius, RING_LEAST_PX, inks.ink, onSurface, zoom), `open-work-ring:${capability}`, 5);
+  for (const { gate, x, z, radius } of marks.gates ?? []) add(hollowRing({ x, z }, radius, RING_LEAST_PX, inks.ink, onSurface, zoom), `open-work-gate:${gate}`, 5);
   if (marks.picked !== undefined) {
     const { capability, x, z, radius } = marks.picked;
-    add(hollowRing({ x, z }, radius, RING_LEAST_PX + PICKED.least, flat(PICK_GOLD, 1), onSurface, zoom), `picked-ring:${capability}`, 5);
+    add(hollowRing({ x, z }, radius, RING_LEAST_PX + PICKED.least, inks.gold, onSurface, zoom), `picked-ring:${capability}`, 5);
   }
   return group;
+}
+
+/** The materials open work's rings are drawn in: the arc's cyan, and the pick's gold. */
+type OpenWorkInks = { readonly ink: MeshBasicMaterial; readonly gold: MeshBasicMaterial };
+
+function openWorkInks(): OpenWorkInks {
+  const flat = (colour: string, opacity: number) => new MeshBasicMaterial({ color: new Color(colour), transparent: true, opacity, side: DoubleSide, forceSinglePass: true, depthWrite: false });
+  return { ink: flat(OPEN_WORK, 0.95), gold: flat(PICK_GOLD, 1) };
+}
+
+/**
+ * An island's open work as it stays drawn (3.102): the arc's rings and gates in one layer, the pick's gold ring in another,
+ * each redrawn only when its own marks change, both in two materials kept for the island's life. So a pick after an arc is
+ * selected builds one ring, leaves the arc's standing, and frees no material whose shader the next frame would build again.
+ */
+export class IslandOpenWork {
+  readonly root = new Group();
+  private readonly inks = openWorkInks();
+  private readonly layers: { arc?: { key: string; layer: Group } | undefined; pick?: { key: string; layer: Group } | undefined } = {};
+  private onSurface: ((point: Point) => Vector3) | undefined;
+
+  constructor() { this.root.name = "open-work"; }
+
+  /** Draws `marks` placed by `onSurface` for an eye at `zoom`, redrawing only the layers whose marks or surface changed; the layers drawn anew. */
+  show(marks: OpenWorkMarks, onSurface: (point: Point) => Vector3, zoom: number): Group[] {
+    const moved = onSurface !== this.onSurface;
+    this.onSurface = onSurface;
+    const parts = { arc: { rings: marks.rings, ...(marks.gates === undefined ? {} : { gates: marks.gates }) }, pick: { rings: [], ...(marks.picked === undefined ? {} : { picked: marks.picked }) } };
+    const drawn: Group[] = [];
+    for (const part of ["arc", "pick"] as const) {
+      const key = JSON.stringify(parts[part]), was = this.layers[part];
+      if (!moved && was?.key === key) continue;
+      if (was !== undefined) { this.root.remove(was.layer); freeRings(was.layer); }
+      const layer = openWorkLayer(parts[part], onSurface, zoom, this.inks);
+      this.layers[part] = { key, layer };
+      this.root.add(layer);
+      if (layer.children.length > 0) drawn.push(layer);
+    }
+    return drawn;
+  }
+
+  /** Redraws every ring for an eye at `zoom`, as `sizeOpenWork` does a layer; whether it redrew any. */
+  size(zoom: number): boolean {
+    let redrawn = false;
+    for (const layer of this.root.children) if (layer.children.length > 0 && sizeOpenWork(layer as Group, zoom)) redrawn = true;
+    return redrawn;
+  }
+
+  /** Frees every ring and both materials, once the island goes. */
+  dispose(): void {
+    for (const layer of this.root.children) freeRings(layer);
+    this.root.clear();
+    this.layers.arc = this.layers.pick = undefined;
+    this.inks.ink.dispose();
+    this.inks.gold.dispose();
+  }
+}
+
+/** Frees the rings' geometry, leaving their kept materials. */
+function freeRings(layer: Object3D): void {
+  for (const mark of layer.children) (mark as Mesh).geometry.dispose();
 }
 
 /** A hollow ring of `radius` round `centre`, at least `least` CSS pixels across, placed by `onSurface` in `material`, its

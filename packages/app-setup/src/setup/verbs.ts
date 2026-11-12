@@ -88,7 +88,7 @@ function machineSaid(report: SetupReport): string[] {
 
 /** Each factory plugin no part setting names, and the command that names it (8.45). */
 function factorySaid(report: SetupReport): string[] {
-  return (report.unnamedPlugins ?? []).map(({ plugin, part }) => `This computer's factory holds the plugin ${plugin}, which no part setting names, so nothing of it is mounted: \`storytree settings set part ${part} plugin ${plugin}\` names it, for a session started after.`);
+  return (report.unnamedPlugins ?? []).map(({ plugin, part }) => `This computer's factory holds the plugin ${plugin}, which no module setting names, so nothing of it is mounted: \`storytree settings set module ${part} plugin ${plugin}\` names it, for a session started after.`);
 }
 
 /** When storytree last heard from a hook in `project`, and from which harness. */

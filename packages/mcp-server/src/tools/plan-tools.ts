@@ -3,10 +3,11 @@
  * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type HealthState, type NodeHealth } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
-import { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
+import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
+import { oversizedSaid } from "@storytree/arc-surface/verbs";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
 import { elsewhereSaid, type MapNode } from "@storytree/map";
 import { readMap } from "@storytree/map/read";
@@ -118,7 +119,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    `Plan a contract: one testable guarantee a capability makes. ${CONTRACT_PLACEMENT} Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again, and a test numbered for one that sits in another story's package, which credits that package's story, not this one. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On an imported story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.`,
+    `Plan a contract: one testable guarantee a capability makes. ${CONTRACT_PLACEMENT} Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also counts the capability's other contracts no numbered test carries yet, planned but not built, which the focus tool lists: build one of those rather than plan it again. It names a test numbered for one that sits in another story's package, which credits that package's story, not this one. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On an imported story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.`,
     z.object({
       capability: id("capability it belongs to").optional(),
       edge: id("edge it belongs to instead, a link inside one story: a loose contract, even one line, on how one capability depends on the other, numbered from the dependent capability").optional(),
@@ -159,7 +160,9 @@ export function registerPlanTools(define: Define): void {
       const orphans = await orphanTests(call, owner, contract.fields.title, tested);
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is the one ${orphans.length === 1 ? "it proves" : "one proves"}, give it that number with edit_plan.`;
       const untested = untestedContracts(tree, owner, tested);
-      const open = untested.length === 0 ? "" : ` No numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, planned but not built: ${untested.map(quoted).join(", ")}. If this contract repeats one of them, retire it and build that one.`;
+      // Counted, not named, so the reply stays short however many there are (9.13, F2.10).
+      const one = untested.length === 1;
+      const open = untested.length === 0 ? "" : ` ${untested.length} other ${one ? "contract" : "contracts"} of this capability ${one ? "has" : "have"} no test yet. If this one repeats ${one ? "it" : "any of them"}, retire it and build that one (list ${one ? "it" : "them"} with \`focus\`, select "cap:${owner}", down 1, kind contract).`;
       const elsewhere = await testsElsewhere(call, owner, untested);
       const strays = Object.entries(elsewhere).map(([title, tests]) => ` ${quoted(title)}: ${tests.map(elsewhereSaid).join("; ")}.`).join("");
       const long = contract.fields.title.length > LONG_CONTRACT;
@@ -263,8 +266,9 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "show_plan",
-    "See the plan: every story, capability and contract with its health, who holds what, which sessions are about, and the live arcs with those closed yesterday or today. Give closed, or from and to, for only the arcs closed in that window instead.",
+    "See the plan: every story, capability and contract with its health, who holds what, which sessions are about, and the live arcs with those closed yesterday or today. Give closed, or from and to, for only the arcs closed in that window instead. A plan too large to read whole is given as an overview, each story and arc counted: give id for one story, capability or arc whole.",
     z.object({
+      id: z.string().optional().describe("A story's, a capability's or an arc's id: that part of the plan whole, instead of the whole plan"),
       closed: z.enum(["today", "yesterday", "week"]).optional().describe("Only the arcs closed today, yesterday or this week (the last seven days)"),
       from: z.string().regex(DAY).optional().describe("Only the arcs closed from this day (YYYY-MM-DD), with to"),
       to: z.string().regex(DAY).optional().describe("Only the arcs closed up to this day (YYYY-MM-DD), included, with from"),
@@ -334,6 +338,8 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   // A contract moved to another capability with no title given takes that capability's next number, past its tests (4.45).
   const move = kind === "contract" && changes.capability !== undefined && changes.title === undefined ? await movedNumber(target, changes.capability, call) : undefined;
   const options = move === undefined ? writer : { ...writer, testedNumbers: move.tested };
+  // The part a contract moved onto a link leaves, said when the move leaves it with none of its own (9.37).
+  const leaves = kind === "contract" && changes.edge !== undefined ? ((await library.get(target))?.fields as { capability?: string } | undefined)?.capability : undefined;
   const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live }, options);
   if (done === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
   if ("held" in done) {
@@ -346,7 +352,8 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   // Told, not refused, of another open increment already listing a capability this one newly lists (10.35, ADR-1228).
   const shared = kind === "increment" ? await library.openListing((listing ?? []).filter((capability) => !had.includes(capability)), target) : [];
   const placed = kind === "contract" && to !== undefined && (changes.capability !== undefined || changes.edge !== undefined) ? placedSaid(await library.projectTree(), target, to) : "";
-  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
+  const bare = await bareSaid(library, leaves, "plan_contract");
+  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
 }
 
 /**
@@ -394,76 +401,188 @@ function closedWindowOf(closed: "today" | "yesterday" | "week" | undefined, from
 export type PlanReading = Pick<Call, "library" | "log" | "project" | "quietMs">;
 
 /** What show_plan answers, which the command line's `storytree plan` prints too (ADR-0793): the plan, or why the window given is wrong. */
-export async function planAnswer(reading: PlanReading, { closed, from, to }: { closed?: "today" | "yesterday" | "week" | undefined; from?: string | undefined; to?: string | undefined }): Promise<Answer> {
+export async function planAnswer(
+  reading: PlanReading,
+  { closed, from, to, id }: { closed?: "today" | "yesterday" | "week" | undefined; from?: string | undefined; to?: string | undefined; id?: string | undefined },
+  budget = PLAN_BUDGET,
+): Promise<Answer> {
+  if (id !== undefined && (closed !== undefined || from !== undefined || to !== undefined)) return { text: "Give an id, or a closing window (closed, or from and to), not both.", refused: true };
   const window = closedWindowOf(closed, from, to, Date.now());
-  return typeof window === "string" ? { text: window, refused: true } : showPlan(reading, window);
+  return typeof window === "string" ? { text: window, refused: true } : showPlan(reading, window, id, budget);
 }
 
-async function showPlan({ library, log, project, quietMs }: PlanReading, closed: DayWindow | undefined): Promise<Answer> {
+async function showPlan({ library, log, project, quietMs }: PlanReading, closed: DayWindow | undefined, id: string | undefined, budget: number): Promise<Answer> {
   // Who holds what, and the sessions the running-sessions list shows: read from what decides them alone (contract 2.7).
   // The arcs as the board reads them (10.22): live ones and the recently closed, or a window's closed arcs alone.
   const now = Date.now();
   const arcRead = closed === undefined ? library.boardArcs({ from: dayOf(now, -1), to: dayOf(now, 1) }) : library.closedArcs(closed);
-  const [tree, views, claims, inView] = await Promise.all([library.projectTree(), arcRead, readClaims(log, project, { quietMs }), readSessions(log, project, { quietMs, of: "in-view" })]);
+  const [tree, views, claims, inView, decisions] = await Promise.all([library.projectTree(), arcRead, readClaims(log, project, { quietMs }), readSessions(log, project, { quietMs, of: "in-view" }), library.decisions()]);
+  const shelfOf = shelvesOf(decisions);
   const closedOn = new Map(views.map((view) => [view.arc.id, view.closed]));
   const arcs = tree.arcs.filter((arc) => closedOn.has(arc.id));
-  const incrementsOf = new Map(views.map((view) => [view.arc.id, view.increments]));
+  const incrementsOf = new Map<string, readonly { id: string; fields: { title: string; status: string } }[]>(views.map((view) => [view.arc.id, view.increments]));
   const sessions = inView.filter((session) => session.listing !== "hidden");
   const holderOf = new Map(claims.map((claim) => [claim.capability ?? claim.increment, claim]));
   const heldBy = (id: string) => {
     const claim = holderOf.get(id);
     return claim === undefined ? "nobody holds it" : `held by ${claim.label} ${claim.session}${claim.holder === "idle" ? " (idle)" : ""}: ${claim.reason}`;
   };
+  type Story = AnnotatedTree["stories"][number];
+  type Capability = Story["capabilities"][number];
+  // A mapped story carries no health of its own (ADR-0993 D3): it says what it is instead.
+  const storyLine = (story: Story) => `Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "imported: here before storytree, and assumed to be working"}`;
+  const capabilityLine = (capability: Capability) => `  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`;
+  const capabilityLines = (capability: Capability) => [
+    capabilityLine(capability),
+    // Its reason, for the agent to read before it changes the part (F3.8, ADR-0627): what it is for, and its shelf.
+    capability.description === undefined ? "    No description yet: say what it is for with edit_plan." : `    About: ${capability.description.replace(/\s+/g, " ").trim()}`,
+    `    ${shelfSaid(capability.id, shelfOf.get(capability.id) ?? [])}`,
+    ...capability.contracts.map((contract) => `    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}; ${proofSaid(contract)}`),
+  ];
+  // Its edges, each a link inside the story holding its own contracts (ADR-1282 D1).
+  const edgeLines = (story: Story, edges: Story["edges"]) => {
+    const titleOf = new Map(story.capabilities.map((capability) => [capability.id, capability.title]));
+    return (edges ?? []).flatMap((edge) => [
+      `  Edge (${edge.id}): ${quoted(titleOf.get(edge.from) ?? edge.from)} depends on ${quoted(titleOf.get(edge.to) ?? edge.to)}${edge.description === undefined ? "" : `: ${edge.description}`}`,
+      ...edge.contracts.map((contract) => `    Contract ${quoted(contract.title)} (${contract.id}): ${proofSaid(contract)}`),
+    ]);
+  };
+  const storyLines = (story: Story) => [storyLine(story), ...story.capabilities.flatMap(capabilityLines), ...edgeLines(story, story.edges)];
+  const shelved = (story: Story, capabilities = story.capabilities) => ({ ...story, capabilities: capabilities.map((capability) => ({ ...capability, decisions: shelfOf.get(capability.id) ?? [] })) });
+  const priorityOf = new Map(views.map((view) => [view.arc.id, view.arc.fields.priority]));
+  const arcLine = (arc: (typeof tree.arcs)[number]) => {
+    const priority = priorityOf.get(arc.id);
+    const day = closedOn.get(arc.id);
+    return `Arc ${quoted(arc.title)} (${arc.id})${priority === undefined ? "" : `, priority ${priority},`}${day === undefined ? "" : `, closed ${day},`} grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`;
+  };
+  const arcLines = (arc: (typeof tree.arcs)[number], increments: readonly { id: string; fields: { title: string; status: string } }[]) => {
+    const oversized = oversizedSaid(increments.length);
+    return [arcLine(arc), ...(oversized === undefined ? [] : [`  ${oversized}`]), ...increments.map((increment) => `  Increment ${quoted(increment.fields.title)} (${increment.id}): ${increment.fields.status}; ${heldBy(increment.id)}`)];
+  };
 
-  const out: string[] = [];
+  // One part of the plan whole, named by its id (9.40): a story, a capability or an arc.
+  if (id !== undefined) {
+    for (const story of tree.stories) {
+      if (story.id === id) {
+        const whole: Answer = { text: storyLines(story).join("\n"), data: { stories: [shelved(story)] } };
+        if (sizeOf(whole) <= budget) return whole;
+        // A story too large to give whole is given capability by capability, its contracts counted.
+        const counted = story.capabilities.map((capability) => `${capabilityLine(capability)}; ${countSaid(capability.contracts.length, "contract")}`);
+        return {
+          text: [storyLine(story), ...counted, `The story runs past ${budget.toLocaleString("en")} characters whole: give show_plan a capability's id to read that capability whole.`].join("\n"),
+          data: { stories: [{ id: story.id, title: story.title, health: story.health, capabilities: story.capabilities.map((capability) => ({ id: capability.id, title: capability.title, health: capability.health, contracts: capability.contracts.length })) }] },
+        };
+      }
+      const capability = story.capabilities.find((one) => one.id === id);
+      if (capability !== undefined) {
+        const edges = (story.edges ?? []).filter((edge) => edge.from === id || edge.to === id);
+        return { text: [storyLine(story), ...capabilityLines(capability), ...edgeLines(story, edges)].join("\n"), data: { stories: [{ ...shelved(story, [capability]), edges }] } };
+      }
+    }
+    const arc = tree.arcs.find((one) => one.id === id);
+    if (arc === undefined) return { text: `Nothing in the plan has the id ${id}: give show_plan a story's, a capability's or an arc's id, or none for the whole plan.`, refused: true };
+    const increments = incrementsOf.get(id) ?? (await library.arcView(id))?.increments ?? [];
+    return { text: arcLines(arc, increments).join("\n"), data: { arcs: [arc], increments: increments.map((increment) => ({ id: increment.id, title: increment.fields.title, status: increment.fields.status })) } };
+  }
+
+  const head: string[] = [];
   const gaps = anchorGaps(tree);
-  out.push(tree.anchor === undefined ? `The project has no anchor yet (${ANCHOR_ID}): say what it is and who it is for with edit_plan.` : `Anchor (${ANCHOR_ID}): ${anchorLine(tree.anchor)}`);
+  head.push(tree.anchor === undefined ? `The project has no anchor yet (${ANCHOR_ID}): say what it is and who it is for with edit_plan.` : `Anchor (${ANCHOR_ID}): ${anchorLine(tree.anchor)}`);
   const unsaid = [
     ...(gaps.anchor.length === 1 ? [`the anchor does not yet say ${gaps.anchor[0] === "what" ? "what the project is" : "who it is for"}`] : []),
   ];
-  if (unsaid.length > 0) out.push(`Plan health (it fails nothing): ${unsaid.join("; ")}.`);
-  if (tree.stories.length === 0) out.push(`The plan of ${quoted(project)} is empty: plan a story with plan_story.`);
-  for (const story of tree.stories) {
-    // A mapped story carries no health of its own (ADR-0993 D3): it says what it is instead.
-    out.push(`Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "imported: here before storytree, and assumed to be working"}`);
-    for (const capability of story.capabilities) {
-      out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`);
-      for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}; ${proofSaid(contract)}`);
-    }
-    // Its edges, each a link inside the story holding its own contracts (ADR-1282 D1).
-    const titleOf = new Map(story.capabilities.map((capability) => [capability.id, capability.title]));
-    for (const edge of story.edges ?? []) {
-      out.push(`  Edge (${edge.id}): ${quoted(titleOf.get(edge.from) ?? edge.from)} depends on ${quoted(titleOf.get(edge.to) ?? edge.to)}${edge.description === undefined ? "" : `: ${edge.description}`}`);
-      for (const contract of edge.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${proofSaid(contract)}`);
-    }
-  }
+  if (unsaid.length > 0) head.push(`Plan health (it fails nothing): ${unsaid.join("; ")}.`);
+  if (tree.stories.length === 0) head.push(`The plan of ${quoted(project)} is empty: plan a story with plan_story.`);
   // Ranked arcs first, 1 first; the sort is stable, so the unranked and each priority's arcs keep creation order (ADR-0963 D2).
-  const priorityOf = new Map(views.map((view) => [view.arc.id, view.arc.fields.priority]));
   const rank = (id: string) => priorityOf.get(id) ?? Infinity;
-  for (const arc of [...arcs].sort((one, other) => rank(one.id) - rank(other.id) || 0)) {
-    const priority = priorityOf.get(arc.id);
-    const day = closedOn.get(arc.id);
-    out.push(`Arc ${quoted(arc.title)} (${arc.id})${priority === undefined ? "" : `, priority ${priority},`}${day === undefined ? "" : `, closed ${day},`} grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
-    for (const increment of incrementsOf.get(arc.id) ?? []) {
-      out.push(`  Increment ${quoted(increment.fields.title)} (${increment.id}): ${increment.fields.status}; ${heldBy(increment.id)}`);
-    }
-  }
-  out.push(
+  const ranked = [...arcs].sort((one, other) => rank(one.id) - rank(other.id) || 0);
+  const sessionsLine =
     sessions.length === 0
       ? "No sessions yet."
-      : `Sessions: ${sessions.map((session) => `${session.label} ${session.session}, ${session.state}${session.tier === "connected" ? ", connected" : session.hooksRunning ? "" : ", hooks not running"}`).join("; ")}`,
-  );
+      : `Sessions: ${sessions.map((session) => `${session.label} ${session.session}, ${session.state}${session.tier === "connected" ? ", connected" : session.hooksRunning ? "" : ", hooks not running"}`).join("; ")}`;
+  const anchor = tree.anchor === undefined ? {} : { anchor: tree.anchor };
+  const full: Answer = {
+    text: [...head, ...tree.stories.flatMap(storyLines), ...ranked.flatMap((arc) => arcLines(arc, incrementsOf.get(arc.id) ?? [])), sessionsLine].join("\n"),
+    data: { ...anchor, gaps, stories: tree.stories.map((story) => shelved(story)), arcs, claims, sessions },
+  };
+  if (sizeOf(full) <= budget) return full;
+
+  // A plan too large to read whole is given as its overview (9.39): each story and arc counted, and how to read one whole.
+  const contractsIn = (story: Story) => story.capabilities.reduce((sum, capability) => sum + capability.contracts.length, 0) + (story.edges ?? []).reduce((sum, edge) => sum + edge.contracts.length, 0);
+  const statusesOf = (arc: string) => {
+    const counts: Record<string, number> = {};
+    for (const increment of incrementsOf.get(arc) ?? []) counts[increment.fields.status] = (counts[increment.fields.status] ?? 0) + 1;
+    return counts;
+  };
+  const statusesSaid = (counts: Record<string, number>) => Object.entries(counts).map(([status, count]) => `${count} ${status}`).join(", ");
+  const sessionStates: Record<string, number> = {};
+  for (const session of sessions) sessionStates[session.state] = (sessionStates[session.state] ?? 0) + 1;
   return {
-    text: out.join("\n"),
+    text: [
+      ...head,
+      `The whole plan runs past ${budget.toLocaleString("en")} characters, so this is its overview, each story and arc counted: give show_plan a story's, a capability's or an arc's id to read that part whole.`,
+      ...tree.stories.map((story) => `${storyLine(story)}; ${countSaid(story.capabilities.length, "capability", "capabilities")}, ${countSaid(contractsIn(story), "contract")}`),
+      ...ranked.map((arc) => {
+        const counts = statusesOf(arc.id);
+        const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+        return `${arcLine(arc)}; ${countSaid(total, "increment")}${total === 0 ? "" : `: ${statusesSaid(counts)}`}`;
+      }),
+      sessions.length === 0 ? "No sessions yet." : `Sessions: ${countSaid(sessions.length, "session")}, ${statusesSaid(sessionStates)}; the sessions list names each.`,
+    ].join("\n"),
     data: {
-      ...(tree.anchor === undefined ? {} : { anchor: tree.anchor }),
+      ...anchor,
       gaps,
-      stories: tree.stories,
-      arcs,
+      overview: true,
+      stories: tree.stories.map((story) => ({ id: story.id, title: story.title, health: story.health, ...(story.mapped === undefined ? {} : { mapped: story.mapped }), capabilities: story.capabilities.length, contracts: contractsIn(story) })),
+      arcs: ranked.map((arc) => ({ id: arc.id, title: arc.title, ...(priorityOf.get(arc.id) === undefined ? {} : { priority: priorityOf.get(arc.id) }), ...(closedOn.get(arc.id) === undefined ? {} : { closed: closedOn.get(arc.id) }), increments: statusesOf(arc.id) })),
       claims,
-      sessions,
+      sessions: sessionStates,
     },
   };
+}
+
+/** How many characters a show_plan answer may run to, its text and its data as JSON together, before it gives less (friction_f258e77c3ff7). */
+export const PLAN_BUDGET = 40_000;
+
+/** An answer's size as the harness receives it: its text, and its data as JSON. */
+function sizeOf(answer: Answer): number {
+  return answer.text.length + (answer.data === undefined ? 0 : JSON.stringify(answer.data).length);
+}
+
+/** A count with its noun, one or many. */
+function countSaid(count: number, one: string, many = `${one}s`): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/** A decision on a shelf as show_plan gives it: enough to read it whole with open or library read. */
+interface Spine {
+  id: string;
+  title: string;
+  number?: number;
+}
+
+/** Every story's and capability's shelf (ADR-0627): its live front covers, founding first, a superseded one left for its successor. */
+function shelvesOf(decisions: readonly DecisionView[]): Map<string, Spine[]> {
+  const shelves = new Map<string, Spine[]>();
+  for (const { record, status } of decisions) {
+    const node = record.fields.frontCoverOf;
+    if (node === undefined || status === "superseded") continue;
+    const { title, number } = record.fields;
+    shelves.set(node, [...(shelves.get(node) ?? []), { id: record.id, title, ...(number === undefined ? {} : { number }) }]);
+  }
+  return shelves;
+}
+
+/** How many of a shelf's decisions show_plan names before it counts the rest, so a large shelf cannot flood the reply. */
+const SHELF_SHOWN = 4;
+
+/** A capability's shelf in one line: its founding decision, then the next few, each by title and id, the rest counted. */
+function shelfSaid(id: string, shelf: readonly Spine[]): string {
+  if (shelf.length === 0) return "No decision on its shelf yet: record its founding decision with write_note.";
+  const spine = ({ id: decision, title, number }: Spine) => `${quoted(title)} (${decision}${number === undefined ? "" : `, ADR-${String(number).padStart(4, "0")}`})`;
+  const [founding, ...rest] = shelf.slice(0, SHELF_SHOWN);
+  const more = shelf.length - SHELF_SHOWN;
+  return `Decisions: founded on ${spine(founding!)}${rest.length === 0 ? "" : `; also ${rest.map(spine).join(", ")}`}${more > 0 ? `, and ${more} more (open ${id} lists them)` : ""}.`;
 }
 
 /** The project's sentence as show_plan and edit_plan say it, a half not yet written said so. */

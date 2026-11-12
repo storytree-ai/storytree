@@ -3,7 +3,7 @@
  * beside it): a story or capability at its island, with the island's box, a decision at its note on the globe, a plan or a question at the rail's Arcs tab,
  * the factory beside the app bar's project dropdown; undefined when it is not on show. And what the user is reading near it, which
  * the card keeps clear of: the open story panel, a story's or capability's nameplate, and, for every card, the bar's project
- * switcher and the globe's Stories/Library switch, the controls a user reaches for first. And every island drawn, which the card
+ * switcher and the globe's Stories/Library switch, the controls a user reaches for first, and the rail. And every island drawn, which the card
  * covers as little of as it can.
  */
 
@@ -44,15 +44,27 @@ export function drawnIslands(globe: IslandsAndNotes | undefined): Box[] {
 
 /**
  * What is being read near `target` on the page, drawn now: the open story panel, the nameplates of its story and capability,
- * the project switcher and the Stories/Library switch, and the CI times strip in the map's bottom-left while it shows, which no card covers.
+ * the project switcher, the bar's gear and the Stories/Library switch, the CI times strip in the map's bottom-left while it shows, and the left
+ * rail while it is open (for a card about the plan, only its tabs and what its panel draws), which no card covers.
  */
 export function readingNear(target: CardTarget, document: Document): Box[] {
-  const near = [...document.querySelectorAll<HTMLElement>(".story-panel:not([hidden]), .planet-nameplate, .app-factory, .forest-views, .ci-times:not([hidden])")].filter((element) =>
+  const near = [...document.querySelectorAll<HTMLElement>(".story-panel:not([hidden]), .planet-nameplate, .app-factory, .app-gear, .forest-views, .ci-times:not([hidden])")].filter((element) =>
     !element.classList.contains("planet-nameplate")
     || (target.story !== undefined && element.dataset.storyId === target.story)
     || (target.capability !== undefined && element.dataset.capabilityId === target.capability));
-  return near.flatMap((element) => {
+  const read = near.flatMap((element) => {
     const { left, top, right, bottom, width } = element.getBoundingClientRect();
     return width === 0 ? [] : [{ left, top, right, bottom }];
   });
+  const rail = document.querySelector<HTMLElement>(".side-rail");
+  const box = rail?.getBoundingClientRect();
+  if (rail === null || box === undefined || box.width === 0) return read;
+  // A card about the map keeps off the rail beside it; one about the plan keeps off the rail's tabs and what the panel on show
+  // draws (its filter, its rows, its empty line), down to the last thing drawn, and may sit in the rest beneath them.
+  if (target.kind !== "arc" && target.kind !== "question") return [...read, { left: box.left, top: box.top, right: box.right, bottom: box.bottom }];
+  const drawn = [...rail.querySelectorAll<HTMLElement>(".side-rail-tabs, .side-rail-panel:not([hidden]) *")]
+    .filter((element) => element.classList.contains("side-rail-tabs") || element.childElementCount === 0)
+    .map((element) => element.getBoundingClientRect()).filter((one) => one.width > 0);
+  const last = Math.min(box.bottom, Math.max(box.top, ...drawn.map((one) => one.bottom)));
+  return [...read, { left: box.left, top: box.top, right: box.right, bottom: last }];
 }

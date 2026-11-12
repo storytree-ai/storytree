@@ -237,7 +237,7 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
 
   define(
     "stale_claims",
-    "For the session manager: the claimed increments whose holder is quiet, with no command running and no open pull request, oldest first, each with its route (ADR-0953 D4). Release a gone holder's with `storytree workspace release <increment> --holder <session> --reason …`; ask a quiet holder first. Reading it ends nothing.",
+    "For the session manager: the claimed increments whose holder is quiet, with no command running and no open pull request, oldest first, each with its route (ADR-0953 D4). Release a gone or ended holder's with `storytree workspace release <increment> --holder <session> --reason …`; ask a quiet holder first. Reading it ends nothing.",
     z.object({}),
     async (_args, call) => {
       const { claims, pullsUnread } = await staleClaims({ log: call.log, project: call.project, folder: call.folder }, {
@@ -248,7 +248,7 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
       if (claims.length === 0) return { text: ["No claimed increment is stale.", ...unread].join("\n"), data: { claims, ...(pullsUnread ? { pullsUnread } : {}) } };
       const rows = await Promise.all(claims.map(async (stale) =>
         `- ${await titleOf(call.library, stale.increment)}: ${stale.label} session ${stale.holder} (${stale.reason}), last seen ${stale.lastSeenAt}${stale.branch === undefined ? "" : `, on ${stale.branch}`}. ${
-          stale.route === "release" ? `Gone: release it for its holder (--holder ${stale.holder}).` : "Quiet: ask its holder, and release it only once it stays quiet."}`));
+          stale.route === "release" ? `${stale.ended ? "Ended: its process stopped and it stayed quiet since" : "Gone"}: release it for its holder (--holder ${stale.holder}).` : "Quiet: ask its holder, and release it only once it stays quiet."}`));
       return { text: [`${claims.length} claimed increment${claims.length === 1 ? " is" : "s are"} stale:`, ...rows, ...unread].join("\n"), data: { claims, ...(pullsUnread ? { pullsUnread } : {}) } };
     },
   );
@@ -340,13 +340,15 @@ export async function reportContract(
     ...(note === undefined ? {} : { note }),
   });
   // A report is the agent's word until storytree's own run sees it, so the reply asks for that run (F4.3).
-  const title = ((await library.get(contract))?.fields as { title?: string } | undefined)?.title;
+  const { title, description } = ((await library.get(contract))?.fields ?? {}) as { title?: string; description?: string };
   const named = title === undefined ? contract : `"${title}" (${contract})`;
   const { verified } = await library.health(contract);
   const seen = verified.at === undefined || verified.state === "not-checked" ? "storytree's own run has not verified it yet" : `storytree's own run last verified it ${verified.state} at ${verified.at}`;
+  // The sentence a reader needs is asked for only while it is missing, never as a stock line (F5.6, ADR-0786 D2).
+  const ask = description === undefined || description.trim() === "" ? ` ${named} has no description: say in one line what wrong fix its test catches, and save it as its description with edit_plan, or \`storytree library edit ${contract} --description …\`.` : "";
   return result === "red"
-    ? { text: `Reported ${named} red: your report, and ${seen}. Run \`storytree health local\` in your shell so the plan shows a verified red, then make it pass and report it green.`, data: { reported: "failing" } }
-    : { text: `Reported ${named} green: your report, a claim until storytree's own run confirms it (${seen}). Run \`storytree health local\` in your shell.`, data: { reported: "passing" } };
+    ? { text: `Reported ${named} red: your report, and ${seen}. Run \`storytree health local\` in your shell so the plan shows a verified red, then make it pass and report it green.${ask}`, data: { reported: "failing" } }
+    : { text: `Reported ${named} green: your report, a claim until storytree's own run confirms it (${seen}). Run \`storytree health local\` in your shell.${ask}`, data: { reported: "passing" } };
 }
 
 function registerLandingTools(define: Define, landing: Landing | undefined): void {

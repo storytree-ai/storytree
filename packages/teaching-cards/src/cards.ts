@@ -5,6 +5,11 @@
  * (packages/website/src/tour-copy.ts) so it reads true on the user's own project, not the tour's shop.
  */
 
+import { CONCEPTS } from "@storytree/shown-words";
+
+/** A capability's shown word, one and many, from the one table (ADR-1322 D1). */
+const { one: capability, many: capabilities } = CONCEPTS.capability;
+
 /**
  * The kinds a card teaches, in the order cards show when several appear at once. The factory and its parts (a role, a
  * note, a check) show only on the user's factory (ADR-1048 D3).
@@ -25,6 +30,8 @@ export interface Card {
   why: string;
   how: string;
   decisions: CardDecision[];
+  /** What brings this card to the map, for the tour's line between cards: "the next card comes when …". */
+  comes: string;
 }
 
 const adr = (number: number, title: string): CardDecision => ({ number, title });
@@ -37,6 +44,7 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
     why: "Watching a project grow from nothing shows you how to read the map of one that is already big.",
     how: "Your agent plans the work before it writes code. As it does, storytree records the plan in your project's library and draws it here; nothing on the map is drawn by hand. It draws your code only in the languages it reads, which Help's first-run guide names: a project in another language shows what its agent plans, and its code never appears.",
     decisions: [adr(1048, "A new user learns on their own product")],
+    comes: "a project's map is empty",
   },
   factory: {
     title: "This is your factory.",
@@ -45,6 +53,7 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
     why: "What your agents learn about building well should help every product you make, not stay in the one where it was learned.",
     how: "An edit in your factory reaches every product that builds with it. A product's own edit stays its own: its version of a role, note or check wins there, and the factory's edit never overwrites it. The top bar takes you back to your product.",
     decisions: [adr(1040, "A user's factory: their own version of storytree"), adr(1041, "The factory is a project of its own, recorded by each product"), adr(1048, "Switching to the factory from the top bar teaches it")],
+    comes: "you switch to your factory",
   },
   role: {
     title: "A role.",
@@ -53,6 +62,7 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
     why: "An agent that starts each session knowing its job does it the same way every time, without you explaining it again.",
     how: "Each session reads its role when it starts. Change the role here, and the next session in every product works the new way.",
     decisions: [adr(1040, "A user's factory: their own version of storytree")],
+    comes: "your factory holds a role",
   },
   note: {
     title: "A note your agents stand on.",
@@ -61,6 +71,7 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
     why: "A lesson learned on one product is worth keeping for the next. Written here, it outlives the session that learned it.",
     how: "Agents find a note when its subject comes up and follow it. Each product reads its factory's notes as its own, unless it keeps its own version.",
     decisions: [adr(1040, "A user's factory: their own version of storytree")],
+    comes: "your factory holds a note",
   },
   check: {
     title: "A check.",
@@ -69,54 +80,61 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
     why: "A change your agent calls done is only a claim. A check asked by a fresh reviewer is how you know.",
     how: "Before a change lands, a reviewer reads its checks and records what it found. A finding is fixed, or answered with a reason, before the change goes on.",
     decisions: [adr(956, "A change-reviewer runs quality control on every change"), adr(1040, "A user's factory: their own version of storytree")],
+    comes: "your factory holds a check",
   },
   arc: {
     title: "The plan comes first.",
-    line: "Your agent plans before it builds: a plan says what done looks like, and lists the pieces of work that get there.",
-    what: "A plan is called an arc, and its pieces of work are called increments. Your project may start with a standing plan for small fixes; your agent adds its own as you ask it for things.",
+    line: "Your agent plans before it builds. The plan lives here, under Arcs: an arc is a goal, with the pieces of work that reach it listed under it.",
+    what: "An arc's pieces of work are called increments. Your project may start with a standing arc for small changes, “Small fixes”; your agent adds its own as you ask it for things.",
     why: "A plan that lives beside the work lets the next agent pick up the next piece without asking you.",
     how: "A session claims a piece of work before it starts, lands it through a pull request, and closes it. Pieces that wait on others show as waiting.",
     decisions: [adr(638, "The arc surface"), adr(760, "Waiting work shows as waiting"), adr(772, "Landed is a work outcome")],
+    comes: "your agent plans",
   },
   story: {
     title: "This is a story.",
     line: "Your project is made from stories: each is something someone can do with it, and shows here as an island.",
     what: "A story is one journey a user of your project can take, such as signing in or checking out. Its code lives in its own package.",
     why: "Grouping code by what it lets someone do shows you where a change belongs, and what it can reach.",
-    how: "Select an island to see its parts, and its shipping lanes at sea: each lane is a dependency and runs one way, between a story and the story it needs, and storytree refuses a loop.",
+    how: `Select an island to see its ${capabilities}, and its shipping lanes at sea: each lane is a dependency and runs one way, between a story and the story it needs, and storytree refuses a loop.`,
     decisions: [adr(819, "A package for each story"), adr(839, "Islands sit in rows by dependency depth"), adr(847, "Dependencies run one way")],
+    comes: "a story appears",
   },
   capability: {
-    title: "A part of a story.",
-    line: "Each story is broken into the parts that make it work. Each part is a territory on its island.",
-    what: "A part, called a capability, is one piece of how a story works. It makes guarantees, called contracts, that its tests check.",
+    title: `A ${capability} of a story.`,
+    line: `Each story is broken into the ${capabilities} that make it work. Each ${capability} is a territory on its island.`,
+    what: `A ${capability} is one piece of how a story works. It makes guarantees, called contracts, that its tests check.`,
     why: "You can see where the code went and which contracts it serves, without opening a file.",
-    how: "Once a part has code, each dot in its territory is a file, sized by its lines, in the part whose tests reach it. A part with no code yet has an equal share of the island.",
+    how: `Once a ${capability} has code, each dot in its territory is a file, sized by its lines, in the ${capability} whose tests reach it. A ${capability} with no code yet has an equal share of the island.`,
     decisions: [adr(804, "Code islands: land, territories and file circles"), adr(838, "Every line of code belongs to a capability")],
+    comes: `a story's ${capabilities} appear`,
   },
   claim: {
     title: "An agent claimed this.",
-    line: "Agents claim the parts they will work on before they start, so each can see what the others are on.",
-    what: "A claim is a flag in its session's colour, standing in the part a session is changing.",
+    line: `Agents claim the ${capabilities} they will work on before they start, so each can see what the others are on.`,
+    what: `A claim is a flag in its session's colour, standing in the ${capability} a session is changing.`,
     why: "Two agents editing the same thing is how work gets lost. A claim says who is on what before anyone writes.",
     how: "A second claim on the same work is turned away, so the agent picks other work instead. Claims end when the work lands, or when the session lets them go.",
     decisions: [adr(643, "Claims, the wait refusal and release on merge"), adr(758, "A session leaves the list by a verified close-out")],
+    comes: `an agent claims a ${capability}`,
   },
   health: {
     title: "Health.",
-    line: "Once a part is built, its colour says whether something has checked it: yellow is not proved yet, green is passing.",
-    what: "A part's health is rolled up from its contracts' test results; red means a test that names it is failing.",
+    line: `Once a ${capability} is built, its colour says whether something has checked it: yellow is not proved yet, green is passing.`,
+    what: `A ${capability}'s health is rolled up from its contracts' test results; red means a test that names it is failing.`,
     why: "You can see what has been proved and what still needs checking, without taking an agent's word for it.",
     how: "As your tests run, storytree matches each result to the contract it checks. A colour counts only when something other than the agent checked it; saying 'done' doesn't count.",
     decisions: [adr(623, "Minimal viable TDD: red, then green"), adr(744, "Health says what was checked"), adr(825, "Every card that isn't green says why, and who moves it")],
+    comes: `a ${capability} is built`,
   },
   decision: {
     title: "A decision, kept with the work.",
     line: "As your agents build, they decide how things should work, and why. Storytree keeps them all: press Library at the top of the map to see them through the globe, and pick one to read it.",
-    what: "A decision is a note in your project's library. It sits on the shelf of the story or part it shaped; one about no one part gathers at the core.",
+    what: `A decision is a note in your project's library. It sits on the shelf of the story or ${capability} it shaped; one about no one story or ${capability} gathers at the core.`,
     why: "Every new agent session starts on its first day. Keeping decisions with the work means the next session doesn't relearn them, and you don't explain them again.",
-    how: "Before an agent changes a part, it reads that part's shelf. Storytree records each note a session opens, so you can see what the work stood on.",
+    how: `Before an agent changes a ${capability}, it reads that ${capability}'s shelf. Storytree records each note a session opens, so you can see what the work stood on.`,
     decisions: [adr(627, "Every story and capability has a shelf of front covers"), adr(631, "Decisions about the whole project sit on no shelf")],
+    comes: "your agents record a decision",
   },
   question: {
     title: "A question is waiting on you.",
@@ -125,6 +143,7 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
     why: "Owner-level calls are yours. Written down, a question can be answered when you're ready, and the answer stays with the work.",
     how: "Open the plan to read it and answer in your own words. Your answer is recorded as a decision, and the work it held is free to go on.",
     decisions: [adr(824, "The owner's decisions live in written questions")],
+    comes: "a question waits on you",
   },
 };
 

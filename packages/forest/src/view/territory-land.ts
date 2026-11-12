@@ -10,6 +10,7 @@
  */
 import type { CapabilityWord } from "@storytree/forest-world/scene";
 import type { IslandRoads } from "../territories/island-roads.js";
+import { insideOf, onLand } from "../territories/territories.js";
 import { cutOpenings, QUIET_BORDER } from "./island-roads.js";
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, type Object3D, ShapeUtils, Vector2, type Vector3 } from "three";
 
@@ -257,38 +258,6 @@ function clipToConvex(subject: readonly Point[], clip: readonly Point[]): Point[
     });
   });
   return out;
-}
-
-/** Whether `p` is on the land the coast's loops enclose (a loop inside a loop is a lake). */
-function onLand(p: Point, coast: readonly (readonly Point[])[]): boolean {
-  let inside = false;
-  for (const ring of coast) {
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-      const [a, b] = [ring[i]!, ring[j]!];
-      if ((a.z > p.z) !== (b.z > p.z) && p.x < ((b.x - a.x) * (p.z - a.z)) / (b.z - a.z) + a.x) inside = !inside;
-    }
-  }
-  return inside;
-}
-
-/** The pieces of the segment from `from` to `to` that lie on the land. */
-export function insideOf(from: Point, to: Point, coast: readonly (readonly Point[])[]): { from: Point; to: Point }[] {
-  const cuts = [0, 1];
-  const d = { x: to.x - from.x, z: to.z - from.z };
-  for (const ring of coast) {
-    ring.forEach((a, i) => {
-      const b = ring[(i + 1) % ring.length]!;
-      const e = { x: b.x - a.x, z: b.z - a.z };
-      const denominator = d.x * e.z - d.z * e.x;
-      if (denominator === 0) return;
-      const t = ((a.x - from.x) * e.z - (a.z - from.z) * e.x) / denominator;
-      const u = ((a.x - from.x) * d.z - (a.z - from.z) * d.x) / denominator;
-      if (t > 0 && t < 1 && u >= 0 && u <= 1) cuts.push(t);
-    });
-  }
-  cuts.sort((a, b) => a - b);
-  const at = (t: number): Point => ({ x: from.x + t * d.x, z: from.z + t * d.z });
-  return cuts.slice(1).flatMap((t, i) => (onLand(at((cuts[i]! + t) / 2), coast) && t > cuts[i]! ? [{ from: at(cuts[i]!), to: at(t) }] : []));
 }
 
 /** A lit territory's fill: the session's colour, filled while the read is in the window, lighter and fainter once compacted out. */

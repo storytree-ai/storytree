@@ -289,7 +289,7 @@ test("1.11 · a lane that exits 0 having left no report or push is resumed once,
   options.env.WRITE_REPORT = "1";
   assert.equal(await runLane(options), 0, "a resumed lane that then writes its report is done");
   assert.equal((await calls()).length, 2);
-  assert.deepEqual(told, []);
+  assert.ok(!told.some((args) => args[0] === "arc"), "and leaves no residue");
 
   await rm(runs);
   delete options.env.WRITE_REPORT;
@@ -297,7 +297,7 @@ test("1.11 · a lane that exits 0 having left no report or push is resumed once,
   options.heads = async () => (pushed = !pushed) ? { "claude/increment-abc-old": "1111" } : { "claude/increment-abc-old": "1111", "claude/increment-abc-new": "2222" };
   assert.equal(await runLane(options), 0, "a lane that pushed a branch for its increment is done at once");
   assert.equal((await calls()).length, 1);
-  assert.deepEqual(told, []);
+  assert.ok(!told.some((args) => args[0] === "arc"), "and leaves no residue");
 });
 
 test("1.16 · A Claude lane is told a file beside its log to write its session id in; the runner resumes the session that file names, and searches the log only when the file is absent", async (t) => {
@@ -451,6 +451,30 @@ test("1.28 · a lane the runner records failed releases every claim its session 
   options.say = () => {};
   assert.equal(await runLane(options), 75, "a fast failure is requeued");
   assert.deepEqual(released(), [], "and a requeued lane releases nothing");
+});
+
+test("1.30 · a Claude or Codex lane that finishes for good releases every claim its session still holds, leaving its handed-over pull request's claims held", async (t) => {
+  const options = await lane(t);
+  options.increment = "increment_abc";
+  const sessions = { claude: "7c1d2e3f-0000-4000-8000-0000000000cc", codex: "thread-30" };
+  options.commands.claude = command(`console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(sessions.claude)}}));`);
+  options.commands.codex = command(`console.log(JSON.stringify({type:'thread.started',thread_id:${JSON.stringify(sessions.codex)}}));`);
+  for (const engine of ["claude", "codex"]) {
+    const session = sessions[engine];
+    await writeFile(join(options.lanesDir, "engine-override"), engine);
+    let pushed = false;
+    options.heads = async () => (pushed = !pushed) ? {} : { "claude/increment-abc-x": "2222" };
+    const told = [];
+    options.storytree = async (args) => {
+      told.push(args);
+      // The hand-over moved the increment's claim to the pull request's holder; its reason happens to name the session.
+      return args[0] === "noticeboard" ? `3 claims now:\n  - increment increment_abc  watcher pull-request-12 (live, on claude/increment-abc-x), since 2026-10-06T00:00:00Z: handed over by ${session} at its end\n`
+        + `  - capability capability_mine  ${engine === "claude" ? "Claude Code" : "Codex"} ${session} (idle), since 2026-10-06T00:00:00Z: build\n  - capability capability_other  Claude Code someone-else (live), since 2026-10-06T00:00:00Z: other\n` : "";
+    };
+    assert.equal(await runLane(options), 0, `${engine}: a lane that pushed its branch is done`);
+    assert.deepEqual(told.filter((args) => args[1] === "release").map((args) => args.slice(0, 5)), [["workspace", "release", "capability_mine", "--holder", session]],
+      `${engine}: only its own claim is released, the pull request's held claim stands`);
+  }
 });
 
 test("1.29 · after every engine run, a signal's kill included, the runner records the lane's session as exited, so it reads ended at once; a run whose log names no session records nothing, and a refused record is said, never thrown", async (t) => {

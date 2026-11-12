@@ -30,10 +30,14 @@ export const CONTRACT_DEFINITION =
  * Where a contract goes, in one sentence: the habits card says it, and plan_contract's description quotes it, so an
  * agent files each contract where its own diagnosis puts the fault, not on the entry point every test drives
  * (increment_9f30bbbf5886: a guided run planned all 21 contracts on its HTTP entry point, though it named faults in two
- * other parts and one between them).
+ * other parts and one between them). Planning from the fault, not the test list, is increment_b9b95a0fa351's: the ninth run
+ * still planned one contract per end-to-end test on the entry point. Replays of its planning turn put the fault inside a
+ * part on that part 0 times in 5 with the earlier sentence and 15 in 15 with this one and two near variants, and a fault
+ * between two parts on their edge 0 in 5 against 6 in 15. This longer wording is increment_94bc95fe5b8b's: five fresh replays with it
+ * on the card planned a fault between two parts on their edge 5 in 5 and Retrieval's own fault on Retrieval 5 in 5.
  */
 export const CONTRACT_PLACEMENT =
-  "A contract goes on the part whose behaviour it pins, even when its test drives the whole service through one entry point, and a guarantee about what passes between two parts goes on their edge.";
+  "A contract goes on the part whose behaviour it pins, and a guarantee about what passes between two parts goes on their edge, even when every test drives the whole service through one entry point: plan from where you found each fault, not from the list of tests, so each part or link at fault gets a contract of its own.";
 /** A contract title past this many characters gets the advisory: about the longest eighth of 338 live contract titles, measured 2026-10-11. */
 export const LONG_CONTRACT_TITLE = 300;
 

@@ -93,7 +93,13 @@ export interface PlanetWorldCanvasProps {
   /** Every island drawn as its coast line alone over clear glass, hiding nothing beneath it: the glass sheet's Library look
    * (ADR-1061 D2, ADR-1062 D3). */
   hollow?: boolean | undefined;
+  /** Given, the canvas tells its host the lanes notice each time it changes (undefined once there is none) and lays none over
+   * itself, so the host shows it where nothing covers it (4.45); without it the notice sits in the canvas's bottom right (4.35). */
+  onLanesNotice?: ((notice: LanesNotice | undefined) => void) | undefined;
 }
+
+/** That some or all lanes could not be drawn: the words shown, and the routing's error, the notice's title. */
+export interface LanesNotice { readonly text: string; readonly issue: string }
 
 const NO_LANES: readonly LitLink[] = [];
 const NO_DOCKS: readonly IslandDock[] = [];
@@ -249,9 +255,12 @@ function drawnOnResize(state: () => RootState | undefined): typeof ResizeObserve
 
 /** The map: one Canvas, the glass sheet, and each story's island as a raised plate with a coast (ADR-0804 D1, ADR-1059 D2).
  * A lamp shades the islands' sides and the glass's edge, and the land's top keeps its exact colour (ADR-1062 D1). */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, floor, sideOffset = 0, lanes = NO_LANES, growth, sheet, hollow = false }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, floor, sideOffset = 0, lanes = NO_LANES, growth, sheet, hollow = false, onLanesNotice }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const pathways = drawing.plan;
+  const exterior = globeExterior(surface, surfaces);
+  const noticeText = exterior.roads && drawing.issue ? `${pathways.lanes.edges.length > 0 ? 'Some lanes could not be drawn.' : 'Lanes could not be drawn.'} Island health and selection are still available.` : undefined;
+  useEffect(() => onLanesNotice?.(noticeText === undefined ? undefined : { text: noticeText, issue: drawing.issue! }), [onLanesNotice, noticeText, drawing.issue]);
   const docks = useMemo(() => islandDocks(pathways, drawing.routing), [pathways, drawing.routing]);
   const docksOn = useCallback((story: string) => docks === undefined ? undefined : docks.get(story) ?? NO_DOCKS, [docks]);
   // 4.8, 4.40: the lanes end just off the selected island's ports.
@@ -273,7 +282,6 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     (globalThis as { [CAPTURE_SEAM]?: (state: () => RootState) => void })[CAPTURE_SEAM]?.(get);
   }, []);
   const watch = useMemo(viewportWatch, []);
-  const exterior = globeExterior(surface, surfaces);
   return <Canvas {...EXACT_COLOUR_CANVAS_PROPS} frameloop={startingFrameloop(watch)} resize={resize}
     camera={{ position, near: 0.1, far: radius * 10, fov: SHEET_FOV }} onCreated={onCreated}>
     <PaintWhileSeen watch={watch} />
@@ -296,10 +304,10 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     {/* The host's children read the growth too (usePlanetGrowth), as the plates and the inside do. */}
     {children}
     </GrowthProvider>
-    {exterior.roads && drawing.issue && <Overlay fullscreen zIndexRange={[45, 45]} style={{ pointerEvents: 'none' }}>
+    {noticeText !== undefined && onLanesNotice === undefined && <Overlay fullscreen zIndexRange={[45, 45]} style={{ pointerEvents: 'none' }}>
       <div role="alert" title={drawing.issue} style={{ position: 'absolute', right: 16, bottom: 16,
         maxWidth: 320, padding: '10px 14px', borderRadius: 6, background: '#352b20', color: '#ffe1ac' }}>
-        {pathways.lanes.edges.length > 0 ? 'Some lanes could not be drawn.' : 'Lanes could not be drawn.'} Island health and selection are still available.
+        {noticeText}
       </div>
     </Overlay>}
   </Canvas>;

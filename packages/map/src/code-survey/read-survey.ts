@@ -259,6 +259,17 @@ export async function drawImport(story: Pick<MappedStory, "mapped">, folder: str
   return drawImportedStory({ folder: story.mapped.package, files: [...code, ...manifests] });
 }
 
+/**
+ * Whether storytree draws imported `story` itself (ADR-1324 D1, D4): its code, read where `root`'s checkout or `imports`
+ * (this machine's) has its import, as storyTests finds it, gives the drawing at least one capability. False when the
+ * survey cannot read its code or its import is not on this machine, the code an agent draws by reading.
+ */
+export async function drawsItself(root: string, story: Pick<MappedStory, "mapped">, stories: Parameters<typeof mappedCode>[2], imports: readonly ImportedFolder[] = []): Promise<boolean> {
+  const from = await importFolder(root, story.mapped.from, imports);
+  if (from === undefined) return false;
+  return (await drawImport(story, from, stories)).capabilities.length > 0;
+}
+
 export type { Drawing, DrawnCapability } from "./drawing.js";
 
 /**

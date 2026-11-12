@@ -62,3 +62,43 @@ test("12.8, 12.9 · import_project's reply on a folder it maps tells the agent t
     }
   });
 });
+
+test("12.1 · import_project's reply asks the agent to name and describe the capabilities storytree drew, never to merge, split or redraw them, and to map by reading only a story whose code storytree cannot read, naming it", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const trunk = path.join(dir, "storytree-project");
+    const shop = path.join(dir, "shop");
+    mkdirSync(trunk);
+    mkdirSync(path.join(shop, "packages", "cart"), { recursive: true });
+    mkdirSync(path.join(shop, "packages", "tool"), { recursive: true });
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ workspaces: ["packages/*"] }));
+    writeFileSync(path.join(shop, "packages", "cart", "package.json"), JSON.stringify({ name: "cart" }));
+    writeFileSync(path.join(shop, "packages", "cart", "index.js"), "export const cart = 1;\n");
+    writeFileSync(path.join(shop, "packages", "tool", "package.json"), JSON.stringify({ name: "tool" }));
+    writeFileSync(path.join(shop, "packages", "tool", "main.go"), "package main\n");
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await setUpProject({ folder: trunk, project, storytree, storytreeHome: path.join(dir, "home") });
+      const library = await storytree.openProject(project);
+      try {
+        const answered = await setupTools().import_project!({ folder: "../shop" }, { library, storytree, project, folder: trunk } as never);
+        assert.equal(answered.refused, undefined, answered.text);
+        const stories = await library.list("story");
+        const id = (title: string) => stories.find((story) => story.fields.title === title)!.id;
+        assert.ok(answered.text.includes(`: "cart" (${id("cart")}), capabilities drawn: 1`), answered.text);
+        assert.match(answered.text, /Name and describe each capability storytree drew with edit_plan/);
+        assert.match(answered.text, /Do not merge, split or redraw them/);
+        assert.ok(answered.text.includes(`storytree cannot read the code of "tool" (${id("tool")}): map its capabilities by reading it`), answered.text);
+        assert.ok(!answered.text.includes(`"cart" (${id("cart")}): map`), answered.text);
+      } finally {
+        await library.close();
+      }
+    } finally {
+      try {
+        await storytree.close();
+      } finally {
+        await dropTestProjects([project]);
+      }
+    }
+  });
+});

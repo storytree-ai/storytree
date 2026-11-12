@@ -11,7 +11,8 @@ import { oversizedSaid } from "@storytree/arc-surface/verbs";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
 import { elsewhereSaid, type MapNode } from "@storytree/map";
 import { readMap } from "@storytree/map/read";
-import { storyTests, SURVEYED_LANGUAGES, testedNumbers as testedNumbersIn, untestedContracts } from "@storytree/map/code-survey";
+import { drawsItself, storyTests, SURVEYED_LANGUAGES, testedNumbers as testedNumbersIn, untestedContracts } from "@storytree/map/code-survey";
+import { importsOf, machineOf, storytreeHome } from "@storytree/project-and-caller";
 import { readClaims } from "@storytree/session-management";
 import { readSessions } from "@storytree/session-management";
 import type { Answer, Call, Define, ToolHost } from "./server.js";
@@ -32,7 +33,7 @@ const covers = z
   .array(z.string().min(1))
   .min(1)
   .optional()
-  .describe("On an imported story only, and required there: the folders and files of its imported project this capability covers, each from the imported folder (a folder covers everything under it); none may overlap another capability's of the story");
+  .describe("On an imported story whose code storytree cannot read only, and required there: the folders and files of its imported project this capability covers, each from the imported folder (a folder covers everything under it); none may overlap another capability's of the story");
 
 const provedBy = z
   .array(z.string().min(1))
@@ -97,7 +98,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_capability",
-    "Plan a capability: one part that makes a story work, with its founding decision: what it is for, and the one choice that shapes it. Leave its number off the title: it is given the story's next free one. Claim it before you build it. On an imported story it is a capability you mapped there, drawn as its own territory: give the folders and files it covers. Where it starts and ends is your call; one overlapping another of the story's is refused, naming that one, so correct it with edit_plan rather than adding another.",
+    "Plan a capability: one part that makes a story work, with its founding decision: what it is for, and the one choice that shapes it. Leave its number off the title: it is given the story's next free one. Claim it before you build it. On an imported story storytree draws the capabilities from its code's imports, so this is refused there, naming the capability that holds the files you gave: name and describe it with edit_plan. Only on code storytree cannot read do you map a capability by reading it, drawn as its own territory: give the folders and files it covers; one overlapping another of the story's is refused, naming that one, so correct it with edit_plan rather than adding another.",
     z.object({
       story: id("story it belongs to"),
       title,
@@ -108,6 +109,9 @@ export function registerPlanTools(define: Define): void {
     }),
     async ({ story, title: name, description: about, depends_on: dependsOn, covers: paths, founding: decision }, call) => {
       const { library, writer } = call;
+      // storytree draws a readable imported story's capabilities; the agent only names and describes them (ADR-1324 D3, D4).
+      const drawn = await drawnBy(call, story);
+      if (drawn !== undefined) return { text: `Not planned: storytree draws ${drawn.said} capabilities from its code's imports, and the agent does not add, merge, split or redraw them. ${holdingSaid(drawn, paths ?? [])}`, refused: true };
       const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn, covers: paths }) }, { ...writer, pending: await heldPending(library, await claimsOf(call), call.caller.session) });
       const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: capability.id }, writer);
       return {
@@ -119,7 +123,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    `Plan a contract: one testable guarantee a capability makes. ${CONTRACT_PLACEMENT} Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also counts the capability's other contracts no numbered test carries yet, planned but not built, which the focus tool lists: build one of those rather than plan it again. It names a test numbered for one that sits in another story's package, which credits that package's story, not this one. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On an imported story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.`,
+    `Plan a contract: one testable guarantee a capability makes. ${CONTRACT_PLACEMENT} Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also counts the capability's other contracts no numbered test carries yet, planned but not built, which the focus tool lists: build one of those rather than plan it again. It names a test numbered for one that sits in another story's package, which credits that package's story, not this one. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On an imported story, as you name or map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.`,
     z.object({
       capability: id("capability it belongs to").optional(),
       edge: id("edge it belongs to instead, a link inside one story: a loose contract, even one line, on how one capability depends on the other, numbered from the dependent capability").optional(),
@@ -183,7 +187,8 @@ export function registerPlanTools(define: Define): void {
       to: id("capability it depends on, of the same story"),
       description: z.string().min(1).optional().describe("A sentence on what passes between them"),
     }),
-    async ({ from, to, description: about }, { library, writer }) => {
+    async ({ from, to, description: about }, call) => {
+      const { library, writer } = call;
       // A depends_on inside one story is already an edge (ADR-1282 D1), so the link the agent means is that one (F3.6).
       const tree = await library.projectTree();
       const there = tree.stories.flatMap((story) => story.edges ?? []).find((edge) => edge.from === from && edge.to === to);
@@ -192,6 +197,9 @@ export function registerPlanTools(define: Define): void {
         const titled = (id: string): string => quoted(capabilityTitle(tree, id) ?? id);
         return { text: `${titled(from)} already depends on ${titled(to)} through edge ${there.id}, which holds the link's contracts${about === undefined ? "" : ", and now its description"}. Plan them with plan_contract and edge ${there.id}.`, data: { id: there.id } };
       }
+      // A readable imported story's links are exactly its code's imports (ADR-1324 D1, D3).
+      const drawn = await drawnBy(call, tree.stories.find((story) => story.capabilities.some((part) => part.id === from))?.id);
+      if (drawn !== undefined) return { text: `Not planned: storytree draws ${drawn.said} links from its code's imports, so a link is there exactly when one capability's files import another's.`, refused: true };
       const edge = await library.addEdge({ from, to, ...optional({ description: about }) }, writer);
       return { text: `Planned edge ${edge.id}: ${from} depends on ${to}. Plan its contracts with plan_contract and edge ${edge.id}.`, data: { id: edge.id } };
     },
@@ -210,7 +218,7 @@ export function registerPlanTools(define: Define): void {
       capability: z.string().min(1).optional().describe("A contract's capability, to move it: with no title given, a contract whose number is another capability's takes this one's next free number"),
       edge: z.string().min(1).optional().describe("A contract's edge, to move it onto that link inside its story"),
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
-      covers: covers.describe("An imported story's capability's folders and files, replacing them"),
+      covers: covers.describe("The folders and files of a capability you mapped on code storytree cannot read, replacing them"),
       proved_by: provedBy.describe("A contract's existing tests that prove it, replacing them"),
       proof: proof.describe("How a contract is proved, with a one-line reason (ADR-1294), replacing it"),
       stories: z.array(z.string().min(1)).optional().describe("An arc's stories, replacing them"),
@@ -284,6 +292,7 @@ interface Changes {
   capability?: string | undefined;
   edge?: string | undefined;
   depends_on?: string[] | undefined;
+  covers?: string[] | undefined;
   proved_by?: string[] | undefined;
   proof?: { by: (typeof CONTRACT_PROOFS)[number]; reason: string } | undefined;
   stories?: string[] | undefined;
@@ -323,6 +332,12 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   if (kind === "anchor") {
     const anchor = (await library.setAnchor(optional({ what: changes.what, audience: changes.audience }), writer)).fields;
     return { text: `Corrected the project's anchor: ${anchorLine(anchor)}.`, data: { id: target } };
+  }
+  if (kind === "capability" && (changes.covers !== undefined || changes.depends_on !== undefined || changes.story !== undefined)) {
+    // A drawn capability's covers and links are its code's; only its title and description are the agent's (ADR-1324 D3).
+    const story = ((await library.get(target))?.fields as { story?: string } | undefined)?.story;
+    const drawn = await drawnBy(call, story);
+    if (drawn !== undefined) return { text: `Not corrected: storytree draws ${drawn.said} capabilities and links from its code's imports, so only a capability's title and description are corrected here; importing the folder again redraws the rest from the code as it stands.`, refused: true };
   }
   const { depends_on: dependsOn, end_state: endState, proved_by: provedBy, priority, capabilities, machine, escape, ...rest } = changes;
   const own = kind === "increment" ? await incrementFields(target, { capabilities, machine, escape }, call) : { fields: {} };
@@ -368,6 +383,37 @@ async function movedNumber(id: string, capability: string, call: Call): Promise<
   const prefix = /^(\d+) · /.exec(titleOf(capability) ?? "")?.[1];
   const renumbers = from !== undefined && prefix !== undefined && !from.startsWith(`${prefix}.`);
   return { ...(from === undefined ? {} : { from }), renumbers, tested: renumbers ? await testedNumbers(call, capability, tree) : [] };
+}
+
+/** A story storytree draws itself, with its capabilities' covers, and how a refusal names it. */
+interface DrawnStory {
+  readonly said: string;
+  readonly capabilities: readonly { readonly id: string; readonly title: string; readonly covers: readonly string[] }[];
+}
+
+/**
+ * Imported story `id` when storytree draws it itself (ADR-1324 D1): its code read where this checkout or this machine's
+ * imports have it, and readable by the survey. Undefined for any other story, and for code the survey cannot read or
+ * whose import is not here, which an agent maps by reading (ADR-1324 D4).
+ */
+async function drawnBy({ library, folder, storytree, project }: Call, id: string | undefined): Promise<DrawnStory | undefined> {
+  if (id === undefined) return undefined;
+  const tree = await library.projectTree();
+  const story = tree.stories.find((one) => one.id === id);
+  if (story?.mapped === undefined) return undefined;
+  const imports = await importsOf(storytree, project, machineOf(storytreeHome()).id);
+  if (!(await drawsItself(folder, { mapped: story.mapped }, tree.stories, imports))) return undefined;
+  const capabilities = (await library.list("capability")).filter((one) => one.fields.story === id).map((one) => ({ id: one.id, title: one.fields.title, covers: one.fields.covers ?? [] }));
+  return { said: `the imported story ${quoted(story.title)} (${id})'s`, capabilities };
+}
+
+/** Which of `drawn`'s capabilities hold `paths`, to name and describe with edit_plan, or how to see them all. */
+function holdingSaid(drawn: DrawnStory, paths: readonly string[]): string {
+  const plain = (one: string) => one.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");
+  const within = (inner: string, outer: string) => inner === outer || inner.startsWith(`${outer}/`);
+  const holding = drawn.capabilities.filter((capability) => paths.some((given) => capability.covers.some((cover) => within(plain(given), plain(cover)) || within(plain(cover), plain(given)))));
+  if (holding.length === 0) return "Name and describe its capabilities with edit_plan (title, description): show_plan lists them, each titled by its path until named; a file no capability holds yet is drawn when you import the folder again.";
+  return `${paths.join(", ")} ${holding.length === 1 ? "is" : "are"} in ${holding.map((capability) => `${quoted(capability.title)} (${capability.id})`).join(", ")}: name and describe ${holding.length === 1 ? "it" : "them"} with edit_plan (title, description).`;
 }
 
 /** The project's claims, as the calling door reads them. */

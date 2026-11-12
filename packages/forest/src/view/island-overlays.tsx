@@ -79,7 +79,7 @@ const NEVER = () => () => {};
 const NEAR = () => "near" as const;
 
 /** Whenever the globe draws, fade the story names that overlap another, that the map's frame cuts or that its controls cover, none moving (ADR-0917, 3.4, 3.106), and move apart the capability names that overlap (3.33). */
-export function NameplateCrowd({ selected }: { selected: string | undefined }) {
+export function NameplateCrowd({ selected, aside = 0 }: { selected: string | undefined; aside?: number }) {
   const gl = useThree(state => state.gl);
   const invalidate = useThree(state => state.invalidate);
   useFrame(() => {
@@ -92,8 +92,9 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
       facing: Number(label.dataset.facing ?? 0), dimmed: label.dataset.dimmed !== undefined }));
     // A capability's name is never hidden: where names overlap they are moved apart, and off a story's name shown (3.33).
     const capabilities = [...host.querySelectorAll<HTMLElement>(".planet-nameplate.capability")].filter(onScreen);
-    // The map shows only where its canvas lies in the window: a story's name cut by the rail's edge or the window's fades (3.4).
-    const frame = mapFrame(gl.domElement.getBoundingClientRect(), { width: innerWidth, height: innerHeight });
+    // The map shows only where its canvas lies in the window, left of the story panel: a story's name cut by the rail's edge,
+    // the panel's or the window's fades (3.4).
+    const frame = mapFrame(gl.domElement.getBoundingClientRect(), { width: innerWidth, height: innerHeight }, aside);
     // The map's controls drawn over it cover no name: a story's under one fades, a capability's moves off it (3.106).
     const controls = mapControls(host);
     const { faded, moves } = crowdedNames(shown, selected, capabilities.map(label => ({ capability: label.dataset.capabilityId!, box: label.getBoundingClientRect(),

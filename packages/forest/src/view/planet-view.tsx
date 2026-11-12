@@ -174,7 +174,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
       rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onGate={setGate} onNote={onNote} mode={mode} sheet={layout.extent} arcSelected={circledList !== undefined}
       sideOffset={sideOffset ?? 0} aside={aside} selected={selected}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
-    <NameplateCrowd selected={selected} />
+    <NameplateCrowd selected={selected} aside={aside} />
     <DetailFeed detail={detail} />
     <CompiledAtLoad under={underSheet} />
     {onPainted !== undefined && <PaintedReport scene={scene} onPainted={onPainted} />}

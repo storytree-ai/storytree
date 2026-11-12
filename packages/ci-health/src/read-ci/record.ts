@@ -54,6 +54,7 @@ function seenAt(writer: Writer): string {
  * is not written again, so its note keeps the commit it was first not re-run at. A run that saw no CI evidence for a
  * platform (one missing from `platformsSeen`) cannot re-run a test that only runs there, so a passing verdict from
  * elsewhere stands against its `platform:<os>` skip; so does one whose skipped tests that platform's run never reached.
+ * Every verdict that tells the owner nothing is written in one write (recordVerifiedAll); the rest one at a time.
  * A contract retired since the run read it is skipped, not written, and named in `retired` as `<number> (<id>)`.
  * A verdict kept in its column whose follow-up write (the owner's FYI on a turn red or green again, a release of work
  * waiting on it) the writer's database role refuses is named in `untold` the same way, and the rest are recorded: CI's
@@ -62,7 +63,7 @@ function seenAt(writer: Writer): string {
  * @param options the platforms whose CI evidence the run read; all, when absent
  */
 export async function recordHealth(
-  library: Pick<Library, "recordVerified" | "health">,
+  library: Pick<Library, "recordVerified" | "recordVerifiedAll" | "health">,
   contractIds: ReadonlyMap<string, string>,
   verdicts: ReadonlyMap<string, RecordedVerdict>,
   writer: Writer,
@@ -71,26 +72,48 @@ export async function recordHealth(
   const written = { passing: 0, failing: 0, notChecked: 0, marked: 0 };
   const retired: string[] = [];
   const untold: string[] = [];
-  for (const [number, verdict] of verdicts) {
+  const judged = [...verdicts].flatMap(([number, verdict]) => {
+    if (verdict.state === "not-checked") return [];
     const id = contractIds.get(number);
-    if (verdict.state !== "not-checked" && id === undefined) throw new Error(`there is no contract ${number} in the library to record its health on`);
+    if (id === undefined) throw new Error(`there is no contract ${number} in the library to record its health on`);
+    const at = seenAt(writer);
+    const note = at === "" ? verdict.note : `${verdict.note ?? ""},${at}`;
+    return [{ number, id, state: verdict.state, note, options: { by: writer.by, source: writer.source, ...(note === undefined || note === "" ? {} : { note }), ...(verdict.tests === undefined ? {} : { tests: verdict.tests }) } }];
+  });
+  // Every verdict that tells nothing in one write: one at a time, a library far away cost Own health its time limit (3.23).
+  let together: readonly unknown[] = [];
+  try {
+    if (judged.length > 0) together = await library.recordVerifiedAll(judged.map(({ id, state, options }) => ({ contractId: id, state, options })));
+  } catch (error) {
+    // A contract retired since the run read the plan refuses them all: one at a time below names it.
+    if (!(error instanceof MissingReferenceError)) throw error;
+  }
+  for (const [index, { number, id, state, note, options }] of judged.entries()) {
+    if (together[index] !== undefined) {
+      written[state]++;
+      continue;
+    }
     try {
-      if (verdict.state === "not-checked") {
-        if (id !== undefined && (await markNotChecked(library, id, verdict, writer, platformsSeen))) written.marked++;
-        written.notChecked++;
-        continue;
-      }
-      const at = seenAt(writer);
-      const note = at === "" ? verdict.note : `${verdict.note ?? ""},${at}`;
       try {
-        await library.recordVerified(id!, verdict.state, { by: writer.by, source: writer.source, ...(note === undefined || note === "" ? {} : { note }), ...(verdict.tests === undefined ? {} : { tests: verdict.tests }) });
+        await library.recordVerified(id, state, options);
       } catch (error) {
-        if (!(isPrivilegeRefusal(error) && (await kept(library, id!, verdict.state, writer.by, note)))) throw error;
+        if (!(isPrivilegeRefusal(error) && (await kept(library, id, state, writer.by, note)))) throw error;
         untold.push(`${number} (${id})`);
       }
-      written[verdict.state]++;
+      written[state]++;
     } catch (error) {
       // Retired on the library after the run read its plan (runs 40092872110, 40103014567): one contract gone sinks no run.
+      if (!(error instanceof MissingReferenceError && error.field === "node" && error.id === id && error.found === undefined)) throw error;
+      retired.push(`${number} (${id})`);
+    }
+  }
+  for (const [number, verdict] of verdicts) {
+    if (verdict.state !== "not-checked") continue;
+    const id = contractIds.get(number);
+    try {
+      if (id !== undefined && (await markNotChecked(library, id, verdict, writer, platformsSeen))) written.marked++;
+      written.notChecked++;
+    } catch (error) {
       if (!(error instanceof MissingReferenceError && error.field === "node" && error.id === id && error.found === undefined)) throw error;
       retired.push(`${number} (${id})`);
     }

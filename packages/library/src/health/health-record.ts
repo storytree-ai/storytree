@@ -81,6 +81,13 @@ export interface HealthOptions extends WriteOptions {
   readonly tests?: readonly string[];
 }
 
+/** One verdict for recordVerifiedAll: what recordVerified takes for one contract. */
+export interface VerifiedVerdict {
+  readonly contractId: string;
+  readonly state: HealthState;
+  readonly options?: HealthOptions;
+}
+
 /** A verdict's turn told after it was written (5.24): the contract, the FYI's title, the verdict's time and the work it released. */
 export interface ToldTurn {
   contract: string;
@@ -317,6 +324,29 @@ export class HealthRecord {
   }
 
   /**
+   * Write, in one write, each of `verdicts` that tells nothing as recordVerified writes it: not checked, or passing after
+   * no failing, with its CI copy when CI saw it (5.27). One that would tell (a failing one, which may release work, or a
+   * passing one after failing) is left unwritten, for its writer to write with recordVerified, which tells it (5.29). The
+   * entries in the order given, undefined for each left. Refused whole, writing nothing, as recordVerified refuses one
+   * id that names no live contract (MissingReferenceError), and when two verdicts name one contract (RangeError).
+   */
+  async recordVerifiedAll(verdicts: readonly VerifiedVerdict[], { signal }: Pick<WriteOptions, "signal"> = {}): Promise<(HealthEntry | undefined)[]> {
+    const ids = verdicts.map(({ contractId }) => contractId);
+    const twice = ids.find((id, index) => ids.indexOf(id) !== index);
+    if (twice !== undefined) throw new RangeError(`recordVerifiedAll was given contract ${twice} twice`);
+    const contracts = new Set((await this.#records.list("contract", { ids: ids.filter(couldBeId) })).map(({ id }) => id));
+    for (const id of ids) if (!contracts.has(id)) await this.#contract(id);
+    const earlier = new Map((await this.#records.list("health", { ids: ids.map((id) => healthId(id, "verified")) })).map(({ fields }) => [fields.node, fields.state === "not-checked" ? fields.was : fields.state]));
+    const quiet = verdicts.map(({ contractId, state }) => state === "not-checked" || (state === "passing" && earlier.get(contractId) !== "failing"));
+    const writes = verdicts.flatMap(({ contractId, state, options = {} }, index) => !quiet[index] ? [] : [
+      this.#entry("verified", contractId, state, options, "verified"),
+      ...(options.source === "ci" ? [this.#entry("verified", contractId, state, options, "ci")] : []),
+    ]);
+    const saved = new Map((await this.#records.createAll(writes, signal)).map((record) => [record.id, entryOf(record.fields, record.updatedAt)]));
+    return verdicts.map(({ contractId }, index) => (quiet[index] ? saved.get(healthId(contractId, "verified")) : undefined));
+  }
+
+  /**
    * Tell what recordVerified could not, for each verified verdict written since `from` (an ISO 8601 time) whose writer's
    * database role refused its FYI and its release (CI's may write only health, 3.20): a turn red, still red after a fix it
    * releases, or green again is told as recordVerified tells it, at the verdict's own time, and a failing one releases
@@ -426,8 +456,9 @@ export class HealthRecord {
   async health(nodeId: string): Promise<NodeHealth> {
     const node = await liveRecord(this.#records, nodeId, NODE_TYPES);
     if (node === null) return rolledUp([]); // nothing to read: not-checked in both columns
+    // A contract's own records alone: reading every health record for one costs a library far away megabytes.
+    if (node.type === "contract") return ownHealth(node.id, new Map((await this.#records.list("health", { ids: (["reported", "verified", "ci"] as const).map((column) => healthId(node.id, column)) })).map((record) => [record.id, record])));
     const entries = await this.#entries();
-    if (node.type === "contract") return ownHealth(node.id, entries);
     const contracts = (await this.#contractsUnder(node)).map((id) => ownHealth(id, entries));
     const capabilities = node.type === "capability" ? [node.id] : (await this.#records.list("capability")).filter((capability) => capability.fields.story === node.id).map(({ id }) => id);
     return rolledUp(contracts, capabilities.flatMap((id) => counted(unclaimedOf(id, entries))));
@@ -573,22 +604,34 @@ export class HealthRecord {
    * write, as capability 3 checks every write.
    */
   async #write(column: HealthColumnName, contractId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" = column): Promise<HealthEntry> {
-    const target = await recordNamed(this.#records, contractId);
-    if (target?.type !== "contract") {
-      throw new MissingReferenceError("node", contractId, "contract", target?.type, target === null ? undefined : ROLLED_UP[target.type]);
-    }
+    await this.#contract(contractId);
     const entry = await this.#save(column, contractId, state, options, kept);
     if (kept === "verified" && options.source === "ci") await this.#save(column, contractId, state, options, "ci");
     return entry;
   }
 
+  /** Refuse `contractId` (MissingReferenceError) unless it names a live contract, saying why for a story or a capability. */
+  async #contract(contractId: string): Promise<void> {
+    const target = await recordNamed(this.#records, contractId);
+    if (target?.type !== "contract") {
+      throw new MissingReferenceError("node", contractId, "contract", target?.type, target === null ? undefined : ROLLED_UP[target.type]);
+    }
+  }
+
   /** Save the entry as the record of node `nodeId`'s column (or its pending mark, or a capability's unclaimed reading), checked inside the write. */
   async #save(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed" | "ci"): Promise<HealthEntry> {
+    const { type, fields, options: write } = this.#entry(column, nodeId, state, options, kept);
+    const record = await this.#records.create(type, fields, { ...write, ...(options.signal === undefined ? {} : { signal: options.signal }) });
+    return entryOf(record.fields, record.updatedAt);
+  }
+
+  /** The health record #save writes for an entry, as SchemaRecords.createAll takes it. */
+  #entry(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed" | "ci"): { type: "health"; fields: FieldsOf<"health">; options: { id: string; actor?: string } } {
     const { by, note, skip, was, source, tests } = options;
     const actor = options.actor ?? by;
-    const record = await this.#records.create(
-      "health",
-      {
+    return {
+      type: "health",
+      fields: {
         node: nodeId,
         column,
         state,
@@ -599,9 +642,8 @@ export class HealthRecord {
         ...(source === undefined ? {} : { source }),
         ...(tests === undefined ? {} : { tests: [...tests] }),
       },
-      { id: healthId(nodeId, kept), ...(actor === undefined ? {} : { actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) },
-    );
-    return entryOf(record.fields, record.updatedAt);
+      options: { id: healthId(nodeId, kept), ...(actor === undefined ? {} : { actor }) },
+    };
   }
 
   /** Every live health record of a column, by id: a pending mark is none. */

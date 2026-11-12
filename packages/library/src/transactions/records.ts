@@ -107,6 +107,17 @@ function compareIds(a: string, b: string): number {
   return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
 
+/** `inputs` as saveAll takes them: refused (RangeError) when two name one id or one is numbered or written only if new. */
+export function saveAllInputs(inputs: readonly SaveInput[]): readonly SaveInput[] {
+  const ids = new Set<string>();
+  for (const input of inputs) {
+    if (input.sequence !== undefined || input.onlyIfNew === true || input.sequenceNeverHeld === true) throw new RangeError(`saveAll takes no numbered or only-if-new record: ${input.id} is one`);
+    if (ids.has(input.id)) throw new RangeError(`saveAll was given ${input.id} twice`);
+    ids.add(input.id);
+  }
+  return inputs;
+}
+
 /** The record `save` would store, given the record stored now (if any). */
 export function savedRecord(input: SaveInput, current: RecordEnvelope | undefined, at: string): RecordEnvelope {
   return {

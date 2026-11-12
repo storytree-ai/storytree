@@ -8,7 +8,7 @@ import type { Pool, PoolClient } from "pg";
 
 import { sqlState } from "../project/connection-error.js";
 import { seconds, waitsOf } from "../project/server.js";
-import { check, listFilter, editedRecord, historyEntry, historyFilter, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
+import { check, listFilter, saveAllInputs, editedRecord, historyEntry, historyFilter, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -116,6 +116,29 @@ export class PgTransactions implements Transactions {
       await putRecord(client, record);
       return record;
     }, input.signal);
+  }
+
+  async saveAll(given: readonly SaveInput[], signal?: AbortSignal): Promise<RecordEnvelope[]> {
+    const inputs = saveAllInputs(given);
+    if (inputs.length === 0) return [];
+    return this.#write(async (client) => {
+      const { rows } = await client.query<RecordRow>(`SELECT ${RECORD_COLUMNS} FROM record WHERE id = ANY($1::text[]) FOR UPDATE`, [inputs.map(({ id }) => id)]);
+      const current = new Map(rows.map((row) => [row.id, recordOf(row)]));
+      const at = now();
+      const writes: { action: HistoryEntry["action"]; record: RecordEnvelope; actor: string | undefined; mark: string[] | undefined }[] = [];
+      for (const input of inputs) {
+        const record = savedRecord(input, current.get(input.id), at);
+        check(record, input.validate);
+        writes.push({ action: current.has(input.id) ? "updated" : "created", record, actor: input.actor, mark: await this.#mark(input.outsideRead, record.type) });
+      }
+      // In chunks, so no statement passes Postgres's limit of bound parameters; each chunk's rows go in in the order given.
+      for (let start = 0; start < writes.length; start += SAVE_CHUNK) {
+        const chunk = writes.slice(start, start + SAVE_CHUNK);
+        await appendEvents(client, chunk, chunk.some(({ mark }) => mark !== undefined));
+        await putRecords(client, chunk.map(({ record }) => record));
+      }
+      return writes.map(({ record }) => record);
+    }, signal);
   }
 
   async get(id: string): Promise<RecordEnvelope | null> {
@@ -379,6 +402,37 @@ async function appendEvent(
     `INSERT INTO record_event (record_id, type, action, record, reason, actor, at${marked.length === 0 ? "" : ", outside_read"})
      VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7${marked.length === 0 ? "" : ", $8::jsonb"})`,
     [record.id, record.type, action, JSON.stringify(record), reason ?? null, actor ?? null, at, ...marked],
+  );
+}
+
+/** How many records saveAll writes in one statement: 8 bound parameters each, well inside Postgres's 65535. */
+const SAVE_CHUNK = 1000;
+
+/** Write saveAll's changes to the history, first, in one statement whose rows go in, and are numbered, in the order given. */
+async function appendEvents(client: PoolClient, writes: readonly { action: HistoryEntry["action"]; record: RecordEnvelope; actor: string | undefined; mark: string[] | undefined }[], marked: boolean): Promise<void> {
+  const params: unknown[] = [];
+  const rows = writes.map(({ action, record, actor, mark }) => {
+    const values = [record.id, record.type, action, JSON.stringify(record), actor ?? null, record.updatedAt, ...(marked ? [mark === undefined ? null : JSON.stringify(mark)] : [])];
+    const at = params.length;
+    params.push(...values);
+    return `($${at + 1}, $${at + 2}, $${at + 3}, $${at + 4}::jsonb, $${at + 5}, $${at + 6}::timestamptz${marked ? `, $${at + 7}::jsonb` : ""})`;
+  });
+  await client.query(`INSERT INTO record_event (record_id, type, action, record, actor, at${marked ? ", outside_read" : ""}) VALUES ${rows.join(", ")}`, params);
+}
+
+/** Store saveAll's records as they are now, in one statement, replacing whatever rows they had. */
+async function putRecords(client: PoolClient, records: readonly RecordEnvelope[]): Promise<void> {
+  const params: unknown[] = [];
+  const rows = records.map((record) => {
+    const at = params.length;
+    params.push(record.id, record.type, record.version, JSON.stringify(record.fields), record.createdAt, record.updatedAt);
+    return `($${at + 1}, $${at + 2}, $${at + 3}::integer, $${at + 4}::jsonb, $${at + 5}::timestamptz, $${at + 6}::timestamptz)`;
+  });
+  await client.query(
+    `INSERT INTO record (${RECORD_COLUMNS}) VALUES ${rows.join(", ")}
+     ON CONFLICT (id) DO UPDATE SET type = excluded.type, version = excluded.version, fields = excluded.fields,
+       created_at = excluded.created_at, updated_at = excluded.updated_at`,
+    params,
   );
 }
 

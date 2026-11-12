@@ -4,7 +4,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 
-import { check, editedRecord, historyEntry, historyFilter, jsonCopy, listed, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
+import { check, editedRecord, saveAllInputs, historyEntry, historyFilter, jsonCopy, listed, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -48,6 +48,15 @@ export class MemoryTransactions implements Transactions {
     this.#append(current === undefined ? "created" : "updated", record, record.updatedAt, input.actor, undefined, outsideReadOf(input.outsideRead, record.type));
     this.#records.set(record.id, record);
     return jsonCopy(record);
+  }
+
+  async saveAll(inputs: readonly SaveInput[], signal?: AbortSignal): Promise<RecordEnvelope[]> {
+    saveAllInputs(inputs);
+    return this.inOneWrite(async () => {
+      const saved: RecordEnvelope[] = [];
+      for (const input of inputs) saved.push(await this.save(input));
+      return saved;
+    }, signal);
   }
 
   async get(id: string): Promise<RecordEnvelope | null> {

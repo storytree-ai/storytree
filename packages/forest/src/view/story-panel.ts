@@ -244,6 +244,7 @@ const REASON: Readonly<Record<WhyLine["reason"], (carrying: number, of: number) 
   failing: (carrying, of) => (carrying === 0 ? "it is failing" : `${counted(carrying, of)} ${carrying === 1 ? "fails" : "fail"}`),
   "not re-run": (carrying, of) => `${counted(carrying, of)} ${carrying === 1 ? "was" : "were"} not re-run`,
   "no test names it": (carrying, of) => (carrying === 0 ? "no test names it" : `no test names ${counted(carrying, of)}`),
+  "acceptance test not run": (carrying, of) => `agentic user acceptance testing has not run on ${counted(carrying, of)}`,
   "out of CI's reach": (carrying, of) => `${counted(carrying, of)} can only run on another platform`,
   "needs owner": (carrying, of) => `${counted(carrying, of)} ${carrying === 1 ? "needs" : "need"} something only you can give`,
 };

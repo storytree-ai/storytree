@@ -264,6 +264,7 @@ test("4.12 a capability that is not healthy says why above its description, and 
   assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not re-run", mover: "agent", contracts: ["2.1"] }), "cap")), "Why not green: 1 of 1 contract was not re-run. No open work moves it yet.");
   assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not re-run", mover: "agent", contracts: ["2.1"], since: "2026-10-01T06:00:00.000Z" }), "cap")), "Why not green: 1 of 1 contract was not re-run. No open work moves it yet.", "its date is on the contract row: the day it was last seen, not the day the skip was written");
   assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "out of CI's reach", mover: "agent", contracts: ["3.4"] }), "cap")), "Why not green: 1 of 1 contract can only run on another platform. No open work moves it yet.");
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "acceptance test not run", mover: "agent", contracts: ["4.50"] }), "cap")), "Why not green: agentic user acceptance testing has not run on 1 of 1 contract. No open work moves it yet.");
 });
 
 test("4.13 in a project nothing verifies, a built capability's detail says storytree does not check this project's tests yet, its contracts' marks read not run, and the agent's report shows only in the opened row, labelled as the agent's", () => {

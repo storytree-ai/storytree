@@ -17,7 +17,7 @@
 import { byCreation } from "../creation-order.js";
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import type { FieldsOf, RecordType } from "../schema/types.js";
+import type { CONTRACT_PROOFS, FieldsOf, RecordType } from "../schema/types.js";
 import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, Holds, ParkedOn, ProjectTree, StoryNode, WorkInFlight, WorkModel } from "../work/index.js";
 
 /** A column's state. A column with no entry reads `not-checked`, never `passing`. */
@@ -168,7 +168,7 @@ export type OpenWait =
  * Why a capability is not healthy (ADR-0825 D1), from a closed set: `not built` while it is
  * proposed; otherwise from its contracts' verified columns. Only `needs owner` is the owner's.
  */
-export type HealthReason = "not built" | "failing" | "not re-run" | "no test names it" | "out of CI's reach" | "needs owner";
+export type HealthReason = "not built" | "failing" | "not re-run" | "no test names it" | "acceptance test not run" | "out of CI's reach" | "needs owner";
 
 /** A capability's reason, who moves it, the contracts that carry it, and since when, where a time was recorded. */
 export interface CapabilityWhy {
@@ -479,7 +479,7 @@ export class HealthRecord {
           // unless tests no contract claims reached it (ADR-1274 D3); a failing reading of those makes its reason failing.
           const explored = story.mapped !== undefined && contracts.length === 0;
           const failingOwn = own.includes("failing") ? { reason: "failing" as const, mover: "agent" as const, contracts: contracts.filter((contract) => contract.health.verified.state === "failing").map(({ id }) => id), ...(unclaimed?.at === undefined ? {} : { since: unclaimed.at }) } : undefined;
-          const why = reportOnly ? undefined : failingOwn ?? (explored ? undefined : capabilityWhy(proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified }))));
+          const why = reportOnly ? undefined : failingOwn ?? (explored ? undefined : capabilityWhy(proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified, ...(contract.proof === undefined ? {} : { proof: contract.proof.by }) }))));
           const parkedOn = status === "proposed" || status === "untested" ? parked.get(capability.id) : undefined;
           return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(unclaimed === undefined ? {} : { unclaimed }), ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}), ...(parkedOn === undefined ? {} : { parkedOn: [...parkedOn] }), ...(open.has(capability.id) ? { openWork: open.get(capability.id)!.map((one) => ({ ...one })) } : {}) };
         });
@@ -717,14 +717,15 @@ export function capabilityStatus(proposed: boolean, verified: readonly HealthSta
  * Proposed, it is `not built`, whatever its health. Otherwise each contract not verified passing
  * has a reason: `failing`; not checked, `needs owner` for an owner-kind skip, `out of CI's reach`
  * for a platform one, `not re-run` for any other skip or an earlier verdict it did not reproduce,
- * and `no test names it` for one never recorded. The capability's is the first of those, in that
+ * and, for one never recorded, `no test names it`, or `acceptance test not run` when its proof is agentic
+ * user acceptance testing, which no plain test names. The capability's is the first of those, in that
  * order, its contracts have: the agent's work is ranked before the owner's, so the owner is asked
  * only once nothing an agent can do remains.
  */
-export function capabilityWhy(proposed: boolean, contracts: readonly { id: string; verified: HealthColumn }[]): CapabilityWhy | undefined {
+export function capabilityWhy(proposed: boolean, contracts: readonly { id: string; verified: HealthColumn; proof?: ContractProof }[]): CapabilityWhy | undefined {
   if (proposed) return { reason: "not built", mover: "agent", contracts: [] };
   if (contracts.length === 0) return { reason: "no test names it", mover: "agent", contracts: [] };
-  const reasons = contracts.map((contract) => ({ ...contract, reason: contractReason(contract.verified) }));
+  const reasons = contracts.map((contract) => ({ ...contract, reason: contractReason(contract.verified, contract.proof) }));
   const reason = RANKED.find((candidate) => reasons.some((contract) => contract.reason === candidate));
   if (reason === undefined) return undefined;
   const carrying = reasons.filter((contract) => contract.reason === reason);
@@ -766,16 +767,19 @@ export const NOT_VERIFIED = "storytree does not check this project's tests yet";
 const REPORTS: Readonly<Record<HealthState, string>> = { passing: "reports passing", failing: "reports failing", "not-checked": "has reported nothing yet" };
 
 /** The reasons a built capability can have, the one it shows first. */
-const RANKED: readonly HealthReason[] = ["failing", "not re-run", "no test names it", "out of CI's reach", "needs owner"];
+const RANKED: readonly HealthReason[] = ["failing", "not re-run", "no test names it", "acceptance test not run", "out of CI's reach", "needs owner"];
 
-/** Why one contract is not verified passing; undefined when it is. */
-function contractReason(verified: HealthColumn): HealthReason | undefined {
+/** How a contract is proved (CONTRACT_PROOFS). */
+type ContractProof = (typeof CONTRACT_PROOFS)[number];
+
+/** Why one contract, proved as `proof` says, is not verified passing; undefined when it is. */
+function contractReason(verified: HealthColumn, proof: ContractProof | undefined): HealthReason | undefined {
   if (verified.state === "passing") return undefined;
   if (verified.state === "failing") return "failing";
   if (verified.skip === "owner") return "needs owner";
   if (verified.skip?.startsWith("platform:")) return "out of CI's reach";
   if (verified.skip !== undefined || verified.was !== undefined) return "not re-run";
-  return "no test names it";
+  return proof === "agentic-user-acceptance-testing" ? "acceptance test not run" : "no test names it";
 }
 
 /** An entry: a health record's fields, and when they were written. Each optional field only when there is one. */

@@ -18,4 +18,4 @@ Pictures, 1440 x 960:
 Taken with `node --import tsx packages/forest/testing/view/open-work-count/capture.mjs --retake`, which asserts the count's
 words with and without the arc selected and writes them into `measurements.json`.
 
-In the evidence bucket for #800, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `800/no-arc-selected.png`, `800/arc-selected.png`, `800/arc-selected-top-row.png`.
+In the evidence bucket for #816, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `816/no-arc-selected.png`, `816/arc-selected.png`, `816/arc-selected-top-row.png`.

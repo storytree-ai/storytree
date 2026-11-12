@@ -1320,6 +1320,6 @@ test("8.65 storytree draws an imported story itself exactly when its import is o
     assert.equal(await drawsItself(root, story(tool), [], here(tool)), false, "only Go, which the survey does not read");
     assert.equal(await drawsItself(root, story(path.join(root, "elsewhere")), [], here(shop)), false, "its import is not on this machine");
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await removeTemp(root);
   }
 });

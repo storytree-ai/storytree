@@ -499,7 +499,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(((await records.get(fix.id))?.fields as { escape?: unknown }).escape, corrected?.fields.escape);
   });
 
-  contract("10.42", "an increment from the owner's answer, landed with a note and no pull request, records an FYI of what it found, so it is offered to him until heard; one with a pull request, not landed, or not from his answer records none", async ({ flight, transactions }) => {
+  contract("10.42", "an increment from the owner's answer, landed with a note and no pull request, records an FYI of what it found, so it is offered to him until heard; one with a pull request, not landed, not from his answer, or whose note raises a new question to him records none", async ({ flight, transactions }) => {
     const fyis = async () => (await transactions.list("fyi")).map(({ fields }) => fields);
     const arc = await flight.createArc(ARC);
     const findings = "Findings: all junk, no real change.";
@@ -521,6 +521,9 @@ for (const backend of [memory, postgres]) {
     const plain = await flight.addIncrement({ arc: arc.id, ...WORK });
     await flight.closeIncrement(plain.id, { note: "Checked", disposition: "landed" });
     assert.equal((await fyis()).length, 3, "a pull request shows it, a close that did not land found nothing, and other work is not his answer");
+    const asked = await flight.addIncrement({ arc: arc.id, ...BARE_WORK, title: "Asked", body: "Settled on question_0dd10e796878." });
+    await flight.closeIncrement(asked.id, { note: "Raised question_423692e9d7da: the rest is his call.", disposition: "landed" });
+    assert.equal((await fyis()).length, 3, "a result that is a new question reaches him as that question, not again as an FYI");
   });
 
   contract("10.30", "a landed increment says whether it fixed an escape: one naming none is recorded as fixing none when it lands, closed or parked closed, while one naming its escape keeps it and a close that does not land says nothing", async ({ work, flight, records }) => {

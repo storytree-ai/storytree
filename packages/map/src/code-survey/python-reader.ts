@@ -248,7 +248,8 @@ function titlesOf(file: SourceFile): string[] {
 export const pythonReader: LanguageReader = {
   files: /\.py$/,
   tests: PYTEST_FILE,
-  testSupport: /(?:^|\/)conftest\.py$/,
+  // conftest.py, and any module under a tests/ or test/ folder: pytest's helpers, imported by its tests, never product code.
+  testSupport: /(?:^|\/)(?:conftest\.py|tests?\/.*\.py)$/,
   titlesOf,
   edgesOf,
   offersOf,

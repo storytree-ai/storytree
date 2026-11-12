@@ -78,7 +78,7 @@ test("8.50 a built Python story's imports are edges in its survey: import a.b, f
     const paths = new Set(["src/shop/a.py", "src/shop/b.py", "lib/c.py"]);
     await readersReady(paths);
     assert.deepEqual(pythonReader.edgesOf({ path: "src/shop/a.py", text: "import shop.b\nimport lib.c\n" }, paths, []).map((edge) => edge.to), ["src/shop/b.py", "lib/c.py"]);
-    assert.deepEqual(pythonReader.edgesOf({ path: "lib/c.py", text: "from ... import shop\nfrom .... import b\n" }, paths, []), [], "a relative import that climbs above the top reaches nothing");
+    assert.deepEqual(pythonReader.edgesOf({ path: "lib/c.py", text: "from ... import shop\nfrom .... import b\n" }, new Set([...paths, "shop.py", "b.py"]), []), [], "a relative import that climbs above the top reaches nothing, not even the top's own modules");
   } finally {
     await removeTemp(folder);
   }

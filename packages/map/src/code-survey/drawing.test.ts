@@ -106,21 +106,25 @@ test("8.62 a drawn capability depends on another exactly when one of its files i
 
 test("8.62 a name taken from a file that only passes it on (a package root's re-export, in Python or TypeScript) links to the file that binds it, so a root and the modules it re-exports draw no loop", async () => {
   const flat = filesOf({
-    "tinydb/__init__.py": "from .database import TinyDB\nfrom .storages import JSONStorage, Storage\n",
+    "tinydb/__init__.py": "from .database import TinyDB\nfrom .storages import JSONStorage, Storage\nfrom .operations import *\n",
     "tinydb/database.py": "from . import JSONStorage\nclass TinyDB: pass\n",
     "tinydb/storages.py": "class Storage: pass\nclass JSONStorage(Storage): pass\n",
     "tinydb/middlewares.py": "from tinydb import Storage\nclass Middleware(Storage): pass\n",
+    "tinydb/operations.py": "def delete(): pass\n",
+    "tinydb/queries.py": "from tinydb import delete\n",
   });
   await readersReady(flat.map((file) => file.path));
   assert.deepEqual(drawImportedStory({ folder: ".", files: flat }), {
-    capabilities: ["tinydb/__init__.py", "tinydb/database.py", "tinydb/middlewares.py", "tinydb/storages.py"].map((title) => ({ title, covers: [title] })),
+    capabilities: ["tinydb/__init__.py", "tinydb/database.py", "tinydb/middlewares.py", "tinydb/operations.py", "tinydb/queries.py", "tinydb/storages.py"].map((title) => ({ title, covers: [title] })),
     links: [
       { from: "tinydb/__init__.py", to: "tinydb/database.py" },
+      { from: "tinydb/__init__.py", to: "tinydb/operations.py" },
       { from: "tinydb/__init__.py", to: "tinydb/storages.py" },
       { from: "tinydb/database.py", to: "tinydb/storages.py" },
       { from: "tinydb/middlewares.py", to: "tinydb/storages.py" },
+      { from: "tinydb/queries.py", to: "tinydb/operations.py" },
     ],
-  }, "database and middlewares take their names through the root, and link to storages, which binds them");
+  }, "database and middlewares take their names through the root, and link to storages, which binds them; queries takes one the root's wildcard passes on, and links to operations");
 
   const barrel = filesOf({
     "src/index.ts": "export { add } from \"./add.js\";\nexport { total } from \"./total.js\";\n",

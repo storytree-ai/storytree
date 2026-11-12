@@ -9,6 +9,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import type { AnnotatedTree } from "@storytree/library";
+import { removeTemp } from "@storytree/test-waits";
 
 import { readersReady } from "./code-survey.js";
 import { drawImportedStory } from "./drawing.js";
@@ -113,7 +114,7 @@ test("3.15 the links check resolves each import as the drawing does, so a map st
     assert.equal(answer.covering, 4);
     assert.deepEqual([answer.missing, answer.unbacked, answer.unchecked], [[], [], []], "the drawing's own links are each backed, and it misses none");
   } finally {
-    await rm(folder, { recursive: true, force: true });
-    await rm(trunk, { recursive: true, force: true });
+    await removeTemp(folder);
+    await removeTemp(trunk);
   }
 });

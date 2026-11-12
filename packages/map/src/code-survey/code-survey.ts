@@ -676,8 +676,8 @@ export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[
     return [story.id, { byPath: new Map(code.filter((file) => CODE_FILE.test(file.path)).map((file) => [file.path, file])), paths: new Set(code.map((file) => file.path)) }] as const;
   }));
 
-  // Another language's files by path, for its reader to follow the names they pass on.
-  const otherFiles = new Map(stories.map((story) => [story.id, new Map(story.files.filter((file) => isCodeFile(file.path) && !CODE_FILE.test(file.path)).map((file) => [file.path, file]))] as const));
+  // Each story's files by path, for a reader that says what a file passes on (Python's) to follow it.
+  const otherFiles = new Map(stories.map((story) => [story.id, new Map(story.files.map((file) => [file.path, file]))] as const));
 
   /** The file of `story` that defines `name`, starting from `path` and following what it passes on; undefined where nothing does. */
   const definer = (story: EdgeStory, path: string, name: string, seen: Set<string>): string | undefined => {

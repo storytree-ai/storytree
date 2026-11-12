@@ -62,7 +62,7 @@ test("4.7 up to date names the channel it checked and when, leaving the running 
   const unchanneled = updateText({ ...at, phase: "up-to-date", checkedAt }, undefined, { now: new Date(2026, 10, 11, 15, 30) })[1];
   assert.match(unchanneled, /the newest build as of 14:02/, "an updater that follows no channel names none");
   assert.doesNotMatch(unchanneled, /alpha|stable/);
-  assert.doesNotMatch(updateText({ ...at, phase: "up-to-date" })[1], /as of/, "a state with no check time claims none");
+  assert.equal(updateText({ ...at, phase: "up-to-date" })[1], "No newer build was found.", "a state with no check time claims none");
 });
 
 test("4.7 after the update channel changes in the gear, the last check's up to date is no longer shown as current", async () => {

@@ -1,12 +1,13 @@
 /** The globe's nameplates: a story's fixed just south of its island, its capabilities' on their own land; where story names overlap, one fades; overlapping capability names move apart. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { Window } from "happy-dom";
 import { Euler, Quaternion, Vector3 } from "three";
 import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, mapFrame, NAME_OVERLAP_SLACK, nameMoves, nameplateAt, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
+import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, mapControls, mapFrame, NAME_OVERLAP_SLACK, nameMoves, nameplateAt, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -171,6 +172,42 @@ test("3.4 a story's name that runs past the map's frame, under the rail or out o
   const cut = mapFrame({ left: 432, top: 48, right: 1600, bottom: 960 }, { width: 1440, height: 960 });
   assert.deepEqual(cut, frame);
   assert.deepEqual([...fadedPlates(row, undefined, cut)].sort(), ["follow", "read and write", "under the rail"], "a name past the window's edge fades, though the canvas runs on");
+});
+
+test("3.106 · the map's controls (the Whole map button, the compass) cover no name: a story's name under one fades, a capability's moves off it", () => {
+  // As the forest seed showed it zoomed in at 1440 x 960: the Whole map button at x 846-938 over the left of "The knowledge core".
+  const button = { left: 846, top: 128, right: 938, bottom: 154 }, compass = { left: 874, top: 56, right: 938, bottom: 120 };
+  const frame = { left: 0, top: 0, right: 1440, bottom: 960 };
+  const stories = [
+    { story: "under the button", box: { left: 918, top: 130, right: 1030, bottom: 163 }, facing: 1 },
+    { story: "clear", box: { left: 400, top: 130, right: 512, bottom: 163 }, facing: 1 },
+  ];
+  assert.deepEqual([...fadedPlates(stories, undefined, frame, [button, compass])], ["under the button"], "a story's name under a control fades; one clear of them shows");
+  assert.deepEqual([...fadedPlates(stories, "under the button", frame, [button])], ["under the button"], "the selected story's name fades too: the button covers it");
+  // A faded name crowds no other: a name it would have overlapped shows.
+  const behind = { story: "beside", box: { left: 960, top: 140, right: 1072, bottom: 173 }, facing: 0.5 };
+  assert.deepEqual([...fadedPlates([...stories, behind], undefined, frame, [button])], ["under the button"]);
+  const names = [{ capability: "under the compass", box: { left: 880, top: 80, right: 960, bottom: 96 }, given: { x: 0, y: 0 }, size: 3 }];
+  const { faded, moves } = crowdedNames(stories, undefined, names, frame, [button, compass]);
+  assert.deepEqual([...faded], ["under the button"]);
+  const move = moves.get("under the compass");
+  assert.ok(move !== undefined, "a capability's name under a control moves");
+  const at = { left: 880 + move.x, top: 80 + move.y, right: 960 + move.x, bottom: 96 + move.y };
+  // The controls are read from the map's overlays, where the page draws them: the button while it shows, and the compass.
+  const page = new Window().document, host = page.createElement("div");
+  const placed = (className: string, box: { left: number; top: number; right: number; bottom: number }) => {
+    const element = page.createElement(className === "whole-map" ? "button" : "div");
+    element.className = className;
+    element.getBoundingClientRect = () => ({ ...box, x: box.left, y: box.top, width: box.right - box.left, height: box.bottom - box.top }) as never;
+    host.appendChild(element);
+  };
+  placed("planet-mini-globe sheet-compass", compass);
+  placed("forest-label planet-nameplate", stories[0]!.box);
+  assert.deepEqual(mapControls(host as never).map(({ left, top, right, bottom }) => ({ left, top, right, bottom })), [compass], "at the opening view, no Whole map button: the compass only");
+  placed("whole-map", button);
+  assert.deepEqual(mapControls(host as never).map(({ left, top, right, bottom }) => ({ left, top, right, bottom })), [compass, button]);
+  for (const control of [button, compass]) assert.ok(at.right - NAME_OVERLAP_SLACK <= control.left || at.left + NAME_OVERLAP_SLACK >= control.right
+    || at.bottom - NAME_OVERLAP_SLACK <= control.top || at.top + NAME_OVERLAP_SLACK >= control.bottom, "moved off every control");
 });
 
 test("3.104 a click names what the name under it names: a part's name before its story's, and a name it falls outside names nothing", () => {

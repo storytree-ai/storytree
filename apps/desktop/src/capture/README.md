@@ -31,7 +31,10 @@ bridge reads. The page opens with the first-run guide already seen, on the globe
 a capture of the guide itself passes `guide: 'unseen'` (also `fakeBridge(answers,
 { guide: 'unseen' })`). Every teaching card is hidden as it appears, so none
 intercepts a capture's clicks; a capture of the cards themselves passes `teaching: 'shown'`. Unseeded known reads receive the bridge's quiet defaults; an unknown
-method fails with its name. A view writes `<name>.png` and, when measured,
+method fails with its name. The quiet defaults answer updates as a copy that installs no releases; a capture of
+the gear's Updates section as an installed user sees it passes `answers: installedUpdates('idle')`, or
+`installedUpdates('waiting')` for a build waiting to install (see the
+[Updates capture](../../../../packages/app/testing/view/updates-at-rest/capture.mjs)). A view writes `<name>.png` and, when measured,
 `<name>.json`; `picture: false` omits the picture and `measurement` changes the JSON
 filename. The return value is the array of measured values.
 

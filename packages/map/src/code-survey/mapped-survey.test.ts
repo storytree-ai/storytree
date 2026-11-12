@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Code survey of mapped stories (ADR-0993 D2, D3, D5): an imported project's packages, read
+ * Capability 8 · Code survey of imported stories (ADR-0993 D2, D3, D5): an imported project's packages, read
  * from the folder this machine imports it from, as black boxes. Written against small imports in temporary folders.
  */
 import assert from "node:assert/strict";
@@ -17,7 +17,7 @@ import { codeSurveyReader } from "./read-survey.js";
 
 const REPOSITORY = "https://example.test/shop.git";
 
-/** A mapped story of `from`, for `package`, holding its code in `folders`. */
+/** An imported story of `from`, for `package`, holding its code in `folders`. */
 const mappedStory = (id: string, title: string, pkg: string, from = REPOSITORY, folders = [pkg]) =>
   ({ id, title, capabilities: [], mapped: { from, package: pkg, folders } });
 
@@ -57,7 +57,7 @@ const SHOP = {
   "packages/pay/lib/pay.mjs": "export const pay = () => 1;\n",
 };
 
-test("8.20 a mapped story is surveyed from the folder this machine imports it from: the tracked JavaScript and TypeScript files under its folders, each with its non-blank lines and no capability", async () => {
+test("8.20 an imported story is surveyed from the folder this machine imports it from: the tracked JavaScript and TypeScript files under its folders, each with its non-blank lines and no capability", async () => {
   const shop = await mkdtemp(path.join(tmpdir(), "mapped-survey-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
   try {
@@ -85,7 +85,7 @@ test("8.20 a mapped story is surveyed from the folder this machine imports it fr
   }
 });
 
-test("8.21 a mapped story's package dependency on another mapped story's package is a road; a loop among them is reported and refuses nothing", async () => {
+test("8.21 an imported story's package dependency on another imported story's package is a road; a loop among them is reported and refuses nothing", async () => {
   const shop = await mkdtemp(path.join(tmpdir(), "mapped-roads-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
   try {
@@ -104,7 +104,7 @@ test("8.21 a mapped story's package dependency on another mapped story's package
   }
 });
 
-test("8.22 surveying again at the same commit keeps each mapped story's survey; a new commit reads only what changed", async () => {
+test("8.22 surveying again at the same commit keeps each imported story's survey; a new commit reads only what changed", async () => {
   const shop = await mkdtemp(path.join(tmpdir(), "mapped-again-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
   try {
@@ -194,7 +194,7 @@ test("8.24 work done at source in an imported checkout counts before it is commi
   }
 });
 
-test("8.23 a built story's package dependency on a mapped story's package is a road from it to the mapped story; no road ever runs from a mapped story to a built one", async () => {
+test("8.23 a built story's package dependency on an imported story's package is a road from it to the imported story; no road ever runs from an imported story to a built one", async () => {
   const shop = await mkdtemp(path.join(tmpdir(), "mapped-built-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
   try {
@@ -213,7 +213,7 @@ test("8.23 a built story's package dependency on a mapped story's package is a r
   }
 });
 
-test("8.26 a mapped story's file under the folders or files an explored capability covers carries that capability, work not yet committed included; the rest carry none, and a change of covers is read at the same commit", async () => {
+test("8.26 an imported story's file under the folders or files an explored capability covers carries that capability, work not yet committed included; the rest carry none, and a change of covers is read at the same commit", async () => {
   const shop = await mkdtemp(path.join(tmpdir(), "mapped-explored-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
   try {
@@ -238,7 +238,7 @@ test("8.26 a mapped story's file under the folders or files an explored capabili
   }
 });
 
-test("8.49 a mapped Python package's .py files are drawn on its island through the survey's Python reader, each with its non-blank lines, its test files and conftest.py among them; with no two capabilities exploring it, nothing parses them", async () => {
+test("8.49 an imported Python package's .py files are drawn on its island through the survey's Python reader, each with its non-blank lines, its test files and conftest.py among them; with no two capabilities exploring it, nothing parses them", async () => {
   const shop = await mkdtemp(path.join(tmpdir(), "mapped-python-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
   try {
@@ -270,7 +270,7 @@ test("8.49 a mapped Python package's .py files are drawn on its island through t
   }
 });
 
-test("8.58 a mapped story's source file, JavaScript, TypeScript or Python, importing a file another explored capability covers is an edge from its capability to that one's; a file no capability covers or a test makes none, and a change of covers is read at the same commit", async () => {
+test("8.58 an imported story's source file, JavaScript, TypeScript or Python, importing a file another explored capability covers is an edge from its capability to that one's; a file no capability covers or a test makes none, and a change of covers is read at the same commit", async () => {
   const shop = await mkdtemp(path.join(tmpdir(), "mapped-edges-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
   try {

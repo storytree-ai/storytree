@@ -97,7 +97,7 @@ function failing(contracts: readonly ContractLine[]): string {
 /** What a mapped story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. */
 function mapped({ files, lines }: NonNullable<StoryPanel["mapped"]>): string {
   const counts = files === undefined || lines === undefined ? "" : ` ${files.toLocaleString("en-GB")} file${files === 1 ? "" : "s"}, ${lines.toLocaleString("en-GB")} line${lines === 1 ? "" : "s"}.`;
-  return `<p class="panel-mapped"><strong>Mapped:</strong> here before storytree, and assumed to be working.${counts}</p>`;
+  return `<p class="panel-mapped"><strong>Imported:</strong> here before storytree, and assumed to be working.${counts}</p>`;
 }
 
 type ExtraCheck = NonNullable<StoryPanel["checks"]>[number];

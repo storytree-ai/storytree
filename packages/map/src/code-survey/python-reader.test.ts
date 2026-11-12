@@ -26,8 +26,8 @@ async function write(folder: string, files: Readonly<Record<string, string>>): P
 const story = (id: string, title: string, capabilities: readonly string[] = ["1 · Value"]) =>
   ({ id, title, capabilities: capabilities.map((name, at) => ({ id: `${id}-cap-${at + 1}`, title: name })) });
 
-// First in its file, so the grammar has not loaded when it runs: reading a mapped story's tests loads it itself.
-test("8.44, 8.50 reading a mapped Python story's tests loads the Python reader's grammar before it surveys their imports", async () => {
+// First in its file, so the grammar has not loaded when it runs: reading an imported story's tests loads it itself.
+test("8.44, 8.50 reading an imported Python story's tests loads the Python reader's grammar before it surveys their imports", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "python-mapped-tests-"));
   try {
     await write(folder, {
@@ -42,7 +42,7 @@ test("8.44, 8.50 reading a mapped Python story's tests loads the Python reader's
   }
 });
 
-test("8.50 a built Python story's imports are edges in its survey: import a.b, from a import y (a submodule, else the package), a wildcard, relative levels, nested imports and namespace packages, searched from its src/ then its root; a mapped island's from src/ then the top", async () => {
+test("8.50 a built Python story's imports are edges in its survey: import a.b, from a import y (a submodule, else the package), a wildcard, relative levels, nested imports and namespace packages, searched from its src/ then its root; an imported island's from src/ then the top", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "python-survey-"));
   try {
     await write(folder, {
@@ -74,7 +74,7 @@ test("8.50 a built Python story's imports are edges in its survey: import a.b, f
     ]);
     assert.deepEqual(edges(survey.tests?.find((one) => one.path === "tests/test_total.py")?.imports ?? []), ["tests/test_total.py -> src/cart/total.py"], "a test outside src reaches the module it imports");
 
-    // A mapped island has no package to root its search: src/ first, then the top.
+    // An imported island has no package to root its search: src/ first, then the top.
     const paths = new Set(["src/shop/a.py", "src/shop/b.py", "lib/c.py"]);
     await readersReady(paths);
     assert.deepEqual(pythonReader.edgesOf({ path: "src/shop/a.py", text: "import shop.b\nimport lib.c\n" }, paths, []).map((edge) => edge.to), ["src/shop/b.py", "lib/c.py"]);

@@ -152,6 +152,32 @@ test("4.14 the install choice is hidden where the app does not install releases"
   mounted.stop();
 });
 
+test("4.14 the line under the install choice says only what the chosen option and the status line do not: hidden for the quiet moment and while a build waits", async () => {
+  const window = new Window();
+  const host = window.document.createElement("div");
+  host.innerHTML = renderAppMenu();
+  let kept: InstallChoice = { mode: "quiet" };
+  const mounted = mountInstallChoice(host as unknown as HTMLElement, {
+    async read(): Promise<InstallChoiceState> { return { available: true, choice: kept }; },
+    async set(choice) { kept = choice; return { available: true, choice: kept }; },
+  }, () => new Date(2026, 9, 2, 12, 0));
+  await setImmediate();
+  const field = host.querySelector("[data-app-install-choice]")!;
+  const next = field.querySelector("[data-app-install-next]")!;
+  assert.equal(next.hasAttribute("hidden"), true, "the quiet option's own explanation already says when");
+  const radio = field.querySelector('input[value="hours"]') as HTMLInputElement;
+  radio.checked = true;
+  radio.dispatchEvent(new window.Event("change", { bubbles: true }));
+  await setImmediate();
+  assert.equal(next.hasAttribute("hidden"), false);
+  assert.match(next.textContent, /Next automatic install/);
+  mounted.waiting(true);
+  assert.equal(next.hasAttribute("hidden"), true, "a build waiting has its install time on the status line");
+  mounted.waiting(false);
+  assert.equal(next.hasAttribute("hidden"), false);
+  mounted.stop();
+});
+
 test("4.24 the Updates section shows the update channel, stable by default, saves an explicit move to alpha, and keeps the old one when a change is refused", async () => {
   const window = new Window();
   const host = window.document.createElement("div");

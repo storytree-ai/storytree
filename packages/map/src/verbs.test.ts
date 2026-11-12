@@ -21,10 +21,10 @@ test("3.4 the map command, declared as Code map's map and affected families, ref
   assert.match((await refused("map", { select: "story:x", show: true, "dry-run": true })).message, /either --show or --dry-run/);
   assert.match((await refused("map", {})).message, /needs --select/);
   assert.match((await refused("map", { crossing: " , " })).message, /Name the folders/);
-  assert.match((await refused("map", { crossing: "src", select: "file:x" })).message, /names a mapped story/);
+  assert.match((await refused("map", { crossing: "src", select: "file:x" })).message, /names an imported story/);
   assert.match((await refused("map", { capabilities: true, select: "cap:2" })).message, /answers for one story/);
   for (const words of [{ select: "cap:2" }, { select: "story:x", crossing: "src" }, { select: "story:x", capabilities: true }]) {
-    assert.match((await refused("map", { links: true, ...words })).message, /--links checks one mapped story/);
+    assert.match((await refused("map", { links: true, ...words })).message, /--links checks one imported story/);
   }
   assert.match((await refused("affected", { given: "a..b", range: "c..d" })).message, /Give one range/);
   assert.match((await refused("affected", { show: true, "dry-run": true })).message, /either --show or --dry-run/);

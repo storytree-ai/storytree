@@ -94,7 +94,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // An existing codebase here, never imported, is imported before any story is planned (12.8).
         const declared = await unimportedPackages(folder, library);
         const unimported = declared.map((one) => one.title);
-        if (declared.length > 0) said.push(`${unimportedSentence(declared)} Call import_project with this project's folder before you plan stories: each package it declares becomes a mapped story, and plan_story refuses until it is imported.`);
+        if (declared.length > 0) said.push(`${unimportedSentence(declared)} Call import_project with this project's folder before you plan stories: each package it declares becomes an imported story, and plan_story refuses until it is imported.`);
         // A project set up before storytree made its small-fixes arc gains it here, once (6.15).
         const smallFixes = (await smallFixesArc(library))?.id;
         if (smallFixes !== undefined) said.push(smallFixesSentence(smallFixes));

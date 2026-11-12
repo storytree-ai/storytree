@@ -88,7 +88,7 @@ function checkedTime(checked: Date, now: Date): string {
 function waitingFor(choice: InstallChoice | undefined): string {
   if (choice?.mode === "manual") return "It installs when you click Restart to update.";
   if (choice?.mode === "hours") return `It installs during your quiet hours, ${choice.from} to ${choice.to}, once no one is using storytree.`;
-  return "It installs at the next quiet moment, once no one has used the window, and no agent has worked, for ten minutes.";
+  return "It installs at the next quiet moment.";
 }
 
 /** Whether the app opens at sign-in, in the tray (lifecycle 1.12), and whether it can here. */
@@ -137,17 +137,20 @@ export function mountSignIn(host: HTMLElement, bridge: SignInBridge | undefined)
 /** The gear's install choice (4.14); the bridge reads and keeps it in the main process. */
 export interface InstallChoiceBridge { read: UpdatesBridge["readInstallChoice"]; set: UpdatesBridge["setInstallChoice"] }
 
-/** What the Updates section says about when the next automatic install may happen. */
+/** What the Updates section says about when the next automatic install may happen, or nothing when the chosen option already says it. */
 export function nextInstallText(choice: InstallChoice, now: Date): string {
   if (choice.mode === "manual") return "Updates still download in the background, ready for when you press Check for updates.";
-  if (choice.mode === "quiet") return "A downloaded update installs at the next quiet moment.";
+  if (choice.mode === "quiet") return "";
   const next = nextInstallAt(choice, now)!;
   if (next.getTime() === now.getTime()) return `Quiet hours are on now, until ${choice.to}: a downloaded update installs at the next quiet moment.`;
   const day = next.getDate() === now.getDate() ? "today" : "tomorrow";
   return `Next automatic install: ${day} from ${choice.from}, until ${choice.to}, when no one is using storytree.`;
 }
 
-/** The Updates section's When updates install choice; shown only where the app installs releases. */
+/**
+ * The Updates section's When updates install choice; shown only where the app installs releases. Its line under the
+ * options is hidden while a build waits (`waiting`), whose status line already says when it installs.
+ */
 export function mountInstallChoice(host: HTMLElement, bridge: InstallChoiceBridge | undefined, now: () => Date = () => new Date(), changed: () => void = () => {}) {
   const field = host.querySelector<HTMLElement>("[data-app-install-choice]")!;
   const radios = [...field.querySelectorAll<HTMLInputElement>('input[name="app-install-mode"]')];
@@ -157,7 +160,12 @@ export function mountInstallChoice(host: HTMLElement, bridge: InstallChoiceBridg
   const error = field.querySelector<HTMLElement>("[data-app-install-error]")!;
   let kept: InstallChoice | undefined;
   let stopped = false;
+  let waits = false;
   let timer: ReturnType<typeof setInterval> | undefined;
+  const say = () => {
+    next.textContent = kept === undefined ? "" : nextInstallText(kept, now());
+    next.hidden = waits || next.textContent === "";
+  };
   const show = (state: InstallChoiceState) => {
     if (stopped) return;
     kept = state.choice;
@@ -165,7 +173,7 @@ export function mountInstallChoice(host: HTMLElement, bridge: InstallChoiceBridg
     for (const radio of radios) { radio.checked = radio.value === state.choice.mode; radio.disabled = false; }
     if (state.choice.mode === "hours") { from.value = state.choice.from; to.value = state.choice.to; }
     from.disabled = to.disabled = state.choice.mode !== "hours";
-    next.textContent = nextInstallText(state.choice, now());
+    say();
   };
   const change = () => {
     if (bridge === undefined || kept === undefined) return;
@@ -189,8 +197,12 @@ export function mountInstallChoice(host: HTMLElement, bridge: InstallChoiceBridg
     unreadable(field, error, reason);
   });
   // The next window's day moves with the clock.
-  timer = setInterval(() => { if (kept !== undefined) next.textContent = nextInstallText(kept, now()); }, 60_000);
-  return { stop() { stopped = true; clearInterval(timer); field.removeEventListener("change", change); }, choice: () => kept };
+  timer = setInterval(say, 60_000);
+  return {
+    stop() { stopped = true; clearInterval(timer); field.removeEventListener("change", change); },
+    choice: () => kept,
+    waiting(on: boolean) { waits = on; say(); },
+  };
 }
 
 /** The gear's update channel (4.24); the bridge reads and keeps it in the installation's release-channel.json. */

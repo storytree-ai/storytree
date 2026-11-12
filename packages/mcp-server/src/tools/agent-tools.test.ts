@@ -578,7 +578,7 @@ test("session-management 5.63 · land on a checkout whose code is only in langua
   });
 });
 
-test("9.21 land on a capability of a mapped story reads its story's numbered tests in the folder this machine imports it from, naming only the planned contracts none of them carries", async () => {
+test("9.21 land on a capability of an imported story reads its story's numbered tests in the folder this machine imports it from, naming only the planned contracts none of them carries", async () => {
   await withProject(async ({ folder }) => {
     const shop = path.join(path.dirname(folder), "shop");
     mkdirSync(path.join(shop, "src"), { recursive: true });

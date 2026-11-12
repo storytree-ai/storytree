@@ -1,6 +1,6 @@
 /**
  * Capability 18 · Built commands: contract 18.3, the file-to-capability lookup the hook command setup registers gives the gate
- * before each edit; contract 18.4, the hook command runs none of Session management's work while that part is switched off.
+ * before each edit; contract 18.7, its language rule; contract 18.4, the hook command runs none of Session management's work while that part is switched off.
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
@@ -13,7 +13,7 @@ import { promisify } from "node:util";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { declaredCapabilities } from "./storytree-hook.js";
+import { declaredCapabilities, readsCode } from "./storytree-hook.js";
 
 test("18.3 the hook command setup registers places an edited file in its capability by the map's rule: its opening \"Capability N · …\", or a test file's one numbered capability, and never by the survey's inference", async () => {
   const tree = { arcs: [], stories: [{ id: "story_1", title: "Visitor can sign up", capabilities: [{ id: "cap_form", title: "1 · Email form" }, { id: "cap_reset", title: "2 · Password reset" }] }] } as unknown as AnnotatedTree;
@@ -26,6 +26,10 @@ test("18.3 the hook command setup registers places an edited file in its capabil
   };
   const placed = await declaredCapabilities("/nowhere", Object.keys(texts), tree, (file) => texts[file]!);
   assert.deepEqual(Object.fromEntries(placed), { [`${src}/form.ts`]: "cap_form", [`${src}/reset.test.ts`]: "cap_reset" });
+});
+
+test("18.7 the hook command setup registers tells the gate which edited files are in a language the map reads, so storytree draws them from their imports (ADR-1324)", async () => {
+  assert.deepEqual(await Promise.all(["app/routes.ts", "pkg/module.py", "lib/index.mjs", "cmd/tool.go", "README.md"].map(readsCode)), [true, true, true, false, false]);
 });
 
 test("18.4 with Session management switched off on this computer, the hook command setup registers runs none of its work: it prints and records nothing, where switched on it records its time", { timeout: 60_000 }, async (t) => {

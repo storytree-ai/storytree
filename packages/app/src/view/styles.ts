@@ -6,6 +6,13 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
    (3), above the forest and its story panel but below the app bar (7) and the first launch's consent (8). */
 :root:has(.side-rail) { --rail-width: min(27rem, 40vw); }
 .side-rail { position: absolute; inset: 0 auto 0 0; z-index: 3; width: var(--rail-width); display: flex; flex-direction: column; box-sizing: border-box; background: #12171a; border-right: 1px solid #3d4748; color: #d9dedb; font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }
+/* The rail is dark in either OS theme, so the stories' surfaces in its tabs read its own dark palette, never a light page's (2.59). */
+.side-rail {
+  color-scheme: dark;
+  --bg: #12171a; --surface: #12171a; --text: #d9dedb; --muted: #a9b0ba; --line: #3d4748; --row-hover: #262a2f; --code-bg: #262a2f;
+  --pass-bg: #173a24; --pass-text: #8fdba6; --pass-line: #2c6b41; --fail-bg: #4a1d1d; --fail-text: #ffaaaa; --fail-line: #8a3434;
+  --none-bg: #2a2e33; --none-text: #b8bdc4; --none-line: #454a52;
+}
 main:has(> .side-rail) > .forest { margin-left: var(--rail-width); width: calc(100% - var(--rail-width)); }
 .side-rail[hidden] { display: none; }
 /* The rail's right edge, a handle a few pixels wide over the border, that sets its width; collapsed, it stays at the window's left

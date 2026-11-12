@@ -175,3 +175,23 @@ test("14.19 · the drain writes the verbs it sees mounted for the first time as 
     assert.equal((await mounted()).length, 2, "a second drain writes no second line for it");
   });
 });
+
+test("14.20 · the drain's learner reads its 28 days as the log's door tally, never every door-answered line, and learns the same lesson from it", async () => {
+  await inProject(["plan"], async (world, library) => {
+    // This week's doors check is done, so the drain reads only what the learner reads.
+    await world.log.append(world.project, { session: "drain-0", source: "tool", kind: "door-checked", since: world.now.toISOString(), until: world.now.toISOString(), filed: [] }, { at: world.now.toISOString() });
+    const log: LearnerWorld["log"] = {
+      ...world.log,
+      append: (project, line, options) => world.log.append(project, line, options),
+      doorTally: (project, since) => world.log.doorTally(project, since),
+      lines: (project, filter) => {
+        if (filter.kinds.includes("door-answered")) throw new Error("the learner read every door-answered line");
+        return world.log.lines(project, filter);
+      },
+    };
+    const said = await learnInDrain({ ...world, log });
+    assert.match(said[0] ?? "", /from 100 sessions over 28 days/, said.join("\n"));
+    assert.equal((await library.list("friction")).filter((friction) => friction.fields.title === 'Agents type "storytree plan", which no command answers').length, 1, said.join("\n"));
+    assert.deepEqual((await library.questions(world.arcs.cuts)).map((question) => question.fields.title).sort(), CUT_TITLES, "the cut groups are judged from the tally's calls");
+  });
+});

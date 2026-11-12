@@ -86,6 +86,19 @@
   pointer-events: none;
 }
 
+/* 3.108: the selected arc's open work counted, in its rings' pale cyan. */
+.forest-top > .forest-open-work {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #8fe3f5;
+  border-radius: 8px;
+  background: #101418cc;
+  color: #dde3e6;
+  font-size: 12px;
+  pointer-events: none;
+}
+
 .forest-layout-progress {
   padding: 0.3rem 0.6rem;
   border: 1px solid #485159;

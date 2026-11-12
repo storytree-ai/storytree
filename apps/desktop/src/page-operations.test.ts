@@ -12,6 +12,7 @@ import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 
 import { createBridge } from "./bridge.js";
 import { ConnectionError, LIBRARY_UNREACHABLE } from "@storytree/library/connection-error";
+import { readerName } from "@storytree/library/reads";
 
 import { answerPage, sayOutagesOnce } from "./page-operations.js";
 
@@ -53,6 +54,18 @@ test("8.1 the app's own operations and the setup help's travel on the channels t
   assert.equal(await page.copyHelpText("words"), "copyHelpText answered");
   assert.equal(await page.feedbackIdentity!.signOut(), "signOut answered");
   assert.deepEqual(heard, [["checkForUpdates", "check"], ["setSignIn", false], ["setInstallChoice", "on quit"], ["chooseProject", "tree"], ["deleteProject", "tree", "tree", true], ["copyHelpText", "words"], ["signOut"]]);
+});
+
+test("8.11 · each library read a page operation makes is counted against the reader \"app\" and that operation, however long its answer runs", async () => {
+  const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+  const ipc = { handle: (channel: string, listener: (event: unknown, ...args: unknown[]) => unknown) => { handlers.set(channel, listener); } };
+  const readers = async () => { await new Promise((resolve) => setTimeout(resolve, 1)); return readerName(); };
+  answerPage(ipc, PAGE_READS_CHANNELS, Object.fromEntries(Object.keys(PAGE_READS_CHANNELS).map((method) => [method, readers])) as Record<keyof typeof PAGE_READS_CHANNELS, typeof readers>);
+  answerPage(ipc, FOREST_CHANNELS, { codeSurvey: readers });
+
+  const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args)) as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
+  assert.deepEqual(await Promise.all([page.changesSince!("storytree", 0), page.contextReadings!("storytree", []), page.codeSurvey!("storytree")]), ["app changesSince", "app contextReadings", "app codeSurvey"]);
+  assert.notEqual(readerName(), "app changesSince", "outside an answer, the process's reader reads");
 });
 
 test("8.8 · an unreachable library is said once per outage: its reads resolve, so no handler stack is logged, app.log gets one line as it starts and one as it ends, and the page is told it in plain words; any other failure still rejects", async () => {

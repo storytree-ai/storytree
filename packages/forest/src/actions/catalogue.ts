@@ -18,7 +18,8 @@ export type IslandChoice = "fewest" | "most" | { story: string };
 
 /**
  * One step of an action, performed through the page's real input:
- * `island`, turn the chosen island to face (unmeasured) and click its middle; `note`, click a Library note in view;
+ * `island`, turn the chosen island to face (unmeasured) and click its middle; `part`, turn the chosen island to face and wheel in
+ * over it until a part's name shows on its land (unmeasured), then click the middle of that name (3.104); `note`, click a Library note in view;
  * `click`, click an element's middle (`optional` skips it when the page has none); `key`, press a key; `hover-sweep`,
  * move the mouse across the globe; `turn`, hold Ctrl and drag the map from an uncovered point of its canvas, sideways with a tilt
  * wave, so it ends turned; `idle`, touch nothing for `ms`; `wait`, until the page shows `until`; `start`, open the page
@@ -26,6 +27,7 @@ export type IslandChoice = "fewest" | "most" | { story: string };
  */
 export type Step =
   | { kind: "island"; island: IslandChoice }
+  | { kind: "part"; island: IslandChoice }
   | { kind: "note" }
   | { kind: "click"; selector: string; optional?: true }
   | { kind: "key"; key: string }
@@ -35,7 +37,7 @@ export type Step =
   | { kind: "wait"; until: Settled }
   | { kind: "start"; forget: readonly string[] };
 
-/** What settled looks like; every field given must hold. `selected: "island"` is the island the action clicked. */
+/** What settled looks like; every field given must hold. `selected: "island"` is the island the action clicked, or whose part it picked. */
 export type Settled = {
   selected?: "island" | "none";
   panel?: "open" | "closed";
@@ -140,7 +142,8 @@ export const CATALOGUE: readonly LagAction[] = [
   openIsland("open-named-island", { story: NAMED_STORY }),
   // The first pick right after an arc is selected (3.102), where the guided runs on Windows caught a slow answer and frame: on the Arcs
   // tab, any arc selected is let go, then the first is selected, its rings drawn on the islands its increments name, before the pick.
-  { ...openIsland("open-island-after-arc", { story: NAMED_STORY }),
+  // Selecting an arc closes the story panel and lets go a click on bare land (3.105), so the pick is the field's: a part's name on the map.
+  { ...openIsland("open-part-after-arc", { story: NAMED_STORY }), perform: [{ kind: "part", island: { story: NAMED_STORY } }],
     setup: [...RESET, { kind: "click", selector: "[data-rail-tab=arcs][aria-selected=false]", optional: true },
       { kind: "click", selector: ".arc-lane[aria-pressed=true]", optional: true }, { kind: "idle", ms: 500 },
       { kind: "click", selector: ".arc-lane[aria-pressed=false]" }, { kind: "idle", ms: 300 }] },

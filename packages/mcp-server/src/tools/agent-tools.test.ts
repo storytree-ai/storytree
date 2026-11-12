@@ -579,7 +579,7 @@ test("session-management 5.63 · land on a checkout whose code is only in langua
 });
 
 test("9.21 land on a capability of an imported story reads its story's numbered tests in the folder this machine imports it from, naming only the planned contracts none of them carries", async () => {
-  await withProject(async ({ folder }) => {
+  await withProject(async ({ folder, library }) => {
     const shop = path.join(path.dirname(folder), "shop");
     mkdirSync(path.join(shop, "src"), { recursive: true });
     writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
@@ -589,7 +589,7 @@ test("9.21 land on a capability of an imported story reads its story's numbered 
       const imported = await agent.call("import_project", { folder: "../shop" });
       assert.equal(imported.isError, false, imported.text);
       const [story] = imported.data.added as string[];
-      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", covers: ["src"], ...FOUNDED }));
+      const [capability] = (await library.list("capability")).filter((drawn) => drawn.fields.story === story).map((drawn) => drawn.id);
       idOf(await agent.call("plan_contract", { capability, title: "Adds an item" }));
       idOf(await agent.call("plan_contract", { capability, title: "Refuses a sold-out item" }));
       assert.equal((await agent.call("claim", { capability, reason: "fixing the cart" })).isError, false);

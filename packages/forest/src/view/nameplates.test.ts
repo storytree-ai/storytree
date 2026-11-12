@@ -150,6 +150,33 @@ test("3.33 a capability name is moved off the story names that show, never off o
   assert.equal(moves.has("over faded"), false, "the name over a faded one stays on its point");
 });
 
+test("3.33 a capability name the map's frame cuts is moved inside it, clear of the names already placed; one wholly off it stays", () => {
+  // As the forest seed showed it at 1440 x 960, six notches in: a name just below the Whole map button ran past the window's right edge.
+  const frame = { left: 0, top: 48, right: 1440, bottom: 960 };
+  const names = [
+    { capability: "cut", box: { left: 1380, top: 160, right: 1500, bottom: 180 }, given: { x: 0, y: 0 }, size: 2 },
+    { capability: "neighbour", box: { left: 1300, top: 158, right: 1376, bottom: 178 }, given: { x: 0, y: 0 }, size: 5 },
+    { capability: "off screen", box: { left: 1600, top: 400, right: 1700, bottom: 420 }, given: { x: 0, y: 0 }, size: 1 },
+  ];
+  const { moves } = crowdedNames([], undefined, names, frame);
+  const move = moves.get("cut");
+  assert.ok(move !== undefined, "the cut name moves");
+  const at = { left: 1380 + move.x, top: 160 + move.y, right: 1500 + move.x, bottom: 180 + move.y };
+  assert.ok(at.left + NAME_OVERLAP_SLACK >= frame.left && at.right - NAME_OVERLAP_SLACK <= frame.right
+    && at.top + NAME_OVERLAP_SLACK >= frame.top && at.bottom - NAME_OVERLAP_SLACK <= frame.bottom, `moved by ${JSON.stringify(move)}, no letter is cut`);
+  const neighbour = names[1]!.box;
+  assert.ok(at.right <= neighbour.left + NAME_OVERLAP_SLACK || neighbour.right <= at.left + NAME_OVERLAP_SLACK
+    || at.bottom <= neighbour.top + NAME_OVERLAP_SLACK || neighbour.bottom <= at.top + NAME_OVERLAP_SLACK, "and it clears the name beside it");
+  assert.equal(moves.has("neighbour"), false, "a name wholly inside the frame and clear stays on its point");
+  assert.equal(moves.has("off screen"), false, "a name wholly off the map is not pulled onto it");
+  // Frame to frame: shown where its move put it, nothing moves again.
+  const shown = names.map(name => {
+    const given = moves.get(name.capability) ?? { x: 0, y: 0 };
+    return { ...name, given, box: { left: name.box.left + given.x, right: name.box.right + given.x, top: name.box.top + given.y, bottom: name.box.bottom + given.y } };
+  });
+  assert.deepEqual([...crowdedNames([], undefined, shown, frame).moves], [], "names already moved inside stay still on the next frame");
+});
+
 test("3.4 a story's name that runs past the map's frame, under the rail or out of the window, fades as crowded and crowds no other", () => {
   const box = (left: number, top: number) => ({ left, top, right: left + 112, bottom: top + 33 });
   // As the five-story row showed them at 1440 x 960 after a quarter turn and four notches in: the map's frame runs from the

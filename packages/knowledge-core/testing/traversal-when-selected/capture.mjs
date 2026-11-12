@@ -123,7 +123,7 @@ const whileFramesCome = async (page, target, predicate, arg, capMs) => {
 const results = { label, sessions: SESSIONS, selected: SELECTED, colours: colour, reads };
 phase('launch the browser and load the page');
 await runCapture({
-  folder: pictures, dist: buildFolder(here, smoke ? 'smoke' : label), seed, survey,
+  folder: pictures, name: label, dist: buildFolder(here, smoke ? 'smoke' : label), seed, survey,
   answers: { windowReading, idleAfterMs: async () => 30 * 60_000, leaveAfterMs: async () => 60 * 60_000 },
   prepare: async ({ page, bridge }) => {
     phase('page loaded');

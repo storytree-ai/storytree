@@ -68,7 +68,7 @@ if (keptFile !== undefined) {
 const results = {};
 
 await runCapture({
-  folder: pictures, dist, seed, survey,
+  folder: pictures, name: prefix, dist, seed, survey,
   prepare: async ({ page, settle, bridge }) => {
     await page.addInitScript(({ shelf, dump }) => {
       for (const [key, value] of Object.entries(shelf)) localStorage.setItem(key, value);

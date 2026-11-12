@@ -96,6 +96,7 @@ import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
 import { appVersion as runningVersion } from "@storytree/app/version";
 import { connect, type AnnotatedTree, type Storytree } from "@storytree/library";
+import { asReader, nameReader } from "@storytree/library/reads";
 import { findBinaries, start, type LocalPostgres } from "@storytree/local-postgres";
 import {
   AUTH_CALLBACK,
@@ -128,7 +129,7 @@ import { CLEAR_FIRST_LAUNCH } from "./smoke-first-launch.js";
 import { smokeElectronFiles, smokePhases } from "./smoke-phases.js";
 import { stressWindow, windowSteps } from "./smoke-stress.js";
 import { smokeVerdict } from "./smoke-verdict.js";
-import { lateReads, projectAnswers } from "./late-reads.js";
+import { lateReads, projectAnswers, readerPerChannel } from "./late-reads.js";
 import { keepPageInWindow } from "./page-window.js";
 import { keepTray } from "./tray.js";
 import { titleWindow } from "./window-title.js";
@@ -150,6 +151,9 @@ declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 /** Which build this is (`version 0.3.0 (commit 80bcc63)`, or the development checkout), shown in the title and the tray. */
 let build = app.isPackaged ? packagedBuild(app.getVersion()) : "";
 const args = parseArgs(process.argv, { packaged: app.isPackaged, env: process.env });
+// What the app reads from its library is the app's, whatever its argv[1] (none packaged, --updated after an update);
+// each page operation's read is that operation's (late-reads.ts, 8.11).
+nameReader("app");
 // In a smoke check, every main-process error logged turns its exit red, and no error box waits for a person (lifecycle 1.30).
 const verdict = smokeVerdict({ smoke: args.smoke, log: line => console.error(line) });
 // A smoke check says each phase as it starts, so one that never reaches its page shows where it stopped (lifecycle 1.36).
@@ -293,7 +297,7 @@ async function run(): Promise<void> {
   phases.phase("starting the app's handlers");
   answerStartMarks(ipcMain, START_MARK, marks);
   // Every page operation is answered through one outage guard: a library that cannot be reached is said once in app.log, not a stack per poll (page bridge 8.8).
-  const page = sayOutagesOnce(ipcMain, (line) => console.error(line));
+  const page = sayOutagesOnce(readerPerChannel(ipcMain), (line) => console.error(line));
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
   const appVersion = runningVersion({ packaged: app.isPackaged, packagedVersion: () => app.getVersion(), appPath: app.getAppPath() });
   // The journey stays in the frame, not in a manifest (ADR-1030 D4): the frame is its client too, telling it of the launch,
@@ -437,7 +441,7 @@ async function run(): Promise<void> {
     choice: () => installing.read().choice,
     windowActiveAt: () => BrowserWindow.getAllWindows().some(window => window.isVisible() && !window.isMinimized())
       ? Date.now() - powerMonitor.getSystemIdleTime() * 1000 : undefined,
-    agentActiveAt: async () => storytree === undefined ? undefined : await agentActiveAt(storytree),
+    agentActiveAt: async () => storytree === undefined ? undefined : await asReader("app quietMoment", () => agentActiveAt(storytree!)),
     log: (line) => console.error(line),
   });
   // The installed app opens at sign-in, in the tray, unless the user turned that off (lifecycle 1.12). An installed Mac app
@@ -473,7 +477,7 @@ async function run(): Promise<void> {
     libraryWork();
     try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
     // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (Session management 4.21).
-    setInterval(() => void reads?.lookAround(), LOOK_EVERY_MS).unref();
+    setInterval(() => void asReader("app lookAround", () => reads?.lookAround()), LOOK_EVERY_MS).unref();
     releases = followReleases({ restart: lifecycle.restart, canRestart, quiet }, home.dir, () => installing.read().choice);
     // Behind the error page the app keeps trying a library it could not reach, and shows the project once it answers (lifecycle 1.47).
     if ("unreachable" in started && started.unreachable) {
@@ -487,7 +491,7 @@ async function run(): Promise<void> {
     void errorsOpened?.then(() => errorRecords.settled())
       .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
       .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
-    if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });
+    if (storytree !== undefined) backups = asReader("app backups", () => keepBackups({ storytree: storytree!, dir: home.backups, log: line => console.log(line) }));
   }
 }
 

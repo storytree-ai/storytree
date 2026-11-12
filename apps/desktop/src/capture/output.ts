@@ -3,8 +3,9 @@
  * writes to a scratch folder, so the evidence folder stays as it was; re-taking the evidence into its own
  * folder is a deliberate act, named on the command line with --retake. A retake's pictures are not committed:
  * check:evidence refuses them (ADR-1234 D1), so they go to the evidence bucket with `pnpm evidence:upload --pr <n>`.
+ * A scratch folder starts each run empty, so it holds only what that run took, never an older capture's shot.
  */
-import { mkdirSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -37,12 +38,20 @@ export function buildFolder(folder: string, ...parts: string[]): string {
 
 const UPLOAD = "pnpm evidence:upload --pr <n> --readme <the evidence folder's README> <file…>";
 
+/** The scratch folders this process has emptied: a capture asks for its folder once per shot, and keeps each. */
+const emptied = new Set<string>();
+
 /**
- * outputFolder for this run, made if it is missing and said on stderr, so the capture's reader knows where to look
- * and that a retake's pictures go to the evidence bucket, not into a commit.
+ * outputFolder for this run, made if it is missing (a scratch folder emptied on the run's first ask) and said on
+ * stderr, so the capture's reader knows where to look and that a retake's pictures go to the evidence bucket, not
+ * into a commit.
  */
 export function captureOutput(folder: string, run?: CaptureRun): string {
   const out = outputFolder(folder, run);
+  if (out !== folder && !emptied.has(out)) {
+    rmSync(out, { recursive: true, force: true });
+    emptied.add(out);
+  }
   mkdirSync(out, { recursive: true });
   console.error(out === folder
     ? `re-taking the evidence in ${out}: upload its pictures with ${UPLOAD} on the Mint box and link them, never commit them`

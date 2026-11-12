@@ -1,6 +1,6 @@
 /**
  * Capability 3 · Story node render (the forest story): the map's top-left mark while islands are still being laid out
- * (3.96), and the island on screen searched first (3.97), as question_bb933ce50f45's option D asked.
+ * (3.96), the line under a waiting island's name (3.95), and the island on screen searched first (3.97), as question_bb933ce50f45's option D asked.
  */
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
@@ -8,10 +8,11 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { waitUntil } from "@storytree/test-waits";
-import { keepArrangement, searchIsland, shelveOn, structureKey, subscribeSearching, type SearchAnswer, type TerritorySearcher } from "../territories/kept-layout.js";
+import { awaitingLayout, keepArrangement, searchIsland, shelveOn, structureKey, subscribeSearching, type SearchAnswer, type TerritorySearcher } from "../territories/kept-layout.js";
 import { islandRoadsWhenRouted, subscribeRouting, type IslandRoads, type RoadsAsk } from "../territories/island-roads.js";
 import type { TerritoryMap } from "../territories/territories.js";
-import { holdLayingOut, LayoutProgress, onScreenIsland } from "./layout-progress.js";
+import { CONCEPTS } from "@storytree/shown-words";
+import { holdLayingOut, LayingOutLabel, LayoutProgress, onScreenIsland } from "./layout-progress.js";
 
 afterEach(() => shelveOn(undefined));
 
@@ -100,4 +101,14 @@ test("3.97 the island on screen is the one selected, else the island that joined
   assert.equal(onScreen(["a", "b", "c", "d"], "b"), "b", "the selected island wins over the newest");
   assert.equal(onScreen(["a", "b", "c", "d"], undefined), "d");
   assert.equal(onScreen(["a", "b", "c"], undefined), "c", "the newest gone, the one before it");
+});
+
+test("3.95 an island awaiting its layout says under its name that it is laying out capabilities, the shown words' word, and says nothing once its arrangement is kept", () => {
+  shelveOn(undefined);
+  const searcher: TerritorySearcher = () => new Promise(() => {});
+  const label = () => renderToStaticMarkup(createElement(LayingOutLabel, { awaiting: awaitingLayout("named", shares, searcher) }));
+  assert.equal(label(), `<span class="planet-nameplate-laying-out">laying out ${CONCEPTS.capability.many}…</span>`, "ADR-1322 D1: the table's word for a capability, not 'parts'");
+  assert.match(label(), /laying out capabilities…/);
+  keepArrangement("named", { key: structureKey(shares), seeds: { a: { x: 1, z: 0 } } });
+  assert.equal(label(), "", "a kept island's name says nothing more");
 });

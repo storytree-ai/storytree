@@ -1,10 +1,6 @@
 /** Capability 3 · Story node render. Where the globe's nameplates sit on an island's plate: the story's just south of its coast, its capabilities' on their own land. */
 import { Quaternion, Vector3 } from "three";
-import { CONCEPTS } from "@storytree/shown-words";
 import type { Coast, Point, TerritoryMap } from "../territories/territories.js";
-
-/** 3.95: what an island awaiting the search that places its territories says under its name, in the shown words' word for them (ADR-1322 D1). */
-export const LAYING_OUT = `laying out ${CONCEPTS.capability.many}…`;
 
 /** A name on the map as drawn: the story it is on, the part it names if it is a part's, and its box in the window. */
 export type DrawnName = { readonly story: string; readonly capability?: string; readonly box: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number } };

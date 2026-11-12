@@ -417,7 +417,7 @@ export const isCodeFile = (path: string): boolean => {
 export const isTestFile = (path: string): boolean => readerOf(path)?.tests.test(path) === true;
 
 /** A test file, or a test helper by its path or as the disk reader tagged it: never counted as source, though a test reaches through a helper. */
-const isTestCode = (file: SourceFile): boolean => file.testSupport === true || isTestFile(file.path) || readerOf(file.path)?.testSupport.test(file.path) === true;
+export const isTestCode = (file: SourceFile): boolean => file.testSupport === true || isTestFile(file.path) || readerOf(file.path)?.testSupport.test(file.path) === true;
 
 /** The imports a file makes of files `paths` holds, read by its language's reader. */
 const edgesFrom = (file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Edge[] => readerOf(file.path)?.edgesOf(file, paths, packages) ?? [];

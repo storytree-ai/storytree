@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { setImmediate } from "node:timers/promises";
 import { settingsActions } from "@storytree/project-and-caller/settings";
-import { Window, type HTMLButtonElement, type HTMLSelectElement } from "happy-dom";
+import { Window, type HTMLButtonElement, type HTMLElement as DomElement, type HTMLSelectElement } from "happy-dom";
 import { mountAppMenu } from "./index.js";
 import { removeTemp } from "@storytree/test-waits";
 import { fakeBridge } from "../../../../apps/desktop/src/capture/index.js";
@@ -271,7 +271,7 @@ test("4.47 the gear's update dot names the build waiting, on its hover and as th
   assert.equal(gear.title, "Update ready: storytree 0.3.2741");
   assert.equal(row.hidden, false);
   assert.equal(row.textContent, "Update ready: storytree 0.3.2741");
-  const installNext = host.querySelector<HTMLElement>("[data-app-install-next]")!;
+  const installNext = host.querySelector<DomElement>("[data-app-install-next]")!;
   assert.equal(installNext.hidden, true, "a build waiting has its install time on the status line, not under the install choice too");
   assert.ok(host.querySelector(".app-menu-window")!.firstElementChild === row, "the line is the menu's first row");
   row.click();

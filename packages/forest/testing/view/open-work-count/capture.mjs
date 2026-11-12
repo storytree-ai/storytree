@@ -1,4 +1,4 @@
-// With an arc selected, the map's top row says how many parts and links its open work rings (3.108): storytree's own map (the
+// With an arc selected, the map's top row says how many capabilities and links its open work rings (3.108): storytree's own map (the
 // code-rows snapshot and its survey) as the app opens it, with the open-work capture's active arc in the stand-in bridge. No
 // arc selected shows no count; the arc's row clicked in the Arcs tab shows it, with no panel and with a story's panel open.
 // `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/open-work-count). It reads the count's words
@@ -25,7 +25,7 @@ const arcs = [{ arc: tree, state: 'active', questions: [], increments: [
   work('inc_map', 'arc_tree', 'The map shows a transaction the library retries', 'proposal', ['capability_5a80222c88c4', 'capability_8ffc78a4bad2']),
   work('inc_3c', 'arc_tree', 'Rollout 2, step 3c: a picked link lights its way', 'closed', ['capability_33812c1d778b']),
 ] }];
-const WORDS = "The arc's open work rings 5 parts and no link.";
+const WORDS = "The arc's open work rings 5 capabilities and no link.";
 
 const count = page => page.evaluate(() => document.querySelector('.forest-open-work')?.textContent ?? null);
 const results = {};

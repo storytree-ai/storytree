@@ -9,6 +9,7 @@ import { chromium } from "playwright-core";
 import { ForestTop } from "./forest-top.js";
 import { sheetFaces } from "./globe-switches.js";
 import { openWorkCount } from "./open-work.js";
+import { CONCEPTS } from "@storytree/shown-words";
 
 const notice = { text: "Some lanes could not be drawn. Island health and selection are still available.", issue: "the router gave up" };
 /** The band at the sheet's top its opening keeps clear of nameplates (sheet-navigation's CLEAR_TOP). */
@@ -40,7 +41,7 @@ test("3.103 the lanes notice sits in the map's top row, inside the band no namep
   }
 });
 
-test("3.108 with an arc selected, the top row says how many parts and links its open work rings, inside the band no nameplate opens in, left of the compass and an open panel", async t => {
+test("3.108 with an arc selected, the top row says how many capabilities and links its open work rings, a capability in the shown words' word (ADR-1322 D1), inside the band no nameplate opens in, left of the compass and an open panel", async t => {
   // The arc names part a; part b holds a contract it links; one edge holds a linked contract, the other none.
   const scene = { contracts: [{ capability: "b", contracts: ["c1"] }, { capability: "d", contracts: ["c9"] }],
     edges: [{ from: "s1", to: "s2", contracts: ["c2"] }, { from: "s2", to: "s3", contracts: ["c9"] }] };
@@ -55,9 +56,9 @@ test("3.108 with an arc selected, the top row says how many parts and links its 
   const page = await browser.newPage({ viewport: { width: 1008, height: 700 } });
   const css = await readFile(path.join(import.meta.dirname, "styles.css"), "utf8");
   for (const [faces, aside, rings, words] of [
-    [sheetFaces("stories", true), 0, { parts: 3, links: 1 }, "The arc's open work rings 3 parts and 1 link."],
-    [sheetFaces("stories", true), 492, { parts: 1, links: 2 }, "The arc's open work rings 1 part and 2 links."],
-    [sheetFaces("library", true), 492, { parts: 0, links: 0 }, "The arc's open work rings no part and no link."],
+    [sheetFaces("stories", true), 0, { parts: 3, links: 1 }, `The arc's open work rings 3 ${CONCEPTS.capability.many} and 1 link.`],
+    [sheetFaces("stories", true), 492, { parts: 1, links: 2 }, `The arc's open work rings 1 ${CONCEPTS.capability.one} and 2 links.`],
+    [sheetFaces("library", true), 492, { parts: 0, links: 0 }, `The arc's open work rings no ${CONCEPTS.capability.one} and no link.`],
   ] as const) {
     const top = renderToStaticMarkup(createElement(ForestTop, { layers: faces, onTurn() {}, islands: [], notice: undefined, aside, rings }));
     const compass = `<button class="planet-mini-globe" style="margin-right:${aside}px"><svg width="64" height="64"></svg></button>`;

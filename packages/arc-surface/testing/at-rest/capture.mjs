@@ -1,5 +1,7 @@
 // The Arcs tab at rest (contract 3.41, ADR-1309 D4): the real desktop page on storytree's own live library, read with the app's
-// own reads (the capture kit's liveAnswers), so its lanes are the library's ranked, waiting and ready arcs as they stand. The rail's
+// own reads (the capture kit's liveAnswers), so its lanes are the library's waiting, queued and in-progress arcs as they stand. The
+// live library need not hold a ranked arc or a ready one, so the seed ranks three of its live arcs (P1 the newest, P2 the two
+// oldest, so priority's order is seen to cut across the state order) and adds one ranked arc with one increment ready to take. The rail's
 // Arcs tab is put on show and nothing else is touched: the Active scope, no arc selected, no expansion open. A reader judges the
 // pictures against 3.41's declared ask; the measurements say what the page drew, in the order it drew it, for the reader to check
 // the pictures against. `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/arcs-at-rest). Reads
@@ -22,6 +24,22 @@ const routed = route(path.join(here, '../../../..'));
 if (routed.status !== 'routed') throw new Error(`no library to read: ${routed.message ?? routed.status}`);
 const storytree = await connect(routed.library);
 const live = await liveAnswers({ storytree, project: routed.project });
+const READY = 'arc_seedready0001', at = new Date().toISOString();
+const stamp = (id, type, fields) => ({ id, type, fields, version: 1, createdAt: at, updatedAt: at });
+const ready = {
+  arc: stamp(READY, 'arc', { title: 'A seeded ranked arc with one increment ready to take', intent: 'Seeded for the capture', endState: 'Its increment lands', priority: 2 }),
+  state: 'active', questions: [],
+  increments: [stamp('increment_seedready001', 'increment', { arc: READY, title: 'A seeded increment ready to take', objective: 'Seeded', status: 'proposal', parked: at })],
+};
+const seeded = {
+  ...live.answers,
+  boardArcs: async (project, closed) => {
+    const arcs = await live.answers.boardArcs(project, closed);
+    const shown = arcs.filter(({ state }) => state === 'active').sort((a, b) => a.arc.createdAt.localeCompare(b.arc.createdAt));
+    const ranks = new Map([[shown.at(-1)?.arc.id, 1], [shown[0]?.arc.id, 2], [shown[1]?.arc.id, 2]]);
+    return [...arcs.map(view => ranks.has(view.arc.id) ? { ...view, arc: { ...view.arc, fields: { ...view.arc.fields, priority: ranks.get(view.arc.id) } } } : view), ready];
+  },
+};
 
 /** What the tab draws at rest, top to bottom: its scopes, then each lane's first line and its ovals' accessible label. */
 const atRest = page => page.evaluate(() => {
@@ -47,7 +65,7 @@ const atRest = page => page.evaluate(() => {
 const results = {};
 try {
   await runCapture({
-    folder: pictures, dist, answers: live.answers,
+    folder: pictures, dist, answers: seeded,
     prepare: async ({ page, settle }) => {
       await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 180_000, polling: 200 });
       for (const button of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name: button, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }

@@ -11,7 +11,9 @@ export type ScreenPosition = { x: number; y: number; visible: boolean };
 export type IslandBox = { story: string; x: number; y: number; width: number; height: number };
 /** `moving` says a stop's glide is still under way; `notes` lists the Library's notes drawn on the globe, by id; `islands`
  * gives each drawn island on the near side its screen box (3.51). */
-export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined; cancel(): void; moving(): boolean; notes(): string[]; islands(): IslandBox[] };
+export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined;
+  /** Each target's `position`, all read at once (3.49). */
+  positions(targets: readonly GlobeTarget[]): (ScreenPosition | undefined)[]; cancel(): void; moving(): boolean; notes(): string[]; islands(): IslandBox[] };
 /** The controls a globe view hands over, with the panel width (CSS pixels) it last placed itself beside (3.40, 3.45). */
 export type PlacedGlobeControls = GlobeControls & { aside(): number };
 /** The short way round from `from` to face the way `to` does, as a yaw to ease toward. */
@@ -59,6 +61,31 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
     host.invalidate();
     return true;
   }
+  // 3.49: every target placed in one update of the world's matrices and one walk of the scene, so the page's locator reads a
+  // large map's islands each frame at the cost of one, not one per island.
+  function positions(targets: readonly GlobeTarget[]): (ScreenPosition | undefined)[] {
+    const world = host.world(), camera = host.camera();
+    world.updateMatrixWorld(true); camera.updateMatrixWorld(true);
+    const named = new Map<string, Object3D>();
+    world.traverse(object => { if (object.name !== "" && !named.has(object.name)) named.set(object.name, object); });
+    const { width, height } = host.size(), sheet = named.has("sheet:glass");
+    const centre = named.get("globe")?.getWorldPosition(new Vector3()) ?? new Vector3(), facing = camera.getWorldDirection(new Vector3());
+    return targets.map(target => {
+      const found = findTarget(world, target, name => named.get(name));
+      if (found === undefined) return undefined;
+      const projected = found.point.clone().project(camera);
+      // On the glass sheet nothing is round the back: an island or a note hung under the glass is hidden only as `isDrawn`
+      // says, from whichever side the eye looks (3.63, ADR-1062 D4).
+      const near = target.kind === "core" || sheet || underTheGlass(found.object) || found.point.clone().sub(centre).dot(facing) <= 0;
+      let marked = target.kind !== "story";
+      if (!marked) found.object.traverseVisible(object => {
+        const mesh = object as Mesh;
+        if (mesh.geometry && [mesh.material].flat().some(material => material?.visible && material.opacity > 0)) marked = true;
+      });
+      return { x: (projected.x + 1) * width / 2, y: (1 - projected.y) * height / 2,
+        visible: marked && isDrawn(found.object) && near && Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1 };
+    });
+  }
   return {
     stop(stop) {
       const world = host.world(); world.updateMatrixWorld(true);
@@ -87,24 +114,8 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       const from = current();
       return go(from, { ...to, turn: from.turn }, duration, true);
     },
-    position(target) {
-      const world = host.world(), camera = host.camera();
-      world.updateMatrixWorld(true); camera.updateMatrixWorld(true);
-      const found = findTarget(world, target);
-      if (found === undefined) return undefined;
-      const projected = found.point.clone().project(camera), { width, height } = host.size();
-      const centre = world.getObjectByName("globe")?.getWorldPosition(new Vector3()) ?? new Vector3();
-      // On the glass sheet nothing is round the back: an island or a note hung under the glass is hidden only as `isDrawn`
-      // says, from whichever side the eye looks (3.63, ADR-1062 D4).
-      const near = target.kind === "core" || onTheSheet(world) || underTheGlass(found.object) || found.point.clone().sub(centre).dot(camera.getWorldDirection(new Vector3())) <= 0;
-      let marked = target.kind !== "story";
-      if (!marked) found.object.traverseVisible(object => {
-        const mesh = object as Mesh;
-        if (mesh.geometry && [mesh.material].flat().some(material => material?.visible && material.opacity > 0)) marked = true;
-      });
-      return { x: (projected.x + 1) * width / 2, y: (1 - projected.y) * height / 2,
-        visible: marked && isDrawn(found.object) && near && Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1 };
-    },
+    position: target => positions([target])[0],
+    positions,
     // A slide cut short by a drag or the wheel still ends beside the panel; its zoom is left where the wheel takes it, so
     // the zoom on show is the wheel's from here, not a pose the guide wrote.
     cancel() {
@@ -152,12 +163,12 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
   };
 }
 
-function findTarget(world: Object3D, target: GlobeTarget): { object: Object3D; point: Vector3 } | undefined {
+function findTarget(world: Object3D, target: GlobeTarget, byName = (name: string) => world.getObjectByName(name)): { object: Object3D; point: Vector3 } | undefined {
   if (target.kind === "point") return target.at.every(Number.isFinite) ? { object: world, point: new Vector3(...target.at) } : undefined;
-  const object = target.kind === "story" ? world.getObjectByName(`planet:${target.story}`)
-    : target.kind === "capability" ? world.getObjectByName(`territory:${target.capability}`)
-    : target.kind === "note" ? world.getObjectByName(`knowledge-point:${target.note}`)
-    : world.getObjectByName("globe-core");
+  const object = target.kind === "story" ? byName(`planet:${target.story}`)
+    : target.kind === "capability" ? byName(`territory:${target.capability}`)
+    : target.kind === "note" ? byName(`knowledge-point:${target.note}`)
+    : byName("globe-core");
   if (object === undefined) return undefined;
   const point = new Vector3();
   const geometry = (object as Mesh).geometry;

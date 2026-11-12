@@ -660,6 +660,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   if (controls.current === undefined) controls.current = {
     stop: stop => { const started = guide.current!.stop(stop); if (started) { opened.current = true; touch(true); guideFrameAt.current = performance.now(); } return started; },
     position: target => guide.current!.position(target),
+    positions: targets => guide.current!.positions(targets),
     cancel: () => guide.current!.cancel(),
     moving: () => guide.current!.moving(),
     notes: () => guide.current!.notes(),

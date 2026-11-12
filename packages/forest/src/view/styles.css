@@ -504,8 +504,18 @@
   user-select: none;
 }
 
+/* The chevron is a shape, not the "▸" character: Segoe UI has no such glyph, and the first fold a session showed made
+   Windows look for one through Arial, Times New Roman and Cambria Math inside that click's frame (increment_f6f5bb57b09b). An
+   empty box's borders draw it, sitting on the text's baseline by its bottom edge. */
 .panel-handle::before {
-  content: "▸";
+  content: "";
+  flex: none;
+  width: 0;
+  height: 0;
+  margin-bottom: 0.08em;
+  border-top: 0.25em solid transparent;
+  border-bottom: 0.25em solid transparent;
+  border-left: 0.4em solid currentColor;
   transition: transform 120ms ease;
 }
 

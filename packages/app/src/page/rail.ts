@@ -212,7 +212,8 @@ export function mountRail(content: HTMLElement, options: { project: string; tabs
     badge(count) {
       if (!badge) return;
       badge.hidden = count === 0;
-      badge.textContent = String(count);
+      // The lanes' own "?" mark before the count, seen but not read out: the tab's label already says it.
+      badge.innerHTML = `<span class="side-rail-badge-mark" aria-hidden="true">?</span>${count}`;
       badge.title = `${count} waiting on you`;
       buttons.find((button) => button.dataset.railTab === "arcs")?.setAttribute("aria-label", count === 0 ? "Arcs" : `Arcs, ${count} waiting on you`);
     },

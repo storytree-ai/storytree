@@ -17,6 +17,9 @@
 .arc-lane-line { display: flex; align-items: stretch; }
 .arc-caret-slot { width: 18px; flex: 0 0 18px; display: flex; align-items: center; justify-content: center; }
 .arc-caret { width: 18px; min-height: 30px; padding: 0; border: 0; background: transparent; font-size: .8rem !important; color: var(--muted, #adb8b2) !important; }
+/* The caret is a border-drawn triangle, not "▸" / "▾": Segoe UI lacks those, so Windows would search three fallback fonts for them inside the click that first shows one. */
+.arc-caret-mark { display: inline-block; width: 0; height: 0; vertical-align: middle; border-style: solid; border-color: transparent transparent transparent currentColor; border-width: 3.5px 0 3.5px 5px; transition: transform 120ms ease; }
+.arc-caret[aria-expanded=true] .arc-caret-mark { transform: rotate(90deg); }
 .arc-lane { min-width: 0; flex: 1; padding: 7px 14px 7px 7px; border: 0; border-left: 2px solid transparent; background: transparent; text-align: left; }
 .arc-lane:hover, .arc-queue-chip:hover { background: var(--row-hover, #2c3630); }
 .arc-lane[aria-pressed=true] { background: var(--row-hover, #2c3630); border-left-color: #79af95; }

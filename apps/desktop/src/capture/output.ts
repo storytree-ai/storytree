@@ -3,9 +3,11 @@
  * writes to a scratch folder, so the evidence folder stays as it was; re-taking the evidence into its own
  * folder is a deliberate act, named on the command line with --retake. A retake's pictures are not committed:
  * check:evidence refuses them (ADR-1234 D1), so they go to the evidence bucket with `pnpm evidence:upload --pr <n>`.
- * A scratch folder starts each run empty, so it holds only what that run took, never an older capture's shot.
+ * A scratch folder starts each run empty, so it holds only what that run took, never an older capture's shot. A run
+ * named by a prefix or label (a before and an after, each in its own process) clears only the files carrying its
+ * name, so side-by-side runs into one folder keep each other's pictures.
  */
-import { mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -13,12 +15,14 @@ export interface CaptureRun {
   readonly argv: readonly string[];
   /** The machine's temporary folder, under which each evidence folder gets its own scratch folder. */
   readonly tmp: string;
+  /** The run's prefix or label, when its files carry one: only files named for it are cleared from the scratch folder. */
+  readonly name?: string;
 }
 
 const CHECKOUT = path.resolve(import.meta.dirname, "../../../..");
 
 /** The folder a capture of the evidence `folder` writes to: `folder` itself under --retake, else its scratch folder. */
-export function outputFolder(folder: string, { argv, tmp }: CaptureRun = { argv: process.argv, tmp: tmpdir() }): string {
+export function outputFolder(folder: string, { argv = process.argv, tmp = tmpdir() }: Partial<CaptureRun> = {}): string {
   if (argv.includes("--retake")) return folder;
   const inCheckout = path.relative(CHECKOUT, folder);
   const name = inCheckout.startsWith("..") || path.isAbsolute(inCheckout) ? path.basename(folder) : inCheckout;
@@ -38,18 +42,27 @@ export function buildFolder(folder: string, ...parts: string[]): string {
 
 const UPLOAD = "pnpm evidence:upload --pr <n> --readme <the evidence folder's README> <file…>";
 
+/** Whether a scratch entry was written by the run named `name`: `before-tunnel-1.png`, `measurements-before.json`. */
+function namedFor(entry: string, name: string): boolean {
+  const stem = entry.slice(0, entry.length - path.extname(entry).length);
+  return stem === name || stem.startsWith(`${name}-`) || stem.endsWith(`-${name}`);
+}
+
 /** The scratch folders this process has emptied: a capture asks for its folder once per shot, and keeps each. */
 const emptied = new Set<string>();
 
 /**
- * outputFolder for this run, made if it is missing (a scratch folder emptied on the run's first ask) and said on
+ * outputFolder for this run, made if it is missing (a scratch folder emptied on the run's first ask, or of the run's
+ * own `name`d files only) and said on
  * stderr, so the capture's reader knows where to look and that a retake's pictures go to the evidence bucket, not
  * into a commit.
  */
-export function captureOutput(folder: string, run?: CaptureRun): string {
+export function captureOutput(folder: string, run: Partial<CaptureRun> = {}): string {
   const out = outputFolder(folder, run);
+  const { name } = run;
   if (out !== folder && !emptied.has(out)) {
-    rmSync(out, { recursive: true, force: true });
+    const cleared = name === undefined ? [out] : existsSync(out) ? readdirSync(out).filter(entry => namedFor(entry, name)).map(entry => path.join(out, entry)) : [];
+    for (const entry of cleared) rmSync(entry, { recursive: true, force: true });
     emptied.add(out);
   }
   mkdirSync(out, { recursive: true });

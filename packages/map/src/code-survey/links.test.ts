@@ -9,9 +9,12 @@ import path from "node:path";
 import { test } from "node:test";
 
 import type { AnnotatedTree } from "@storytree/library";
+import { removeTemp } from "@storytree/test-waits";
 
+import { readersReady } from "./code-survey.js";
+import { drawImportedStory } from "./drawing.js";
 import { formatLinks, linksOf } from "./links.js";
-import { codeSurveyReader } from "./read-survey.js";
+import { codeSurveyReader, drawImport } from "./read-survey.js";
 
 const REPOSITORY = "https://example.test/shop.git";
 
@@ -40,7 +43,7 @@ const SHOP = {
   "src/index.ts": "import { format } from \"./lib/format.js\";\nexport const shop = format;\n",
 };
 
-test("3.15 for an imported story the map lists each import between two explored capabilities' files that no link covers, and each link between two of them that no import backs, with the imports behind each; a link it cannot check is named", async () => {
+test("3.15 for an imported story the map lists each import between the files of two capabilities that cover files that no link covers, and each link between two of them that no import backs, with the imports behind each; a link it cannot check is named", async () => {
   const shop = await mkdtemp(path.join(tmpdir(), "links-shop-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "links-trunk-"));
   try {
@@ -52,7 +55,7 @@ test("3.15 for an imported story the map lists each import between two explored 
 
     const answer = await linksOf(tree, survey, trunk, "story:shop");
     assert.deepEqual(answer.story, { id: "story-shop", title: "shop" });
-    assert.equal(answer.explored, 4, "the capability covering nothing is not explored");
+    assert.equal(answer.covering, 4, "the capability covering nothing is not counted");
     assert.deepEqual(answer.missing, [
       { from: { id: "cap-ui", title: "1 · Ui" }, to: { id: "cap-lib", title: "2 · Lib" }, count: 2, imports: [{ from: "src/ui/menu.ts", to: "src/lib/format.ts" }, { from: "src/ui/sidebar.ts", to: "src/lib/format.ts" }] },
       { from: { id: "cap-store", title: "3 · Store" }, to: { id: "cap-ui", title: "1 · Ui" }, count: 1, imports: [{ from: "src/store/cart.ts", to: "src/ui/menu.ts" }] },
@@ -66,6 +69,7 @@ test("3.15 for an imported story the map lists each import between two explored 
     assert.match(answer.note, /database or events/);
 
     const text = formatLinks(answer);
+    assert.match(text, /: 4 capabilities cover files\./);
     assert.match(text, /Missing links \(imports no link covers\): 2/);
     assert.match(text, /1 · Ui -> 2 · Lib: 2 imports\n {4}src\/ui\/menu\.ts -> src\/lib\/format\.ts/);
     assert.match(text, /Unbacked links \(no import backs them\): 1\n {2}1 · Ui -> 3 · Store; imports run the other way:\n {4}src\/store\/cart\.ts -> src\/ui\/menu\.ts/);
@@ -78,5 +82,80 @@ test("3.15 for an imported story the map lists each import between two explored 
   } finally {
     await rm(shop, { recursive: true, force: true });
     await rm(trunk, { recursive: true, force: true });
+  }
+});
+
+/** A flat Python package like tinydb: its root passes on names its modules bind, and its modules take them through it. */
+const TINY = {
+  "tinydb/__init__.py": "from .database import TinyDB\nfrom .storages import JSONStorage, Storage\n",
+  "tinydb/database.py": "from . import JSONStorage\n\n\nclass TinyDB:\n    storage = JSONStorage\n",
+  "tinydb/storages.py": "class Storage:\n    pass\n\n\nclass JSONStorage(Storage):\n    pass\n",
+  "tinydb/middlewares.py": "from tinydb import Storage\n\n\nclass Middleware(Storage):\n    pass\n",
+  "tests/test_tinydb.py": "from tinydb import TinyDB\n\n\ndef test_it():\n    TinyDB()\n",
+};
+
+test("3.15 the links check resolves each import as the drawing does, so a map storytree drew reports no missing and no unbacked link, a name taken through a package root that only passes it on included", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "links-tiny-"));
+  const trunk = await mkdtemp(path.join(tmpdir(), "links-trunk-"));
+  try {
+    for (const [file, text] of Object.entries(TINY)) {
+      await mkdir(path.dirname(path.join(folder, file)), { recursive: true });
+      await writeFile(path.join(folder, file), text);
+    }
+    const files = Object.entries(TINY).map(([file, text]) => ({ path: file, text }));
+    await readersReady(files.map((file) => file.path));
+    const drawing = drawImportedStory({ folder: ".", files });
+    const idOf = (title: string) => `cap-${title}`;
+    const drawn = { arcs: [], stories: [{ id: "story-tiny", title: "tinydb", mapped: { from: folder, package: ".", folders: ["."] }, capabilities: drawing.capabilities.map(({ title, covers }, at) =>
+      capability(idOf(title), `${at + 1} · ${title}`, drawing.links.filter(({ from }) => from === title).map(({ to }) => idOf(to)), [...covers])) }] } as unknown as AnnotatedTree;
+    const survey = await codeSurveyReader({ checkout: "current" }).read(trunk, drawn, [{ folder }]);
+
+    const answer = await linksOf(drawn, survey, trunk, "story:tinydb");
+    assert.equal(answer.covering, 4);
+    assert.deepEqual([answer.missing, answer.unbacked, answer.unchecked], [[], [], []], "the drawing's own links are each backed, and it misses none");
+  } finally {
+    await removeTemp(folder);
+    await removeTemp(trunk);
+  }
+});
+
+/** A Next.js app: its files import each other by its tsconfig's `@/` alias and by a package's name, never by a relative path. */
+const NEXT = {
+  "tsconfig.json": "{\n  // as Next.js writes it\n  \"compilerOptions\": { \"baseUrl\": \".\", \"paths\": { \"@/*\": [\"./*\"], }, },\n}\n",
+  "package.json": JSON.stringify({ name: "taxonomy" }),
+  "app/page.tsx": "import { Button } from \"@/components/button\";\nimport { cn } from \"@/lib/utils\";\nexport default () => Button(cn());\n",
+  "components/button.tsx": "import { cn } from \"@/lib/utils\";\nimport { ui } from \"@acme/ui\";\nexport const Button = (name: string) => cn(name, ui);\n",
+  "lib/utils.ts": "export const cn = (...names: unknown[]) => names.join(\" \");\n",
+  "packages/ui/package.json": JSON.stringify({ name: "@acme/ui", main: "src/index.ts" }),
+  "packages/ui/src/index.ts": "export const ui = 1;\n",
+};
+
+test("3.15 the links check reads imports by a tsconfig path alias and by a package's name as the drawing does, so the drawing of an app importing only by them reports no missing and no unbacked link", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "links-next-"));
+  const trunk = await mkdtemp(path.join(tmpdir(), "links-trunk-"));
+  try {
+    for (const [file, text] of Object.entries(NEXT)) {
+      await mkdir(path.dirname(path.join(folder, file)), { recursive: true });
+      await writeFile(path.join(folder, file), text);
+    }
+    const mapped = { from: folder, package: ".", folders: ["."] };
+    const drawing = await drawImport({ mapped } as never, folder, []);
+    assert.deepEqual(drawing.links, [
+      { from: "app", to: "components" },
+      { from: "app", to: "lib" },
+      { from: "components", to: "lib" },
+      { from: "components", to: "packages/ui/src" },
+    ], "the drawing read from disk resolves the alias and the package's name");
+    const idOf = (title: string) => `cap-${title}`;
+    const drawn = { arcs: [], stories: [{ id: "story-next", title: "taxonomy", mapped, capabilities: drawing.capabilities.map(({ title, covers }, at) =>
+      capability(idOf(title), `${at + 1} · ${title}`, drawing.links.filter(({ from }) => from === title).map(({ to }) => idOf(to)), [...covers])) }] } as unknown as AnnotatedTree;
+    const survey = await codeSurveyReader({ checkout: "current" }).read(trunk, drawn, [{ folder }]);
+
+    const answer = await linksOf(drawn, survey, trunk, "story:taxonomy");
+    assert.equal(answer.covering, 4);
+    assert.deepEqual([answer.missing, answer.unbacked, answer.unchecked], [[], [], []], "each of the drawing's links is backed by an import the check reads");
+  } finally {
+    await removeTemp(folder);
+    await removeTemp(trunk);
   }
 });

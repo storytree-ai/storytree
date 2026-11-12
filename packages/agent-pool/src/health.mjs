@@ -23,6 +23,8 @@ const WATCHER = /watch\.mjs run( |$)/;
 const STUCK_MS = 90 * 60_000;
 /** How far back an ended session's missing report is still a concern. */
 const ENDED_MS = 24 * 3_600_000;
+/** The exit of a start the dispatcher refused at its claim: no engine ran, so no report is owed. */
+const CLAIM_REFUSED = 78;
 
 const ago = (ms) => {
   const minutes = Math.max(0, Math.floor(ms / 60_000));
@@ -121,7 +123,7 @@ export async function poolHealth(b) {
     else details.push(`session ${id}: ${age}, its log grew ${ago(now - grew)} ago`);
   }
   for (const { id, at, endedAt, code } of sessions.ended) {
-    if (now - Date.parse(endedAt) > ENDED_MS) continue;
+    if (now - Date.parse(endedAt) > ENDED_MS || code === CLAIM_REFUSED) continue;
     const report = await mtime(join(L, `pool-${id}.report.md`));
     if (report === undefined || (at && report < Date.parse(at))) concerns.push(`${id} ended ${ago(now - Date.parse(endedAt))} ago (exit ${code}) with no report`);
   }

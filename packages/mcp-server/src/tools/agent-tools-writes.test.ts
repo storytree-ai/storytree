@@ -1176,12 +1176,13 @@ test("9.17 plan_capability, under an increment's claim, judges the story's capab
   });
 });
 
-test("12.1 import_project imports a folder into the project as imported stories, one per package, naming them; a folder inside the project gets a readable refusal and nothing is written", async () => {
+test("12.1 import_project imports a folder into the project as imported stories, one per package, naming each with the count of capabilities drawn from its code; a folder inside the project gets a readable refusal and nothing is written", async () => {
   await withProject(async ({ folder, library }) => {
     const shop = path.join(folder, "..", "shop");
     mkdirSync(path.join(shop, "packages", "cart"), { recursive: true });
     writeFileSync(path.join(shop, "package.json"), JSON.stringify({ workspaces: ["packages/*"] }));
     writeFileSync(path.join(shop, "packages", "cart", "package.json"), JSON.stringify({ name: "@shop/cart" }));
+    writeFileSync(path.join(shop, "packages", "cart", "index.js"), "export const cart = 1;\n");
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const imported = await agent.call("import_project", { folder: "../shop" });
       assert.equal(imported.isError, false, imported.text);
@@ -1189,6 +1190,7 @@ test("12.1 import_project imports a folder into the project as imported stories,
       assert.deepEqual(stories.map((story) => story.fields.title), ["@shop/cart"]);
       assert.ok(imported.text.includes(stories[0]!.id), imported.text);
       assert.match(imported.text, /: 1 imported stories added: /, "the reply calls the import's stories imported");
+      assert.ok(imported.text.includes(`"@shop/cart" (${stories[0]!.id}), capabilities drawn: 1`), imported.text);
 
       mkdirSync(path.join(folder, "vendor"));
       writeFileSync(path.join(folder, "vendor", "package.json"), JSON.stringify({ name: "vendor" }));
@@ -1230,7 +1232,7 @@ test("9.23 · plan_story in a project whose folder declares a JavaScript, TypeSc
   });
 });
 
-test("12.4 import_project on a folder already imported says the commit recorded before and now, counts the files changed between them naming up to ten of each, and names each explored capability whose files are gone", async () => {
+test("12.4 import_project on a folder already imported says the commit recorded before and now, counts the files changed between them naming up to ten of each, and names each capability the redraw from its code added and retired", async () => {
   await withProject(async ({ folder, library }) => {
     const shop = path.join(folder, "..", "shop");
     mkdirSync(path.join(shop, "src"), { recursive: true });
@@ -1245,7 +1247,7 @@ test("12.4 import_project on a folder already imported says the commit recorded 
       const first = await agent.call("import_project", { folder: "../shop" });
       assert.doesNotMatch(first.text, /commit/, "a first import has no commit before it to compare");
       const [story] = (await library.list("story")).filter((found) => found.fields.mapped !== undefined);
-      const menu = await library.addCapability({ title: "Menu", story: story!.id, covers: ["src/menu.ts"] });
+      const menu = (await library.list("capability")).find((capability) => capability.fields.story === story!.id && capability.fields.covers?.includes("src/menu.ts"))!;
       assert.match((await agent.call("import_project", { folder: "../shop" })).text, new RegExp(`The commit did not move: ${one.slice(0, 12)}`));
 
       for (let file = 1; file <= 12; file += 1) writeFileSync(path.join(shop, "src", `f${String(file).padStart(2, "0")}.ts`), "export {};\n");
@@ -1258,9 +1260,12 @@ test("12.4 import_project on a folder already imported says the commit recorded 
       assert.match(again.text, new RegExp(`The commit moved from ${one.slice(0, 12)} to ${two.slice(0, 12)}`));
       assert.match(again.text, /12 added, 0 changed, 1 removed/);
       assert.match(again.text, /added: src\/f01\.ts, .*src\/f10\.ts, and 2 more/);
-      assert.doesNotMatch(again.text, /src\/f11\.ts/);
+      assert.doesNotMatch(again.text.split("\n").find((line) => line.startsWith("  added: "))!, /src\/f11\.ts/, "the files line names ten");
       assert.match(again.text, /removed: src\/menu\.ts/);
-      assert.match(again.text, new RegExp(`Menu" \\(${menu.id}\\) covers src/menu\\.ts, no longer in the folder; it is left as it stands`));
+      assert.match(again.text, new RegExp(`Story "shop" \\(${story!.id}\\) is redrawn from its code`));
+      assert.match(again.text, new RegExp(`retired "1 · src/menu\\.ts" \\(${menu.id}\\)`));
+      const f01 = (await library.list("capability")).find((capability) => capability.fields.story === story!.id && capability.fields.covers?.includes("src/f01.ts"))!;
+      assert.match(again.text, new RegExp(`added "\\d+ · src/f01\\.ts" \\(${f01.id}\\)`));
     });
   });
 });

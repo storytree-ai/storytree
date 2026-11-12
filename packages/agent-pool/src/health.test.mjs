@@ -99,12 +99,14 @@ test("8.3 · a running session whose log has not grown in 90 minutes while the d
   assert.ok(!down.lines.some((line) => /stuck/.test(line)), down.lines.join("\n"));
 });
 
-test("8.4 · a session that ended in the last day leaving no report since its start is a concern", async (t) => {
+test("8.4 · a session that ended in the last day leaving no report since its start is a concern; a start refused at its claim (exit 78) is not", async (t) => {
   const { lanesDir, lines, b } = await box(t, { status: [
     `${stamp(2000)} start increment_old`, `${stamp(1900)} end increment_old exit 0`,
     `${stamp(300)} start increment_none`, `${stamp(200)} end increment_none exit 1`,
     `${stamp(180)} start increment_stale`, `${stamp(100)} end increment_stale exit 0`,
-    `${stamp(90)} start increment_good`, `${stamp(60)} end increment_good exit 0`] });
+    `${stamp(90)} start increment_good`, `${stamp(60)} end increment_good exit 0`,
+    `${stamp(50)} start increment_refused`, `${stamp(50)} not starting increment_refused: its claim was refused at the start (it waits on increment_x): exit 78`,
+    `${stamp(50)} end increment_refused exit 78`] });
   await touch(join(lanesDir, "pool-increment_stale.report.md"), 500);
   await touch(join(lanesDir, "pool-increment_good.report.md"), 61);
   assert.equal(await main([], b), 1);

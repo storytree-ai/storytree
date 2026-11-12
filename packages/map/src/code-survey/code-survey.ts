@@ -42,6 +42,7 @@ import type { CodeEdge, EdgeFile, StorySurvey, SurveyedFile, SurveyedTest } from
 import type { Edge, LanguageReader, SourceFile, SurveyPackage } from "./language-reader.js";
 import { ALSO_OWNED, packageOf, packagesOf } from "./package-of.js";
 import { pythonReader } from "./python-reader.js";
+import { aliasTargets } from "./tsconfig.js";
 
 export { ALSO_OWNED, packageOf, packagesOf };
 export type { LanguageReader, SourceFile, SurveyPackage };
@@ -211,26 +212,45 @@ const linesOf = (text: string): number => text.split("\n").filter((line) => line
 /**
  * Resolve a specifier against the importing file, to a file the story holds: a relative one by path, a `#name` by
  * the importing package's imports field, and a bare one by the exports of whichever of `packages` (the story's
- * own, 8.39) it names, the longest name first. Another story's package is not in `packages`, so it resolves to none.
+ * own, 8.39) it names, the longest name first; one exporting nothing is reached by its main, else its index, and a
+ * subpath by its path. A bare one no package names follows the importing file's nearest tsconfig's path aliases (8.62).
+ * Another story's package is not in `packages`, so it resolves to none.
  */
 function resolve(from: string, specifier: string, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): string | undefined {
   if (!/^\.{1,2}\//.test(specifier)) {
+    const own = packages.filter(pkg => from.startsWith(pkg.root)).sort((a, b) => b.root.length - a.root.length)[0];
+    if (own === undefined) return undefined;
     if (specifier.startsWith("#")) {
-      const own = packages.find(pkg => from.startsWith(pkg.root));
-      const target = own?.imports?.[specifier];
-      return own === undefined || target === undefined ? undefined : resolve(own.root + "package.json", target, paths, []);
+      const target = own.imports?.[specifier];
+      return target === undefined ? undefined : resolve(own.root + "package.json", target, paths, []);
     }
-    if (!packages.some(pkg => from.startsWith(pkg.root))) return undefined;
     const named = packages.filter(pkg => specifier === pkg.name || specifier.startsWith(pkg.name + "/")).sort((a, b) => b.name.length - a.name.length)[0];
-    const target = named?.exports[specifier === named.name ? "." : "." + specifier.slice(named.name.length)];
-    return named === undefined || target === undefined ? undefined : resolve(named.root + "package.json", target, paths, []);
+    if (named !== undefined) {
+      const subpath = specifier === named.name ? "." : "." + specifier.slice(named.name.length);
+      const at = (target: string) => resolve(named.root + "package.json", target, paths, []);
+      if (Object.keys(named.exports).length > 0) return named.exports[subpath] === undefined ? undefined : at(named.exports[subpath]);
+      if (subpath !== ".") return at(subpath);
+      return (named.main === undefined ? undefined : at(`./${named.main.replace(/^\.\//, "")}`)) ?? at("./index");
+    }
+    const dir = from.includes("/") ? from.slice(0, from.lastIndexOf("/")) : ".";
+    const nearest = packages.flatMap(pkg => pkg.tsconfigs ?? []).filter(config => config.dir === "." || dir === config.dir || dir.startsWith(config.dir + "/"))
+      .sort((a, b) => b.dir.length - a.dir.length)[0];
+    for (const target of aliasTargets(specifier, nearest?.aliases ?? [])) {
+      const found = fileAt(target, paths);
+      if (found !== undefined) return found;
+    }
+    return undefined;
   }
   const parts = from.split("/").slice(0, -1);
   for (const part of specifier.split("/")) {
     if (part === ".." && parts.length > 0 && parts.at(-1) !== "..") parts.pop();
     else if (part !== ".") parts.push(part);
   }
-  const target = parts.join("/");
+  return fileAt(parts.join("/"), paths);
+}
+
+/** The file `target` names among `paths`, trying TypeScript's and Node's spellings. */
+function fileAt(target: string, paths: ReadonlySet<string>): string | undefined {
   const stem = target.replace(/\.[cm]?jsx?$/, "");
   return [target, `${stem}.ts`, `${stem}.tsx`, `${stem}.js`, `${stem}.mjs`, `${target}/index.ts`, `${target}/index.tsx`, `${target}/index.js`].find((candidate) => paths.has(candidate));
 }
@@ -665,7 +685,8 @@ export type EdgeStory = {
  * taken whole leads to the file its specifier names. Its imports of its own files are edges to its own story, kept only
  * between two of its capabilities (8.45). A file composing the parts of a manifest kind reaches the file defining each
  * part of that kind its package's dependencies declare (8.46). A file of another language (Python) reaches the files of
- * its own story its reader resolves, whole, kept only between two capabilities (8.57). Paths stay in the coordinates `files` gave.
+ * its own story its reader resolves, kept only between two capabilities (8.57), each name it takes followed to the file
+ * that binds it where the reader says what a module passes on (8.64). Paths stay in the coordinates `files` gave.
  */
 export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[]> {
   const byName = new Map(stories.flatMap((story) => story.packages.map((pkg) => [pkg.name, { story, pkg }] as const)));
@@ -674,6 +695,9 @@ export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[
     // Names are followed through JavaScript and TypeScript files alone; every language's file is a file an import reaches.
     return [story.id, { byPath: new Map(code.filter((file) => CODE_FILE.test(file.path)).map((file) => [file.path, file])), paths: new Set(code.map((file) => file.path)) }] as const;
   }));
+
+  // Each story's files by path, for a reader that says what a file passes on (Python's) to follow it.
+  const otherFiles = new Map(stories.map((story) => [story.id, new Map(story.files.map((file) => [file.path, file]))] as const));
 
   /** The file of `story` that defines `name`, starting from `path` and following what it passes on; undefined where nothing does. */
   const definer = (story: EdgeStory, path: string, name: string, seen: Set<string>): string | undefined => {
@@ -698,6 +722,23 @@ export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[
     return undefined;
   };
 
+  /** The file of `story` that binds `name`, starting from `path` in another language and following what its reader says it passes on (8.64). */
+  const bound = (story: EdgeStory, path: string, name: string, seen: Set<string>): string | undefined => {
+    const file = otherFiles.get(story.id)!.get(path);
+    const offersOf = file === undefined ? undefined : readerOf(path)?.offersOf;
+    if (file === undefined || offersOf === undefined || seen.has(path)) return undefined;
+    seen.add(path);
+    const offers = offersOf(file, lookups.get(story.id)!.paths, story.packages);
+    if (offers.local.has(name)) return path;
+    const passed = offers.from.get(name);
+    if (passed !== undefined) return passed.name === undefined ? passed.to : bound(story, passed.to, passed.name, seen) ?? passed.to;
+    for (const next of offers.star) {
+      const found = bound(story, next, name, seen);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+
   /** The story and package a specifier names, the longest package name first; undefined when it names none of theirs. */
   const packageNamed = (specifier: string) => [...byName].filter(([name]) => specifier === name || specifier.startsWith(name + "/")).sort(([a], [b]) => b.length - a.length)[0]?.[1];
 
@@ -712,11 +753,12 @@ export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[
     const grouped = new Map<string, { story: string; from?: string; to?: string; files: Map<string, EdgeFile> }>();
     for (const file of story.files) {
       if (isTestCode(file) || !isCodeFile(file.path)) continue;
-      // Another language's file (Python, 8.57) reaches its own story's files whole, through its reader.
+      // Another language's file (Python, 8.57) reaches its own story's files through its reader: a name taken from a
+      // module that only passes it on reaches the file that binds it, where the reader can follow it (8.64).
       if (!CODE_FILE.test(file.path)) {
         const fromCapability = story.owners.get(file.path);
         if (fromCapability === undefined) continue;
-        for (const { to, typeOnly } of readerOf(file.path)!.edgesOf(file, lookups.get(story.id)!.paths, story.packages)) {
+        for (const { to: named, typeOnly, names } of readerOf(file.path)!.edgesOf(file, lookups.get(story.id)!.paths, story.packages)) for (const to of names === "all" ? [named] : new Set(names.map(([name]) => bound(story, named, name, new Set()) ?? named))) {
           const toCapability = story.owners.get(to);
           if (toCapability === undefined || toCapability === fromCapability) continue;
           const key = JSON.stringify([story.id, fromCapability, toCapability]);

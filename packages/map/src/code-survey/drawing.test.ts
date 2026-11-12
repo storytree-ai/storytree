@@ -104,6 +104,65 @@ test("8.62 a drawn capability depends on another exactly when one of its files i
   ], "Python's absolute imports resolve from the story's folder, as the survey's reader resolves them");
 });
 
+test("8.62 a name taken from a file that only passes it on (a package root's re-export, in Python or TypeScript) links to the file that binds it, so a root and the modules it re-exports draw no loop", async () => {
+  const flat = filesOf({
+    "tinydb/__init__.py": "from .database import TinyDB\nfrom .storages import JSONStorage, Storage\nfrom .operations import *\n",
+    "tinydb/database.py": "from . import JSONStorage\nclass TinyDB: pass\n",
+    "tinydb/storages.py": "class Storage: pass\nclass JSONStorage(Storage): pass\n",
+    "tinydb/middlewares.py": "from tinydb import Storage\nclass Middleware(Storage): pass\n",
+    "tinydb/operations.py": "def delete(): pass\n",
+    "tinydb/queries.py": "from tinydb import delete\n",
+  });
+  await readersReady(flat.map((file) => file.path));
+  assert.deepEqual(drawImportedStory({ folder: ".", files: flat }), {
+    capabilities: ["tinydb/__init__.py", "tinydb/database.py", "tinydb/middlewares.py", "tinydb/operations.py", "tinydb/queries.py", "tinydb/storages.py"].map((title) => ({ title, covers: [title] })),
+    links: [
+      { from: "tinydb/__init__.py", to: "tinydb/database.py" },
+      { from: "tinydb/__init__.py", to: "tinydb/operations.py" },
+      { from: "tinydb/__init__.py", to: "tinydb/storages.py" },
+      { from: "tinydb/database.py", to: "tinydb/storages.py" },
+      { from: "tinydb/middlewares.py", to: "tinydb/storages.py" },
+      { from: "tinydb/queries.py", to: "tinydb/operations.py" },
+    ],
+  }, "database and middlewares take their names through the root, and link to storages, which binds them; queries takes one the root's wildcard passes on, and links to operations");
+
+  const barrel = filesOf({
+    "src/index.ts": "export { add } from \"./add.js\";\nexport { total } from \"./total.js\";\n",
+    "src/add.ts": "import { total } from \"./index.js\";\nexport const add = () => total();\n",
+    "src/total.ts": "export const total = () => 1;\n",
+  });
+  assert.deepEqual(drawImportedStory({ folder: ".", files: barrel }).links, [
+    { from: "src/add.ts", to: "src/total.ts" },
+    { from: "src/index.ts", to: "src/add.ts" },
+    { from: "src/index.ts", to: "src/total.ts" },
+  ], "a TypeScript barrel's modules that import through it are not merged with it");
+});
+
+/** A Next.js app at its import's top: imports by its tsconfig's path aliases and by another of its packages' names. */
+const NEXT = filesOf({
+  "tsconfig.json": "{\n  // Next.js writes comments and trailing commas\n  \"compilerOptions\": {\n    \"baseUrl\": \".\",\n    \"paths\": { \"@/*\": [\"./*\"], \"@ui\": [\"./packages/ui/src/index.ts\"], },\n  },\n}\n",
+  "package.json": "{\"name\":\"taxonomy\"}\n",
+  "app/page.tsx": "import { Button } from \"@/components/button\";\nimport { cn } from \"@/lib/utils\";\nexport default () => Button(cn());\n",
+  "components/button.tsx": "import { cn } from \"@/lib/utils\";\nimport { ui } from \"@acme/ui\";\nexport const Button = (name: string) => cn(name, ui);\n",
+  "lib/utils.ts": "import clsx from \"clsx\";\nimport { ui } from \"@ui\";\nexport const cn = (...names: unknown[]) => clsx(names, ui);\n",
+  "packages/ui/package.json": "{\"name\":\"@acme/ui\",\"main\":\"src/index.ts\",\"imports\":{\"#theme\":\"./theme/colors.ts\"}}\n",
+  "packages/ui/tsconfig.json": "{ \"compilerOptions\": {} }\n",
+  "packages/ui/src/index.ts": "import { cn } from \"@/lib/utils\";\nimport { red } from \"#theme\";\nexport const ui = [cn, red];\n",
+  "packages/ui/theme/colors.ts": "export const red = \"#f00\";\n",
+});
+
+test("8.62 an import by the nearest tsconfig's path alias, or by the name of another package the story holds (its main, else its index), links as a relative one does", async () => {
+  await readersReady(NEXT.map((file) => file.path));
+  assert.deepEqual(drawImportedStory({ folder: ".", files: NEXT }).links, [
+    { from: "app", to: "components" },
+    { from: "app", to: "lib" },
+    { from: "components", to: "lib" },
+    { from: "components", to: "packages/ui/src" },
+    { from: "lib", to: "packages/ui/src" },
+    { from: "packages/ui/src", to: "packages/ui/theme" },
+  ], "@/ and the exact @ui alias resolve from the top tsconfig's baseUrl, @acme/ui to its main; packages/ui's own tsconfig, with no paths, leaves its @/ import unresolved, and its '#' import is read by its own package.json, not the top's; clsx is outside");
+});
+
 test("8.63 capabilities whose imports run round a loop are drawn as one covering all their folders and files, and the drawing is the same whatever order its files come in", async () => {
   await readersReady([...TINY, ...BACKEND].map((file) => file.path));
   const backend = drawImportedStory({ folder: "backend", files: BACKEND });

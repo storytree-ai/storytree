@@ -10,14 +10,19 @@
  *   increment's measure on both trials (increment_3a69d0fdce2e): the deepest folder of code, else the module.
  * - Test files, test support, declaration files and files with no non-blank line are no capability's: tests are
  *   contracts' proofs, and an empty `__init__.py` holds nothing to draw.
- * - One depends on another exactly when a file of the one imports a file of the other, as storyEdges resolves it.
+ * - One depends on another exactly when a file of the one imports a file of the other, as storyEdges resolves it: a name
+ *   taken from a file that only passes it on (a package root's re-export) is followed to the file that binds it.
  * - Capabilities whose imports run round a loop (a strongly connected set) are one, titled by their paths joined
  *   with " + ". Everything is sorted by path, so the order the files come in changes nothing.
  */
 import path from "node:path";
 
+import type { CodeEdge } from "@storytree/library";
+
 import { isCodeFile, isTestCode, storyEdges } from "./code-survey.js";
-import type { SourceFile } from "./language-reader.js";
+import type { SourceFile, SurveyPackage } from "./language-reader.js";
+import { manifestFrom } from "./survey-source.js";
+import { aliasesOf } from "./tsconfig.js";
 
 /** A drawn capability: its title (each folder's and file's path from the story's folder, joined with " + "), and those folders and files from the import's top. */
 export type DrawnCapability = { readonly title: string; readonly covers: readonly string[] };
@@ -26,6 +31,7 @@ export type DrawnCapability = { readonly title: string; readonly covers: readonl
 export type Drawing = { readonly capabilities: readonly DrawnCapability[]; readonly links: readonly { readonly from: string; readonly to: string }[] };
 
 const JAVASCRIPT = /\.[cm]?[jt]sx?$/;
+const MANIFEST = /(?:^|\/)(?:package|tsconfig)\.json$/;
 
 const byText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -51,8 +57,8 @@ export function drawImportedStory(story: { readonly folder: string; readonly fil
 
   const units = [...new Set(owners.values())].sort(byText);
   const after = new Map(units.map((unit) => [unit, new Set<string>()] as const));
-  const edges = storyEdges([{ id: "drawn", files, packages: [{ root: top, name: story.folder, exports: {} }], owners }]).get("drawn")!;
-  for (const { from, to } of edges) if (from !== undefined && to !== undefined && from !== to) after.get(from)!.add(to);
+  const above = story.files.filter((file) => !file.path.startsWith(top) && MANIFEST.test(file.path));
+  for (const { from, to } of importedLinks(story.folder, [...files, ...above], owners)) if (from !== undefined && to !== undefined && from !== to) after.get(from)!.add(to);
 
   const merged = loops(units, after);
   const titleOf = (unit: string): string => unit.slice(top.length);
@@ -68,6 +74,49 @@ export function drawImportedStory(story: { readonly folder: string; readonly fil
     .sort(([a, x], [b, y]) => byText(a, b) || byText(x, y))
     .map(([from, to]) => ({ from, to }));
   return { capabilities, links };
+}
+
+/**
+ * The links the imports of an imported story whose package is `folder` make between the capabilities `owners` gives its
+ * files, each with the imports behind it: the drawing's, and the links check's (3.15), so the two read imports alike.
+ * Each package.json among `files` is a package an import reaches by its name, and each tsconfig.json gives the files
+ * beneath it its path aliases, the nearest one winning (8.62); the story's folder is a package whether or not it has one.
+ */
+export function importedLinks(folder: string, files: readonly SourceFile[], owners: ReadonlyMap<string, string>): CodeEdge[] {
+  const top = folder === "." ? "" : `${path.posix.normalize(folder).replace(/\/$/, "")}/`;
+  const tsconfigs = files.filter((file) => path.posix.basename(file.path) === "tsconfig.json")
+    .map((file) => ({ dir: path.posix.dirname(file.path), aliases: aliasesOf(path.posix.dirname(file.path), file.text) }));
+  const packages: SurveyPackage[] = files.filter((file) => path.posix.basename(file.path) === "package.json").flatMap((file) => {
+    const manifest = manifestFrom(file.text);
+    if (manifest === undefined) return [];
+    const dir = path.posix.dirname(file.path);
+    const { main } = JSON.parse(file.text) as { main?: unknown };
+    return [{ root: dir === "." ? "" : `${dir}/`, name: manifest.name, exports: manifest.exports, imports: manifest.imports, ...(typeof main === "string" ? { main } : {}) }];
+  });
+  if (!packages.some((pkg) => pkg.root === top)) packages.push({ root: top, name: folder, exports: {} });
+  packages[0] = { ...packages[0]!, tsconfigs };
+  return storyEdges([{ id: "drawn", files, packages, owners }]).get("drawn")!;
+}
+
+/**
+ * The package.json and tsconfig.json files an imported story's imports are resolved with (8.62): those in each folder
+ * holding one of `code` and each folder above it to the import's top, by their paths from that top, read by `read`
+ * (undefined for one that is not there).
+ */
+export async function manifestsOf(code: readonly SourceFile[], read: (file: string) => Promise<string | undefined>): Promise<SourceFile[]> {
+  const folders = new Set<string>();
+  for (const file of code) {
+    for (let folder = path.posix.dirname(file.path); !folders.has(folder); folder = path.posix.dirname(folder)) {
+      folders.add(folder);
+      if (folder === ".") break;
+    }
+  }
+  const found = await Promise.all([...folders].flatMap((folder) => ["package.json", "tsconfig.json"].map(async (name): Promise<SourceFile | undefined> => {
+    const file = folder === "." ? name : `${folder}/${name}`;
+    const text = await read(file);
+    return text === undefined ? undefined : { path: file, text };
+  })));
+  return found.filter((file): file is SourceFile => file !== undefined).sort((a, b) => byText(a.path, b.path));
 }
 
 /** The source root under `top`: its one Python import package holding code, else its src/ holding JavaScript or TypeScript, else `top`. */

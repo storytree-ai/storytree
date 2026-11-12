@@ -75,8 +75,8 @@ test("3.15 with links and select story:<imported>, the focus tool answers that s
 
     const answer = await tools.focus!({ links: true, select: "story:shop" }, call);
 
-    const data = answer.data as { missing: unknown; unbacked: unknown; explored: number };
-    assert.equal(data.explored, 2);
+    const data = answer.data as { missing: unknown; unbacked: unknown; covering: number };
+    assert.equal(data.covering, 2);
     assert.deepEqual(data.missing, [{ from: { id: "ui", title: "1 · Ui" }, to: { id: "lib", title: "2 · Lib" }, count: 1, imports: [{ from: "src/ui/menu.ts", to: "src/lib/format.ts" }] }]);
     assert.deepEqual(data.unbacked, []);
     assert.match(answer.text, /1 · Ui -> 2 · Lib: 1 import\n {4}src\/ui\/menu\.ts -> src\/lib\/format\.ts/);

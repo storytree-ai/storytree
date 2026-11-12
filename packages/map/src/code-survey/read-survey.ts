@@ -42,6 +42,7 @@ import { pyprojectFrom } from "./pyproject.js";
 import { parsePythonNow, pythonLanguage } from "./tree-sitter.js";
 import { pytestTestedNumbers } from "./python-tests.js";
 import { folderLanguages } from "./folder-languages.js";
+import { drawImportedStory, manifestsOf, type Drawing } from "./drawing.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
@@ -245,6 +246,20 @@ async function checkoutTop(folder: string): Promise<string> {
 export async function testedNumbers(root: string, tree: AnnotatedTree, capability: string, options: Parameters<typeof storyTests>[3] = {}): Promise<string[]> {
   return (await storyTests(root, tree, capability, options)).numbers;
 }
+
+/**
+ * The drawing of imported `story` (ADR-1324 D1): its code read from `folder`, where its import is, as storyTests reads it,
+ * and drawn by drawImportedStory; `stories` are the plan's, whose packages inside its folders it leaves out. Code the
+ * survey cannot read draws nothing (ADR-1324 D4).
+ */
+export async function drawImport(story: Pick<MappedStory, "mapped">, folder: string, stories: Parameters<typeof mappedCode>[2], readText: (file: string) => Promise<string> = (file) => readFile(file, "utf8")): Promise<Drawing> {
+  const code = await mappedCode(story, folder, stories, readText);
+  await readersReady(code.map((file) => file.path));
+  const manifests = await manifestsOf(code, (file) => readText(path.join(folder, file)).catch(() => undefined));
+  return drawImportedStory({ folder: story.mapped.package, files: [...code, ...manifests] });
+}
+
+export type { Drawing, DrawnCapability } from "./drawing.js";
 
 /**
  * {@link testedNumbers}'s numbers, and whether the survey saw `capability`'s story's tests at all: unseen when the

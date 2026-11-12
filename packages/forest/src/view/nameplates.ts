@@ -64,15 +64,15 @@ const clipped = (box: Box, frame: Box) => box.left + NAME_OVERLAP_SLACK < frame.
  * Which story names fade where names overlap on screen (ADR-0917): no name moves off its island to clear another. The selected
  * story's shows first, then the names not dimmed, each the more squarely its island faces the eye the sooner; a name that would
  * overlap one already shown fades. A name the map's `frame` cuts (the rail's edge, the window's) fades too, the selected one
- * also, and crowds no other (3.4).
+ * also, and crowds no other (3.4); so does one under the map's `controls` (the Whole map button, the compass: 3.106).
  */
-export function fadedPlates(plates: readonly ShownPlate[], selected?: string, frame?: Box): Set<string> {
+export function fadedPlates(plates: readonly ShownPlate[], selected?: string, frame?: Box, controls: readonly Box[] = []): Set<string> {
   const order = [...plates].sort((a, b) => Number(b.story === selected) - Number(a.story === selected)
     || Number(a.dimmed ?? false) - Number(b.dimmed ?? false) || b.facing - a.facing);
   // Taken in order, each name shows if it clears the names already shown; the rest fade. A faded name fades no other.
   const shown: Box[] = [], faded = new Set<string>();
   for (const plate of order) {
-    if (frame !== undefined && clipped(plate.box, frame)) faded.add(plate.story);
+    if (frame !== undefined && clipped(plate.box, frame) || controls.some(control => overlaps(plate.box, control))) faded.add(plate.story);
     else if (shown.some(other => overlaps(plate.box, other))) faded.add(plate.story);
     else shown.push(plate.box);
   }
@@ -142,11 +142,11 @@ export function nameMoves(names: readonly { capability: string; box: Box; given:
   return changed;
 }
 
-/** Which story names fade (`fadedPlates`, within the map's `frame`), and the moves that take the capability names shown off each
- * other and off the story names that still show, never off one faded (3.33). */
-export function crowdedNames(stories: readonly ShownPlate[], selected: string | undefined, names: Parameters<typeof nameMoves>[0], frame?: Box): { faded: Set<string>; moves: Map<string, Move> } {
-  const faded = fadedPlates(stories, selected, frame);
-  return { faded, moves: nameMoves(names, stories.filter(plate => !faded.has(plate.story)).map(plate => plate.box)) };
+/** Which story names fade (`fadedPlates`, within the map's `frame` and off its `controls`), and the moves that take the capability
+ * names shown off each other, off the map's controls (3.106) and off the story names that still show, never off one faded (3.33). */
+export function crowdedNames(stories: readonly ShownPlate[], selected: string | undefined, names: Parameters<typeof nameMoves>[0], frame?: Box, controls: readonly Box[] = []): { faded: Set<string>; moves: Map<string, Move> } {
+  const faded = fadedPlates(stories, selected, frame, controls);
+  return { faded, moves: nameMoves(names, [...controls, ...stories.filter(plate => !faded.has(plate.story)).map(plate => plate.box)]) };
 }
 
 /** The globe's south as it lies on a plate turned by `plate` on the unturned globe: the way to its south pole along the surface, in the plate's own ground (x, z). */

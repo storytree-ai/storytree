@@ -173,6 +173,29 @@ test("3.4 a story's name that runs past the map's frame, under the rail or out o
   assert.deepEqual([...fadedPlates(row, undefined, cut)].sort(), ["follow", "read and write", "under the rail"], "a name past the window's edge fades, though the canvas runs on");
 });
 
+test("3.106 · the map's controls (the Whole map button, the compass) cover no name: a story's name under one fades, a capability's moves off it", () => {
+  // As the forest seed showed it zoomed in at 1440 x 960: the Whole map button at x 846-938 over the left of "The knowledge core".
+  const button = { left: 846, top: 128, right: 938, bottom: 154 }, compass = { left: 874, top: 56, right: 938, bottom: 120 };
+  const frame = { left: 0, top: 0, right: 1440, bottom: 960 };
+  const stories = [
+    { story: "under the button", box: { left: 918, top: 130, right: 1030, bottom: 163 }, facing: 1 },
+    { story: "clear", box: { left: 400, top: 130, right: 512, bottom: 163 }, facing: 1 },
+  ];
+  assert.deepEqual([...fadedPlates(stories, undefined, frame, [button, compass])], ["under the button"], "a story's name under a control fades; one clear of them shows");
+  assert.deepEqual([...fadedPlates(stories, "under the button", frame, [button])], ["under the button"], "the selected story's name fades too: the button covers it");
+  // A faded name crowds no other: a name it would have overlapped shows.
+  const behind = { story: "beside", box: { left: 960, top: 140, right: 1072, bottom: 173 }, facing: 0.5 };
+  assert.deepEqual([...fadedPlates([...stories, behind], undefined, frame, [button])], ["under the button"]);
+  const names = [{ capability: "under the compass", box: { left: 880, top: 80, right: 960, bottom: 96 }, given: { x: 0, y: 0 }, size: 3 }];
+  const { faded, moves } = crowdedNames(stories, undefined, names, frame, [button, compass]);
+  assert.deepEqual([...faded], ["under the button"]);
+  const move = moves.get("under the compass");
+  assert.ok(move !== undefined, "a capability's name under a control moves");
+  const at = { left: 880 + move.x, top: 80 + move.y, right: 960 + move.x, bottom: 96 + move.y };
+  for (const control of [button, compass]) assert.ok(at.right - NAME_OVERLAP_SLACK <= control.left || at.left + NAME_OVERLAP_SLACK >= control.right
+    || at.bottom - NAME_OVERLAP_SLACK <= control.top || at.top + NAME_OVERLAP_SLACK >= control.bottom, "moved off every control");
+});
+
 test("3.104 a click names what the name under it names: a part's name before its story's, and a name it falls outside names nothing", () => {
   const story = { story: "one", box: { left: 100, top: 100, right: 200, bottom: 130 } };
   const part = { story: "one", capability: "one-cap", box: { left: 150, top: 110, right: 230, bottom: 125 } };

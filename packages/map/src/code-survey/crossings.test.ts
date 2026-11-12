@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Counts before detail: what crosses a line drawn round files of a mapped island (ADR-0993 D6,
+ * Capability 3 · Counts before detail: what crosses a line drawn round files of an imported island (ADR-0993 D6,
  * D10). Written against a small import and a small checkout in temporary folders.
  */
 import assert from "node:assert/strict";
@@ -64,7 +64,7 @@ async function fixture(extra: Record<string, string> = {}) {
   return { shop, desk, trunk, survey, done: () => Promise.all([shop, desk, trunk].map((folder) => rm(folder, { recursive: true, force: true }))) };
 }
 
-test("3.9 for folders in a mapped island the map counts the files outside that import files inside, the island's and built stories' apart, and the files inside that import files outside, through relative paths, tsconfig paths and package names", async () => {
+test("3.9 for folders in an imported island the map counts the files outside that import files inside, the island's and built stories' apart, and the files inside that import files outside, through relative paths, tsconfig paths and package names", async () => {
   const { shop, trunk, survey, done } = await fixture();
   try {
     const counted = await crossingsOf(tree, survey, trunk, { patterns: ["packages/cart/src/ui"] });
@@ -104,15 +104,15 @@ test("3.9 for folders in a mapped island the map counts the files outside that i
   }
 });
 
-test("3.9 a line is refused when its patterns match nothing or span two imports; naming a mapped story keeps it to that story's files", async () => {
+test("3.9 a line is refused when its patterns match nothing or span two imports; naming an imported story keeps it to that story's files", async () => {
   const { trunk, survey, done } = await fixture();
   try {
-    await assert.rejects(crossingsOf(tree, survey, trunk, { patterns: ["nowhere"] }), /No mapped file matches/);
+    await assert.rejects(crossingsOf(tree, survey, trunk, { patterns: ["nowhere"] }), /No imported file matches/);
     await assert.rejects(crossingsOf(tree, survey, trunk, { patterns: ["**/ui"] }), /two imports/);
     const desk = await crossingsOf(tree, survey, trunk, { patterns: ["**/ui"], story: "desk" });
     assert.equal(desk.inside, 1);
     assert.deepEqual(desk.stories, ["desk"]);
-    await assert.rejects(crossingsOf(tree, survey, trunk, { patterns: ["src"], story: "Built" }), /not a mapped story/);
+    await assert.rejects(crossingsOf(tree, survey, trunk, { patterns: ["src"], story: "Built" }), /not an imported story/);
   } finally {
     await done();
   }
@@ -121,7 +121,7 @@ test("3.9 a line is refused when its patterns match nothing or span two imports;
 test("3.9 a pattern's empty segments are dropped, so a long run of slashes inside it is read as one", async () => {
   const { trunk, survey, done } = await fixture();
   try {
-    await assert.rejects(crossingsOf(tree, survey, trunk, { patterns: [`x${"/".repeat(40_000)}y`] }), /No mapped file matches/);
+    await assert.rejects(crossingsOf(tree, survey, trunk, { patterns: [`x${"/".repeat(40_000)}y`] }), /No imported file matches/);
   } finally {
     await done();
   }
@@ -168,7 +168,7 @@ test("3.10 an explored capability named cap:<id|number> in place of folders draw
   }
 });
 
-test("3.9 a mapped Python island's imports cross a line too: a src.-prefixed import from the project's top, where src/ is itself a package, reaches src/x.py or src/x/__init__.py", async () => {
+test("3.9 an imported Python island's imports cross a line too: a src.-prefixed import from the project's top, where src/ is itself a package, reaches src/x.py or src/x/__init__.py", async () => {
   const checkbox = await mkdtemp(path.join(tmpdir(), "crossing-checkbox-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "crossing-trunk-"));
   const python = { arcs: [], stories: [{ id: "story-interview", title: "data-interview", capabilities: [], mapped: { from: checkbox, package: ".", folders: ["."] } }] } as unknown as AnnotatedTree;

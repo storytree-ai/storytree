@@ -71,7 +71,7 @@ export const IMPORT = verb({
   consumers: ["user"],
   command: {
     family: "import", name: "import",
-    summary: "record the folder as imported by this project and map each package it declares to a mapped story; again, it adds new packages and drops gone ones; nothing is written into the folder",
+    summary: "record the folder as imported by this project and make each package it declares an imported story; again, it adds new packages and drops gone ones; nothing is written into the folder",
   },
   tool: NO_TOOL,
   inputs: { folder: { kind: "text", word: 0, describe: "the folder of the project to import" } },
@@ -83,11 +83,11 @@ export const IMPORT = verb({
     });
     const from = imported.repository === undefined ? "" : ` (${imported.repository} at ${imported.commit?.slice(0, 12) ?? "an unknown commit"})`;
     const lines = [
-      `Imported ${imported.folder}${from}: ${imported.added.length} mapped ${imported.added.length === 1 ? "story" : "stories"} added, ${imported.retired.length} retired, ${imported.kept.length} kept as they stand.`,
+      `Imported ${imported.folder}${from}: ${imported.added.length} imported ${imported.added.length === 1 ? "story" : "stories"} added, ${imported.retired.length} retired, ${imported.kept.length} kept as they stand.`,
       ...imported.added.map((story) => `  + ${story.id}  ${story.title}`),
       ...imported.retired.map((id) => `  - ${id}  retired: its package is gone`),
       ...importLines(imported),
     ];
-    return { text: lines.join("\n"), next: [{ command: "tree", why: "see the mapped stories in the plan" }] };
+    return { text: lines.join("\n"), next: [{ command: "tree", why: "see the imported stories in the plan" }] };
   },
 });

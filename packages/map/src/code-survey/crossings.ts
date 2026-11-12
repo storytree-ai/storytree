@@ -227,7 +227,7 @@ export async function crossingsOf(
   if (options.story !== undefined) {
     const wanted = options.story.toLowerCase();
     candidates = mapped.filter((story) => story.id === options.story || story.title.toLowerCase() === wanted);
-    if (candidates.length === 0) throw new Error(`${options.story} is not a mapped story this machine imports.`);
+    if (candidates.length === 0) throw new Error(`${options.story} is not an imported story this machine imports.`);
   }
   if (options.patterns.length === 0) throw new Error("Name the folders or file patterns the line is drawn round.");
 
@@ -239,7 +239,7 @@ export async function crossingsOf(
     const found = candidates.flatMap((story) => story.capabilities
       .filter((capability) => capability.id === wanted || /^\s*(\d+)\s*·/.exec(capability.title)?.[1] === wanted)
       .map((capability) => ({ story, capability })));
-    if (found.length === 0) throw new Error(`${pattern} is not a capability of a mapped story this machine imports.`);
+    if (found.length === 0) throw new Error(`${pattern} is not a capability of an imported story this machine imports.`);
     if (found.length > 1) throw new Error(`Ambiguous ${pattern}; use an id: ${found.map(({ story, capability }) => `${capability.id} (${story.title})`).join(", ")}`);
     const { story, capability } = found[0]!;
     if (capability.covers === undefined) throw new Error(`${pattern} (${capability.title}) covers no files: it is not an explored capability. Give its folders.`);
@@ -261,9 +261,9 @@ export async function crossingsOf(
       if (matchers.some((matcher) => matcher.test(file.path))) inside.set(`${folder}/${file.path}`, { folder, story: story.id });
     }
   }
-  if (inside.size === 0) throw new Error(`No mapped file matches ${options.patterns.join(", ")}.`);
+  if (inside.size === 0) throw new Error(`No imported file matches ${options.patterns.join(", ")}.`);
   const folders = [...new Set([...inside.values()].map(({ folder }) => folder))];
-  if (folders.length > 1) throw new Error(`The line takes files of two imports (${folders.join(", ")}); name a mapped story with --select story:<name>, or give full paths.`);
+  if (folders.length > 1) throw new Error(`The line takes files of two imports (${folders.join(", ")}); name an imported story with --select story:<name>, or give full paths.`);
   const island = folders[0]!;
   const { islandStories, known, importsFrom } = await islandImports(tree, survey, checkout, island, readText);
 

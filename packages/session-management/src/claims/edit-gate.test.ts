@@ -273,14 +273,19 @@ test("5.74 on a story storytree draws, a refused edit to a file in a language th
       writeFileSync(path.join(viewer, "cmd", "main.go"), "package main\n");
       mkdirSync(path.join(tool, "cmd"), { recursive: true });
       writeFileSync(path.join(tool, "cmd", "main.go"), "package main\n");
+      const lib = path.join(root, "lib");
+      mkdirSync(path.join(lib, "pkg"), { recursive: true });
+      writeFileSync(path.join(lib, "pkg", "core.py"), "x = 1\n");
       const library = await storytree.openProject(project);
       const { added: [drawn] } = await library.mapStories("https://github.com/someone/viewer.git", [{ package: ".", title: "viewer", folders: ["."] }]);
       const { added: [byHand] } = await library.mapStories("https://github.com/someone/tool.git", [{ package: ".", title: "tool", folders: ["."] }]);
       const stats = (await library.addCapability({ title: "app/stats", story: drawn!.id, covers: ["app/stats"] })).id;
       await library.addCapability({ title: "Commands", story: byHand!.id, covers: ["cmd"] });
+      const { added: [modules] } = await library.mapStories("https://github.com/someone/lib.git", [{ package: ".", title: "lib", folders: ["."] }]);
+      await library.addCapability({ title: "pkg/core.py", story: modules!.id, covers: ["pkg/core.py"] });
       const as = { log, library, project, session: "A", harness: "claude-code", folder: checkout };
       const readsCode = async (file: string) => /\.(ts|py)$/.test(file);
-      const imports = [{ folder: viewer, repository: "https://github.com/someone/viewer.git" }, { folder: tool, repository: "https://github.com/someone/tool.git" }];
+      const imports = [{ folder: viewer, repository: "https://github.com/someone/viewer.git" }, { folder: tool, repository: "https://github.com/someone/tool.git" }, { folder: lib, repository: "https://github.com/someone/lib.git" }];
       const gate = (file: string) => editRefusal(as, checkout, [{ path: file }], declaredInTests, imports, readsCode);
       const refusedSteps = /plan_capability|draw the capability|to the covers of|import the folder again/;
 
@@ -291,6 +296,10 @@ test("5.74 on a story storytree draws, a refused edit to a file in a language th
       assert.equal(unread?.refused === "imported" ? unread.drawn : unread, "unread", "a file the map cannot read, in a story it draws");
       assert.match(refusalMessage(unread!), new RegExp(`a file a capability covers.*\\(${stats}\\).*ask the user`, "s"), "the way on: a file a capability covers, or the user");
       assert.doesNotMatch(refusalMessage(unread!), refusedSteps);
+
+      const module = await gate(path.join(lib, "pkg", "ext.go"));
+      assert.equal(module?.refused === "imported" ? module.drawn : module, "unread", "a story drawn module by module, each capability covering a file");
+      assert.doesNotMatch(refusalMessage(module!), refusedSteps);
 
       const unreadable = await gate(path.join(tool, "internal", "store.go"));
       assert.equal(unreadable?.refused === "imported" ? unreadable.drawn : unreadable, undefined, "a story whose code the map cannot read is drawn by reading");

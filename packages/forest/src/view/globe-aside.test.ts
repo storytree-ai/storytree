@@ -82,6 +82,16 @@ test("3.40 under a side offset a click picks the island drawn where it was click
   assert.equal(pickGlobe(world, camera, box, { x: 400, y: 300 }, "forest"), undefined, "the window's centre is now empty sea");
 });
 
+test("3.40 the sheet slides the picked island to the middle of the free width, whole, and closing slides back by as much", () => {
+  // The desktop's map at 1440x960 with the rail open: 1008 px of canvas, the panel covering its right 492.
+  const canvas = { width: 1008, height: 912 }, rest = { framing: 0.4, sideOffset: 0 }, aside = createGlobeAside(() => rest, { fit: false });
+  // An island at canvas x 272 is already in the free width: half the panel's slide would put it at 26, cut by the edge.
+  const open = aside.place(canvas, panel, rest, 272);
+  assert.deepEqual(open, { to: { framing: 0.4, sideOffset: -14 }, glide: true }, "to x 258, the middle of the 516 px left free");
+  assert.deepEqual(aside.place(canvas, 0, open!.to)?.to, rest, "closing slides back by exactly that");
+  assert.deepEqual(aside.place(canvas, panel, rest)?.to, { framing: 0.4, sideOffset: -246 }, "no picked island (the Library's note card): half the panel");
+});
+
 test("3.85 the map's frame changing size keeps the zoom on screen and the place under its unchanged edge where it was", () => {
   const before = { width: 1000, height: 600, left: 280 }, pose = { framing: 0.4, sideOffset: -120 };
   // The left rail hides: the frame's left edge moves out to the window's, its right edge stays.

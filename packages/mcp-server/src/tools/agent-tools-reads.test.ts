@@ -815,6 +815,13 @@ test("9.12 on an imported story storytree draws, plan_capability is refused, nam
       assert.ok(refused.text.includes(cart.id), refused.text);
       assert.match(refused.text, /name and describe it with edit_plan/);
       assert.equal((await library.list("capability")).filter((one) => one.fields.story === story.id).length, drawn.length, "nothing is planned");
+      const both = await agent.call("plan_capability", { story: story.id, title: "Shop", covers: ["src"], ...FOUNDED });
+      assert.equal(both.isError, true, both.text);
+      assert.ok(both.text.includes(cart.id) && both.text.includes(pay.id), both.text);
+      assert.match(both.text, /name and describe them with edit_plan/);
+      const none = await agent.call("plan_capability", { story: story.id, title: "Shipping", covers: ["src/ship"], ...FOUNDED });
+      assert.equal(none.isError, true, none.text);
+      assert.match(none.text, /a file no capability holds yet is drawn when you import the folder again/);
 
       const linked = await agent.call("plan_edge", { from: pay.id, to: cart.id });
       assert.equal(linked.isError, true, linked.text);

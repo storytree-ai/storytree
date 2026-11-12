@@ -16,7 +16,7 @@ import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { capabilitiesOfFiles, codeSurveyReader, placeFiles, noMergedMain, offThreadSurveyReader, readCodeSurvey, storyTests, surveyCodeName, testedNumbers, untestedContracts } from "./read-survey.js";
+import { capabilitiesOfFiles, codeSurveyReader, drawsItself, placeFiles, noMergedMain, offThreadSurveyReader, readCodeSurvey, storyTests, surveyCodeName, testedNumbers, untestedContracts } from "./read-survey.js";
 import { focusProject } from "../read.js";
 import { importedSource } from "./survey-source.js";
 // 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
@@ -1300,5 +1300,26 @@ test("8.40 reading a capability's story tests says whether its story's package w
     assert.deepEqual(await storyTests(folder, { ...plan, stories: [plan.stories[1]!] } as AnnotatedTree, "cap-ghost"), { numbers: ["1.1"], seen: true }, "pytest numbers are seen tests");
   } finally {
     await removeTemp(folder);
+  }
+});
+
+test("8.65 storytree draws an imported story itself exactly when its import is on this machine and the survey reads its code into at least one capability: code in a language it cannot read, or an import found nowhere here, is the agent's to draw", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "draws-itself-"));
+  try {
+    const shop = path.join(root, "shop");
+    const tool = path.join(root, "tool");
+    await mkdir(path.join(shop, "src", "cart"), { recursive: true });
+    await writeFile(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
+    await writeFile(path.join(shop, "src", "cart", "index.js"), "export const cart = 1;\n");
+    await mkdir(path.join(tool, "cmd"), { recursive: true });
+    await writeFile(path.join(tool, "package.json"), JSON.stringify({ name: "tool" }));
+    await writeFile(path.join(tool, "cmd", "main.go"), "package main\n\nfunc main() {}\n");
+    const story = (from: string) => ({ mapped: { from, package: ".", folders: ["."] } }) as never;
+    const here = (from: string) => [{ project: "p", machine: "m", machineName: "m", folder: from }] as never;
+    assert.equal(await drawsItself(root, story(shop), [], here(shop)), true, "readable code, imported here");
+    assert.equal(await drawsItself(root, story(tool), [], here(tool)), false, "only Go, which the survey does not read");
+    assert.equal(await drawsItself(root, story(path.join(root, "elsewhere")), [], here(shop)), false, "its import is not on this machine");
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });

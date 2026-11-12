@@ -45,6 +45,8 @@ export interface CaptureView {
 
 interface CaptureOptions {
   folder: string;
+  /** The run's prefix or label, which its files carry: a check run then clears only those from its scratch folder. */
+  name?: string;
   dist?: string;
   /** Pure HTML/SVG previews use Chromium's ordinary compositor, without the WebGL flags. */
   softwareGL?: boolean;
@@ -107,8 +109,8 @@ export async function pageStorage(page: Page): Promise<Record<string, string>> {
 const MIME: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".map": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".glb": "model/gltf-binary" };
 
 /** A shared server/browser lifetime for captures with their own interaction or measurement flow. */
-export async function withCapture<T>({ folder, dist, softwareGL = true, closeGraceMs }: CaptureOptions, run: (context: CaptureContext) => Promise<T>): Promise<T> {
-  const out = captureOutput(folder);
+export async function withCapture<T>({ folder, name, dist, softwareGL = true, closeGraceMs }: CaptureOptions, run: (context: CaptureContext) => Promise<T>): Promise<T> {
+  const out = captureOutput(folder, name === undefined ? {} : { name });
   const server = dist === undefined ? undefined : createServer((request, response) => {
     try {
       const name = decodeURIComponent(new URL(request.url ?? "/", "http://localhost").pathname);

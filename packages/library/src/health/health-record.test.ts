@@ -563,6 +563,8 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(inOrder.toSorted(), [contract.id, sibling.id].toSorted());
     assert.deepEqual(await whyOf(), { reason: "no test names it", mover: "agent", contracts: inOrder }, "in the capability's order");
     await health.recordVerified(contract.id, "passing");
+    await work.editContract(sibling.id, { proof: { by: "agentic-user-acceptance-testing", reason: "Only a user's eye can tell." } });
+    assert.deepEqual(await whyOf(), { reason: "acceptance test not run", mover: "agent", contracts: [sibling.id] }, "proved by acceptance testing, never recorded");
     const owner = await health.recordVerified(sibling.id, "not-checked", { skip: "owner" });
     assert.deepEqual(await whyOf(), { reason: "needs owner", mover: "owner", contracts: [sibling.id], since: owner.at });
     await health.recordVerified(sibling.id, "passing");
@@ -1272,4 +1274,9 @@ test("5.8 one reason per capability that is not healthy, the agent's work ranked
   assert.deepEqual(capabilityWhy(false, all.slice(0, 2)), { reason: "out of CI's reach", mover: "agent", contracts: ["p"], since: at(25) });
   assert.deepEqual(capabilityWhy(false, [owner, c("a", passing)]), { reason: "needs owner", mover: "owner", contracts: ["w"], since: at(24) }, "an owner skip needs the owner, whatever it last saw");
   assert.deepEqual(capabilityWhy(false, []), { reason: "no test names it", mover: "agent", contracts: [] }, "no contracts");
+  // A contract proved by agentic user acceptance testing is never named by a plain test: with no verdict, its acceptance test has not run.
+  const judged = { ...c("u", { state: "not-checked" }), proof: "agentic-user-acceptance-testing" as const };
+  assert.deepEqual(capabilityWhy(false, [owner, platform, judged]), { reason: "acceptance test not run", mover: "agent", contracts: ["u"] });
+  assert.deepEqual(capabilityWhy(false, [judged, noTest]), { reason: "no test names it", mover: "agent", contracts: ["n"] }, "a test to write ranks first");
+  assert.deepEqual(capabilityWhy(false, [{ ...judged, verified: { state: "failing", at: at(9) } }]), { reason: "failing", mover: "agent", contracts: ["u"], since: at(9) }, "a verdict it has speaks for itself");
 });

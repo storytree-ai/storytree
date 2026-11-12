@@ -3,6 +3,8 @@
  * the window's right, the globe sits in the free width left of it, zooming out only when it would not fit there.
  */
 
+import { Vector3, type Camera, type Object3D } from "three";
+
 /** Framing is the short half-side in globe radii; offset is CSS pixels right. */
 export type AsidePose = { framing: number; sideOffset: number };
 type Viewport = { width: number; height: number };
@@ -20,6 +22,12 @@ export function besidePanel(viewport: Viewport, aside: number, rest: AsidePose, 
   if (!fit) return { sideOffset: rest.sideOffset - aside / 2, framing: rest.framing };
   const whole = Math.min(viewport.width, viewport.height) / (free - 2 * FIT_MARGIN);
   return { sideOffset: rest.sideOffset - aside / 2, framing: Math.max(rest.framing, whole) };
+}
+
+/** Where `story`'s island is drawn across the canvas, in CSS pixels from its left: undefined with none picked or none drawn. */
+export function islandCanvasX(scene: Object3D, camera: Camera, story: string | undefined, width: number): number | undefined {
+  const island = story === undefined ? undefined : scene.getObjectByName(`planet:${story}`);
+  return island && (island.getWorldPosition(new Vector3()).project(camera).x + 1) * width / 2;
 }
 
 /** How many CSS pixels of `page`'s right the panel covers, its gutter included: none while it draws no box. */

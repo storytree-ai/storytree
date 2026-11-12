@@ -23,7 +23,7 @@ import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./isla
 import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, ignoresClick, feedbackPick, answerFeedbackPicks, type ForestMode, type PickedGate } from "./planet-navigation.js";
 import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
-import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
+import { createGlobeAside, framedOnResize, islandCanvasX, type AsidePose } from "./globe-aside.js";
 import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPointerMarkers, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { growLand, IslandOpening, presentDetail, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 import { DetailStore } from "./zoom-detail.js";
@@ -692,8 +692,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const besideAside = useRef<ReturnType<typeof createGlobeAside>>(undefined);
   besideAside.current ??= createGlobeAside(() => host.current.opening, { fit: false });
   useEffect(() => {
-    const island = selected === undefined ? undefined : scene.getObjectByName(`planet:${selected}`)?.getWorldPosition(new Vector3()).project(camera);
-    const moved = besideAside.current!.place(size, aside, read(), island && (island.x + 1) * size.width / 2);
+    const moved = besideAside.current!.place(size, aside, read(), islandCanvasX(scene, camera, selected, size.width));
     placedAside.current = aside;
     if (moved === undefined || !guide.current!.slide(moved.to, moved.glide && !reducedMotion() ? 600 : 0)) return;
     guideFrameAt.current = performance.now();

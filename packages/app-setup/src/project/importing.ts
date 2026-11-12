@@ -2,7 +2,9 @@
  * Capability 12 · Import an existing project (ADR-0993 D1, D2, D6). A storytree project imports an existing
  * JavaScript, TypeScript or Python project's folder: the folder is recorded on the project beside its trunk, through
  * Session management's recordImport, and each package the folder declares becomes a mapped story, through the
- * library's mapStories, the only way a story is made mapped. Importing again maps the folder afresh. Nothing is
+ * library's mapStories, the only way a story is made mapped. Each story it adds gets the capabilities and links the
+ * code survey draws from its code (ADR-1324 D1), titled by their paths for an agent to name; code the survey cannot
+ * read gets none (ADR-1324 D4). Importing again maps the folder afresh. Nothing is
  * written into the imported folder: it is read, and git is only asked where it came from and what changed.
  *
  * Importing again runs only these deterministic steps (ADR-0993 D2, D5): it says the commit recorded before and
@@ -23,7 +25,8 @@ import path from "node:path";
 
 import { parse as parseToml } from "smol-toml";
 
-import type { Library, MappedPackage, Storytree } from "@storytree/library";
+import type { Library, MappedPackage, SchemaRecord, Storytree } from "@storytree/library";
+import { drawImport } from "@storytree/map/code-survey";
 import { folderLanguages } from "@storytree/map/folder-languages";
 import { languageList } from "@storytree/map/languages";
 import { packageOf } from "@storytree/map/package-of";
@@ -41,15 +44,15 @@ export interface ImportOptions {
 }
 
 /**
- * What one import did: the folder as recorded, where it came from, and the stories mapStories added, retired and
- * kept. Imported again: what was recorded before, the files changed since that commit (absent when git cannot
+ * What one import did: the folder as recorded, where it came from, and the stories mapStories added, each with the
+ * number of capabilities drawn on it, retired and kept. Imported again: what was recorded before, the files changed since that commit (absent when git cannot
  * compare the two), and each kept story's explored capability that covers a path no longer in the folder.
  */
 export interface Imported {
   readonly folder: string;
   readonly repository?: string;
   readonly commit?: string;
-  readonly added: { readonly id: string; readonly title: string }[];
+  readonly added: { readonly id: string; readonly title: string; readonly capabilities: number }[];
   readonly retired: string[];
   readonly kept: string[];
   readonly before?: { readonly commit?: string };
@@ -109,17 +112,35 @@ export async function importProject({ folder, library, storytree, storytreeHome:
   const recorded = (await importsOf(storytree, library.name, machine.id)).find((imported) => imported.folder === at);
   await recordImport(storytree, { project: library.name, machine: machine.id, machineName: machine.name, folder: at, ...origin });
   const mapped = await library.mapStories(origin.repository ?? at, packages);
+  const stories = await library.list("story");
+  const added: Imported["added"][number][] = [];
+  for (const story of mapped.added) added.push({ id: story.id, title: story.fields.title, capabilities: await drawn(library, story, at, stories) });
   const changes = recorded?.commit !== undefined && origin.commit !== undefined ? changedBetween(at, recorded.commit, origin.commit) : undefined;
   return {
     folder: at,
     ...origin,
-    added: mapped.added.map((story) => ({ id: story.id, title: story.fields.title })),
+    added,
     retired: mapped.retired,
     kept: mapped.kept,
     ...(recorded === undefined ? {} : { before: recorded.commit === undefined ? {} : { commit: recorded.commit } }),
     ...(changes === undefined ? {} : { changes }),
     stranded: mapped.kept.length === 0 ? [] : await strandedIn(library, at, new Set(mapped.kept)),
   };
+}
+
+/**
+ * Write the drawing of imported `story`, its code read from `folder`, into the plan (ADR-1324 D1): a capability for each
+ * part, built (its code is there), titled by its path and covering its folders and files, and an edge for each link.
+ * Returns how many capabilities it drew.
+ */
+async function drawn(library: Library, story: SchemaRecord<"story">, folder: string, stories: readonly SchemaRecord<"story">[]): Promise<number> {
+  const { mapped } = story.fields;
+  if (mapped === undefined) return 0;
+  const drawing = await drawImport({ mapped }, folder, stories.map((one) => one.fields));
+  const ids = new Map<string, string>();
+  for (const part of drawing.capabilities) ids.set(part.title, (await library.addCapability({ story: story.id, title: part.title, covers: [...part.covers], proposed: false })).id);
+  for (const link of drawing.links) await library.addEdge({ from: ids.get(link.from)!, to: ids.get(link.to)! });
+  return drawing.capabilities.length;
 }
 
 /**

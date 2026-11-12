@@ -167,8 +167,11 @@ async function codeUnder(source: SurveySource, dir: string, left: ReadonlySet<st
   return found.flat();
 }
 
+/** Of an imported story, what reading its code needs: where it was imported from and its folders. */
+type Imported = Pick<MappedStory, "mapped">;
+
 /** The folders, by full path under `root`, that another of `own` (the stories of one import) maps inside one of `story`'s: that story's to read. */
-function leftOut(story: MappedStory, own: readonly MappedStory[], root: string): Set<string> {
+function leftOut(story: Imported, own: readonly Imported[], root: string): Set<string> {
   return new Set(own.flatMap((other) => other === story ? [] : other.mapped.folders)
     .filter((folder) => !story.mapped.folders.includes(folder) && story.mapped.folders.some((mine) => inside(folder, mine)))
     .map((folder) => path.join(root, folder)));
@@ -180,9 +183,9 @@ function leftOut(story: MappedStory, own: readonly MappedStory[], root: string):
  * stories, whose folders another package of the same import maps are left out. What a mapped story's numbered tests
  * are read from, so a landing sees them (ADR-1213 D1).
  */
-export async function mappedCode(story: MappedStory, folder: string, stories: readonly AnnotatedTree["stories"][number][], readText: (file: string) => Promise<string>): Promise<SourceFile[]> {
+export async function mappedCode(story: Imported, folder: string, stories: readonly { readonly mapped?: Imported["mapped"] | undefined }[], readText: (file: string) => Promise<string>): Promise<SourceFile[]> {
   const { source, folder: root } = await importedSource(folder, readText);
-  const own = stories.filter((other): other is MappedStory => other.mapped?.from === story.mapped.from);
+  const own = stories.filter((other): other is Imported => other.mapped?.from === story.mapped.from);
   const left = leftOut(story, own.includes(story) ? own : [...own, story], root);
   const paths = [...new Set((await Promise.all(story.mapped.folders.map((mine) => codeUnder(source, path.join(root, mine), left)))).flat())];
   const files = await Promise.all(paths.map(async (full): Promise<SourceFile | undefined> => {

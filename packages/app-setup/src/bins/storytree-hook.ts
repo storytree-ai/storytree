@@ -5,7 +5,9 @@
  *
  * Only the lookup's declared half is given: a file's opening "Capability N · …", or a test file's one numbered
  * capability. The code survey's inference is too slow for a hook the harness waits on, and too often wrong to stop
- * work on. The map is loaded only when an edit is gated, so every other hook stays quick.
+ * work on. The map is loaded only when an edit is gated, so every other hook stays quick. The map's language rule is
+ * given too: which edited files storytree draws from their imports (ADR-1324), so the gate's refusal of one no
+ * capability covers names a step that is not refused.
  */
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -23,12 +25,18 @@ export const declaredCapabilities = async (checkout: string, files: readonly str
   return new Map([...placed].flatMap(([file, { capability, inferred }]) => (inferred ? [] : [[file, capability] as const])));
 };
 
+/** Whether the map reads `file`'s language, so storytree draws it from its import rather than an agent by reading (ADR-1324). */
+export const readsCode = async (file: string): Promise<boolean> => {
+  const { languagesOf } = await import("@storytree/map/languages");
+  return languagesOf([file]).read.length > 0;
+};
+
 // Run only as the built command, never when a test imports the lookup. Node loads the command by its real path. A hook
 // Claude Code stops by SIGTERM is deaf to it before the rest of the command loads (a separate chunk, imported after).
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   deafIfHandingOffAtOnce();
   const [{ default: hooks }, { mount }, { readPartsOff }] = await Promise.all([import("#parts/hooks"), import("@storytree/plugin-loader/switch"), import("@storytree/project-and-caller")]);
-  for (const hookCommand of mount(hooks, partsOff(readPartsOff)).mounted) hookCommand({ declaredCapabilities });
+  for (const hookCommand of mount(hooks, partsOff(readPartsOff)).mounted) hookCommand({ declaredCapabilities, readsCode });
 }
 
 /** The parts this computer switches off; a damaged setting switches none off here, since a hook never stops the agent beside it. */

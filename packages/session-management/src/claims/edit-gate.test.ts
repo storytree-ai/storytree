@@ -212,6 +212,56 @@ test("5.65 a refused edit to an imported file no capability covers, under an inc
   }
 });
 
+test("5.73 on code the map reads (ADR-1324), a refused edit to an imported file no capability covers names a step that is not refused: import the folder again, or for a file not yet written a covered file or the user; never drawing or widening a capability", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (root) => {
+      const checkout = path.join(root, "project");
+      const viewer = path.join(root, "viewer");
+      mkdirSync(path.join(viewer, "app", "stats"), { recursive: true });
+      writeFileSync(path.join(viewer, "app", "routes.ts"), "export const routes = 1;\n");
+      writeFileSync(path.join(viewer, "app", "tool.go"), "package app\n");
+      const library = await storytree.openProject(project);
+      const { added: [mapped] } = await library.mapStories("https://github.com/someone/viewer.git", [{ package: ".", title: "viewer", folders: ["."] }]);
+      const stats = (await library.addCapability({ title: "app/stats", story: mapped!.id, covers: ["app/stats"] })).id;
+      const arc = await library.createArc({ title: "Stats", intent: "A stats page", endState: "Stats shown", stories: [mapped!.id] });
+      const as = { log, library, project, session: "A", harness: "claude-code", folder: checkout };
+      const readsCode = async (file: string) => !file.endsWith(".go");
+      const gate = (file: string) => editRefusal(as, checkout, [{ path: path.join(viewer, file) }], declaredInTests, [{ folder: viewer, repository: "https://github.com/someone/viewer.git" }], readsCode);
+      const refusedSteps = /plan_capability|draw the capability|to the covers of/;
+
+      const unheld = await gate("app/routes.ts");
+      assert.equal(unheld?.refused === "imported" ? unheld.drawn : unheld, "on-disk", "a file the map reads, already there");
+      assert.match(refusalMessage(unheld!), new RegExp(`import the folder again \\(import_project with folder ${viewer.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")}\\).*list it on an increment you hold`, "s"), "the way on: import again, then list what holds it");
+      assert.doesNotMatch(refusalMessage(unheld!), refusedSteps);
+
+      const mine = (await library.addIncrement({ arc: arc.id, title: "stats", objective: "stats", body: "stats", capabilities: [stats] })).id;
+      assert.equal((await claim(as, mine, "driving the stats page")).ok, true);
+      const listed = await gate("app/routes.ts");
+      assert.match(refusalMessage(listed!), new RegExp(`import the folder again .*list the capability that holds it on your increment ${mine}`, "s"), "under an increment that lists capabilities too");
+      assert.doesNotMatch(refusalMessage(listed!), refusedSteps);
+
+      const fresh = await gate("app/home.ts");
+      assert.equal(fresh?.refused === "imported" ? fresh.drawn : fresh, "new", "a file not written yet");
+      assert.match(refusalMessage(fresh!), new RegExp(`a file a capability covers, such as "[^"]*app/stats" \\(${stats}\\), covering app/stats.*ask the user to make app/home\\.ts`, "s"), "the way on: a file a capability covers, or the user makes it and the folder is imported again");
+      assert.doesNotMatch(refusalMessage(fresh!), refusedSteps);
+
+      const unread = await gate("app/tool.go");
+      assert.equal(unread?.refused === "imported" ? unread.drawn : unread, undefined, "code the map cannot read is drawn by reading");
+      assert.match(refusalMessage(unread!), /to the covers of one of them/, "and keeps today's way on");
+    });
+  } finally {
+    try {
+      await log.close();
+      await storytree.close();
+    } finally {
+      await dropTestProjects([project]);
+    }
+  }
+});
+
 test("5.70 a session whose claims lapsed without its asking (the session manager released them, or another session took them over while its process was stopped) and that has claimed nothing since is told so by its next refused edit: which work, when, why or who took it, and the claim that takes it again; work it released itself is not called lapsed", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });

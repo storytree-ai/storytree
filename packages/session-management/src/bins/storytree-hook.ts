@@ -28,17 +28,17 @@ import { spawn } from "node:child_process";
 
 import { storytreeHome } from "@storytree/project-and-caller";
 
-import type { DeclaredCapabilities } from "../claims/edit-gate.js";
+import type { DeclaredCapabilities, ReadsCode } from "../claims/edit-gate.js";
 import { deafIfHandingOffAtOnce } from "../hooks/at-once.js";
 import { limitOf } from "../hooks/learned-limits.js";
 import { remoteLibrary } from "../hooks/remote-turn.js";
 import { OBSERVE_STEP } from "../hooks/shell-edits.js";
 import { atDeadline, BACKGROUND, HANDED, HookClock, hookDeadline, recordHookTime, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
 
-export type { DeclaredCapabilities };
+export type { DeclaredCapabilities, ReadsCode };
 
 /** Run the hook command for this process: its harness and flags in argv, the hook's input on stdin. */
-export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabilities?: DeclaredCapabilities; guardMs?: number } = {}): void {
+export function hookCommand({ declaredCapabilities, readsCode, guardMs }: { declaredCapabilities?: DeclaredCapabilities; readsCode?: ReadsCode; guardMs?: number } = {}): void {
   const clock = new HookClock();
   if (process.argv[2] !== "statusline") process.on("exit", () => recordHookTime(storytreeHome(), clock.reading(process.argv[2] ?? "", process.argv.slice(3))));
   // A guard given longer than the hook may run (only a test gives one) is not cut off by the hook's own deadline.
@@ -68,7 +68,7 @@ export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabil
       void handOff(harness, input, flags.filter((flag) => flag !== BACKGROUND)).then(() => process.exit(0));
       return;
     }
-    runHook({ argv: process.argv.slice(2), input, handOff, clock, ...(declaredCapabilities === undefined ? {} : { declaredCapabilities }), ...(guardMs === undefined ? {} : { guardMs }) }).then(
+    runHook({ argv: process.argv.slice(2), input, handOff, clock, ...(declaredCapabilities === undefined ? {} : { declaredCapabilities }), ...(readsCode === undefined ? {} : { readsCode }), ...(guardMs === undefined ? {} : { guardMs }) }).then(
       (added) => (added === undefined ? process.exit(0) : process.stdout.write(added, () => process.exit(0))),
       () => process.exit(0),
     );

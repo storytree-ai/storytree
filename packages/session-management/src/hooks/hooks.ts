@@ -56,7 +56,7 @@ import { nameReader } from "@storytree/library/reads";
 import type { ActivityLog, DeliveredEvent } from "../activity/index.js";
 import { runGit, type Git } from "../activity/git.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
-import type { DeclaredCapabilities } from "../claims/edit-gate.js";
+import type { DeclaredCapabilities, ReadsCode } from "../claims/edit-gate.js";
 import { approvedHere, findProject, openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions, type Route } from "@storytree/project-and-caller";
 import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
@@ -96,6 +96,8 @@ export interface HookInput {
   readonly locate?: LocateOptions;
   /** Which capability each edited file declares, for the gate before each edit (`--edit-gate`). Without it the gate refuses nothing. */
   readonly declaredCapabilities?: DeclaredCapabilities;
+  /** Which edited files are in a language the map reads, so the gate's refusal of one no capability covers names a step storytree takes for code it draws (ADR-1324). */
+  readonly readsCode?: ReadsCode;
   /** How long the hook after a shell command may wait to ask which changes a yes covers (`--shell-guard`), and the gate before an edit to judge it (`--edit-gate`). By default, each one's own. */
   readonly guardMs?: number;
   /** The hook process's clock, which its parts are timed on (timing.ts, ADR-1056 D1). Without it, nothing is timed. */
@@ -186,7 +188,7 @@ export async function runHook(hook: HookInput): Promise<string | undefined> {
 /** The flag naming the event in a hook command, for a harness whose input names none (Antigravity). */
 export const EVENT = "--event=";
 
-async function answerHook({ argv, input: given, handOff: handing, merges, locate, declaredCapabilities, guardMs, clock, git = runGit }: HookInput): Promise<string | undefined> {
+async function answerHook({ argv, input: given, handOff: handing, merges, locate, declaredCapabilities, readsCode, guardMs, clock, git = runGit }: HookInput): Promise<string | undefined> {
   const [harness = "", ...flags] = argv;
   const read = parse(given);
   const parsed = withEvent(read, flags);
@@ -217,7 +219,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
     // The guard storytree's red and green builder agents run before each edit writes nothing either (3.50).
     if (flags.includes(TEST_GUARD)) return testGuard(harness, parsed, flags);
-    if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed, guardMs);
+    if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed, guardMs, readsCode);
     // The hook after each shell command that the harness waits for tells the agent of its changes to imported code (ADR-1015), and to capabilities its claims do not cover (ADR-0949 D3).
     if (flags.includes(SHELL_GUARD)) return await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities, guardMs, git);
     const made = hookLines(harness, parsed);

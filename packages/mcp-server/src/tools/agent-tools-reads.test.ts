@@ -1062,3 +1062,91 @@ test("9.38 show_plan says an arc holding more than 20 increments, open and close
     });
   });
 });
+
+test("9.39 · A bare show_plan whose whole answer, text and data, runs past 40,000 characters gives an overview: each story and arc counted, sessions counted by state, and how to read one part whole; a plan within that is given whole", async () => {
+  await withProject(async ({ folder, library }) => {
+    const signup = await library.addStory({ title: "Visitor can sign up" });
+    const form = await library.addCapability({ title: "Postcode form", story: signup.id });
+    for (const title of ["Rejects letters only", "Accepts a full postcode"]) await library.addContract({ title, capability: form.id });
+    await library.addStory({ title: "Visitor can log in" });
+    const arc = await library.createArc({ title: "Signup release", intent: "Ship signup", endState: "Signup live" });
+    for (const title of ["Form", "Email", "Copy"]) await library.addIncrement({ arc: arc.id, title, objective: "Ship it", body: "Red then green" });
+    await library.closeIncrement((await library.addIncrement({ arc: arc.id, title: "Spike", objective: "Learn", body: "Try it" })).id, { pr: "#1", disposition: "landed" });
+    await library.editArc(arc.id, { priority: 1 });
+    const done = await library.createArc({ title: "Login release", intent: "Ship login", endState: "Login live" });
+    await library.closeIncrement((await library.addIncrement({ arc: done.id, title: "Login", objective: "Ship it", body: "Red then green" })).id, { pr: "#2", disposition: "landed" });
+
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const whole = await agent.call("show_plan");
+      assert.match(whole.text, /Contract "1\.1 · Rejects letters only"/);
+      assert.match(whole.text, /Increment "Form"/);
+      assert.equal(whole.data.overview, undefined);
+
+      await library.editCapability(form.id, { description: "A postcode form. ".repeat(3000) });
+      const plan = await agent.call("show_plan");
+      const size = plan.text.length + JSON.stringify(plan.data).length;
+      assert.ok(size < 40_000, `the overview runs to ${size} characters`);
+      assert.match(plan.text, /^Anchor|^The project has no anchor/);
+      assert.match(plan.text, /The whole plan runs past 40,000 characters, so this is its overview, each story and arc counted: give show_plan a story's, a capability's or an arc's id to read that part whole\./);
+      assert.match(plan.text, new RegExp(`Story "Visitor can sign up" \\(${signup.id}\\): .*; 1 capability, 2 contracts$`, "m"));
+      assert.match(plan.text, /Story "Visitor can log in" \(story_\w+\): .*; 0 capabilities, 0 contracts$/m);
+      assert.match(plan.text, new RegExp(`Arc "Signup release" \\(${arc.id}\\).*; 4 increments: 3 \\w+, 1 closed$`, "m"));
+      assert.match(plan.text, /^Sessions: 1 session, 1 \w+; the sessions list names each\.$/m);
+      assert.doesNotMatch(plan.text, /Contract "|Increment "|A postcode form/);
+      assert.equal(plan.data.overview, true);
+      assert.deepEqual((plan.data.stories as { id: string; capabilities: number; contracts: number }[]).map(({ id, capabilities, contracts }) => ({ id, capabilities, contracts }))[0], { id: signup.id, capabilities: 1, contracts: 2 });
+      const arcs = plan.data.arcs as { id: string; priority?: number; closed?: string; increments: Record<string, number> }[];
+      assert.equal(arcs.find((one) => one.id === arc.id)?.increments.closed, 1);
+      assert.equal(arcs.find((one) => one.id === arc.id)?.priority, 1);
+      assert.match(arcs.find((one) => one.id === done.id)?.closed ?? "", /^\d{4}-\d{2}-\d{2}$/);
+    });
+  });
+});
+
+test("9.40 · show_plan given a story's, a capability's or an arc's id gives that part whole; a story too large to give whole lists its capabilities with their contracts counted; an id the plan lacks, or one given with a closing window, is refused", async () => {
+  await withProject(async ({ folder, library }) => {
+    const signup = await library.addStory({ title: "Visitor can sign up" });
+    const form = await library.addCapability({ title: "Postcode form", story: signup.id, description: "A postcode form. ".repeat(3000) });
+    await library.addContract({ title: "Rejects letters only", capability: form.id });
+    const login = await library.addStory({ title: "Visitor can log in" });
+    const password = await library.addCapability({ title: "Password box", story: login.id });
+    await library.addContract({ title: "Hides what is typed", capability: password.id });
+    const arc = await library.createArc({ title: "Signup release", intent: "Ship signup", endState: "Signup live" });
+    await library.addIncrement({ arc: arc.id, title: "Form", objective: "Ship it", body: "Red then green" });
+    const old = await library.createArc({ title: "Beta signup", intent: "Try signup", endState: "Tried" });
+    await library.closeIncrement((await library.addIncrement({ arc: old.id, title: "Beta form", objective: "Try it", body: "Red then green" })).id, { pr: "#1", disposition: "landed", date: "2026-01-02" });
+
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = await agent.call("show_plan", { id: login.id });
+      assert.match(story.text, new RegExp(`^Story "Visitor can log in" \\(${login.id}\\): `));
+      assert.match(story.text, /^ {2}Capability "1 · Password box"/m);
+      assert.match(story.text, /^ {4}Contract "1\.1 · Hides what is typed"/m);
+      assert.doesNotMatch(story.text, /Signup release|Postcode form/);
+      assert.deepEqual((story.data.stories as { id: string }[]).map((one) => one.id), [login.id]);
+
+      const large = await agent.call("show_plan", { id: signup.id });
+      assert.match(large.text, new RegExp(`^ {2}Capability "1 · Postcode form" \\(${form.id}\\): .*; 1 contract$`, "m"));
+      assert.match(large.text, /The story runs past 40,000 characters whole: give show_plan a capability's id to read that capability whole\./);
+      assert.doesNotMatch(large.text, /A postcode form|Contract "/);
+
+      const capability = await agent.call("show_plan", { id: form.id });
+      assert.match(capability.text, /About: A postcode form\./);
+      assert.match(capability.text, /Contract "1\.1 · Rejects letters only"/);
+
+      const arcPart = await agent.call("show_plan", { id: arc.id });
+      assert.match(arcPart.text, new RegExp(`^Arc "Signup release" \\(${arc.id}\\)`));
+      assert.match(arcPart.text, /^ {2}Increment "Form" \(increment_\w+\): /m);
+      assert.doesNotMatch(arcPart.text, /Story "/);
+      // An arc closed outside the window a bare show_plan reads is given whole all the same.
+      const closedPart = await agent.call("show_plan", { id: old.id });
+      assert.match(closedPart.text, /^ {2}Increment "Beta form" \(increment_\w+\): closed; /m);
+
+      const missing = await agent.call("show_plan", { id: "story_000000000000" });
+      assert.equal(missing.isError, true);
+      assert.match(missing.text, /Nothing in the plan has the id story_000000000000/);
+      const both = await agent.call("show_plan", { id: arc.id, closed: "today" });
+      assert.equal(both.isError, true);
+      assert.match(both.text, /not both/);
+    });
+  });
+});

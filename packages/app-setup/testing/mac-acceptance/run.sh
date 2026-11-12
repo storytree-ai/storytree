@@ -68,7 +68,19 @@ expect {
 catch wait result
 exit [lindex $result 3]
 EXP
+# A build Apple had not accepted by sign-mac's bound ships signed but not notarised (contract 4.20), and the installer
+# refuses it until Apple answers, telling its user to retry (release run 43213522879). Retry as that user would, every
+# minute for up to 30, inside the job's limit; any other failure is not retried.
 step install expect "$OUT/answer.exp" "$ONE_LINER"
+waited=0
+while [ "$(awk -F'\t' '$1 == "install" { code = $2 } END { print code }' "$STEPS")" != 0 ] &&
+  grep -q 'macOS does not yet accept the downloaded app' "$OUT/install.txt" && [ "$waited" -lt 30 ]; do
+  echo "== macOS does not yet accept the app (Apple may still be notarising it): retrying in a minute, $waited of 30 waited"
+  sleep 60
+  waited=$((waited + 1))
+  step install expect "$OUT/answer.exp" "$ONE_LINER"
+done
+echo "$waited" > "$OUT/install-waited-minutes.txt"
 step version defaults read "$APP/Contents/Info" CFBundleShortVersionString
 sleep 10
 shot first-open

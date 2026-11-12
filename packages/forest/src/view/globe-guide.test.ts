@@ -3,6 +3,7 @@ import test from "node:test";
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, OrthographicCamera, Quaternion, Vector3 } from "three";
 import { createGlobeGuide, type GlobePose, type ScreenPosition } from "./globe-guide.js";
 import { globeLocator } from "./globe-locator.js";
+import type { DrawnName } from "./nameplates.js";
 import { focusRotation, pickGlobe } from "./planet-navigation.js";
 
 function fixture() {
@@ -165,6 +166,24 @@ test("3.41 the page's locator gives each drawn island's ground box in client pix
   // The ground's canvas box (480, 290, 40 by 20, as 3.51 measures it), moved by the canvas's place on the page.
   const box = locator.islands()[0]!.box!;
   for (const [side, want] of Object.entries({ left: 580, top: 340, right: 620, bottom: 360 })) assert.ok(Math.abs(box[side as keyof typeof box] - want) < 1e-6, `${side} ${box[side as keyof typeof box]} is ${want}`);
+});
+
+test("3.41 the locator's point for an island is one a click there picks it by: under another story's name, its own name", () => {
+  const f = fixture();
+  const scene = { islands: [{ story: "shop", title: "shop", x: 0, z: 0, key: "shop", trees: [] }] };
+  let names: DrawnName[] = [];
+  const locator = globeLocator({ controls: () => ({ ...f.guide, aside: () => 0 }), scene: () => scene, box: () => ({ left: 100, top: 50 }), aside: () => 0,
+    names: () => names });
+  const middle = locator.islands()[0]!;
+  const around = (x: number, y: number, half = 4) => ({ left: x - half, top: y - half, right: x + half, bottom: y + half });
+  const own: DrawnName = { story: "shop", box: around(middle.x, middle.y + 30) };
+  names = [own];
+  assert.deepEqual([locator.islands()[0]!.x, locator.islands()[0]!.y], [middle.x, middle.y], "no other name over its middle: the middle");
+  // On a crowded map a neighbour's name lies over the island's middle, and a click on a name picks that name's story (3.104).
+  names = [{ story: "cart", box: around(middle.x, middle.y) }, own];
+  assert.deepEqual([locator.islands()[0]!.x, locator.islands()[0]!.y], [middle.x, middle.y + 30], "its own name instead");
+  names = [{ story: "shop", capability: "checkout", box: around(middle.x, middle.y) }, own];
+  assert.deepEqual([locator.islands()[0]!.x, locator.islands()[0]!.y], [middle.x, middle.y + 30], "a part's name picks the part, not the story alone");
 });
 
 test("3.45 the locator reads still only once the globe has placed itself beside the panel as the page measures it now", () => {

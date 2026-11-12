@@ -744,38 +744,43 @@ for (const backend of [memory, postgres]) {
     assert.equal(await openOf(other.id), undefined, "no open increment names it");
   });
 
-  contract("5.28", "each open increment a capability carries says what still holds it: the work it waits on, by title and whether that is under way or ready to take, a claim, a question, or a wait for the owner or an event", async ({ health, work, flight }) => {
-    const { story, capability } = await smallPlan(work);
+  contract("5.28", "the open increment that moves a capability, its first, says what still holds it: the work it waits on, by title and whether that is under way or ready to take, a claim, a question, or a wait for the owner or an event; the increments behind it say nothing", async ({ health, work, flight }) => {
+    const { story } = await smallPlan(work);
     const harness = await work.addCapability({ title: "Test harness", story: story.id });
     const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
-    const add = async (title: string, capabilities: string[], extra: { heldOn?: string[] } = {}) => {
-      const increment = await flight.addIncrement({ arc: arc.id, title, objective: "Test it", body: "Red then green", ...extra });
-      await flight.editIncrement(increment.id, { capabilities });
+    // Each increment leads a capability of its own, so each is the one that moves it.
+    const leads = new Map<string, string[]>();
+    const add = async (title: string, extra: { heldOn?: string[]; arc?: string } = {}, capabilities?: string[]) => {
+      const increment = await flight.addIncrement({ arc: extra.arc ?? arc.id, title, objective: "Test it", body: "Red then green", ...(extra.heldOn === undefined ? {} : { heldOn: extra.heldOn }) });
+      const named = capabilities ?? [(await work.addCapability({ title: `${title} capability`, story: story.id })).id];
+      await flight.editIncrement(increment.id, { capabilities: named });
+      leads.set(increment.id, named);
       await later();
       return increment;
     };
-    const oracle = await add("Test harness and DB oracle", [harness.id]);
-    const task = await add("Task 1", [capability.id]);
+    const oracle = await add("Test harness and DB oracle", {}, [harness.id]);
+    const task = await add("Task 1");
     await flight.addWait(task.id, oracle.id, "needs the harness");
     const question = await flight.raiseQuestion({ arc: arc.id, title: "Copy?", stakes: "Blocks the form", statement: "Which words?", context: "None yet", options: "Short or long" });
-    const held = await add("Held task", [capability.id], { heldOn: [question.id] });
-    const owner = await add("Owner task", [capability.id]);
+    const held = await add("Held task", { heldOn: [question.id] });
+    const owner = await add("Owner task");
     await flight.addWaitFor(owner.id, { releaser: "owner", note: "sign in to the store", why: "the build is published" });
-    const free = await add("Free task", [capability.id]);
-    const claimed = await add("Claim task", [capability.id]);
+    const free = await add("Free task");
+    const claimed = await add("Claim task");
     await flight.addWait(claimed.id, harness.id, "waits on its claim");
     const mail = await flight.createArc({ title: "Mail", intent: "An intent", endState: "An end state", stories: [story.id] });
     const after = await flight.createArc({ title: "After mail", intent: "An intent", endState: "An end state", stories: [story.id] });
     await flight.addWait(after.id, mail.id, "needs mail first");
-    const arcWait = await flight.addIncrement({ arc: after.id, title: "Arc task", objective: "Test it", body: "Red then green" });
-    await flight.editIncrement(arcWait.id, { capabilities: [capability.id] });
-    const waitsOf = async () => new Map((await health.annotate()).stories[0]!.capabilities.find((one) => one.id === capability.id)!.openWork!.map(({ increment, waits }) => [increment, waits]));
+    const arcWait = await add("Arc task", { arc: after.id });
+    const behind = await add("Held behind the free task", { heldOn: [question.id] }, leads.get(free.id));
+    const waitsOf = async () => new Map((await health.annotate()).stories[0]!.capabilities.flatMap((one) => one.openWork ?? []).map(({ increment, waits }) => [increment, waits]));
 
     let waits = await waitsOf();
     assert.deepEqual(waits.get(task.id), [{ kind: "work", on: oracle.id, title: "Test harness and DB oracle", state: "ready" }], "a blocker nothing holds and nobody started is ready to take");
     assert.deepEqual(waits.get(held.id), [{ kind: "question", on: question.id }]);
     assert.deepEqual(waits.get(owner.id), [{ kind: "owner", note: "sign in to the store" }]);
     assert.equal(waits.get(free.id), undefined, "nothing holds it");
+    assert.ok(waits.has(behind.id) && waits.get(behind.id) === undefined, "held, but behind the one that moves its capability, so it says nothing");
     assert.deepEqual(waits.get(claimed.id), [{ kind: "claim", on: harness.id, title: harness.fields.title }], "a claim wait, by its capability's title");
     assert.deepEqual(waits.get(arcWait.id), [{ kind: "work", on: mail.id, title: "Mail" }], "its arc's wait on another arc, by that arc's title");
     await flight.advanceIncrement(oracle.id, "active");

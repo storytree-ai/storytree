@@ -149,7 +149,7 @@ export interface OpenIncrement {
   increment: string;
   title: string;
   active?: true;
-  /** What still holds it, in the order the library reads them (5.28); absent when nothing does. */
+  /** What still holds it, in the order the library reads them (5.28), said only of a capability's first open increment, the one that moves it; absent when nothing does. */
   waits?: OpenWait[];
 }
 
@@ -493,20 +493,30 @@ export class HealthRecord {
 
   /**
    * Each capability an open increment names, or owns a contract one links (`owners`: contract id to its capability), with those
-   * increments, each once: the active ones first, then the rest in parked order (ADR-1253 D1).
+   * increments, each once: the active ones first, then the rest in parked order (ADR-1253 D1). Only the first, the one the
+   * panel's lead names as moving it (4.49), says what still holds it (5.28): no surface reads the rest's, and on a large
+   * plan saying it of every one nearly trebled the tree the map opens on.
    */
   async #openWork(owners: ReadonlyMap<string, string>): Promise<Map<string, OpenIncrement[]>> {
     // An increment is parked as it is made, and keeps that time when returned to proposal, so parked order is creation order.
-    const [increments, holds] = await Promise.all([this.#records.select("increment", ["title", "status", "capabilities", "links"], { not: { status: "closed" } }), this.#flight?.holds()]);
+    const increments = await this.#records.select("increment", ["title", "status", "capabilities", "links"], { not: { status: "closed" } });
     const ordered = increments.sort((a, b) => Number(b.fields.status === "active") - Number(a.fields.status === "active") || byCreation(a, b));
-    const said = holds === undefined ? undefined : await this.#waitsSaid(holds, increments);
     const named = new Map<string, OpenIncrement[]>();
     for (const { id, fields } of ordered) {
       const linked = (fields.links ?? []).flatMap((link) => owners.get(link) ?? []);
-      const waits = said?.(id) ?? [];
       for (const capability of new Set([...(fields.capabilities ?? []), ...linked])) {
-        named.set(capability, [...(named.get(capability) ?? []), { increment: id, title: fields.title, ...(fields.status === "active" ? { active: true as const } : {}), ...(waits.length === 0 ? {} : { waits: waits.map((wait) => ({ ...wait })) }) }]);
+        const one: OpenIncrement = { increment: id, title: fields.title, ...(fields.status === "active" ? { active: true as const } : {}) };
+        const list = named.get(capability);
+        if (list === undefined) named.set(capability, [one]);
+        else list.push(one);
       }
+    }
+    const holds = named.size === 0 ? undefined : await this.#flight?.holds();
+    if (holds === undefined) return named;
+    const said = await this.#waitsSaid(holds, increments);
+    for (const [first] of named.values()) {
+      const waits = said(first!.increment);
+      if (waits.length > 0) first!.waits = waits;
     }
     return named;
   }

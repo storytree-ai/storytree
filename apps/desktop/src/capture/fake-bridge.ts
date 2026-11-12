@@ -128,6 +128,22 @@ const QUIET: StorytreeBridge = {
   startMark: async () => {},
 };
 
+/**
+ * The update reads of an installed copy, for a capture to hand its fakeBridge, where the quiet answers are a copy that cannot
+ * install releases: its updater idle, or a build waiting to install, with the install choice, the update channel and Open at
+ * sign-in each available, so the gear's Updates section opens as an installed user sees it (2.60). Changing any of them is
+ * refused, as the quiet answers refuse.
+ */
+export function installedUpdates(state: "idle" | "waiting"): Pick<StorytreeBridge, "checkForUpdates" | "readInstallChoice" | "readReleaseChannel" | "readSignIn"> {
+  const runningBuild = "0.3.2700";
+  return {
+    checkForUpdates: async () => state === "idle" ? { phase: "idle", runningBuild } : { phase: "pending", runningBuild, nextBuild: "0.3.2741" },
+    readInstallChoice: async () => ({ available: true, choice: { mode: "quiet" } }),
+    readReleaseChannel: async () => ({ available: true, channel: "stable", stable: { version: "0.3.2650", published: "2026-11-05" } }),
+    readSignIn: async () => ({ available: true, on: true }),
+  };
+}
+
 type Lines = Awaited<ReturnType<StorytreeBridge["linesSince"]>>;
 
 /**

@@ -4,7 +4,7 @@
  * Playwright and Chromium from this checkout on any machine, seeded work states, and an output
  * folder that leaves the committed evidence alone unless the run is named to re-take it.
  */
-export { fakeBridge } from "./fake-bridge.js";
+export { fakeBridge, installedUpdates } from "./fake-bridge.js";
 export type { FakeBridge, FakeBridgeOptions } from "./fake-bridge.js";
 export { browserProcess, closeBrowser, fallbackChromium, installedChromium, launch, launchFailure, launchPlan, loadPlaywright } from "./launch.js";
 export type { LaunchPlan, Machine } from "./launch.js";

@@ -1,6 +1,6 @@
 /**
  * Capability 14 · Reading the doors' use. What the doors learn from their own lines (ADR-1045 D4 to D7), a pure count over
- * 28 days of both doors' door-answered lines with the declared surfaces and the pointers already written handed in; the
+ * 28 days of both doors' door-answered lines, as the log tallies them (DoorTally), with the declared surfaces and the pointers already written handed in; the
  * friction drain acts on it (./learner.ts).
  *
  * - A pointer (D4): a guessed word, judged as a want is, whose followed hints clear the bar points to its leading target.
@@ -127,13 +127,24 @@ export const TOOLS_ALONE = "the tools with no command";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Learn from `lines`, both doors' door-answered lines of the 28 days from `since`, oldest first, `pointers`, the latest
- * line of each word's pointer, and `mounted`, when the learner first saw each verb mounted, by the verb as its door names it.
+ * Both doors' door-answered lines of a window, counted: how many sessions wrote one, when the first was written, the calls
+ * of each verb, and, oldest first, the lines a refusal or a pointer is judged by: each command refused as unknown with its
+ * session's next line, and each pointed call with its session's next command. Every line of the window serves as those.
  */
-export function learnDoors(lines: readonly DoorLine[], surfaces: Surfaces, since: string, pointers: readonly Pointer[] = [], mounted: ReadonlyMap<string, string> = new Map()): Lesson {
-  const sessions = new Set(lines.map((line) => line.session)).size;
-  const covered = lines.length > 0 && Date.parse(lines[0]!.at) <= Date.parse(since) + DAY_MS;
-  const { cuts, gaps } = disuse(lines, surfaces, (...verbs) => verbs.some((verb) => mounted.has(verb) && Date.parse(mounted.get(verb)!) <= Date.parse(since)));
+export interface DoorTally {
+  readonly sessions: number;
+  readonly first?: string;
+  readonly calls: ReadonlyMap<string, number>;
+  readonly lines: readonly DoorLine[];
+}
+
+/**
+ * Learn from `tally`, both doors' door-answered lines of the 28 days from `since`, `pointers`, the latest line of each
+ * word's pointer, and `mounted`, when the learner first saw each verb mounted, by the verb as its door names it.
+ */
+export function learnDoors({ sessions, first, calls, lines }: DoorTally, surfaces: Surfaces, since: string, pointers: readonly Pointer[] = [], mounted: ReadonlyMap<string, string> = new Map()): Lesson {
+  const covered = first !== undefined && Date.parse(first) <= Date.parse(since) + DAY_MS;
+  const { cuts, gaps } = disuse(calls, surfaces, (...verbs) => verbs.some((verb) => mounted.has(verb) && Date.parse(mounted.get(verb)!) <= Date.parse(since)));
   const tools = new Set(surfaces.tools.map(({ verb }) => verb));
   const latest = new Map(pointers.map((pointer) => [JSON.stringify([pointer.where, pointer.word]), pointer] as const));
   const words = guesses(lines, tools, latest);
@@ -225,10 +236,8 @@ function fallbacks(lines: readonly DoorLine[], pointers: readonly Pointer[]): Fa
   });
 }
 
-/** The cut candidates and door gaps in `lines`; `old` says whether a verb, by any of its doors' names, was mounted for the whole window. */
-function disuse(lines: readonly DoorLine[], { commands, tools, twins }: Surfaces, old: (...verbs: string[]) => boolean): { cuts: CutGroup[]; gaps: Gap[] } {
-  const calls = new Map<string, number>();
-  for (const line of lines) calls.set(line.verb, (calls.get(line.verb) ?? 0) + 1);
+/** The cut candidates and door gaps by each verb's `calls`; `old` says whether a verb, by any of its doors' names, was mounted for the whole window. */
+function disuse(calls: ReadonlyMap<string, number>, { commands, tools, twins }: Surfaces, old: (...verbs: string[]) => boolean): { cuts: CutGroup[]; gaps: Gap[] } {
   const agentOnly = new Set([...commands, ...tools].filter(({ consumers }) => judgedByLines(consumers)).map(({ verb }) => verb));
   const unused = (verb: string) => agentOnly.has(verb) && (calls.get(verb) ?? 0) === 0;
   const groups = new Map<string, Candidate[]>();

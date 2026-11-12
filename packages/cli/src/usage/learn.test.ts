@@ -6,9 +6,16 @@ import { verb, type VerbFamilies, type VerbPlace } from "@storytree/library/verb
 
 import { twinsOf } from "../families/drain.js";
 import type { DoorLine } from "./reading.js";
-import { learnDoors, TOOLS_ALONE, type Surfaces } from "./learn.js";
+import { learnDoors as learnFrom, TOOLS_ALONE, type Surfaces } from "./learn.js";
 
 const SINCE = "2026-10-01T00:00:00.000Z";
+
+/** Learn from every line of the window, tallied as the log tallies it: every line serves as those a refusal or a pointer is judged by. */
+function learnDoors(lines: readonly DoorLine[], ...rest: Parameters<typeof learnFrom> extends [unknown, ...infer R] ? R : never): ReturnType<typeof learnFrom> {
+  const calls = new Map<string, number>();
+  for (const { verb } of lines) calls.set(verb, (calls.get(verb) ?? 0) + 1);
+  return learnFrom({ sessions: new Set(lines.map(({ session }) => session)).size, ...(lines[0] === undefined ? {} : { first: lines[0].at }), calls, lines }, ...rest);
+}
 let at = 0;
 function line(session: string, verb: string, more: Partial<DoorLine> = {}): DoorLine {
   at += 1;

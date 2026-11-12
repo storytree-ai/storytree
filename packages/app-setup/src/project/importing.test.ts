@@ -77,13 +77,17 @@ async function mapped(library: Library): Promise<Record<string, SchemaRecord<"st
   return Object.fromEntries(stories.flatMap((story) => (story.fields.mapped === undefined ? [] : [[story.fields.mapped.package, story.fields]])));
 }
 
-test("12.1 importing a folder records it beside the trunk, with its repository and commit, and maps one story per declared package, named as the package names itself, with no capabilities; nothing is written into the folder", async () => {
+test("12.1 importing a folder records it beside the trunk, with its repository and commit, and maps one story per declared package, named as the package names itself, each with the capabilities and links drawn from its code, titled by their paths; a story whose code the survey cannot read gets none; nothing is written into the folder", async () => {
   await withProject(async ({ dir, home, storytree, library }) => {
     const shop = path.join(dir, "shop");
     write(shop, {
       "package.json": { name: "shop", private: true, workspaces: ["packages/*", "apps/web"] },
       "packages/cart/package.json": { name: "@shop/cart", description: "The basket" },
+      "packages/cart/src/index.ts": "import { sum } from \"./money/sum.js\";\nexport const total = sum;\n",
+      "packages/cart/src/money/sum.ts": "export const sum = 1;\n",
+      "packages/cart/src/money/sum.test.ts": "import { sum } from \"./sum.js\";\n",
       "packages/pay/package.json": { name: "@shop/pay" },
+      "packages/pay/main.go": "package main\n",
       "packages/notes/README.md": "not a package",
       "apps/web/package.json": { name: "@shop/web" },
     });
@@ -101,7 +105,15 @@ test("12.1 importing a folder records it beside the trunk, with its repository a
       "packages/cart": { title: "@shop/cart", description: "The basket", mapped: { from: "https://github.com/shop/shop.git", package: "packages/cart", folders: ["packages/cart"] } },
       "packages/pay": { title: "@shop/pay", mapped: { from: "https://github.com/shop/shop.git", package: "packages/pay", folders: ["packages/pay"] } },
     });
-    assert.deepEqual((await library.list("capability")).filter((capability) => imported.added.some((story) => story.id === capability.fields.story)), [], "an imported story has no capabilities");
+    const cart = imported.added.find((story) => story.title === "@shop/cart")!;
+    const drawn = (await library.list("capability")).filter((capability) => capability.fields.story === cart.id).sort((a, b) => a.fields.title.localeCompare(b.fields.title));
+    assert.deepEqual(drawn.map(({ fields }) => ({ title: fields.title, covers: fields.covers, proposed: fields.proposed })), [
+      { title: "1 · src/index.ts", covers: ["packages/cart/src/index.ts"], proposed: false },
+      { title: "2 · src/money", covers: ["packages/cart/src/money"], proposed: false },
+    ], "an imported story's code is drawn as capabilities titled by their paths; its tests are none");
+    const ids = new Map(drawn.map((capability) => [capability.id, capability.fields.title] as const));
+    assert.deepEqual((await library.list("edge")).filter((edge) => ids.has(edge.fields.from)).map((edge) => [ids.get(edge.fields.from), ids.get(edge.fields.to)]), [["1 · src/index.ts", "2 · src/money"]], "its links are exactly its imports");
+    assert.deepEqual(imported.added.map((story) => [story.title, story.capabilities]), [["@shop/web", 0], ["@shop/cart", 2], ["@shop/pay", 0]], "a story with no code, or code the survey cannot read, gets none");
     const machine = machineOf(home);
     assert.deepEqual(await importsOf(storytree, library.name, machine.id), [
       { project: library.name, machine: machine.id, machineName: machine.name, folder: shop, repository: "https://github.com/shop/shop.git", commit, approvedBy: "import" },
@@ -204,8 +216,9 @@ test("12.4 importing again says the commit recorded before and now and the files
     assert.equal(first.changes, undefined);
     assert.deepEqual(first.stranded, []);
     const [story] = first.added;
-    const menu = await library.addCapability({ title: "Menu", story: story!.id, covers: ["src/ui"] });
-    const bee = await library.addCapability({ title: "Bee", story: story!.id, covers: ["src/b.ts", "src/a.ts"] });
+    const drawn = (await library.list("capability")).filter((capability) => capability.fields.story === story!.id);
+    const menu = drawn.find((capability) => capability.fields.covers?.includes("src/ui"))!;
+    const bee = drawn.find((capability) => capability.fields.covers?.includes("src/b.ts"))!;
 
     const same = await importProject({ folder: shop, library, storytree, storytreeHome: home });
     assert.deepEqual(same.before, { commit: one });
@@ -226,7 +239,7 @@ test("12.4 importing again says the commit recorded before and now and the files
       { id: menu.id, title: menu.fields.title, story: story!.id, gone: ["src/ui"] },
       { id: bee.id, title: bee.fields.title, story: story!.id, gone: ["src/b.ts"] },
     ].sort((x, y) => x.id.localeCompare(y.id)));
-    assert.deepEqual(((await library.get(bee.id)) as SchemaRecord<"capability"> | null)?.fields.covers, ["src/b.ts", "src/a.ts"], "the re-import reshapes no capability an agent drew");
+    assert.deepEqual(((await library.get(bee.id)) as SchemaRecord<"capability"> | null)?.fields.covers, ["src/b.ts"], "the re-import reshapes no capability");
     assert.notEqual(await library.get(menu.id), null);
 
     // A recorded commit git no longer knows: the commits are still said, the files are not.

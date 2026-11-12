@@ -37,7 +37,7 @@ async function selection(input: Selection): Promise<Omit<FocusOptions, "select">
 async function crossingPatterns(text: string): Promise<string[]> {
   const { VerbRefusal } = await import("@storytree/library/verbs");
   const patterns = text.split(",").map((value) => value.trim()).filter((value) => value !== "");
-  if (patterns.length === 0) throw new VerbRefusal("Name the folders, file patterns or explored capabilities: --crossing <pattern|cap:<id|number>,...>.", { misuse: true });
+  if (patterns.length === 0) throw new VerbRefusal("Name the folders, file patterns or an imported story's capabilities: --crossing <pattern|cap:<id|number>,...>.", { misuse: true });
   return patterns;
 }
 
@@ -51,9 +51,9 @@ async function crossingStory(select: string | undefined): Promise<{ story?: stri
 
 const mapInputs = {
   select: { kind: "text", describe: "file:<path>, cap:<id|number>, contract:<id|number>, story:<name> or diff:<range>; with --crossing, story:<imported>", optional: true },
-  crossing: { kind: "text", describe: "the folders, file patterns or explored capabilities a line is drawn round, comma-separated", optional: true },
+  crossing: { kind: "text", describe: "the folders, file patterns or an imported story's capabilities a line is drawn round, comma-separated", optional: true },
   capabilities: { kind: "switch", describe: "with --select story:<name>, the story's capabilities, each with its health, contracts, dependencies, and files with their lines of code" },
-  links: { kind: "switch", describe: "with --select story:<imported>, the imports between its explored capabilities' files that no link covers, and the links no import backs" },
+  links: { kind: "switch", describe: "with --select story:<imported>, the imports between its capabilities' files that no link covers, and the links no import backs" },
   ...SELECTION,
 } as const;
 

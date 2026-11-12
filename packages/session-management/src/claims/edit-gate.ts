@@ -24,8 +24,13 @@
  * the hook after an edit the harness's prompt let through, by a command the user types at their own terminal, or by the
  * prompt hook that heard the user say that command in the conversation, which counts for that session alone (5.42): a
  * line any other way writes is not read as one, and no tool writes one.
+ *
+ * A file no capability covers, in a language the map reads, is code storytree draws from its imports (ADR-1324): its
+ * capabilities are drawn and widened only by importing the folder again, so the refusal names that, or for a file not
+ * written yet a file a capability covers, or the user; whether the map reads a file's language is given by whoever
+ * runs the gate, as the declared lookup is.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import type { AnnotatedStory, AnnotatedTree, Library, PendingChange, SchemaRecord } from "@storytree/library";
@@ -46,6 +51,9 @@ export interface EditedFile {
  */
 export type DeclaredCapabilities = (checkout: string, files: readonly string[], tree: AnnotatedTree, readText: (file: string) => string) => Promise<ReadonlyMap<string, string>>;
 
+/** Whether the map reads `file`'s language, so storytree draws it from its import (ADR-1324 D1) rather than an agent by reading. */
+export type ReadsCode = (file: string) => Promise<boolean>;
+
 /** A folder the project imports: its folder on this machine, and the repository a mapped story may name it by. */
 export interface ImportedFolderPlace {
   readonly folder: string;
@@ -57,7 +65,7 @@ export type ListedCover = { readonly capability: string; readonly title: string;
 
 /** Every refusal may name `lapsed`: the work the session's claims lapsed on since it last claimed, when it holds no increment now (5.70). */
 export type EditRefusal = (
-  | { readonly refused: "imported"; readonly file: string; readonly folder: string; readonly increment?: string; readonly covering?: { readonly capability: string; readonly title: string }; readonly listed?: readonly ListedCover[] }
+  | { readonly refused: "imported"; readonly file: string; readonly folder: string; readonly increment?: string; readonly covering?: { readonly capability: string; readonly title: string }; readonly listed?: readonly ListedCover[]; readonly drawn?: "on-disk" | "new" }
   | { readonly refused: "ask"; readonly file: string; readonly folder: string; readonly capability: string; readonly title: string; readonly increment: string }
   | { readonly refused: "unlisted"; readonly capability: string; readonly title: string; readonly file: string; readonly increment: string; readonly listed: readonly string[] }
   | { readonly refused: "held"; readonly capability: string; readonly title: string; readonly file: string; readonly holder: Claim; readonly on?: string }
@@ -65,23 +73,23 @@ export type EditRefusal = (
 
 /**
  * Why the context's session may not edit `files` in the checkout at `checkout` now, or undefined when
- * it may; `declared` places each file in its capability. A refusal because another live session holds the capability writes a claim-refused line, so
+ * it may; `declared` places each file in its capability, and `readsCode` says which imported files storytree draws. A refusal because another live session holds the capability writes a claim-refused line, so
  * the activity log shows who was turned away and by whom.
  */
-export async function editRefusal(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[] = []): Promise<EditRefusal | undefined> {
-  return refusalOf(context, checkout, files, declared, imports, true);
+export async function editRefusal(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[] = [], readsCode?: ReadsCode): Promise<EditRefusal | undefined> {
+  return refusalOf(context, checkout, files, declared, imports, true, readsCode);
 }
 
 /** What the gate reads and writes through: the session's log, its project's library, and who it is. */
 export type GateContext = Pick<ClaimContext, "log" | "library" | "project" | "session" | "harness" | "folder" | "quietMs" | "restarted">;
 
 /** The gate's answer; `noting` writes the claim-refused line, which an edit that already happened must not. */
-async function refusalOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean): Promise<EditRefusal | undefined> {
-  return (await refusalsOf(context, checkout, files, declared, imports, noting, false))[0];
+async function refusalOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean, readsCode?: ReadsCode): Promise<EditRefusal | undefined> {
+  return (await refusalsOf(context, checkout, files, declared, imports, noting, false, readsCode))[0];
 }
 
 /** The gate's refusals: the first alone, or with `every` each capability's (an edit that already happened has no imported files here). */
-async function refusalsOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean, every: boolean): Promise<EditRefusal[]> {
+async function refusalsOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean, every: boolean, readsCode?: ReadsCode): Promise<EditRefusal[]> {
   const inImports = files.flatMap((file) => {
     const absolute = path.resolve(checkout, file.path);
     const imported = imports.find(({ folder }) => isWithin(absolute, folder));
@@ -139,7 +147,8 @@ async function refusalsOf(context: GateContext, checkout: string, files: readonl
   for (const { imported, file, covering } of explored) {
     if (driving === undefined || covering === undefined || !listedByMe(covering.capability)) {
       const listed = driving === undefined || covering !== undefined ? [] : listedOf(tree, imported, lists.get(driving)!);
-      return withLapses(context, claims, [{ refused: "imported", file, folder: imported.folder, ...(driving === undefined ? {} : { increment: driving }), ...(covering === undefined ? {} : { covering }), ...(listed.length === 0 ? {} : { listed }) }]);
+      const drawn = covering === undefined && readsCode !== undefined && (await readsCode(file)) ? (existsSync(path.join(imported.folder, file)) ? "on-disk" : "new") : undefined;
+      return withLapses(context, claims, [{ refused: "imported", file, folder: imported.folder, ...(driving === undefined ? {} : { increment: driving }), ...(covering === undefined ? {} : { covering }), ...(listed.length === 0 ? {} : { listed }), ...(drawn === undefined ? {} : { drawn }) }]);
     }
     yeses ??= yesesOn(context, [...new Set(mine.map((claim) => claim.increment!))]);
     if ((await yeses).some((yes) => yes.capability === covering.capability && covered(yes.covers, file))) continue;
@@ -311,6 +320,7 @@ export function refusalMessage(refusal: EditRefusal, after = false): string {
 function refusalReason(refusal: EditRefusal, after: boolean): string {
   if (refusal.refused === "imported") {
     const where = `${refusal.file} in ${refusal.folder}, code the project imports`;
+    if (refusal.drawn !== undefined) return drawnRefusal(refusal, where);
     if (refusal.listed !== undefined && refusal.listed.length > 0) {
       const named = refusal.listed.map(({ capability, title, covers }) => `"${title}" (${capability}), covering ${covers.join(", ")}`).join("; ");
       const ids = refusal.listed.map(({ capability }) => capability).join(" or ");
@@ -335,6 +345,20 @@ function refusalReason(refusal: EditRefusal, after: boolean): string {
   }
   const list = [...refusal.listed, refusal.capability].join(",");
   return `[storytree] ${lead}: it is in ${what}, which the capabilities list of your increment ${refusal.increment} does not name (ADR-0949 D3). If you mean to change it, add it to the list and claim it${after ? "" : ", then edit again"}: the edit_plan and claim tools, or \`storytree arc increment edit ${refusal.increment} --capabilities ${list}\` and \`storytree workspace claim ${refusal.capability} --reason …\`${after ? "; if not, undo your change there" : ""}.`;
+}
+
+/**
+ * The refusal of an edit to `refusal.file`, which no capability covers, on code storytree draws from its imports (ADR-1324):
+ * its capabilities are drawn and widened only by importing the folder again, which takes in a file that is there; for one
+ * not written yet, a file a capability covers, or the user, who makes it.
+ */
+function drawnRefusal(refusal: Extract<EditRefusal, { refused: "imported" }>, where: string): string {
+  const lead = `[storytree] Your edit to ${where}, was refused before it happened: imported code is changed only when your increment names the explored capability covering it (ADR-0993 D4, ADR-1015), and no capability covers this file yet. Storytree draws this code's capabilities from its imports (ADR-1324), so none is drawn or widened by hand:`;
+  const reimport = `import the folder again (import_project with folder ${refusal.folder})`;
+  const listing = refusal.increment === undefined ? "list it on an increment you hold (park_increment and make_workspace)" : `list the capability that holds it on your increment ${refusal.increment} (edit_plan)`;
+  if (refusal.drawn === "on-disk") return `${lead} ${reimport} so the drawing takes ${refusal.file} in, then ${listing}, then edit again; or ask the user what to do.`;
+  const such = refusal.listed === undefined || refusal.listed.length === 0 ? " (show_plan lists them)" : `, such as ${refusal.listed.map(({ capability, title, covers }) => `"${title}" (${capability}), covering ${covers.join(", ")}`).join("; ")}`;
+  return `${lead} the drawing takes a file in only once it is written. Make the change in a file a capability covers${such}; or ask the user to make ${refusal.file}, then ${reimport} so the drawing takes it in, ${listing}, and edit again.`;
 }
 
 /** The command a user types at their own terminal, or sends on its own line as their own message, to allow `increment`'s changes to imported code; an agent's shell is refused it. */

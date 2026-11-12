@@ -63,3 +63,22 @@ test("7.1, 7.13 a row working in two worktrees counts them by a number beside a 
   assert.equal(seen.label, "works in 2 worktrees");
   assert.equal(seen.title, "/code/storytree03/.claude/worktrees/one\n/code/storytree03/.claude/worktrees/two");
 });
+
+test("7.8 a row's expander draws its chevron as a shape, not a glyph, so the first row opened makes Windows search no fallback font for it", async t => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+  const css = await readFile(path.join(import.meta.dirname, "styles.css"), "utf8");
+  await page.setContent(`<style>${css}</style><div style="width:432px;height:400px">${renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }))}</div>`);
+  const chevron = () => page.evaluate(() => {
+    const drawn = getComputedStyle(document.querySelector(".session-children-toggle")!, "::before");
+    return { content: drawn.content, ink: Math.max(parseFloat(drawn.borderTopWidth), parseFloat(drawn.borderLeftWidth)), transform: drawn.transform };
+  });
+  const folded = await chevron();
+  assert.equal(folded.content, '""', "no character to draw, so no font to find");
+  assert.ok(folded.ink > 0, "the chevron is drawn by its borders");
+  await page.evaluate(() => document.querySelector(".session-children-toggle")!.setAttribute("aria-expanded", "true"));
+  const open = await chevron();
+  assert.equal(open.content, '""');
+  assert.notEqual(open.transform, folded.transform, "an open row's chevron turns to point down");
+});

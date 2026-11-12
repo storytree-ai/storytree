@@ -13,6 +13,7 @@ import { removeTemp } from "@storytree/test-waits";
 import type { AnnotatedTree } from "@storytree/library";
 
 import { readersReady } from "./code-survey.js";
+import { drawImportedStory } from "./drawing.js";
 import { pythonReader } from "./python-reader.js";
 import { capabilitiesOfFiles, codeSurveyReader, storyTests } from "./read-survey.js";
 
@@ -209,6 +210,30 @@ test("8.54 a built Python story's pytest tests, module functions and methods of 
     assert.equal(owner("src/cart/lines.py"), "story-cart-cap-1");
     const owners = await capabilitiesOfFiles(folder, ["packages/cart/tests/test_lines.py"], plan, { survey: async () => ({}) });
     assert.deepEqual([...owners], [["packages/cart/tests/test_lines.py", { capability: "story-cart-cap-1", inferred: false }]], "a test file whose tests carry one number declares that capability");
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("8.3 a Python story's helper modules under its tests folder are test support: never counted as source nor drawn, yet a test reaches its capability through them", async () => {
+  const files = {
+    "packages/cart/pyproject.toml": "[project]\nname = \"cart\"\n",
+    "packages/cart/src/cart/__init__.py": "",
+    "packages/cart/src/cart/total.py": "def total(lines):\n    return sum(lines)\n",
+    "packages/cart/tests/__init__.py": "",
+    "packages/cart/tests/utils/__init__.py": "",
+    "packages/cart/tests/utils/helpers.py": "from cart.total import total\n\n\ndef totalled():\n    return total([1, 2])\n",
+    "packages/cart/tests/test_total.py": "from tests.utils.helpers import totalled\n\n\ndef test_1_1_totals():\n    assert totalled() == 3\n",
+  };
+  const folder = await mkdtemp(path.join(tmpdir(), "python-test-helpers-"));
+  try {
+    await write(folder, files);
+    const plan = { arcs: [], stories: [story("story-cart", "Cart", ["1 · Totals"])] } as unknown as AnnotatedTree;
+    const survey = (await codeSurveyReader().read(folder, plan))["story-cart"]!;
+    assert.deepEqual(survey.files.map(({ path: file }) => file).sort(), ["src/cart/__init__.py", "src/cart/total.py"], "the helper under tests/ counts no lines");
+    assert.equal(survey.files.find((file) => file.path === "src/cart/total.py")?.capability, "story-cart-cap-1", "the test reaches total.py through its helper");
+    const drawn = drawImportedStory({ folder: "packages/cart", files: Object.entries(files).map(([file, text]) => ({ path: file, text })) });
+    assert.deepEqual(drawn.capabilities.map(({ title }) => title), ["src/cart/total.py"], "no tests/utils capability");
   } finally {
     await removeTemp(folder);
   }

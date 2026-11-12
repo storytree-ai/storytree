@@ -174,16 +174,21 @@ main {
   background: var(--row-hover);
 }
 
+/* A border-drawn chevron: "▸" / "▾" are not in Segoe UI, and finding a fallback font for them costs Windows a click's frame. */
 .capability > summary .row-title::before {
-  content: "▸";
+  content: "";
   display: inline-block;
-  width: 1.1rem;
-  color: var(--muted);
-  font-weight: 400;
+  width: 0;
+  height: 0;
+  margin: 0 0.7rem 0 0.05rem;
+  vertical-align: middle;
+  border-style: solid;
+  border-color: transparent transparent transparent var(--muted);
+  border-width: 0.3rem 0 0.3rem 0.4rem;
 }
 
 .capability[open] > summary .row-title::before {
-  content: "▾";
+  transform: rotate(90deg);
 }
 
 .capability-body {

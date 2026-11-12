@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFile } from "node:fs/promises";
+import { Window } from "happy-dom";
 import { record } from "../testing/records.js";
 import { boardView, type BoardSnapshot } from "../board/board.js";
 import { renderBoard } from "./render.js";
@@ -205,4 +207,23 @@ test("3.21 · an arc row's caret opens under the row its intent, then its questi
   assert.doesNotMatch(b, /data-rail-question/, "an arc with no questions shows only its increments");
   assert.match(b, /rail:b:increment:b1/);
   assert.doesNotMatch(a.replace(/<span class="arc-track.*?<\/span><\/span>/s, ""), /data-increment-id/, "the rows under an arc are not drawn bars");
+});
+
+test("3.21 · an arc row's caret is drawn as a shape, holding no text for Windows to search a fallback font for, and turns when its row is open", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  t.after(() => page.happyDOM.abort());
+  const css = await readFile(new URL("./styles.css", import.meta.url), "utf8");
+  const caret = (expanded: ReadonlySet<string>) => {
+    page.document.body.innerHTML = `<style>${css}</style>${renderBoard(board, undefined, expanded)}`;
+    const button = page.document.querySelector('[data-arc-queue="build"]')!;
+    const mark = button.querySelector("span")!;
+    const drawn = page.getComputedStyle(mark);
+    return { text: button.textContent, ink: parseFloat(drawn.borderLeftWidth), transform: drawn.transform };
+  };
+  const folded = caret(new Set());
+  assert.equal(folded.text, "", "no character to draw, so no font to find");
+  assert.ok(folded.ink > 0, "the caret is drawn by its borders");
+  const open = caret(new Set(["build"]));
+  assert.equal(open.text, "");
+  assert.notEqual(open.transform, folded.transform, "an open row's caret turns to point down");
 });

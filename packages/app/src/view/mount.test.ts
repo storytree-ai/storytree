@@ -89,7 +89,8 @@ test("2.7 clicking the mounted menu sections switches their content and preserve
   host.querySelector<HTMLButtonElement>("[data-app-updates]")!.click();
   await setImmediate();
   assert.deepEqual(updates, ["status", "check"]);
-  assert.match(host.querySelector("#app-update-status")!.textContent, /Up to date.*0\.3\.test/);
+  assert.match(host.querySelector("#app-update-status")!.textContent, /Up to date/);
+  assert.match(host.querySelector("[data-app-running-build]")!.textContent, /0\.3\.test/);
   await section("projects");
   assert.equal(host.querySelector("select")?.value, "second");
   menu.stop();

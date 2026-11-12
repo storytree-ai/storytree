@@ -22,7 +22,8 @@ test("4.8 the Updates section says when a new build is ready and restarting, nam
 
 test("4.13 a ready update says when it installs under the user's choice", () => {
   const said = (choice?: InstallChoice) => updateText({ ...at, phase: "pending" }, choice)[1];
-  assert.match(said(), /next quiet moment/);
+  assert.match(said(), /once no one is using storytree/, "the default choice reads as its option, When no one is using it");
+  assert.doesNotMatch(said({ mode: "quiet" }), /quiet/, "quiet names the quiet-hours option, not this one");
   assert.match(said({ mode: "hours", from: "01:00", to: "06:00" }), /quiet hours, 01:00 to 06:00/);
   assert.match(said({ mode: "manual" }), /when you click Restart to update/);
   assert.match(said(), /0\.3\.401/);
@@ -49,11 +50,11 @@ test("4.10 a copy that does not install releases says it does not update itself"
   assert.match(detail, /does not update itself/);
 });
 
-test("4.7 up to date names the running build, the channel it checked and when; a check on an earlier day names that day", () => {
+test("4.7 up to date names the channel it checked and when, leaving the running build to the lead; a check on an earlier day names that day", () => {
   const checkedAt = new Date(2026, 10, 11, 14, 2).toISOString();
   const [title, detail] = updateText({ ...at, phase: "up-to-date", channel: "alpha", checkedAt }, undefined, { channel: "alpha", now: new Date(2026, 10, 11, 15, 30) });
   assert.equal(title, "Up to date");
-  assert.match(detail, /0\.3\.400/);
+  assert.doesNotMatch(detail, /0\.3\.400/);
   assert.match(detail, /alpha/);
   assert.match(detail, /14:02/);
   assert.doesNotMatch(detail, /2026-11-11/, "today's check needs no date");
@@ -61,7 +62,7 @@ test("4.7 up to date names the running build, the channel it checked and when; a
   const unchanneled = updateText({ ...at, phase: "up-to-date", checkedAt }, undefined, { now: new Date(2026, 10, 11, 15, 30) })[1];
   assert.match(unchanneled, /the newest build as of 14:02/, "an updater that follows no channel names none");
   assert.doesNotMatch(unchanneled, /alpha|stable/);
-  assert.equal(updateText({ ...at, phase: "up-to-date" })[1], "Running 0.3.400 (abc1234).", "a state with no check time claims none");
+  assert.equal(updateText({ ...at, phase: "up-to-date" })[1], "No newer build was found.", "a state with no check time claims none");
 });
 
 test("4.7 after the update channel changes in the gear, the last check's up to date is no longer shown as current", async () => {
@@ -88,6 +89,7 @@ test("4.7 after the update channel changes in the gear, the last check's up to d
   assert.doesNotMatch(status(), /Up to date/);
   assert.match(status(), /alpha/);
   assert.match(status(), /Check for updates/);
+  assert.doesNotMatch(status(), /0\.3\.2259/, "the lead names the running build, not the status line");
   updates.stop();
   channel.stop();
 });
@@ -233,7 +235,7 @@ test("4.34 the Update channel names the stable build and the day it was publishe
   await setImmediate();
   const line = host.querySelector("[data-app-stable-build]")!;
   assert.equal(line.hasAttribute("hidden"), false);
-  assert.match(line.textContent, /0\.3\.2259.*2026-11-02.*after that day is only in alpha/);
+  assert.match(line.textContent, /^Stable is at storytree 0\.3\.2259, published on 2026-11-02\..*after that day is only in alpha/, "the channel's build, not the running one");
   // A change, whose answer does not read the pin again, keeps the line.
   const radio = host.querySelector('input[value="stable"]') as HTMLInputElement;
   radio.checked = true;
@@ -248,6 +250,46 @@ test("4.34 the Update channel names the stable build and the day it was publishe
   await setImmediate();
   assert.equal(unknown.querySelector("[data-app-stable-build]")!.hasAttribute("hidden"), true);
   without.stop();
+});
+
+test("4.49 the Updates section names the build running once, under its lead, apart from a build waiting and the channel's", async () => {
+  const window = new Window();
+  const host = window.document.createElement("div");
+  host.innerHTML = renderAppMenu();
+  let state: { phase: "idle" | "up-to-date" | "pending" | "failed"; runningBuild: string; nextBuild?: string; channel?: "stable"; checkedAt?: string } = { phase: "idle", runningBuild: "0.3.2700" };
+  const updates = mountUpdates(host as unknown as HTMLElement, async () => state);
+  await setImmediate();
+  const running = host.querySelector("[data-app-running-build]") as unknown as HTMLElement;
+  assert.ok(running.closest(".app-section-description") !== null, "it is said in the section's lead");
+  assert.equal(running.hidden, false, "named at rest, with nothing waiting and the status line hidden");
+  assert.equal(running.textContent, "Running storytree 0.3.2700.");
+
+  const named = () => host.textContent.split("0.3.2700").length - 1;
+  state = { phase: "up-to-date", runningBuild: "0.3.2700", channel: "stable", checkedAt: new Date().toISOString() };
+  updates.refresh();
+  await setImmediate();
+  assert.match(host.querySelector("#app-update-status")!.textContent, /Up to date/);
+  assert.equal(named(), 1, "after a check, the build running is still named once");
+
+  state = { phase: "pending", runningBuild: "0.3.2700", nextBuild: "0.3.2741" };
+  updates.refresh();
+  await setImmediate();
+  assert.equal(running.textContent, "Running storytree 0.3.2700.", "a build waiting is not the build running");
+  assert.equal(named(), 1, "a build waiting does not name the running build again");
+
+  state = { phase: "failed", runningBuild: "" };
+  updates.refresh();
+  await setImmediate();
+  assert.equal(running.textContent, "Running storytree 0.3.2700.", "a state that does not name the running build keeps the last one named");
+  updates.stop();
+
+  const unnamed = window.document.createElement("div");
+  unnamed.innerHTML = renderAppMenu();
+  const none = mountUpdates(unnamed as unknown as HTMLElement, async () => ({ phase: "failed", runningBuild: "" }));
+  await setImmediate();
+  assert.equal(unnamed.querySelector("[data-app-running-build]")!.hasAttribute("hidden"), true, "nothing named, nothing shown");
+  none.stop();
+  await window.happyDOM.close();
 });
 
 /** The menu's Updates section in a fresh window, and every console error the page writes (app.log, errors 9.1). */

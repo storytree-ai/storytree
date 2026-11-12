@@ -800,8 +800,9 @@
 .session-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 100px; min-width:0; line-height:19px; }
 .sessions-list button { font:inherit; cursor:pointer; background:none; color:inherit; border:0; border-radius:3px; padding:1px 3px; white-space:nowrap; }
 .session-children-toggle { font-size:11px !important; color:#b3bdb9 !important; flex-shrink:0; padding:1px 2px !important; }
-.session-children-toggle::before { content:"▸"; display:inline-block; width:9px; }
-.session-children-toggle[aria-expanded="true"]::before { content:"▾"; }
+/* The chevron is a border-drawn triangle, not "▸" / "▾": Segoe UI lacks those, so Windows would search three fallback fonts for them inside the click that first shows one. */
+.session-children-toggle::before { content:""; display:inline-block; width:0; height:0; margin-right:4px; vertical-align:middle; border-style:solid; border-color:transparent transparent transparent currentColor; border-width:3.5px 0 3.5px 5px; }
+.session-children-toggle[aria-expanded="true"]::before { transform:rotate(90deg); }
 .session-detail { margin:1px 0 6px 20px; padding-left:8px; border-left:1px solid #3d4748; font-size:11px; line-height:1.5; color:#b3bdb9; display:grid; grid-template-columns:minmax(0, 1fr); gap:4px; align-items:start; }
 .session-detail .session-description { grid-column:1 / -1; }
 .sessions-list .session-description { margin:0 0 4px; color:#d9dedb; }

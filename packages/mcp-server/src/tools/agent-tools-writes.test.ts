@@ -1176,7 +1176,7 @@ test("9.17 plan_capability, under an increment's claim, judges the story's capab
   });
 });
 
-test("12.1 import_project imports a folder into the project as imported stories, one per package, naming each with the count of capabilities drawn from its code; a folder inside the project gets a readable refusal and nothing is written", async () => {
+test("12.1 import_project imports a folder into the project as imported stories, one per package, naming each with the count of capabilities drawn from its code and asking the agent to name and describe them, never to merge, split or redraw them; a folder inside the project gets a readable refusal and nothing is written", async () => {
   await withProject(async ({ folder, library }) => {
     const shop = path.join(folder, "..", "shop");
     mkdirSync(path.join(shop, "packages", "cart"), { recursive: true });
@@ -1191,6 +1191,10 @@ test("12.1 import_project imports a folder into the project as imported stories,
       assert.ok(imported.text.includes(stories[0]!.id), imported.text);
       assert.match(imported.text, /: 1 imported stories added: /, "the reply calls the import's stories imported");
       assert.ok(imported.text.includes(`"@shop/cart" (${stories[0]!.id}), capabilities drawn: 1`), imported.text);
+      // The agent names and describes what storytree drew, and redraws none of it (ADR-1324 D3).
+      assert.match(imported.text, /Name and describe each capability storytree drew with edit_plan/, imported.text);
+      assert.match(imported.text, /Do not merge, split or redraw them/, imported.text);
+      assert.doesNotMatch(imported.text, /map (its|their) capabilities by reading it/, "every story added is one storytree reads");
 
       mkdirSync(path.join(folder, "vendor"));
       writeFileSync(path.join(folder, "vendor", "package.json"), JSON.stringify({ name: "vendor" }));

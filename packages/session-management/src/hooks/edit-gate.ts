@@ -11,7 +11,8 @@
  * write and edit name their file by `path` (pi.ts), and its extension hands Pi the `{block, reason}` refusal.
  *
  * Which capability a file declares is the map's rule, given by the hook command that runs this (the app
- * setup's, ADR-0969); a hook given none refuses nothing. A file in a folder the project imports on this machine is
+ * setup's, ADR-0969); a hook given none refuses nothing. So is which languages the map reads, by which an imported
+ * file no capability covers is code storytree draws from its imports (ADR-1324), and its refusal says so. A file in a folder the project imports on this machine is
  * placed by the gate itself (claims/edit-gate.ts); when its edit may go ahead only on the user's yes (ADR-1015), Claude
  * Code is answered "ask", so the harness asks its user, and a harness with no such answer is refused, naming the command
  * the user types at their own terminal to say yes, or sends as their own message. After Claude Code runs an edit it was
@@ -26,7 +27,7 @@
  */
 import path from "node:path";
 
-import type { DeclaredCapabilities, GateContext, ImportedFolderPlace } from "../claims/edit-gate.js";
+import type { DeclaredCapabilities, GateContext, ImportedFolderPlace, ReadsCode } from "../claims/edit-gate.js";
 import type { LocateOptions } from "@storytree/project-and-caller";
 import { patchEdits } from "./codex.js";
 import { cursorSession } from "./cursor.js";
@@ -128,12 +129,12 @@ export function refusalAnswer(harness: string, reason: string, ask = false): str
  * `gateMs` when given, else the one this machine learned in `home`, which learns how long this answer took. Never
  * throws; `failed` keeps why it gave up.
  */
-export async function editGate(harness: string, input: unknown, declared: DeclaredCapabilities | undefined, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, gateMs?: number): Promise<string | undefined> {
+export async function editGate(harness: string, input: unknown, declared: DeclaredCapabilities | undefined, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, gateMs?: number, readsCode?: ReadsCode): Promise<string | undefined> {
   const edit = editIn(harness, input);
   if (edit === undefined || declared === undefined) return undefined;
   const limit = gateMs ?? limitOf(home, EDIT_GATE_STEP);
   try {
-    const result = await withinLimit(EDIT_GATE_STEP, limit, gateMs === undefined ? home : undefined, (limitMs) => refusalFor(harness, edit, declared, locate, home, limitMs));
+    const result = await withinLimit(EDIT_GATE_STEP, limit, gateMs === undefined ? home : undefined, (limitMs) => refusalFor(harness, edit, declared, locate, home, limitMs, readsCode));
     const refusal = result.late ? undefined : result.answer;
     if (refusal === undefined) return undefined;
     return refusalAnswer(harness, refusal.reason, refusal.ask);
@@ -143,10 +144,10 @@ export async function editGate(harness: string, input: unknown, declared: Declar
   }
 }
 
-async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, declared: DeclaredCapabilities, locate: LocateOptions | undefined, home: string, limitMs: number): Promise<{ reason: string; ask: boolean } | undefined> {
+async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, declared: DeclaredCapabilities, locate: LocateOptions | undefined, home: string, limitMs: number, readsCode?: ReadsCode): Promise<{ reason: string; ask: boolean } | undefined> {
   const { editRefusal, refusalMessage } = await import("../claims/edit-gate.js");
   return gated(harness, edit, locate, home, async (context, checkout, imports) => {
-    const refusal = await editRefusal(context, checkout, edit.files, declared, imports);
+    const refusal = await editRefusal(context, checkout, edit.files, declared, imports, readsCode);
     return refusal === undefined ? undefined : { reason: refusalMessage(refusal), ask: refusal.refused === "ask" };
   }, limitMs);
 }

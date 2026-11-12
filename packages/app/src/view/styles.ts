@@ -32,6 +32,7 @@ main[data-rail-dragging] { cursor: col-resize; user-select: none; }
 .side-rail-tabs button:focus-visible { outline: 2px solid #a9b0ba; outline-offset: -2px; }
 .side-rail-badge { min-width: 18px; padding: 0 5px; border-radius: 9px; background: #d3a84c; color: #101418; font-size: 11px; line-height: 18px; text-align: center; }
 .side-rail-badge[hidden] { display: none; }
+.side-rail-badge-mark { margin-right: 1px; }
 .side-rail-panel { flex: 1; min-height: 0; overflow: hidden; }
 .side-rail-panel[hidden] { display: none; }
 .app-bar { position: fixed; inset: 0 0 auto; height: var(--app-bar-height); z-index: 7; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; background: #101418; border-bottom: 1px solid #485159; }

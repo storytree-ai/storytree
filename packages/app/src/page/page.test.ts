@@ -583,7 +583,9 @@ test("2.39 · the sessions list and the arcs each mount in their tab of one left
   assert.equal(badge().hidden, true);
   first.waiting!(3);
   assert.equal(badge().hidden, false);
-  assert.equal(badge().textContent, "3");
+  assert.equal(badge().textContent, "?3", "the lanes' question mark before the count");
+  assert.equal(badge().firstElementChild?.textContent, "?");
+  assert.equal(badge().firstElementChild?.getAttribute("aria-hidden"), "true", "the mark is seen, not read out beside the label");
   assert.equal(tabs()[1]!.getAttribute("aria-label"), "Arcs, 3 waiting on you");
   first.waiting!(0);
   assert.equal(badge().hidden, true, "nothing waiting, no badge");

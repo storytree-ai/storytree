@@ -100,7 +100,7 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
             throw error;
           });
           if (imported instanceof ImportRefusedError) return { text: imported.message, refused: true };
-          const added = imported.added.map((story) => `${quoted(story.title)} (${story.id}), ${story.capabilities} ${story.capabilities === 1 ? "capability" : "capabilities"} drawn`).join("; ");
+          const added = imported.added.map((story) => `${quoted(story.title)} (${story.id}), capabilities drawn: ${story.capabilities}`).join("; ");
           return {
             text: [`Imported ${imported.folder}: ${imported.added.length} imported stories added${added === "" ? "" : `: ${added}`}; ${imported.retired.length} retired, their package gone; ${imported.kept.length} kept as they stand.`, ...importLines(imported), RUN_THE_TESTS].join("\n"),
             data: {

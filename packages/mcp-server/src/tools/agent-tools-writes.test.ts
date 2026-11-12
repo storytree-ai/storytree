@@ -1190,7 +1190,7 @@ test("12.1 import_project imports a folder into the project as imported stories,
       assert.deepEqual(stories.map((story) => story.fields.title), ["@shop/cart"]);
       assert.ok(imported.text.includes(stories[0]!.id), imported.text);
       assert.match(imported.text, /: 1 imported stories added: /, "the reply calls the import's stories imported");
-      assert.ok(imported.text.includes(`"@shop/cart" (${stories[0]!.id}), 1 capability drawn`), imported.text);
+      assert.ok(imported.text.includes(`"@shop/cart" (${stories[0]!.id}), capabilities drawn: 1`), imported.text);
 
       mkdirSync(path.join(folder, "vendor"));
       writeFileSync(path.join(folder, "vendor", "package.json"), JSON.stringify({ name: "vendor" }));

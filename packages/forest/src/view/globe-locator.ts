@@ -43,8 +43,9 @@ export function globeLocator(page: { controls(): PlacedGlobeControls | undefined
       const names = page.names?.() ?? [];
       // A click on a name picks what it names (3.104): a point under no name picks the land, and one on the story's own name it alone.
       const picks = (story: string, at: { x: number; y: number }) => { const named = nameplateAt(names, at); return named === undefined || (named.story === story && named.capability === undefined); };
-      return page.scene().islands.flatMap(island => {
-        const at = controls.position({ kind: "story", story: island.story });
+      const islands = page.scene().islands, places = controls.positions(islands.map(island => ({ kind: "story", story: island.story })));
+      return islands.flatMap((island, index) => {
+        const at = places[index];
         const box = grounds.get(island.story);
         if (at === undefined) return [];
         const middle = client(at);

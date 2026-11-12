@@ -168,6 +168,25 @@ test("3.41 the page's locator gives each drawn island's ground box in client pix
   for (const [side, want] of Object.entries({ left: 580, top: 340, right: 620, bottom: 360 })) assert.ok(Math.abs(box[side as keyof typeof box] - want) < 1e-6, `${side} ${box[side as keyof typeof box]} is ${want}`);
 });
 
+test("3.41 the locator places every island in one walk of the scene, so a large map is read as cheaply each frame as a small one", () => {
+  const f = fixture();
+  const stories = Array.from({ length: 50 }, (_, index) => `s${index}`);
+  for (const [index, story] of stories.entries()) {
+    const island = new Group(); island.name = `planet:${story}`; island.position.set(index % 10, Math.floor(index / 10), 0);
+    island.add(new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial())); f.globe.add(island);
+  }
+  const scene = { islands: stories.map(story => ({ story, title: story, x: 0, z: 0, key: story, trees: [] })) };
+  const locator = globeLocator({ controls: () => ({ ...f.guide, aside: () => 0 }), scene: () => scene, box: () => ({ left: 0, top: 0 }), aside: () => 0 });
+  const one = f.guide.position({ kind: "story", story: "s17" })!;
+  let walks = 0;
+  const update = f.world.updateMatrixWorld.bind(f.world);
+  f.world.updateMatrixWorld = force => { walks++; update(force); };
+  const placed = locator.islands();
+  assert.equal(placed.length, 50);
+  assert.deepEqual(placed.find(island => island.story === "s17"), { story: "s17", title: "s17", capabilities: 0, ...one }, "each island where the guide alone puts it");
+  assert.ok(walks <= 2, `the world's matrices updated ${walks} times for 50 islands`);
+});
+
 test("3.41 the locator's point for an island is one a click there picks it by: under another story's name, its own name", () => {
   const f = fixture();
   const scene = { islands: [{ story: "shop", title: "shop", x: 0, z: 0, key: "shop", trees: [] }] };

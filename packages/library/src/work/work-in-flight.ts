@@ -272,7 +272,7 @@ export class WorkInFlight {
    * remedies or increment it waits on that is not live). A wait given at birth needs no loop check,
    * since nothing can wait on a record not yet written. It is a proposal, stamped with when it was parked, or, given an
    * `outcome`, born closed. A proposal whose capabilities list names a capability already on another open increment's
-   * list is refused (RangeError), naming that increment, its title and its arc, so a second drain routes to the one
+   * list is refused (RangeError), naming every such increment, its title and its arc, so a second drain routes to the one
    * already parked (10.35): unless it is born waiting on that increment, as a later step of a split is, or on the claim of
    * every capability they share, as work split off a held capability is (ADR-1228 D1).
    */
@@ -285,10 +285,14 @@ export class WorkInFlight {
       if (outcome === undefined) {
         // Born waiting on that increment, or on the claim of every capability it shares (ADR-1228 D1), it follows that work.
         const follows = new Set((fields.waits ?? []).map(({ on }) => on));
-        const shared = (await this.openListing(fields.capabilities ?? [])).find((other) => !follows.has(other.increment) && !other.capabilities.every((capability) => follows.has(capability)));
-        if (shared !== undefined) {
-          const claims = shared.capabilities.map((capability) => `${capability}'s claim`).join(" and ");
-          throw new RangeError(`${listedSaid(shared)}: route this work to that increment, or, if it follows that one, park it waiting on it, or, if it waits only for the capability, on ${claims}`);
+        const shared = (await this.openListing(fields.capabilities ?? [])).filter((other) => !follows.has(other.increment) && !other.capabilities.every((capability) => follows.has(capability)));
+        if (shared.length > 0) {
+          // Every overlap in the one refusal, so a wide list learns its waits from one try (friction_e8ef03cd89fa).
+          const claims = shared.flatMap((other) => other.capabilities).map((capability) => `${capability}'s claim`).join(" and ");
+          const advice = shared.length === 1
+            ? "route this work to that increment, or, if it follows that one, park it waiting on it, or, if it waits only for the capability,"
+            : "route this work to one of those increments, or, if it follows them, park it waiting on each, or, if it waits only for the capabilities,";
+          throw new RangeError(`${shared.map(listedSaid).join("; ")}: ${advice} on ${claims}`);
         }
       }
       const waitsFor = fields.waitsFor?.map(checkedWaitFor);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { get } from "node:http";
 import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -129,6 +129,19 @@ function readPage(url: string): Promise<string> {
     request.on("close", () => { if (failure) reject(failure); else resolve(body); });
   });
 }
+
+test("2.61 · a capture named by its prefix or label keeps the other side-by-side run's scratch pictures", async t => {
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-named-"));
+  const scratch = outputFolder(folder);
+  t.after(async () => { await removeTemp(folder); await removeTemp(scratch); });
+  t.mock.method(console, "error", () => {});
+  mkdirSync(scratch, { recursive: true });
+  for (const file of ["before-tunnel-1.png", "after-tunnel-1.png"]) writeFileSync(path.join(scratch, file), "earlier");
+  const browser = Object.assign(new EventEmitter(), { isConnected: () => true, async close() {} }) as unknown as Browser;
+  t.mock.method(chromium, "launch", async () => browser);
+  assert.equal(await withCapture({ folder, name: "before" }, async ({ out }) => out), scratch);
+  assert.deepEqual(readdirSync(scratch), ["after-tunnel-1.png"]);
+});
 
 test("a seed-and-views capture uses workspace Playwright and quiet bridge reads, and closes its server and browser", async t => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-runner-"));

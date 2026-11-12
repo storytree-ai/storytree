@@ -69,7 +69,7 @@ const results = {};
 const before = arg('--at') ? JSON.parse(readFileSync(arg('--at'), 'utf8')) : undefined;
 
 await runCapture({
-  folder: pictures, dist, seed, survey,
+  folder: pictures, name: prefix, dist, seed, survey,
   prepare: async ({ page, settle, bridge }) => {
     await page.addInitScript(() => {
       // Each island's ask to route its roads, written down as it is posted to the worker.

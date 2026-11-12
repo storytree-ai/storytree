@@ -250,6 +250,19 @@ test("2.61 · a capture run to check it starts its scratch folder empty, and kee
   assert.deepEqual(readdirSync(scratch), ["this-run.png"], "a later call in the same run keeps what the run took");
 });
 
+test("2.61 · a capture run named by a prefix or label clears only its own scratch files, so side-by-side runs keep each other's", t => {
+  const tmp = mkdtempSync(path.join(tmpdir(), "storytree-scratch-"));
+  t.after(() => removeTemp(tmp));
+  t.mock.method(console, "error", () => {});
+  const run = { argv: ["node", "capture.mjs"], tmp, name: "before" };
+  const folder = path.join(checkout, "packages", "forest", "evidence", "tunnel-depth");
+  const scratch = outputFolder(folder, run);
+  mkdirSync(scratch, { recursive: true });
+  for (const file of ["before-tunnel-1.png", "before-measurements.json", "measurements-before.json", "after-tunnel-1.png", "after-measurements.json", "measurements-after.json"]) writeFileSync(path.join(scratch, file), "earlier");
+  captureOutput(folder, run);
+  assert.deepEqual(readdirSync(scratch).sort(), ["after-measurements.json", "after-tunnel-1.png", "measurements-after.json"], "the other run's pictures stay, this run's older ones go");
+});
+
 test("2.61 · a retake never empties the evidence folder it writes into", t => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-retake-"));
   t.after(() => removeTemp(folder));

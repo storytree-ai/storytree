@@ -20,6 +20,7 @@ import { globeLocator, type GlobeLocator } from "./globe-locator.js";
 import { paintedScenes } from "./painted-scenes.js";
 import { onScreenIsland } from "./layout-progress.js";
 import { ForestTop } from "./forest-top.js";
+import { openWorkCount } from "./open-work.js";
 import { EmptyMap } from "./empty-map.js";
 import { searchFirst } from "../territories/kept-layout.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
@@ -101,7 +102,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
           onPick={pick} onNote={pickNote} onControls={onControls} onPainted={painted.painted} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library}
           onLanesNotice={onLanesNotice} />
       </div>
-      <ForestTop layers={layers} onTurn={turn} notice={drawn.lanesNotice} aside={drawn.aside}
+      <ForestTop layers={layers} onTurn={turn} notice={drawn.lanesNotice} aside={drawn.aside} rings={openWorkCount(drawn.scene, drawn.circled, drawn.circledContracts)}
         islands={drawn.scene.islands.map(island => ({ story: island.story, territories: island.land?.territories }))} />
       <EmptyMap read={drawn.read} face={drawn.face} islands={drawn.scene.islands.length} onGuide={openGuide} />
       {/* The knowledge core's kind list unfolds under the Library button while it is pressed (knowledge core 5, D1). */}

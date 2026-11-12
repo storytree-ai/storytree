@@ -285,7 +285,7 @@ test("4.12 a healthy capability says nothing more, and a contract not re-run say
   assert.doesNotMatch(renderStoryPanel(notGreen(undefined), "cap"), /not re-run since/);
 });
 
-test("4.15 an imported story's panel says it was here before storytree and is assumed to be working, with its files and lines, and shows no health", () => {
+test("4.15 an imported story's panel says it was here before storytree, assumed to be working until storytree holds a reading on any of its parts, with its files and lines, and shows no health", () => {
   const mapped: StoryPanel = { story: "m", title: "Cart", description: "no description yet", capabilities: [], mapped: { files: 2, lines: 1200 } };
   const html = renderStoryPanel(mapped, undefined);
   assert.match(html, /class="panel-mapped"><strong>Imported:<\/strong>/);
@@ -297,6 +297,13 @@ test("4.15 an imported story's panel says it was here before storytree and is as
   assert.match(uncounted, /assumed to be working/);
   assert.doesNotMatch(uncounted, /files|lines/, "no counts before the survey reads it");
   assert.doesNotMatch(renderStoryPanel(panel, "base"), /panel-mapped/, "a built story's panel says nothing of it");
+  const part = line("part", "not-checked");
+  const unread = { ...part, contracts: [{ ...part.contracts[0]!, gear: { state: "not-checked" as const }, acceptance: "not-run" as const }] };
+  assert.match(renderStoryPanel({ ...mapped, capabilities: [unread] }, undefined), /assumed to be working/, "parts not run yet are no reading");
+  for (const contract of [{ ...unread.contracts[0]!, gear: { state: "failing" as const } }, { ...unread.contracts[0]!, gear: { state: "passing" as const } }, { ...unread.contracts[0]!, acceptance: "failed" as const }]) {
+    const read = renderStoryPanel({ ...mapped, capabilities: [unread, { ...unread, id: "read", contracts: [contract] }] }, undefined);
+    assert.equal(plainText(/<p class="panel-mapped">[\s\S]*?<\/p>/.exec(read)![0]), "Imported: here before storytree. 2 files, 1,200 lines.", "once any part has a reading");
+  }
 });
 
 test("4.36 a story's panel lists its extra checks with what sets each off, and shows no risk rating and no graph; a story without extra checks shows none", () => {

@@ -202,7 +202,7 @@ test("12.7 · the refusal of a folder with no package to import names the langua
   });
 });
 
-test("12.4 importing again says the commit recorded before and now and the files added, changed and removed between them, and names each explored capability whose covered files are gone, leaving it as it stands", async () => {
+test("12.4 importing again says the commit recorded before and now and the files added, changed and removed between them, and redraws each imported story whose code it reads by the rule, naming each capability added and retired", async () => {
   await withProject(async ({ dir, home, storytree, library }) => {
     const shop = path.join(dir, "shop");
     write(shop, { "package.json": { name: "shop" }, "src/a.ts": "export const a = 1;\n", "src/b.ts": "export const b = 1;\n", "src/ui/menu.ts": "export const menu = 1;\n" });
@@ -214,7 +214,7 @@ test("12.4 importing again says the commit recorded before and now and the files
     const first = await importProject({ folder: shop, library, storytree, storytreeHome: home });
     assert.equal(first.before, undefined, "a first import has nothing before it");
     assert.equal(first.changes, undefined);
-    assert.deepEqual(first.stranded, []);
+    assert.deepEqual(first.redrawn, [], "a first import draws, it does not redraw");
     const [story] = first.added;
     const drawn = (await library.list("capability")).filter((capability) => capability.fields.story === story!.id);
     const menu = drawn.find((capability) => capability.fields.covers?.includes("src/ui"))!;
@@ -224,6 +224,7 @@ test("12.4 importing again says the commit recorded before and now and the files
     assert.deepEqual(same.before, { commit: one });
     assert.equal(same.commit, one);
     assert.deepEqual(same.changes, { added: [], changed: [], removed: [] }, "the commit did not move");
+    assert.deepEqual(same.redrawn, [], "code that did not move redraws nothing");
 
     write(shop, { "src/a.ts": "export const a = 2;\n", "src/c.ts": "export const c = 1;\n" });
     rmSync(path.join(shop, "src/b.ts"));
@@ -235,12 +236,19 @@ test("12.4 importing again says the commit recorded before and now and the files
     assert.deepEqual(again.before, { commit: one });
     assert.equal(again.commit, two);
     assert.deepEqual(again.changes, { added: ["src/c.ts"], changed: ["src/a.ts"], removed: ["src/b.ts", "src/ui/menu.ts"] });
-    assert.deepEqual(again.stranded, [
-      { id: menu.id, title: menu.fields.title, story: story!.id, gone: ["src/ui"] },
-      { id: bee.id, title: bee.fields.title, story: story!.id, gone: ["src/b.ts"] },
-    ].sort((x, y) => x.id.localeCompare(y.id)));
-    assert.deepEqual(((await library.get(bee.id)) as SchemaRecord<"capability"> | null)?.fields.covers, ["src/b.ts"], "the re-import reshapes no capability");
-    assert.notEqual(await library.get(menu.id), null);
+    const added = (await library.list("capability")).find((capability) => capability.fields.story === story!.id && capability.fields.covers?.includes("src/c.ts"))!;
+    assert.equal(added.fields.proposed, false, "a capability the redraw adds is built: its code is there");
+    assert.deepEqual(again.redrawn, [{
+      story: { id: story!.id, title: "shop" },
+      merged: [],
+      split: [],
+      added: [{ id: added.id, title: added.fields.title }],
+      retired: [{ id: bee.id, title: bee.fields.title }, { id: menu.id, title: menu.fields.title }].sort((x, y) => x.id.localeCompare(y.id)),
+      left: [],
+    }]);
+    assert.equal(await library.get(bee.id), null, "a capability whose code is gone retires");
+    assert.equal(await library.get(menu.id), null);
+    assert.deepEqual((await library.list("capability")).filter((capability) => capability.fields.story === story!.id).map(({ fields }) => fields.covers).sort(), [["src/a.ts"], ["src/c.ts"]], "the story is drawn as its code now stands");
 
     // A recorded commit git no longer knows: the commits are still said, the files are not.
     await recordImport(storytree, { project: library.name, machine: machineOf(home).id, machineName: machineOf(home).name, folder: shop, repository: "https://github.com/shop/shop.git", commit: "0".repeat(40) });
@@ -249,6 +257,102 @@ test("12.4 importing again says the commit recorded before and now and the files
     assert.equal(unknown.changes, undefined);
   });
 });
+
+test("12.10 a redraw keeps what was written: an unchanged capability keeps its id, title, description and contracts; a new one inherits the id, title and description of the one it takes the most files from; every contract moves to the capability now holding most of its old one's files, keeping its title; a capability left covering nothing retires; a story drawn by hand is redrawn alike", async () => {
+  await withProject(async ({ dir, home, storytree, library }) => {
+    const shop = path.join(dir, "shop");
+    write(shop, {
+      "package.json": { name: "shop" },
+      "src/index.ts": "import { sum } from \"./money/sum.js\";\nimport { vat } from \"./tax/vat.js\";\nexport const total = sum + vat;\n",
+      "src/log.ts": "export const log = 1;\n",
+      "src/money/sum.ts": "export const sum = 1;\n",
+      "src/money/rate.ts": "export const rate = 1;\n",
+      "src/tax/vat.ts": "export const vat = 1;\n",
+      "src/tax/gst.ts": "export const gst = 1;\n",
+    });
+    const [story] = (await importProject({ folder: shop, library, storytree, storytreeHome: home })).added;
+    const ofStory = async () => (await library.list("capability")).filter((capability) => capability.fields.story === story!.id);
+    const covering = async (cover: string) => (await ofStory()).find((capability) => capability.fields.covers?.includes(cover))!;
+    const index = await covering("src/index.ts");
+    const log = await covering("src/log.ts");
+    const money = await covering("src/money");
+    const tax = await covering("src/tax");
+    const number = (capability: SchemaRecord<"capability">) => capability.fields.title.split(" · ")[0];
+    // What an agent wrote: names, descriptions and contracts.
+    await library.editCapability(log.id, { title: `${number(log)} · Logging`, description: "Writes the log" });
+    await library.editCapability(money.id, { title: `${number(money)} · Money`, description: "Adds money up" });
+    const onIndex = await library.addContract({ capability: index.id, title: "Totals the basket" });
+    const onMoney = await library.addContract({ capability: money.id, title: "Sums" });
+    const onTax = await library.addContract({ capability: tax.id, title: "Charges tax" });
+
+    // The money folder splits (two files into fx/, two new beside it); the tax folder imports the index, closing a loop.
+    rmSync(path.join(shop, "src/money"), { recursive: true });
+    write(shop, {
+      "src/money/sum.ts": "export const sum = 1;\n",
+      "src/money/round.ts": "export const round = 1;\n",
+      "src/money/fx/rate.ts": "export const rate = 1;\n",
+      "src/money/fx/table.ts": "export const table = 1;\n",
+      "src/tax/vat.ts": "import { log } from \"../log.js\";\nimport { total } from \"../index.js\";\nexport const vat = log + total;\n",
+    });
+    const again = await importProject({ folder: shop, library, storytree, storytreeHome: home });
+
+    const now = await ofStory();
+    const byId = new Map(now.map((capability) => [capability.id, capability] as const));
+    assert.deepEqual(byId.get(log.id)?.fields, { ...log.fields, title: `${number(log)} · Logging`, description: "Writes the log" }, "an unchanged capability stands as it was");
+    assert.deepEqual(pick(byId.get(money.id)), { title: `${number(money)} · Money`, description: "Adds money up", covers: ["src/money/fx"] }, "the part taking most of the money folder's files inherits it, its name kept");
+    assert.deepEqual(pick(byId.get(tax.id)), { title: `${number(tax)} · src/index.ts + src/tax`, covers: ["src/index.ts", "src/tax"] }, "the loop inherits the tax folder, which gave it most files; a title no one named reads the new paths");
+    assert.equal(byId.has(index.id), false, "the index, merged into the loop, retires");
+    const added = now.filter((capability) => ![log.id, money.id, tax.id].includes(capability.id));
+    assert.deepEqual(added.map(({ fields }) => [fields.covers, fields.proposed]).sort(), [[["src/money/round.ts"], false], [["src/money/sum.ts"], false]]);
+    const contracts = new Map((await library.list("contract")).map((contract) => [contract.id, contract.fields] as const));
+    assert.deepEqual([onIndex, onMoney, onTax].map((contract) => contracts.get(contract.id)), [
+      { ...onIndex.fields, capability: tax.id },
+      onMoney.fields,
+      onTax.fields,
+    ], "no contract is dropped: the index's moves to the loop holding its file, keeping its number");
+    const named = (capability: SchemaRecord<"capability">) => ({ id: capability.id, title: byId.get(capability.id)?.fields.title ?? capability.fields.title });
+    const sorted = <T extends { id: string }>(list: T[]) => list.sort((x, y) => x.id.localeCompare(y.id));
+    assert.deepEqual(again.redrawn, [{
+      story: { id: story!.id, title: "shop" },
+      merged: [{ into: named(tax), from: sorted([named(index), named(tax)]) }],
+      split: [{ from: named(money), into: sorted([named(money), ...added.map(named)]) }],
+      added: sorted(added.map(named)),
+      retired: [{ ...named(index), contractsTo: named(tax) }],
+      left: [],
+    }]);
+    const ids = new Map(now.map((capability) => [capability.id, capability.fields.covers!.join(" + ")] as const));
+    assert.deepEqual((await library.list("edge")).filter((edge) => ids.has(edge.fields.from)).map((edge) => `${ids.get(edge.fields.from)} -> ${ids.get(edge.fields.to)}`).sort(), [
+      "src/index.ts + src/tax -> src/log.ts",
+      "src/index.ts + src/tax -> src/money/sum.ts",
+    ], "the links are the imports as they stand");
+
+    // A story imported before storytree drew, its capability drawn by hand over the whole of src, is redrawn alike.
+    const old = path.join(dir, "old");
+    write(old, { "package.json": { name: "old" }, "src/main.ts": "export const main = 1;\n", "src/util/a.ts": "export const a = 1;\n", "src/util/b.ts": "export const b = 1;\n" });
+    const [drawnByHand] = (await library.mapStories(realpathSync(old), [{ package: ".", title: "old", folders: ["."] }])).added;
+    const whole = await library.addCapability({ story: drawnByHand!.id, title: "Shop", description: "The whole shop", covers: ["src"], proposed: false });
+    const onWhole = await library.addContract({ capability: whole.id, title: "Opens" });
+    const lost = await library.addCapability({ story: drawnByHand!.id, title: "Lost", covers: ["lib"], proposed: false });
+    const onLost = await library.addContract({ capability: lost.id, title: "Was there" });
+    const redrawn = await importProject({ folder: old, library, storytree, storytreeHome: home });
+    const parts = (await library.list("capability")).filter((capability) => capability.fields.story === drawnByHand!.id);
+    assert.deepEqual(parts.map((capability) => [capability.id === whole.id, capability.fields.title, capability.fields.covers]).sort(), [
+      [false, "2 · Lost", ["lib"]],
+      [false, "3 · src/main.ts", ["src/main.ts"]],
+      [true, "1 · Shop", ["src/util"]],
+    ], "the part with most of its files keeps its id and name; the rest is added; one whose files are gone but holds a contract is left");
+    assert.equal(((await library.get(onLost.id)) as SchemaRecord<"contract"> | null)?.fields.capability, lost.id, "no contract is dropped");
+    assert.deepEqual(redrawn.redrawn.map(({ left }) => left), [[{ id: lost.id, title: "2 · Lost", gone: ["lib"] }]]);
+    assert.equal(((await library.get(onWhole.id)) as SchemaRecord<"contract"> | null)?.fields.capability, whole.id);
+    assert.deepEqual(redrawn.redrawn.map(({ split }) => split.map(({ from, into }) => [from.id, into.length])), [[[whole.id, 2]]]);
+  });
+});
+
+/** A capability's title, description and covers, as a redraw keeps or changes them. */
+function pick(capability: SchemaRecord<"capability"> | undefined): Record<string, unknown> {
+  const { title, description, covers } = capability?.fields ?? {};
+  return { title, ...(description === undefined ? {} : { description }), covers };
+}
 
 test("12.5 a workspace pattern that climbs out of the folder or runs past the matching limits is refused, saying why, and nothing is written; any '*' pattern is matched in time linear in the folder name", async () => {
   await withProject(async ({ dir, home, storytree, library }) => {

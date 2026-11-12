@@ -60,6 +60,16 @@ export function ringedCapabilities(named: readonly string[] | undefined, contrac
 }
 
 /**
+ * How many parts and links the selected arc's open work rings across the whole `scene`, as the rings count them (3.99, 3.92),
+ * whether or not they are on screen; undefined with no arc selected (3.108).
+ */
+export function openWorkCount(scene: { contracts?: readonly { capability: string; contracts: readonly string[] }[]; edges?: readonly { from: string; to: string; contracts: readonly string[] }[] },
+  named: readonly string[] | undefined, contracts: readonly string[] | undefined): { parts: number; links: number } | undefined {
+  const parts = ringedCapabilities(named, contracts, scene.contracts ?? []);
+  return parts === undefined ? undefined : { parts: parts.size, links: rungLinks(scene.edges ?? [], contracts ?? [])!.size };
+}
+
+/**
  * The open work on `map` for the selected arc's open increments' capabilities (`circled`; undefined, no arc selected): a ring
  * round each named capability's settlement on `roads` (sized to it, with room), or round its nameplate where it has none, and
  * round each gate on `roads` a link of `rung` enters (3.92); and round the selected capability (`picked`), if it is on the island, a ring outside that one (3.91).

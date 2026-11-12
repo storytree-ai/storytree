@@ -24,6 +24,17 @@ export type SurveyPackage = {
  */
 export type Edge = { readonly to: string; readonly reexport: boolean; readonly typeOnly: boolean; readonly names: readonly (readonly [name: string, as: string])[] | "all" };
 
+/**
+ * The names a module offers, by where they come from: those it binds itself (`local`), those it passes on from another
+ * file of its story (`from`, the file and the name there; none for that file taken whole), and the files whose every
+ * name it passes on (`star`).
+ */
+export type Offers = {
+  readonly local: ReadonlySet<string>;
+  readonly from: ReadonlyMap<string, { readonly to: string; readonly name?: string }>;
+  readonly star: readonly string[];
+};
+
 /** How the survey reads one language. Paths are the survey's, with forward slashes. */
 export interface LanguageReader {
   /** The files of this language the survey reads. */
@@ -38,6 +49,8 @@ export interface LanguageReader {
   titlesOf(file: SourceFile): readonly string[];
   /** The imports a file makes of files `paths` holds, resolved through `packages` where the language needs them. */
   edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Edge[];
+  /** The names a file offers and where each comes from, among files `paths` holds, where the language's reader follows them (Python's). */
+  offersOf?(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Offers;
   /** Whether a file registers tests itself, so a test file that runs it carries the titles it registers. */
   registersTests(file: SourceFile): boolean;
   /** The capability a source file's text declares in its opening comment (ADR-0925 D1), its number and the words after the dot; if any. */

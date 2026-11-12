@@ -104,6 +104,40 @@ test("8.62 a drawn capability depends on another exactly when one of its files i
   ], "Python's absolute imports resolve from the story's folder, as the survey's reader resolves them");
 });
 
+test("8.62 a name taken from a file that only passes it on (a package root's re-export, in Python or TypeScript) links to the file that binds it, so a root and the modules it re-exports draw no loop", async () => {
+  const flat = filesOf({
+    "tinydb/__init__.py": "from .database import TinyDB\nfrom .storages import JSONStorage, Storage\nfrom .operations import *\n",
+    "tinydb/database.py": "from . import JSONStorage\nclass TinyDB: pass\n",
+    "tinydb/storages.py": "class Storage: pass\nclass JSONStorage(Storage): pass\n",
+    "tinydb/middlewares.py": "from tinydb import Storage\nclass Middleware(Storage): pass\n",
+    "tinydb/operations.py": "def delete(): pass\n",
+    "tinydb/queries.py": "from tinydb import delete\n",
+  });
+  await readersReady(flat.map((file) => file.path));
+  assert.deepEqual(drawImportedStory({ folder: ".", files: flat }), {
+    capabilities: ["tinydb/__init__.py", "tinydb/database.py", "tinydb/middlewares.py", "tinydb/operations.py", "tinydb/queries.py", "tinydb/storages.py"].map((title) => ({ title, covers: [title] })),
+    links: [
+      { from: "tinydb/__init__.py", to: "tinydb/database.py" },
+      { from: "tinydb/__init__.py", to: "tinydb/operations.py" },
+      { from: "tinydb/__init__.py", to: "tinydb/storages.py" },
+      { from: "tinydb/database.py", to: "tinydb/storages.py" },
+      { from: "tinydb/middlewares.py", to: "tinydb/storages.py" },
+      { from: "tinydb/queries.py", to: "tinydb/operations.py" },
+    ],
+  }, "database and middlewares take their names through the root, and link to storages, which binds them; queries takes one the root's wildcard passes on, and links to operations");
+
+  const barrel = filesOf({
+    "src/index.ts": "export { add } from \"./add.js\";\nexport { total } from \"./total.js\";\n",
+    "src/add.ts": "import { total } from \"./index.js\";\nexport const add = () => total();\n",
+    "src/total.ts": "export const total = () => 1;\n",
+  });
+  assert.deepEqual(drawImportedStory({ folder: ".", files: barrel }).links, [
+    { from: "src/add.ts", to: "src/total.ts" },
+    { from: "src/index.ts", to: "src/add.ts" },
+    { from: "src/index.ts", to: "src/total.ts" },
+  ], "a TypeScript barrel's modules that import through it are not merged with it");
+});
+
 test("8.63 capabilities whose imports run round a loop are drawn as one covering all their folders and files, and the drawing is the same whatever order its files come in", async () => {
   await readersReady([...TINY, ...BACKEND].map((file) => file.path));
   const backend = drawImportedStory({ folder: "backend", files: BACKEND });

@@ -78,7 +78,7 @@ test("8.50 a built Python story's imports are edges in its survey: import a.b, f
     const paths = new Set(["src/shop/a.py", "src/shop/b.py", "lib/c.py"]);
     await readersReady(paths);
     assert.deepEqual(pythonReader.edgesOf({ path: "src/shop/a.py", text: "import shop.b\nimport lib.c\n" }, paths, []).map((edge) => edge.to), ["src/shop/b.py", "lib/c.py"]);
-    assert.deepEqual(pythonReader.edgesOf({ path: "lib/c.py", text: "from ... import shop\nfrom .... import b\n" }, paths, []), [], "a relative import that climbs above the top reaches nothing");
+    assert.deepEqual(pythonReader.edgesOf({ path: "lib/c.py", text: "from ... import shop\nfrom .... import b\n" }, new Set([...paths, "shop.py", "b.py"]), []), [], "a relative import that climbs above the top reaches nothing, not even the top's own modules");
   } finally {
     await removeTemp(folder);
   }
@@ -252,4 +252,47 @@ test("8.57 a built Python story's source file importing a file another of its ca
   } finally {
     await removeTemp(folder);
   }
+});
+
+test("8.64 the Python reader reports the names a from-import takes, and which of a module's names it binds by its own import, so a name a package's __init__.py passes on can be followed to the file that binds it", async () => {
+  const paths = new Set(["tinydb/__init__.py", "tinydb/storages.py", "tinydb/utils.py", "tinydb/operations.py", "tinydb/middlewares.py"]);
+  await readersReady(paths);
+  const root = {
+    path: "tinydb/__init__.py",
+    text: [
+      "from typing import Any",
+      "from .storages import JSONStorage, Storage as Base",
+      "from . import utils",
+      "from .operations import *",
+      "try:",
+      "    from .middlewares import Cached",
+      "except ImportError:",
+      "    Cached = None",
+      "VERSION = 1",
+      "def later():",
+      "    from .utils import freeze",
+      "@decorated",
+      "class Query:",
+      "    from .utils import inner",
+      "",
+    ].join("\n"),
+  };
+  const offers = pythonReader.offersOf!(root, paths, []);
+  assert.deepEqual([...offers.from], [
+    ["JSONStorage", { to: "tinydb/storages.py", name: "JSONStorage" }],
+    ["Base", { to: "tinydb/storages.py", name: "Storage" }],
+    ["utils", { to: "tinydb/utils.py" }],
+    ["Cached", { to: "tinydb/middlewares.py", name: "Cached" }],
+  ], "each name its own imports bind, by the file it comes from and its name there; a submodule taken whole has none; typing is outside the story");
+  assert.deepEqual(offers.star, ["tinydb/operations.py"]);
+  assert.deepEqual([...offers.local].sort(), ["Cached", "Query", "VERSION", "later"], "a function's or class's own imports bind none of the module's names");
+
+  assert.deepEqual(pythonReader.offersOf!({ path: "tinydb/middlewares.py", text: "from .storages import Storage\nfrom .operations import *\nclass Middleware: pass\n" }, paths, []),
+    { local: new Set(["Middleware"]), from: new Map(), star: [] }, "a module that is no package's __init__.py keeps its imports to itself");
+
+  assert.deepEqual(pythonReader.edgesOf({ path: "tinydb/middlewares.py", text: "import tinydb.utils\nfrom tinydb import JSONStorage, utils, Storage as S\nfrom .operations import *\n" }, paths, []), [
+    { to: "tinydb/utils.py", reexport: false, typeOnly: false, names: "all" },
+    { to: "tinydb/__init__.py", reexport: false, typeOnly: false, names: [["JSONStorage", "JSONStorage"], ["Storage", "S"]] },
+    { to: "tinydb/operations.py", reexport: false, typeOnly: false, names: "all" },
+  ], "a from-import of names that are no submodule takes them by name; a submodule, an import and a wildcard take the whole file");
 });

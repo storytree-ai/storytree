@@ -1,11 +1,13 @@
 /**
- * Capability 3 · Counts before detail: a mapped story's links checked against its code's own imports (3.15,
- * question_23191b4f2a29 option D, building option A's check from the crossing's readers).
+ * Capability 3 · Counts before detail: an imported story's links checked against its code's own imports (3.15,
+ * question_23191b4f2a29 option D).
  *
- * - The story's explored capabilities are the ones that cover folders or files (ADR-0993 D5); a file belongs to the one
- *   the survey gives it. An import from a file of capability A to a file of capability B backs the link A depends on B.
+ * - The capabilities checked are the story's that cover folders or files (ADR-0993 D5); a file belongs to the one the
+ *   survey gives it. An import from a file of capability A to a file of capability B backs the link A depends on B.
+ * - Each import is resolved as the drawing resolves it (importedLinks, 8.62), so a map storytree drew reports no missing
+ *   and no unbacked link: a name taken from a file that only passes it on is followed to the file that binds it.
  * - Missing: imports from A's files to B's files with no link A depends on B. Unbacked: a link A depends on B, both
- *   explored in this story, that no import from A's files to B's backs; the imports from B's files to A's, if any, are
+ *   covering files in this story, that no import from A's files to B's backs; the imports from B's files to A's, if any, are
  *   listed with it, since the link may be drawn the wrong way round. A link to a capability that covers nothing, or to
  *   another story's, cannot be checked here, and is named as such.
  * - Imports within one capability, or from or to a file in none, are no link's. Each link's imports are listed, or above
@@ -16,7 +18,9 @@ import path from "node:path";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { CEILING, CROSSING_NOTE, islandImports } from "./crossings.js";
+import { readersReady, type SourceFile } from "./code-survey.js";
+import { CEILING, CROSSING_NOTE } from "./crossings.js";
+import { importedLinks } from "./drawing.js";
 
 type Named = { readonly id: string; readonly title: string };
 
@@ -31,10 +35,10 @@ export type LinksAnswer = {
   /** The folder this machine imports the story from. */
   readonly island: string;
   /** How many of the story's capabilities cover files. */
-  readonly explored: number;
-  /** Imports between two explored capabilities' files that no link covers. */
+  readonly covering: number;
+  /** Imports between two capabilities' files that no link covers. */
   readonly missing: readonly LinkRow[];
-  /** Links between two explored capabilities that no import backs, each with the imports running the other way. */
+  /** Links between two capabilities that cover files that no import backs, each with the imports running the other way. */
   readonly unbacked: readonly (LinkRow & { readonly reverse: readonly LinkImport[] })[];
   /** Links this cannot check, and why. */
   readonly unchecked: readonly { readonly from: Named; readonly to: Named; readonly why: string }[];
@@ -57,24 +61,23 @@ export async function linksOf(
   const island = posix(mapped.folder);
   const named = new Map<string, Named>();
   for (const each of tree.stories) for (const { id, title } of each.capabilities) named.set(id, { id, title });
-  const explored = new Set(story.capabilities.filter(({ covers }) => covers !== undefined && covers.length > 0).map(({ id }) => id));
+  const covering = new Set(story.capabilities.filter(({ covers }) => covers !== undefined && covers.length > 0).map(({ id }) => id));
 
-  // Each file of an explored capability, by full path, and the capability it belongs to.
+  // Each file of a capability that covers files, by its path from the import's folder, and the capability it belongs to.
   const owner = new Map<string, string>();
-  for (const file of survey[story.id]!.files) if (file.capability !== undefined && explored.has(file.capability)) owner.set(`${island}/${file.path}`, file.capability);
+  for (const file of survey[story.id]!.files) if (file.capability !== undefined && covering.has(file.capability)) owner.set(file.path, file.capability);
 
-  const { known, importsFrom } = await islandImports(tree, survey, checkout, island, readText);
+  // The story's code read now, its imports resolved as the drawing resolves them (importedLinks).
+  const code = (await Promise.all(survey[story.id]!.files.map(async ({ path: file }): Promise<SourceFile | undefined> => {
+    const text = await readText(`${island}/${file}`).catch(() => undefined);
+    return text === undefined ? undefined : { path: file, text };
+  }))).filter((file): file is SourceFile => file !== undefined);
+  await readersReady(code.map((file) => file.path));
   // The imports from one capability's files to another's, by `from>to` capability ids.
   const between = new Map<string, LinkImport[]>();
-  await Promise.all([...owner.keys()].map(async (full) => {
-    const from = owner.get(full)!;
-    for (const to of new Set(await importsFrom(known.get(full)!))) {
-      const target = owner.get(to);
-      if (target === undefined || target === from) continue;
-      const key = `${from}>${target}`;
-      between.set(key, [...between.get(key) ?? [], { from: known.get(full)!.shown, to: known.get(to)!.shown }]);
-    }
-  }));
+  for (const { from, to, files } of importedLinks(story.mapped.package, code, owner)) {
+    if (from !== undefined && to !== undefined) between.set(`${from}>${to}`, files.flatMap((each) => each.to === undefined ? [] : [{ from: each.from, to: each.to }]));
+  }
   const sorted = (rows: readonly LinkImport[] = []): LinkImport[] => [...rows].sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
 
   const linked = new Set<string>();
@@ -86,8 +89,8 @@ export async function linksOf(
       const to = named.get(on) ?? { id: on, title: on };
       linked.add(`${capability.id}>${on}`);
       const elsewhere = !story.capabilities.some(({ id }) => id === on);
-      if (elsewhere || !explored.has(on) || !explored.has(capability.id)) {
-        unchecked.push({ from, to, why: elsewhere ? "another story's capability" : `${explored.has(on) ? from.title : to.title} covers no files` });
+      if (elsewhere || !covering.has(on) || !covering.has(capability.id)) {
+        unchecked.push({ from, to, why: elsewhere ? "another story's capability" : `${covering.has(on) ? from.title : to.title} covers no files` });
       } else if (!between.has(`${capability.id}>${on}`)) {
         unbacked.push({ from, to, count: 0, imports: [], reverse: sorted(between.get(`${on}>${capability.id}`)) });
       }
@@ -105,7 +108,7 @@ export async function linksOf(
   const listed = missing.reduce((sum, row) => sum + row.count, 0) + unbacked.reduce((sum, row) => sum + row.reverse.length, 0);
   const refused = listed > ceiling;
   return {
-    story: { id: story.id, title: story.title }, island: path.resolve(mapped.folder), explored: explored.size,
+    story: { id: story.id, title: story.title }, island: path.resolve(mapped.folder), covering: covering.size,
     missing: refused ? missing.map((row) => ({ ...row, imports: [] })) : missing,
     unbacked: refused ? unbacked.map((row) => ({ ...row, reverse: [] })) : unbacked,
     unchecked, refused, ceiling, note: CROSSING_NOTE,
@@ -116,7 +119,7 @@ export async function linksOf(
 export function formatLinks(answer: LinksAnswer): string {
   const imports = (count: number) => `${count} ${count === 1 ? "import" : "imports"}`;
   const rows = (list: readonly LinkImport[]) => list.map(({ from, to }) => `    ${from} -> ${to}`);
-  const lines = [`Links of ${answer.story.title} checked against its imports, from ${answer.island}: ${answer.explored} explored ${answer.explored === 1 ? "capability" : "capabilities"}.`];
+  const lines = [`Links of ${answer.story.title} checked against its imports, from ${answer.island}: ${answer.covering} ${answer.covering === 1 ? "capability covers" : "capabilities cover"} files.`];
   lines.push(`Missing links (imports no link covers): ${answer.missing.length}`);
   for (const row of answer.missing) lines.push(`  ${row.from.title} -> ${row.to.title}: ${imports(row.count)}`, ...rows(row.imports));
   lines.push(`Unbacked links (no import backs them): ${answer.unbacked.length}`);

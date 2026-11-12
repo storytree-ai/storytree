@@ -10,11 +10,14 @@
  *   increment's measure on both trials (increment_3a69d0fdce2e): the deepest folder of code, else the module.
  * - Test files, test support, declaration files and files with no non-blank line are no capability's: tests are
  *   contracts' proofs, and an empty `__init__.py` holds nothing to draw.
- * - One depends on another exactly when a file of the one imports a file of the other, as storyEdges resolves it.
+ * - One depends on another exactly when a file of the one imports a file of the other, as storyEdges resolves it: a name
+ *   taken from a file that only passes it on (a package root's re-export) is followed to the file that binds it.
  * - Capabilities whose imports run round a loop (a strongly connected set) are one, titled by their paths joined
  *   with " + ". Everything is sorted by path, so the order the files come in changes nothing.
  */
 import path from "node:path";
+
+import type { CodeEdge } from "@storytree/library";
 
 import { isCodeFile, isTestCode, storyEdges } from "./code-survey.js";
 import type { SourceFile } from "./language-reader.js";
@@ -51,8 +54,7 @@ export function drawImportedStory(story: { readonly folder: string; readonly fil
 
   const units = [...new Set(owners.values())].sort(byText);
   const after = new Map(units.map((unit) => [unit, new Set<string>()] as const));
-  const edges = storyEdges([{ id: "drawn", files, packages: [{ root: top, name: story.folder, exports: {} }], owners }]).get("drawn")!;
-  for (const { from, to } of edges) if (from !== undefined && to !== undefined && from !== to) after.get(from)!.add(to);
+  for (const { from, to } of importedLinks(story.folder, files, owners)) if (from !== undefined && to !== undefined && from !== to) after.get(from)!.add(to);
 
   const merged = loops(units, after);
   const titleOf = (unit: string): string => unit.slice(top.length);
@@ -68,6 +70,15 @@ export function drawImportedStory(story: { readonly folder: string; readonly fil
     .sort(([a, x], [b, y]) => byText(a, b) || byText(x, y))
     .map(([from, to]) => ({ from, to }));
   return { capabilities, links };
+}
+
+/**
+ * The links the imports of an imported story whose package is `folder` make between the capabilities `owners` gives its
+ * files, each with the imports behind it: the drawing's, and the links check's (3.15), so the two read imports alike.
+ */
+export function importedLinks(folder: string, files: readonly SourceFile[], owners: ReadonlyMap<string, string>): CodeEdge[] {
+  const top = folder === "." ? "" : `${path.posix.normalize(folder).replace(/\/$/, "")}/`;
+  return storyEdges([{ id: "drawn", files, packages: [{ root: top, name: folder, exports: {} }], owners }]).get("drawn")!;
 }
 
 /** The source root under `top`: its one Python import package holding code, else its src/ holding JavaScript or TypeScript, else `top`. */

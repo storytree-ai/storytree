@@ -17,7 +17,7 @@
  */
 import type { Node, Tree } from "web-tree-sitter";
 
-import type { Edge, LanguageReader, SourceFile, SurveyPackage } from "./language-reader.js";
+import type { Edge, LanguageReader, Offers, SourceFile, SurveyPackage } from "./language-reader.js";
 
 /** A pytest test file, by its path. */
 export const PYTEST_FILE = /(?:^|\/)(?:test_[^/]*|[^/]*_test)\.py$/;
@@ -62,53 +62,138 @@ const partsOf = (node: Node | null): string[] => node === null ? [] : node.text.
 /** The parts a name in an import names: a dotted_name's, or an aliased_import's own name's. */
 const importedParts = (node: Node): string[] => partsOf(node.type === "aliased_import" ? node.childForFieldName("name") : node);
 
-/** The imports a Python file makes of files `paths` holds. */
-function edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Edge[] {
+/** The name an import binds a name it takes on: its alias, else its own. */
+const boundAs = (node: Node): string => node.type === "aliased_import" ? node.childForFieldName("alias")?.text ?? "" : node.text.trim();
+
+/**
+ * One import statement as written: `import a.b` (no level) or `from <level dots><base> import …`, with the names it
+ * takes and binds (each as written and as bound), "all" for a wildcard; whether it is at the module's own level.
+ */
+type Statement = { readonly level?: number; readonly base: readonly string[]; readonly names: readonly (readonly [name: string, as: string])[] | "all"; readonly top: boolean };
+
+/** What a Python file says, read once from its syntax: its import statements, and the names it binds itself at its own level. */
+type Reading = { readonly statements: readonly Statement[]; readonly local: ReadonlySet<string> };
+
+/** Parse each unchanged file once; resolution against a story's paths happens each time. */
+const readings = new WeakMap<SourceFile, Reading>();
+
+/** Statements run when the module loads hold the module's names: a block of an if, try or with does, a function's or class's body does not. */
+const OPEN = new Set(["block", "if_statement", "elif_clause", "else_clause", "try_statement", "except_clause", "finally_clause", "with_statement", "decorated_definition"]);
+
+/** The names an assignment's left side binds. */
+const targetsOf = (node: Node | null): string[] => node === null ? []
+  : node.type === "identifier" ? [node.text]
+  : ["pattern_list", "tuple_pattern", "list_pattern"].includes(node.type) ? node.namedChildren.flatMap(targetsOf) : [];
+
+function readingOf(file: SourceFile): Reading {
+  const cached = readings.get(file);
+  if (cached !== undefined) return cached;
   const tree = givenParser().parse(file.text);
   try {
-    const roots = searchRoots(file.path, packages);
-    const found = new Set<string>();
-    const absolute = (parts: readonly string[]) => roots.map((root) => moduleFile(root, parts, paths)).find((to) => to !== undefined);
-    for (const node of tree.rootNode.descendantsOfType(["import_statement", "import_from_statement"])) {
-      if (node.type === "import_statement") {
-        for (const name of node.childrenForFieldName("name")) {
-          const to = absolute(importedParts(name));
-          if (to !== undefined) found.add(to);
+    const statements: Statement[] = [];
+    const local = new Set<string>();
+    const moduleLevel = new Set<number>();
+    const visit = (block: Node): void => {
+      for (const child of block.namedChildren) {
+        moduleLevel.add(child.id);
+        if (child.type === "function_definition" || child.type === "class_definition") {
+          const name = child.childForFieldName("name")?.text;
+          if (name !== undefined) local.add(name);
+        } else if (child.type === "expression_statement") {
+          for (const assignment of child.namedChildren) if (assignment.type === "assignment" || assignment.type === "augmented_assignment") targetsOf(assignment.childForFieldName("left")).forEach((name) => local.add(name));
         }
+        if (OPEN.has(child.type)) visit(child);
+      }
+    };
+    visit(tree.rootNode);
+    for (const node of tree.rootNode.descendantsOfType(["import_statement", "import_from_statement"])) {
+      const top = moduleLevel.has(node.id);
+      if (node.type === "import_statement") {
+        for (const name of node.childrenForFieldName("name")) statements.push({ base: importedParts(name), names: "all", top });
         continue;
       }
       const module = node.childForFieldName("module_name");
       if (module === null) continue;
-      let from: (parts: readonly string[]) => string | undefined;
-      let base: string[];
-      if (module.type === "relative_import") {
-        const level = module.children.find((child) => child.type === "import_prefix")?.text.length ?? 0;
-        const folder = file.path.split("/").slice(0, -1);
-        if (level - 1 > folder.length) continue;
-        const start = folder.slice(0, folder.length - (level - 1));
-        const root = start.length === 0 ? "" : `${start.join("/")}/`;
-        from = (parts) => moduleFile(root, parts, paths);
-        base = partsOf(module.namedChildren.find((child) => child.type === "dotted_name") ?? null);
-      } else {
-        from = absolute;
-        base = partsOf(module);
-      }
+      const relative = module.type === "relative_import";
+      const level = relative ? module.children.find((child) => child.type === "import_prefix")?.text.length ?? 0 : 0;
+      const base = partsOf(relative ? module.namedChildren.find((child) => child.type === "dotted_name") ?? null : module);
       const names = node.childrenForFieldName("name");
-      // A wildcard, or a name that is no submodule, reaches the module itself.
-      if (names.length === 0) {
-        const to = from(base);
-        if (to !== undefined) found.add(to);
-      }
-      for (const name of names) {
-        const to = from([...base, ...importedParts(name)]) ?? from(base);
-        if (to !== undefined) found.add(to);
-      }
+      statements.push({ level, base, names: names.length === 0 ? "all" : names.map((name) => [importedParts(name).join("."), boundAs(name)] as const), top });
     }
-    found.delete(file.path);
-    return [...found].map((to) => ({ to, reexport: false, typeOnly: false, names: "all" }));
+    const read = { statements, local };
+    readings.set(file, read);
+    return read;
   } finally {
     tree.delete();
   }
+}
+
+/** The file a statement's module, extended by `parts`, names for `file`, if `paths` holds it. */
+function resolver(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): (statement: Statement, parts: readonly string[]) => string | undefined {
+  const roots = searchRoots(file.path, packages);
+  const folder = file.path.split("/").slice(0, -1);
+  return (statement, parts) => {
+    const named = [...statement.base, ...parts];
+    if (statement.level === undefined || statement.level === 0) return roots.map((root) => moduleFile(root, named, paths)).find((to) => to !== undefined);
+    // A relative import of level n climbs n-1 folders from the importing file's.
+    if (statement.level - 1 > folder.length) return undefined;
+    const start = folder.slice(0, folder.length - (statement.level - 1));
+    return moduleFile(start.length === 0 ? "" : `${start.join("/")}/`, named, paths);
+  };
+}
+
+/**
+ * The imports a Python file makes of files `paths` holds: a submodule a `from` names is taken whole; a name that is no
+ * submodule is taken from the module, by its name and the name it is bound on here; a wildcard or `import a.b` takes the
+ * whole file. A file taken whole by one statement and by name by another is taken whole.
+ */
+function edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Edge[] {
+  const resolve = resolver(file, paths, packages);
+  const found = new Map<string, Map<string, readonly [string, string]> | "all">();
+  const add = (to: string | undefined, name?: readonly [string, string]): void => {
+    if (to === undefined || to === file.path) return;
+    const before = found.get(to);
+    if (name === undefined) found.set(to, "all");
+    else if (before !== "all") found.set(to, (before ?? new Map()).set(name.join(" "), name));
+  };
+  for (const statement of readingOf(file).statements) {
+    if (statement.names === "all") add(resolve(statement, []));
+    else for (const name of statement.names) {
+      const submodule = resolve(statement, name[0].split("."));
+      if (submodule !== undefined) add(submodule);
+      else add(resolve(statement, []), name);
+    }
+  }
+  return [...found].map(([to, names]) => ({ to, reexport: false, typeOnly: false, names: names === "all" ? "all" : [...names.values()] }));
+}
+
+/**
+ * The names a Python module binds at its own level, by where they come from (8.64): the names it binds itself, by a
+ * definition or an assignment; and, for a package's `__init__.py`, which passes on what it imports (ADR-1324 D5, as
+ * increment_50b0c46778aa settles it), each it binds by its own `from` import, to the file it takes it from and its name
+ * there (none for a submodule, taken whole), and the modules its own wildcards take every name of. Any other module's
+ * imports are its own to use: a name taken from it is taken from it.
+ */
+function offersOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Offers {
+  const resolve = resolver(file, paths, packages);
+  const { statements, local } = readingOf(file);
+  const from = new Map<string, { readonly to: string; readonly name?: string }>();
+  const star: string[] = [];
+  if (!/(?:^|\/)__init__\.py$/.test(file.path)) return { local, from, star };
+  for (const statement of statements) {
+    if (!statement.top || statement.level === undefined) continue;
+    if (statement.names === "all") {
+      const to = resolve(statement, []);
+      if (to !== undefined) star.push(to);
+      continue;
+    }
+    for (const [name, as] of statement.names) {
+      const submodule = resolve(statement, name.split("."));
+      const to = submodule ?? resolve(statement, []);
+      if (to !== undefined && to !== file.path) from.set(as, submodule === undefined ? { to, name } : { to });
+    }
+  }
+  return { local, from, star };
 }
 
 /** A test's name: `test_`, then perhaps a package (words of letters and digits), then the number's two parts and the rest. */
@@ -166,6 +251,7 @@ export const pythonReader: LanguageReader = {
   testSupport: /(?:^|\/)conftest\.py$/,
   titlesOf,
   edgesOf,
+  offersOf,
   registersTests: () => false,
   declarationOf: (text) => {
     const match = DECLARED.exec(text);

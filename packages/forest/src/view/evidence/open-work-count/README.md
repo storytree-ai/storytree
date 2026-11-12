@@ -1,13 +1,13 @@
-# Selecting an arc says how many parts and links it rings (contract 3.108)
+# Selecting an arc says how many capabilities and links it rings (contract 3.108)
 
 The real desktop page on storytree's own map (the code-rows snapshot and its survey), with the open-work capture's active arc
 in the stand-in bridge: its open increments name five capabilities of the seed (a closed increment's is left out) and link no
 contract.
 
 What this step shows: with the arc's row clicked in the Arcs tab, the map's top row, after the face switches and the layout
-mark, reads "The arc's open work rings 5 parts and no link.", in the rings' pale cyan, left of the compass. It counts the rings
+mark, reads "The arc's open work rings 5 capabilities and no link.", in the rings' pale cyan, left of the compass. It counts the rings
 across the whole map, so it reads the same while islands are still laid out and their rings not yet drawn, or when a ringed
-part is off screen. With no arc selected there is no count.
+capability is off screen. With no arc selected there is no count.
 
 Pictures, 1440 x 960:
 

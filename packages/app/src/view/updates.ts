@@ -8,11 +8,12 @@ import type { ReleaseChannel, ReleaseChannelState } from "../updates/release-cha
 /**
  * Plain, live status inside the gear; closing the menu never cancels an update. The status is read
  * every minute as well, so a downloaded release waiting to install is announced (`pending`) and can
- * be installed now from the same button. `pending` hears the line naming the build waiting, or undefined when none is (4.47).
+ * be installed now from the same button. The build running is named once, under the section's lead. `pending` hears the line naming the build waiting, or undefined when none is (4.47).
  */
 export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) => Promise<UpdateState>, pending: (ready: string | undefined) => void = () => {}, choice: () => InstallChoice | undefined = () => undefined, channel: () => ReleaseChannel | undefined = () => undefined) {
   const button = host.querySelector<HTMLButtonElement>("[data-app-updates]")!;
   const status = host.querySelector<HTMLElement>("#app-update-status")!;
+  const running = host.querySelector<HTMLElement>("[data-app-running-build]")!;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
   let action: UpdateAction = "check";
@@ -22,6 +23,8 @@ export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) 
     action = state.phase === "pending" ? "install" : "check";
     button.textContent = state.phase === "pending" ? "Restart to update" : "Check for updates";
     pending(state.phase !== "pending" ? undefined : state.nextBuild === undefined ? "Update ready to install" : `Update ready: storytree ${state.nextBuild}`);
+    // The one place the build running is named (4.49); a state that names none keeps the last named.
+    if (state.runningBuild !== "") { running.textContent = `Running storytree ${state.runningBuild}.`; running.hidden = false; }
     status.hidden = state.phase === "idle";
     status.dataset.phase = state.phase;
     const [title, detail] = updateText(state, choice(), { channel: channel(), now: new Date() });
@@ -88,7 +91,7 @@ function checkedTime(checked: Date, now: Date): string {
 function waitingFor(choice: InstallChoice | undefined): string {
   if (choice?.mode === "manual") return "It installs when you click Restart to update.";
   if (choice?.mode === "hours") return `It installs during your quiet hours, ${choice.from} to ${choice.to}, once no one is using storytree.`;
-  return "It installs at the next quiet moment.";
+  return "It installs once no one is using storytree.";
 }
 
 /** Whether the app opens at sign-in, in the tray (lifecycle 1.12), and whether it can here. */
@@ -222,7 +225,7 @@ export function mountReleaseChannel(host: HTMLElement, bridge: ReleaseChannelBri
     field.hidden = !state.available;
     // A change's answer does not read the pin again, so the line from the first read stays (4.34).
     if (state.stable) {
-      stableLine.textContent = `Now storytree ${state.stable.version}, published on ${state.stable.published}. Work that landed after that day is only in alpha.`;
+      stableLine.textContent = `Stable is at storytree ${state.stable.version}, published on ${state.stable.published}. Work that landed after that day is only in alpha.`;
       stableLine.hidden = false;
     }
     for (const radio of radios) { radio.checked = radio.value === state.channel; radio.disabled = false; }

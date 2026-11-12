@@ -22,7 +22,8 @@ test("4.8 the Updates section says when a new build is ready and restarting, nam
 
 test("4.13 a ready update says when it installs under the user's choice", () => {
   const said = (choice?: InstallChoice) => updateText({ ...at, phase: "pending" }, choice)[1];
-  assert.match(said(), /next quiet moment/);
+  assert.match(said(), /once no one is using storytree/, "the default choice reads as its option, When no one is using it");
+  assert.doesNotMatch(said({ mode: "quiet" }), /quiet/, "quiet names the quiet-hours option, not this one");
   assert.match(said({ mode: "hours", from: "01:00", to: "06:00" }), /quiet hours, 01:00 to 06:00/);
   assert.match(said({ mode: "manual" }), /when you click Restart to update/);
   assert.match(said(), /0\.3\.401/);
@@ -233,7 +234,7 @@ test("4.34 the Update channel names the stable build and the day it was publishe
   await setImmediate();
   const line = host.querySelector("[data-app-stable-build]")!;
   assert.equal(line.hasAttribute("hidden"), false);
-  assert.match(line.textContent, /0\.3\.2259.*2026-11-02.*after that day is only in alpha/);
+  assert.match(line.textContent, /^Stable is at storytree 0\.3\.2259, published on 2026-11-02\..*after that day is only in alpha/, "the channel's build, not the running one");
   // A change, whose answer does not read the pin again, keeps the line.
   const radio = host.querySelector('input[value="stable"]') as HTMLInputElement;
   radio.checked = true;
@@ -248,6 +249,39 @@ test("4.34 the Update channel names the stable build and the day it was publishe
   await setImmediate();
   assert.equal(unknown.querySelector("[data-app-stable-build]")!.hasAttribute("hidden"), true);
   without.stop();
+});
+
+test("4.49 the Updates section names the build running once, under its lead, apart from a build waiting and the channel's", async () => {
+  const window = new Window();
+  const host = window.document.createElement("div");
+  host.innerHTML = renderAppMenu();
+  let state: { phase: "idle" | "pending" | "failed"; runningBuild: string; nextBuild?: string } = { phase: "idle", runningBuild: "0.3.2700" };
+  const updates = mountUpdates(host as unknown as HTMLElement, async () => state);
+  await setImmediate();
+  const running = host.querySelector<HTMLElement>("[data-app-running-build]")!;
+  assert.notEqual(running.closest(".app-section-description"), null, "it is said in the section's lead");
+  assert.equal(running.hidden, false, "named at rest, with nothing waiting and the status line hidden");
+  assert.equal(running.textContent, "Running storytree 0.3.2700.");
+
+  state = { phase: "pending", runningBuild: "0.3.2700", nextBuild: "0.3.2741" };
+  updates.refresh();
+  await setImmediate();
+  assert.equal(running.textContent, "Running storytree 0.3.2700.", "a build waiting is not the build running");
+  assert.doesNotMatch(host.querySelector("#app-update-status")!.textContent, /0\.3\.2700/);
+
+  state = { phase: "failed", runningBuild: "" };
+  updates.refresh();
+  await setImmediate();
+  assert.equal(running.textContent, "Running storytree 0.3.2700.", "a state that does not name the running build keeps the last one named");
+  updates.stop();
+
+  const unnamed = window.document.createElement("div");
+  unnamed.innerHTML = renderAppMenu();
+  const none = mountUpdates(unnamed as unknown as HTMLElement, async () => ({ phase: "failed", runningBuild: "" }));
+  await setImmediate();
+  assert.equal(unnamed.querySelector<HTMLElement>("[data-app-running-build]")!.hidden, true, "nothing named, nothing shown");
+  none.stop();
+  await window.happyDOM.close();
 });
 
 /** The menu's Updates section in a fresh window, and every console error the page writes (app.log, errors 9.1). */

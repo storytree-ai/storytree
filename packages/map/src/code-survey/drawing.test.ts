@@ -75,6 +75,8 @@ test("8.61 an imported story's code is drawn as capabilities: below its source r
     { title: "vite.config.ts", covers: ["packages/shop/vite.config.ts"] },
   ], "src/ is the source root: a leaf folder is one, a file beside a folder of code, in src/ or outside it is one of its own");
 
+  assert.deepEqual(titles(drawImportedStory({ folder: "packages/pay", files: filesOf({ "packages/pay/index.js": "module.exports = require(\"./lib/pay.mjs\");\n", "packages/pay/lib/pay.mjs": "export const pay = 1;\n" }) })),
+    ["index.js", "lib"], "a JavaScript package with no src/ is drawn from its folder");
   assert.deepEqual(titles(drawImportedStory({ folder: ".", files: TINY })), ["setup.py", "tinydb/__init__.py + tinydb/database.py", "tinydb/table.py", "tinydb/utils.py"],
     "the import package at the story's top is the source root, each of its modules one, the configuration outside it one");
   assert.deepEqual(titles(drawImportedStory({ folder: "backend", files: BACKEND })),

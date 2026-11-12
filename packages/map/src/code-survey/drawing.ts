@@ -51,7 +51,7 @@ export function drawImportedStory(story: { readonly folder: string; readonly nam
 
   const units = [...new Set(owners.values())].sort(byText);
   const after = new Map(units.map((unit) => [unit, new Set<string>()] as const));
-  const edges = storyEdges([{ id: "drawn", files, packages: [{ root: top, name: story.name ?? story.folder, exports: {} }], owners }]).get("drawn") ?? [];
+  const edges = storyEdges([{ id: "drawn", files, packages: [{ root: top, name: story.name ?? story.folder, exports: {} }], owners }]).get("drawn")!;
   for (const { from, to } of edges) if (from !== undefined && to !== undefined && from !== to) after.get(from)!.add(to);
 
   const merged = loops(units, after);

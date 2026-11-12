@@ -56,9 +56,9 @@ const overlaps = (box: Box, other: Box) => box.left + NAME_OVERLAP_SLACK < other
   && box.top + NAME_OVERLAP_SLACK < other.bottom && other.top + NAME_OVERLAP_SLACK < box.bottom;
 
 
-/** The part of the window the map shows in: its canvas's box, cut to the window's (3.4). */
-export function mapFrame(canvas: Box, window: { width: number; height: number }): Box {
-  return { left: Math.max(canvas.left, 0), top: Math.max(canvas.top, 0), right: Math.min(canvas.right, window.width), bottom: Math.min(canvas.bottom, window.height) };
+/** The part of the window the map shows in: its canvas's box, cut to the window's and ending at the story panel's left edge, `aside` pixels in from the canvas's right (3.4). */
+export function mapFrame(canvas: Box, window: { width: number; height: number }, aside = 0): Box {
+  return { left: Math.max(canvas.left, 0), top: Math.max(canvas.top, 0), right: Math.min(canvas.right - aside, window.width), bottom: Math.min(canvas.bottom, window.height) };
 }
 
 /** Whether a name's box runs past the map's frame by more than its rounded ends and padding: some letter is cut. */

@@ -6,7 +6,8 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, mapFrame, NAME_OVERLAP_SLACK, nameMoves, nameplateAt, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
+import { CONCEPTS } from "@storytree/shown-words";
+import { capabilityPlates, crowdedNames, facesEye, facing, fadedPlates, LAYING_OUT, mapFrame, NAME_OVERLAP_SLACK, nameMoves, nameplateAt, southOnPlate, spreadCapabilities, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -180,4 +181,9 @@ test("3.104 a click names what the name under it names: a part's name before its
   assert.deepEqual(nameplateAt([story, part], { x: 160, y: 115 }), { story: "one", capability: "one-cap" });
   assert.deepEqual(nameplateAt([part, story], { x: 160, y: 115 }), { story: "one", capability: "one-cap" });
   assert.equal(nameplateAt([story, part], { x: 90, y: 115 }), undefined);
+});
+
+test("3.95 an island laying out its territories says so under its name in the shown words' word for a capability, never 'parts'", () => {
+  assert.equal(LAYING_OUT, `laying out ${CONCEPTS.capability.many}…`, "ADR-1322 D1: the table's plural, not a word of the map's own");
+  assert.doesNotMatch(LAYING_OUT, /\bparts?\b/);
 });

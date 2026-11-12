@@ -3,7 +3,7 @@
  * island it lays out first (question_bb933ce50f45, option D).
  *
  * - 3.96: a small mark in the map's top left while any island's territory search runs or waits its turn, or its roads
- *   route or wait theirs ("laying out 3 of 12 islands"); it goes when both are idle. 3.95's "laying out parts…" under a
+ *   route or wait theirs ("laying out 3 of 12 islands"); it goes when both are idle. 3.95's "laying out capabilities…" under a
  *   waiting island's name stays.
  * - 3.98: the islands still awaiting their first territory search count in that mark too, and once none awaits, is searched or
  *   is routed, a hidden mark says the map has settled (`data-layout="settled"`), the one signal a capture waits on.

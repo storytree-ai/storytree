@@ -7,7 +7,7 @@ import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@stor
 import type { Coast } from "../territories/territories.js";
 import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
 import { awaitingLayout, keptVersion, pageTerritorySearcher, subscribeKept } from "../territories/kept-layout.js";
-import { capabilityPlates, crowdedNames, facing, mapFrame, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
+import { capabilityPlates, crowdedNames, LAYING_OUT, facing, mapFrame, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 import type { DetailStore } from "./zoom-detail.js";
 
@@ -64,7 +64,7 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
       <Overlay zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
         <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}`} data-story-id={island.story} data-dimmed={dimmed ? "" : undefined} style={plateStyle}>
           <span className="planet-nameplate-title">{island.title}</span>
-          {awaiting && <span className="planet-nameplate-laying-out">laying out parts…</span>}
+          {awaiting && <span className="planet-nameplate-laying-out">{LAYING_OUT}</span>}
         </div>
       </Overlay>
     </group>

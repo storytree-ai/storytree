@@ -51,7 +51,8 @@
     "three": "^0.185.1",
     "@storytree/map": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
-    "@storytree/forest-world": "workspace:*"
+    "@storytree/forest-world": "workspace:*",
+    "@storytree/shown-words": "workspace:*"
   },
   "devDependencies": {
     "@storytree/test-waits": "workspace:*",

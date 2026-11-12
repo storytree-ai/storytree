@@ -3,6 +3,8 @@
  * the window's right, the globe sits in the free width left of it, zooming out only when it would not fit there.
  */
 
+import { Vector3, type Camera, type Object3D } from "three";
+
 /** Framing is the short half-side in globe radii; offset is CSS pixels right. */
 export type AsidePose = { framing: number; sideOffset: number };
 type Viewport = { width: number; height: number };
@@ -20,6 +22,12 @@ export function besidePanel(viewport: Viewport, aside: number, rest: AsidePose, 
   if (!fit) return { sideOffset: rest.sideOffset - aside / 2, framing: rest.framing };
   const whole = Math.min(viewport.width, viewport.height) / (free - 2 * FIT_MARGIN);
   return { sideOffset: rest.sideOffset - aside / 2, framing: Math.max(rest.framing, whole) };
+}
+
+/** Where `story`'s island is drawn across the canvas, in CSS pixels from its left: undefined with none picked or none drawn. */
+export function islandCanvasX(scene: Object3D, camera: Camera, story: string | undefined, width: number): number | undefined {
+  const island = story === undefined ? undefined : scene.getObjectByName(`planet:${story}`);
+  return island && (island.getWorldPosition(new Vector3()).project(camera).x + 1) * width / 2;
 }
 
 /** How many CSS pixels of `page`'s right the panel covers, its gutter included: none while it draws no box. */
@@ -43,7 +51,9 @@ export function framedOnResize(pose: AsidePose, from: Viewport & { left: number 
  * Follows the panel: `place` says where the globe goes when the covered width or the window changes (a glide when
  * the panel opened, closed or changed width; at once on a resize), or undefined when nothing moves. A zoom it applied
  * to fit is undone when the panel closes, unless the wheel has moved the zoom since. A glass sheet (`fit` false) only
- * slides by the panel's change, from wherever it is, and leaves a resize to `framedOnResize` (3.85).
+ * slides by the panel's change, from wherever it is, and leaves a resize to `framedOnResize` (3.85): by half the panel,
+ * or, given the picked island's x on the canvas, by as much as puts that island in the middle of the free width, whole
+ * and named beside its panel; closing slides back by what the panel slid.
  */
 export function createGlobeAside(opening: () => AsidePose, { fit = true }: { fit?: boolean } = {}) {
   let covered = 0, seen: Viewport | undefined;
@@ -57,7 +67,7 @@ export function createGlobeAside(opening: () => AsidePose, { fit = true }: { fit
     return to;
   };
   return {
-    place(viewport: Viewport, aside: number, now: AsidePose): { to: AsidePose; glide: boolean } | undefined {
+    place(viewport: Viewport, aside: number, now: AsidePose, picked?: number): { to: AsidePose; glide: boolean } | undefined {
       const resized = seen !== undefined && (seen.width !== viewport.width || seen.height !== viewport.height);
       // With no panel before or now the globe is its host's to place (the website steers its own offset).
       if (aside === covered && (!resized || aside === 0)) { seen = viewport; return undefined; }
@@ -66,7 +76,9 @@ export function createGlobeAside(opening: () => AsidePose, { fit = true }: { fit
       if (!fit) {
         if (!glide) return undefined;
         covered = aside;
-        const by = slide(viewport, aside), to = { framing: now.framing, sideOffset: now.sideOffset + by - slid };
+        const half = slide(viewport, aside);
+        const by = half !== 0 && picked !== undefined ? slid + (viewport.width - aside) / 2 - picked : half;
+        const to = { framing: now.framing, sideOffset: now.sideOffset + by - slid };
         slid = by;
         return to.sideOffset === now.sideOffset ? undefined : { to, glide };
       }

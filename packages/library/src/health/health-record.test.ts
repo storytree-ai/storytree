@@ -551,6 +551,35 @@ for (const backend of [memory, postgres]) {
     assert.equal("ci" in (await health.health(sibling.id)), false, "CI never read it: none");
   });
 
+  contract("5.29", "recordVerifiedAll writes in one write each verdict that tells nothing, as recordVerified would, leaves each that would tell for recordVerified, and refuses them all for one that names no live contract", async ({ health, work, records, transactions }) => {
+    const { capability, contract, sibling } = await smallPlan(work);
+    const failing = await work.addContract({ title: "Refuses a blank email", capability: capability.id });
+    const mended = await work.addContract({ title: "Trims the email", capability: capability.id });
+    await health.recordVerified(mended.id, "failing", { by: "an earlier run" });
+    const fyis = (await records.list("fyi")).length;
+    const ci = { by: "storytree test run on CI", source: "ci" as const };
+    const entries = await health.recordVerifiedAll([
+      { contractId: contract.id, state: "passing", options: { ...ci, note: "2/2 tests passed", tests: ["1.1 it does a"] } },
+      { contractId: sibling.id, state: "not-checked", options: { ...ci, skip: "owner" } },
+      { contractId: failing.id, state: "failing", options: ci },
+      { contractId: mended.id, state: "passing", options: ci },
+    ]);
+    assert.deepEqual(entries.map((entry) => entry?.state), ["passing", "not-checked", undefined, undefined], "the two that tell are left");
+    const read = await health.health(contract.id);
+    assert.deepEqual({ ...read.verified, at: undefined }, { state: "passing", by: ci.by, source: "ci", note: "2/2 tests passed", tests: ["1.1 it does a"], at: undefined });
+    assert.deepEqual({ ...read.ci, at: undefined }, { ...read.verified, at: undefined }, "with CI's copy beside it");
+    assert.equal((await health.health(sibling.id)).verified.skip, "owner");
+    assert.equal((await health.health(failing.id)).verified.state, "not-checked", "a failing verdict is not written here");
+    assert.equal((await health.health(mended.id)).verified.state, "failing", "nor one turning green again");
+    assert.equal((await records.list("fyi")).length, fyis, "and nothing is told");
+
+    const before = await transactions.history();
+    await assert.rejects(health.recordVerifiedAll([{ contractId: contract.id, state: "passing" }, { contractId: NO_CONTRACT, state: "passing" }]), MissingReferenceError);
+    await assert.rejects(health.recordVerifiedAll([{ contractId: contract.id, state: "passing" }, { contractId: capability.id, state: "passing" }]), MissingReferenceError);
+    await assert.rejects(health.recordVerifiedAll([{ contractId: contract.id, state: "passing" }, { contractId: contract.id, state: "failing" }]), RangeError);
+    assert.deepEqual(await transactions.history(), before, "a refusal writes nothing");
+  });
+
   contract("5.8", "a capability that is not healthy carries its reason in the annotated tree, and a healthy one none", async ({ health, work }) => {
     const { capability, contract, sibling } = await smallPlan(work);
     const whyOf = async () => (await health.annotate()).stories[0]!.capabilities.find(({ id }) => id === capability.id)!.why;
@@ -1284,4 +1313,46 @@ test("5.8 one reason per capability that is not healthy, the agent's work ranked
   assert.deepEqual(capabilityWhy(false, [owner, platform, judged]), { reason: "acceptance test not run", mover: "agent", contracts: ["u"] });
   assert.deepEqual(capabilityWhy(false, [judged, noTest]), { reason: "no test names it", mover: "agent", contracts: ["n"] }, "a test to write ranks first");
   assert.deepEqual(capabilityWhy(false, [{ ...judged, verified: { state: "failing", at: at(9) } }]), { reason: "failing", mover: "agent", contracts: ["u"], since: at(9) }, "a verdict it has speaks for itself");
+});
+
+test("5.29 [postgres] recordVerifiedAll writes a story's verdicts in as many round trips to the server for thirty contracts as for two", async () => {
+  const name = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const { work, health, pool } = await storytree.openProject(name);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const capability = await work.addCapability({ title: "Email form", story: story.id });
+    const contracts = [];
+    for (let n = 0; n < 32; n++) contracts.push((await work.addContract({ title: `Contract ${n}`, capability: capability.id })).id);
+    // Every query the project sends, on a connection taken from its pool (pool.query takes one too), each counted once.
+    let count = 0;
+    const counted = new WeakSet<object>();
+    const counting = <T extends { query: (...args: never[]) => unknown }>(client: T): T => {
+      if (counted.has(client)) return client;
+      counted.add(client);
+      const query = client.query.bind(client) as (...args: unknown[]) => unknown;
+      client.query = ((...args: unknown[]) => (count++, query(...args))) as T["query"];
+      return client;
+    };
+    type Taken = { query: (...args: never[]) => unknown };
+    const connect = pool.connect.bind(pool) as unknown as (done?: (error: unknown, client: Taken | undefined, release: unknown) => void) => Promise<Taken> | undefined;
+    pool.connect = ((done?: (error: unknown, client: Taken | undefined, release: unknown) => void) =>
+      done === undefined ? connect()!.then(counting) : connect((error, client, release) => done(error, client === undefined ? client : counting(client), release))) as unknown as typeof pool.connect;
+    const queries = async (ids: readonly string[]): Promise<number> => {
+      count = 0;
+      await health.recordVerifiedAll(ids.map((contractId) => ({ contractId, state: "passing" as const, options: { by: "storytree test run on CI", source: "ci" as const } })));
+      return count;
+    };
+    const two = await queries(contracts.slice(0, 2));
+    const thirty = await queries(contracts.slice(2));
+    assert.ok(two > 0, "control: the queries are counted");
+    assert.equal(thirty, two, `thirty contracts take ${thirty} queries, two ${two}`);
+    assert.ok(two <= 10, `a few round trips, not a few per contract: ${two}`);
+  } finally {
+    try {
+      await storytree.close();
+    } finally {
+      await dropTestDatabases([`storytree_${name}`]);
+    }
+  }
 });

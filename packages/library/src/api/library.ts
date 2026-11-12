@@ -89,7 +89,7 @@ const FROM_FLIGHT = [
   "raiseQuestion", "settleQuestion", "questions", "heldOnQuestion", "checkQuestion", "renewQuestion", "editQuestion", "linkNamedEvidence", "moveQuestion", "lapsedQuestions",
   "predictQuestion", "questionPrediction", "scoreQuestion", "prepQuestion", "questionDeviation",
 ] as const satisfies readonly (keyof Project["flight"])[];
-const FROM_HEALTH = ["reportHealth", "recordVerified", "recordUnclaimed", "markVerifiedPending", "tellUntold", "health", "healthHistory"] as const satisfies readonly (keyof Project["health"])[];
+const FROM_HEALTH = ["reportHealth", "recordVerified", "recordVerifiedAll", "recordUnclaimed", "markVerifiedPending", "tellUntold", "health", "healthHistory"] as const satisfies readonly (keyof Project["health"])[];
 const FROM_KNOWLEDGE = [
   "recordDecision", "numberDecision", "decisionNumberPlan", "numberDecisionsFromFullRecord", "setDecisionNumberFloor", "numberFoundingDecisions",
   "writeKnowledge", "defineTerm", "editNote", "search", "searchEach", "rank", "rankAll", "findPhrase",

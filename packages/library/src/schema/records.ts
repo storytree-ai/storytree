@@ -111,6 +111,20 @@ export class SchemaRecords {
     return record as SchemaRecord<T>;
   }
 
+  /**
+   * Save every new record of `records` in one write, as create saves each: capability 2's saveAll, each checked inside
+   * the write, so one that does not fit its type refuses them all and writes nothing. Under the options' id each, or a
+   * generated one; none numbered or only-if-new (refused, RangeError). Returned in the order given.
+   */
+  async createAll<T extends RecordType>(records: readonly { type: T; fields: FieldsOf<T>; options?: Omit<CreateOptions, "sequence" | "sequenceFloor" | "sequenceNeverHeld" | "onlyIfNew" | "signal"> }[], signal?: AbortSignal): Promise<SchemaRecord<T>[]> {
+    const inputs = [];
+    for (const { type, fields, options = {} } of records) {
+      if (!this.#isRecordType(type)) throw new UnknownTypeError(type);
+      inputs.push({ id: options.id ?? newId(type), type, fields, version: this.#version(type), validate: this.#check, ...writeOptionsOf(options), ...(await outsideReadFor(options, type)) });
+    }
+    return (await this.#transactions.saveAll(inputs, signal)) as SchemaRecord<T>[];
+  }
+
   /** The record, upgraded, or null if it is missing or retired. One this code cannot interpret is refused. */
   async get(id: string): Promise<SchemaRecord | null> {
     const record = await this.#transactions.get(id);

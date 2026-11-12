@@ -211,10 +211,17 @@ export interface ListFilter {
   };
 }
 
-/** A project's records. These nine verbs are the only data actions the library allows. */
+/** A project's records. These ten verbs are the only data actions the library allows. */
 export interface Transactions {
   /** Create the record, or replace it whole if the id exists. Appends one history entry. */
   save(input: SaveInput): Promise<RecordEnvelope>;
+  /**
+   * Save every record of `inputs` as `save` would, in one write: each appends its history entry, in the order given, and
+   * all are written or none is. Refused, writing nothing, when a check throws, two inputs name one id, or an input is
+   * numbered (`sequence`) or written only if new (`onlyIfNew`), which a batch does not take (RangeError). A batch costs
+   * the same few round trips to the server however many records it holds (2.25): how a run's health reaches a library far away.
+   */
+  saveAll(inputs: readonly SaveInput[], signal?: AbortSignal): Promise<RecordEnvelope[]>;
   /** The current record, or `null` if it is missing or retired. */
   get(id: string): Promise<RecordEnvelope | null>;
   /** The current (not retired) records of one type, ordered by id. */

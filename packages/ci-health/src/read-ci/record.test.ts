@@ -128,8 +128,12 @@ test("3.20 · a verdict kept in its column whose follow-up write the writer's ro
   // red writes is refused with row-level security's insufficient_privilege (runs 42965732858, 42972444829).
   const refused = Object.assign(new Error('new row violates row-level security policy for table "record_event"'), { code: "42501" });
   let refuseVerdict = false;
-  const ci: Pick<Library, "recordVerified" | "health"> = {
+  const ci: Pick<Library, "recordVerified" | "recordVerifiedAll" | "health"> = {
     health: (id) => lib.health(id),
+    recordVerifiedAll: async (verdicts) => {
+      if (refuseVerdict) throw refused;
+      return lib.recordVerifiedAll(verdicts);
+    },
     recordVerified: async (id, state, options) => {
       if (refuseVerdict) throw refused;
       const entry = await lib.recordVerified(id, state, options);
@@ -148,4 +152,29 @@ test("3.20 · a verdict kept in its column whose follow-up write the writer's ro
 
   refuseVerdict = true;
   await assert.rejects(recordHealth(ci, contractIds, new Map([["1.3", { state: "passing", note: "1/1 tests passed" }]]), { by: "storytree test run on CI", source: "ci" }), /row-level security/);
+});
+
+test("3.23 · recording a story's verdicts writes every one that tells the owner nothing together, in one write, and only a failing one, or one green again, on its own", async (t) => {
+  const { lib, contractIds } = await kettle(t);
+  const id = (number: string): string => contractIds.get(number)!;
+  await lib.recordVerified(id("1.4"), "failing", { by: "an earlier run" });
+  const alone: string[] = [];
+  const counting: Pick<Library, "recordVerified" | "recordVerifiedAll" | "health"> = {
+    health: (contract) => lib.health(contract),
+    recordVerifiedAll: (verdicts) => lib.recordVerifiedAll(verdicts),
+    recordVerified: (contract, state, options) => (alone.push(contract), lib.recordVerified(contract, state, options)),
+  };
+  const written = await recordHealth(counting, contractIds, new Map<string, RecordedVerdict>([
+    ["1.1", { state: "passing", note: "2/2 tests passed" }],
+    ["1.2", { state: "failing", note: "1/2 tests passed" }],
+    ["1.3", { state: "passing", note: "1/1 tests passed" }],
+    ["1.4", { state: "passing", note: "3/3 tests passed" }],
+  ]), { by: "storytree test run on CI", source: "ci", commit: "abc123" });
+  assert.deepEqual(written, { passing: 3, failing: 1, notChecked: 0, marked: 0 });
+  assert.deepEqual(alone, [id("1.2"), id("1.4")], "the red one and the one green again are written on their own, to be told");
+  const [one, three] = await Promise.all([lib.health(id("1.1")), lib.health(id("1.3"))]);
+  assert.equal(one.verified.at, three.verified.at, "the quiet ones in one write");
+  assert.equal(one.verified.note, "2/2 tests passed, at commit abc123", "written as one at a time writes it");
+  assert.equal(one.ci?.state, "passing", "with CI's copy");
+  assert.equal((await lib.health(id("1.4"))).verified.state, "passing");
 });

@@ -442,17 +442,17 @@ test("7.7 a contract retired between a run's checkout and its record is skipped 
   });
 });
 
-/** `lib` whose writes of verified health first fail with each of `failures` in turn, as a dropped connection would, then go through; `tries` counts every write tried. */
+/** `lib` whose writes of verified health (one or many at once) first fail with each of `failures` in turn, as a dropped connection would, then go through; `tries` counts every write tried. */
 function dropping(lib, failures) {
   const left = [...failures];
   const tries = { count: 0 };
   const flaky = new Proxy(lib, {
     get(target, key) {
-      if (key !== "recordVerified") return Reflect.get(target, key, target);
+      if (key !== "recordVerified" && key !== "recordVerifiedAll") return Reflect.get(target, key, target);
       return async (...args) => {
         tries.count++;
         if (left.length > 0) throw left.shift();
-        return target.recordVerified(...args);
+        return target[key](...args);
       };
     },
   });

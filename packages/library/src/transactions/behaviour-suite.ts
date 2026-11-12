@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12, 2.14-2.20, 2.23 and 2.24 in
+ * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12, 2.14-2.20 and 2.23-2.25 in
  * the library story. Each backend registers it (memory.test.ts, pg.test.ts) and it must pass
  * unchanged on every one. Parity is the point: later stories test against the in-memory twin, so
  * the twin has to behave exactly as Postgres does.
@@ -769,6 +769,40 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.equal((await store.get("o-2"))?.fields.v, 3, "a nested one joins it, and a refused write inside it writes nothing while the work goes on");
     await outsider;
     assert.deepEqual((await store.history({ id: "o-1" })).map((entry) => entry.record.fields.v), [1, 2, 9], "the other writer's write comes after");
+  });
+
+  contract("2.25", "saveAll saves every record given in one write, each with its history entry in the order given, or none when one is refused", async (store) => {
+    await store.save({ id: "b-2", type: "note", fields: { v: 1 } });
+    const before = await store.history();
+    const saved = await store.saveAll([
+      { id: "b-3", type: "note", fields: { v: 1 }, actor: "ci" },
+      { id: "b-2", type: "note", fields: { v: 2 }, actor: "ci" },
+      { id: "b-1", type: "note", fields: { v: 1 } },
+    ]);
+    assert.deepEqual(saved.map(({ id, fields }) => [id, fields.v]), [["b-3", 1], ["b-2", 2], ["b-1", 1]], "each record as saved, in the order given");
+    assert.deepEqual(await store.get("b-2"), saved[1], "get reads what it saved");
+    assert.equal(saved[1]!.createdAt, (await store.history({ id: "b-2" }))[0]!.at, "a replaced record keeps when it was made");
+    assert.deepEqual(changesOf((await store.history({ since: before.at(-1)!.seq }))).map(({ recordId, action, actor }) => [recordId, action, actor]),
+      [["b-3", "created", "ci"], ["b-2", "updated", "ci"], ["b-1", "created", undefined]], "one history entry each, in the order given");
+
+    const after = await store.history();
+    await assert.rejects(store.saveAll([
+      { id: "b-4", type: "note", fields: { v: 1 } },
+      { id: "b-1", type: "note", fields: { v: 9 }, validate: () => { throw new Error("refused"); } },
+    ]), /refused/);
+    await assert.rejects(store.saveAll([{ id: "b-5", type: "note", fields: {} }, { id: "b-5", type: "note", fields: {} }]), RangeError, "two of one id");
+    await assert.rejects(store.saveAll([{ id: "b-6", type: "note", fields: {}, sequence: "n" }]), RangeError, "a numbered record");
+    await assert.rejects(store.saveAll([{ id: "b-7", type: "note", fields: {}, onlyIfNew: true }]), RangeError, "an only-if-new record");
+    assert.deepEqual(await store.history(), after, "a refused batch writes nothing");
+    assert.equal(await store.get("b-4"), null);
+    assert.deepEqual(await store.saveAll([]), [], "an empty batch writes nothing");
+
+    // More than one statement's worth on Postgres (SAVE_CHUNK), still in the order given.
+    const last = (await store.history()).at(-1)!.seq;
+    const many = Array.from({ length: 2501 }, (_, n) => ({ id: `m-${2501 - n}`, type: "note", fields: { n } }));
+    await store.saveAll(many);
+    assert.deepEqual((await store.history({ since: last })).map(({ recordId }) => recordId), many.map(({ id }) => id), "a big batch's entries in the order given");
+    assert.equal((await store.list("note", { ids: many.map(({ id }) => id) })).length, 2501);
   });
 
 }

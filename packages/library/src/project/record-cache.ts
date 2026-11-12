@@ -86,6 +86,10 @@ export class CachedTransactions implements Transactions {
     return this.#inner.save(input);
   }
 
+  saveAll(inputs: readonly SaveInput[], signal?: AbortSignal): Promise<RecordEnvelope[]> {
+    return this.#inner.saveAll(inputs, signal);
+  }
+
   edit(input: EditInput): Promise<RecordEnvelope | null> {
     return this.#inner.edit(input);
   }

@@ -135,11 +135,13 @@ const QUIET: StorytreeBridge = {
  * refused, as the quiet answers refuse.
  */
 export function installedUpdates(state: "idle" | "waiting"): Pick<StorytreeBridge, "checkForUpdates" | "readInstallChoice" | "readReleaseChannel" | "readSignIn"> {
+  // Stable's build is the one running at idle, and the one waiting otherwise.
   const runningBuild = "0.3.2700";
+  const nextBuild = "0.3.2741";
   return {
-    checkForUpdates: async () => state === "idle" ? { phase: "idle", runningBuild } : { phase: "pending", runningBuild, nextBuild: "0.3.2741" },
+    checkForUpdates: async () => state === "idle" ? { phase: "idle", runningBuild } : { phase: "pending", runningBuild, nextBuild },
     readInstallChoice: async () => ({ available: true, choice: { mode: "quiet" } }),
-    readReleaseChannel: async () => ({ available: true, channel: "stable", stable: { version: "0.3.2650", published: "2026-11-05" } }),
+    readReleaseChannel: async () => ({ available: true, channel: "stable", stable: { version: state === "idle" ? runningBuild : nextBuild, published: "2026-11-05" } }),
     readSignIn: async () => ({ available: true, on: true }),
   };
 }

@@ -3,7 +3,7 @@
  * island it lays out first (question_bb933ce50f45, option D).
  *
  * - 3.96: a small mark in the map's top left while any island's territory search runs or waits its turn, or its roads
- *   route or wait theirs ("laying out 3 of 12 islands"); it goes when both are idle. 3.95's "laying out parts…" under a
+ *   route or wait theirs ("laying out 3 of 12 islands"); it goes when both are idle. 3.95's "laying out capabilities…" under a
  *   waiting island's name stays.
  * - 3.98: the islands still awaiting their first territory search count in that mark too, and once none awaits, is searched or
  *   is routed, a hidden mark says the map has settled (`data-layout="settled"`), the one signal a capture waits on.
@@ -11,11 +11,20 @@
  *   not, holds the map unsettled too: a chain's docks come after its kept islands drew, and each is laid out again for them.
  * - 3.97: the island on screen, the one selected, else the island that joined the map last, is searched next.
  */
+import { CONCEPTS } from "@storytree/shown-words";
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
 import { awaitingLayout, islandsSearching, keptVersion, pageTerritorySearcher, searchingVersion, subscribeKept, subscribeSearching, type TerritorySearcher } from "../territories/kept-layout.js";
 import type { TerritoryShare } from "../territories/territories.js";
 import { islandsRouting, routingVersion, subscribeRouting } from "../territories/island-roads.js";
+
+/** 3.95: what an island awaiting the search that places its territories says under its name, in the shown words' word for them (ADR-1322 D1). */
+export const LAYING_OUT = `laying out ${CONCEPTS.capability.many}…`;
+
+/** 3.95: the line under an island's name while it awaits that search; nothing once it does not. */
+export function LayingOutLabel({ awaiting }: { awaiting: boolean }) {
+  return awaiting ? <span className="planet-nameplate-laying-out">{LAYING_OUT}</span> : null;
+}
 
 /** How many holds each story's island has on the map's mark, as not yet laid out (3.101). */
 const heldFor = new Map<string, number>();

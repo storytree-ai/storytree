@@ -10,6 +10,7 @@ import { awaitingLayout, keptVersion, pageTerritorySearcher, subscribeKept } fro
 import { capabilityPlates, crowdedNames, facing, mapFrame, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 import type { DetailStore } from "./zoom-detail.js";
+import { LayingOutLabel } from "./layout-progress.js";
 
 /** Where an island's middle is, in 0.2 ground units. */
 const centreOf = (island: Island): { x: number; z: number } => ({ x: island.x * GROUND_PER_WORLD_UNIT, z: island.z * GROUND_PER_WORLD_UNIT });
@@ -64,7 +65,7 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
       <Overlay zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
         <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}`} data-story-id={island.story} data-dimmed={dimmed ? "" : undefined} style={plateStyle}>
           <span className="planet-nameplate-title">{island.title}</span>
-          {awaiting && <span className="planet-nameplate-laying-out">laying out parts…</span>}
+          <LayingOutLabel awaiting={awaiting} />
         </div>
       </Overlay>
     </group>

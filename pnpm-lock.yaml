@@ -480,6 +480,9 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
+      '@storytree/shown-words':
+        specifier: workspace:*
+        version: link:../shown-words
       react:
         specifier: ^19.1.1
         version: 19.3.0

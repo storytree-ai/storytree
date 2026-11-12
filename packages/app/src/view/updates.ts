@@ -69,14 +69,15 @@ export function updateText(state: UpdateState, choice?: InstallChoice, at: { cha
   }
 }
 
-/** Up to date as of its check, on the channel it followed; a check on a channel the gear has since left says so instead (4.7). */
+/** Up to date as of its check, on the channel it followed, without naming the build (the lead does); a check on a channel the gear has since left says so instead (4.7). */
 function upToDate(state: UpdateState, channel: ReleaseChannel | undefined, now: Date): readonly [string, string] {
   if (channel !== undefined && state.channel !== undefined && channel !== state.channel) {
-    return ["Channel changed", `Now following ${channel}, still running ${state.runningBuild}. Check for updates to look for ${channel}’s newest build; the app also checks by itself within three minutes.`];
+    return ["Channel changed", `Now following ${channel}. Check for updates to look for ${channel}’s newest build; the app also checks by itself within three minutes.`];
   }
-  if (state.checkedAt === undefined) return ["Up to date", `Running ${state.runningBuild}.`];
+  // The build running is named in the section's lead (4.49), so this line says only how it stands.
+  if (state.checkedAt === undefined) return ["Up to date", "No newer build was found."];
   const newest = state.channel === undefined ? "the newest build" : `the newest on ${state.channel}`;
-  return ["Up to date", `Running ${state.runningBuild}, ${newest} as of ${checkedTime(new Date(state.checkedAt), now)}.`];
+  return ["Up to date", `The build running is ${newest} as of ${checkedTime(new Date(state.checkedAt), now)}.`];
 }
 
 /** A check's local time, with its day when it was not today. */

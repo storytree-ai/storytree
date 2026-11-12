@@ -28,6 +28,7 @@ const section = page => page.evaluate(() => {
     dot: gear.hasAttribute('data-update-pending'),
     gearTitle: gear.title,
     firstRow: shown(ready) ? ready.textContent : undefined,
+    installNext: [...updates.querySelectorAll('[data-app-install-next]')].filter(shown).map(line => line.textContent),
   };
 });
 
@@ -65,6 +66,8 @@ for (const state of ['idle', 'waiting']) {
           assert.deepEqual(found.errors, [], 'no error line at rest');
           assert.equal(found.order[2], state === 'idle' ? 'Check for updates' : 'Restart to update');
           assert.equal(found.order.some(part => part.startsWith('When updates install: quiet')), true, JSON.stringify(found.order));
+          assert.equal(found.firstRow, undefined, 'with Updates on show the menu has no update row above it: the status line names the build');
+          assert.deepEqual(found.installNext, [], 'the quiet option says when an update installs, and a waiting build\'s status line does');
         },
       },
     ],

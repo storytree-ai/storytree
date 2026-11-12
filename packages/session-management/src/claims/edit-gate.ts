@@ -27,10 +27,12 @@
  *
  * A file no capability covers, in a language the map reads, is code storytree draws from its imports (ADR-1324): its
  * capabilities are drawn and widened only by importing the folder again, so the refusal names that, or for a file not
- * written yet a file a capability covers, or the user; whether the map reads a file's language is given by whoever
- * runs the gate, as the declared lookup is.
+ * written yet a file a capability covers, or the user. A file in a language the map cannot read, in a story it draws
+ * for its other code, is taken in by no drawing, so its refusal names a file a capability covers, or the user (5.74);
+ * whether the map reads a file's language is given by whoever runs the gate, as the declared lookup is.
  */
 import { existsSync, readFileSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 
 import type { AnnotatedStory, AnnotatedTree, Library, PendingChange, SchemaRecord } from "@storytree/library";
@@ -65,7 +67,7 @@ export type ListedCover = { readonly capability: string; readonly title: string;
 
 /** Every refusal may name `lapsed`: the work the session's claims lapsed on since it last claimed, when it holds no increment now (5.70). */
 export type EditRefusal = (
-  | { readonly refused: "imported"; readonly file: string; readonly folder: string; readonly increment?: string; readonly covering?: { readonly capability: string; readonly title: string }; readonly listed?: readonly ListedCover[]; readonly drawn?: "on-disk" | "new" }
+  | { readonly refused: "imported"; readonly file: string; readonly folder: string; readonly increment?: string; readonly covering?: { readonly capability: string; readonly title: string }; readonly listed?: readonly ListedCover[]; readonly drawn?: "on-disk" | "new" | "unread" }
   | { readonly refused: "ask"; readonly file: string; readonly folder: string; readonly capability: string; readonly title: string; readonly increment: string }
   | { readonly refused: "unlisted"; readonly capability: string; readonly title: string; readonly file: string; readonly increment: string; readonly listed: readonly string[] }
   | { readonly refused: "held"; readonly capability: string; readonly title: string; readonly file: string; readonly holder: Claim; readonly on?: string }
@@ -147,7 +149,7 @@ async function refusalsOf(context: GateContext, checkout: string, files: readonl
   for (const { imported, file, covering } of explored) {
     if (driving === undefined || covering === undefined || !listedByMe(covering.capability)) {
       const listed = driving === undefined || covering !== undefined ? [] : listedOf(tree, imported, lists.get(driving)!);
-      const drawn = covering === undefined && readsCode !== undefined && (await readsCode(file)) ? (existsSync(path.join(imported.folder, file)) ? "on-disk" : "new") : undefined;
+      const drawn = covering === undefined && readsCode !== undefined ? await drawnOf(tree, imported, file, readsCode) : undefined;
       return withLapses(context, claims, [{ refused: "imported", file, folder: imported.folder, ...(driving === undefined ? {} : { increment: driving }), ...(covering === undefined ? {} : { covering }), ...(listed.length === 0 ? {} : { listed }), ...(drawn === undefined ? {} : { drawn }) }]);
     }
     yeses ??= yesesOn(context, [...new Set(mine.map((claim) => claim.increment!))]);
@@ -304,10 +306,33 @@ function coveringOf(tree: AnnotatedTree, imported: ImportedFolderPlace, file: st
   return undefined;
 }
 
+/**
+ * How storytree draws `file` (relative to `imported`), which no capability covers, when it draws the file's story from
+ * its imports (ADR-1324 D1): a file the map reads is taken in by importing again, there now ("on-disk") or once written
+ * ("new"); one it cannot read never is ("unread"). Undefined when it draws no story holding the file, which an agent maps
+ * by reading (ADR-1324 D4). The story is drawn when the map reads the file, or a file its capabilities cover: each covers
+ * a file of code or the deepest folder of code, so a folder's own files are enough to look at.
+ */
+async function drawnOf(tree: AnnotatedTree, imported: ImportedFolderPlace, file: string, readsCode: ReadsCode): Promise<"on-disk" | "new" | "unread" | undefined> {
+  if (await readsCode(file)) return existsSync(path.join(imported.folder, file)) ? "on-disk" : "new";
+  const holding = mappedFrom(tree, imported).filter(({ mapped }) => mapped!.folders.some((folder) => folder === "." || covered([folder], file)));
+  const covers = [...new Set(holding.flatMap((story) => story.capabilities.flatMap((capability) => capability.covers ?? [])))];
+  for (const cover of covers) {
+    const entries = await readdir(path.join(imported.folder, cover), { withFileTypes: true }).catch(() => undefined);
+    const files = entries === undefined ? [cover] : entries.filter((entry) => entry.isFile()).map((entry) => `${cover}/${entry.name}`);
+    for (const one of files) if (await readsCode(one)) return "unread";
+  }
+  return undefined;
+}
+
+/** The stories mapped from `imported`, by its repository or its folder. */
+function mappedFrom(tree: AnnotatedTree, imported: ImportedFolderPlace): AnnotatedStory[] {
+  return tree.stories.filter(({ mapped: on }) => on?.from !== undefined && (on.from === imported.repository || path.resolve(on.from) === path.resolve(imported.folder)));
+}
+
 /** Of `capabilities`, in their order, those on a story mapped from `imported`, each with its covers now. */
 function listedOf(tree: AnnotatedTree, imported: ImportedFolderPlace, capabilities: readonly string[]): ListedCover[] {
-  const mapped = tree.stories.filter(({ mapped: on }) => on?.from !== undefined && (on.from === imported.repository || path.resolve(on.from) === path.resolve(imported.folder)));
-  const found = new Map(mapped.flatMap((story) => story.capabilities.map(({ id, title, covers }) => [id, { capability: id, title, covers: [...(covers ?? [])] }] as const)));
+  const found = new Map(mappedFrom(tree, imported).flatMap((story) => story.capabilities.map(({ id, title, covers }) => [id, { capability: id, title, covers: [...(covers ?? [])] }] as const)));
   return capabilities.flatMap((capability) => found.get(capability) ?? []);
 }
 
@@ -350,15 +375,21 @@ function refusalReason(refusal: EditRefusal, after: boolean): string {
 /**
  * The refusal of an edit to `refusal.file`, which no capability covers, on code storytree draws from its imports (ADR-1324):
  * its capabilities are drawn and widened only by importing the folder again, which takes in a file that is there; for one
- * not written yet, a file a capability covers, or the user, who makes it.
+ * not written yet, a file a capability covers, or the user, who makes it; for one the map cannot read, which no drawing
+ * takes in, a file a capability covers, or the user.
  */
 function drawnRefusal(refusal: Extract<EditRefusal, { refused: "imported" }>, where: string): string {
   const lead = `[storytree] Your edit to ${where}, was refused before it happened: imported code is changed only when your increment names the explored capability covering it (ADR-0993 D4, ADR-1015), and no capability covers this file yet. Storytree draws this code's capabilities from its imports (ADR-1324), so none is drawn or widened by hand:`;
   const reimport = `import the folder again (import_project with folder ${refusal.folder})`;
   const listing = refusal.increment === undefined ? "list it on an increment you hold (park_increment and make_workspace)" : `list the capability that holds it on your increment ${refusal.increment} (edit_plan)`;
+  if (refusal.drawn === "unread") return `${lead} the map does not read ${refusal.file}'s language, so no drawing takes it in. Make the change in a file a capability covers${suchOf(refusal)}; or ask the user what to do.`;
   if (refusal.drawn === "on-disk") return `${lead} ${reimport} so the drawing takes ${refusal.file} in, then ${listing}, then edit again; or ask the user what to do.`;
-  const such = refusal.listed === undefined || refusal.listed.length === 0 ? " (show_plan lists them)" : `, such as ${refusal.listed.map(({ capability, title, covers }) => `"${title}" (${capability}), covering ${covers.join(", ")}`).join("; ")}`;
-  return `${lead} the drawing takes a file in only once it is written. Make the change in a file a capability covers${such}; or ask the user to make ${refusal.file}, then ${reimport} so the drawing takes it in, ${listing}, and edit again.`;
+  return `${lead} the drawing takes a file in only once it is written. Make the change in a file a capability covers${suchOf(refusal)}; or ask the user to make ${refusal.file}, then ${reimport} so the drawing takes it in, ${listing}, and edit again.`;
+}
+
+/** The capabilities `refusal`'s increment lists on its import, to make a change in instead, or where to see them all. */
+function suchOf(refusal: Extract<EditRefusal, { refused: "imported" }>): string {
+  return refusal.listed === undefined || refusal.listed.length === 0 ? " (show_plan lists them)" : `, such as ${refusal.listed.map(({ capability, title, covers }) => `"${title}" (${capability}), covering ${covers.join(", ")}`).join("; ")}`;
 }
 
 /** The command a user types at their own terminal, or sends on its own line as their own message, to allow `increment`'s changes to imported code; an agent's shell is refused it. */

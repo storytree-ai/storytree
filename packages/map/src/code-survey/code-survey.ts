@@ -42,6 +42,7 @@ import type { CodeEdge, EdgeFile, StorySurvey, SurveyedFile, SurveyedTest } from
 import type { Edge, LanguageReader, SourceFile, SurveyPackage } from "./language-reader.js";
 import { ALSO_OWNED, packageOf, packagesOf } from "./package-of.js";
 import { pythonReader } from "./python-reader.js";
+import { aliasTargets } from "./tsconfig.js";
 
 export { ALSO_OWNED, packageOf, packagesOf };
 export type { LanguageReader, SourceFile, SurveyPackage };
@@ -211,26 +212,45 @@ const linesOf = (text: string): number => text.split("\n").filter((line) => line
 /**
  * Resolve a specifier against the importing file, to a file the story holds: a relative one by path, a `#name` by
  * the importing package's imports field, and a bare one by the exports of whichever of `packages` (the story's
- * own, 8.39) it names, the longest name first. Another story's package is not in `packages`, so it resolves to none.
+ * own, 8.39) it names, the longest name first; one exporting nothing is reached by its main, else its index, and a
+ * subpath by its path. A bare one no package names follows the importing file's nearest tsconfig's path aliases (8.62).
+ * Another story's package is not in `packages`, so it resolves to none.
  */
 function resolve(from: string, specifier: string, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): string | undefined {
   if (!/^\.{1,2}\//.test(specifier)) {
+    const own = packages.filter(pkg => from.startsWith(pkg.root)).sort((a, b) => b.root.length - a.root.length)[0];
+    if (own === undefined) return undefined;
     if (specifier.startsWith("#")) {
-      const own = packages.find(pkg => from.startsWith(pkg.root));
-      const target = own?.imports?.[specifier];
-      return own === undefined || target === undefined ? undefined : resolve(own.root + "package.json", target, paths, []);
+      const target = own.imports?.[specifier];
+      return target === undefined ? undefined : resolve(own.root + "package.json", target, paths, []);
     }
-    if (!packages.some(pkg => from.startsWith(pkg.root))) return undefined;
     const named = packages.filter(pkg => specifier === pkg.name || specifier.startsWith(pkg.name + "/")).sort((a, b) => b.name.length - a.name.length)[0];
-    const target = named?.exports[specifier === named.name ? "." : "." + specifier.slice(named.name.length)];
-    return named === undefined || target === undefined ? undefined : resolve(named.root + "package.json", target, paths, []);
+    if (named !== undefined) {
+      const subpath = specifier === named.name ? "." : "." + specifier.slice(named.name.length);
+      const at = (target: string) => resolve(named.root + "package.json", target, paths, []);
+      if (Object.keys(named.exports).length > 0) return named.exports[subpath] === undefined ? undefined : at(named.exports[subpath]);
+      if (subpath !== ".") return at(subpath);
+      return (named.main === undefined ? undefined : at(`./${named.main.replace(/^\.\//, "")}`)) ?? at("./index");
+    }
+    const dir = from.includes("/") ? from.slice(0, from.lastIndexOf("/")) : ".";
+    const nearest = packages.flatMap(pkg => pkg.tsconfigs ?? []).filter(config => config.dir === "." || dir === config.dir || dir.startsWith(config.dir + "/"))
+      .sort((a, b) => b.dir.length - a.dir.length)[0];
+    for (const target of aliasTargets(specifier, nearest?.aliases ?? [])) {
+      const found = fileAt(target, paths);
+      if (found !== undefined) return found;
+    }
+    return undefined;
   }
   const parts = from.split("/").slice(0, -1);
   for (const part of specifier.split("/")) {
     if (part === ".." && parts.length > 0 && parts.at(-1) !== "..") parts.pop();
     else if (part !== ".") parts.push(part);
   }
-  const target = parts.join("/");
+  return fileAt(parts.join("/"), paths);
+}
+
+/** The file `target` names among `paths`, trying TypeScript's and Node's spellings. */
+function fileAt(target: string, paths: ReadonlySet<string>): string | undefined {
   const stem = target.replace(/\.[cm]?jsx?$/, "");
   return [target, `${stem}.ts`, `${stem}.tsx`, `${stem}.js`, `${stem}.mjs`, `${target}/index.ts`, `${target}/index.tsx`, `${target}/index.js`].find((candidate) => paths.has(candidate));
 }

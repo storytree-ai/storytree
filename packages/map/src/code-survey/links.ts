@@ -4,7 +4,8 @@
  *
  * - The capabilities checked are the story's that cover folders or files (ADR-0993 D5); a file belongs to the one the
  *   survey gives it. An import from a file of capability A to a file of capability B backs the link A depends on B.
- * - Each import is resolved as the drawing resolves it (importedLinks, 8.62), so a map storytree drew reports no missing
+ * - Each import is resolved as the drawing resolves it (importedLinks, 8.62), by path, by a package's name or by the
+ *   nearest tsconfig's path alias, with the package.json and tsconfig.json files above the code, so a map storytree drew reports no missing
  *   and no unbacked link: a name taken from a file that only passes it on is followed to the file that binds it.
  * - Missing: imports from A's files to B's files with no link A depends on B. Unbacked: a link A depends on B, both
  *   covering files in this story, that no import from A's files to B's backs; the imports from B's files to A's, if any, are
@@ -20,7 +21,7 @@ import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
 import { readersReady, type SourceFile } from "./code-survey.js";
 import { CEILING, CROSSING_NOTE } from "./crossings.js";
-import { importedLinks } from "./drawing.js";
+import { importedLinks, manifestsOf } from "./drawing.js";
 
 type Named = { readonly id: string; readonly title: string };
 
@@ -75,7 +76,8 @@ export async function linksOf(
   await readersReady(code.map((file) => file.path));
   // The imports from one capability's files to another's, by `from>to` capability ids.
   const between = new Map<string, LinkImport[]>();
-  for (const { from, to, files } of importedLinks(story.mapped.package, code, owner)) {
+  const manifests = await manifestsOf(code, (file) => readText(`${island}/${file}`).catch(() => undefined));
+  for (const { from, to, files } of importedLinks(story.mapped.package, [...code, ...manifests], owner)) {
     if (from !== undefined && to !== undefined) between.set(`${from}>${to}`, files.flatMap((each) => each.to === undefined ? [] : [{ from: each.from, to: each.to }]));
   }
   const sorted = (rows: readonly LinkImport[] = []): LinkImport[] => [...rows].sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));

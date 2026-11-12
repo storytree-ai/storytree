@@ -24,6 +24,7 @@ import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 import { dependenciesOf, packageOf, readersReady, specifiersOf } from "./code-survey.js";
 import { pythonReader } from "./python-reader.js";
 import { manifestFrom } from "./survey-source.js";
+import { aliasesOf, aliasTargets, type PathAliases } from "./tsconfig.js";
 
 export type CrossingOptions = {
   /** Folders or file patterns relative to the import's folder, full paths, or `cap:<id|number>` for an explored capability. */
@@ -74,49 +75,14 @@ function fileAt(base: string, known: ReadonlyMap<string, Known>): string | undef
   return tries.find((one) => known.has(one));
 }
 
-/** JSON with comments and trailing commas, as tsconfig.json is written; undefined when it cannot be read. */
-function jsonc(text: string): unknown {
-  let plain = "";
-  for (let at = 0; at < text.length; at++) {
-    const char = text[at]!;
-    if (char === "\"") {
-      const end = /"(?:[^"\\]|\\.)*"/y;
-      end.lastIndex = at;
-      const string = end.exec(text)?.[0] ?? text.slice(at);
-      plain += string;
-      at += string.length - 1;
-    } else if (text.startsWith("//", at)) {
-      at = text.indexOf("\n", at) < 0 ? text.length : text.indexOf("\n", at) - 1;
-    } else if (text.startsWith("/*", at)) {
-      at = text.indexOf("*/", at) < 0 ? text.length : text.indexOf("*/", at) + 1;
-    } else plain += char;
-  }
-  try {
-    return JSON.parse(plain.replace(/,(\s*[}\]])/g, "$1"));
-  } catch {
-    return undefined;
-  }
-}
-
-/** A tsconfig's path aliases: each key's text before and after its `*`, and its targets as full paths, `*` kept. */
-type Aliases = readonly { readonly before: string; readonly after?: string; readonly targets: readonly string[] }[];
-
 /** Reads each folder's nearest tsconfig.json once, up to a root, for its path aliases. */
 function aliasReader(readText: (file: string) => Promise<string>) {
-  const at = new Map<string, Promise<Aliases>>();
-  const own = async (dir: string): Promise<Aliases | undefined> => {
+  const at = new Map<string, Promise<PathAliases>>();
+  const own = async (dir: string): Promise<PathAliases | undefined> => {
     const text = await readText(`${dir}/tsconfig.json`).catch(() => undefined);
-    if (text === undefined) return undefined;
-    const options = (jsonc(text) as { compilerOptions?: { baseUrl?: unknown; paths?: unknown } } | undefined)?.compilerOptions;
-    const base = typeof options?.baseUrl === "string" ? path.posix.join(dir, options.baseUrl) : dir;
-    const paths = typeof options?.paths === "object" && options.paths !== null ? Object.entries(options.paths) : [];
-    return paths.map(([key, targets]) => {
-      const star = key.indexOf("*");
-      const listed = Array.isArray(targets) ? targets.filter((one): one is string => typeof one === "string") : [];
-      return { before: star < 0 ? key : key.slice(0, star), ...(star < 0 ? {} : { after: key.slice(star + 1) }), targets: listed.map((one) => path.posix.join(base, one)) };
-    }).sort((a, b) => b.before.length - a.before.length);
+    return text === undefined ? undefined : aliasesOf(dir, text);
   };
-  const of = (dir: string, root: string): Promise<Aliases> => {
+  const of = (dir: string, root: string): Promise<PathAliases> => {
     let found = at.get(dir);
     if (found === undefined) {
       found = own(dir).then((aliases) => aliases ?? (dir === root || !dir.startsWith(`${root}/`) ? [] : of(path.posix.dirname(dir), root)));
@@ -190,15 +156,9 @@ export async function islandImports(
       if (subpath === ".") return (pkg.main === undefined ? undefined : fileAt(path.posix.join(pkg.dir, pkg.main), known)) ?? fileAt(`${pkg.dir}/index`, known);
       return fileAt(path.posix.join(pkg.dir, subpath), known);
     }
-    for (const alias of await aliases(dir, from.side === "island" ? island : root)) {
-      const star = alias.after === undefined ? undefined : specifier.startsWith(alias.before) && specifier.endsWith(alias.after) && specifier.length >= alias.before.length + alias.after.length
-        ? specifier.slice(alias.before.length, specifier.length - alias.after.length) : undefined;
-      if (alias.after === undefined ? specifier !== alias.before : star === undefined) continue;
-      for (const target of alias.targets) {
-        const at = target.indexOf("*");
-        const found = fileAt(star === undefined || at < 0 ? target : `${target.slice(0, at)}${star}${target.slice(at + 1)}`, known);
-        if (found !== undefined) return found;
-      }
+    for (const target of aliasTargets(specifier, await aliases(dir, from.side === "island" ? island : root))) {
+      const found = fileAt(target, known);
+      if (found !== undefined) return found;
     }
     return undefined;
   }

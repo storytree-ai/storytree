@@ -42,7 +42,7 @@ import { pyprojectFrom } from "./pyproject.js";
 import { parsePythonNow, pythonLanguage } from "./tree-sitter.js";
 import { pytestTestedNumbers } from "./python-tests.js";
 import { folderLanguages } from "./folder-languages.js";
-import { drawImportedStory, type Drawing } from "./drawing.js";
+import { drawImportedStory, manifestsOf, type Drawing } from "./drawing.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
@@ -253,9 +253,10 @@ export async function testedNumbers(root: string, tree: AnnotatedTree, capabilit
  * survey cannot read draws nothing (ADR-1324 D4).
  */
 export async function drawImport(story: Pick<MappedStory, "mapped">, folder: string, stories: Parameters<typeof mappedCode>[2], readText: (file: string) => Promise<string> = (file) => readFile(file, "utf8")): Promise<Drawing> {
-  const files = await mappedCode(story, folder, stories, readText);
-  await readersReady(files.map((file) => file.path));
-  return drawImportedStory({ folder: story.mapped.package, files });
+  const code = await mappedCode(story, folder, stories, readText);
+  await readersReady(code.map((file) => file.path));
+  const manifests = await manifestsOf(code, (file) => readText(path.join(folder, file)).catch(() => undefined));
+  return drawImportedStory({ folder: story.mapped.package, files: [...code, ...manifests] });
 }
 
 export type { Drawing, DrawnCapability } from "./drawing.js";

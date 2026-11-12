@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DoubleSide, Group, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry } from "three";
-import { besidePanel, createGlobeAside, framedOnResize, panelAside } from "./globe-aside.js";
+import { besidePanel, createGlobeAside, framedOnResize, islandCanvasX, panelAside } from "./globe-aside.js";
 import { pickGlobe } from "./planet-navigation.js";
 
 const wide = { width: 1600, height: 900 }, narrow = { width: 1000, height: 900 };
@@ -80,6 +80,29 @@ test("3.40 under a side offset a click picks the island drawn where it was click
   const box = { left: 0, top: 0, width: 800, height: 600 };
   assert.equal(pickGlobe(world, camera, box, { x: 154, y: 300 }, "forest")?.id, "story", "picked where it is drawn");
   assert.equal(pickGlobe(world, camera, box, { x: 400, y: 300 }, "forest"), undefined, "the window's centre is now empty sea");
+});
+
+test("3.40 the sheet slides the picked island to the middle of the free width, whole, and closing slides back by as much", () => {
+  // The desktop's map at 1440x960 with the rail open: 1008 px of canvas, the panel covering its right 492.
+  const canvas = { width: 1008, height: 912 }, rest = { framing: 0.4, sideOffset: 0 }, aside = createGlobeAside(() => rest, { fit: false });
+  // An island at canvas x 272 is already in the free width: half the panel's slide would put it at 26, cut by the edge.
+  const open = aside.place(canvas, panel, rest, 272);
+  assert.deepEqual(open, { to: { framing: 0.4, sideOffset: -14 }, glide: true }, "to x 258, the middle of the 516 px left free");
+  assert.deepEqual(aside.place(canvas, 0, open!.to)?.to, rest, "closing slides back by exactly that");
+  assert.deepEqual(aside.place(canvas, panel, rest)?.to, { framing: 0.4, sideOffset: -246 }, "no picked island (the Library's note card): half the panel");
+});
+
+test("3.40 the panel's slide reads the picked island where it is drawn on the canvas, under the side offset", () => {
+  const world = new Group(), plate = new Group();
+  plate.name = "planet:story";
+  world.add(plate);
+  const camera = new OrthographicCamera(-400, 400, 300, -300, 0.1, 100);
+  camera.position.z = 40; camera.zoom = 10;
+  camera.setViewOffset(800, 600, 246, 0, 800, 600);
+  camera.updateMatrixWorld();
+  assert.ok(Math.abs(islandCanvasX(world, camera, "story", 800)! - 154) < 1e-9, "drawn 246 px left of the middle");
+  assert.equal(islandCanvasX(world, camera, undefined, 800), undefined, "no story picked");
+  assert.equal(islandCanvasX(world, camera, "gone", 800), undefined, "the picked story has no island drawn");
 });
 
 test("3.85 the map's frame changing size keeps the zoom on screen and the place under its unchanged edge where it was", () => {

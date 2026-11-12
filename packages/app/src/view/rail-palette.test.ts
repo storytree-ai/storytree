@@ -34,3 +34,16 @@ test("2.59 · the left rail's tabs read in its own dark palette when the page ar
   assert.ok(contrast(pill.color, pill.backgroundColor) >= 4.5, `a pressed label (${pill.color} on ${pill.backgroundColor}) reads`);
   assert.ok(luminance(pill.backgroundColor) < 0.2, `a pressed label's ground (${pill.backgroundColor}) stays dark on the dark rail`);
 });
+
+test("2.7 · in the gear's section list a row the pointer rests on never looks like the open section's row", () => {
+  const window = new Window();
+  const document = window.document;
+  const style = document.createElement("style");
+  // happy-dom keeps no pointer, so each `:hover` rule is read as a `.hovered` one and the row under the pointer carries that class.
+  style.textContent = appMenuStyles.replaceAll(":hover", ".hovered");
+  document.head.append(style);
+  document.body.innerHTML = `<div class="app-menu"><nav class="app-menu-sections"><button aria-pressed="true">Updates</button><button class="hovered" aria-pressed="false">Help</button></nav></div>`;
+  const [open, hovered] = [...document.querySelectorAll("button")].map((row) => window.getComputedStyle(row));
+  const look = (row: typeof open) => `${row!.backgroundColor} ${row!.boxShadow}`;
+  assert.notEqual(look(hovered), look(open), `the hovered row (${look(hovered)}) looks like the open one (${look(open)})`);
+});

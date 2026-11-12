@@ -23,7 +23,7 @@ import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./isla
 import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, ignoresClick, feedbackPick, answerFeedbackPicks, type ForestMode, type PickedGate } from "./planet-navigation.js";
 import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
-import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
+import { createGlobeAside, framedOnResize, islandCanvasX, type AsidePose } from "./globe-aside.js";
 import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPointerMarkers, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { growLand, IslandOpening, presentDetail, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 import { DetailStore } from "./zoom-detail.js";
@@ -172,7 +172,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
     rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth} onLanesNotice={onLanesNotice}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={titles}
       rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onGate={setGate} onNote={onNote} mode={mode} sheet={layout.extent} arcSelected={circledList !== undefined}
-      sideOffset={sideOffset ?? 0} aside={aside}
+      sideOffset={sideOffset ?? 0} aside={aside} selected={selected}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
     <DetailFeed detail={detail} />
@@ -517,7 +517,7 @@ export const NAVIGATION_SEAM = "__storytreeCaptureNavigation";
 /** What Navigation hands a capture build's `NAVIGATION_SEAM`. */
 export type CapturedNavigation = { rotation: Quaternion; onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void };
 
-function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onGate, onNote, mode, showFailures, sideOffset, aside, sheet, arcSelected = false }: {
+function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onGate, onNote, mode, showFailures, sideOffset, aside, selected, sheet, arcSelected = false }: {
   /** An arc is selected: a click on land that is no part or gate is let go (3.105). */
   arcSelected?: boolean;
   /** Hears a click on a gate (3.88), and undefined for a click on anything else. */
@@ -527,6 +527,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   sheet: SheetExtent;
   /** CSS pixels of the canvas's right a panel covers (3.40). */
   aside: number;
+  /** The picked story, whose island the panel's slide brings whole into the free width (3.40). */
+  selected: string | undefined;
   /** The side offset the sheet opened on, which Home returns to (3.37). */
   sideOffset: number;
   onControls: ((controls: PlacedGlobeControls | undefined) => void) | undefined;
@@ -686,11 +688,11 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   }, [size.width, size.height, size.left]);
   // 3.66: a stop at the whole map the guide aimed at the last map's sheet is aimed again at the sheet that replaced it.
   useEffect(() => { if (touched.current && guide.current!.reframe()) guideFrameAt.current = performance.now(); }, [sheet.width, sheet.height]);
-  // 3.40: the sheet follows the right-hand panel into the free width, and back.
+  // 3.40: the sheet follows the right-hand panel into the free width, the picked story's island whole beside it, and back.
   const besideAside = useRef<ReturnType<typeof createGlobeAside>>(undefined);
   besideAside.current ??= createGlobeAside(() => host.current.opening, { fit: false });
   useEffect(() => {
-    const moved = besideAside.current!.place(size, aside, read());
+    const moved = besideAside.current!.place(size, aside, read(), islandCanvasX(scene, camera, selected, size.width));
     placedAside.current = aside;
     if (moved === undefined || !guide.current!.slide(moved.to, moved.glide && !reducedMotion() ? 600 : 0)) return;
     guideFrameAt.current = performance.now();

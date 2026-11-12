@@ -12,7 +12,7 @@ export type IslandBox = { story: string; x: number; y: number; width: number; he
 /** `moving` says a stop's glide is still under way; `notes` lists the Library's notes drawn on the globe, by id; `islands`
  * gives each drawn island on the near side its screen box (3.51). */
 export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined;
-  /** Each target's `position`, all read at once (3.49). */
+  /** Each target's `position`, all read at once (3.41). */
   positions(targets: readonly GlobeTarget[]): (ScreenPosition | undefined)[]; cancel(): void; moving(): boolean; notes(): string[]; islands(): IslandBox[] };
 /** The controls a globe view hands over, with the panel width (CSS pixels) it last placed itself beside (3.40, 3.45). */
 export type PlacedGlobeControls = GlobeControls & { aside(): number };
@@ -61,7 +61,7 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
     host.invalidate();
     return true;
   }
-  // 3.49: every target placed in one update of the world's matrices and one walk of the scene, so the page's locator reads a
+  // 3.41: every target placed in one update of the world's matrices and one walk of the scene, so the page's locator reads a
   // large map's islands each frame at the cost of one, not one per island.
   function positions(targets: readonly GlobeTarget[]): (ScreenPosition | undefined)[] {
     const world = host.world(), camera = host.camera();

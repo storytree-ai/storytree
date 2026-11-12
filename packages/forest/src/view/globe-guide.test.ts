@@ -168,7 +168,7 @@ test("3.41 the page's locator gives each drawn island's ground box in client pix
   for (const [side, want] of Object.entries({ left: 580, top: 340, right: 620, bottom: 360 })) assert.ok(Math.abs(box[side as keyof typeof box] - want) < 1e-6, `${side} ${box[side as keyof typeof box]} is ${want}`);
 });
 
-test("3.49 the locator places every island in one walk of the scene, so a large map is read as cheaply each frame as a small one", () => {
+test("3.41 the locator places every island in one walk of the scene, so a large map is read as cheaply each frame as a small one", () => {
   const f = fixture();
   const stories = Array.from({ length: 50 }, (_, index) => `s${index}`);
   for (const [index, story] of stories.entries()) {

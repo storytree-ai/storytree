@@ -35,7 +35,7 @@ test("2.59 · the left rail's tabs read in its own dark palette when the page ar
   assert.ok(luminance(pill.backgroundColor) < 0.2, `a pressed label's ground (${pill.backgroundColor}) stays dark on the dark rail`);
 });
 
-test("2.62 · in the gear's section list a row the pointer rests on never looks like the open section's row", () => {
+test("2.7 · in the gear's section list a row the pointer rests on never looks like the open section's row", () => {
   const window = new Window();
   const document = window.document;
   const style = document.createElement("style");

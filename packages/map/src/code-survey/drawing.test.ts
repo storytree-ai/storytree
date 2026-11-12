@@ -145,9 +145,10 @@ const NEXT = filesOf({
   "app/page.tsx": "import { Button } from \"@/components/button\";\nimport { cn } from \"@/lib/utils\";\nexport default () => Button(cn());\n",
   "components/button.tsx": "import { cn } from \"@/lib/utils\";\nimport { ui } from \"@acme/ui\";\nexport const Button = (name: string) => cn(name, ui);\n",
   "lib/utils.ts": "import clsx from \"clsx\";\nimport { ui } from \"@ui\";\nexport const cn = (...names: unknown[]) => clsx(names, ui);\n",
-  "packages/ui/package.json": "{\"name\":\"@acme/ui\",\"main\":\"src/index.ts\"}\n",
+  "packages/ui/package.json": "{\"name\":\"@acme/ui\",\"main\":\"src/index.ts\",\"imports\":{\"#theme\":\"./theme/colors.ts\"}}\n",
   "packages/ui/tsconfig.json": "{ \"compilerOptions\": {} }\n",
-  "packages/ui/src/index.ts": "import { cn } from \"@/lib/utils\";\nexport const ui = cn;\n",
+  "packages/ui/src/index.ts": "import { cn } from \"@/lib/utils\";\nimport { red } from \"#theme\";\nexport const ui = [cn, red];\n",
+  "packages/ui/theme/colors.ts": "export const red = \"#f00\";\n",
 });
 
 test("8.62 an import by the nearest tsconfig's path alias, or by the name of another package the story holds (its main, else its index), links as a relative one does", async () => {
@@ -158,7 +159,8 @@ test("8.62 an import by the nearest tsconfig's path alias, or by the name of ano
     { from: "components", to: "lib" },
     { from: "components", to: "packages/ui/src" },
     { from: "lib", to: "packages/ui/src" },
-  ], "@/ and the exact @ui alias resolve from the top tsconfig's baseUrl, @acme/ui to its main; packages/ui's own tsconfig, with no paths, leaves its @/ import unresolved; clsx is outside");
+    { from: "packages/ui/src", to: "packages/ui/theme" },
+  ], "@/ and the exact @ui alias resolve from the top tsconfig's baseUrl, @acme/ui to its main; packages/ui's own tsconfig, with no paths, leaves its @/ import unresolved, and its '#' import is read by its own package.json, not the top's; clsx is outside");
 });
 
 test("8.63 capabilities whose imports run round a loop are drawn as one covering all their folders and files, and the drawing is the same whatever order its files come in", async () => {

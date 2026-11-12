@@ -31,10 +31,10 @@ const byText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * The drawing of an imported story whose package is `folder` (from the import's top, "." the top itself), given its
- * files in the import's coordinates, its tests among them, and its package's `name`. The readers of its languages must
+ * files in the import's coordinates, its tests among them. The readers of its languages must
  * be ready (readersReady).
  */
-export function drawImportedStory(story: { readonly folder: string; readonly name?: string; readonly files: readonly SourceFile[] }): Drawing {
+export function drawImportedStory(story: { readonly folder: string; readonly files: readonly SourceFile[] }): Drawing {
   const top = story.folder === "." ? "" : `${path.posix.normalize(story.folder).replace(/\/$/, "")}/`;
   const files = story.files.filter((file) => file.path.startsWith(top));
   const drawn = files.filter((file) => isCodeFile(file.path) && !isTestCode(file) && file.text.trim() !== "").map((file) => file.path).sort(byText);
@@ -51,7 +51,7 @@ export function drawImportedStory(story: { readonly folder: string; readonly nam
 
   const units = [...new Set(owners.values())].sort(byText);
   const after = new Map(units.map((unit) => [unit, new Set<string>()] as const));
-  const edges = storyEdges([{ id: "drawn", files, packages: [{ root: top, name: story.name ?? story.folder, exports: {} }], owners }]).get("drawn")!;
+  const edges = storyEdges([{ id: "drawn", files, packages: [{ root: top, name: story.folder, exports: {} }], owners }]).get("drawn")!;
   for (const { from, to } of edges) if (from !== undefined && to !== undefined && from !== to) after.get(from)!.add(to);
 
   const merged = loops(units, after);

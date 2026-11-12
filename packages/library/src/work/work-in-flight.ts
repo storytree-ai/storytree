@@ -36,6 +36,8 @@ import { checkedWaitFor, INCREMENT_BLOCKER, type WaitWrite } from "./wait-writes
 
 /** The owner's voice note or one of his questions, named in an increment's body or links: work that came from his answer. */
 const FROM_HIS_ANSWER = /\b(?:voice\.note|question)_[0-9a-f]{12}\b/;
+/** A question named in text. */
+const QUESTION = /\bquestion_[0-9a-f]{12}\b/g;
 
 /** Where an increment is in its lifecycle. */
 export type IncrementStatus = (typeof INCREMENT_STATUSES)[number];
@@ -381,11 +383,14 @@ export class WorkInFlight {
    * What a check run on the owner's answer found reaches him (ADR-1259, 10.42): an increment whose body or links name his
    * voice note or a question of his, landed with a note and no pull request to show for it, records an FYI carrying that
    * note, which `fyi list`, the shared briefing and voice offer until it is marked heard. A pull request is told as a
-   * landing already, and a close that did not land found nothing to tell.
+   * landing already, and a close that did not land found nothing to tell. Nor does a close whose note names a question
+   * its increment did not already name (ADR-1259 D2): that result is a new question, which reaches him as that question.
    */
   async #offerFindings({ id, fields }: SchemaRecord<"increment">, close: CloseInput, options?: WriteOptions): Promise<void> {
     if (close.disposition !== "landed" || close.pr !== undefined || close.note === undefined) return;
-    if (!FROM_HIS_ANSWER.test([fields.body, ...(fields.links ?? [])].join("\n"))) return;
+    const from = [fields.body, ...(fields.links ?? [])].join("\n");
+    if (!FROM_HIS_ANSWER.test(from)) return;
+    if ((close.note.match(QUESTION) ?? []).some((question) => !from.includes(question))) return;
     const fyi = { title: `What your answer found: ${fields.title}`, what: close.note, about: id, by: options?.actor ?? "storytree", at: new Date().toISOString() };
     await this.#records.create("fyi", fyi, options);
   }

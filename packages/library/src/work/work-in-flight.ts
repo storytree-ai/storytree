@@ -289,10 +289,7 @@ export class WorkInFlight {
         if (shared.length > 0) {
           // Every overlap in the one refusal, so a wide list learns its waits from one try (friction_e8ef03cd89fa).
           const claims = shared.flatMap((other) => other.capabilities).map((capability) => `${capability}'s claim`).join(" and ");
-          const advice = shared.length === 1
-            ? "route this work to that increment, or, if it follows that one, park it waiting on it, or, if it waits only for the capability,"
-            : "route this work to one of those increments, or, if it follows them, park it waiting on each, or, if it waits only for the capabilities,";
-          throw new RangeError(`${shared.map(listedSaid).join("; ")}: ${advice} on ${claims}`);
+          throw new RangeError(`${shared.map(listedSaid).join("; ")}: route this work to the increment it belongs to, or, if it follows one, park it waiting on each it follows, or, if it waits only for a capability, on ${claims}`);
         }
       }
       const waitsFor = fields.waitsFor?.map(checkedWaitFor);

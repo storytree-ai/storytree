@@ -1232,7 +1232,7 @@ test("9.23 · plan_story in a project whose folder declares a JavaScript, TypeSc
   });
 });
 
-test("12.4 import_project on a folder already imported says the commit recorded before and now, counts the files changed between them naming up to ten of each, and names each explored capability whose files are gone", async () => {
+test("12.4 import_project on a folder already imported says the commit recorded before and now, counts the files changed between them naming up to ten of each, and names each capability the redraw from its code added and retired", async () => {
   await withProject(async ({ folder, library }) => {
     const shop = path.join(folder, "..", "shop");
     mkdirSync(path.join(shop, "src"), { recursive: true });
@@ -1260,9 +1260,12 @@ test("12.4 import_project on a folder already imported says the commit recorded 
       assert.match(again.text, new RegExp(`The commit moved from ${one.slice(0, 12)} to ${two.slice(0, 12)}`));
       assert.match(again.text, /12 added, 0 changed, 1 removed/);
       assert.match(again.text, /added: src\/f01\.ts, .*src\/f10\.ts, and 2 more/);
-      assert.doesNotMatch(again.text, /src\/f11\.ts/);
+      assert.doesNotMatch(again.text.split("\n").find((line) => line.startsWith("  added: "))!, /src\/f11\.ts/, "the files line names ten");
       assert.match(again.text, /removed: src\/menu\.ts/);
-      assert.match(again.text, new RegExp(`src/menu\\.ts" \\(${menu.id}\\) covers src/menu\\.ts, no longer in the folder; it is left as it stands`));
+      assert.match(again.text, new RegExp(`Story "shop" \\(${story!.id}\\) is redrawn from its code`));
+      assert.match(again.text, new RegExp(`retired "1 · src/menu\\.ts" \\(${menu.id}\\)`));
+      const f01 = (await library.list("capability")).find((capability) => capability.fields.story === story!.id && capability.fields.covers?.includes("src/f01.ts"))!;
+      assert.match(again.text, new RegExp(`added "\\d+ · src/f01\\.ts" \\(${f01.id}\\)`));
     });
   });
 });

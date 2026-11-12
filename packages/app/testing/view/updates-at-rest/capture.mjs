@@ -29,6 +29,11 @@ const section = page => page.evaluate(() => {
     gearTitle: gear.title,
     firstRow: shown(ready) ? ready.textContent : undefined,
     installNext: [...updates.querySelectorAll('[data-app-install-next]')].filter(shown).map(line => line.textContent),
+    // Each section row's fill, the pointer left where the click that picked Updates put it: only the open one may look selected.
+    rows: [...document.querySelectorAll('[data-app-section]')].filter(shown).map(row => {
+      const style = getComputedStyle(row);
+      return { name: row.textContent.trim(), pressed: row.getAttribute('aria-pressed') === 'true', hovered: row.matches(':hover'), look: `${style.backgroundColor} ${style.boxShadow}` };
+    }),
   };
 });
 
@@ -68,6 +73,9 @@ for (const state of ['idle', 'waiting']) {
           assert.equal(found.order.some(part => part.startsWith('When updates install: quiet')), true, JSON.stringify(found.order));
           assert.equal(found.firstRow, undefined, 'with Updates on show the menu has no update row above it: the status line names the build');
           assert.deepEqual(found.installNext, [], 'the quiet option says when an update installs, and a waiting build\'s status line does');
+          const open = found.rows.filter(row => row.pressed);
+          assert.deepEqual(open.map(row => row.name), ['Updates']);
+          assert.deepEqual(found.rows.filter(row => !row.pressed && row.look === open[0].look).map(row => row.name), [], `one section row looks selected: ${JSON.stringify(found.rows)}`);
         },
       },
     ],

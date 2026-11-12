@@ -58,7 +58,10 @@ main[data-rail-dragging] { cursor: col-resize; user-select: none; }
 .app-menu-body { display: flex; flex: 1; min-height: 0; }
 .app-menu-sections { display: flex; flex-direction: column; flex: 0 0 200px; gap: 4px; padding: 20px 12px; border-right: 1px solid #485159; overflow: auto; }
 .app-menu-sections button { border: 0; border-radius: 6px; padding: 10px 14px; background: transparent; color: #a9b0ba; text-align: left; cursor: pointer; }
-.app-menu-sections button[aria-pressed="true"] { color: #eceae3; background: #262a2f; }
+/* A hovered row is only lit, never filled like the open one, which alone carries the bar: picking Updates while a build waits
+   hides the menu's first row, so the rows move up and the pointer rests on the next one. */
+.app-menu-sections button:hover { color: #eceae3; background: transparent; }
+.app-menu-sections button[aria-pressed="true"] { color: #eceae3; background: #262a2f; box-shadow: inset 3px 0 0 #78b396; }
 /* Close ends the tab row: at the foot of the column, or the far end of the row when narrow. */
 .app-menu-sections .app-menu-close { margin-top: auto; }
 .app-menu-close span { margin-left: 8px; }

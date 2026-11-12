@@ -792,7 +792,48 @@ test("9.11 show_plan says an imported story is imported, here before storytree a
   });
 });
 
-test("9.12 plan_capability on an imported story records what the agent explored with the folders and files it covers, refusing none or an overlap by naming the capability to correct, which edit_plan corrects", async () => {
+test("9.12 on an imported story storytree draws, plan_capability is refused, naming the capability holding the files given to name and describe, plan_edge is refused, and edit_plan changes a capability's title and description, never its covers or links", async () => {
+  await withProject(async ({ folder, library }) => {
+    const shop = path.join(folder, "..", "shop");
+    mkdirSync(path.join(shop, "src", "cart"), { recursive: true });
+    mkdirSync(path.join(shop, "src", "pay"));
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop", type: "module" }));
+    writeFileSync(path.join(shop, "src", "cart", "index.js"), "import { pay } from \"../pay/index.js\";\nexport const cart = () => pay(1);\n");
+    writeFileSync(path.join(shop, "src", "pay", "index.js"), "export const pay = (n) => n;\n");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const imported = await agent.call("import_project", { folder: "../shop" });
+      assert.equal(imported.isError, false, imported.text);
+      const story = (await library.list("story")).find((one) => one.fields.mapped !== undefined)!;
+      const drawn = (await library.list("capability")).filter((one) => one.fields.story === story.id);
+      const cart = drawn.find((one) => one.fields.covers?.some((cover) => cover.endsWith("src/cart")))!;
+      const pay = drawn.find((one) => one.fields.covers?.some((cover) => cover.endsWith("src/pay")))!;
+      assert.ok(cart !== undefined && pay !== undefined, JSON.stringify(drawn.map((one) => one.fields.covers)));
+
+      const refused = await agent.call("plan_capability", { story: story.id, title: "Checkout", covers: ["src/cart/index.js"], ...FOUNDED });
+      assert.equal(refused.isError, true, refused.text);
+      assert.match(refused.text, /draws .* capabilities from its code's imports/);
+      assert.ok(refused.text.includes(cart.id), refused.text);
+      assert.match(refused.text, /name and describe it with edit_plan/);
+      assert.equal((await library.list("capability")).filter((one) => one.fields.story === story.id).length, drawn.length, "nothing is planned");
+
+      const linked = await agent.call("plan_edge", { from: pay.id, to: cart.id });
+      assert.equal(linked.isError, true, linked.text);
+      assert.match(linked.text, /links from its code's imports/);
+      for (const change of [{ covers: ["src/cart", "src/pay"] }, { depends_on: [] }]) {
+        const redrawn = await agent.call("edit_plan", { id: cart.id, live: true, ...change });
+        assert.equal(redrawn.isError, true, redrawn.text);
+        assert.match(redrawn.text, /only a capability's title and description/);
+      }
+      assert.deepEqual((await library.get(cart.id))?.fields["covers" as never], cart.fields.covers);
+
+      const named = await agent.call("edit_plan", { id: cart.id, title: "Cart", description: "Holds what the buyer picked", live: true });
+      assert.notEqual(named.isError, true, named.text);
+      assert.match(String((await library.get(cart.id))?.fields["title" as never]), /Cart$/);
+    });
+  });
+});
+
+test("9.12 plan_capability on an imported story whose code storytree cannot read records what the agent mapped with the folders and files it covers, refusing none or an overlap by naming the capability to correct, which edit_plan corrects", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { added: [app] } = await library.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);

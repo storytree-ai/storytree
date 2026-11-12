@@ -249,13 +249,15 @@ test("7.16 the card handed at session start says to park and claim a change's in
   }
 });
 
-test("7.17 the card handed at session start says the packages/<story> layout is for new stories, and that an existing repository's code is drawn in place once `import_project` maps it (regression: an agent on an unimported flat repository told the user the map could not draw it, 2026-11-06)", async () => {
+test("7.17 the card handed at session start says the packages/<story> layout is for new stories, that an existing repository's code is drawn in place once `import_project` maps it, and that the agent names and describes the capabilities storytree draws, never redrawing them, mapping by reading only code storytree cannot read (regression: an agent on an unimported flat repository told the user the map could not draw it, 2026-11-06)", async () => {
   const session = await sessionStart();
   try {
     const served = session.client.getInstructions() ?? "";
     for (const said of [
       "This is the layout for new stories",
       "An existing repository's code, whatever its layout, is drawn where it is once `import_project` maps it",
+      // ADR-1324 D3, D4: storytree draws the bounds; the agent names and describes, and draws by reading only what it cannot read.
+      "name and describe the capabilities it draws from the imports, never redraw them, and map by reading only code storytree cannot read",
     ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
   } finally {
     await session.close();

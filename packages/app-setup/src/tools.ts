@@ -92,7 +92,7 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
       );
       define(
         "import_project",
-        "Import an existing JavaScript, TypeScript or Python project into this storytree project, before any story is planned on it: this project's own folder when its code is here (plan_story refuses until it is imported), another folder when the user names one. Its folder is recorded as imported, and each package it declares becomes an imported story, with the capabilities and links storytree draws from its code, titled by their paths, for an agent to name; code storytree cannot read gets none, for an agent to map. A folder with one manifest at its top and no workspace (a flat src/, say) is one package, imported in place as one story: plan its capabilities by the files each covers, and never move or restructure the code to fit storytree. As you map each capability, plan a contract for what each of its existing tests checks, naming that test in plan_contract's proved_by, so the repository's own tests turn their contracts green or red, never renaming or editing them. Mapping includes running the repository's tests: once it maps, run `storytree health local` in your shell, as its reply says; no tool runs them, so they sit under your own permission prompt. Importing again adds new packages and drops gone ones, says the commit recorded before and now and the files changed between them, and redraws each imported story from its code as it now stands, keeping the names, descriptions and contracts written on it, and names each capability merged, split, added or retired. Nothing is written into the folder. This project's own folder may be imported, in place, the repository storytree was set up inside; a folder nested inside this project is refused.",
+        "Import an existing JavaScript, TypeScript or Python project into this storytree project, before any story is planned on it: this project's own folder when its code is here (plan_story refuses until it is imported), another folder when the user names one. Its folder is recorded as imported, and each package it declares becomes an imported story, with the capabilities and links storytree draws from its code (one per module or folder, links exactly its imports), titled by their paths. Name and describe each with edit_plan, and never merge, split or redraw them: the map shows the code as it is. Code storytree cannot read gets none: only there do you map capabilities by reading it, with plan_capability and the files each covers. A folder with one manifest at its top and no workspace (a flat src/, say) is one package, imported in place as one story: never move or restructure the code to fit storytree. As you name each capability, plan a contract for what each existing test checks on the capability whose code decides it, naming that test in plan_contract's proved_by, so the repository's own tests turn their contracts green or red, never renaming or editing them. Mapping includes running the repository's tests: once it maps, run `storytree health local` in your shell, as its reply says; no tool runs them, so they sit under your own permission prompt. Importing again adds new packages and drops gone ones, says the commit recorded before and now and the files changed between them, and redraws each imported story from its code as it now stands, keeping the names, descriptions and contracts written on it, and names each capability merged, split, added or retired. Nothing is written into the folder. This project's own folder may be imported, in place, the repository storytree was set up inside; a folder nested inside this project is refused.",
         z.object({ folder: z.string().min(1).describe("The folder of the project to import, absolute or relative to this project's folder") }),
         async ({ folder }, { library, storytree, folder: here }) => {
           const imported = await importProject({ folder: path.resolve(here, folder), library, storytree }).catch((error: unknown) => {
@@ -102,7 +102,7 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
           if (imported instanceof ImportRefusedError) return { text: imported.message, refused: true };
           const added = imported.added.map((story) => `${quoted(story.title)} (${story.id}), capabilities drawn: ${story.capabilities}`).join("; ");
           return {
-            text: [`Imported ${imported.folder}: ${imported.added.length} imported stories added${added === "" ? "" : `: ${added}`}; ${imported.retired.length} retired, their package gone; ${imported.kept.length} kept as they stand.`, ...importLines(imported), RUN_THE_TESTS].join("\n"),
+            text: [`Imported ${imported.folder}: ${imported.added.length} imported stories added${added === "" ? "" : `: ${added}`}; ${imported.retired.length} retired, their package gone; ${imported.kept.length} kept as they stand.`, ...importLines(imported), ...namingSaid(imported.added), RUN_THE_TESTS].join("\n"),
             data: {
               folder: imported.folder,
               added: imported.added.map((story) => story.id),
@@ -180,7 +180,19 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
  * What import_project's reply asks of the agent once it maps a folder (ADR-1275 D1): the repository's own tests run in its shell,
  * never by a tool (ADR-1193 D2); then one arc fixes what they leave red and carries the user's requests (ADR-1271).
  */
-const RUN_THE_TESTS = "Run `storytree health local` now, in your shell, from this project's folder: it runs the repository's own tests, and their results read red or green on the contracts naming them. Until it runs, the capabilities you map read yellow, not yet proven. Its reply names the capabilities it leaves red: then plan one arc, an increment fixing each, its capabilities list naming it, and the user's own requests as increments on that arc.";
+const RUN_THE_TESTS = "Run `storytree health local` now, in your shell, from this project's folder: it runs the repository's own tests, and their results read red or green on the contracts naming them. Until it runs, its capabilities read yellow, not yet proven. Its reply names the capabilities it leaves red: then plan one arc, an increment fixing each, its capabilities list naming it, and the user's own requests as increments on that arc.";
+
+/**
+ * What import_project's reply asks of the agent for the stories it added (ADR-1324 D3, D4): to name and describe the
+ * capabilities storytree drew, never redrawing them, and to map by reading only a story whose code it could not read.
+ */
+function namingSaid(added: readonly { title: string; id: string; capabilities: number }[]): string[] {
+  const unread = added.filter((story) => story.capabilities === 0);
+  return [
+    ...(added.length > unread.length ? ["Name and describe each capability storytree drew with edit_plan (title, description), and plan a contract for each existing test on the capability whose code decides it. Do not merge, split or redraw them: storytree draws them from the code's imports, so the map shows the code as it is."] : []),
+    ...(unread.length === 0 ? [] : [`storytree cannot read the code of ${unread.map((story) => `${quoted(story.title)} (${story.id})`).join(", ")}: map ${unread.length === 1 ? "its" : "their"} capabilities by reading it, with plan_capability and the folders and files each covers.`]),
+  ];
+}
 
 /** What the answer says of the folders the project imports: each fetched at its commit, or named as one CI cannot fetch. */
 function importsSaid(imports: readonly ImportFetch[]): string[] {

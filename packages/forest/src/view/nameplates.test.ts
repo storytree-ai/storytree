@@ -201,6 +201,16 @@ test("3.4 a story's name that runs past the map's frame, under the rail or out o
   assert.deepEqual([...fadedPlates(row, undefined, cut)].sort(), ["follow", "read and write", "under the rail"], "a name past the window's edge fades, though the canvas runs on");
 });
 
+test("3.4 · a story's name the open story panel cuts fades: the map's frame ends at the panel's left edge", () => {
+  // As the code-rows seed showed it at 1440 x 960 once an island click had opened the story panel and the globe had settled:
+  // the panel covers the canvas's right 492 pixels, from x 948, and "The command line" ran under its edge at x 902-1014.
+  const box = (left: number, top: number) => ({ left, top, right: left + 112, bottom: top + 33 });
+  const frame = mapFrame({ left: 432, top: 48, right: 1440, bottom: 960 }, { width: 1440, height: 960 }, 492);
+  assert.deepEqual(frame, { left: 432, top: 48, right: 948, bottom: 960 });
+  const stories = [{ story: "under the panel's edge", box: box(902, 620), facing: 1 }, { story: "beside the panel", box: box(780, 300), facing: 1 }];
+  assert.deepEqual([...fadedPlates(stories, undefined, frame)], ["under the panel's edge"], "a name the panel cuts fades; one clear of it shows");
+});
+
 test("3.106 · the map's controls (the Whole map button, the compass) cover no name: a story's name under one fades, a capability's moves off it", () => {
   // As the forest seed showed it zoomed in at 1440 x 960: the Whole map button at x 846-938 over the left of "The knowledge core".
   const button = { left: 846, top: 128, right: 938, bottom: 154 }, compass = { left: 874, top: 56, right: 938, bottom: 120 };

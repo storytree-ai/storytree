@@ -1072,6 +1072,9 @@ test("9.39 · A bare show_plan whose whole answer, text and data, runs past 40,0
     const arc = await library.createArc({ title: "Signup release", intent: "Ship signup", endState: "Signup live" });
     for (const title of ["Form", "Email", "Copy"]) await library.addIncrement({ arc: arc.id, title, objective: "Ship it", body: "Red then green" });
     await library.closeIncrement((await library.addIncrement({ arc: arc.id, title: "Spike", objective: "Learn", body: "Try it" })).id, { pr: "#1", disposition: "landed" });
+    await library.editArc(arc.id, { priority: 1 });
+    const done = await library.createArc({ title: "Login release", intent: "Ship login", endState: "Login live" });
+    await library.closeIncrement((await library.addIncrement({ arc: done.id, title: "Login", objective: "Ship it", body: "Red then green" })).id, { pr: "#2", disposition: "landed" });
 
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const whole = await agent.call("show_plan");
@@ -1092,7 +1095,10 @@ test("9.39 · A bare show_plan whose whole answer, text and data, runs past 40,0
       assert.doesNotMatch(plan.text, /Contract "|Increment "|A postcode form/);
       assert.equal(plan.data.overview, true);
       assert.deepEqual((plan.data.stories as { id: string; capabilities: number; contracts: number }[]).map(({ id, capabilities, contracts }) => ({ id, capabilities, contracts }))[0], { id: signup.id, capabilities: 1, contracts: 2 });
-      assert.equal((plan.data.arcs as { id: string; increments: Record<string, number> }[]).find((one) => one.id === arc.id)?.increments.closed, 1);
+      const arcs = plan.data.arcs as { id: string; priority?: number; closed?: string; increments: Record<string, number> }[];
+      assert.equal(arcs.find((one) => one.id === arc.id)?.increments.closed, 1);
+      assert.equal(arcs.find((one) => one.id === arc.id)?.priority, 1);
+      assert.match(arcs.find((one) => one.id === done.id)?.closed ?? "", /^\d{4}-\d{2}-\d{2}$/);
     });
   });
 });
@@ -1107,6 +1113,8 @@ test("9.40 · show_plan given a story's, a capability's or an arc's id gives tha
     await library.addContract({ title: "Hides what is typed", capability: password.id });
     const arc = await library.createArc({ title: "Signup release", intent: "Ship signup", endState: "Signup live" });
     await library.addIncrement({ arc: arc.id, title: "Form", objective: "Ship it", body: "Red then green" });
+    const old = await library.createArc({ title: "Beta signup", intent: "Try signup", endState: "Tried" });
+    await library.closeIncrement((await library.addIncrement({ arc: old.id, title: "Beta form", objective: "Try it", body: "Red then green" })).id, { pr: "#1", disposition: "landed", date: "2026-01-02" });
 
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = await agent.call("show_plan", { id: login.id });
@@ -1129,6 +1137,9 @@ test("9.40 · show_plan given a story's, a capability's or an arc's id gives tha
       assert.match(arcPart.text, new RegExp(`^Arc "Signup release" \\(${arc.id}\\)`));
       assert.match(arcPart.text, /^ {2}Increment "Form" \(increment_\w+\): /m);
       assert.doesNotMatch(arcPart.text, /Story "/);
+      // An arc closed outside the window a bare show_plan reads is given whole all the same.
+      const closedPart = await agent.call("show_plan", { id: old.id });
+      assert.match(closedPart.text, /^ {2}Increment "Beta form" \(increment_\w+\): closed; /m);
 
       const missing = await agent.call("show_plan", { id: "story_000000000000" });
       assert.equal(missing.isError, true);

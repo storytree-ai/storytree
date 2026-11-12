@@ -245,6 +245,10 @@ test("4.47 the gear's update dot names the build waiting, on its hover and as th
     async chooseProject() { throw new Error("not switching projects in this test"); },
     onChosen() {}, onError(error) { throw error; }, onSurfacesChanged() {},
     mountHelp() { return { open() {}, close() {}, stop() {} }; },
+    installChoice: {
+      async read() { return { available: true, choice: { mode: "hours", from: "01:00", to: "06:00" } }; },
+      async set() { throw new Error("not changing the install choice in this test"); },
+    },
     async checkForUpdates(action) {
       return action === "status"
         ? { phase: "pending", runningBuild: "0.3.2700", nextBuild: "0.3.2741" }
@@ -267,6 +271,8 @@ test("4.47 the gear's update dot names the build waiting, on its hover and as th
   assert.equal(gear.title, "Update ready: storytree 0.3.2741");
   assert.equal(row.hidden, false);
   assert.equal(row.textContent, "Update ready: storytree 0.3.2741");
+  const installNext = host.querySelector<HTMLElement>("[data-app-install-next]")!;
+  assert.equal(installNext.hidden, true, "a build waiting has its install time on the status line, not under the install choice too");
   assert.ok(host.querySelector(".app-menu-window")!.firstElementChild === row, "the line is the menu's first row");
   row.click();
   await setImmediate();
@@ -279,6 +285,7 @@ test("4.47 the gear's update dot names the build waiting, on its hover and as th
   await setImmediate();
   assert.equal(gear.title, "App menu", "nothing waits once the update is installing");
   assert.equal(row.hidden, true);
+  assert.equal(installNext.hidden, false, "with nothing waiting the line under the install choice says the next quiet hours");
 });
 
 test("2.58 the app menu opens on Help when asked from outside the gear, as the empty map's First-run guide button asks", async (t) => {

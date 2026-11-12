@@ -139,5 +139,23 @@ test("6.10 The CI times reading gives each open pull request's checks estimate f
     { pull: 13, checks: 4, full: false, packages: [] },
     // Six 4-minute units on Windows alone: 24 / (2 shards x 2 jobs) = 6, over its longest unit, plus 4.
     { pull: 14, checks: 10, system: "win32", full: false, packages: ["packages/w1", "packages/w2", "packages/w3", "packages/w4", "packages/w5", "packages/w6"] },
-  ]);
+  ].map((one) => ({ ...one, setup: { minutes: 4, runs: 0 } })));
+});
+
+test("6.10 Each estimate's setup is learned from the week's timed runs: each run's whole time less its own tests' bound, the median of those; the fixed 4 minutes only while no run is recorded, which it says", async (t) => {
+  const { db, project } = await store(t);
+  await db.query("INSERT INTO ci_readings (project, repository, read_at) VALUES ($1, 'acme/shop', $2)", [project, ago(2)]);
+  await db.query("INSERT INTO ci_pull_scopes (project, pull, head_sha, every, dirs, read_at) VALUES ($1, 13, 'h', false, '{}', $2)", [project, ago(2)]);
+  // Three passing merge-queue runs; each tests packages/a for 10 minutes on Linux in one job, and takes 10 more beyond it.
+  for (const [run, at, beyond] of [[1, DAY, 7], [2, 2 * DAY, 6], [3, 3 * DAY, 9]] as const) {
+    await db.query(
+      `INSERT INTO ci_runs (project, repository, run_id, attempt, workflow, event, head_sha, created_at, started_at, ended_at, status, conclusion, timed)
+        VALUES ($1, 'acme/shop', $2, 1, 'CI', 'merge_group', $3, $4, $4, $5, 'completed', 'success', true)`,
+      [project, run, `q${run}`, ago(at + 10 + beyond), ago(at)]);
+    await db.query(
+      `INSERT INTO ci_unit_times (project, run_id, head_sha, platform, arch, unit, jobs, result, ms, timed_out, at, artifact)
+        VALUES ($1, $2, $3, 'linux', 'x64', 'packages/a', 1, 'pass', $4, false, $5, 'test-timings-Linux-1')`, [project, run, `q${run}`, 10 * 60_000, ago(at + 1)]);
+  }
+  // A docs-only pull request is drawn against the learned setup alone: the median of 7, 6 and 9.
+  assert.deepEqual((await ciTimesReading(db, project, NOW))?.legs.pulls, [{ pull: 13, checks: 7, full: false, packages: [], setup: { minutes: 7, runs: 3 } }]);
 });

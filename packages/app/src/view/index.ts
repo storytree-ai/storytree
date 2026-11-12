@@ -88,14 +88,19 @@ export function mountAppMenu(host: HTMLElement, options: {
   const deleteProject = options.mountDeleteProject?.(menu.querySelector<HTMLElement>("[data-app-delete-project]")!, async () => { await options.onChosen(); });
   const factory = options.mountFactory?.(menu.querySelector<HTMLElement>("[data-app-factory]")!);
   const installChoice = mountInstallChoice(menu, options.installChoice, undefined, () => updates.refresh());
-  // The gear's dot names the build waiting, on its hover and as the menu's first row, which opens Updates (4.47).
+  // The gear's dot names the build waiting, on its hover and as the menu's first row, which opens Updates (4.47); with
+  // Updates on show the row steps aside, since the section's status line names the build there.
   const updateReady = menu.querySelector<HTMLButtonElement>("[data-app-update-ready]")!;
   updateReady.addEventListener("click", () => selectSection("updates"));
+  let waiting: string | undefined;
+  const showReady = () => { updateReady.hidden = waiting === undefined || section === "updates"; };
   const updates = mountUpdates(menu, options.checkForUpdates, (ready) => {
+    waiting = ready;
     gear.toggleAttribute("data-update-pending", ready !== undefined);
     gear.title = ready ?? "App menu";
-    updateReady.hidden = ready === undefined;
     updateReady.textContent = ready ?? "";
+    showReady();
+    installChoice.waiting(ready !== undefined);
   }, installChoice.choice, () => releaseChannel.channel());
   // A switch redraws the last check's line, which no longer says what the new channel offers.
   const releaseChannel = mountReleaseChannel(menu, options.releaseChannel, () => updates.refresh());
@@ -110,6 +115,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     section = next;
     for (const panel of menu.querySelectorAll<HTMLElement>(".app-menu-content > section")) panel.hidden = panel.id !== `app-${next}`;
     for (const button of menu.querySelectorAll<HTMLElement>("[data-app-section]")) button.setAttribute("aria-pressed", String(button.dataset.appSection === next));
+    showReady();
     tabs[next]?.open();
   }
   function close(): void { menu.hidePopover(); }

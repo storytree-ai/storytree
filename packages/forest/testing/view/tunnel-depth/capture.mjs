@@ -83,7 +83,7 @@ const results = {};
 const before = process.argv.includes('--at') ? JSON.parse(readFileSync(process.argv[process.argv.indexOf('--at') + 1], 'utf8')).tunnels : undefined;
 
 await runCapture({
-  folder: pictures, dist, seed, survey,
+  folder: pictures, name: prefix.slice(0, -1) || undefined, dist, seed, survey,
   prepare: async ({ page, settle, bridge }) => {
     await page.addInitScript(() => {
       const Original = window.Worker;

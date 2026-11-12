@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.21 in
+ * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.22 in
  * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is the app setup's setup check.
@@ -18,15 +18,16 @@ import { storyParts } from "@storytree/plugin-loader";
 import { SMALL_FIXES_ARC } from "@storytree/app-setup/project";
 import { setupGuidance } from "@storytree/app-setup/setup";
 import { decisionRights, readStandIns } from "@storytree/project-and-caller";
+import { CONCEPTS } from "@storytree/shown-words";
 import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */
 async function sessionStart(harness = "claude-code", off?: readonly string[]): Promise<{ client: Client; harnessTools: readonly string[]; close(): Promise<void> }> {
   // A user's folder, not this checkout: storytree's own project also serves the librarian's tools.
   const folder = mkdtempSync(path.join(tmpdir(), "habits-card-"));
-  // The folder is its own storytree home, so no machine's settings (a part off, a plugin standing in) change the card;
-  // parts switched off are named there.
-  if (off !== undefined) writeFileSync(path.join(folder, "settings.json"), JSON.stringify({ "parts-off": off }));
+  // The folder is its own storytree home, so no machine's settings (a module off, a plugin standing in) change the card;
+  // modules switched off are named there.
+  if (off !== undefined) writeFileSync(path.join(folder, "settings.json"), JSON.stringify({ "modules-off": off }));
   const tools = createAgentTools({ folder, env: {}, setup: { storytreeHome: folder } });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   await tools.server.connect(serverSide);
@@ -56,14 +57,14 @@ test("7.1 the card names every tool the server has, and no tool the server lacks
   }
 });
 
-test("7.12 with a part switched off, the card handed at session start leaves out its section and those of the parts standing on it, names them switched off, and names no tool the server lacks", async () => {
+test("7.12 with a module switched off, the card handed at session start leaves out its section and those of the modules standing on it, names them switched off, and names no tool the server lacks", async () => {
   const session = await sessionStart("claude-code", ["arc-surface"]);
   try {
     const card = session.client.getInstructions() ?? "";
     const offered = (await session.client.listTools()).tools.map((tool) => tool.name).filter((tool) => !session.harnessTools.includes(tool)).sort();
     const taught = [...new Set([...card.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort();
     assert.deepEqual(taught.filter((tool) => !offered.includes(tool)), [], "every tool it teaches is served");
-    assert.match(card, /Switched off on this computer, so not served here: arc-surface\. The user switches one on with: storytree settings set part <part> on/);
+    assert.match(card, /Switched off on this computer, so not served here: arc-surface\. The user switches one on with: storytree settings set module <module> on/);
     for (const section of setupGuidance) assert.ok(card.includes(section), `App setup's section stays: ${section.slice(0, 60)}`);
     for (const tool of ["check_setup", "set_up_project", "wire_pipeline"]) assert.ok(taught.includes(tool) && offered.includes(tool), `${tool} is still served and taught`);
   } finally {
@@ -85,7 +86,7 @@ test("7.13 with code review a factory plugin's, the card storytree hands still t
   }
 });
 
-test("7.14 with a factory plugin standing in for a switched-off part, the card handed at session start carries the plugin's sections in the part's place, not the part's own, and does not name the part switched off; one that cannot be loaded adds nothing and the part is named off", async () => {
+test("7.14 with a factory plugin standing in for a switched-off module, the card handed at session start carries the plugin's sections in the module's place, not the module's own, and does not name the module switched off; one that cannot be loaded adds nothing and the module is named off", async () => {
   // Code review moved to a factory plugin whole, its section with it (ADR-1209 D1): the card is where a plugin's section reaches an agent.
   const folder = mkdtempSync(path.join(tmpdir(), "habits-card-factory-"));
   try {
@@ -93,7 +94,7 @@ test("7.14 with a factory plugin standing in for a switched-off part, the card h
     mkdirSync(plugin, { recursive: true });
     writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-setup", type: "module", exports: { "./guidance": "./guidance.js" }, storytree: { interface: 1, guidance: [{ from: "./guidance", export: "guidance" }] } }));
     writeFileSync(path.join(plugin, "guidance.js"), `export const guidance = ["Review each change with the reviewer before the gate."];\n`);
-    const settings = (standIn: string) => ({ factory: path.join(folder, "factory"), "parts-off": ["app-setup"], "stand-ins": { "app-setup": standIn } });
+    const settings = (standIn: string) => ({ factory: path.join(folder, "factory"), "modules-off": ["app-setup"], "stand-ins": { "app-setup": standIn } });
     const card = (off: readonly string[], standIn: string) => {
       const home = mkdtempSync(path.join(folder, "home-"));
       writeFileSync(path.join(home, "settings.json"), JSON.stringify(settings(standIn)));
@@ -101,8 +102,8 @@ test("7.14 with a factory plugin standing in for a switched-off part, the card h
     };
     const stoodIn = card(["app-setup"], "my-setup");
     assert.ok(stoodIn.includes("Review each change with the reviewer before the gate."), "the plugin's section is on the card");
-    for (const section of setupGuidance) assert.ok(!stoodIn.includes(section), `the part's own section is left out: ${section.slice(0, 60)}`);
-    assert.doesNotMatch(stoodIn, /Switched off on this computer/, "a part stood in for is served, not named off");
+    for (const section of setupGuidance) assert.ok(!stoodIn.includes(section), `the module's own section is left out: ${section.slice(0, 60)}`);
+    assert.doesNotMatch(stoodIn, /Switched off on this computer/, "a module stood in for is served, not named off");
     assert.ok(stoodIn.indexOf("Review each change") < stoodIn.indexOf("If storytree says it isn't running"), "before the closing line");
     const missing = card(["app-setup"], "no-such-plugin");
     assert.ok(!missing.includes("Review each change"), "a plugin that cannot be loaded adds nothing");
@@ -155,18 +156,18 @@ test("7.8 the card handed at session start says what one contract is: a behaviou
   }
 });
 
-test("7.9 the card handed at session start says how to build beside mapped code", async () => {
+test("7.9 the card handed at session start says how to build beside imported code", async () => {
   const session = await sessionStart();
   try {
     const served = session.client.getInstructions() ?? "";
-    // One phrase for each thing ADR-0993 D4 and D8 to D11, as ADR-1015 narrows them, has the agent do beside mapped code.
+    // One phrase for each thing ADR-0993 D4 and D8 to D11, as ADR-1015 narrows them, has the agent do beside imported code.
     for (const said of [
       "Before changing or deleting anything in the imported project, stop and ask the user",
       "change it there, bring that part into this project, retire it, or leave it and build on top",
       "Do what the user says",
       "do not watch the old project for changes",
       "import it again only when the user asks",
-      "depending on the mapped package by a link:",
+      "depending on the imported package by a link:",
       "Old code never imports new code",
       "Test the interface your package has with the old code",
       "give `focus` the part's folders as its crossing",
@@ -282,7 +283,7 @@ test("7.19 · the card handed at session start says that once an imported reposi
   }
 });
 
-test("7.20 · the card handed at session start and plan_contract's description say a contract goes on the part whose behaviour it pins, a guarantee between two parts on their edge, even when every test drives one entry point (regression: the sixth checkbox guided run planned all 21 contracts on its HTTP entry point, 2026-11-09)", async () => {
+test("7.20 · the card handed at session start and plan_contract's description say a contract goes on the part whose behaviour it pins, and a guarantee about what passes between two parts on their edge, even when every test drives the whole service through one entry point (regression: the sixth checkbox guided run planned all 21 contracts on its HTTP entry point, 2026-11-09)", async () => {
   const session = await sessionStart();
   try {
     const served = session.client.getInstructions() ?? "";
@@ -290,22 +291,35 @@ test("7.20 · the card handed at session start and plan_contract's description s
     const planContract = tools.find((tool) => tool.name === "plan_contract")?.description ?? "";
     for (const [where, text] of [["the served card", served], ["plan_contract's description", planContract]] as const) {
       assert.ok(text.includes("A contract goes on the part whose behaviour it pins"), `${where} places a contract on the part it pins`);
-      assert.ok(text.includes("even when every test drives one entry point"), `${where} places it there though the tests enter elsewhere`);
-      assert.ok(text.includes("a guarantee between two parts on their edge"), `${where} places a guarantee between two parts on their edge`);
+      assert.ok(text.includes("even when every test drives the whole service through one entry point"), `${where} places it there though the tests enter elsewhere`);
+      assert.ok(text.includes("a guarantee about what passes between two parts goes on their edge"), `${where} places a guarantee between two parts on their edge`);
     }
   } finally {
     await session.close();
   }
 });
 
-test("7.21 · the card handed at session start and plan_contract's description say to plan contracts from where each fault was found, not from the test list (regression: the ninth checkbox guided run put all 15 planned contracts on its HTTP entry point, 2026-11-12)", async () => {
+test("7.21 · the card handed at session start and plan_contract's description say to plan contracts from where each fault was found, not from the list of tests, so each part or link at fault gets a contract of its own (regression: the ninth checkbox guided run put all 15 planned contracts on its HTTP entry point, 2026-11-12)", async () => {
   const session = await sessionStart();
   try {
     const served = session.client.getInstructions() ?? "";
     const { tools } = await session.client.listTools();
     const planContract = tools.find((tool) => tool.name === "plan_contract")?.description ?? "";
     for (const [where, text] of [["the served card", served], ["plan_contract's description", planContract]] as const) {
-      assert.ok(text.includes("plan from where you found each fault, not from the test list"), `${where} plans from the diagnosis, not the tests`);
+      assert.ok(text.includes("plan from where you found each fault, not from the list of tests"), `${where} plans from the diagnosis, not the tests`);
+      assert.ok(text.includes("so each part or link at fault gets a contract of its own"), `${where} gives each part or link at fault its own contract`);
+    }
+  } finally {
+    await session.close();
+  }
+});
+
+test("7.22 · the card handed at session start says the tools use the library's words for capability, arc and increment, and names the shown word the user sees for each, read from the one table of shown words (ADR-1318)", async () => {
+  const session = await sessionStart();
+  try {
+    const served = session.client.getInstructions() ?? "";
+    for (const concept of ["capability", "arc", "increment"] as const) {
+      assert.ok(served.includes(`"${CONCEPTS[concept].one}" for ${concept}`), `the served card names no shown word for ${concept}`);
     }
   } finally {
     await session.close();

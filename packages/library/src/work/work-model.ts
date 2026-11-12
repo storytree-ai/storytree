@@ -33,16 +33,17 @@ export const CONTRACT_DEFINITION =
  * other parts and one between them). Planning from the fault, not the test list, is increment_b9b95a0fa351's: the ninth run
  * still planned one contract per end-to-end test on the entry point. Replays of its planning turn put the fault inside a
  * part on that part 0 times in 5 with the earlier sentence and 15 in 15 with this one and two near variants, and a fault
- * between two parts on their edge 0 in 5 against 6 in 15; a longer wording that reached 5 in 5 for edges is over the card's budget.
+ * between two parts on their edge 0 in 5 against 6 in 15. This longer wording is increment_94bc95fe5b8b's: five fresh replays with it
+ * on the card planned a fault between two parts on their edge 5 in 5 and Retrieval's own fault on Retrieval 5 in 5.
  */
 export const CONTRACT_PLACEMENT =
-  "A contract goes on the part whose behaviour it pins, a guarantee between two parts on their edge, even when every test drives one entry point: plan from where you found each fault, not from the test list.";
+  "A contract goes on the part whose behaviour it pins, and a guarantee about what passes between two parts goes on their edge, even when every test drives the whole service through one entry point: plan from where you found each fault, not from the list of tests, so each part or link at fault gets a contract of its own.";
 /** A contract title past this many characters gets the advisory: about the longest eighth of 338 live contract titles, measured 2026-10-11. */
 export const LONG_CONTRACT_TITLE = 300;
 
 /** A new story's fields. A mapped story is mapStories' alone to make, and a plugin's story importPluginPlan's. */
 export type NewStory = Omit<FieldsOf<"story">, "mapped" | "plugin">;
-/** One package of an imported folder, as mapStories maps it to a story (ADR-0993 D2). */
+/** One package of an imported folder, as mapStories maps it to a story (ADR-0993 D2). "Mapped" in this name and mapStories' means imported (ADR-1300 D3). */
 export interface MappedPackage {
   /** The package's folder relative to the imported folder ("." for the folder itself): what a later import matches on. */
   readonly package: string;
@@ -257,10 +258,11 @@ export class WorkModel {
   }
 
   /**
-   * Map the packages of the import `from` to stories (ADR-0993 D2, D6), the only way a story is made
-   * mapped: a package no live story of `from` maps gets a new mapped story, with no capabilities;
+   * Map the packages of the import `from` to stories (ADR-0993 D2, D6), the only way an imported story is
+   * made: a package no live story of `from` maps gets a new imported story, with no capabilities;
    * a live story of `from` whose package is not among `packages` is retired; every other story,
-   * of `from` or not, stands as it is, so the folders an agent has redrawn are kept.
+   * of `from` or not, stands as it is, so the folders an agent has redrawn are kept. The name keeps
+   * "map": here it means import, never an agent drawing capabilities on the story (ADR-1300 D3).
    */
   mapStories(from: string, packages: readonly MappedPackage[], options?: WriteOptions): Promise<MappedStories> {
     return this.#serially(async () => {
@@ -314,7 +316,7 @@ export class WorkModel {
         if (own !== undefined) refuse("plugin", `${plugin}'s story is ${own.id}, not ${options.adopt}`);
         story = stories.find((candidate) => candidate.id === options.adopt);
         if (story === undefined) refuse("plugin", `${options.adopt} is not a live story to adopt`);
-        if (story!.fields.mapped !== undefined) refuse("plugin", `${story!.id} is mapped from ${story!.fields.mapped.from}, so it is that import's`);
+        if (story!.fields.mapped !== undefined) refuse("plugin", `${story!.id} is imported from ${story!.fields.mapped.from}, so it is that import's`);
         if (story!.fields.plugin !== undefined) refuse("plugin", `${story!.id} is ${story!.fields.plugin}'s story`);
       }
       const capabilities = new Map<number, SchemaRecord<"capability">>();
@@ -884,7 +886,7 @@ export class WorkModel {
       return undefined;
     }
     if (covers !== undefined && !Array.isArray(covers)) return given; // the schema refuses it in the write, naming the list
-    if (covers === undefined || covers.length === 0) refuse(`a capability of the mapped story ${story} names the folders and files of its import it covers`);
+    if (covers === undefined || covers.length === 0) refuse(`a capability of the imported story ${story} names the folders and files of its import it covers`);
     if (!covers!.every((cover) => typeof cover === "string" && cover !== "")) return given;
     const paths = given!.map((cover) => {
       const plain = path.posix.normalize(cover.replaceAll("\\", "/")).replace(/\/+$/, "") || ".";
@@ -1081,7 +1083,7 @@ function within(inner: string, outer: string): boolean {
 
 /** Refuse a `mapped` or `plugin` field: only mapStories makes a story mapped (ADR-0993 D2), and only importPluginPlan a plugin's. */
 function refuseMapped(fields: object): void {
-  if ("mapped" in fields) throw new SchemaError("story", [{ field: "mapped", problem: "a story is made mapped only by importing a project" }]);
+  if ("mapped" in fields) throw new SchemaError("story", [{ field: "mapped", problem: "only importing a project makes an imported story" }]);
   if ("plugin" in fields) throw new SchemaError("story", [{ field: "plugin", problem: "a story is made a plugin's only by importing its plan (storytree plugin import-plan)" }]);
 }
 

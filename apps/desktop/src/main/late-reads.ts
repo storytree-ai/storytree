@@ -1,7 +1,25 @@
 /**
  * Capability 8 · Page bridge. The page's answers that wait on the library: the page asks before it opens, and again after
- * it reopens, so each answer reaches for the library open at the time it is asked (contract 8.5).
+ * it reopens, so each answer reaches for the library open at the time it is asked (contract 8.5), and each counts what it
+ * reads against its own operation (contract 8.11).
  */
+import { asReader } from "@storytree/library/reads";
+
+import type { PageHandlers } from "../page-operations.js";
+
+/**
+ * `handlers`, but each channel's answer reads the library as the reader "app <channel>" (its "storytree:" left off), so the
+ * per-reader report splits the app's bytes by the operation that asked. Main-side only: the sandboxed preload bundles
+ * page-operations.ts, which cannot load node:async_hooks.
+ */
+export function readerPerChannel(handlers: PageHandlers): PageHandlers {
+  return {
+    handle(channel, listener) {
+      const reader = `app ${channel.replace(/^storytree:/, "")}`;
+      handlers.handle(channel, (event: unknown, ...args: unknown[]) => asReader(reader, () => listener(event, ...args)));
+    },
+  };
+}
 
 /** Each of `methods` answered by the reads `open` gives when asked, which throws while the library is not open. */
 export function lateReads<Reads extends object>(methods: readonly (keyof Reads & string)[], open: () => Reads): Reads {

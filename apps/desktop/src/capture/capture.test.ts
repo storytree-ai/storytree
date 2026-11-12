@@ -17,7 +17,7 @@ import type { Line, NewLine } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
 import { removeTemp } from "@storytree/test-waits";
 
-import { buildCapture, buildFolder, captureOutput, fakeBridge, fallbackChromium, launch, launchFailure, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
+import { buildCapture, buildFolder, captureOutput, fakeBridge, fallbackChromium, installedUpdates, launch, launchFailure, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
 
 const checkout = path.resolve(import.meta.dirname, "../../../..");
 
@@ -116,6 +116,16 @@ test("2.49 · a capture's stand-in bridge answers a page's ask for a session's d
   assert.deepEqual(await bridge.call("sessionLines", ["storytree", ["back"]]), [back]);
   assert.deepEqual(bridge.defaulted, ["sessionLines"]);
   assert.deepEqual(await fakeBridge({}).call("sessionLines", ["storytree", ["back"]]), []);
+});
+
+test("2.60 · a capture can answer as an installed copy whose updater is idle or has a build waiting, every update choice available", async () => {
+  const idle = fakeBridge(installedUpdates("idle"));
+  assert.equal((await idle.call("checkForUpdates", ["status"]) as { phase: string }).phase, "idle");
+  for (const read of ["readInstallChoice", "readReleaseChannel", "readSignIn"]) assert.equal((await idle.call(read, []) as { available: boolean }).available, true, read);
+  assert.deepEqual(idle.defaulted, []);
+  const waiting = await fakeBridge(installedUpdates("waiting")).call("checkForUpdates", ["status"]) as { phase: string; nextBuild?: string };
+  assert.equal(waiting.phase, "pending");
+  assert.ok(waiting.nextBuild, "the build waiting is named");
 });
 
 test("on Windows, launch finds Playwright and Chromium from the checkout, with no /home path", () => {

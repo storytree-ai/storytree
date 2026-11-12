@@ -393,7 +393,7 @@ function registerLandingTools(define: Define, landing: Landing | undefined): voi
           `storytree cannot read this project's code: it is in ${listed(unreadable.languages)}, and the map reads ${listed(unreadable.reads)}, so ${unchecked.length === 1 ? "this planned contract was" : `these ${unchecked.length} planned contracts were`} not checked against its tests.`,
           ...unchecked.map((title) => `- ${title}`),
         ] : [
-          `This checkout cannot see the tests of its story: it holds no package of that story's (no code here yet, or a story mapped from a folder of its own), so ${unchecked.length === 1 ? "this planned contract was" : `these ${unchecked.length} planned contracts were`} not checked against them.`,
+          `This checkout cannot see the tests of its story: it holds no package of that story's (no code here yet, or a story imported from a folder of its own), so ${unchecked.length === 1 ? "this planned contract was" : `these ${unchecked.length} planned contracts were`} not checked against them.`,
           ...unchecked.map((title) => `- ${title}`),
         ];
         // Whether it is built stays the agent's judgment (ADR-0744 D2), so land names the tool that records it, not marks it.

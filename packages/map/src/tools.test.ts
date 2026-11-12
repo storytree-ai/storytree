@@ -10,7 +10,7 @@ import { removeTemp } from "@storytree/test-waits";
 import { capabilitiesCommand } from "./read.js";
 import { mapTools } from "./tools.js";
 
-test("2.7 the focus tool refuses a call that gives neither select nor crossing, or a crossing with a select that names no mapped story or with dry_run, before it reads anything", async () => {
+test("2.7 the focus tool refuses a call that gives neither select nor crossing, or a crossing with a select that names no imported story or with dry_run, before it reads anything", async () => {
   const tools: Record<string, (args: Record<string, unknown>, call: never) => Promise<unknown>> = {};
   const unreadHost = { imports: () => { throw new Error("read"); }, heldBack: () => undefined };
   mapTools(unreadHost).registerTools!((name, _description, _input, act) => { tools[name] = act as never; });
@@ -18,7 +18,7 @@ test("2.7 the focus tool refuses a call that gives neither select nor crossing, 
   const unread = () => { throw new Error("read"); };
   const call = { library: new Proxy({}, { get: unread }), storytree: new Proxy({}, { get: unread }), folder: "/nowhere" } as never;
   await assert.rejects(tools.focus!({}, call), /^Error: Give select, or crossing\.$/);
-  await assert.rejects(tools.focus!({ crossing: ["src"], select: "cap:2" }, call), /^Error: With crossing, select names a mapped story: story:<name>\.$/);
+  await assert.rejects(tools.focus!({ crossing: ["src"], select: "cap:2" }, call), /^Error: With crossing, select names an imported story: story:<name>\.$/);
   await assert.rejects(tools.focus!({ crossing: ["src"], mode: "dry_run" }, call), /^Error: A crossing answers counts or show\.$/);
 });
 
@@ -52,7 +52,7 @@ test("2.8 with capabilities and select story:<name>, the focus tool answers that
   }
 });
 
-test("3.15 with links and select story:<mapped>, the focus tool answers that story's links checked against its imports as text and as data, and refuses it with crossing, capabilities or a select that names no story before it reads anything", async () => {
+test("3.15 with links and select story:<imported>, the focus tool answers that story's links checked against its imports as text and as data, and refuses it with crossing, capabilities or a select that names no story before it reads anything", async () => {
   const unread = () => { throw new Error("read"); };
   const unreadCall = { library: new Proxy({}, { get: unread }), storytree: new Proxy({}, { get: unread }), folder: "/nowhere" } as never;
   const shop = await mkdtemp(path.join(tmpdir(), "focus-links-"));
@@ -60,7 +60,7 @@ test("3.15 with links and select story:<mapped>, the focus tool answers that sto
   const imports = [{ folder: shop, repository: "https://example.test/shop.git" }];
   mapTools({ imports: async () => imports, heldBack: () => undefined }).registerTools!((name, _description, _input, act) => { tools[name] = act as never; });
   for (const args of [{ links: true, select: "cap:2" }, { links: true, select: "story:shop", crossing: ["src"] }, { links: true, select: "story:shop", capabilities: true }]) {
-    await assert.rejects(tools.focus!(args, unreadCall), /^Error: links checks one mapped story/);
+    await assert.rejects(tools.focus!(args, unreadCall), /^Error: links checks one imported story/);
   }
   try {
     await mkdir(path.join(shop, "src/ui"), { recursive: true });

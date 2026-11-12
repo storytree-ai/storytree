@@ -23,7 +23,7 @@ import { z } from "zod";
 import { connect, NEW_LINE, type Line, type LineKind, type LinesSince, type NewLine, type Storytree } from "@storytree/library";
 import { leaveAfterMs, readExperiment } from "@storytree/project-and-caller";
 
-import { BRANCH_FACTS, countValues, FOLD_LINES, foldValues, inViewValues, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
+import { BRANCH_FACTS, countValues, DOOR_COUNTS, DOOR_STEPS, FOLD_LINES, foldValues, inViewValues, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
 import { holdersOf, LONGEST_COMMAND_MS, type Beat } from "../readings.js";
 import { PgLibraryReads, READS_SCHEMA, READS_SCHEMA_FILE, type LibraryReads } from "./library-reads.js";
 import { BEATS_SCHEMA, BEATS_SCHEMA_FILE, beatsOf, PgSessionBeats, type SessionBeats } from "./session-beats.js";
@@ -100,6 +100,11 @@ export interface ActivityLog {
   sessionsInView(project: string, since: string): Promise<string[]>;
   /** How many sessions have written a line of their own to `project`'s log. */
   sessionCount(project: string): Promise<number>;
+  /**
+   * `project`'s door-answered lines from `since` (ISO 8601) on, as the doors learner reads them (contract 2.18): counted on
+   * the server, with only the lines a refusal or a pointer is judged by sent whole (bounded.ts DOOR_STEPS).
+   */
+  doorTally(project: string, since: string): Promise<DoorTally>;
   /** The branches worth a look from `machine`, with what the log knows of each (bounded.ts BRANCH_FACTS). */
   branchFacts(project: string, machine: string | undefined): Promise<BranchFacts[]>;
   /**
@@ -116,6 +121,18 @@ export interface ActivityLog {
   readonly reads: LibraryReads;
   /** Close the log's connections: what this process read since it last recorded is recorded as its pool ends. */
   close(): Promise<void>;
+}
+
+/** A window's door-answered lines, as doorTally counts them. */
+export interface DoorTally {
+  /** How many sessions wrote one. */
+  readonly sessions: number;
+  /** When the first was written (ISO 8601); none when there is none. */
+  readonly first?: string;
+  /** How many there are of each verb, as its door names it. */
+  readonly calls: ReadonlyMap<string, number>;
+  /** Each command refused as unknown with its word and its session's next line, and each pointed call with its session's next command, oldest first. */
+  readonly steps: Line[];
 }
 
 /** A branch the project's lines name, as BRANCH_FACTS reads it: when it was first and last worked on, where this machine last worked on it, and its latest state line. */
@@ -408,6 +425,21 @@ class PgActivityLog implements ActivityLog {
   async sessionCount(project: string): Promise<number> {
     assertProject(project);
     return Number((await this.#pool.query<{ count: string }>(SESSION_COUNT, countValues(project))).rows[0]?.count ?? 0);
+  }
+
+  async doorTally(project: string, since: string): Promise<DoorTally> {
+    assertProject(project);
+    const [counts, steps] = await Promise.all([
+      this.#pool.query<{ sessions: string; first: Date | null; calls: Record<string, string | number> }>(DOOR_COUNTS, [project, since]),
+      this.#pool.query<ActivityRow>(DOOR_STEPS, [project, since]),
+    ]);
+    const { sessions, first, calls } = counts.rows[0]!;
+    return {
+      sessions: Number(sessions),
+      ...(first === null ? {} : { first: first.toISOString() }),
+      calls: new Map(Object.entries(calls).map(([verb, count]) => [verb, Number(count)])),
+      steps: steps.rows.map(lineOf),
+    };
   }
 
   locked<T>(project: string, work: (log: LockedLog) => Promise<T>): Promise<T> {

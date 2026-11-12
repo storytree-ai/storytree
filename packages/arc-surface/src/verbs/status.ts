@@ -9,6 +9,7 @@ import { verb, VerbRefusal } from "@storytree/library/verbs";
 
 import { boardView, type Bar, type Lane } from "../board/board.js";
 import { recentWindow } from "../board/closed-range.js";
+import { oversizedSaid } from "./arc-size.js";
 import { claimsReading } from "./claimed.js";
 import type { ArcVerbContext } from "./context.js";
 
@@ -99,6 +100,12 @@ function ownerSaid(bar: Bar, held: readonly string[], questionTitles: ReadonlyMa
   return [...asked, ...notes].join(", ") || "waiting on you";
 }
 
+/** An arc past its size tripwire, said after its why on the same line (3.40); nothing at or under it. */
+const sizeSaid = (count: number): string => {
+  const oversized = oversizedSaid(count);
+  return oversized === undefined ? "" : `. ${oversized}`;
+};
+
 export const status = verb({
   command: {
     family: "arc",
@@ -125,7 +132,7 @@ export const status = verb({
     const width = Math.max(...STATES.map((state) => state.length));
     const moving = said.filter(({ state }) => state === "Working" || state === "Landed").length;
     return {
-      text: [`${said.length} active ${said.length === 1 ? "arc" : "arcs"}, ${moving} moving:`, ...said.map(({ lane, state, why }) => `  ${state.padEnd(width)}  ${lane.id}  ${lane.title} — ${why}`)].join("\n"),
+      text: [`${said.length} active ${said.length === 1 ? "arc" : "arcs"}, ${moving} moving:`, ...said.map(({ lane, state, why }) => `  ${state.padEnd(width)}  ${lane.id}  ${lane.title} — ${why}${sizeSaid(lane.view.increments.length)}`)].join("\n"),
       next: [{ command: "arc show <arc>", why: "see one whole" }],
     };
   },

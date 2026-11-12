@@ -157,7 +157,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
   const capabilities = grove(found, states).flatMap(({ capability: id }): CapabilityLine[] => {
     const capability = id === undefined ? undefined : byId.get(id);
     if (capability === undefined) return [];
-    const contracts = capability.contracts.map((contract) => contractLine(contract, trails.get(contract.id) ?? []));
+    const contracts = numbered(capability.contracts).map((contract) => contractLine(contract, trails.get(contract.id) ?? []));
     const seen = contracts.flatMap(({ verified }) => (verified === undefined ? [] : [verified]));
     const sources = sourcesOf(contracts);
     return [
@@ -184,13 +184,23 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
     to,
     toTitle: byId.get(to)?.title ?? to,
     ...(description === undefined ? {} : { description }),
-    contracts: contracts.map((contract) => contractLine(contract, trails.get(contract.id) ?? [])),
+    contracts: numbered(contracts).map((contract) => contractLine(contract, trails.get(contract.id) ?? [])),
   }));
 
   const files = survey[found.id]?.files ?? [];
   const mapped = found.mapped === undefined ? undefined : files.length === 0 ? {} : { files: files.length, lines: files.reduce((sum, file) => sum + file.lines, 0) };
   const checks = extraChecks(found);
   return { story: found.id, title: found.title, description: sentences(found.description), capabilities, ...(edges.length === 0 ? {} : { edges }), ...(mapped === undefined ? {} : { mapped }), ...(checks.length === 0 ? {} : { checks }) };
+}
+
+/** Contracts in the order their numbers say ("6.2 · …" before "6.10 · …"), the unnumbered after them, each kept in the library's order. */
+function numbered<T extends { title: string }>(contracts: readonly T[]): T[] {
+  const number = (title: string): number[] | undefined => /^(\d+)\.(\d+) · /.exec(title)?.slice(1).map(Number);
+  return [...contracts].sort((one, other) => {
+    const [a, b] = [number(one.title), number(other.title)];
+    if (a === undefined || b === undefined) return a === b ? 0 : a === undefined ? 1 : -1;
+    return a[0]! - b[0]! || a[1]! - b[1]!;
+  });
 }
 
 /** `story`'s own extra checks, then each of its capabilities'. */

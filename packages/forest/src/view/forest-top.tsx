@@ -1,7 +1,7 @@
 /**
  * Capability 3 · Story node render: the map's top row, the one band the sheet's opening keeps clear of nameplates
  * (`CLEAR_TOP`): the sheet's face switches, the layout mark while islands are laid out (3.96), and the lanes notice when
- * some lanes could not be drawn (3.103). The row stops short of the compass and of the story panel's width beside it, so
+ * some lanes could not be drawn (3.103), and with an arc selected how many parts and links its open work rings (3.108). The row stops short of the compass and of the story panel's width beside it, so
  * the notice wraps inside it, readable whole, covering no nameplate and hidden by no panel.
  */
 import React from "react";
@@ -19,11 +19,16 @@ const LOOK_TITLE: Record<SheetFace, string> = {
   library: `Clear glass and outlined islands, so the notes beneath show; the view stays where it is. ${TILT_TITLE}`,
 };
 
-export function ForestTop({ layers, onTurn, islands, notice, aside }: {
+/** 3.108: "3 parts", "1 link", "no part". */
+const counted = (n: number, what: string): string => n === 0 ? `no ${what}` : `${n} ${what}${n === 1 ? "" : "s"}`;
+
+export function ForestTop({ layers, onTurn, islands, notice, aside, rings }: {
   layers: Pick<ReturnType<typeof sheetFaces>, "offered" | "pressed">; onTurn: (face: SheetFace) => void;
   islands: readonly LaidIsland[]; notice: LanesNotice | undefined;
   /** CSS pixels of the page's right the story panel or note card covers (3.40). */
   aside: number;
+  /** How many parts and links the selected arc's open work rings; undefined with no arc selected (3.108). */
+  rings?: { parts: number; links: number } | undefined;
 }) {
   return <div className="forest-top" style={{ right: aside + COMPASS_ROOM }}>
     <div className="forest-views" role="group" aria-label="Sheet faces">
@@ -34,6 +39,8 @@ export function ForestTop({ layers, onTurn, islands, notice, aside }: {
     </div>
     {/* 3.96: beside the switches while any island is still laid out. */}
     <LayoutProgress islands={islands} />
+    {/* 3.108: so rings out of sight (a gate off screen, a small settlement) read apart from none. */}
+    {rings !== undefined && <div className="forest-open-work">{`The arc's open work rings ${counted(rings.parts, "part")} and ${counted(rings.links, "link")}.`}</div>}
     {notice !== undefined && <div className="forest-lanes-notice" role="alert" title={notice.issue}>{notice.text}</div>}
   </div>;
 }

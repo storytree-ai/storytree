@@ -499,7 +499,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(((await records.get(fix.id))?.fields as { escape?: unknown }).escape, corrected?.fields.escape);
   });
 
-  contract("10.42", "an increment from the owner's answer, landed with a note and no pull request, records an FYI of what it found, so it is offered to him until heard; one with a pull request, not landed, or not from his answer records none", async ({ flight, transactions }) => {
+  contract("10.42", "an increment from the owner's answer, landed with a note and no pull request, records an FYI of what it found, so it is offered to him until heard; one with a pull request, not landed, not from his answer, or whose note raises a new question to him records none", async ({ flight, transactions }) => {
     const fyis = async () => (await transactions.list("fyi")).map(({ fields }) => fields);
     const arc = await flight.createArc(ARC);
     const findings = "Findings: all junk, no real change.";
@@ -521,6 +521,9 @@ for (const backend of [memory, postgres]) {
     const plain = await flight.addIncrement({ arc: arc.id, ...WORK });
     await flight.closeIncrement(plain.id, { note: "Checked", disposition: "landed" });
     assert.equal((await fyis()).length, 3, "a pull request shows it, a close that did not land found nothing, and other work is not his answer");
+    const asked = await flight.addIncrement({ arc: arc.id, ...BARE_WORK, title: "Asked", body: "Settled on question_0dd10e796878." });
+    await flight.closeIncrement(asked.id, { note: "Raised question_423692e9d7da: the rest is his call.", disposition: "landed" });
+    assert.equal((await fyis()).length, 3, "a result that is a new question reaches him as that question, not again as an FYI");
   });
 
   contract("10.30", "a landed increment says whether it fixed an escape: one naming none is recorded as fixing none when it lands, closed or parked closed, while one naming its escape keeps it and a close that does not land says nothing", async ({ work, flight, records }) => {
@@ -937,7 +940,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await flight.waitHolds(prune.id), [{ on: again.id, reason: "the second pass", forGood: true }], "a withdrawn blocker holds for good");
   });
 
-  contract("10.35", "parking an increment whose capabilities list names one already on another open increment's list is refused, naming that increment, its title and its arc, and the wait on that capability's claim as a way out, unless it is born waiting on that increment or on the claim of every capability they share", async ({ work, flight, transactions }) => {
+  contract("10.35", "parking an increment whose capabilities list names one already on another open increment's list is refused, naming every such increment, its title and its arc in the one refusal, and the wait on that capability's claim as a way out, unless it is born waiting on that increment or on the claim of every capability they share", async ({ work, flight, transactions }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ story: story.id, title: "Form" });
     const checks = await work.addCapability({ story: story.id, title: "Checks" });
@@ -957,6 +960,23 @@ for (const backend of [memory, postgres]) {
       RangeError,
     );
     assert.deepEqual(await transactions.history(), history, "nothing was written");
+
+    // A list overlapping several open increments is told of every one in the one refusal.
+    const plans = await work.addCapability({ story: story.id, title: "Plans" });
+    const third = await flight.addIncrement({ arc: other.id, title: "Price the plans", ...BARE_WORK, capabilities: [plans.id] });
+    const several = await transactions.history();
+    await assert.rejects(
+      flight.addIncrement({ arc: other.id, title: "Route all three", ...BARE_WORK, capabilities: [plans.id, checks.id, form.id] }),
+      (error: unknown) => error instanceof RangeError && [first.id, "Route the form", arc.id, third.id, "Price the plans", other.id].every((part) => error.message.includes(part))
+        && error.message.includes(`${form.id}'s claim`) && error.message.includes(`${plans.id}'s claim`) && !error.message.includes(checks.id),
+    );
+    // One it follows is left out of the refusal, which still names the rest.
+    await assert.rejects(
+      flight.addIncrement({ arc: other.id, title: "After the form", ...BARE_WORK, capabilities: [plans.id, form.id], waits: [{ on: first.id, reason: "after the form" }] }),
+      (error: unknown) => error instanceof RangeError && error.message.includes(third.id) && !error.message.includes(first.id),
+    );
+    assert.deepEqual(await transactions.history(), several, "nothing was written");
+    await flight.closeIncrement(third.id, { note: "Not needed", disposition: "withdrawn" });
 
     // Split off a held capability's work, born waiting on that capability's claim, not on the increment that lists it, parks (ADR-1228 D1).
     const split = await flight.addIncrement({ arc: other.id, title: "The form's split-off", ...BARE_WORK, capabilities: [form.id], waits: [{ on: form.id, reason: "its claim is held" }] });

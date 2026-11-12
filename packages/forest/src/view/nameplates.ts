@@ -2,6 +2,31 @@
 import { Quaternion, Vector3 } from "three";
 import type { Coast, Point, TerritoryMap } from "../territories/territories.js";
 
+/** A name on the map as drawn: the story it is on, the part it names if it is a part's, and its box in the window. */
+export type DrawnName = { readonly story: string; readonly capability?: string; readonly box: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number } };
+
+/** 3.104: what the name under `cursor` names, a part's name before its story's, which it may lie over; none, off every name. */
+export function nameplateAt(names: readonly DrawnName[], cursor: { x: number; y: number }): { story: string; capability?: string } | undefined {
+  const under = names.filter(({ box }) => cursor.x >= box.left && cursor.x <= box.right && cursor.y >= box.top && cursor.y <= box.bottom);
+  const named = under.find(name => name.capability !== undefined) ?? under[0];
+  return named === undefined ? undefined : named.capability === undefined ? { story: named.story } : { story: named.story, capability: named.capability };
+}
+
+/** The names shown in `host`, the map's overlays: none hidden (an overlay turned away is not displayed) or faded as crowded (3.4). */
+export function drawnNames(host: ParentNode): DrawnName[] {
+  return [...host.querySelectorAll<HTMLElement>(".planet-nameplate")].flatMap(label => {
+    const story = label.dataset.storyId ?? label.dataset.islandId;
+    if (story === undefined || label.classList.contains("crowded") || !label.checkVisibility()) return [];
+    const capability = label.dataset.capabilityId, box = label.getBoundingClientRect();
+    return [capability === undefined ? { story, box } : { story, capability, box }];
+  });
+}
+
+/** The boxes of the map's controls drawn over it in `host`, the map's overlays: the Whole map button while it shows, and the compass (3.106). */
+export function mapControls(host: ParentNode): Box[] {
+  return [...host.querySelectorAll<HTMLElement>(".whole-map, .sheet-compass")].map(control => control.getBoundingClientRect());
+}
+
 /** How far past the coast a story's nameplate starts, in ground units. */
 export const NAMEPLATE_GAP = 3;
 
@@ -44,15 +69,15 @@ const clipped = (box: Box, frame: Box) => box.left + NAME_OVERLAP_SLACK < frame.
  * Which story names fade where names overlap on screen (ADR-0917): no name moves off its island to clear another. The selected
  * story's shows first, then the names not dimmed, each the more squarely its island faces the eye the sooner; a name that would
  * overlap one already shown fades. A name the map's `frame` cuts (the rail's edge, the window's) fades too, the selected one
- * also, and crowds no other (3.4).
+ * also, and crowds no other (3.4); so does one under the map's `controls` (the Whole map button, the compass: 3.106).
  */
-export function fadedPlates(plates: readonly ShownPlate[], selected?: string, frame?: Box): Set<string> {
+export function fadedPlates(plates: readonly ShownPlate[], selected?: string, frame?: Box, controls: readonly Box[] = []): Set<string> {
   const order = [...plates].sort((a, b) => Number(b.story === selected) - Number(a.story === selected)
     || Number(a.dimmed ?? false) - Number(b.dimmed ?? false) || b.facing - a.facing);
   // Taken in order, each name shows if it clears the names already shown; the rest fade. A faded name fades no other.
   const shown: Box[] = [], faded = new Set<string>();
   for (const plate of order) {
-    if (frame !== undefined && clipped(plate.box, frame)) faded.add(plate.story);
+    if (frame !== undefined && clipped(plate.box, frame) || controls.some(control => overlaps(plate.box, control))) faded.add(plate.story);
     else if (shown.some(other => overlaps(plate.box, other))) faded.add(plate.story);
     else shown.push(plate.box);
   }
@@ -122,11 +147,11 @@ export function nameMoves(names: readonly { capability: string; box: Box; given:
   return changed;
 }
 
-/** Which story names fade (`fadedPlates`, within the map's `frame`), and the moves that take the capability names shown off each
- * other and off the story names that still show, never off one faded (3.33). */
-export function crowdedNames(stories: readonly ShownPlate[], selected: string | undefined, names: Parameters<typeof nameMoves>[0], frame?: Box): { faded: Set<string>; moves: Map<string, Move> } {
-  const faded = fadedPlates(stories, selected, frame);
-  return { faded, moves: nameMoves(names, stories.filter(plate => !faded.has(plate.story)).map(plate => plate.box)) };
+/** Which story names fade (`fadedPlates`, within the map's `frame` and off its `controls`), and the moves that take the capability
+ * names shown off each other, off the map's controls (3.106) and off the story names that still show, never off one faded (3.33). */
+export function crowdedNames(stories: readonly ShownPlate[], selected: string | undefined, names: Parameters<typeof nameMoves>[0], frame?: Box, controls: readonly Box[] = []): { faded: Set<string>; moves: Map<string, Move> } {
+  const faded = fadedPlates(stories, selected, frame, controls);
+  return { faded, moves: nameMoves(names, [...controls, ...stories.filter(plate => !faded.has(plate.story)).map(plate => plate.box)]) };
 }
 
 /** The globe's south as it lies on a plate turned by `plate` on the unturned globe: the way to its south pole along the surface, in the plate's own ground (x, z). */

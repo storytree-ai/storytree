@@ -36,6 +36,8 @@ import { checkedWaitFor, INCREMENT_BLOCKER, type WaitWrite } from "./wait-writes
 
 /** The owner's voice note or one of his questions, named in an increment's body or links: work that came from his answer. */
 const FROM_HIS_ANSWER = /\b(?:voice\.note|question)_[0-9a-f]{12}\b/;
+/** A question named in text. */
+const QUESTION = /\bquestion_[0-9a-f]{12}\b/g;
 
 /** Where an increment is in its lifecycle. */
 export type IncrementStatus = (typeof INCREMENT_STATUSES)[number];
@@ -270,7 +272,7 @@ export class WorkInFlight {
    * remedies or increment it waits on that is not live). A wait given at birth needs no loop check,
    * since nothing can wait on a record not yet written. It is a proposal, stamped with when it was parked, or, given an
    * `outcome`, born closed. A proposal whose capabilities list names a capability already on another open increment's
-   * list is refused (RangeError), naming that increment, its title and its arc, so a second drain routes to the one
+   * list is refused (RangeError), naming every such increment, its title and its arc, so a second drain routes to the one
    * already parked (10.35): unless it is born waiting on that increment, as a later step of a split is, or on the claim of
    * every capability they share, as work split off a held capability is (ADR-1228 D1).
    */
@@ -283,10 +285,11 @@ export class WorkInFlight {
       if (outcome === undefined) {
         // Born waiting on that increment, or on the claim of every capability it shares (ADR-1228 D1), it follows that work.
         const follows = new Set((fields.waits ?? []).map(({ on }) => on));
-        const shared = (await this.openListing(fields.capabilities ?? [])).find((other) => !follows.has(other.increment) && !other.capabilities.every((capability) => follows.has(capability)));
-        if (shared !== undefined) {
-          const claims = shared.capabilities.map((capability) => `${capability}'s claim`).join(" and ");
-          throw new RangeError(`${listedSaid(shared)}: route this work to that increment, or, if it follows that one, park it waiting on it, or, if it waits only for the capability, on ${claims}`);
+        const shared = (await this.openListing(fields.capabilities ?? [])).filter((other) => !follows.has(other.increment) && !other.capabilities.every((capability) => follows.has(capability)));
+        if (shared.length > 0) {
+          // Every overlap in the one refusal, so a wide list learns its waits from one try (friction_e8ef03cd89fa).
+          const claims = shared.flatMap((other) => other.capabilities).map((capability) => `${capability}'s claim`).join(" and ");
+          throw new RangeError(`${shared.map(listedSaid).join("; ")}: route this work to the increment it belongs to, or, if it follows one, park it waiting on each it follows, or, if it waits only for a capability, on ${claims}`);
         }
       }
       const waitsFor = fields.waitsFor?.map(checkedWaitFor);
@@ -381,11 +384,14 @@ export class WorkInFlight {
    * What a check run on the owner's answer found reaches him (ADR-1259, 10.42): an increment whose body or links name his
    * voice note or a question of his, landed with a note and no pull request to show for it, records an FYI carrying that
    * note, which `fyi list`, the shared briefing and voice offer until it is marked heard. A pull request is told as a
-   * landing already, and a close that did not land found nothing to tell.
+   * landing already, and a close that did not land found nothing to tell. Nor does a close whose note names a question
+   * its increment did not already name (ADR-1259 D2): that result is a new question, which reaches him as that question.
    */
   async #offerFindings({ id, fields }: SchemaRecord<"increment">, close: CloseInput, options?: WriteOptions): Promise<void> {
     if (close.disposition !== "landed" || close.pr !== undefined || close.note === undefined) return;
-    if (!FROM_HIS_ANSWER.test([fields.body, ...(fields.links ?? [])].join("\n"))) return;
+    const from = [fields.body, ...(fields.links ?? [])].join("\n");
+    if (!FROM_HIS_ANSWER.test(from)) return;
+    if ((close.note.match(QUESTION) ?? []).some((question) => !from.includes(question))) return;
     const fyi = { title: `What your answer found: ${fields.title}`, what: close.note, about: id, by: options?.actor ?? "storytree", at: new Date().toISOString() };
     await this.#records.create("fyi", fyi, options);
   }

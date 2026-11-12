@@ -404,3 +404,31 @@ test("2.16 a page's start reads every line of the kinds asked, the lines that de
     assert.deepEqual(await log.start(uniqueProjectName(), { kinds: ["claimed"] }), { lines: [], sessions: [], claims: [], cursor: 0 }, "an empty log starts at 0");
   });
 });
+
+test("2.18 · doorTally counts a window's door-answered lines on the server, its sessions, its first line and each verb's calls, and sends whole only each refusal with its session's next line and each pointed call with its session's next command", async () => {
+  const project = uniqueProjectName();
+  await withLog(async (log) => {
+    const since = new Date(Date.now() - 60 * 60_000).toISOString();
+    let minute = 50;
+    const door = (session: string, verb: string, more: Record<string, unknown> = {}) =>
+      log.append(project, { source: "tool", session, kind: "door-answered", door: "command", verb, outcome: "answered", next: [], ...more } as NewLine, { at: new Date(Date.now() - (minute -= 1) * 60_000).toISOString() });
+    await log.append(project, { source: "tool", session: "before", kind: "door-answered", door: "command", verb: "storytree arc show", outcome: "unknown", word: "list", next: [] } as NewLine, { at: new Date(Date.now() - 2 * 60 * 60_000).toISOString() });
+    const first = await door("a", "storytree arc show");
+    const refused = await door("a", "storytree arc", { outcome: "unknown", word: "list", next: ["storytree arc show"] });
+    const afterRefusal = await door("a", "show_plan", { door: "tool" });
+    await door("a", "storytree arc show");
+    const pointed = await door("b", "storytree arc show", { word: "list", pointedFrom: "storytree arc" });
+    await door("b", "show_plan", { door: "tool" });
+    const nextCommand = await door("b", "storytree adr list");
+    await door("b", "storytree arc show");
+    const last = await door("c", "storytree", { outcome: "unknown", word: "plan" });
+    await log.append(project, { source: "hook", session: "c", kind: "prompt-submitted" } as NewLine);
+
+    const tally = await log.doorTally(project, since);
+    assert.equal(tally.sessions, 3, "the sessions that wrote a door-answered line in the window");
+    assert.equal(tally.first, first.at, "the window's first line");
+    assert.deepEqual(Object.fromEntries(tally.calls), { "storytree arc show": 4, "storytree arc": 1, show_plan: 2, "storytree adr list": 1, storytree: 1 });
+    assert.deepEqual(tally.steps.map((line) => line.seq), [refused.seq, afterRefusal.seq, pointed.seq, nextCommand.seq, last.seq], "each refusal and its next line, each pointed call and its next command, and nothing else");
+    assert.deepEqual(await log.doorTally(project, new Date().toISOString()), { sessions: 0, calls: new Map(), steps: [] }, "a window with no line counts nothing");
+  });
+});

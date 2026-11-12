@@ -9,8 +9,8 @@
  */
 import { LIBRARY_LAND } from "./link-layout.js";
 import type { IslandRoads, RoadGate } from "./island-roads.js";
-import { landArea, onLand, type Point, type TerritoryMap } from "./territories.js";
-import { insideOf, segmentInConvex, toSegment } from "../view/territory-land.js";
+import { insideOf, landArea, onLand, type Point, type TerritoryMap } from "./territories.js";
+import { segmentInConvex, toSegment } from "../view/territory-land.js";
 
 /** Round 11's relief, in The library's ground units: the plateau's height, its ramps, its rims and its standing posts. */
 export const RELIEF = {

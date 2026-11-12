@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { asReader, nameReader, takeReads } from "@storytree/library/reads";
+import { asReader, nameReader, scriptReader, takeReads } from "@storytree/library/reads";
 
 import { withCountedProject, withTestClient } from "../testing/pg.js";
 
@@ -27,4 +27,12 @@ test("28.12 every byte a library connection receives, its handshake included, is
     assert.ok(names.length > 0);
     for (const name of names) assert.match(name, new RegExp(` ${process.pid} arc show$`));
   });
+});
+
+test("28.13 a process that names no reader is counted as the script it runs, or, running none (argv[1] empty or a flag), as having no script, never under a flag", () => {
+  assert.equal(scriptReader(["/usr/bin/node", "/home/me/storytree/dist/pool.mjs", "--once"]), "pool.mjs");
+  assert.equal(scriptReader(["C:\\Program Files\\storytree\\storytree.exe", "--updated"]), "no script (storytree.exe)");
+  assert.equal(scriptReader(["/opt/storytree/storytree"]), "no script (storytree)");
+  assert.equal(scriptReader(["/opt/storytree/storytree", ""]), "no script (storytree)");
+  assert.equal(scriptReader([]), "no script");
 });

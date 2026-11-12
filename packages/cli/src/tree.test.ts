@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.14 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.16 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -121,7 +121,7 @@ test("10.6 in a project whose health nothing verifies, each part gives the agent
   });
 });
 
-test("10.8 a mapped story's line says it is mapped, here before storytree and assumed to be working, with no health of its own; a capability planned on it keeps its own", async () => {
+test("10.8 an imported story's line says it is imported, here before storytree and assumed to be working, with no health of its own; a capability planned on it keeps its own", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const { added: [shop] } = await library.mapStories("/code/shop", [{ package: ".", title: "shop", folders: ["."] }]);
@@ -132,7 +132,7 @@ test("10.8 a mapped story's line says it is mapped, here before storytree and as
     assert.equal(ran.code, 0, ran.stderr);
     const lines = ran.stdout.split(/\r?\n/);
     const line = (id: string): string => lines.find((each) => each.includes(`[${id}]`)) ?? "";
-    assert.match(line(shop!.id), /\]  mapped: here before storytree, and assumed to be working$/, ran.stdout);
+    assert.match(line(shop!.id), /\]  imported: here before storytree, and assumed to be working$/, ran.stdout);
     assert.doesNotMatch(line(shop!.id), /agent says|verified/);
     assert.match(line(capability.id), /agent says not checked/, ran.stdout);
   });
@@ -424,5 +424,26 @@ test("10.15 the plan view reads edges (ADR-1282 D1): `storytree tree` lists each
     const orphaned = await world.run(["contract", "show", contract.id]);
     assert.equal(orphaned.code, 0, orphaned.stderr);
     assert.equal(orphaned.stdout.split(/\r?\n/)[1], `edge: [${edge.id}]`, orphaned.stdout);
+  });
+});
+
+test("10.16 `storytree plan --id <story|capability|arc>` prints that part of the plan as show_plan given the id answers it; `storytree plan <id>` is refused naming `storytree plan --id <id>`", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const form = await library.addCapability({ title: "Email form", story: story.id });
+    await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
+    await library.addStory({ title: "Visitor can log in" });
+    const arc = await library.createArc({ title: "Sign-up works", intent: "Visitors can sign up", endState: "The form sends its email" });
+
+    const one = await world.run(["plan", "--id", story.id]);
+    assert.equal(one.code, 0, one.stderr);
+    assert.match(one.stdout, new RegExp(`^Story "Visitor can sign up" \\(${story.id}\\)`));
+    assert.match(one.stdout, /Contract "1\.1 · Rejects an email with no @"/);
+    assert.doesNotMatch(one.stdout, /Visitor can log in|Sign-up works/);
+
+    const word = await world.run(["plan", arc.id]);
+    assert.equal(word.code, 2, word.stdout);
+    assert.match(word.stderr, new RegExp(`storytree plan --id ${arc.id}`));
   });
 });

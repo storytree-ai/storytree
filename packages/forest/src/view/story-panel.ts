@@ -7,7 +7,7 @@
  * click opens (ADR-1287; ./panel-folds.ts works them). The island draws the capability tree and the territories carry
  * health, so the panel draws neither (ADR-1285). Every word from the library is written as text, never as HTML.
  */
-import type { AcceptanceState, CapabilityLine, CheckReading, ContractLine, StoryPanel, WhyLine } from "@storytree/forest";
+import type { AcceptanceState, CapabilityLine, CheckReading, ContractLine, EdgeLine, StoryPanel, WhyLine } from "@storytree/forest";
 import type { HealthSource, HealthState } from "@storytree/library";
 
 /**
@@ -22,7 +22,7 @@ import type { HealthSource, HealthState } from "@storytree/library";
 export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { details = true, gate, open }: { details?: boolean; gate?: readonly [string, string] | undefined; open?: readonly string[] | undefined } = {}): string {
   if (gate !== undefined) return `${head(panel.title)}${gateLinks(panel, gate, open)}`;
   const shown = details ? panel.capabilities.find(({ id }) => id === selected) : undefined;
-  if (shown !== undefined) return `${head(shown.title, panel.title)}${capability(shown)}`;
+  if (shown !== undefined) return `${head(shown.title, panel.title)}${capability(shown, panel.edges ?? [])}`;
   return `${head(panel.title)}
     ${description(panel.description, "panel-sentences")}
     ${panel.mapped === undefined ? "" : mapped(panel.mapped, panel.capabilities)}
@@ -46,11 +46,18 @@ function description(words: string, kind: string): string {
   return `<div class="${kind}">${paragraphs.map((paragraph) => `<p>${text(paragraph)}</p>`).join("")}</div>`;
 }
 
-/** A story's capabilities by name, in build order, each a button that opens that capability (ADR-1297); with none, nothing. */
+/**
+ * A story's capabilities by name, in build order, each a button that opens that capability (ADR-1297), and each the owner
+ * moves marked "needs you" after its name, so the "n capabilities need you" line points at its rows; with none, nothing.
+ */
 function names(capabilities: readonly CapabilityLine[]): string {
   if (capabilities.length === 0) return "";
   return `<ul class="panel-capabilities" aria-label="Capabilities">${capabilities
-    .map(({ id, title }) => `<li><button type="button" class="panel-pick" data-pick-capability="${attribute(id)}">${text(title)}</button></li>`)
+    .map(({ id, title, why }) => {
+      const owner = why?.mover === "owner";
+      const button = `<button type="button" class="panel-pick" data-pick-capability="${attribute(id)}">${text(title)}</button>`;
+      return owner ? `<li class="needs-you">${button} <span class="panel-needs-you-mark">needs you</span></li>` : `<li>${button}</li>`;
+    })
     .join("")}</ul>`;
 }
 
@@ -88,14 +95,14 @@ function failing(contracts: readonly ContractLine[]): string {
 }
 
 /**
- * What a mapped story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. It is
+ * What an imported story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. It is
  * assumed to be working only until storytree holds a reading on any of its parts: a gear passing or failing, or a robot
  * passed or failed (Fable's F2.7).
  */
 function mapped({ files, lines }: NonNullable<StoryPanel["mapped"]>, capabilities: readonly CapabilityLine[]): string {
   const counts = files === undefined || lines === undefined ? "" : ` ${files.toLocaleString("en-GB")} file${files === 1 ? "" : "s"}, ${lines.toLocaleString("en-GB")} line${lines === 1 ? "" : "s"}.`;
   const read = capabilities.some(({ contracts }) => contracts.some(({ gear, acceptance }) => (gear !== undefined && gear.state !== "not-checked") || (acceptance !== undefined && acceptance !== "not-run")));
-  return `<p class="panel-mapped"><strong>Mapped:</strong> here before storytree${read ? "." : ", and assumed to be working."}${counts}</p>`;
+  return `<p class="panel-mapped"><strong>Imported:</strong> here before storytree${read ? "." : ", and assumed to be working."}${counts}</p>`;
 }
 
 type ExtraCheck = NonNullable<StoryPanel["checks"]>[number];
@@ -112,10 +119,41 @@ function extraChecks(checks: readonly ExtraCheck[]): string {
     .join("")}</ul>`);
 }
 
-/** A capability's contracts, each with its own state on show (ADR-1297); with none, it says so. */
-function contracts(line: CapabilityLine): string {
-  if (line.contracts.length === 0) return `<p class="panel-muted">No contracts yet.</p>`;
-  return `<h3 class="panel-subhead">Contracts</h3>${contractList(line.contracts)}`;
+/**
+ * A capability's contracts, each with its own state on show (ADR-1297); with none, it says so, and where its guarantees sit
+ * when its links carry them: how many on each link, by the other part and its direction, and their states (Fable's F4.7, F5.5).
+ * They stay the links' own: the capability's colour counts only its own contracts (ADR-1279 D3, question_db632f671942).
+ */
+function contracts(line: CapabilityLine, edges: readonly EdgeLine[]): string {
+  if (line.contracts.length > 0) return `<h3 class="panel-subhead">Contracts</h3>${contractList(line.contracts)}`;
+  const links = edges.filter(({ from, to, contracts: carried }) => (from === line.id || to === line.id) && carried.length > 0);
+  if (links.length === 0) return `<p class="panel-muted">No contracts yet.</p>`;
+  const where = links.map(({ from, fromTitle, toTitle, contracts: carried }) => {
+    const numbers = carried.flatMap(({ title }) => /^(\d+\.\d+) · /.exec(title)?.[1] ?? []);
+    return `${carried.length} on its link ${from === line.id ? `to ${toTitle}` : `from ${fromTitle}`}${numbers.length === 0 ? "" : ` (${numbers.join(", ")})`}`;
+  });
+  return `<p class="panel-muted panel-on-links">${text(`No contracts on this part; ${listed(where)}, ${states(links.flatMap(({ contracts: carried }) => carried))}.`)}</p>`;
+}
+
+/** Words joined as the owner reads them: "a", "a and b", "a, b and c". */
+function listed(words: readonly string[]): string {
+  return words.length < 2 ? (words[0] ?? "") : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
+}
+
+/** Contracts' states in one phrase: "both verified passing", or each state counted when they differ. */
+function states(contracts: readonly ContractLine[]): string {
+  const counts = new Map<string, number>();
+  for (const contract of contracts) counts.set(stateWords(contract), (counts.get(stateWords(contract)) ?? 0) + 1);
+  if (counts.size > 1) return listed([...counts].map(([words, count]) => `${count} ${words}`));
+  const [words = ""] = counts.keys();
+  return contracts.length === 1 ? words : contracts.length === 2 ? `both ${words}` : `all ${contracts.length} ${words}`;
+}
+
+/** One contract's state in a sentence, from its checks as its icons show them; the agent's report says nothing here (ADR-0630). */
+function stateWords({ gear, acceptance }: ContractLine): string {
+  if (gear !== undefined && gear.state !== "not-checked") return `verified ${gear.state}`;
+  if (gear === undefined && acceptance !== undefined && acceptance !== "not-run") return `${acceptance} acceptance testing`;
+  return "not run yet";
 }
 
 /**
@@ -168,7 +206,7 @@ function run({ state, source, at }: CheckReading): string {
  * report-only project; where it is parked; its whole description; its open work; then its contracts. Its health is the
  * territory's to show (ADR-1295), so it has no word and no Health fold here.
  */
-function capability(line: CapabilityLine): string {
+function capability(line: CapabilityLine, edges: readonly EdgeLine[]): string {
   return `
     <section class="panel-detail" data-capability-id="${attribute(line.id)}">
       ${line.reportOnly ? "" : lead(line)}
@@ -176,7 +214,7 @@ function capability(line: CapabilityLine): string {
       ${line.parkedOn === undefined ? "" : parked(line.parkedOn)}
       ${description(line.description, "panel-lead")}
       ${line.openWork === undefined || line.openWork.length === 0 ? "" : openWork(line.openWork)}
-      ${contracts(line)}
+      ${contracts(line, edges)}
     </section>`;
 }
 

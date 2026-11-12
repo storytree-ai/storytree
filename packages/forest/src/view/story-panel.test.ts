@@ -119,6 +119,17 @@ test("4.6 a story's surface says how many of its capabilities need the owner, on
   assert.ok(html.indexOf("panel-needs-you") > html.indexOf("What s is. Why."), "under the story's lead");
 });
 
+test("4.6 a story's surface marks which of its capabilities need the owner, by name, so its count points somewhere", () => {
+  const owner = (id: string): CapabilityLine => ({ ...line(id, "not-checked", "untested"), why: { reason: "needs owner", mover: "owner", contracts: ["8.1"] } });
+  const agent: CapabilityLine = { ...line("a", "failing", "unhealthy"), why: { reason: "failing", mover: "agent", contracts: ["1.1"] } };
+  const html = renderStoryPanel({ ...panel, capabilities: [agent, owner("x"), line("h", "passing", "healthy"), owner("y")] }, undefined);
+  const marked = [...html.matchAll(/<li([^>]*)><button type="button" class="panel-pick" data-pick-capability="([^"]+)">[\s\S]*?<\/button>([\s\S]*?)<\/li>/g)]
+    .filter(([, attributes, , after]) => /needs-you/.test(attributes!) && plainText(after!) === "needs you")
+    .map(([, , id]) => id);
+  assert.deepEqual(marked, ["x", "y"], "the rows the owner moves, and no other, say so");
+  assert.deepEqual(names(html).map(([id]) => id), ["a", "x", "h", "y"], "in build order still, each name unchanged");
+});
+
 test("4.8 the panel draws no tree, card or pop-out: its one pick is a story's capability names, each a button naming the capability it opens", () => {
   const html = renderStoryPanel(panel, undefined);
   assert.doesNotMatch(html, /<svg|panel-tree|data-open-tree|role="button"|tabindex/, "no tree and no card to click");
@@ -274,10 +285,10 @@ test("4.12 a healthy capability says nothing more, and a contract not re-run say
   assert.doesNotMatch(renderStoryPanel(notGreen(undefined), "cap"), /not re-run since/);
 });
 
-test("4.15 a mapped story's panel says it was here before storytree, assumed to be working until storytree holds a reading on any of its parts, with its files and lines, and shows no health", () => {
+test("4.15 an imported story's panel says it was here before storytree, assumed to be working until storytree holds a reading on any of its parts, with its files and lines, and shows no health", () => {
   const mapped: StoryPanel = { story: "m", title: "Cart", description: "no description yet", capabilities: [], mapped: { files: 2, lines: 1200 } };
   const html = renderStoryPanel(mapped, undefined);
-  assert.match(html, /class="panel-mapped"/);
+  assert.match(html, /class="panel-mapped"><strong>Imported:<\/strong>/);
   assert.match(html, /here before storytree/i);
   assert.match(html, /assumed to be working/);
   assert.match(html, /2 files, 1,200 lines/);
@@ -291,7 +302,7 @@ test("4.15 a mapped story's panel says it was here before storytree, assumed to 
   assert.match(renderStoryPanel({ ...mapped, capabilities: [unread] }, undefined), /assumed to be working/, "parts not run yet are no reading");
   for (const contract of [{ ...unread.contracts[0]!, gear: { state: "failing" as const } }, { ...unread.contracts[0]!, gear: { state: "passing" as const } }, { ...unread.contracts[0]!, acceptance: "failed" as const }]) {
     const read = renderStoryPanel({ ...mapped, capabilities: [unread, { ...unread, id: "read", contracts: [contract] }] }, undefined);
-    assert.equal(plainText(/<p class="panel-mapped">[\s\S]*?<\/p>/.exec(read)![0]), "Mapped: here before storytree. 2 files, 1,200 lines.", "once any part has a reading");
+    assert.equal(plainText(/<p class="panel-mapped">[\s\S]*?<\/p>/.exec(read)![0]), "Imported: here before storytree. 2 files, 1,200 lines.", "once any part has a reading");
   }
 });
 
@@ -418,4 +429,24 @@ test("4.49 a capability's lead says why it is not green in counts of its contrac
   const unnamed = four.map((one) => ({ ...one, gear: { state: "not-checked" as const } }));
   assert.equal(whyLine(cap({ status: "untested", contracts: unnamed, why: { reason: "no test names it", mover: "agent", contracts: ["3.2", "3.3", "3.4"] } })), "Why not green: no test names 3 of 4 contracts. No open work moves it yet.");
   assert.equal(whyLine(cap({ status: "untested", contracts: unnamed, why: { reason: "needs owner", mover: "owner", contracts: ["3.1"] }, openWork: [task] })), "Why not green: 1 of 4 contracts needs something only you can give. You move this one.");
+});
+
+test("4.54 a capability with no contracts of its own says how many sit on each of its links, by the other part and its direction, and their states", () => {
+  const passing = (id: string, title: string) => ({ id, title, reported: "passing" as const, trail: "green only", gear: { state: "passing" as const, source: "ci" as const } });
+  const bare: CapabilityLine = { ...line("caller", "passing", "untested"), title: "Caller identity", contracts: [] };
+  const story = (edges: NonNullable<StoryPanel["edges"]>): StoryPanel => ({ ...panel, capabilities: [line("api", "passing", "healthy"), bare, line("audit", "passing", "healthy")], edges });
+  const said = (html: string) => plainText(/<section class="panel-detail"[\s\S]*<\/section>/.exec(html)![0]);
+  const inbound = { from: "api", fromTitle: "HTTP API", to: "caller", toTitle: "Caller identity", contracts: [passing("e1", "5.10 · the API names its caller"), passing("e2", "5.11 · an unnamed caller is refused")] };
+  const html = renderStoryPanel(story([inbound, { from: "api", fromTitle: "HTTP API", to: "audit", toTitle: "Audit", contracts: [passing("e3", "5.12 · not this part's")] }]), "caller");
+  assert.match(said(html), /No contracts on this part; 2 on its link from HTTP API \(5\.10, 5\.11\), both verified passing\./);
+  assert.doesNotMatch(html, /No contracts yet|5\.12/, "neither the old line nor a link it is not on");
+  const mixed = renderStoryPanel(story([inbound, { from: "caller", fromTitle: "Caller identity", to: "audit", toTitle: "Audit", contracts: [{ ...passing("e4", "5.13 · the audit records the caller"), gear: { state: "failing" as const } }] }]), "caller");
+  assert.match(said(mixed), /No contracts on this part; 2 on its link from HTTP API \(5\.10, 5\.11\) and 1 on its link to Audit \(5\.13\), 2 verified passing and 1 verified failing\./);
+  const unnumbered = renderStoryPanel(story([{ ...inbound, contracts: [passing("u1", "names it"), passing("u2", "refuses"), passing("u3", "logs")] }]), "caller");
+  assert.match(said(unnumbered), /No contracts on this part; 3 on its link from HTTP API, all 3 verified passing\./, "no numbers to name, and three counted as all");
+  const unrun = { id: "n1", title: "5.14 · not run", reported: "passing" as const, trail: "green only" };
+  const accepted = { ...unrun, id: "n2", title: "5.15 · accepted", acceptance: "passed" as const };
+  const gearless = renderStoryPanel(story([{ ...inbound, contracts: [unrun, accepted, { ...unrun, id: "n3", title: "5.16 · gear not run", gear: { state: "not-checked" as const } }] }]), "caller");
+  assert.match(said(gearless), /3 on its link from HTTP API \(5\.14, 5\.15, 5\.16\), 2 not run yet and 1 passed acceptance testing\./, "the agent's report says nothing; acceptance testing speaks where no gear does");
+  assert.match(renderStoryPanel(story([{ ...inbound, contracts: [] }]), "caller"), /No contracts yet\./, "a link with no contracts leaves the part saying it has none");
 });

@@ -130,7 +130,7 @@ test("3.46 a part carved out of land already filled keeps that fill until its ow
     const material = (land.getObjectByName(`territory:${name}`) as Mesh).material as MeshBasicMaterial;
     return { colour: material.color.getHexString(), opacity: material.opacity };
   };
-  // The brown remainder of a mapped story covers both squares; then a capability is carved out of the second.
+  // The brown remainder of an imported story covers both squares; then a capability is carved out of the second.
   const before = territoryLand({ territories: [{ mapped: true }], cells: [{ territory: 0, polygon: square(0) }, { territory: 0, polygon: square(2) }], borders: [] }, flat);
   const after = territoryLand({ territories: [{ mapped: true }, { capability: "stats", mapped: true, status: "untested" }],
     cells: [{ territory: 0, polygon: square(0) }, { territory: 1, polygon: square(2) }], borders: [{ from: { x: 2, z: 0 }, to: { x: 2, z: 2 } }] }, flat);

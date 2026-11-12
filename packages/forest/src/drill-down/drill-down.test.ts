@@ -184,7 +184,7 @@ test("4.12 a contract whose last verdict was not re-run carries what it last saw
   assert.equal(second?.lastSeen, undefined);
 });
 
-test("4.15 a mapped story's panel says it is mapped, with its files and lines from the survey; a built story's says nothing of it", () => {
+test("4.15 an imported story's panel says it is imported, with its files and lines from the survey; a built story's says nothing of it", () => {
   const mapped: AnnotatedStory = { ...story("old"), mapped: { from: "/code/shop", package: "packages/cart", folders: ["packages/cart"] } };
   const tree: AnnotatedTree = { stories: [mapped, story("new", capability("a", []))], arcs: [] };
   const survey = { old: { files: [{ path: "packages/cart/src/a.ts", lines: 120 }, { path: "packages/cart/src/b.ts", lines: 80 }], imports: [], mapped: { folder: "/code/shop" } } };
@@ -258,4 +258,14 @@ test("4.49 each open increment a capability carries keeps what still holds it, f
   const open = [{ increment: "inc-1", title: "Task 1", waits: [{ kind: "work" as const, on: "inc-0", title: "Harness", state: "ready" as const }, { kind: "owner" as const, note: "sign in" }] }, { increment: "inc-2", title: "Free" }];
   const tree: AnnotatedTree = { stories: [story("s", { ...capability("busy", []), openWork: open })], arcs: [] };
   assert.deepEqual(drillDown(tree, "s", workStates([]), [])?.capabilities[0]?.openWork, open);
+});
+
+test("4.53 a capability's contracts, and a link's, come in the order their numbers say, 6.2 before 6.10, with any unnumbered after them in the library's order", () => {
+  const titled = (id: string, title: string): AnnotatedContract => ({ ...contract(id, "passing"), title });
+  const listed = [titled("a", "6.3 · c"), titled("loose", "no number"), titled("b", "6.10 · j"), titled("c", "6.1 · a"), titled("d", "6.2 · b")];
+  const edge = { id: "edge-1", from: "c", to: "d", contracts: [titled("e2", "7.2 · y"), titled("e1", "7.1 · x")] };
+  const tree: AnnotatedTree = { stories: [{ ...story("s", capability("c", ["d"], listed), capability("d", [])), edges: [edge] }], arcs: [] };
+  const panel = drillDown(tree, "s", workStates([]), []);
+  assert.deepEqual(panel?.capabilities.find(({ id }) => id === "c")?.contracts.map(({ id }) => id), ["c", "d", "a", "b", "loose"]);
+  assert.deepEqual(panel?.edges?.[0]?.contracts.map(({ id }) => id), ["e1", "e2"]);
 });

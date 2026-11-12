@@ -35,7 +35,7 @@ On the Mint box the service host (`storytree-host.service`, a systemd user unit 
 the two services, turned on in the box's settings (`storytree settings set service agent-pool/dispatcher on`, and the
 same for `agent-pool/watcher`). They replace the crontab keeper (`keep.mjs`, increment_89c736caa64a) and the
 `launch-pool.sh run` loop, both retired. `pause.mjs` writes `pool-stop`, which the dispatcher's service reads as "leave it
-stopped"; `pause.mjs resume` removes it and starts nothing itself. `storytree settings set part agent-pool off` stops
+stopped"; `pause.mjs resume` removes it and starts nothing itself. `storytree settings set module agent-pool off` stops
 both services (a stand-in's run under the same names, if one is named).
 
 ## The laptop's dispatcher (ADR-1179)

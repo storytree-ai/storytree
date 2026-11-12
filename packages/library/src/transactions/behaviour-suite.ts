@@ -796,6 +796,13 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.deepEqual(await store.history(), after, "a refused batch writes nothing");
     assert.equal(await store.get("b-4"), null);
     assert.deepEqual(await store.saveAll([]), [], "an empty batch writes nothing");
+
+    // More than one statement's worth on Postgres (SAVE_CHUNK), still in the order given.
+    const last = (await store.history()).at(-1)!.seq;
+    const many = Array.from({ length: 2501 }, (_, n) => ({ id: `m-${2501 - n}`, type: "note", fields: { n } }));
+    await store.saveAll(many);
+    assert.deepEqual((await store.history({ since: last })).map(({ recordId }) => recordId), many.map(({ id }) => id), "a big batch's entries in the order given");
+    assert.equal((await store.list("note", { ids: many.map(({ id }) => id) })).length, 2501);
   });
 
 }

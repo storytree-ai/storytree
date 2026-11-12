@@ -1316,30 +1316,43 @@ test("5.8 one reason per capability that is not healthy, the agent's work ranked
 });
 
 test("5.29 [postgres] recordVerifiedAll writes a story's verdicts in as many round trips to the server for thirty contracts as for two", async () => {
-  const library = await postgres.open();
-  const pg = await import("pg");
-  const query = pg.default.Client.prototype.query;
-  let count = 0;
+  const name = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
   try {
-    const story = await library.work.addStory({ title: "Visitor can sign up" });
-    const capability = await library.work.addCapability({ title: "Email form", story: story.id });
+    const { work, health, pool } = await storytree.openProject(name);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const capability = await work.addCapability({ title: "Email form", story: story.id });
     const contracts = [];
-    for (let n = 0; n < 32; n++) contracts.push((await library.work.addContract({ title: `Contract ${n}`, capability: capability.id })).id);
-    const counted = async (ids: readonly string[]): Promise<number> => {
+    for (let n = 0; n < 32; n++) contracts.push((await work.addContract({ title: `Contract ${n}`, capability: capability.id })).id);
+    // Every query the project sends, on a connection taken from its pool (pool.query takes one too), each counted once.
+    let count = 0;
+    const counted = new WeakSet<object>();
+    const counting = <T extends { query: (...args: never[]) => unknown }>(client: T): T => {
+      if (counted.has(client)) return client;
+      counted.add(client);
+      const query = client.query.bind(client) as (...args: unknown[]) => unknown;
+      client.query = ((...args: unknown[]) => (count++, query(...args))) as T["query"];
+      return client;
+    };
+    type Taken = { query: (...args: never[]) => unknown };
+    const connect = pool.connect.bind(pool) as unknown as (done?: (error: unknown, client: Taken | undefined, release: unknown) => void) => Promise<Taken> | undefined;
+    pool.connect = ((done?: (error: unknown, client: Taken | undefined, release: unknown) => void) =>
+      done === undefined ? connect()!.then(counting) : connect((error, client, release) => done(error, client === undefined ? client : counting(client), release))) as unknown as typeof pool.connect;
+    const queries = async (ids: readonly string[]): Promise<number> => {
       count = 0;
-      await library.health.recordVerifiedAll(ids.map((contractId) => ({ contractId, state: "passing" as const, options: { by: "storytree test run on CI", source: "ci" as const } })));
+      await health.recordVerifiedAll(ids.map((contractId) => ({ contractId, state: "passing" as const, options: { by: "storytree test run on CI", source: "ci" as const } })));
       return count;
     };
-    pg.default.Client.prototype.query = function (this: unknown, ...args: unknown[]) {
-      count++;
-      return (query as (...args: unknown[]) => unknown).apply(this, args);
-    } as typeof query;
-    const two = await counted(contracts.slice(0, 2));
-    const thirty = await counted(contracts.slice(2));
+    const two = await queries(contracts.slice(0, 2));
+    const thirty = await queries(contracts.slice(2));
+    assert.ok(two > 0, "control: the queries are counted");
     assert.equal(thirty, two, `thirty contracts take ${thirty} queries, two ${two}`);
     assert.ok(two <= 10, `a few round trips, not a few per contract: ${two}`);
   } finally {
-    pg.default.Client.prototype.query = query;
-    await library.cleanup();
+    try {
+      await storytree.close();
+    } finally {
+      await dropTestDatabases([`storytree_${name}`]);
+    }
   }
 });

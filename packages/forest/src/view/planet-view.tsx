@@ -70,13 +70,15 @@ export type PlanetViewProps = {
   /** Hears a click on an island, or undefined for empty space. */
   onPick: (story: string | undefined, capability?: string, gate?: readonly [string, string]) => void;
   onNote: (note: string) => void;
+  /** Hears a click on a shared store's slab, by its address (3.110). */
+  onStore: (address: string) => void;
   /** Given, the canvas tells it that some lanes could not be drawn and lays no notice of its own (4.45), for the page's top row (3.103). */
   onLanesNotice?: ((notice: LanesNotice | undefined) => void) | undefined;
 };
 
 /** The forest drawn on the glass sheet, depth running west to east (ADR-1043): the user tilts it from above to below
  * (ADR-1062 D2); `mode` changes only its look, never the eye (D3). */
-export function PlanetView({ core, scene, places, wisps: live, selected, selectedCapability, highlighted, circled: circledList, circledContracts, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, recordedSessions, onLanesNotice }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, selectedCapability, highlighted, circled: circledList, circledContracts, onPick, onNote, onStore, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, recordedSessions, onLanesNotice }: PlanetViewProps) {
   // In the glass sheet's Library the glass is clear and the islands hollow outlines with their names over the knowledge, from
   // every angle (ADR-1061 D2, ADR-1062 D3): the button pressed decides, never the side the eye is on.
   const outlines = mode === "library";
@@ -166,12 +168,13 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
   const floor = useCallback((size: { width: number; height: number }) => sheetOpening(layout.extent, size).framing, [layout.extent]);
   const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>,
     [library, outlines, core, codePlaces, underSheet, growth]);
-  return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
+  const storeSpots = useMemo(() => new Map(layout.stores.map(store => [store.address, store.spot])), [layout.stores]);
+  return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} storeSpots={storeSpots} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} floor={floor} sideOffset={cameraOffset} sheet={layout.extent} hollow={outlines}
     globe={globe} offset={turned.current.centre} inside={inside}
     rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth} onLanesNotice={onLanesNotice}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={titles}
-      rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onGate={setGate} onNote={onNote} mode={mode} sheet={layout.extent} arcSelected={circledList !== undefined}
+      rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onGate={setGate} onNote={onNote} onStore={onStore} mode={mode} sheet={layout.extent} arcSelected={circledList !== undefined}
       sideOffset={sideOffset ?? 0} aside={aside} selected={selected}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} aside={aside} />
@@ -517,7 +520,7 @@ export const NAVIGATION_SEAM = "__storytreeCaptureNavigation";
 /** What Navigation hands a capture build's `NAVIGATION_SEAM`. */
 export type CapturedNavigation = { rotation: Quaternion; onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void };
 
-function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onGate, onNote, mode, showFailures, sideOffset, aside, selected, sheet, arcSelected = false }: {
+function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onGate, onNote, onStore, mode, showFailures, sideOffset, aside, selected, sheet, arcSelected = false }: {
   /** An arc is selected: a click on land that is no part or gate is let go (3.105). */
   arcSelected?: boolean;
   /** Hears a click on a gate (3.88), and undefined for a click on anything else. */
@@ -544,6 +547,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void;
   onPick: (story: string | undefined, capability?: string, gate?: readonly [string, string]) => void;
   onNote: (note: string) => void;
+  onStore: (address: string) => void;
 }) {
   const { camera, gl, scene, size, invalidate } = useThree();
   // The host sets the turn on the globe's group, so it is drawn on the next frame asked for.
@@ -876,6 +880,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       onGate(clicked.gate);
       const hit = clicked.hit;
       if (hit?.kind === "note") onNote(hit.id);
+      else if (hit?.kind === "store") onStore(hit.id);
       else onPick(hit?.id, hit?.capability, hit?.gate);
     };
     const onWheel = (event: WheelEvent): void => {
@@ -908,7 +913,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       element.removeEventListener("contextmenu", onMenu);
       element.style.cursor = "";
     };
-  }, [camera, gl, scene, titles, onPick, onGate, onNote, turnTo, sheet, spinBy, spinTiltBy]);
+  }, [camera, gl, scene, titles, onPick, onGate, onNote, onStore, turnTo, sheet, spinBy, spinTiltBy]);
 
   // Pinned to the canvas, not to the sheet's middle: under a side offset (3.40) the pointer's tooltip, the edge markers
   // and the compass would otherwise move twice.

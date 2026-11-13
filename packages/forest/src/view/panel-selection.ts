@@ -2,7 +2,8 @@
  * by a gate, the pair of capabilities the gate joins (3.88); and by a capability's name on the story's panel, that capability (4.8). */
 import type { GlobeSwitches, SheetFace } from "./globe-switches.js";
 
-export type Selection = { kind: "story"; id: string; capability?: string; gate?: readonly [string, string] } | { kind: "note"; id: string } | undefined;
+/** A store is picked by its address (ADR-1332 D1). */
+export type Selection = { kind: "story"; id: string; capability?: string; gate?: readonly [string, string] } | { kind: "note"; id: string } | { kind: "store"; id: string } | undefined;
 
 export class PanelSelection {
   current: Selection;
@@ -18,11 +19,12 @@ export class PanelSelection {
   /** A capability's name clicked on the open story's panel: that story, on that capability, as its territory's click would pick it (4.8). */
   capability(capability: string): void { if (this.current?.kind === "story") this.story(this.current.id, capability); }
   note(id: string): void { this.show({ kind: "note", id }); }
+  store(address: string): void { this.show({ kind: "store", id: address }); }
   close(): void { this.show(undefined); }
   key(key: string): void { if (key === "Escape") this.close(); }
   /** Stories off hides the islands, so a selected story and its panel go; Library off hides the notes, so a note's card goes (3.10). */
   switched(switches: GlobeSwitches): void {
-    if ((!switches.stories && this.current?.kind === "story") || (!switches.library && this.current?.kind === "note")) this.close();
+    if ((!switches.stories && (this.current?.kind === "story" || this.current?.kind === "store")) || (!switches.library && this.current?.kind === "note")) this.close();
   }
   /** The glass sheet's `face` pressed: a story stays selected in both looks, and pressing Stories closes a note's card (ADR-1043 D3, ADR-1062 D3). */
   turned(face: SheetFace): void {

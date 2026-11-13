@@ -13,6 +13,7 @@ import { focusRotation, markersApart, markerSpot } from "./planet-navigation.js"
 import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPointerMarkers, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
 import { STORY_PLATE_WIDTH } from "./nameplates.js";
+import { islandCoastReach } from "@storytree/forest-world/geometry";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const size = { width: 1440, height: 960 };
@@ -536,4 +537,44 @@ test("3.89 · a session's pointer drawn outside the canvas gets an edge marker i
   marks.frame(1, { zoom: 2, eye: down, reduced: true });
   assert.deepEqual(sheetPointerMarkers(world, islands, drawn, size), [], "none once the pointer goes");
   marks.dispose();
+});
+
+test("3.109 each shared store is placed beside the islands, never on one, with its tables inside it, on the glass; a project with no store evidence has none", () => {
+  const ids = ["account", "comment", "feed", "articles", "follow"];
+  const tree: AnnotatedTree = { arcs: [], stories: ids.map((id, k) => ({ id, title: `Story ${id}`, health, capabilities: [
+    { id: `${id}-cap`, title: "A part", dependsOn: k > 0 ? [`${ids[k - 1]}-cap`] : [], proposed: true, status: "proposed" as const, contracts: [], health },
+  ] })) };
+  const history = ids.map((id, index): Change => ({ seq: index + 1, recordId: id, type: "story", action: "created",
+    record: { id, type: "story", version: 1, fields: { title: id }, createdAt: new Date(index).toISOString(), updatedAt: new Date(index).toISOString() } }));
+  const places = new Map(storyNodes(tree, history).map(node => [node.id, node.place]));
+  const column = (name: string) => ({ name, type: "integer" });
+  const stores = [
+    { address: "postgres://db/shop", medium: "postgres" as const, evidence: [{ file: "docker-compose.yml", says: "service db, image postgres:16" }],
+      tables: ["orders", "people", "boxes", "checks", "forms"].map(name => ({ name, columns: [column("id")], foreignKeys: [], from: ["migrations/001.sql"] })) },
+    { address: "redis://cache", medium: "redis" as const, evidence: [{ file: ".env", says: "REDIS_URL" }], tables: [] },
+  ];
+
+  assert.equal(forestScene(tree, history, workStates([])).stores, undefined, "no store evidence, no store");
+  assert.equal(sheetLayout(forestScene(tree, history, workStates([])), places).stores.length, 0);
+
+  const scene = forestScene(tree, history, workStates([]), {}, stores);
+  assert.deepEqual(scene.stores?.map(({ address, medium, tables }) => [address, medium, tables]), [
+    ["postgres://db/shop", "postgres", ["orders", "people", "boxes", "checks", "forms"]],
+    ["redis://cache", "redis", []],
+  ], "each store carries its tables, to be drawn inside it");
+  const layout = sheetLayout(scene, places);
+  assert.deepEqual(layout.stores.map(({ address }) => address), ["postgres://db/shop", "redis://cache"]);
+  const box = (store: (typeof layout.stores)[number]) => ({ west: store.at.x - store.width / 2, east: store.at.x + store.width / 2, south: store.at.y - store.depth / 2, north: store.at.y + store.depth / 2 });
+  for (const store of layout.stores) {
+    const { west, east, south, north } = box(store);
+    for (const island of scene.islands) {
+      const middle = layout.under.shelfAt(island.story)!;
+      // The nearest point of the store's slab to the island's middle lies beyond the island's coast and the sea between.
+      const dx = Math.max(west - middle.x, 0, middle.x - east), dy = Math.max(south - middle.y, 0, middle.y - north);
+      assert.ok(Math.hypot(dx, dy) > islandCoastReach(island), `${store.address} lies on ${island.story}'s land`);
+    }
+    assert.ok(west >= -layout.extent.width / 2 && east <= layout.extent.width / 2 && south >= -layout.extent.height / 2 && north <= layout.extent.height / 2, `${store.address} lies off the glass`);
+  }
+  const [a, b] = layout.stores.map(box);
+  assert.ok(a!.east <= b!.west || b!.east <= a!.west || a!.north <= b!.south || b!.north <= a!.south, "the stores lie apart");
 });

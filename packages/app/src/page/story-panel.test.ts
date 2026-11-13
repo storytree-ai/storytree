@@ -29,6 +29,7 @@ function setup() {
   const view = storyPanel(host, {
     body,
     drill: () => ({ story: "s", title, description: "", capabilities: [] }) as unknown as StoryPanel,
+    store: () => undefined,
     render: () => `<h2>${title}</h2>${fold("contracts", `<ul><li data-contract-id="k1">${fold("contract", "k1 body")}</li></ul>`)}`,
     folds: (panel) => { // the forest's folds keep the top-level kinds open; a contract's own is the panel's to keep
       for (const handle of panel.querySelectorAll<HTMLElement>('[data-fold="contracts"] > .panel-handle')) { handle.setAttribute("aria-expanded", "true"); (handle.nextElementSibling as HTMLElement).hidden = false; }

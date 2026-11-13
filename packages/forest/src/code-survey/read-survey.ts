@@ -2,7 +2,7 @@
 import path from "node:path";
 
 import type { AnnotatedTree } from "@storytree/library";
-import { noMergedMain, offThreadSurveyReader, type CodeSurveyReader, type ImportedFolder, type ProjectSurvey } from "@storytree/map/code-survey";
+import { noMergedMain, offThreadSurveyReader, readStores, type CodeSurveyReader, type ImportedFolder, type ProjectSurvey } from "@storytree/map/code-survey";
 
 import { FOREST_CHANNELS, type ForestBridge } from "../render/page.js";
 
@@ -39,6 +39,12 @@ export const forestPageAnswers = [(frame: SurveyPageFrame) => {
       // The folders this machine imports, where the survey reads the project's mapped stories (ADR-0993 D2).
       const reading = surveys.read(folder, frame.treeRead(project) ?? await library.projectTree(project), await library.projectImports(project));
       return refusalSaidOnce(folder, reading);
+    },
+    // The stores the checkout and its imported folders declare, read from their files as they stand (ADR-1332 D2 (1)).
+    sharedStores: async (project) => {
+      const library = frame.library();
+      const folder = await library.projectFolder(project);
+      return folder === undefined ? [] : readStores(folder, await library.projectImports(project));
     },
   };
   // A project whose origin has no fetchable main is refused its survey at every ask; a rejected answer would have Electron

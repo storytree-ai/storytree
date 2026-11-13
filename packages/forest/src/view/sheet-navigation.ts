@@ -13,7 +13,7 @@ import { Euler, Plane, Quaternion, Raycaster, Vector2, Vector3, type Camera, typ
 import { NAMEPLATE_ROOM, SEA_GAP, sheetPlaces, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
 import { islandCoast, islandCoastReach } from "@storytree/forest-world/geometry";
 import { islandLayout, type LinkDock } from "../territories/link-layout.js";
-import { PLATE_CLEARANCE, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetPoint, sheetSpot, type SheetExtent, type SheetPoint } from "@storytree/forest-world/planet";
+import { PLATE_CLEARANCE, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetPoint, sheetSpot, storeLayout, type SheetExtent, type SheetPoint, type StoreLayout } from "@storytree/forest-world/planet";
 import { isDrawn, type GlobePose } from "./globe-guide.js";
 import { STORY_PLATE_WIDTH } from "./nameplates.js";
 import type { ForestMode } from "./planet-navigation.js";
@@ -38,6 +38,8 @@ export function opensBare(mode: ForestMode): boolean {
  * where the knowledge graph hangs: each story's shelf under its island's middle, each capability's under its territory's,
  * and the sea floor across the islands' footprint, where notes with no links lie (ADR-1063 D3). `laid` holds each island's
  * docks, once known: its territories are laid out by their links (3.76), so its shelves hang under them as drawn.
+ * The project's shared stores stand in a column west of the land, past the sea and nameplate room an island keeps, north
+ * to south about the land's middle, so none lies on an island's land (ADR-1332 D1, 3.109), and the glass grows to hold them.
  */
 export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, frame?: ForestScene, laid?: ReadonlyMap<string, readonly LinkDock[]>) {
   // A plan still growing, framed by its full plan, keeps every island where the full plan puts it, on its glass (3.28).
@@ -47,7 +49,9 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
     return { story: island.story, place, reach: islandCoastReach(island) };
   }));
   // An island-less sheet (the user's factory, 3.63) has no land to set the floor, so its floor is a square round the pole.
-  const { west, east, south, north } = (frame ?? scene).islands.length === 0 ? { west: -BARE_FLOOR / 2, east: BARE_FLOOR / 2, south: -BARE_FLOOR / 2, north: BARE_FLOOR / 2 } : placed.bounds;
+  const land = (frame ?? scene).islands.length === 0 ? { west: -BARE_FLOOR / 2, east: BARE_FLOOR / 2, south: -BARE_FLOOR / 2, north: BARE_FLOOR / 2 } : placed.bounds;
+  const stood = storeColumn((frame ?? scene).stores ?? [], land);
+  const { west, east, south, north } = stood.bounds;
   const centre = { x: (west + east) / 2, y: (south + north) / 2 };
   const extent: SheetExtent = { width: east - west + 2 * MARGIN, height: north - south + 2 * MARGIN };
   const at = new Map([...placed.at].map(([story, p]) => [story, { x: p.x - centre.x, y: p.y - centre.y }]));
@@ -80,7 +84,28 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
       return { x: spot.x * out, y: spot.y * out, z: spot.z * out };
     },
   };
-  return { scene, islands, spots: new Map(islands.map(island => [island.story, island.spot])), radius: SHEET_RADIUS, extent, under };
+  const stores = stood.stores.map((store) => {
+    const at = { x: store.at.x - centre.x, y: store.at.y - centre.y };
+    return { ...store, at, spot: sheetSpot(at) };
+  });
+  return { scene, islands, spots: new Map(islands.map(island => [island.story, island.spot])), radius: SHEET_RADIUS, extent, under, stores };
+}
+
+/** The stores' column west of `land`, each slab's middle (x east, y north) with its layout, and the bounds holding both. */
+function storeColumn(stores: readonly { address: string; medium: string; tables: readonly string[] }[], land: { west: number; east: number; south: number; north: number }) {
+  const laid = stores.map((store) => ({ address: store.address, medium: store.medium, ...storeLayout(store.tables) }));
+  if (laid.length === 0) return { stores: [] as (StoreLayout & { address: string; medium: string; at: SheetPoint })[], bounds: land };
+  const widest = Math.max(...laid.map(({ width }) => width));
+  const x = land.west - SEA_GAP - NAMEPLATE_ROOM - widest / 2;
+  // The column stands level with the land's middle, so it is seen beside the islands rather than off in a corner.
+  const tall = laid.reduce((sum, { depth }) => sum + depth, 0) + (laid.length - 1) * SEA_GAP;
+  let top = Math.min(land.north, (land.north + land.south) / 2 + tall / 2);
+  const placed = laid.map((store) => {
+    const at = { x, y: top - store.depth / 2 };
+    top -= store.depth + SEA_GAP;
+    return { ...store, at };
+  });
+  return { stores: placed, bounds: { west: x - widest / 2, east: land.east, south: Math.min(land.south, top + SEA_GAP), north: Math.max(land.north, placed[0]!.at.y + placed[0]!.depth / 2) } };
 }
 
 /** The docks seen on each island's plate (3.76), with `story`'s now `docks`, or without it while its docks are unknown:

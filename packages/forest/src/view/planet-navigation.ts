@@ -205,12 +205,15 @@ export function pickGlobe(world: Object3D, camera: Camera,
   const ray = new Raycaster();
   ray.setFromCamera(new Vector2(2 * (cursor.x - box.left) / box.width - 1, 1 - 2 * (cursor.y - box.top) / box.height), camera);
   let landDistance = Infinity;
+  let store: string | undefined;
   if (mode === "forest") {
     for (const hit of ray.intersectObject(world, true)) {
       if (!isDrawn(hit.object)) continue;
       let land = false;
       for (let object: Object3D | null = hit.object; object !== null; object = object.parent) {
         if (object.name.startsWith("planet:")) { land = true; break; }
+        // A shared store's slab is solid like land, and a click on it picks the store (3.110).
+        if (object.name.startsWith("store:")) { land = true; store = object.name.slice("store:".length); break; }
       }
       if (land) { landDistance = hit.distance; break; }
     }
@@ -227,6 +230,7 @@ export function pickGlobe(world: Object3D, camera: Camera,
   });
   const note = pickProjectedNote(notes, cursor, landDistance);
   if (note !== undefined) return { kind: "note", id: note };
+  if (store !== undefined) return { kind: "store", id: store };
   const land = mode === "forest" ? pickLand(ray, world) : undefined;
   if (land === undefined) return undefined;
   return land.capability === undefined ? { kind: "story", id: land.story } : { kind: "story", id: land.story, capability: land.capability };

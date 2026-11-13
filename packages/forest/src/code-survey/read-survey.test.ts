@@ -1,7 +1,7 @@
 // Capability 1 · Story nodes. The desktop's answer to the page's code survey, run on the map's own survey worker.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -44,6 +44,31 @@ test("1.13 · a project whose origin has no fetchable main is answered with no c
     assert.match(said[1]!, /again/);
     await answers.codeSurvey("project");
     assert.equal(said.length, 2, "a survey that keeps answering says nothing more");
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("1.14 · the desktop answers the page's shared stores from the project's checkout and the folders it imports; a project with no folder here has none", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "forest-stores-"));
+  try {
+    const checkout = path.join(folder, "checkout");
+    const imported = path.join(folder, "imported");
+    await mkdir(path.join(imported, "migrations"), { recursive: true });
+    await mkdir(checkout, { recursive: true });
+    await writeFile(path.join(checkout, "docker-compose.yml"), "services:\n  db:\n    image: postgres:16\n    environment:\n      POSTGRES_DB: shop\n");
+    await writeFile(path.join(imported, "migrations", "001_init.sql"), "CREATE TABLE orders (id serial PRIMARY KEY);\n");
+    let projectFolder: string | undefined = checkout;
+    const { answers } = forestPageAnswers[0]!({
+      home: path.join(folder, "home"),
+      library: () => ({ projectFolder: async () => projectFolder, projectTree: async () => tree, projectImports: async () => [{ folder: imported }] as never }),
+      treeRead: () => tree,
+      surveyWorker: fileURLToPath(import.meta.resolve("@storytree/map/code-survey/worker")),
+    });
+    const stores = await answers.sharedStores("project");
+    assert.deepEqual(stores.map(({ address, tables }) => [address, tables.map(({ name }) => name)]), [["postgres://db/shop", ["orders"]]]);
+    projectFolder = undefined;
+    assert.deepEqual(await answers.sharedStores("project"), []);
   } finally {
     await removeTemp(folder);
   }

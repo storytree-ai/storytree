@@ -62,6 +62,16 @@ export interface ForestScene {
   /** Plumbing calls between stories (ADR-1085 D3): a build step, a cleanup or a forwarder, island to island, by story,
    * with the importing files behind each. Data only: each is drawn as one of the `links` (ADR-1277 D1). Optional, like `links`. */
   plumbing?: readonly Plumbing[];
+  /** The project's shared stores (ADR-1332 D1), each drawn as its own object beside the islands, never on one's land, with its
+   * tables inside it; absent when the project declares none. */
+  stores?: readonly Store[];
+}
+
+/** A shared store, by its address (postgres://host/db), its medium, and the names of its tables, drawn inside it. */
+export interface Store {
+  address: string;
+  medium: string;
+  tables: readonly string[];
 }
 
 /** What a plumbing call is, in words, never a value word. */

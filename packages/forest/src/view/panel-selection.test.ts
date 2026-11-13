@@ -25,7 +25,7 @@ test("3.13 a card replaces a story and a story replaces a card; Close and Escape
 
 // The canvas, scene, core, camera, rotation and zoom surviving each switch, and a launch opening with both on, are
 // measured on the mounted page in Chromium, across each switch; hidden land is never picked (3.12).
-test("3.10 switching Stories off clears a selected story and its panel, switching Library off clears a note's card, and switching on clears nothing", () => {
+test("3.10 switching Stories off clears a selected story or shared store and its panel, switching Library off clears a note's card, and switching on clears nothing", () => {
   const changes: Selection[] = [];
   const panel = new PanelSelection(selection => changes.push(selection));
   panel.story("forest", "pay");
@@ -41,6 +41,12 @@ test("3.10 switching Stories off clears a selected story and its panel, switchin
   panel.switched({ stories: true, library: false });
   assert.equal(panel.current, undefined, "Library off closes the card");
   assert.equal(changes.length, 4, "only the two clearings changed the panel");
+  // A shared store stands on the sheet with the islands, so Stories off hides it and closes its panel; Library off keeps it.
+  panel.store("postgres://db/shop");
+  panel.switched({ stories: true, library: false });
+  assert.deepEqual(panel.current, { kind: "store", id: "postgres://db/shop" }, "Library off keeps a store");
+  panel.switched({ stories: false, library: true });
+  assert.equal(panel.current, undefined, "Stories off closes a store's panel");
 });
 
 test("3.55 on the glass sheet a selected story stays selected on either side of the glass, and coming back above it to Stories closes a picked note's card", () => {

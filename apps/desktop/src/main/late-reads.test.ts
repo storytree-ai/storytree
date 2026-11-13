@@ -50,7 +50,7 @@ test("8.11 · each library read a page operation makes is counted against the re
   const ipc = readerPerChannel({ handle: (channel, listener) => { handlers.set(channel, listener); } });
   const reader = async () => { await Promise.resolve(); return readerName(); };
   answerPage(ipc, PAGE_READS_CHANNELS, Object.fromEntries(Object.keys(PAGE_READS_CHANNELS).map((method) => [method, reader])) as Record<keyof typeof PAGE_READS_CHANNELS, typeof reader>);
-  answerPage(ipc, FOREST_CHANNELS, { codeSurvey: reader });
+  answerPage(ipc, FOREST_CHANNELS, { codeSurvey: reader, sharedStores: reader });
 
   const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args)) as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
   assert.deepEqual(await Promise.all([page.changesSince!("storytree", 0), page.contextReadings!("storytree", []), page.codeSurvey!("storytree")]), ["app changes-since", "app context-readings", "app code-survey"]);

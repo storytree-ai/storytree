@@ -476,3 +476,39 @@ test("7.32 once the start's first survey lands the page asks once more at once, 
   assert.equal(answers.length, 2, "only once: no news, no further ask");
   reading.stop();
 });
+
+test("7.36 the shared stores are read with each survey and handed on with it; a read that changes neither draws nothing again, and changed stores alone draw again", async () => {
+  const shop = { address: "postgres://db/shop", medium: "postgres" as const, evidence: [{ file: "docker-compose.yml", says: "service db, image postgres:16" }], tables: [] };
+  const cache = { address: "redis://cache", medium: "redis" as const, evidence: [{ file: "docker-compose.yml", says: "service cache, image redis:7" }], tables: [] };
+  const answers = [[shop], [shop], [shop, cache]];
+  let reads = 0;
+  let poke = true;
+  let cursor = 0;
+  const timers = clockTimers();
+  const landed: unknown[][] = [];
+  const reading = forestReading({
+    project: "shop",
+    reads: {
+      changesSince: async () => poke ? (poke = false, { changes: [{ seq: ++cursor, type: "capability" } as never], cursor }) : { changes: [], cursor },
+      linesSince: async () => ({ lines: [], cursor: 0 }),
+      projectTree: async () => tree,
+      codeSurvey: async () => survey,
+      sharedStores: async () => answers[Math.min(reads++, answers.length - 1)]!,
+    },
+    timers,
+    // A draw for news has the news; one for a survey that landed has none.
+    onTree: (_read, news, read, shared) => { if (news.changes.length === 0) landed.push([read, shared]); },
+    onError: () => {},
+  });
+  await settle();
+  assert.equal(reads, 2, "the stores are read with the start's survey and the one more it asks for at once");
+  assert.deepEqual(landed, [[survey, [shop]]], "the second read, equal to the first, draws nothing again");
+
+  poke = true;
+  timers.at = 10_000;
+  await timers.tick();
+  await timers.tick();
+  assert.equal(reads, 3);
+  assert.deepEqual(landed, [[survey, [shop]], [survey, [shop, cache]]], "the survey unchanged, the changed stores draw again");
+  reading.stop();
+});

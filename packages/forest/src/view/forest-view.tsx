@@ -100,7 +100,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       <div className="forest-globe">
         <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
           selected={drawn.selected} selectedCapability={drawn.capability} highlighted={drawn.highlighted} circled={drawn.circled} circledContracts={drawn.circledContracts}
-          onPick={pick} onNote={pickNote} onControls={onControls} onPainted={painted.painted} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library}
+          onPick={pick} onNote={pickNote} onStore={pickStore} onControls={onControls} onPainted={painted.painted} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library}
           onLanesNotice={onLanesNotice} />
       </div>
       <ForestTop layers={layers} onTurn={turn} notice={drawn.lanesNotice} aside={drawn.aside} rings={openWorkCount(drawn.scene, drawn.circled, drawn.circledContracts)}
@@ -122,6 +122,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   };
   const pick = (story: string | undefined, capability?: string, gate?: readonly [string, string]): void => selection.picked(story, capability, gate);
   const pickNote = (note: string): void => selection.note(note);
+  const pickStore = (address: string): void => selection.store(address);
   // The canvas tells it only when the notice changes (4.45).
   const onLanesNotice = (notice: LanesNotice | undefined): void => render({ lanesNotice: notice });
   const onKey = (event: KeyboardEvent): void => selection.key(event.key);

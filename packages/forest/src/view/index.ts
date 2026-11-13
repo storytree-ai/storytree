@@ -5,6 +5,7 @@
 // This entry needs React and a browser; the package's main entry stays plain logic.
 export { openForestView, mountLibraryPanel, type ForestView } from "./forest-view.js";
 export { renderStoryPanel } from "./story-panel.js";
+export { renderStorePanel } from "./store-panel.js";
 export type { GlobeOpening } from "../surfaces/surfaces.js";
 export { mountSessionsList, type SessionsReads } from "./sessions-list.js";
 

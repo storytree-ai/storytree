@@ -39,7 +39,7 @@ export function opensBare(mode: ForestMode): boolean {
  * and the sea floor across the islands' footprint, where notes with no links lie (ADR-1063 D3). `laid` holds each island's
  * docks, once known: its territories are laid out by their links (3.76), so its shelves hang under them as drawn.
  * The project's shared stores stand in a column west of the land, past the sea and nameplate room an island keeps, north
- * to south, so none lies on an island's land (ADR-1332 D1, 3.109), and the glass grows to hold them.
+ * to south about the land's middle, so none lies on an island's land (ADR-1332 D1, 3.109), and the glass grows to hold them.
  */
 export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, frame?: ForestScene, laid?: ReadonlyMap<string, readonly LinkDock[]>) {
   // A plan still growing, framed by its full plan, keeps every island where the full plan puts it, on its glass (3.28).
@@ -97,13 +97,15 @@ function storeColumn(stores: readonly { address: string; medium: string; tables:
   if (laid.length === 0) return { stores: [] as (StoreLayout & { address: string; medium: string; at: SheetPoint })[], bounds: land };
   const widest = Math.max(...laid.map(({ width }) => width));
   const x = land.west - SEA_GAP - NAMEPLATE_ROOM - widest / 2;
-  let top = land.north;
+  // The column stands level with the land's middle, so it is seen beside the islands rather than off in a corner.
+  const tall = laid.reduce((sum, { depth }) => sum + depth, 0) + (laid.length - 1) * SEA_GAP;
+  let top = Math.min(land.north, (land.north + land.south) / 2 + tall / 2);
   const placed = laid.map((store) => {
     const at = { x, y: top - store.depth / 2 };
     top -= store.depth + SEA_GAP;
     return { ...store, at };
   });
-  return { stores: placed, bounds: { west: x - widest / 2, east: land.east, south: Math.min(land.south, top + SEA_GAP), north: land.north } };
+  return { stores: placed, bounds: { west: x - widest / 2, east: land.east, south: Math.min(land.south, top + SEA_GAP), north: Math.max(land.north, placed[0]!.at.y + placed[0]!.depth / 2) } };
 }
 
 /** The docks seen on each island's plate (3.76), with `story`'s now `docks`, or without it while its docks are unknown:

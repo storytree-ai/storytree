@@ -11,14 +11,14 @@ export interface StoreTile { readonly name: string; readonly x: number; readonly
 export interface StoreLayout { readonly width: number; readonly depth: number; readonly reach: number; readonly tiles: readonly StoreTile[] }
 
 /** A tile is as wide as a table's name drawn at the map's opening, so a store stands as large as a middling island. */
-const TILE_WIDTH = 36;
-const TILE_DEPTH = 12;
-const GAP = 4;
-const PAD = 6;
+const TILE_WIDTH = 80;
+const TILE_DEPTH = 30;
+const GAP = 8;
+const PAD = 12;
 /** The strip along the slab's north edge kept for the store's own name. */
-const HEADING = 16;
+const HEADING = 36;
 /** The least slab, for a store with no tables. */
-const BARE = { width: 60, depth: 30 };
+const BARE = { width: 120, depth: 60 };
 
 export function storeLayout(tables: readonly string[]): StoreLayout {
   const columns = Math.max(1, Math.ceil(Math.sqrt(tables.length)));

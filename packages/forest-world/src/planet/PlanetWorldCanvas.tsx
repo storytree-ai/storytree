@@ -166,7 +166,7 @@ const TILE_COLOUR = '#edf3f5';
 const StorePlate = memo(function StorePlate({ store, spot, radius, visible }: { store: Store; spot: PlanetSpot; radius: number; visible: boolean }) {
   const transform = useMemo(() => plateTransform(spot, radius, SHEET_LAND_LIFT), [spot.x, spot.y, spot.z, radius]);
   const laid = useMemo(() => storeLayout(store.tables), [store.tables]);
-  const label = { pointerEvents: 'none', whiteSpace: 'nowrap', font: '12px system-ui, sans-serif' } as const;
+  const label = { pointerEvents: 'none', whiteSpace: 'nowrap', font: '13px system-ui, sans-serif' } as const;
   return <group position={transform.position} quaternion={transform.quaternion} name={`store:${store.address}`} visible={visible}>
     <mesh position={[0, -STORE_THICKNESS / 2, 0]}>
       <boxGeometry args={[laid.width, STORE_THICKNESS, laid.depth]} />
@@ -177,7 +177,7 @@ const StorePlate = memo(function StorePlate({ store, spot, radius, visible }: { 
       <meshLambertMaterial color={TILE_COLOUR} />
     </mesh>)}
     {visible && <>
-      <Overlay className="planet-store-name" position={[0, TILE_RISE, -laid.depth / 2 + 8]} center zIndexRange={[25, 21]} style={label}>
+      <Overlay className="planet-store-name" position={[0, TILE_RISE, -laid.depth / 2 + 18]} center zIndexRange={[25, 21]} style={label}>
         <span style={{ color: '#e8f0f8', fontWeight: 600 }} data-store={store.address}>{store.address}</span>
       </Overlay>
       {laid.tiles.map(tile => <Overlay key={tile.name} className="planet-store-table" position={[tile.x, TILE_RISE, tile.z]} center zIndexRange={[25, 21]} style={label}>

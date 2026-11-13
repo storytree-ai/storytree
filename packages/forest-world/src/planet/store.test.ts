@@ -21,3 +21,12 @@ test('4.46 a store is its own flat object: its tables are laid in tiles that all
   assert.ok(many.width * many.depth > one.width * one.depth);
   assert.ok(storeLayout(['a']).reach >= Math.hypot(one.width, one.depth) / 2 - 1e-9, 'its reach covers its corners');
 });
+
+test("4.46 a table's tile is as wide as its name: checkbox's document_summaries and source_objects each hold their whole name, and stay apart", () => {
+  // A table's name is drawn 13px across at about a pixel a ground unit at the map's opening, under 8px a character.
+  const laid = storeLayout(['tenants', 'users', 'source_objects', 'chunks', 'grants', 'document_summaries']);
+  for (const tile of laid.tiles) assert.ok(tile.width >= tile.name.length * 8, `${tile.name}'s ${tile.name.length} characters cross its ${tile.width}-wide tile`);
+  laid.tiles.forEach((a, i) => laid.tiles.slice(i + 1).forEach((b) =>
+    assert.ok(Math.abs(a.x - b.x) >= (a.width + b.width) / 2 || Math.abs(a.z - b.z) >= (a.depth + b.depth) / 2, `${a.name} and ${b.name} overlap`)));
+  for (const tile of laid.tiles) assert.ok(Math.abs(tile.x) + tile.width / 2 <= laid.width / 2, `${tile.name} lies across the store's side`);
+});

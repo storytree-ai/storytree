@@ -418,12 +418,15 @@ test("3.104 · a click on a story's name on the map selects that story, and a dr
   const middle = { x: name.x + name.width / 2, y: name.y + name.height / 2 };
   await page.mouse.click(middle.x, middle.y);
   assert.deepEqual((await picks()).at(-1)?.[0], "two", "the click on the name picked its story");
-  // A name faded as crowded, or not displayed, names nothing: the click falls to the water under it.
-  for (const hide of ["label.classList.add('crowded')", "label.parentElement.style.display = 'none'"]) {
+  // A name faded as crowded, or not displayed, names nothing: the click falls to the water under it. The map's crowd pass
+  // judges every name's fade again on each frame it draws, so a frame between the fade and the click (a slow macOS runner,
+  // 2026-11-13) would take it off: the fade is held, put back as soon as a frame takes it, until the click is read.
+  const hold = "globalThis.__held = new MutationObserver(() => { if (!label.classList.contains('crowded')) label.classList.add('crowded'); }); __held.observe(label, { attributeFilter: ['class'] })";
+  for (const hide of [`label.classList.add('crowded'); ${hold}`, "label.parentElement.style.display = 'none'"]) {
     await page.evaluate(`{ const label = document.querySelector('.planet-nameplate[data-story-id="two"]'); ${hide}; }`);
     await page.mouse.click(middle.x, middle.y);
     assert.equal((await picks()).at(-1)?.[0], undefined, `a click on the name hidden by ${hide} picked nothing`);
-    await page.evaluate(`{ const label = document.querySelector('.planet-nameplate[data-story-id="two"]'); label.classList.remove('crowded'); label.parentElement.style.display = ''; }`);
+    await page.evaluate(`{ globalThis.__held?.disconnect(); const label = document.querySelector('.planet-nameplate[data-story-id="two"]'); label.classList.remove('crowded'); label.parentElement.style.display = ''; }`);
   }
 
   const before = await sheetTurn(page), picked = (await picks()).length;

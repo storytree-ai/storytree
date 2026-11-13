@@ -15,7 +15,8 @@ const repository = "storytree-ai/storytree";
 /** Each platform's own delivery file: Windows' manifest, and the Mac's and Linux's entries merged into it on publish. */
 const OWN_DELIVERY = { windows: "storytree-delivery.json", mac: "storytree-delivery-mac.json", linux: "storytree-delivery-linux.json" };
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
-const gh = (...args) => execFileSync("gh", args, { encoding: "utf8" }).trim();
+// GitHub's answers outgrow Node's 1 MB default: the last 100 releases, with every asset's uploader, passed it.
+const gh = (...args) => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 }).trim();
 const output = (key, value) => appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
 
 function onMain(sha) {

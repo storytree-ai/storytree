@@ -60,9 +60,10 @@ and its code survey; `captureSeed('forest')` returns the eight-story forest
 snapshot. Each call is a fresh copy. Refresh one with the script beside it:
 `seed.mts` in `code-rows`, `export.mjs` in `library-dots-clickable` (both in packages/forest/testing/view). Each also
 returns `layouts`, the island layouts and roads its map kept once settled. Every
-`fakeBridge` (and so every `runCapture`) opens the page with both seeds' layouts kept
-unless handed its own (`layouts: {}` for none), so a shared seed's islands search
-nothing (a fresh browser keeps nothing, and the searches run one at a time, minutes
+`fakeBridge` (and so every `runCapture`) opens the page with the layouts of the shared
+seed the process read last kept, unless handed its own (`layouts: {}` for none), so a
+shared seed's islands search nothing (never two seeds' at once: they lay out the
+stories they share differently, and a story keeps one arrangement) (a fresh browser keeps nothing, and the searches run one at a time, minutes
 each). Then `await settledMap(page)` in a `prepare` waits until the map says
 every island is laid out (`data-layout="settled"`) and keeps saying so over 12 frames;
 it fails after `timeoutMs` (180 s) naming the map's progress. `settle(page)`, which

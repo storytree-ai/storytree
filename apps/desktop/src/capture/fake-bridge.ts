@@ -8,7 +8,7 @@
 import type { Page } from "playwright-core";
 
 import type { StorytreeBridge } from "../bridge.js";
-import { sharedLayouts } from "./seeds.js";
+import { loadedSeedLayouts } from "./seeds.js";
 
 export interface FakeBridge {
   /** The page's call of `method`: its answer, or a refusal naming the method when there is none. */
@@ -55,7 +55,7 @@ const keptLayouts = (layouts: Readonly<Record<string, string>>): string =>
 export interface FakeBridgeOptions {
   /**
    * The map's kept island layouts and roads, as localStorage entries (a shared seed's `layouts`), so its islands search none
-   * they hold; every shared seed's unless given (2.64), so a capture of a shared seed's map settles in seconds, not minutes.
+   * they hold; the shared seed's the capture read unless given (2.64), so a capture of a shared seed's map settles in seconds, not minutes.
    */
   layouts?: Readonly<Record<string, string>> | undefined;
   /** "unseen" for a capture of the first-run guide itself: the page then opens as a first launch. */
@@ -163,7 +163,7 @@ function startFromLines({ lines, cursor }: Lines, kinds: readonly string[]) {
 }
 
 /** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */
-export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", teaching = "hidden", layouts = sharedLayouts() }: FakeBridgeOptions = {}): FakeBridge {
+export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", teaching = "hidden", layouts = loadedSeedLayouts() }: FakeBridgeOptions = {}): FakeBridge {
   let refuse!: (error: Error) => void;
   const unanswered = new Promise<never>((_, reject) => (refuse = reject));
   unanswered.catch(() => {});

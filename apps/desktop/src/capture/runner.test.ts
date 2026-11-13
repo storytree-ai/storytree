@@ -133,7 +133,7 @@ test("2.63 · a capture's settling, while the map says it is laying out its isla
   assert.equal(await page.evaluate("frame"), 37, "a page with no layout mark settles over its frames alone");
 });
 
-test("2.64 · a capture's stand-in bridge opens the page with every shared seed's kept layouts, unless the capture hands it its own", async t => {
+test("2.64 · a capture's stand-in bridge opens the page with the kept layouts of the shared seed the capture read, unless the capture hands it its own", async t => {
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   t.after(() => browser.close());
   const kept = async (options?: { layouts: Record<string, string> }) => {
@@ -145,9 +145,13 @@ test("2.64 · a capture's stand-in bridge opens the page with every shared seed'
     await page.close();
     return storage;
   };
-  const shared = { ...captureSeed("code-rows").layouts, ...captureSeed("forest").layouts };
-  assert.deepEqual(await kept(), { ...shared, "storytree:setup:guide-seen:v1": "yes" }, "a capture that names no layouts opens with the shared seeds' islands laid out");
-  assert.deepEqual(await kept({ layouts: {} }), { "storytree:setup:guide-seen:v1": "yes" }, "one handed its own layouts opens with those alone");
+  const guide = { "storytree:setup:guide-seen:v1": "yes" };
+  // The two seeds lay out stories they share differently, and a story keeps one arrangement: a merge of both would fit neither.
+  for (const name of ["forest", "code-rows"] as const) {
+    const { layouts } = captureSeed(name);
+    assert.deepEqual(await kept(), { ...layouts, ...guide }, `a capture that read the ${name} seed and names no layouts opens with that seed's islands laid out`);
+  }
+  assert.deepEqual(await kept({ layouts: {} }), guide, "one handed its own layouts opens with those alone");
 });
 
 // Each probe owns its socket and finishes only after it closes. Global fetch leaves

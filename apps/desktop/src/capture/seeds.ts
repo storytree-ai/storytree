@@ -37,13 +37,19 @@ export function captureSeed(name: CaptureSeedName): { seed: CaptureSeed; survey:
     const bytes = readFileSync(path.join(seeds, folder, file));
     return (file.endsWith(".gz") ? gunzipSync(bytes) : bytes).toString("utf8");
   };
-  return { seed: JSON.parse(read(seed)) as CaptureSeed, survey: survey === undefined ? undefined : JSON.parse(read(survey)), layouts: JSON.parse(read("layouts.json.gz")) as Record<string, string> };
+  const layouts = JSON.parse(read("layouts.json.gz")) as Record<string, string>;
+  lastLayouts = layouts;
+  return { seed: JSON.parse(read(seed)) as CaptureSeed, survey: survey === undefined ? undefined : JSON.parse(read(survey)), layouts: { ...layouts } };
 }
 
-/** Every shared seed's kept layouts in one: what a capture's stand-in bridge opens the page with unless handed its own (2.64). */
-export function sharedLayouts(): Record<string, string> {
-  return Object.assign({}, ...(Object.keys(SEEDS) as CaptureSeedName[]).map(name => JSON.parse(gunzipSync(readFileSync(seedLayoutsFile(name))).toString("utf8")) as Record<string, string>));
-}
+let lastLayouts: Readonly<Record<string, string>> = {};
+
+/**
+ * The kept layouts of the shared seed this process read last, none before it reads one: what a capture's stand-in bridge
+ * opens the page with unless handed its own (2.64). Never two seeds' at once: each keeps one arrangement per story, and the
+ * seeds share stories laid out differently.
+ */
+export const loadedSeedLayouts = (): Record<string, string> => ({ ...lastLayouts });
 
 /** Where a shared seed's `layouts.json.gz` lies, which its `layouts.mts` refresh writes. */
 export const seedLayoutsFile = (name: CaptureSeedName): string => path.join(seeds, SEEDS[name].folder, "layouts.json.gz");

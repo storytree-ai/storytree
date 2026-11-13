@@ -714,8 +714,9 @@ test("2.62 · the page draws the shared stores the forest's reading read, and a 
   assert.equal(on.body.dataset.selected, undefined, "no story is selected with it");
   on.land(undefined, [shop]);
   assert.equal(panel.querySelector("h2")?.textContent, shop.address, "a redraw keeps it");
+  const before = project.view.selected.length;
   panel.querySelector<HTMLButtonElement>(".panel-close")!.click();
-  assert.deepEqual(project.view.selected.at(-1), undefined, "its close deselects");
+  assert.deepEqual(project.view.selected.slice(before), [undefined], "its close deselects");
   project.view.onSelect(undefined);
   assert.equal(panel.hidden, true);
 });

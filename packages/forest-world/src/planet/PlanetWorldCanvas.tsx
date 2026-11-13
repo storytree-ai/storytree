@@ -157,15 +157,16 @@ const Plate = memo(function Plate({ island, spot, radius, plate, docks, ports, v
 /** How high a store's slab stands, and its tables' tiles on it, in ground units. */
 const STORE_THICKNESS = 2;
 const TILE_RISE = 0.6;
-const STORE_COLOUR = '#3a4f66';
-const TILE_COLOUR = '#c9d6e3';
+/** A store's slab is blue, apart from the islands' pale land and the dark glass; its tiles are pale like land. */
+const STORE_COLOUR = '#4f7fae';
+const TILE_COLOUR = '#edf3f5';
 
 /** A shared store: its own slab on the glass beside the islands, named by its address, with its tables' tiles inside it
  * (4.46), picked by its name `store:<address>`. */
 const StorePlate = memo(function StorePlate({ store, spot, radius, visible }: { store: Store; spot: PlanetSpot; radius: number; visible: boolean }) {
   const transform = useMemo(() => plateTransform(spot, radius, SHEET_LAND_LIFT), [spot.x, spot.y, spot.z, radius]);
   const laid = useMemo(() => storeLayout(store.tables), [store.tables]);
-  const label = { pointerEvents: 'none', whiteSpace: 'nowrap', font: '11px system-ui, sans-serif' } as const;
+  const label = { pointerEvents: 'none', whiteSpace: 'nowrap', font: '12px system-ui, sans-serif' } as const;
   return <group position={transform.position} quaternion={transform.quaternion} name={`store:${store.address}`} visible={visible}>
     <mesh position={[0, -STORE_THICKNESS / 2, 0]}>
       <boxGeometry args={[laid.width, STORE_THICKNESS, laid.depth]} />
@@ -176,7 +177,7 @@ const StorePlate = memo(function StorePlate({ store, spot, radius, visible }: { 
       <meshLambertMaterial color={TILE_COLOUR} />
     </mesh>)}
     {visible && <>
-      <Overlay className="planet-store-name" position={[0, TILE_RISE, -laid.depth / 2 + 4]} center zIndexRange={[25, 21]} style={label}>
+      <Overlay className="planet-store-name" position={[0, TILE_RISE, -laid.depth / 2 + 8]} center zIndexRange={[25, 21]} style={label}>
         <span style={{ color: '#e8f0f8', fontWeight: 600 }} data-store={store.address}>{store.address}</span>
       </Overlay>
       {laid.tiles.map(tile => <Overlay key={tile.name} className="planet-store-table" position={[tile.x, TILE_RISE, tile.z]} center zIndexRange={[25, 21]} style={label}>

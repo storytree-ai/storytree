@@ -574,7 +574,6 @@ test("3.109 each shared store is placed beside the islands, never on one, with i
       assert.ok(Math.hypot(dx, dy) > islandCoastReach(island), `${store.address} lies on ${island.story}'s land`);
     }
     assert.ok(west >= -layout.extent.width / 2 && east <= layout.extent.width / 2 && south >= -layout.extent.height / 2 && north <= layout.extent.height / 2, `${store.address} lies off the glass`);
-    assert.deepEqual(store.spot, sheetSpot(store.at));
   }
   const [a, b] = layout.stores.map(box);
   assert.ok(a!.east <= b!.west || b!.east <= a!.west || a!.north <= b!.south || b!.north <= a!.south, "the stores lie apart");

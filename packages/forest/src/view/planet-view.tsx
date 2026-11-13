@@ -70,8 +70,8 @@ export type PlanetViewProps = {
   /** Hears a click on an island, or undefined for empty space. */
   onPick: (story: string | undefined, capability?: string, gate?: readonly [string, string]) => void;
   onNote: (note: string) => void;
-  /** Hears a click on a shared store's slab, by its address (3.110); without it a store's click picks nothing. */
-  onStore?: ((address: string) => void) | undefined;
+  /** Hears a click on a shared store's slab, by its address (3.110). */
+  onStore: (address: string) => void;
   /** Given, the canvas tells it that some lanes could not be drawn and lays no notice of its own (4.45), for the page's top row (3.103). */
   onLanesNotice?: ((notice: LanesNotice | undefined) => void) | undefined;
 };
@@ -547,7 +547,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void;
   onPick: (story: string | undefined, capability?: string, gate?: readonly [string, string]) => void;
   onNote: (note: string) => void;
-  onStore: ((address: string) => void) | undefined;
+  onStore: (address: string) => void;
 }) {
   const { camera, gl, scene, size, invalidate } = useThree();
   // The host sets the turn on the globe's group, so it is drawn on the next frame asked for.
@@ -880,7 +880,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       onGate(clicked.gate);
       const hit = clicked.hit;
       if (hit?.kind === "note") onNote(hit.id);
-      else if (hit?.kind === "store") { if (onStore !== undefined) onStore(hit.id); else onPick(undefined); }
+      else if (hit?.kind === "store") onStore(hit.id);
       else onPick(hit?.id, hit?.capability, hit?.gate);
     };
     const onWheel = (event: WheelEvent): void => {

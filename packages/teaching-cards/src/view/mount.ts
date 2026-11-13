@@ -150,12 +150,16 @@ function adoptStyles(document: Document): () => void {
  */
 export function mountTeaching(host: HTMLElement, { journal, locate, reading = () => [], islands = () => [] }: { journal: Journal; locate: Locate; reading?: Reading; islands?: Islands }): { take(reading: MapReading): void; stop(): void } {
   const unstyle = adoptStyles(host.ownerDocument);
+  const view = host.ownerDocument.defaultView ?? window;
   const waiting: Encounter[] = [];
   /** The card on show, the tour's ask, or its line saying it is on between cards. */
   let shown: { card: HTMLElement; kind: Kind | "tour" | "on"; target: Target } | undefined;
   /** The map's last reading, to start the tour on at once when the user says yes. */
   let last: MapReading | undefined;
+  /** What the card on show was last placed from: its point, its size, the window's and what was being read. */
+  let placedFrom: { card: HTMLElement; from: string } | undefined;
 
+  /** Place the card on show, unless nothing it is placed from has moved since it was last placed. */
   const place = (): void => {
     if (shown === undefined) return;
     // The ask and the line between cards are about no one thing: they keep to a corner.
@@ -163,8 +167,11 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     const onShow = at !== undefined && at.visible;
     shown.card.classList.toggle("teaching-card-corner", !onShow);
     const { width, height } = shown.card.getBoundingClientRect();
-    const view = host.ownerDocument.defaultView;
-    const right = view?.innerWidth ?? Infinity, bottom = view?.innerHeight ?? Infinity;
+    const right = view.innerWidth, bottom = view.innerHeight;
+    const read = reading(shown.target);
+    const from = JSON.stringify([at, width, height, right, bottom, read]);
+    if (placedFrom?.card === shown.card && placedFrom.from === from) return;
+    placedFrom = { card: shown.card, from };
     // Always inside the window.
     const inside = (left: number, top: number): Box => {
       const x = Math.max(GAP, Math.min(left, right - width - GAP)), y = Math.max(GAP, Math.min(top, bottom - height - GAP));
@@ -176,7 +183,6 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     // other side, below, above; then the same sides slid to either end of the island's edge; then below what is read under
     // its point; and the corners.
     const around = onShow ? at.box ?? { left: at.x, top: at.y, right: at.x, bottom: at.y } : undefined;
-    const read = reading(shown.target);
     const sides = around === undefined ? []
       : around.right + GAP + width + GAP <= right ? [around.right + GAP, around.left - GAP - width] : [around.left - GAP - width, around.right + GAP];
     const besides = !onShow || around === undefined ? []
@@ -200,13 +206,14 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     if (onShow) tie(shown.card, chosen, at, at.box);
   };
   // A panel opened or closed on the page, or a row drawn into one (an arc appearing in the rail's list), changes what is being
-  // read, so the card on show is placed again; never for a row drawn inside a card, where placing draws its own ring and line.
-  const opened = new (host.ownerDocument.defaultView ?? window).MutationObserver(records => {
-    const inCard = (node: Node): boolean => ((node.nodeType === 1 ? node as Element : node.parentElement)?.closest(".teaching-card") ?? null) !== null;
-    if (records.some(record => record.type === "attributes" || !inCard(record.target))) place();
+  // read, so the card on show is placed again. Placing reads the page's layout, so the changes drawn before a frame place it
+  // once, in that frame (3.47); the ring and line a placing draws in its card move nothing it is placed from, so they stop there.
+  let frame: number | undefined;
+  const opened = new view.MutationObserver(() => {
+    frame ??= view.requestAnimationFrame(() => { frame = undefined; place(); });
   });
   opened.observe(host, { subtree: true, attributeFilter: ["hidden"], childList: true, characterData: true });
-  host.ownerDocument.defaultView?.addEventListener("resize", place);
+  view.addEventListener("resize", place);
   /** A card element, a status rather than a dialog: it is read out without moving focus or holding the page. */
   const aside = (kind: string, html: string): HTMLElement => {
     const node = host.ownerDocument.createElement("aside");
@@ -300,7 +307,7 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     stop() {
       unlisten();
       opened.disconnect();
-      host.ownerDocument.defaultView?.removeEventListener("resize", place);
+      view.removeEventListener("resize", place);
       shown?.card.remove();
       shown = undefined;
       waiting.length = 0;

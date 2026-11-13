@@ -266,10 +266,11 @@ function sized(reading: { left: number; top: number; right: number; bottom: numb
     return (this.classList.contains("teaching-card") ? { width: 300, height: 100 } : measured.call(this)) as DOMRect;
   };
   const asked: unknown[] = [];
-  const teaching = mountTeaching(host, { journal: journal(store), locate, reading: (target) => { asked.push(target); return reading; }, islands: () => islands });
+  let islandsAsked = 0;
+  const teaching = mountTeaching(host, { journal: journal(store), locate, reading: (target) => { asked.push(target); return reading; }, islands: () => { islandsAsked++; return islands; } });
   teaching.take(oneStory);
   const card = host.querySelector<HTMLElement>(".teaching-card")!;
-  return { document, host, teaching, card, asked, at: () => ({ left: card.style.left, top: card.style.top }) };
+  return { document, host, teaching, card, asked, islandsAsked: () => islandsAsked, at: () => ({ left: card.style.left, top: card.style.top }) };
 }
 
 const panel = { left: 520, top: 12, right: 988, bottom: 588 };
@@ -355,6 +356,24 @@ test("3.5 · a row drawn into an open panel after the card is shown moves the ca
   host.append(document.createElement("li"));
   await waitUntil(() => at().left === "88px", 2000, "the card to move off the row drawn under it");
   assert.deepEqual(at(), { left: "88px", top: "250px" }, "on the left once the row is drawn");
+  teaching.stop();
+});
+
+test("3.5 · rows drawn one after another before a frame read the page once, and place the card no further when nothing being read has moved", async () => {
+  const { document, host, teaching, asked, islandsAsked, at } = sized([], () => ({ x: 400, y: 300, visible: true }));
+  const list = document.createElement("ol");
+  const first = asked.length;
+  host.append(list);
+  await waitUntil(() => asked.length > first, 2000, "the frame after the list is drawn to read the page");
+  const read = asked.length, placed = islandsAsked();
+  for (let row = 0; row < 5; row++) {
+    list.append(document.createElement("li"));
+    await Promise.resolve();
+  }
+  await waitUntil(() => asked.length > read, 2000, "the frame after the rows are drawn to read the page");
+  assert.equal(asked.length - read, 1, "five rows drawn before the frame read what is being read once");
+  assert.equal(islandsAsked() - placed, 0, "nothing being read moved, so the card is not placed again over the islands");
+  assert.deepEqual(at(), { left: "412px", top: "250px" }, "the card stays where it was");
   teaching.stop();
 });
 

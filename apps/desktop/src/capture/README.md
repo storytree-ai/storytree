@@ -59,12 +59,16 @@ Shared seeds: `captureSeed('code-rows')` returns storytree's own library snapsho
 and its code survey; `captureSeed('forest')` returns the eight-story forest
 snapshot. Each call is a fresh copy. Refresh one with the script beside it:
 `seed.mts` in `code-rows`, `export.mjs` in `library-dots-clickable` (both in packages/forest/testing/view). Each also
-returns `layouts`, the island layouts and roads its map kept once settled; pass them
-to `runCapture({ …, layouts })` and the page opens with them kept, so its islands
-search nothing (a fresh browser keeps nothing, and the searches run one at a time,
-minutes each). Then `await settledMap(page)` in a `prepare` waits until the map says
+returns `layouts`, the island layouts and roads its map kept once settled. Every
+`fakeBridge` (and so every `runCapture`) opens the page with both seeds' layouts kept
+unless handed its own (`layouts: {}` for none), so a shared seed's islands search
+nothing (a fresh browser keeps nothing, and the searches run one at a time, minutes
+each). Then `await settledMap(page)` in a `prepare` waits until the map says
 every island is laid out (`data-layout="settled"`) and keeps saying so over 12 frames;
-it fails after `timeoutMs` (180 s) naming the map's progress. Refresh a seed's
+it fails after `timeoutMs` (180 s) naming the map's progress. `settle(page)`, which
+`runCapture` runs before each view and a `withCapture` script before its pictures, does
+the same whenever the map says it is laying out (`data-layout="laying-out"`), so a
+picture never shows an island mid-layout. Refresh a seed's
 `layouts.json.gz` after the seed itself, or after a change to the territory search's
 score, with `node --import tsx layouts.mts code-rows|forest` in `code-rows`; until
 then an island whose kept layout no longer fits searches again, as without it. Name a

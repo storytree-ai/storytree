@@ -71,7 +71,10 @@ export interface SeededCaptureOptions extends CaptureOptions {
   views: CaptureView[];
 }
 
-/** Render a bounded number of frames; an observation hook may request each globe redraw. */
+/**
+ * Render a bounded number of frames; an observation hook may request each globe redraw. While the map then says it is laying
+ * out its islands (2.63), wait until it says it has settled, so no picture taken after shows an island mid-layout.
+ */
 export async function settle(page: Page, frames = 12): Promise<void> {
   // A string avoids tsx's function-name helpers; invoke it so Playwright awaits the loop.
   await page.evaluate(`(async frames => {
@@ -80,6 +83,7 @@ export async function settle(page: Page, frames = 12): Promise<void> {
       await new Promise(requestAnimationFrame);
     }
   })(${JSON.stringify(frames)})`);
+  if (await page.evaluate(`document.querySelector('[data-layout="laying-out"]') !== null`)) await settledMap(page, { frames });
 }
 
 /**
@@ -98,7 +102,7 @@ export async function settledMap(page: Page, { frames = 12, timeoutMs = 180_000 
     }
     return true;
   })(${JSON.stringify({ frames, timeoutMs })})`);
-  if (held !== true) throw new Error(`the map did not say it had settled within ${timeoutMs} ms: ${await page.evaluate(`document.querySelector('[data-layout="laying-out"]')?.textContent ?? "no layout mark on the page"`)}`);
+  if (held !== true) throw new Error(`the map did not say it had settled within ${timeoutMs} ms: ${await page.evaluate(`document.querySelector('[data-layout="laying-out"]')?.textContent ?? "no layout mark on the page"`)}; a seed's \`layouts\`, given to the bridge, open its islands laid out`);
 }
 
 /** Every localStorage entry the page holds: what a refresh of a seed's `layouts` reads back from a settled map. */

@@ -40,6 +40,11 @@ export function captureSeed(name: CaptureSeedName): { seed: CaptureSeed; survey:
   return { seed: JSON.parse(read(seed)) as CaptureSeed, survey: survey === undefined ? undefined : JSON.parse(read(survey)), layouts: JSON.parse(read("layouts.json.gz")) as Record<string, string> };
 }
 
+/** Every shared seed's kept layouts in one: what a capture's stand-in bridge opens the page with unless handed its own (2.64). */
+export function sharedLayouts(): Record<string, string> {
+  return Object.assign({}, ...(Object.keys(SEEDS) as CaptureSeedName[]).map(name => JSON.parse(gunzipSync(readFileSync(seedLayoutsFile(name))).toString("utf8")) as Record<string, string>));
+}
+
 /** Where a shared seed's `layouts.json.gz` lies, which its `layouts.mts` refresh writes. */
 export const seedLayoutsFile = (name: CaptureSeedName): string => path.join(seeds, SEEDS[name].folder, "layouts.json.gz");
 

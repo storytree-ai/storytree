@@ -115,9 +115,12 @@ test("4.6 with the Mac's build missing, the others publish and the Mac keeps its
     writeFileSync(path.join(earlier, "storytree-delivery.json"), JSON.stringify({ schema: 1, channelSchema: 1, version: "0.3.699", architectures: ["x64", "arm64"], installer: {}, macos: { arm64 } }));
     const bin = path.join(root, "bin");
     mkdirSync(bin);
+    // GitHub's list of the last 100 releases names every asset's uploader, so it runs past a megabyte.
+    const listed = [{ tag_name: "v0.3.700", draft: true, prerelease: false }, { tag_name: "v0.3.699", draft: false, prerelease: false, body: "x".repeat(2 * 1024 * 1024) }];
+    writeFileSync(path.join(root, "releases.json"), JSON.stringify(listed));
     writeFileSync(path.join(bin, "gh"), `#!/bin/sh
 case "$1 $2" in
-  "api repos/storytree-ai/storytree/releases?per_page=100") echo '[{"tag_name":"v0.3.700","draft":true,"prerelease":false},{"tag_name":"v0.3.699","draft":false,"prerelease":false}]' ;;
+  "api repos/storytree-ai/storytree/releases?per_page=100") cat "${root}/releases.json" ;;
   "release download") cp "${root}/$3/"* "$7" ;;
   *) echo "unexpected gh $*" >&2; exit 1 ;;
 esac

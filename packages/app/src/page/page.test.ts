@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { setImmediate } from "node:timers/promises";
-import type { AnnotatedTree } from "@storytree/library";
+import type { AnnotatedTree, SharedStore } from "@storytree/library";
 import { Window } from "happy-dom";
 
 import { captureSeed } from "../../../../apps/desktop/src/capture/index.js";
@@ -38,7 +38,7 @@ interface Drawn {
   name: string;
   mounted: string[];
   stopped: string[];
-  view: ForestGlobe & { scenes: number; disposed: boolean; circled: (readonly string[] | undefined)[]; circledContracts: (readonly string[] | undefined)[]; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
+  view: ForestGlobe & { scenes: number; scene?: unknown; select(selection: unknown): void; selected: unknown[]; disposed: boolean; circled: (readonly string[] | undefined)[]; circledContracts: (readonly string[] | undefined)[]; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
   reading: Reading | undefined;
   teaching: { factory: boolean; library: boolean | undefined }[];
   locate: Parameters<ProjectParts["teaching"]>[0] | undefined;
@@ -109,8 +109,8 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
         name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], gates: [], opens: [], details: [], folded: [],
         kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, increments: [], arcsStart: undefined, listeners: [], events: [],
         view: {
-          scenes: 0, disposed: false, circled: [], circledContracts: [], onSelect: () => {}, painted: deferred<void>(),
-          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, circle(capabilities, contracts) { mine.view.circled.push(capabilities); mine.view.circledContracts.push(contracts); }, dispose() { mine.view.disposed = true; },
+          scenes: 0, selected: [], disposed: false, circled: [], circledContracts: [], onSelect: () => {}, painted: deferred<void>(),
+          show(scene) { mine.view.scenes++; mine.view.scene = scene; }, drawn: () => mine.view.painted.promise, select(picked) { mine.view.selected.push(picked); }, circle(capabilities, contracts) { mine.view.circled.push(capabilities); mine.view.circledContracts.push(contracts); }, dispose() { mine.view.disposed = true; },
         },
       };
       drawn.push(mine);
@@ -158,6 +158,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
           mine.details.push(options.details);
           return selected === undefined ? "" : `<section class="panel-detail" data-capability-id="${selected}"></section>`;
         },
+        renderStore: (store) => `<h2>${store.address}</h2><button type="button" class="panel-close">×</button>`,
         foldPanel: (panel) => { mine.folded.push(panel.querySelector<HTMLElement>(".panel-detail")?.dataset.capabilityId); },
       };
     },
@@ -175,7 +176,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
     heard: (on = drawn.at(-1)!) => { for (const listener of [...on.listeners]) void listener.onNews({ changes: [], lines: [] }); },
     readFailed: (error: Error, on = drawn.at(-1)!) => { for (const listener of [...on.listeners]) listener.onError?.(error); },
     /** The fresh tree landing for the project last drawn. */
-    land: (on = drawn.at(-1)!) => on.reading!.onTree(tree, { changes: [], lines: [] }, {}),
+    land: (on = drawn.at(-1)!, stores: readonly SharedStore[] = []) => on.reading!.onTree(tree, { changes: [], lines: [] }, {}, stores),
     heading: () => content.querySelector("h1")?.textContent,
     line: () => content.querySelector("p")?.textContent,
   };
@@ -696,4 +697,25 @@ test("2.55 · while a project's forest is on show the page mounts the CI times s
   assert.ok(site.stopped.includes("ci-times"), "the left project's strip is stopped");
   assert.equal(host.isConnected, false);
   assert.ok(on.last().mounted.includes("ci-times"));
+});
+
+test("2.62 · the page draws the shared stores the forest's reading read, and a picked store opens its panel in the story panel's slot, whose close deselects it", async (t) => {
+  const on = page(t);
+  await settled();
+  const shop: SharedStore = { address: "postgres://db/shop", medium: "postgres", evidence: [{ file: "docker-compose.yml", says: "service db" }], tables: [] };
+  on.land(undefined, [shop]);
+  const project = on.last();
+  assert.deepEqual((project.view.scene as { stores?: { address: string }[] }).stores?.map(({ address }) => address), [shop.address], "the store is drawn");
+
+  project.view.onSelect({ kind: "store", id: shop.address });
+  const panel = on.content.querySelector<HTMLElement>(".story-panel")!;
+  assert.equal(panel.hidden, false);
+  assert.equal(panel.querySelector("h2")?.textContent, shop.address, "the store's panel is on show");
+  assert.equal(on.body.dataset.selected, undefined, "no story is selected with it");
+  on.land(undefined, [shop]);
+  assert.equal(panel.querySelector("h2")?.textContent, shop.address, "a redraw keeps it");
+  panel.querySelector<HTMLButtonElement>(".panel-close")!.click();
+  assert.deepEqual(project.view.selected.at(-1), undefined, "its close deselects");
+  project.view.onSelect(undefined);
+  assert.equal(panel.hidden, true);
 });

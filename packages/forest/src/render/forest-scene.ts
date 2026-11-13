@@ -15,7 +15,7 @@
  * - The project's sentence sits above the plan it governs, with what the plan has not yet said (ADR-1085 D1).
  */
 import { PLACE_WIDTH, type CapabilityWord, type ForestScene as WorldScene, type Island, type PlacedTree, type Plumbing, type PlumbingKind, type TreeForm } from "@storytree/forest-world/scene";
-import type { AnnotatedTree, Change, StorySurvey } from "@storytree/library";
+import type { AnnotatedTree, Change, SharedStore, StorySurvey } from "@storytree/library";
 
 import { grove, type PartStates } from "../capability-tree/capability-tree.js";
 import { islandArea, mappedArea, MIN_ISLAND_AREA, unsurveyedArea } from "../planet-places/island-growth.js";
@@ -54,9 +54,10 @@ export interface ForestDrawn {
 /**
  * The forest for a project: `tree` is its projectTree(), `history` its changesSince(0) changes, and
  * `states` the arc surface's work states over its agent activity log, and `survey` its code's survey by
- * story (capability 8): a surveyed story's island is cut into its capabilities' territories.
+ * story (capability 8): a surveyed story's island is cut into its capabilities' territories. `stores` are the project's
+ * shared stores (map 8.66), each drawn as its own object beside the islands with its tables inside it (ADR-1332 D1).
  */
-export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], states: PartStates, survey: Readonly<Record<string, StorySurvey>> = {}): ForestScene {
+export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], states: PartStates, survey: Readonly<Record<string, StorySurvey>> = {}, stores: readonly SharedStore[] = []): ForestScene {
   const nodes = new Map(storyNodes(tree, history, survey).map((node) => [node.id, node]));
   const islands = tree.stories.map((story): Island => {
     const node = nodes.get(story.id);
@@ -80,7 +81,8 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
   const plumbing = plumbingCalls(tree, survey);
   const edges = tree.stories.flatMap(({ edges = [] }) => edges.flatMap(({ from, to, contracts }): SceneEdge[] => contracts.length === 0 ? [] : [{ from, to, contracts: contracts.map(({ id }) => id) }]));
   const contracts = tree.stories.flatMap(({ capabilities }) => capabilities.flatMap(({ id, contracts }): SceneContracts[] => contracts.length === 0 ? [] : [{ capability: id, contracts: contracts.map(({ id }) => id) }]));
-  return { islands, links: capabilityLinks(tree, survey), ...(plumbing.length === 0 ? {} : { plumbing }), ...(edges.length === 0 ? {} : { edges }), ...(contracts.length === 0 ? {} : { contracts }) };
+  const drawn = stores.map(({ address, medium, tables }) => ({ address, medium, tables: tables.map(({ name }) => name) }));
+  return { islands, links: capabilityLinks(tree, survey), ...(plumbing.length === 0 ? {} : { plumbing }), ...(edges.length === 0 ? {} : { edges }), ...(contracts.length === 0 ? {} : { contracts }), ...(drawn.length === 0 ? {} : { stores: drawn }) };
 }
 
 /**

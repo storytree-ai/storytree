@@ -7,7 +7,7 @@
  * the user switched project changes nothing on show.
  */
 import { drawingOf, drillDown, forestDrawn, forestScene, storyNodes, type ForestReadingOptions, type ForestScene, type KeptDrawing, type StoryPanel } from "@storytree/forest";
-import type { AnnotatedTree } from "@storytree/library";
+import type { AnnotatedTree, SharedStore } from "@storytree/library";
 
 import { followProjects, type ProjectSelection } from "../projects/follow.js";
 import { surfaceOn, surfaceSetting, type SurfacesResult } from "../surfaces/bridge.js";
@@ -24,8 +24,8 @@ type PartStates = Parameters<typeof forestScene>[2];
 type Held = ReturnType<PageReading["held"]>;
 type Changes = Held["changes"];
 
-/** What a click on the forest picked: a story (on one of its territories' capabilities), a note, or empty space. */
-export type ForestSelection = { kind: "story"; id: string; capability?: string; gate?: readonly [string, string] } | { kind: "note"; id: string } | undefined;
+/** What a click on the forest picked: a story (on one of its territories' capabilities), a note, a shared store by its address, or empty space. */
+export type ForestSelection = { kind: "story"; id: string; capability?: string; gate?: readonly [string, string] } | { kind: "note"; id: string } | { kind: "store"; id: string } | undefined;
 
 /** The forest's globe (the forest's openForestView), the little of it the page drives. */
 export interface ForestGlobe {
@@ -69,6 +69,8 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   reading(options: Pick<ForestReadingOptions, "onTree" | "onError" | "onSettled" | "survey">): { stop(): void };
   /** `open`: the contracts the arc opened in the Arcs tab links in its open work, which say why a picked gate is ringed. */
   renderPanel(drilled: StoryPanel, selected: string | undefined, options: { details: boolean; gate: readonly [string, string] | undefined; open: readonly string[] | undefined }): string;
+  /** A shared store's panel (the forest's renderStorePanel), shown in the story panel's slot. */
+  renderStore(store: SharedStore): string;
   /** Work the folds of the panel just drawn into `panel` (the forest's capability 4), opening the kinds the user keeps open. */
   foldPanel(panel: HTMLElement): void;
 }
@@ -241,6 +243,8 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     let tree: AnnotatedTree | undefined;
     /** The code survey last read, which counts a mapped story's files and lines for its panel. */
     let surveyed: Survey = {};
+    /** The shared stores last read, drawn beside the islands, whose panel a picked one opens. */
+    let stores: readonly SharedStore[] = [];
     /** The contracts the arc opened in the Arcs tab links in its open work, for the panel of a picked gate (ADR-1284 D4). */
     let opened: readonly string[] | undefined;
 
@@ -248,6 +252,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       body,
       drill: (story) => tree === undefined ? undefined : drillDown(tree, story, states, history(), surveyed),
       render: (drilled, selected, gate) => project.renderPanel(drilled, selected, { details: withDetails, gate, open: opened }),
+      store: (address) => { const store = stores.find((each) => each.address === address); return store === undefined ? undefined : project.renderStore(store); },
       folds: (host) => project.foldPanel(host),
       libraryCard: (host, onClose) => project.libraryCard(host, onClose),
       deselect: () => mine.view?.select(undefined),
@@ -258,7 +263,9 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     const view = await project.openView(holder, (selection) => {
       delete body.dataset.selected;
       delete body.dataset.note;
+      delete body.dataset.store;
       if (selection?.kind === "story") body.dataset.selected = selection.id;
+      if (selection?.kind === "store") body.dataset.store = selection.id;
       if (selection?.kind === "note") body.dataset.note = selection.id;
       // A click on a territory opens its story on that capability (forest 3.15), and one on a gate on the pair it joins (3.88).
       panel.choose(selection?.kind === "story" ? selection.capability : undefined, selection?.kind === "story" ? selection.gate : undefined);
@@ -300,13 +307,14 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       else status.showReadError(heading, `${messageOf(error)}. Retrying…`);
     };
     const reading: Parameters<ProjectParts["reading"]>[0] = {
-      onTree: (fresh, news, survey) => {
+      onTree: (fresh, news, survey, shared) => {
         if (showing !== mine) return;
         parts.answered();
         tree = fresh;
         surveyed = survey;
+        stores = shared;
         states.add(news.lines);
-        const scene = forestScene(fresh, history(), states, survey);
+        const scene = forestScene(fresh, history(), states, survey, shared);
         view.show(scene, new Map(storyNodes(fresh, history(), survey).map((node) => [node.id, node.place])));
         project.take(history(), news.lines);
         status.sayWhatWasDrawn(forestDrawn(scene));

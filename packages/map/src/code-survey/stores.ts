@@ -17,17 +17,9 @@
  */
 import path from "node:path";
 
-/** A column of a table, its type as the migration wrote it, lower-cased and compacted. */
-export type StoreColumn = { readonly name: string; readonly type: string };
-/** A foreign key: the table's columns, the table they reference, and its columns there (empty when the key names none). */
-export type StoreForeignKey = { readonly columns: readonly string[]; readonly table: string; readonly references: readonly string[] };
-/** A table of a SQL store, and the migration files that made or changed it, in the order they were applied. */
-export type StoreTable = { readonly name: string; readonly columns: readonly StoreColumn[]; readonly foreignKeys: readonly StoreForeignKey[]; readonly from: readonly string[] };
-/** A piece of evidence for a store: the file, and what in it names the store. */
-export type StoreEvidence = { readonly file: string; readonly says: string };
-export type StoreMedium = "postgres" | "mysql" | "redis" | "mongodb";
-/** A shared store: its address, its medium, the evidence naming it, and (for a SQL store) its tables. */
-export type SharedStore = { readonly address: string; readonly medium: StoreMedium; readonly evidence: readonly StoreEvidence[]; readonly tables: readonly StoreTable[] };
+import type { SharedStore, StoreColumn, StoreEvidence, StoreMedium, StoreTable } from "@storytree/library";
+
+export type { SharedStore, StoreColumn, StoreEvidence, StoreForeignKey, StoreMedium, StoreTable } from "@storytree/library";
 
 type File = { readonly path: string; readonly text: string };
 

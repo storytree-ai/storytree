@@ -4,7 +4,8 @@ import { Canvas, flushSync as flushRoot, useFrame, useStore, useThree, type Root
 import { flushSync } from 'react-dom';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Vector3, type Group, type PerspectiveCamera } from 'three';
-import type { ForestScene, Island } from '../scene.js';
+import type { ForestScene, Island, Store } from '../scene.js';
+import { storeLayout } from './store.js';
 import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
 import { drawnAtOnce, islandDocks, pageRoadRouter, roadsWhenRouted, type IslandDock } from './road-routing.js';
 import { RestLanes, SelectionLanes } from './PlanetTrailRibbons.js';
@@ -35,6 +36,7 @@ export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetG
 export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 
 export type { PlanetSurfaceVisibility } from './exterior.js';
+export { storeLayout, type StoreLayout, type StoreTile } from './store.js';
 export { applySheetEye, clearGlass, seenFromBelow, SHEET_FOV, SHEET_LAND_LIFT, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetPoint, sheetSpot, tiltFromEye, UnderTheGlass, type SheetExtent, type SheetPoint } from './sheet.js';
 
 /**
@@ -53,6 +55,8 @@ export interface PlanetWorldCanvasProps {
   scene: ForestScene;
   /** One unit direction per story; placement and capacity belong to lane A. */
   spots: ReadonlyMap<string, PlanetSpot>;
+  /** One unit direction per shared store in `scene.stores`, by address: each is drawn there, beside the islands (ADR-1332 D1). */
+  storeSpots?: ReadonlyMap<string, PlanetSpot> | undefined;
   /** Fixed radius from the placement rule, in the ported engine's ground units. */
   radius: number;
   /** A host turns the big sphere, sliding the sheet under the eye, without rebuilding the plates. */
@@ -147,6 +151,38 @@ const Plate = memo(function Plate({ island, spot, radius, plate, docks, ports, v
     {portGroup && <primitive object={portGroup} visible={grounds} />}
     {/* Html markers do not inherit Three's visibility: the legacy inside-only gate removes them. */}
     {visible && risen && children?.(island, descriptors, coast, docks)}
+  </group>;
+});
+
+/** How high a store's slab stands, and its tables' tiles on it, in ground units. */
+const STORE_THICKNESS = 2;
+const TILE_RISE = 0.6;
+const STORE_COLOUR = '#3a4f66';
+const TILE_COLOUR = '#c9d6e3';
+
+/** A shared store: its own slab on the glass beside the islands, named by its address, with its tables' tiles inside it
+ * (4.46), picked by its name `store:<address>`. */
+const StorePlate = memo(function StorePlate({ store, spot, radius, visible }: { store: Store; spot: PlanetSpot; radius: number; visible: boolean }) {
+  const transform = useMemo(() => plateTransform(spot, radius, SHEET_LAND_LIFT), [spot.x, spot.y, spot.z, radius]);
+  const laid = useMemo(() => storeLayout(store.tables), [store.tables]);
+  const label = { pointerEvents: 'none', whiteSpace: 'nowrap', font: '11px system-ui, sans-serif' } as const;
+  return <group position={transform.position} quaternion={transform.quaternion} name={`store:${store.address}`} visible={visible}>
+    <mesh position={[0, -STORE_THICKNESS / 2, 0]}>
+      <boxGeometry args={[laid.width, STORE_THICKNESS, laid.depth]} />
+      <meshLambertMaterial color={STORE_COLOUR} />
+    </mesh>
+    {laid.tiles.map(tile => <mesh key={tile.name} position={[tile.x, TILE_RISE / 2, tile.z]}>
+      <boxGeometry args={[tile.width, TILE_RISE, tile.depth]} />
+      <meshLambertMaterial color={TILE_COLOUR} />
+    </mesh>)}
+    {visible && <>
+      <Overlay className="planet-store-name" position={[0, TILE_RISE, -laid.depth / 2 + 4]} center zIndexRange={[25, 21]} style={label}>
+        <span style={{ color: '#e8f0f8', fontWeight: 600 }} data-store={store.address}>{store.address}</span>
+      </Overlay>
+      {laid.tiles.map(tile => <Overlay key={tile.name} className="planet-store-table" position={[tile.x, TILE_RISE, tile.z]} center zIndexRange={[25, 21]} style={label}>
+        <span style={{ color: '#1c2733' }}>{tile.name}</span>
+      </Overlay>)}
+    </>}
   </group>;
 });
 
@@ -255,7 +291,7 @@ function drawnOnResize(state: () => RootState | undefined): typeof ResizeObserve
 
 /** The map: one Canvas, the glass sheet, and each story's island as a raised plate with a coast (ADR-0804 D1, ADR-1059 D2).
  * A lamp shades the islands' sides and the glass's edge, and the land's top keeps its exact colour (ADR-1062 D1). */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, floor, sideOffset = 0, lanes = NO_LANES, growth, sheet, hollow = false, onLanesNotice }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, storeSpots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, floor, sideOffset = 0, lanes = NO_LANES, growth, sheet, hollow = false, onLanesNotice }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const pathways = drawing.plan;
   const exterior = globeExterior(surface, surfaces);
@@ -295,6 +331,10 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         if (spot === undefined) throw new Error(`No planet spot for story ${island.story}`);
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!} docks={docksOn(island.story)}
           ports={island.story === selected ? sea.ports : NO_PORTS} visible={exterior.plates} grounds={exterior.grounds} hollow={hollow} children={plateChildren} />;
+      })}
+      {scene.stores?.map(store => {
+        const spot = storeSpots?.get(store.address);
+        return spot === undefined ? null : <StorePlate key={store.address} store={store} spot={spot} radius={radius} visible={exterior.plates && !hollow} />;
       })}
       <group name="globe-lanes" visible={exterior.roads}><RestLanes stretches={rest} selected={sea.lanes.length > 0} scale={laneScale} /><SelectionLanes routes={sea.lanes} scale={laneScale} /></group>
       {inside}

@@ -1,7 +1,8 @@
 /**
  * Capability 3 · Data schema. The shape of a story's code survey: what the map's code survey finds in a story's
  * package, and what the forest draws from it. It is defined here, the registry of shapes stories share (ADR-1017
- * D1): the map, which produces it, and the forest, which reads it, both take it from here.
+ * D1): the map, which produces it, and the forest, which reads it, both take it from here. So is the shape of a
+ * project's shared stores (ADR-1332 D1, D2 (1)), which the map reads and the forest draws beside the islands.
  */
 
 /**
@@ -56,3 +57,15 @@ export type StorySurvey = {
    */
   readonly mapped?: { readonly folder: string; readonly loop?: readonly string[] };
 };
+
+/** A column of a table, its type as the migration wrote it, lower-cased and compacted. */
+export type StoreColumn = { readonly name: string; readonly type: string };
+/** A foreign key: the table's columns, the table they reference, and its columns there (empty when the key names none). */
+export type StoreForeignKey = { readonly columns: readonly string[]; readonly table: string; readonly references: readonly string[] };
+/** A table of a SQL store, and the migration files that made or changed it, in the order they were applied. */
+export type StoreTable = { readonly name: string; readonly columns: readonly StoreColumn[]; readonly foreignKeys: readonly StoreForeignKey[]; readonly from: readonly string[] };
+/** A piece of evidence for a store: the file, and what in it names the store. */
+export type StoreEvidence = { readonly file: string; readonly says: string };
+export type StoreMedium = "postgres" | "mysql" | "redis" | "mongodb";
+/** A shared store: its address, its medium, the evidence naming it, and (for a SQL store) its tables. */
+export type SharedStore = { readonly address: string; readonly medium: StoreMedium; readonly evidence: readonly StoreEvidence[]; readonly tables: readonly StoreTable[] };

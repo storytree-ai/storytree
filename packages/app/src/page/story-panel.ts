@@ -1,6 +1,6 @@
 /**
  * Capability 2 · Storytree projects. The desktop page's story panel (the forest's capability 4 drill-down, mounted by the app): the
- * library's card for a selected note, or the selected story's drill-down, on the capability picked when one is, never one picked
+ * library's card for a selected note, a selected shared store's panel, or the selected story's drill-down, on the capability picked when one is, never one picked
  * for the user (ADR-1297). A drawing that changes the panel is handed to the forest's folds, which open again the kinds the user opened.
  */
 import type { StoryPanel } from "@storytree/forest";
@@ -12,6 +12,8 @@ export interface StoryPanelParts {
   drill(story: string): StoryPanel | undefined;
   /** `gate`, when one was picked on the map: the pair of capabilities it joins, whose edges the panel lists. */
   render(drilled: StoryPanel, selected: string | undefined, gate: readonly [string, string] | undefined): string;
+  /** The panel of the shared store at `address` (`data-store`), or none when no store there was read. */
+  store(address: string): string | undefined;
   /** Hand the panel just drawn to its folds, which open again the kinds the user keeps open. */
   folds(panel: HTMLElement): void;
   /** Mount the library's card for the selected note; returns its stop. */
@@ -83,6 +85,18 @@ export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPan
     }
     card?.();
     card = undefined;
+    const address = parts.body.dataset.store;
+    if (address !== undefined) {
+      const html = parts.store(address);
+      panel.hidden = html === undefined;
+      if (html === undefined) panel.replaceChildren();
+      else if (drawn?.story !== `store:${address}` || drawn.html !== html) {
+        panel.innerHTML = html;
+        panel.querySelector(".panel-close")?.addEventListener("click", () => parts.deselect());
+      }
+      drawn = html === undefined ? undefined : { html, story: `store:${address}` };
+      return;
+    }
     const story = parts.body.dataset.selected;
     const drilled = story === undefined ? undefined : parts.drill(story);
     panel.hidden = drilled === undefined;

@@ -23,7 +23,7 @@ import { mountPluginViews } from "./plugin-views.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
 import { panelFolds } from "@storytree/forest/view/panel-folds";
-import { openForestView, mountLibraryPanel, renderStoryPanel, mountSessionsList, type GlobeLocator, type GlobeOpening } from "@storytree/forest/view";
+import { openForestView, mountLibraryPanel, renderStorePanel, renderStoryPanel, mountSessionsList, type GlobeLocator, type GlobeOpening } from "@storytree/forest/view";
 
 declare global {
   interface Window {
@@ -116,6 +116,7 @@ page = openProjectPage({
       plugins: (on) => mountPluginViews(content, window.storytree.pluginViews, on, { project: name, bridge: window.storytree }),
       reading: (options) => forestReading({ project: name, reads, reading, ...options }),
       renderPanel: (drilled, selected, options) => renderStoryPanel(drilled, selected, options),
+      renderStore: (store) => renderStorePanel(store),
       foldPanel: (panel) => folds.draw(panel),
     };
   },

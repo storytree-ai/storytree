@@ -24,7 +24,7 @@ test("8.1 a page operation a story declares reaches that story's answer in the m
   answerPage(ipc, SETTINGS_CHANNELS, { readSettings: answer("readSettings"), saveSetting: answer("saveSetting") });
   answerPage(ipc, SURFACES_CHANNELS, { readSurfaces: answer("readSurfaces"), saveSurface: answer("saveSurface") });
   answerPage(ipc, PAGE_READS_CHANNELS, Object.fromEntries(Object.keys(PAGE_READS_CHANNELS).map((method) => [method, answer(method)])) as Record<keyof typeof PAGE_READS_CHANNELS, ReturnType<typeof answer>>);
-  answerPage(ipc, FOREST_CHANNELS, { codeSurvey: answer("codeSurvey") });
+  answerPage(ipc, FOREST_CHANNELS, { codeSurvey: answer("codeSurvey"), sharedStores: answer("sharedStores") });
 
   const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args)) as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
   assert.equal(await page.chooseJourney!(true), "chooseJourney answered");
@@ -33,7 +33,8 @@ test("8.1 a page operation a story declares reaches that story's answer in the m
   assert.equal(await page.readJourney!(), "readJourney answered");
   assert.equal(await page.windowReading!("storytree", "s1"), "windowReading answered");
   assert.equal(await page.codeSurvey!("storytree"), "codeSurvey answered");
-  assert.deepEqual(heard, [["chooseJourney", true], ["saveSetting", "idle-after", ["30m"]], ["saveSurface", ["arcs", "off"]], ["readJourney"], ["windowReading", "storytree", "s1"], ["codeSurvey", "storytree"]]);
+  assert.equal(await page.sharedStores!("storytree"), "sharedStores answered");
+  assert.deepEqual(heard, [["chooseJourney", true], ["saveSetting", "idle-after", ["30m"]], ["saveSurface", ["arcs", "off"]], ["readJourney"], ["windowReading", "storytree", "s1"], ["codeSurvey", "storytree"], ["sharedStores", "storytree"]]);
 });
 
 test("8.1 the app's own operations and the setup help's travel on the channels their stories declare, and reach those answers", async () => {

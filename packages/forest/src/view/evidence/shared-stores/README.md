@@ -14,3 +14,5 @@ Pictures, 1440 x 960:
   west of the land, level with its middle, its five tables as pale tiles inside it, named.
 - `store-panel-1440x960.png`: the store clicked: its panel names its medium and address, the three pieces of evidence
   naming it, "Who touches it: not yet read.", and its tables with their columns, types and foreign keys.
+
+In the evidence bucket for #851, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `851/store-beside-islands-1440x960.png`, `851/store-panel-1440x960.png`.

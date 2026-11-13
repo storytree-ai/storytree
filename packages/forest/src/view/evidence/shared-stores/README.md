@@ -32,3 +32,5 @@ connection string (`src/db.py`) is code, not a connection setting, so the panel'
   reading, parked as increment_049bcbe63687.
 - `store-panel-1440x960-checkbox.png`: its panel: medium and address, the compose file naming it, "Who touches it: not
   yet read.", and the six tables with their columns, types and foreign keys.
+
+In the evidence bucket for #852, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `852/store-beside-islands-1440x960-checkbox.png`, `852/store-panel-1440x960-checkbox.png`, `852/measurements-checkbox.json`.

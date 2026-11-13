@@ -5,10 +5,13 @@
  * reaches it by a connection string, and numbered .sql migrations.
  */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { readStores } from "./read-survey.js";
 import { storesOf, type SharedStore } from "./stores.js";
@@ -153,29 +156,71 @@ test("8.66 · with two SQL stores, a migration goes to the store whose compose s
       "    image: mysql:8",
       "    environment:",
       "      MYSQL_DATABASE: orders",
+      "  reports-db:",
+      "    image: postgres:15",
+      "    environment:",
+      "      POSTGRES_DB: reports",
+      "    ports:",
+      "      - target: 5432",
+      "        published: 6543",
+      "    volumes:",
+      "      - type: bind",
+      "        source: ./db/reports",
+      "        target: /docker-entrypoint-initdb.d",
       "",
     ].join("\n"),
+    ".env.example": "REPORTS_URL=postgres://localhost:6543/reports\n",
     "db/users/01.sql": "CREATE TABLE account (id int);\n",
     "db/orders/01.sql": "CREATE TABLE purchase (id int);\n",
+    "db/reports/01.sql": "CREATE TABLE monthly (id int);\n",
   }));
-  assert.deepEqual(stores.map(({ address, tables }) => ({ address, tables: tables.map(({ name }) => name) })), [
-    { address: "mysql://orders-db/orders", tables: [] },
-    { address: "postgres://users-db/postgres", tables: ["account"] },
+  assert.deepEqual(stores.map(({ address, tables, evidence }) => ({ address, tables: tables.map(({ name }) => name), files: evidence.map(({ file }) => file) })), [
+    { address: "mysql://orders-db/orders", tables: [], files: ["docker-compose.yml"] },
+    { address: "postgres://reports-db/reports", tables: ["monthly"], files: [".env.example", "docker-compose.yml"] },
+    { address: "postgres://users-db/postgres", tables: ["account"], files: ["docker-compose.yml"] },
   ]);
 });
 
-test("8.66 · the survey reads a folder's stores from what it commits, leaving out folders it never reads", async () => {
-  const folder = mkdtempSync(path.join(tmpdir(), "storytree-stores-"));
-  try {
-    for (const [file, text] of Object.entries({ ...CHECKBOX, "node_modules/pg/docker-compose.yml": "services:\n  other:\n    image: redis\n" })) {
-      mkdirSync(path.dirname(path.join(folder, file)), { recursive: true });
-      writeFileSync(path.join(folder, file), text);
-    }
-    const stores = await readStores(folder);
-    assert.deepEqual(stores.map(({ address, tables }) => ({ address, tables: tables.map(({ name }) => name) })), [
-      { address: "postgres://db/checkbox", tables: ["answers", "forms", "users"] },
-    ]);
-  } finally {
-    rmSync(folder, { recursive: true, force: true });
+/** Writes `files` under `folder`. */
+function writeAll(folder: string, files: Record<string, string>): void {
+  for (const [file, text] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(folder, file)), { recursive: true });
+    writeFileSync(path.join(folder, file), text);
   }
+}
+
+test("8.66 · the survey reads a folder's stores from what it commits, leaving out folders it never reads", async (t) => {
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-stores-"));
+  t.after(() => removeTemp(folder));
+  writeAll(folder, { ...CHECKBOX, "node_modules/pg/docker-compose.yml": "services:\n  other:\n    image: redis\n" });
+  const stores = await readStores(folder);
+  assert.deepEqual(stores.map(({ address, tables }) => ({ address, tables: tables.map(({ name }) => name) })), [
+    { address: "postgres://db/checkbox", tables: ["answers", "forms", "users"] },
+  ]);
+});
+
+test("8.66 · the survey reads stores from a checkout's commit and work Git does not ignore, and from each folder this machine imports, never from an ignored file", async (t) => {
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-stores-git-"));
+  t.after(() => removeTemp(folder));
+  const checkout = path.join(folder, "checkout");
+  const imported = path.join(folder, "imported");
+  writeAll(checkout, {
+    ".gitignore": ".env\n",
+    "docker-compose.yml": "services:\n  db:\n    image: postgres:16\n    environment:\n      POSTGRES_DB: app\n",
+    "migrations/001.sql": "CREATE TABLE users (id int);\n",
+  });
+  const git = (...args: string[]) => execFileSync("git", ["-C", checkout, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { stdio: "ignore" });
+  git("init", "-q");
+  git("add", "-A");
+  git("commit", "-q", "-m", "start");
+  writeAll(checkout, {
+    ".env": "SECRET_URL=redis://ignored-cache:6379\n",
+    "migrations/002.sql": "CREATE TABLE orders (id int, user_id int REFERENCES users(id));\n",
+  });
+  writeAll(imported, { "settings.toml": "cache = \"redis://shared-cache/0\"\n" });
+  const stores = await readStores(checkout, [{ folder: imported }]);
+  assert.deepEqual(stores.map(({ address, tables }) => ({ address, tables: tables.map(({ name }) => name) })), [
+    { address: "postgres://db/app", tables: ["orders", "users"] },
+    { address: "redis://shared-cache", tables: [] },
+  ]);
 });

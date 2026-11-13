@@ -3,6 +3,8 @@
 // own library), its stores read by the map's own readStores from a folder shaped like the checkbox interview repository: Postgres
 // with pgvector in compose, its tables from .sql migrations. Run from the checkout root, in the foreground:
 //   node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/testing/view/shared-stores/capture.mjs --retake
+// Add `--folder <project folder>` to read a real project's stores instead (the checkbox repository itself, increment_44871a60b43c):
+// its pictures and measurements are named for that folder, `store-panel-1440x960-checkbox.png`.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -21,13 +23,20 @@ const CHECKBOX = {
   'migrations/001_init.sql': 'CREATE EXTENSION IF NOT EXISTS vector;\nCREATE TABLE users (id SERIAL PRIMARY KEY, email TEXT NOT NULL, display_name varchar(80));\nCREATE TABLE forms (id bigint PRIMARY KEY, title text);\nCREATE TABLE answers (id bigserial PRIMARY KEY, user_id integer NOT NULL REFERENCES users (id), embedding vector(1536));\n',
   'migrations/002_forms.sql': 'ALTER TABLE answers ADD COLUMN form_id bigint;\nALTER TABLE answers ADD CONSTRAINT answers_form FOREIGN KEY (form_id) REFERENCES forms(id);\nCREATE TABLE sessions (id uuid PRIMARY KEY, user_id integer REFERENCES users (id), started timestamptz);\nCREATE TABLE checks (id serial PRIMARY KEY, answer_id bigint REFERENCES answers (id), passed boolean);\n',
 };
-const folder = mkdtempSync(path.join(tmpdir(), 'shared-stores-capture-'));
-for (const [file, text] of Object.entries(CHECKBOX)) { mkdirSync(path.dirname(path.join(folder, file)), { recursive: true }); writeFileSync(path.join(folder, file), text); }
-const stores = await readStores(folder);
-rmSync(folder, { recursive: true, force: true });
+const given = process.argv.indexOf('--folder') === -1 ? undefined : process.argv[process.argv.indexOf('--folder') + 1];
+const name = given === undefined ? undefined : path.basename(path.resolve(given));
+const named = file => name === undefined ? file : `${path.basename(file, path.extname(file))}-${name}${path.extname(file)}`;
+let stores;
+if (given !== undefined) stores = await readStores(path.resolve(given));
+else {
+  const folder = mkdtempSync(path.join(tmpdir(), 'shared-stores-capture-'));
+  for (const [file, text] of Object.entries(CHECKBOX)) { mkdirSync(path.dirname(path.join(folder, file)), { recursive: true }); writeFileSync(path.join(folder, file), text); }
+  stores = await readStores(folder);
+  rmSync(folder, { recursive: true, force: true });
+}
 await buildCapture({ dist });
 
-const { results, out } = await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, settle }) => {
+const { results, out } = await withCapture({ folder: evidence, dist, ...(name === undefined ? {} : { name }) }, async ({ browser, origin, out, settle }) => {
   const results = {};
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [];
@@ -54,7 +63,7 @@ const { results, out } = await withCapture({ folder: evidence, dist }, async ({ 
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   await settle(page);
   await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(out, 'store-beside-islands-1440x960.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, named('store-beside-islands-1440x960.png')), timeout: 180000 });
   // The store's slab, in the window's pixels, and the table names drawn on it.
   const slab = await page.evaluate(address => {
     const { scene, camera } = window.__globe, V = camera.position.constructor;
@@ -67,11 +76,11 @@ const { results, out } = await withCapture({ folder: evidence, dist }, async ({ 
   await page.mouse.click(slab.x, slab.y);
   await settle(page);
   await page.waitForTimeout(500);
-  await page.screenshot({ path: path.join(out, 'store-panel-1440x960.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, named('store-panel-1440x960.png')), timeout: 180000 });
   const panel = await page.evaluate(() => document.querySelector('.story-panel')?.innerText ?? null);
   results.store = { stores: stores.map(({ address, tables }) => ({ address, tables: tables.map(({ name }) => name) })), slab, panel, errors };
   await page.close();
   return { results, out };
 });
-writeFileSync(path.join(out, 'measurements.json'), JSON.stringify({ seed: 'code-rows', results }, null, 1) + '\n');
+writeFileSync(path.join(out, named('measurements.json')), JSON.stringify({ seed: 'code-rows', results }, null, 1) + '\n');
 console.log(JSON.stringify(results, null, 1));

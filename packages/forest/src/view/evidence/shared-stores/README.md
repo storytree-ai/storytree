@@ -16,3 +16,19 @@ Pictures, 1440 x 960:
   naming it, "Who touches it: not yet read.", and its tables with their columns, types and foreign keys.
 
 In the evidence bucket for #851, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `851/store-beside-islands-1440x960.png`, `851/store-panel-1440x960.png`.
+
+## On the checkbox repository itself (increment_44871a60b43c)
+
+The same page and the same reading, its stores read from the real checkbox repository on the laptop (`C:\code\checkbox`,
+2026-11-13) with `capture.mjs --retake --folder C:\code\checkbox`; the islands are still the code-rows snapshot's.
+`readStores` names one store, `postgres://db/ctx`, from `docker-compose.yml`'s service `db`, and the six tables of its
+`0001_init.sql` (tenants, users, source_objects, chunks, grants, document_summaries) with every column, type and foreign
+key, `source_objects` also carrying the self-referencing `parent_source_object_id` its `0003_summary_parent.sql` adds;
+`0002_seed.sql` makes no table. Matching the fixture: no table missing and no wrong address. Its code's own default
+connection string (`src/db.py`) is code, not a connection setting, so the panel's evidence names the compose file only.
+
+- `store-beside-islands-1440x960-checkbox.png`: the store and its six tiles. The long names overrun their tiles
+  (`document_summaries` under its neighbours, `source_objects` past its tile's edge): a fault of the drawing, not of the
+  reading, parked as increment_049bcbe63687.
+- `store-panel-1440x960-checkbox.png`: its panel: medium and address, the compose file naming it, "Who touches it: not
+  yet read.", and the six tables with their columns, types and foreign keys.

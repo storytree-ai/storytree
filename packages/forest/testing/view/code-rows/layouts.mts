@@ -19,7 +19,7 @@ await buildCapture({ dist });
 const { seed, survey } = captureSeed(name);
 let layouts: Record<string, string> = {};
 await runCapture({
-  folder: here, dist, seed, survey, views: [],
+  folder: here, dist, seed, survey, views: [], layouts: {},
   prepare: async ({ page }) => {
     await settledMap(page, { frames: 30, timeoutMs: 60 * 60_000 });
     layouts = Object.fromEntries(Object.entries(await pageStorage(page)).filter(([key]) => /^storytree\.(territories|roads)\./.test(key)));

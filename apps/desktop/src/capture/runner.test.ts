@@ -114,6 +114,46 @@ test("2.56 · a capture opens its seed's map with the layouts the seed kept alre
   }
 });
 
+test("2.63 · a capture's settling, while the map says it is laying out its islands, waits until the map says it has settled", async t => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  // The map's mark reads laying out until the thirtieth frame of a stand-in frame clock, as in 2.56.
+  await page.route("http://capture.test/**", route => route.fulfill({ contentType: "text/html", body: `<body><script>
+    const mark = on => { document.querySelector("[data-layout]")?.remove(); const m = document.createElement("div"); m.dataset.layout = on ? "settled" : "laying-out"; document.body.append(m); };
+    mark(false);
+    window.frame = 0;
+    requestAnimationFrame = callback => setTimeout(() => { frame++; if (frame === 30) mark(true); callback(performance.now()); }, 0);
+  </script></body>` }));
+  await page.goto("http://capture.test/index.html");
+  await settle(page, 4);
+  assert.equal(await page.evaluate("frame"), 33, "settling outlasts its own frames while the map lays out, until the settled mark has held 4 frames");
+  await page.evaluate(() => document.querySelector("[data-layout]")!.remove());
+  await settle(page, 4);
+  assert.equal(await page.evaluate("frame"), 37, "a page with no layout mark settles over its frames alone");
+});
+
+test("2.64 · a capture's stand-in bridge opens the page with the kept layouts of the shared seed the capture read, unless the capture hands it its own", async t => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const kept = async (options?: { layouts: Record<string, string> }) => {
+    const page = await browser.newPage();
+    await page.route("http://capture.test/**", route => route.fulfill({ contentType: "text/html", body: "<body>capture fixture</body>" }));
+    await fakeBridge({}, options).install(page);
+    await page.goto("http://capture.test/index.html");
+    const storage = await pageStorage(page);
+    await page.close();
+    return storage;
+  };
+  const guide = { "storytree:setup:guide-seen:v1": "yes" };
+  // The two seeds lay out stories they share differently, and a story keeps one arrangement: a merge of both would fit neither.
+  for (const name of ["forest", "code-rows"] as const) {
+    const { layouts } = captureSeed(name);
+    assert.deepEqual(await kept(), { ...layouts, ...guide }, `a capture that read the ${name} seed and names no layouts opens with that seed's islands laid out`);
+  }
+  assert.deepEqual(await kept({ layouts: {} }), guide, "one handed its own layouts opens with those alone");
+});
+
 // Each probe owns its socket and finishes only after it closes. Global fetch leaves
 // connection cleanup running, which can abort native Windows Node at test-force-exit.
 function readPage(url: string): Promise<string> {

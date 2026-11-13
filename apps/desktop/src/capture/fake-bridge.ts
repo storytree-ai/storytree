@@ -8,6 +8,7 @@
 import type { Page } from "playwright-core";
 
 import type { StorytreeBridge } from "../bridge.js";
+import { loadedSeedLayouts } from "./seeds.js";
 
 export interface FakeBridge {
   /** The page's call of `method`: its answer, or a refusal naming the method when there is none. */
@@ -52,7 +53,10 @@ const keptLayouts = (layouts: Readonly<Record<string, string>>): string =>
   `try { for (const [key, value] of Object.entries(${JSON.stringify(layouts)})) if (localStorage.getItem(key) === null) localStorage.setItem(key, value); } catch { /* about:blank has no storage */ }`;
 
 export interface FakeBridgeOptions {
-  /** The map's kept island layouts and roads, as localStorage entries (a shared seed's `layouts`), so its islands search none they hold. */
+  /**
+   * The map's kept island layouts and roads, as localStorage entries (a shared seed's `layouts`), so its islands search none
+   * they hold; the shared seed's the capture read unless given (2.64), so a capture of a shared seed's map settles in seconds, not minutes.
+   */
   layouts?: Readonly<Record<string, string>> | undefined;
   /** "unseen" for a capture of the first-run guide itself: the page then opens as a first launch. */
   guide?: "seen" | "unseen" | undefined;
@@ -159,7 +163,7 @@ function startFromLines({ lines, cursor }: Lines, kinds: readonly string[]) {
 }
 
 /** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */
-export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", teaching = "hidden", layouts }: FakeBridgeOptions = {}): FakeBridge {
+export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", teaching = "hidden", layouts = loadedSeedLayouts() }: FakeBridgeOptions = {}): FakeBridge {
   let refuse!: (error: Error) => void;
   const unanswered = new Promise<never>((_, reject) => (refuse = reject));
   unanswered.catch(() => {});
@@ -199,7 +203,7 @@ export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", 
       await page.addInitScript(PAGE_BRIDGE);
       if (guide === "seen") await page.addInitScript(GUIDE_SEEN);
       if (teaching === "hidden") await page.addInitScript(TEACHING_HIDDEN);
-      if (layouts !== undefined) await page.addInitScript(keptLayouts(layouts));
+      await page.addInitScript(keptLayouts(layouts));
     },
     async ready(page, timeoutMs = 60_000) {
       await Promise.race([page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: timeoutMs }), unanswered]);

@@ -159,8 +159,8 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
   /** What the card on show was last placed from: its point, its size, the window's and what was being read. */
   let placedFrom: { card: HTMLElement; from: string } | undefined;
 
-  /** Place the card on show; `again`, for a change drawn on the page, leaves it be when nothing it is placed from has moved. */
-  const place = (again = false): void => {
+  /** Place the card on show, unless nothing it is placed from has moved since it was last placed. */
+  const place = (): void => {
     if (shown === undefined) return;
     // The ask and the line between cards are about no one thing: they keep to a corner.
     const at = shown.kind === "tour" || shown.kind === "on" ? undefined : locate(shown.target);
@@ -170,7 +170,7 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     const right = view.innerWidth, bottom = view.innerHeight;
     const read = reading(shown.target);
     const from = JSON.stringify([at, width, height, right, bottom, read]);
-    if (again && placedFrom?.card === shown.card && placedFrom.from === from) return;
+    if (placedFrom?.card === shown.card && placedFrom.from === from) return;
     placedFrom = { card: shown.card, from };
     // Always inside the window.
     const inside = (left: number, top: number): Box => {
@@ -206,19 +206,14 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     if (onShow) tie(shown.card, chosen, at, at.box);
   };
   // A panel opened or closed on the page, or a row drawn into one (an arc appearing in the rail's list), changes what is being
-  // read, so the card on show is placed again; never for a row drawn inside a card, where placing draws its own ring and line.
-  // Placing reads the page's layout, so the changes drawn before a frame place it once, in that frame (3.47).
+  // read, so the card on show is placed again. Placing reads the page's layout, so the changes drawn before a frame place it
+  // once, in that frame (3.47); the ring and line a placing draws in its card move nothing it is placed from, so they stop there.
   let frame: number | undefined;
-  const placeInFrame = (): void => {
-    frame ??= view.requestAnimationFrame(() => { frame = undefined; place(true); });
-  };
-  const opened = new view.MutationObserver(records => {
-    const inCard = (node: Node): boolean => ((node.nodeType === 1 ? node as Element : node.parentElement)?.closest(".teaching-card") ?? null) !== null;
-    if (records.some(record => record.type === "attributes" || !inCard(record.target))) placeInFrame();
+  const opened = new view.MutationObserver(() => {
+    frame ??= view.requestAnimationFrame(() => { frame = undefined; place(); });
   });
   opened.observe(host, { subtree: true, attributeFilter: ["hidden"], childList: true, characterData: true });
-  const resized = (): void => place();
-  view.addEventListener("resize", resized);
+  view.addEventListener("resize", place);
   /** A card element, a status rather than a dialog: it is read out without moving focus or holding the page. */
   const aside = (kind: string, html: string): HTMLElement => {
     const node = host.ownerDocument.createElement("aside");
@@ -312,8 +307,7 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     stop() {
       unlisten();
       opened.disconnect();
-      if (frame !== undefined) view.cancelAnimationFrame(frame);
-      view.removeEventListener("resize", resized);
+      view.removeEventListener("resize", place);
       shown?.card.remove();
       shown = undefined;
       waiting.length = 0;

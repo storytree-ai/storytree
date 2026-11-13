@@ -362,14 +362,15 @@ test("3.5 · a row drawn into an open panel after the card is shown moves the ca
 test("3.5 · rows drawn one after another before a frame read the page once, and place the card no further when nothing being read has moved", async () => {
   const { document, host, teaching, asked, islandsAsked, at } = sized([], () => ({ x: 400, y: 300, visible: true }));
   const list = document.createElement("ol");
+  const first = asked.length;
   host.append(list);
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await waitUntil(() => asked.length > first, 2000, "the frame after the list is drawn to read the page");
   const read = asked.length, placed = islandsAsked();
   for (let row = 0; row < 5; row++) {
     list.append(document.createElement("li"));
     await Promise.resolve();
   }
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await waitUntil(() => asked.length > read, 2000, "the frame after the rows are drawn to read the page");
   assert.equal(asked.length - read, 1, "five rows drawn before the frame read what is being read once");
   assert.equal(islandsAsked() - placed, 0, "nothing being read moved, so the card is not placed again over the islands");
   assert.deepEqual(at(), { left: "412px", top: "250px" }, "the card stays where it was");

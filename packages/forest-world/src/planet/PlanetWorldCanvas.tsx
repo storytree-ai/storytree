@@ -172,7 +172,7 @@ const StorePlate = memo(function StorePlate({ store, spot, radius, visible }: { 
       <boxGeometry args={[laid.width, STORE_THICKNESS, laid.depth]} />
       <meshLambertMaterial color={STORE_COLOUR} />
     </mesh>
-    {laid.tiles.map(tile => <mesh key={tile.name} position={[tile.x, TILE_RISE / 2, tile.z]}>
+    {laid.tiles.map(tile => <mesh key={tile.name} name={`store-table:${tile.name}`} position={[tile.x, TILE_RISE / 2, tile.z]}>
       <boxGeometry args={[tile.width, TILE_RISE, tile.depth]} />
       <meshLambertMaterial color={TILE_COLOUR} />
     </mesh>)}

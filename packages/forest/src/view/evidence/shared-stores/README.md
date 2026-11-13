@@ -15,4 +15,11 @@ Pictures, 1440 x 960:
 - `store-panel-1440x960.png`: the store clicked: its panel names its medium and address, the three pieces of evidence
   naming it, "Who touches it: not yet read.", and its tables with their columns, types and foreign keys.
 
+Since increment_049bcbe63687 the fixture also makes checkbox's two longest tables, `source_objects` and
+`document_summaries`, and each tile is as wide as the longest name in its column: `measurements.json` sets each tile's
+corners, projected into the window, beside its drawn name's box, and every name is whole inside its own tile
+(`document_summaries`: a 136 px name in a 147 px tile, where it had a 75 px one). In the evidence bucket for #853:
+`853/shared-stores/store-beside-islands-1440x960.png`, `853/shared-stores/store-panel-1440x960.png`,
+`853/shared-stores/measurements.json`.
+
 In the evidence bucket for #851, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `851/store-beside-islands-1440x960.png`, `851/store-panel-1440x960.png`.

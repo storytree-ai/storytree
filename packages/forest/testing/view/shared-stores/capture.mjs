@@ -20,6 +20,8 @@ const CHECKBOX = {
   '.env.example': 'DATABASE_URL=postgresql://app:secret@localhost:5432/checkbox\n',
   'migrations/001_init.sql': 'CREATE EXTENSION IF NOT EXISTS vector;\nCREATE TABLE users (id SERIAL PRIMARY KEY, email TEXT NOT NULL, display_name varchar(80));\nCREATE TABLE forms (id bigint PRIMARY KEY, title text);\nCREATE TABLE answers (id bigserial PRIMARY KEY, user_id integer NOT NULL REFERENCES users (id), embedding vector(1536));\n',
   'migrations/002_forms.sql': 'ALTER TABLE answers ADD COLUMN form_id bigint;\nALTER TABLE answers ADD CONSTRAINT answers_form FOREIGN KEY (form_id) REFERENCES forms(id);\nCREATE TABLE sessions (id uuid PRIMARY KEY, user_id integer REFERENCES users (id), started timestamptz);\nCREATE TABLE checks (id serial PRIMARY KEY, answer_id bigint REFERENCES answers (id), passed boolean);\n',
+  // The real checkbox repository's longest names (increment_049bcbe63687): each must stay whole inside its own tile.
+  'migrations/003_summaries.sql': 'CREATE TABLE source_objects (id bigserial PRIMARY KEY, parent_source_object_id bigint REFERENCES source_objects (id));\nCREATE TABLE document_summaries (id bigserial PRIMARY KEY, source_object_id bigint REFERENCES source_objects (id), summary text);\n',
 };
 const folder = mkdtempSync(path.join(tmpdir(), 'shared-stores-capture-'));
 for (const [file, text] of Object.entries(CHECKBOX)) { mkdirSync(path.dirname(path.join(folder, file)), { recursive: true }); writeFileSync(path.join(folder, file), text); }
@@ -61,8 +63,19 @@ const { results, out } = await withCapture({ folder: evidence, dist }, async ({ 
     scene.updateMatrixWorld(true); camera.updateMatrixWorld(true);
     const canvas = document.querySelector('canvas').getBoundingClientRect();
     const at = scene.getObjectByName(`store:${address}`).getWorldPosition(new V()).project(camera);
+    // Each table's tile, its corners projected into the window, beside its drawn name's box: a name is whole when its box lies inside.
+    const px = v => { const p = v.project(camera); return { x: canvas.left + (p.x + 1) * canvas.width / 2, y: canvas.top + (1 - p.y) * canvas.height / 2 }; };
+    const plate = scene.getObjectByName(`store:${address}`);
+    const tiles = [...document.querySelectorAll('.planet-store-table')].map(n => {
+      const name = n.textContent, mesh = plate.getObjectByName(`store-table:${name}`), box = n.firstElementChild.getBoundingClientRect();
+      const { width, depth } = mesh.geometry.parameters;
+      const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => px(mesh.localToWorld(new V(a * width / 2, 0, b * depth / 2))));
+      const tile = { left: Math.min(...corners.map(c => c.x)), right: Math.max(...corners.map(c => c.x)), top: Math.min(...corners.map(c => c.y)), bottom: Math.max(...corners.map(c => c.y)) };
+      return { name, tile, label: { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
+        whole: box.left >= tile.left && box.right <= tile.right && box.top >= tile.top && box.bottom <= tile.bottom };
+    });
     return { x: canvas.left + (at.x + 1) * canvas.width / 2, y: canvas.top + (1 - at.y) * canvas.height / 2,
-      tables: [...document.querySelectorAll('.planet-store-table')].map(n => n.textContent), name: document.querySelector('.planet-store-name')?.textContent };
+      tables: tiles.map(t => t.name), tiles, name: document.querySelector('.planet-store-name')?.textContent };
   }, stores[0].address);
   await page.mouse.click(slab.x, slab.y);
   await settle(page);

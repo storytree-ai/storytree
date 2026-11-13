@@ -35,7 +35,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
-import { gitText, manifestFrom, noMergedMain, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
+import { gitText, importedSource, manifestFrom, noMergedMain, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
 import { mappedCode, mappedSurveyReader, type ImportedFolder, type MappedStory } from "./mapped-survey.js";
 import { usePythonParser } from "./python-reader.js";
 import { pyprojectFrom } from "./pyproject.js";
@@ -43,6 +43,7 @@ import { parsePythonNow, pythonLanguage } from "./tree-sitter.js";
 import { pytestTestedNumbers } from "./python-tests.js";
 import { folderLanguages } from "./folder-languages.js";
 import { drawImportedStory, manifestsOf, type Drawing } from "./drawing.js";
+import { readsForStores, storesOf, type SharedStore } from "./stores.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
@@ -60,6 +61,7 @@ const COVERAGE_MAP = "survey-coverage.json";
 
 export { declaredNumberOf, folderLanguages, noMergedMain, packageOf, packagesOf };
 export { languageList, SURVEYED_LANGUAGES } from "./languages.js";
+export type { SharedStore, StoreColumn, StoreEvidence, StoreForeignKey, StoreMedium, StoreTable } from "./stores.js";
 
 /** The packages stories own beyond their own, by their own package's folder name (ADR-1066 D3). */
 type AlsoOwned = Readonly<Record<string, readonly string[]>>;
@@ -700,6 +702,31 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
 }
 
 const shared = codeSurveyReader();
+
+/**
+ * The shared stores the folder at `folder` and the folders this machine imports declare (ADR-1332 D2's declared layer),
+ * read from what each folder's Git does not ignore, its commit overlaid with work not yet committed, or from disk where
+ * there is no Git, leaving out the folders a survey never reads and hidden ones.
+ */
+export async function readStores(folder: string, imports: readonly ImportedFolder[] = [], readText: (file: string) => Promise<string> = (file) => readFile(file, "utf8")): Promise<SharedStore[]> {
+  const files = new Map<string, { path: string; text: string }>();
+  for (const at of [...new Set([path.resolve(folder), ...imports.map((one) => path.resolve(one.folder))])]) {
+    const { source, folder: top } = await importedSource(at, readText);
+    const walk = async (dir: string): Promise<void> => {
+      for (const entry of await source.entries(dir)) {
+        const full = path.join(dir, entry.name);
+        if (entry.directory) {
+          if (!SKIPPED.has(entry.name) && !entry.name.startsWith(".")) await walk(full);
+        } else if (entry.file && readsForStores(entry.name) && !files.has(full)) {
+          const found = await source.file(full);
+          if (found !== undefined) files.set(full, { path: path.relative(top, full).split(path.sep).join("/"), text: await found.read() });
+        }
+      }
+    };
+    await walk(top);
+  }
+  return storesOf([...files.values()]);
+}
 
 /** The survey of every story in `tree` whose package the checkout at `folder` holds, and of each mapped story `imports` holds, read through one kept reader. */
 export function readCodeSurvey(folder: string, tree: AnnotatedTree, imports?: readonly ImportedFolder[]): Promise<ProjectSurvey> {

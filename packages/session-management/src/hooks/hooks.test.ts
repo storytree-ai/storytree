@@ -41,6 +41,7 @@ import { SHELL_GUARD } from "./shell-guard.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
 import { BACKGROUND, hookLines, runHook as runHookHere, type ReachLog } from "./hooks.js";
 import { CLOSE_OUT_REMINDER } from "./close-out-reminder.js";
+import { withFollowUps, withSteers } from "./codex-lane.js";
 import { runGit, type Git } from "../activity/git.js";
 import { hookTools } from "./tools.js";
 import { AFTER_TOOL, codexToolArguments } from "./codex-delivery.js";
@@ -1985,6 +1986,12 @@ test("3.61 · In a Codex pool lane (STORYTREE_LANE_RUN set) the hook after a she
         assert.equal(end.decision, "block", "Codex keeps the turn going with the reason as its next prompt");
         assert.match(end.reason, /Then write the docs\./);
         assert.equal((await runHook("codex", input("stop"), home, [CLOSE_OUT_REMINDER], lane)).stdout.trim(), "", "each is handed once");
+
+        // A notice the hook gives anyway (the guard's, or a turn-end block) keeps its place, the lane's messages after it.
+        assert.deepEqual(JSON.parse(withSteers(JSON.stringify({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "[storytree] Your last shell command changed a.ts" } }), "Use the SES client.")!),
+          { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "[storytree] Your last shell command changed a.ts\n\nUse the SES client." } });
+        assert.deepEqual(JSON.parse(withFollowUps(JSON.stringify({ decision: "block", reason: "[storytree] An update stopped your tools." }), "Then write the docs.")!),
+          { decision: "block", reason: "[storytree] An update stopped your tools.\n\nThen write the docs." });
       } finally {
         await log.close();
       }

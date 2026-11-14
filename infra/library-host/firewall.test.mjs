@@ -68,3 +68,18 @@ test('with no Tailscale interface it refuses and changes nothing, so the box is 
   assert.deepEqual(r.ufw, []);
   assert.equal(r.defaults, 'IPV6=no\n');
 });
+
+test('a real run without root, or a malformed --lan-ssh range, is refused before anything changes', linuxOnly, () => {
+  for (const [args, uid] of [[[], '1000'], [['--lan-ssh', '192.168.1.0'], '0'], [['--lan-ssh', 'any'], '0']]) {
+    const r = run(args, { uid });
+    assert.notEqual(r.status, 0, args.join(' '));
+    assert.deepEqual(r.ufw, [], args.join(' '));
+    assert.equal(r.defaults, 'IPV6=no\n', args.join(' '));
+  }
+});
+
+test('a defaults file with no IPV6 line gets IPV6=yes added', linuxOnly, () => {
+  const r = run([], { uid: '0', defaults: 'DEFAULT_INPUT_POLICY="DROP"\n' });
+  assert.equal(r.status, 0, r.stderr + r.stdout);
+  assert.equal(r.defaults, 'DEFAULT_INPUT_POLICY="DROP"\nIPV6=yes\n');
+});

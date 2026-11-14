@@ -44,10 +44,6 @@ main() {
     echo "firewall.sh: --lan-ssh wants an IPv4 range such as 192.168.1.0/24, not '$lan'" >&2
     return 2
   fi
-  if ! command -v ufw >/dev/null; then
-    echo "firewall.sh: ufw is not installed" >&2
-    return 1
-  fi
   # Without the Tailscale interface the only way back in would be the LAN rule: refuse rather than lock the box.
   if ! ip link show "$TAILNET_IF" >/dev/null 2>&1; then
     echo "firewall.sh: no $TAILNET_IF interface; is Tailscale up? Nothing changed." >&2

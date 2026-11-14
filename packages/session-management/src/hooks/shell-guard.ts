@@ -15,6 +15,10 @@
  * of its own, and tells the agent of each changed file the hook before an edit tool would have refused: in a capability
  * its increment does not list, or another live session holds (ADR-0949 D3), unless the file is back as the branch's base
  * has it. That needs storytree; unreached in time, it says nothing of them, as the gate lets an edit go ahead.
+ * Before a shell command it reads only the command, and refuses one that kills what a search of the process list found
+ * (contract 3.59): that search also matches the session's own engine, whose command line carries its increment's id, so
+ * the kill would end the agent mid-work (friction_abac06856ce1). Its runs are stopped through their records instead.
+ *
  * Like every hook it never breaks the agent: on any failure it says nothing.
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -26,7 +30,7 @@ import { worktreeRoot } from "../activity/branch.js";
 import { filtersOff, runGit, type Git } from "../activity/git.js";
 import type { DeclaredCapabilities, ImportedFolderPlace } from "../claims/edit-gate.js";
 import { approvedHere, importsOf, machineOf, route, type LocateOptions } from "@storytree/project-and-caller";
-import { gated } from "./edit-gate.js";
+import { gated, refusalAnswer } from "./edit-gate.js";
 import type { HookFailure } from "./failures.js";
 import type { HookLines } from "./hooks.js";
 import { limitOf, withinLimit, type Step } from "./learned-limits.js";
@@ -45,6 +49,33 @@ export const SHELL_GUARD_STEP: Step = { name: "shell-guard", floorMs: 3_000, cei
 
 /** The most changed files a notice names one by one. */
 const NAMED = 20;
+
+/**
+ * A kill fed from a search of the process list: ps or pgrep piped on, within one command of the line, to kill (directly
+ * or through xargs); kill given a ps or pgrep substitution; and pkill -f, which is that search and kill in one.
+ */
+const KILL_FROM_SEARCH = [
+  /(?:^|[|;&(\n]|\$\()\s*(?:sudo\s+)?(?:ps|pgrep)\b(?:(?!&&)[^;\n])*\|\s*(?:sudo\s+)?(?:xargs\b[^|;&\n]*?\s)?kill\b/,
+  /(?:^|[|;&(\s])kill\b[^|;&\n]*(?:\$\(|`)\s*(?:sudo\s+)?(?:ps|pgrep)\b/,
+  /(?:^|[|;&(\n])\s*(?:sudo\s+)?pkill\b[^|;&\n]*\s-[a-zA-Z]*f/,
+];
+
+/** Whether `command` kills what a search of the process list found. Text in single quotes is only text. */
+export function killsFromSearch(command: string): boolean {
+  const unquoted = command.replace(/'[^']*'/g, "''");
+  return KILL_FROM_SEARCH.some((shape) => shape.test(unquoted));
+}
+
+/** The guard's answer before a shell command in a storytree project: a refusal for a kill fed from a process-list search, else nothing. */
+function beforeCommand(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined): string | undefined {
+  const command = ((input as Record<string, unknown>).tool_input as Record<string, unknown> | undefined)?.command;
+  if (made === undefined || typeof command !== "string" || !killsFromSearch(command)) return undefined;
+  if (route(made.folder, locate).status === "not-a-project") return undefined;
+  return refusalAnswer(
+    harness,
+    "[storytree] Refused: this command kills what a search of the process list found, and that search also matches your own agent's process, whose command line carries the same words, so it would end you mid-work. Stop your own runs by their records instead: `storytree processes` lists them and `storytree processes stop <run>` (or the stop_own_run tool) stops one. For a process storytree did not start, kill it by the process id you have read, never by a search piped into kill.",
+  );
+}
 
 /** The folders `project` imports on this machine, as the ordinary hooks last remembered them; none when they never did. */
 export function rememberedImports(home: string, project: string): ImportedFolderPlace[] {
@@ -83,6 +114,7 @@ export async function watchImports(storytree: Storytree, project: string, machin
  */
 export async function shellGuard(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined, machineHome: string, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, declared?: DeclaredCapabilities, guardMs?: number, git: Git = runGit): Promise<string | undefined> {
   try {
+    if (typeof input === "object" && input !== null && (input as Record<string, unknown>).hook_event_name === "PreToolUse") return beforeCommand(harness, input, made, locate);
     const limit = guardMs ?? limitOf(home, SHELL_GUARD_STEP);
     const line = made?.lines[0];
     if (made === undefined || line?.kind !== "command-run") return undefined;

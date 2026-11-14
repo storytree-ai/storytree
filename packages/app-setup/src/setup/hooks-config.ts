@@ -256,6 +256,8 @@ function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[
       { matcher: "Bash|PowerShell", hooks: [run(true)] },
       // Before each file edit, in the foreground: an edit to a capability the session may not write is refused (ADR-0949 D3).
       { matcher: "Write|Edit|MultiEdit|NotebookEdit", hooks: [{ type: "command", command: node, args: [script, "claude-code", EDIT_GATE] }] },
+      // Before each shell command, in the foreground: a kill fed from a process-list search is refused (Hooks 3.59).
+      { matcher: "Bash|PowerShell", hooks: [guard] },
     ],
     // After each shell command, finished or failed, also in the foreground: its changes to imported code are told to the agent (ADR-1015).
     // After a tool that reads outside text too: its line marks the session's later knowledge writes (Hooks 3.49).
@@ -294,6 +296,7 @@ function codexEntries({ node, script }: HookCommand, codexVersion?: string): Rec
         { matcher: `^${STORYTREE_TOOLS}`, hooks: [run(10)] },
         { matcher: "^Bash$", hooks: delivered("PreToolUse") },
         { matcher: "^apply_patch$", hooks: [{ type: "command", command: `${line} ${EDIT_GATE}`, timeout: 10 }] },
+        { matcher: "^Bash$", hooks: [{ type: "command", command: `${line} ${SHELL_GUARD}`, timeout: 10 }] },
       ],
       PostToolUse: [{ matcher: "^(apply_patch|Bash|spawn_agent)$", hooks: delivered("PostToolUse") }, { matcher: "^Bash$", hooks: [{ type: "command", command: `${line} ${SHELL_GUARD}`, timeout: 10 }] }],
       Stop: [{ hooks: delivered("Stop") }, { hooks: [{ type: "command", command: `${line} ${CLOSE_OUT_REMINDER}`, timeout: 10 }] }],
@@ -308,6 +311,7 @@ function codexEntries({ node, script }: HookCommand, codexVersion?: string): Rec
       { matcher: `^${STORYTREE_TOOLS}`, hooks: [run(10)] },
       { matcher: "^Bash$", hooks: [run(10, true)] },
       { matcher: "^apply_patch$", hooks: [{ type: "command", command: `${line} ${EDIT_GATE}`, timeout: 10 }] },
+      { matcher: "^Bash$", hooks: [{ type: "command", command: `${line} ${SHELL_GUARD}`, timeout: 10 }] },
     ],
     PostToolUse: [{ matcher: "^(apply_patch|Bash|spawn_agent)$", hooks: [run(10)] }, { matcher: "^Bash$", hooks: [{ type: "command", command: `${line} ${SHELL_GUARD}`, timeout: 10 }] }],
     // As in Claude Code: the turn's line in the background, then a foreground check whose block Codex reads (ADR-0758 D4).

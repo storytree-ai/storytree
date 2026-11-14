@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { removeTemp } from "@storytree/test-waits";
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { countEngines } from "./queue.mjs";
 import { adoptRequests, asRun, boxDefaults, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, onMain, failedOnQueue, projectOf, queueOutcome, queueRemovals, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, jobFields, readScan, scanSetup, watchOnce } from "./watch.mjs";
@@ -1756,8 +1756,9 @@ test("4.58 · the box finds a session it started by the runner log the start ope
   // Another pull request's session started first, so a lookup taking any runner would find it instead.
   await running.startFix({ pr: 9, n: 1, brief: "fix the other" });
   const { pid } = await running.startFix({ pr: 8, n: 1, brief: "fix it" });
-  const runnerUp = async () => { for (let i = 0; i < 50; i++) { const found = await running.startedAs({ name: "fix-8-1", since }); if (found?.pid) return found; await new Promise((ok) => setTimeout(ok, 100)); } };
-  assert.deepEqual(await runnerUp(), { pid, log: join(dir, "watch", "fix-8-1.log") });
+  const found = await waitUntil(async () => { const one = await running.startedAs({ name: "fix-8-1", since }); return one?.pid ? one : undefined; },
+    10_000, "the running session's runner in the process table");
+  assert.deepEqual(found, { pid, log: join(dir, "watch", "fix-8-1.log") });
   assert.equal(await box.startedAs({ name: "fix-7-1", since: new Date(Date.now() + 60_000).toISOString() }), undefined, "an older hand-off's log");
 });
 

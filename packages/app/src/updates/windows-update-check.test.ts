@@ -10,7 +10,7 @@ const script = fileURLToPath(new URL("../../../app-setup/testing/windows-accepta
 function run(t: { skip: (why: string) => void }, body: string): { status: number | null; out: string } | undefined {
   const required = process.platform === "win32" && Boolean(process.env.CI);
   const found = spawnSync("pwsh", ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()"], { encoding: "utf8" });
-  if (found.error && !required) { t.skip("pwsh unavailable here; Windows CI runs this proof"); return undefined; }
+  if (found.error && !required) { t.skip(`platform:${process.platform}: pwsh unavailable here; Windows CI runs this proof`); return undefined; }
   assert.ifError(found.error);
   const result = spawnSync("pwsh", ["-NoProfile", "-Command", `$ErrorActionPreference = 'Stop'; . '${script.replace(/'/g, "''")}' -LibraryOnly; ${body}`], { encoding: "utf8" });
   return { status: result.status, out: result.stdout + result.stderr };

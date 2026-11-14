@@ -1899,6 +1899,50 @@ test("3.44 the tool server's heartbeat tool records a session's beat for the pro
   }
 });
 
+test("3.60 · A heartbeat from a pool lane says so, and the tool server's lane_messages tool hands the lane's session the messages waiting for it as one text, steers after a tool call and follow-ups at its turn's end; with none waiting, a folder in no project, or a library out of reach, it hands nothing", async () => {
+  const project = uniqueProjectName();
+  const was = process.env.STORYTREE_HOME;
+  try {
+    await withTempDir(async (dir) => {
+      process.env.STORYTREE_HOME = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project);
+      const elsewhere = path.join(dir, "elsewhere");
+      mkdirSync(elsewhere);
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        type Act = (args: Record<string, unknown>, call: { reach: ReachLog; locate: undefined }) => Promise<{ text: string; data?: Record<string, unknown> }>;
+        const acts = new Map<string, Act>();
+        hookTools().registerHarnessTools?.((name, _description, _input, act) => void acts.set(name, act as unknown as Act));
+        const session = `${project}-lane`;
+        const reach: ReachLog = async () => log;
+        await acts.get("heartbeat")!({ session, cwd: folder, lane: true }, { reach, locate: undefined });
+        assert.equal((await log.beats.of(project, [session])).get(session)?.lane, true, "a lane's beat says it is a lane");
+
+        const take = async (at: string, cwd = folder, through = reach) => (await acts.get("lane_messages")!({ session, cwd, at }, { reach: through, locate: undefined })).text;
+        assert.equal(await take("tool"), "", "nothing waiting, nothing handed");
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "follow-up", text: "Then write the docs.", sender: "owner-terminal" });
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "steer", text: "Use the SES client.", sender: "owner-terminal" });
+        assert.equal(await take("tool", elsewhere), "");
+        assert.equal(await take("tool", folder, async () => { throw new Error("storytree is not answering"); }), "");
+        const steer = await take("tool");
+        assert.match(steer, /Use the SES client\./);
+        assert.doesNotMatch(steer, /write the docs/, "a tool call's end hands no follow-up");
+        assert.match(await take("stop"), /Then write the docs\./);
+        assert.equal(await take("stop"), "", "each handed once");
+
+        await acts.get("heartbeat")!({ session, cwd: folder }, { reach, locate: undefined });
+        assert.equal((await log.beats.of(project, [session])).get(session)?.lane, undefined, "a beat without it is no lane's");
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
+    if (was === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
+});
+
 test("3.43 · The Claude Code mod's usage becomes a usage-measured line, and its failed turn a turn-failed line naming the rate-limit windows it ended at or past their limit; neither names a transcript, and a figure with no window records nothing", async () => {
   const project = uniqueProjectName();
   const was = process.env.STORYTREE_HOME;

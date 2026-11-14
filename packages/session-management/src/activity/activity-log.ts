@@ -27,6 +27,7 @@ import { BRANCH_FACTS, countValues, DOOR_COUNTS, DOOR_STEPS, FOLD_LINES, foldVal
 import { holdersOf, LONGEST_COMMAND_MS, type Beat } from "../readings.js";
 import { PgLibraryReads, READS_SCHEMA, READS_SCHEMA_FILE, type LibraryReads } from "./library-reads.js";
 import { BEATS_SCHEMA, BEATS_SCHEMA_FILE, beatsOf, PgSessionBeats, type SessionBeats } from "./session-beats.js";
+import { LANE_MESSAGES_SCHEMA, LANE_MESSAGES_SCHEMA_FILE, PgLaneMessages, type LaneMessages } from "./lane-messages.js";
 import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, TRANSCRIPT_SCHEMA_FILE, type TranscriptRecords } from "./transcript-records.js";
 
 /** The database the log lives in, on the same server as the projects' libraries. */
@@ -117,6 +118,8 @@ export interface ActivityLog {
   readonly transcripts: TranscriptRecords;
   /** Sessions' heartbeats, from their harness's own timer (ADR-1056 D3): kept beside the lines, on the same connection. */
   readonly beats: SessionBeats;
+  /** Messages waiting for running pool lanes, each taken once by the lane's hooks (4.49): kept beside the lines, on the same connection. */
+  readonly messages: LaneMessages;
   /** What this process's library connections read, kept beside the lines as a total per machine, reader and day (contract 2.15). */
   readonly reads: LibraryReads;
   /** Close the log's connections: what this process read since it last recorded is recorded as its pool ends. */
@@ -238,6 +241,7 @@ const SCHEMA: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS activity_project_event_idx ON activity (project, event) WHERE event IS NOT NULL`,
   ...TRANSCRIPT_SCHEMA,
   ...BEATS_SCHEMA,
+  ...LANE_MESSAGES_SCHEMA,
   ...READS_SCHEMA,
 ];
 
@@ -278,7 +282,7 @@ export async function openActivityLog(server: string | Storytree, options: OpenO
 
 /** The log's database, which the library creates and sets up with the log's tables. */
 function activityPool(server: Storytree): Promise<Pool> {
-  return server.ownDatabase(ACTIVITY_DATABASE, { tables: SCHEMA, declaredIn: [import.meta.url, TRANSCRIPT_SCHEMA_FILE, BEATS_SCHEMA_FILE, READS_SCHEMA_FILE] });
+  return server.ownDatabase(ACTIVITY_DATABASE, { tables: SCHEMA, declaredIn: [import.meta.url, TRANSCRIPT_SCHEMA_FILE, BEATS_SCHEMA_FILE, LANE_MESSAGES_SCHEMA_FILE, READS_SCHEMA_FILE] });
 }
 
 /**
@@ -294,7 +298,7 @@ export async function forgetProjectActivity(server: Storytree, project: string):
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))", [project]);
-    for (const table of ["activity", "transcript_records", "transcript_readings", "session_beats"]) await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
+    for (const table of ["activity", "transcript_records", "transcript_readings", "session_beats", "lane_messages"]) await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {
@@ -323,6 +327,7 @@ class PgActivityLog implements ActivityLog {
 
   readonly transcripts: TranscriptRecords;
   readonly beats: SessionBeats;
+  readonly messages: LaneMessages;
   readonly reads: PgLibraryReads;
 
   constructor(pool: Pool, stamp: Stamp, owner?: Storytree) {
@@ -331,6 +336,7 @@ class PgActivityLog implements ActivityLog {
     this.#owner = owner;
     this.transcripts = new PgTranscriptRecords(pool);
     this.beats = new PgSessionBeats(pool);
+    this.messages = new PgLaneMessages(pool);
     this.reads = new PgLibraryReads(pool, stamp.machine ?? thisMachine() ?? "unknown");
   }
 

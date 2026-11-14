@@ -13,8 +13,8 @@ export const STORYTREE_TOOLS = "mcp__storytree__";
 /** The tool server's tool a harness hands a hook event to (tools.ts), as both harnesses name it. */
 export const HOOK_EVENT_TOOL = `${STORYTREE_TOOLS}hook_event`;
 
-/** The tool server's tools Claude Code's mod calls itself, to deliver an event and to keep its heartbeat: no agent asks for them. */
-export const MOD_TOOLS: readonly string[] = [HOOK_EVENT_TOOL, `${STORYTREE_TOOLS}heartbeat`];
+/** The tool server's tools Claude Code's mod calls itself, to deliver an event, keep its heartbeat and take a lane's messages: no agent asks for them. */
+export const MOD_TOOLS: readonly string[] = [HOOK_EVENT_TOOL, `${STORYTREE_TOOLS}heartbeat`, `${STORYTREE_TOOLS}lane_messages`];
 
 export function toolRequestedLine(common: Pick<NewLine, "session" | "harness" | "source" | "folder">, input: Record<string, unknown>): NewLine | undefined {
   const { tool_name: tool, tool_use_id: call, agent_id: subagent, agent_type: type } = input;

@@ -252,6 +252,8 @@ export interface ClaimsOptions {
 export interface Beat {
   readonly at: string;
   readonly ended?: string;
+  /** The beat came from a pool lane's engine (its runner's STORYTREE_LANE_RUN set), so messages may be sent it (4.49). */
+  readonly lane?: true;
 }
 
 /** How long a session that keeps a heartbeat may go without one before it reads as stopped: three missed beats (ADR-1056 D3). */

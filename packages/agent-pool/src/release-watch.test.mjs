@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { attempted, judgeReleases, readWait, RELEASE_LIMIT_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, waitHolding, watchReleases } from "./release-watch.mjs";
+import { attempted, judgeReleases, raisedSince, readWait, RELEASE_LIMIT_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, waitHolding, watchReleases } from "./release-watch.mjs";
 import { main } from "./watch.mjs";
 
 const at = Date.parse("2026-10-13T12:00:00Z");
@@ -350,4 +350,18 @@ test("4.62 · a watcher killed while it raises a release stop's owner question a
   await watchReleases(c.options);
   assert.equal(c.questions.length, 1, "it asks once the restart finds it never did");
   assert.equal(JSON.parse(await readFile(join(c.dir, "release.json"), "utf8")).question, "question_r");
+
+  // The live lookup adopts only the question raised under that title on the release arc since the intent; an older one
+  // under the same title, a stop before, is never taken.
+  const records = { question_old: "2026-11-14T09:59:59.000Z", question_new: "2026-11-14T10:00:01.000Z" };
+  const asked = [];
+  const storytree = async (args) => {
+    asked.push(args.join(" "));
+    if (args[1] === "list") return args.includes("title=Releases stopped") ? "2 question records:\n  question_old  Releases stopped\n  question_new  Releases stopped\n" : "No question records match.\n";
+    return `${args[2]}  [question]  schema 3\nCreated: ${records[args[2]]}\nUpdated: ${records[args[2]]}\n`;
+  };
+  assert.equal(await raisedSince(storytree, { title: "Releases stopped", since: "2026-11-14T10:00:00.000Z" }), "question_new");
+  assert.ok(asked[0].includes("arc=arc_312aa103bfca"), asked[0]);
+  assert.equal(await raisedSince(storytree, { title: "Releases stopped", since: "2026-11-14T10:00:02.000Z" }), undefined);
+  assert.equal(await raisedSince(storytree, { title: "Another title", since: "2026-11-14T09:00:00.000Z" }), undefined);
 });

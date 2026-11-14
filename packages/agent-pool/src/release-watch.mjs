@@ -181,6 +181,19 @@ export async function readWait(storytree, id, today) {
 }
 
 /**
+ * The question raised on the release arc under `title` at or after `since`, if one was; the security check's title
+ * repeats across stops, so an older one is never adopted (4.62).
+ */
+export async function raisedSince(storytree, { title, since }) {
+  const listed = await storytree(["library", "list", "question", "--where", `arc=${RELEASE_ARC}`, "--where", `title=${title}`]);
+  for (const id of listed.match(/question_\w+/g) ?? []) {
+    const created = /^Created: (\S+)/m.exec(await storytree(["library", "read", id]))?.[1];
+    if (created && Date.parse(created) >= Date.parse(since)) return id;
+  }
+  return undefined;
+}
+
+/**
  * One look at releases: forget a stop a new release ended, order the reruns, and on an alarm start one fix session
  * for the stop with an engine slot free. None starts while the last one lives, while the pull request it recorded is
  * still with the watcher, while the wait it parked an outside stop on holds, or while the question it (or the watcher)

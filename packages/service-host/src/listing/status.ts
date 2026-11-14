@@ -30,6 +30,8 @@ export interface Status {
   readonly updatedAt: string;
   readonly stopped?: true;
   readonly factory: { readonly folder: string; readonly commit?: string };
+  /** The folder the host stands on, whose package.json names the parts it mounts. A host from before this was written leaves it out. */
+  readonly hostDir?: string;
   /** Every service the parts the host mounted declare, as `<part>/<service>`: what it can run until its next start. A host from before this was written leaves it out. */
   readonly declared?: readonly string[];
   readonly services: readonly StatusService[];

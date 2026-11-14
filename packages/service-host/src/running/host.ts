@@ -8,6 +8,7 @@
  * the storytree checkout has moved it stops every service and exits 3, for whatever keeps it running to start it again.
  */
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -15,13 +16,25 @@ import { readServicesOn, readStandIns, storytreeHome } from "@storytree/project-
 
 import { ownCodeVersion } from "../factory/own-code.js";
 import { pnpmInstall, pullFactory, type Install } from "../factory/pull.js";
-import { takeRestarts, writeStatus, type Status } from "../listing/status.js";
+import { readStatus, takeRestarts, writeStatus, type Status } from "../listing/status.js";
 import { freshMountedServices, mountedServices, type Declared } from "./declared.js";
 import { startChild } from "./spawn.js";
 import { realClock, Supervisor, type Child, type Clock } from "./supervise.js";
 
 /** This package's own folder: the host whose package.json names the built-in parts it hosts. */
 export const HOST_DIR = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
+
+/**
+ * The host folder the `services` verbs read the parts from: `own`, when its package.json is there (run from a checkout),
+ * otherwise the folder the host last running in storytree home `home` stood on. The installed command is one bundled
+ * file in a build folder with no package.json beside it, so its own folder names no parts (friction_c130275368ab).
+ */
+export function hostFolder(home: string, own: string = HOST_DIR): string {
+  if (existsSync(path.join(own, "package.json"))) return own;
+  const recorded = readStatus(home)?.hostDir;
+  if (recorded !== undefined && existsSync(path.join(recorded, "package.json"))) return recorded;
+  throw new Error("this storytree command is a build with no service host beside it, and no service host has run here to say where its own is: start one with `storytree services run` from storytree's checkout, or run this command there with `pnpm storytree`.");
+}
 
 /** How often the host reads the settings and the restarts asked for. */
 export const TICK_MS = 2_000;
@@ -87,6 +100,7 @@ export function startHost({
       updatedAt: new Date().toISOString(),
       ...(stopped ? { stopped: true as const } : {}),
       factory: { folder: factoryFolder, ...(commit === undefined ? {} : { commit }) },
+      hostDir,
       declared: [...declared.keys()].sort(),
       services: supervisor.states().map(({ since, nextAt, ...state }) => ({ ...state, since: new Date(since).toISOString(), ...(nextAt === undefined ? {} : { nextAt: new Date(nextAt).toISOString() }) })),
     };

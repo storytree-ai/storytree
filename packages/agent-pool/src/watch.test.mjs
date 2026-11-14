@@ -32,6 +32,14 @@ async function box(t, { looks = {}, board = "" } = {}) {
     room: async () => room,
     startFix: async (fix) => { fixes.push(fix); const pid = 1000 + fixes.length; live.add(pid); return { pid, log: `/lanes/fix-${fix.pr}-${fix.n}.log` }; },
     startReview: async (review) => { reviews.push(review); const pid = 2000 + reviews.length; live.add(pid); return { pid, log: `/lanes/review-${review.pr}-${review.n}.log` }; },
+    // What a restart finds of a session it may have started: its log, and its pid while it runs (4.58).
+    startedAs: async ({ name }) => {
+      const [, kind, pr, n] = /^(fix|review)-(\d+)-(\d+)$/.exec(name).map((part, i) => (i > 1 ? Number(part) : part));
+      const [list, first] = kind === "review" ? [reviews, 2000] : [fixes, 1000];
+      const i = list.findIndex((one) => one.pr === pr && one.n === n);
+      if (i < 0) return undefined;
+      return { ...(live.has(first + i + 1) ? { pid: first + i + 1 } : {}), log: `/lanes/${kind}-${pr}-${n}.log` };
+    },
   };
   return { dir, calls, fixes, reviews, lines, live, looks, options, tick: (ms) => { clock += ms; }, noRoom: () => { room = false; } };
 }
@@ -234,6 +242,34 @@ test("4.12 · a pull request that conflicts with main past the fix limit gets on
   await watchOnce(b.options);
   assert.equal(b.fixes.length, 3, "and only one more");
   assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "a merge never waits on the owner (4.20)");
+});
+
+test("4.58 · a watcher killed while it starts a fix session finds on restart whether the session started: one that did is adopted and counted, never started twice; one that did not starts then", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  b.looks[41] = red;
+  // Killed just after the session started, before the watcher wrote it down.
+  const start = b.options.startFix;
+  b.options.startFix = async (fix) => { await start(fix); throw new Error("killed"); };
+  await assert.rejects(watchOnce(b.options), /killed/);
+  b.options.startFix = start;
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 1, "the session it started is not started again");
+  const record = await saved(b);
+  assert.deepEqual([record.fixing, record.fixes.length, record.fixes[0].log, record.fixes[0].head], [{ pid: 1001 }, 1, "/lanes/fix-41-1.log", "h1"]);
+  assert.ok(b.lines.some((line) => /PR #41: fix session 1 had started before the watcher stopped/.test(line)), b.lines.join("\n"));
+
+  // Killed before the session started: the restart finds none and starts it.
+  const c = await box(t);
+  await handOff(c);
+  c.looks[41] = red;
+  c.options.startFix = async () => { throw new Error("killed"); };
+  await assert.rejects(watchOnce(c.options), /killed/);
+  c.options.startFix = async (fix) => { c.fixes.push(fix); c.live.add(1001); return { pid: 1001, log: `/lanes/fix-${fix.pr}-${fix.n}.log` }; };
+  await watchOnce(c.options);
+  assert.deepEqual(c.fixes.map((fix) => fix.n), [1], "it starts once the restart finds it never did");
+  assert.deepEqual((await saved(c)).fixes.map((fix) => fix.pid), [1001]);
+  assert.ok(c.lines.some((line) => /PR #41: fix session 1 never started before the watcher stopped/.test(line)), c.lines.join("\n"));
 });
 
 test("4.4 · a hand-off on disk survives a watcher restart, and handing back keeps its fix count", async (t) => {
@@ -1697,4 +1733,19 @@ test("4.57 · the watcher starts every fix, review and release fix session's lan
     const { stdout } = await promisify(execFile)(command, args.map((arg) => (arg === runner ? probe : arg)), { cwd: dir, env });
     assert.equal(stdout.trim(), "function");
   }
+});
+
+test("4.58 · the box finds a session it started by the runner log the start opened since then, and none it never started or one an older hand-off left", async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), "lane-watch-started-"));
+  t.after(() => removeTemp(dir));
+  await mkdir(join(dir, "watch"));
+  const spawn = () => ({ pid: 4242, unref() {} });
+  const box = boxDefaults({ home: dir, env: { LANES_DIR: dir }, spawn });
+  const since = new Date(Date.now() - 1000).toISOString();
+  await box.startFix({ pr: 7, n: 1, brief: "fix it" });
+  await box.startReleaseFix({ n: 1, stamp: 99, brief: "fix the release" });
+  assert.deepEqual(await box.startedAs({ name: "fix-7-1", since }), { log: join(dir, "watch", "fix-7-1.log") }, "started, and no longer running");
+  assert.deepEqual(await box.startedAs({ name: "release-fix-99-1", since }), { log: join(dir, "watch", "release-fix-99-1.log") });
+  assert.equal(await box.startedAs({ name: "fix-7-2", since }), undefined, "never started");
+  assert.equal(await box.startedAs({ name: "fix-7-1", since: new Date(Date.now() + 60_000).toISOString() }), undefined, "an older hand-off's log");
 });

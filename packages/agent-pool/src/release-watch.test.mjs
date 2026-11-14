@@ -129,6 +129,11 @@ async function box(t, { judged, release: latest = release } = {}) {
     waitHolds: async (id) => held.has(id),
     raise: async (brief) => { questions.push(brief); open.add("question_r"); return "question_r"; },
     startFix: async (fix) => { fixes.push(fix); const pid = 2000 + fixes.length; live.add(pid); return { pid, log: `/lanes/release-fix-${fix.n}.log` }; },
+    // What a restart finds of a session it may have started: its log, and its pid while it runs (4.59).
+    startedAs: async ({ name }) => {
+      const i = fixes.findIndex((fix) => name === `release-fix-${fix.stamp}-${fix.n}`);
+      return i < 0 ? undefined : { ...(live.has(2001 + i) ? { pid: 2001 + i } : {}), log: `/lanes/release-fix-${fixes[i].n}.log` };
+    },
   };
   return { dir, fixes, reruns, questions, lines, live, open, held, options, set: (next) => { outcome = next; }, noRoom: () => { room = false; } };
 }
@@ -289,4 +294,34 @@ test("4.41 · a release stop on a failed code-scanning or secret check asks the 
   assert.match(text, /secret-check/);
   assert.match(text, /\b3\b/);
   assert.doesNotMatch(text, /https?:/);
+});
+
+test("4.59 · a watcher killed while it starts a release fix session finds on restart whether it started, never starting it twice; a stop that ends closes its waited increment before it is forgotten", async (t) => {
+  const b = await box(t, { judged: { reruns: [], alarm } });
+  const start = b.options.startFix;
+  b.options.startFix = async (fix) => { await start(fix); throw new Error("killed"); };
+  await assert.rejects(watchReleases(b.options), /killed/);
+  b.options.startFix = start;
+  await watchReleases(b.options);
+  assert.equal(b.fixes.length, 1, "the session it started is not started again");
+  const state = JSON.parse(await readFile(join(b.dir, "release.json"), "utf8"));
+  assert.deepEqual([state.fixing, state.fixes.length, state.fixes[0].run, state.starting], [{ pid: 2001 }, 1, 50, undefined]);
+  assert.ok(b.lines.some((line) => /fix session 1 had started before the watcher stopped/.test(line)), b.lines.join("\n"));
+
+  const c = await box(t, { judged: { reruns: [], alarm } });
+  c.options.startFix = async () => { throw new Error("killed"); };
+  await assert.rejects(watchReleases(c.options), /killed/);
+  c.options.startFix = async (fix) => { c.fixes.push(fix); c.live.add(2001); return { pid: 2001, log: "/lanes/release-fix-1.log" }; };
+  await watchReleases(c.options);
+  assert.deepEqual(c.fixes.map((fix) => fix.n), [1], "it starts once the restart finds it never did");
+  assert.ok(c.lines.some((line) => /fix session 1 never started before the watcher stopped/.test(line)), c.lines.join("\n"));
+
+  // The waited increment's close is taken while the stop is still on disk, so a watcher stopped before it closes it on restart.
+  const d = await box(t, { judged: { reruns: [], alarm: null }, release: { ...release, tag: "v0.3.1356" } });
+  await writeFile(join(d.dir, "release.json"), JSON.stringify({ stop: "v0.3.1355", fixes: [], fixing: null, wait: "increment_outage" }));
+  const kept = [];
+  d.options.storytree = async (args) => { kept.push([args[2], await readFile(join(d.dir, "release.json"), "utf8").then(() => true, () => false)]); return ""; };
+  await watchReleases(d.options);
+  assert.deepEqual(kept, [["close", true]]);
+  await assert.rejects(readFile(join(d.dir, "release.json"), "utf8"), { code: "ENOENT" });
 });

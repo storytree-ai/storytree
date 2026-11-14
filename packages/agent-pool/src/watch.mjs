@@ -15,7 +15,7 @@
 // node packages/agent-pool/src/watch.mjs verdict <pr> flake|elsewhere|fix|owner --summary <text> [--parked <increment>] [--question <id>]   (a review session's one verdict, 4.37)
 import { execFile, spawn as spawnChild } from "node:child_process";
 import { existsSync, openSync } from "node:fs";
-import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
@@ -27,7 +27,7 @@ import { LANE_RUN, storytreeCommand } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { codeVersion, countEngines, holdRunner, localBrief } from "./queue.mjs";
 import { EXEMPTIONS_EVERY_MS, exemptionChanges, watchExemptions } from "./exemptions-watch.mjs";
-import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, readWait, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases } from "./release-watch.mjs";
+import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, readWait, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases, writeWhole } from "./release-watch.mjs";
 
 /**
  * The code the watcher runs (4.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
@@ -398,7 +398,7 @@ export async function releasesOnGitHub({ repo, now = Date.now }) {
 const recordPath = (dir, pr) => join(dir, `${pr}.json`);
 /** The look loop's pid and the code version it started on, for `status` (4.21). */
 const versionPath = (dir) => join(dir, "watch-loop.version");
-const save = (dir, record) => writeFile(recordPath(dir, record.pr), `${JSON.stringify(record, null, 2)}\n`);
+const save = (dir, record) => writeWhole(recordPath(dir, record.pr), `${JSON.stringify(record, null, 2)}\n`);
 
 async function records(dir) {
   const names = await readdir(dir).catch((error) => { if (error.code === "ENOENT") return []; throw error; });
@@ -719,7 +719,7 @@ reviewed again (4.37). At the cap the increment waits on the owner with the last
  * (`record.project.repo`, 4.49) is all that project's: every library step is taken in its library, its fix and review sessions
  * start in its checkout with its own commands.
  */
-export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, rerun, refresh, behind, enqueue, reached, alive, room, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, startedAs = async () => undefined, rerun, refresh, behind, enqueue, reached, alive, room, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -782,6 +782,20 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     return true;
   };
   const all = await records(dir);
+  // A session start written down as begun but never as done: the watcher stopped between the two, so it looks for the
+  // session's log and process, and adopts and counts one that started, or forgets one that never did (4.58).
+  for (const record of all) {
+    if (!record.starting) continue;
+    const { kind, n, entry } = record.starting;
+    const found = await startedAs({ name: `${kind}-${record.pr}-${n}`, since: entry.at });
+    if (found) {
+      record.fixing = found.pid ? { pid: found.pid } : null;
+      record.fixes.push({ ...entry, ...(found.pid ? { pid: found.pid } : {}), log: found.log });
+    }
+    delete record.starting;
+    await save(dir, record);
+    dated(`PR #${record.pr}: ${kind} session ${n} ${found ? `had started before the watcher stopped, and is counted${found.pid ? " and watched" : ""}` : "never started before the watcher stopped"}`);
+  }
   // The sessions running at this look, by pull request, and whether each is merging a conflict with main or reviewing.
   const running = new Map();
   for (const record of all) if (record.fixing && await alive(record.fixing.pid)) running.set(record.pr, { conflict: record.fixes.at(-1)?.conflict ?? false, review: record.fixes.at(-1)?.review ?? false });
@@ -967,13 +981,18 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     const lag = !reviewing && behind ? await behind(pull.head, repoOf(record)).catch(() => undefined) : undefined;
     // Another project's session works in its checkout, and reaches the watcher through storytree's (4.49).
     const where = at ? { ...folders, checkout: at.folder, pool: folders.checkout } : folders;
+    const entry = { at: new Date(now()).toISOString(), head: pull.head, ...(reviewing ? { review: true } : pull.security ? { security: true } : {}),
+      ...(pull.conflict ? { conflict: true } : {}), ...(failures && !reviewing ? { units: failures.units, tests: failures.tests } : {}) };
+    // Written before the session starts, so a watcher stopped in between finds it on restart and looks (4.58).
+    record.starting = { kind: reviewing ? "review" : "fix", n, entry };
+    await save(dir, record);
     const session = reviewing
       ? await startReview({ pr, increment, n, ...(at ? { project: at } : {}), brief: localBrief(reviewBrief({ pr, increment, why: pull.why, logs: pull.logs, fixLogs, n, cap, closed: record.closed, project: at }), where) })
       : await startFix({ pr, increment, n, ...(at ? { project: at } : {}), brief: localBrief(fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed,
         review: verdict?.summary, lag, project: at, security: pull.security }), where) });
     record.fixing = { pid: session.pid };
-    record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: session.pid, log: session.log, ...(reviewing ? { review: true } : pull.security ? { security: true } : {}),
-      ...(pull.conflict ? { conflict: true } : {}), ...(failures && !reviewing ? { units: failures.units, tests: failures.tests } : {}) });
+    record.fixes.push({ ...entry, pid: session.pid, log: session.log });
+    delete record.starting;
     running.set(pr, { conflict: Boolean(pull.conflict), review: reviewing });
     await save(dir, record);
     dated(reviewing ? `PR #${pr} red (${pull.why}) past its ${allowed} fix sessions: review session started, log ${session.log}`
@@ -1125,6 +1144,16 @@ export function boxDefaults({ home = homedir(), env = process.env, platform = pr
         ...config.addDirs]), `${base}.runner.log`, project?.folder ?? repo);
       return { pid, log: `${base}.log` };
     },
+    // A session the watcher may have started as `name` at `since`: its runner's log written since then, and the runner's
+    // pid while it runs; nothing when it never started (4.58).
+    startedAs: async ({ name, since }) => {
+      const base = join(dir, name);
+      const log = await stat(`${base}.runner.log`).catch(() => undefined);
+      if (!log || log.mtimeMs < Date.parse(since)) return undefined;
+      const { stdout } = await run("ps", ["-eo", "pid=,args="], { maxBuffer: 64 * 1024 * 1024 });
+      const line = stdout.split("\n").find((one) => isFixSession(one) && one.includes(`${base}-brief.md`));
+      return { ...(line ? { pid: Number(line.trim().split(/\s+/)[0]) } : {}), log: `${base}.log` };
+    },
     startReview: async ({ pr, n, brief, project }) => {
       const base = join(dir, `review-${pr}-${n}`);
       await writeFile(`${base}-brief.md`, brief);
@@ -1177,8 +1206,8 @@ export function boxDefaults({ home = homedir(), env = process.env, platform = pr
         ...Object.entries(question).flatMap(([field, text]) => [`--${field}`, text])], { cwd: repo });
       return /question_\w+/.exec(stdout)?.[0] ?? "a question";
     },
-    startReleaseFix: async ({ n, brief }) => {
-      const base = join(dir, `release-fix-${Date.now()}-${n}`);
+    startReleaseFix: async ({ n, stamp = Date.now(), brief }) => {
+      const base = join(dir, `release-fix-${stamp}-${n}`);
       await writeFile(`${base}-brief.md`, brief);
       const pid = detached(runnerStart(join(script, "..", "runner.mjs"), ["run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
         ...config.addDirs]), `${base}.runner.log`, repo);

@@ -1225,6 +1225,16 @@ export function boxDefaults({ home = homedir(), env = process.env, platform = pr
         ...Object.entries(question).flatMap(([field, text]) => [`--${field}`, text])], { cwd: repo });
       return /question_\w+/.exec(stdout)?.[0] ?? "a question";
     },
+    // The question raised on the release arc under `title` at or after `since`, if one was; the security check's title
+    // repeats across stops, so an older one is never adopted (4.62).
+    raised: async ({ title, since }) => {
+      const listed = await storytree(["library", "list", "question", "--where", `arc=${RELEASE_ARC}`, "--where", `title=${title}`]);
+      for (const id of listed.match(/question_\w+/g) ?? []) {
+        const created = /^Created: (\S+)/m.exec(await storytree(["library", "read", id]))?.[1];
+        if (created && Date.parse(created) >= Date.parse(since)) return id;
+      }
+      return undefined;
+    },
     startReleaseFix: async ({ n, stamp = Date.now(), brief }) => {
       const base = join(dir, `release-fix-${stamp}-${n}`);
       await writeFile(`${base}-brief.md`, brief);

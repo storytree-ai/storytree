@@ -187,7 +187,7 @@ export async function readWait(storytree, id, today) {
  * raised is open; a cleared wait or a settled question lets the alarm start sessions again. After `limit` sessions the
  * watcher raises that question itself. A new release closes an increment a recorded wait parked, its stop over.
  */
-export async function watchReleases({ dir, readReleases, rerun, tail, alive, room, questionOpen, waitHolds, raise, startFix, startedAs = async () => undefined, limit, storytree, folders = {}, now = Date.now, say }) {
+export async function watchReleases({ dir, readReleases, rerun, tail, alive, room, questionOpen, waitHolds, raise, raised = async () => undefined, startFix, startedAs = async () => undefined, limit, storytree, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} releases: ${message}`);
   const { release, reruns, alarm } = await readReleases();
   let state = await load(dir);
@@ -233,6 +233,16 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
     Object.assign(state, { wait: null, fixes: [] });
     await save(dir, state);
   }
+  // A question written down as being asked but never as asked: the watcher stopped while it raised it, so it adopts the
+  // question raised since on the release arc under that title, or asks again when none was (4.62).
+  if (state.asking) {
+    const { title, since } = state.asking;
+    const found = state.question ?? await raised({ title, since });
+    if (found) state.question = found;
+    delete state.asking;
+    await save(dir, state);
+    dated(found ? `${found} had been raised before the watcher stopped, and is adopted` : `"${title}" was never raised before the watcher stopped`);
+  }
   if (state.question) {
     if (await questionOpen(state.question)) return;
     dated(`${state.question} is settled: the alarm may start fix sessions again`);
@@ -240,29 +250,35 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
     await save(dir, state);
   }
   const name = stopName(state.since);
+  // Its intent is written before the question is raised, so a watcher stopped in between finds it on restart and looks (4.62).
+  const ask = async (question) => {
+    state.asking = { title: question.title, since: new Date(now()).toISOString() };
+    await save(dir, state);
+    state.question = await raise(question);
+    delete state.asking;
+    await save(dir, state);
+  };
   // A failed security check is the owner's, asked once with no log or alert text and no fix session (4.41).
   if (alarm.run.security?.length) {
     const checks = alarm.run.security.join(", ");
-    state.question = await raise({
+    await ask({
       title: `Releases stopped on a failed security check (${checks})`,
       stakes: "No release publishes until it passes, and the watcher starts no fix session for it, since a fix session's commits and pull request are public.",
       statement: `Run ${alarm.run.id} failed the security check ${checks}. What should be done about it?`,
       context: `The pool's watcher reads ${checks} as a security check (4.41): it puts no log or alert text anywhere and asks you instead. Read the run on GitHub, signed in.`,
       options: "A. Fix it yourself, privately. B. Judge it a false alarm and dismiss it on GitHub.",
     });
-    await save(dir, state);
     dated(`run ${alarm.run.id} failed the security check ${checks}: asked the owner in ${state.question}, with no fix session`);
     return;
   }
   if (state.fixes.length >= limit) {
-    state.question = await raise({
+    await ask({
       title: `${name}, and ${limit} fix sessions could not move it`,
       stakes: "Every platform's development builds stay where they are, and no urgent fix can reach a stable install, until a release publishes again.",
       statement: `No release has published since ${release.tag} (${release.at}): ${alarm.why}. The failing run: ${alarm.run.url}${alarm.run.job ? ` (${alarm.run.job})` : ""}. What should move it?`,
       context: `The pool's watcher reran the failing runs once and started ${limit} fix sessions; their logs: ${state.fixes.map((fix) => fix.log).join(", ")}. It starts no other until this is settled (ADR-1032 D2).`,
       options: "A. Name what only you can do (a secret, a sign-in, an outside party) and do it. B. Say what a next fix session should try.",
     });
-    await save(dir, state);
     dated(`${alarm.why}; ${limit} fix sessions ran: asked the owner in ${state.question}`);
     return;
   }

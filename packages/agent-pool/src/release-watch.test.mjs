@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { attempted, judgeReleases, readWait, RELEASE_LIMIT_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, waitHolding, watchReleases } from "./release-watch.mjs";
+import { attempted, judgeReleases, raisedSince, readWait, RELEASE_LIMIT_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, waitHolding, watchReleases } from "./release-watch.mjs";
 import { main } from "./watch.mjs";
 
 const at = Date.parse("2026-10-13T12:00:00Z");
@@ -324,4 +324,44 @@ test("4.59 · a watcher killed while it starts a release fix session finds on re
   await watchReleases(d.options);
   assert.deepEqual(kept, [["close", true]]);
   await assert.rejects(readFile(join(d.dir, "release.json"), "utf8"), { code: "ENOENT" });
+});
+
+test("4.62 · a watcher killed while it raises a release stop's owner question adopts on restart the question it raised, never raising it twice, and raises it when it never did", async (t) => {
+  const stopped = { reruns: [], alarm: { ...alarm, run: { ...alarm.run, security: ["secret-check"] } } };
+  const b = await box(t, { judged: stopped });
+  const raise = b.options.raise;
+  b.options.raise = async (brief) => { await raise(brief); throw new Error("killed"); };
+  await assert.rejects(watchReleases(b.options), /killed/);
+  const asking = JSON.parse(await readFile(join(b.dir, "release.json"), "utf8")).asking;
+  assert.match(asking.title, /secret-check/);
+  b.options.raise = raise;
+  b.options.raised = async ({ title, since }) => (title === asking.title && since === asking.since ? "question_r" : undefined);
+  await watchReleases(b.options);
+  assert.equal(b.questions.length, 1, "the question it raised is not raised again");
+  const state = JSON.parse(await readFile(join(b.dir, "release.json"), "utf8"));
+  assert.deepEqual([state.question, state.asking], ["question_r", undefined]);
+  assert.ok(b.lines.some((line) => /question_r had been raised before the watcher stopped/.test(line)), b.lines.join("\n"));
+
+  const c = await box(t, { judged: stopped });
+  c.options.raise = async () => { throw new Error("killed"); };
+  await assert.rejects(watchReleases(c.options), /killed/);
+  c.options.raise = async (brief) => { c.questions.push(brief); c.open.add("question_r"); return "question_r"; };
+  c.options.raised = async () => undefined;
+  await watchReleases(c.options);
+  assert.equal(c.questions.length, 1, "it asks once the restart finds it never did");
+  assert.equal(JSON.parse(await readFile(join(c.dir, "release.json"), "utf8")).question, "question_r");
+
+  // The live lookup adopts only the question raised under that title on the release arc since the intent; an older one
+  // under the same title, a stop before, is never taken.
+  const records = { question_old: "2026-11-14T09:59:59.000Z", question_new: "2026-11-14T10:00:01.000Z" };
+  const asked = [];
+  const storytree = async (args) => {
+    asked.push(args.join(" "));
+    if (args[1] === "list") return args.includes("title=Releases stopped") ? "2 question records:\n  question_old  Releases stopped\n  question_new  Releases stopped\n" : "No question records match.\n";
+    return `${args[2]}  [question]  schema 3\nCreated: ${records[args[2]]}\nUpdated: ${records[args[2]]}\n`;
+  };
+  assert.equal(await raisedSince(storytree, { title: "Releases stopped", since: "2026-11-14T10:00:00.000Z" }), "question_new");
+  assert.ok(asked[0].includes("arc=arc_312aa103bfca"), asked[0]);
+  assert.equal(await raisedSince(storytree, { title: "Releases stopped", since: "2026-11-14T10:00:02.000Z" }), undefined);
+  assert.equal(await raisedSince(storytree, { title: "Another title", since: "2026-11-14T09:00:00.000Z" }), undefined);
 });

@@ -10,8 +10,9 @@
 # (research_e00d8bcfc32e): the bound is what turns a setup that waits like that into a failed run.
 # Every step records its result in $Out\steps.tsv and the run carries on, so one failure still leaves the rest observed.
 # The repository is public: nothing here prints a secret, and no agent is signed in (connect needs only `claude --version`).
+# -LibraryOnly defines the functions and runs nothing, for packages/app/src/updates/windows-update-check.test.ts.
 param(
-  [Parameter(Mandatory)] [string] $Out,
+  [string] $Out,
   [ValidateSet('open', 'closed')] [string] $Session = 'open',
   # The release to install first and the one to update to; empty takes the two newest with this architecture's setup.
   [string] $From = '',
@@ -21,12 +22,40 @@ param(
   [string] $Setup = '',
   # How long the candidate's setup may take, and then how long its app may take to re-point the agents.
   [int] $BoundSeconds = 300,
-  [int] $RepointSeconds = 180
+  [int] $RepointSeconds = 180,
+  [switch] $LibraryOnly
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $repo = 'storytree-ai/storytree'
 $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
+
+# What a one-liner's error output says of GitHub refusing it a download: 403 Forbidden, as an unauthenticated read
+# from a runner's shared address is refused past its rate limit (run 43596024668), or 429 Too Many Requests; else null.
+function Get-GitHubRefusal([string] $Text) {
+  if ($Text -match '\(?\b(403|429)\)? \(?([A-Za-z ]+?)[.)]') { return "$($Matches[1]) $($Matches[2])" }
+  $null
+}
+
+# TRY's detail, tried again after each of WAITS seconds while it fails because GitHub refused a download: that refusal is
+# GitHub's answer to the runner, not the build's. A refusal on every try fails naming it as GitHub's; any other failure
+# fails at once.
+function Invoke-PastRefusal([scriptblock] $Try, [int[]] $Waits = @(30, 120)) {
+  $refused = @()
+  while ($true) {
+    try { $detail = & $Try; break }
+    catch {
+      if ($_.Exception.Message -notmatch '^GitHub refused a download \((.+)\)$') { throw }
+      $refused += $Matches[1]
+      if ($refused.Count -gt $Waits.Count) { throw "GitHub refused a download on all $($refused.Count) tries ($($refused -join '; ')): an outside fault, not the build's" }
+      Start-Sleep -Seconds $Waits[$refused.Count - 1]
+    }
+  }
+  if ($refused.Count) { "$detail, after GitHub refused $($refused.Count) tries ($($refused -join '; '))" } else { $detail }
+}
+if ($LibraryOnly) { return }
+if (-not $Out) { throw 'name the folder for the run''s results with -Out' }
+
 New-Item -ItemType Directory -Force -Path $Out | Out-Null
 $Out = (Resolve-Path -LiteralPath $Out).Path
 $stepsFile = Join-Path $Out 'steps.tsv'
@@ -149,7 +178,7 @@ if (-not $From -or -not $candidate) {
 }
 
 # The previous release, by its own one-liner in Windows PowerShell, as a user installs it.
-$installed = Step 'install-from' {
+$installed = Step 'install-from' { Invoke-PastRefusal {
   $script = "`$ProgressPreference = 'SilentlyContinue'; `$env:STORYTREE_ACCEPTANCE_VERSION = '$From'; & ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/$repo/releases/download/v$From/install-storytree.ps1')))"
   $log = Join-Path $Out 'install-from.txt'
   # Started from PowerShell 7, Windows PowerShell would inherit its module path and find no Get-FileHash.
@@ -160,11 +189,15 @@ $installed = Step 'install-from' {
     $null = $process.Handle
   } finally { $env:PSModulePath = $modules }
   if (-not $process.WaitForExit(900000)) { $process.Kill($true); throw 'the one-liner did not finish within 15 minutes' }
-  if ($process.ExitCode -ne 0) { throw "the one-liner exited $($process.ExitCode)" }
+  if ($process.ExitCode -ne 0) {
+    $refusal = Get-GitHubRefusal (Get-Content -LiteralPath "$log.err" -Raw -ErrorAction SilentlyContinue)
+    if ($refusal) { throw "GitHub refused a download ($refusal)" }
+    throw "the one-liner exited $($process.ExitCode)"
+  }
   $version = (Get-Item -LiteralPath $appExe).VersionInfo.FileVersion
   if ($version -ne $From) { throw "installed $version, not $From" }
   "installed $version"
-}
+} }
 if (-not $installed) { exit 1 }
 
 # Holds the installed app's own automatic install for this run's life (contract 4.12), under a name of its own.

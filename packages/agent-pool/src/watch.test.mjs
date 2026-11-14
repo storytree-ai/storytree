@@ -26,6 +26,8 @@ async function box(t, { looks = {}, board = "" } = {}) {
     // No repository cut-over unless a test sets one (4.39): the watcher's own default reads the real library.
     cutover: async () => undefined,
     look: async (pr) => looks[pr],
+    // Open whenever a session would start, unless a test says otherwise (4.61).
+    stateOf: async () => "OPEN",
     storytree: async (args) => { calls.push(args); return args[0] === "noticeboard" ? board : ""; },
     viewOf: async (pr) => view(pr),
     alive: async (pid) => live.has(pid),
@@ -1773,4 +1775,54 @@ test("4.58 · a record write that cannot complete leaves the old record whole, s
   await assert.rejects(watchOnce(b.options));
   assert.equal(await readFile(join(b.dir, "41.json"), "utf8"), before, "the old record is left whole");
   assert.equal(b.fixes.length, 0, "nothing starts on a start it could not write down");
+});
+
+test("4.60 · a check cancelled because a newer run of its concurrency group took its place, and every other cancelled check of that run, is not red; a cancelled check of another run stays red", () => {
+  const options = { since: minutes(-60), now: at, graceMs: 10 * 60_000 };
+  const cancelled = (name, run, ...messages) => ({ __typename: "CheckRun", name, status: "COMPLETED", conclusion: "CANCELLED",
+    detailsUrl: `https://github.com/storytree-ai/storytree/actions/runs/${run}/job/7${run}${name.length}`, annotations: { nodes: messages.map((message) => ({ message })) } });
+  const superseded = (group) => `Canceling since a higher priority waiting request for ${group}-refs/pull/41/merge exists`;
+  // PR #651's: the run's first jobs carry the annotation, its later jobs are cancelled with none.
+  const rehearsal = [cancelled("rehearse / package (Linux)", 5, superseded("release-rehearsal"), "The operation was canceled."),
+    cancelled("rehearse / sign-mac", 5), cancelled("publication", 5), cancelled("windows", 6, superseded("staging-desktop"))];
+  assert.equal(readPull(pull({ checks: [passed, ...rehearsal] }), options).state, "pending");
+  const other = cancelled("verify on Windows", 7, "The operation was canceled.");
+  const read = readPull(pull({ checks: [passed, ...rehearsal, other] }), options);
+  assert.equal(read.state, "red");
+  assert.deepEqual(read.checks, ["verify on Windows"], "only the cancel no newer run explains");
+});
+
+test("4.61 · the watcher reads a red pull request's state just before it starts a fix or review session, and starts none once it merged or closed or its state is unread", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  b.looks[41] = red;
+  const asked = [];
+  let state = "MERGED";
+  b.options.stateOf = async (pr) => { asked.push(pr); if (state instanceof Error) throw state; return state; };
+  await watchOnce(b.options);
+  assert.deepEqual(asked, [41]);
+  assert.equal(b.fixes.length, 0, "merged while it was looked at: no fix session");
+  assert.ok(!b.calls.some((args) => args[1] === "red"), "and no red recorded for it");
+  for (const one of ["CLOSED", new Error("gh: timed out")]) {
+    state = one;
+    await watchOnce(b.options);
+    assert.equal(b.fixes.length, 0, `${one}: no fix session`);
+  }
+  state = "OPEN";
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 1, "open: its fix session starts");
+  assert.match(b.fixes[0].brief, /Before every push, read `gh pr view 41 --json state`: once it is not OPEN/);
+
+  b.live.clear();
+  b.looks[41] = { ...red, head: "h2" };
+  await watchOnce(b.options);
+  b.live.clear();
+  b.looks[41] = { ...red, head: "h3" };
+  state = "MERGED";
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 2);
+  assert.equal(b.reviews.length, 0, "past its fix sessions, a merged one gets no review session either");
+  state = "OPEN";
+  await watchOnce(b.options);
+  assert.equal(b.reviews.length, 1);
 });

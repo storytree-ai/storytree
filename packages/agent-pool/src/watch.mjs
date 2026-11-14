@@ -41,6 +41,8 @@ export const WATCH_CODE = ["watch.mjs", "release-watch.mjs", "exemptions-watch.m
 
 const run = promisify(execFile);
 const RED = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR"]);
+/** GitHub's annotation on a check whose run a newer run of its concurrency group replaced (4.60). */
+const SUPERSEDED = /^Canceling since a higher priority waiting request for .+ exists/;
 // The queue's removals that the Requeue workflow puts back once; one it left out past its grace is red.
 const EJECTED = new Set(["FAILED_CHECKS", "BRANCH_PROTECTION_FAILURE"]);
 export const MARKS = [/watch\.mjs run( |$)/];
@@ -76,12 +78,15 @@ export function readPull(pull, { since, now, graceMs, home = HOME }) {
   if (pull.state === "MERGED") return { state: "merged", head };
   if (pull.state === "CLOSED") return { state: "closed", head };
   const checks = pull.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
-  const failed = checks.filter((check) => RED.has(check.conclusion ?? check.state));
+  // The Actions runs failed checks belong to, by their details link, for runnerReruns (4.29) and scanSetup (4.56).
+  const runOf = (check) => /\/actions\/runs\/(\d+)\//.exec(check.detailsUrl ?? "")?.[1];
+  // A run cancelled because a newer run of its concurrency group took its place failed nothing: GitHub annotates
+  // some of its checks so, and cancels the rest with no word because their run was (4.60).
+  const superseded = new Set(checks.filter((check) => check.annotations?.nodes?.some((one) => SUPERSEDED.test(one?.message ?? ""))).map(runOf).filter(Boolean));
+  const failed = checks.filter((check) => RED.has(check.conclusion ?? check.state) && !(check.conclusion === "CANCELLED" && superseded.has(runOf(check))));
   const why = failed.map((check) => `${check.name ?? check.context} failed`).join("; ");
   const logs = failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean);
   const names = failed.map((check) => check.name ?? check.context).filter(Boolean);
-  // The Actions runs failed checks belong to, by their details link, for runnerReruns (4.29) and scanSetup (4.56).
-  const runOf = (check) => /\/actions\/runs\/(\d+)\//.exec(check.detailsUrl ?? "")?.[1];
   const runsOf = (checks) => {
     const ids = checks.map(runOf);
     return ids.length && ids.every(Boolean) ? { runs: [...new Set(ids.map(Number))] } : {};
@@ -196,7 +201,7 @@ const VIEW = ["--json", "headRefName,isCrossRepository,headRepository,headReposi
 const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
   id state isDraft headRefOid headRefName isCrossRepository headRepository { nameWithOwner } mergeable mergeQueueEntry { state } labels(first: 100) { nodes { name } }
   commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
-    __typename ... on CheckRun { name status conclusion detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }
+    __typename ... on CheckRun { name status conclusion detailsUrl annotations(first: 5) { nodes { message } } } ... on StatusContext { context state targetUrl } } } } } } }
   timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 20) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason
     beforeCommit { oid parents(first: 2) { nodes { oid } } } } } }
 } } }`;
@@ -620,7 +625,8 @@ Your job is that pull request and nothing else. Work from {checkout} and follow 
   The claims are held for PR #${pr} until it merges; working on its branch, you take them over (ADR-1037 D2).
 ${security ? securitySteps({ pr, increment, checks: security, closed, project, use })
     : `- Read the failing log (\`gh run view <run> --log-failed\`, or \`gh pr checks ${pr}\`). Suspect a stale branch first: ${use.stale}. Then fix what is really broken, see ${use.gate} green and push.`}
-  Never force-push, squash or \`gh pr merge\`.
+  Never force-push, squash or \`gh pr merge\`. Before every push, read \`gh pr view ${pr} --json state\`: once it is not OPEN
+  (merged through the queue, or closed), push nothing, close out and end, since a push would re-create its deleted branch.
 - You exit when you end a turn: a session that ends its turn to wait exits at once, and its uncommitted work is stranded.
   So run ${use.tests} in the foreground and stay in the turn until ${use.until},
   however long the run queues behind another lane's; this overrides the general guidance to run them in the background.
@@ -719,7 +725,7 @@ reviewed again (4.37). At the cap the increment waits on the owner with the last
  * (`record.project.repo`, 4.49) is all that project's: every library step is taken in its library, its fix and review sessions
  * start in its checkout with its own commands.
  */
-export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, startedAs = async () => undefined, rerun, refresh, behind, enqueue, reached, alive, room, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
+export async function watchOnce({ dir, look, stateOf, storytree, cutover = async () => undefined, startFix, startReview, startedAs = async () => undefined, rerun, refresh, behind, enqueue, reached, alive, room, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -971,6 +977,15 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
       : fixing() || now() < Date.parse(last.refusedAt ?? last.at) + backoff)) continue;
     if (pull.conflict && [...running.values()].some((one) => one.conflict)) continue;
     if (!(await room())) continue;
+    // Its look reads logs and jobs for minutes, in which it can merge through the queue: read again, a session starts
+    // only on one still open, and the next look closes or forgets one that is not (4.61).
+    if (stateOf) {
+      const state = await stateOf(pr, record).catch((error) => `unread (${error.message.split("\n")[0]})`);
+      if (state !== "OPEN") {
+        dated(`PR #${pr} red (${pull.why}), but it reads ${state} now: no ${reviewing ? "review" : "fix"} session, looking again next time`);
+        continue;
+      }
+    }
     // Each red it handles is a pr-red activity line in the hand-off's project, written as its fix session starts (ADR-1064 D4, 4.25).
     await tell(["workspace", "red", String(pr), "--increment", increment, ...(pull.conflict ? ["--conflict"] : []),
       ...(pull.checks ?? []).flatMap((check) => ["--check", check])], record.project);
@@ -1119,6 +1134,8 @@ export function boxDefaults({ home = homedir(), env = process.env, platform = pr
       repoOf: async (folder) => (await run("gh", ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], { cwd: folder })).stdout.trim() }),
     // The time of a project's repository cut-over, or nothing while it has none (the read refuses).
     cutover: async (project) => (await storytree(["library", "read", "pr-cutover", "--field", "at"], project)).trim(),
+    // A pull request's state alone, read again just before a session starts on it (4.61).
+    stateOf: async (pr, record) => (await run("gh", ["pr", "view", String(pr), "-R", repoOf(record), "--json", "state", "--jq", ".state"], { cwd: repo })).stdout.trim(),
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt, home: repoOf(record),
       seen: new Set((record.queueReds ?? []).map((red) => red.at)) }),
     // Whether commit `sha` is on main (4.52).

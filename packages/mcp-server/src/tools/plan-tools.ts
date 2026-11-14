@@ -46,7 +46,7 @@ const storeLinks = z
   )
   .min(1)
   .optional()
-  .describe("A capability's store links, replacing them: each table of a store its own code sends statements to, as you read it from a test run's statement log, never the test that ran it");
+  .describe("A capability's store links, replacing them (ADR-1333). Read them as a person would: start a throwaway copy of the store from the repository's compose service and migrations with its statement log on (never turn it on in the user's own store without asking), point the repository's connection setting at it, run its tests, and parse which statements the run sent to which tables. Read the code that sends them: a shared layer (a data-access module, an ORM, a wrapper) is evidence, never credited. Credit each table to the capability whose code sends the statement, never the test that ran it, each cited by file and line; the tests' own statements and the migrations draw none. Write nothing into the repository.");
 
 const provedBy = z
   .array(z.string().min(1))

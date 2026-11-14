@@ -25,7 +25,7 @@ import { promisify } from "node:util";
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { LANE_RUN, storytreeCommand } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
-import { codeVersion, countEngines, holdRunner, localBrief } from "./queue.mjs";
+import { codeVersion, countEngines, holdRunner, localBrief, processTable, WINDOWS_PROCESSES } from "./queue.mjs";
 import { EXEMPTIONS_EVERY_MS, exemptionChanges, watchExemptions } from "./exemptions-watch.mjs";
 import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, readWait, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases, writeWhole } from "./release-watch.mjs";
 
@@ -47,7 +47,7 @@ export const MARKS = [/watch\.mjs run( |$)/];
 const LOOP_MARKS = [/watch\.mjs watch( |$)/];
 
 /** Whether a process's command line is a fix session's runner (4.26). */
-export const isFixSession = (args) => /agent-pool\/src\/runner\.mjs run /.test(args);
+export const isFixSession = (args) => /agent-pool[\\/]src[\\/]runner\.mjs run /.test(args);
 /** The node arguments that start lane runner `runner` with `args`: under tsx's loader, as the dispatcher's lanes run, so its exit recorder loads storytree's TypeScript (4.57). */
 export const runnerStart = (runner, args) => ["--import", import.meta.resolve("tsx"), runner, ...args];
 /** The look loop's exit when the dev loop's code in the shared checkout changed: `run` starts it again, on the new code. */
@@ -1150,7 +1150,9 @@ export function boxDefaults({ home = homedir(), env = process.env, platform = pr
       const base = join(dir, name);
       const log = await stat(`${base}.runner.log`).catch(() => undefined);
       if (!log || log.mtimeMs < Date.parse(since)) return undefined;
-      const { stdout } = await run("ps", ["-eo", "pid=,args="], { maxBuffer: 64 * 1024 * 1024 });
+      // Windows has no ps: its process list read as the same `pid …` table (queue.mjs's processTable).
+      const stdout = platform === "win32" ? processTable((await run(...WINDOWS_PROCESSES, { maxBuffer: 64 * 1024 * 1024 })).stdout)
+        : (await run("ps", ["-eo", "pid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout;
       const line = stdout.split("\n").find((one) => isFixSession(one) && one.includes(`${base}-brief.md`));
       return { ...(line ? { pid: Number(line.trim().split(/\s+/)[0]) } : {}), log: `${base}.log` };
     },

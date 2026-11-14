@@ -941,6 +941,7 @@ test("4.30 · a hand-over that finds no machine names the file to set it in; on 
 
 test("4.26 · a fix session counts as running while its runner runs", () => {
   assert.ok(isFixSession("/usr/bin/node /home/m/code/storytree03/packages/agent-pool/src/runner.mjs run /l/watch/fix-41-1-brief.md log err"));
+  assert.ok(isFixSession("C:\\node.exe D:\\a\\storytree\\packages\\agent-pool\\src\\runner.mjs run C:\\l\\watch\\fix-41-1-brief.md log err"), "a Windows command line");
   assert.ok(!isFixSession("/usr/bin/node /home/m/code/storytree03/packages/agent-pool/src/runner.mjs status"));
   assert.ok(!isFixSession("vim runner.mjs"));
   assert.ok(!isFixSession(""), "a process that is gone");

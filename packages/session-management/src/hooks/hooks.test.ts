@@ -1955,6 +1955,45 @@ test("3.60 · A heartbeat from a pool lane says so, and the tool server's lane_m
   }
 });
 
+test("3.61 · In a Codex pool lane (STORYTREE_LANE_RUN set) the hook after a shell command, which Codex waits for, marks its session a lane and adds the steers waiting for it to the command's result for the model, and the turn-end hook keeps the turn going with its follow-ups, each once; outside a lane they take nothing and mark nothing", async () => {
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project, home);
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        const session = `${project}-codex-lane`;
+        const input = (name: string) => JSON.stringify({ ...JSON.parse(recorded("codex", name, folder)), session_id: session });
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "follow-up", text: "Then write the docs.", sender: "owner-terminal" });
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "steer", text: "Use the SES client.", sender: "owner-terminal" });
+
+        // This test may itself run inside a pool lane, whose marker the hook it starts would inherit.
+        const outside = { STORYTREE_LANE_RUN: "" };
+        assert.equal((await runHook("codex", input("post-tool-use-bash"), home, [SHELL_GUARD], outside)).stdout.trim(), "");
+        assert.equal((await runHook("codex", input("stop"), home, [CLOSE_OUT_REMINDER], outside)).stdout.trim(), "");
+        assert.equal(await log.messages.marked(project, session), false, "a session outside a lane is not marked one");
+
+        const lane = { STORYTREE_LANE_RUN: "lane-run-1" };
+        const after = JSON.parse((await runHook("codex", input("post-tool-use-bash"), home, [SHELL_GUARD], lane)).stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+        assert.equal(after.hookSpecificOutput.hookEventName, "PostToolUse");
+        assert.match(after.hookSpecificOutput.additionalContext, /owner-terminal[\s\S]*Use the SES client\./);
+        assert.doesNotMatch(after.hookSpecificOutput.additionalContext, /write the docs/, "a command's end hands no follow-up");
+        assert.equal(await log.messages.marked(project, session), true, "the lane's hook marks it a lane");
+
+        const end = JSON.parse((await runHook("codex", input("stop"), home, [CLOSE_OUT_REMINDER], lane)).stdout) as { decision: string; reason: string };
+        assert.equal(end.decision, "block", "Codex keeps the turn going with the reason as its next prompt");
+        assert.match(end.reason, /Then write the docs\./);
+        assert.equal((await runHook("codex", input("stop"), home, [CLOSE_OUT_REMINDER], lane)).stdout.trim(), "", "each is handed once");
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
+    await dropTestProjects([project]);
+  }
+});
+
 test("3.43 · The Claude Code mod's usage becomes a usage-measured line, and its failed turn a turn-failed line naming the rate-limit windows it ended at or past their limit; neither names a transcript, and a figure with no window records nothing", async () => {
   const project = uniqueProjectName();
   const was = process.env.STORYTREE_HOME;

@@ -19,8 +19,8 @@ import { SESSION_VERBS } from "./verbs.js";
 /** The command line's words for the steps a verb names. */
 const COMMAND: DoorWords = { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` };
 
-/** A project with an increment the session "lane" holds, beating as a pool lane; `work` runs with it and is cleaned up after. */
-async function withLane(work: (on: { project: string; increment: string; log: Awaited<ReturnType<typeof openActivityLog>>; library: Awaited<ReturnType<Awaited<ReturnType<typeof connect>>["openProject"]>> }) => Promise<void>): Promise<void> {
+/** A project with an increment the session "lane" holds, beating as a pool lane (a Claude Code lane's) or, for `codex`, with no beat; `work` runs with it and is cleaned up after. */
+async function withLane(work: (on: { project: string; increment: string; log: Awaited<ReturnType<typeof openActivityLog>>; library: Awaited<ReturnType<Awaited<ReturnType<typeof connect>>["openProject"]>> }) => Promise<void>, harness: "claude-code" | "codex" = "claude-code"): Promise<void> {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   const log = await openActivityLog(testServerUrl());
@@ -29,10 +29,10 @@ async function withLane(work: (on: { project: string; increment: string; log: Aw
     const story = await library.addStory({ title: "Visitor gets mail" });
     const arc = await library.createArc({ title: "Email", intent: "Send mail", endState: "Mail is sent", stories: [story.id] });
     const increment = (await library.addIncrement({ arc: arc.id, title: "Send it", objective: "Send mail", body: "Promise: mail is sent." })).id;
-    await log.append(project, { session: "lane", harness: "claude-code", source: "hook", kind: "session-started" });
-    const held = await claim({ log, library, project, session: "lane", harness: "claude-code" }, increment, "build it");
+    await log.append(project, { session: "lane", harness, source: "hook", kind: "session-started" });
+    const held = await claim({ log, library, project, session: "lane", harness }, increment, "build it");
     assert.equal(held.ok, true);
-    await log.beats.beat(project, "lane", { lane: true });
+    if (harness === "claude-code") await log.beats.beat(project, "lane", { lane: true });
     await work({ project, increment, log, library });
   } finally {
     try {
@@ -111,4 +111,25 @@ test("4.51 · A note to a running pool lane is written on its increment, naming 
     assert.match(body, /owner-terminal[\s\S]*The SES quota went up today\./);
     assert.deepEqual(await log.messages.take(project, "lane", "stop"), [], "the model is not asked");
   });
+});
+
+test("4.52 · A Codex pool lane, which keeps no heartbeat, takes messages once its hooks mark it a lane: while its claim binds and its lines say it has not ended, a steer or follow-up is queued for it and a note written; unmarked it is no lane, and once it ended or went quiet it is refused as ended", async () => {
+  await withLane(async ({ project, increment, log, library }) => {
+    const owner = { log, library, project, session: "owner-terminal" };
+    const send = (mode: "steer" | "follow-up" | "note", text: string, now?: Date) => messageLane(owner, { increment, mode, text, ...(now === undefined ? {} : { now }) });
+    assert.deepEqual(await send("steer", "Use the SES client."), { ok: false, refused: "not-a-lane", session: "lane" }, "a Codex session its hooks never marked is no lane");
+
+    await log.messages.mark(project, "lane");
+    assert.equal(await log.messages.marked(project, "lane"), true);
+    assert.equal((await log.beats.of(project, ["lane"])).get("lane"), undefined, "the mark is no beat: it never judges whether the lane lives");
+    assert.deepEqual(await send("steer", "Use the SES client."), { ok: true, lane: "lane", mode: "steer" });
+    assert.deepEqual(await send("follow-up", "Then write the docs."), { ok: true, lane: "lane", mode: "follow-up" });
+    assert.deepEqual(await send("note", "The SES quota went up today."), { ok: true, lane: "lane", mode: "note" });
+    assert.deepEqual((await log.messages.take(project, "lane", "stop")).map((one) => one.text), ["Use the SES client.", "Then write the docs."]);
+
+    assert.deepEqual(await send("steer", "late", new Date(Date.now() + 2 * 24 * 60 * 60_000)), { ok: false, refused: "ended", session: "lane" }, "a lane quiet past its claim's quiet time has ended");
+    await log.append(project, { session: "lane", harness: "codex", source: "hook", kind: "session-ended" });
+    assert.deepEqual(await send("steer", "after its end"), { ok: false, refused: "ended", session: "lane" });
+    assert.deepEqual(await log.messages.take(project, "lane", "stop"), [], "nothing refused was queued");
+  }, "codex");
 });

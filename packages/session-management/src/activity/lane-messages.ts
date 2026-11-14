@@ -3,6 +3,8 @@
  * against the lane's session beside the log, in the same database, and taken by its hooks, each once. A row is marked taken in
  * the statement that hands it over, so two hooks taking at the same moment never both deliver one message; and a take given the
  * time its hook stops waiting finishes before it or takes nothing, so no message is marked taken that the hook never handed on.
+ * A lane whose harness keeps no heartbeat (Codex) is marked a lane by its hooks instead (contract 4.52), apart from the beats, so
+ * the mark never judges whether it lives.
  */
 import type { Pool } from "pg";
 
@@ -23,6 +25,13 @@ export const LANE_MESSAGES_SCHEMA: readonly string[] = [
     taken_at  timestamptz
   )`,
   `CREATE INDEX IF NOT EXISTS lane_messages_waiting_idx ON lane_messages (project, session, id) WHERE taken_at IS NULL`,
+  // The sessions whose hooks said they are a pool lane's engine, for a harness that beats as none (4.52).
+  `CREATE TABLE IF NOT EXISTS lane_sessions (
+    project   text NOT NULL,
+    session   text NOT NULL,
+    marked_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (project, session)
+  )`,
 ];
 
 /** How long before a take's deadline its statement must finish: the answer's way back to the hook. */
@@ -55,6 +64,10 @@ export interface LaneMessages {
    * (ms since the epoch), when the taker stops waiting, it takes them only if it finishes TAKE_MARGIN_MS before then, else none.
    */
   take(project: string, session: string, at: TakenAt, before?: number): Promise<LaneMessage[]>;
+  /** `session` is a pool lane's engine, as its hooks say where its harness keeps no heartbeat (4.52). */
+  mark(project: string, session: string): Promise<void>;
+  /** Whether `session`'s hooks ever marked it a pool lane's engine. */
+  marked(project: string, session: string): Promise<boolean>;
 }
 
 /** A message's row, as a take hands it back. */
@@ -80,6 +93,15 @@ export class PgLaneMessages implements LaneMessages {
       "INSERT INTO lane_messages (project, session, increment, mode, text, sender) VALUES ($1, $2, $3, $4, $5, $6)",
       [project, session, increment, mode, text, sender],
     );
+  }
+
+  async mark(project: string, session: string): Promise<void> {
+    await this.#pool.query("INSERT INTO lane_sessions (project, session) VALUES ($1, $2) ON CONFLICT (project, session) DO NOTHING", [project, session]);
+  }
+
+  async marked(project: string, session: string): Promise<boolean> {
+    const { rows } = await this.#pool.query("SELECT 1 FROM lane_sessions WHERE project = $1 AND session = $2", [project, session]);
+    return rows.length > 0;
   }
 
   async take(project: string, session: string, at: TakenAt, before?: number): Promise<LaneMessage[]> {

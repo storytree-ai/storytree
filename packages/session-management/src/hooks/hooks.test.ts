@@ -41,6 +41,7 @@ import { SHELL_GUARD } from "./shell-guard.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
 import { BACKGROUND, hookLines, runHook as runHookHere, type ReachLog } from "./hooks.js";
 import { CLOSE_OUT_REMINDER } from "./close-out-reminder.js";
+import { withFollowUps, withSteers } from "./codex-lane.js";
 import { runGit, type Git } from "../activity/git.js";
 import { hookTools } from "./tools.js";
 import { AFTER_TOOL, codexToolArguments } from "./codex-delivery.js";
@@ -1951,6 +1952,51 @@ test("3.60 · A heartbeat from a pool lane says so, and the tool server's lane_m
   } finally {
     if (was === undefined) delete process.env.STORYTREE_HOME;
     else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
+});
+
+test("3.61 · In a Codex pool lane (STORYTREE_LANE_RUN set) the hook after a shell command, which Codex waits for, marks its session a lane and adds the steers waiting for it to the command's result for the model, and the turn-end hook keeps the turn going with its follow-ups, each once; outside a lane they take nothing and mark nothing", async () => {
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project, home);
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        const session = `${project}-codex-lane`;
+        const input = (name: string) => JSON.stringify({ ...JSON.parse(recorded("codex", name, folder)), session_id: session });
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "follow-up", text: "Then write the docs.", sender: "owner-terminal" });
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "steer", text: "Use the SES client.", sender: "owner-terminal" });
+
+        // This test may itself run inside a pool lane, whose marker the hook it starts would inherit.
+        const outside = { STORYTREE_LANE_RUN: "" };
+        assert.equal((await runHook("codex", input("post-tool-use-bash"), home, [SHELL_GUARD], outside)).stdout.trim(), "");
+        assert.equal((await runHook("codex", input("stop"), home, [CLOSE_OUT_REMINDER], outside)).stdout.trim(), "");
+        assert.equal(await log.messages.marked(project, session), false, "a session outside a lane is not marked one");
+
+        const lane = { STORYTREE_LANE_RUN: "lane-run-1" };
+        const after = JSON.parse((await runHook("codex", input("post-tool-use-bash"), home, [SHELL_GUARD], lane)).stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+        assert.equal(after.hookSpecificOutput.hookEventName, "PostToolUse");
+        assert.match(after.hookSpecificOutput.additionalContext, /owner-terminal[\s\S]*Use the SES client\./);
+        assert.doesNotMatch(after.hookSpecificOutput.additionalContext, /write the docs/, "a command's end hands no follow-up");
+        assert.equal(await log.messages.marked(project, session), true, "the lane's hook marks it a lane");
+
+        const end = JSON.parse((await runHook("codex", input("stop"), home, [CLOSE_OUT_REMINDER], lane)).stdout) as { decision: string; reason: string };
+        assert.equal(end.decision, "block", "Codex keeps the turn going with the reason as its next prompt");
+        assert.match(end.reason, /Then write the docs\./);
+        assert.equal((await runHook("codex", input("stop"), home, [CLOSE_OUT_REMINDER], lane)).stdout.trim(), "", "each is handed once");
+
+        // A notice the hook gives anyway (the guard's, or a turn-end block) keeps its place, the lane's messages after it.
+        assert.deepEqual(JSON.parse(withSteers(JSON.stringify({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "[storytree] Your last shell command changed a.ts" } }), "Use the SES client.")!),
+          { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "[storytree] Your last shell command changed a.ts\n\nUse the SES client." } });
+        assert.deepEqual(JSON.parse(withFollowUps(JSON.stringify({ decision: "block", reason: "[storytree] An update stopped your tools." }), "Then write the docs.")!),
+          { decision: "block", reason: "[storytree] An update stopped your tools.\n\nThen write the docs." });
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
     await dropTestProjects([project]);
   }
 });

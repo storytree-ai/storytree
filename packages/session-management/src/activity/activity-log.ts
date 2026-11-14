@@ -298,7 +298,7 @@ export async function forgetProjectActivity(server: Storytree, project: string):
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))", [project]);
-    for (const table of ["activity", "transcript_records", "transcript_readings", "session_beats", "lane_messages"]) await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
+    for (const table of ["activity", "transcript_records", "transcript_readings", "session_beats", "lane_messages", "lane_sessions"]) await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {

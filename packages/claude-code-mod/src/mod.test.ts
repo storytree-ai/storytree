@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { BEAT_MS, DELIVERY_WAIT_MS, register, USAGE_MS, type Engine, type Input, type Usage } from "./plugin/hooks/storytree.js";
+import { BEAT_MS, DELIVERY_WAIT_MS, MESSAGES_WAIT_MS, register, USAGE_MS, type Engine, type Input, type Usage } from "./plugin/hooks/storytree.js";
 import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "./index.mjs";
 
 type Hook = (engine: Engine, e: Input, next: (e: Input) => Promise<unknown>) => Promise<unknown>;
@@ -74,7 +74,13 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
     for (const timer of timers.filter((one) => !one.cancelled)) timer.fn();
     await new Promise((resolve) => setImmediate(resolve));
   };
-  return { raise, own, tick, happened, sent, timers, env, written, become: (next: string) => void (id = next), measure: (next: Usage) => void (usage = next) };
+  /** Raise `event` with `e`, the hooks beneath answering `beneath`; resolves with what the module's hook answered. */
+  const reply = async (event: string, e: Input, beneath: Record<string, unknown> = {}) => {
+    const hook = hooks.get(`classic.${event}`);
+    assert.ok(hook, `the module hooks classic.${event}`);
+    return hook(engine, e, async () => beneath);
+  };
+  return { raise, reply, own, tick, happened, sent, timers, env, written, become: (next: string) => void (id = next), measure: (next: Usage) => void (usage = next) };
 }
 
 const base = { session_id: "session-1", transcript_path: "/home/dev/.claude/projects/p/session-1.jsonl", cwd: "/work/site", permission_mode: "default" };
@@ -179,6 +185,61 @@ test("1.2 · From session.start the mod beats on its own timer for the session's
   await again.tick();
   assert.equal(again.timers.filter((one) => !one.cancelled && one.ms === BEAT_MS).length, 1);
   assert.equal(again.written.size, 0);
+});
+
+test("1.3 · In a pool lane (STORYTREE_LANE_RUN set) the mod beats as a lane, adds the steers waiting for it to each tool call's result as added context, and at its turn's end keeps the turn going with a waiting follow-up; outside a lane, or with nothing waiting, it asks nothing or leaves the answer as it was", async () => {
+  // The tool server's lane_messages tool answers with the text waiting, or nothing.
+  let waiting = "";
+  const lane = loaded(async () => ({ content: [{ type: "text", text: waiting }] }));
+  lane.env.set("STORYTREE_LANE_RUN", "lane-1");
+  await lane.own("session.start", { cwd: "/work/start" });
+  assert.deepEqual(lane.sent.find((one) => one.tool === "heartbeat")?.args, { session: "session-1", cwd: "/work/start", lane: true }, "a lane's beat says it is a lane");
+
+  // The event's own session is asked for, with when the lane stops waiting, so the tool server takes nothing it could not hand back.
+  const asked = () => {
+    const { before, ...rest } = lane.sent.at(-1)?.args ?? {};
+    assert.equal(lane.sent.at(-1)?.tool, "lane_messages");
+    assert.ok(typeof before === "number" && before >= 5_000 + MESSAGES_WAIT_MS, "the lane's deadline, by its clock");
+    return rest;
+  };
+  const read = { ...base, session_id: "lane-session", hook_event_name: "PostToolUse", tool_name: "Read", tool_input: { file_path: "/work/site/a.ts" }, tool_response: {}, tool_use_id: "toolu_7" };
+  assert.deepEqual(await lane.reply("PostToolUse", read, { additionalContext: ["beneath said"] }), { additionalContext: ["beneath said"] }, "nothing waiting: the answer as it was");
+  assert.deepEqual(asked(), { session: "lane-session", cwd: "/work/site", at: "tool" });
+  waiting = "Message to this lane: use the SES client.";
+  assert.deepEqual(await lane.reply("PostToolUse", read, { additionalContext: ["beneath said"] }), { additionalContext: ["beneath said", waiting] }, "a steer joins the tool's result");
+  const failed = { ...base, hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "false" }, tool_use_id: "toolu_8", error: "exit 1" };
+  assert.deepEqual(await lane.reply("PostToolUseFailure", failed), { additionalContext: [waiting] }, "and a failed one's");
+
+  waiting = "Follow-up for this lane: then write the docs.";
+  assert.deepEqual(await lane.reply("Stop", { ...base, hook_event_name: "Stop", stop_hook_active: false }), { block: waiting }, "a follow-up keeps the turn going");
+  assert.deepEqual(asked(), { session: "session-1", cwd: "/work/site", at: "stop" });
+  waiting = "";
+  assert.deepEqual(await lane.reply("Stop", { ...base, hook_event_name: "Stop", stop_hook_active: true }), {}, "nothing waiting: the turn ends");
+
+  // A tool server too slow to answer within the lane's wait leaves the answer as it was.
+  const slow = loaded(() => new Promise(() => undefined), (_ms, fn) => {
+    queueMicrotask(fn);
+    return { cancel: () => undefined };
+  });
+  slow.env.set("STORYTREE_LANE_RUN", "lane-1");
+  assert.deepEqual(await slow.reply("PostToolUse", read, { additionalContext: ["beneath said"] }), { additionalContext: ["beneath said"] });
+  assert.deepEqual(await slow.reply("Stop", { ...base, hook_event_name: "Stop", stop_hook_active: false }), {});
+
+  // An engine whose environment cannot be read is taken for no lane.
+  const unread = loaded(async () => ({ content: [{ type: "text", text: "a steer" }] }));
+  unread.env.get = () => {
+    throw new Error("no environment");
+  };
+  assert.deepEqual(await unread.reply("PostToolUse", read), {});
+  assert.deepEqual(unread.sent.filter((one) => one.tool === "lane_messages"), []);
+
+  // An interactive session asks for no messages, and its beat says nothing of lanes.
+  const own = loaded();
+  await own.own("session.start", { cwd: "/work/start" });
+  await own.reply("PostToolUse", read);
+  await own.reply("Stop", { ...base, hook_event_name: "Stop", stop_hook_active: false });
+  assert.deepEqual(own.sent.filter((one) => one.tool === "lane_messages"), []);
+  assert.deepEqual(own.sent.find((one) => one.tool === "heartbeat")?.args, { session: "session-1", cwd: "/work/start" });
 });
 
 /** A main-loop turn's end, as the engine raises it, or a subagent's with `agentId`. */

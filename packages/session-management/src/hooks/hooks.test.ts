@@ -26,10 +26,11 @@ import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { connect, type Line, type NewLine } from "@storytree/library";
+import { withTestClient } from "@storytree/library/testing/pg";
 import { scaled, waitUntil } from "@storytree/test-waits";
 import pg from "pg";
 
-import { openActivityLog } from "../activity/index.js";
+import { ACTIVITY_DATABASE, openActivityLog } from "../activity/index.js";
 import { buildHook } from "../testing/hook-bin.js";
 import { readContext } from "../context/index.js";
 import { machineOf, recordImport } from "@storytree/project-and-caller";
@@ -1888,6 +1889,61 @@ test("3.44 the tool server's heartbeat tool records a session's beat for the pro
         assert.deepEqual(await beat({ cwd: folder }, async () => { throw new Error("storytree is not answering"); }), { recorded: false });
         assert.ok((await log.beats.of(project, [session])).get(session)?.ended !== undefined, "neither touched the session's beat");
         assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.session === session), [], "a beat is no line of the log");
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
+    if (was === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
+});
+
+test("3.60 · A heartbeat from a pool lane says so, and the tool server's lane_messages tool hands the lane's session the messages waiting for it as one text, steers after a tool call and follow-ups at its turn's end; with none waiting, a folder in no project, or a library out of reach, it hands nothing", async () => {
+  const project = uniqueProjectName();
+  const was = process.env.STORYTREE_HOME;
+  try {
+    await withTempDir(async (dir) => {
+      process.env.STORYTREE_HOME = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project);
+      const elsewhere = path.join(dir, "elsewhere");
+      mkdirSync(elsewhere);
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        type Act = (args: Record<string, unknown>, call: { reach: ReachLog; locate: undefined }) => Promise<{ text: string; data?: Record<string, unknown> }>;
+        const acts = new Map<string, Act>();
+        hookTools().registerHarnessTools?.((name, _description, _input, act) => void acts.set(name, act as unknown as Act));
+        const session = `${project}-lane`;
+        const reach: ReachLog = async () => log;
+        await acts.get("heartbeat")!({ session, cwd: folder, lane: true }, { reach, locate: undefined });
+        assert.equal((await log.beats.of(project, [session])).get(session)?.lane, true, "a lane's beat says it is a lane");
+
+        const take = async (at: string, cwd = folder, through = reach, before?: number) => (await acts.get("lane_messages")!({ session, cwd, at, ...(before === undefined ? {} : { before }) }, { reach: through, locate: undefined })).text;
+        assert.equal(await take("tool"), "", "nothing waiting, nothing handed");
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "follow-up", text: "Then write the docs.", sender: "owner-terminal" });
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "steer", text: "Use the SES client.", sender: "owner-terminal" });
+        assert.equal(await take("tool", elsewhere), "");
+        assert.equal(await take("tool", folder, async () => { throw new Error("storytree is not answering"); }), "");
+        assert.equal(await take("tool", folder, reach, Date.now()), "", "a take its lane has stopped waiting for takes nothing");
+        // A take held up past its lane's wait (here by a lock on the table) is rolled back: its messages stay waiting for the next.
+        await withTestClient(async (holder) => {
+          await holder.query("BEGIN");
+          await holder.query("LOCK TABLE lane_messages IN EXCLUSIVE MODE");
+          try {
+            assert.equal(await take("tool", folder, reach, Date.now() + 1_500), "");
+          } finally {
+            await holder.query("COMMIT");
+          }
+        }, ACTIVITY_DATABASE);
+        const steer = await take("tool", folder, reach, Date.now() + 10_000);
+        assert.match(steer, /Use the SES client\./);
+        assert.doesNotMatch(steer, /write the docs/, "a tool call's end hands no follow-up");
+        assert.match(await take("stop"), /Then write the docs\./);
+        assert.equal(await take("stop"), "", "each handed once");
+
+        await acts.get("heartbeat")!({ session, cwd: folder }, { reach, locate: undefined });
+        assert.equal((await log.beats.of(project, [session])).get(session)?.lane, undefined, "a beat without it is no lane's");
       } finally {
         await log.close();
       }

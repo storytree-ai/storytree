@@ -223,9 +223,10 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["attach_media", { record: "definition_000000000000", file: "dusk.png" }],
         ["list_media", { record: "definition_000000000000" }],
         ["fetch_media", { record: "definition_000000000000", name: "dusk.png", out: "dusk.png" }],
+        ["message_lane", { increment: "increment_000000000000", mode: "steer", text: "Use the SES client." }],
       ];
-      // Own's offline tools, the setup check's two and the factory plugin's three do not depend on the library; a harness's hook event waits on this machine instead (3.40), and its missed beat is never told (3.44).
-      const offlineTools = ["check_setup", "set_up_project", "list_all_runs", "list_own_runs", "stop_own_run", "clear_own_runs", "hook_event", "heartbeat", "plugin_contract", "new_plugin", "check_plugin"];
+      // Own's offline tools, the setup check's two and the factory plugin's three do not depend on the library; a harness's hook event waits on this machine instead (3.40), its missed beat is never told (3.44), and a lane's untaken messages wait for its next take (3.60).
+      const offlineTools = ["check_setup", "set_up_project", "list_all_runs", "list_own_runs", "stop_own_run", "clear_own_runs", "hook_event", "heartbeat", "lane_messages", "plugin_contract", "new_plugin", "check_plugin"];
       assert.deepEqual(calls.map(([tool]) => tool).sort(), TOOLS.filter((tool) => !offlineTools.includes(tool)), "every library tool is tried");
       for (const [tool, args] of calls) {
         const answer = await agent.call(tool, args);

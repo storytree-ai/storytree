@@ -372,7 +372,9 @@ test("1.12: on an Apple Silicon Mac, finish opens the bundle's own executable an
     });
     assert.deepEqual(launched, [tools.app]);
     assert.equal(result.command.file, path.join(home, "bin", "storytree"));
-    assert.deepEqual(launcherRuns(result.command.file), { node: tools.node, target: tools.cli });
+    // The command runs this build's copy of the tools under the home, which an update of the bundle leaves in place (1.19).
+    assert.deepEqual(launcherRuns(result.command.file), { node: result.tools.node, target: result.tools.cli });
+    assert.equal(path.dirname(result.tools.dir), path.join(home, "app-tools"));
     assert.equal(JSON.parse(readFileSync(path.join(home, "delivery.json"), "utf8")).installDir, bundle);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
@@ -481,6 +483,70 @@ test("1.5 after a Linux AppImage replaces itself, its next start puts its own ag
     assert.equal(refreshTools(install, path.join(dir, "no-tools")), false, "a build without tools changes nothing");
     assert.equal(readFileSync(tools.hook, "utf8"), "new storytree-hook.mjs");
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("1.22 on Linux and macOS, a tool server that started before an update loads every tool from its own build until it ends, and its copy goes at the start after it ends", { skip: process.platform === "win32" }, async () => {
+  const platform: NodeJS.Platform = process.platform === "darwin" ? "darwin" : "linux";
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree open session "));
+  const install = path.join(dir, platform === "darwin" ? "storytree-0.3.app" : "storytree-0.3");
+  const home = path.join(dir, ".storytree", "0.3");
+  const tools = toolPaths(install, platform);
+  const user = path.join(dir, "user");
+  mkdirSync(path.join(user, ".claude"), { recursive: true });
+  const run: RunHarness = async (_executable, args) => { if (args[0] === "--version") return "a harness"; throw new Error(`unexpected ${args.join(" ")}`); };
+  const connections = { home: user, env: { PATH: "", STORYTREE_HOME: home }, run };
+  const options = { installDir: install, home, arch: "x64" as const, platform, searchPath: "", connections };
+  // A build's tools: node, and a tool server that imports its build's hashed chunk only when asked, as the real one loads its tools lazily.
+  const build = (into: string, chunk: string) => {
+    rmSync(into, { recursive: true, force: true });
+    mkdirSync(path.join(into, "chunks"), { recursive: true });
+    writeFileSync(path.join(into, "node"), `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} "$@"\n`, { mode: 0o755 });
+    for (const file of ["storytree-hook.mjs", "storytree-setup.mjs", "storytree.mjs", "storytree-deliver.mjs"]) writeFileSync(path.join(into, file), `${chunk} ${file}`);
+    writeFileSync(path.join(into, "storytree-mcp.mjs"), `process.stdin.once("data", () => import("./chunks/${chunk}.mjs").then((m) => console.log(m.build), (e) => console.log(e.code)));\nconsole.log("ready");\n`);
+    writeFileSync(path.join(into, "chunks", `${chunk}.mjs`), `export const build = "${chunk}";`);
+    writePayloadManifest(into, "x64", "24.21.0", platform);
+  };
+  let session: ReturnType<typeof spawn> | undefined;
+  try {
+    build(tools.dir, "old");
+    mkdirSync(path.dirname(tools.app), { recursive: true });
+    writeFileSync(tools.app, "the app");
+    const older = (await finishDelivery(options, { launch: async () => {}, waitForApp: async () => {} })).tools;
+    await connectAgents({ harnesses: ["claude-code"], installed: installedToolServerCommand(older.node, older.mcp), ...connections });
+    // A session's tool server starts from what the agent's registration names.
+    const claude = JSON.parse(readFileSync(path.join(user, ".claude.json"), "utf8")).mcpServers.storytree;
+    session = spawn(claude.command, claude.args, { stdio: ["pipe", "pipe", "ignore"] });
+    const out: string[] = [];
+    const line = () => new Promise<string>((resolve) => {
+      const take = () => { if (out.length > 0) resolve(out.shift()!); else session!.stdout!.once("data", (data: Buffer) => { out.push(...data.toString().trim().split("\n")); take(); }); };
+      take();
+    });
+    assert.equal(await line(), "ready");
+
+    // An update replaces the installation's tools with the next build's (an AppImage's refresh, or a Mac's new bundle), and its start follows them.
+    if (platform === "linux") {
+      const bundled = path.join(dir, "mount", "resources", "agent-tools");
+      build(bundled, "new");
+      refreshTools(install, bundled);
+    } else build(tools.dir, "new");
+    assert.deepEqual(await followBuildTools(options), { moved: ["Claude Code"], notMoved: [] });
+    const current = JSON.parse(readFileSync(path.join(home, "delivery.json"), "utf8")).tools;
+    assert.notEqual(current.dir, older.dir);
+    assert.deepEqual(JSON.parse(readFileSync(path.join(user, ".claude.json"), "utf8")).mcpServers.storytree.args, [current.mcp], "the next session starts the new build's");
+
+    session.stdin!.write("load your tools\n");
+    assert.equal(await line(), "old", "the open session's server still loads its own build's chunk");
+
+    const ended = new Promise((resolve) => session!.once("exit", resolve));
+    session.kill();
+    await ended;
+    session = undefined;
+    await followBuildTools(options);
+    assert.deepEqual(readdirSync(path.join(home, "app-tools")), [path.basename(current.dir)], "once it ended, its copy goes");
+  } finally {
+    session?.kill();
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("1.16: when the launched app cannot come up, the finish step keeps its output and names the cause", async () => {

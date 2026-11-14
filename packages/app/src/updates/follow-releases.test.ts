@@ -67,7 +67,7 @@ test("4.31 only an installed Linux AppImage refreshes the agent tools beside it,
   assert.deepEqual(run("linux", "/apps/storytree.AppImage", () => { throw new Error("read-only"); }).lines, ["error: Agent tools could not be updated: read-only"]);
 });
 
-test("4.42 an installed Windows app's start points the agents at its own build's copy of the tools, says which moved and which did not with why, and starts all the same", async () => {
+test("4.42 an installed Windows or Mac app's start points the agents at its own build's copy of the tools, says which moved and which did not with why, and starts all the same", async () => {
   type Followed = { moved: string[]; notMoved: { agent: string; reason: string }[] } | undefined;
   const run = async (platform: NodeJS.Platform, follow: () => Promise<Followed>) => {
     const lines: string[] = [];
@@ -89,7 +89,28 @@ test("4.42 an installed Windows app's start points the agents at its own build's
   assert.deepEqual(await run("win32", async () => undefined), { followed: 1, lines: [] }, "agents already on this build's copy are said nothing of");
   assert.deepEqual(await run("win32", async () => ({ moved: [], notMoved: [] })), { followed: 1, lines: [] }, "nor is a move with no agent connected");
   assert.deepEqual(await run("win32", async () => { throw new Error("disk full"); }), { followed: 1, lines: ["error: Agent tools could not be pointed at this build's: disk full"] });
-  assert.deepEqual(await run("darwin", async () => ({ moved: ["Claude Code"], notMoved: [] })), { followed: 0, lines: [] });
+  assert.deepEqual(await run("darwin", async () => ({ moved: ["Claude Code"], notMoved: [] })), { followed: 1, lines: ["Claude Code now runs this build's copy of the agent tools"] }, "an installed Mac's start follows its build too");
+});
+
+test("4.42 an installed Linux AppImage's start refreshes the tools beside it, then points the agents at that build's copy; one that is not an AppImage does neither", async () => {
+  const run = async (appImage: string | undefined, refresh: () => boolean = () => true) => {
+    const steps: string[] = [];
+    await refreshAgentTools({
+      platform: "linux",
+      appImage,
+      refresh: (folder) => { steps.push(`refresh ${folder}`); return refresh(); },
+      follow: async () => { steps.push("follow"); return { moved: ["Codex"], notMoved: [] }; },
+      log: { log: (line) => steps.push(line), error: (line) => steps.push(`error: ${line}`) },
+    });
+    return steps;
+  };
+  assert.deepEqual(await run("/home/u/Applications/storytree.AppImage"), [
+    "refresh /home/u/Applications", "Agent tools updated to this build's", "follow", "Codex now runs this build's copy of the agent tools",
+  ]);
+  assert.deepEqual(await run("/apps/storytree.AppImage", () => { throw new Error("read-only"); }), [
+    "refresh /apps", "error: Agent tools could not be updated: read-only", "follow", "Codex now runs this build's copy of the agent tools",
+  ], "a failed refresh is said, and the agents still follow whichever build's tools the folder holds");
+  assert.deepEqual(await run(undefined), []);
 });
 
 test("4.32 the gear offers the update channel only where releases install themselves, and never in a smoke check", () => {

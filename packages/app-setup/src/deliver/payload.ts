@@ -1,4 +1,5 @@
 /** Capability 1 · Get storytree. */
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -84,8 +85,9 @@ function toolsIn(dir: string, app: string, platform: NodeJS.Platform): Installed
 }
 
 /**
- * On Windows the agents run storytree's tools from a copy under the home, never from the installation: a node.exe
- * running from the installation folder holds it, and the installer's check waits on it (contract 1.19). Each build's
+ * The agents run storytree's tools from a copy under the home, never from the installation: on Windows a node.exe
+ * running from the installation folder holds it, and the installer's check waits on it; on Linux and macOS an update
+ * replaces the installation's tools, and a session's server would lose the chunks it has not loaded yet (contracts 1.19, 1.22). Each build's
  * copy has a folder of its own, named for its payload, so a session still running an older build's keeps it whole while
  * the next starts this one's. The installation's tools are verified, copied beside and renamed in, so no agent starts
  * from a half-copied folder; a copy already there and whole is reused.
@@ -122,16 +124,17 @@ export function stageTools(installDir: string, home: string, arch: Architecture,
  * Every copy under the home's app-tools but `keep` goes once no process runs it (contract 1.21). Its node goes first:
  * Windows refuses to delete a node.exe a session or hook still runs, though it lets the folder holding it be moved, so
  * a copy whose node stays keeps every file and is tried again at the next start, and one whose node went can start
- * nothing more. Another start's copy still being made (`.next-`) is left alone, and so is one whose folder name
+ * nothing more. Linux and macOS delete a running program's files under it, so there `running` says which copies a
+ * process runs (1.22). Another start's copy still being made (`.next-`) is left alone, and so is one whose folder name
  * `named` finds in an agent's registration or hooks (an agent the start could not re-point, 1.20).
  */
-export function clearOlderTools(home: string, keep: string, remove: (file: string) => void = (file) => rmSync(file, { force: true }), named: (name: string) => boolean = () => false): void {
+export function clearOlderTools(home: string, keep: string, remove: (file: string) => void = (file) => rmSync(file, { force: true }), named: (name: string) => boolean = () => false, running: (dir: string) => boolean = () => false): void {
   const root = path.join(home, "app-tools");
   let names: string[];
   try { names = readdirSync(root); } catch { return; }
   for (const name of names) {
     const dir = path.join(root, name);
-    if (dir === keep || /\.next-\d+$/.test(name) || named(name)) continue;
+    if (dir === keep || /\.next-\d+$/.test(name) || named(name) || running(dir)) continue;
     try {
       for (const node of ["node.exe", "node"]) remove(path.join(dir, node));
       rmSync(dir, { recursive: true, force: true });
@@ -140,10 +143,22 @@ export function clearOlderTools(home: string, keep: string, remove: (file: strin
 }
 
 /**
- * On Linux the agent tools sit beside the AppImage, extracted by the one-liner: the hooks and MCP server need a
- * Node whose path stays put, and a running AppImage's mount moves. An AppImage that replaced itself still has the
- * old build's tools there, so its next start copies its own (`bundled`, its resources/agent-tools) over them,
- * keeping their paths (contract 1.5). True when it replaced them; tools that already match are left alone.
+ * On Linux and macOS, which folders a process runs from: one is when a running command line names a file in it, as an
+ * agent's tool server and hooks are started by their absolute paths. When the process list cannot be read, every folder is.
+ */
+export function runningFrom(): (dir: string) => boolean {
+  const listed = spawnSync("ps", ["-A", "-ww", "-o", "args="], { encoding: "utf8" });
+  if (listed.status !== 0 || typeof listed.stdout !== "string") return () => true;
+  const commands = listed.stdout;
+  return (dir) => commands.includes(dir + path.sep);
+}
+
+/**
+ * On Linux the installation's agent tools sit beside the AppImage, extracted by the one-liner, since a running
+ * AppImage's mount moves; the agents run a copy of them under the home (stageTools). An AppImage that replaced itself
+ * still has the old build's tools there, so its next start copies its own (`bundled`, its resources/agent-tools) over
+ * them, keeping their paths (contract 1.5), before its agents follow that build. True when it replaced them; tools
+ * that already match are left alone.
  */
 export function refreshTools(installDir: string, bundled: string): boolean {
   const { dir } = toolPaths(installDir, "linux");

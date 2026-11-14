@@ -27,7 +27,7 @@ import { LANE_RUN, storytreeCommand } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { codeVersion, countEngines, holdRunner, localBrief, processTable, WINDOWS_PROCESSES } from "./queue.mjs";
 import { EXEMPTIONS_EVERY_MS, exemptionChanges, watchExemptions } from "./exemptions-watch.mjs";
-import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, readWait, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases, writeWhole } from "./release-watch.mjs";
+import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, raisedSince, readWait, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases, writeWhole } from "./release-watch.mjs";
 
 /**
  * The code the watcher runs (4.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
@@ -1225,6 +1225,7 @@ export function boxDefaults({ home = homedir(), env = process.env, platform = pr
         ...Object.entries(question).flatMap(([field, text]) => [`--${field}`, text])], { cwd: repo });
       return /question_\w+/.exec(stdout)?.[0] ?? "a question";
     },
+    raised: (asking) => raisedSince(storytree, asking),
     startReleaseFix: async ({ n, stamp = Date.now(), brief }) => {
       const base = join(dir, `release-fix-${stamp}-${n}`);
       await writeFile(`${base}-brief.md`, brief);

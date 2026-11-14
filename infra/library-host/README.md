@@ -416,3 +416,46 @@ sessions then get 502/530 past Access and reach nothing; the laptop, CI and Mint
 untouched, since they reach Postgres over Tailscale or loopback and never through this route. For
 a harder stop, revoke the service token in Access, or remove the public hostname from the tunnel.
 `sudo systemctl enable --now storytree-wsproxy storytree-cloudflared` turns it back on.
+
+## The box's firewall
+
+`firewall.sh` switches on ufw, the box's firewall: every incoming connection is refused except
+SSH (22) and Postgres (5432) arriving over Tailscale (`tailscale0`), for IPv4 and IPv6 alike
+(it sets `IPV6=yes` in `/etc/default/ufw`). Outgoing traffic, loopback (the box's own clients,
+the cloud route's wsproxy and cloudflared) and replies to the box's own connections still pass,
+so the laptop, CI, the Mint lanes and the cloud sessions reach the library as before. Postgres
+itself is unchanged and still listens on every interface; the firewall is what stops the home
+network reaching it. `--lan-ssh 192.168.1.0/24` (your home network's range) also lets SSH in from
+the LAN, as a way back in should Tailscale be down. The script stops, changing nothing, when there
+is no `tailscale0` interface. Rerunning it changes nothing more.
+
+The owner runs it (no lane does), over Tailscale (`ssh mint`), from `main`. First the dry run, which
+needs no sudo and prints every rule it would set:
+
+```sh
+ssh mint 'git -C ~/code/storytree03 fetch -q origin main && git -C ~/code/storytree03 show origin/main:infra/library-host/firewall.sh > ~/firewall.sh'
+ssh mint 'bash ~/firewall.sh --dry-run'
+```
+
+Then the real run, which prints `ufw status verbose` when it is done:
+
+```sh
+ssh -t mint 'sudo bash ~/firewall.sh'
+```
+
+Then reboot once, and check that everything comes back by itself:
+
+```sh
+ssh -t mint 'sudo reboot'
+ssh -t mint 'sudo ufw status verbose'   # Status: active; Default: deny (incoming), allow (outgoing);
+                                        # 22/tcp and 5432/tcp ALLOW IN on tailscale0, each with a (v6) twin
+ssh mint 'systemctl --user is-active storytree-host'   # active: the library's host, the pool and the watcher
+pnpm storytree arc list                 # from the laptop: the library answers over Tailscale
+```
+
+Last, from outside the home network (a phone's hotspot on the laptop, with Tailscale switched
+off), probe the home's public address on 5432: it must not answer. In PowerShell,
+`Test-NetConnection <public address> -Port 5432` reports `TcpTestSucceeded : False`.
+
+Should something not come back, `sudo ufw disable` (from the box's own keyboard, or over the LAN
+when `--lan-ssh` was given) turns the firewall off again and leaves its rules for the next try.

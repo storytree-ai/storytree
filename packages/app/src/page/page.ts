@@ -69,8 +69,8 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   reading(options: Pick<ForestReadingOptions, "onTree" | "onError" | "onSettled" | "survey">): { stop(): void };
   /** `open`: the contracts the arc opened in the Arcs tab links in its open work, which say why a picked gate is ringed. */
   renderPanel(drilled: StoryPanel, selected: string | undefined, options: { details: boolean; gate: readonly [string, string] | undefined; open: readonly string[] | undefined }): string;
-  /** A shared store's panel (the forest's renderStorePanel), shown in the story panel's slot. */
-  renderStore(store: SharedStore): string;
+  /** A shared store's panel (the forest's renderStorePanel), shown in the story panel's slot, with who the plan says touches it. */
+  renderStore(store: SharedStore, tree: AnnotatedTree | undefined): string;
   /** Work the folds of the panel just drawn into `panel` (the forest's capability 4), opening the kinds the user keeps open. */
   foldPanel(panel: HTMLElement): void;
 }
@@ -252,7 +252,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       body,
       drill: (story) => tree === undefined ? undefined : drillDown(tree, story, states, history(), surveyed),
       render: (drilled, selected, gate) => project.renderPanel(drilled, selected, { details: withDetails, gate, open: opened }),
-      store: (address) => { const store = stores.find((each) => each.address === address); return store === undefined ? undefined : project.renderStore(store); },
+      store: (address) => { const store = stores.find((each) => each.address === address); return store === undefined ? undefined : project.renderStore(store, tree); },
       folds: (host) => project.foldPanel(host),
       libraryCard: (host, onClose) => project.libraryCard(host, onClose),
       deselect: () => mine.view?.select(undefined),

@@ -33,6 +33,7 @@ export type {
   MappedStories,
   NewStory,
   ProjectTree,
+  StoreLink,
   StoryEdit,
   StoryNode,
 } from "./work-model.js";

@@ -840,6 +840,33 @@ test("9.12 on an imported story storytree draws, plan_capability is refused, nam
   });
 });
 
+test("9.41 edit_plan sets a drawn capability's store links, the tables the mapping agent judged its code sends statements to, replacing them, says they are drawn as judged, and refuses a link with no cite with nothing written", async () => {
+  await withProject(async ({ folder, library }) => {
+    const shop = path.join(folder, "..", "shop");
+    mkdirSync(path.join(shop, "src", "cart"), { recursive: true });
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop", type: "module" }));
+    writeFileSync(path.join(shop, "src", "cart", "index.js"), "export const cart = () => 1;\n");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      assert.equal((await agent.call("import_project", { folder: "../shop" })).isError, false);
+      const story = (await library.list("story")).find((one) => one.fields.mapped !== undefined)!;
+      const cart = (await library.list("capability")).find((one) => one.fields.story === story.id)!;
+      const orders = { store: "postgres://db/shop", table: "orders", direction: "both", cites: ["src/cart/index.js:1"] };
+
+      const linked = await agent.call("edit_plan", { id: cart.id, live: true, store_links: [orders, { ...orders, table: "people", direction: "read" }] });
+      assert.notEqual(linked.isError, true, linked.text);
+      assert.match(linked.text, /2 store links, drawn as judged/);
+      assert.deepEqual((await library.get(cart.id))?.fields["storeLinks" as never], [orders, { ...orders, table: "people", direction: "read" }]);
+
+      const uncited = await agent.call("edit_plan", { id: cart.id, live: true, store_links: [{ ...orders, cites: ["src/cart/index.js"] }] });
+      assert.equal(uncited.isError, true, uncited.text);
+      assert.equal(((await library.get(cart.id))?.fields as { storeLinks?: unknown[] } | undefined)?.storeLinks?.length, 2, "nothing was written");
+
+      await agent.call("edit_plan", { id: cart.id, live: true, store_links: [orders] });
+      assert.deepEqual((await library.get(cart.id))?.fields["storeLinks" as never], [orders], "a correction replaces them");
+    });
+  });
+});
+
 test("9.12 plan_capability on an imported story whose code storytree cannot read records what the agent mapped with the folders and files it covers, refusing none or an overlap by naming the capability to correct, which edit_plan corrects", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

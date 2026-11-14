@@ -619,6 +619,25 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(covers, new Map([[stats.id, ["app/stats"]], [charts.id, ["app/charts", "lib/stats.ts"]]]), "the plan's tree carries each one's covers");
   });
 
+  contract("4.49", "a capability carries the store links the mapping agent judged, each naming a store, a table, a direction and the file and line that sends the statement; one with no cite, a cite with no line, or another direction is refused with nothing written, a correction replaces them, and the plan's tree carries them", async ({ work, records, transactions }) => {
+    const { added: [app] } = await work.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
+    const retrieval = await work.addCapability({ title: "Retrieval", story: app!.id, covers: ["src/retrieve.py"] });
+    const read = { store: "postgres://db/ctx", table: "chunks", direction: "read" as const, cites: ["src/retrieve.py:16"] };
+    const linked = await work.editCapability(retrieval.id, { storeLinks: [read, { store: "postgres://db/ctx", table: "grants", direction: "read", cites: ["src/retrieve.py:16", "src/auth.py:8"] }] });
+    assert.deepEqual(linked?.fields.storeLinks?.map(({ table, cites }) => [table, cites]), [["chunks", ["src/retrieve.py:16"]], ["grants", ["src/retrieve.py:16", "src/auth.py:8"]]]);
+
+    const before = await transactions.history();
+    for (const bad of [{ ...read, cites: [] }, { ...read, cites: ["src/retrieve.py"] }, { ...read, direction: "reads" }, { ...read, table: "" }]) {
+      await assert.rejects(work.editCapability(retrieval.id, { storeLinks: [bad as typeof read] }), schemaError("capability", ["storeLinks"]), JSON.stringify(bad));
+    }
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+
+    await work.editCapability(retrieval.id, { storeLinks: [{ ...read, direction: "both" }] });
+    assert.deepEqual(((await records.get(retrieval.id)) as SchemaRecord<"capability">).fields.storeLinks, [{ ...read, direction: "both" }], "a correction replaces the list");
+    const { stories } = await work.projectTree();
+    assert.deepEqual(stories.find((story) => story.id === app!.id)?.capabilities.find((one) => one.id === retrieval.id)?.storeLinks, [{ ...read, direction: "both" }], "the plan's tree carries them");
+  });
+
   contract("4.19", "the project's anchor is written a half at a time, what it is and who it is for, at one id, and read back by anchor() and the plan's tree; an empty half is refused with nothing written", async ({ work, records, transactions }) => {
     assert.equal(await work.anchor(), undefined, "a new project has no anchor");
     assert.ok(!("anchor" in (await work.projectTree())), "nor does its tree");

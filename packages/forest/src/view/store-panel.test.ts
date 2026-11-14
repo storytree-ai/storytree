@@ -46,3 +46,21 @@ test("3.110 a click on a store's slab picks the store, and its panel names its a
   assert.match(html, /a&lt;b&gt;\.env/, "every word from the files is written as text, never as HTML");
   assert.match(html, /class="panel-close"/, "it closes as a story's panel does");
 });
+
+test("3.111 a store's panel lists who touches it: each capability the mapping agent linked to this store, with each table, its direction and the file and line it cites, marked judged; another store's links are not its", () => {
+  const plan = {
+    stories: [{
+      capabilities: [
+        { title: "3 · Retrieval", storeLinks: [{ store: shop.address, table: "orders", direction: "read" as const, cites: ["src/retrieve.py:16", "src/auth.py:8"] }] },
+        { title: "5 · HTTP API", storeLinks: [{ store: shop.address, table: "people", direction: "both" as const, cites: ["src/main.py:79"] }, { store: "redis://cache", table: "sessions", direction: "write" as const, cites: ["src/main.py:12"] }] },
+        { title: "6 · Run and verify" },
+      ],
+    }],
+  };
+  const panel = renderStorePanel(shop, plan).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  assert.match(panel, /Who touches it · judged by the mapping agent/);
+  assert.match(panel, /3 · Retrieval reads orders src\/retrieve\.py:16 ?, src\/auth\.py:8/);
+  assert.match(panel, /5 · HTTP API reads and writes people src\/main\.py:79/);
+  assert.doesNotMatch(panel, /sessions|Run and verify|not yet read/);
+  assert.match(renderStorePanel(shop, { stories: [{ capabilities: [{ title: "6 · Run and verify" }] }] }), /Who touches it: not yet read/, "a store no capability links is not yet read");
+});

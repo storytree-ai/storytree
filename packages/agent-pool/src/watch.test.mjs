@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, spawn as spawnChild } from "node:child_process";
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -1747,5 +1747,28 @@ test("4.58 · the box finds a session it started by the runner log the start ope
   assert.deepEqual(await box.startedAs({ name: "fix-7-1", since }), { log: join(dir, "watch", "fix-7-1.log") }, "started, and no longer running");
   assert.deepEqual(await box.startedAs({ name: "release-fix-99-1", since }), { log: join(dir, "watch", "release-fix-99-1.log") });
   assert.equal(await box.startedAs({ name: "fix-7-2", since }), undefined, "never started");
+  // One still running is found by its runner's command line, naming its brief.
+  const running = boxDefaults({ home: dir, env: { LANES_DIR: dir }, spawn: (command, args, options) => {
+    const child = spawnChild(process.execPath, ["-e", "setTimeout(() => {}, 60_000)", "--", ...args], { ...options, cwd: dir });
+    t.after(() => child.kill());
+    return child;
+  } });
+  // Another pull request's session started first, so a lookup taking any runner would find it instead.
+  await running.startFix({ pr: 9, n: 1, brief: "fix the other" });
+  const { pid } = await running.startFix({ pr: 8, n: 1, brief: "fix it" });
+  const runnerUp = async () => { for (let i = 0; i < 50; i++) { const found = await running.startedAs({ name: "fix-8-1", since }); if (found?.pid) return found; await new Promise((ok) => setTimeout(ok, 100)); } };
+  assert.deepEqual(await runnerUp(), { pid, log: join(dir, "watch", "fix-8-1.log") });
   assert.equal(await box.startedAs({ name: "fix-7-1", since: new Date(Date.now() + 60_000).toISOString() }), undefined, "an older hand-off's log");
+});
+
+test("4.58 · a record write that cannot complete leaves the old record whole, so the restarted watcher still watches its hand-off", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  const before = await readFile(join(b.dir, "41.json"), "utf8");
+  // The write's first half is the file beside the record; one that fails there stands for a watcher killed mid-write.
+  await mkdir(join(b.dir, "41.json.tmp"));
+  b.looks[41] = red;
+  await assert.rejects(watchOnce(b.options));
+  assert.equal(await readFile(join(b.dir, "41.json"), "utf8"), before, "the old record is left whole");
+  assert.equal(b.fixes.length, 0, "nothing starts on a start it could not write down");
 });

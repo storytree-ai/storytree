@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, spawn as spawnChild } from "node:child_process";
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { removeTemp } from "@storytree/test-waits";
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { countEngines } from "./queue.mjs";
 import { adoptRequests, asRun, boxDefaults, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, onMain, failedOnQueue, projectOf, queueOutcome, queueRemovals, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, jobFields, readScan, scanSetup, watchOnce } from "./watch.mjs";
@@ -32,6 +32,14 @@ async function box(t, { looks = {}, board = "" } = {}) {
     room: async () => room,
     startFix: async (fix) => { fixes.push(fix); const pid = 1000 + fixes.length; live.add(pid); return { pid, log: `/lanes/fix-${fix.pr}-${fix.n}.log` }; },
     startReview: async (review) => { reviews.push(review); const pid = 2000 + reviews.length; live.add(pid); return { pid, log: `/lanes/review-${review.pr}-${review.n}.log` }; },
+    // What a restart finds of a session it may have started: its log, and its pid while it runs (4.58).
+    startedAs: async ({ name }) => {
+      const [, kind, pr, n] = /^(fix|review)-(\d+)-(\d+)$/.exec(name).map((part, i) => (i > 1 ? Number(part) : part));
+      const [list, first] = kind === "review" ? [reviews, 2000] : [fixes, 1000];
+      const i = list.findIndex((one) => one.pr === pr && one.n === n);
+      if (i < 0) return undefined;
+      return { ...(live.has(first + i + 1) ? { pid: first + i + 1 } : {}), log: `/lanes/${kind}-${pr}-${n}.log` };
+    },
   };
   return { dir, calls, fixes, reviews, lines, live, looks, options, tick: (ms) => { clock += ms; }, noRoom: () => { room = false; } };
 }
@@ -234,6 +242,34 @@ test("4.12 · a pull request that conflicts with main past the fix limit gets on
   await watchOnce(b.options);
   assert.equal(b.fixes.length, 3, "and only one more");
   assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "a merge never waits on the owner (4.20)");
+});
+
+test("4.58 · a watcher killed while it starts a fix session finds on restart whether the session started: one that did is adopted and counted, never started twice; one that did not starts then", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  b.looks[41] = red;
+  // Killed just after the session started, before the watcher wrote it down.
+  const start = b.options.startFix;
+  b.options.startFix = async (fix) => { await start(fix); throw new Error("killed"); };
+  await assert.rejects(watchOnce(b.options), /killed/);
+  b.options.startFix = start;
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 1, "the session it started is not started again");
+  const record = await saved(b);
+  assert.deepEqual([record.fixing, record.fixes.length, record.fixes[0].log, record.fixes[0].head], [{ pid: 1001 }, 1, "/lanes/fix-41-1.log", "h1"]);
+  assert.ok(b.lines.some((line) => /PR #41: fix session 1 had started before the watcher stopped/.test(line)), b.lines.join("\n"));
+
+  // Killed before the session started: the restart finds none and starts it.
+  const c = await box(t);
+  await handOff(c);
+  c.looks[41] = red;
+  c.options.startFix = async () => { throw new Error("killed"); };
+  await assert.rejects(watchOnce(c.options), /killed/);
+  c.options.startFix = async (fix) => { c.fixes.push(fix); c.live.add(1001); return { pid: 1001, log: `/lanes/fix-${fix.pr}-${fix.n}.log` }; };
+  await watchOnce(c.options);
+  assert.deepEqual(c.fixes.map((fix) => fix.n), [1], "it starts once the restart finds it never did");
+  assert.deepEqual((await saved(c)).fixes.map((fix) => fix.pid), [1001]);
+  assert.ok(c.lines.some((line) => /PR #41: fix session 1 never started before the watcher stopped/.test(line)), c.lines.join("\n"));
 });
 
 test("4.4 · a hand-off on disk survives a watcher restart, and handing back keeps its fix count", async (t) => {
@@ -905,6 +941,7 @@ test("4.30 · a hand-over that finds no machine names the file to set it in; on 
 
 test("4.26 · a fix session counts as running while its runner runs", () => {
   assert.ok(isFixSession("/usr/bin/node /home/m/code/storytree03/packages/agent-pool/src/runner.mjs run /l/watch/fix-41-1-brief.md log err"));
+  assert.ok(isFixSession("C:\\node.exe D:\\a\\storytree\\packages\\agent-pool\\src\\runner.mjs run C:\\l\\watch\\fix-41-1-brief.md log err"), "a Windows command line");
   assert.ok(!isFixSession("/usr/bin/node /home/m/code/storytree03/packages/agent-pool/src/runner.mjs status"));
   assert.ok(!isFixSession("vim runner.mjs"));
   assert.ok(!isFixSession(""), "a process that is gone");
@@ -1697,4 +1734,43 @@ test("4.57 · the watcher starts every fix, review and release fix session's lan
     const { stdout } = await promisify(execFile)(command, args.map((arg) => (arg === runner ? probe : arg)), { cwd: dir, env });
     assert.equal(stdout.trim(), "function");
   }
+});
+
+test("4.58 · the box finds a session it started by the runner log the start opened since then, and none it never started or one an older hand-off left", async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), "lane-watch-started-"));
+  t.after(() => removeTemp(dir));
+  await mkdir(join(dir, "watch"));
+  const spawn = () => ({ pid: 4242, unref() {} });
+  const box = boxDefaults({ home: dir, env: { LANES_DIR: dir }, spawn });
+  const since = new Date(Date.now() - 1000).toISOString();
+  await box.startFix({ pr: 7, n: 1, brief: "fix it" });
+  await box.startReleaseFix({ n: 1, stamp: 99, brief: "fix the release" });
+  assert.deepEqual(await box.startedAs({ name: "fix-7-1", since }), { log: join(dir, "watch", "fix-7-1.log") }, "started, and no longer running");
+  assert.deepEqual(await box.startedAs({ name: "release-fix-99-1", since }), { log: join(dir, "watch", "release-fix-99-1.log") });
+  assert.equal(await box.startedAs({ name: "fix-7-2", since }), undefined, "never started");
+  // One still running is found by its runner's command line, naming its brief.
+  const running = boxDefaults({ home: dir, env: { LANES_DIR: dir }, spawn: (command, args, options) => {
+    const child = spawnChild(process.execPath, ["-e", "setTimeout(() => {}, 60_000)", "--", ...args], { ...options, cwd: dir });
+    t.after(() => child.kill());
+    return child;
+  } });
+  // Another pull request's session started first, so a lookup taking any runner would find it instead.
+  await running.startFix({ pr: 9, n: 1, brief: "fix the other" });
+  const { pid } = await running.startFix({ pr: 8, n: 1, brief: "fix it" });
+  const found = await waitUntil(async () => { const one = await running.startedAs({ name: "fix-8-1", since }); return one?.pid ? one : undefined; },
+    10_000, "the running session's runner in the process table");
+  assert.deepEqual(found, { pid, log: join(dir, "watch", "fix-8-1.log") });
+  assert.equal(await box.startedAs({ name: "fix-7-1", since: new Date(Date.now() + 60_000).toISOString() }), undefined, "an older hand-off's log");
+});
+
+test("4.58 · a record write that cannot complete leaves the old record whole, so the restarted watcher still watches its hand-off", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  const before = await readFile(join(b.dir, "41.json"), "utf8");
+  // The write's first half is the file beside the record; one that fails there stands for a watcher killed mid-write.
+  await mkdir(join(b.dir, "41.json.tmp"));
+  b.looks[41] = red;
+  await assert.rejects(watchOnce(b.options));
+  assert.equal(await readFile(join(b.dir, "41.json"), "utf8"), before, "the old record is left whole");
+  assert.equal(b.fixes.length, 0, "nothing starts on a start it could not write down");
 });

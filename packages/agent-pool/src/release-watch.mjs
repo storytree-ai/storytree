@@ -10,7 +10,7 @@
 // retries nothing, but then it starts no lanes either. rerun-unrun.yml still reruns a CI job no runner took; when it
 // reruns main's newest run first, that run's next attempt is the retry here.
 import { existsSync } from "node:fs";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { localBrief } from "./queue.mjs";
@@ -128,7 +128,12 @@ export function judgeReleases({ release, attempts, main, now, limitMs = RELEASE_
 }
 
 const statePath = (dir) => join(dir, "release.json");
-const save = (dir, state) => writeFile(statePath(dir), `${JSON.stringify(state, null, 2)}\n`);
+/** Write `text` to `path` whole: beside it first, then renamed over it, so a watcher stopped mid-write leaves the old file, never half of one. */
+export async function writeWhole(path, text) {
+  await writeFile(`${path}.tmp`, text);
+  await rename(`${path}.tmp`, path);
+}
+const save = (dir, state) => writeWhole(statePath(dir), `${JSON.stringify(state, null, 2)}\n`);
 const load = async (dir) => { try { return JSON.parse(await readFile(statePath(dir), "utf8")); } catch { return null; } };
 /** "Releases stopped since 2026-10-13 12:00Z": the fix session's row in the sessions list, 40 characters at most. */
 export const stopName = (at) => `Releases stopped since ${new Date(at).toISOString().slice(0, 16).replace("T", " ")}Z`;
@@ -182,17 +187,31 @@ export async function readWait(storytree, id, today) {
  * raised is open; a cleared wait or a settled question lets the alarm start sessions again. After `limit` sessions the
  * watcher raises that question itself. A new release closes an increment a recorded wait parked, its stop over.
  */
-export async function watchReleases({ dir, readReleases, rerun, tail, alive, room, questionOpen, waitHolds, raise, startFix, limit, storytree, folders = {}, now = Date.now, say }) {
+export async function watchReleases({ dir, readReleases, rerun, tail, alive, room, questionOpen, waitHolds, raise, startFix, startedAs = async () => undefined, limit, storytree, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} releases: ${message}`);
   const { release, reruns, alarm } = await readReleases();
   let state = await load(dir);
+  // A fix session start written down as begun but never as done: the watcher stopped between the two, so it looks for
+  // the session and adopts and counts one that started, or forgets one that never did (4.59).
+  if (state?.starting) {
+    const { stamp, n, entry } = state.starting;
+    const found = await startedAs({ name: `release-fix-${stamp}-${n}`, since: entry.at });
+    if (found) {
+      state.fixing = found.pid ? { pid: found.pid } : null;
+      state.fixes.push({ ...entry, ...(found.pid ? { pid: found.pid } : {}), log: found.log });
+    }
+    delete state.starting;
+    await save(dir, state);
+    dated(`fix session ${n} ${found ? "had started before the watcher stopped, and is counted" : "never started before the watcher stopped"}`);
+  }
   if (state && state.stop !== release.tag) {
-    await rm(statePath(dir), { force: true });
-    dated(`${release.tag} published: the stop after ${state.stop} ended`);
+    // The waited increment is closed before the stop is forgotten, so a watcher stopped in between closes it on restart (4.59).
     if (state.wait) {
       try { await storytree?.(["arc", "increment", "close", state.wait, "--disposition", "withdrawn", "--note", `${release.tag} published: the outside stop it waited out is over`]); }
       catch (error) { dated(`closing ${state.wait} failed (${error.message.split("\n")[0]})`); }
     }
+    await rm(statePath(dir), { force: true });
+    dated(`${release.tag} published: the stop after ${state.stop} ended`);
     state = null;
   }
   for (const { what, run, why } of reruns) {
@@ -249,9 +268,15 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
   }
   if (!(await room())) return;
   const n = state.fixes.length + 1;
-  const fix = await startFix({ n, brief: localBrief(fixBrief({ release, alarm, tail: await tail(alarm.run).catch(() => ""), n, limit, name }), folders) });
+  const brief = localBrief(fixBrief({ release, alarm, tail: await tail(alarm.run).catch(() => ""), n, limit, name }), folders);
+  const entry = { at: new Date(now()).toISOString(), run: alarm.run.id };
+  // Written before the session starts, so a watcher stopped in between finds it on restart and looks (4.59).
+  state.starting = { stamp: now(), n, entry };
+  await save(dir, state);
+  const fix = await startFix({ n, stamp: state.starting.stamp, brief });
   state.fixing = { pid: fix.pid };
-  state.fixes.push({ at: new Date(now()).toISOString(), run: alarm.run.id, pid: fix.pid, log: fix.log });
+  state.fixes.push({ ...entry, pid: fix.pid, log: fix.log });
+  delete state.starting;
   await save(dir, state);
   dated(`${alarm.why}: fix session ${n} of ${limit} started, log ${fix.log}`);
 }

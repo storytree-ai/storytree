@@ -872,3 +872,33 @@ test("1.27 · a lane whose engine runs out of its scope's memory is killed alone
   assert.deepEqual(told.filter((args) => args[1] === "release").map((args) => args.slice(0, 5)), [["workspace", "release", "increment_abc", "--holder", session]],
     "its dead session's claim is released (1.28)");
 });
+
+test("1.31 · a lane killed out of memory leaves residue naming its scope's largest processes at the kill, by pid, command line and memory (resident and swapped), the grower among them though the kill lands elsewhere", { skip: (process.platform !== "linux" || !process.env.INVOCATION_ID) && "platform:linux under systemd: the lane's scope is a systemd user scope" }, async (t) => {
+  const options = await lane(t);
+  options.env.INVOCATION_ID = process.env.INVOCATION_ID;
+  await writeFile(join(options.home, ".storytree", "agent-pool.json"), JSON.stringify({ laneMemory: "160M" }));
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+  options.increment = "increment_abc";
+  options.heads = async () => ({});
+  options.failed = async (failure) => [failure];
+  options.holdersEveryMs = 50;
+  const edits = [];
+  options.storytree = async (args) => {
+    if (args[0] === "library" && args[1] === "read") return "The increment's body.";
+    if (args[0] === "arc" && args[1] === "increment" && args[2] === "edit") edits.push(args[args.indexOf("--body") + 1]);
+    return "";
+  };
+  // The engine starts a child that grows to 100 MB and holds it; only once the child says it holds it all, and 20 of the
+  // runner's readings later, does the engine itself grow until the scope's limit is hit, so the kill lands on the engine.
+  const grower = "/* holder-grows-1.31 */ const held = []; for (let n = 0; n < 20; n++) held.push(Buffer.alloc(5e6, 1)); process.send('held'); setInterval(() => {}, 1000);";
+  options.commands.claude = command(`process.title = 'oom-probe-1.31';
+    const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(grower)}], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+    child.once('message', () => setTimeout(() => { const held = []; setInterval(() => held.push(Buffer.alloc(1e6, 1)), 5); }, 20 * ${options.holdersEveryMs}));`);
+  assert.equal(await runLane(options), OUT_OF_MEMORY);
+  const residue = edits.find((body) => /killed out of memory/.test(body));
+  assert.ok(residue, `residue written: ${edits.join("\n---\n")}`);
+  assert.ok(residue.startsWith("The increment's body.\n\nResidue (lane runner, 2026-10-06): "), residue);
+  const named = /pid (\d+), (\d+) MB resident(?: and (\d+) MB swapped)?: [^;]*holder-grows-1\.31/.exec(residue);
+  assert.ok(named, `the grower is named with its pid and memory: ${residue}`);
+  assert.ok(Number(named[2]) + Number(named[3] ?? 0) >= 90, `its memory is what it held, resident or swapped out near the limit: ${named[0]}`);
+});

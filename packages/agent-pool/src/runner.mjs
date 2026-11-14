@@ -141,6 +141,42 @@ async function killedOutOfMemory(unit, env) {
   return result === "oom-kill";
 }
 
+/** How many of a scope's processes a reading keeps, and how often it is read (1.31). */
+const HOLDERS = 5, HOLDERS_EVERY_MS = 5_000;
+
+/** The cgroup folder process `pid` is in, once it is the scope `unit`; undefined before systemd has moved it there. */
+async function scopeFolder(pid, unit) {
+  const path = (await readFile(`/proc/${pid}/cgroup`, "utf8").catch(() => "")).trim().split("\n").find((line) => line.startsWith("0::"))?.slice(3);
+  return path?.endsWith(`/${unit}`) ? `/sys/fs/cgroup${path}` : undefined;
+}
+
+/** The scope's out-of-memory kills so far, from its memory.events (null when it cannot be read). */
+async function oomKills(folder) {
+  const events = await readFile(join(folder, "memory.events"), "utf8").catch(() => null);
+  return events === null ? null : Number(/^oom_kill (\d+)$/m.exec(events)?.[1] ?? 0);
+}
+
+/**
+ * The scope's largest processes by memory (1.31): pid, command line, resident and swapped bytes (near the limit the kernel
+ * swaps a grower's pages out, so its resident memory alone understates it), largest sum first; undefined when an
+ * out-of-memory kill came before or during the reading, which would no longer show what held the memory.
+ */
+async function readHolders(folder) {
+  if (await oomKills(folder) !== 0) return undefined;
+  const pids = (await readFile(join(folder, "cgroup.procs"), "utf8").catch(() => "")).split("\n").filter(Boolean);
+  const found = [];
+  for (const pid of pids) {
+    const status = await readFile(`/proc/${pid}/status`, "utf8").catch(() => "");
+    const bytes = (field) => Number(new RegExp(`^${field}:\\s+(\\d+) kB$`, "m").exec(status)?.[1] ?? NaN) * 1024;
+    const rss = bytes("VmRSS");
+    if (Number.isNaN(rss)) continue;
+    const command = (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").filter(Boolean).join(" ");
+    found.push({ pid: Number(pid), command, rss, swap: bytes("VmSwap") || 0 });
+  }
+  if (await oomKills(folder) !== 0) return undefined;
+  return found.sort((a, b) => b.rss + b.swap - a.rss - a.swap).slice(0, HOLDERS);
+}
+
 /** The variable every process an engine starts inherits, so the runner finds them after it exits; the watcher's `free` drops it. */
 export const LANE_RUN = "STORYTREE_LANE_RUN";
 const REAP = { settleMs: 60_000, graceMs: 10_000, everyMs: 1_000 };
@@ -195,7 +231,7 @@ async function reapLeftovers({ group, mark, dated, reap = REAP }) {
  * has not grown for quietMs while `online` says the library and GitHub do not answer is stopped as stalled (1.20). On Linux the
  * engine leads its own process group, and what it leaves running is stopped before the result is returned (1.23).
  */
-async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated = () => {}, reap, onSpawn, memoryMax }) {
+async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated = () => {}, reap, onSpawn, memoryMax, holdersEveryMs = HOLDERS_EVERY_MS }) {
   const output = await open(log, "w");
   let errors;
   try {
@@ -211,6 +247,16 @@ async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated =
       const interrupt = () => forward("SIGINT"), terminate = () => forward("SIGTERM");
       process.on("SIGINT", interrupt); process.on("SIGTERM", terminate);
       let failure, stalled = false, closed = false, timer;
+      // While the engine runs in its scope, its largest processes are read every holdersEveryMs; the last reading before an
+      // out-of-memory kill is kept, since the scope's processes are gone once systemd stops it (1.31).
+      let holders, reading, folder;
+      const readScope = async () => {
+        folder ??= await scopeFolder(child.pid, scope.unit);
+        const read = folder && await readHolders(folder);
+        if (read?.length) holders = { at: performance.now(), list: read };
+        if (!closed && (!folder || read)) reading = setTimeout(readScope, holdersEveryMs);
+      };
+      if (scope.unit && child.pid) reading = setTimeout(readScope, 0);
       if (watch) {
         // One look at a time: the next is scheduled only once this one (and its reachability probe) is done.
         let size = -1, quietSince = watch.clock();
@@ -233,12 +279,15 @@ async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated =
       child.on("error", (error) => { failure = error; });
       child.on("close", async (code, signal) => {
         closed = true;
+        const ended = performance.now();
         clearTimeout(timer);
+        clearTimeout(reading);
         process.off("SIGINT", interrupt); process.off("SIGTERM", terminate);
         if (failure) await errors.write(`${failure.message}\n`);
         if (child.pid) await reapLeftovers({ group: child.pid, mark, dated, reap });
         const oom = Boolean(scope.unit && await killedOutOfMemory(scope.unit, env));
-        done({ code: failure ? 127 : code ?? 128 + (constants.signals[signal] ?? 1), interrupted, signaled: signal !== null, stalled, oom });
+        done({ code: failure ? 127 : code ?? 128 + (constants.signals[signal] ?? 1), interrupted, signaled: signal !== null, stalled, oom,
+          ...(oom && holders ? { holders: { ...holders, msBefore: Math.round(ended - holders.at) } } : {}) });
       });
     });
   } finally { await output.close(); await errors?.close(); }
@@ -456,7 +505,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment, project = "storytree",
   heads = (id) => remoteHeads(id, cwd), failed = (failure, where) => recordLaneFailure(failure, where), exited = (line) => recordLaneExit(line, project),
   storytree = async (args) => (await run(...storytreeCommand(args, process.platform, project, commands.storytree), { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
-  reachable = () => bothAnswer({ cwd, env, project, installed: commands.storytree }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {}, reap, onSpawn }) {
+  reachable = () => bothAnswer({ cwd, env, project, installed: commands.storytree }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {}, reap, holdersEveryMs, onSpawn }) {
   const original = await readFile(brief, "utf8");
   if (!original.trim()) throw new Error(`brief ${brief} is empty`);
   const settings = laneSettings({ home, env });
@@ -466,6 +515,12 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   // An engine whose scope ran out of memory is a failed lane (1.27), so the pool stops offering a runaway after LANE_FAILURES.
   const outOfMemory = async (logs) => {
     dated(`lane killed out of memory (its scope's limit, ${memoryMax} bytes): exit ${OUT_OF_MEMORY}, recorded failed`);
+    const { holders } = result;
+    const MB = (bytes) => Math.round(bytes / 1024 ** 2);
+    const held = holders ? `its largest processes by memory, read ${Math.round(holders.msBefore / 1000)} s before the lane ended: ${holders.list.map(({ pid, command, rss, swap }) =>
+      `pid ${pid}, ${MB(rss)} MB resident${swap ? ` and ${MB(swap)} MB swapped` : ""}: ${command.length > 160 ? `${command.slice(0, 160)}…` : command}`).join("; ")}` : "no reading of its scope's processes was taken";
+    dated(`out of memory: ${held}`);
+    if (increment) await appendResidue({ increment, storytree, dated, residue: `Residue (lane runner, ${day}): a pool lane was killed out of memory at its scope's limit (${memoryMax} bytes, Agent runner 1.27); ${held} (1.31). Logs: ${logs.join(", ")}.` });
     if (increment) await laneFailed({ increment, project, why: `killed out of memory (its scope's limit, ${memoryMax} bytes)`, logs, lane: await sessionOf(logs.at(-1)), started: began, failed, storytree, day, dated });
     return OUT_OF_MEMORY;
   };
@@ -482,7 +537,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   const memoryMax = await laneMemoryMax(settings);
   // Every engine run, however it ended (a signal or out of memory included), leaves its session reading exited (1.29).
   const runEngine = async (engine, args, options) => {
-    const result = await runEngineOnce(commands[engine], args, { ...options, dated, reap, onSpawn, memoryMax });
+    const result = await runEngineOnce(commands[engine], args, { ...options, dated, reap, holdersEveryMs, onSpawn, memoryMax });
     const session = await sessionOf(options.log);
     try { if (session) await exited({ session, harness: HARNESSES[engine], source: "tool", kind: "turn-ended", background: 0, exits: true }); }
     catch (error) { dated(`session ${session}'s exit not recorded: ${String(error.message).split("\n")[0]}`); }

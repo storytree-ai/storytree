@@ -1918,12 +1918,13 @@ test("3.60 · A heartbeat from a pool lane says so, and the tool server's lane_m
         await acts.get("heartbeat")!({ session, cwd: folder, lane: true }, { reach, locate: undefined });
         assert.equal((await log.beats.of(project, [session])).get(session)?.lane, true, "a lane's beat says it is a lane");
 
-        const take = async (at: string, cwd = folder, through = reach) => (await acts.get("lane_messages")!({ session, cwd, at }, { reach: through, locate: undefined })).text;
+        const take = async (at: string, cwd = folder, through = reach, before?: number) => (await acts.get("lane_messages")!({ session, cwd, at, ...(before === undefined ? {} : { before }) }, { reach: through, locate: undefined })).text;
         assert.equal(await take("tool"), "", "nothing waiting, nothing handed");
         await log.messages.queue(project, { session, increment: "increment_1", mode: "follow-up", text: "Then write the docs.", sender: "owner-terminal" });
         await log.messages.queue(project, { session, increment: "increment_1", mode: "steer", text: "Use the SES client.", sender: "owner-terminal" });
         assert.equal(await take("tool", elsewhere), "");
         assert.equal(await take("tool", folder, async () => { throw new Error("storytree is not answering"); }), "");
+        assert.equal(await take("tool", folder, reach, Date.now()), "", "a take its lane has stopped waiting for takes nothing");
         const steer = await take("tool");
         assert.match(steer, /Use the SES client\./);
         assert.doesNotMatch(steer, /write the docs/, "a tool call's end hands no follow-up");

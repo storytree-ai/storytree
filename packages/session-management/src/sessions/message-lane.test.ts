@@ -10,8 +10,14 @@ import { connect } from "@storytree/library";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
 import { openActivityLog } from "../activity/index.js";
+import { VerbRefusal, type DoorWords } from "@storytree/library/verbs";
+
 import { claim } from "../claims/claims.js";
 import { deliveryText, messageLane } from "./message-lane.js";
+import { SESSION_VERBS } from "./verbs.js";
+
+/** The command line's words for the steps a verb names. */
+const COMMAND: DoorWords = { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` };
 
 /** A project with an increment the session "lane" holds, beating as a pool lane; `work` runs with it and is cleaned up after. */
 async function withLane(work: (on: { project: string; increment: string; log: Awaited<ReturnType<typeof openActivityLog>>; library: Awaited<ReturnType<Awaited<ReturnType<typeof connect>>["openProject"]>> }) => Promise<void>): Promise<void> {
@@ -53,6 +59,16 @@ test("4.49 · A message to a running pool lane is queued against the session hol
     const atEnd = await log.messages.take(project, "lane", "stop");
     assert.deepEqual(atEnd.map((one) => one.text), ["Then write the docs.", "Keep the old template."], "the turn's end takes the follow-up and a steer still waiting, in the order sent");
     assert.deepEqual(await log.messages.take(project, "lane", "stop"), []);
+
+    // Either door: the message verb queues, refuses a mode it does not know or an empty message as misuse, and passes on the work's refusals.
+    const verb = SESSION_VERBS.find((one) => "name" in one.tool && one.tool.name === "message_lane")!;
+    const doorContext = { ...owner, harness: "claude-code", folder: "/work/owner" };
+    const queued = await verb.act({ increment, mode: "steer", text: "Through the door." }, doorContext, COMMAND);
+    assert.equal(queued.text, `Queued for the lane on ${increment} (session lane): after its current tool call.`);
+    assert.deepEqual((await log.messages.take(project, "lane", "tool")).map((one) => one.text), ["Through the door."]);
+    await assert.rejects(verb.act({ increment, mode: "shout", text: "x" }, doorContext, COMMAND), (error: unknown) => error instanceof VerbRefusal && error.misuse && /steer, follow-up, note/.test(error.message));
+    await assert.rejects(verb.act({ increment, mode: "steer", text: " " }, doorContext, COMMAND), (error: unknown) => error instanceof VerbRefusal && error.misuse);
+    await assert.rejects(verb.act({ increment: "increment_none", mode: "steer", text: "x" }, doorContext, COMMAND), (error: unknown) => error instanceof VerbRefusal && !error.misuse && /No session holds increment_none/.test(error.message));
 
     // Two takes at once never both deliver one message.
     for (const text of ["one", "two", "three"]) await messageLane(owner, { increment, mode: "steer", text });

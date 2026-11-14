@@ -193,12 +193,16 @@ async function followedUp($: Engine, e: Input, result: unknown): Promise<unknown
   return { ...answer, block: answer.block === undefined ? text : `${answer.block}\n\n${text}` };
 }
 
-/** The text of the messages waiting for this lane that `at` takes, or undefined outside a lane, with none, or when the tool server is slow or out of reach. */
+/**
+ * The text of the messages waiting for this lane that `at` takes, or undefined outside a lane, with none, or when the tool server
+ * is slow or out of reach: a take past the lane's wait takes nothing (Session management's 3.60), so a message is never lost to it.
+ */
 async function waiting($: Engine, e: Input, at: "tool" | "stop"): Promise<string | undefined> {
   if (!(await isLane($))) return undefined;
   try {
-    const [session, cwd] = await Promise.all([$.session.id(), typeof e.cwd === "string" ? e.cwd : $.session.cwd()]);
-    const answer = await ask($, LANE_MESSAGES, { session: typeof e.session_id === "string" ? e.session_id : session, cwd, at }, MESSAGES_WAIT_MS);
+    // The event's own session and folder; `before`, when the lane stops waiting, so the tool server takes nothing it could not hand back in time.
+    const [session, cwd, now] = await Promise.all([typeof e.session_id === "string" ? e.session_id : $.session.id(), typeof e.cwd === "string" ? e.cwd : $.session.cwd(), $.clock.now()]);
+    const answer = await ask($, LANE_MESSAGES, { session, cwd, at, before: now + MESSAGES_WAIT_MS }, MESSAGES_WAIT_MS);
     const text = (answer as { content?: { type?: string; text?: unknown }[] } | undefined)?.content?.find((part) => part.type === "text")?.text;
     return typeof text === "string" && text !== "" ? text : undefined;
   } catch {

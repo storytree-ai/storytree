@@ -66,11 +66,12 @@ export function hookTools(): ToolExtension {
         session: z.string().min(1).describe("The harness's id for the lane's session"),
         cwd: z.string().min(1).describe("The session's folder, which names its project"),
         at: z.enum(["tool", "stop"]).describe("Where the lane is: at a tool call's end, or at its turn's end"),
-      }), async ({ session, cwd, at }, { reach, locate }) => {
+        before: z.number().optional().describe("When the harness stops waiting for the answer, in ms since the epoch: nothing is taken that cannot be answered by then"),
+      }), async ({ session, cwd, at, before }, { reach, locate }) => {
         const where = route(cwd, locate);
         if (where.status !== "routed") return { text: "" };
         try {
-          const taken = await (await reach(where)).messages.take(where.project, session, at);
+          const taken = await (await reach(where)).messages.take(where.project, session, at, before);
           const { deliveryText } = await import("../sessions/message-lane.js");
           return { text: deliveryText(taken) };
         } catch {

@@ -13,6 +13,15 @@ import type { Service } from "../running/supervise.js";
 import type { Mounted } from "../running/declared.js";
 import type { Status } from "./status.js";
 
+/** The host folder `hostFolder` finds for `home`, its refusal said as the verb's. */
+function hostOf(hostFolder: (home: string) => string, home: string): string {
+  try {
+    return hostFolder(home);
+  } catch (error) {
+    throw new VerbRefusal((error as Error).message);
+  }
+}
+
 const runSaid = (run: Service["run"]): string => (run === "always" ? "always" : `every ${run.every}`);
 
 /** How a part switch the running host has not taken is taken: it mounts the parts' services only as it starts (contract 1.1). */
@@ -62,11 +71,11 @@ const list = verb({
   callerless: true,
   async act() {
     const { storytreeHome } = await import("@storytree/project-and-caller");
-    const { HOST_DIR } = await import("../running/host.js");
+    const { hostFolder } = await import("../running/host.js");
     const { mountedServices } = await import("../running/declared.js");
     const { alive, readStatus } = await import("./status.js");
     const home = storytreeHome();
-    return { text: servicesSaid(mountedServices(HOST_DIR, home), readStatus(home), alive) };
+    return { text: servicesSaid(mountedServices(hostOf(hostFolder, home), home), readStatus(home), alive) };
   },
 });
 
@@ -78,11 +87,11 @@ const restart = verb({
   callerless: true,
   async act({ service }) {
     const { readServicesOn, storytreeHome } = await import("@storytree/project-and-caller");
-    const { HOST_DIR } = await import("../running/host.js");
+    const { hostFolder } = await import("../running/host.js");
     const { mountedServices } = await import("../running/declared.js");
     const { alive, readStatus, requestRestart } = await import("./status.js");
     const home = storytreeHome();
-    const declared = mountedServices(HOST_DIR, home).services.map((one) => one.id);
+    const declared = mountedServices(hostOf(hostFolder, home), home).services.map((one) => one.id);
     if (!declared.includes(service)) throw new VerbRefusal(`no mounted part declares a service called ${service}${declared.length === 0 ? "" : `. Services: ${declared.join(", ")}`}.`);
     if (!readServicesOn(home).includes(service)) throw new VerbRefusal(`${service} is off on this computer; turn it on with \`storytree settings set service ${service} on\`.`);
     const status = readStatus(home);

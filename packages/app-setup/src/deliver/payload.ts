@@ -150,7 +150,7 @@ export function runningFrom(list: () => { status: number | null; stdout: unknown
   const listed = list();
   if (listed.status !== 0 || typeof listed.stdout !== "string") return () => true;
   const commands = listed.stdout;
-  return (dir) => commands.includes(dir + path.sep);
+  return (dir) => commands.includes(dir + path.posix.sep);
 }
 
 /**

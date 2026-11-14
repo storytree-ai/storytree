@@ -26,10 +26,11 @@ import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { connect, type Line, type NewLine } from "@storytree/library";
+import { withTestClient } from "@storytree/library/testing/pg";
 import { scaled, waitUntil } from "@storytree/test-waits";
 import pg from "pg";
 
-import { openActivityLog } from "../activity/index.js";
+import { ACTIVITY_DATABASE, openActivityLog } from "../activity/index.js";
 import { buildHook } from "../testing/hook-bin.js";
 import { readContext } from "../context/index.js";
 import { machineOf, recordImport } from "@storytree/project-and-caller";
@@ -1925,7 +1926,17 @@ test("3.60 · A heartbeat from a pool lane says so, and the tool server's lane_m
         assert.equal(await take("tool", elsewhere), "");
         assert.equal(await take("tool", folder, async () => { throw new Error("storytree is not answering"); }), "");
         assert.equal(await take("tool", folder, reach, Date.now()), "", "a take its lane has stopped waiting for takes nothing");
-        const steer = await take("tool");
+        // A take held up past its lane's wait (here by a lock on the table) is rolled back: its messages stay waiting for the next.
+        await withTestClient(async (holder) => {
+          await holder.query("BEGIN");
+          await holder.query("LOCK TABLE lane_messages IN EXCLUSIVE MODE");
+          try {
+            assert.equal(await take("tool", folder, reach, Date.now() + 1_500), "");
+          } finally {
+            await holder.query("COMMIT");
+          }
+        }, ACTIVITY_DATABASE);
+        const steer = await take("tool", folder, reach, Date.now() + 10_000);
         assert.match(steer, /Use the SES client\./);
         assert.doesNotMatch(steer, /write the docs/, "a tool call's end hands no follow-up");
         assert.match(await take("stop"), /Then write the docs\./);

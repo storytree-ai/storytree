@@ -13,7 +13,7 @@ import { PLUGIN_FOLDER } from "@storytree/claude-code-mod";
 import { sessionsFrom } from "@storytree/session-management";
 import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { bothAnswer, laneScope, main, OUT_OF_MEMORY, refusals, runLane, SIGNALED, storytreeCommand } from "./runner.mjs";
+import { bothAnswer, laneScope, main, OUT_OF_MEMORY, readHolders, refusals, runLane, SIGNALED, storytreeCommand } from "./runner.mjs";
 import { laneMemoryMax } from "./pool-config.mjs";
 
 const exec = promisify(execFile);
@@ -901,4 +901,25 @@ test("1.31 · a lane killed out of memory leaves residue naming its scope's larg
   const named = /pid (\d+), (\d+) MB resident(?: and (\d+) MB swapped)?: [^;]*holder-grows-1\.31/.exec(residue);
   assert.ok(named, `the grower is named with its pid and memory: ${residue}`);
   assert.ok(Number(named[2]) + Number(named[3] ?? 0) >= 90, `its memory is what it held, resident or swapped out near the limit: ${named[0]}`);
+});
+
+test("1.31 · a scope's reading keeps its five largest processes by resident and swapped memory together, largest first, and is discarded once memory.events shows an out-of-memory kill", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "holders-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const scope = join(root, "scope"), proc = join(root, "proc");
+  await mkdir(scope);
+  // kB resident and swapped for pids 1 to 7: 2 holds most only once its swapped memory is counted; 7 has ended (no status).
+  const sizes = { 1: [100, 0], 2: [50, 300], 3: [200, 0], 4: [10, 0], 5: [20, 5], 6: [30, 0] };
+  for (const [pid, [rss, swap]] of Object.entries(sizes)) {
+    await mkdir(join(proc, pid), { recursive: true });
+    await writeFile(join(proc, pid, "status"), `Name:\tnode\nVmRSS:\t   ${rss} kB\nVmSwap:\t   ${swap} kB\n`);
+    await writeFile(join(proc, pid, "cmdline"), `node\0grower-${pid}.mjs\0`);
+  }
+  await writeFile(join(scope, "cgroup.procs"), "1\n2\n3\n4\n5\n6\n7\n");
+  await writeFile(join(scope, "memory.events"), "low 0\nhigh 0\nmax 3\noom 1\noom_kill 0\n");
+  assert.deepEqual((await readHolders(scope, proc)).map(({ pid, command, rss, swap }) => [pid, command, rss / 1024, swap / 1024]),
+    [[2, "node grower-2.mjs", 50, 300], [3, "node grower-3.mjs", 200, 0], [1, "node grower-1.mjs", 100, 0], [6, "node grower-6.mjs", 30, 0], [5, "node grower-5.mjs", 20, 5]]);
+
+  await writeFile(join(scope, "memory.events"), "low 0\nhigh 0\nmax 3\noom 1\noom_kill 1\n");
+  assert.equal(await readHolders(scope, proc), undefined, "a kill has already taken what held the memory");
 });

@@ -159,18 +159,19 @@ async function oomKills(folder) {
 /**
  * The scope's largest processes by memory (1.31): pid, command line, resident and swapped bytes (near the limit the kernel
  * swaps a grower's pages out, so its resident memory alone understates it), largest sum first; undefined when an
- * out-of-memory kill came before or during the reading, which would no longer show what held the memory.
+ * out-of-memory kill came before or during the reading, which would no longer show what held the memory. `proc` is where
+ * each process's status and command line are read.
  */
-async function readHolders(folder) {
+export async function readHolders(folder, proc = "/proc") {
   if (await oomKills(folder) !== 0) return undefined;
   const pids = (await readFile(join(folder, "cgroup.procs"), "utf8").catch(() => "")).split("\n").filter(Boolean);
   const found = [];
   for (const pid of pids) {
-    const status = await readFile(`/proc/${pid}/status`, "utf8").catch(() => "");
+    const status = await readFile(join(proc, pid, "status"), "utf8").catch(() => "");
     const bytes = (field) => Number(new RegExp(`^${field}:\\s+(\\d+) kB$`, "m").exec(status)?.[1] ?? NaN) * 1024;
     const rss = bytes("VmRSS");
     if (Number.isNaN(rss)) continue;
-    const command = (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").filter(Boolean).join(" ");
+    const command = (await readFile(join(proc, pid, "cmdline"), "utf8").catch(() => "")).split("\0").filter(Boolean).join(" ");
     found.push({ pid: Number(pid), command, rss, swap: bytes("VmSwap") || 0 });
   }
   if (await oomKills(folder) !== 0) return undefined;

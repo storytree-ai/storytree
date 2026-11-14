@@ -426,7 +426,7 @@ test("6.17 another story registers its tools on this server, sharing routing, th
       const instructions = agent.instructions()!;
       assert.ok(instructions.includes(extension.instructions!));
       // The card names every tool but a harness's own (ADR-1056 D2).
-      assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), (await agent.tools()).filter((tool) => tool !== "hook_event" && tool !== "heartbeat"));
+      assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), (await agent.tools()).filter((tool) => tool !== "hook_event" && tool !== "heartbeat" && tool !== "lane_messages"));
       // A section costs its words, not two lines whatever its length (ADR-1113 D1).
       assert.ok(cardWords(instructions) <= CARD_WORD_BUDGET);
     });

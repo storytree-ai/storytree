@@ -2081,3 +2081,37 @@ test("3.56 what a hook reads from the library is counted as its event's, and rec
     }
   });
 });
+
+test("3.59 before a shell command in a storytree project, the shell guard refuses a kill fed from a search of the process list (ps or pgrep piped to kill or xargs kill, kill given such a search, pkill -f), which would also match the agent's own engine, and names storytree processes stop instead; any other command, or one outside a project, goes ahead", async () => {
+  await withTempDir(async (dir) => {
+    const home = storytreeHome(dir, false);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder, { recursive: true });
+    writeMarker(folder, `${JSON.stringify({ project: uniqueProjectName() })}\n`);
+    const outside = path.join(dir, "elsewhere");
+    mkdirSync(outside, { recursive: true });
+    const before = async (harness: "claude-code" | "codex", command: string, where = folder) => {
+      const input = JSON.parse(recorded(harness, "pre-tool-use-bash", where)) as { tool_input: Record<string, unknown> };
+      const ran = await runHook(harness, JSON.stringify({ ...input, tool_input: { ...input.tool_input, command } }), home, [SHELL_GUARD]);
+      assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
+      return ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string } }).hookSpecificOutput;
+    };
+    const kills = [
+      "ps aux | grep increment_d2eaa9199142 | grep -v grep | awk '{print $2}' | xargs kill",
+      "pgrep -f 'pnpm gate' | xargs -r kill -9",
+      "cd /tmp && ps -ef | grep vitest | awk '{print $2}' | sudo xargs kill",
+      "kill $(pgrep -f gate)",
+      "pkill -f increment_d2eaa9199142",
+    ];
+    for (const harness of ["claude-code", "codex"] as const) {
+      for (const command of kills) {
+        const said = await before(harness, command);
+        assert.equal(said?.permissionDecision, "deny", `${harness}: ${command}`);
+        assert.match(said?.permissionDecisionReason ?? "", /storytree processes stop <run>/, `${harness}: ${command}`);
+      }
+      for (const command of ["ps aux | grep node", "kill 4242", "ps aux; kill 4242", "pnpm storytree processes stop run_1", "echo 'ps aux | xargs kill'"])
+        assert.equal(await before(harness, command), undefined, `${harness}: ${command} goes ahead`);
+      assert.equal(await before(harness, kills[0]!, outside), undefined, `${harness}: outside a project it goes ahead`);
+    }
+  });
+});

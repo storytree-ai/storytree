@@ -8,7 +8,7 @@
  * promises, on the command line only (ADR-1186 D1): it runs the user's own test command, so it goes through the agent's
  * shell, where its permission prompt applies (ADR-0630), and there is no `record_plugin_health` tool. `health local`
  * (capability 5) runs the project's own tests the same way into its verified health, as a local test run, with no
- * repository needed (ADR-1193 D1, D2: the health ladder's local rung), on the command line only for the same reason.
+ * repository needed (ADR-1193 D1, D2, as narrowed by ADR-1335), on the command line only for the same reason.
  * `health times` (capability 6) records the project's CI times from its GitHub Actions beside the library and prints the
  * averages the map's bottom-left strip shows; the Mint box runs it on a schedule, and the app while it shows the strip.
  * `health tell` (capability 3, 3.21) tells the owner each verdict turn CI's role could not (it writes only health, 3.20):

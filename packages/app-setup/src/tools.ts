@@ -118,7 +118,7 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
       );
       define(
         "wire_pipeline",
-        "When this project is set up or adopts a pipeline, add its tests and storytree's checks to its CI: on GitHub this writes storytree's workflow, elsewhere it gives the commands to add. A Python project's CI gets Python and uv, and Poetry where it is locked by Poetry; run pytest with -rA, from the repository's top or a package folder, so its numbered tests are credited. It proposes branch protection for the user to approve and never turns it on.",
+        "When the user wants CI for this project, add its tests and storytree's checks to its CI: on GitHub this writes storytree's workflow, elsewhere it gives the commands to add. A Python project's CI gets Python and uv, and Poetry where it is locked by Poetry; run pytest with -rA, from the repository's top or a package folder, so its numbered tests are credited. It proposes branch protection for the user to approve and never turns it on.",
         z.object({
           test: z.string().min(1).describe("The command that runs the project's tests, as its CI should run it"),
           install: z.string().min(1).optional().describe("The command that installs its dependencies first, if any"),

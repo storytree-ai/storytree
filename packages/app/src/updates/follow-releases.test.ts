@@ -3,9 +3,10 @@
  * reports. The updater is a stand-in whose checks answer as each test says.
  */
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test } from "node:test";
 
-import { channelOffered, keepCheckingReleases, refreshAgentTools, RELEASE_CHECK_EVERY_MS } from "./follow-releases.js";
+import { channelOffered, installationFolder, keepCheckingReleases, refreshAgentTools, RELEASE_CHECK_EVERY_MS } from "./follow-releases.js";
 import { appVersion } from "./version.js";
 
 test("4.30 a following app checks for a release at start and every three minutes until it quits; a failed check is logged and the next goes ahead, and a waiting release says when it installs", async (t) => {
@@ -111,6 +112,12 @@ test("4.42 an installed Linux AppImage's start refreshes the tools beside it, th
     "refresh /apps", "error: Agent tools could not be updated: read-only", "follow", "Codex now runs this build's copy of the agent tools",
   ], "a failed refresh is said, and the agents still follow whichever build's tools the folder holds");
   assert.deepEqual(await run(undefined), []);
+});
+
+test("4.42 the installation a start follows is the AppImage's folder on Linux, the .app bundle on a Mac, and the exe's folder on Windows", () => {
+  assert.equal(installationFolder({ platform: "linux", execPath: "/tmp/.mount_storyXY/storytree-0.3", appImage: "/home/u/.local/share/storytree-0.3/storytree-0.3.AppImage" }), "/home/u/.local/share/storytree-0.3");
+  assert.equal(installationFolder({ platform: "darwin", execPath: "/Applications/storytree-0.3.app/Contents/MacOS/storytree-0.3", appImage: undefined }), "/Applications/storytree-0.3.app");
+  assert.equal(installationFolder({ platform: "win32", execPath: path.join("C:", "Programs", "storytree-0.3", "storytree-0.3.exe"), appImage: undefined }), path.join("C:", "Programs", "storytree-0.3"));
 });
 
 test("4.32 the gear offers the update channel only where releases install themselves, and never in a smoke check", () => {

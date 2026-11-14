@@ -146,8 +146,8 @@ export function clearOlderTools(home: string, keep: string, remove: (file: strin
  * On Linux and macOS, which folders a process runs from: one is when a running command line names a file in it, as an
  * agent's tool server and hooks are started by their absolute paths. When the process list cannot be read, every folder is.
  */
-export function runningFrom(): (dir: string) => boolean {
-  const listed = spawnSync("ps", ["-A", "-ww", "-o", "args="], { encoding: "utf8" });
+export function runningFrom(list: () => { status: number | null; stdout: unknown } = () => spawnSync("ps", ["-A", "-ww", "-o", "args="], { encoding: "utf8" })): (dir: string) => boolean {
+  const listed = list();
   if (listed.status !== 0 || typeof listed.stdout !== "string") return () => true;
   const commands = listed.stdout;
   return (dir) => commands.includes(dir + path.sep);

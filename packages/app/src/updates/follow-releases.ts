@@ -60,6 +60,13 @@ export async function refreshAgentTools({ platform, appImage, refresh, follow, l
   } catch (error) { log.error(`Agent tools could not be pointed at this build's: ${error instanceof Error ? error.message : String(error)}`); }
 }
 
+/** The installation an installed app's start follows (4.42): the folder holding the AppImage or the Windows exe, or a Mac's .app bundle. */
+export function installationFolder({ platform, execPath, appImage }: { platform: NodeJS.Platform; execPath: string; appImage: string | undefined }): string {
+  if (platform === "linux" && appImage !== undefined) return path.dirname(appImage);
+  if (platform === "darwin") return path.resolve(path.dirname(execPath), "..", "..");
+  return path.dirname(execPath);
+}
+
 /** Whether the gear offers the update channel: only where releases install themselves, and not in a smoke check. */
 export function channelOffered({ smoke, followsReleases }: { smoke: boolean; followsReleases: boolean }): boolean {
   return !smoke && followsReleases;

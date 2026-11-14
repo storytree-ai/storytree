@@ -11,6 +11,7 @@ import { connectAgents, disconnectAgents, installedToolServerCommand, type RunHa
 
 import { finishDelivery, followBuildTools, installCommand, refreshTools, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";
 import { launch, runtimeProblem, waitForApp } from "./delivery.js";
+import { runningFrom } from "./payload.js";
 
 /** The program the Windows command is made from: on Windows the real one, which tests run; elsewhere nothing runs it. */
 let program: Buffer | undefined;
@@ -485,7 +486,7 @@ test("1.5 after a Linux AppImage replaces itself, its next start puts its own ag
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("1.22 on Linux and macOS, a tool server that started before an update loads every tool from its own build until it ends, and its copy goes at the start after it ends", { skip: process.platform === "win32" }, async () => {
+test("1.22 on Linux and macOS, a tool server that started before an update loads every tool from its own build until it ends, and its copy goes at the start after it ends", { skip: process.platform === "win32" && "platform:posix: Windows keeps a running copy by refusing to delete its node.exe, which 1.21 proves" }, async () => {
   const platform: NodeJS.Platform = process.platform === "darwin" ? "darwin" : "linux";
   const dir = mkdtempSync(path.join(tmpdir(), "storytree open session "));
   const install = path.join(dir, platform === "darwin" ? "storytree-0.3.app" : "storytree-0.3");
@@ -547,6 +548,15 @@ test("1.22 on Linux and macOS, a tool server that started before an update loads
     session?.kill();
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("1.22 a copy is running when a running command line names a file in it, and every copy is when the process list cannot be read", () => {
+  const running = runningFrom(() => ({ status: 0, stdout: "/home/u/.storytree/0.3/app-tools/aaaa/node /home/u/.storytree/0.3/app-tools/aaaa/storytree-mcp.mjs\n" }));
+  assert.equal(running("/home/u/.storytree/0.3/app-tools/aaaa"), true);
+  assert.equal(running("/home/u/.storytree/0.3/app-tools/aaa"), false, "a folder whose name only begins another's is not");
+  assert.equal(running("/home/u/.storytree/0.3/app-tools/bbbb"), false);
+  const unread = runningFrom(() => ({ status: null, stdout: undefined }));
+  assert.equal(unread("/home/u/.storytree/0.3/app-tools/bbbb"), true, "so a start that cannot tell deletes nothing");
 });
 
 test("1.16: when the launched app cannot come up, the finish step keeps its output and names the cause", async () => {

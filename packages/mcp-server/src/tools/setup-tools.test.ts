@@ -538,6 +538,12 @@ test("7.9 how to build beside imported code is handed on demand, never on the ca
           ]) assert.ok(answer.includes(said), `the answer lacks: ${said}`);
         }
       });
+      // A client storytree has no hooks for is handed it too.
+      await withAgent(folder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-1" }, ...setup }, async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.data.tier, "connected");
+        assert.ok(checked.text.indexOf(MAPPED_CODE_GUIDANCE) > checked.text.indexOf(habitsCard()), "a connected client's check lacks the section after the card");
+      });
     } finally {
       await storytree.close();
       await dropTestProjects([name]);

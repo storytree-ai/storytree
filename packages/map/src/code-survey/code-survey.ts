@@ -819,12 +819,13 @@ const CODE_LAYOUT_GUIDANCE = [
   "- In Python, a story's package is packages/<story>/pyproject.toml with its module in src/<module>, under a uv workspace over packages/*; a [project] dependency draws the road. Name each pytest test by its contract number: test_2_3_cart_keeps_items, or test_<package>_2_3_… (hyphens as underscores) for another story's contract. CI reads only its name, so a docstring's number is for reading only.",
   "- Start each test's title with the number of the contract it proves (\"2.3 the cart keeps its items\"): the files it reaches are drawn inside that capability.",
   "- The map's parts are folders with an entry file (index.ts, __init__.py) and packages: open one only to work in it. An import around a part's entry is a clash: tell the user, suggesting a refactor.",
-  "- This is the layout for new stories. An existing repository's code, whatever its layout, is drawn where it is once `import_project` maps it: name and describe its capabilities, never redraw them. Mapping includes running the repository's tests in your shell, then planning one arc: an increment per red capability, naming it, and the user's own requests.",
+  "- This is the layout for new stories. An existing repository's code, whatever its layout, is drawn where it is once `import_project` maps it: name and describe its capabilities, never redraw them. Mapping includes running the repository's tests in your shell, then planning one arc: an increment per red capability, naming it, and the user's own requests. The import's answer, and the setup check's in a project with imported stories, say how to build beside it.",
 ].join("\n");
 
 /**
- * How to build beside mapped code (contract 7.9, ADR-0993 D4, D8 to D11, as ADR-1015 narrows D4 and D10 and ADR-1020 narrows D9 and D10): the
- * card carries it whole, so the setup check can hand a project with imports the same words.
+ * How to build beside mapped code (contract 7.9, ADR-0993 D4, D8 to D11, as ADR-1015 narrows D4 and D10 and ADR-1020 narrows D9 and D10). It
+ * rides on demand, off the card (ADR-1341, the owner's answer to question_23c701129afd): the setup check hands it after the card in a project with
+ * imported stories, and the import with its answer, so every agent working beside imported code has it and no other pays its words.
  */
 export const MAPPED_CODE_GUIDANCE = [
   "Build beside imported code.",
@@ -839,4 +840,4 @@ export const MAPPED_CODE_GUIDANCE = [
 ].join("\n");
 
 /** Its sections of the habits card (ADR-1021, the guidance kind). */
-export const codeGuidance: readonly string[] = [CODE_LAYOUT_GUIDANCE, MAPPED_CODE_GUIDANCE];
+export const codeGuidance: readonly string[] = [CODE_LAYOUT_GUIDANCE];

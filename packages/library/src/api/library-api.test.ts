@@ -153,6 +153,7 @@ const LIBRARY_API = [
   "recordFyi",
   "unheardFyis",
   "markFyisHeard",
+  "recordPin",
   "createPluginRecord",
   "editPluginRecord",
   "pluginRecords",
@@ -694,6 +695,29 @@ test("7.23 recordFyi keeps what the owner should know with its title, what happe
     await lib.markFyisHeard([later.id, now.id]);
     const tied = await Promise.all(["One", "Two", "Three"].map((title) => lib.recordFyi({ title, what: "At the same moment", about: "PR #32", by: "watcher", at: "2026-10-28T09:00:00.000Z" })));
     assert.deepEqual((await lib.unheardFyis()).map(({ id }) => id), tied.map(({ id }) => id).sort(), "FYIs of the same moment are listed by id");
+  });
+});
+
+test("7.28 recordPin keeps an agent's pin as a pin record, its anchor on a capability, part, exported name or store, a preset icon, a short label, its evidence, a commit and when; fields that do not fit are refused with nothing written", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const onPart = await lib.recordPin({ anchor: { capability: "capability_000000000001", part: "packages/web/src/cache", name: "memo" }, icon: "cache", label: "In-memory cache", evidence: "packages/web/src/cache/index.ts:12 keeps answers in a Map", commit: "0123abc", at: "2026-11-15T09:00:00.000Z" }, { actor: "session:lane" });
+    assert.equal(onPart.type, "pin");
+    assert.deepEqual((await lib.get(onPart.id))?.fields, { anchor: { capability: "capability_000000000001", part: "packages/web/src/cache", name: "memo" }, icon: "cache", label: "In-memory cache", evidence: "packages/web/src/cache/index.ts:12 keeps answers in a Map", commit: "0123abc", at: "2026-11-15T09:00:00.000Z" });
+    assert.equal((await lib.history({ id: onPart.id })).at(-1)!.actor, "session:lane");
+    const onStore = await lib.recordPin({ anchor: { store: "postgres://db/app", table: "users" }, icon: "store", label: "Accounts", evidence: "compose.yaml names it", commit: "0123abcd" });
+    assert.match(onStore.fields.at, /^\d{4}-\d{2}-\d{2}T/, "left out, when is now");
+
+    const before = (await lib.list("pin")).length;
+    for (const misfit of [
+      { anchor: { capability: "capability_000000000001" }, icon: "rocket", label: "x", evidence: "y", commit: "0123abc" },
+      { anchor: { capability: "capability_000000000001" }, icon: "cache", label: "A label far longer than forty characters in all", evidence: "y", commit: "0123abc" },
+      { anchor: { capability: "capability_000000000001" }, icon: "cache", label: "x", evidence: "y", commit: "main" },
+      { anchor: { capability: "capability_000000000001", store: "postgres://db/app" }, icon: "cache", label: "x", evidence: "y", commit: "0123abc" },
+      { anchor: { capability: "capability_000000000001" }, icon: "cache", label: "x", evidence: "", commit: "0123abc" },
+    ]) await assert.rejects(lib.recordPin(untyped(misfit)), (error: Error) => error.name === "SchemaError", JSON.stringify(misfit));
+    assert.equal((await lib.list("pin")).length, before, "a refused pin writes nothing");
   });
 });
 

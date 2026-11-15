@@ -1,7 +1,7 @@
 /**
  * Capability 3 · Story node render. Where work is landing (ADR-1253 D1 as corrected 2026-11-05): an arc selected draws a hollow
  * ring, like a game's unit-selection ring, round each capability its open increments name, round its own marker (its settlement
- * symbol, or its nameplate where it has none), dimming nothing (3.83, ADR-1299), at every zoom (ADR-1272 D2). Every ring keeps one line
+ * junction's clear spot, or its nameplate where it has none), dimming nothing (3.83, ADR-1299), at every zoom (ADR-1272 D2). Every ring keeps one line
  * width on screen at any zoom, as a claim's flag keeps its size (ADR-1062 D1), and is never less than `RING_LEAST_PX` across
  * (3.86). With no arc selected open work draws nothing (3.84). A selected capability gets the same ring in the pick's gold,
  * outside any blue one, so a pick reads one way and blue keeps meaning open work (3.91). Open work that makes an edge's contract
@@ -24,7 +24,7 @@ export type OpenWorkMarks = { readonly rings: readonly OpenWorkRing[]; readonly 
 /** The ring's line on screen, in CSS pixels, at every zoom; and the least a capability's ring is across, in CSS pixels, so a
  * ring round a settlement drawn only a few pixels wide still reads. */
 export const RING_PX = 3, RING_LEAST_PX = 24;
-/** A ring's room round its settlement symbol, as a share of the symbol's size: its 24-unit box's corners lie at 0.71. */
+/** A ring's room round its settlement, as a share of its clear spot's size, whose corners lie at 0.71. */
 const SETTLEMENT_ROOM = 0.8;
 /** A selected capability's ring: its room outside an open-work ring's, as a share of that ring's radius, and the least it is
  * across past that ring's least, in CSS pixels, so the two stay apart at any zoom. */

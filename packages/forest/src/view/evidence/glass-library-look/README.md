@@ -14,3 +14,5 @@ hung at every tilt (before this change the notes were hung there too, and shown 
 754 hung and shown at every tilt.
 
 Taken by `node --import tsx packages/forest/testing/view/glass-library-look/capture.mjs --retake`.
+
+In the evidence bucket for #873, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `873/library-above.png`, `873/library-below.png`, `873/library-side-on.png`, `873/stories-above.png`, `873/stories-below.png`, `873/stories-side-on.png`, `873/measurements.json`.

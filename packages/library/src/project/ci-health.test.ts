@@ -1,8 +1,8 @@
 /**
- * Capability 8 · Cloud connection (GCP), contract 8.4 (ADR-0747): CI's health account, granted
+ * Capability 28 · Shared server, contract 28.16 (ADR-0747): CI's health account, granted
  * exactly what each authored grants.sql grants, opens the project, records a contract's verified
  * health, and is refused any other record and any change to the tables; the project's owner is
- * unaffected. Run here as Cloud SQL runs it: a role that owns the project's database, an owner's
+ * unaffected. Run here as the shared server runs it: a role that owns the project's database, an owner's
  * account acting as it (contract 28.1), and CI's account with no role to take on. grants.sql is run
  * as written for CI and the library host, with only its two names (the database, and CI's user,
  * the psql variable ci_role) filled in with this test's. Its health history cannot reserve or raise decision numbers.
@@ -20,7 +20,7 @@ import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, un
 
 const GRANTS_FILES = ["ci-health", "library-host"];
 
-for (const source of GRANTS_FILES) test(`8.4 CI's health account (${source}/grants.sql) writes health without controlling storytree decision numbers`, async () => {
+for (const source of GRANTS_FILES) test(`28.16 CI's health account (${source}/grants.sql) writes health without controlling storytree decision numbers`, async () => {
   const run = uniqueProjectName();
   const [owner, ci, creator] = [`${run}-owner@storytree.test`, `${run}-ci-health@storytree.test`, `${run}-creator`];
   const database = `storytree_${run}`;
@@ -128,7 +128,7 @@ for (const source of GRANTS_FILES) test(`8.4 CI's health account (${source}/gran
   }
 });
 
-for (const source of GRANTS_FILES) test(`8.4 Granted (${source}/grants.sql) before the floor is set, CI's health at the floor's id neither sets nor blocks it`, async () => {
+for (const source of GRANTS_FILES) test(`28.16 Granted (${source}/grants.sql) before the floor is set, CI's health at the floor's id neither sets nor blocks it`, async () => {
   const run = uniqueProjectName();
   const [owner, ci, creator] = [`${run}-owner@storytree.test`, `${run}-ci-health@storytree.test`, `${run}-creator`];
   const database = `storytree_${run}`;

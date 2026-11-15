@@ -195,7 +195,7 @@ function moduleFile(target) {
 
 /**
  * Judge each of `contracts` (their numbers) from a test run's results. A test counts for the
- * contracts its outermost numbered name gives ("8.1 …" around "2.1 [cloud-sql] …" is 8.1's), read
+ * contracts its outermost numbered name gives ("8.1 …" around "2.1 [address] …" is 8.1's), read
  * after the story's `prefix` when it starts with it (a title like cli 1.3: …). A test in a dependant's file
  * (`dependant(file)`) counts only through that prefix, and is otherwise none of the story's business.
  * `coverage(file)` gives the contract numbers a test file holds, for a file that produced no
@@ -405,9 +405,9 @@ export async function markPending(library, story, writer, { root }) {
  * Where a run records verified health, and as whom. On CI (GITHUB_ACTIONS), by a test run on CI at
  * GITHUB_SHA: in the library at HEALTH_PG_ADDRESS (the Mint box over Tailscale, ADR-0928 D4; its
  * password is PGPASSWORD), and nowhere when that is unset, saying so. Run by hand, the library the
- * storytree setting names: a Cloud SQL instance, a Postgres address, or the desktop app's own (`"app"`).
- * @param {{ env: Record<string, string | undefined>, setting: { location: "local" } | { location: "cloudsql", instance: string, user: string } | { location: "postgres", address: string } }} input
- * @returns {{ record: false, why: string } | { record: true, library: "app" | { cloudSql: { instance: string, user: string } } | { address: string }, writer: Writer }}
+ * storytree setting names: a Postgres address, or the desktop app's own (`"app"`).
+ * @param {{ env: Record<string, string | undefined>, setting: { location: "local" } | { location: "postgres", address: string } }} input
+ * @returns {{ record: false, why: string } | { record: true, library: "app" | { address: string }, writer: Writer }}
  */
 export function recordingTarget({ env, setting }) {
   if (env.GITHUB_ACTIONS === "true") {
@@ -421,8 +421,5 @@ export function recordingTarget({ env, setting }) {
     };
   }
   if (setting.location === "postgres") return { record: true, library: { address: setting.address }, writer: { by: VERIFIED_BY, source: "local" } };
-  if (setting.location === "cloudsql") {
-    return { record: true, library: { cloudSql: { instance: setting.instance, user: setting.user } }, writer: { by: VERIFIED_BY, source: "local" } };
-  }
   return { record: true, library: "app", writer: { by: VERIFIED_BY, source: "local" } };
 }

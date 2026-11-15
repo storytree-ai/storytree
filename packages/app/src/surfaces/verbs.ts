@@ -76,7 +76,7 @@ const set = verb({
     family: "settings",
     name: "set",
     summary: "save a setting for your user account",
-    usage: "settings set <name> <value> | settings set library <local | cloudsql <instance> <user> | postgres <address>> | settings set surface <surface> <on | off | <setting> <choice>> | settings set factory <folder> | settings set module <module> <on | off | plugin <plugin>> | settings set system <all | roles | checks | notes | <title or id>> <on | off> | settings set service <module>/<service> <on | off>",
+    usage: "settings set <name> <value> | settings set library <local | postgres <address>> | settings set surface <surface> <on | off | <setting> <choice>> | settings set factory <folder> | settings set module <module> <on | off | plugin <plugin>> | settings set system <all | roles | checks | notes | <title or id>> <on | off> | settings set service <module>/<service> <on | off>",
   },
   tool: { absent: "the user's settings are the person's own, set from a terminal" },
   inputs: { words: { kind: "text", word: 0, many: true, describe: "the setting's name and its value" } },
@@ -147,7 +147,6 @@ type SettingReading = {
 /** Where the library lives, as Project and caller reads it: this story's own copy of what it says (ADR-1017 D2). */
 type LibraryReading = (
   | { readonly location: "local" }
-  | { readonly location: "cloudsql"; readonly instance: string; readonly user: string }
   | { readonly location: "postgres"; readonly address: string }
 ) & { readonly default: string; readonly meaning: string; readonly source: "default" | "set" };
 
@@ -158,8 +157,7 @@ function settingSaid(reading: SettingReading): string {
 }
 
 function librarySaid(reading: LibraryReading): string {
-  const where = reading.location === "cloudsql" ? `cloudsql ${reading.instance} as ${reading.user}`
-    : reading.location === "postgres" ? `postgres ${reading.address} (its password the key postgres)` : "local";
+  const where = reading.location === "postgres" ? `postgres ${reading.address} (its password the key postgres)` : "local";
   return `library: ${where} (${reading.source})\n  Default: ${reading.default}.\n  ${reading.meaning}`;
 }
 

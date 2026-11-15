@@ -13,8 +13,8 @@
  *   create and drop test databases and roles, grant memberships, end backends and read the server's
  *   state (withTestClient). Nothing is reached as that user by the code under test.
  * - Ordinary test roles: createTestRole() gives each login role a fresh synthetic password, and a
- *   test reaches one only through testRoleUrl() or withTestClientAs(), or, on the Cloud SQL path,
- *   through a socket from cloudSqlStandIn(), never by writing a role's name into a URL itself.
+ *   test reaches one only through testRoleUrl() or withTestClientAs(), never by writing a role's
+ *   name into a URL itself.
  * A role named with uniqueProjectName() must give its password whatever the server's other rules
  * say: createTestRole() puts a scram-sha-256 line for those names at the top of the server's
  * pg_hba.conf, so these paths run against an authenticated server on every platform, and no test
@@ -22,7 +22,6 @@
  */
 import { randomBytes } from "node:crypto";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { connect as connectSocket, createServer, type AddressInfo, type Socket } from "node:net";
 
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
@@ -131,7 +130,7 @@ export function testRoleUrl(role: string, database?: string): string {
 /**
  * Create a role on the test server, made by its superuser: a login role, for a test to connect as,
  * unless `login` is false. It may create databases only when `createdb` is set, and roles only when
- * `createrole` is, without being a superuser (as a Cloud SQL instance's `postgres` user may). A
+ * `createrole` is, without being a superuser (as a managed server's admin user may). A
  * login role has `password`, or a fresh synthetic one, and the server asks for it (see the top of
  * this file). Its name must carry a uniqueProjectName() token, like every role dropTestRoles() will
  * drop.
@@ -275,154 +274,4 @@ export async function withCountedProject(body: (project: Project, received: () =
     await new Promise<void>((resolve) => proxy.close(() => resolve()));
     await dropTestDatabases([`storytree_${name}`]);
   }
-}
-
-/** pg's own SCRAM-SHA-256 client steps, which the Cloud SQL stand-in signs in with. */
-interface ScramSession { readonly response: string }
-const sasl = createRequire(import.meta.url)("pg/lib/crypto/sasl") as {
-  startSession(mechanisms: string[]): ScramSession & { readonly mechanism: string };
-  continueSession(session: ScramSession, password: string, serverData: string): Promise<void>;
-  finalizeSession(session: ScramSession, serverData: string): void;
-};
-
-let standIn: Promise<{ readonly host: string; readonly port: number }> | undefined;
-
-/**
- * Where a test's fake Cloud SQL connector opens its sockets: a stand-in, on this machine, for the
- * socket Google's connector hands pg. That socket is already signed in as the IAM user (Cloud SQL
- * checks the account's token itself), so pg sends no password over it. The stand-in does the same
- * for the test server: it reads the startup message pg sends, passes it on, answers the server's
- * SCRAM challenge with the password createTestRole() gave that user, and from the server's
- * AuthenticationOk on passes bytes both ways untouched. A user createTestRole() did not make is
- * refused as Cloud SQL refuses an account that is not a database user (28000), without asking the
- * server. Against a server that lets the role in without a password it only passes bytes on.
- * One stand-in serves the whole process, and does not keep it alive.
- */
-export function cloudSqlStandIn(): Promise<{ readonly host: string; readonly port: number }> {
-  standIn ??= new Promise((resolve, reject) => {
-    const server = createServer((client) => void signIn(client));
-    server.unref();
-    server.on("error", reject);
-    server.listen(0, "127.0.0.1", () => resolve({ host: "127.0.0.1", port: (server.address() as AddressInfo).port }));
-  });
-  return standIn;
-}
-
-/** Startup codes, in a startup packet's first four bytes after its length. */
-const PROTOCOL_3 = 196608;
-const SSL_REQUEST = 80877103;
-const GSS_REQUEST = 80877104;
-
-async function signIn(client: Socket): Promise<void> {
-  const upstream = new URL(testServerUrl());
-  const server = connectSocket(Number(upstream.port || 5432), upstream.hostname);
-  const sockets = [client, server];
-  const done = () => { for (const socket of sockets) socket.destroy(); };
-  for (const socket of sockets) socket.on("error", done).on("close", done);
-  const fromClient = new Frames(client);
-  const fromServer = new Frames(server);
-  const splice = () => {
-    const [early, later] = [fromClient.release(), fromServer.release()];
-    if (early.length > 0) server.write(early);
-    if (later.length > 0) client.write(later);
-    client.pipe(server).pipe(client);
-  };
-  try {
-    let startup: Buffer;
-    for (;;) {
-      const length = (await fromClient.take(4)).readInt32BE(0);
-      startup = Buffer.concat([int32(length), await fromClient.take(length - 4)]);
-      const code = startup.readInt32BE(4);
-      if (code !== SSL_REQUEST && code !== GSS_REQUEST) break;
-      client.write("N"); // No encryption: the stand-in is a socket on this machine.
-    }
-    server.write(startup);
-    if (startup.readInt32BE(4) !== PROTOCOL_3) return splice(); // A cancel request: nothing to sign in.
-    const fields = startup.subarray(8).toString("utf8").split("\0");
-    const user = fields[fields.indexOf("user") + 1] ?? "";
-    let session: ScramSession | undefined;
-    for (;;) {
-      const type = (await fromServer.take(1)).toString("latin1");
-      const length = (await fromServer.take(4)).readInt32BE(0);
-      const body = await fromServer.take(length - 4);
-      const frame = Buffer.concat([Buffer.from(type, "latin1"), int32(length), body]);
-      if (type !== "R") {
-        client.write(frame); // An ErrorResponse ends the connection: the server closes it after.
-        continue;
-      }
-      const step = body.readInt32BE(0);
-      const data = body.subarray(4).toString("utf8");
-      if (step === 0) {
-        client.write(frame);
-        return splice();
-      }
-      const password = rolePasswords.get(user);
-      if (step === 10 && password === undefined) {
-        client.end(errorResponse("28000", `Cloud SQL IAM user authentication failed for user "${user}"`));
-        server.destroy();
-        return;
-      }
-      if (step === 10) {
-        const started = sasl.startSession(data.split("\0").filter((mechanism) => mechanism !== ""));
-        session = started;
-        const response = Buffer.from(started.response, "utf8");
-        server.write(message("p", Buffer.concat([Buffer.from(`${started.mechanism}\0`, "utf8"), int32(response.length), response])));
-      } else if (step === 11 && session !== undefined && password !== undefined) {
-        await sasl.continueSession(session, password, data);
-        server.write(message("p", Buffer.from(session.response, "utf8")));
-      } else if (step === 12 && session !== undefined) {
-        sasl.finalizeSession(session, data);
-      } else {
-        throw new Error(`the test server asked for a sign-in the Cloud SQL stand-in does not give (${step})`);
-      }
-    }
-  } catch {
-    done();
-  }
-}
-
-/** Bytes as they arrive on a socket, taken a known length at a time until released. */
-class Frames {
-  #buffer = Buffer.alloc(0);
-  #ended = false;
-  #wake: (() => void) | undefined;
-  readonly #socket: Socket;
-  readonly #onData = (chunk: Buffer) => { this.#buffer = Buffer.concat([this.#buffer, chunk]); this.#wake?.(); };
-  readonly #onClose = () => { this.#ended = true; this.#wake?.(); };
-
-  constructor(socket: Socket) {
-    this.#socket = socket;
-    socket.on("data", this.#onData).on("close", this.#onClose);
-  }
-
-  async take(length: number): Promise<Buffer> {
-    while (this.#buffer.length < length) {
-      if (this.#ended) throw new Error("the socket closed");
-      await new Promise<void>((resolve) => { this.#wake = resolve; });
-    }
-    const taken = this.#buffer.subarray(0, length);
-    this.#buffer = this.#buffer.subarray(length);
-    return taken;
-  }
-
-  /** Stop taking: what arrived but was not taken. */
-  release(): Buffer {
-    this.#socket.off("data", this.#onData).off("close", this.#onClose);
-    return this.#buffer;
-  }
-}
-
-function int32(value: number): Buffer {
-  const bytes = Buffer.alloc(4);
-  bytes.writeInt32BE(value, 0);
-  return bytes;
-}
-
-function message(type: string, body: Buffer): Buffer {
-  return Buffer.concat([Buffer.from(type, "latin1"), int32(body.length + 4), body]);
-}
-
-function errorResponse(code: string, text: string): Buffer {
-  const fields = [["S", "FATAL"], ["V", "FATAL"], ["C", code], ["M", text]].map(([key, value]) => `${key}${value}\0`).join("");
-  return message("E", Buffer.from(`${fields}\0`, "utf8"));
 }

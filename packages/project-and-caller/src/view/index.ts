@@ -101,9 +101,6 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
       status.textContent = "Saving…";
       const name = form.dataset.setting!;
       const words = [value.value];
-      if (name === "library" && value.value === "cloudsql") {
-        words.push((form.elements.namedItem("instance") as HTMLInputElement).value, (form.elements.namedItem("user") as HTMLInputElement).value);
-      }
       if (name === "library" && value.value === "postgres") words.push((form.elements.namedItem("address") as HTMLInputElement).value);
       void (async () => {
         const state = saveState(name, await settle(bridge.saveSetting(name, words)));

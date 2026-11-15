@@ -77,8 +77,7 @@ const library = {
   label: "Where the library lives",
   default: "local",
   meaning:
-    "Where the library lives: `local`, the storytree app's own database on this computer; `cloudsql`, " +
-    "a Google Cloud SQL instance signed in to as your Google account (set with its connection name and the account's email); " +
+    "Where the library lives: `local`, the storytree app's own database on this computer; " +
     "or `postgres`, any Postgres reached by its address (postgres://user@host:port/database, or wss://user@host/database over HTTPS), its password saved as the key `postgres` with `storytree auth set postgres`.",
 } as const;
 
@@ -120,12 +119,11 @@ interface HealthReading {
 export type SettingReading = ContextGuidanceReading | IdleReading | HealthReading;
 
 /**
- * Where the library lives: this computer's app, a Cloud SQL instance and the account to sign in to
- * it as, or any Postgres by its address, a postgres:// URL without its password (ADR-0846 D1).
+ * Where the library lives: this computer's app, or any Postgres by its address, a postgres:// URL
+ * without its password (ADR-0846 D1).
  */
 export type LibraryLocation =
   | { readonly location: "local" }
-  | { readonly location: "cloudsql"; readonly instance: string; readonly user: string }
   | { readonly location: "postgres"; readonly address: string };
 
 export type LibraryReading = LibraryLocation & {
@@ -500,7 +498,7 @@ export function setSetupApproval(repository: string, fingerprint: string, home: 
 /** Persist a user's choice in the same home as project-choice.json, after checking its type. */
 export function setSetting(name: string, value: string, home: string = storytreeHome()): SettingReading {
   checkName(name);
-  if (name === library.name) return refuse("Set the library with `storytree settings set library local`, `… library cloudsql <instance> <user>`, or `… library postgres <address>`.");
+  if (name === library.name) return refuse("Set the library with `storytree settings set library local` or `… library postgres <address>`.");
   if (name === idleAfter.name || name === leaveAfter.name) {
     checkedDuration(value, name);
     write(home, { ...readStored(home), [name]: value });
@@ -516,13 +514,11 @@ export function setSetting(name: string, value: string, home: string = storytree
 }
 
 /**
- * Persist where the library lives: `["local"]`, `["cloudsql", <instance connection name>, <account email>]`,
- * or `["postgres", <address>]`. All of it is checked before anything is written, so the setting is never half-set.
+ * Persist where the library lives: `["local"]` or `["postgres", <address>]`. All of it is checked before
+ * anything is written, so the setting is never half-set.
  */
 export function setLibrary(words: readonly string[], home: string = storytreeHome()): LibraryReading {
-  const given = words[0] === "cloudsql" ? { location: "cloudsql", instance: words[1], user: words[2] }
-    : words[0] === "postgres" ? { location: "postgres", address: words[1] }
-    : { location: words[0] };
+  const given = words[0] === "postgres" ? { location: "postgres", address: words[1] } : { location: words[0] };
   const location = checkedLibrary(given, words.length);
   write(home, { ...readStored(home), library: location });
   return readSettings(home).library;
@@ -605,13 +601,13 @@ function checkedGuidance(value: unknown): number {
 }
 
 /**
- * A Cloud SQL instance's connection name, project:region:instance (a project in a domain keeps it:
- * example.com:my-project:region:instance), as the library's Cloud SQL connection reads it.
+ * The refusal of a library set to Cloud SQL, as settings written before it was taken out say (ADR-0735 D4: never read as
+ * local): what storytree no longer does, and how to reach the same instance as a Postgres address.
  */
-const CONNECTION_NAME =
-  /^(?:[a-z0-9-]+(?:\.[a-z0-9-]+)+:)?[a-z][a-z0-9-]*[a-z0-9]:[a-z][a-z0-9-]*[a-z0-9]:[a-z](?:[a-z0-9-]*[a-z0-9])?$/;
-/** A Google account's email: one @, with no spaces or control characters. */
-const ACCOUNT = /^[^\s@\p{Cc}]+@[^\s@\p{Cc}]+$/u;
+const NO_CLOUD_SQL =
+  "library: Cloud SQL is no longer built into storytree. Reach the instance as a Postgres address instead: through the Cloud SQL Auth Proxy, " +
+  "or its public IP, as an ordinary database user, with `storytree settings set library postgres postgres://<user>@<host>[:<port>]/postgres` " +
+  "and its password saved with `storytree auth set postgres`.";
 
 /**
  * A stored or given library location, if it is one; refused with what to write otherwise. `words`
@@ -619,20 +615,14 @@ const ACCOUNT = /^[^\s@\p{Cc}]+@[^\s@\p{Cc}]+$/u;
  */
 function checkedLibrary(value: unknown, words?: number): LibraryLocation {
   const usage =
-    "library is `local`; `cloudsql <instance> <user>`: the instance's connection name (project:region:instance) " +
-    "and the email of the Google account to sign in as; or `postgres <address>`: postgres://<user>@<host>[:<port>]/<database> or wss://<user>@<host>[:<port>]/<database>.";
+    "library is `local`, or `postgres <address>`: postgres://<user>@<host>[:<port>]/<database> or wss://<user>@<host>[:<port>]/<database>.";
   if (value === null || typeof value !== "object" || Array.isArray(value)) return refuse(usage);
-  const { location, instance, user, address, ...rest } = value as { location?: unknown; instance?: unknown; user?: unknown; address?: unknown };
+  const { location, address, ...rest } = value as { location?: unknown; address?: unknown };
+  if (location === "cloudsql") return refuse(NO_CLOUD_SQL);
   if (Object.keys(rest).length > 0) return refuse(usage);
-  if (location === "local" && instance === undefined && user === undefined && address === undefined && (words ?? 1) === 1) return { location };
-  if (location === "postgres" && instance === undefined && user === undefined && (words ?? 2) === 2) return { location, address: checkedAddress(address) };
-  if (address !== undefined) return refuse(usage);
-  if (location !== "cloudsql" || (words !== undefined && words !== 3)) return refuse(usage);
-  if (typeof instance !== "string" || !CONNECTION_NAME.test(instance)) {
-    return refuse(`library: the Cloud SQL instance ${JSON.stringify(instance)} is not written project:region:instance. Copy its connection name from the instance's page in the Cloud Console.`);
-  }
-  if (typeof user !== "string" || !ACCOUNT.test(user)) return refuse(`library: the Cloud SQL user ${JSON.stringify(user)} is not a Google account's email.`);
-  return { location, instance, user };
+  if (location === "local" && address === undefined && (words ?? 1) === 1) return { location };
+  if (location === "postgres" && (words ?? 2) === 2) return { location, address: checkedAddress(address) };
+  return refuse(usage);
 }
 
 /**

@@ -176,9 +176,7 @@ export const DOCTOR = verb({
     if (report.storytree.state === "not running") throw new VerbRefusal(report.storytree.message);
     const { library } = report.storytree;
     const said = [
-      library.cloudSql !== undefined
-        ? `The library is on the Cloud SQL instance ${library.cloudSql.instance}, signed in to as ${library.cloudSql.user} (the library setting).`
-        : report.storytree.state === "opened" ? "storytree was closed, so it has been opened." : "storytree is running.",
+      report.storytree.state === "opened" ? "storytree was closed, so it has been opened." : "storytree is running.",
     ];
     said.push(...hooksSaid(report));
     const next = [];

@@ -1,7 +1,7 @@
 /**
  * A stand-in for the store's network, for the tests that pin how much a reader takes from it: every
  * connection is passed on to the test Postgres, and the bytes the server sends back are counted, as
- * Cloud SQL bills them (its egress).
+ * a hosted server bills them (its egress).
  */
 import { readFileSync } from "node:fs";
 import { connect, createServer, type AddressInfo, type Socket } from "node:net";

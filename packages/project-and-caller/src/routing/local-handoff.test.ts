@@ -414,9 +414,6 @@ test("1.16 damaged credentials preserve app liveness, quick stale-owner refusal 
     const f = fixture(home);
     rmSync(f.file);
     assert.deepEqual(locateApp(home), { running: true });
-    const cloudSql = { instance: "synthetic:region:database", user: "test@example.invalid" };
-    setLibrary(["cloudsql", cloudSql.instance, cloudSql.user], home);
-    assert.deepEqual(locateLibrary({ home }), { found: true, connect: { cloudSql } });
     const address = "postgres://synthetic@db.example.invalid/postgres";
     setLibrary(["postgres", address], home);
     assert.deepEqual(locateLibrary({ home }), { found: true, connect: { address } });

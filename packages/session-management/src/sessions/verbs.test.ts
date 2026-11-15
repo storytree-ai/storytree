@@ -106,6 +106,9 @@ test("4.53 · storytree session show gives one session as the sessions list show
     assert.equal(json.session, "lane-2");
 
     await assert.rejects(show.act({ session: "nobody-3", json: false }, context, DOORS.command), (error: unknown) => error instanceof VerbRefusal && error.message.includes("nobody-3"));
+    // Run by no session, with none named, there is nothing to show: the caller's misuse, naming the word to give.
+    const { session: _caller, ...unrun } = context;
+    await assert.rejects(show.act({ json: false }, unrun, DOORS.command), (error: unknown) => error instanceof VerbRefusal && error.misuse && error.message.includes("session show <session>"));
   } finally {
     await log.close();
   }

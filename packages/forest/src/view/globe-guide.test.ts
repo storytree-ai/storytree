@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, OrthographicCamera, Quaternion, Vector3 } from "three";
+import { createGlobeAside } from "./globe-aside.js";
 import { createGlobeGuide, type GlobePose, type ScreenPosition } from "./globe-guide.js";
 import { globeLocator } from "./globe-locator.js";
 import type { DrawnName } from "./nameplates.js";
@@ -117,6 +118,16 @@ test("3.40 a slide eases the zoom and side offset only, never the turn; a drag o
   assert.equal(f.guide.frame(16), false);
   f.guide.slide({ framing: 1, sideOffset: 40 }, 0);
   assert.deepEqual(f.pose(), { turn, framing: 1, sideOffset: 40 }, "reduced motion: at once");
+});
+
+test("3.40 the panel closed while its slide still glides sends the sheet home, never further: the next slide starts from where the guide is heading", () => {
+  const f = fixture();
+  // The desktop's map at 1440x960, the Library's note card covering the canvas's right 492 px, as the forest's panel effect places it.
+  const canvas = { width: 1008, height: 912 }, aside = createGlobeAside(() => ({ framing: 3, sideOffset: 0 }), { fit: false });
+  const follow = (panel: number) => { const moved = aside.place(canvas, panel, f.guide.heading()); if (moved !== undefined) f.guide.slide(moved.to, 600); };
+  // A note opened and closed again before its card's slide has gone far, three times over.
+  for (let round = 0; round < 3; round++) { follow(492); f.guide.frame(50); follow(0); f.guide.frame(600); }
+  assert.equal(f.pose().sideOffset, 0, "home, where it opened");
 });
 
 test("3.41 the page's locator gives each drawn island's capability count and client point, each note's point, turns to face one at once, and says when the glide is over", () => {

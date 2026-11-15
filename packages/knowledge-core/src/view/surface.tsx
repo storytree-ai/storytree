@@ -227,8 +227,10 @@ export interface CoreUnderSheet extends SheetHanging {
 const SHEET_DOT_SCALE = 360;
 
 /** Knowledge hung under the glass sheet over a faint sea floor, the selected story's on roots, without ghosts: faint, or lit by a selected session's reads and window (ADR-0738 D5, ADR-0746 D1); with none selected, unlit (ADR-0921). */
-export function KnowledgeGlobePoints({ core, places, growth, sheet }: {
+export function KnowledgeGlobePoints({ core, places, growth, sheet, onHung }: {
   core: KnowledgeCore;
+  /** Hears once that the notes' first layout is hung beneath the sheet, which ends the Library's loading bar (ADR-1344). */
+  onHung?: (() => void) | undefined;
   /** Where the notes hang under the glass sheet. */
   sheet: CoreUnderSheet;
   /** A replay to grow with (capability 1.9): the globe's growth reader, read inside the globe. */
@@ -253,6 +255,9 @@ export function KnowledgeGlobePoints({ core, places, growth, sheet }: {
       : [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, v]) => sheet.place({ x: floor.x + u! * floor.width, y: floor.y + v! * floor.height, z: floor.z }));
     return { laid: points, points: points.map(point => ({ ...point, at: sheet.place(point.at) })), floor: corners === undefined ? undefined : { corners, notes: floor.notes } };
   }, [laid, sheet.place]);
+  // The first layout hung is the Library opened; later layouts replace it in place.
+  const laidOnce = hung !== undefined;
+  useEffect(() => { if (laidOnce) onHung?.(); }, [laidOnce]);
   // No note is drawn until its first layout is.
   const placed = useMemo(() => hung?.points ?? [], [hung]);
   // With none selected, no session's traversal shows (ADR-0921): nothing lights and no path draws.

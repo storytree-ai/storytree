@@ -203,6 +203,11 @@ export interface Library
    */
   markFyisHeard(ids: readonly string[], options?: WriteOptions): Promise<string[]>;
   /**
+   * Keep an agent's pin on the map (Code map 9): a new `pin` record. Left out, `at` is now. Fields that do not fit the
+   * type are refused (SchemaError) and nothing is written. Whether its anchor resolves is the map's to read.
+   */
+  recordPin(pin: PinNote, options?: WriteOptions): Promise<SchemaRecord<"pin">>;
+  /**
    * Save a new record of a plugin's own kind (`<plugin>.<kind>`, ADR-1178 D3), as the plugin's work hands it: only a kind
    * the project was opened with is written (OpenOptions' `kinds`), and fields that do not fit its declared shape are
    * refused (SchemaError). A core kind is refused, since each has its own write; so is a kind no mounted plugin declares
@@ -316,6 +321,8 @@ export interface DormantKind {
 export type FeedbackNote = Omit<FieldsOf<"feedback">, "status" | "screenshot" | "crop" | keyof FeedbackRoute>;
 /** An FYI as its writer hands it: its record's fields but `heardAt`, and `at` now when left out. */
 export type FyiNote = Omit<FieldsOf<"fyi">, "at" | "heardAt"> & { readonly at?: string | undefined };
+/** A pin as its writer hands it: its record's fields, with `at` now when left out. */
+export type PinNote = Omit<FieldsOf<"pin">, "at"> & { readonly at?: string | undefined };
 /** Where a feedback note was routed, and why. */
 export interface FeedbackRoute {
   readonly route: NonNullable<FieldsOf<"feedback">["route"]>;
@@ -557,6 +564,9 @@ function libraryOf(project: Project): Library {
         marked.push(record!.id);
       }
       return marked;
+    },
+    async recordPin({ at, ...pin }, options = {}) {
+      return project.records.create("pin", { ...pin, at: at ?? new Date().toISOString() }, options);
     },
     pluginRecords: (plugin) => pluginRecordsOf(project.pool, plugin),
     async removePluginRecords(listed, reason, options) {

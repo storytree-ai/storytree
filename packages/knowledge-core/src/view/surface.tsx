@@ -71,6 +71,8 @@ export interface KnowledgeCore {
 
 interface Store extends KnowledgeCore {
   readonly reads: ReadRecord;
+  /** A drawing of the notes opens: the factory's notes are read only while one is open (ADR-1062 D4 as narrowed); the returned call closes it. */
+  view(): () => void;
   get(): State;
   set(next: Partial<State>): void;
   subscribe(listener: () => void): () => void;
@@ -100,9 +102,13 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
   };
   /** Whether a read of the factory's notes is out, and whether another was asked for meanwhile. */
   let inheritedOut = false, inheritedAgain = false;
-  /** Read the notes the project reads from its factory again, never over its own last read; a failed read keeps the last, and is logged. */
+  /** How many drawings of the notes are open, and whether the factory's notes changed, or were never read, while none was. */
+  let viewers = 0, inheritedStale = true;
+  /** Read the notes the project reads from its factory again, never over its own last read; a failed read keeps the last, and is logged. With nothing drawing the notes, the read waits for the first drawing. */
   const readInherited = (): void => {
     if (host?.inherited === undefined) return;
+    if (viewers === 0) { inheritedStale = true; return; }
+    inheritedStale = false;
     if (inheritedOut) { inheritedAgain = true; return; }
     inheritedOut = true;
     host.inherited(project).then((records) => {
@@ -142,6 +148,12 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
       selections.add(listener);
       return () => selections.delete(listener);
     },
+    view() {
+      viewers += 1;
+      if (inheritedStale) readInherited();
+      let open = true;
+      return () => { if (open) { open = false; viewers -= 1; } };
+    },
     get: () => state,
     set(next) {
       state = { ...state, ...next };
@@ -160,7 +172,7 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
       }
       const taken = [...history];
       store.set({ history: taken, ...drawing(state.inherited, taken), version: state.version + 1 });
-      // A longer history may be an edit of a factory note, or follow a change to the factory: read its notes again.
+      // A longer history may be an edit of a factory note, or follow a change to the factory: read its notes again, once they are drawn.
       readInherited();
     },
     dispose() {
@@ -169,7 +181,6 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
       selections.clear();
     },
   };
-  readInherited();
   return store;
 }
 
@@ -226,6 +237,8 @@ export function KnowledgeGlobePoints({ core, places, growth, sheet }: {
   places?: CodePlaces;
 }) {
   const store = core as Store;
+  // While the notes hang here, the factory's are read with them; none are read for a map that hangs none (ADR-1062 D4 as narrowed).
+  useEffect(() => store.view(), [store]);
   const state = useSyncExternalStore(store.subscribe, store.get);
   const known = useMemo(() => knowledge(state.drawn), [state.drawn]);
   // Live updates that change nothing the sheet lays out keep its layout (Live updates never freeze the globe).

@@ -52,11 +52,13 @@ test("7.2, 7.8 · in a real browser, a running session's subagent waits behind i
   assert.deepEqual(summary, { closed: 2, folded: 0, children: 1, worktrees: 3, blocks: ["Worktrees"] });
 });
 
-test("3.55 · in a real browser, pressing Library or Stories leaves the eye and the sheet exactly where the user tilted them, from above, side on and from below; the look follows the button, never the tilt", { timeout: 200_000 }, async () => {
+test("3.55 · in a real browser, pressing Library or Stories leaves the eye and the sheet exactly where the user tilted them, from above, side on and from below; the look follows the button, never the tilt, and only Library hangs the notes", { timeout: 200_000 }, async () => {
   const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(libraryLookFolder, "capture.mjs"), "--smoke"],
     { cwd: checkout, timeout: 180_000, env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } });
   const summary = JSON.parse(stdout.trim().split("\n").findLast(line => line.startsWith("{"))!);
   // At each tilt: Stories draws solid islands, Library outlines only, and neither press moved the eye.
   const both = { stories: true, library: true };
-  assert.deepEqual(summary, { unmoved: ["above", "side-on", "below"], looks: { above: both, "side-on": both, below: both } });
+  // And turning the map on Stories hangs no note at any tilt; Library hangs them (ADR-1340 D1).
+  const notes = { stories: 0, library: true };
+  assert.deepEqual(summary, { unmoved: ["above", "side-on", "below"], looks: { above: both, "side-on": both, below: both }, notes: { above: notes, "side-on": notes, below: notes } });
 });

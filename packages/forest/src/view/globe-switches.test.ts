@@ -23,9 +23,9 @@ test("3.9 with the Surfaces menu's Library off, only Stories is offered, with no
   assert.equal(globeLayers({ stories: false, library: true }, false).shown, false, "Stories off leaves nothing to draw");
 });
 
-test("3.55 the glass sheet's Stories and Library buttons are two looks, one pressed at a time, each the mode it draws: a launch opens on Stories, and with the Surfaces menu's Library off only Stories is offered", () => {
+test("3.55 the glass sheet's Stories and Library buttons are two looks, one pressed at a time, each the mode it draws, and only Library hangs the notes beneath: a launch opens on Stories, and with the Surfaces menu's Library off only Stories is offered", () => {
   assert.equal(LAUNCH_FACE, "stories");
-  assert.deepEqual(sheetFaces("stories", true), { mode: "forest", library: true, pressed: { stories: true, library: false }, offered: ["stories", "library"] });
+  assert.deepEqual(sheetFaces("stories", true), { mode: "forest", library: false, pressed: { stories: true, library: false }, offered: ["stories", "library"] });
   assert.deepEqual(sheetFaces("library", true), { mode: "library", library: true, pressed: { stories: false, library: true }, offered: ["stories", "library"] });
   assert.deepEqual(sheetFaces("library", false), { mode: "forest", library: false, pressed: { stories: true, library: false }, offered: ["stories"] });
 });

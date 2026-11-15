@@ -3,7 +3,8 @@
 // and just show their outline. the user controls the rotation not the buttons."). Drawn by the actual desktop page from the
 // capture kit's `code-rows` seed, storytree's own library. At three tilts the user gave by a real right-drag (from above, side
 // on, from below), a real press of Library and then of Stories each leaves the eye and the sheet exactly where they were,
-// while the glass clears and the islands become outlines, and back. Run from the checkout root, in the foreground:
+// while the glass clears and the islands become outlines, and back. Only Library hangs the notes beneath: on Stories, at every
+// tilt, none is laid out or drawn (ADR-1340 D1, increment_f205354a6398). Run from the checkout root, in the foreground:
 //   node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/testing/view/glass-library-look/capture.mjs --retake
 // With --smoke it takes no pictures and prints one line of JSON for the real-browser test (3.55).
 import assert from 'node:assert/strict';
@@ -34,16 +35,17 @@ const measure = page => page.evaluate(() => {
   scene.updateMatrixWorld(true); camera.updateMatrixWorld(true);
   const glass = scene.getObjectByName('sheet:glass');
   const round = elements => [...elements].map(x => Math.round(x * 1e4) / 1e4);
-  let notes = 0, filled = 0, coasts = 0;
+  let notes = 0, hung = 0, filled = 0, coasts = 0;
   const under = scene.getObjectByName('sheet:under');
   if (under?.visible) under.traverseVisible(object => { if (object.name.startsWith('knowledge-point:')) notes++; });
+  under?.traverse(object => { if (object.name.startsWith('knowledge-point:')) hung++; });
   scene.traverseVisible(object => { if (['island-ground', 'island-side'].includes(object.name)) filled++; if (object.name.startsWith('island-coast')) coasts++; });
   return {
     eye: round(camera.matrixWorld.elements), lens: [camera.fov, camera.zoom], sheet: round(glass.parent.matrixWorld.elements),
     tiltDeg: Math.round(new V(0, 0, 1).applyQuaternion(glass.parent.getWorldQuaternion(new Q())).angleTo(new V(0, 0, 1).applyQuaternion(camera.quaternion)) * 1800 / Math.PI) / 10,
     pressed: Object.fromEntries([...document.querySelectorAll('[data-globe-switch]')].map(b => [b.dataset.globeSwitch, b.getAttribute('aria-pressed')])),
     pane: Math.round([scene.getObjectByName('sheet:pane').material].flat()[0].opacity * 100) / 100,
-    notesShown: notes, filled, coasts,
+    notesShown: notes, notesHung: hung, filled, coasts,
   };
 });
 
@@ -70,7 +72,6 @@ const { results: summary, out } = await withCapture({ folder: evidence, dist }, 
     if (document.body.dataset.state !== 'ready' || !state || !state.scene.getObjectByName('sheet:glass')) return false;
     return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
   }, seed.tree.stories.map(s => s.id), { timeout: 180000 });
-  await page.waitForFunction(() => { let n = 0; window.__globe.scene.getObjectByName('sheet:under')?.traverse(o => { if (o.name.startsWith('knowledge-point:')) n++; }); return n > 0; }, undefined, { timeout: 180000 });
   for (const name of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   const box = await page.locator('canvas').first().boundingBox();
@@ -87,6 +88,8 @@ const { results: summary, out } = await withCapture({ folder: evidence, dist }, 
   /** Press a button, then wait past the 0.9 s the old swing took, so an eye that moved would be caught where it went. */
   const press = async which => {
     await page.locator(`[data-globe-switch="${which}"]`).click();
+    // Library lays its notes out a few steps to a task once pressed: wait until they hang.
+    if (which === 'library') await page.waitForFunction(() => { let n = 0; window.__globe.scene.getObjectByName('sheet:under')?.traverse(o => { if (o.name.startsWith('knowledge-point:')) n++; }); return n > 0; }, undefined, { timeout: 180000 });
     await page.mouse.move(2, 2);
     await page.waitForTimeout(1200);
     await settle(page, 12);
@@ -119,17 +122,18 @@ const { results: summary, out } = await withCapture({ folder: evidence, dist }, 
     assert.ok(library.filled === 0 && library.coasts > 0, `${name}: in Library every island is an outline (${library.filled} filled, ${library.coasts} coasts)`);
     assert.ok(library.notesShown > 0, `${name}: in Library the graph beneath shows`);
     assert.ok(back.filled > 0 && back.pane === stories.pane, `${name}: Stories brings back smoked glass and solid islands`);
-    if (name === 'above') assert.equal(stories.notesShown, 0, 'from well above, the smoked glass hides the graph (D4)');
-    else assert.ok(stories.notesShown > 0, `${name}: tilted toward level or below, the graph shows in Stories too (D4)`);
+    assert.equal(stories.notesHung, 0, `${name}: on Stories no note hangs beneath the glass, shown or not (ADR-1340 D1)`);
+    assert.equal(back.notesHung, 0, `${name}: pressing Stories again lets the notes go (ADR-1340 D1)`);
     results[name] = { tiltDeg: stories.tiltDeg, stories: look(stories), library: look(library) };
   }
   assert.deepEqual(errors, []);
   return { results, out };
 });
 
-function look({ pressed, pane, notesShown, filled, coasts }) {
-  return { pressed: pressed.library === 'true' ? 'library' : 'stories', pane, notesShown, filled, coasts };
+function look({ pressed, pane, notesShown, notesHung, filled, coasts }) {
+  return { pressed: pressed.library === 'true' ? 'library' : 'stories', pane, notesShown, notesHung, filled, coasts };
 }
 
-if (smoke) console.log(JSON.stringify({ unmoved: Object.keys(summary), looks: Object.fromEntries(Object.entries(summary).map(([name, r]) => [name, { stories: r.stories.filled > 0, library: r.library.filled === 0 }])) }));
+if (smoke) console.log(JSON.stringify({ unmoved: Object.keys(summary), looks: Object.fromEntries(Object.entries(summary).map(([name, r]) => [name, { stories: r.stories.filled > 0, library: r.library.filled === 0 }])),
+  notes: Object.fromEntries(Object.entries(summary).map(([name, r]) => [name, { stories: r.stories.notesHung, library: r.library.notesHung > 0 }])) }));
 else writeFileSync(path.join(out, 'measurements.json'), JSON.stringify({ viewport, seed: 'code-rows', results: summary }, null, 1) + '\n');

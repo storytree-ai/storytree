@@ -16,3 +16,5 @@ settlement symbols shown and no territory junction; after, no symbol and 14, 10,
 
 Taken by `node --import tsx packages/forest/testing/view/road-junctions/capture.mjs before|after` (append `--retake`
 to write here).
+
+In the evidence bucket for #872, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `872/before-the-agent-link-near.png`, `872/before-the-command-line-near.png`, `872/before-the-dev-loop-near.png`, `872/before-the-library-far.png`, `872/before-the-library-near.png`, `872/after-the-agent-link-near.png`, `872/after-the-command-line-near.png`, `872/after-the-dev-loop-near.png`, `872/after-the-library-far.png`, `872/after-the-library-near.png`, `872/before-measurements.json`, `872/after-measurements.json`.

@@ -11,9 +11,9 @@
  * other machine's host name) also requires that machine's latest line before its own, in order.
  * The proof is three runs: the box, the laptop naming the box, the box naming the laptop.
  *
- * Without the address the live test is not registered at all rather than skipped: CI cannot reach
- * the box, and a skipped test would leave 2.5 "not checked" on every CI run, although the local
- * half proves the behaviour on each one.
+ * Without the address the live test skips, visibly, as the owner's to run: CI cannot reach the box.
+ * Its title carries no contract number, so that skip leaves 2.5 judged by the local half, which
+ * proves the behaviour on every run, rather than "not checked" on every CI run.
  */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -87,6 +87,6 @@ test(`${CONTRACT} (local server)`, () => twoMachines({ url: testServerUrl() }));
 
 const shared = process.env.STORYTREE_TEST_SHARED_LIBRARY ?? "";
 const peer = process.env.STORYTREE_TEST_SHARED_LIBRARY_PEER || undefined;
-if (shared !== "") {
-  test(`${CONTRACT} (shared library, live)`, () => onSharedLibrary(shared, peer));
-}
+test("the shared library's activity log reads back a line from this machine in order, after the other machine's when named (live, two machines)", {
+  skip: shared === "" ? "owner: the live two-machine proof needs STORYTREE_TEST_SHARED_LIBRARY (and _PEER), run on the laptop and the Mint box" : false,
+}, () => onSharedLibrary(shared, peer));

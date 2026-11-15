@@ -1,7 +1,7 @@
 /**
  * Capability 4 · Sessions, the listing (contract 4.13): the running-sessions list as the command
  * line shows it, one block per session, or as JSON. By default
- * the sessions the list shows (listed and done); with `all`, the hidden ones too. Given a `look`, it first asks whether each branch has
+ * the sessions the list shows (listed and done); with `all`, the hidden ones too. One session alone, by its id, is `sessionShown`. Given a `look`, it first asks whether each branch has
  * merged, as the board does for claims, so the list never waits on a hook to have recorded a merge.
  */
 import type { ActivityLog } from "../activity/index.js";
@@ -32,6 +32,17 @@ export async function sessionsListing(log: ActivityLog, project: string, options
   const count = `${shown.length} session${shown.length === 1 ? "" : "s"}${options.all === true ? "" : " in the list"}`;
   const header = hidden === 0 ? `${count}.` : `${count}; ${hidden} hidden (--all shows them).`;
   return [header, ...shown.map((session) => block(session, options.names))].join("\n\n");
+}
+
+/**
+ * One session, `id`, as the list shows it (contract 4.53), hidden or not, as text or JSON; undefined when the log has
+ * no line of it.
+ */
+export async function sessionShown(log: ActivityLog, project: string, id: string, options: Omit<ListingOptions, "all"> = {}): Promise<string | undefined> {
+  if (options.look !== undefined) await resolveBranches(options.look.context, { ...options.look.watch, everyMs: 0 }).catch(() => []);
+  const [session] = (await readSessions(log, project, { ...options, of: [id] })).filter((one) => one.session === id);
+  if (session === undefined) return undefined;
+  return options.json === true ? JSON.stringify(session, undefined, 2) : block(session, options.names);
 }
 
 /** One session as a few plain lines. */

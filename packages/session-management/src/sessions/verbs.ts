@@ -132,6 +132,26 @@ const list = verb({
   },
 });
 
+const show = verb({
+  command: { family: "session", name: "show", summary: "one session as the sessions list shows it, hidden or not: this one unless another's id is given" },
+  tool: { absent: "an agent reads who is on what from show_plan; the sessions list is the owner's view of every session" },
+  inputs: {
+    session: { kind: "text", word: 0, optional: true, describe: "the session's id; this session unless given" },
+    json: { kind: "switch", describe: "as JSON" },
+  },
+  async act({ session: id, json }, { log, server, project, folder, session, harness }: SessionVerbContext) {
+    const shown = id ?? session;
+    if (shown === undefined) throw new VerbRefusal("No session runs this command, so name the one to show: storytree session show <session>.", { misuse: true });
+    const look = { context: { log, project, folder, session, ...(harness === undefined ? {} : { harness }), source: "tool" } } as const;
+    const { sessionShown } = await import("./listing.js");
+    const { machineNames } = await import("../machines/machines.js");
+    const names = server === undefined ? undefined : await machineNames(server).catch(() => undefined);
+    const text = await sessionShown(log, project, shown, { json, look, ...(names === undefined ? {} : { names }) });
+    if (text === undefined) throw new VerbRefusal(`The activity log has no line of session ${shown} in this project.`);
+    return json ? { text } : { text, next: [{ command: "session list --all", why: "every session, the hidden ones too" }] };
+  },
+});
+
 const hookTimes = verb({
   command: { family: "session", name: "hook-times", summary: "how long the hooks took, by harness, event and machine, over the last days (7 unless --days)" },
   tool: { absent: "how long hooks take is the owner's and the developers' reading of the machines, not an agent's step" },
@@ -165,12 +185,12 @@ const reads = verb({
 });
 
 /** The session verbs, in the order the command line lists them. */
-export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, name, point, message, closeOut, hookTimes, reads];
+export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, show, name, point, message, closeOut, hookTimes, reads];
 
 /** The command line's families of these verbs, each at its place among `storytree`'s families. */
 export const SESSION_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [
   { name: "noticeboard", summary: "who is on what right now (read only)", order: 5, verbs: NOTICEBOARD_VERBS, bare: NOTICEBOARD_BOARD },
   { name: "context", summary: "how full this session's context is (Session management's)", order: 31, verbs: [], bare: CONTEXT_READING },
-  { name: "session", summary: "list the running sessions, name this one, point the owner's eye, message a running lane, close it out, or read how long hooks took and what the library sent each reader (Session management's)", order: 33, verbs: SESSION_VERBS },
+  { name: "session", summary: "list the running sessions, show one, name this one, point the owner's eye, message a running lane, close it out, or read how long hooks took and what the library sent each reader (Session management's)", order: 33, verbs: SESSION_VERBS },
   { name: "machine", summary: "the computers that work on this project, and this one's short name (Session management's)", order: 34, verbs: MACHINE_VERBS },
 ];

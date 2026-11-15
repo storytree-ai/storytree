@@ -82,3 +82,31 @@ test("4.44 · point_at takes a gate beside its capability, on either door: it po
     await log.close();
   }
 });
+
+test("4.53 · storytree session show gives one session as the sessions list shows it, this session unless another is named, hidden ones included; a session the log has no line of is refused by its id", async () => {
+  const show = SESSION_VERBS.find((one) => "name" in one.command && one.command.name === "show");
+  assert.ok(show, "the session family has a show");
+  const log = await openActivityLog(testServerUrl());
+  try {
+    const project = uniqueProjectName();
+    const context = { log, library: {} as Library, project, session: "claude-1", harness: "claude-code", folder: tmpdir() };
+    await log.append(project, { session: "claude-1", harness: "claude-code", source: "hook", kind: "session-named", title: "Building signup" });
+    await log.append(project, { session: "lane-2", harness: "codex", source: "hook", kind: "prompt-submitted" });
+    await log.append(project, { session: "lane-2", harness: "codex", source: "hook", kind: "closed-out", safe: true, why: "PR 9 merged", running: 0 });
+
+    const own = await show.act({ json: false }, context, DOORS.command);
+    assert.match(own.text, /^Claude Code claude-1: /);
+    assert.match(own.text, /named: Building signup/);
+    assert.doesNotMatch(own.text, /lane-2/);
+
+    const other = await show.act({ session: "lane-2", json: false }, context, DOORS.command);
+    assert.match(other.text, /^Codex lane-2: /);
+    assert.match(other.text, /closed out .*: safe \(PR 9 merged\)/);
+    const json = JSON.parse((await show.act({ session: "lane-2", json: true }, context, DOORS.command)).text) as { session: string };
+    assert.equal(json.session, "lane-2");
+
+    await assert.rejects(show.act({ session: "nobody-3", json: false }, context, DOORS.command), (error: unknown) => error instanceof VerbRefusal && error.message.includes("nobody-3"));
+  } finally {
+    await log.close();
+  }
+});

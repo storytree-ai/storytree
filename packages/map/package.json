@@ -12,7 +12,8 @@
     "./read": "./src/read.ts",
     "./tools": "./src/tools.ts",
     "./tree-sitter-bundle": "./src/code-survey/tree-sitter-bundle.ts",
-    "./verbs": "./src/verbs.ts"
+    "./verbs": "./src/verbs.ts",
+    "./pin-verbs": "./src/pins/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -53,6 +54,10 @@
       {
         "from": "./verbs",
         "export": "MAP_FAMILIES"
+      },
+      {
+        "from": "./pin-verbs",
+        "export": "PIN_FAMILIES"
       }
     ]
   }

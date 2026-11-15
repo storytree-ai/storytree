@@ -48,6 +48,11 @@
         "from": ".",
         "export": "codeGuidance",
         "order": 50
+      },
+      {
+        "from": "./pin-verbs",
+        "export": "pinGuidance",
+        "order": 51
       }
     ],
     "verbs": [

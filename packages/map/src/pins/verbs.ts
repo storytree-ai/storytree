@@ -116,7 +116,12 @@ const pinRetire: Verb<typeof retireInputs, PinVerbContext> = {
   },
 };
 
+/** What the habits card says of the pins, named under `guidance` in the package's manifest beside the map's. */
+export const pinGuidance: readonly string[] = [
+  "Pin a lasting finding on the map with `pin`; `pins` lists them, `retire_pin` retires one.",
+];
+
 /** The command line's `pin` family, beside the map's. */
 export const PIN_FAMILIES: readonly VerbFamily<PinVerbContext>[] = [
-  { name: "pin", summary: "agents' lasting pins on the map, with their evidence: new, list, retire", order: 18, verbs: [pinNew, pinList, pinRetire] as Verb<VerbInputs, PinVerbContext>[] },
+  { name: "pin", summary: "agents' lasting pins on the map, with their evidence: new, list, retire", order: 17.5, verbs: [pinNew, pinList, pinRetire] as Verb<VerbInputs, PinVerbContext>[] },
 ];

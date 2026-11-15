@@ -43,3 +43,11 @@ test("3.86 · the map's level is told to its listeners only when a zoom changes 
   store.zoom(FLOOR / 2);
   assert.deepEqual([store.get(), heard], ["territories", 2], "below the floor nothing hides");
 });
+
+test("3.112 · nearer still, past the parts threshold, the map shows its parts level, with the near marks still shown", () => {
+  assert.equal(detailAt(DETAIL_ZOOM.near * 4), "near", "The library's near camera stop opens nothing");
+  assert.equal(detailAt(DETAIL_ZOOM.parts * 1.2), "parts");
+  assert.equal(detailAt(DETAIL_ZOOM.parts * (1 - DETAIL_SLACK / 2), "parts"), "parts", "a wobble within its slack keeps it");
+  assert.equal(detailAt(DETAIL_ZOOM.parts * (1 - DETAIL_SLACK * 1.5), "parts"), "near");
+  assert.equal(detailAt(DETAIL_ZOOM.parts * (1 + DETAIL_SLACK / 2), "near"), "near");
+});

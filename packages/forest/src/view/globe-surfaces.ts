@@ -1,7 +1,7 @@
 /** Capability 3 · Story node render. */
 import type { BufferAttribute, Color, Group, LineSegments, Mesh, MeshBasicMaterial, Object3D } from "three";
 import { filledUnder } from "./territory-land.js";
-import type { Detail } from "./zoom-detail.js";
+import { showsNear, type Detail } from "./zoom-detail.js";
 
 /** The app's attention switches, also available to guides mounted outside the app. */
 export type GlobeSurfaces = {
@@ -39,7 +39,7 @@ const drawnBy = new WeakMap<Object3D, { eased: number; from: Look | undefined }>
 export function presentTerritories(group: Group, mode: GlobeSurfaces["territories"]): void {
   presentation.set(group, mode);
   // 3.86: the territories show at every zoom, the roads and relief only near; only what shows changes, never a shape.
-  const land = mode !== false, near = land && (shownDetail.get(group) ?? "near") === "near";
+  const land = mode !== false, near = land && showsNear(shownDetail.get(group) ?? "near");
   for (const mark of group.children) {
     if (mark.name.startsWith("territory:")) {
       const grown = grownBy.get(mark) ?? 1;

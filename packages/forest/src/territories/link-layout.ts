@@ -102,7 +102,7 @@ export function prepareIsland(shares: readonly TerritoryShare[], coast: Coast, l
   return finished(prepareIslandSteps(shares, coast, links, given));
 }
 
-function* prepareIslandSteps(shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], given: readonly LinkDock[]): Generator<void, PreparedIsland | undefined, void> {
+export function* prepareIslandSteps(shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], given: readonly LinkDock[]): Generator<void, PreparedIsland | undefined, void> {
   const scale = Math.sqrt(landArea(coast) / LIBRARY_LAND);
   if (!(scale > 0)) return undefined;
   const ground = coast.map((ring) => ring.map((p) => times(p, 1 / scale)));
@@ -203,7 +203,7 @@ export function settle(island: PreparedIsland, seeds: readonly number[]): { owne
 }
 
 /** {@link settle}, a try at growing to a step (3.87). */
-function* settleSteps(island: PreparedIsland, seeds: readonly number[]): Generator<void, { owners: number[]; seeds: readonly number[] } | undefined, void> {
+export function* settleSteps(island: PreparedIsland, seeds: readonly number[]): Generator<void, { owners: number[]; seeds: readonly number[] } | undefined, void> {
   const { fine: { cells }, ids, main } = island;
   let state = 43;
   const random = () => { state = (state * 1103515245 + 12345) & 0x7fffffff; return state / 0x7fffffff; };

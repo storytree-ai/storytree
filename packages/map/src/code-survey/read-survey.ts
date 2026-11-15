@@ -21,6 +21,7 @@
  * - A mapped story is read from the folder this machine imports it from, as mapped-survey.ts reads it
  *   (ADR-0993 D2), never from the checkout's packages. A story's package dependency on a mapped story's
  *   package is a road to it, as one on another story's package is (ADR-0993 D8).
+ * - Each story's survey carries its capabilities' nested parts and the imports reaching round a part's entry (nested-parts.ts, 8.67).
  * - A reader given a keep folder keeps each checkout's last survey of a fetched main there, by commit, plan and
  *   survey code: a start that finds main unmoved and the plan the same answers from it, reading and parsing no
  *   file (8.25). A commit is immutable, so a kept survey cannot be stale. A plan with mapped stories is not kept:
@@ -43,6 +44,7 @@ import { parsePythonNow, pythonLanguage } from "./tree-sitter.js";
 import { pytestTestedNumbers } from "./python-tests.js";
 import { folderLanguages } from "./folder-languages.js";
 import { drawImportedStory, manifestsOf, type Drawing } from "./drawing.js";
+import { nestedParts } from "./nested-parts.js";
 import { readsForStores, storesOf, type SharedStore } from "./stores.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
@@ -644,6 +646,9 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
         imports: measured.imports.map(relativeImport),
         tests: (measured.tests ?? []).map((file) => ({ ...file, path: inPackage(file.path), imports: file.imports.map(relativeImport) })),
       };
+      // Its capabilities' nested parts and the imports reaching round a part's entry (ADR-1339 D1).
+      const parts = nestedParts(fresh, read.length === 0 ? [""] : read.map((pkg) => inPackage(pkg.root)));
+      if (parts !== undefined) Object.assign(fresh, { parts });
       surveyed.set(story.id, { files, capabilities, packages, survey: fresh });
       return [[story.id, fresh, read, sources.map(inRepository), base] as const];
     }));

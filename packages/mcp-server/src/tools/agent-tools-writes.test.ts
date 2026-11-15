@@ -426,7 +426,7 @@ test("6.17 another story registers its tools on this server, sharing routing, th
       const instructions = agent.instructions()!;
       assert.ok(instructions.includes(extension.instructions!));
       // The card names every tool but a harness's own (ADR-1056 D2).
-      assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), (await agent.tools()).filter((tool) => tool !== "hook_event" && tool !== "heartbeat"));
+      assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), (await agent.tools()).filter((tool) => tool !== "hook_event" && tool !== "heartbeat" && tool !== "lane_messages"));
       // A section costs its words, not two lines whatever its length (ADR-1113 D1).
       assert.ok(cardWords(instructions) <= CARD_WORD_BUDGET);
     });
@@ -749,6 +749,26 @@ test("10.4 correct_question corrects an open question's wording in place: only t
       assert.equal(settled.isError, true);
       assert.match(settled.text, /settled/);
       assert.deepEqual([(await wordsOf(question))?.title, (await wordsOf(question))?.answer], ["Which mailer?", "Mailgun"]);
+    });
+  });
+});
+
+test("10.22 correct_question records on a settled question the capabilities the owner's answer leaves unbuilt; an open question gets a readable refusal, recording none", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc, capability } = await planned(agent);
+      const question = idOf(await agent.call("raise_question", { arc, title: "Build the form?", stakes: "Sign-up", statement: "Build it now?", context: "It waits", options: "A. Build it. B. Leave it unbuilt." }));
+      const unbuiltOf = async () => (await library.arcView(arc))?.questions.find((one) => one.id === question)?.fields.unbuilt;
+
+      const open = await agent.call("correct_question", { question, unbuilt: [capability] });
+      assert.equal(open.isError, true);
+      assert.match(open.text, /open/);
+      assert.equal(await unbuiltOf(), undefined);
+
+      await agent.call("settle_question", { question, answer: "Leave it unbuilt" });
+      const recorded = await agent.call("correct_question", { question, unbuilt: [capability] });
+      assert.equal(recorded.isError, false, recorded.text);
+      assert.deepEqual(await unbuiltOf(), [capability]);
     });
   });
 });

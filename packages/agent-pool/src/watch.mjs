@@ -15,7 +15,7 @@
 // node packages/agent-pool/src/watch.mjs verdict <pr> flake|elsewhere|fix|owner --summary <text> [--parked <increment>] [--question <id>]   (a review session's one verdict, 4.37)
 import { execFile, spawn as spawnChild } from "node:child_process";
 import { existsSync, openSync } from "node:fs";
-import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
@@ -25,9 +25,9 @@ import { promisify } from "node:util";
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { LANE_RUN, storytreeCommand } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
-import { codeVersion, countEngines, holdRunner, localBrief } from "./queue.mjs";
+import { codeVersion, countEngines, holdRunner, localBrief, processTable, WINDOWS_PROCESSES } from "./queue.mjs";
 import { EXEMPTIONS_EVERY_MS, exemptionChanges, watchExemptions } from "./exemptions-watch.mjs";
-import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, readWait, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases } from "./release-watch.mjs";
+import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, raisedSince, readWait, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases, writeWhole } from "./release-watch.mjs";
 
 /**
  * The code the watcher runs (4.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
@@ -41,13 +41,15 @@ export const WATCH_CODE = ["watch.mjs", "release-watch.mjs", "exemptions-watch.m
 
 const run = promisify(execFile);
 const RED = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR"]);
+/** GitHub's annotation on a check whose run a newer run of its concurrency group replaced (4.60). */
+const SUPERSEDED = /^Canceling since a higher priority waiting request for .+ exists/;
 // The queue's removals that the Requeue workflow puts back once; one it left out past its grace is red.
 const EJECTED = new Set(["FAILED_CHECKS", "BRANCH_PROTECTION_FAILURE"]);
 export const MARKS = [/watch\.mjs run( |$)/];
 const LOOP_MARKS = [/watch\.mjs watch( |$)/];
 
 /** Whether a process's command line is a fix session's runner (4.26). */
-export const isFixSession = (args) => /agent-pool\/src\/runner\.mjs run /.test(args);
+export const isFixSession = (args) => /agent-pool[\\/]src[\\/]runner\.mjs run /.test(args);
 /** The node arguments that start lane runner `runner` with `args`: under tsx's loader, as the dispatcher's lanes run, so its exit recorder loads storytree's TypeScript (4.57). */
 export const runnerStart = (runner, args) => ["--import", import.meta.resolve("tsx"), runner, ...args];
 /** The look loop's exit when the dev loop's code in the shared checkout changed: `run` starts it again, on the new code. */
@@ -76,12 +78,15 @@ export function readPull(pull, { since, now, graceMs, home = HOME }) {
   if (pull.state === "MERGED") return { state: "merged", head };
   if (pull.state === "CLOSED") return { state: "closed", head };
   const checks = pull.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
-  const failed = checks.filter((check) => RED.has(check.conclusion ?? check.state));
+  // The Actions runs failed checks belong to, by their details link, for runnerReruns (4.29) and scanSetup (4.56).
+  const runOf = (check) => /\/actions\/runs\/(\d+)\//.exec(check.detailsUrl ?? "")?.[1];
+  // A run cancelled because a newer run of its concurrency group took its place failed nothing: GitHub annotates
+  // some of its checks so, and cancels the rest with no word because their run was (4.60).
+  const superseded = new Set(checks.filter((check) => check.annotations?.nodes?.some((one) => SUPERSEDED.test(one?.message ?? ""))).map(runOf).filter(Boolean));
+  const failed = checks.filter((check) => RED.has(check.conclusion ?? check.state) && !(check.conclusion === "CANCELLED" && superseded.has(runOf(check))));
   const why = failed.map((check) => `${check.name ?? check.context} failed`).join("; ");
   const logs = failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean);
   const names = failed.map((check) => check.name ?? check.context).filter(Boolean);
-  // The Actions runs failed checks belong to, by their details link, for runnerReruns (4.29) and scanSetup (4.56).
-  const runOf = (check) => /\/actions\/runs\/(\d+)\//.exec(check.detailsUrl ?? "")?.[1];
   const runsOf = (checks) => {
     const ids = checks.map(runOf);
     return ids.length && ids.every(Boolean) ? { runs: [...new Set(ids.map(Number))] } : {};
@@ -196,7 +201,7 @@ const VIEW = ["--json", "headRefName,isCrossRepository,headRepository,headReposi
 const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
   id state isDraft headRefOid headRefName isCrossRepository headRepository { nameWithOwner } mergeable mergeQueueEntry { state } labels(first: 100) { nodes { name } }
   commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
-    __typename ... on CheckRun { name status conclusion detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }
+    __typename ... on CheckRun { name status conclusion detailsUrl annotations(first: 5) { nodes { message } } } ... on StatusContext { context state targetUrl } } } } } } }
   timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 20) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason
     beforeCommit { oid parents(first: 2) { nodes { oid } } } } } }
 } } }`;
@@ -398,7 +403,7 @@ export async function releasesOnGitHub({ repo, now = Date.now }) {
 const recordPath = (dir, pr) => join(dir, `${pr}.json`);
 /** The look loop's pid and the code version it started on, for `status` (4.21). */
 const versionPath = (dir) => join(dir, "watch-loop.version");
-const save = (dir, record) => writeFile(recordPath(dir, record.pr), `${JSON.stringify(record, null, 2)}\n`);
+const save = (dir, record) => writeWhole(recordPath(dir, record.pr), `${JSON.stringify(record, null, 2)}\n`);
 
 async function records(dir) {
   const names = await readdir(dir).catch((error) => { if (error.code === "ENOENT") return []; throw error; });
@@ -620,7 +625,8 @@ Your job is that pull request and nothing else. Work from {checkout} and follow 
   The claims are held for PR #${pr} until it merges; working on its branch, you take them over (ADR-1037 D2).
 ${security ? securitySteps({ pr, increment, checks: security, closed, project, use })
     : `- Read the failing log (\`gh run view <run> --log-failed\`, or \`gh pr checks ${pr}\`). Suspect a stale branch first: ${use.stale}. Then fix what is really broken, see ${use.gate} green and push.`}
-  Never force-push, squash or \`gh pr merge\`.
+  Never force-push, squash or \`gh pr merge\`. Before every push, read \`gh pr view ${pr} --json state\`: once it is not OPEN
+  (merged through the queue, or closed), push nothing, close out and end, since a push would re-create its deleted branch.
 - You exit when you end a turn: a session that ends its turn to wait exits at once, and its uncommitted work is stranded.
   So run ${use.tests} in the foreground and stay in the turn until ${use.until},
   however long the run queues behind another lane's; this overrides the general guidance to run them in the background.
@@ -719,7 +725,7 @@ reviewed again (4.37). At the cap the increment waits on the owner with the last
  * (`record.project.repo`, 4.49) is all that project's: every library step is taken in its library, its fix and review sessions
  * start in its checkout with its own commands.
  */
-export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, rerun, refresh, behind, enqueue, reached, alive, room, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
+export async function watchOnce({ dir, look, stateOf, storytree, cutover = async () => undefined, startFix, startReview, startedAs = async () => undefined, rerun, refresh, behind, enqueue, reached, alive, room, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -782,6 +788,20 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     return true;
   };
   const all = await records(dir);
+  // A session start written down as begun but never as done: the watcher stopped between the two, so it looks for the
+  // session's log and process, and adopts and counts one that started, or forgets one that never did (4.58).
+  for (const record of all) {
+    if (!record.starting) continue;
+    const { kind, n, entry } = record.starting;
+    const found = await startedAs({ name: `${kind}-${record.pr}-${n}`, since: entry.at });
+    if (found) {
+      record.fixing = found.pid ? { pid: found.pid } : null;
+      record.fixes.push({ ...entry, ...(found.pid ? { pid: found.pid } : {}), log: found.log });
+    }
+    delete record.starting;
+    await save(dir, record);
+    dated(`PR #${record.pr}: ${kind} session ${n} ${found ? `had started before the watcher stopped, and is counted${found.pid ? " and watched" : ""}` : "never started before the watcher stopped"}`);
+  }
   // The sessions running at this look, by pull request, and whether each is merging a conflict with main or reviewing.
   const running = new Map();
   for (const record of all) if (record.fixing && await alive(record.fixing.pid)) running.set(record.pr, { conflict: record.fixes.at(-1)?.conflict ?? false, review: record.fixes.at(-1)?.review ?? false });
@@ -957,6 +977,15 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
       : fixing() || now() < Date.parse(last.refusedAt ?? last.at) + backoff)) continue;
     if (pull.conflict && [...running.values()].some((one) => one.conflict)) continue;
     if (!(await room())) continue;
+    // Its look reads logs and jobs for minutes, in which it can merge through the queue: read again, a session starts
+    // only on one still open, and the next look closes or forgets one that is not (4.61).
+    if (stateOf) {
+      const state = await stateOf(pr, record).catch((error) => `unread (${error.message.split("\n")[0]})`);
+      if (state !== "OPEN") {
+        dated(`PR #${pr} red (${pull.why}), but it reads ${state} now: no ${reviewing ? "review" : "fix"} session, looking again next time`);
+        continue;
+      }
+    }
     // Each red it handles is a pr-red activity line in the hand-off's project, written as its fix session starts (ADR-1064 D4, 4.25).
     await tell(["workspace", "red", String(pr), "--increment", increment, ...(pull.conflict ? ["--conflict"] : []),
       ...(pull.checks ?? []).flatMap((check) => ["--check", check])], record.project);
@@ -967,13 +996,18 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     const lag = !reviewing && behind ? await behind(pull.head, repoOf(record)).catch(() => undefined) : undefined;
     // Another project's session works in its checkout, and reaches the watcher through storytree's (4.49).
     const where = at ? { ...folders, checkout: at.folder, pool: folders.checkout } : folders;
+    const entry = { at: new Date(now()).toISOString(), head: pull.head, ...(reviewing ? { review: true } : pull.security ? { security: true } : {}),
+      ...(pull.conflict ? { conflict: true } : {}), ...(failures && !reviewing ? { units: failures.units, tests: failures.tests } : {}) };
+    // Written before the session starts, so a watcher stopped in between finds it on restart and looks (4.58).
+    record.starting = { kind: reviewing ? "review" : "fix", n, entry };
+    await save(dir, record);
     const session = reviewing
       ? await startReview({ pr, increment, n, ...(at ? { project: at } : {}), brief: localBrief(reviewBrief({ pr, increment, why: pull.why, logs: pull.logs, fixLogs, n, cap, closed: record.closed, project: at }), where) })
       : await startFix({ pr, increment, n, ...(at ? { project: at } : {}), brief: localBrief(fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed,
         review: verdict?.summary, lag, project: at, security: pull.security }), where) });
     record.fixing = { pid: session.pid };
-    record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: session.pid, log: session.log, ...(reviewing ? { review: true } : pull.security ? { security: true } : {}),
-      ...(pull.conflict ? { conflict: true } : {}), ...(failures && !reviewing ? { units: failures.units, tests: failures.tests } : {}) });
+    record.fixes.push({ ...entry, pid: session.pid, log: session.log });
+    delete record.starting;
     running.set(pr, { conflict: Boolean(pull.conflict), review: reviewing });
     await save(dir, record);
     dated(reviewing ? `PR #${pr} red (${pull.why}) past its ${allowed} fix sessions: review session started, log ${session.log}`
@@ -1100,6 +1134,8 @@ export function boxDefaults({ home = homedir(), env = process.env, platform = pr
       repoOf: async (folder) => (await run("gh", ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], { cwd: folder })).stdout.trim() }),
     // The time of a project's repository cut-over, or nothing while it has none (the read refuses).
     cutover: async (project) => (await storytree(["library", "read", "pr-cutover", "--field", "at"], project)).trim(),
+    // A pull request's state alone, read again just before a session starts on it (4.61).
+    stateOf: async (pr, record) => (await run("gh", ["pr", "view", String(pr), "-R", repoOf(record), "--json", "state", "--jq", ".state"], { cwd: repo })).stdout.trim(),
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt, home: repoOf(record),
       seen: new Set((record.queueReds ?? []).map((red) => red.at)) }),
     // Whether commit `sha` is on main (4.52).
@@ -1124,6 +1160,18 @@ export function boxDefaults({ home = homedir(), env = process.env, platform = pr
       const pid = detached(runnerStart(join(script, "..", "runner.mjs"), ["run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
         ...config.addDirs]), `${base}.runner.log`, project?.folder ?? repo);
       return { pid, log: `${base}.log` };
+    },
+    // A session the watcher may have started as `name` at `since`: its runner's log written since then, and the runner's
+    // pid while it runs; nothing when it never started (4.58).
+    startedAs: async ({ name, since }) => {
+      const base = join(dir, name);
+      const log = await stat(`${base}.runner.log`).catch(() => undefined);
+      if (!log || log.mtimeMs < Date.parse(since)) return undefined;
+      // Windows has no ps: its process list read as the same `pid …` table (queue.mjs's processTable).
+      const stdout = platform === "win32" ? processTable((await run(...WINDOWS_PROCESSES, { maxBuffer: 64 * 1024 * 1024 })).stdout)
+        : (await run("ps", ["-eo", "pid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout;
+      const line = stdout.split("\n").find((one) => isFixSession(one) && one.includes(`${base}-brief.md`));
+      return { ...(line ? { pid: Number(line.trim().split(/\s+/)[0]) } : {}), log: `${base}.log` };
     },
     startReview: async ({ pr, n, brief, project }) => {
       const base = join(dir, `review-${pr}-${n}`);
@@ -1177,8 +1225,9 @@ export function boxDefaults({ home = homedir(), env = process.env, platform = pr
         ...Object.entries(question).flatMap(([field, text]) => [`--${field}`, text])], { cwd: repo });
       return /question_\w+/.exec(stdout)?.[0] ?? "a question";
     },
-    startReleaseFix: async ({ n, brief }) => {
-      const base = join(dir, `release-fix-${Date.now()}-${n}`);
+    raised: (asking) => raisedSince(storytree, asking),
+    startReleaseFix: async ({ n, stamp = Date.now(), brief }) => {
+      const base = join(dir, `release-fix-${stamp}-${n}`);
       await writeFile(`${base}-brief.md`, brief);
       const pid = detached(runnerStart(join(script, "..", "runner.mjs"), ["run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
         ...config.addDirs]), `${base}.runner.log`, repo);

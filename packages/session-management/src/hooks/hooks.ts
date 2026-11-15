@@ -61,6 +61,7 @@ import { approvedHere, findProject, openNamedProject, ProjectFolderError, requir
 import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
+import { codexLaneMessages, withFollowUps, withSteers } from "./codex-lane.js";
 import { cursorLines, cursorSession } from "./cursor.js";
 import { piLines, piSession } from "./pi.js";
 import { antigravityLines } from "./antigravity.js";
@@ -215,13 +216,22 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     if (flags.includes(BIG_INJECTION)) return void (await fileBigInjection(parsed));
     // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).
     // It first tells a session whose storytree tools an update stopped, once (3.57).
-    if (flags.includes(CLOSE_OUT_REMINDER)) return toolsStoppedAtTurnEnd(harness, parsed, storytreeHome()) ?? closeOutReminder(harness, parsed, git);
+    // In a Codex pool lane it also keeps the turn going with the messages waiting for the lane (3.61).
+    if (flags.includes(CLOSE_OUT_REMINDER)) {
+      const lane = event === "Stop" ? codexLaneMessages(harness, parsed, "stop", { locate, home: homeOf(locate), connectMs: CONNECT_TIMEOUT_MS }) : undefined;
+      return withFollowUps(toolsStoppedAtTurnEnd(harness, parsed, storytreeHome()) ?? closeOutReminder(harness, parsed, git), await lane);
+    }
     // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
     // The guard storytree's red and green builder agents run before each edit writes nothing either (3.50).
     if (flags.includes(TEST_GUARD)) return testGuard(harness, parsed, flags);
     if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed, guardMs, readsCode);
     // The hook after each shell command that the harness waits for tells the agent of its changes to imported code (ADR-1015), and to capabilities its claims do not cover (ADR-0949 D3).
-    if (flags.includes(SHELL_GUARD)) return await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities, guardMs, git);
+    // After a command in a Codex pool lane it also hands the lane's model the steers waiting for it (3.61), taken beside the guard.
+    if (flags.includes(SHELL_GUARD)) {
+      const lane = event === "PostToolUse" ? codexLaneMessages(harness, parsed, "tool", { locate, home: homeOf(locate), connectMs: CONNECT_TIMEOUT_MS }) : undefined;
+      const guarded = await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities, guardMs, git);
+      return withSteers(guarded, await lane);
+    }
     const made = hookLines(harness, parsed);
     if (flags.includes(UPKEEP)) return void (made === undefined ? undefined : await upkeep(made, merges, locate));
     const asked = promptIn(harness, parsed);

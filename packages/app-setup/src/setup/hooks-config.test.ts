@@ -76,12 +76,16 @@ test("2.15 in a throwaway home with only the tool server installed, the first se
       // call reaches the tool server; the one before a shell command never makes the agent wait; and it
       // waits for the one before a file edit, whose answer may refuse the edit (ADR-0949 D3).
       const before = events.PreToolUse ?? [];
-      assert.equal(before.length, 3, `${harness}: three hooks before a tool`);
+      assert.equal(before.length, 4, `${harness}: four hooks before a tool`);
       const [tools, shell, edit] = [before[0], before.find((entry) => entry.background), before[2]];
       const edited = harness === "claude-code" ? ["Write", "Edit", "MultiEdit", "NotebookEdit"] : ["apply_patch"];
       assert.ok(edit?.background === false && edited.every((tool) => runsFor(edit, tool, anchored)) && !runsFor(edit, "Bash", anchored), `${harness}: in the foreground before a file edit, and no other`);
       assert.ok(runsFor(tools, "mcp__storytree__open", anchored) && !runsFor(tools, "Bash", anchored), `${harness}: in the foreground before a storytree tool, and no other`);
       assert.ok(runsFor(shell, "Bash", anchored) && !runsFor(shell, "mcp__storytree__open", anchored), `${harness}: in the background before a shell command, and no other`);
+      // And a guard in the foreground before a shell command, which refuses a kill fed from a process-list search (3.59).
+      const shellGuards = before.filter((entry) => entry.guard);
+      const shells = harness === "claude-code" ? ["Bash", "PowerShell"] : ["Bash"];
+      assert.ok(shellGuards.length === 1 && !shellGuards[0]!.background && shells.every((tool) => runsFor(shellGuards[0], tool, anchored)) && !runsFor(shellGuards[0], edited[0]!, anchored), `${harness}: a guard in the foreground before a shell command, and no other`);
       assert.equal(events.Stop?.[0]?.background, true, `${harness}: in the background at the end of a turn`);
       // A second, in the foreground, may ask the agent to close out (ADR-0758 D4): the harness reads what it prints.
       assert.equal(events.Stop?.[1]?.background, false, `${harness}: and in the foreground at the end of a turn`);

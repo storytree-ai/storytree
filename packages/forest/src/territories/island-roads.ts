@@ -8,8 +8,8 @@
  * - The links: each one between two of the island's capabilities, between their settlements; and per dock and
  *   capability, one arrival carrying every lane in to it there and one way out carrying every lane out.
  * - Each road ends at its territory's settlement: a clear spot beside its name toward the roads it meets, its whole
- *   symbol (3.4, 4.0 or 4.7 across by the roads meeting there) kept off every name and back from every border and the coast
- *   (3.79, polish round 1).
+ *   clear spot (3.4, 4.0 or 4.7 across by the roads meeting there, where round 12's symbol stood until ADR-1339 D2 made it a
+ *   junction) kept off every name and back from every border and the coast (3.79, polish round 1).
  * - One gate per link (ADR-1253 D3): where it last enters the territory it calls (the way out: where it first leaves its
  *   own), so a pair of neighbours' on their shared border; links whose gates stand together share one. Any other crossing
  *   is open road, and a road under a third territory is in a tunnel: from a portal set back from each border it crosses, on
@@ -41,7 +41,7 @@ export type RoadPass = { readonly at: Point; readonly along: Point; readonly lin
 export type RoadPortal = { readonly at: Point; readonly border: Point; readonly along: Point; readonly into: Point; readonly links: readonly string[]; readonly width: number };
 /** A tunnel's way under the land, from mouth to mouth (or to where it meets another tunnel's way), and the links it carries. */
 export type RoadTunnel = { readonly pts: readonly Point[]; readonly links: readonly string[] };
-/** A settlement: where it stands, how many roads meet there, and its symbol's size across. */
+/** A settlement: where its roads meet, how many, and its clear spot's size across. */
 export type Settlement = { readonly at: Point; readonly roads: number; readonly size: number };
 export type IslandRoads = { readonly segments: readonly RoadSegment[]; readonly junctions: readonly { at: Point; width: number }[]; readonly gates: readonly RoadGate[]; readonly passes: readonly RoadPass[]; readonly portals: readonly RoadPortal[]; readonly tunnels: readonly RoadTunnel[]; readonly towns: ReadonlyMap<string, Point>; readonly settlements: ReadonlyMap<string, Settlement> };
 /** A capability's name on the island, where the map writes it. */
@@ -63,9 +63,9 @@ export const GATE_POSTS_APART = 2;
 /** The mock measured names on the page at about 2.6 pixels per ground unit: a name's box, and its padding in pixels. */
 const PX = 2.6;
 const nameBox = (title: string) => ({ w: (title.length * 6.5 + 12) / PX, h: 7 });
-/** A settlement's symbol across, by how many roads it meets (1-2, 3-5, 6 or more), and how far its edge keeps from a border. */
+/** A settlement's clear spot across, by how many roads it meets (1-2, 3-5, 6 or more), and how far its edge keeps from a border. */
 const SYMBOL = [3.4, 4.0, 4.7] as const, SYMBOL_EDGE = 1.5, CLEAR = 2.3;
-/** How far, in pixels, every corner of a settlement's symbol keeps from a name (polish round 1's SYMBOL_CLEAR). */
+/** How far, in pixels, every corner of a settlement's clear spot keeps from a name (polish round 1's SYMBOL_CLEAR). */
 const SYMBOL_CLEAR = 4;
 const symbolSize = (roads: number) => SYMBOL[roads >= 6 ? 2 : roads >= 3 ? 1 : 0];
 /** What a gate under a name or beside a settlement costs more (polish round 3), and a road under a name. */
@@ -367,7 +367,7 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
   const boxes = names.filter((n) => here.has(n.capability)).map((n) => ({ ...nameBox(n.title), at: times(n, 1 / S), capability: n.capability }));
   const anchor = new Map(boxes.map((b) => [b.capability, b.at]));
   const underName = (p: Point, pad: number) => boxes.some((b) => Math.abs(p.x - b.at.x) < b.w / 2 + pad / PX && Math.abs(p.z - b.at.z) < b.h / 2 + pad / PX);
-  /** Whether a symbol `half` across each way at `p` keeps clear of every name: its middle, and its box by SYMBOL_CLEAR. */
+  /** Whether a spot `half` across each way at `p` keeps clear of every name: its middle, and its box by SYMBOL_CLEAR. */
   const clearOfNames = (p: Point, half: number) => !underName(p, 7) && !boxes.some((b) => Math.abs(p.x - b.at.x) < b.w / 2 + half + SYMBOL_CLEAR / PX && Math.abs(p.z - b.at.z) < b.h / 2 + half + SYMBOL_CLEAR / PX);
 
   // The links: inside the island, and per dock and capability one arrival and one way out.

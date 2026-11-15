@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.22 in
+ * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5, 7.8 and 7.10 to 7.22 in
  * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is the app setup's setup check.
@@ -151,34 +151,6 @@ test("7.8 the card handed at session start says what one contract is: a behaviou
   const session = await sessionStart();
   try {
     assert.ok((session.client.getInstructions() ?? "").includes(CONTRACT_DEFINITION));
-  } finally {
-    await session.close();
-  }
-});
-
-test("7.9 the card handed at session start says how to build beside imported code", async () => {
-  const session = await sessionStart();
-  try {
-    const served = session.client.getInstructions() ?? "";
-    // One phrase for each thing ADR-0993 D4 and D8 to D11, as ADR-1015 narrows them, has the agent do beside imported code.
-    for (const said of [
-      "Before changing or deleting anything in the imported project, stop and ask the user",
-      "change it there, bring that part into this project, retire it, or leave it and build on top",
-      "Do what the user says",
-      "do not watch the old project for changes",
-      "import it again only when the user asks",
-      "depending on the imported package by a link:",
-      "Old code never imports new code",
-      "Test the interface your package has with the old code",
-      "give `focus` the part's folders as its crossing",
-      // ADR-1020: a part of the screens is brought in by bringing in what serves them whole, and how, measured on Next.js.
-      "bringing in what serves the screens whole",
-      "turbopack.root",
-      "its node_modules a link to the old project's",
-      "storytree does not draw or watch it",
-    ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
-    // ADR-1015: bringing in what serves the UI is one answer the user can give, not the agent's first move.
-    assert.ok(!served.includes("bring in whatever serves its UI"), "the card still sends the agent to bring in the UI first");
   } finally {
     await session.close();
   }

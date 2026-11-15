@@ -5,7 +5,7 @@ import { FEEDBACK_IDENTITY_CHANNELS } from "@storytree/app-setup/bridge";
 
 import { createBridge } from "./bridge.js";
 
-test("app setup 5.6: without sign-in configured the page's bridge has no feedback sign-in; with it, only status, sign-in and sign-out, answered by the main process", async () => {
+test("app-setup 5.6 · without sign-in configured the page's bridge has no feedback sign-in; with it, only status, sign-in and sign-out, answered by the main process", async () => {
   const invoked: string[] = [];
   const invoke = async (channel: string) => { invoked.push(channel); return channel === FEEDBACK_IDENTITY_CHANNELS.status ? { id: "user_1", email: "a@example.com" } : undefined; };
   assert.equal("feedbackIdentity" in createBridge(invoke), false);

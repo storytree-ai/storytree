@@ -228,7 +228,7 @@ const meeting = (roads: IslandRoads) => {
   return per;
 };
 
-test("3.79 each settlement's symbol is 3.4, 4.0 or 4.7 across by the roads meeting there (1-2, 3-5, 6 or more), at the island's own size", () => {
+test("3.79 each settlement's clear spot is 3.4, 4.0 or 4.7 across by the roads meeting there (1-2, 3-5, 6 or more), at the island's own size", () => {
   // And b and c calling on a too, so a meets four roads: its arrival, d's, b's and c's.
   const busier = [...links, { from: "b", to: "a" }, { from: "c", to: "a" }];
   for (const [{ roads }, S] of [[laid(LIBRARY_RADIUS, busier), 1], [laid(LIBRARY_RADIUS / 2, busier), 0.5]] as const) {
@@ -244,7 +244,7 @@ test("3.79 each settlement's symbol is 3.4, 4.0 or 4.7 across by the roads meeti
   }
 });
 
-test("3.79 each settlement's whole symbol stands clear of every name and every border, so of every gate", () => {
+test("3.79 each settlement's whole clear spot stands clear of every name and every border, so of every gate", () => {
   for (const [{ map, roads }, radius] of [[library, LIBRARY_RADIUS], [small, LIBRARY_RADIUS / 2]] as const) {
     const S = radius / LIBRARY_RADIUS;
     for (const [id, { at, size }] of roads.settlements) {

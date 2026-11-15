@@ -68,8 +68,8 @@ test("3.47 a shell-edit observation's Git reads get the time this machine learne
     const learned = JSON.parse(readFileSync(path.join(home, LEARNED_FILE), "utf8")) as Record<string, number[]>;
     assert.equal(learned[OBSERVE_STEP.name]?.length, 1, "the observation's own time is learned");
 
-    // A slow machine: its observations took 2 s.
-    for (let i = 0; i < 3; i++) learn(home, OBSERVE_STEP, 2_000);
+    // A slow machine: its observations took 2 s (only these, not the real one above, which a slow runner may take longer over).
+    writeFileSync(path.join(home, LEARNED_FILE), JSON.stringify({ [OBSERVE_STEP.name]: [2_000, 2_000, 2_000] }));
     given.length = 0;
     shellEdits(home, root, line, () => undefined, watching);
     assert.ok(given[0]! > OBSERVE_STEP.floorMs && given[0]! <= 6_000, `the first read is given the learned 6 s, not the floor (${given[0]})`);

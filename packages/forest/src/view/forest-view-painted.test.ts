@@ -1,6 +1,6 @@
 /** Capability 3 · Story node render: the real forest view, in Chrome, says when it has painted the scene on show (3.75), and
  * draws an arc's open work on an edge's contracts, and none, without a fault (3.92), and says why a map read with no stories is
- * empty (3.107). */
+ * empty (3.107), and that the Library's loading bar leaves once its notes are hung (3.116). */
 import assert from "node:assert/strict";
 import path from "node:path";
 import { after, test } from "node:test";
@@ -10,7 +10,7 @@ import { endChrome } from "./end-chrome.js";
 import { quietFor, scaled } from "@storytree/test-waits";
 
 /** The forest view opened on a two-story plan, the first's two capabilities joined by an edge holding a contract; `__show()`
- * hands it the plan again, `__showEmpty()` a read with no stories, `__guided` counts its first-run guide opened, `__circle(capabilities, contracts)` is its circle(), and `__drawn(ms)` is its drawn(), given up after `ms`. */
+ * hands it the plan again, `__showEmpty()` a read with no stories, `__guided` counts its first-run guide opened, `__circle(capabilities, contracts)` is its circle(), and `__drawn(ms)` is its drawn(), given up after `ms`; `__library` set before it loads offers the Library, its loading bar due at once. */
 function viewBundle(): Promise<string> {
   return bundled ??= bundleView();
 }
@@ -31,7 +31,7 @@ async function bundleView(): Promise<string> {
     const places = new Map(storyNodes(plan, history).map(node => [node.id, node.place]));
     globalThis.__painted = 0;
     globalThis.__guided = 0;
-    openForestView(document.querySelector("#map"), () => {}, createKnowledgeCore("app"), { library: false, openGuide: () => { globalThis.__guided++; } }).then(view => {
+    openForestView(document.querySelector("#map"), () => {}, createKnowledgeCore("app"), { library: globalThis.__library === true, libraryBarAfterMs: globalThis.__library === true ? 0 : undefined, openGuide: () => { globalThis.__guided++; } }).then(view => {
       globalThis.__show = () => view.show(forestScene(plan, history, workStates([])), places);
       globalThis.__showEmpty = () => view.show({ islands: [] }, new Map());
       globalThis.__circle = (capabilities, contracts) => view.circle(capabilities, contracts);
@@ -124,4 +124,28 @@ test("3.107 · the map says why it is empty once a read finds no stories, its bu
   assert.equal(await page.evaluate(() => (window as unknown as Page).__guided), 1, "the button opens the guide");
   await page.evaluate(ms => { const win = window as unknown as Page; win.__show(); return win.__drawn(ms); }, scaled(20_000));
   assert.equal(await box.count(), 0, "gone once stories are on the map");
+});
+
+test("3.116 · pressing Library shows its loading bar while its notes are being hung, and takes it away once they are", async t => {
+  const page = await freshPage(t);
+  const faults: string[] = [];
+  page.on("pageerror", error => faults.push(error.message));
+  await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
+  await page.addStyleTag({ path: path.join(import.meta.dirname, "styles.css") });
+  await page.evaluate(() => { (window as unknown as { __library: boolean }).__library = true; });
+  await page.addScriptTag({ content: await viewBundle() });
+  await page.waitForFunction(() => (window as unknown as Page).__ready === true, undefined, { timeout: 60_000 });
+  await page.evaluate(ms => { const win = window as unknown as Page; win.__show(); return win.__drawn(ms); }, scaled(20_000));
+  // The bar is due at once here, so it shows before the notes' first layout lands; a watcher notes it, however briefly it stays.
+  await page.evaluate(() => {
+    const win = window as unknown as { __barShown: boolean };
+    win.__barShown = false;
+    new MutationObserver(() => { win.__barShown ||= document.querySelector("#map .forest-library-progress[role=progressbar]") !== null; })
+      .observe(document.querySelector("#map")!, { subtree: true, childList: true });
+  });
+  await page.locator("#map [data-globe-switch=library]").click();
+  await page.waitForFunction(() => (window as unknown as { __barShown: boolean }).__barShown, undefined, { timeout: scaled(10_000) });
+  // A bar never told the notes are hung would stay.
+  await page.waitForFunction(() => document.querySelector("#map .forest-library-progress") === null, undefined, { timeout: scaled(20_000) });
+  assert.deepEqual(faults, [], "the Library opened with no error");
 });

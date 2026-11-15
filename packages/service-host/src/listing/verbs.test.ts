@@ -1,13 +1,15 @@
 /** Capability 2 · Listing and restarting services, contracts 2.1 to 2.3: `storytree services`, `services restart` and `services run`, against a host run in a throwaway home. */
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 
 import type { DoorWords, Verb, VerbInputs, VerbPlace } from "@storytree/library/verbs";
 import { setPartOff, setServiceOn } from "@storytree/project-and-caller";
-import { waitUntil } from "@storytree/test-waits";
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { HOST_DIR, startHost } from "../running/host.js";
+import { HOST_DIR, hostFolder, startHost } from "../running/host.js";
 import { mountedServices } from "../running/declared.js";
 import type { Child, Ended } from "../running/supervise.js";
 import { handClock } from "../testing/clock.js";
@@ -111,6 +113,24 @@ test("2.2 · storytree services restart <part>/<service> has the host start a fa
   } finally {
     await host.stop();
   }
+});
+
+test("2.5 · the installed storytree command, a build with no package.json beside it, lists and restarts the services of the host that ran here, from the folder that host stood on", async (t) => {
+  const { home } = fixtureHome(t);
+  const build = mkdtempSync(path.join(tmpdir(), "storytree-build-"));
+  t.after(() => removeTemp(build));
+  assert.equal(hostFolder(home, HOST_DIR), HOST_DIR, "run from the checkout, its own folder");
+  assert.throws(() => hostFolder(home, build), /no service host has run here/);
+
+  const host = startHost({ home, clock: handClock(), log: () => {}, start: (service) => children().start(service) });
+  try {
+    const found = hostFolder(home, build);
+    assert.equal(found, HOST_DIR, "the folder the running host stands on");
+    assert.ok(mountedServices(found, home).services.some((one) => one.id === "voice/listen"));
+  } finally {
+    await host.stop();
+  }
+  assert.equal(hostFolder(home, build), HOST_DIR, "a stopped host's folder still names its parts");
 });
 
 test("2.3 · storytree services run runs the service host in the foreground until a stop signal (Ctrl-C or SIGTERM) or a stop request (on Windows, where no signal is heard), then stops every service it ran and says so", { timeout: 60_000 }, async (t) => {

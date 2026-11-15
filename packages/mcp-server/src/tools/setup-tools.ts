@@ -13,6 +13,7 @@ import { habitsCard } from "../instructions/habits.js";
 import { hookFailures, type HookFailure } from "@storytree/session-management";
 import { findProject, storytreeHome } from "@storytree/project-and-caller";
 import { missingProjectReading } from "@storytree/project-and-caller/routing";
+import { MAPPED_CODE_GUIDANCE } from "@storytree/map";
 import { folderLanguages } from "@storytree/map/folder-languages";
 import { unreadableOf, unreadableSentence } from "@storytree/map/languages";
 import { COMMIT_STORYTREE, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, smallFixesArc, smallFixesSentence, starterPackStatus, starterRolesIn, suggestProjectName, unimportedPackages, unimportedSentence, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
@@ -41,7 +42,7 @@ export interface SetupToolContext {
 }
 
 export function registerSetupTools({ server, folder, setup, connections, callerOf, journey, card = habitsCard(), served }: SetupToolContext): void {
-  const withCard = (text: string): string => cardAfter(text, card);
+  const withCard = (text: string, beside?: string): string => cardAfter(text, card, beside);
   server.registerTool(
     "check_setup",
     {
@@ -98,12 +99,14 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // A project set up before storytree made its small-fixes arc gains it here, once (6.15).
         const smallFixes = (await smallFixesArc(library))?.id;
         if (smallFixes !== undefined) said.push(smallFixesSentence(smallFixes));
+        // How to build beside imported code rides after the card, only where a story is imported (7.9, ADR-1341).
+        const beside = (await library.list("story")).some((story) => story.fields.mapped !== undefined) ? MAPPED_CODE_GUIDANCE : undefined;
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
         const caller = seenCaller(await callLines(log, report.project.name, metaOf(context), { harness: heard.harness, tool: "check_setup" }), heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
         if (connected) {
           said.push(connectedSentence(caller));
-          return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, unimported, smallFixesArc: smallFixes ?? null, verified: false, passed: true, missing: [], fixes: [], session: caller.session } });
+          return result({ text: withCard(said.join(" "), beside), data: { ...data, starterRoles, starterPack, unimported, smallFixesArc: smallFixes ?? null, verified: false, passed: true, missing: [], fixes: [], session: caller.session } });
         }
         // This session's hook lines alone: the latest of each kind, and its edits for the check file (contract 2.7).
         const [fired, edits] = await Promise.all([
@@ -129,7 +132,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // What this machine's hooks traced of their failures for this session (contract 3.23), so a gap in its lines can be read.
         const failures = hookFailures(setup.storytreeHome ?? storytreeHome(), caller.session);
         if (failures.length > 0) said.push(failuresSentence(failures));
-        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, unimported, smallFixesArc: smallFixes ?? null, ...verification, ...(verification.fixes.includes("edit-check-file") ? { checkFile: checkFile(caller.session) } : {}), passed: verification.verified, hookFailures: failures } });
+        return result({ text: withCard(said.join(" "), beside), data: { ...data, starterRoles, starterPack, unimported, smallFixesArc: smallFixes ?? null, ...verification, ...(verification.fixes.includes("edit-check-file") ? { checkFile: checkFile(caller.session) } : {}), passed: verification.verified, hookFailures: failures } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -221,10 +224,11 @@ function newerPackSentence({ seeded, current, factory }: StarterPackStatus): str
 /**
  * An answer in a project, followed by the whole habits card (7.7). Claude Code keeps only the first 2,048
  * characters of a server's instructions and Codex shows none, while every agent is told to call check_setup
- * first: its answer is where the whole card reaches them.
+ * first: its answer is where the whole card reaches them. A section served on demand, `beside`, follows the card,
+ * outside its word budget (7.9).
  */
-function cardAfter(text: string, card: string): string {
-  return `${text}\n\nHow to work with storytree in this project, whole (your harness may have shown you only the start of it):\n\n${card}\n\n${ASKED_WHAT_IT_KEEPS}`;
+function cardAfter(text: string, card: string, beside?: string): string {
+  return [text, `How to work with storytree in this project, whole (your harness may have shown you only the start of it):`, card, ...(beside === undefined ? [] : [beside]), ASKED_WHAT_IT_KEEPS].join("\n\n");
 }
 
 /** What the agent says when the user asks what storytree keeps (ADR-1268 D2): it rides after the card, outside the card's word budget. */

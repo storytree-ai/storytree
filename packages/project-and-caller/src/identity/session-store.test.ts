@@ -37,7 +37,7 @@ function windowsChild(t: TestContext) {
   return { child, ready, input: () => input, spawn };
 }
 
-test("6.4 Windows storage allows a cold protection process past ten seconds and writes only its ciphertext", async t => {
+test("6.4 · Windows storage allows a cold protection process past ten seconds and writes only its ciphertext", async t => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
   const { child, ready, input, spawn } = windowsChild(t);
   try {
@@ -55,7 +55,7 @@ test("6.4 Windows storage allows a cold protection process past ten seconds and 
   } finally { await removeTemp(home); }
 });
 
-test("6.4 Windows protection failures retain only safe diagnostics and leave the previous session untouched", async t => {
+test("6.4 · Windows protection failures retain only safe diagnostics and leave the previous session untouched", async t => {
   for (const failure of ["timeout", "startup", "exit", "dpapi", "input", "output-limit", "empty-output"] as const) {
     await t.test(failure, async t => {
       const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
@@ -93,7 +93,7 @@ test("6.4 Windows protection failures retain only safe diagnostics and leave the
   }
 });
 
-test("6.4 native Windows protection writes only ciphertext and still decrypts after reopening", { skip: process.platform !== "win32" && "platform:win32: DPAPI protection runs only in Windows PowerShell" }, async () => {
+test("6.4 · native Windows protection writes only ciphertext and still decrypts after reopening", { skip: process.platform !== "win32" && "platform:win32: DPAPI protection runs only in Windows PowerShell" }, async () => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
   try {
     const config = { directory: home, ...context };
@@ -109,7 +109,7 @@ test("6.4 native Windows protection writes only ciphertext and still decrypts af
   } finally { await removeTemp(home); }
 });
 
-test("6.4 a private session survives reopening, is bound to its environment, and sign-out erases it", async () => {
+test("6.4 · a private session survives reopening, is bound to its environment, and sign-out erases it", async () => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
   const directory = path.join(home, "identity");
   const use = <T>(act: Parameters<typeof withSessionStore<T>>[1]) => withSessionStore({ directory, ...context }, act);
@@ -137,7 +137,7 @@ test("6.4 a private session survives reopening, is bound to its environment, and
   } finally { await removeTemp(home); }
 });
 
-test("6.4 session operations exclude competing commands and release their lock after a failed command", async () => {
+test("6.4 · session operations exclude competing commands and release their lock after a failed command", async () => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
   const config = { directory: path.join(home, "identity"), ...context };
   try {
@@ -151,7 +151,7 @@ test("6.4 session operations exclude competing commands and release their lock a
   } finally { await removeTemp(home); }
 });
 
-test("6.4 unsafe POSIX permissions or symlinks refuse token storage without following them", { skip: process.platform === "win32" && "platform:posix: POSIX file modes and symlink refusal have no Windows equivalent" }, async () => {
+test("6.4 · unsafe POSIX permissions or symlinks refuse token storage without following them", { skip: process.platform === "win32" && "platform:posix: POSIX file modes and symlink refusal have no Windows equivalent" }, async () => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
   const directory = path.join(home, "identity");
   const config = { directory, ...context };

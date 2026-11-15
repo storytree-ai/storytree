@@ -419,6 +419,19 @@ test("5.5 · feedback sign-in is optional and only explicitly added identity ent
   } finally { mounted.stop(); }
 });
 
+test("5.6 · a page whose bridge offers no feedback sign-in shows Send feedback with no sign-in, and feedback stays open", async () => {
+  const drafts: unknown[] = [];
+  const mounted = mountSetupHelp(document.body, helpBridge({ openFeedbackDraft: async draft => { drafts.push(draft); return { status: "opened" }; } }));
+  try {
+    document.querySelector<HTMLButtonElement>('[data-page="feedback"]')!.click(); await setImmediate();
+    assert.equal(document.querySelector<HTMLElement>("[data-feedback-identity]")!.hidden, true);
+    document.querySelector<HTMLInputElement>("[name=title]")!.value = "Suggestion";
+    document.querySelector<HTMLTextAreaElement>("[name=body]")!.value = "Please add this.";
+    document.querySelector<HTMLButtonElement>('[type="submit"]')!.click(); await setImmediate();
+    assert.deepEqual(drafts, [{ title: "Suggestion", body: "Please add this." }]);
+  } finally { mounted.stop(); }
+});
+
 test("5.5 · unavailable sign-in leaves feedback open and does not expose private errors", async () => {
   const mounted = mountSetupHelp(document.body, helpBridge({
     feedbackIdentity: {

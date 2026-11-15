@@ -34,14 +34,15 @@ export const LAUNCH_FACE: SheetFace = "stories";
 
 /**
  * What the forest page offers on the glass sheet for the face pressed: the two looks replace the switches' four combinations
- * outright, so one button is pressed at a time. With the Surfaces menu's Library off (ADR-0750) nothing hangs beneath to
- * show, and only Stories is offered.
+ * outright, so one button is pressed at a time. Only the Library face hangs the notes beneath (`library`), so turning the map on
+ * Stories loads and lays out none of them (owner, 2026-11-15). With the Surfaces menu's Library off (ADR-0750) nothing hangs
+ * beneath to show, and only Stories is offered.
  */
 export function sheetFaces(face: SheetFace, libraryOffered: boolean): { mode: ForestMode; library: boolean; pressed: GlobeSwitches; offered: GlobeSwitch[] } {
   const under = libraryOffered && face === "library";
   return {
     mode: under ? "library" : "forest",
-    library: libraryOffered,
+    library: under,
     pressed: { stories: !under, library: under },
     offered: libraryOffered ? ["stories", "library"] : ["stories"],
   };

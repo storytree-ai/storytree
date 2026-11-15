@@ -328,6 +328,28 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.linkNamedEvidence("question_000000000000"), null, "null for no question");
   });
 
+  contract("12.19", "a settled question records the capabilities the owner's answer leaves unbuilt, each a live capability; an open question records none, and a wrong one is refused with nothing written", async ({ work, flight, transactions }) => {
+    const arc = await flight.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const capability = await work.addCapability({ title: "Social sign-in", story: story.id });
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+
+    let history = await transactions.history();
+    await assert.rejects(flight.editQuestion(question.id, { unbuilt: [capability.id] }), RangeError, "an open question has no answer to leave it unbuilt");
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+
+    await flight.settleQuestion(question.id, { answer: "Leave it unbuilt" });
+    const recorded = await flight.editQuestion(question.id, { unbuilt: [capability.id] });
+    assert.deepEqual(recorded?.fields.unbuilt, [capability.id]);
+    assert.equal(recorded?.fields.answer, "Leave it unbuilt", "his answer stands");
+
+    history = await transactions.history();
+    for (const wrong of [story.id, arc.id, "capability_000000000000"]) {
+      await assert.rejects(flight.editQuestion(question.id, { unbuilt: [wrong] }), MissingReferenceError, `${wrong} is no live capability`);
+    }
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+  });
+
   contract("12.10", "an open question carries the session putting it to the owner, set and cleared in place; settling clears it, and a settled question cannot carry one", async ({ work, flight, transactions }) => {
     const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });

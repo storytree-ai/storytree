@@ -35,7 +35,8 @@ export type RecordType =
   | "question"
   | "prediction"
   | "feedback"
-  | "fyi";
+  | "fyi"
+  | "pin";
 
 /**
  * Capability 6's kinds beyond decisions and definitions: ADR-0640's eight, each with 0.2's fields
@@ -137,6 +138,15 @@ export const STORE_LINK_DIRECTIONS = ["read", "write", "both", "unknown"] as con
 const storeLink = z
   .object({ store: nonEmpty, table: nonEmpty, direction: z.enum(STORE_LINK_DIRECTIONS), cites: z.array(z.string().regex(/^\S.*:[1-9]\d*$/, "a cite is a file and its line, file:line")).min(1) })
   .strict();
+
+/**
+ * A pin's preset icons (question_82b15d496b5b's answer): what an agent found, drawn as one of a few architectural icons
+ * rather than free text, to keep the map's signal above its noise. `store` is a shared store's, so only a pin on a store takes it.
+ */
+export const PIN_ICONS = ["cache", "queue", "store", "api", "auth", "config", "job", "events", "search", "logging", "flag"] as const;
+
+/** The longest a pin's label may be: a few words, beside its icon. */
+export const PIN_LABEL_LIMIT = 40;
 
 /** How a contract is proved (ADR-1294): a test criterion, a test reading the answer, or agentic user acceptance testing, an agent trying it on screen. */
 export const CONTRACT_PROOFS = ["test-criterion", "agentic-user-acceptance-testing"] as const;
@@ -791,6 +801,11 @@ export const RECORD_SCHEMAS = {
        * version bump.
        */
       links: ids.optional(),
+      /**
+       * The capabilities the owner's answer leaves unbuilt (12.19): the health worklist reads each as routed by this
+       * question while it stands (5.30). Settled questions only. Optional, so no version bump.
+       */
+      unbuilt: ids.optional(),
       lifecycle: z.enum(["open", "settled"]),
       answer: nonEmpty.optional(),
       /** When it was settled (an ISO 8601 timestamp). */
@@ -834,7 +849,7 @@ export const RECORD_SCHEMAS = {
         if (fields.settledAt === undefined) problem(["settledAt"], 'a settled question needs field "settledAt": when it was settled');
         if (fields.presenting !== undefined) problem(["presenting"], "a settled question is no longer being put to the owner");
       } else {
-        for (const field of ["answer", "settledAt", "settledBy", "score"] as const) {
+        for (const field of ["answer", "settledAt", "settledBy", "score", "unbuilt"] as const) {
           if (fields[field] !== undefined) problem([field], `an open question has no "${field}" yet`);
         }
       }
@@ -927,6 +942,25 @@ export const RECORD_SCHEMAS = {
    * noticed it (a session, a scheduled routine, the watcher). `heardAt` is when he heard it: absent, it is still to tell him.
    */
   fyi: z.object({ title: nonEmpty, what: nonEmpty, at: nonEmpty, about: nonEmpty, by: nonEmpty, heardAt: nonEmpty.optional() }).strict(),
+  /**
+   * An agent's lasting pin on the map (Code map 9, question_82b15d496b5b): what it found, anchored on a capability (or a
+   * nested part of it, by the part's folder as the code survey names it, or an exported name in either) or on a shared
+   * store (by its address, or a table of it); a preset icon and a short label; the evidence; the commit it was checked
+   * at; and when. The map reads whether its anchor still resolves: a pin is never moved, only read stale.
+   */
+  pin: z
+    .object({
+      anchor: z.union([
+        z.object({ capability: nonEmpty, part: nonEmpty.optional(), name: nonEmpty.optional() }).strict(),
+        z.object({ store: nonEmpty, table: nonEmpty.optional() }).strict(),
+      ]),
+      icon: z.enum(PIN_ICONS),
+      label: nonEmpty.max(PIN_LABEL_LIMIT),
+      evidence: nonEmpty,
+      commit: z.string().regex(/^[0-9a-f]{7,40}$/, "a commit is 7 to 40 hexadecimal characters"),
+      at: nonEmpty,
+    })
+    .strict(),
 } as const satisfies Record<RecordType, z.ZodType>;
 
 /** The schema version of each type: every record of the type is written on it. */
@@ -958,6 +992,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   prediction: 1,
   feedback: 1,
   fyi: 1,
+  pin: 1,
 };
 
 /** The fields of a record of type `T`, as its schema declares them. */

@@ -11,6 +11,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { Library, Storytree } from "@storytree/library";
+import { MAPPED_CODE_GUIDANCE } from "@storytree/map";
 import { z } from "zod";
 
 import { ghProtection, githubRepository, importFetches, protectionCommand, pytestWithoutSummary, pythonCommands, pythonSetupOf, storytreeRef, WORKFLOW_FILE, workflowFor, type ImportFetch, type PipelineJob, type ProtectionReader, type System } from "./pipeline/pipeline.js";
@@ -101,8 +102,9 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
           });
           if (imported instanceof ImportRefusedError) return { text: imported.message, refused: true };
           const added = imported.added.map((story) => `${quoted(story.title)} (${story.id}), capabilities drawn: ${story.capabilities}`).join("; ");
+          // How to build beside the code just imported rides with the answer, off the habits card (contract 7.9, ADR-1341).
           return {
-            text: [`Imported ${imported.folder}: ${imported.added.length} imported stories added${added === "" ? "" : `: ${added}`}; ${imported.retired.length} retired, their package gone; ${imported.kept.length} kept as they stand.`, ...importLines(imported), ...namingSaid(imported.added), RUN_THE_TESTS].join("\n"),
+            text: [`Imported ${imported.folder}: ${imported.added.length} imported stories added${added === "" ? "" : `: ${added}`}; ${imported.retired.length} retired, their package gone; ${imported.kept.length} kept as they stand.`, ...importLines(imported), ...namingSaid(imported.added), RUN_THE_TESTS, "", MAPPED_CODE_GUIDANCE].join("\n"),
             data: {
               folder: imported.folder,
               added: imported.added.map((story) => story.id),
@@ -118,7 +120,7 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
       );
       define(
         "wire_pipeline",
-        "When this project is set up or adopts a pipeline, add its tests and storytree's checks to its CI: on GitHub this writes storytree's workflow, elsewhere it gives the commands to add. A Python project's CI gets Python and uv, and Poetry where it is locked by Poetry; run pytest with -rA, from the repository's top or a package folder, so its numbered tests are credited. It proposes branch protection for the user to approve and never turns it on.",
+        "When the user wants CI for this project, add its tests and storytree's checks to its CI: on GitHub this writes storytree's workflow, elsewhere it gives the commands to add. A Python project's CI gets Python and uv, and Poetry where it is locked by Poetry; run pytest with -rA, from the repository's top or a package folder, so its numbered tests are credited. It proposes branch protection for the user to approve and never turns it on.",
         z.object({
           test: z.string().min(1).describe("The command that runs the project's tests, as its CI should run it"),
           install: z.string().min(1).optional().describe("The command that installs its dependencies first, if any"),

@@ -1323,3 +1323,22 @@ test("8.65 storytree draws an imported story itself exactly when its import is o
     await removeTemp(root);
   }
 });
+
+test("8.67 a story's survey read from disk carries its capabilities' nested parts and the imports reaching round a part's entry", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-parts-"));
+  try {
+    const root = path.join(folder, "packages", "shop");
+    await mkdir(path.join(root, "src", "cart", "items"), { recursive: true });
+    await writeFile(path.join(root, "package.json"), JSON.stringify({ name: "@x/shop" }));
+    await writeFile(path.join(root, "src/index.ts"), 'export { add } from "./cart/index.js";\nexport { item } from "./cart/items/item.js";\n');
+    await writeFile(path.join(root, "src/cart/index.ts"), 'export const add = () => 1;\n');
+    await writeFile(path.join(root, "src/cart/items/index.ts"), 'export { item } from "./item.js";\n');
+    await writeFile(path.join(root, "src/cart/items/item.ts"), "export const item = 2;\n");
+    await writeFile(path.join(root, "src/index.test.ts"), 'import { add, item } from "./index.js";\ntest("3.1 a claim holds", () => add() + item);\n');
+    const parts = (await codeSurveyReader().read(folder, tree))["story-shop"]?.parts;
+    assert.deepEqual(parts?.capabilities["cap-claims"]?.map((part) => [part.folder, part.parts.map((inner) => inner.folder)]), [["src/cart", ["src/cart/items"]]]);
+    assert.deepEqual(parts?.clashes.map(({ from, to, around }) => [from, to, around]), [["src/index.ts", "src/cart/items/item.ts", ["src/cart", "src/cart/items"]]]);
+  } finally {
+    await removeTemp(folder);
+  }
+});

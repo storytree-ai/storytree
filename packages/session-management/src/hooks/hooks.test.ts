@@ -26,10 +26,11 @@ import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { connect, type Line, type NewLine } from "@storytree/library";
+import { withTestClient } from "@storytree/library/testing/pg";
 import { scaled, waitUntil } from "@storytree/test-waits";
 import pg from "pg";
 
-import { openActivityLog } from "../activity/index.js";
+import { ACTIVITY_DATABASE, openActivityLog } from "../activity/index.js";
 import { buildHook } from "../testing/hook-bin.js";
 import { readContext } from "../context/index.js";
 import { machineOf, recordImport } from "@storytree/project-and-caller";
@@ -40,6 +41,7 @@ import { SHELL_GUARD } from "./shell-guard.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
 import { BACKGROUND, hookLines, runHook as runHookHere, type ReachLog } from "./hooks.js";
 import { CLOSE_OUT_REMINDER } from "./close-out-reminder.js";
+import { withFollowUps, withSteers } from "./codex-lane.js";
 import { runGit, type Git } from "../activity/git.js";
 import { hookTools } from "./tools.js";
 import { AFTER_TOOL, codexToolArguments } from "./codex-delivery.js";
@@ -1899,6 +1901,106 @@ test("3.44 the tool server's heartbeat tool records a session's beat for the pro
   }
 });
 
+test("3.60 · A heartbeat from a pool lane says so, and the tool server's lane_messages tool hands the lane's session the messages waiting for it as one text, steers after a tool call and follow-ups at its turn's end; with none waiting, a folder in no project, or a library out of reach, it hands nothing", async () => {
+  const project = uniqueProjectName();
+  const was = process.env.STORYTREE_HOME;
+  try {
+    await withTempDir(async (dir) => {
+      process.env.STORYTREE_HOME = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project);
+      const elsewhere = path.join(dir, "elsewhere");
+      mkdirSync(elsewhere);
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        type Act = (args: Record<string, unknown>, call: { reach: ReachLog; locate: undefined }) => Promise<{ text: string; data?: Record<string, unknown> }>;
+        const acts = new Map<string, Act>();
+        hookTools().registerHarnessTools?.((name, _description, _input, act) => void acts.set(name, act as unknown as Act));
+        const session = `${project}-lane`;
+        const reach: ReachLog = async () => log;
+        await acts.get("heartbeat")!({ session, cwd: folder, lane: true }, { reach, locate: undefined });
+        assert.equal((await log.beats.of(project, [session])).get(session)?.lane, true, "a lane's beat says it is a lane");
+
+        const take = async (at: string, cwd = folder, through = reach, before?: number) => (await acts.get("lane_messages")!({ session, cwd, at, ...(before === undefined ? {} : { before }) }, { reach: through, locate: undefined })).text;
+        assert.equal(await take("tool"), "", "nothing waiting, nothing handed");
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "follow-up", text: "Then write the docs.", sender: "owner-terminal" });
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "steer", text: "Use the SES client.", sender: "owner-terminal" });
+        assert.equal(await take("tool", elsewhere), "");
+        assert.equal(await take("tool", folder, async () => { throw new Error("storytree is not answering"); }), "");
+        assert.equal(await take("tool", folder, reach, Date.now()), "", "a take its lane has stopped waiting for takes nothing");
+        // A take held up past its lane's wait (here by a lock on the table) is rolled back: its messages stay waiting for the next.
+        await withTestClient(async (holder) => {
+          await holder.query("BEGIN");
+          await holder.query("LOCK TABLE lane_messages IN EXCLUSIVE MODE");
+          try {
+            assert.equal(await take("tool", folder, reach, Date.now() + 1_500), "");
+          } finally {
+            await holder.query("COMMIT");
+          }
+        }, ACTIVITY_DATABASE);
+        const steer = await take("tool", folder, reach, Date.now() + 10_000);
+        assert.match(steer, /Use the SES client\./);
+        assert.doesNotMatch(steer, /write the docs/, "a tool call's end hands no follow-up");
+        assert.match(await take("stop"), /Then write the docs\./);
+        assert.equal(await take("stop"), "", "each handed once");
+
+        await acts.get("heartbeat")!({ session, cwd: folder }, { reach, locate: undefined });
+        assert.equal((await log.beats.of(project, [session])).get(session)?.lane, undefined, "a beat without it is no lane's");
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
+    if (was === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
+});
+
+test("3.61 · In a Codex pool lane (STORYTREE_LANE_RUN set) the hook after a shell command, which Codex waits for, marks its session a lane and adds the steers waiting for it to the command's result for the model, and the turn-end hook keeps the turn going with its follow-ups, each once; outside a lane they take nothing and mark nothing", async () => {
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project, home);
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        const session = `${project}-codex-lane`;
+        const input = (name: string) => JSON.stringify({ ...JSON.parse(recorded("codex", name, folder)), session_id: session });
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "follow-up", text: "Then write the docs.", sender: "owner-terminal" });
+        await log.messages.queue(project, { session, increment: "increment_1", mode: "steer", text: "Use the SES client.", sender: "owner-terminal" });
+
+        // This test may itself run inside a pool lane, whose marker the hook it starts would inherit.
+        const outside = { STORYTREE_LANE_RUN: "" };
+        assert.equal((await runHook("codex", input("post-tool-use-bash"), home, [SHELL_GUARD], outside)).stdout.trim(), "");
+        assert.equal((await runHook("codex", input("stop"), home, [CLOSE_OUT_REMINDER], outside)).stdout.trim(), "");
+        assert.equal(await log.messages.marked(project, session), false, "a session outside a lane is not marked one");
+
+        const lane = { STORYTREE_LANE_RUN: "lane-run-1" };
+        const after = JSON.parse((await runHook("codex", input("post-tool-use-bash"), home, [SHELL_GUARD], lane)).stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+        assert.equal(after.hookSpecificOutput.hookEventName, "PostToolUse");
+        assert.match(after.hookSpecificOutput.additionalContext, /owner-terminal[\s\S]*Use the SES client\./);
+        assert.doesNotMatch(after.hookSpecificOutput.additionalContext, /write the docs/, "a command's end hands no follow-up");
+        assert.equal(await log.messages.marked(project, session), true, "the lane's hook marks it a lane");
+
+        const end = JSON.parse((await runHook("codex", input("stop"), home, [CLOSE_OUT_REMINDER], lane)).stdout) as { decision: string; reason: string };
+        assert.equal(end.decision, "block", "Codex keeps the turn going with the reason as its next prompt");
+        assert.match(end.reason, /Then write the docs\./);
+        assert.equal((await runHook("codex", input("stop"), home, [CLOSE_OUT_REMINDER], lane)).stdout.trim(), "", "each is handed once");
+
+        // A notice the hook gives anyway (the guard's, or a turn-end block) keeps its place, the lane's messages after it.
+        assert.deepEqual(JSON.parse(withSteers(JSON.stringify({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "[storytree] Your last shell command changed a.ts" } }), "Use the SES client.")!),
+          { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "[storytree] Your last shell command changed a.ts\n\nUse the SES client." } });
+        assert.deepEqual(JSON.parse(withFollowUps(JSON.stringify({ decision: "block", reason: "[storytree] An update stopped your tools." }), "Then write the docs.")!),
+          { decision: "block", reason: "[storytree] An update stopped your tools.\n\nThen write the docs." });
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
+    await dropTestProjects([project]);
+  }
+});
+
 test("3.43 · The Claude Code mod's usage becomes a usage-measured line, and its failed turn a turn-failed line naming the rate-limit windows it ended at or past their limit; neither names a transcript, and a figure with no window records nothing", async () => {
   const project = uniqueProjectName();
   const was = process.env.STORYTREE_HOME;
@@ -2078,6 +2180,40 @@ test("3.56 what a hook reads from the library is counted as its event's, and rec
       assert.ok((await read()) > before, "the hook's bytes are recorded as its event's");
     } finally {
       await log.close();
+    }
+  });
+});
+
+test("3.59 before a shell command in a storytree project, the shell guard refuses a kill fed from a search of the process list (ps or pgrep piped to kill or xargs kill, kill given such a search, pkill -f), which would also match the agent's own engine, and names storytree processes stop instead; any other command, or one outside a project, goes ahead", async () => {
+  await withTempDir(async (dir) => {
+    const home = storytreeHome(dir, false);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder, { recursive: true });
+    writeMarker(folder, `${JSON.stringify({ project: uniqueProjectName() })}\n`);
+    const outside = path.join(dir, "elsewhere");
+    mkdirSync(outside, { recursive: true });
+    const before = async (harness: "claude-code" | "codex", command: string, where = folder) => {
+      const input = JSON.parse(recorded(harness, "pre-tool-use-bash", where)) as { tool_input: Record<string, unknown> };
+      const ran = await runHook(harness, JSON.stringify({ ...input, tool_input: { ...input.tool_input, command } }), home, [SHELL_GUARD]);
+      assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
+      return ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string } }).hookSpecificOutput;
+    };
+    const kills = [
+      "ps aux | grep increment_d2eaa9199142 | grep -v grep | awk '{print $2}' | xargs kill",
+      "pgrep -f 'pnpm gate' | xargs -r kill -9",
+      "cd /tmp && ps -ef | grep vitest | awk '{print $2}' | sudo xargs kill",
+      "kill $(pgrep -f gate)",
+      "pkill -f increment_d2eaa9199142",
+    ];
+    for (const harness of ["claude-code", "codex"] as const) {
+      for (const command of kills) {
+        const said = await before(harness, command);
+        assert.equal(said?.permissionDecision, "deny", `${harness}: ${command}`);
+        assert.match(said?.permissionDecisionReason ?? "", /storytree processes stop <run>/, `${harness}: ${command}`);
+      }
+      for (const command of ["ps aux | grep node", "kill 4242", "ps aux; kill 4242", "pnpm storytree processes stop run_1", "echo 'ps aux | xargs kill'"])
+        assert.equal(await before(harness, command), undefined, `${harness}: ${command} goes ahead`);
+      assert.equal(await before(harness, kills[0]!, outside), undefined, `${harness}: outside a project it goes ahead`);
     }
   });
 });

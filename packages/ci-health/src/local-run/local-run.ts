@@ -1,5 +1,5 @@
 /**
- * Capability 5 · A project's own tests, run locally (ADR-1193 D1, D2: the health ladder's local rung; ADR-1194). A project with no
+ * Capability 5 · A project's own tests, run locally (ADR-1193 D1, D2, as narrowed by ADR-1335; ADR-1194). A project with no
  * CI storytree can read, perhaps with no repository at all, has its own tests run here: its package.json `test` script,
  * through a shell, in the project's folder, its output read as a CI log is (parseTestLog), each numbered test tied to its
  * contract as a CI run's are (proofsAt, judgeRun) over the folder's files as they stand, and its verdicts written to the

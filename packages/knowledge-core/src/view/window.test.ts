@@ -58,8 +58,11 @@ test("4.16, 4.23 a failed read of the selected session's window, or of the facto
     inherited: async () => { throw new Error("the factory did not answer"); },
   } });
   try {
+    // The factory's notes are read once they are drawn (ADR-1340 D2).
+    const close = (core as unknown as { view(): () => void }).view();
     core.select("S");
     await logs;
+    close();
     assert.equal((core as unknown as { get(): { window: SessionWindow | undefined } }).get().window, undefined);
     assert.deepEqual(logged.mock.calls.map((call) => [call.arguments[0], (call.arguments[1] as Error).message]), [
       ["knowledge-core: the factory's notes could not be read", "the factory did not answer"],

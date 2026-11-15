@@ -19,12 +19,17 @@ export const BEATS_SCHEMA: readonly string[] = [
     ended_at timestamptz,
     PRIMARY KEY (project, session)
   )`,
+  // Whether the latest beat came from a pool lane's engine, which messages may be sent to (4.49).
+  `ALTER TABLE session_beats ADD COLUMN IF NOT EXISTS lane boolean NOT NULL DEFAULT false`,
 ];
 
 /** The heartbeats of every project's sessions. */
 export interface SessionBeats {
-  /** `session` of `project` beats now, by the database's clock; with `ended`, it says it ended now. A beat after an end opens it again. */
-  beat(project: string, session: string, options?: { ended?: boolean }): Promise<void>;
+  /**
+   * `session` of `project` beats now, by the database's clock; with `ended`, it says it ended now. A beat after an end opens it again.
+   * With `lane`, the beat comes from a pool lane's engine; each beat says so or not afresh.
+   */
+  beat(project: string, session: string, options?: { ended?: boolean; lane?: boolean }): Promise<void>;
   /** The latest beat of each of `sessions` that has one. */
   of(project: string, sessions: readonly string[]): Promise<Map<string, Beat>>;
 }
@@ -41,11 +46,11 @@ export class PgSessionBeats implements SessionBeats {
     this.#pool = pool;
   }
 
-  async beat(project: string, session: string, options: { ended?: boolean } = {}): Promise<void> {
+  async beat(project: string, session: string, options: { ended?: boolean; lane?: boolean } = {}): Promise<void> {
     await this.#pool.query(
-      `INSERT INTO session_beats (project, session, ended_at) VALUES ($1, $2, CASE WHEN $3 THEN now() END)
-        ON CONFLICT (project, session) DO UPDATE SET beat_at = now(), ended_at = EXCLUDED.ended_at`,
-      [project, session, options.ended === true],
+      `INSERT INTO session_beats (project, session, ended_at, lane) VALUES ($1, $2, CASE WHEN $3 THEN now() END, $4)
+        ON CONFLICT (project, session) DO UPDATE SET beat_at = now(), ended_at = EXCLUDED.ended_at, lane = EXCLUDED.lane`,
+      [project, session, options.ended === true, options.lane === true],
     );
   }
 
@@ -57,9 +62,13 @@ export class PgSessionBeats implements SessionBeats {
 /** The latest beat of each of `sessions` of `project` that has one, read through `db`. */
 export async function beatsOf(db: Queries, project: string, sessions: readonly string[]): Promise<Map<string, Beat>> {
   if (sessions.length === 0) return new Map();
-  const { rows } = await db.query<{ session: string; beat_at: Date; ended_at: Date | null }>(
-    "SELECT session, beat_at, ended_at FROM session_beats WHERE project = $1 AND session = ANY($2::text[])",
+  const { rows } = await db.query<{ session: string; beat_at: Date; ended_at: Date | null; lane: boolean }>(
+    "SELECT session, beat_at, ended_at, lane FROM session_beats WHERE project = $1 AND session = ANY($2::text[])",
     [project, sessions],
   );
-  return new Map(rows.map((row) => [row.session, { at: row.beat_at.toISOString(), ...(row.ended_at === null ? {} : { ended: row.ended_at.toISOString() }) }]));
+  return new Map(rows.map((row) => [row.session, {
+    at: row.beat_at.toISOString(),
+    ...(row.ended_at === null ? {} : { ended: row.ended_at.toISOString() }),
+    ...(row.lane ? { lane: true as const } : {}),
+  }]));
 }

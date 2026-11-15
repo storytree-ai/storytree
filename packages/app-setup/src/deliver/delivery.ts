@@ -7,7 +7,7 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { installCommand } from "./command.js";
 import { runInstalledConnection } from "../connect/installed.js";
-import { clearOlderTools, stageTools, verifyPayload, type Architecture, type InstalledTools } from "./payload.js";
+import { clearOlderTools, runningFrom, stageTools, verifyPayload, type Architecture, type InstalledTools } from "./payload.js";
 import { agentFiles, agentLabel, installedToolServerCommand, reconnectAgents, type ConnectionOptions } from "../connect/index.js";
 import { openUninstaller, uninstall, uninstallAsks, uninstallReportFile } from "./uninstall.js";
 
@@ -125,8 +125,8 @@ export async function finishDelivery(options: DeliveryOptions, effects: {
   const installed = verifyPayload(options.installDir, options.arch, options.platform);
   const launched = await effects.launch(installed.app, options.home);
   await effects.waitForApp(options.home, undefined, launched || undefined);
-  // On Windows the agents run a copy under the home, so an update never finds them in the installation (1.19).
-  const tools = (options.platform ?? process.platform) === "win32" ? stageTools(options.installDir, options.home, options.arch, "win32") : installed;
+  // The agents run a copy under the home, so an update never finds them in the installation, nor takes their files from under them (1.19, 1.22).
+  const tools = stageTools(options.installDir, options.home, options.arch, options.platform ?? process.platform);
   const command = installCommand({ ...options, tools });
   writeRecord(options, tools);
   return { state: "ready", tools, command };
@@ -150,7 +150,7 @@ export interface FollowedTools {
 }
 
 /**
- * The installed Windows app's start (1.20): its own build's tools are copied under the home and, when the delivery record
+ * The installed app's start (1.20): its own build's tools are copied under the home and, when the delivery record
  * names this installation but other tools (the last build's copy, or a release's from before the copies), or agents an
  * earlier start could not re-point, the record, the connected agents' registrations and hooks, and the storytree command
  * are pointed at that copy. A session still open keeps the copy it started. A record naming another installation, or
@@ -160,6 +160,8 @@ export async function followBuildTools(options: DeliveryOptions & {
   connections?: Pick<ConnectionOptions, "home" | "env" | "run">;
   /** How a copy's node is deleted before the rest of it; Windows refuses while a session runs it. */
   remove?: (file: string) => void;
+  /** Which copies a process runs; Linux and macOS would delete them under it (1.22). */
+  running?: (dir: string) => boolean;
 }): Promise<FollowedTools | undefined> {
   let recorded: { installDir?: unknown; tools?: { dir?: unknown }; pending?: unknown } | undefined;
   try { recorded = JSON.parse(readFileSync(path.join(options.home, "delivery.json"), "utf8")); } catch { return undefined; }
@@ -180,7 +182,8 @@ export async function followBuildTools(options: DeliveryOptions & {
   }
   // Older builds' copies no session runs and no agent still names go (1.21).
   const named = agentFiles(options.connections ?? {}).map((file) => { try { return readFileSync(file, "utf8"); } catch { return ""; } }).join("\n");
-  clearOlderTools(options.home, tools.dir, options.remove, (name) => named.includes(name));
+  const running = options.running ?? ((options.platform ?? process.platform) === "win32" ? undefined : runningFrom());
+  clearOlderTools(options.home, tools.dir, options.remove, (name) => named.includes(name), running);
   return followed;
 }
 

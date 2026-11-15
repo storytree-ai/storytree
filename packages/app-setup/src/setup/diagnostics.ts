@@ -191,8 +191,8 @@ function rootMarkerLine({ both, tracked }: RootMarker): SetupLine {
 
 /**
  * What a project lacking a repository or its origin remote is told (8.31). No repository: make one locally. No origin: an ok
- * setup that names what a remote would add and the local route, verified health included as `health local` (ADR-1193 D2's
- * local rung), which the agent runs in its shell; storytree never proposes making or pushing a remote. An origin with no CI
+ * setup that names what a remote would add and the local route, verified health included as `health local` (ADR-1193 D2),
+ * which the agent runs in its shell; the check never proposes making or pushing a remote (the agent's guidance says how, ADR-1335). An origin with no CI
  * workflow storytree reads: ok, its verified health from `health local` too.
  */
 function repositoryLine(lack: "no repository" | "no origin" | "no CI"): SetupLine {

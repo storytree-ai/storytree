@@ -24,7 +24,14 @@ LAST=${STORYTREE_FACTORY_HEALTH_LAST:-$HOME/storytree-lanes/factory-health/facto
 
 cd "$RUNNER"
 pnpm install --frozen-lockfile --prefer-offline >/dev/null
-pnpm -s storytree health tell || echo "factory-health: telling the verdict turns CI could not failed; the next tick tries again"
+# The telling runs from the box's main checkout, the one the factory's `storytree` link names (contract 7.18): storytree
+# approves one checkout of a project per machine (ADR-0942), and this runner, cloned for the service, is not it.
+TELL_FROM=${STORYTREE_TELL_FROM:-$FACTORY/storytree}
+if [ -d "$TELL_FROM" ]; then
+  (cd "$TELL_FROM" && pnpm -s storytree health tell) || echo "factory-health: telling the verdict turns CI could not failed; the next tick tries again"
+else
+  echo "factory-health: no storytree checkout at $TELL_FROM to tell the verdict turns CI could not from; the next tick tries again"
+fi
 
 [ -d "$FACTORY/.git" ] || { echo "factory-health: no factory clone at $FACTORY, so nothing to record"; exit 0; }
 commit=$(git -C "$FACTORY" rev-parse HEAD)

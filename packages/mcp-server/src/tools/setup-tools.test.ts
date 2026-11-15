@@ -1,7 +1,7 @@
 /**
  * Capability 12 · Setup tools: the setup check's two tools, check_setup and set_up_project, as an agent calls them through the MCP
- * server: the setup contracts 8.4-8.24, numbered as the agent link had them, that only a call through the server shows, and 7.7, the
- * habits card in their answers. The setup work itself is the app setup's, and its own tests stay there.
+ * server: the setup contracts 8.4-8.24, numbered as the agent link had them, that only a call through the server shows, and 7.7 and 7.9,
+ * the habits card in their answers and how to build beside imported code after it. The setup work itself is the app setup's, and its own tests stay there.
  *
  * Each test works in a throwaway home: its own Claude Code config folder and Codex home, holding
  * settings of the user's own that the setup check must leave alone, and a storytree home that says
@@ -23,6 +23,7 @@ import { STARTER_PACK_VERSION } from "@storytree/app-setup/project";
 import { withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect } from "@storytree/library";
+import { MAPPED_CODE_GUIDANCE } from "@storytree/map";
 
 import { habitsCard } from "../instructions/habits.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
@@ -491,6 +492,61 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
     } finally {
       await storytree.close();
       await dropTestProjects([seeded, older, factory]);
+    }
+  });
+});
+
+test("7.9 how to build beside imported code is handed on demand, never on the card: check_setup's answer carries it after the card only in a project with imported stories, and import_project's answer carries it", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const name = uniqueProjectName();
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const folder = path.join(dir, name);
+      mkdirSync(folder);
+      await (await storytree.openProject(name)).close();
+      writeMarker(folder, `${JSON.stringify({ project: name })}\n`);
+      await approveCheckout(folder, name, home.storytreeHome);
+      writeFileSync(path.join(folder, "pyproject.toml"), "[project]\nname = \"checkbox\"\nversion = \"0.1.0\"\n");
+      const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+      assert.ok(!habitsCard().includes(MAPPED_CODE_GUIDANCE), "the card handed at session start still carries the section");
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
+        const before = await agent.call("check_setup");
+        assert.equal(before.isError, false, before.text);
+        assert.ok(!before.text.includes(MAPPED_CODE_GUIDANCE), "a project with no imported stories is handed the section");
+
+        const imported = await agent.call("import_project", { folder: "." });
+        assert.equal(imported.isError, false, imported.text);
+        const after = await agent.call("check_setup");
+        assert.ok(after.text.indexOf(MAPPED_CODE_GUIDANCE) > after.text.indexOf(habitsCard()), "check_setup in a project with imported stories lacks the section after the card");
+        for (const answer of [imported.text, after.text]) {
+          // One phrase for each thing ADR-0993 D4 and D8 to D11, as ADR-1015 and ADR-1020 narrow them, has the agent do beside imported code.
+          for (const said of [
+            "Before changing or deleting anything in the imported project, stop and ask the user",
+            "change it there, bring that part into this project, retire it, or leave it and build on top",
+            "Do what the user says",
+            "do not watch the old project for changes",
+            "import it again only when the user asks",
+            "depending on the imported package by a link:",
+            "Old code never imports new code",
+            "Test the interface your package has with the old code",
+            "give `focus` the part's folders as its crossing",
+            "bringing in what serves the screens whole",
+            "turbopack.root",
+            "its node_modules a link to the old project's",
+            "storytree does not draw or watch it",
+          ]) assert.ok(answer.includes(said), `the answer lacks: ${said}`);
+        }
+      });
+      // A client storytree has no hooks for is handed it too.
+      await withAgent(folder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-1" }, ...setup }, async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.data.tier, "connected");
+        assert.ok(checked.text.indexOf(MAPPED_CODE_GUIDANCE) > checked.text.indexOf(habitsCard()), "a connected client's check lacks the section after the card");
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([name]);
     }
   });
 });

@@ -616,7 +616,7 @@ test("17.29 · library edit <question> --unbuilt records on a settled question t
   await library.settleQuestion(question.id, { answer: "Just leave it as unbuilt" });
 
   await edit.act({ "<id>": question.id, "<fields>": { unbuilt: `${social.id},${session.id}` } }, context, WORDS);
-  assert.deepEqual((await library.get(question.id))?.fields.unbuilt, [social.id, session.id]);
+  assert.deepEqual(((await library.get(question.id))?.fields as { unbuilt?: string[] } | undefined)?.unbuilt, [social.id, session.id]);
   await assert.rejects(edit.act({ "<id>": question.id, "<fields>": { title: "Build it later?" } }, context, WORDS), VerbRefusal, "its wording stays as answered");
 });
 

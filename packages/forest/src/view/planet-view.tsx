@@ -44,6 +44,8 @@ export type PlanetViewProps = {
   mode?: ForestMode;
   /** False when the Library is switched off (ADR-0750): no notes under the glass. */
   library?: boolean;
+  /** Hears once each time the Library's notes are hung beneath the glass, which ends its loading bar (3.116). */
+  onLibraryHung?: (() => void) | undefined;
   /** How many of the sheet's radii half the short side spans when a guide frames the whole map (`globeFraming`, 3.66). */
   framing?: number | undefined;
   /** The full plan a plan still growing is drawn within: each island keeps the spot it has there (3.28). */
@@ -78,7 +80,7 @@ export type PlanetViewProps = {
 
 /** The forest drawn on the glass sheet, depth running west to east (ADR-1043): the user tilts it from above to below
  * (ADR-1062 D2); `mode` changes only its look, never the eye (D3). */
-export function PlanetView({ core, scene, places, wisps: live, selected, selectedCapability, highlighted, circled: circledList, circledContracts, onPick, onNote, onStore, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, recordedSessions, onLanesNotice }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, selectedCapability, highlighted, circled: circledList, circledContracts, onPick, onNote, onStore, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, onLibraryHung, frame, easeMoves = false, growth, recordedSessions, onLanesNotice }: PlanetViewProps) {
   // In the glass sheet's Library the glass is clear and the islands hollow outlines with their names over the knowledge, from
   // every angle (ADR-1061 D2, ADR-1062 D3): the button pressed decides, never the side the eye is on.
   const outlines = mode === "library";
@@ -166,8 +168,8 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   // 3.90: the wheel's floor is half the sheet's opening, whatever framing the last pose (a panel's resize or slide) sent.
   const floor = useCallback((size: { width: number; height: number }) => sheetOpening(layout.extent, size).framing, [layout.extent]);
-  const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>,
-    [library, outlines, core, codePlaces, underSheet, growth]);
+  const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} places={codePlaces} sheet={underSheet} growing={growth !== undefined} onHung={onLibraryHung} /></UnderTheGlass>,
+    [library, outlines, core, codePlaces, underSheet, growth, onLibraryHung]);
   const storeSpots = useMemo(() => new Map(layout.stores.map(store => [store.address, store.spot])), [layout.stores]);
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} storeSpots={storeSpots} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} floor={floor} sideOffset={cameraOffset} sheet={layout.extent} hollow={outlines}

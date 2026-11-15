@@ -23,6 +23,7 @@ import { onScreenIsland } from "./layout-progress.js";
 import { ForestTop } from "./forest-top.js";
 import { openWorkCount } from "./open-work.js";
 import { EmptyMap } from "./empty-map.js";
+import { LibraryProgress, libraryOpening } from "./library-opening.js";
 import { searchFirst } from "../territories/kept-layout.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
 
@@ -64,6 +65,8 @@ interface Drawn {
   lanesNotice: LanesNotice | undefined;
   /** Whether a read of the project has been shown, so an empty scene means no stories rather than none read yet (3.107). */
   read: boolean;
+  /** Whether the Library's loading bar is on show: its open has run past about a third of a second (3.116). */
+  libraryBar: boolean;
 }
 
 /**
@@ -77,10 +80,12 @@ interface Drawn {
  * story says so on the map, and `openGuide`, where the frame gives it, is its button to the first-run guide (3.107).
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
-  { library = true, opening = "whole-planet", openGuide }: { library?: boolean; opening?: GlobeOpening | undefined; openGuide?: (() => void) | undefined } = {}): Promise<ForestView> {
+  { library = true, opening = "whole-planet", openGuide, libraryBarAfterMs }: { library?: boolean; opening?: GlobeOpening | undefined; openGuide?: (() => void) | undefined;
+    /** How long a Library open runs before its loading bar shows: about a third of a second unless given (3.116). */
+    libraryBarAfterMs?: number | undefined } = {}): Promise<ForestView> {
   const root = createRoot(container);
   let drawn: Drawn = {
-    face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, capability: undefined, highlighted: undefined, circled: undefined, circledContracts: undefined, viewport: undefined, aside: 0, lanesNotice: undefined, read: false,
+    face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, capability: undefined, highlighted: undefined, circled: undefined, circledContracts: undefined, viewport: undefined, aside: 0, lanesNotice: undefined, read: false, libraryBar: false,
   };
   const painted = paintedScenes(drawn.scene);
   const onScreen = onScreenIsland();
@@ -101,8 +106,9 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
         <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
           selected={drawn.selected} selectedCapability={drawn.capability} highlighted={drawn.highlighted} circled={drawn.circled} circledContracts={drawn.circledContracts}
           onPick={pick} onNote={pickNote} onStore={pickStore} onControls={onControls} onPainted={painted.painted} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library}
-          onLanesNotice={onLanesNotice} />
+          onLanesNotice={onLanesNotice} onLibraryHung={libraryOpens.hung} />
       </div>
+      <LibraryProgress shown={drawn.libraryBar} />
       <ForestTop layers={layers} onTurn={turn} notice={drawn.lanesNotice} aside={drawn.aside} rings={openWorkCount(drawn.scene, drawn.circled, drawn.circledContracts)}
         islands={drawn.scene.islands.map(island => ({ story: island.story, territories: island.land?.territories }))} />
       <EmptyMap read={drawn.read} face={drawn.face} islands={drawn.scene.islands.length} onGuide={openGuide} />
@@ -115,8 +121,11 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     render({ selected: next?.kind === "story" ? next.id : undefined, capability: next?.kind === "story" ? next.capability : undefined });
     onSelect(next);
   });
+  // A press of Library loads its notes then (ADR-1340): past about a third of a second a bar shows until they are hung (3.116).
+  const libraryOpens = libraryOpening(shown => render({ libraryBar: shown }), libraryBarAfterMs);
   const turn = (face: SheetFace): void => {
     if (face === drawn.face) return;
+    if (library) libraryOpens.turned(face);
     render({ face });
     selection.turned(face);
   };
@@ -171,6 +180,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       selection.story(story);
     },
     dispose() {
+      libraryOpens.hung();
       window.removeEventListener("keydown", onKey);
       delete page.storytreeGlobe;
       core.dispose();

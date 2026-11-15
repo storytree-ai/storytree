@@ -21,6 +21,8 @@ const nearestYaw = (from: number, to: number) => from + Math.atan2(Math.sin(to -
 export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; size(): { width: number; height: number }; read(): GlobePose; write(pose: GlobePose): void; invalidate(): void;
   /** The view the glass sheet opens on and Home returns to, as the canvas is now, or that whole map at a `framing` asked for (3.66). */
   opening(framing?: number): GlobePose }): GlobeControls & { frame(milliseconds: number): boolean; home(pose: GlobePose, duration?: number): boolean; slide(to: Omit<GlobePose, "turn">, duration?: number): boolean;
+    /** The pose on show, with the zoom and offset the glide under way ends on: what the next slide moves from (3.40). */
+    heading(): GlobePose;
     /** Aims the last stop at the whole sheet again, at the opening the host now gives, unless something has moved it since (3.66). */
     reframe(): boolean } {
   // A slide (3.40) moves the zoom and offset only, leaving the turn to whatever turns it meanwhile.
@@ -113,6 +115,12 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
     slide(to, duration = 600) {
       const from = current();
       return go(from, { ...to, turn: from.turn }, duration, true);
+    },
+    // A glide cut short by another still lands its offset (`cancel`, `go` from the pose on show), so a panel's slide is measured
+    // from where the one under way ends: one closing mid-slide comes home, not past it.
+    heading() {
+      const now = current();
+      return motion === undefined ? now : { ...now, framing: motion.to.framing, sideOffset: motion.to.sideOffset };
     },
     position: target => positions([target])[0],
     positions,

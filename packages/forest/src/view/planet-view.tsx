@@ -697,7 +697,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const besideAside = useRef<ReturnType<typeof createGlobeAside>>(undefined);
   besideAside.current ??= createGlobeAside(() => host.current.opening, { fit: false });
   useEffect(() => {
-    const moved = besideAside.current!.place(size, aside, read(), islandCanvasX(scene, camera, selected, size.width));
+    const moved = besideAside.current!.place(size, aside, guide.current!.heading(), islandCanvasX(scene, camera, selected, size.width));
     placedAside.current = aside;
     if (moved === undefined || !guide.current!.slide(moved.to, moved.glide && !reducedMotion() ? 600 : 0)) return;
     guideFrameAt.current = performance.now();

@@ -79,6 +79,11 @@
         "from": "./setup",
         "export": "setupGuidance",
         "order": 10
+      },
+      {
+        "from": "./setup",
+        "export": "selfMergeGuidance",
+        "order": 60
       }
     ],
     "namedSurfaces": [

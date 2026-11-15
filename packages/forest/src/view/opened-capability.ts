@@ -166,7 +166,7 @@ export function openedMarks(capability: string, layout: NestedLayout, inner: Isl
     return post;
   }));
   flat(merged(posts), material(POST.ink), "part-gates", 3.3);
-  group.userData = { capability, parts: map.territories.length };
+  group.userData = { capability, parts: map.territories.length, routed: inner !== undefined };
   return group;
 }
 

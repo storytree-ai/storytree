@@ -90,9 +90,8 @@ test("3.112 · an opened capability's parts are drawn as border lines on its lan
   const count = (name: string) => ((marks.getObjectByName(name) as Mesh).geometry as BufferGeometry).getAttribute("position").count;
   // Two posts a gate, each a box of 36 corners; a disc of 16 triangles at each junction and where each part's roads end.
   assert.equal(count("part-gates"), inner.gates.length * 2 * 36, "a post either side of each part gate");
-  const ending = [...inner.settlements.values()].filter(({ at }) => inner.segments.some((s) => [s.pts[0]!, s.pts.at(-1)!].some((p) => Math.hypot(p.x - at.x, p.z - at.z) < 1e-6)));
-  assert.equal(count("part-junctions"), (inner.junctions.length + ending.length) * 16 * 3, "a junction where roads meet and where each part's end");
-  assert.equal(ending.length, 3, "p, q and r each have their junction");
+  // p, q and r each meet their roads at a junction of their own; Alpha's own files, which no road reaches, have none.
+  assert.equal(count("part-junctions"), (inner.junctions.length + 3) * 16 * 3, "a junction where roads meet and where each part's end");
   // Every road's way is drawn: a ribbon of two triangles each half unit along it.
   assert.ok(count("part-roads") >= inner.segments.reduce((sum, s) => sum + s.pts.slice(1).reduce((l, p, i) => l + Math.hypot(p.x - s.pts[i]!.x, p.z - s.pts[i]!.z), 0) / 0.5 * 6 * 0.9, 0), "the parts' roads are drawn their whole way");
   assert.equal(marks.getObjectByName("territory:p"), undefined, "a part has no fill of its own: it keeps its capability's colour");

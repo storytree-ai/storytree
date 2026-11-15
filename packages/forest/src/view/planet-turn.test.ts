@@ -5,6 +5,7 @@ import { build } from "esbuild";
 import { chromium, type Browser, type BrowserServer, type Page } from "playwright-core";
 import { endChrome } from "./end-chrome.js";
 import { waitUntil } from "@storytree/test-waits";
+import { DETAIL_ZOOM } from "./zoom-detail.js";
 
 /** Each bundle is built once for the file, and its tests each mount it on a fresh page. */
 const bundles = new Map<string, Promise<string>>();
@@ -504,4 +505,50 @@ test("3.105 · while an arc is selected, a click on island land that is no part 
   assert.equal(JSON.parse(await picks()).length, before, "the click on land in no part picked nothing while the arc is selected");
   await page.mouse.click(part.x, part.y);
   assert.deepEqual(JSON.parse(await picks()).at(-1)?.slice(0, 2), ["one", "one-cap"], "the click on the part still picked it");
+});
+
+test("3.112 · zoomed to the parts level over a capability with code parts, it opens: its parts drawn and named, its junction given way; zoomed back out, the island is as it was", async t => {
+  const { page } = await openedMap(t, true, { width: 800, height: 600 }, { parted: true });
+  type Mark = { name: string; visible: boolean; parent: Mark | null; userData: Record<string, unknown>; getObjectByName(name: string): Mark | undefined; getWorldPosition(into: unknown): { project(camera: unknown): { x: number; y: number } }; position: { constructor: new () => unknown } };
+  const read = () => page.evaluate(() => {
+    const { __globe: globe, __zoom: zoom } = window as unknown as { __globe: { scene: Mark; camera: unknown; size: { width: number; height: number } }; __zoom(): number };
+    const plate = globe.scene.getObjectByName("planet:one")!;
+    const at = plate.getWorldPosition(new plate.position.constructor()).project(globe.camera);
+    // Shown when it and everything it hangs from is visible (a named function here would need the bundler's helper).
+    const junction = plate.getObjectByName("territory-junction:one-cap");
+    let junctionShown = junction !== undefined;
+    for (let m: Mark | null | undefined = junction; m; m = m.parent) junctionShown &&= m.visible;
+    const opened = plate.getObjectByName("opened-capability:one-cap");
+    return {
+      zoom: zoom(), x: (at.x + 1) / 2 * globe.size.width, y: (1 - at.y) / 2 * globe.size.height,
+      opened: opened === undefined ? undefined : { parts: opened.userData.parts, routed: opened.userData.routed },
+      junction: junctionShown,
+      names: [...document.querySelectorAll(".planet-nameplate.part")].map(label => label.textContent).sort(),
+    };
+  });
+  const frames = () => page.evaluate(() => new Promise(requestAnimationFrame)).then(() => page.evaluate(() => new Promise(requestAnimationFrame)));
+  const until = async (step: () => Promise<void>, done: (now: Awaited<ReturnType<typeof read>>) => boolean, what: string) => {
+    for (let at = 0; at < 120; at++) {
+      const now = await read();
+      if (done(now)) return now;
+      await step();
+      await frames();
+    }
+    throw new Error(`never ${what}: ${JSON.stringify(await read())}`);
+  };
+  const closed = await until(async () => {}, now => now.junction, "its junction shown");
+  assert.equal(closed.opened, undefined, "nothing is open at the map's opening zoom");
+  // Each step brings island one under the middle of the view, then zooms in there.
+  const centre = { x: 400, y: 300 };
+  const open = await until(async () => {
+    const now = await read();
+    await page.mouse.move(now.x, now.y); await page.mouse.down(); await page.mouse.move(centre.x, centre.y, { steps: 4 }); await page.mouse.up();
+    await page.mouse.move(centre.x, centre.y);
+    await page.mouse.wheel(0, -240);
+  }, now => now.opened?.routed === true && now.names.length > 0, "opened with its parts' roads routed and named");
+  assert.ok(open.zoom >= DETAIL_ZOOM.parts, `opened at the parts level (${open.zoom.toFixed(1)})`);
+  assert.deepEqual([open.opened?.parts, open.names], [2, ["a", "b"]], "its two parts are drawn and named");
+  assert.equal(open.junction, false, "its junction gives way to its parts'");
+  const back = await until(async () => { await page.mouse.move(centre.x, centre.y); await page.mouse.wheel(0, 240); }, now => now.zoom < DETAIL_ZOOM.parts * 0.8 && now.opened === undefined, "closed again");
+  assert.deepEqual([back.junction, back.names], [true, []], "zoomed back out, its junction shows again and its parts are not named");
 });

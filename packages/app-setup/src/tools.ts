@@ -11,6 +11,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { Library, Storytree } from "@storytree/library";
+import { MAPPED_CODE_GUIDANCE } from "@storytree/map";
 import { z } from "zod";
 
 import { ghProtection, githubRepository, importFetches, protectionCommand, pytestWithoutSummary, pythonCommands, pythonSetupOf, storytreeRef, WORKFLOW_FILE, workflowFor, type ImportFetch, type PipelineJob, type ProtectionReader, type System } from "./pipeline/pipeline.js";
@@ -101,8 +102,9 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
           });
           if (imported instanceof ImportRefusedError) return { text: imported.message, refused: true };
           const added = imported.added.map((story) => `${quoted(story.title)} (${story.id}), capabilities drawn: ${story.capabilities}`).join("; ");
+          // How to build beside the code just imported rides with the answer, off the habits card (contract 7.9, ADR-1341).
           return {
-            text: [`Imported ${imported.folder}: ${imported.added.length} imported stories added${added === "" ? "" : `: ${added}`}; ${imported.retired.length} retired, their package gone; ${imported.kept.length} kept as they stand.`, ...importLines(imported), ...namingSaid(imported.added), RUN_THE_TESTS].join("\n"),
+            text: [`Imported ${imported.folder}: ${imported.added.length} imported stories added${added === "" ? "" : `: ${added}`}; ${imported.retired.length} retired, their package gone; ${imported.kept.length} kept as they stand.`, ...importLines(imported), ...namingSaid(imported.added), RUN_THE_TESTS, "", MAPPED_CODE_GUIDANCE].join("\n"),
             data: {
               folder: imported.folder,
               added: imported.added.map((story) => story.id),

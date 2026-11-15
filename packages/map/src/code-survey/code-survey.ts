@@ -815,10 +815,11 @@ export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[
 /** Its first section of the habits card (ADR-1021, the guidance kind): where code goes so the map can draw it. */
 const CODE_LAYOUT_GUIDANCE = [
   "Code the map can draw.",
-  "- storytree draws a story's code on its island from its own package, packages/<story>/src, where <story> is its title in lower case with hyphens, without a leading \"The\" (\"Shopping cart\" is packages/shopping-cart). It reads JavaScript, TypeScript and Python files. A package.json dependency on another story's package draws the road between them.",
-  "- In Python, a story's package is packages/<story>/pyproject.toml with its module in src/<module>, under a uv workspace over packages/*; a [project] dependency on another story's package draws the road. Put the contract number in each pytest test's name: test_2_3_cart_keeps_items, or test_<package>_2_3_… (hyphens as underscores) for a test proving another story's contract. CI reads only its name, so a docstring's number is for reading only.",
-  "- Start each test's title with the number of the contract it proves (\"2.3 the cart keeps its items after a reload\"): the files it reaches are drawn inside that capability.",
-  "- This is the layout for new stories. An existing repository's code, whatever its layout, is drawn where it is once `import_project` maps it: name and describe its capabilities, never redraw them. Mapping includes running the repository's tests in your shell, then planning one arc: an increment per red capability, naming it, and the user's own requests.",
+  "- storytree draws a story's code on its island from its own package, packages/<story>/src, <story> being its title in lower case with hyphens, less a leading \"The\" (\"Shopping cart\" is packages/shopping-cart). It reads JavaScript, TypeScript and Python files. A package.json dependency on another story's package draws the road between them.",
+  "- In Python, a story's package is packages/<story>/pyproject.toml with its module in src/<module>, under a uv workspace over packages/*; a [project] dependency on another story's package draws the road. Put the contract number in each pytest test's name: test_2_3_cart_keeps_items, or test_<package>_2_3_… (hyphens as underscores) for a test proving another story's contract. CI reads the name, never a docstring.",
+  "- Start each test's title with the number of the contract it proves (\"2.3 the cart keeps its items\"): the files it reaches are drawn inside that capability.",
+  "- The map draws only the code's own structure: a part is a folder with an entry file (index.ts, __init__.py) or a package. Map a part only to work in it; never redraw one. An import around a part's entry is a clash: tell the user, suggesting a refactor.",
+  "- An existing repository's code, whatever its layout, is drawn where it is once `import_project` maps it: name and describe its capabilities. Mapping includes running the repository's tests in your shell, then planning one arc: an increment per red capability, naming it, and the user's own requests.",
 ].join("\n");
 
 /**

@@ -141,7 +141,6 @@ const show = verb({
   },
   async act({ session: id, json }, { log, server, project, folder, session, harness }: SessionVerbContext) {
     const shown = id ?? session;
-    if (shown === undefined) throw new VerbRefusal("No session runs this command, so name the one to show: storytree session show <session>.", { misuse: true });
     const look = { context: { log, project, folder, session, ...(harness === undefined ? {} : { harness }), source: "tool" } } as const;
     const { sessionShown } = await import("./listing.js");
     const { machineNames } = await import("../machines/machines.js");

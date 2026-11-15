@@ -28,3 +28,5 @@ Counted from the scene and the page (`after-measurements.json`):
 | 2 · Library transactions opened | 2 | 4 | 2 | 25 | 11 | project, transactions |
 
 Taken by `node --import tsx packages/forest/testing/view/nested-parts/capture.mjs after` (append `--retake` to write here).
+
+In the evidence bucket for #882, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `882/after-the-library-closed.png`, `882/after-13-decision-log-opened.png`, `882/after-14-ranked-search-opened.png`, `882/after-2-library-transactions-opened.png`, `882/after-measurements.json`.

@@ -815,9 +815,10 @@ export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[
 /** Its first section of the habits card (ADR-1021, the guidance kind): where code goes so the map can draw it. */
 const CODE_LAYOUT_GUIDANCE = [
   "Code the map can draw.",
-  "- storytree draws a story's code on its island from its own package, packages/<story>/src, where <story> is its title in lower case with hyphens, without a leading \"The\" (\"Shopping cart\" is packages/shopping-cart). It reads JavaScript, TypeScript and Python files. A package.json dependency on another story's package draws the road between them.",
-  "- In Python, a story's package is packages/<story>/pyproject.toml with its module in src/<module>, under a uv workspace over packages/*; a [project] dependency on another story's package draws the road. Put the contract number in each pytest test's name: test_2_3_cart_keeps_items, or test_<package>_2_3_… (hyphens as underscores) for a test proving another story's contract. CI reads only its name, so a docstring's number is for reading only.",
-  "- Start each test's title with the number of the contract it proves (\"2.3 the cart keeps its items after a reload\"): the files it reaches are drawn inside that capability.",
+  "- storytree draws a story's code from its own package, packages/<story>/src, <story> being its title in lower case with hyphens, less a leading \"The\" (\"Shopping cart\" is packages/shopping-cart). It reads JavaScript, TypeScript and Python. A package.json dependency on another story's package is a road.",
+  "- In Python, a story's package is packages/<story>/pyproject.toml with its module in src/<module>, under a uv workspace over packages/*; a [project] dependency draws the road. Name each pytest test by its contract number: test_2_3_cart_keeps_items, or test_<package>_2_3_… (hyphens as underscores) for another story's contract. CI reads only its name, so a docstring's number is for reading only.",
+  "- Start each test's title with the number of the contract it proves (\"2.3 the cart keeps its items\"): the files it reaches are drawn inside that capability.",
+  "- The map's parts are folders with an entry file (index.ts, __init__.py) and packages: open one only to work in it. An import around a part's entry is a clash: tell the user, suggesting a refactor.",
   "- This is the layout for new stories. An existing repository's code, whatever its layout, is drawn where it is once `import_project` maps it: name and describe its capabilities, never redraw them. Mapping includes running the repository's tests in your shell, then planning one arc: an increment per red capability, naming it, and the user's own requests.",
 ].join("\n");
 
@@ -830,11 +831,11 @@ export const MAPPED_CODE_GUIDANCE = [
   "- An imported story's code predates storytree: assume it works.",
   "- Before changing or deleting anything in the imported project, stop and ask the user, even when an increment names the change. Say what would change there and its cost, offering the ways on: change it there, bring that part into this project, retire it, or leave it and build on top. Do what the user says.",
   "- After the import the projects are separate: do not watch the old project for changes, and import it again only when the user asks.",
-  "- Build new stories on top in their own packages, each depending on the imported package by a link: to its folder under its own name (file: under npm, which has no link:). It declares no exports, so import its files by path; match its module type and path aliases, and link its single copy of its framework and type packages.",
-  "- Old code never imports new code. Wiring the old project to import a package here is the user's own business: storytree does not draw or watch it, so say that plainly before you do it on their yes.",
+  "- Build new stories on top in their own packages, each depending on the imported package by a link: to its folder under its own name (file: under npm, which has no link:). It declares no exports: import its files by path, match its module type and path aliases, and link its one copy of its framework and type packages.",
+  "- Old code never imports new code. Wiring the old project to import a package here is the user's business: storytree does not draw or watch it, so say so before doing it on their yes.",
   "- Bringing in a part of an app's screens means bringing in what serves the screens whole: a package here that serves every page and imports what it does not touch from the imported folder. Offer that, or changing it at source. For Next.js: copy the route folder unchanged, less what the old code imports back, with public/, the middleware or proxy, instrumentation and .env files; a next.config that spreads the old one and sets turbopack.root to the folder holding both; a tsconfig whose path aliases point at the imported folder; and its node_modules a link to the old project's, one copy of the framework.",
   "- Test the interface your package has with the old code.",
-  "- Before asking about a part in its middle, give `focus` the part's folders as its crossing: it counts the files importing it and those it imports. Bring the user those numbers, and say when the part is too large to move.",
+  "- Before asking about moving a part, give `focus` the part's folders as its crossing, and bring the user its counts, saying when the part is too large to move.",
 ].join("\n");
 
 /** Its sections of the habits card (ADR-1021, the guidance kind). */

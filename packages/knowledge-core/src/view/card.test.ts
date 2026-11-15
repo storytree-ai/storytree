@@ -50,7 +50,7 @@ test("4.6 one shared pin holds one card at a time for both globe modes: a new pi
   }
 });
 
-test("4.23 a product's globe draws the system notes it reads from its factory beside its own, and their card says they come from the factory; its own copy and what it retires are its own", async () => {
+test("4.23 a product's globe draws the system notes it reads from its factory beside its own, and their card says they come from the factory; its own copy and what it retires are its own; they are read only while the notes are drawn", async () => {
   const record = (id: string, title: string): SchemaRecord => ({
     id, type: "principle", version: 1, createdAt: "2026-10-15T00:00:00.000Z", updatedAt: "2026-10-15T00:00:00.000Z",
     fields: { title, description: `${title}.`, statement: title, why: "It helps.", howToApply: "Do it." },
@@ -64,10 +64,14 @@ test("4.23 a product's globe draws the system notes it reads from its factory be
   const state = () => (core as unknown as { get(): { drawn: readonly Change[]; factory: ReadonlySet<string> } }).get();
   const card = (id: string) => noteCard(id, knowledge(state().drawn), state().factory);
   const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const view = (core as unknown as { view(): () => void }).view;
   try {
     await settled();
     const own = new History().create("principle_own", "principle", { title: "Name things plainly", description: "Name things plainly." });
     core.take(own.changes, []);
+    await settled();
+    assert.deepEqual(asked, [], "nothing drawing the notes, so the factory is not read");
+    const close = view();
     await settled();
     assert.deepEqual([...knowledge(state().drawn).notes.keys()].sort(), ["principle_copied", "principle_inherited", "principle_own"]);
     assert.equal(card("principle_inherited")?.fromFactory, true);
@@ -83,6 +87,18 @@ test("4.23 a product's globe draws the system notes it reads from its factory be
     assert.equal(card("principle_copied")?.fromFactory, undefined, "the product's own copy is its own");
     assert.equal(card("principle_copied")?.summary, "The product's own.");
     assert.ok(asked.length >= 2 && asked.every((project) => project === "site"));
+
+    // Closed, a longer history reads nothing; drawn again, the factory is read once more.
+    close();
+    const before = asked.length;
+    own.create("principle_later", "principle", { title: "Later", description: "Later." });
+    core.take(own.changes, []);
+    await settled();
+    assert.equal(asked.length, before, "a longer history with the notes not drawn reads nothing");
+    const again = view();
+    await settled();
+    assert.equal(asked.length, before + 1);
+    again();
   } finally {
     core.dispose();
   }

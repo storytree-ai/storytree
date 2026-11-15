@@ -10,7 +10,7 @@ import { awaitingLayout, keptVersion, pageTerritorySearcher, subscribeKept } fro
 import { capabilityPlates, crowdedNames, facing, mapControls, mapFrame, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 import { showsNear, type DetailStore } from "./zoom-detail.js";
-import type { OpenedStore } from "./opened-capability.js";
+import { namesShown, type OpenedStore } from "./opened-capability.js";
 import { LayingOutLabel } from "./layout-progress.js";
 
 /** Where an island's middle is, in 0.2 ground units. */
@@ -63,6 +63,7 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
   // 3.112: an opened capability's parts are named on its land, in place of its own name.
   const partPlates = useSyncExternalStore(opened?.subscribe ?? NEVER, () => opened?.platesOn(island.story));
   const open = partPlates === undefined ? undefined : opened?.get()?.capability;
+  const shown = namesShown(plates, partPlates, open);
   const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
   // Its opacity is a variable, so a crowded plate's fade (styles.css) can take it to nothing and back.
   const plateStyle = { "--plate-opacity": opacity, maxWidth: STORY_PLATE_WIDTH } as CSSProperties;
@@ -75,10 +76,10 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
         </div>
       </Overlay>
     </group>
-    {open !== undefined && partPlates?.map(plate => <Overlay key={`part:${plate.part}`} position={surface(plate).toArray()} center zIndexRange={[25, 21]} style={{ pointerEvents: "none" }}>
+    {shown.parts.map(plate => <Overlay key={`part:${plate.part}`} position={surface(plate).toArray()} center zIndexRange={[25, 21]} style={{ pointerEvents: "none" }}>
       <div className="forest-label planet-nameplate capability part" data-capability-id={open} data-part-id={plate.part} data-island-id={island.story}>{plate.title}</div>
     </Overlay>)}
-    {plates.filter(plate => plate.capability !== open).map(plate => <Overlay key={plate.capability} position={surface(plate).toArray()} center zIndexRange={[25, 21]} style={{ pointerEvents: "none" }}>
+    {shown.plates.map(plate => <Overlay key={plate.capability} position={surface(plate).toArray()} center zIndexRange={[25, 21]} style={{ pointerEvents: "none" }}>
       <div className="forest-label planet-nameplate capability" data-capability-id={plate.capability} data-island-id={island.story} data-size={plate.size} data-claimed={claimed.has(plate.capability) ? "" : undefined}>{plate.title}</div>
     </Overlay>)}
   </>;

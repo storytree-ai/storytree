@@ -31,7 +31,7 @@ import { useBuiltInSteps } from "./build-turns.js";
 import type { TerritoryMap } from "../territories/territories.js";
 import { keepPartSeeds, keptPartSeeds, nestedLayoutSteps, partCrossings, regionOf } from "../territories/nested-territories.js";
 import type { SceneParts } from "../render/scene-parts.js";
-import { disposeOpened, hiddenByOpening, hideForOpening, openedAt, openedMarks, OpenedStore, rollUp } from "./opened-capability.js";
+import { disposeOpened, hiddenByOpening, hideForOpening, openedAt, openedMarks, OpenedStore, opensAt, readsUnder, rollUp } from "./opened-capability.js";
 
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the map is mounted. */
@@ -204,17 +204,16 @@ function DocksSeen({ story, docks: given, onDocks }: { story: string; docks: rea
 
 /** 3.86: reads the eye's zoom on every frame drawn, so the islands show the detail it asks for. */
 function DetailFeed({ detail, opened, mode, aside }: { detail: DetailStore; opened: OpenedStore; mode: ForestMode; aside: number }) {
-  // 3.112: at the parts level, what lies under the middle of the free view is read at most five times a second while the eye
-  // moves, and once a second while it rests, so a capability laid out under a still eye opens too.
+  // 3.112: at the parts level, what lies under the middle of the free view is read as often as `readsUnder` says.
   const last = useRef({ eye: "", at: -Infinity });
   useFrame(({ camera, size, scene, clock }) => {
     detail.zoom(sheetEyeZoom(camera, size));
-    if (detail.get() !== "parts" || mode !== "forest") { opened.open(undefined); return; }
+    if (!opensAt(detail.get(), mode)) { opened.open(undefined); return; }
     const eye = camera.matrixWorld.elements.join(), now = clock.getElapsedTime();
-    if (now - last.current.at < 0.2 || (eye === last.current.eye && now - last.current.at < 1)) return;
+    if (!readsUnder(now, eye, last.current)) return;
     last.current = { eye, at: now };
     const box = { left: 0, top: 0, width: size.width, height: size.height };
-    opened.open(openedAt(detail.get(), pickGlobe(scene, camera, box, { x: Math.max(0, size.width - aside) / 2, y: size.height / 2 }, mode)));
+    opened.open(openedAt(detail.get(), pickGlobe(scene, camera, box, { x: Math.max(0, size.width - aside) / 2, y: size.height / 2 }, mode), mode));
   });
   return null;
 }
@@ -346,6 +345,8 @@ function Territories(props: TerritoriesProps) {
   // 3.72: an update that redraws the island for anything else (its name, its trees) hands it new land and coast that read
   // the same; the territories already cut for them stay.
   const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify), docks = useKept(givenDocks, (docks) => JSON.stringify(docks ?? null));
+  // 3.72: and parts that read the same, so an update that changes none of the island's code parts rebuilds nothing.
+  const parts = useKept(props.parts, (parts) => JSON.stringify(parts ?? null));
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
   // A pointer on another island leaves this one's as they were (5.8).
@@ -369,7 +370,7 @@ function Territories(props: TerritoriesProps) {
   // its IslandLand holds it until that land is drawn.
   useLayingOut(story, docks !== undefined && built?.asked === asked && map !== undefined);
   useEffect(() => { if (docks !== undefined) searchIsland(story, { shares: land.territories, coast, links, docks }, searcher); }, [story, land, coast, links, docks, searcher]);
-  return map === undefined || awaiting ? null : <IslandLand {...props} land={land} coast={coast} docks={docks} tints={tints} pointed={pointed} map={map} joined={waited ? Infinity : joined} />;
+  return map === undefined || awaiting ? null : <IslandLand {...props} land={land} coast={coast} docks={docks} parts={parts} tints={tints} pointed={pointed} map={map} joined={waited ? Infinity : joined} />;
 }
 
 /** When each sheet's first island joined it, by the sheet's clock. */

@@ -17,9 +17,28 @@ import type { Detail } from "./zoom-detail.js";
 /** The capability open on the map, by its story. */
 export type Opened = { readonly story: string; readonly capability: string } | undefined;
 
-/** What opens at `level` with `under` beneath the middle of the view: the capability there, at the parts level only. */
-export function openedAt(level: Detail, under: { kind: string; id: string; capability?: string } | undefined): Opened {
-  return level === "parts" && under?.kind === "story" && under.capability !== undefined ? { story: under.id, capability: under.capability } : undefined;
+/** What opens at `level` with `under` beneath the middle of the view: the capability there, at the parts level only, and only
+ * in Forest (the Library's islands are outlines, with no land to open). */
+export function openedAt(level: Detail, under: { kind: string; id: string; capability?: string } | undefined, mode: "forest" | "library" = "forest"): Opened {
+  return opensAt(level, mode) && under?.kind === "story" && under.capability !== undefined ? { story: under.id, capability: under.capability } : undefined;
+}
+
+/** Whether anything opens at `level` in `mode`: at the parts level, in Forest. */
+export const opensAt = (level: Detail, mode: "forest" | "library" = "forest"): boolean => mode === "forest" && level === "parts";
+
+/** How often, in seconds, the map reads what lies under the middle of the view at the parts level: at most this often while
+ * the eye moves, and this often while it rests, so a capability laid out under a still eye opens too. */
+export const UNDER_READS = { moving: 0.2, resting: 1 } as const;
+
+/** Whether to read what lies under the middle of the view `now`, the eye at `eye`, having last read it as `last`. */
+export function readsUnder(now: number, eye: string, last: { readonly eye: string; readonly at: number }): boolean {
+  const since = now - last.at;
+  return since >= UNDER_READS.moving && (eye !== last.eye || since >= UNDER_READS.resting);
+}
+
+/** The names an island shows near: its capabilities' `plates`, but for the `open` one's, whose `parts` stand in for it once named. */
+export function namesShown<P extends { readonly capability: string }>(plates: readonly P[], parts: readonly PartPlate[] | undefined, open: string | undefined): { plates: P[]; parts: readonly PartPlate[] } {
+  return open === undefined || parts === undefined ? { plates: [...plates], parts: [] } : { plates: plates.filter((plate) => plate.capability !== open), parts };
 }
 
 /** A part's name where the map writes it, on the island's ground. */

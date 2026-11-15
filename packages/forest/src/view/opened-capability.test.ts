@@ -13,7 +13,7 @@ import { nestedLayout, partCrossings, regionOf } from "../territories/nested-ter
 import { territoryAt, type Coast, type Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { islandRoadMarks, landFill } from "./island-roads.js";
-import { hideForOpening, openedAt, openedMarks, OpenedStore, rollUp, touches } from "./opened-capability.js";
+import { hiddenByOpening, hideForOpening, namesShown, openedAt, openedMarks, OpenedStore, opensAt, readsUnder, rollUp, touches, UNDER_READS } from "./opened-capability.js";
 import { territoryLand } from "./territory-land.js";
 
 const round = (radius: number): Coast => [Array.from({ length: 96 }, (_, i) => ({ x: radius * Math.cos(i * Math.PI / 48), z: radius * Math.sin(i * Math.PI / 48) }))];
@@ -49,23 +49,52 @@ test("3.112 · at the parts level the capability under the middle of the view op
   assert.equal(openedAt("near", { kind: "story", id: "s", capability: "a" }), undefined);
   assert.equal(openedAt("parts", { kind: "story", id: "s" }), undefined, "an island's land in no capability opens nothing");
   assert.equal(openedAt("parts", undefined), undefined);
+  assert.equal(openedAt("parts", { kind: "story", id: "s", capability: "a" }, "library"), undefined, "the Library's outlines open nothing");
+  assert.deepEqual([opensAt("parts"), opensAt("near"), opensAt("parts", "library")], [true, false, false]);
+});
+
+test("3.112 · at the parts level what lies under the middle of the view is read often while the eye moves, and still read while it rests", () => {
+  const last = { eye: "e1", at: 10 };
+  assert.equal(readsUnder(10 + UNDER_READS.moving / 2, "e2", last), false, "not again within a fifth of a second, however the eye moves");
+  assert.equal(readsUnder(10 + UNDER_READS.moving * 1.5, "e2", last), true, "the eye moved: read again");
+  assert.equal(readsUnder(10 + UNDER_READS.moving * 1.5, "e1", last), false, "the eye at rest: not yet");
+  assert.equal(readsUnder(10 + UNDER_READS.resting * 1.01, "e1", last), true, "the eye at rest a second: read again, so a capability laid out under it opens");
+  assert.equal(readsUnder(0, "e1", { eye: "", at: -Infinity }), true, "the first read is at once");
+});
+
+test("3.112 · an opened capability's name gives way to its parts' names once they are laid out; any other capability keeps its own", () => {
+  const plates = [{ capability: "a", title: "Alpha" }, { capability: "b", title: "Beta" }];
+  const parts = [{ part: "p", title: "p", x: 0, z: 0 }, { part: "q", title: "q", x: 1, z: 1 }];
+  assert.deepEqual(namesShown(plates, parts, "a"), { plates: [{ capability: "b", title: "Beta" }], parts });
+  assert.deepEqual(namesShown(plates, undefined, "a"), { plates, parts: [] }, "while its parts are laid out it keeps its name");
+  assert.deepEqual(namesShown(plates, undefined, undefined), { plates, parts: [] });
 });
 
 test("3.112 · an opened capability's parts are drawn as border lines on its land, with their roads, junctions and gate posts", () => {
   const { marks, inner } = opened(3);
+  const { layout } = opened(3);
   const borders = marks.getObjectByName("part-borders") as LineSegments;
   const points = ends(borders);
-  assert.ok(points.length > 0, "its parts' borders are drawn");
-  // Each border's middle lies on Alpha's land: the parts are inside it.
+  const partAt = (p: Point) => { const at = { x: p.x - layout.centre.x, z: p.z - layout.centre.z }; return layout.map.cells.reduce((b, c) => (Math.hypot(c.site.x - at.x, c.site.z - at.z) < Math.hypot(b.site.x - at.x, b.site.z - at.z) ? c : b)).territory; };
+  // Each border line lies on Alpha's land and parts two of its parts: a step either side of its middle are different parts.
+  const parted = new Set<string>();
   for (let k = 0; k + 1 < points.length; k += 2) {
-    const mid = { x: (points[k]!.x + points[k + 1]!.x) / 2, z: (points[k]!.z + points[k + 1]!.z) / 2 };
-    assert.equal(territoryAt(map, mid.x, mid.z), map.territories[A]);
+    const [a, b] = [points[k]!, points[k + 1]!], mid = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 }, l = Math.hypot(b.x - a.x, b.z - a.z);
+    assert.equal(territoryAt(map, mid.x, mid.z), map.territories[A], "on Alpha's land");
+    const n = { x: -(b.z - a.z) / l * 0.3, z: (b.x - a.x) / l * 0.3 };
+    const sides = [partAt({ x: mid.x + n.x, z: mid.z + n.z }), partAt({ x: mid.x - n.x, z: mid.z - n.z })];
+    assert.notEqual(sides[0], sides[1], "between two parts");
+    parted.add(sides.sort().join("|"));
   }
-  for (const name of ["part-roads", "part-junctions", "part-gates"]) {
-    const mesh = marks.getObjectByName(name) as Mesh;
-    assert.ok((mesh.geometry as BufferGeometry).getAttribute("position").count > 0, `${name} are drawn`);
-  }
-  assert.ok(inner.gates.length > 0);
+  assert.ok(parted.size >= 3, `the lines part ${parted.size} pairs of its four territories`);
+  const count = (name: string) => ((marks.getObjectByName(name) as Mesh).geometry as BufferGeometry).getAttribute("position").count;
+  // Two posts a gate, each a box of 36 corners; a disc of 16 triangles at each junction and where each part's roads end.
+  assert.equal(count("part-gates"), inner.gates.length * 2 * 36, "a post either side of each part gate");
+  const ending = [...inner.settlements.values()].filter(({ at }) => inner.segments.some((s) => [s.pts[0]!, s.pts.at(-1)!].some((p) => Math.hypot(p.x - at.x, p.z - at.z) < 1e-6)));
+  assert.equal(count("part-junctions"), (inner.junctions.length + ending.length) * 16 * 3, "a junction where roads meet and where each part's end");
+  assert.equal(ending.length, 3, "p, q and r each have their junction");
+  // Every road's way is drawn: a ribbon of two triangles each half unit along it.
+  assert.ok(count("part-roads") >= inner.segments.reduce((sum, s) => sum + s.pts.slice(1).reduce((l, p, i) => l + Math.hypot(p.x - s.pts[i]!.x, p.z - s.pts[i]!.z), 0) / 0.5 * 6 * 0.9, 0), "the parts' roads are drawn their whole way");
   assert.equal(marks.getObjectByName("territory:p"), undefined, "a part has no fill of its own: it keeps its capability's colour");
 });
 
@@ -79,7 +108,8 @@ test("3.112 · opening a capability hides the island's roads into it and its jun
   const close = hideForOpening(marks, map, roads, "a");
   assert.equal(shown("territory-junction:a"), false, "Alpha's junction gives way to its parts'");
   for (const i of into) assert.equal(shown(`road:${i}`), false, "d's road into Alpha is drawn again by the opened marks");
-  if (elsewhere >= 0) assert.equal(shown(`road:${elsewhere}`), true, "a road with no end at Alpha stays");
+  assert.ok(elsewhere >= 0, "the island has a road with no end at Alpha");
+  assert.equal(shown(`road:${elsewhere}`), true, "a road with no end at Alpha stays");
   close();
   assert.ok(shown("territory-junction:a") && into.every((i) => shown(`road:${i}`)), "closed, the island is as it was");
 });
@@ -92,9 +122,27 @@ test("3.114 · closed, the island's gate on the capability's border carries the 
   const posts: Object3D[] = [];
   marks.traverse((o) => { if (o.userData.gate === true && o.userData.index === gate) posts.push(o); });
   assert.ok(posts.length > 0);
-  const expected = crossings.find((c) => c.gate === gate)!.links.length;
-  for (const post of posts) assert.deepEqual(post.userData.partRoads, { a: expected });
-  assert.ok(expected >= 2, "d's road rolls up its roads to p and r");
+  // d's files reach p and r, so its road in rolls up two.
+  for (const post of posts) assert.deepEqual(post.userData.partRoads, { a: 2 });
+  const sea = roads.gates.findIndex((g) => g.entrances.includes("arrive:0->a"));
+  let seaPosts = 0;
+  marks.traverse((o) => { if (o.userData.gate === true && o.userData.index === sea) { seaPosts++; assert.deepEqual(o.userData.partRoads, { a: 2 }, "the sea road in carries z1's to p and z2's to q"); } });
+  assert.ok(seaPosts > 0);
+});
+
+test("3.112 · the island's roads it hides are drawn again by the opened capability off its land, up to its border", () => {
+  const { roads: hidden, kept } = hiddenByOpening(map, roads, "a");
+  assert.ok(hidden.length > 0);
+  const own = map.territories[A];
+  for (const stretch of kept) {
+    if (stretch.links.some((key) => !touches(key, "a"))) continue;
+    for (const p of stretch.pts) assert.notEqual(territoryAt(map, p.x, p.z), own, "a road of Alpha's alone is drawn again only off its land");
+  }
+  // d's road is drawn again from d's junction to within a step of Alpha's border.
+  const d = kept.filter((s) => s.links.includes("d->a") && s.links.every((key) => touches(key, "a")));
+  assert.ok(d.length > 0);
+  const gate = roads.gates.find((g) => g.entrances.includes("d->a"))!;
+  assert.ok(d.some((s) => [s.pts[0]!, s.pts.at(-1)!].some((p) => Math.hypot(p.x - gate.at.x, p.z - gate.at.z) < 1.5)), "up to its gate into Alpha");
 });
 
 test("3.115 · an opened capability adds at most five draws however many parts it has, and one capability is open at a time", () => {

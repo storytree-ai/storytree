@@ -241,6 +241,11 @@ const keptParts = new Map<string, Seeds | undefined>();
 let partShelf: ArrangementShelf | undefined | null = null;
 const partKey = (story: string, capability: string) => `parts:${story}:${capability}`;
 
+/** Opened capabilities' seeds are kept on `next` from now on (a test's own; undefined for none), forgetting those read so far. */
+export function shelvePartsOn(next: ArrangementShelf | undefined): void {
+  partShelf = next; keptParts.clear();
+}
+
 /** The seeds kept for `capability`'s parts on `story`'s island, from this run or the page's storage. */
 export function keptPartSeeds(story: string, capability: string): Seeds | undefined {
   const key = partKey(story, capability);

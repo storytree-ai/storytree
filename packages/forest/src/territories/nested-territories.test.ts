@@ -7,7 +7,8 @@ import { test } from "node:test";
 
 import { islandRoads } from "./island-roads.js";
 import { linkLayout, LIBRARY_LAND, type Link } from "./link-layout.js";
-import { nestedLayout, nestedLayoutSteps, PART_SHARE, partCrossings, regionOf } from "./nested-territories.js";
+import { keepPartSeeds, keptPartSeeds, nestedLayout, nestedLayoutSteps, PART_SHARE, partCrossings, regionOf, shelvePartsOn } from "./nested-territories.js";
+import type { ArrangementShelf, KeptArrangement } from "./kept-layout.js";
 import { landArea, onLand, territoryAt, type Coast, type Point, type TerritoryMap } from "./territories.js";
 
 const round = (radius: number): Coast => [Array.from({ length: 96 }, (_, i) => ({ x: radius * Math.cos(i * Math.PI / 48), z: radius * Math.sin(i * Math.PI / 48) }))];
@@ -98,7 +99,9 @@ test("3.113 · opening a capability lays its parts out on its land as drawn, and
   nestedLayout(regionOf(island, A), parts, partLinks, partCrossings(island, roads, "a", lanes, docks));
   assert.equal(JSON.stringify(island), before, "the island's layout is as it was");
   const region = regionOf(island, A), crossings = partCrossings(island, roads, "a", lanes, docks);
-  assert.equal(nestedLayout(region, parts, partLinks, crossings), nestedLayout(region, parts, partLinks, crossings), "laid out once for the same ask");
+  nestedLayout(region, parts, partLinks, crossings);
+  const again = nestedLayoutSteps(region, parts, partLinks, crossings);
+  assert.equal(again.next().done, true, "asked again, it takes no step: laid out once");
 });
 
 test("3.113 · a part added or dropped is laid out with the others' kept seeds, so each part kept still grows from its own place", () => {
@@ -119,16 +122,29 @@ test("3.113 · a part added or dropped is laid out with the others' kept seeds, 
 
 test("3.114 · each crossing on the capability's border counts the part roads it rolls up, read without laying the parts out", () => {
   const crossings = partCrossings(island, roads, "a", lanes, docks);
-  const byGate = new Map(crossings.flatMap((crossing) => crossing.gate === undefined ? [] : [[crossing.gate, crossing.links.length]]));
-  const dGate = roads.gates.findIndex((gate) => gate.entrances.includes("d->a"));
-  assert.equal(byGate.get(dGate), roads.gates[dGate]!.entrances.includes("arrive:0->a") ? 4 : 2, "d's gate rolls up its two part roads");
-  assert.equal(crossings.reduce((s, crossing) => s + crossing.links.length, 0), 5);
+  const at = (key: string) => crossings.find((crossing) => crossing.gate !== undefined && roads.gates[crossing.gate]!.entrances.includes(key));
+  assert.deepEqual(at("d->a")?.links, ["d->p", "d->r"], "d's gate rolls up its two part roads");
+  assert.deepEqual(at("arrive:0->a")?.links, ["arrive:0->p", "arrive:0->q"], "the sea road's gate rolls up z1's and z2's");
+  assert.deepEqual(at("a->c")?.links, ["q->c"], "the road out to c rolls up q's");
 });
 
 test("3.115 · an opened capability is laid out in steps, so the frame that opens it lays out none of it at once", () => {
   const region = regionOf(island, A), crossings = partCrossings(island, roads, "a", lanes, docks);
   const steps = nestedLayoutSteps(region, [...parts, { capability: "t", title: "t", lines: 90 }], partLinks, crossings);
-  let taken = 0;
-  for (let at = steps.next(); !at.done; at = steps.next()) taken++;
-  assert.ok(taken >= 4, `${taken} steps`);
+  const times: number[] = [];
+  for (let done = false; !done;) { const start = performance.now(); done = steps.next().done === true; times.push(performance.now() - start); }
+  const total = times.reduce((a, b) => a + b, 0), longest = Math.max(...times);
+  assert.ok(longest < total / 4, `no step takes a quarter of the layout: the longest ${longest.toFixed(1)} of ${total.toFixed(1)} ms over ${times.length} steps`);
+});
+
+test("3.113 · each opened capability's part seeds are kept on the page's storage, merged, so a later run and a part dropped and back keep their places", () => {
+  const stored = new Map<string, KeptArrangement>();
+  const shelf: ArrangementShelf = { read: (key) => stored.get(key), write: (key, kept) => { stored.set(key, kept); } };
+  shelvePartsOn(shelf);
+  keepPartSeeds("s", "a", { p: { x: 1, z: 2 }, q: { x: 3, z: 4 } });
+  keepPartSeeds("s", "a", { p: { x: 5, z: 6 } });
+  shelvePartsOn(shelf);
+  assert.deepEqual(keptPartSeeds("s", "a"), { p: { x: 5, z: 6 }, q: { x: 3, z: 4 } }, "a later run reads them back, q's kept while it was not laid out");
+  assert.equal(keptPartSeeds("s", "b"), undefined, "another capability's are its own");
+  shelvePartsOn(undefined);
 });

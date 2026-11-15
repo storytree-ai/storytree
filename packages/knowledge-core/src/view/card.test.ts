@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { Children, isValidElement, type ReactNode } from "react";
 
 import type { Change, SchemaRecord } from "@storytree/library";
+import { quietFor, waitUntil } from "@storytree/test-waits";
 
 import { knowledge } from "../ghosts/ghosts.js";
 import { noteCard, type Card } from "../look-inside/look-inside.js";
@@ -61,18 +62,15 @@ test("4.23 a product's globe draws the system notes it reads from its factory be
     windowReading: async () => { throw new Error("not read"); },
     inherited: async (project) => { asked.push(project); return factory; },
   } });
-  const state = () => (core as unknown as { get(): { drawn: readonly Change[]; factory: ReadonlySet<string> } }).get();
+  const state = () => (core as unknown as { get(): { drawn: readonly Change[]; factory: ReadonlySet<string>; inherited: readonly Change[] } }).get();
   const card = (id: string) => noteCard(id, knowledge(state().drawn), state().factory);
-  const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
   const view = (core as unknown as { view(): () => void }).view;
   try {
-    await settled();
     const own = new History().create("principle_own", "principle", { title: "Name things plainly", description: "Name things plainly." });
     core.take(own.changes, []);
-    await settled();
-    assert.deepEqual(asked, [], "nothing drawing the notes, so the factory is not read");
+    await quietFor(() => asked.length > 0, 200, "a factory read with nothing drawing the notes");
     const close = view();
-    await settled();
+    await waitUntil(() => card("principle_inherited")?.fromFactory, 2000, "the factory's notes drawn once a drawing opens");
     assert.deepEqual([...knowledge(state().drawn).notes.keys()].sort(), ["principle_copied", "principle_inherited", "principle_own"]);
     assert.equal(card("principle_inherited")?.fromFactory, true);
     assert.equal(card("principle_own")?.fromFactory, undefined);
@@ -83,7 +81,7 @@ test("4.23 a product's globe draws the system notes it reads from its factory be
     own.create("principle_copied", "principle", { title: "Test first", description: "The product's own." });
     factory = [record("principle_inherited", "Keep it small")];
     core.take(own.changes, []);
-    await settled();
+    await waitUntil(() => state().inherited.length === 1, 2000, "the factory's notes read again on the longer history");
     assert.equal(card("principle_copied")?.fromFactory, undefined, "the product's own copy is its own");
     assert.equal(card("principle_copied")?.summary, "The product's own.");
     assert.ok(asked.length >= 2 && asked.every((project) => project === "site"));
@@ -93,10 +91,9 @@ test("4.23 a product's globe draws the system notes it reads from its factory be
     const before = asked.length;
     own.create("principle_later", "principle", { title: "Later", description: "Later." });
     core.take(own.changes, []);
-    await settled();
-    assert.equal(asked.length, before, "a longer history with the notes not drawn reads nothing");
+    await quietFor(() => asked.length > before, 200, "a factory read on a longer history with the notes not drawn");
     const again = view();
-    await settled();
+    await waitUntil(() => asked.length > before, 2000, "the factory read once the notes are drawn again");
     assert.equal(asked.length, before + 1);
     again();
   } finally {

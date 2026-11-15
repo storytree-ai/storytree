@@ -3,19 +3,21 @@
  * round 11's `sand-faint` look: each road a sandy ribbon on the land, a step wider by the links it carries, its colour
  * mixed into the land under it so the joins stay one road; a disc at each junction; and at each gate a post standing
  * either side of its opening (3.78, step 3b), at each end of a tunnel under a third territory a standing arched portal
- * set back from the border (ADR-1253 D3, question_921aee319481), and each settlement its kind's symbol (3.79, step 4a), all following the island's relief; a picked gate's gold ring
+ * set back from the border (ADR-1253 D3, question_921aee319481), and where each territory's roads end a junction of their sand
+ * (3.79, ADR-1339 D2, in place of round 12's settlement symbol), all following the island's relief; a picked gate's gold ring
  * (3.88). No arrowheads. Plain three.js, so the marks are read without a browser.
  */
 import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, FrontSide, Group, Mesh, MeshBasicMaterial, type Object3D, Vector3 } from "three";
 import { inTunnelMouth, MOUTH_ROOM, type IslandRoads } from "../territories/island-roads.js";
 import { LIGHT, type IslandRelief } from "../territories/island-relief.js";
 import { hollowRing, PICK_GOLD, RING_LEAST_PX } from "./open-work.js";
-import { settlementSymbols } from "./settlement-symbols.js";
 
 type Point = { readonly x: number; readonly z: number };
 
 /** The road's sand, mixed into the land under it at this share. */
 export const ROAD = { colour: "#e2d3aa", alpha: 0.7 } as const;
+/** A territory's junction across, as a share of the widest road meeting there. */
+export const TERRITORY_JUNCTION = 1.8;
 /** An island's borders, quietened under the roads. */
 export const QUIET_BORDER = { colour: "#f4f7f8", opacity: 0.4 } as const;
 /** A gate post's ink and its paper face (round 6C's). */
@@ -69,19 +71,23 @@ export function islandRoadMarks(roads: IslandRoads, onGround: (p: Point) => Vect
     const mesh = flat(ribbon(dense(segment.pts), segment.width, onSurface, mix), material(), `road:${i}`, 3);
     mesh.userData = { links: segment.links, width: segment.width };
   });
-  roads.junctions.forEach(({ at, width }, i) => {
+  const junction = (at: Point, width: number, name: string) => {
     const disc = new CircleGeometry(width / 2, 16).rotateX(-Math.PI / 2);
     const corners = disc.getAttribute("position");
     for (let k = 0; k < corners.count; k++) {
       const placed = onSurface({ x: at.x + corners.getX(k), z: at.z + corners.getZ(k) });
       corners.setXYZ(k, placed.x, placed.y, placed.z);
     }
-    flat(disc, material(mix(at)), `road-junction:${i}`, 3);
-  });
+    flat(disc, material(mix(at)), name, 3);
+  };
+  roads.junctions.forEach(({ at, width }, i) => junction(at, width, `road-junction:${i}`));
+  // 3.79 (ADR-1339 D2): where a territory's roads end they meet at a junction of their sand, a little wider than the widest.
+  for (const [capability, { at }] of roads.settlements) {
+    const ending = roads.segments.filter((s) => [s.pts[0]!, s.pts.at(-1)!].some((p) => Math.hypot(p.x - at.x, p.z - at.z) < 1e-6));
+    if (ending.length) junction(at, Math.max(...ending.map((s) => s.width)) * TERRITORY_JUNCTION, `territory-junction:${capability}`);
+  }
   standingPosts(group, roads, relief, onGround, under);
   tunnelPortals(group, roads, relief, onGround);
-  // 3.79: each settlement its kind's symbol, laid flat just over the roads.
-  group.add(settlementSymbols(roads, onSurface, 0.05 * relief.scale));
   // 3.88: where a picked gate's ring goes, flat over the plateaus' tops, so it reads round posts on any land.
   const rings = new Group();
   rings.name = "gate-ring";

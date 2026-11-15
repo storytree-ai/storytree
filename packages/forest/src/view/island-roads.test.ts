@@ -16,7 +16,6 @@ import { presentTerritories } from "./globe-surfaces.js";
 import { gateOf, islandRoadMarks, landFill, LIT, PORTAL, ringGate, ROAD } from "./island-roads.js";
 import { openWorkLayer, openWorkMarks, RING_PX, sizeOpenWork } from "./open-work.js";
 import { answerFeedbackPicks, FEEDBACK_PICK_EVENT, feedbackPick, gateAfterSelection, pickClick } from "./planet-navigation.js";
-import { GLYPHS, kindOf, settlementSymbols, SYMBOL_INK } from "./settlement-symbols.js";
 import { territoryLand } from "./territory-land.js";
 
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
@@ -108,58 +107,28 @@ test("3.77 the selected island's roads show and hide with its territories", () =
   assert.equal(marks.visible, true);
 });
 
-test("3.79 each settlement is drawn flat on the land as its kind's symbol, ink on paper over a faint casing, as large as its settlement", () => {
+test("3.79 · no settlement symbol is drawn: each territory's roads meet at a junction where they end, a disc of the road's sand wider than its widest road and smaller than the symbol was (ADR-1339 D2)", () => {
   const land = territoryLand(map, flat, coast, new Map(), roads);
   const marks = islandRoadMarks(roads, flat, landFill(map, land), islandRelief(map, roads));
-  const drawn = marks.getObjectByName("settlements")!.children;
+  const symbols: string[] = [];
+  marks.traverse((o) => { if (o.name.startsWith("settlement")) symbols.push(o.name); });
+  assert.deepEqual(symbols, [], "no settlement symbol");
   assert.ok(roads.settlements.size > 0);
-  assert.deepEqual(drawn.map((o) => o.name).sort(), [...roads.settlements.keys()].map((id) => `settlement:${id}`).sort(), "one symbol per settlement");
-  for (const symbol of drawn) {
-    const { at, size } = roads.settlements.get(symbol.userData.capability)!;
-    assert.equal(symbol.userData.kind, "service", "a capability outside The library is a service");
-    const meshes = symbol.children as Mesh[];
-    const colours = meshes.map((m) => `#${(m.material as MeshBasicMaterial).color.getHexString()}`);
-    assert.deepEqual([colours[0], colours[1], colours[2]], [SYMBOL_INK.casing, SYMBOL_INK.paper, SYMBOL_INK.ink], "casing, then paper, then its ink");
-    assert.ok((meshes[0]!.material as MeshBasicMaterial).opacity < 1, "the casing faint");
-    meshes.slice(1).forEach((m, i) => assert.ok(m.renderOrder > meshes[i]!.renderOrder, "each layer drawn over the one before"));
+  for (const [capability, { at, size }] of roads.settlements) {
+    const ending = roads.segments.filter((s) => [s.pts[0]!, s.pts.at(-1)!].some((p) => Math.hypot(p.x - at.x, p.z - at.z) < 1e-6));
+    const junction = marks.getObjectByName(`territory-junction:${capability}`) as Mesh | undefined;
+    if (ending.length === 0) { assert.equal(junction, undefined, `${capability}: no road ends there, so no junction`); continue; }
+    assert.ok(junction, `${capability}: its roads meet at a junction`);
+    const p = junction.geometry.getAttribute("position");
     let reach = 0;
-    for (const m of meshes) {
-      const p = m.geometry.getAttribute("position");
-      for (let k = 0; k < p.count; k++) { reach = Math.max(reach, Math.abs(p.getX(k) - at.x), Math.abs(p.getZ(k) - at.z)); assert.ok(p.getY(k) > 0, "above the land"); }
-    }
-    assert.ok(reach > size * 0.4 && reach < size * 28 / 48, `${symbol.name} as large as its settlement, ${size} across`);
+    for (let k = 0; k < p.count; k++) { reach = Math.max(reach, Math.hypot(p.getX(k) - at.x, p.getZ(k) - at.z)); assert.ok(p.getY(k) > 0, "on the land"); }
+    const widest = Math.max(...ending.map((s) => s.width));
+    assert.ok(reach > widest / 2 * 1.2, `${capability}: wider than its widest road (${reach.toFixed(2)} round, road ${widest.toFixed(2)} wide)`);
+    assert.ok(reach < size / 2, `${capability}: smaller than the symbol was, ${size.toFixed(2)} across`);
+    const colour = (junction.material as MeshBasicMaterial).color, sand = new Color(ROAD.colour);
+    assert.ok(Math.abs(colour.r - sand.r) + Math.abs(colour.g - sand.g) + Math.abs(colour.b - sand.b) < 0.6, "in the road's sand");
+    assert.equal(junction.renderOrder, (marks.getObjectByName("road:0") as Mesh).renderOrder, "drawn with the roads, as part of them");
   }
-});
-
-test("3.79 The library's capabilities are drawn as their kinds, each kind its own symbol", () => {
-  assert.equal(kindOf("capability_5e0362aae607"), "store", "Project libraries");
-  assert.equal(kindOf("capability_a7f068502213"), "queue", "Work in flight");
-  assert.equal(kindOf("capability_556e276756c9"), "index", "Ranked search");
-  assert.equal(kindOf("capability_a954e1eb16f6"), "link", "Cloud connection");
-  assert.equal(kindOf("capability_f27ac2abb10b"), "log", "Health record");
-  assert.equal(kindOf("capability_75d059640d9d"), "service", "Library API");
-  const ids = ["capability_5e0362aae607", "capability_a7f068502213", "capability_556e276756c9", "capability_a954e1eb16f6", "capability_f27ac2abb10b", "capability_75d059640d9d"];
-  const one = { ...roads, settlements: new Map(ids.map((id, i) => [id, { at: { x: i * 10, z: 0 }, roads: 1, size: 3.4 }])) };
-  const symbols = settlementSymbols(one, flat, 0.1).children;
-  const shapes = symbols.map((s) => s.children.map((m) => `${m.name}:${(m as Mesh).geometry.getAttribute("position").count}`).join());
-  assert.equal(new Set(shapes).size, ids.length, "six kinds, six different symbols");
-  assert.deepEqual(symbols.map((s) => s.userData.kind), ["store", "queue", "index", "link", "log", "service"]);
-});
-
-test("3.79 each kind's symbol keeps the mock's outline in its 24-unit box", () => {
-  const box = (lines: readonly (readonly (readonly [number, number])[])[]) => {
-    const pts = lines.flat(), r = (v: number) => Math.round(v * 100) / 100;
-    return [r(Math.min(...pts.map((p) => p[0]))), r(Math.min(...pts.map((p) => p[1]))), r(Math.max(...pts.map((p) => p[0]))), r(Math.max(...pts.map((p) => p[1])))];
-  };
-  // Worked from kinds.mjs's paths: the cylinder's ends bulge 3 past its sides' 6.5, and its two bands sag 3 below their ends.
-  assert.deepEqual(box(GLYPHS.store.parts), [-8, -9.5, 8, 9.5], "a store's cylinder");
-  assert.deepEqual(GLYPHS.store.lines.map((l) => box([l])), [[-8, -6.5, 8, -3.5], [-8, 0, 8, 3]], "its rim and its band");
-  assert.deepEqual(box(GLYPHS.service.parts), [-10, -8, 9, 8], "a service's box and tabs");
-  assert.deepEqual(box(GLYPHS.queue.parts), [-10.5, -5, 10.5, 5], "a queue's row");
-  assert.equal(GLYPHS.queue.lines.length, 3, "of four cells");
-  assert.deepEqual(box(GLYPHS.index.parts), [-8, -8, 4, 4], "an index's lens, 6 round about (-2, -2)");
-  assert.deepEqual(box(GLYPHS.link.parts), [-6.5, -3, 6.5, 7.5], "a connection's plug, rounded below");
-  assert.deepEqual(box(GLYPHS.log.parts), [-9, -10, 9, 10], "a record's two pages");
 });
 
 test("3.88 · a gate picks the pair of capabilities whose territories it joins, whichever way their links run", () => {

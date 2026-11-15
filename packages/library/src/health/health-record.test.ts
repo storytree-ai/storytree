@@ -653,6 +653,22 @@ for (const backend of [memory, postgres]) {
     await flight.closeIncrement(fix.id, { disposition: "landed", pr: "1" });
     assert.deepEqual((await health.worklist()).map(({ capability }) => capability), [untested.id, proposed.id, routed.id, failing.id], "its route closed, it is offered again");
   });
+  contract("5.30", "a capability a settled owner question records its answer leaves unbuilt is routed by that question: off the health worklist while the question stands", async ({ health, work, flight }) => {
+    const { capability } = await smallPlan(work);
+    const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state" });
+    const question = await flight.raiseQuestion({ arc: arc.id, title: "Build social sign-in?", stakes: "Sign-in", statement: "Build it now?", context: "It is retired", options: "A. Build it. B. Leave it unbuilt." });
+    const offered = async (): Promise<boolean> => (await health.worklist()).some((item) => item.capability === capability.id);
+    assert.equal(await offered(), true, "not built, and nothing routes it");
+
+    await flight.settleQuestion(question.id, { answer: "Just leave it as unbuilt" });
+    assert.equal(await offered(), true, "settled without recording what it leaves unbuilt, it routes nothing");
+    await flight.editQuestion(question.id, { unbuilt: [capability.id] });
+    assert.equal(await offered(), false, "its answer leaves it unbuilt, so the question routes it");
+
+    await flight.retireQuestion(question.id, "Asked in error");
+    assert.equal(await offered(), true, "the question gone, it is offered again");
+  });
+
   contract("5.11", "a capability whose every contract carrying its reason a run in progress will record says it waits on that run; once the run records it, or the run's time is up, it is offered by what it records", async ({ health, work }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });

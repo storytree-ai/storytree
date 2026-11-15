@@ -80,7 +80,9 @@ interface Drawn {
  * story says so on the map, and `openGuide`, where the frame gives it, is its button to the first-run guide (3.107).
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
-  { library = true, opening = "whole-planet", openGuide }: { library?: boolean; opening?: GlobeOpening | undefined; openGuide?: (() => void) | undefined } = {}): Promise<ForestView> {
+  { library = true, opening = "whole-planet", openGuide, libraryBarAfterMs }: { library?: boolean; opening?: GlobeOpening | undefined; openGuide?: (() => void) | undefined;
+    /** How long a Library open runs before its loading bar shows: about a third of a second unless given (3.116). */
+    libraryBarAfterMs?: number | undefined } = {}): Promise<ForestView> {
   const root = createRoot(container);
   let drawn: Drawn = {
     face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, capability: undefined, highlighted: undefined, circled: undefined, circledContracts: undefined, viewport: undefined, aside: 0, lanesNotice: undefined, read: false, libraryBar: false,
@@ -120,7 +122,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     onSelect(next);
   });
   // A press of Library loads its notes then (ADR-1340): past about a third of a second a bar shows until they are hung (3.116).
-  const libraryOpens = libraryOpening(shown => render({ libraryBar: shown }));
+  const libraryOpens = libraryOpening(shown => render({ libraryBar: shown }), libraryBarAfterMs);
   const turn = (face: SheetFace): void => {
     if (face === drawn.face) return;
     if (library) libraryOpens.turned(face);

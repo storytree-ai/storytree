@@ -42,6 +42,22 @@ export type EdgeFile = { readonly from: string; readonly to?: string; readonly t
  */
 export type CodeEdge = { readonly story: string; readonly from?: string; readonly to?: string; readonly typeOnly: boolean; readonly files: readonly EdgeFile[] };
 
+/**
+ * A nested part of a capability (ADR-1339 D1): a folder with its own entry file (index.ts, __init__.py) or a nested
+ * package, clipped to the capability's own files. `files` are its files no deeper part holds; `entry` is absent for a
+ * nested package with no entry file.
+ */
+export type SurveyedPart = { readonly folder: string; readonly entry?: string; readonly files: readonly string[]; readonly parts: readonly SurveyedPart[] };
+
+/**
+ * An import that reaches round a part's entry: the part it reaches (`part`, the innermost it enters), each part it
+ * enters on the way, outermost first (`enters`), those it enters other than by their entry (`around`), and a suggested refactor.
+ */
+export type PartClash = { readonly from: string; readonly to: string; readonly part: string; readonly enters: readonly string[]; readonly around: readonly string[]; readonly suggestion: string };
+
+/** Each capability's nested parts, by capability id (a capability with none is absent), and the clashes between them. */
+export type SurveyedParts = { readonly capabilities: Readonly<Record<string, readonly SurveyedPart[]>>; readonly clashes: readonly PartClash[] };
+
 export type StorySurvey = {
   readonly files: readonly SurveyedFile[];
   readonly imports: readonly FileImport[];
@@ -51,6 +67,8 @@ export type StorySurvey = {
   readonly edges?: readonly CodeEdge[];
   /** The stories whose packages this story's package depends on, through any field of its package.json; absent when it has none (ADR-0840 D2). */
   readonly dependsOn?: readonly string[];
+  /** Its capabilities' nested parts and the imports reaching round a part's entry (ADR-1339 D1); absent when it has neither. */
+  readonly parts?: SurveyedParts;
   /**
    * Present for a mapped story (ADR-0993 D2): the folder this machine imports it from, its files' paths being
    * from there, and the stories round a loop of roads it is in, itself first, when it is in one.

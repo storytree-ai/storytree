@@ -6,6 +6,7 @@
  */
 import type { Library } from "@storytree/library";
 import type { Verb, VerbContext, VerbFamily, VerbInputs } from "@storytree/library/verbs";
+import type { ImportedFolder } from "../code-survey/read-survey.js";
 
 import { PIN_CAP, PIN_ICON_NAMES, type PinIcon, type PinShelf, type PinWorld } from "./pins.js";
 
@@ -26,15 +27,23 @@ function shelfOf(library: Library, context: VerbContext): PinShelf {
   };
 }
 
-/** The current checkout's plan, survey and stores, which every pin is read against. */
-async function worldOf(context: VerbContext): Promise<PinWorld> {
-  const [{ pinWorldAt }, { importsOf, machineOf, storytreeHome }] = await Promise.all([import("../read.js"), import("@storytree/project-and-caller")]);
-  if (context.server === undefined) throw new Error("the pins read this machine's imports from the library server, which this door did not open");
-  return pinWorldAt(context.library, context.folder, await importsOf(context.server, context.library.name, machineOf(storytreeHome()).id));
+/** A pin verb's context: a door may hand the world the pins are read against; left out, the current checkout's is read. */
+export interface PinVerbContext extends VerbContext {
+  readonly pinWorld?: () => Promise<PinWorld>;
 }
 
-/** The commit the checkout at `folder` is at. */
-async function headOf(folder: string): Promise<string | undefined> {
+/** The current checkout's plan, survey and stores, which every pin is read against. */
+async function worldOf(context: PinVerbContext): Promise<PinWorld> {
+  if (context.pinWorld !== undefined) return context.pinWorld();
+  const [{ pinWorldAt }, { importsOf, machineOf, storytreeHome }] = await Promise.all([import("../read.js"), import("@storytree/project-and-caller")]);
+  if (context.server === undefined) throw new Error("the pins read this machine's imports from the library server, which this door did not open");
+  const imports: readonly ImportedFolder[] = await importsOf(context.server, context.library.name, machineOf(storytreeHome()).id);
+  return pinWorldAt(context.library, context.folder, imports);
+}
+
+/** The commit a pin was checked at: the one given, else the checkout at `folder`'s HEAD; undefined when Git cannot say. */
+export async function checkedAt(commit: string | undefined, folder: string): Promise<string | undefined> {
+  if (commit !== undefined) return commit;
   const { execFile } = await import("node:child_process");
   return new Promise((resolve) => execFile("git", ["rev-parse", "HEAD"], { cwd: folder }, (error, stdout) => resolve(error ? undefined : stdout.trim())));
 }
@@ -47,7 +56,7 @@ const newInputs = {
   commit: { kind: "text", optional: true, describe: "the commit it was checked at; the checkout's HEAD when left out" },
 } as const;
 
-const pinNew: Verb<typeof newInputs> = {
+const pinNew: Verb<typeof newInputs, PinVerbContext> = {
   command: {
     family: "pin",
     name: "new",
@@ -64,7 +73,7 @@ const pinNew: Verb<typeof newInputs> = {
     const anchor = parseAnchor(input.on);
     if (anchor === undefined) return refuse(`Name what to pin on: ${ANCHOR}.`, true);
     if (!(PIN_ICON_NAMES as readonly string[]).includes(input.icon)) return refuse(`The icon is one of ${PIN_ICON_NAMES.join(", ")}.`, true);
-    const commit = input.commit ?? await headOf(context.folder);
+    const commit = await checkedAt(input.commit, context.folder);
     if (commit === undefined) return refuse("Give the commit it was checked at: --commit <sha>; this folder's Git cannot say.", true);
     const written = await writePin(shelfOf(context.library, context), await worldOf(context), { anchor, icon: input.icon as PinIcon, label: input.label, evidence: input.evidence, commit });
     if (!written.ok) return refuse(written.refused);
@@ -74,7 +83,7 @@ const pinNew: Verb<typeof newInputs> = {
 
 const listInputs = { stale: { kind: "switch", describe: "only the pins whose anchor no longer resolves" } } as const;
 
-const pinList: Verb<typeof listInputs> = {
+const pinList: Verb<typeof listInputs, PinVerbContext> = {
   command: { family: "pin", name: "list", summary: "every pin on the map, each live or stale against this checkout", usage: "pin list [--stale]" },
   tool: {
     name: "pins",
@@ -95,7 +104,7 @@ const retireInputs = {
   reason: { kind: "text", describe: "why: stale, or wrong, in a few words" },
 } as const;
 
-const pinRetire: Verb<typeof retireInputs> = {
+const pinRetire: Verb<typeof retireInputs, PinVerbContext> = {
   command: { family: "pin", name: "retire", summary: "retire a pin, saying why; any agent may", usage: "pin retire <pin> --reason <text>" },
   tool: { name: "retire_pin", description: "Retire a pin from the map, saying why: any agent may, a stale one above all. Its history keeps it with your reason, and it frees its place for another." },
   inputs: retireInputs,
@@ -108,6 +117,6 @@ const pinRetire: Verb<typeof retireInputs> = {
 };
 
 /** The command line's `pin` family, beside the map's. */
-export const PIN_FAMILIES: readonly VerbFamily[] = [
-  { name: "pin", summary: "agents' lasting pins on the map, with their evidence: new, list, retire", order: 18, verbs: [pinNew, pinList, pinRetire] as Verb<VerbInputs, VerbContext>[] },
+export const PIN_FAMILIES: readonly VerbFamily<PinVerbContext>[] = [
+  { name: "pin", summary: "agents' lasting pins on the map, with their evidence: new, list, retire", order: 18, verbs: [pinNew, pinList, pinRetire] as Verb<VerbInputs, PinVerbContext>[] },
 ];

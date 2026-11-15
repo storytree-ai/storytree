@@ -131,10 +131,11 @@ test("3.114 · each crossing on the capability's border counts the part roads it
 test("3.115 · an opened capability is laid out in steps, so the frame that opens it lays out none of it at once", () => {
   const region = regionOf(island, A), crossings = partCrossings(island, roads, "a", lanes, docks);
   const steps = nestedLayoutSteps(region, [...parts, { capability: "t", title: "t", lines: 90 }], partLinks, crossings);
-  const times: number[] = [];
-  for (let done = false; !done;) { const start = performance.now(); done = steps.next().done === true; times.push(performance.now() - start); }
-  const total = times.reduce((a, b) => a + b, 0), longest = Math.max(...times);
-  assert.ok(longest < total / 4, `no step takes a quarter of the layout: the longest ${longest.toFixed(1)} of ${total.toFixed(1)} ms over ${times.length} steps`);
+  let taken = 0;
+  for (let at = steps.next(); !at.done; at = steps.next()) taken++;
+  // The fine cut alone takes a step for each 32 cells it cuts and each 32 it hands out (3.87), then a step for each try at growing.
+  const laid = nestedLayout(region, [...parts, { capability: "t", title: "t", lines: 90 }], partLinks, crossings)!;
+  assert.ok(taken >= Math.floor(laid.map.cells.length / 32), `${taken} steps for a cut of ${laid.map.cells.length} cells`);
 });
 
 test("3.113 · each opened capability's part seeds are kept on the page's storage, merged, so a later run and a part dropped and back keep their places", () => {

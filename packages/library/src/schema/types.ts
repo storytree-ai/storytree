@@ -778,6 +778,11 @@ export const RECORD_SCHEMAS = {
        * version bump.
        */
       links: ids.optional(),
+      /**
+       * The capabilities the owner's answer leaves unbuilt (12.19): the health worklist reads each as routed by this
+       * question while it stands (5.30). Settled questions only. Optional, so no version bump.
+       */
+      unbuilt: ids.optional(),
       lifecycle: z.enum(["open", "settled"]),
       answer: nonEmpty.optional(),
       /** When it was settled (an ISO 8601 timestamp). */
@@ -821,7 +826,7 @@ export const RECORD_SCHEMAS = {
         if (fields.settledAt === undefined) problem(["settledAt"], 'a settled question needs field "settledAt": when it was settled');
         if (fields.presenting !== undefined) problem(["presenting"], "a settled question is no longer being put to the owner");
       } else {
-        for (const field of ["answer", "settledAt", "settledBy", "score"] as const) {
+        for (const field of ["answer", "settledAt", "settledBy", "score", "unbuilt"] as const) {
           if (fields[field] !== undefined) problem([field], `an open question has no "${field}" yet`);
         }
       }

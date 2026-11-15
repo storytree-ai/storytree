@@ -238,7 +238,7 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "correct_question",
-    "Correct an open question's wording in place: change only the fields you give. It keeps its id and its arc. A settled question keeps its words, since its answer was given to them.",
+    "Correct an open question's wording in place: change only the fields you give. It keeps its id and its arc. A settled question keeps its words, since its answer was given to them, but records the capabilities the owner's answer leaves unbuilt, which the health worklist then reads as routed.",
     z.object({
       question: id("question"),
       title: z.string().min(1).optional().describe("A short name for it"),
@@ -249,10 +249,11 @@ export function registerWorkTools(define: Define): void {
       analogy: z.string().min(1).optional().describe("An analogy, saying where it breaks"),
       diagram: z.string().min(1).optional().describe("A diagram of the structure or flow it is about"),
       recommendation: z.string().min(1).optional().describe("Which option you recommend, and why"),
+      unbuilt: z.array(id("capability")).min(1).optional().describe("A settled question only: the capabilities the owner's answer leaves unbuilt"),
     }),
     async ({ question, ...wording }, { library, writer }) => {
       const fields = defined(wording);
-      if (Object.keys(fields).length === 0) return { text: "Give the words to change: title, stakes, statement, context, options, analogy, diagram or recommendation.", refused: true };
+      if (Object.keys(fields).length === 0) return { text: "Give the words to change: title, stakes, statement, context, options, analogy, diagram or recommendation, or a settled question's unbuilt capabilities.", refused: true };
       const corrected = await library.editQuestion(question, fields, writer);
       if (corrected === null) return { text: `There is no question ${question} in this project.`, refused: true };
       return { text: `Corrected ${quoted(corrected.fields.title)} (${question}).`, data: { id: question } };

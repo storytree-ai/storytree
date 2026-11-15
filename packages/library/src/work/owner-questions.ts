@@ -41,6 +41,8 @@ export interface QuestionEdit {
   readonly recommendation?: string | undefined;
   /** The evidence it cites (12.17): a settled question takes this alone, keeping every link it had (12.7). */
   readonly links?: readonly string[];
+  /** The capabilities the owner's answer leaves unbuilt (12.19): a settled question's alone. */
+  readonly unbuilt?: readonly string[];
   /** The session putting it to the owner now (12.10), or undefined once it no longer is. */
   readonly presenting?: { readonly session: string; readonly since: string } | undefined;
 }
@@ -132,7 +134,10 @@ export class RetireRefusedError extends Error {
 }
 
 /** The fields editQuestion changes: a question's wording (12.7), its evidence (12.17), and who is putting it to the owner (12.10). */
-const QUESTION_WORDING: ReadonlySet<string> = new Set(["title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation", "links", "presenting"]);
+const QUESTION_WORDING: ReadonlySet<string> = new Set(["title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation", "links", "unbuilt", "presenting"]);
+
+/** What a settled question still takes: links to more evidence (12.17), and the capabilities its answer leaves unbuilt (12.19). */
+const AFTER_ANSWER: ReadonlySet<string> = new Set(["links", "unbuilt"]);
 
 /** The kinds a question links as its evidence (12.17): live library records, never the plan or an arc. */
 export const EVIDENCE_TYPES: readonly RecordType[] = ["decision", "definition", ...KNOWLEDGE_KINDS, "increment", "question"];
@@ -228,8 +233,9 @@ export async function renewQuestion(records: SchemaRecords, id: string, options?
  * Correct open question `id`'s wording in place (12.7), its links (12.17), or mark or clear the session
  * putting it to the owner (12.10): only the named fields change. Anything else (its arc, lifecycle,
  * answer or lease) is refused (RangeError), and so is editing a settled question, except to add links
- * keeping every one it had, and a link to anything but a live library record (MissingReferenceError),
- * all with nothing written: its answer stands, answered to the words it had.
+ * keeping every one it had or to record the capabilities its answer leaves unbuilt (12.19), which an open
+ * question refuses (RangeError); a link to anything but a live library record, or an unbuilt id that is no
+ * live capability (MissingReferenceError), all with nothing written: its answer stands, answered to the words it had.
  * Null, with nothing written, if `id` is not a live question.
  */
 export async function editQuestion(records: SchemaRecords, id: string, fields: QuestionEdit, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
@@ -240,12 +246,15 @@ export async function editQuestion(records: SchemaRecords, id: string, fields: Q
   const question = await liveRecord(records, id, ["question"]);
   if (question === null) return null;
   if (question.fields.lifecycle === "settled") {
-    const kept = (question.fields.links ?? []).every((link) => fields.links?.includes(link) === true);
-    if (Object.keys(fields).some((key) => key !== "links") || !kept) {
-      throw new RangeError(`question ${JSON.stringify(id)} is settled, so its wording cannot change: its answer stands (it may only gain links, keeping those it has)`);
+    const kept = fields.links === undefined || (question.fields.links ?? []).every((link) => fields.links!.includes(link));
+    if (Object.keys(fields).some((key) => !AFTER_ANSWER.has(key)) || !kept) {
+      throw new RangeError(`question ${JSON.stringify(id)} is settled, so its wording cannot change: its answer stands (it may only gain links, keeping those it has, and record the capabilities it leaves unbuilt)`);
     }
+  } else if (Object.hasOwn(fields, "unbuilt")) {
+    throw new RangeError(`question ${JSON.stringify(id)} is open: only the owner's answer can leave a capability unbuilt, so it records none until settled`);
   }
   await checkReferences(records, "links", fields.links, EVIDENCE);
+  await checkReferences(records, "unbuilt", fields.unbuilt, "capability");
   // Its wording corrected after its prep mark, it reads unprepared until it is prepped again (12.15).
   const { prep } = question.fields;
   const reworded = prep !== undefined && Object.keys(fields).some((key) => key !== "presenting" && key !== "links");

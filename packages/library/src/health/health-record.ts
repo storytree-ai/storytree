@@ -576,13 +576,17 @@ export class HealthRecord {
    * The health worklist (ADR-0825 D4): every capability that is not healthy, with its reason, who
    * moves it and since when, oldest first (the plan's order on a tie). Since is when its reason was
    * recorded, or, where nothing was (not built, no test names it), when the capability was. One an
-   * increment not yet closed lists among its capabilities is routed (ADR-0949 D2), and is left off until that increment closes.
+   * increment not yet closed lists among its capabilities is routed (ADR-0949 D2), and is left off until that increment closes;
+   * so is one a settled question records its owner's answer leaves unbuilt (12.19), while that question stands (5.30).
    * `changed` gives, by story id, the newest commit on main that changed the story's code: a
    * capability its run has not recorded since waits on it (friction_cf907de5ca3b). `named` gives the
    * contracts main's tests name: one never recorded that a test there names is no missing test, and waits on a run (friction_c7a7e6754c54).
    */
   async worklist({ now = new Date(), changed = new Map(), named }: { now?: Date; changed?: ReadonlyMap<string, ChangedOnMain>; named?: NamedOnMain } = {}): Promise<HealthWorkItem[]> {
-    const routed = new Set((await this.#records.list("increment")).filter(({ fields }) => fields.status !== "closed").flatMap(({ fields }) => fields.capabilities ?? []));
+    const routed = new Set([
+      ...(await this.#records.list("increment")).filter(({ fields }) => fields.status !== "closed").flatMap(({ fields }) => fields.capabilities ?? []),
+      ...(await this.#records.list("question")).filter(({ fields }) => fields.lifecycle === "settled").flatMap(({ fields }) => fields.unbuilt ?? []),
+    ]);
     const recorded = new Map((await this.#records.list("capability")).map(({ id, createdAt }) => [id, createdAt]));
     const marks = new Map((await this.#records.list("health")).filter(({ id }) => id.endsWith(PENDING)).map((record) => [record.fields.node, record]));
     return (await this.annotate()).stories

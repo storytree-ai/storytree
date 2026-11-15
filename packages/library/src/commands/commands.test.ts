@@ -595,6 +595,31 @@ test("17.12 · library edit --remove <field> removes an optional field, keeping 
   await refused({ id: story.id, remove: ["description"] }, /story/);
 });
 
+test("17.29 · library edit <question> --unbuilt records on a settled question the capabilities the owner's answer leaves unbuilt, as a comma-separated list; its wording stays refused", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const edit = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "edit")!;
+  const context: LibraryVerbContext = { library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+  const story = await library.addStory({ title: "Sign up" });
+  const social = await library.addCapability({ story: story.id, title: "Social sign-in" });
+  const session = await library.addCapability({ story: story.id, title: "Session" });
+  const question = await library.raiseQuestion({ arc: arc.id, title: "Build sign-in?", stakes: "Sign-in", statement: "Build it now?", context: "It is retired", options: "A. Build it. B. Leave it unbuilt." });
+  await library.settleQuestion(question.id, { answer: "Just leave it as unbuilt" });
+
+  await edit.act({ "<id>": question.id, "<fields>": { unbuilt: `${social.id},${session.id}` } }, context, WORDS);
+  assert.deepEqual((await library.get(question.id))?.fields.unbuilt, [social.id, session.id]);
+  await assert.rejects(edit.act({ "<id>": question.id, "<fields>": { title: "Build it later?" } }, context, WORDS), VerbRefusal, "its wording stays as answered");
+});
+
 test("17.13 · library new capability, run by a session holding an increment, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story or a pending retirement frees is given, and one a pending move into the story brings is refused", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();

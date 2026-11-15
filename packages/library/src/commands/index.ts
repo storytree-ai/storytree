@@ -494,9 +494,9 @@ const edit = verb({
     if (id === PR_CUTOVER_ID) return editCutover(fieldsOf(values), context);
     const record = await library.get(id);
     if (record === null) throw new VerbRefusal(`no record "${id}" in this project`);
-    // A settled question keeps its words, answered as they were, but still gains the evidence it cites (12.17).
-    if (record.type === "question" && record.fields.lifecycle === "settled" && (remove.length > 0 || Object.keys(values).some((field) => field !== "links"))) {
-      throw new VerbRefusal(`question ${id} is settled, so its wording cannot change: its answer stands (it may only gain --links)`);
+    // A settled question keeps its words, answered as they were, but still gains the evidence it cites (12.17) and the capabilities its answer leaves unbuilt (12.19).
+    if (record.type === "question" && record.fields.lifecycle === "settled" && (remove.length > 0 || Object.keys(values).some((field) => field !== "links" && field !== "unbuilt"))) {
+      throw new VerbRefusal(`question ${id} is settled, so its wording cannot change: its answer stands (it may only gain --links, and record --unbuilt)`);
     }
     const both = remove.find((field) => Object.hasOwn(values, field));
     if (both !== undefined) throw new VerbRefusal(`--${both} and --remove ${both} are both given: change the field or remove it`, { misuse: true });

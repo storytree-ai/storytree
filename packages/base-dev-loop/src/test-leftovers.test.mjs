@@ -18,6 +18,10 @@ import { killTree, runUnit } from "./unit-run.mjs";
 
 const localPostgres = pathToFileURL(fileURLToPath(import.meta.resolve("@storytree/local-postgres"))).href;
 const DAY = 24 * 60 * 60 * 1000;
+// increment_6237cbe8961f: on Windows CI a Postgres start outlasted the inner unit's 60 s test limit, so no
+// RECORD came, and a unit's temp folder stayed held past the harness's ten seconds. The inner units get
+// limits a slow start fits in, and the test waits on the unit's write and the folder's removal.
+const SLOW_START_MS = 300_000;
 
 /** Cleanups run last first, so a server is stopped before the folder holding it is removed. */
 function cleanups(t) {
@@ -96,29 +100,25 @@ test("starts a server and never stops it", async () => {
 }
 
 /**
- * The unit's RECORD, waited for until it is written or the unit ends without it, as one whose server
- * start outlasted its limits does: no budget of its own, the test's timeout bounds it.
+ * The unit's RECORD, waited for until it is written, or failed at once if the unit ends without it, as
+ * one whose server start outlasted its limits does.
  */
 async function untilRecord(root, run) {
   const file = path.join(root, "RECORD");
   let ended;
   run.then((result) => (ended = result), (error) => (ended = { output: error.stack }));
-  while (!existsSync(file)) {
-    if (ended !== undefined && !existsSync(file)) assert.fail(`the unit ended (code ${ended.code}) before it wrote ${file}:\n${ended.output}`);
-    await new Promise((done) => setTimeout(done, 100));
-  }
+  await waitUntil(() => {
+    if (existsSync(file)) return true;
+    if (ended !== undefined) assert.fail(`the unit ended (code ${ended.code}) before it wrote ${file}:\n${ended.output}`);
+    return false;
+  }, SLOW_START_MS, `the unit to write ${file} or end`);
   return JSON.parse(readFileSync(file, "utf8"));
 }
 
-/** Wait until `at` is gone: the harness removes a held folder once its hold lets go, bounded by the test's timeout. */
-async function untilGone(at) {
-  while (existsSync(at)) await new Promise((done) => setTimeout(done, 100));
+/** Wait until `at` is gone: the harness removes a held folder once its hold lets go. */
+async function untilGone(at, what) {
+  await waitUntil(() => !existsSync(at), 120_000, what);
 }
-
-// increment_6237cbe8961f: on Windows CI a Postgres start outlasted the inner unit's 60 s test limit, so no
-// RECORD came, and a unit's temp folder stayed held past the harness's ten seconds. The inner units get
-// limits a slow start fits in, and the test waits on the unit's write and the folder's removal.
-const SLOW_START_MS = 300_000;
 
 test("4.20 · a unit's end stops every Postgres server running on a data folder in its temp folder, whether it passed, failed or was killed, before the folder is removed", { timeout: 900_000 }, async (t) => {
   const steps = cleanups(t);
@@ -132,7 +132,7 @@ test("4.20 · a unit's end stops every Postgres server running on a data folder 
     const result = await run;
     assert.equal(result.code === 0, ending === "", `the unit ${ending === "" ? "passed" : "did not pass"}:\n${result.output}`);
     await waitUntil(() => !alive(seen.pid), 1_000, `the server a unit left running (${ending || "pass"}) to be stopped when the unit ends`);
-    await untilGone(seen.temp);
+    await untilGone(seen.temp, `the unit's temp folder (${ending || "pass"}) to be removed with the data folder in it`);
   }
 });
 
@@ -186,29 +186,39 @@ test("4.20 · 4.21 · a folder whose files stay held for a while after its serve
 
 // increment_6237cbe8961f: on Windows CI a unit's temp folder was still held when the ten seconds ran out,
 // and nothing tried again, so the folder stayed.
-test("4.20 · a folder still held past the budget is removed in the background once the hold lets go", async (t) => {
+test("4.20 · a folder still held past the budget is removed in the background once the hold lets go, and an error that is no hold gives up with the reason", async (t) => {
   const steps = cleanups(t);
   const at = folder(steps, "leftovers-late-");
   writeFileSync(path.join(at, "file"), "x");
   let clock = 0;
+  const time = { now: () => clock, pause: (ms) => (clock += ms), retryMs: 1 };
+  const fail = (code) => {
+    throw Object.assign(new Error(`${code}: no`), { code });
+  };
   let held = true;
+  let retries = 0;
   const logged = [];
   const removed = removeWhenFree(at, {
-    now: () => clock,
-    pause: (ms) => (clock += ms),
-    retryMs: 1,
+    ...time,
     log: (message) => logged.push(message),
     rm: (target) => {
-      if (held) throw Object.assign(new Error("EPERM: held"), { code: "EPERM" });
+      if (clock >= 10_000) retries++;
+      if (held) fail("EPERM");
       rmSync(target, { recursive: true, force: true });
     },
   });
   assert.equal(existsSync(at), true, "still there while the hold lasts");
   assert.match(logged.join("\n"), /still held/, "and the wait is said");
+  await waitUntil(() => retries >= 3, 10_000, "the folder to be tried again while it stays held");
   held = false;
-  await untilGone(at);
+  await untilGone(at, "the folder to be removed once its hold lets go");
   assert.equal(await removed, true);
-  assert.equal(existsSync(at), false, "removed once the hold lets go");
+
+  const said = [];
+  assert.equal(await removeWhenFree(at, { ...time, log: (message) => said.push(message), rm: () => fail("EIO") }), false, "an error that is no hold gives up at once");
+  let tries = 0;
+  assert.equal(await removeWhenFree(at, { ...time, log: (message) => said.push(message), rm: () => fail(++tries < 200 ? "EBUSY" : "EIO") }), false, "and so does one that comes after a hold");
+  assert.equal(said.filter((message) => /could not remove .*EIO/.test(message)).length, 2, "each with the reason");
 });
 
 test("4.22 · a run's start removes storytree scratch folders in Temp older than three days, keeping a newer one and one a live server still uses", { timeout: 120_000 }, async (t) => {

@@ -49,3 +49,12 @@ export function storeLayout(tables: readonly string[]): StoreLayout {
 export function tableNameSize(pixels: number): number {
   return NAME_SIZE * Math.min(1, pixels);
 }
+
+/** Each table's name size, by name, where the map draws the point (x, z) of the slab at `drawn(x, z)` in the window's pixels:
+ * a tile's pixels a ground unit are its west and east edges' distance apart in the window over its width. */
+export function tableNameSizes(laid: StoreLayout, drawn: (x: number, z: number) => readonly [number, number]): Map<string, number> {
+  return new Map(laid.tiles.map((tile) => {
+    const [wx, wy] = drawn(tile.x - tile.width / 2, tile.z), [ex, ey] = drawn(tile.x + tile.width / 2, tile.z);
+    return [tile.name, tableNameSize(Math.hypot(ex - wx, ey - wy) / tile.width)];
+  }));
+}

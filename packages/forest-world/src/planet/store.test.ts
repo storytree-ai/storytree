@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { storeLayout, tableNameSize } from './store.js';
+import { storeLayout, tableNameSize, tableNameSizes } from './store.js';
 
 test('4.46 a store is its own flat object: its tables are laid in tiles that all fall inside its footprint, apart, and the footprint grows with them', () => {
   const inside = (tables: readonly string[]) => {
@@ -38,4 +38,15 @@ test("4.46 a table's name scales with its tile, so document_summaries stays whol
   for (const pixels of [0.2, 0.71, 1, 3]) for (const tile of laid.tiles)
     assert.ok(tile.name.length * 0.6 * tableNameSize(pixels) <= tile.width * pixels, `${tile.name} crosses its tile at ${pixels}px a ground unit`);
   assert.equal(tableNameSize(1), 13, 'drawn 13px across where a ground unit is a pixel');
+});
+
+test("4.46 each table's name is sized from its own tile as the map draws it, so every name stays whole at the opening view's 0.71px a unit", () => {
+  // The map seen from above, a little tilted: x drawn 0.71px a ground unit across, z foreshortened, the slab's middle at (700, 500).
+  const laid = storeLayout(['tenants', 'users', 'source_objects', 'chunks', 'grants', 'document_summaries']);
+  const sizes = tableNameSizes(laid, (x, z) => [700 + 0.71 * x, 500 + 0.6 * z]);
+  for (const tile of laid.tiles) {
+    const px = sizes.get(tile.name)!;
+    assert.ok(tile.name.length * 0.6 * px <= tile.width * 0.71, `${tile.name}'s ${px}px name crosses its ${tile.width * 0.71}px tile`);
+  }
+  assert.ok(Math.abs(sizes.get('document_summaries')! - 13 * 0.71) < 1e-9, 'sized from its tile, not left at 13px');
 });

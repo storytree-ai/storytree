@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Vector3, type Group, type PerspectiveCamera } from 'three';
 import type { ForestScene, Island, Store } from '../scene.js';
-import { storeLayout, tableNameSize } from './store.js';
+import { storeLayout, tableNameSizes } from './store.js';
 import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
 import { drawnAtOnce, islandDocks, pageRoadRouter, roadsWhenRouted, type IslandDock } from './road-routing.js';
 import { RestLanes, SelectionLanes } from './PlanetTrailRibbons.js';
@@ -177,18 +177,17 @@ const StorePlate = memo(function StorePlate({ store, spot, radius, visible, chil
   // inside it at whatever zoom the map shows (4.46): a label is in the window's pixels, its tile in ground units.
   const plate = useRef<Group>(null);
   const names = useRef(new Map<string, HTMLSpanElement>());
-  const [west, east] = useMemo(() => [new Vector3(), new Vector3()], []);
+  const at = useMemo(() => new Vector3(), []);
   useFrame(({ camera, size }) => {
     const group = plate.current;
     if (group === null || !visible) return;
-    for (const tile of laid.tiles) {
-      const name = names.current.get(tile.name);
-      if (name === undefined) continue;
-      group.localToWorld(west.set(tile.x - tile.width / 2, TILE_RISE, tile.z)).project(camera);
-      group.localToWorld(east.set(tile.x + tile.width / 2, TILE_RISE, tile.z)).project(camera);
-      const drawn = Math.hypot((east.x - west.x) * size.width / 2, (east.y - west.y) * size.height / 2);
-      const font = `${tableNameSize(drawn / tile.width).toFixed(1)}px`;
-      if (name.style.fontSize !== font) name.style.fontSize = font;
+    const sizes = tableNameSizes(laid, (x, z) => {
+      group.localToWorld(at.set(x, TILE_RISE, z)).project(camera);
+      return [(at.x + 1) * size.width / 2, (1 - at.y) * size.height / 2];
+    });
+    for (const [table, px] of sizes) {
+      const name = names.current.get(table), font = `${px.toFixed(1)}px`;
+      if (name !== undefined && name.style.fontSize !== font) name.style.fontSize = font;
     }
   });
   return <group ref={plate} position={transform.position} quaternion={transform.quaternion} name={`store:${store.address}`} visible={visible}>

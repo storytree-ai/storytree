@@ -4,7 +4,9 @@
 // capture kit's `code-rows` seed, storytree's own library. At three tilts the user gave by a real right-drag (from above, side
 // on, from below), a real press of Library and then of Stories each leaves the eye and the sheet exactly where they were,
 // while the glass clears and the islands become outlines, and back. Only Library hangs the notes beneath: on Stories, at every
-// tilt, none is laid out or drawn (ADR-1340 D1, increment_f205354a6398). Run from the checkout root, in the foreground:
+// tilt, none is laid out or drawn (ADR-1340 D1, increment_f205354a6398). The sheet opens straight down, and the one press that
+// moves it is Library's from there, which eases in the tabletop tilt keeping heading, pan and zoom; Stories pressed after it moves
+// nothing (ADR-1349, increment_c86e855fdcc6). Run from the checkout root, in the foreground:
 //   node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/testing/view/glass-library-look/capture.mjs --retake
 // With --smoke it takes no pictures and prints one line of JSON for the real-browser test (3.55).
 import assert from 'node:assert/strict';
@@ -18,7 +20,7 @@ const smoke = process.argv.includes('--smoke');
 const resting = Math.round(SHEET_TILT * 1800 / Math.PI) / 10;
 /** CSS pixels of a rotating drag up the window per degree of tilt (TILT_PER_PIXEL is π/600 radians). */
 const PER_DEGREE = 600 / 180;
-/** The three tilts, in degrees from straight down: the opening view from above, side on, and from below. */
+/** The three tilts the user gives by hand, in degrees from straight down: the tabletop tilt from above, side on, and from below. */
 const TILTS = [{ name: 'above', deg: resting }, { name: 'side-on', deg: 85 }, { name: 'below', deg: 180 - resting }];
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -49,31 +51,36 @@ const measure = page => page.evaluate(() => {
   };
 });
 
-const { results: summary, out } = await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, settle }) => {
-  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, colorScheme: 'dark' });
+const { results: summary, opening, out } = await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, settle }) => {
   const errors = [];
-  page.on('pageerror', error => errors.push(String(error)));
-  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   const copy = value => structuredClone(value);
-  const bridge = fakeBridge({
-    projectSelection: async () => ({ projects: seed.projects, current: 'storytree' }),
-    chooseProject: async () => ({ projects: seed.projects, current: 'storytree' }),
-    listProjects: async () => copy(seed.projects), projectTree: async () => copy(seed.tree),
-    changesSince: async (_, cursor) => cursor === 0 ? copy(seed.changes) : { changes: [], cursor: seed.changes.cursor },
-    linesSince: async (_, cursor) => cursor === 0 ? copy(seed.lines) : { lines: [], cursor: seed.lines.cursor },
-    frontCovers: async (_, id) => copy(seed.covers[id] ?? []),
-    ...(survey === undefined ? {} : { codeSurvey: async () => copy(survey) }),
-  });
-  await bridge.install(page);
-  await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
-  await bridge.ready(page);
-  await page.waitForFunction(ids => {
-    const state = window.__globe;
-    if (document.body.dataset.state !== 'ready' || !state || !state.scene.getObjectByName('sheet:glass')) return false;
-    return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
-  }, seed.tree.stories.map(s => s.id), { timeout: 180000 });
-  for (const name of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
-  await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
+  /** A page of the desktop app showing `tree`, once every one of its stories' islands stands on the sheet. */
+  const openOn = async tree => {
+    const page = await browser.newPage({ viewport, deviceScaleFactor: 1, colorScheme: 'dark' });
+    page.on('pageerror', error => errors.push(String(error)));
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    const bridge = fakeBridge({
+      projectSelection: async () => ({ projects: seed.projects, current: 'storytree' }),
+      chooseProject: async () => ({ projects: seed.projects, current: 'storytree' }),
+      listProjects: async () => copy(seed.projects), projectTree: async () => copy(tree),
+      changesSince: async (_, cursor) => cursor === 0 ? copy(seed.changes) : { changes: [], cursor: seed.changes.cursor },
+      linesSince: async (_, cursor) => cursor === 0 ? copy(seed.lines) : { lines: [], cursor: seed.lines.cursor },
+      frontCovers: async (_, id) => copy(seed.covers[id] ?? []),
+      ...(survey === undefined ? {} : { codeSurvey: async () => copy(survey) }),
+    });
+    await bridge.install(page);
+    await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+    await bridge.ready(page);
+    await page.waitForFunction(ids => {
+      const state = window.__globe;
+      if (document.body.dataset.state !== 'ready' || !state || !state.scene.getObjectByName('sheet:glass')) return false;
+      return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
+    }, tree.stories.map(s => s.id), { timeout: 180000 });
+    for (const name of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
+    await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
+    return page;
+  };
+  const page = await openOn(seed.tree);
   const box = await page.locator('canvas').first().boundingBox();
   /** A right-drag up the window by `by` degrees of tilt (down for a negative `by`), in steps of at most 5° (17 px, a brisk hand's
    * move between two frames), from the middle of the window: each step is a frame drawn in software GL, so a step a degree
@@ -85,21 +92,38 @@ const { results: summary, out } = await withCapture({ folder: evidence, dist }, 
     for (let k = 1; k <= steps; k++) await page.mouse.move(x, y - by * PER_DEGREE * k / steps);
     await page.mouse.up({ button: 'right' });
   };
-  /** Press a button, then wait past the 0.9 s the old swing took, so an eye that moved would be caught where it went. */
-  const press = async which => {
-    await page.locator(`[data-globe-switch="${which}"]`).click();
+  /** Press a button, then wait past the 0.9 s the old swing took (and Library's 0.6 s tilt from straight down), so an eye that
+   * moved would be caught where it went. */
+  const press = async (which, on = page) => {
+    await on.locator(`[data-globe-switch="${which}"]`).click();
     // Library lays its notes out a few steps to a task once pressed: wait until they hang.
-    if (which === 'library') await page.waitForFunction(() => { let n = 0; window.__globe.scene.getObjectByName('sheet:under')?.traverse(o => { if (o.name.startsWith('knowledge-point:')) n++; }); return n > 0; }, undefined, { timeout: 180000 });
-    await page.mouse.move(2, 2);
-    await page.waitForTimeout(1200);
-    await settle(page, 12);
+    if (which === 'library') await on.waitForFunction(() => { let n = 0; window.__globe.scene.getObjectByName('sheet:under')?.traverse(o => { if (o.name.startsWith('knowledge-point:')) n++; }); return n > 0; }, undefined, { timeout: 180000 });
+    await on.mouse.move(2, 2);
+    await on.waitForTimeout(1200);
+    await settle(on, 12);
   };
-  const shoot = async name => { if (!smoke) await page.screenshot({ path: path.join(out, `${name}.png`), timeout: 180000 }); };
+  const shoot = async (name, on = page) => { if (!smoke) await on.screenshot({ path: path.join(out, `${name}.png`), timeout: 180000 }); };
 
   const results = {};
+  // The opening is taken once every island is laid out and its roads drawn.
+  await page.waitForFunction(() => !document.body.innerText.includes('laying out'), undefined, { timeout: 180000 });
+  await settle(page, 12);
   const opened = await measure(page);
   assert.deepEqual(opened.pressed, { stories: 'true', library: 'false' }, 'it opens on Stories');
-  let at = opened.tiltDeg;
+  assert.ok(Math.abs(opened.tiltDeg) < 1.5, `it opens looking straight down (${opened.tiltDeg}°)`);
+  await shoot('opening');
+  // From straight down, Library eases in the tabletop tilt, the eye, heading, pan and zoom kept; Stories then moves nothing.
+  await press('library');
+  const tilted = await measure(page);
+  await shoot('library-from-opening');
+  assert.ok(Math.abs(tilted.tiltDeg - resting) < 1.5, `Library from straight down brings in the tabletop tilt (${tilted.tiltDeg}°, wanted ${resting}°)`);
+  assert.deepEqual([tilted.eye, tilted.lens], [opened.eye, opened.lens], 'the eye stays where it was: the sheet tilts under it');
+  await press('stories');
+  const kept = await measure(page);
+  await shoot('stories-again');
+  assert.deepEqual([kept.eye, kept.lens, kept.sheet], [tilted.eye, tilted.lens, tilted.sheet], 'pressing Stories leaves the eye and the sheet where they were');
+  results.opening = { tiltDeg: opened.tiltDeg, library: tilted.tiltDeg, stories: kept.tiltDeg };
+  let at = kept.tiltDeg;
   for (const { name, deg } of TILTS) {
     await tiltBy(deg - at);
     await page.mouse.move(2, 2);
@@ -126,14 +150,23 @@ const { results: summary, out } = await withCapture({ folder: evidence, dist }, 
     assert.equal(back.notesHung, 0, `${name}: pressing Stories again lets the notes go (ADR-1340 D1)`);
     results[name] = { tiltDeg: stories.tiltDeg, stories: look(stories), library: look(library) };
   }
+  // An island-less project, such as the user's factory, waits on Stories; pressing Library opens it at once and brings in the
+  // same tabletop tilt from straight down (3.63, ADR-1349 D2).
+  const bare = await openOn({ stories: [], arcs: [] });
+  await press('library', bare);
+  const bareOpened = await measure(bare);
+  await shoot('bare-library', bare);
+  assert.ok(Math.abs(bareOpened.tiltDeg - resting) < 1.5, `an island-less sheet's Library press brings in the tabletop tilt (${bareOpened.tiltDeg}°, wanted ${resting}°)`);
+  assert.ok(bareOpened.notesShown > 0, 'its notes show through the clear glass');
   assert.deepEqual(errors, []);
-  return { results, out };
+  const { opening, ...tilts } = results;
+  return { results: tilts, opening: { ...opening, bareLibrary: bareOpened.tiltDeg }, out };
 });
 
 function look({ pressed, pane, notesShown, notesHung, filled, coasts }) {
   return { pressed: pressed.library === 'true' ? 'library' : 'stories', pane, notesShown, notesHung, filled, coasts };
 }
 
-if (smoke) console.log(JSON.stringify({ unmoved: Object.keys(summary), looks: Object.fromEntries(Object.entries(summary).map(([name, r]) => [name, { stories: r.stories.filled > 0, library: r.library.filled === 0 }])),
+if (smoke) console.log(JSON.stringify({ opening: { straightDown: Math.abs(opening.tiltDeg) < 1.5, library: Math.abs(opening.library - resting) < 1.5, stories: Math.abs(opening.stories - resting) < 1.5, bareLibrary: Math.abs(opening.bareLibrary - resting) < 1.5 }, unmoved: Object.keys(summary), looks: Object.fromEntries(Object.entries(summary).map(([name, r]) => [name, { stories: r.stories.filled > 0, library: r.library.filled === 0 }])),
   notes: Object.fromEntries(Object.entries(summary).map(([name, r]) => [name, { stories: r.stories.notesHung, library: r.library.notesHung > 0 }])) }));
-else writeFileSync(path.join(out, 'measurements.json'), JSON.stringify({ viewport, seed: 'code-rows', results: summary }, null, 1) + '\n');
+else writeFileSync(path.join(out, 'measurements.json'), JSON.stringify({ viewport, seed: 'code-rows', opening, results: summary }, null, 1) + '\n');

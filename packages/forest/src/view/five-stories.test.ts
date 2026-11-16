@@ -5,11 +5,11 @@ import { Group, PerspectiveCamera, Vector3 } from "three";
 
 import { workStates } from "@storytree/arc-surface";
 import { buildPlanetPathways, plateTransform } from "@storytree/forest-world/geometry";
-import { applySheetEye, onIslandSurface, SHEET_FOV, SHEET_LAND_LIFT, SHEET_RADIUS, SHEET_TILT, SHIPPED_ELEVATION_DEG } from "@storytree/forest-world/planet";
+import { applySheetEye, onIslandSurface, SHEET_FOV, SHEET_LAND_LIFT, SHEET_RADIUS, SHIPPED_ELEVATION_DEG } from "@storytree/forest-world/planet";
 import { forestScene, storyNodes } from "@storytree/forest";
 
 import { focusRotation } from "./planet-navigation.js";
-import { sheetLayout, sheetOpening, sheetTilted } from "./sheet-navigation.js";
+import { SHEET_OPENING_TILT, sheetLayout, sheetOpening, sheetTilted } from "./sheet-navigation.js";
 import { facing, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate, type ShownPlate } from "./nameplates.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -41,7 +41,7 @@ function plateSize(title: string): { width: number; height: number } {
 }
 
 /** Each story's nameplate on screen as the app opens the glass sheet in a window `width` by `height` (the canvas below its
- * header), measured as the view measures it: the perspective eye at the sheet's opening, tilted to its resting view. */
+ * header), measured as the view measures it: the perspective eye at the sheet's opening, looking straight down. */
 function opening(chain: boolean, width = 1440, height = 840): ShownPlate[] {
   const tree = forest(chain), size = { width, height };
   const places = new Map(storyNodes(tree, []).map(({ id, place }) => [id, place]));
@@ -55,7 +55,7 @@ function opening(chain: boolean, width = 1440, height = 840): ShownPlate[] {
   camera.lookAt(0, 0, 0);
   applySheetEye(camera, Math.hypot(layout.extent.width, layout.extent.height), Math.min(width, height) / (2 * pose.framing * SHEET_RADIUS), size);
   camera.updateMatrixWorld();
-  const turned = sheetTilted(focusRotation(pose.turn, camera.quaternion), camera.quaternion, SHEET_TILT);
+  const turned = sheetTilted(focusRotation(pose.turn, camera.quaternion), camera.quaternion, SHEET_OPENING_TILT);
   const globe = new Group();
   globe.quaternion.copy(turned.quaternion);
   globe.position.copy(turned.position);

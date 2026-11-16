@@ -86,7 +86,8 @@ const { results, out } = await withCapture({ folder: evidence, dist }, async ({ 
   };
   const press = async which => { await page.locator(`[data-globe-switch="${which}"]`).click(); await page.mouse.move(2, 2); await page.waitForTimeout(1200); await settle(page, 12); };
   const results = {};
-  let at = resting;
+  // The sheet opens straight down (ADR-1349 D1); the drag tilts it from there.
+  let at = 0;
   for (const { name, deg } of TILTS) {
     await tiltBy(deg - at);
     at = deg;

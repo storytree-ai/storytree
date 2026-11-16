@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { Group, Quaternion, Vector3, type Camera, type Object3D } from "three";
 import { claimTints, replayWisps, selectionLanes, shownPointers, type ClaimTint, type PointerTint, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
-import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARANCE, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, UnderTheGlass, usePlanetGrowth, type IslandDock, type LanesNotice, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
+import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARANCE, SHEET_RADIUS, sheetEyeZoom, UnderTheGlass, usePlanetGrowth, type IslandDock, type LanesNotice, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
 import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
@@ -24,7 +24,7 @@ import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movin
 import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, islandCanvasX, type AsidePose } from "./globe-aside.js";
-import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPointerMarkers, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
+import { compassNorth, libraryTilt, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPointerMarkers, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, SHEET_OPENING_TILT, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { growLand, IslandOpening, presentDetail, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 import { DetailStore } from "./zoom-detail.js";
 import { useBuiltInSteps } from "./build-turns.js";
@@ -659,8 +659,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   // The big sphere turns by a hair to slide the sheet under the eye; the eye never rolls.
   const turn = useRef<GlobeTurn>({ yaw: 0, pitch: 0 });
   // How far the glass sheet is tilted (ADR-1062 D2): 0 straight down on its top face, π straight up at its underside; it
-  // opens at the top resting tilt in Stories and Library alike, and only the user moves it from there (ADR-1062 D3).
-  const tilt = useRef(SHEET_TILT);
+  // opens straight down, and beyond Library's one tilt step from there only the user moves it (ADR-1349).
+  const tilt = useRef(SHEET_OPENING_TILT);
   // The mode read by the pointer's handlers, so a press of Stories or Library never re-makes them mid-drag.
   const modeNow = useRef(mode);
   modeNow.current = mode;
@@ -700,6 +700,17 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   }, [turnTo]);
   const holdTilt = (): void => { cancelAnimationFrame(tilting.current.frame); tilting.current.to = tilt.current; };
   useEffect(() => () => cancelAnimationFrame(tilting.current.frame), []);
+  // Pressing Library from straight down eases in the tabletop tilt, keeping heading, pan and zoom; from a tilt the user gave
+  // by hand it moves nothing, and pressing Stories never does (ADR-1349 D2).
+  const lastMode = useRef(mode);
+  useEffect(() => {
+    if (mode === "library" && lastMode.current !== "library") {
+      const to = libraryTilt(tilting.current.to);
+      // An island-less sheet the press opens (3.63) is not moved from its opening: it keeps to it as its notes lay out.
+      if (to !== tilting.current.to) { if (opened.current) touch(true); tiltTo(to, 0.6); }
+    }
+    lastMode.current = mode;
+  }, [mode]);
   // A spin eases to `to` over `seconds`, or jumps there with reduced motion; a new spin takes over from where the sheet is.
   const spinning = useRef({ frame: 0, to: 0 });
   const spinTo = useCallback((to: number, seconds: number) => {
@@ -768,7 +779,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     if (opened.current || (islands.length === 0 && !opensBare(mode))) return;
     opened.current = true;
     openSheet();
-  }, [islands, turnTo]);
+    // An island-less sheet opens on Library's press (3.63), so the press opens it as well as the islands arriving.
+  }, [islands, turnTo, mode]);
   // The sheet opens framing its height from its west edge (ADR-1043 D4).
   const openSheet = (): void => {
     turnTo(sheetOpening(sheet, size).turn);
@@ -812,8 +824,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const goHome = useRef<() => void>(undefined);
   goHome.current = () => {
     const turn = sheetOpening(sheet, size).turn;
-    // The compass and Home spin the sheet back to its starting heading, the short way round, and tilt it to the top resting
-    // view, as the view eases home (ADR-1060 D3, ADR-1062 D2).
+    // The compass and Home spin the sheet back to its starting heading, the short way round, and tilt it back to straight
+    // down, as the view eases home (ADR-1060 D3, ADR-1062 D2, ADR-1349 D1).
     const back = sheetHome(spinning.current.to);
     spinTo(back.heading, 0.6);
     tiltTo(back.tilt, 0.6);

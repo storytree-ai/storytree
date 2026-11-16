@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Vector3, type Group, type PerspectiveCamera } from 'three';
 import type { ForestScene, Island, Store } from '../scene.js';
-import { storeLayout } from './store.js';
+import { storeLayout, tableNameSize } from './store.js';
 import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
 import { drawnAtOnce, islandDocks, pageRoadRouter, roadsWhenRouted, type IslandDock } from './road-routing.js';
 import { RestLanes, SelectionLanes } from './PlanetTrailRibbons.js';
@@ -173,7 +173,25 @@ const StorePlate = memo(function StorePlate({ store, spot, radius, visible, chil
   const laid = useMemo(() => storeLayout(store.tables), [store.tables]);
   const named = useMemo(() => [0, TILE_RISE, -laid.depth / 2 + 18] as const, [laid.depth]);
   const label = { pointerEvents: 'none', whiteSpace: 'nowrap', font: '13px system-ui, sans-serif' } as const;
-  return <group position={transform.position} quaternion={transform.quaternion} name={`store:${store.address}`} visible={visible}>
+  // Each table's name is sized every drawn frame from how wide its tile is drawn, so it scales with the tile and stays whole
+  // inside it at whatever zoom the map shows (4.46): a label is in the window's pixels, its tile in ground units.
+  const plate = useRef<Group>(null);
+  const names = useRef(new Map<string, HTMLSpanElement>());
+  const [west, east] = useMemo(() => [new Vector3(), new Vector3()], []);
+  useFrame(({ camera, size }) => {
+    const group = plate.current;
+    if (group === null || !visible) return;
+    for (const tile of laid.tiles) {
+      const name = names.current.get(tile.name);
+      if (name === undefined) continue;
+      group.localToWorld(west.set(tile.x - tile.width / 2, TILE_RISE, tile.z)).project(camera);
+      group.localToWorld(east.set(tile.x + tile.width / 2, TILE_RISE, tile.z)).project(camera);
+      const drawn = Math.hypot((east.x - west.x) * size.width / 2, (east.y - west.y) * size.height / 2);
+      const font = `${tableNameSize(drawn / tile.width).toFixed(1)}px`;
+      if (name.style.fontSize !== font) name.style.fontSize = font;
+    }
+  });
+  return <group ref={plate} position={transform.position} quaternion={transform.quaternion} name={`store:${store.address}`} visible={visible}>
     <mesh position={[0, -STORE_THICKNESS / 2, 0]}>
       <boxGeometry args={[laid.width, STORE_THICKNESS, laid.depth]} />
       <meshLambertMaterial color={STORE_COLOUR} />
@@ -187,7 +205,7 @@ const StorePlate = memo(function StorePlate({ store, spot, radius, visible, chil
         <span style={{ color: '#e8f0f8', fontWeight: 600 }} data-store={store.address}>{store.address}</span>
       </Overlay>
       {laid.tiles.map(tile => <Overlay key={tile.name} className="planet-store-table" position={[tile.x, TILE_RISE, tile.z]} center zIndexRange={[25, 21]} style={label}>
-        <span style={{ color: '#1c2733' }}>{tile.name}</span>
+        <span ref={(span) => { if (span === null) names.current.delete(tile.name); else names.current.set(tile.name, span); }} style={{ color: '#1c2733' }}>{tile.name}</span>
       </Overlay>)}
       {children?.(store.address, named)}
     </>}

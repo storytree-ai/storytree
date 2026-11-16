@@ -307,14 +307,14 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       else status.showReadError(heading, `${messageOf(error)}. Retrying…`);
     };
     const reading: Parameters<ProjectParts["reading"]>[0] = {
-      onTree: (fresh, news, survey, shared) => {
+      onTree: (fresh, news, survey, shared, pins) => {
         if (showing !== mine) return;
         parts.answered();
         tree = fresh;
         surveyed = survey;
         stores = shared;
         states.add(news.lines);
-        const scene = forestScene(fresh, history(), states, survey, shared);
+        const scene = forestScene(fresh, history(), states, survey, shared, pins);
         view.show(scene, new Map(storyNodes(fresh, history(), survey).map((node) => [node.id, node.place])));
         project.take(history(), news.lines);
         status.sayWhatWasDrawn(forestDrawn(scene));

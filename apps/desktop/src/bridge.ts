@@ -11,6 +11,7 @@ import type { SurfacesBridge } from "@storytree/app";
 import { FEEDBACK_IDENTITY_CHANNELS, SETUP_HELP_CHANNELS, type FeedbackIdentityBridge, type SetupHelpBridge } from "@storytree/app-setup/bridge";
 import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/app-setup/journey-events/bridge";
 import type { SharedStore, StorySurvey } from "@storytree/library";
+import type { PinReading } from "@storytree/map/pins";
 import type { CiTimesBridge } from "@storytree/ci-health/bridge";
 
 import PAGE_CHANNELS from "#parts/pageChannels";
@@ -27,6 +28,8 @@ export interface StoryPageBridge {
   codeSurvey(project: string): Promise<Readonly<Record<string, StorySurvey>>>;
   /** The forest's: the project's shared stores (map 8.66). */
   sharedStores(project: string): Promise<readonly SharedStore[]>;
+  /** The forest's: the project's pins, each live or stale (3.119). */
+  pins(project: string): Promise<readonly PinReading[]>;
   /** Lag in real use's: the page's readings of how long it took to answer. */
   recordLag(readings: readonly object[]): Promise<void>;
   /** Surface feedback's: whether the corner is offered here, and the surfaces a note may name. */
@@ -94,7 +97,7 @@ export function createBridge(
     ...pageMethods<Omit<SetupHelpBridge, "feedbackIdentity">>(SETUP_HELP_CHANNELS, invoke),
     ...pageMethods<PageReadsBridge>(PAGE_READS_CHANNELS, invoke),
     // The stories whose manifests name their page channels (ADR-1030); the page's type above still names them for the renderer.
-    ...(Object.assign({}, ...PAGE_CHANNELS.parts.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey" | "sharedStores" | "feedbackSetup" | "captureForFeedback" | "sendFeedback"> & SettingsBridge),
+    ...(Object.assign({}, ...PAGE_CHANNELS.parts.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey" | "sharedStores" | "pins" | "feedbackSetup" | "captureForFeedback" | "sendFeedback"> & SettingsBridge),
     // A factory plugin standing in for a switched-off part: its channels, which the main process answers, read from the factory as it started.
     ...Object.assign({}, ...(options.standIns?.channels ?? []).map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))),
     pluginViews: options.standIns?.views ?? [],

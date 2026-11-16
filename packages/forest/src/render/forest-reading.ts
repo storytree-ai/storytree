@@ -8,6 +8,7 @@ import { ASK_EVERY_MS, pageReading, type LiveReading, type LiveReads, type News,
 import type { AnnotatedTree } from "@storytree/library";
 
 import type { SharedStore, StorySurvey } from "@storytree/library";
+import type { PinReading } from "@storytree/map/pins";
 
 import type { ForestBridge } from "./page.js";
 
@@ -18,13 +19,15 @@ export interface ForestReads extends LiveReads {
   codeSurvey?: ForestBridge["codeSurvey"];
   /** The project's shared stores, read with each survey; a host without it has none. */
   sharedStores?: ForestBridge["sharedStores"];
+  /** The project's pins, read at the start, when one changes and with each survey (3.119); a host without it has none. */
+  pins?: ForestBridge["pins"];
 }
 
 export interface ForestReadingOptions {
   project: string;
   reads: ForestReads;
-  /** Called with the tree, the news it was read for, the code's survey and the shared stores; a failure here is retried like a failed read. */
-  onTree(tree: AnnotatedTree, news: News, survey: Readonly<Record<string, StorySurvey>>, stores: readonly SharedStore[]): unknown;
+  /** Called with the tree, the news it was read for, the code's survey, the shared stores and the pins; a failure here is retried like a failed read. */
+  onTree(tree: AnnotatedTree, news: News, survey: Readonly<Record<string, StorySurvey>>, stores: readonly SharedStore[], pins: readonly PinReading[]): unknown;
   /** Called when a read fails; the next ask tries again. */
   onError(error: unknown): void;
   /** Called once a minute with the time. */
@@ -45,8 +48,8 @@ export interface ForestReadingOptions {
 export const SURVEY_EVERY_MS = 10_000;
 
 type Survey = Readonly<Record<string, StorySurvey>>;
-/** A survey and the shared stores read with it (7.36). */
-type Read = { readonly survey: Survey; readonly stores: readonly SharedStore[] };
+/** A survey, the shared stores read with it (7.36), and the pins read against it (3.119). */
+type Read = { readonly survey: Survey; readonly stores: readonly SharedStore[]; readonly pins: readonly PinReading[] };
 
 /**
  * The survey's pacing: `want` asks for a survey; one runs at a time, at most every SURVEY_EVERY_MS, and
@@ -140,6 +143,7 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
   let tree: AnnotatedTree | undefined;
   let survey: Survey = kept;
   let stores: readonly SharedStore[] = [];
+  let pins: readonly PinReading[] = [];
   let stopped = false;
   // The start settles once the fresh tree is drawn and the start's first survey is done with (3.49, 7.31).
   const start = { drawn: false, surveyed: reads.codeSurvey === undefined, settled: false };
@@ -156,15 +160,16 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
   // may answer from the main fetched before the start, so the page asks once more at once for what its fetch brought (7.32).
   let askedAgain = false;
   // The shared stores are read with each survey, at its pace (7.36).
+  // The pins are read once the survey is in, so each is judged against it (3.119).
   const read = async (): Promise<Read> => {
     const [next, shared] = await Promise.all([reads.codeSurvey!(project), reads.sharedStores?.(project) ?? []]);
-    return { survey: next, stores: shared };
+    return { survey: next, stores: shared, pins: await reads.pins?.(project) ?? [] };
   };
   const pacing = surveyPacing(read, async (next) => {
     if (stopped) return;
-    if (JSON.stringify(next.survey) !== JSON.stringify(survey) || JSON.stringify(next.stores) !== JSON.stringify(stores)) {
-      ({ survey, stores } = next);
-      if (tree !== undefined) await Promise.resolve(onTree(tree, { changes: [], lines: [] }, survey, stores)).catch(onError);
+    if (JSON.stringify(next.survey) !== JSON.stringify(survey) || JSON.stringify(next.stores) !== JSON.stringify(stores) || JSON.stringify(next.pins) !== JSON.stringify(pins)) {
+      ({ survey, stores, pins } = next);
+      if (tree !== undefined) await Promise.resolve(onTree(tree, { changes: [], lines: [] }, survey, stores, pins)).catch(onError);
     }
     surveyed();
     if (!askedAgain) {
@@ -176,13 +181,16 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
   const stopHearing = (page ?? own!).subscribe({
     onNews: async (news) => {
       let refreshSurvey = landsCode(news);
+      // 3.119: the pins are read at the start and again when one is written or retired.
+      const pinsMoved = tree === undefined || news.changes.some((change) => change.type === "pin");
       if (tree === undefined || changesTree(news, tree)) {
         tree = await reads.projectTree(project);
         refreshSurvey = true;
       }
+      if (pinsMoved && reads.pins !== undefined) pins = await reads.pins(project);
       if (stopped) return;
       if (reads.codeSurvey !== undefined && refreshSurvey) pacing.want();
-      await onTree(tree, news, survey, stores);
+      await onTree(tree, news, survey, stores, pins);
       start.drawn = true;
       settleStart();
     },

@@ -512,3 +512,33 @@ test("7.36 the shared stores are read with each survey and handed on with it; a 
   assert.deepEqual(landed, [[survey, [shop]], [survey, [shop, cache]]], "the survey unchanged, the changed stores draw again");
   reading.stop();
 });
+
+test("3.119 · the pins are read at the start and handed on with the tree, and read again when news holds a pin's change; news without one draws the pins held", async () => {
+  const pin = (n: number) => ({ pin: { id: `pin_${n}` } }) as never;
+  let pinReads = 0;
+  let next: unknown[] = [];
+  const timers = handTimers();
+  const drawn: unknown[] = [];
+  const reading = forestReading({
+    project: "shop",
+    reads: {
+      changesSince: async () => { const changes = next; next = []; return { changes: changes as never, cursor: 0 }; },
+      linesSince: async () => ({ lines: [], cursor: 0 }),
+      projectTree: async () => tree,
+      pins: async () => [pin(++pinReads)],
+    },
+    timers,
+    onTree: (_tree, _news, _survey, _stores, pins) => { drawn.push(pins); },
+    onError: () => {},
+  });
+  await settle();
+  assert.deepEqual(drawn, [[pin(1)]], "read at the start");
+  next = [{ seq: 1, type: "note", recordId: "note_1", action: "created", record: { fields: {} } }];
+  await timers.tick();
+  assert.equal(pinReads, 1, "a note's change reads no pins");
+  next = [{ seq: 2, type: "pin", recordId: "pin_2", action: "created", record: { fields: {} } }];
+  await timers.tick();
+  assert.equal(pinReads, 2);
+  assert.deepEqual(drawn.at(-1), [pin(2)], "a pin's change reads them again");
+  reading.stop();
+});

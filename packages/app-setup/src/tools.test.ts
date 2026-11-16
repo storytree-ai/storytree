@@ -22,9 +22,9 @@ function setupTools(): Record<string, Tool> {
 
 test("12.3 · the import_project tool answers a folder that does not exist with the refusal saying there is nothing to import, marked refused, reading nothing", async () => {
   const tools = setupTools();
-  // A call whose library and connection throw on any read: the refusal comes first.
+  // A call whose library and connection throw on any read but the library's name, the folder's project the call names: the refusal comes first.
   const unread = () => { throw new Error("read"); };
-  const call = { library: new Proxy({}, { get: unread }), storytree: new Proxy({}, { get: unread }), project: "shop", folder: path.resolve("/nowhere-here") } as never;
+  const call = { library: new Proxy({}, { get: (_library, key) => (key === "name" ? "shop" : unread()) }), storytree: new Proxy({}, { get: unread }), project: "shop", folder: path.resolve("/nowhere-here") } as never;
   const answered = await tools.import_project!({ folder: "gone" }, call);
   assert.equal(answered.refused, true);
   assert.match(answered.text, /gone does not exist, so there is nothing to import\.$/);

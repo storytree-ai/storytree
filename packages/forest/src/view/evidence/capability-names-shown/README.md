@@ -26,8 +26,9 @@ Pictures, 1440 x 960:
   Postgres binaries and The world's Props and dressing, The canvas and Hit targets are missing.
 - `the-library-near.png`: the same view after: every name shows, the crowded ones a few pixels apart.
 
-Taken with `node --import tsx packages/forest/testing/view/capability-names-shown/capture.mjs --retake`, which asserts that,
-facing each island, every capability name drawn shows and no two overlap, and writes what it found into `measurements.json`;
+Taken with `node --import tsx packages/forest/testing/view/capability-names-shown/capture.mjs --retake`, which then asserted
+that, facing each island, every capability name drawn shows and no two overlap (since ADR-1346 D1 it asserts only that names
+are drawn, and no longer counts overlapping pairs), and writes what it found into `measurements.json`;
 the before is the same run on origin/main's `nameplates.ts`, `island-overlays.tsx` and `styles.css`, its assertion set aside.
 
 In the evidence bucket for #617, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `617/before-the-library-near.png`, `617/the-library-near.png`, `617/measurements.json`, `617/before-measurements.json`.

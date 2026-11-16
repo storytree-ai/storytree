@@ -10,7 +10,7 @@ import { removeTemp } from "@storytree/test-waits";
 import { Knowledge, type Embedder } from "./index.js";
 import { withCountedProject } from "../testing/pg.js";
 import { PgVectors } from "./embeddings.js";
-import { connect } from "../project/storytree.js";
+import { connect } from "../project/index.js";
 
 const domain = { server: "synthetic", database: "test-project", identity: "1" };
 

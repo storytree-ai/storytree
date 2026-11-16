@@ -62,7 +62,9 @@ export interface PlanetWorldCanvasProps {
   /** A host turns the big sphere, sliding the sheet under the eye, without rebuilding the plates. */
   rotation?: [number, number, number, number];
   /** The big sphere's group: a host that turns it often sets its quaternion and position here and asks for a frame,
-   * rendering nothing, and passes the same pose as `rotation` and `offset` whenever it does render. */
+   * rendering nothing. Its `rotation` and `offset` then pose the group only when it is made: the canvas's root commits a
+   * host's render a task after the host rendered it, so a pose committed later would put back one the host has since
+   * turned on from (4.47). */
   globe?: Ref<Group> | undefined;
   /** Where the big sphere's centre stands, at the origin by default: tilting the glass sheet moves it (ADR-1043 D3). */
   offset?: [number, number, number] | undefined;
@@ -312,6 +314,10 @@ export function PlanetWorldCanvas({ scene, spots, storeSpots, radius, rotation =
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
   const root = useRef<() => RootState>(undefined);
+  // 4.47: a host that turns the group itself gives its pose once, as the group is made; one that does not, at every render.
+  const made = useRef<{ rotation: typeof rotation; offset: typeof offset }>(undefined);
+  made.current ??= { rotation, offset };
+  const pose = globe === undefined ? { rotation, offset } : made.current;
   const resize = useMemo(() => ({ debounce: 0, polyfill: drawnOnResize(() => root.current?.()) }), []);
   const onCreated = useCallback(({ camera, get }: RootState) => {
     camera.lookAt(0, 0, 0);
@@ -325,7 +331,7 @@ export function PlanetWorldCanvas({ scene, spots, storeSpots, radius, rotation =
     <color attach="background" args={['#101418']} />
     <Framing radius={radius} framing={framing} sideOffset={sideOffset} sheet={sheet} />
     <GrowthProvider growth={growth}>
-    <group ref={globe ?? null} name="globe" quaternion={rotation} position={offset ?? ORIGIN}>
+    <group ref={globe ?? null} name="globe" quaternion={pose.rotation} position={pose.offset ?? ORIGIN}>
       <SheetGlass extent={sheet} clear={hollow} />
       {scene.islands.map(island => {
         const spot = spots.get(island.story);

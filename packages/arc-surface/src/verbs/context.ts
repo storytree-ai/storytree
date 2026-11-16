@@ -2,7 +2,7 @@
  * Capability 3 · Arc surface. What the `arc` and `question` verbs share: the context the doors hand them, and how a
  * given value and a record are read and named.
  */
-import { contextIn, PROJECT_INPUT } from "@storytree/library/commands";
+import { contextIn, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "@storytree/library/commands";
 import { mounted, VerbRefusal, type Verb, type VerbInputs } from "@storytree/library/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
@@ -65,16 +65,48 @@ export async function releasedAsking(context: SessionVerbContext, increment: str
  * D2): the factory's, or a project it builds, from either folder, its answer under that project's name and what it reads
  * beside the library (claims, sessions) that project's too. A project outside the circle is refused.
  */
-export function readsElsewhere(declared: Verb<VerbInputs, ArcVerbContext>): Verb<VerbInputs, ArcVerbContext> {
+export function readsElsewhere(declared: Verb<VerbInputs, ArcVerbContext>, input: VerbInputs[string] = PROJECT_INPUT): Verb<VerbInputs, ArcVerbContext> {
   const command = mounted(declared.command) ? declared.command : undefined;
   return {
     ...declared,
     ...(command?.usage === undefined ? {} : { command: { ...command, usage: `${command.usage} [--project <project>]` } }),
-    inputs: { ...declared.inputs, project: PROJECT_INPUT },
+    inputs: { ...declared.inputs, project: input },
     async act({ project, ...input }, context, words) {
       const there = await contextIn(context, project as string | undefined);
       const answer = await declared.act(input, there, words);
       return there === context ? answer : { ...answer, text: `project ${there.project}:\n${answer.text}` };
+    },
+  };
+}
+
+/** The `project` input of a write that lands in another library of the circle: the question settled in its own project's. */
+export const WRITE_PROJECT_INPUT = { ...PROJECT_INPUT, describe: "Write to this project's library instead of this folder's: its factory's, or a project that factory builds" } as const;
+
+/**
+ * `declared`, a read of what waits on the owner, also gathering the libraries of the folder's factory's circle when
+ * `--project` names them (ADR-1348 D2), `all` for every one: each library's answer under its project's name, the folder's
+ * own first, and one that could not be opened named with why, so his catch-up hears a project's questions and waits
+ * beside the factory's. With none named it reads the folder's own, as before.
+ */
+export function readsAcross(declared: Verb<VerbInputs, ArcVerbContext>): Verb<VerbInputs, ArcVerbContext> {
+  const command = mounted(declared.command) ? declared.command : undefined;
+  return {
+    ...declared,
+    ...(command?.usage === undefined ? {} : { command: { ...command, usage: `${command.usage} [--project <project|all>]` } }),
+    inputs: { ...declared.inputs, project: PROJECTS_INPUT },
+    async act({ project, ...input }, context, words) {
+      const named = typeof project === "string" ? [project] : (project as string[] | undefined);
+      if (named === undefined || named.length === 0) return declared.act(input, context, words);
+      const sections: string[] = [];
+      for (const reached of await librariesNamed(context.library, named)) {
+        if (reached.opened === undefined) {
+          sections.push(unopenedSaid(reached.project, reached.unopened));
+          continue;
+        }
+        const there = reached.opened === context.library ? context : { ...context, library: reached.opened, project: reached.opened.name };
+        sections.push(`project ${reached.project}:\n${(await declared.act(input, there, words)).text}`);
+      }
+      return { text: sections.join("\n\n") };
     },
   };
 }

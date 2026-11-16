@@ -882,3 +882,13 @@
 .planet-nameplate-laying-out { display:block; font-size:0.7rem; font-weight:400; font-style:italic; opacity:0.75; }
 /* On a phone a story's plate is slimmer, so the names of two islands this close on a small globe both stand (3.31). */
 @media (max-width:600px) { .planet-nameplate:not(.capability) { font-size:0.7rem; padding:0.1rem 0.25rem; } }
+/* 3.119: an agent's pins on a place, a small mark just above its name: near, each pin's icon and label; far, the icons and how many. */
+.planet-pin { display:flex; flex-direction:column; gap:1px; width:max-content; max-width:180px; translate:0 calc(-50% - 18px); padding:0.12rem 0.4rem; border-radius:0.5rem; font-size:0.66rem; font-weight:500; line-height:1.2; background:rgb(16 20 24 / 0.8); border:1px solid rgb(255 214 120 / 0.55); }
+.planet-pin-row { display:flex; align-items:center; gap:0.3rem; }
+.planet-pin-icon { width:12px; height:12px; flex:none; fill:none; stroke:#ffd678; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+.planet-pin-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.planet-pin-count { font-weight:700; color:#ffd678; }
+/* A stale pin: its anchor no longer resolves, so it is drawn greyed and dashed, never moved (map 9.2). */
+.planet-pin [data-stale] { opacity:0.55; }
+.planet-pin [data-stale] .planet-pin-icon, .planet-pin-icon[data-stale] { stroke:#9aa3ab; stroke-dasharray:3 2; }
+.planet-pin-stale { font-style:italic; color:#c9cfd4; }

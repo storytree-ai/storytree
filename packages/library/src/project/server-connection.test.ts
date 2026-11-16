@@ -27,7 +27,7 @@ import {
   withTestClient,
 } from "../testing/pg.js";
 import { transactionsBehaviourSuite } from "../transactions/behaviour-suite.js";
-import { PgTransactions } from "../transactions/pg.js";
+import { PgTransactions } from "../transactions/index.js";
 import { ConnectionError, connect, type ConnectionProblem, type Project, type Storytree } from "./index.js";
 
 test("28.14 opening a new project as a server user that may not create databases, with no role to borrow, is refused with the two lines that let it", async () => {

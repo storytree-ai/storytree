@@ -29,7 +29,7 @@ import { recentWindow, windowOf, type ClosedRange } from "../board/closed-range.
 import { questionsBehind } from "../work-states/board-states.js";
 import { oversizedSaid } from "./arc-size.js";
 import { holdsNow } from "./claimed.js";
-import { labelOf, listOf, readsElsewhere, releasedAsking, type ArcVerbContext } from "./context.js";
+import { labelOf, listOf, readsAcross, readsElsewhere, releasedAsking, type ArcVerbContext } from "./context.js";
 import { recent } from "./recent.js";
 import { status } from "./status.js";
 
@@ -865,7 +865,7 @@ const increment: VerbFamilies<ArcVerbContext> = {
 };
 
 /** The arc verbs, as the command line's `arc` family lists them, and the `arc increment` family within it. */
-export const ARC_VERBS = [readsElsewhere(show), readsElsewhere(list), waits, status, recent, create, edit, park, unpark, arcWait, arcUnwait];
+export const ARC_VERBS = [readsElsewhere(show), readsElsewhere(list), readsAcross(waits), status, recent, create, edit, park, unpark, arcWait, arcUnwait];
 export const ARC_INNER = [increment];
 
 /** Words agents try for seeing one arc. */

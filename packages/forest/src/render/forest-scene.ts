@@ -16,6 +16,7 @@
  */
 import { PLACE_WIDTH, type CapabilityWord, type ForestScene as WorldScene, type Island, type PlacedTree, type Plumbing, type PlumbingKind, type TreeForm } from "@storytree/forest-world/scene";
 import type { AnnotatedTree, Change, SharedStore, StorySurvey } from "@storytree/library";
+import type { PinReading } from "@storytree/map/pins";
 
 import { grove, type PartStates } from "../capability-tree/capability-tree.js";
 import { islandArea, mappedArea, MIN_ISLAND_AREA, unsurveyedArea } from "../planet-places/island-growth.js";
@@ -34,9 +35,9 @@ export type SceneContracts = { readonly capability: string; readonly contracts: 
  * The drawing engine's scene, with the edges inside stories that hold contracts, whose gates an arc's open work on them rings
  * (3.92), and the capabilities that hold contracts, which an arc's open work linking one rings (3.99); the project's sentence
  * is shown in Settings → Projects, not on the map (ADR-1085 D1 as narrowed); and each capability's code parts, which it opens
- * into at the parts level (3.112).
+ * into at the parts level (3.112); and the agents' pins, each live or stale (3.119).
  */
-export type ForestScene = WorldScene & { readonly edges?: readonly SceneEdge[]; readonly contracts?: readonly SceneContracts[]; readonly parts?: readonly SceneParts[] };
+export type ForestScene = WorldScene & { readonly edges?: readonly SceneEdge[]; readonly contracts?: readonly SceneContracts[]; readonly parts?: readonly SceneParts[]; readonly pins?: readonly PinReading[] };
 
 /**
  * The flat forest's places are spread out as far as the land grew (ADR-0910: 318 to {@link MIN_ISLAND_AREA} ground
@@ -58,9 +59,11 @@ export interface ForestDrawn {
  * The forest for a project: `tree` is its projectTree(), `history` its changesSince(0) changes, and
  * `states` the arc surface's work states over its agent activity log, and `survey` its code's survey by
  * story (capability 8): a surveyed story's island is cut into its capabilities' territories. `stores` are the project's
- * shared stores (map 8.66), each drawn as its own object beside the islands with its tables inside it (ADR-1332 D1).
+ * shared stores (map 8.66), each drawn as its own object beside the islands with its tables inside it (ADR-1332 D1). `pins`
+ * are the agents' pins (3.119): one on a capability an imported island groups into a top part is drawn on that top part, and
+ * on the capability once the top part opens.
  */
-export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], states: PartStates, survey: Readonly<Record<string, StorySurvey>> = {}, stores: readonly SharedStore[] = []): ForestScene {
+export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], states: PartStates, survey: Readonly<Record<string, StorySurvey>> = {}, stores: readonly SharedStore[] = [], pins: readonly PinReading[] = []): ForestScene {
   const nodes = new Map(storyNodes(tree, history, survey).map((node) => [node.id, node]));
   // An imported island opens top-down: its capabilities grouped by their top folders (top-parts.ts).
   const tops = new Map(tree.stories.flatMap((story) => story.mapped === undefined ? [] : [[story.id, topParts(story.id, story.capabilities, survey[story.id])] as const]));
@@ -91,7 +94,16 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
   const drawn = stores.map(({ address, medium, tables }) => ({ address, medium, tables: tables.map(({ name }) => name) }));
   const parts = [...sceneParts(survey, new Map(tree.stories.flatMap(({ capabilities }) => capabilities.map(({ id, title }) => [id, title] as const)))),
     ...[...tops].flatMap(([story, own]) => own.map((top) => topScene(story, top, deepest, topOf)))];
-  return { islands, links: rolledLinks(deepest, topOf), ...(plumbing.length === 0 ? {} : { plumbing }), ...(edges.length === 0 ? {} : { edges }), ...(contracts.length === 0 ? {} : { contracts }), ...(drawn.length === 0 ? {} : { stores: drawn }), ...(parts.length === 0 ? {} : { parts }) };
+  const pinned = pins.map((reading) => inTopPart(reading, topOf));
+  return { islands, links: rolledLinks(deepest, topOf), ...(plumbing.length === 0 ? {} : { plumbing }), ...(edges.length === 0 ? {} : { edges }), ...(contracts.length === 0 ? {} : { contracts }), ...(drawn.length === 0 ? {} : { stores: drawn }), ...(parts.length === 0 ? {} : { parts }), ...(pinned.length === 0 ? {} : { pins: pinned }) };
+}
+
+/** A pin on a capability grouped into a top part, anchored on that top part with the capability as its part there (3.119). */
+function inTopPart(reading: PinReading, topOf: ReadonlyMap<string, string>): PinReading {
+  const { anchor } = reading.pin.fields;
+  const top = "capability" in anchor ? topOf.get(anchor.capability) : undefined;
+  if (top === undefined || !("capability" in anchor)) return reading;
+  return { ...reading, pin: { ...reading.pin, fields: { ...reading.pin.fields, anchor: { capability: top, part: anchor.capability } } } };
 }
 
 /**

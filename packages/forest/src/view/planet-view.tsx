@@ -22,14 +22,15 @@ import { awaitingLayout, keptVersion, pageTerritorySearcher, searchIsland, subsc
 import { IslandPins, NameplateCrowd, Nameplates, reducedMotion, SelectionRing, StorePins } from "./island-overlays.js";
 import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, ignoresClick, feedbackPick, answerFeedbackPicks, pickGlobe, type ForestMode, type PickedGate } from "./planet-navigation.js";
 import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
-import { memberTops, pickedOnTops, rolledToTops } from "./top-marks.js";
+import { besideOpen, memberTops, pickedOnTops, rolledToTops } from "./top-marks.js";
+import { isTopPart } from "../render/top-parts.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, islandCanvasX, type AsidePose } from "./globe-aside.js";
 import { compassNorth, libraryTilt, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPointerMarkers, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, SHEET_OPENING_TILT, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { growLand, IslandOpening, presentDetail, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 import { DetailStore } from "./zoom-detail.js";
 import { useBuiltInSteps } from "./build-turns.js";
-import type { TerritoryMap } from "../territories/territories.js";
+import type { Point, TerritoryMap } from "../territories/territories.js";
 import { keepPartSeeds, keptPartSeeds, nestedLayoutSteps, partCrossings, regionOf } from "../territories/nested-territories.js";
 import type { SceneParts } from "../render/scene-parts.js";
 import type { PinReading } from "@storytree/map/pins";
@@ -173,7 +174,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} pointed={pointed} radius={layout.radius}
         lighting={lighting} surfaces={shownSurfaces} gate={gate?.story === island.story ? gate.pick : undefined}
-        picked={island.story === selected ? pickedOnTops(selectedCapability, tops) : undefined} circled={circled} rung={rung} detail={detail} opened={opened} parts={partsOf.get(island.story)} />}
+        picked={island.story === selected ? pickedOnTops(selectedCapability, tops) : undefined} selection={island.story === selected ? selectedCapability : undefined} circled={circled} rung={rung} detail={detail} opened={opened} parts={partsOf.get(island.story)} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} detail={detail} opened={opened} />}
@@ -332,8 +333,10 @@ type TerritoriesProps = {
   rung?: ReadonlySet<string> | undefined;
   /** The gate picked on the island, which it rings (3.88). */
   gate?: GatePick | undefined;
-  /** The selected capability, if the island is selected, which it rings in gold (3.91). */
+  /** The selected capability, if the island is selected, which it rings in gold (3.91): on the top part holding it (3.121). */
   picked?: string | undefined;
+  /** The selected capability itself, which an opened top part holding it rings in gold (3.122). */
+  selection?: string | undefined;
   land: NonNullable<Island["land"]>;
   coast: readonly (readonly { x: number; z: number }[])[];
   links: readonly Link[];
@@ -359,8 +362,8 @@ function Territories(props: TerritoriesProps) {
   const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify), docks = useKept(givenDocks, (docks) => JSON.stringify(docks ?? null));
   // 3.72: and parts that read the same, so an update that changes none of the island's code parts rebuilds nothing.
   const parts = useKept(props.parts, (parts) => JSON.stringify(parts ?? null));
-  // A claim on another island leaves this one's territories as they were.
-  const tints = useKept(claimed, tints => claimsOn(tints, land));
+  // A claim on another island leaves this one's territories as they were; one moving inside a top part redraws its opened land (3.122).
+  const tints = useKept(claimed, tints => claimsOn(tints, land) + JSON.stringify((props.parts ?? []).map(({ shares }) => shares.map(({ capability }) => capability === undefined ? undefined : tints.get(capability)))));
   // A pointer on another island leaves this one's as they were (5.8).
   const pointed = useKept(useMemo(() => pointersOn(allPointed, land), [allPointed, land]), (here) => JSON.stringify([...here]));
   // When the island joined the map, after its first island did: one there as the map opens stands, its land included, however
@@ -454,8 +457,9 @@ type OpenedLand = DrawnLand & { roads: IslandRoads; relief: IslandRelief };
  * the seeds kept for them (3.113); its parts' roads routed off the page; drawn over the island, which hides the roads its
  * parts' carry on and its junction once they are routed; closed, its marks let go and the island shown as it was.
  */
-function OpenedCapability({ story, parts, drawn, docks, radius, opened }: { story: string; parts: SceneParts; drawn: OpenedLand; docks: readonly IslandDock[] | undefined; radius: number; opened: OpenedStore }) {
-  const { invalidate, gl, camera, scene } = useThree();
+function OpenedCapability({ story, parts, drawn, docks, radius, opened, tints, circled, selection, surfaces }: { story: string; parts: SceneParts; drawn: OpenedLand; docks: readonly IslandDock[] | undefined; radius: number; opened: OpenedStore }
+  & Pick<IslandLandProps, "tints" | "circled" | "selection" | "surfaces">) {
+  const { invalidate, gl, camera, scene, clock, size } = useThree();
   const { capability } = parts;
   const at = drawn.map.territories.findIndex((t) => t.capability === capability);
   const region = useMemo(() => at < 0 ? [] : regionOf(drawn.map, at), [drawn.map, at]);
@@ -512,7 +516,46 @@ function OpenedCapability({ story, parts, drawn, docks, radius, opened }: { stor
     invalidate();
     return () => { cancelAnimationFrame(frame); shown(); marks.removeFromParent(); disposeOpened(marks); invalidate(); };
   }, [marks, inner, drawn, capability, gl, camera, scene, invalidate]);
-  return null;
+  // 3.122: an opened top part's capabilities carry their own claim flags, open-work rings and gold pick on its land.
+  const top = isTopPart(capability) && layout !== undefined ? layout : undefined;
+  const flags = useMemo(() => new ClaimMarks(), []);
+  useEffect(() => () => flags.dispose(), [flags]);
+  const work = useMemo(() => new IslandOpenWork(), []);
+  useEffect(() => () => work.dispose(), [work]);
+  const placed = useMemo(() => {
+    if (top === undefined) return undefined;
+    const by = (onSurface: (p: Point) => Vector3) => (p: Point) => onSurface({ x: p.x + top.centre.x, z: p.z + top.centre.z });
+    return { land: by(drawn.onLand), work: by(onIslandSurface(radius, OPEN_WORK_LIFT + drawn.relief.height)) };
+  }, [top, drawn, radius]);
+  // Claims held as it opens stand; any later one arrives.
+  const first = useRef(true);
+  useEffect(() => {
+    if (top === undefined || placed === undefined) return;
+    flags.setLand(top.map, placed.land, islandNormal(radius), false);
+    invalidate();
+  }, [flags, top, placed, radius, invalidate]);
+  useEffect(() => {
+    if (top === undefined || placed === undefined) return;
+    flags.claims(tints, clock.getElapsedTime(), { standing: first.current, reduced: reducedMotion() });
+    first.current = false;
+    invalidate();
+  }, [flags, top, placed, tints, clock, invalidate]);
+  useLayoutEffect(() => {
+    if (top === undefined || placed === undefined) return;
+    const fresh = work.show(openWorkMarks(top.map, circled, inner, selection), placed.work, sheetEyeZoom(camera, size));
+    invalidate();
+    if (fresh.length === 0) return;
+    const frame = requestAnimationFrame(() => { for (const layer of fresh) gl.compile(layer, camera, scene); });
+    return () => cancelAnimationFrame(frame);
+  }, [work, top, placed, circled, inner, selection, gl, camera, scene, invalidate]);
+  useFrame(() => {
+    if (top === undefined) return;
+    const zoom = sheetEyeZoom(camera, size);
+    if (flags.frame(clock.getElapsedTime(), { zoom, eye: camera.quaternion, reduced: reducedMotion() })) invalidate();
+    if (work.size(zoom * (work.root.matrixWorld.getMaxScaleOnAxis() || 1))) invalidate();
+  });
+  flags.root.visible = surfaces.sessionTints;
+  return top === undefined ? null : <><primitive object={flags.root} />{surfaces.territories !== false && <primitive object={work.root} />}</>;
 }
 
 /** Lets go of every geometry and material under `group`. */
@@ -527,9 +570,19 @@ function disposeMarks(group: Group): void {
 /** An island's land as built: its territories' meshes, and its relief and roads once they are routed. */
 type DrawnLand = { group: Group; map: TerritoryMap; roads: IslandRoads | undefined; relief: IslandRelief | undefined; onLand: ReturnType<typeof onIslandSurface> };
 
-function DrawnIsland({ story, drawn, land, coast, docks, tints, pointed, radius, lighting, surfaces, gate, picked, circled, rung, detail, joined, opened, parts }: IslandLandProps & { drawn: DrawnLand }) {
+function DrawnIsland({ story, drawn, land, coast, docks, tints: allTints, pointed, radius, lighting, surfaces, gate, picked: allPicked, selection, circled: allCircled, rung, detail, joined, opened, parts }: IslandLandProps & { drawn: DrawnLand }) {
   const { invalidate, clock, camera, size, gl, scene } = useThree();
   const relief = drawn.relief, onLand = drawn.onLand;
+  // 3.112: the capability open on the map, if it is on this island and has parts to open into, once its roads are routed.
+  const level = useSyncExternalStore(detail.subscribe, detail.get);
+  const open = useSyncExternalStore(opened.subscribe, opened.get);
+  const openParts = open?.story === story && level === "parts" && surfaces.territories !== false && drawn.roads !== undefined && drawn.relief !== undefined
+    ? parts?.find(({ capability }) => capability === open.capability) : undefined;
+  // 3.122: an opened top part carries none of its capabilities' marks, which stand on their own territories inside it.
+  const shown = openParts?.capability;
+  const tints = useMemo(() => besideOpen(allTints, shown), [allTints, shown]);
+  const circled = useMemo(() => besideOpen(allCircled, shown), [allCircled, shown]);
+  const picked = besideOpen(allPicked, shown);
   // 3.83: the open work's rings round its settlements, over the land as drawn now, at every zoom (ADR-1272 D2);
   // and the selected capability's gold ring (3.91).
   // 3.102: a pick redraws its gold ring alone, leaving the arc's rings and their shader as they stand.
@@ -608,17 +661,13 @@ function DrawnIsland({ story, drawn, land, coast, docks, tints, pointed, radius,
     if (!whole.current) whole.current = grow();
   });
   // 3.86: what the zoom shows of the land as drawn, its shapes left as they are.
-  const level = useSyncExternalStore(detail.subscribe, detail.get);
   useLayoutEffect(() => {
     presentDetail(drawn.group, level);
     invalidate();
   }, [drawn, level, surfaces, invalidate]);
   useEffect(() => () => disposeMarks(drawn.group), [drawn]);
-  // 3.112: the capability open on the map, if it is on this island and has parts to open into, once its roads are routed.
-  const open = useSyncExternalStore(opened.subscribe, opened.get);
-  const openParts = open?.story === story && level === "parts" && surfaces.territories !== false ? parts?.find(({ capability }) => capability === open.capability) : undefined;
-  return <><primitive object={drawn.group} />{openParts !== undefined && drawn.roads !== undefined && drawn.relief !== undefined
-    && <OpenedCapability story={story} parts={openParts} drawn={drawn as OpenedLand} docks={docks} radius={radius} opened={opened} />}<primitive object={marks.root} />{surfaces.territories !== false && <primitive object={openWork.root} />}</>;
+  return <><primitive object={drawn.group} />{openParts !== undefined
+    && <OpenedCapability story={story} parts={openParts} drawn={drawn as OpenedLand} docks={docks} radius={radius} opened={opened} tints={allTints} circled={allCircled} selection={selection} surfaces={surfaces} />}<primitive object={marks.root} />{surfaces.territories !== false && <primitive object={openWork.root} />}</>;
 }
 
 

@@ -21,26 +21,25 @@ function folder(t, prefix) {
 
 test("4.31 · a worktree's test run is held by one live run at a time: a second waits, saying so and naming the first's pid, what it runs and when it started, takes it once the first lets it go, and takes over a run whose process has gone", async (t) => {
   const work = path.join(folder(t, "worktree-run-"), ".pgtest");
+  const other = path.join(work, "run.json");
   const first = await takeWorktreeRun(work, { what: "files: a.test.mjs" });
-  assert.equal(typeof first.release, "function");
+  assert.deepEqual((({ pid, what }) => ({ pid, what }))(JSON.parse(readFileSync(other, "utf8"))), { pid: process.pid, what: "files: a.test.mjs" }, "the first run holds it");
 
   // Another live process holds it: this test's parent stands in for the first run.
-  const other = path.join(work, "run.json");
   first.release();
   writeFileSync(other, JSON.stringify({ pid: process.ppid, token: "elsewhere", what: "units: packages/forest", startedAt: "2026-11-10T05:37:00.000Z" }));
   const said = [];
   let taken = false;
-  const second = takeWorktreeRun(work, { what: "files: b.test.mjs", log: (line) => said.push(line), everyMs: 20 });
+  let looks = 0;
+  const second = takeWorktreeRun(work, { what: "files: b.test.mjs", log: (line) => said.push(line), everyMs: 20, stopped: () => (looks++, false) });
   second.then(() => { taken = true; });
-  await waitUntil(() => said.length > 0, 10_000, "the second run to say it waits");
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  await waitUntil(() => looks >= 3, 10_000, "the second run to look again while the first holds it");
   assert.equal(taken, false, "the second run waits while the first holds the worktree");
   assert.equal(said.length, 1, "it says so once, not at every look");
   assert.match(said[0], new RegExp(`waiting for another pnpm test \\(pid ${process.ppid}, units: packages/forest, started 2026-11-10T05:37:00\\.000Z\\) in this worktree`));
   rmSync(other);
   const secondRun = await second;
-  assert.equal(typeof secondRun.release, "function");
-  assert.equal(JSON.parse(readFileSync(other, "utf8")).what, "files: b.test.mjs", "the second run holds it now");
+  assert.deepEqual((({ pid, what }) => ({ pid, what }))(JSON.parse(readFileSync(other, "utf8"))), { pid: process.pid, what: "files: b.test.mjs" }, "the second run holds it now");
   secondRun.release();
 
   // Its process gone, the record is stale and the next run takes it at once.
@@ -66,7 +65,7 @@ test("4.31 · a run's record says what it runs: the files named on its command l
   assert.equal(runWhat({ root, files: [], units: ["packages/forest", "packages/cli"] }), "units: packages/forest, packages/cli");
 });
 
-test("4.31 · a second pnpm test in a worktree whose run holds its test Postgres waits for it, naming the first, a run given a server's url does not, and both pass", { timeout: 180_000 }, async (t) => {
+test("4.31 · a second pnpm test in a worktree whose run holds its test Postgres waits for it, naming the first, a run stopped while it waits ends 130, a run given a server's url does not wait, and both pass", { timeout: 180_000 }, async (t) => {
   const root = folder(t, "worktree-run-root-");
   const marks = folder(t, "worktree-run-marks-");
   const started = path.join(marks, "started");
@@ -109,6 +108,19 @@ test("waits for its finish mark", async () => {
   assert.equal(secondRun.exitCode, null, secondOutput);
   assert.match(secondOutput, new RegExp(`test harness: waiting for another pnpm test \\(pid ${firstRun.pid}, files: tests/waits\\.test\\.mjs, started [^)]+\\) in this worktree`), secondOutput);
   assert.doesNotMatch(secondOutput, /test Postgres:/, "the waiting run starts no Postgres while the first holds it");
+
+  // A run stopped while it waits (Ctrl-C) ends 130, starting nothing and leaving the first run's record.
+  const stoppedRun = spawn(process.execPath, entry(quick), { cwd: repo, env, stdio: ["ignore", "pipe", "pipe"] });
+  let stoppedOutput = "";
+  stoppedRun.stdout.on("data", (chunk) => { stoppedOutput += chunk; });
+  stoppedRun.stderr.on("data", (chunk) => { stoppedOutput += chunk; });
+  const stoppedEnded = new Promise((resolve) => stoppedRun.on("close", resolve));
+  t.after(() => { if (stoppedRun.exitCode === null) stoppedRun.kill(); });
+  await waitUntil(() => /waiting for another pnpm test/.test(stoppedOutput) || stoppedRun.exitCode !== null, 60_000, "the third run to say it waits");
+  stoppedRun.kill("SIGINT");
+  assert.equal(await stoppedEnded, 130, stoppedOutput);
+  assert.doesNotMatch(stoppedOutput, /test Postgres:/, "the stopped run started no Postgres");
+  assert.equal(JSON.parse(readFileSync(path.join(root, ".pgtest", "run.json"), "utf8")).pid, firstRun.pid, "the first run still holds the worktree");
 
   // A run given a server's url starts no test Postgres here, so the first run's hold does not stop it.
   const elsewhere = spawnSync(process.execPath, entry(quick), { cwd: repo, env: { ...env, STORYTREE_TEST_PG_URL: "postgres://unused" }, encoding: "utf8", timeout: 60_000 });

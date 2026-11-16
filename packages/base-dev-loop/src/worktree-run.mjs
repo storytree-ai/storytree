@@ -35,7 +35,6 @@ export async function takeWorktreeRun(work, { what, log = console.log, everyMs =
           log(`waiting for another pnpm test (pid ${holder.pid}, ${holder.what}, started ${holder.startedAt}) in this worktree, which holds its test Postgres (${path.join(path.basename(work), "data")}); this run starts once it ends`);
           waitedFor = text;
         }
-        if (stopped()) return { stopped: true };
         await new Promise((resolve) => setTimeout(resolve, everyMs));
         if (stopped()) return { stopped: true };
         attempt = 0; // a live holder is waited for, not counted against the tries

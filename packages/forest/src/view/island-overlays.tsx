@@ -1,8 +1,9 @@
-/** Capability 3 · Story node render. The globe's nameplates and selection rings, drawn on each island's plate. */
+/** Capability 3 · Story node render. The globe's nameplates, agents' pins and selection rings, drawn on each island's plate. */
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef, useSyncExternalStore, type CSSProperties } from "react";
 import { DoubleSide, Quaternion, type Group } from "three";
 import type { Island } from "@storytree/forest";
+import type { PinIcon, PinReading } from "@storytree/map/pins";
 import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
 import type { Coast } from "../territories/territories.js";
 import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
@@ -12,6 +13,7 @@ import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytre
 import { showsNear, type DetailStore } from "./zoom-detail.js";
 import { namesShown, type OpenedStore } from "./opened-capability.js";
 import { LayingOutLabel } from "./layout-progress.js";
+import { badgeShown, markSpot, pinMarks, PIN_ICONS, type PinMark } from "./pin-marks.js";
 
 /** Where an island's middle is, in 0.2 ground units. */
 const centreOf = (island: Island): { x: number; z: number } => ({ x: island.x * GROUND_PER_WORLD_UNIT, z: island.z * GROUND_PER_WORLD_UNIT });
@@ -83,6 +85,62 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
       <div className="forest-label planet-nameplate capability" data-capability-id={plate.capability} data-island-id={island.story} data-size={plate.size} data-claimed={claimed.has(plate.capability) ? "" : undefined}>{plate.title}</div>
     </Overlay>)}
   </>;
+}
+
+/**
+ * 3.119: the agents' pins on an island, each place's mark just above its name: on its capabilities' territories, and on the
+ * parts of the one opened, which hold their own pins once drawn. Near, each pin's icon and label; zoomed out, the icons and how
+ * many. Nothing is laid out for an island no pin is on.
+ */
+export function IslandPins({ island, coast, links = [], docks, radius, pins, detail, opened }: {
+  island: Island; coast: Coast; radius: number; pins: readonly PinReading[];
+  links?: readonly Link[]; docks?: readonly LinkDock[] | undefined;
+  detail?: DetailStore | undefined; opened?: OpenedStore | undefined;
+}) {
+  const surface = useMemo(() => onIslandSurface(radius, PLATE_LIFT), [radius]);
+  const capabilities = useMemo(() => new Set(island.land?.territories.flatMap(({ capability }) => capability === undefined ? [] : [capability]) ?? []), [island.land]);
+  const here = useMemo(() => pins.filter(({ pin }) => "capability" in pin.fields.anchor && capabilities.has(pin.fields.anchor.capability)), [pins, capabilities]);
+  const kept = useSyncExternalStore(subscribeKept, keptVersion);
+  const level = useSyncExternalStore(detail?.subscribe ?? NEVER, detail?.get ?? NEAR);
+  const searcher = useMemo(() => pageTerritorySearcher(), []);
+  const awaiting = island.land !== undefined && awaitingLayout(island.story, island.land.territories, searcher);
+  const plates = useMemo(() => here.length === 0 || awaiting || island.land === undefined ? [] : capabilityPlates(islandLayout(island.story, island.land.territories, coast, links, docks)),
+    [here.length, awaiting, island.story, island.land, coast, links, docks, kept]);
+  const partPlates = useSyncExternalStore(opened?.subscribe ?? NEVER, () => opened?.platesOn(island.story));
+  const open = partPlates === undefined ? undefined : opened?.get()?.capability;
+  const marks = useMemo(() => pinMarks(here, { capabilities, ...(open === undefined || partPlates === undefined ? {} : { parts: new Map([[open, new Set(partPlates.map(({ part }) => part))]]) }) }),
+    [here, capabilities, open, partPlates]);
+  const near = showsNear(level);
+  return <>{marks.map((mark) => {
+    const at = markSpot(mark.place, plates, partPlates);
+    return at === undefined ? null : <Overlay key={mark.key} position={surface(at).toArray()} center zIndexRange={[26, 22]} style={{ pointerEvents: "none" }}>
+      <PinBadge mark={mark} near={near} />
+    </Overlay>;
+  })}</>;
+}
+
+/** 3.119: the pins on a shared store's slab, just above its name; a store shows them at every zoom it is drawn at. */
+export function StorePins({ address, at, pins, detail }: { address: string; at: readonly [number, number, number]; pins: readonly PinReading[]; detail?: DetailStore | undefined }) {
+  const level = useSyncExternalStore(detail?.subscribe ?? NEVER, detail?.get ?? NEAR);
+  const mark = useMemo(() => pinMarks(pins, { capabilities: new Set(), stores: new Set([address]) })[0], [pins, address]);
+  return mark === undefined ? null : <Overlay position={[...at]} center zIndexRange={[26, 22]} style={{ pointerEvents: "none" }}><PinBadge mark={mark} near={showsNear(level)} /></Overlay>;
+}
+
+/** A place's pins: near, a row per pin, its icon and label, a stale one greyed and saying so; far, each icon once and how many. */
+function PinBadge({ mark, near }: { mark: PinMark; near: boolean }) {
+  const shown = badgeShown(mark, near);
+  return <div className="forest-label planet-pin" data-pin-place={mark.key} data-pin-count={mark.count} data-pin-icons={mark.icons.join(" ")} data-pin-stale={mark.stale} data-pin-level={near ? "near" : "far"}>
+    {shown.near
+      ? shown.rows.map((pin) => <span key={pin.id} className="planet-pin-row" data-pin-id={pin.id} data-stale={pin.stale === undefined ? undefined : ""} title={pin.stale}>
+        <PinGlyph icon={pin.icon} /><span className="planet-pin-label">{pin.label}</span>{pin.stale !== undefined && <span className="planet-pin-stale">stale</span>}
+      </span>)
+      : <span className="planet-pin-row">{shown.icons.map(({ icon, stale }) => <PinGlyph key={icon} icon={icon} stale={stale} />)}<span className="planet-pin-count">{shown.count}</span></span>}
+  </div>;
+}
+
+/** A preset icon's mark (pin-marks.ts). */
+function PinGlyph({ icon, stale = false }: { icon: PinIcon; stale?: boolean }) {
+  return <svg className="planet-pin-icon" viewBox="0 0 24 24" aria-label={icon} data-icon={icon} data-stale={stale ? "" : undefined}><path d={PIN_ICONS[icon]} /></svg>;
 }
 
 const NEVER = () => () => {};

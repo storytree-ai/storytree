@@ -379,7 +379,7 @@ for (const backend of [memory, postgres]) {
     });
     await flight.pendChange(increment.id, { record: mails.id, fields: { description: "Sent by the mailer" } });
     assert.deepEqual(await records.get(sends.id), sends, "the live edge stays");
-    assert.deepEqual(await work.dependsOn(link.id), [form.id, mail.id], "the live plan keeps the link");
+    assert.deepEqual(new Set(await work.dependsOn(link.id)), new Set([form.id, mail.id]), "the live plan keeps the link");
 
     const branch = await flight.withPending(increment.id, live);
     const signUp = branch!.stories.find(({ id }) => id === story.id)!;

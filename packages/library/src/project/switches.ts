@@ -6,7 +6,7 @@
 import type { FieldsOf, RecordType } from "../schema/index.js";
 import type { LibrarySchema } from "../schema/types.js";
 import { SchemaRecords, type CreateOptions, type SchemaRecord } from "../schema/records.js";
-import type { HistoryEntry, HistoryFilter, ListFilter, Transactions } from "../transactions/types.js";
+import type { HistoryEntry, HistoryFilter, ListFilter, Transactions } from "../transactions/index.js";
 import { SYSTEM_KINDS } from "./factory.js";
 
 /**

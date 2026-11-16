@@ -107,34 +107,34 @@ test("a folder whose project was deleted (from another computer) is refused by a
   });
 });
 
-test("3.17 storytree import <folder> imports it into the folder's project, saying the imported stories it added and, imported again, what moved; a refused folder is said with why", async () => {
-  await inWorld(command, async ({ elsewhere, run, library }) => {
+test("3.17 storytree import <folder> --project <project> imports it into the folder's project, saying the imported stories it added and, imported again, what moved; a refused folder is said with why", async () => {
+  await inWorld(command, async ({ elsewhere, run, library, project }) => {
     const shop = path.join(elsewhere, "shop");
     mkdirSync(shop);
     writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
-    const imported = await run(["import", shop]);
+    const imported = await run(["import", shop, "--project", project]);
     assert.equal(imported.code, 0, imported.stderr);
     assert.match(imported.stdout, /1 imported story added/);
     const stories = (await (await library()).list("story")).filter((story) => story.fields.mapped !== undefined);
     assert.deepEqual(stories.map((story) => story.fields), [{ title: "shop", mapped: { from: shop, package: ".", folders: ["."] } }]);
     assert.match(imported.stdout, new RegExp(stories[0]!.id));
-    const again = await run(["import", shop]);
+    const again = await run(["import", shop, "--project", project]);
     assert.equal(again.code, 0, again.stderr);
     assert.match(again.stdout, /No commit is recorded: the folder is not a git checkout/, "imported again, it says what it recorded");
 
-    const refused = await run(["import", path.join(elsewhere, "missing")]);
+    const refused = await run(["import", path.join(elsewhere, "missing"), "--project", project]);
     assert.notEqual(refused.code, 0);
     assert.match(refused.stderr, /does not exist/);
   });
 });
 
 test("map 3.8 storytree map answers for an imported story from the folder this machine imports it from", async () => {
-  await inWorld(command, async ({ elsewhere, run }) => {
+  await inWorld(command, async ({ elsewhere, run, project }) => {
     const shop = path.join(elsewhere, "shop");
     mkdirSync(path.join(shop, "src"), { recursive: true });
     writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
     writeFileSync(path.join(shop, "src", "index.ts"), "export const shop = 1;\n");
-    assert.equal((await run(["import", shop])).code, 0);
+    assert.equal((await run(["import", shop, "--project", project])).code, 0);
     const mapped = await run(["map", "--select", "story:shop", "--down", "1", "--show"]);
     assert.equal(mapped.code, 0, mapped.stderr);
     assert.match(mapped.stdout, /Imported: 2/);
@@ -143,13 +143,13 @@ test("map 3.8 storytree map answers for an imported story from the folder this m
 });
 
 test("map 3.9 storytree map --crossing counts the imports across a line in an imported island, and lists them with --show", async () => {
-  await inWorld(command, async ({ elsewhere, run }) => {
+  await inWorld(command, async ({ elsewhere, run, project }) => {
     const shop = path.join(elsewhere, "shop");
     mkdirSync(path.join(shop, "src", "ui"), { recursive: true });
     writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
     writeFileSync(path.join(shop, "src", "ui", "menu.ts"), "export const menu = 1;\n");
     writeFileSync(path.join(shop, "src", "index.ts"), "import { menu } from \"./ui/menu.js\";\nexport const shop = menu;\n");
-    assert.equal((await run(["import", shop])).code, 0);
+    assert.equal((await run(["import", shop, "--project", project])).code, 0);
     const counted = await run(["map", "--crossing", "src/ui", "--json"]);
     assert.equal(counted.code, 0, counted.stderr);
     assert.deepEqual(JSON.parse(counted.stdout).in.island, { files: 1, imports: 1 });

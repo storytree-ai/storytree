@@ -9,6 +9,9 @@
  * - Each of the capability's links the code shows, by the files behind it, names the parts it reaches inside: the parts
  *   holding the files it imports (a link in) or the files importing (a link out). A link the code does not show (a
  *   recorded dependency alone) reaches no part: its road ends at the gate.
+ * - Each import reaching round a part's front door (the survey's clashes) rides on the road between its ends as the
+ *   capability shows them: the parts holding its files, or for a file of another capability of the story, that capability.
+ *   The road names the part it reaches. One with both ends in one part, or neither in the capability, rides on none.
  */
 import type { CapabilityWord } from "@storytree/forest-world/scene";
 import type { StorySurvey, SurveyedPart } from "@storytree/library";
@@ -19,13 +22,16 @@ import type { StorySurvey, SurveyedPart } from "@storytree/library";
  */
 export type PartShare = { readonly capability: string; readonly title: string; readonly lines: number; readonly status?: CapabilityWord; readonly parked?: true; readonly description?: string };
 
-/** An opened capability's drawing data: its parts, the roads between them, and the parts each of its links reaches, by the link's `from->to`. */
+/** An opened capability's drawing data: its parts, the roads between them, the parts each of its links reaches, by the link's
+ * `from->to`, and the parts reached round a front door by the imports each road carries, by the road's `from->to`. */
 export type SceneParts = {
   readonly story: string;
   readonly capability: string;
   readonly shares: readonly PartShare[];
   readonly links: readonly { readonly from: string; readonly to: string }[];
   readonly lanes: Readonly<Record<string, readonly string[]>>;
+  /** Absent on a top part's, whose parts are capabilities. */
+  readonly clashes?: Readonly<Record<string, readonly string[]>>;
 };
 
 const byText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
@@ -89,6 +95,17 @@ export function capabilityParts(story: string, capability: string, parts: readon
     if (edge.story !== story || edge.to !== capability || edge.from === undefined || edge.from === capability) continue;
     for (const file of edge.files) reach(`${edge.from}->${capability}`, file.to);
   }
-  const lanes = Object.fromEntries([...reached].sort(([a], [b]) => byText(a, b)).map(([key, set]) => [key, [...set].sort(byText)]));
-  return { story, capability, shares, links, lanes };
+  const sorted = (found: Map<string, Set<string>>) => Object.fromEntries([...found].sort(([a], [b]) => byText(a, b)).map(([key, set]) => [key, [...set].sort(byText)]));
+  const lanes = sorted(reached);
+
+  // Each import reaching round a part's front door, on the road between its ends as shown here.
+  const capabilityOf = new Map(survey.files.map((file) => [file.path, file.capability]));
+  const end = (file: string) => partOf.get(file) ?? capabilityOf.get(file);
+  const reaching = new Map<string, Set<string>>();
+  for (const clash of survey.parts?.clashes ?? []) {
+    const [a, b] = [end(clash.from), end(clash.to)];
+    if (a === undefined || b === undefined || a === b || !(partOf.has(clash.from) || partOf.has(clash.to))) continue;
+    reaching.set(`${a}->${b}`, (reaching.get(`${a}->${b}`) ?? new Set()).add(clash.part));
+  }
+  return { story, capability, shares, links, lanes, clashes: sorted(reaching) };
 }

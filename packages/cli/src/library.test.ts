@@ -138,7 +138,7 @@ test("3.2 `edit` changes only the named fields", async () => {
     const increment = await library.addIncrement({ arc: arc.id, title: "Form", objective: "Build it", body: "Email form" });
     const decision = await library.recordDecision({ title: "Mailer", text: "Mailgun", status: "accepted" });
     for (const record of [story, capability, contract, arc, increment, decision]) {
-      const ran = await world.run(["library", "edit", record.id, "--title", "New title"]);
+      const ran = await world.run(["library", "edit", record.id, "--title", "New title", "--project", world.project]);
       assert.equal(ran.code, 0, ran.stderr);
       assert.deepEqual((await library.get(record.id))?.fields, { ...record.fields, title: "New title" });
       assert.equal((await library.history({ id: record.id })).at(-1)?.actor, `person:${userInfo().username}`);
@@ -146,11 +146,11 @@ test("3.2 `edit` changes only the named fields", async () => {
     const definition = await library.defineTerm({ term: "Mailer", meaning: "Before", links: [decision.id] });
     const body = "A whole new body.\n\nKept as written.";
     writeFileSync(path.join(world.folder, "body.md"), body);
-    const ran = await world.run(["library", "edit", definition.id, "--meaning", "@body.md"]);
+    const ran = await world.run(["library", "edit", definition.id, "--meaning", "@body.md", "--project", world.project]);
     assert.equal(ran.code, 0, ran.stderr);
     assert.deepEqual((await library.get(definition.id))?.fields, { ...definition.fields, meaning: body });
     writeFileSync(path.join(world.folder, "title.txt"), "\uFEFFSaved by PowerShell");
-    const marked = await world.run(["library", "edit", definition.id, "--term", "@title.txt"]);
+    const marked = await world.run(["library", "edit", definition.id, "--term", "@title.txt", "--project", world.project]);
     assert.equal(marked.code, 0, marked.stderr);
     assert.deepEqual((await library.get(definition.id))?.fields, { ...definition.fields, meaning: body, term: "Saved by PowerShell" });
   });
@@ -158,7 +158,7 @@ test("3.2 `edit` changes only the named fields", async () => {
 
 test("3.3 `new` without a required field is refused, naming it", async () => {
   await inWorld(command, async (world) => {
-    const ran = await world.run(["library", "new", "story", "--description", "Visitors can sign up"]);
+    const ran = await world.run(["library", "new", "story", "--description", "Visitors can sign up", "--project", world.project]);
 
     assert.equal(ran.code, 1);
     assert.match(ran.stderr, /\btitle\b/);
@@ -297,7 +297,7 @@ test("3.6 saving a memory is refused with its reason and writes nothing", async 
   await inWorld(command, async (world) => {
     const library = await world.library();
     const { cursor } = await library.changesSince(0);
-    const ran = await world.run(["library", "new", "memory", "--text", "Keep this"]);
+    const ran = await world.run(["library", "new", "memory", "--text", "Keep this", "--project", world.project]);
     assert.notEqual(ran.code, 0);
     assert.match(ran.stderr, /memor.*harness/i);
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
@@ -338,7 +338,7 @@ test("3.8 `library retire` retires records with a reason and their writer", asyn
     const contract = await library.addContract({ capability: capability.id, title: "Sends mail" });
     const note = await library.defineTerm({ term: "Mailer", meaning: "Sends mail" });
     const { cursor } = await library.changesSince(0);
-    const bare = await world.run(["library", "retire", contract.id]);
+    const bare = await world.run(["library", "retire", contract.id, "--project", world.project]);
     assert.equal(bare.code, 2);
     assert.match(bare.stderr, /needs --reason/);
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
@@ -346,7 +346,7 @@ test("3.8 `library retire` retires records with a reason and their writer", asyn
     for (const record of [contract, note]) {
       const env = record === note ? { CODEX_THREAD_ID: "retire-record" } : undefined;
       const actor = record === note ? "session:retire-record" : `person:${userInfo().username}`;
-      const ran = await world.run(["library", "retire", record.id, "--reason", "Covered elsewhere"], env);
+      const ran = await world.run(["library", "retire", record.id, "--reason", "Covered elsewhere", "--project", world.project], env);
       assert.equal(ran.code, 0, ran.stderr);
       assert.ok(ran.stdout.includes(`Retired ${record.id}`), ran.stdout);
       assert.equal(await library.get(record.id), null);
@@ -414,24 +414,24 @@ test("3.11 a list field given to `new` or `edit` as comma-separated ids is writt
     const ids = decisions.map(({ id }) => id);
 
     // Windows PowerShell 5.1 strips a JSON list's inner quotes; the comma word reaches the command intact.
-    const written = await world.run(["library", "new", "definition", "--term", "Stack", "--meaning", "What runs it", "--links", `${ids[0]}, ${ids[1]}`]);
+    const written = await world.run(["library", "new", "definition", "--term", "Stack", "--meaning", "What runs it", "--links", `${ids[0]}, ${ids[1]}`, "--project", world.project]);
     assert.equal(written.code, 0, written.stderr);
     const definition = (await library.list("definition")).find(({ id }) => written.stdout.includes(id));
     assert.deepEqual((definition?.fields as Record<string, unknown> | undefined)?.links, ids);
 
-    const edited = await world.run(["library", "edit", definition!.id, "--links", ids[1]!]);
+    const edited = await world.run(["library", "edit", definition!.id, "--links", ids[1]!, "--project", world.project]);
     assert.equal(edited.code, 0, edited.stderr);
     assert.deepEqual(((await library.get(definition!.id))?.fields as Record<string, unknown> | undefined)?.links, [ids[1]]);
 
     // An unquoted comma list PowerShell joined with a space is refused before writing, with the quoted retry.
     const before = (await library.changesSince(0)).cursor;
-    const joined = await world.run(["library", "new", "definition", "--term", "Joined", "--meaning", "Shell-joined", "--links", ids.join(" ")]);
+    const joined = await world.run(["library", "new", "definition", "--term", "Joined", "--meaning", "Shell-joined", "--links", ids.join(" "), "--project", world.project]);
     assert.notEqual(joined.code, 0, joined.stdout);
     assert.ok(joined.stderr.includes(`--links "id1,id2"`), joined.stderr);
     assert.deepEqual((await library.changesSince(before)).changes, []);
 
     // A text field keeps its commas.
-    const prose = await world.run(["library", "new", "definition", "--term", "Prose", "--meaning", "First, second"]);
+    const prose = await world.run(["library", "new", "definition", "--term", "Prose", "--meaning", "First, second", "--project", world.project]);
     assert.equal(prose.code, 0, prose.stderr);
     assert.equal(((await library.list("definition")).find(({ id }) => prose.stdout.includes(id))?.fields as Record<string, unknown> | undefined)?.meaning, "First, second");
   });
@@ -443,7 +443,7 @@ test("3.13 `new check` writes a quality control check enforcing a principle, and
     const rule = await library.writeKnowledge("principle", { title: "Test creation", description: "How tests are written", statement: "A test can disagree with the code", why: "Else it proves nothing", howToApply: "Work the expected value by hand" });
     const question = "Is any expected value computed the way the code computes it?";
 
-    const written = await world.run(["library", "new", "check", "--title", "Tautological expected value", "--description", "Expected values worked by hand", "--question", question, "--howToAnswer", "Yes when the expected side repeats the formula", "--enforces", rule.id]);
+    const written = await world.run(["library", "new", "check", "--title", "Tautological expected value", "--description", "Expected values worked by hand", "--question", question, "--howToAnswer", "Yes when the expected side repeats the formula", "--enforces", rule.id, "--project", world.project]);
     assert.equal(written.code, 0, written.stderr);
     const check = (await library.list("check")).find(({ id }) => written.stdout.includes(id));
     assert.deepEqual((check?.fields as Record<string, unknown> | undefined)?.enforces, [rule.id]);
@@ -465,7 +465,7 @@ test("3.15 `new contract` numbers past the capability's contracts and the number
     writeFileSync(path.join(src, "cart.ts"), "export const cart = 1;\n");
     writeFileSync(path.join(src, "cart.test.ts"), 'import { cart } from "./cart.js";\ntest("1.2 an item is counted", () => cart);\ntest("1.3 a cart empties", () => cart);\n');
 
-    const written = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Totals its items"]);
+    const written = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Totals its items", "--project", world.project]);
     assert.equal(written.code, 0, written.stderr);
     const contract = (await library.list("contract")).find(({ id }) => written.stdout.includes(id));
     assert.equal((contract?.fields as Record<string, unknown> | undefined)?.title, "1.4 · Totals its items");
@@ -484,13 +484,13 @@ test("3.21 `new contract`'s answer counts the capability's other contracts that 
     writeFileSync(path.join(src, "cart.ts"), "export const cart = 1;\n");
     writeFileSync(path.join(src, "cart.test.ts"), 'import { cart } from "./cart.js";\ntest("1.1 an item is held", () => cart);\n');
 
-    const written = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Totals its items"]);
+    const written = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Totals its items", "--project", world.project]);
     assert.equal(written.code, 0, written.stderr);
     assert.match(written.stdout, new RegExp(`1 other contract of this capability has no test yet\\. If this one repeats it, retire it and build that one \\(list it with \`storytree map --select cap:${capability.id} --down 1 --kind contract --show\`\\)\\.`), written.stdout);
     assert.doesNotMatch(written.stdout, /Refuses a sold-out item/, "the untested contract is counted, not named");
     assert.doesNotMatch(written.stdout, /lane/, "a user's project has no lanes");
 
-    const more = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Empties the cart"]);
+    const more = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Empties the cart", "--project", world.project]);
     assert.match(more.stdout, /2 other contracts of this capability have no test yet\. If this one repeats any of them, retire it and build that one \(list them with `storytree map/, more.stdout);
   });
 });
@@ -501,13 +501,13 @@ test("3.16 `new contract` with a title past 300 characters is written, and its a
     const story = await library.addStory({ title: "The shop" });
     const capability = await library.addCapability({ title: "1 · Cart", story: story.id });
 
-    const long = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", `Totals its items ${"and applies every discount ".repeat(12)}`]);
+    const long = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", `Totals its items ${"and applies every discount ".repeat(12)}`, "--project", world.project]);
     assert.equal(long.code, 0, long.stderr);
     assert.match(long.stdout, /past 300 characters/);
     assert.ok(long.stdout.includes(CONTRACT_DEFINITION), long.stdout);
     assert.equal((await library.list("contract")).length, 1);
 
-    const short = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Empties"]);
+    const short = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Empties", "--project", world.project]);
     assert.equal(short.code, 0, short.stderr);
     assert.ok(!short.stdout.includes(CONTRACT_DEFINITION), short.stdout);
   });
@@ -528,15 +528,15 @@ test("3.14 `library edit` and `retire`, run by a session holding an increment, h
       const as = { CLAUDE_CODE_SESSION_ID: "caller" };
       assert.equal((await claim({ log, library, project: world.project, session: "caller", harness: "claude-code", branch: "claude/address-form" }, increment.id, "driving the address form")).ok, true);
       const live = await library.get(form.id);
-      const edited = await world.run(["library", "edit", form.id, "--description", "Where they type it"], as);
+      const edited = await world.run(["library", "edit", form.id, "--description", "Where they type it", "--project", world.project], as);
       assert.equal(edited.code, 0, edited.stderr);
       assert.match(edited.stdout, new RegExp(`pending on increment ${increment.id}`));
       assert.match(edited.stdout, new RegExp(`library read ${increment.id}`), "its next step names the increment that lists it");
-      const retired = await world.run(["library", "retire", promise.id, "--reason", "overtaken"], as);
+      const retired = await world.run(["library", "retire", promise.id, "--reason", "overtaken", "--project", world.project], as);
       assert.equal(retired.code, 0, retired.stderr);
       assert.deepEqual(await library.get(form.id), live, "the live record is left alone");
       assert.notEqual(await library.get(promise.id), null, "the contract is still live");
-      const unlinked = await world.run(["library", "retire", edge.id, "--reason", "read some other way"], as);
+      const unlinked = await world.run(["library", "retire", edge.id, "--reason", "read some other way", "--project", world.project], as);
       assert.equal(unlinked.code, 0, unlinked.stderr);
       assert.match(unlinked.stdout, new RegExp(`pending on increment ${increment.id}`), "an edge's retirement waits as a contract's does");
       assert.notEqual(await library.get(edge.id), null, "the edge is still live");

@@ -52,7 +52,7 @@ test("1.7 · check:evidence refuses a branch that adds or changes evidence media
   for (const file of ["docs/design/rail/stills/old.png", "docs/design/rail/stills/new.png", "packages/web/evidence/live/trace.json.gz", "apps/desktop/evidence/clip.webm"]) assert.ok(said.includes(file), said);
   assert.ok(!said.includes("seed.json.gz") && !said.includes("frame-1.png"), said);
   assert.match(said, /pnpm evidence:upload --pr/, "the refusal says where the evidence goes instead");
-  assert.match(said, /storytree media attach <the note citing it> docs\/design\/rail\/approved\/look\.png/, "an approved reference is sent to the library");
+  assert.match(said, /storytree media attach <the note citing it> docs\/design\/rail\/approved\/look\.png --project <project>/, "an approved reference is sent to the library");
 
   git("update-ref", "-d", "refs/remotes/origin/main");
   assert.equal(checkEvidence({ root, ...capture }), 1, "a branch whose changes cannot be read fails");

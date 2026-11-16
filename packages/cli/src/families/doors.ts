@@ -11,6 +11,7 @@ import { consumersOf } from "@storytree/library/verbs";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
+import { WHERE_USAGE, writtenFor } from "../mount.js";
 import type { learn } from "./drain.js";
 
 const usage = "doors [--days <n>] [--trend <n>] [--json]";
@@ -54,11 +55,12 @@ const read: Verb = {
   },
 };
 
-const learnUsage = "doors learn --session <id> [--harness <harness>]";
+const learnUsage = `doors learn --session <id> [--harness <harness>] ${WHERE_USAGE}`;
 
 /**
  * `storytree doors learn`: the doors learner on the session `--session` names, writing as it. The tool server runs it after
- * its friction_drain, with no session in the shell, so the command records no call of its own on the doors it reads.
+ * its friction_drain, with no session in the shell, so the command records no call of its own on the doors it reads. It
+ * writes to the library its `--project`, `--arc` or `--increment` names (ADR-1348 D3), the drain's own.
  */
 export function learner(run?: typeof learn): Verb {
   return {
@@ -70,7 +72,8 @@ export function learner(run?: typeof learn): Verb {
       if (session === undefined) throw new Refusal(`--session names the session the learner runs for\nusage: storytree ${learnUsage}`, { code: 2 });
       const harness = args.text("harness");
       const [{ surfaces }, drain] = await Promise.all([import("./index.js"), run === undefined ? import("./drain.js") : { learn: run }]);
-      const said = await drain.learn(context, surfaces, { caller: { session, ...(harness === undefined ? {} : { harness }) }, writer: { actor: `session:${session}` } });
+      const library = await writtenFor(args, context, learnUsage);
+      const said = await drain.learn(context, surfaces, { caller: { session, ...(harness === undefined ? {} : { harness }) }, writer: { actor: `session:${session}` }, library });
       return { text: said.join("\n") };
     },
   };

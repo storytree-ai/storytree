@@ -12,8 +12,11 @@ import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "@storytree/
 
 import type { ToolContext } from "./mount.js";
 
-/** The lines a drain step adds under friction_drain's answer, run for the calling session in the folder it works in. */
-export type DrainStep = (caller: { readonly session: string; readonly harness?: string }, folder: string) => Promise<string[]>;
+/**
+ * The lines a drain step adds under friction_drain's answer, run for the calling session in the folder it works in, writing
+ * to the library of `project`, the one the drain named (ADR-1348 D3).
+ */
+export type DrainStep = (caller: { readonly session: string; readonly harness?: string }, folder: string, project: string) => Promise<string[]>;
 
 /** The tool the step follows. */
 const DRAIN_TOOL = "friction_drain";
@@ -28,7 +31,7 @@ export function drainedBy(verbs: readonly Verb<VerbInputs, ToolContext>[], step:
     async act(input, context, words) {
       const answer = await verb.act(input, context, words);
       const caller = context.harness === undefined ? { session: context.session } : { session: context.session, harness: context.harness };
-      const said = await step(caller, context.folder).catch((error: unknown) => [`The doors learner did not run: ${error instanceof Error ? error.message : String(error)}`]);
+      const said = await step(caller, context.folder, context.library.name).catch((error: unknown) => [`The doors learner did not run: ${error instanceof Error ? error.message : String(error)}`]);
       return { ...answer, text: [answer.text, ...said].join("\n") };
     },
   });
@@ -42,9 +45,9 @@ export function drainedBy(verbs: readonly Verb<VerbInputs, ToolContext>[], step:
 export function commandStep(command: readonly string[], env: Readonly<Record<string, string | undefined>>): DrainStep {
   const unnamed = { ...env };
   for (const name of [...(WATCHED_HARNESSES as readonly WatchedHarness[]).flatMap((harness) => harness.shellSession ?? []), SESSION_ENV]) delete unnamed[name];
-  return (caller, folder) => new Promise((resolve, reject) => {
+  return (caller, folder, project) => new Promise((resolve, reject) => {
     const [program, ...before] = command;
-    const args = [...before, "doors", "learn", "--session", caller.session, ...(caller.harness === undefined ? [] : ["--harness", caller.harness])];
+    const args = [...before, "doors", "learn", "--session", caller.session, ...(caller.harness === undefined ? [] : ["--harness", caller.harness]), "--project", project];
     execFile(program!, args, { cwd: folder, env: unnamed, timeout: STEP_LIMIT_MS, windowsHide: true }, (error, stdout, stderr) => {
       const said = stdout.trimEnd();
       if (error !== null) reject(new Error(stderr.trim() || said || error.message));

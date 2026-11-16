@@ -77,7 +77,7 @@ const garden: VerbFamily<CommandCaller> = {
 /** A context whose caller is handed with no library opened, and which counts each time the writer is asked for. */
 function contextOf(): { context: Context; writers: number[] } {
   const writers: number[] = [];
-  const caller = { library: {}, project: "p", session: "claude-1", folder: "/work", log: {} } as unknown as Awaited<ReturnType<Context["activityContext"]>>;
+  const caller = { library: { name: "p" }, project: "p", session: "claude-1", folder: "/work", log: {} } as unknown as Awaited<ReturnType<Context["activityContext"]>>;
   const context = {
     cwd: "/work",
     activityContext: async () => caller,
@@ -94,10 +94,10 @@ test("1.23 · the command line mounts a declared family with the families within
   assert.deepEqual(mounted.retired, garden.retired);
   assert.equal(mounted.families?.[0]?.name, "bed");
   const gathering = mounted.families?.[0]?.verbs[0];
-  assert.equal(gathering?.usage, "garden bed gather <beds> … [--basket <basket> …] --<field> <value> …");
+  assert.equal(gathering?.usage, "garden bed gather <beds> … [--basket <basket> …] --<field> <value> … [--project <project>]");
 
   const writing = contextOf();
-  const gathered = await gathering!.act(parseArgs(["north", "south", "--basket", "wicker", "--basket", "tin", "--colour", "red"], [], "/work"), writing.context);
+  const gathered = await gathering!.act(parseArgs(["north", "south", "--basket", "wicker", "--basket", "tin", "--colour", "red", "--project", "p"], [], "/work"), writing.context);
   assert.deepEqual(gathered, { text: `north+south into wicker+tin {"colour":"red"} by session:claude-1`, raw: true }, "raw: no next steps");
   assert.equal(writing.writers.length, 1, "asking for the writer is what names it below the answer");
 
@@ -107,10 +107,10 @@ test("1.23 · the command line mounts a declared family with the families within
   assert.equal(reading.writers.length, 0, "a verb that does not write names no writer");
 
   const dry = contextOf();
-  assert.deepEqual(await mounted.verbs[1]!.act(parseArgs(["--rained"], ["rained"], "/work"), dry.context), { text: "No change: it rained." });
+  assert.deepEqual(await mounted.verbs[1]!.act(parseArgs(["--rained", "--project", "p"], ["rained"], "/work"), dry.context), { text: "No change: it rained." });
   assert.equal(dry.writers.length, 0, "a writing verb whose work wrote nothing names no writer");
   const wet = contextOf();
-  assert.deepEqual(await mounted.verbs[1]!.act(parseArgs([], ["rained"], "/work"), wet.context), { text: "watered by session:claude-1 and session:claude-1" });
+  assert.deepEqual(await mounted.verbs[1]!.act(parseArgs(["--project", "p"], ["rained"], "/work"), wet.context), { text: "watered by session:claude-1 and session:claude-1" });
   assert.equal(wet.writers.length, 1, "the writer is asked for once, however often the work reads it");
 
   await assert.rejects(mounted.verbs[2]!.act(parseArgs([], [], "/work"), contextOf().context), (error: unknown) =>

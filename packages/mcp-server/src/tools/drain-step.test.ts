@@ -9,11 +9,11 @@ import { claudeCode, withAgent } from "../testing/agent.js";
 import { withProject } from "../testing/tool-world.js";
 import { commandStep } from "./drain-step.js";
 
-test("6.96 · friction_drain answers, then the drain step's lines on the calling session, or why the doors learner did not run; the step spawns `doors learn` with no session in its environment", async () => {
-  await withProject(async ({ folder }) => {
+test("6.96 · friction_drain answers, then the drain step's lines on the calling session, or why the doors learner did not run; the step spawns `doors learn` with no session in its environment, naming the drain's project", async () => {
+  await withProject(async ({ folder, project }) => {
     const steps: unknown[] = [];
-    const drain = async (caller: { session: string; harness?: string }, where: string) => {
-      steps.push({ caller, where });
+    const drain = async (caller: { session: string; harness?: string }, where: string, named: string) => {
+      steps.push({ caller, where, named });
       return ["The doors learner read 0 door-answered lines from 0 sessions over 28 days (ADR-1045 D4 to D6)."];
     };
     await withAgent(folder, claudeCode("drainer", { drain }), async (agent) => {
@@ -21,7 +21,7 @@ test("6.96 · friction_drain answers, then the drain step's lines on the calling
       assert.equal(answer.isError, false);
       assert.match(answer.text, /\nThe doors learner read 0 door-answered lines/);
     });
-    assert.deepEqual(steps, [{ caller: { session: "drainer", harness: "claude-code" }, where: folder }]);
+    assert.deepEqual(steps, [{ caller: { session: "drainer", harness: "claude-code" }, where: folder, named: project }]);
 
     const failing = async (): Promise<never> => { throw new Error("storytree.mjs is not there"); };
     await withAgent(folder, claudeCode("drainer", { drain: failing }), async (agent) => {
@@ -34,9 +34,9 @@ test("6.96 · friction_drain answers, then the drain step's lines on the calling
   await withTempDir(async (dir) => {
     const echo = `process.stdout.write(JSON.stringify({ args: process.argv.slice(1), cwd: process.cwd(), env: [process.env.CLAUDE_CODE_SESSION_ID, process.env.STORYTREE_SESSION_ID, process.env.KEPT] }) + "\\n\\n")`;
     const env = { ...process.env, CLAUDE_CODE_SESSION_ID: "drainer", STORYTREE_SESSION_ID: "drainer", KEPT: "yes" };
-    const [line] = await commandStep([process.execPath, "-e", echo], env)({ session: "drainer", harness: "codex" }, dir);
-    assert.deepEqual(JSON.parse(line!), { args: ["doors", "learn", "--session", "drainer", "--harness", "codex"], cwd: realpathSync(dir), env: [null, null, "yes"] });
+    const [line] = await commandStep([process.execPath, "-e", echo], env)({ session: "drainer", harness: "codex" }, dir, "site");
+    assert.deepEqual(JSON.parse(line!), { args: ["doors", "learn", "--session", "drainer", "--harness", "codex", "--project", "site"], cwd: realpathSync(dir), env: [null, null, "yes"] });
 
-    await assert.rejects(commandStep([process.execPath, "-e", `process.stderr.write("no library here\\n"); process.exit(1)`], env)({ session: "drainer" }, dir), /no library here/);
+    await assert.rejects(commandStep([process.execPath, "-e", `process.stderr.write("no library here\\n"); process.exit(1)`], env)({ session: "drainer" }, dir, "site"), /no library here/);
   });
 });

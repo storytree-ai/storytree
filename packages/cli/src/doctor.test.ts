@@ -225,7 +225,7 @@ test("1.16 a folder whose marker names a project, unapproved on this machine, is
     mkdirSync(home, { recursive: true });
     placeTestServer(path.join(home, "pgdata"));
     const run = (args: readonly string[]) => storytree(command.script, args, { cwd: world.elsewhere, home, env: user.env });
-    const write = ["library", "new", "definition", "--term", "Mailer", "--meaning", "Sends the mail."];
+    const write = ["library", "new", "definition", "--term", "Mailer", "--meaning", "Sends the mail.", "--project", world.project];
 
     for (const args of [["arc", "list"], write]) {
       const refused = await run(args);

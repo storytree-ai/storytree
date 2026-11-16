@@ -53,6 +53,15 @@ function Invoke-PastRefusal([scriptblock] $Try, [int[]] $Waits = @(30, 120)) {
   }
   if ($refused.Count) { "$detail, after GitHub refused $($refused.Count) tries ($($refused -join '; '))" } else { $detail }
 }
+# What Windows' crash record (Application Error, event 1000) says of where a process crashed: "module+offset (path)",
+# or null when the text is not such a record.
+function Get-CrashPlace([string] $Text) {
+  if ($Text -notmatch 'Faulting module name: ([^,\r\n]+)') { return $null }
+  $place = $Matches[1].Trim()
+  if ($Text -match 'Fault offset: (0x[0-9a-fA-F]+)') { $place += "+$($Matches[1])" }
+  if ($Text -match 'Faulting module path: ([^\r\n]+)') { $place += " ($($Matches[1].Trim()))" }
+  $place
+}
 if ($LibraryOnly) { return }
 if (-not $Out) { throw 'name the folder for the run''s results with -Out' }
 
@@ -264,6 +273,15 @@ if (-not $Setup) {
 $updated = Step 'update' {
   Get-ProcessesUnder $installDir | Set-Content -LiteralPath (Join-Path $Out 'install-folder-before.txt') -Encoding utf8
   Start-Process -FilePath $appExe -ArgumentList '--quit'
+  # A setup that crashes leaves Windows' record of where, and a minidump in $Out\crash, for the diagnosis.
+  $since = Get-Date
+  $dumps = Join-Path $Out 'crash'
+  $wer = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\$(Split-Path -Leaf $Setup)"
+  try {
+    New-Item -Path $wer -Force | Out-Null
+    New-ItemProperty -Path $wer -Name DumpFolder -Value $dumps -PropertyType ExpandString -Force | Out-Null
+    New-ItemProperty -Path $wer -Name DumpType -Value 1 -PropertyType DWord -Force | Out-Null
+  } catch { Write-Host "no crash dumps: $($_.Exception.Message)" }
   $process = Start-Process -FilePath $Setup -ArgumentList '--updated --force-run' -PassThru
   $null = $process.Handle
   if (-not $process.WaitForExit($BoundSeconds * 1000)) {
@@ -272,7 +290,14 @@ $updated = Step 'update' {
     $process.Kill($true)
     throw "the setup had not finished after $BoundSeconds s; running under the installation: $($waiting -join '; ')"
   }
-  if ($process.ExitCode -ne 0) { throw "the setup exited $($process.ExitCode)" }
+  if ($process.ExitCode -ne 0) {
+    Start-Sleep -Seconds 5
+    $records = @(Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = $since } -ErrorAction SilentlyContinue |
+      Where-Object { $_.Id -in 1000, 1001, 1026 } | ForEach-Object { "$($_.TimeCreated.ToString('o')) $($_.ProviderName) $($_.Id)`n$($_.Message)`n" })
+    $records | Set-Content -LiteralPath (Join-Path $Out 'setup-crash.txt') -Encoding utf8
+    $place = @($records | Where-Object { $_.Contains((Split-Path -Leaf $Setup)) } | ForEach-Object { Get-CrashPlace $_ } | Where-Object { $_ }) | Select-Object -First 1
+    throw "the setup exited $($process.ExitCode)$(if ($place) { ", crashing in $place" })"
+  }
   "finished, exit 0"
 }
 

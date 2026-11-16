@@ -13,7 +13,7 @@ import { nestedLayout, partCrossings, regionOf } from "../territories/nested-ter
 import { territoryAt, type Coast, type Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { islandRoadMarks, landFill } from "./island-roads.js";
-import { hiddenByOpening, hideForOpening, namesShown, openedAt, openedMarks, OpenedStore, opensAt, readsUnder, rollUp, touches, UNDER_READS } from "./opened-capability.js";
+import { CLASH, hiddenByOpening, hideForOpening, namesShown, openedAt, openedMarks, OpenedStore, opensAt, reachPlates, readsUnder, rollUp, touches, UNDER_READS } from "./opened-capability.js";
 import { globeHover, pickGlobe } from "./planet-navigation.js";
 import { PARKED_FILL, territoryLand, WORD_FILL } from "./territory-land.js";
 import { landColour } from "./island-roads.js";
@@ -35,13 +35,13 @@ const lanes = { "d->a": ["p", "r"], "z1->a": ["p"], "z2->a": ["q"], "a->c": ["q"
 const crossings = partCrossings(map, roads, "a", lanes, docks);
 const partLinks = [{ from: "p", to: "q" }, { from: "q", to: "r" }];
 const sized = (n: number) => [...Array.from({ length: n }, (_, k) => ({ capability: ["p", "q", "r", "s", "t", "u", "v", "w"][k]!, title: `part ${k}`, lines: 400 - k * 40 })), { capability: "a", title: "1 · Alpha", lines: 50 }];
-const opened = (n: number, words?: Parameters<typeof openedMarks>[8], id = "a") => {
+const opened = (n: number, words?: Parameters<typeof openedMarks>[8], id = "a", clashes?: Parameters<typeof openedMarks>[9]) => {
   const layout = nestedLayout(regionOf(map, A), sized(n), partLinks, crossings)!;
   const local = crossings.map((c) => ({ local: { x: c.local.x - layout.centre.x, z: c.local.z - layout.centre.z }, links: c.links }));
   const inner = islandRoads(layout.map, [...partLinks, ...crossings.flatMap((c) => c.links.map((key) => { const [from, to] = key.split("->") as [string, string]; return { from, to }; }))], local, capabilityPlates(layout.map));
   const land = territoryLand(map, flat, coast, new Map(), roads);
   const cells = map.cells.filter((cell) => cell.territory === A).map((cell) => cell.polygon);
-  return { layout, inner, marks: openedMarks(id, layout, inner, [], cells, coast, flat, landFill(map, land), words) };
+  return { layout, inner, marks: openedMarks(id, layout, inner, [], cells, coast, flat, landFill(map, land), words, clashes) };
 };
 const drawables = (group: Object3D) => { let n = 0; group.traverse((o) => { if (o instanceof Mesh || o instanceof LineSegments) n++; }); return n; };
 const ends = (lines: LineSegments): Point[] => { const p = lines.geometry.getAttribute("position"); return Array.from({ length: p.count }, (_, k) => ({ x: p.getX(k), z: p.getZ(k) })); };
@@ -198,4 +198,29 @@ test("3.118 · an opened top part fills each capability inside it by its own wor
   assert.equal(globeHover(world, above(middleOf("q")), box, { x: 100, y: 100 }, "forest").title, "src/ui/q", "hovering a capability inside names it");
   assert.deepEqual(at(middleOf("a")), { kind: "story", id: "s", within: "top:s:ui" }, "the top part's land with no capability filled picks the island within the top part, never a capability of that id");
   assert.deepEqual(openedAt("parts", { kind: "story", id: "s", capability: "p", within: "top:s:ui" }), { story: "s", capability: "top:s:ui" }, "the eye over a capability inside keeps the top part open");
+});
+
+test("3.120 · an opened capability marks each road an import reaching round a part's front door rides on, and its gate into that part, naming the part it reaches when it is deeper than those shown", () => {
+  const clashes = { "p->q": ["q/deep/payments"], "z1->p": ["p"] };
+  const plain = opened(3), marked = opened(3, undefined, "a", clashes);
+  assert.equal(drawables(marked.marks), 4, "the marks add no draw: still within 3.115's five");
+  const tint = new Color(CLASH.colour);
+  const near = (c: Color) => Math.abs(c.r - tint.r) + Math.abs(c.g - tint.g) + Math.abs(c.b - tint.b) < 0.05;
+  const coloured = (marks: Object3D, name: string) => { const g = (marks.getObjectByName(name) as Mesh).geometry as BufferGeometry, c = g.getAttribute("color"), p = g.getAttribute("position"); return Array.from({ length: c.count }, (_, k) => ({ tinted: near(new Color(c.getX(k), c.getY(k), c.getZ(k))), at: { x: p.getX(k), z: p.getZ(k) } })); };
+  assert.ok(coloured(plain.marks, "part-roads").every(({ tinted }) => !tinted), "no clash, no road tinted");
+  const roads = coloured(marked.marks, "part-roads");
+  const centre = marked.layout.centre;
+  const onRoad = (at: Point, keys: readonly string[]) => marked.inner.segments.some((s) => s.links.some((key) => keys.includes(key)) && s.pts.some((p, i) => i > 0 && Math.hypot(at.x - centre.x - (p.x + s.pts[i - 1]!.x) / 2, at.z - centre.z - (p.z + s.pts[i - 1]!.z) / 2) < Math.hypot(p.x - s.pts[i - 1]!.x, p.z - s.pts[i - 1]!.z) / 2 + s.width));
+  assert.ok(roads.some(({ tinted }) => tinted), "the clash's roads are tinted");
+  assert.ok(roads.filter(({ tinted }) => tinted).every(({ at }) => onRoad(at, Object.keys(clashes))), "only along a road a clash rides on");
+  const gates = marked.inner.gates.filter((gate) => gate.entrances.some((key) => key in clashes));
+  assert.ok(gates.length > 0, "a clash road enters its part by a gate");
+  assert.equal(coloured(marked.marks, "part-gates").filter(({ tinted }) => tinted).length, gates.length * 2 * 36, "both posts of each gate a clash enters by are tinted, and no other");
+  assert.ok(coloured(plain.marks, "part-gates").every(({ tinted }) => !tinted));
+  // Named where the part reached lies deeper than the parts shown: payments, within q, at its gate; z1's reaches p itself.
+  const plates = reachPlates(marked.layout, marked.inner, clashes);
+  assert.deepEqual(plates.map(({ part, title, reach }) => [part, title, reach]), [["p->q", "into deep/payments", true]]);
+  const gate = marked.inner.gates.find((g) => g.entrances.includes("p->q"))!;
+  assert.deepEqual([plates[0]!.x, plates[0]!.z], [gate.at.x + centre.x, gate.at.z + centre.z], "at its gate into q");
+  assert.deepEqual(reachPlates(plain.layout, plain.inner, {}), []);
 });

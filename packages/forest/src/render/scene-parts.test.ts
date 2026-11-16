@@ -63,3 +63,24 @@ test("3.112 · each link the code shows names the parts its files reach inside, 
   const [a] = sceneParts({ [S]: survey, [T]: other });
   assert.deepEqual(a!.lanes, { "a->b": ["src/report"], "c->a": ["a", "src/tax"], "z->a": ["src/ledger"] });
 });
+
+test("3.120 · each part road an import reaching round a part's front door rides on names the part it reaches, by the road's ends as the opened capability shows them", () => {
+  const clash = (from: string, to: string, part: string, enters: string[]) => ({ from, to, part, enters, around: enters, suggestion: "" });
+  const clashes = [
+    // ledger reaches round tax's entry into payments: at a's level the road ledger -> tax carries it.
+    clash("src/ledger/index.ts", "src/tax/payments/card.ts", "src/tax/payments", ["src/tax", "src/tax/payments"]),
+    // c, another capability of the story, does too: its lane into tax carries it.
+    clash("src/c.ts", "src/tax/payments/card.ts", "src/tax/payments", ["src/tax", "src/tax/payments"]),
+    // report reaches round ledger's own entry: the part it reaches is the one shown.
+    clash("src/report/index.ts", "src/ledger/other.ts", "src/ledger", ["src/ledger"]),
+    // Inside tax, and between two other capabilities: no road of a's carries either.
+    clash("src/tax/index.ts", "src/tax/payments/card.ts", "src/tax/payments", ["src/tax/payments"]),
+    clash("src/c.ts", "src/b/deep.ts", "src/b", ["src/b"]),
+  ];
+  const files = [...survey.files, { path: "src/ledger/other.ts", lines: 1, capability: "a" }, { path: "src/b/deep.ts", lines: 1, capability: "b" }];
+  const ledger = { folder: "src/ledger", entry: "src/ledger/index.ts", files: ["src/ledger/index.ts", "src/ledger/other.ts"], parts: [] };
+  const capabilities = { ...survey.parts!.capabilities, a: survey.parts!.capabilities.a!.map((part) => (part.folder === "src/ledger" ? ledger : part)) };
+  const [a] = sceneParts({ [S]: { ...survey, files, parts: { capabilities, clashes } }, [T]: other });
+  assert.deepEqual(a!.clashes, { "c->src/tax": ["src/tax/payments"], "src/ledger->src/tax": ["src/tax/payments"], "src/report->src/ledger": ["src/ledger"] });
+  assert.deepEqual(sceneParts({ [S]: survey, [T]: other })[0]!.clashes, {}, "no clash, no road marked");
+});

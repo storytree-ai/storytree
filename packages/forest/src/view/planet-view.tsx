@@ -32,7 +32,7 @@ import type { TerritoryMap } from "../territories/territories.js";
 import { keepPartSeeds, keptPartSeeds, nestedLayoutSteps, partCrossings, regionOf } from "../territories/nested-territories.js";
 import type { SceneParts } from "../render/scene-parts.js";
 import type { PinReading } from "@storytree/map/pins";
-import { disposeOpened, hiddenByOpening, hideForOpening, openedAt, openedMarks, OpenedStore, opensAt, readsUnder, rollUp } from "./opened-capability.js";
+import { disposeOpened, hiddenByOpening, hideForOpening, openedAt, openedMarks, OpenedStore, opensAt, reachPlates, readsUnder, rollUp } from "./opened-capability.js";
 
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the map is mounted. */
@@ -463,11 +463,8 @@ function OpenedCapability({ story, parts, drawn, docks, radius, opened }: { stor
   }, [asked]);
   const layout = built?.asked === asked ? built.layout : undefined;
   useEffect(() => {
-    if (layout === undefined) return;
-    if (layout.seeds !== undefined) keepPartSeeds(story, capability, layout.seeds);
-    const names = new Map(parts.shares.map((share) => [share.capability, share.title]));
-    opened.name(story, capability, capabilityPlates(layout.map).map((plate) => ({ part: plate.capability, title: names.get(plate.capability) ?? plate.title, x: plate.x + layout.centre.x, z: plate.z + layout.centre.z })));
-  }, [layout, story, capability, parts, opened]);
+    if (layout !== undefined && layout.seeds !== undefined) keepPartSeeds(story, capability, layout.seeds);
+  }, [layout, story, capability]);
   // Its parts' roads, routed off the page in the island's own coordinates about its centre.
   const ask = useMemo((): RoadsAsk | undefined => layout === undefined ? undefined : {
     map: layout.map,
@@ -483,6 +480,15 @@ function OpenedCapability({ story, parts, drawn, docks, radius, opened }: { stor
     islandRoadsWhenRouted(ask, pageIslandRouter(), overtaken.signal);
     return () => overtaken.abort();
   }, [ask, inner]);
+  // Its parts' names once laid out, and the names of the roads coming round a front door (3.120) once those are routed.
+  useEffect(() => {
+    if (layout === undefined) return;
+    const names = new Map(parts.shares.map((share) => [share.capability, share.title]));
+    opened.name(story, capability, [
+      ...capabilityPlates(layout.map).map((plate) => ({ part: plate.capability, title: names.get(plate.capability) ?? plate.title, x: plate.x + layout.centre.x, z: plate.z + layout.centre.z })),
+      ...(inner === undefined ? [] : reachPlates(layout, inner, parts.clashes ?? {})),
+    ]);
+  }, [layout, inner, story, capability, parts, opened]);
   const marks = useMemo(() => {
     if (layout === undefined) return undefined;
     const kept = inner === undefined ? [] : hiddenByOpening(drawn.map, drawn.roads, capability).kept;
@@ -490,7 +496,7 @@ function OpenedCapability({ story, parts, drawn, docks, radius, opened }: { stor
     const cells = drawn.map.cells.filter((cell) => cell.territory === at).map((cell) => cell.polygon);
     // A top part's capabilities are filled by their own words (3.118); a capability's code parts keep its colour.
     const words = new Map(parts.shares.flatMap(({ capability: part, status, parked, title, description }) => status === undefined ? [] : [[part, { status, ...(parked === undefined ? {} : { parked }), title, ...(description === undefined ? {} : { description }) }] as const]));
-    return openedMarks(capability, layout, inner, kept, cells, drawn.map.coast, (p) => { const v = onGround(p); v.y += relief.raise(p); return v; }, landFill(drawn.map, drawn.group), words);
+    return openedMarks(capability, layout, inner, kept, cells, drawn.map.coast, (p) => { const v = onGround(p); v.y += relief.raise(p); return v; }, landFill(drawn.map, drawn.group), words, parts.clashes);
   }, [layout, inner, drawn, capability, at, radius, parts]);
   useLayoutEffect(() => {
     if (marks === undefined) return;

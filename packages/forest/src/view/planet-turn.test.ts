@@ -545,7 +545,8 @@ test("3.112 · zoomed to the parts level over a capability with code parts, it o
     await page.mouse.move(now.x, now.y); await page.mouse.down(); await page.mouse.move(centre.x, centre.y, { steps: 4 }); await page.mouse.up();
     await page.mouse.move(centre.x, centre.y);
     await page.mouse.wheel(0, -240);
-  }, now => now.opened?.routed === true && now.names.length > 0, "opened with its parts' roads routed and named");
+    // Each part's name mounts in its own overlay, so they can reach the page a frame apart: wait for as many names as parts.
+  }, now => now.opened?.routed === true && now.names.length > 0 && now.names.length === now.opened.parts, "opened with its parts' roads routed and named");
   assert.ok(open.zoom >= DETAIL_ZOOM.parts, `opened at the parts level (${open.zoom.toFixed(1)})`);
   assert.deepEqual([open.opened?.parts, open.names], [2, ["a", "b"]], "its two parts are drawn and named");
   assert.equal(open.junction, false, "its junction gives way to its parts'");

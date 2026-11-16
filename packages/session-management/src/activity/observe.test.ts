@@ -7,13 +7,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { connect } from "@storytree/library";
+import { connect, type Line } from "@storytree/library";
 import { VerbRefusal, type DoorWords } from "@storytree/library/verbs";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
 import { withLibrary } from "../friction/testing/pg.js";
 import { ACTIVITY_FAMILIES } from "./verbs.js";
-import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog } from "./index.js";
+import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LineFilter } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 const DAY = 86_400_000;
@@ -35,7 +35,7 @@ async function twoMachines(body: (logs: { laptop: ActivityLog; mint: ActivityLog
 
 const line = (session: string, command: string) => ({ session, harness: "codex" as const, source: "hook" as const, kind: "command-run" as const, command });
 
-test("2.5 · the log's live reading passes while two machines wrote a project's lines within its freshness and their latest read back in order, naming each machine and its count; it fails when only one did, naming the one gone quiet", async () => {
+test("2.5 · the log's live reading passes while two machines wrote a project's lines within its freshness and their latest read back in order, naming each machine and its count; it fails when only one did, naming the one gone quiet, or when their latest lines do not all read back in order", async () => {
   await twoMachines(async ({ laptop, mint }, project) => {
     const now = Date.now();
     await laptop.append(project, line("a", "one"), { at: new Date(now - 5 * DAY).toISOString() });
@@ -53,6 +53,17 @@ test("2.5 · the log's live reading passes while two machines wrote a project's 
       const third = await observe.act({ freshness: "2d" }, context, WORDS);
       assert.equal(third.data?.state, "passing", "an occasional third machine going quiet fails nothing while two still share the log");
       assert.match(third.text, /; vm wrote no line in the last 2 days \(its last at /);
+
+      const readBack = (lines: (all: Line[]) => Line[]): ActivityLog => Object.assign(Object.create(mint) as ActivityLog, {
+        machineTally: mint.machineTally.bind(mint),
+        lines: async (of: string, filter: LineFilter) => lines(await mint.lines(of, filter)),
+      });
+      const dropped = await observe.act({ freshness: "2d" }, { ...context, log: readBack((all) => all.filter((one) => one.machine !== "laptop")) }, WORDS);
+      assert.equal(dropped.data?.state, "failing", "a machine's latest line that does not read back fails it");
+      assert.match(dropped.text, /^failing: laptop's latest line did not read back/);
+      const reversed = await observe.act({ freshness: "2d" }, { ...context, log: readBack((all) => [...all].reverse()) }, WORDS);
+      assert.equal(reversed.data?.state, "failing", "the latest lines out of number order fail it");
+      assert.match(reversed.text, /^failing: the machines' latest lines read back out of order/);
     });
   });
   await twoMachines(async ({ laptop, mint }, project) => {
@@ -81,7 +92,7 @@ test("2.5 · `activity observe --record` records its reading as the contract's l
       await library.editContract(contract.id, { proof: { by: "observability-as-proof", reason: "Only both machines working show it.", freshness: "1d", watcher: "the activity watcher" } });
       await assert.rejects(observe.act({ record: contract.id, freshness: "2d" }, context, WORDS), VerbRefusal, "the freshness is the contract's own");
       const recorded = await observe.act({ record: contract.id }, context, WORDS);
-      assert.match(recorded.text, /in the last 1 day/);
+      assert.match(recorded.text, /in the last 1 day.*\. Recorded as contract_[0-9a-f]+'s live reading\.$/);
       const verified = (await library.health(contract.id)).verified;
       assert.equal(verified.state, "passing");
       assert.equal(verified.by, "the activity watcher");

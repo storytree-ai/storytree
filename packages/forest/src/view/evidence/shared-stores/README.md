@@ -21,5 +21,8 @@ Pictures, 1440 x 960:
 zoom `document_summaries`'s 136 px name overruns its 114 px tile (`whole: false`). That is a 4.46 tile-width fault in
 the drawing, not in what is drawn, parked as increment_02be8887ffb5.
 
+In the evidence bucket for #915, linked from the pull request body (ADR-1234): `915/shared-stores/store-beside-islands-1440x960.png`,
+`915/shared-stores/store-panel-1440x960.png`, `915/shared-stores/measurements.json`.
+
 Earlier pictures of the same store read from compose and migrations (#851, #853, increment_44871a60b43c) went with
 that reading.

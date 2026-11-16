@@ -18,7 +18,8 @@ test("8.66 · a project's shared stores are its capabilities' store links: one s
     { address: "postgres://db/checkbox", medium: "postgres", tables: [{ name: "users" }, { name: "answers" }, { name: "forms" }] },
     { address: "rediss://cache", medium: "redis", tables: [{ name: "sessions" }] },
   ], "two capabilities linking one address draw one store, each table once, and a medium's other spelling folds into it");
-  assert.deepEqual(linkedStores([{ capabilities: [{ storeLinks: [link("postgresql://db/shop", "orders"), link("mongodb+srv://docs/app", "notes")] }] }]).map(({ medium }) => medium), ["postgres", "mongodb"]);
+  assert.deepEqual(linkedStores([{ capabilities: [{ storeLinks: [link("postgresql://db/shop", "orders"), link("mongodb+srv://docs/app", "notes"), link("mariadb://db/crm", "leads"), link("sqlite://data/app.db", "rows"), link("orders-bucket", "rows")] }] }]).map(({ medium }) => medium),
+    ["postgres", "mongodb", "mysql", "sqlite", "orders-bucket"], "an unfolded scheme is its own medium, and an address with no scheme is its whole text");
 });
 
 test("8.66 · a project no capability links a store from has no shared store", () => {

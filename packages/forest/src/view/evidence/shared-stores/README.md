@@ -18,11 +18,17 @@ Pictures, 1440 x 960:
   It has no evidence section and no columns or foreign keys: links carry none (ADR-1347 D2).
 
 `measurements.json` sets each tile's corners, projected into the window, beside its drawn name's box. At this opening
-zoom `document_summaries`'s 136 px name overruns its 114 px tile (`whole: false`). That is a 4.46 tile-width fault in
-the drawing, not in what is drawn, parked as increment_02be8887ffb5.
+zoom `document_summaries`'s 136 px name overran its 114 px tile in #915's pictures (`whole: false`): a 4.46 tile-width
+fault in the drawing, not in what is drawn, fixed by increment_02be8887ffb5 below.
 
 In the evidence bucket for #915, linked from the pull request body (ADR-1234): `915/shared-stores/store-beside-islands-1440x960.png`,
 `915/shared-stores/store-panel-1440x960.png`, `915/shared-stores/measurements.json`.
+
+At the map's opening zoom a ground unit is drawn under a pixel across (0.71 px in the retake of 2026-11-17), so a 13 px
+name did not fit its tile there. Each table's name is now sized every drawn frame from its tile's drawn width, 13 px where
+a ground unit is a pixel and smaller with its tile below that, so it scales with the tile: in the retake every tile's
+`whole` is true (`document_summaries`: a 97 px name in a 114 px tile; `source_objects`: 65 px in 114 px). In the evidence
+bucket for #916: `916/store-beside-islands-1440x960.png`, `916/store-panel-1440x960.png`, `916/measurements.json`.
 
 Earlier pictures of the same store read from compose and migrations (#851, #853, increment_44871a60b43c) went with
 that reading.

@@ -11,7 +11,7 @@
 import type { AnnotatedTree, ChangedOnMain, HealthWorkItem, NamedOnMain } from "../health/index.js";
 import { connect as connectServer, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
-import { InheritedRecords } from "../project/factory.js";
+import { InheritedRecords, type Reached } from "../project/factory.js";
 import { DataQuestions } from "../data/data-questions.js";
 import { couldBeId } from "../references.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -131,6 +131,14 @@ export interface Library
    * where the product's friction is filed (ADR-1331 D5). None for a project naming no factory, or one gone or not a factory.
    */
   factoryLibrary(): Library | undefined;
+  /**
+   * The library of the project called `name`, read from this one (29.7, ADR-1348 D2): this one, its factory, or a product
+   * naming that factory, whether this project is the factory or one of its products, so a session reads them all from
+   * either folder. Opened once and closed with this one, so its close does nothing. One outside that circle is refused.
+   */
+  reach(name: string): Promise<Library>;
+  /** Every other library of this project's factory's circle, in name order, each opened or named with why it could not be. */
+  reachAll(): Promise<Reached<Library>[]>;
   /**
    * Work in flight's workSurvey (10.43): one reading of the open work, its arcs' states and its holds, never a body.
    * Which arcs hold no increment at all is asked of the project's database in one statement, never read record by record.
@@ -432,7 +440,15 @@ async function emptyArcs(pool: Project["pool"], arcs: readonly string[]): Promis
 
 function libraryOf(project: Project): Library {
   let factory: Library | undefined;
-  return {
+  const reached = new Map<Project, Library>();
+  // Another project of the circle is this one's to close, so its own close does nothing.
+  const other = (opened: Project): Library => {
+    if (opened === project) return library;
+    let found = reached.get(opened);
+    if (found === undefined) reached.set(opened, (found = { ...libraryOf(opened), close: async () => undefined }));
+    return found;
+  };
+  const library: Library = {
     name: project.name,
     identity: project.identity,
     ...take(project.records, FROM_RECORDS),
@@ -447,6 +463,8 @@ function libraryOf(project: Project): Library {
     },
     inherited: async () => (project.records instanceof InheritedRecords ? project.records.inherited() : []),
     factoryLibrary: () => (project.factory === undefined ? undefined : (factory ??= { ...libraryOf(project.factory), close: async () => undefined })),
+    reach: async (name) => other(await project.reach(name)),
+    reachAll: async () => (await project.reachAll()).map((each) => (each.opened === undefined ? each : { project: each.project, opened: other(each.opened) })),
     workSurvey: (at, options) => project.flight.workSurvey(at, { ...options, empty: (arcs) => emptyArcs(project.pool, arcs) }),
     /** The work model's tree, annotated with health (capability 5 reads the plan through capability 4). */
     async projectTree(options) {
@@ -620,6 +638,7 @@ function libraryOf(project: Project): Library {
     },
     close: () => project.close(),
   };
+  return library;
 }
 
 /** The live records of `plugin`'s kinds, by kind. */

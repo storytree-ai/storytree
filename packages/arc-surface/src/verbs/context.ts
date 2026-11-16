@@ -2,7 +2,8 @@
  * Capability 3 · Arc surface. What the `arc` and `question` verbs share: the context the doors hand them, and how a
  * given value and a record are read and named.
  */
-import { VerbRefusal } from "@storytree/library/verbs";
+import { contextIn, PROJECT_INPUT } from "@storytree/library/commands";
+import { mounted, VerbRefusal, type Verb, type VerbInputs } from "@storytree/library/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 /** The caller with its activity log, and the journey runtime when the door has one, told when an increment closes. */
@@ -57,4 +58,23 @@ export async function releasedAsking(context: SessionVerbContext, increment: str
   const { releaseAsked } = await import("@storytree/session-management");
   const released = await releaseAsked(context, increment);
   return released.length === 0 ? "" : ` Released your claims on ${released.join(", ")}.`;
+}
+
+/**
+ * `declared`, a read, also reading another library of the folder's factory's circle when `--project` names one (ADR-1348
+ * D2): the factory's, or a project it builds, from either folder, its answer under that project's name and what it reads
+ * beside the library (claims, sessions) that project's too. A project outside the circle is refused.
+ */
+export function readsElsewhere(declared: Verb<VerbInputs, ArcVerbContext>): Verb<VerbInputs, ArcVerbContext> {
+  const command = mounted(declared.command) ? declared.command : undefined;
+  return {
+    ...declared,
+    ...(command?.usage === undefined ? {} : { command: { ...command, usage: `${command.usage} [--project <project>]` } }),
+    inputs: { ...declared.inputs, project: PROJECT_INPUT },
+    async act({ project, ...input }, context, words) {
+      const there = await contextIn(context, project as string | undefined);
+      const answer = await declared.act(input, there, words);
+      return there === context ? answer : { ...answer, text: `project ${there.project}:\n${answer.text}` };
+    },
+  };
 }

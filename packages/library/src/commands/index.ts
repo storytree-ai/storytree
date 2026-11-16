@@ -47,6 +47,8 @@ import { partsBeside } from "./notes.js";
 import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
+import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
+export { contextIn, libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
 
 /** A claim as the door reads it: the session holding it, the increment or capability it is for, and since when. */
 export interface HeldClaim {
@@ -187,8 +189,8 @@ const search = verb({
   command: {
     family: "library",
     name: "search",
-    summary: "the artifacts, stories, capabilities and contracts closest in meaning to the words, best first (10 unless --limit); current state only: resteers, friction and superseded decisions come back with --history, or a resteer or friction with --kind",
-    usage: "library search <words…> [--limit <n>] [--history] [--kind <kind>]",
+    summary: "the artifacts, stories, capabilities and contracts closest in meaning to the words, best first (10 unless --limit); current state only: resteers, friction and superseded decisions come back with --history, or a resteer or friction with --kind; --project searches its factory's library or a project it builds (all for every one), each under its project",
+    usage: "library search <words…> [--limit <n>] [--history] [--kind <kind>] [--project <project|all>]",
   },
   tool: NOT_A_TOOL,
   inputs: {
@@ -196,20 +198,30 @@ const search = verb({
     limit: { kind: "text", optional: true, describe: "how many to show" },
     history: { kind: "switch", describe: "rank resteers, friction and superseded decisions too" },
     kind: { kind: "text", many: true, optional: true, describe: "only this kind" },
+    project: PROJECTS_INPUT,
   },
-  async act({ words, limit, history, kind }, context: LibraryVerbContext, door) {
+  async act({ words, limit, history, kind, project }, context: LibraryVerbContext, door) {
     const query = words.join(" ").trim();
     if (query === "") throw new VerbRefusal("this needs the words to search for", { misuse: true });
     const count = countOf(limit);
-    const ranked = await rankedSearch(context.library, query, { ...(count === undefined ? {} : { limit: count }), history, kinds: kind });
-    const heading = ranked.by === "meaning" ? `closest in meaning to "${query}":` : `ranked by words: ${ranked.why}; the records holding every word of "${query}":`;
-    // Records of a plugin kind no mounted plugin declares are never ranked; the answer says so (ADR-1178 D3).
-    const dormant = await dormantSaid(context, door);
-    if (ranked.hits.length === 0) return { text: [heading, "  none", ...dormant].join("\n") };
-    // A friction report says where it stands, so a settled one found by meaning reads as settled (ADR-1016 D4).
-    const kindOf = (note: (typeof ranked.hits)[number]["note"]): string => note.type === "friction" ? `friction: ${note.fields.state}` : note.type;
-    const lines = ranked.hits.map(({ note, score, narrowedBy }) => `  ${score === undefined ? "" : `${score.toFixed(2)}  `}${note.id}  [${kindOf(note)}]  ${labelOf(note.fields)}${narrowedSaid(narrowedBy)}`);
-    return { text: [heading, ...lines, ...dormant].join("\n"), next: [{ command: "library read <id>", why: "read one whole" }] };
+    const named = project === undefined || project.length === 0 ? undefined : project;
+    const sections: string[] = [];
+    // Another project's results come under its name; a project that could not be opened is named, never skipped (ADR-1348 D2).
+    for (const reached of await librariesNamed(context.library, named)) {
+      if (reached.opened === undefined) {
+        sections.push(unopenedSaid(reached.project, reached.unopened));
+        continue;
+      }
+      const ranked = await rankedSearch(reached.opened, query, { ...(count === undefined ? {} : { limit: count }), history, kinds: kind });
+      const heading = ranked.by === "meaning" ? `closest in meaning to "${query}":` : `ranked by words: ${ranked.why}; the records holding every word of "${query}":`;
+      // Records of a plugin kind no mounted plugin declares are never ranked; the answer says so (ADR-1178 D3).
+      const dormant = await dormantSaid({ ...context, library: reached.opened }, door);
+      // A friction report says where it stands, so a settled one found by meaning reads as settled (ADR-1016 D4).
+      const kindOf = (note: (typeof ranked.hits)[number]["note"]): string => note.type === "friction" ? `friction: ${note.fields.state}` : note.type;
+      const lines = ranked.hits.length === 0 ? ["  none"] : ranked.hits.map(({ note, score, narrowedBy }) => `  ${score === undefined ? "" : `${score.toFixed(2)}  `}${note.id}  [${kindOf(note)}]  ${labelOf(note.fields)}${narrowedSaid(narrowedBy)}`);
+      sections.push([...(named === undefined ? [] : [`project ${reached.project}:`]), heading, ...lines, ...dormant].join("\n"));
+    }
+    return { text: sections.join("\n\n"), next: [{ command: `library read <id>${named === undefined ? "" : " --project <project>"}`, why: "read one whole" }] };
   },
 });
 
@@ -416,23 +428,26 @@ export function wholeRecord(record: Stored): string {
 }
 
 const read = verb({
-  command: { family: "library", name: "read", summary: "records, whole, in one start (--linked adds the records their id lists name); or one record's field exactly as stored", usage: "library read <id|decision number> [<id>…] [--linked] [--field <name> [--out <file>]]" },
+  command: { family: "library", name: "read", summary: "records, whole, in one start (--linked adds the records their id lists name); or one record's field exactly as stored; --project reads its factory's library or a project it builds", usage: "library read <id|decision number> [<id>…] [--linked] [--field <name> [--out <file>]] [--project <project>]" },
   tool: NOT_A_TOOL,
   inputs: {
     ids: { kind: "text", word: 0, many: true, optional: true, describe: "the records' ids" },
+    project: PROJECT_INPUT,
     linked: { kind: "switch", describe: "add the records their id lists name" },
     field: { kind: "text", optional: true, describe: "one field to read exactly as stored" },
     out: { kind: "text", optional: true, describe: "a file to write the field to instead of printing it (relative to the caller's folder), so pnpm's script banner cannot reach it" },
   },
-  async act({ ids: given, linked: withLinked, field, out }, context: LibraryVerbContext) {
+  async act({ ids: given, linked: withLinked, field, out, project }, context: LibraryVerbContext) {
     needed(given[0], "the record's id");
     if (out !== undefined && field === undefined) throw new VerbRefusal("--out writes one field; give --field <name> with it", { misuse: true });
+    // Another library of the factory's circle, when named (ADR-1348 D2): what it shows is said to be that project's.
+    const library = await libraryNamed(context.library, project);
+    const where = library === context.library ? "this project" : `project ${library.name}`;
     // A decision may be named by its number (1103 or ADR-1103), capability 27's lookup.
-    const ids = [...new Set(await Promise.all(given.map(async (id) => (await decisionNamed(context.library, id)) ?? id)))];
-    const library = context.library;
+    const ids = [...new Set(await Promise.all(given.map(async (id) => (await decisionNamed(library, id)) ?? id)))];
     const records = await Promise.all(ids.map((id) => library.get(id)));
     const missing = ids.filter((_, index) => records[index] === null);
-    if (missing.length > 0) throw new VerbRefusal(missing.map((id) => `no record "${id}" in this project`).join("\n"));
+    if (missing.length > 0) throw new VerbRefusal(missing.map((id) => `no record "${id}" in ${where}`).join("\n"));
     // A capability's dependsOn reads as the plan's tree gives it, its story's edges included (ADR-1282 D1).
     const named = await Promise.all((records as Stored[]).map((record) => withDependsOn(library, record)));
     if (field !== undefined) {
@@ -450,8 +465,8 @@ const read = verb({
     const linked = await Promise.all(linkedIds.map((id) => library.get(id)));
     const gone = linkedIds.filter((_, index) => linked[index] === null);
     const shown = [...named, ...linked.filter((record): record is Stored => record !== null)];
-    const note = gone.length > 0 ? [`Linked but not in this project: ${gone.join(", ")}`] : [];
-    return { text: [...shown.map(wholeRecord), ...note].join("\n\n") };
+    const note = gone.length > 0 ? [`Linked but not in ${where}: ${gone.join(", ")}`] : [];
+    return { text: [...(library === context.library ? [] : [`project ${library.name}:`]), ...shown.map(wholeRecord), ...note].join("\n\n") };
   },
 });
 

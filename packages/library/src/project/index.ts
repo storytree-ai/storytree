@@ -1,7 +1,7 @@
 /** Capability 1 · Project libraries. */
 export { connectionString, PASSWORD_KEY } from "./address.js";
 export { ConnectionError } from "./connection-error.js";
-export type { FactoryLink } from "./factory.js";
+export type { FactoryLink, Reached } from "./factory.js";
 export { SEED_CONNECTION } from "./seed-connection.js";
 export type { ConnectionProblem } from "./connection-error.js";
 export { ProjectGoneError, ProjectNameError } from "./names.js";

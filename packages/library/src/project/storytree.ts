@@ -32,7 +32,7 @@ import { PgVectors, vectorServerIdentity, type VectorDomain } from "./embeddings
 import { CachedTransactions } from "./record-cache.js";
 import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
 import { assertProjectName, PROJECT_DATABASE_PREFIX, ProjectGoneError, projectDatabase } from "./names.js";
-import { InheritedRecords, ProjectLineage } from "./factory.js";
+import { FactoryCircle, InheritedRecords, OutsideCircleError, ProjectLineage, type Reached } from "./factory.js";
 import { SwitchedRecords, type SystemSwitches } from "./switches.js";
 import { pendingMemories, upgradeMemories } from "./memory-upgrade.js";
 import { PROJECT_SCHEMA } from "./schema.js";
@@ -184,6 +184,14 @@ export interface Project {
    * factory, or one that is gone or is not a factory.
    */
   readonly factory: Project | undefined;
+  /**
+   * The project called `name` as this one reads it (ADR-1348 D2): itself, its factory, or a product naming that factory,
+   * whether this one is the factory or one of its products; opened once, with this one's switches and kinds, and closed
+   * with it. One outside that circle is refused (an OutsideCircleError), and one the server lacks is a ProjectGoneError.
+   */
+  reach(name: string): Promise<Project>;
+  /** Every other project of this one's factory's circle, in name order, each opened or named with why it could not be. */
+  reachAll(): Promise<Reached<Project>[]>;
   /** Close this project's connections. */
   close(): Promise<void>;
 }
@@ -335,7 +343,12 @@ class ServerConnection implements Storytree {
       throw error;
     });
     const domain = { server: vectorServerIdentity(pool), database, identity };
-    const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder, factory, options.system, options.kinds, this.#recordCache);
+    // Another project of its factory's circle opens as this one did: only one already there, with its switches and kinds.
+    const others = {
+      open: (other: string) => this.openProject(other, { create: false, ...(options.system === undefined ? {} : { system: options.system }), ...(options.kinds === undefined ? {} : { kinds: options.kinds }) }),
+      list: () => this.listProjects(),
+    };
+    const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder, factory, options.system, options.kinds, this.#recordCache, others);
     this.#projects.add(project);
     return project;
   }
@@ -567,6 +580,7 @@ class ProjectLibrary implements Project {
   readonly health: HealthRecord;
   readonly lineage: ProjectLineage;
   readonly factory: Project | undefined;
+  readonly #circle: FactoryCircle<Project> | undefined;
   readonly #forget: () => void;
   #closing: Promise<void> | undefined;
 
@@ -575,9 +589,10 @@ class ProjectLibrary implements Project {
   /**
    * Given `factory`, the product project reads its system from that factory's records, and closes it with its own; given
    * `system`, it leaves out what those switches switch off, from its own and its factory's together (29.6); given
-   * `kinds`, it writes and reads those plugin kinds beside the core ones (30.4); given `recordCache`, it reads its records from that file, the machine's copy (1.31).
+   * `kinds`, it writes and reads those plugin kinds beside the core ones (30.4); given `recordCache`, it reads its records from that file, the machine's copy (1.31); given `others`, a way to open
+   * another project and to name them all, it reaches its factory's circle (29.7), and with none it reaches only itself.
    */
-  constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, domain: VectorDomain, embedder?: EmbedderSource, factory?: Project, system?: SystemSwitches, kinds: readonly PluginRecordKind[] = [], recordCache: string | null = null) {
+  constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, domain: VectorDomain, embedder?: EmbedderSource, factory?: Project, system?: SystemSwitches, kinds: readonly PluginRecordKind[] = [], recordCache: string | null = null, others?: { open(name: string): Promise<Project>; list(): Promise<string[]> }) {
     this.name = name;
     this.identity = identity;
     this.pool = pool;
@@ -592,12 +607,22 @@ class ProjectLibrary implements Project {
     this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool, vectorCache, domain), ...(embedder === undefined ? {} : { embedder }) });
     this.health = new HealthRecord(this.records, this.work, this.flight);
     this.lineage = new ProjectLineage(pool, name);
+    this.#circle = others === undefined ? undefined : new FactoryCircle<Project>(this, factory, others.open, others.list);
     this.#forget = forget;
+  }
+
+  async reach(name: string): Promise<Project> {
+    if (this.#circle === undefined) throw new OutsideCircleError(`Project "${this.name}" reads only its own library, never "${name}"'s.`);
+    return this.#circle.reach(name);
+  }
+
+  async reachAll(): Promise<Reached<Project>[]> {
+    return this.#circle === undefined ? [] : this.#circle.reachAll();
   }
 
   close(): Promise<void> {
     this.#cache?.close();
-    this.#closing ??= Promise.all([this.pool.end(), this.factory?.close()]).then(() => undefined).finally(this.#forget);
+    this.#closing ??= Promise.all([this.pool.end(), this.factory?.close(), this.#circle?.close()]).then(() => undefined).finally(this.#forget);
     return this.#closing;
   }
 }

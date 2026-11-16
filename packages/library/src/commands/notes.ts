@@ -26,6 +26,7 @@ import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type V
 import { everyHolding, holdingLines, wholeRecord, type HeldClaim } from "./index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
+import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
 
 /** How a session came to an artifact it read. */
 export type Found = Extract<NewLine, { kind: "note-read" }>["found"];
@@ -70,26 +71,39 @@ const searchNotes = verb({
   command: NO_COMMAND("search"),
   tool: {
     name: "search_notes",
-    description: "Search the project's artifacts (decisions, definitions and other artifact kinds) and its stories, capabilities and contracts: the ones closest in meaning to your question, best first; you see each one's spine, and a decision narrowed in place says which decisions narrow it. Ask in plain words. Open one to read it whole. It gives current state: resteers, friction and superseded decisions come back with history, or a resteer or friction when kinds names it.",
+    description: "Search the project's artifacts (decisions, definitions and other artifact kinds) and its stories, capabilities and contracts: the ones closest in meaning to your question, best first; you see each one's spine, and a decision narrowed in place says which decisions narrow it. Ask in plain words. Open one to read it whole. It gives current state: resteers, friction and superseded decisions come back with history, or a resteer or friction when kinds names it. Give projects to search the factory's library or a project it builds instead (all for every one), each result under its project.",
   },
   inputs: {
     query: { kind: "text", verbatim: true, blank: true, describe: "What you want to know, in plain words" },
     limit: { kind: "count", optional: true, describe: "How many to give back; 10 unless given" },
     history: { kind: "switch", describe: "Rank resteers, friction and superseded decisions too" },
     kinds: { kind: "text", many: true, optional: true, describe: "Only these kinds (decision, resteer, contract, ...); every current kind unless given" },
+    projects: PROJECTS_INPUT,
   },
-  async act({ query, limit, history, kinds }, context: NoteToolContext) {
-    const ranked = await rankedSearch(context.library, query, { ...(limit === undefined ? {} : { limit }), history, kinds });
-    const notes = ranked.hits.map(({ note }) => note);
-    await context.recordReads(notes.map((note) => ({ note: note.id, found: "search", read: "peek" })));
-    const heading = ranked.by === "meaning"
-      ? `closest in meaning to ${quoted(query)}:`
-      : `ranked by words: ${ranked.why}; the records holding every word of ${quoted(query)}:`;
-    if (notes.length === 0) return { text: `${heading}\n(none)`, data: { by: ranked.by, notes: [] } };
-    return {
-      text: [heading, ...ranked.hits.map(({ note, narrowedBy }) => `${spineLine(note)}${narrowedSaid(narrowedBy)}`)].join("\n"),
-      data: { by: ranked.by, notes: ranked.hits.map(({ note, narrowedBy }) => ({ ...spineData(note), ...(narrowedBy === undefined ? {} : { narrowedBy }) })) },
-    };
+  async act({ query, limit, history, kinds, projects }, context: NoteToolContext) {
+    const named = projects === undefined || projects.length === 0 ? undefined : projects;
+    const sections: string[] = [];
+    const found: Record<string, unknown>[] = [];
+    let by: string | undefined;
+    for (const reached of await librariesNamed(context.library, named)) {
+      if (reached.opened === undefined) {
+        // A project that could not be opened is named, never skipped (ADR-1348 D2).
+        sections.push(unopenedSaid(reached.project, reached.unopened));
+        found.push({ project: reached.project, unopened: reached.unopened });
+        continue;
+      }
+      const ranked = await rankedSearch(reached.opened, query, { ...(limit === undefined ? {} : { limit }), history, kinds });
+      by ??= ranked.by;
+      // Only the folder's own artifacts are reads on its knowledge core; another project's are that project's.
+      const own = reached.opened === context.library;
+      if (own) await context.recordReads(ranked.hits.map(({ note }) => ({ note: note.id, found: "search", read: "peek" })));
+      const heading = ranked.by === "meaning"
+        ? `closest in meaning to ${quoted(query)}:`
+        : `ranked by words: ${ranked.why}; the records holding every word of ${quoted(query)}:`;
+      sections.push([...(named === undefined ? [] : [`project ${reached.project}:`]), heading, ...(ranked.hits.length === 0 ? ["(none)"] : ranked.hits.map(({ note, narrowedBy }) => `${spineLine(note)}${narrowedSaid(narrowedBy)}`))].join("\n"));
+      found.push(...ranked.hits.map(({ note, narrowedBy }) => ({ ...spineData(note), ...(narrowedBy === undefined ? {} : { narrowedBy }), ...(named === undefined ? {} : { project: reached.project }) })));
+    }
+    return { text: sections.join("\n\n"), data: { by: by ?? "meaning", notes: found } };
   },
 });
 
@@ -121,14 +135,20 @@ const open = verb({
   command: NO_COMMAND("read"),
   tool: {
     name: "open",
-    description: "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; open a contract to read what it guarantees and the capability it belongs to; open a question to read it whole with the work held on it; or open an artifact to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act. Give a field to get only that field's stored value, exactly, to edit and write back.",
+    description: "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; open a contract to read what it guarantees and the capability it belongs to; open a question to read it whole with the work held on it; or open an artifact to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act. Give a field to get only that field's stored value, exactly, to edit and write back. Give project to open a record in the factory's library or a project it builds.",
   },
   inputs: {
     id: { kind: "text", describe: "The id of a story, a capability, a contract, a question or an artifact" },
     field: { kind: "text", optional: true, describe: "One field to give exactly as stored, and nothing else" },
+    project: PROJECT_INPUT,
   },
-  async act({ id, field }, context: NoteToolContext) {
-    return field === undefined ? openRecord(id, context) : openField(id, field, context);
+  async act({ id, field, project }, context: NoteToolContext) {
+    const library = await libraryNamed(context.library, project);
+    if (library === context.library) return field === undefined ? openRecord(id, context) : openField(id, field, context);
+    // Another project's record, opened as its own is but said to be that project's, and no read on this folder's knowledge core (ADR-1348 D2).
+    const elsewhere: NoteToolContext = { ...context, library, project: library.name, notesRead: async () => [], recordReads: async () => undefined };
+    const answer = field === undefined ? await openRecord(id, elsewhere) : await openField(id, field, elsewhere);
+    return answer.raw === true ? answer : { ...answer, text: `project ${library.name}:\n${answer.text}`, data: { ...answer.data, project: library.name } };
   },
 });
 

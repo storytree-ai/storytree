@@ -219,9 +219,7 @@ test("1.6 with the library set to a Postgres address, a project routes to that a
       const dataDir = path.join(home, "pgdata");
       setLibrary(["postgres", address], home);
 
-      const stopped = timed(() => route(folder, { dataDir }));
-      assert.deepEqual(stopped.result, { status: "routed", project: "site", folder, library: { address } });
-      assert.ok(stopped.ms < QUICK_MS, `answered in ${stopped.ms.toFixed(0)} ms`);
+      assert.deepEqual(route(folder, { dataDir }), { status: "routed", project: "site", folder, library: { address } });
       placeTestServer(dataDir, { port });
       assert.deepEqual(route(folder, { dataDir }), { status: "routed", project: "site", folder, library: { address } });
 

@@ -5,7 +5,7 @@ import path from "node:path";
 import { affectedProject, changedOnMain, namedOnMain, type AffectedOptions } from "./affected.js";
 import type { AnnotatedTree, HealthWorkItem, Library } from "@storytree/library";
 import { readFile } from "node:fs/promises";
-import { codeSurveyReader, readStores, surveyCodeName, type ImportedFolder } from "./code-survey/read-survey.js";
+import { codeSurveyReader, surveyCodeName, type ImportedFolder } from "./code-survey/read-survey.js";
 import { pinWorldOf, type PinWorld } from "./pins/pins.js";
 import { buildGraph, type ProjectGraph } from "./graph.js";
 import { focus, formatFocus, type FocusAnswer, type FocusOptions } from "./focus.js";
@@ -121,12 +121,12 @@ export async function affectedCommand(library: PlanReader, folder: string, optio
 
 /**
  * What agents' pins at the checkout at `folder` are read against (Code map 9): the branch's plan, the current survey
- * through the one reader, and the shared stores it and `imports` declare.
+ * through the one reader, and the shared stores the plan's capabilities link.
  */
 export async function pinWorldAt(library: PlanReader, folder: string, imports: readonly ImportedFolder[] = []): Promise<PinWorld> {
   const tree = await branchPlan(library, folder);
-  const [survey, stores, top] = await Promise.all([current.read(folder, tree, imports), readStores(folder, imports), topOf(folder)]);
-  return pinWorldOf(tree.stories, survey, top, stores, (file) => readFile(file, "utf8").catch(() => undefined));
+  const [survey, top] = await Promise.all([current.read(folder, tree, imports), topOf(folder)]);
+  return pinWorldOf(tree.stories, survey, top, (file) => readFile(file, "utf8").catch(() => undefined));
 }
 
 export { changedOnMain };

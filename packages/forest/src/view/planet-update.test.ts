@@ -97,8 +97,8 @@ test("3.92 a live update that only puts a contract on an edge or a capability is
 test("3.119 · a live update whose only change is a pin written, or one gone stale, is drawn", () => {
   const pin = { pin: { id: "pin_1", type: "pin", fields: { anchor: { capability: "cap" }, icon: "cache", label: "A cache", evidence: "seen", commit: "abc", at: "2026-11-16T00:00:00.000Z" } } } as never as import("@storytree/map/pins").PinReading;
   const shown = forestScene(tree("A"), [], workStates([]));
-  const pinned = forestScene(tree("A"), [], workStates([]), {}, [], [pin]);
+  const pinned = forestScene(tree("A"), [], workStates([]), {}, [pin]);
   assert.notEqual(nextScene({ scene: shown, places: places() }, pinned, places()), undefined, "a pin written");
-  assert.notEqual(nextScene({ scene: pinned, places: places() }, forestScene(tree("A"), [], workStates([]), {}, [], [{ ...pin, stale: "gone" }]), places()), undefined, "a pin gone stale");
-  assert.equal(nextScene({ scene: pinned, places: places() }, forestScene(tree("A"), [], workStates([]), {}, [], [pin]), places()), undefined, "the same pin is not drawn again");
+  assert.notEqual(nextScene({ scene: pinned, places: places() }, forestScene(tree("A"), [], workStates([]), {}, [{ ...pin, stale: "gone" }]), places()), undefined, "a pin gone stale");
+  assert.equal(nextScene({ scene: pinned, places: places() }, forestScene(tree("A"), [], workStates([]), {}, [pin]), places()), undefined, "the same pin is not drawn again");
 });

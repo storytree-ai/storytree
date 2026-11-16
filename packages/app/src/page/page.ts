@@ -6,7 +6,7 @@
  * (every one when they cannot be read), the CI times strip in the map's bottom-left, the sessions list and the arcs each in its tab of the left rail, the arcs mounted once the forest has asked its first read and reading once the start settled; the start-timing marks, each sent once (lifecycle 1.33); and that a read landing after
  * the user switched project changes nothing on show.
  */
-import { drawingOf, drillDown, forestDrawn, forestScene, storyNodes, type ForestReadingOptions, type ForestScene, type KeptDrawing, type StoryPanel } from "@storytree/forest";
+import { drawingOf, drillDown, forestDrawn, forestScene, linkedStores, storyNodes, type ForestReadingOptions, type ForestScene, type KeptDrawing, type StoryPanel } from "@storytree/forest";
 import type { AnnotatedTree, SharedStore } from "@storytree/library";
 
 import { followProjects, type ProjectSelection } from "../projects/follow.js";
@@ -243,8 +243,6 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     let tree: AnnotatedTree | undefined;
     /** The code survey last read, which counts a mapped story's files and lines for its panel. */
     let surveyed: Survey = {};
-    /** The shared stores last read, drawn beside the islands, whose panel a picked one opens. */
-    let stores: readonly SharedStore[] = [];
     /** The contracts the arc opened in the Arcs tab links in its open work, for the panel of a picked gate (ADR-1284 D4). */
     let opened: readonly string[] | undefined;
 
@@ -252,7 +250,8 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       body,
       drill: (story) => tree === undefined ? undefined : drillDown(tree, story, states, history(), surveyed),
       render: (drilled, selected, gate) => project.renderPanel(drilled, selected, { details: withDetails, gate, open: opened }),
-      store: (address) => { const store = stores.find((each) => each.address === address); return store === undefined ? undefined : project.renderStore(store, tree); },
+      // The shared stores the plan's store links name, drawn beside the islands, whose panel a picked one opens.
+      store: (address) => { const store = tree === undefined ? undefined : linkedStores(tree.stories).find((each) => each.address === address); return store === undefined ? undefined : project.renderStore(store, tree); },
       folds: (host) => project.foldPanel(host),
       libraryCard: (host, onClose) => project.libraryCard(host, onClose),
       deselect: () => mine.view?.select(undefined),
@@ -307,14 +306,13 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       else status.showReadError(heading, `${messageOf(error)}. Retrying…`);
     };
     const reading: Parameters<ProjectParts["reading"]>[0] = {
-      onTree: (fresh, news, survey, shared, pins) => {
+      onTree: (fresh, news, survey, pins) => {
         if (showing !== mine) return;
         parts.answered();
         tree = fresh;
         surveyed = survey;
-        stores = shared;
         states.add(news.lines);
-        const scene = forestScene(fresh, history(), states, survey, shared, pins);
+        const scene = forestScene(fresh, history(), states, survey, pins);
         view.show(scene, new Map(storyNodes(fresh, history(), survey).map((node) => [node.id, node.place])));
         project.take(history(), news.lines);
         status.sayWhatWasDrawn(forestDrawn(scene));

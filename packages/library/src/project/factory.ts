@@ -246,21 +246,19 @@ interface CircleMember {
 
 /**
  * A factory's circle as one project of it reads it (ADR-1348 D2): the factory and every product naming it, reached from
- * the factory or from any of those products alike, whichever folder a session started in. A project naming no factory,
- * or one it cannot open, is in no circle and reaches only itself. Each project it opens is opened once, and closed with
- * the project reading it.
+ * the factory or from any of those products alike, whichever folder a session started in. A project naming no factory
+ * is in no circle and reaches only itself. Each project it opens is opened once, as the project reading it was (its
+ * switches and kinds), and closed with it; a product's factory too, apart from the one it inherits from.
  */
 export class FactoryCircle<P extends CircleMember> {
   readonly #self: P;
-  readonly #factory: P | undefined;
   readonly #open: (name: string) => Promise<P>;
   readonly #list: () => Promise<string[]>;
   readonly #opened = new Map<string, Promise<P>>();
 
-  /** `factory` is the factory a product opened beside it; `open` opens another project, and `list` names every project on the server. */
-  constructor(self: P, factory: P | undefined, open: (name: string) => Promise<P>, list: () => Promise<string[]>) {
+  /** `open` opens another project as `self` was opened, and `list` names every project on the server. */
+  constructor(self: P, open: (name: string) => Promise<P>, list: () => Promise<string[]>) {
     this.#self = self;
-    this.#factory = factory;
     this.#open = open;
     this.#list = list;
   }
@@ -272,8 +270,7 @@ export class FactoryCircle<P extends CircleMember> {
   async reach(name: string): Promise<P> {
     if (name === this.#self.name) return this.#self;
     const home = await this.#home();
-    if (home === undefined) throw new OutsideCircleError(`Project "${this.#self.name}" names no factory it can open, so it reads only its own library, never "${name}"'s.`);
-    if (name === home && this.#factory !== undefined) return this.#factory;
+    if (home === undefined) throw new OutsideCircleError(`Project "${this.#self.name}" names no factory, so it reads only its own library, never "${name}"'s.`);
     let opening = this.#opened.get(name);
     if (opening === undefined) {
       opening = this.#member(name, home);
@@ -308,11 +305,11 @@ export class FactoryCircle<P extends CircleMember> {
     await Promise.all(opened.map((opening) => opening.then((project) => project.close(), () => undefined)));
   }
 
-  /** The circle's factory: this project when it is one, the factory it opened beside it when a product, else none. */
+  /** The circle's factory: this project when it is one, the factory it names when a product, else none. */
   async #home(): Promise<string | undefined> {
     const link = await this.#self.lineage.factory();
     if (link.kind === "factory") return this.#self.name;
-    return link.kind === "product" ? this.#factory?.name : undefined;
+    return link.kind === "product" ? link.factory : undefined;
   }
 
   /** Open `name`, keeping it only when it is the factory `home` itself or a product naming it. */

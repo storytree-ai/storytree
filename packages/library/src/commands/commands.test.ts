@@ -1143,6 +1143,8 @@ test("17.30 · library search and read, and the search_notes and open tools, rea
   assert.deepEqual((tool.data!.notes as { id: string; project: string }[]).map(({ id, project }) => [id, project]), [[howToWork.id, factoryName]]);
   const opened = await toolOf("open").act({ id: howToWork.id, field: undefined, project: factoryName }, fromProduct, WORDS);
   assert.match(opened.text, new RegExp(`^project ${factoryName}:\\n[\\s\\S]*Land by pull request`));
+  assert.equal((await toolOf("open").act({ id: howToWork.id, field: "text", project: factoryName }, fromProduct, WORDS)).text, "Every change lands by pull request.", "one field, exactly as stored");
+  assert.equal((await verbOf("read").act({ ids: [howToWork.id], linked: false, field: "title", out: undefined, project: factoryName }, fromProduct, WORDS)).text, "Land by pull request");
   assert.ok(!reads.some(({ note }) => note === howToWork.id), "another project's record is no read on this folder's knowledge core");
 
   // A project outside the circle is refused; one that could not be opened is named with why, never skipped.

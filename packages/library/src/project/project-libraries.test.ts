@@ -17,7 +17,7 @@ import { quietFor, waitUntil } from "@storytree/test-waits";
 
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
 import { ConnectionError, ProjectGoneError, connect, type Project, type Storytree } from "./index.js";
-import type { InheritedRecords } from "./factory.js";
+import { FactoryCircle, type InheritedRecords } from "./factory.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import type { FieldsOf, RecordType } from "../schema/index.js";
 
@@ -839,19 +839,35 @@ test("29.7 from a factory or any product naming it, a project reaches each libra
       }
       await storytree.openProject(outside);
 
-      // From the factory: each product naming it, its own memory included; a project naming no factory is refused.
+      // From the factory: each product naming it, its own memory included, opened once; a project naming no factory is refused.
       const product = await made.reach(first);
       assert.equal(product.name, first);
+      assert.equal(await made.reach(first), product, "a project reached again is the one opened before");
       assert.equal((await product.records.get(decisions[first]!))?.id, decisions[first], "the factory reads a product's own decision");
       assert.equal(await made.reach(factory), made, "its own name is itself");
       await assert.rejects(made.reach(outside), new RegExp(`"${outside}".*factory "${factory}"`, "s"));
       await assert.rejects(made.reach(uniqueProjectName()), /no project/);
 
-      // From a product: its factory and the factory's other products, never one outside.
-      const built = await storytree.openProject(second);
-      assert.equal((await (await built.reach(factory)).records.get(role.id))?.id, role.id);
-      assert.equal(((await (await built.reach(first)).records.get(decisions[first]!))?.fields as { title?: string } | undefined)?.title, `${first}'s own decision`);
+      // From a product: its factory and the factory's other products, never one outside, each opened with the product's
+      // switches and kinds, and closed with it.
+      const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" } }, required: ["words"] }, writers: ["storytree_voice"] };
+      const built = await storytree.openProject(second, { system: { off: [role.id], on: [] }, kinds: [note] });
+      const theirs = await built.reach(factory);
+      assert.equal((await theirs.records.get(role.id))?.id, role.id, "a switched-off note still reads by its id");
+      assert.deepEqual(await theirs.records.list("principle"), [], "the factory reached reads with the product's switches");
+      const sibling = await built.reach(first);
+      assert.equal(((await sibling.records.get(decisions[first]!))?.fields as { title?: string } | undefined)?.title, `${first}'s own decision`);
+      assert.deepEqual((await sibling.records.create("voice.note" as RecordType, { words: "a note" } as FieldsOf<RecordType>)).fields, { words: "a note" }, "and with its kinds");
       await assert.rejects(built.reach(outside), new RegExp(`"${outside}"`));
+      await built.close();
+      await assert.rejects(sibling.records.list("decision"), "what it reached is closed with it");
+      await assert.rejects(theirs.records.list("decision"));
+
+      // A project the server lists but loses before it is opened is gone, not unopened, and left out.
+      const lost = new FactoryCircle(made, async () => {
+        throw new ProjectGoneError("lost");
+      }, async () => ["lost"]);
+      assert.deepEqual(await lost.reachAll(), []);
 
       // A project naming no factory reaches only itself.
       const alone = await storytree.openProject(outside);

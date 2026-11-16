@@ -147,8 +147,11 @@ const open = verb({
     if (library === context.library) return field === undefined ? openRecord(id, context) : openField(id, field, context);
     // Another project's record, opened as its own is but said to be that project's, and no read on this folder's knowledge core (ADR-1348 D2).
     const elsewhere: NoteToolContext = { ...context, library, project: library.name, notesRead: async () => [], recordReads: async () => undefined };
-    const answer = field === undefined ? await openRecord(id, elsewhere) : await openField(id, field, elsewhere);
-    return answer.raw === true ? answer : { ...answer, text: `project ${library.name}:\n${answer.text}`, data: { ...answer.data, project: library.name } };
+    const data = { project: library.name };
+    // One field stays exactly as stored, to write back: its project is in the data alone.
+    if (field !== undefined) return { ...(await openField(id, field, elsewhere)), data };
+    const answer = await openRecord(id, elsewhere);
+    return { ...answer, text: `project ${library.name}:\n${answer.text}`, data: { ...answer.data, ...data } };
   },
 });
 

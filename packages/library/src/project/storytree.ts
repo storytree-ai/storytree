@@ -607,7 +607,7 @@ class ProjectLibrary implements Project {
     this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool, vectorCache, domain), ...(embedder === undefined ? {} : { embedder }) });
     this.health = new HealthRecord(this.records, this.work, this.flight);
     this.lineage = new ProjectLineage(pool, name);
-    this.#circle = others === undefined ? undefined : new FactoryCircle<Project>(this, factory, others.open, others.list);
+    this.#circle = others === undefined ? undefined : new FactoryCircle<Project>(this, others.open, others.list);
     this.#forget = forget;
   }
 

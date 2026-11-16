@@ -13,7 +13,7 @@ import { nestedLayout, partCrossings, regionOf } from "../territories/nested-ter
 import { territoryAt, type Coast, type Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { islandRoadMarks, landFill } from "./island-roads.js";
-import { CLASH, hiddenByOpening, hideForOpening, namesShown, openedAt, openedMarks, OpenedStore, opensAt, reachPlates, readsUnder, rollUp, touches, UNDER_READS } from "./opened-capability.js";
+import { CLASH, dockedClashes, hiddenByOpening, hideForOpening, namesShown, openedAt, openedMarks, OpenedStore, opensAt, reachPlates, readsUnder, rollUp, touches, UNDER_READS } from "./opened-capability.js";
 import { globeHover, pickGlobe } from "./planet-navigation.js";
 import { PARKED_FILL, territoryLand, WORD_FILL } from "./territory-land.js";
 import { landColour } from "./island-roads.js";
@@ -43,6 +43,7 @@ const opened = (n: number, words?: Parameters<typeof openedMarks>[8], id = "a", 
   const cells = map.cells.filter((cell) => cell.territory === A).map((cell) => cell.polygon);
   return { layout, inner, marks: openedMarks(id, layout, inner, [], cells, coast, flat, landFill(map, land), words, clashes) };
 };
+const length = (pts: readonly Point[]) => pts.slice(1).reduce((sum, p, i) => sum + Math.hypot(p.x - pts[i]!.x, p.z - pts[i]!.z), 0);
 const drawables = (group: Object3D) => { let n = 0; group.traverse((o) => { if (o instanceof Mesh || o instanceof LineSegments) n++; }); return n; };
 const ends = (lines: LineSegments): Point[] => { const p = lines.geometry.getAttribute("position"); return Array.from({ length: p.count }, (_, k) => ({ x: p.getX(k), z: p.getZ(k) })); };
 
@@ -201,26 +202,42 @@ test("3.118 · an opened top part fills each capability inside it by its own wor
 });
 
 test("3.120 · an opened capability marks each road an import reaching round a part's front door rides on, and its gate into that part, naming the part it reaches when it is deeper than those shown", () => {
-  const clashes = { "p->q": ["q/deep/payments"], "z1->p": ["p"] };
-  const plain = opened(3), marked = opened(3, undefined, "a", clashes);
+  // p reaches round q's door into q/deep/payments; d's road in reaches p itself; q's road out to c reaches c/deep.
+  const clashes = { "p->q": ["q/deep/payments"], "d->p": ["p"], "q->c": ["c/deep"], "x->y": ["y"] };
+  const plain = opened(3), { layout } = plain;
+  const [into, out] = ["d->p", "q->c"].map((link) => crossings.findIndex((c) => c.links.includes(link)));
+  const drawn = dockedClashes(clashes, crossings, layout);
+  assert.deepEqual(drawn, { [`arrive:${into}->p`]: ["p"], "p->q": ["q/deep/payments"], [`q->leave:${out}`]: ["c/deep"] }, "each by the key its road is routed by; one on no road of the capability's is dropped");
+  const marked = opened(3, undefined, "a", drawn), centre = layout.centre;
   assert.equal(drawables(marked.marks), 4, "the marks add no draw: still within 3.115's five");
   const tint = new Color(CLASH.colour);
   const near = (c: Color) => Math.abs(c.r - tint.r) + Math.abs(c.g - tint.g) + Math.abs(c.b - tint.b) < 0.05;
   const coloured = (marks: Object3D, name: string) => { const g = (marks.getObjectByName(name) as Mesh).geometry as BufferGeometry, c = g.getAttribute("color"), p = g.getAttribute("position"); return Array.from({ length: c.count }, (_, k) => ({ tinted: near(new Color(c.getX(k), c.getY(k), c.getZ(k))), at: { x: p.getX(k), z: p.getZ(k) } })); };
   assert.ok(coloured(plain.marks, "part-roads").every(({ tinted }) => !tinted), "no clash, no road tinted");
   const roads = coloured(marked.marks, "part-roads");
-  const centre = marked.layout.centre;
   const onRoad = (at: Point, keys: readonly string[]) => marked.inner.segments.some((s) => s.links.some((key) => keys.includes(key)) && s.pts.some((p, i) => i > 0 && Math.hypot(at.x - centre.x - (p.x + s.pts[i - 1]!.x) / 2, at.z - centre.z - (p.z + s.pts[i - 1]!.z) / 2) < Math.hypot(p.x - s.pts[i - 1]!.x, p.z - s.pts[i - 1]!.z) / 2 + s.width));
-  assert.ok(roads.some(({ tinted }) => tinted), "the clash's roads are tinted");
-  assert.ok(roads.filter(({ tinted }) => tinted).every(({ at }) => onRoad(at, Object.keys(clashes))), "only along a road a clash rides on");
-  const gates = marked.inner.gates.filter((gate) => gate.entrances.some((key) => key in clashes));
+  const tinted = roads.filter(({ tinted }) => tinted);
+  for (const key of Object.keys(drawn)) assert.ok(tinted.some(({ at }) => onRoad(at, [key])), `the road ${key} is tinted`);
+  assert.ok(tinted.every(({ at }) => onRoad(at, Object.keys(drawn))), "only along a road a clash rides on");
+  const gates = marked.inner.gates.filter((gate) => gate.entrances.some((key) => key in drawn));
   assert.ok(gates.length > 0, "a clash road enters its part by a gate");
   assert.equal(coloured(marked.marks, "part-gates").filter(({ tinted }) => tinted).length, gates.length * 2 * 36, "both posts of each gate a clash enters by are tinted, and no other");
   assert.ok(coloured(plain.marks, "part-gates").every(({ tinted }) => !tinted));
-  // Named where the part reached lies deeper than the parts shown: payments, within q, at its gate; z1's reaches p itself.
-  const plates = reachPlates(marked.layout, marked.inner, clashes);
-  assert.deepEqual(plates.map(({ part, title, reach }) => [part, title, reach]), [["p->q", "into deep/payments", true]]);
-  const gate = marked.inner.gates.find((g) => g.entrances.includes("p->q"))!;
-  assert.deepEqual([plates[0]!.x, plates[0]!.z], [gate.at.x + centre.x, gate.at.z + centre.z], "at its gate into q");
-  assert.deepEqual(reachPlates(plain.layout, plain.inner, {}), []);
+  // Named where the part reached lies deeper than the parts shown; d's road in reaches p itself, so it is not.
+  const plates = reachPlates(layout, marked.inner, drawn);
+  assert.deepEqual(plates.map(({ part, title, reach }) => [part, title, reach]), [["p->q", "into deep/payments", true], [`q->leave:${out}`, "into c/deep", true]], "within the part the road goes to, else by its whole path");
+  assert.deepEqual(reachPlates(layout, plain.inner, {}), []);
+  const partAt = (p: Point) => { const at = { x: p.x - centre.x, z: p.z - centre.z }; return layout.map.territories[layout.map.cells.reduce((b, c) => (Math.hypot(c.site.x - at.x, c.site.z - at.z) < Math.hypot(b.site.x - at.x, b.site.z - at.z) ? c : b)).territory]?.capability; };
+  const placed = (pts: readonly Point[]) => pts.map((p) => ({ x: p.x + centre.x, z: p.z + centre.z }));
+  const nearest = (way: readonly Point[], at: Point) => way.reduce((best, p, i) => (Math.hypot(p.x - at.x, p.z - at.z) < Math.hypot(way[best]!.x - at.x, way[best]!.z - at.z) ? i : best), 0);
+  // p -> q's name is on its road where it crosses into q: a few points back is another part's land, a few on is q's.
+  const way = placed(marked.inner.segments.filter((s) => s.links.includes("p->q")).flatMap((s) => [...s.pts])), k = nearest(way, plates[0]!);
+  assert.ok(Math.hypot(way[k]!.x - plates[0]!.x, way[k]!.z - plates[0]!.z) < 1, "on the road p -> q");
+  const sides = [partAt(way[Math.max(0, k - 3)]!), partAt(way[Math.min(way.length - 1, k + 3)]!)];
+  assert.ok(sides.includes("q") && sides[0] !== sides[1], `where it crosses into q: ${sides}`);
+  // q's road out has no gate into the part it reaches, which lies beyond the capability: its name is midway along it.
+  assert.ok(!marked.inner.gates.some((g) => g.entrances.includes(`q->leave:${out}`)));
+  const road = placed(marked.inner.segments.filter((s) => s.links.includes(`q->leave:${out}`)).sort((a, b) => length(b.pts) - length(a.pts))[0]!.pts), m = nearest(road, plates[1]!);
+  assert.ok(Math.hypot(road[m]!.x - plates[1]!.x, road[m]!.z - plates[1]!.z) < 1, "on that road");
+  assert.ok(Math.abs(length(road.slice(0, m + 1)) - length(road) / 2) < length(road) / 4, "about midway along it");
 });

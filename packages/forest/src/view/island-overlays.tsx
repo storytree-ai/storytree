@@ -108,7 +108,7 @@ export function IslandPins({ island, coast, links = [], docks, radius, pins, det
     [here.length, awaiting, island.story, island.land, coast, links, docks, kept]);
   const partPlates = useSyncExternalStore(opened?.subscribe ?? NEVER, () => opened?.platesOn(island.story));
   const open = partPlates === undefined ? undefined : opened?.get()?.capability;
-  const marks = useMemo(() => pinMarks(here, { capabilities, ...(open === undefined || partPlates === undefined ? {} : { parts: new Map([[open, new Set(partPlates.flatMap(({ part, reach }) => reach === true ? [] : [part]))]]) }) }),
+  const marks = useMemo(() => pinMarks(here, { capabilities, ...(open === undefined || partPlates === undefined ? {} : { parts: new Map([[open, new Set(partPlates.map(({ part }) => part))]]) }) }),
     [here, capabilities, open, partPlates]);
   const near = showsNear(level);
   return <>{marks.map((mark) => {

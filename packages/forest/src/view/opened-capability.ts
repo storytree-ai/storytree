@@ -135,7 +135,8 @@ const PART_BORDER = { colour: "#f4f7f8", opacity: 0.7 } as const;
  * and a post either side of each part gate. Each point is placed on the island's ground, raised over its relief, by `onSurface`.
  * Parts that are capabilities with `words` of their own (a top part's, 3.118) are filled each by its own word, as one mesh
  * that picks the capability under it (`userData.faces`, by face), and their roads are mixed into that fill. A road carrying
- * a key of `clashes` (an import reaching round a part's front door, 3.120) and the posts of its gates are drawn in its tint.
+ * a key of `clashes` (an import reaching round a part's front door, by its key as routed: dockedClashes, 3.120) and the
+ * posts of its gates are drawn in its tint.
  */
 export function openedMarks(capability: string, layout: NestedLayout, inner: IslandRoads | undefined, kept: readonly RoadSegment[], cells: readonly (readonly Point[])[], coast: Coast | undefined, onSurface: (p: Point) => Vector3, fillAt: FillAt, words: ReadonlyMap<string, { readonly status?: CapabilityWord; readonly parked?: true; readonly title?: string; readonly description?: string }> = new Map(), clashes: Readonly<Record<string, readonly string[]>> = {}): Group {
   const group = new Group();
@@ -218,7 +219,32 @@ export function openedMarks(capability: string, layout: NestedLayout, inner: Isl
 }
 
 /**
- * 3.120: the names of the roads an import reaching round a part's front door rides on (`clashes`, by the road's `from->to`),
+ * 3.120: `clashes` (by a road's `from->to` as the capability shows it) on its parts' roads as routed: a road between two of
+ * `layout`'s parts keeps its key, and one in or out of the capability takes the key it is routed by from its crossing
+ * (`docks`, partCrossings' in order): `arrive:k->part` coming in, `part->leave:k` going out.
+ */
+export function dockedClashes(clashes: Readonly<Record<string, readonly string[]>>, docks: readonly { readonly links: readonly string[] }[], layout: NestedLayout): Record<string, readonly string[]> {
+  const here = new Set(layout.map.territories.flatMap(({ capability }) => capability === undefined ? [] : [capability]));
+  const found = new Map<string, Set<string>>();
+  const add = (key: string, parts: readonly string[]) => { const set = found.get(key) ?? new Set<string>(); for (const part of parts) set.add(part); found.set(key, set); };
+  for (const [key, parts] of Object.entries(clashes)) {
+    const [from, to] = key.split("->") as [string, string];
+    if (here.has(from) && here.has(to)) add(key, parts);
+  }
+  docks.forEach(({ links }, k) => {
+    for (const link of links) {
+      if (!Object.hasOwn(clashes, link)) continue;
+      const parts = clashes[link]!;
+      const [from, to] = link.split("->") as [string, string];
+      if (here.has(to) && !here.has(from)) add(`arrive:${k}->${to}`, parts);
+      else if (here.has(from) && !here.has(to)) add(`${from}->leave:${k}`, parts);
+    }
+  });
+  return Object.fromEntries([...found].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([key, set]) => [key, [...set].sort()]));
+}
+
+/**
+ * 3.120: the names of the roads an import reaching round a part's front door rides on (`clashes`, by the road's key as routed),
  * where the part it reaches lies deeper than the parts `layout` shows: "into" that part, by its path within the part the road
  * goes to, at the road's gate into it, else midway along its longest stretch; placed on the island like the parts' names.
  */

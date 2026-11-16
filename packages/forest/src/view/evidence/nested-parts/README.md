@@ -35,21 +35,20 @@ In the evidence bucket for #882, linked from the pull request body (ADR-1234; de
 
 What this adds: on an opened capability, a part road that an import reaching round a part's entry rides on (the survey's
 clashes) is drawn in a clash tint (`CLASH`, an amber), and so are both posts of its gate into the part it reaches; where
-the part reached lies deeper than the parts shown, the road is named "into <part>" at that gate. The marks add no draw:
-still four. A road with no clash is drawn as before.
+the part reached lies deeper than the parts shown, the road is named "into <part>" at that gate, or midway along it when
+it has none (a road out of the capability). The marks add no draw: still four. A road with no clash is drawn as before.
 
-Same library-only capture, opening the three library capabilities with the most clash roads (`--clashes`):
+Same library-only capture, opening the three library capabilities with the most clash roads (`--clashes`), each road
+listed by the key it is routed by (`arrive:k->part` in, `part->leave:k` out):
 
-| view | parts | draws added | gate posts | tinted gate posts | clash roads drawn | part names | road names |
-|---|---|---|---|---|---|---|---|
-| 6 · Knowledge artifacts opened | 2 | 4 | 2 | 2 | src/project -> src/knowledge | knowledge, project | none |
-| 4 · Work model opened | 2 | 4 | 2 | 0 | none | work, 4 · Work model | none |
-| 7 · Library API opened | 2 | 4 | 2 | 0 | none | api, 7 · Library API | none |
+| view | parts | draws added | gate posts | tinted posts | clash roads drawn | road names |
+|---|---|---|---|---|---|---|
+| 6 · Knowledge artifacts opened | 2 | 4 | 2 | 2 | arrive:0->src/knowledge, src/knowledge->leave:0, src/project->leave:0, src/project->src/knowledge | into src/schema, into src/schema |
+| 4 · Work model opened | 2 | 4 | 2 | 2 | arrive:1->src/work, (its own files)->leave:0, src/work->leave:0 | into src/schema, into src/schema |
+| 7 · Library API opened | 2 | 4 | 2 | 2 | (its own files)->leave:0, src/api->leave:0, src/api->leave:2 | into src/work, into src/work, into src/project |
 
-Knowledge artifacts shows the mark: project imports knowledge round its front door, so that road and its gate posts are
-amber. None of the library's drawn roads reaches a part deeper than the ones shown, so no road name appears in these
-pictures; 3.120's test pins the name and where it stands. The library's deeper reaches (Knowledge artifacts and Work
-model into Data schema's `src/schema`, Library API into Work model's `src/work`) ride on roads out of the opened
-capability that its crossings do not carry in today, so those roads are not drawn inside it at all (parked on this arc).
+Knowledge artifacts and Work model reach round Data schema's entry into `src/schema`, and Library API round Work model's
+into `src/work` and Factory and product's into `src/project`; those parts lie in other capabilities, so each is named by
+its whole folder. A road that reaches the part it enters (project into knowledge) is tinted and not named.
 
 Taken by `node --import tsx packages/forest/testing/view/nested-parts/capture.mjs clashes --clashes --capabilities 3`.

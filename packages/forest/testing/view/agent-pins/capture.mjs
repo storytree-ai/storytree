@@ -86,7 +86,7 @@ await runCapture({
     },
   }, {
     name: `${name}-near`,
-    prepare: async ({ page, settle }) => { await face(page, { kind: 'story', story: library.id }); await zoomTo(page, settle, DETAIL_ZOOM.near * 4); },
+    prepare: async ({ page, settle }) => { await face(page, { kind: 'capability', capability }); await zoomTo(page, settle, DETAIL_ZOOM.near * 2); },
     measure: async ({ page }) => (results.near = await measure(page)),
     expect: found => {
       assert.equal(found[own]?.level, 'near');

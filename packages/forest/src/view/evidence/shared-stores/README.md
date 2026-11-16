@@ -26,7 +26,8 @@ At the map's opening zoom a ground unit is drawn under a pixel across (0.71 px i
 name no longer fit its tile there (`document_summaries`: a 136 px name in a 114 px tile, increment_02be8887ffb5). Each
 table's name is now sized every drawn frame from its tile's drawn width, 13 px where a ground unit is a pixel and smaller
 with its tile below that, so it scales with the tile: in the retake every tile's `whole` is true (`document_summaries`: a
-97 px name in a 114 px tile; `source_objects`: 65 px in 114 px).
+97 px name in a 114 px tile; `source_objects`: 65 px in 114 px). In the evidence bucket for #916:
+`916/store-beside-islands-1440x960.png`, `916/store-panel-1440x960.png`, `916/measurements.json`.
 
 In the evidence bucket for #851, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `851/store-beside-islands-1440x960.png`, `851/store-panel-1440x960.png`.
 

@@ -109,18 +109,21 @@ test("waits for its finish mark", async () => {
   assert.match(secondOutput, new RegExp(`test harness: waiting for another pnpm test \\(pid ${firstRun.pid}, files: tests/waits\\.test\\.mjs, started [^)]+\\) in this worktree`), secondOutput);
   assert.doesNotMatch(secondOutput, /test Postgres:/, "the waiting run starts no Postgres while the first holds it");
 
-  // A run stopped while it waits (Ctrl-C) ends 130, starting nothing and leaving the first run's record.
-  const stoppedRun = spawn(process.execPath, entry(quick), { cwd: repo, env, stdio: ["ignore", "pipe", "pipe"] });
-  let stoppedOutput = "";
-  stoppedRun.stdout.on("data", (chunk) => { stoppedOutput += chunk; });
-  stoppedRun.stderr.on("data", (chunk) => { stoppedOutput += chunk; });
-  const stoppedEnded = new Promise((resolve) => stoppedRun.on("close", resolve));
-  t.after(() => { if (stoppedRun.exitCode === null) stoppedRun.kill(); });
-  await waitUntil(() => /waiting for another pnpm test/.test(stoppedOutput) || stoppedRun.exitCode !== null, 60_000, "the third run to say it waits");
-  stoppedRun.kill("SIGINT");
-  assert.equal(await stoppedEnded, 130, stoppedOutput);
-  assert.doesNotMatch(stoppedOutput, /test Postgres:/, "the stopped run started no Postgres");
-  assert.equal(JSON.parse(readFileSync(path.join(root, ".pgtest", "run.json"), "utf8")).pid, firstRun.pid, "the first run still holds the worktree");
+  // A run stopped while it waits (Ctrl-C) ends 130, starting nothing and leaving the first run's record. Not on Windows,
+  // where a child cannot be sent SIGINT: Node's kill ends it outright.
+  if (process.platform !== "win32") {
+    const stoppedRun = spawn(process.execPath, entry(quick), { cwd: repo, env, stdio: ["ignore", "pipe", "pipe"] });
+    let stoppedOutput = "";
+    stoppedRun.stdout.on("data", (chunk) => { stoppedOutput += chunk; });
+    stoppedRun.stderr.on("data", (chunk) => { stoppedOutput += chunk; });
+    const stoppedEnded = new Promise((resolve) => stoppedRun.on("close", resolve));
+    t.after(() => { if (stoppedRun.exitCode === null) stoppedRun.kill(); });
+    await waitUntil(() => /waiting for another pnpm test/.test(stoppedOutput) || stoppedRun.exitCode !== null, 60_000, "the third run to say it waits");
+    stoppedRun.kill("SIGINT");
+    assert.equal(await stoppedEnded, 130, stoppedOutput);
+    assert.doesNotMatch(stoppedOutput, /test Postgres:/, "the stopped run started no Postgres");
+    assert.equal(JSON.parse(readFileSync(path.join(root, ".pgtest", "run.json"), "utf8")).pid, firstRun.pid, "the first run still holds the worktree");
+  }
 
   // A run given a server's url starts no test Postgres here, so the first run's hold does not stop it.
   const elsewhere = spawnSync(process.execPath, entry(quick), { cwd: repo, env: { ...env, STORYTREE_TEST_PG_URL: "postgres://unused" }, encoding: "utf8", timeout: 60_000 });

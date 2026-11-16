@@ -64,3 +64,17 @@ test("3.118 · a top part opens into the capabilities inside it, each with its o
   assert.deepEqual(data?.shares.map(({ capability, parked }) => [capability, parked]), [["store", true], ["cache", true]], "a parked capability inside stays parked");
   assert.deepEqual(data?.links, [{ from: "cache", to: "store" }]);
 });
+
+test("3.92 · on an imported island drawn top-down, the edges holding contracts are carried between the top parts they join, each pair's contracts gathered, and none inside one top part", () => {
+  const contract = (id: string) => ({ id, title: id, health });
+  const edged: AnnotatedTree = { ...tree, stories: [{ ...tree.stories[0]!, edges: [
+    { id: "edge_1", from: "form", to: "store", contracts: [contract("c1")] },
+    { id: "edge_2", from: "button", to: "form", contracts: [contract("c2")] },
+    { id: "edge_3", from: "main", to: "button", contracts: [contract("c3")] },
+    { id: "edge_4", from: "main", to: "form", contracts: [contract("c4")] },
+  ] }, tree.stories[1]!] };
+  assert.deepEqual(forestScene(edged, [], workStates([]), survey).edges, [
+    { from: "top:app:ui", to: "top:app:data", contracts: ["c1"] },
+    { from: "main", to: "top:app:ui", contracts: ["c3", "c4"] },
+  ], "button->form runs inside ui, so its edge is no gate at the island's level; main's two edges into ui are one");
+});

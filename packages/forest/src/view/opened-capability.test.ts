@@ -14,7 +14,7 @@ import { territoryAt, type Coast, type Point } from "../territories/territories.
 import { capabilityPlates } from "./nameplates.js";
 import { islandRoadMarks, landFill } from "./island-roads.js";
 import { hiddenByOpening, hideForOpening, namesShown, openedAt, openedMarks, OpenedStore, opensAt, readsUnder, rollUp, touches, UNDER_READS } from "./opened-capability.js";
-import { pickGlobe } from "./planet-navigation.js";
+import { globeHover, pickGlobe } from "./planet-navigation.js";
 import { PARKED_FILL, territoryLand, WORD_FILL } from "./territory-land.js";
 import { landColour } from "./island-roads.js";
 
@@ -173,11 +173,12 @@ test("3.118 · an opened top part fills each capability inside it by its own wor
   planet.add(territoryLand(top, flat, coast), marks);
   const world = new Group().add(planet);
   const box = { left: 0, top: 0, width: 200, height: 200 };
-  const at = (p: Point) => {
+  const above = (p: Point) => {
     const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
     camera.position.set(p.x, 50, p.z); camera.up.set(0, 0, -1); camera.lookAt(p.x, 0, p.z);
-    return pickGlobe(world, camera, box, { x: 100, y: 100 }, "forest");
+    return camera;
   };
+  const at = (p: Point) => pickGlobe(world, above(p), box, { x: 100, y: 100 }, "forest");
   // The middle of each part's largest cell on a's land, in the island's coordinates.
   const middleOf = (part: string) => {
     const index = layout.map.territories.findIndex((t) => t.capability === part);
@@ -194,6 +195,7 @@ test("3.118 · an opened top part fills each capability inside it by its own wor
     const word = landColour(() => ({ colour: new Color(fill.colour), opacity: fill.opacity }))({ x: 0, z: 0 });
     assert.ok(Math.max(Math.abs(shown.r - word.r), Math.abs(shown.g - word.g), Math.abs(shown.b - word.b)) < 1e-6, `${part} is filled by its own word over the ground`);
   }
+  assert.equal(globeHover(world, above(middleOf("q")), box, { x: 100, y: 100 }, "forest").title, "src/ui/q", "hovering a capability inside names it");
   assert.deepEqual(at(middleOf("a")), { kind: "story", id: "s", within: "top:s:ui" }, "the top part's land with no capability filled picks the island within the top part, never a capability of that id");
   assert.deepEqual(openedAt("parts", { kind: "story", id: "s", capability: "p", within: "top:s:ui" }), { story: "s", capability: "top:s:ui" }, "the eye over a capability inside keeps the top part open");
 });

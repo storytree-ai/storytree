@@ -952,8 +952,8 @@ test("4.6 closing an increment ends its claim for any outcome, closed by its hol
       }
       const before = await logged(log, world.project);
       const missing = await world.run(["arc", "increment", "close", "increment_000000000000", "--disposition", "landed", "--pr", "#132"]);
-      assert.equal(missing.code, 1);
-      assert.match(missing.stderr, /no increment/);
+      assert.equal(missing.code, 2);
+      assert.match(missing.stderr, /holds increment increment_000000000000/);
       assert.deepEqual(await logged(log, world.project), before);
     } finally {
       await log.close();

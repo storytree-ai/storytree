@@ -118,7 +118,7 @@ test("6.4 a composed statement reads stale after its decision's text changes", a
 
 test("6.6 `adr new --number` keeps the supplied number and refuses reuse or invalid numbers", async () => {
   await inWorld(command, async (world) => {
-    const args = ["adr", "new", "--title", "Imported", "--text", "Full record: ADR-0621", "--status", "accepted", "--number", "--project", world.project];
+    const args = ["adr", "new", "--title", "Imported", "--text", "Full record: ADR-0621", "--status", "accepted", "--project", world.project, "--number"];
     const created = await world.run([...args, "621"]);
     assert.equal(created.code, 0, created.stderr);
     assert.equal(numberIn(created.stdout), 621);

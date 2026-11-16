@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import type { Library } from "@storytree/library";
 import { FRICTION_FAMILIES } from "@storytree/session-management/friction/verbs";
 
 import { parseArgs } from "../args.js";
@@ -26,16 +27,17 @@ test("1.34 · the friction family's drain answers, then says what the doors lear
 
 test("1.38 · `storytree doors learn --session <id>` runs the doors learner on the session it names, writing as that session, and refuses without one", async () => {
   const none = async (): Promise<never> => { throw new Error("no library here"); };
+  const library = { name: "p" } as Library;
   const context: Context = {
-    cwd: process.cwd(), out: () => {}, library: none, server: none, writer: () => ({ actor: "person:me" }), claims: none, activityContext: none, claimContext: none, journey: none,
+    cwd: process.cwd(), out: () => {}, library: async () => library, server: none, writer: () => ({ actor: "person:me" }), claims: none, activityContext: none, claimContext: none, journey: none,
   };
   const ran: unknown[] = [];
   const verb = learner(async (_context, _surfaces, as) => {
     ran.push(as);
     return ["The doors learner read 0 door-answered lines from 0 sessions over 28 days (ADR-1045 D4 to D6)."];
   });
-  const answer = await verb.act(parseArgs(["--session", "s1", "--harness", "codex"], verb.switches ?? [], process.cwd()), context);
+  const answer = await verb.act(parseArgs(["--session", "s1", "--harness", "codex", "--project", "p"], verb.switches ?? [], process.cwd()), context);
   assert.equal(answer.text, "The doors learner read 0 door-answered lines from 0 sessions over 28 days (ADR-1045 D4 to D6).");
-  assert.deepEqual(ran, [{ caller: { session: "s1", harness: "codex" }, writer: { actor: "session:s1" } }]);
+  assert.deepEqual(ran, [{ caller: { session: "s1", harness: "codex" }, writer: { actor: "session:s1" }, library }]);
   await assert.rejects(verb.act(parseArgs([], verb.switches ?? [], process.cwd()), context), (error: Error & { code?: number }) => error.code === 2 && /--session/.test(error.message));
 });

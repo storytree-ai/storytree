@@ -288,7 +288,7 @@ test("10.11 `storytree contract show <contract>` prints one contract with its re
     assert.match(health.stdout, /^storytree contract health is storytree contract show\n/);
     assert.match(health.stdout, /verified: failing/);
 
-    const planned = await world.run(["contract", "new", "--capability", capability.id, "--title", "4.2 · Accepts a plus address"]);
+    const planned = await world.run(["contract", "new", "--capability", capability.id, "--title", "4.2 · Accepts a plus address", "--project", world.project]);
     assert.equal(planned.code, 0, planned.stderr);
     assert.match(planned.stdout, /^storytree contract new is storytree library new contract\n/);
     const made = (await library.list("contract")).find((each) => each.fields.title === "4.2 · Accepts a plus address");

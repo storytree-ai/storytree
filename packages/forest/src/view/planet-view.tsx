@@ -22,6 +22,7 @@ import { awaitingLayout, keptVersion, pageTerritorySearcher, searchIsland, subsc
 import { IslandPins, NameplateCrowd, Nameplates, reducedMotion, SelectionRing, StorePins } from "./island-overlays.js";
 import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, ignoresClick, feedbackPick, answerFeedbackPicks, pickGlobe, type ForestMode, type PickedGate } from "./planet-navigation.js";
 import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
+import { memberTops, pickedOnTops, rolledToTops } from "./top-marks.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, islandCanvasX, type AsidePose } from "./globe-aside.js";
 import { compassNorth, libraryTilt, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPointerMarkers, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, SHEET_OPENING_TILT, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
@@ -32,7 +33,7 @@ import type { TerritoryMap } from "../territories/territories.js";
 import { keepPartSeeds, keptPartSeeds, nestedLayoutSteps, partCrossings, regionOf } from "../territories/nested-territories.js";
 import type { SceneParts } from "../render/scene-parts.js";
 import type { PinReading } from "@storytree/map/pins";
-import { disposeOpened, hiddenByOpening, hideForOpening, openedAt, openedMarks, OpenedStore, opensAt, readsUnder, rollUp } from "./opened-capability.js";
+import { disposeOpened, dockedClashes, hiddenByOpening, hideForOpening, openedAt, openedMarks, OpenedStore, opensAt, reachPlates, readsUnder, rollUp } from "./opened-capability.js";
 
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the map is mounted. */
@@ -122,7 +123,9 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
   const [replayed, setReplayed] = useState<readonly SessionWisp[]>();
   const wisps = growth !== undefined && recordedSessions !== undefined ? replayed ?? [] : live;
   // ADR-0968, ADR-0923: a running session plants a flag on each territory it claimed, and nothing else; no wisps, no coast tint.
-  const claimed = useMemo(() => claimTints(wisps), [wisps]);
+  // 3.121: a capability inside a closed top part plants its flag, and takes its rings, on the top part holding it.
+  const tops = useMemo(() => memberTops(scene.parts ?? []), [scene.parts]);
+  const claimed = useMemo(() => rolledToTops(claimTints(wisps), tops), [wisps, tops]);
   // ADR-1212 D3: no file is drawn on the land, so the core's traversal has no stops there; a capability a session opened still lights its territory.
   const capabilities = useKept(useMemo(() => scene.islands.flatMap(({ land }) => land === undefined ? [] : land.territories.flatMap(({ capability }) => capability === undefined ? [] : [capability])), [scene]), JSON.stringify);
   const codePlaces = useMemo((): CodePlaces => ({ capabilities: new Set(capabilities) }), [capabilities]);
@@ -152,7 +155,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
   const underSheet = useMemo((): CoreUnderSheet => ({ ...under, selected }), [under, selected]);
   const links = useKept(layout.scene.links ?? NO_LINKS, JSON.stringify);
   // ADR-1253 D1: the selected arc's open work ringed, and 3.99: each part one of its linked contracts sits on.
-  const circled = useKept(useMemo(() => ringedCapabilities(circledList, circledContracts, scene.contracts ?? []), [circledList, circledContracts, scene.contracts]),
+  const circled = useKept(useMemo(() => rolledToTops(ringedCapabilities(circledList, circledContracts, scene.contracts ?? []), tops), [circledList, circledContracts, scene.contracts, tops]),
     (ringed) => ringed === undefined ? "none" : JSON.stringify([...ringed].sort()));
   // 3.92: and the gates of the edges whose contracts it makes true.
   const rung = useKept(useMemo(() => rungLinks(scene.edges ?? [], circledContracts), [scene.edges, circledContracts]), (links) => links === undefined ? "none" : JSON.stringify([...links]));
@@ -170,7 +173,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} pointed={pointed} radius={layout.radius}
         lighting={lighting} surfaces={shownSurfaces} gate={gate?.story === island.story ? gate.pick : undefined}
-        picked={island.story === selected ? selectedCapability : undefined} circled={circled} rung={rung} detail={detail} opened={opened} parts={partsOf.get(island.story)} />}
+        picked={island.story === selected ? pickedOnTops(selectedCapability, tops) : undefined} circled={circled} rung={rung} detail={detail} opened={opened} parts={partsOf.get(island.story)} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} detail={detail} opened={opened} />}
@@ -178,7 +181,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
       <DocksSeen story={island.story} docks={docks} onDocks={onDocks} />
     </>;
-  }, [wisps, claimed, pointed, selected, highlighted, circled, rung, layout.spots, layout.radius, lighting, shownSurfaces, links, gate, selectedCapability, detail, onDocks, opened, partsOf, pins]);
+  }, [wisps, claimed, pointed, selected, highlighted, circled, rung, layout.spots, layout.radius, lighting, shownSurfaces, links, gate, selectedCapability, tops, detail, onDocks, opened, partsOf, pins]);
   const storeChildren = useCallback((address: string, at: readonly [number, number, number]) => shownSurfaces.nameplates && <StorePins address={address} at={at} pins={pins} detail={detail} />,
     [pins, detail, shownSurfaces.nameplates]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
@@ -462,12 +465,11 @@ function OpenedCapability({ story, parts, drawn, docks, radius, opened }: { stor
     return { asked, layout: yield* nestedLayoutSteps(region, parts.shares, parts.links, crossings, keptPartSeeds(story, capability)) };
   }, [asked]);
   const layout = built?.asked === asked ? built.layout : undefined;
+  // The roads coming round a front door (3.120), by the keys its roads are routed by.
+  const clashes = useMemo(() => layout === undefined ? {} : dockedClashes(parts.clashes ?? {}, crossings, layout), [layout, parts, crossings]);
   useEffect(() => {
-    if (layout === undefined) return;
-    if (layout.seeds !== undefined) keepPartSeeds(story, capability, layout.seeds);
-    const names = new Map(parts.shares.map((share) => [share.capability, share.title]));
-    opened.name(story, capability, capabilityPlates(layout.map).map((plate) => ({ part: plate.capability, title: names.get(plate.capability) ?? plate.title, x: plate.x + layout.centre.x, z: plate.z + layout.centre.z })));
-  }, [layout, story, capability, parts, opened]);
+    if (layout !== undefined && layout.seeds !== undefined) keepPartSeeds(story, capability, layout.seeds);
+  }, [layout, story, capability]);
   // Its parts' roads, routed off the page in the island's own coordinates about its centre.
   const ask = useMemo((): RoadsAsk | undefined => layout === undefined ? undefined : {
     map: layout.map,
@@ -483,6 +485,15 @@ function OpenedCapability({ story, parts, drawn, docks, radius, opened }: { stor
     islandRoadsWhenRouted(ask, pageIslandRouter(), overtaken.signal);
     return () => overtaken.abort();
   }, [ask, inner]);
+  // Its parts' names once laid out, and the names of the roads coming round a front door (3.120) once those are routed.
+  useEffect(() => {
+    if (layout === undefined) return;
+    const names = new Map(parts.shares.map((share) => [share.capability, share.title]));
+    opened.name(story, capability, [
+      ...capabilityPlates(layout.map).map((plate) => ({ part: plate.capability, title: names.get(plate.capability) ?? plate.title, x: plate.x + layout.centre.x, z: plate.z + layout.centre.z })),
+      ...(inner === undefined ? [] : reachPlates(layout, inner, clashes)),
+    ]);
+  }, [layout, inner, clashes, story, capability, parts, opened]);
   const marks = useMemo(() => {
     if (layout === undefined) return undefined;
     const kept = inner === undefined ? [] : hiddenByOpening(drawn.map, drawn.roads, capability).kept;
@@ -490,8 +501,8 @@ function OpenedCapability({ story, parts, drawn, docks, radius, opened }: { stor
     const cells = drawn.map.cells.filter((cell) => cell.territory === at).map((cell) => cell.polygon);
     // A top part's capabilities are filled by their own words (3.118); a capability's code parts keep its colour.
     const words = new Map(parts.shares.flatMap(({ capability: part, status, parked, title, description }) => status === undefined ? [] : [[part, { status, ...(parked === undefined ? {} : { parked }), title, ...(description === undefined ? {} : { description }) }] as const]));
-    return openedMarks(capability, layout, inner, kept, cells, drawn.map.coast, (p) => { const v = onGround(p); v.y += relief.raise(p); return v; }, landFill(drawn.map, drawn.group), words);
-  }, [layout, inner, drawn, capability, at, radius, parts]);
+    return openedMarks(capability, layout, inner, kept, cells, drawn.map.coast, (p) => { const v = onGround(p); v.y += relief.raise(p); return v; }, landFill(drawn.map, drawn.group), words, clashes);
+  }, [layout, inner, drawn, capability, at, radius, parts, clashes]);
   useLayoutEffect(() => {
     if (marks === undefined) return;
     drawn.group.add(marks);

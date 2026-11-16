@@ -1,4 +1,4 @@
-/** Forest capability 3 · a shared store on the map: picked by a click on its slab, and its panel (ADR-1332 D1, D2). */
+/** Forest capability 3 · a shared store on the map: picked by a click on its slab, and its panel (ADR-1332 D1, ADR-1347 D3). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, OrthographicCamera } from "three";
@@ -8,17 +8,9 @@ import { PanelSelection, type Selection } from "./panel-selection.js";
 import { pickGlobe } from "./planet-navigation.js";
 import { renderStorePanel } from "./store-panel.js";
 
-const shop: SharedStore = {
-  address: "postgres://db/shop",
-  medium: "postgres",
-  evidence: [{ file: "docker-compose.yml", says: "service db, image postgres:16" }, { file: ".env", says: "DATABASE_URL" }],
-  tables: [
-    { name: "people", columns: [{ name: "id", type: "serial" }], foreignKeys: [], from: ["migrations/001_init.sql"] },
-    { name: "orders", columns: [{ name: "id", type: "serial" }, { name: "person_id", type: "integer" }], foreignKeys: [{ columns: ["person_id"], table: "people", references: ["id"] }], from: ["migrations/001_init.sql", "migrations/002_orders.sql"] },
-  ],
-};
+const shop: SharedStore = { address: "postgres://db/shop", medium: "postgres", tables: [{ name: "people" }, { name: "orders" }] };
 
-test("3.110 a click on a store's slab picks the store, and its panel names its address, its evidence, who touches it: not yet read, and its tables with their columns and foreign keys", () => {
+test("3.110 a click on a store's slab picks the store, and its panel names its medium, its address and its tables", () => {
   const world = new Group();
   const store = new Group();
   store.name = `store:${shop.address}`;
@@ -35,15 +27,11 @@ test("3.110 a click on a store's slab picks the store, and its panel names its a
   new PanelSelection((selection) => heard.push(selection)).store(shop.address);
   assert.deepEqual(heard, [{ kind: "store", id: shop.address }]);
 
-  const html = renderStorePanel({ ...shop, evidence: [...shop.evidence, { file: "a<b>.env", says: "x" }] });
+  const html = renderStorePanel({ ...shop, tables: [...shop.tables, { name: "a<b>" }] });
   const panel = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-  assert.match(panel, /postgres:\/\/db\/shop/);
-  assert.match(panel, /docker-compose\.yml service db, image postgres:16/);
-  assert.match(panel, /\.env DATABASE_URL/);
-  assert.match(panel, /Who touches it: not yet read/i);
-  assert.match(panel, /orders .*person_id integer.*person_id → people \(id\)/);
-  assert.match(panel, /people .*id serial/);
-  assert.match(html, /a&lt;b&gt;\.env/, "every word from the files is written as text, never as HTML");
+  assert.match(panel, /Shared store · postgres postgres:\/\/db\/shop/);
+  assert.match(panel, /Tables · 3 people orders a&lt;b&gt;/);
+  assert.match(html, /a&lt;b&gt;/, "every word from the plan is written as text, never as HTML");
   assert.match(html, /class="panel-close"/, "it closes as a story's panel does");
 });
 
@@ -61,6 +49,5 @@ test("3.111 a store's panel lists who touches it: each capability the mapping ag
   assert.match(panel, /Who touches it · judged by the mapping agent/);
   assert.match(panel, /3 · Retrieval reads orders src\/retrieve\.py:16 ?, src\/auth\.py:8/);
   assert.match(panel, /5 · HTTP API reads and writes people src\/main\.py:79/);
-  assert.doesNotMatch(panel, /sessions|Run and verify|not yet read/);
-  assert.match(renderStorePanel(shop, { stories: [{ capabilities: [{ title: "6 · Run and verify" }] }] }), /Who touches it: not yet read/, "a store no capability links is not yet read");
+  assert.doesNotMatch(panel, /sessions|Run and verify/);
 });

@@ -21,9 +21,7 @@
  */
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
-import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import { unstorable } from "../schema/records.js";
-import { judgedState, type FieldsOf, type KnowledgeKind } from "../schema/types.js";
+import { judgedState, unstorable, type FieldsOf, type KnowledgeKind, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import { defaultEmbedder } from "./embedding-model.js";
 import { checkFrontCover, DecisionLog, type DecisionNumberPlan, type DecisionView, type NewDecision } from "../decisions/index.js";
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";

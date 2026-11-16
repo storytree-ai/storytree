@@ -486,7 +486,16 @@ test("6.11 setting the first project up makes the user's factory, a project with
     const { laptop, box } = machines(dir);
     const folders = [path.join(dir, "first"), path.join(dir, "second"), path.join(dir, "box-first"), path.join(dir, "before")];
     for (const folder of folders) mkdirSync(folder);
-    await withStorytree([factory, first, second, before, `${factory}-2`, `${second}-2`], async (storytree) => {
+    const projects = [factory, first, second, before, `${factory}-2`, `${second}-2`];
+    await withStorytree(projects, async (shared) => {
+      // Only these projects are listed, so a factory another test brought (marked, with a folder) at the same time is not found.
+      const storytree = new Proxy(shared, {
+        get: (target, key) => {
+          if (key === "listProjects") return async () => (await target.listProjects()).filter((project) => projects.includes(project));
+          const value: unknown = Reflect.get(target, key, target);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
       const linkOf = async (project: string) => {
         const library = await storytree.openProject(project, { create: false });
         try {

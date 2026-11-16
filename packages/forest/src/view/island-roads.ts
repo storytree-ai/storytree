@@ -3,8 +3,8 @@
  * round 11's `sand-faint` look: each road a sandy ribbon on the land, a step wider by the links it carries, its colour
  * mixed into the land under it so the joins stay one road; a disc at each junction; and at each gate a post standing
  * either side of its opening (3.78, step 3b), at each end of a tunnel under a third territory a standing arched portal
- * set back from the border (ADR-1253 D3, question_921aee319481), and where each territory's roads end a junction of their sand
- * (3.79, ADR-1339 D2, in place of round 12's settlement symbol), all following the island's relief; a picked gate's gold ring
+ * set back from the border (ADR-1253 D3, question_921aee319481), and where each territory's roads end a small raised plaza of
+ * their sand (3.79, ADR-1339 D2, in place of round 12's settlement symbol), all following the island's relief; a picked gate's gold ring
  * (3.88). No arrowheads. Plain three.js, so the marks are read without a browser.
  */
 import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, FrontSide, Group, Mesh, MeshBasicMaterial, type Object3D, Vector3 } from "three";
@@ -18,6 +18,9 @@ type Point = { readonly x: number; readonly z: number };
 export const ROAD = { colour: "#e2d3aa", alpha: 0.7 } as const;
 /** A territory's junction across, as a share of the widest road meeting there. */
 export const TERRITORY_JUNCTION = 1.8;
+/** A territory's plaza (3.79, ADR-1339 D2's 2026-11-16 look): its top across as a share of its foot, how high it stands, at the
+ * island's scale, and how much brighter than its top its step is before the light shades it, so the step toward the light catches it. */
+export const PLAZA = { top: 0.7, rise: 0.22, step: 1.22 } as const;
 /** An island's borders, quietened under the roads. */
 export const QUIET_BORDER = { colour: "#f4f7f8", opacity: 0.4 } as const;
 /** A gate post's ink and its paper face (round 6C's). */
@@ -81,10 +84,29 @@ export function islandRoadMarks(roads: IslandRoads, onGround: (p: Point) => Vect
     flat(disc, material(mix(at)), name, 3);
   };
   roads.junctions.forEach(({ at, width }, i) => junction(at, width, `road-junction:${i}`));
-  // 3.79 (ADR-1339 D2): where a territory's roads end they meet at a junction of their sand, a little wider than the widest.
+  // 3.79 (ADR-1339 D2): where a territory's roads end they meet at a junction of their sand, a little wider than the widest,
+  // a small plaza standing a low step above them: a top of their sand on a sloped step shaded by where it faces the light,
+  // as a plateau's walls are, so it reads raised from straight down and tilted. One mesh, the step's faces before the top's.
+  const plaza = (at: Point, width: number, name: string) => {
+    const foot = width / 2, top = foot * PLAZA.top, up = PLAZA.rise * relief.scale, colour = mix(at), sides = 24;
+    const positions: number[] = [], colours: number[] = [];
+    const put = (p: Point, lift: number, c: Color) => { const v = onSurface(p); positions.push(v.x, v.y + lift, v.z); colours.push(c.r, c.g, c.b); };
+    const round = (r: number, k: number): Point => ({ x: at.x + r * Math.cos(2 * Math.PI * k / sides), z: at.z + r * Math.sin(2 * Math.PI * k / sides) });
+    for (let k = 0; k < sides; k++) {
+      const lit = shade(colour.clone().multiplyScalar(PLAZA.step), { x: Math.cos(2 * Math.PI * (k + 0.5) / sides), z: Math.sin(2 * Math.PI * (k + 0.5) / sides) });
+      put(round(foot, k), 0, lit); put(round(foot, k + 1), 0, lit); put(round(top, k + 1), up, lit);
+      put(round(foot, k), 0, lit); put(round(top, k + 1), up, lit); put(round(top, k), up, lit);
+    }
+    for (let k = 0; k < sides; k++) { put(at, up, colour); put(round(top, k), up, colour); put(round(top, k + 1), up, colour); }
+    const geometry = new BufferGeometry();
+    geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new Float32BufferAttribute(colours, 3));
+    // Drawn after the roads that end under it.
+    flat(geometry, material(), name, 3.1).userData = { plaza: { at, foot, top, rise: up } };
+  };
   for (const [capability, { at }] of roads.settlements) {
     const ending = roads.segments.filter((s) => [s.pts[0]!, s.pts.at(-1)!].some((p) => Math.hypot(p.x - at.x, p.z - at.z) < 1e-6));
-    if (ending.length) junction(at, Math.max(...ending.map((s) => s.width)) * TERRITORY_JUNCTION, `territory-junction:${capability}`);
+    if (ending.length) plaza(at, Math.max(...ending.map((s) => s.width)) * TERRITORY_JUNCTION, `territory-junction:${capability}`);
   }
   standingPosts(group, roads, relief, onGround, under);
   tunnelPortals(group, roads, relief, onGround);

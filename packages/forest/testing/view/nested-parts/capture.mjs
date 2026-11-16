@@ -4,7 +4,9 @@
 // from the library and this checkout (the committed snapshot predates the survey's parts), as the app opens it. The library near,
 // closed, then each of its capabilities `--capabilities <n>` (the largest with parts, 3 by default) faced and zoomed to the
 // parts level. `node --import tsx capture.mjs <name>` (append --retake to write into src/view/evidence/nested-parts).
-// Counts, from the scene and the page, each opened capability's parts, part roads, gates, draws and part names.
+// Counts, from the scene and the page, each opened capability's parts, part roads, gates, draws and part names. With
+// --clashes, the capabilities opened are those with a road an import reaching round a part's front door rides on (3.120,
+// increment_7559a7ecafad), most such roads first, and each one's tinted gate posts and road names are counted too.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,8 +27,10 @@ const library = fresh.seed.tree.stories.find(story => story.title === 'The libra
 // islands are drawn as its roads within it are.
 const seed = { ...fresh.seed, tree: { ...fresh.seed.tree, stories: [library] } }, survey = { [library.id]: fresh.survey[library.id] };
 const titles = new Map(library.capabilities.map(c => [c.id, c.title]));
-const opened = sceneParts(survey, titles).filter(p => p.story === library.id)
-  .sort((a, b) => b.shares.length - a.shares.length).slice(0, Number(arg('--capabilities') ?? 3));
+const clashing = process.argv.includes('--clashes'), clashes = p => Object.keys(p.clashes ?? {}).length;
+const opened = sceneParts(survey, titles).filter(p => p.story === library.id && (!clashing || clashes(p) > 0))
+  .sort((a, b) => (clashing ? clashes(b) - clashes(a) : 0) || b.shares.length - a.shares.length).slice(0, Number(arg('--capabilities') ?? 3));
+if (clashing) console.error(opened.map(p => `${titles.get(p.capability)}: ${JSON.stringify(p.clashes)}`).join('\n'));
 console.error(`opening ${opened.map(p => `${titles.get(p.capability)} (${p.shares.length} parts)`).join(', ')}`);
 const dist = buildFolder(here);
 await buildCapture({ dist });
@@ -51,12 +55,16 @@ const measure = (page, story) => page.evaluate(story => {
     if (o.name.startsWith('opened-capability:') && shown(o)) {
       const count = name => o.getObjectByName(name)?.geometry.getAttribute('position').count ?? 0;
       let draws = 0; o.traverse(m => { if (m.isMesh || m.isLineSegments) draws++; });
-      found.opened.push({ capability: o.userData.capability, parts: o.userData.parts, draws, borderPoints: count('part-borders'), roadVertices: count('part-roads'), gatePosts: count('part-gates') / 36 });
+      // A post in the clash tint (CLASH, #e8873a) is one a clash's road enters its part by.
+      const colours = o.getObjectByName('part-gates')?.geometry.getAttribute('color');
+      let tinted = 0; for (let k = 0; colours && k < colours.count; k += 36) if (Math.abs(colours.getX(k) - 0xe8 / 255) < 0.02 && Math.abs(colours.getY(k) - 0x87 / 255) < 0.02) tinted++;
+      found.opened.push({ capability: o.userData.capability, parts: o.userData.parts, draws, borderPoints: count('part-borders'), roadVertices: count('part-roads'), gatePosts: count('part-gates') / 36, clashPosts: tinted, clashRoads: o.userData.clashRoads });
     }
     if (o.name.startsWith('territory-junction:') && shown(o)) found.territoryJunctions++;
     if (o.name.startsWith('gate-post:') && o.userData.partRoads && o.name.endsWith(':1')) found.rolledUp++;
   });
-  found.partNames = [...document.querySelectorAll('.planet-nameplate.part')].filter(l => l.checkVisibility()).map(l => l.textContent);
+  found.partNames = [...document.querySelectorAll('.planet-nameplate.part:not(.reach)')].filter(l => l.checkVisibility()).map(l => l.textContent);
+  found.reachNames = [...document.querySelectorAll('.planet-nameplate.part.reach')].filter(l => l.checkVisibility()).map(l => l.textContent);
   return found;
 }, story);
 const results = {};

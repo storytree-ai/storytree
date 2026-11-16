@@ -61,13 +61,13 @@ function numberIn(text: string): number {
 
 test("6.1 two `adr new` run at once get different, increasing numbers", async () => {
   await inWorld(command, async (world) => {
-    const first = await world.run(["adr", "new", "--title", "Use Postgres", "--text", "One database per project", "--status", "accepted"]);
+    const first = await world.run(["adr", "new", "--title", "Use Postgres", "--text", "One database per project", "--status", "accepted", "--project", world.project]);
     assert.equal(first.code, 0, first.stderr);
     const before = numberIn(first.stdout);
 
     const [a, b] = await Promise.all([
-      world.run(["adr", "new", "--title", "Send through Mailgun", "--text", "Simplest API", "--status", "accepted"]),
-      world.run(["adr", "new", "--title", "Ship on Tuesdays", "--text", "Quietest day", "--status", "accepted"]),
+      world.run(["adr", "new", "--title", "Send through Mailgun", "--text", "Simplest API", "--status", "accepted", "--project", world.project]),
+      world.run(["adr", "new", "--title", "Ship on Tuesdays", "--text", "Quietest day", "--status", "accepted", "--project", world.project]),
     ]);
 
     assert.equal(a.code, 0, a.stderr);
@@ -87,7 +87,7 @@ test("6.2 pull then push with no edit changes nothing", async () => {
     assert.equal(pulled.code, 0, pulled.stderr);
     const before = (await library.changesSince(0)).cursor;
 
-    const pushed = await world.run(["adr", "push", decision.id, "--file", file]);
+    const pushed = await world.run(["adr", "push", decision.id, "--file", file, "--project", world.project]);
 
     assert.equal(pushed.code, 0, pushed.stderr);
     assert.deepEqual((await library.changesSince(before)).changes, []);
@@ -99,14 +99,14 @@ test("6.4 a composed statement reads stale after its decision's text changes", a
   await inWorld(command, async (world) => {
     const library = await world.library();
     const decision = await library.recordDecision({ title: "Send through Mailgun", text: "Simplest API.", status: "accepted" });
-    const composed = await world.run(["adr", "compose", decision.id, "--statement", "We send email through Mailgun because its API is simplest."]);
+    const composed = await world.run(["adr", "compose", decision.id, "--statement", "We send email through Mailgun because its API is simplest.", "--project", world.project]);
     assert.equal(composed.code, 0, composed.stderr);
     const file = path.join(world.folder, "adr.md");
     await world.run(["adr", "pull", decision.id, "--out", file]);
     assert.doesNotMatch(readFileSync(file, "utf8"), /stale/);
 
     writeFileSync(file, readFileSync(file, "utf8").replace("Simplest API.", "Simplest API, and the cheapest at our size."));
-    const pushed = await world.run(["adr", "push", decision.id, "--file", file]);
+    const pushed = await world.run(["adr", "push", decision.id, "--file", file, "--project", world.project]);
     assert.equal(pushed.code, 0, pushed.stderr);
 
     const read = await world.run(["adr", "pull", decision.id]);
@@ -118,7 +118,7 @@ test("6.4 a composed statement reads stale after its decision's text changes", a
 
 test("6.6 `adr new --number` keeps the supplied number and refuses reuse or invalid numbers", async () => {
   await inWorld(command, async (world) => {
-    const args = ["adr", "new", "--title", "Imported", "--text", "Full record: ADR-0621", "--status", "accepted", "--number"];
+    const args = ["adr", "new", "--title", "Imported", "--text", "Full record: ADR-0621", "--status", "accepted", "--project", world.project, "--number"];
     const created = await world.run([...args, "621"]);
     assert.equal(created.code, 0, created.stderr);
     assert.equal(numberIn(created.stdout), 621);

@@ -107,27 +107,44 @@ test("3.77 the selected island's roads show and hide with its territories", () =
   assert.equal(marks.visible, true);
 });
 
-test("3.79 · no settlement symbol is drawn: each territory's roads meet at a junction where they end, a disc of the road's sand wider than its widest road and smaller than the symbol was (ADR-1339 D2)", () => {
+test("3.79 · no settlement symbol is drawn: each territory's roads meet at a junction where they end, a small plaza of the road's sand standing a low step above them, wider than its widest road and smaller than the symbol was (ADR-1339 D2)", () => {
   const land = territoryLand(map, flat, coast, new Map(), roads);
-  const marks = islandRoadMarks(roads, flat, landFill(map, land), islandRelief(map, roads));
+  const relief = islandRelief(map, roads);
+  const marks = islandRoadMarks(roads, flat, landFill(map, land), relief);
   const symbols: string[] = [];
   marks.traverse((o) => { if (o.name.startsWith("settlement")) symbols.push(o.name); });
   assert.deepEqual(symbols, [], "no settlement symbol");
   assert.ok(roads.settlements.size > 0);
+  const sand = new Color(ROAD.colour), light = (c: Color) => c.r + c.g + c.b;
   for (const [capability, { at, size }] of roads.settlements) {
     const ending = roads.segments.filter((s) => [s.pts[0]!, s.pts.at(-1)!].some((p) => Math.hypot(p.x - at.x, p.z - at.z) < 1e-6));
     const junction = marks.getObjectByName(`territory-junction:${capability}`) as Mesh | undefined;
     if (ending.length === 0) { assert.equal(junction, undefined, `${capability}: no road ends there, so no junction`); continue; }
     assert.ok(junction, `${capability}: its roads meet at a junction`);
-    const p = junction.geometry.getAttribute("position");
-    let reach = 0;
-    for (let k = 0; k < p.count; k++) { reach = Math.max(reach, Math.hypot(p.getX(k) - at.x, p.getZ(k) - at.z)); assert.ok(p.getY(k) > 0, "on the land"); }
+    const p = junction.geometry.getAttribute("position"), c = junction.geometry.getAttribute("color");
+    const ground = relief.raise(at);
+    let reach = 0, topReach = 0, high = -Infinity;
+    const lit: Color[] = [], away: Color[] = [];
+    for (let k = 0; k < p.count; k++) {
+      const x = p.getX(k) - at.x, z = p.getZ(k) - at.z, d = Math.hypot(x, z), raised = p.getY(k) - relief.raise({ x: p.getX(k), z: p.getZ(k) });
+      reach = Math.max(reach, d);
+      assert.ok(p.getY(k) > 0, "on the land");
+      high = Math.max(high, p.getY(k));
+      if (raised > relief.scale * 0.1) topReach = Math.max(topReach, d);
+      // The step's foot, round the light's side and the side away from it.
+      const toward = d > 0 ? (x * -Math.SQRT1_2 + z * -Math.SQRT1_2) / d : 0, colour = new Color(c.getX(k), c.getY(k), c.getZ(k));
+      if (raised < 1e-6 && toward > 0.9) lit.push(colour);
+      if (raised < 1e-6 && toward < -0.9) away.push(colour);
+    }
     const widest = Math.max(...ending.map((s) => s.width));
     assert.ok(reach > widest / 2 * 1.2, `${capability}: wider than its widest road (${reach.toFixed(2)} round, road ${widest.toFixed(2)} wide)`);
     assert.ok(reach < size / 2, `${capability}: smaller than the symbol was, ${size.toFixed(2)} across`);
-    const colour = (junction.material as MeshBasicMaterial).color, sand = new Color(ROAD.colour);
-    assert.ok(Math.abs(colour.r - sand.r) + Math.abs(colour.g - sand.g) + Math.abs(colour.b - sand.b) < 0.6, "in the road's sand");
-    assert.equal(junction.renderOrder, (marks.getObjectByName("road:0") as Mesh).renderOrder, "drawn with the roads, as part of them");
+    assert.ok(high - ground > relief.scale * 0.1, `${capability}: its top stands above the land it is on`);
+    assert.ok(topReach > widest / 2 && topReach < reach, `${capability}: its top takes the roads and is narrower than its foot, so its step slopes up`);
+    assert.ok(lit.length > 0 && away.length > 0 && Math.min(...lit.map(light)) > Math.max(...away.map(light)), `${capability}: its step is lit toward the light and shaded away from it`);
+    const top = new Color(c.getX(c.count - 1), c.getY(c.count - 1), c.getZ(c.count - 1));
+    assert.ok(Math.abs(top.r - sand.r) + Math.abs(top.g - sand.g) + Math.abs(top.b - sand.b) < 0.6, "its top in the road's sand");
+    assert.ok(junction.renderOrder >= (marks.getObjectByName("road:0") as Mesh).renderOrder && junction.renderOrder < 3.5, "drawn after the roads, as part of them, before the gates' shadows");
   }
 });
 

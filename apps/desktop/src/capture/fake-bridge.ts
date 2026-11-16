@@ -121,7 +121,6 @@ const QUIET: StorytreeBridge = {
   relatedNotes: async () => [],
   standingDelegations: async () => undefined,
   codeSurvey: async () => ({}),
-  sharedStores: async () => [],
   pins: async () => [],
   recordLag: async () => {},
   feedbackSetup: async () => ({ offered: false, surfaces: [] }),

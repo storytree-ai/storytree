@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35, 1.36, 1.45 and 1.48 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35, 1.36, 1.45, 1.48 and 1.49 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
@@ -9,6 +9,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 
 import pg from "pg";
+import { connect } from "@storytree/library";
 import { openActivityLog } from "@storytree/session-management";
 import { waitUntil } from "@storytree/test-waits";
 import { RELEASE_FAMILIES } from "@storytree/app/updates/verbs";
@@ -38,7 +39,7 @@ import type { Family } from "./door.js";
 import { familiesIn, inOrder } from "./families/index.js";
 import unbundled from "./parts/verbs.js";
 import armCheckParts from "./parts/arm-checks.js";
-import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
+import { BuiltCommand, dropTestProjects, inWorld, storytree, testServerUrl, uniqueProjectName } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SERVICES_FAMILIES, ...SCHEDULE_FAMILIES, ...ACTIVITY_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...MAP_FAMILIES, ...PIN_FAMILIES, ...FEEDBACK_FAMILIES, ...PLUGIN_FAMILIES];
@@ -100,7 +101,7 @@ test("1.4 a record the library refuses reaches you as the library's own message,
       (error: Error) => error.message,
     );
 
-    const ran = await world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", ""]);
+    const ran = await world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", "", "--project", world.project]);
 
     assert.equal(ran.code, 1);
     assert.ok(ran.stderr.includes(refusal), `expected the library's own message:\n${refusal}\ngot:\n${ran.stderr}`);
@@ -200,7 +201,7 @@ test("1.15 a command kept waiting on the library, here for another session's wri
       }, 20_000, "the unrelated writer to queue");
       await other.query("BEGIN");
       await other.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
-      running = world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", "Sends the mail."]);
+      running = world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", "Sends the mail.", "--project", world.project]);
       // Only this world's command can queue behind this connection's project write lock.
       // A waiter elsewhere on the shared test server must not release it early.
       await waitUntil(async () => {
@@ -534,12 +535,55 @@ test("1.45 a knowledge note a command writes from a session's shell carries what
       await log.close();
     }
     const library = await world.library();
-    const principle = ["library", "new", "principle", "--description", "As the pull request asked.", "--statement", "S.", "--why", "W.", "--howToApply", "H."];
+    const principle = ["library", "new", "principle", "--description", "As the pull request asked.", "--statement", "S.", "--why", "W.", "--howToApply", "H.", "--project", world.project];
     for (const [session, title, mark] of [["reader-1", "Trust the pull request", [["gh pr view 12"]]], ["quiet-1", "Written with nothing read", [undefined]]] as const) {
       const ran = await world.run([...principle, "--title", title], { CLAUDE_CODE_SESSION_ID: session });
       assert.equal(ran.code, 0, ran.stderr);
       const [written] = (await library.list("principle")).filter((record) => record.fields.title === title);
       assert.deepEqual((await library.history({ id: written!.id })).map((entry) => entry.outsideRead), mark, session);
+    }
+  });
+});
+
+test("1.49 a command that writes a library takes --project, --arc or --increment, at least one: naming none is refused with its usage, saying what to pass, and the write lands in the library named, an arc's own found across the folder's factory's circle, while a project outside it is refused (ADR-1348 D3)", async () => {
+  await inWorld(command, async (world) => {
+    const [productName, outsideName] = [uniqueProjectName(), uniqueProjectName()];
+    const server = await connect({ url: testServerUrl() });
+    try {
+      const library = await world.library();
+      await library.markFactory();
+      const product = await server.openProject(productName);
+      await product.recordFactory(world.project);
+      await server.openProject(outsideName);
+      const theirArc = (await product.createArc({ title: "Ricky's site goes live", intent: "Ship it", endState: "It is live" })).id;
+      const arc = ["arc", "new", "--title", "Launch", "--intent", "Ship the site", "--end-state", "It is live"];
+
+      // A declared verb, a verb whose every flag is a field, and a family kept in the command line are refused the same.
+      for (const unnamed of [arc, ["library", "new", "definition", "--term", "Stack", "--meaning", "What runs it"], ["capability", "built", "capability_000000000000"]]) {
+        const refused = await world.run(unnamed);
+        assert.equal(refused.code, 2, `${unnamed.join(" ")}: ${refused.stderr}`);
+        assert.match(refused.stderr, new RegExp(`names where it goes.*this folder's is "${world.project}"`));
+        assert.match(refused.stderr, /usage: storytree .*--project <project>/);
+      }
+      assert.deepEqual((await library.list("arc")).length, 0, "a refused write wrote nothing");
+
+      const own = await world.run([...arc, "--project", world.project]);
+      assert.equal(own.code, 0, own.stderr);
+      assert.equal((await library.list("arc")).length, 1, "naming the folder's own project writes there");
+      const theirs = await world.run([...arc, "--title", "Their launch", "--project", productName]);
+      assert.equal(theirs.code, 0, theirs.stderr);
+      assert.deepEqual((await product.list("arc")).map((one) => one.fields.title).sort(), ["Ricky's site goes live", "Their launch"], "naming a project its factory builds writes in its library");
+      const onTheirs = await world.run(["arc", "increment", "new", "--arc", theirArc, "--title", "Home page", "--objective", "Build it", "--body", "Red then green"]);
+      assert.equal(onTheirs.code, 0, onTheirs.stderr);
+      assert.equal((await product.list("increment")).length, 1, "the command's own --arc names the place");
+
+      const outside = await world.run([...arc, "--project", outsideName]);
+      assert.notEqual(outside.code, 0);
+      assert.match(outside.stderr, new RegExp(outsideName));
+      assert.equal((await library.list("arc")).length, 1);
+    } finally {
+      await server.close();
+      await dropTestProjects([productName, outsideName]);
     }
   });
 });

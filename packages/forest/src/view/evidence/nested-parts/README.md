@@ -30,3 +30,29 @@ Counted from the scene and the page (`after-measurements.json`):
 Taken by `node --import tsx packages/forest/testing/view/nested-parts/capture.mjs after` (append `--retake` to write here).
 
 In the evidence bucket for #882, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `882/after-the-library-closed.png`, `882/after-13-decision-log-opened.png`, `882/after-14-ranked-search-opened.png`, `882/after-2-library-transactions-opened.png`, `882/after-measurements.json`.
+
+## Roads that come round a part's front door (contract 3.120)
+
+What this adds: on an opened capability, a part road that an import reaching round a part's entry rides on (the survey's
+clashes) is drawn in a clash tint (`CLASH`, an amber), and so are both posts of its gate into the part it reaches; where
+the part reached lies deeper than the parts shown, the road is named "into <part>" at that gate, or midway along it when
+it has none (a road out of the capability). The marks add no draw: still four. A road with no clash is drawn as before.
+
+Same library-only capture, opening the three library capabilities with the most clash roads (`--clashes`), each road
+listed by the key it is routed by (`arrive:k->part` in, `part->leave:k` out):
+
+| view | parts | draws added | gate posts | tinted posts | clash roads drawn | road names |
+|---|---|---|---|---|---|---|
+| 6 · Knowledge artifacts opened | 2 | 4 | 2 | 2 | arrive:0->src/knowledge, src/knowledge->leave:0, src/project->leave:0, src/project->src/knowledge | into src/schema, into src/schema |
+| 14 · Ranked search opened | 2 | 4 | 2 | 2 | arrive:1->src/knowledge, src/project->src/knowledge | none |
+| 7 · Library API opened | 2 | 4 | 2 | 0 | src/api->leave:2 | into src/project |
+
+Knowledge artifacts reaches round Data schema's entry into `src/schema`, and Library API round Factory and product's into
+`src/project`; those parts lie in other capabilities, so each is named by its whole folder. A road that reaches the part it
+enters (project into knowledge, on Knowledge artifacts and Ranked search) is tinted, with its gate's posts, and not named.
+Library API's one clash road leaves it with no gate inside it, so no post of its is tinted. The survey is read fresh from
+this checkout and the library, so which capabilities carry the most clash roads moves as their code does.
+
+Taken by `node --import tsx packages/forest/testing/view/nested-parts/capture.mjs pr911 --clashes --capabilities 3`.
+
+In the evidence bucket for #911, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `911/pr911-6-knowledge-artifacts-opened.png`, `911/pr911-14-ranked-search-opened.png`, `911/pr911-7-library-api-opened.png`, `911/pr911-measurements.json`.

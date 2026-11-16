@@ -16,8 +16,7 @@
  */
 import { byCreation } from "../creation-order.js";
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
-import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import { FRESHNESS, type FieldsOf, type RecordType } from "../schema/types.js";
+import { FRESHNESS, type FieldsOf, type RecordType, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, Holds, ParkedOn, ProjectTree, StoryNode, WorkInFlight, WorkModel } from "../work/index.js";
 
 /** A column's state. A column with no entry reads `not-checked`, never `passing`. */

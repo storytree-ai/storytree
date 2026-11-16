@@ -8,6 +8,7 @@ export { islandArea, LAND_PER_LINE, MAPPED_ISLAND_CAP, mappedArea, MIN_ISLAND_AR
 export { grove } from "./capability-tree/capability-tree.js";
 export type { Tree, TreeForm } from "./capability-tree/capability-tree.js";
 export { changedIslands, forestDrawn, forestScene, PLACE_WIDTH } from "./render/forest-scene.js";
+export { linkedStores } from "@storytree/map/stores";
 export type { ForestDrawn, ForestScene, Island, PlacedTree, SceneEdge } from "./render/forest-scene.js";
 export { drawingOf, keptDrawing, keptTree } from "./render/kept-tree.js";
 export type { KeptDrawing } from "./render/kept-tree.js";

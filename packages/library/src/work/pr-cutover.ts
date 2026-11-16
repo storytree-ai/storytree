@@ -4,7 +4,7 @@
  * recorded before the move names a pull request of the repository that gave up the name. The cut-over record says
  * when that happened and where those numbers live now; nothing recorded before it is rewritten.
  */
-import type { FieldsOf } from "../schema/types.js";
+import type { FieldsOf } from "../schema/index.js";
 
 /** The repository cut-over: when, the repository that holds the name from then, and the one that held numbers before. */
 export type PrCutover = FieldsOf<"prCutover">;

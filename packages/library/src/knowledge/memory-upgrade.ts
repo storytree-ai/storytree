@@ -1,9 +1,9 @@
 /** Capability 6 · Knowledge artifacts. ADR-0650's one-time conversion. Called under the schema and writer locks on project open. */
 import type { PoolClient } from "pg";
 
-import { RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../schema/types.js";
-import type { NoteType } from "../knowledge/knowledge.js";
-import { KNOWLEDGE_KINDS, REFERENCE_FIELD_NAMES } from "../knowledge/knowledge.js";
+import { RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../schema/index.js";
+import type { NoteType } from "./knowledge.js";
+import { KNOWLEDGE_KINDS, REFERENCE_FIELD_NAMES } from "./knowledge.js";
 import type { RecordEnvelope } from "../transactions/index.js";
 
 const KINDS: readonly string[] = ["decision", "definition", ...KNOWLEDGE_KINDS];

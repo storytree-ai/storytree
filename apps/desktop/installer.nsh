@@ -17,6 +17,17 @@
   FileOpen $0 "$INSTDIR\resources\storytree-installed" w
   FileWrite $0 $storytreeReleaseMarker
   FileClose $0
+  ; The one-click progress window (SpiderBanner, shown when not silent, as every update runs) is closed here,
+  ; while its plugin is loaded. Left to the setup's exit, its close races the plugin's unloading: its own thread,
+  ; still in the window's message loop, returns into the freed plugin, and the finished setup crashes (0xC0000005,
+  ; SpiderBanner.dll_unloaded+0x1ba7) on about 1 run in 40 (increment_12289ba81691). The setup's window is hidden
+  ; on both sides, because closing the banner shows it again; the pause lets the banner's thread leave the plugin.
+  ${ifNot} ${Silent}
+    HideWindow
+    SpiderBanner::Destroy
+    HideWindow
+    Sleep 200
+  ${endIf}
 !macroend
 
 ; Leaving storytree (app setup 1.8). The bundled helper removes what the app added outside its own

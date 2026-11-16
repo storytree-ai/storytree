@@ -18,7 +18,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { isPluginKind, UnknownTypeError, type FieldEdit, type FieldsOf, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
 import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
-import type { SurveyOptions, WorkSurvey } from "../work/work-in-flight.js";
+import type { SurveyOptions, WorkSurvey } from "../work/index.js";
 
 /** A connection to one Postgres server and the storytree projects on it. */
 export interface Storytree {

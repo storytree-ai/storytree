@@ -14,7 +14,7 @@
 import { byCreation } from "../creation-order.js";
 import { checkReference, liveRecord } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import type { FieldsOf } from "../schema/types.js";
+import type { FieldsOf } from "../schema/index.js";
 import type { Wait, WaitFor } from "./waits.js";
 
 /**

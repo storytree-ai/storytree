@@ -71,7 +71,7 @@ export type {
   PrCutover,
   AnchorGaps,
 } from "./work/index.js";
-export { listedNotice, listedSaid, type OpenListing } from "./work/work-in-flight.js";
+export { listedNotice, listedSaid, type OpenListing } from "./work/index.js";
 export type {
   AnnotatedCapability,
   AnnotatedContract,

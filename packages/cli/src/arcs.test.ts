@@ -460,7 +460,7 @@ test("4.17 `arc edit --priority` sets and clears an arc's priority, refusing any
 
 test("4.1 an arc with no intent is refused", async () => {
   await inWorld(command, async (world) => {
-    const ran = await world.run(["arc", "new", "--title", "Launch v1", "--end-state", "Visitors sign up"]);
+    const ran = await world.run(["arc", "new", "--title", "Launch v1", "--end-state", "Visitors sign up", "--project", world.project]);
 
     assert.equal(ran.code, 1);
     assert.match(ran.stderr, /\bintent\b/);
@@ -657,7 +657,7 @@ test("4.13 `arc increment edit --remedies` adds live friction to an increment's 
     const edited = await world.run(["arc", "increment", "edit", fix.id, "--remedies", later.id]);
     assert.equal(edited.code, 0, edited.stderr);
     assert.deepEqual(((await library.get(fix.id))?.fields as { remedies?: string[] } | undefined)?.remedies, [first.id, later.id]);
-    const routed = await world.run(["friction", "route", later.id, "--to", "tool", "--reason", "Its fix is parked"]);
+    const routed = await world.run(["friction", "route", later.id, "--to", "tool", "--reason", "Its fix is parked", "--project", world.project]);
     assert.equal(routed.code, 0, routed.stderr);
   });
 });
@@ -1040,14 +1040,14 @@ test("4.20 `arc increment settle-pending` applies the leftover pending plan chan
       await client.end();
     }
 
-    const settled = await world.run(["arc", "increment", "settle-pending"]);
+    const settled = await world.run(["arc", "increment", "settle-pending", "--project", world.project]);
     assert.equal(settled.code, 0, settled.stderr);
     assert.match(settled.stdout, new RegExp(`${landed.id}: applied 1 \\(${form.id}\\)`));
     assert.match(settled.stdout, new RegExp(`${failed.id}: dropped 1`));
     assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Where they type it");
     assert.notEqual(await library.get(promise.id), null, "the failed increment's retirement was dropped, not applied");
 
-    const none = await world.run(["arc", "increment", "settle-pending"]);
+    const none = await world.run(["arc", "increment", "settle-pending", "--project", world.project]);
     assert.equal(none.code, 0, none.stderr);
     assert.match(none.stdout, /No closed increment has pending plan changes left/);
   });

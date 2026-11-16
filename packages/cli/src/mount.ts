@@ -5,16 +5,19 @@
  * not take is refused with its usage, and a refusal's next steps are named as commands. A callerless verb is handed only
  * its place, with the shell's session when it names one alone, so it runs where no library opens. A
  * verb that writes is handed the writer, named below its answer once its work asks for it, so one that wrote nothing names
- * none; a raw answer is printed as it is. The verb's consumers go with it, for a reading of the doors. A declared family is
+ * none; it takes `--project`, `--arc` or `--increment`, at least one, those it does not take itself added, and is handed
+ * the library they name (ADR-1348 D3): one naming none is refused with its usage, saying what to pass, and so is a project
+ * outside the folder's factory's circle, while the folder's project stays the session's. A raw answer is printed as it is. The verb's consumers go with it, for a reading of the doors. A declared family is
  * mounted with the families within it, its bare verb, its guesses and its retired words.
  */
 import type { Library, PluginRecordKind, Storytree } from "@storytree/library";
 import type { Composition, PartsGraph } from "@storytree/plugin-loader";
 import type { ProvidingFamily } from "@storytree/plugin-loader/switch";
-import { consumersOf, mounted, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
+import { consumersOf, mounted, VerbRefusal, WHERE_INPUTS, whereOf, writtenLibrary, type DoorWords, type Verb, type VerbContext, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
 
 import { Refusal, type Next } from "./answer.js";
 import { commandInput, commandUsage } from "./command-input.js";
+import type { Args } from "./args.js";
 import type { Claim, ClaimContext, Context, Verb as Command, Family } from "./door.js";
 import { commandSession, soleSession } from "./writer.js";
 
@@ -175,7 +178,9 @@ async function pluginInFactory(plugin: string): Promise<boolean> {
 export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>): Command {
   if (!mounted(declared.command)) throw new Error(`no command to mount: ${declared.command.absent}`);
   const face = declared.command;
-  const usage = commandUsage(declared);
+  const where = wherePlaces(declared);
+  const taking = { ...declared, inputs: { ...declared.inputs, ...Object.fromEntries(where.taken.map((key) => [key, WHERE_INPUTS[key]])) } };
+  const usage = face.usage === undefined || where.added.length === 0 ? commandUsage(taking) : `${face.usage} ${where.added.map((key) => `[--${key} <${key}>]`).join(" ")}`;
   const switches = Object.entries(declared.inputs).flatMap(([name, input]) => input.kind === "switch" ? [name] : []);
   const misused = (error: VerbRefusal): Refusal => new Refusal(error.misuse ? `${error.message}\nusage: storytree ${usage}` : error.message, {
     code: error.misuse ? 2 : 1,
@@ -189,10 +194,14 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
     consumers: consumersOf(declared),
     async act(args, context) {
       try {
-        const input = commandInput(declared, { word: (index) => args.words[index], flag: (name) => args.text(name), flags: (name) => args.texts(name), has: (name) => args.has(name), names: () => args.names });
+        const given = commandInput(taking, { word: (index) => args.words[index], flag: (name) => args.text(name), flags: (name) => args.texts(name), has: (name) => args.has(name), names: () => args.names });
+        // A write's place: what it was given, a field it writes (an increment's arc, a friction's increment) naming it as well.
+        const named = whereOf({ ...fieldsOf(declared, given), ...given });
+        const input = Object.fromEntries(Object.entries(given).filter(([key]) => !(where.taken as readonly string[]).includes(key)));
         if (declared.agentOnly !== undefined && commandSession() === undefined) throw new Refusal(`Run storytree ${face.family} ${face.name} from the agent's shell: ${declared.agentOnly}.`);
         const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces, parts, hostVerbs, projectRecords: () => projectRecords(), claims: () => context.claims(), testedNumbers: async (capability) => testedNumbersOf(context.cwd, await context.library(), capability), placeFiles: async (paths) => placeFilesOf(context.cwd, await context.library(), paths), pluginInFactory };
-        const caller = declared.callerless ? { ...place, ...soleSession() } as CommandCaller & CommandPlace : { ...place, ...await context.activityContext() };
+        const opened = declared.callerless ? { ...place, ...soleSession() } as CommandCaller & CommandPlace : { ...place, ...await context.activityContext() };
+        const caller = !declared.writes || declared.callerless ? opened : { ...opened, library: await writtenLibrary(opened.library, named) };
         const answer = await declared.act(input, declared.writes ? writing(caller, context) : caller, WORDS);
         if (answer.raw) return { text: answer.text, raw: true };
         const next: Next[] = (answer.next ?? []).map((step) => ({ command: WORDS.say(step), why: step.why }));
@@ -202,6 +211,25 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
       }
     },
   };
+}
+
+/**
+ * The inputs naming a write's place that `declared` does not take itself (ADR-1348 D3): `added` to its usage, and
+ * `taken` from its flags, but `arc` and `increment` for a verb whose fields take every flag, which a record's fields
+ * may hold, so they stay its fields and name its place as well. A verb that does not write takes none.
+ */
+function wherePlaces(declared: Verb<VerbInputs, never>): { added: (keyof typeof WHERE_INPUTS)[]; taken: (keyof typeof WHERE_INPUTS)[] } {
+  if (!declared.writes || declared.callerless) return { added: [], taken: [] };
+  const added = (Object.keys(WHERE_INPUTS) as (keyof typeof WHERE_INPUTS)[]).filter((key) => !(key in declared.inputs));
+  const fields = Object.values(declared.inputs).some((one) => one.kind === "fields");
+  return { added, taken: fields ? added.filter((key) => key === "project") : added };
+}
+
+/** The fields a verb whose fields take every flag was given, or nothing. */
+function fieldsOf(declared: Verb<VerbInputs, never>, given: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+  const name = Object.entries(declared.inputs).find(([, one]) => one.kind === "fields")?.[0];
+  const fields = name === undefined ? undefined : given[name];
+  return typeof fields === "object" && fields !== null ? fields as Record<string, unknown> : {};
 }
 
 /** `caller` with the writer, asked of the door only when the work first reads it: the door names a writer it was asked for. */
@@ -222,4 +250,21 @@ export function family(declared: VerbFamilies<CommandCaller & CommandPlace>): Fa
     ...(declared.guesses === undefined ? {} : { guesses: declared.guesses }),
     ...(declared.retired === undefined ? {} : { retired: declared.retired }),
   };
+}
+
+/** What a command family kept here adds to its usage when it writes (ADR-1348 D3): where the write goes. */
+export const WHERE_USAGE = "--project <project> | --arc <arc> | --increment <increment>";
+
+/**
+ * The library a write by a command family kept here lands in (ADR-1348 D3): the one its `--project`, `--arc` or
+ * `--increment` names, read from the folder's own, as a declared verb's is; naming none, or a project outside the
+ * folder's factory's circle, is refused with `usage`.
+ */
+export async function writtenFor(args: Pick<Args, "text">, context: Pick<Context, "library">, usage: string): Promise<Library> {
+  const named = whereOf({ project: args.text("project"), arc: args.text("arc"), increment: args.text("increment") });
+  try {
+    return await writtenLibrary(await context.library(), named);
+  } catch (error) {
+    throw error instanceof VerbRefusal ? new Refusal(`${error.message}\nusage: storytree ${usage}`, { code: 2 }) : error;
+  }
 }

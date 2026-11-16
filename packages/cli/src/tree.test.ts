@@ -58,17 +58,17 @@ test("10.3 `capability built` switches a capability's proposed flag off, `capabi
     const story = await library.addStory({ title: "Visitor can sign up" });
     const capability = await library.addCapability({ title: "Email form", story: story.id });
 
-    const built = await world.run(["capability", "built", capability.id]);
+    const built = await world.run(["capability", "built", capability.id, "--project", world.project]);
     assert.equal(built.code, 0, built.stderr);
     assert.match(built.stdout, /no longer proposed/);
     assert.equal(((await library.get(capability.id))?.fields as { proposed?: boolean } | undefined)?.proposed, false);
     assert.match((await library.history({ id: capability.id })).at(-1)?.actor ?? "", /^person:/, "the switch carries its writer");
 
-    const again = await world.run(["capability", "proposed", capability.id]);
+    const again = await world.run(["capability", "proposed", capability.id, "--project", world.project]);
     assert.equal(again.code, 0, again.stderr);
     assert.equal(((await library.get(capability.id))?.fields as { proposed?: boolean } | undefined)?.proposed, true);
 
-    const unknown = await world.run(["capability", "built", "capability_000000000000"]);
+    const unknown = await world.run(["capability", "built", "capability_000000000000", "--project", world.project]);
     assert.equal(unknown.code, 1);
     assert.match(unknown.stderr, /no capability "capability_000000000000"/);
   });
@@ -328,13 +328,13 @@ test("10.12 `storytree contract report <contract> --result red|green [--note <te
     const contract = await library.addContract({ title: "4.1 · Rejects an email with no @", capability: capability.id });
     const session = { CLAUDE_CODE_SESSION_ID: "claude-1" };
 
-    const red = await world.run(["contract", "report", contract.id, "--result", "red", "--note", "written, fails on the missing check"], session);
+    const red = await world.run(["contract", "report", contract.id, "--result", "red", "--note", "written, fails on the missing check", "--project", world.project], session);
     assert.equal(red.code, 0, red.stderr);
     assert.ok(red.stdout.startsWith(`Reported "4.1 · Rejects an email with no @" (${contract.id}) red: your report`), red.stdout);
     let health = await library.health(contract.id);
     assert.deepEqual([health.reported.state, health.reported.by, health.reported.note, health.verified.state], ["failing", "claude-code claude-1", "written, fails on the missing check", "not-checked"]);
 
-    const green = await world.run(["contract", "report", contract.id, "--result", "green"], session);
+    const green = await world.run(["contract", "report", contract.id, "--result", "green", "--project", world.project], session);
     assert.equal(green.code, 0, green.stderr);
     assert.ok(green.stdout.startsWith(`Reported "4.1 · Rejects an email with no @" (${contract.id}) green: your report`), green.stdout);
     health = await library.health(contract.id);
@@ -345,11 +345,11 @@ test("10.12 `storytree contract report <contract> --result red|green [--note <te
     assert.equal(history.length, 2);
 
     for (const [args, code, said] of [
-      [["contract", "report", capability.id, "--result", "green"], 1, /rolled up from its contracts/],
-      [["contract", "report", story.id, "--result", "green"], 1, /rolled up from its contracts/],
-      [["contract", "report", "contract_000000000000", "--result", "green"], 1, /contract_000000000000/],
-      [["contract", "report", contract.id, "--result", "amber"], 2, /red or green[\s\S]*usage: storytree contract report <contract> --result red\|green/],
-      [["contract", "report", contract.id], 2, /--result/],
+      [["contract", "report", capability.id, "--result", "green", "--project", world.project], 1, /rolled up from its contracts/],
+      [["contract", "report", story.id, "--result", "green", "--project", world.project], 1, /rolled up from its contracts/],
+      [["contract", "report", "contract_000000000000", "--result", "green", "--project", world.project], 1, /contract_000000000000/],
+      [["contract", "report", contract.id, "--result", "amber", "--project", world.project], 2, /red or green[\s\S]*usage: storytree contract report <contract> --result red\|green/],
+      [["contract", "report", contract.id, "--project", world.project], 2, /--result/],
     ] as const) {
       const refused = await world.run(args, session);
       assert.equal(refused.code, code, `${args.join(" ")}: ${refused.stdout}${refused.stderr}`);
@@ -377,7 +377,7 @@ test("10.14 each `storytree contract` command refuses a flag it does not read, e
 
     for (const [args, flag, usage] of [
       [["contract", "show", contract.id, "--verbose", "yes"], /--verbose/, /usage: storytree contract show <contract>/],
-      [["contract", "report", contract.id, "--result", "green", "--reason", "ran it"], /--reason/, /usage: storytree contract report <contract> --result red\|green/],
+      [["contract", "report", contract.id, "--result", "green", "--reason", "ran it", "--project", world.project], /--reason/, /usage: storytree contract report <contract> --result red\|green/],
     ] as const) {
       const refused = await world.run(args);
       assert.equal(refused.code, 2, `${args.join(" ")}: ${refused.stdout}${refused.stderr}`);

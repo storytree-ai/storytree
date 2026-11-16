@@ -100,7 +100,7 @@ test("1.4 a record the library refuses reaches you as the library's own message,
       (error: Error) => error.message,
     );
 
-    const ran = await world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", ""]);
+    const ran = await world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", "", "--project", world.project]);
 
     assert.equal(ran.code, 1);
     assert.ok(ran.stderr.includes(refusal), `expected the library's own message:\n${refusal}\ngot:\n${ran.stderr}`);
@@ -200,7 +200,7 @@ test("1.15 a command kept waiting on the library, here for another session's wri
       }, 20_000, "the unrelated writer to queue");
       await other.query("BEGIN");
       await other.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
-      running = world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", "Sends the mail."]);
+      running = world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", "Sends the mail.", "--project", world.project]);
       // Only this world's command can queue behind this connection's project write lock.
       // A waiter elsewhere on the shared test server must not release it early.
       await waitUntil(async () => {
@@ -534,7 +534,7 @@ test("1.45 a knowledge note a command writes from a session's shell carries what
       await log.close();
     }
     const library = await world.library();
-    const principle = ["library", "new", "principle", "--description", "As the pull request asked.", "--statement", "S.", "--why", "W.", "--howToApply", "H."];
+    const principle = ["library", "new", "principle", "--description", "As the pull request asked.", "--statement", "S.", "--why", "W.", "--howToApply", "H.", "--project", world.project];
     for (const [session, title, mark] of [["reader-1", "Trust the pull request", [["gh pr view 12"]]], ["quiet-1", "Written with nothing read", [undefined]]] as const) {
       const ran = await world.run([...principle, "--title", title], { CLAUDE_CODE_SESSION_ID: session });
       assert.equal(ran.code, 0, ran.stderr);

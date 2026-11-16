@@ -148,12 +148,12 @@ test("5.2 settling needs an answer", async () => {
     const library = await world.library();
     const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" });
 
-    const bare = await world.run(["question", "settle", question.id]);
+    const bare = await world.run(["question", "settle", question.id, "--project", world.project]);
     assert.notEqual(bare.code, 0);
     assert.match(bare.stderr, /\banswer\b/);
     assert.deepEqual((await library.questions(arc)).map((one) => one.fields.lifecycle), ["open"]);
 
-    const answered = await world.run(["question", "settle", question.id, "--answer", "Mailgun, it is simplest"]);
+    const answered = await world.run(["question", "settle", question.id, "--answer", "Mailgun, it is simplest", "--project", world.project]);
     assert.equal(answered.code, 0, answered.stderr);
     assert.deepEqual((await library.questions(arc)).map((one) => one.fields.answer), ["Mailgun, it is simplest"]);
   });
@@ -174,7 +174,7 @@ test("5.3 a held increment reads as waiting on you until its question is settled
     const held = await world.run(["arc", "show", arc]);
     assert.match(held.stdout, new RegExp(`waiting on you: question ${question}`));
 
-    const settled = await world.run(["question", "settle", question, "--answer", "Mailgun"]);
+    const settled = await world.run(["question", "settle", question, "--answer", "Mailgun", "--project", world.project]);
     assert.match(settled.stdout, new RegExp(`Released ${increment} \\(`));
     const released = await world.run(["arc", "show", arc]);
     assert.doesNotMatch(released.stdout, /waiting on you: question/);
@@ -259,18 +259,18 @@ test("5.4 question retire only retires questions, releasing every increment held
     await library.editIncrement(increment, { heldOn: [question.id] });
 
     const { cursor } = await library.changesSince(0);
-    const refused = await world.run(["library", "retire", question.id, "--reason", "asked wrongly"]);
+    const refused = await world.run(["library", "retire", question.id, "--reason", "asked wrongly", "--project", world.project]);
     assert.equal(refused.code, 1);
     assert.match(refused.stderr, new RegExp(increment));
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
 
-    const wrongKind = await world.run(["question", "retire", increment, "--reason", "asked wrongly"]);
+    const wrongKind = await world.run(["question", "retire", increment, "--reason", "asked wrongly", "--project", world.project]);
     assert.equal(wrongKind.code, 1);
     assert.match(wrongKind.stderr, /not a question/);
     assert.ok(wrongKind.stderr.includes(`storytree library retire ${increment}`), wrongKind.stderr);
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
 
-    const retired = await world.run(["question", "retire", question.id, "--reason", "asked wrongly"]);
+    const retired = await world.run(["question", "retire", question.id, "--reason", "asked wrongly", "--project", world.project]);
     assert.equal(retired.code, 0, retired.stderr);
     assert.ok(retired.stdout.includes(`Released ${increment}`), retired.stdout);
     assert.equal(await library.get(question.id), null);
@@ -319,13 +319,13 @@ test("5.6 `question check` says whether a question's review is fresh or lapsed; 
     assert.match(checked.stdout, /\bfresh\b/);
     assert.match(checked.stdout, /7-day lease/);
 
-    const renewed = await world.run(["question", "renew", question.id]);
+    const renewed = await world.run(["question", "renew", question.id, "--project", world.project]);
     assert.equal(renewed.code, 0, renewed.stderr);
     assert.match(renewed.stdout, new RegExp(`Renewed ${question.id}`));
 
     await library.settleQuestion(question.id, { answer: "Mailgun" });
     const before = (await library.changesSince(0)).cursor;
-    const refused = await world.run(["question", "renew", question.id]);
+    const refused = await world.run(["question", "renew", question.id, "--project", world.project]);
     assert.equal(refused.code, 1);
     assert.match(refused.stderr, /settled/);
     assert.deepEqual((await library.changesSince(before)).changes, [], "nothing was written");
@@ -343,19 +343,19 @@ test("5.7 `library edit <question>` corrects an open question's wording in place
     const library = await world.library();
     const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" });
 
-    const edited = await world.run(["library", "edit", question.id, "--options", "Mailgun, SES or Postmark"]);
+    const edited = await world.run(["library", "edit", question.id, "--options", "Mailgun, SES or Postmark", "--project", world.project]);
     assert.equal(edited.code, 0, edited.stderr);
     assert.deepEqual((await library.get(question.id))?.fields, { ...question.fields, options: "Mailgun, SES or Postmark" });
 
     await library.settleQuestion(question.id, { answer: "Mailgun" });
     const before = (await library.changesSince(0)).cursor;
-    const refused = await world.run(["library", "edit", question.id, "--options", "Too late"]);
+    const refused = await world.run(["library", "edit", question.id, "--options", "Too late", "--project", world.project]);
     assert.equal(refused.code, 1);
     assert.match(refused.stderr, /settled/);
     assert.deepEqual((await library.changesSince(before)).changes, [], "nothing was written");
 
     const evidence = await library.recordDecision({ status: "accepted", title: "Mailgun's API is the simplest", text: "Measured." });
-    const linked = await world.run(["library", "edit", question.id, "--links", evidence.id]);
+    const linked = await world.run(["library", "edit", question.id, "--links", evidence.id, "--project", world.project]);
     assert.equal(linked.code, 0, linked.stderr);
     assert.deepEqual(((await library.get(question.id))?.fields as { links?: string[] } | undefined)?.links, [evidence.id], "a settled question gains a link");
   });
@@ -370,7 +370,7 @@ test("5.14 `question move` re-homes an open question on another arc, keeping its
     const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" });
     await library.editIncrement(increment, { heldOn: [question.id] });
 
-    const moved = await world.run(["question", "move", question.id, "--to", to.id, "--reason", "asked under the mailer arc"]);
+    const moved = await world.run(["question", "move", question.id, "--to", to.id, "--reason", "asked under the mailer arc", "--project", world.project]);
     assert.equal(moved.code, 0, moved.stderr);
     assert.deepEqual((await library.get(question.id))?.fields, { ...question.fields, arc: to.id }, "the same question, on the parked arc");
     assert.deepEqual(await library.heldOnQuestion(increment), [question.id], "its holders still wait on it");
@@ -379,10 +379,10 @@ test("5.14 `question move` re-homes an open question on another arc, keeping its
     assert.match(last?.actor ?? "", /^person:/, "the move carries its writer");
 
     const before = (await library.changesSince(0)).cursor;
-    const again = await world.run(["question", "move", question.id, "--to", to.id, "--reason", "again"]);
+    const again = await world.run(["question", "move", question.id, "--to", to.id, "--reason", "again", "--project", world.project]);
     assert.equal(again.code, 1);
     assert.match(again.stderr, /already/);
-    const ghost = await world.run(["question", "move", "question_000000000000", "--to", arc, "--reason", "ghost"]);
+    const ghost = await world.run(["question", "move", "question_000000000000", "--to", arc, "--reason", "ghost", "--project", world.project]);
     assert.equal(ghost.code, 1);
     assert.match(ghost.stderr, /no question/);
     assert.deepEqual((await library.changesSince(before)).changes, [], "nothing was written");

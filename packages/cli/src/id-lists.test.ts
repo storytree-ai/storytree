@@ -18,10 +18,10 @@ for (const flag of ["links", "capabilities", "stories"] as const) {
       const arc = await library.createArc({ title: "Launch", intent: "Ship the site", endState: "The site is live" });
       const ids = (flag === "links" ? decisions : flag === "capabilities" ? capabilities : stories).map(({ id }) => id);
       const args = flag === "links"
-        ? ["adr", "new", "--title", "Launch choices", "--text", "Use these services", "--status", "accepted"]
+        ? ["adr", "new", "--title", "Launch choices", "--text", "Use these services", "--status", "accepted", "--project", world.project]
         : flag === "capabilities"
           ? ["arc", "increment", "new", "--arc", arc.id, "--title", "Forms", "--objective", "People can enter", "--body", "Build both forms"]
-          : ["arc", "new", "--title", "Entry", "--intent", "People can enter", "--end-state", "Both forms work"];
+          : ["arc", "new", "--title", "Entry", "--intent", "People can enter", "--end-state", "Both forms work", "--project", world.project];
 
       // This is the single argv word PowerShell produces from the unquoted comma list.
       const before = (await library.changesSince(0)).cursor;

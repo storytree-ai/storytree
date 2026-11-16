@@ -44,11 +44,15 @@ listed by the key it is routed by (`arrive:k->part` in, `part->leave:k` out):
 | view | parts | draws added | gate posts | tinted posts | clash roads drawn | road names |
 |---|---|---|---|---|---|---|
 | 6 · Knowledge artifacts opened | 2 | 4 | 2 | 2 | arrive:0->src/knowledge, src/knowledge->leave:0, src/project->leave:0, src/project->src/knowledge | into src/schema, into src/schema |
-| 4 · Work model opened | 2 | 4 | 2 | 2 | arrive:1->src/work, (its own files)->leave:0, src/work->leave:0 | into src/schema, into src/schema |
-| 7 · Library API opened | 2 | 4 | 2 | 2 | (its own files)->leave:0, src/api->leave:0, src/api->leave:2 | into src/work, into src/work, into src/project |
+| 14 · Ranked search opened | 2 | 4 | 2 | 2 | arrive:1->src/knowledge, src/project->src/knowledge | none |
+| 7 · Library API opened | 2 | 4 | 2 | 0 | src/api->leave:2 | into src/project |
 
-Knowledge artifacts and Work model reach round Data schema's entry into `src/schema`, and Library API round Work model's
-into `src/work` and Factory and product's into `src/project`; those parts lie in other capabilities, so each is named by
-its whole folder. A road that reaches the part it enters (project into knowledge) is tinted and not named.
+Knowledge artifacts reaches round Data schema's entry into `src/schema`, and Library API round Factory and product's into
+`src/project`; those parts lie in other capabilities, so each is named by its whole folder. A road that reaches the part it
+enters (project into knowledge, on Knowledge artifacts and Ranked search) is tinted, with its gate's posts, and not named.
+Library API's one clash road leaves it with no gate inside it, so no post of its is tinted. The survey is read fresh from
+this checkout and the library, so which capabilities carry the most clash roads moves as their code does.
 
-Taken by `node --import tsx packages/forest/testing/view/nested-parts/capture.mjs clashes --clashes --capabilities 3`.
+Taken by `node --import tsx packages/forest/testing/view/nested-parts/capture.mjs pr911 --clashes --capabilities 3`.
+
+In the evidence bucket for #911, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `911/pr911-6-knowledge-artifacts-opened.png`, `911/pr911-14-ranked-search-opened.png`, `911/pr911-7-library-api-opened.png`, `911/pr911-measurements.json`.

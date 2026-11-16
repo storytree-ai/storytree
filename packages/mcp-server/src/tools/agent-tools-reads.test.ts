@@ -881,6 +881,28 @@ test("9.26 plan_contract and edit_plan take proved_by, the existing tests that p
   });
 });
 
+test("9.42 · plan_contract and edit_plan take observability as proof with its freshness and watcher, and show_plan says it in full: proved by observability as proof, its reading within its freshness, recorded by its watcher", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Agent activity log", ...FOUNDED }));
+      const log = idOf(await agent.call("plan_capability", { story, title: "Shared log", ...FOUNDED }));
+      const observed = { by: "observability-as-proof", reason: "Only the laptop and the box doing real work show it.", freshness: "2d", watcher: "the Mint box's activity watcher" };
+      const both = idOf(await agent.call("plan_contract", { capability: log, title: "Two machines' lines read back in order", proof: observed }));
+      assert.deepEqual(((await library.get(both))?.fields as { proof?: unknown } | undefined)?.proof, observed);
+      const later = idOf(await agent.call("plan_contract", { capability: log, title: "Lines arrive within a minute" }));
+      const corrected = await agent.call("edit_plan", { id: later, proof: { ...observed, freshness: "36h" } });
+      assert.notEqual(corrected.isError, true, corrected.text);
+      const refused = await agent.call("edit_plan", { id: later, proof: { by: "observability-as-proof", reason: "Seen live." } });
+      assert.equal(refused.isError, true, "observability as proof without its freshness and watcher is refused");
+
+      const plan = (await agent.call("show_plan")).text;
+      const line = (id: string) => plan.split("\n").find((one) => one.includes(`(${id})`)) ?? "";
+      assert.match(line(both), /; proved by observability as proof, a live reading no older than 2 days recorded by the Mint box's activity watcher: Only the laptop and the box doing real work show it\.$/, plan);
+      assert.match(line(later), /; proved by observability as proof, a live reading no older than 36 hours recorded by /, plan);
+    });
+  });
+});
+
 test("9.33 plan_contract and edit_plan take proof, how the contract is proved with its reason, and show_plan says it on each contract's line, a capability's or an edge's, in full words, or that none is chosen yet", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

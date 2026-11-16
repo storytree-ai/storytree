@@ -16,7 +16,10 @@ import { isDeepStrictEqual } from "node:util";
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, couldBeId, DependencyLoopError, liveRecord } from "../references.js";
 import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
-import type { CONTRACT_PROOFS, FieldsOf } from "../schema/types.js";
+import type { FieldsOf } from "../schema/types.js";
+
+/** How a contract is proved, with its reason, as stored (ADR-1294): observability as proof also names its freshness and watcher (ADR-1345). */
+export type ContractProof = NonNullable<FieldsOf<"contract">["proof"]>;
 import { historyOf, PR_CUTOVER_ID, type PrCutover } from "./pr-cutover.js";
 
 /**
@@ -74,8 +77,8 @@ export interface PluginPlanCapability {
   /** On until the plugin says it is built (ADR-0744 D2); proposed when not given. */
   readonly proposed?: boolean;
   readonly dependsOn?: string[];
-  /** Each contract's proof says how it is proved (CONTRACT_PROOFS), written only here for a plugin's contract. */
-  readonly contracts: readonly { readonly title: string; readonly description?: string; readonly proof?: { readonly by: (typeof CONTRACT_PROOFS)[number]; readonly reason: string } }[];
+  /** Each contract's proof says how it is proved (CONTRACT_PROOFS, ContractProof), written only here for a plugin's contract. */
+  readonly contracts: readonly { readonly title: string; readonly description?: string; readonly proof?: Readonly<ContractProof> }[];
 }
 /** What one importPluginPlan did: the plugin's story, and the ids of the records it added, edited, retired and kept as they stood. */
 export interface ImportedPluginPlan {
@@ -221,7 +224,7 @@ export interface ContractNode {
   /** The existing tests that prove it, as stored, when it names any (question_b5918c0ff273). */
   provedBy?: string[];
   /** How it is proved, with its reason, as stored, once chosen (ADR-1294). */
-  proof?: { by: (typeof CONTRACT_PROOFS)[number]; reason: string };
+  proof?: ContractProof;
 }
 
 export interface ArcNode {

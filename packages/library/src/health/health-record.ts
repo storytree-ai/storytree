@@ -17,7 +17,7 @@
 import { byCreation } from "../creation-order.js";
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import type { CONTRACT_PROOFS, FieldsOf, RecordType } from "../schema/types.js";
+import { FRESHNESS, type FieldsOf, type RecordType } from "../schema/types.js";
 import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, Holds, ParkedOn, ProjectTree, StoryNode, WorkInFlight, WorkModel } from "../work/index.js";
 
 /** A column's state. A column with no entry reads `not-checked`, never `passing`. */
@@ -175,7 +175,7 @@ export type OpenWait =
  * Why a capability is not healthy (ADR-0825 D1), from a closed set: `not built` while it is
  * proposed; otherwise from its contracts' verified columns. Only `needs owner` is the owner's.
  */
-export type HealthReason = "not built" | "failing" | "not re-run" | "no test names it" | "acceptance test not run" | "out of CI's reach" | "needs owner";
+export type HealthReason = "not built" | "failing" | "not re-run" | "no test names it" | "no live reading" | "acceptance test not run" | "out of CI's reach" | "needs owner";
 
 /** A capability's reason, who moves it, the contracts that carry it, and since when, where a time was recorded. */
 export interface CapabilityWhy {
@@ -436,6 +436,25 @@ export class HealthRecord {
   }
 
   /**
+   * Record a live reading of contract `contractId`, proved by observability as proof (ADR-1345 D1): what its watcher saw on the
+   * real machines, `machine` the one that took it and `evidence` what it saw, kept beside the column test runs write, so a run
+   * that skips its live-only test never overwrites it. A verdict written as recordVerified writes one, by the contract's
+   * watcher, and told as recordVerified tells it: a turn red releases the work waiting on it and tells the owner. Refused with a
+   * MissingReferenceError for an id that names no live contract, and with a RangeError for a contract another proof proves.
+   */
+  async recordObserved(contractId: string, state: "passing" | "failing", { machine, evidence, ...write }: { machine: string; evidence: string } & WriteOptions): Promise<HealthEntry> {
+    const contract = await liveRecord(this.#records, contractId, ["contract"]);
+    if (contract === null) await this.#contract(contractId);
+    const proof = (contract?.fields as FieldsOf<"contract"> | undefined)?.proof;
+    if (proof?.by !== "observability-as-proof") throw new RangeError(`contract ${contractId} is not proved by observability as proof, so a live reading does not prove it`);
+    const current = await this.#records.get(healthId(contractId, "observed"));
+    const earlier = current?.type === "health" ? verdictOf(entryOf(current.fields as FieldsOf<"health">, current.updatedAt)) : undefined;
+    const entry = await this.#save("verified", contractId, state, { ...write, by: proof.watcher, note: `${evidence}, taken on ${machine}`, source: "local" }, "observed");
+    await this.#tell(contractId, earlier, entry, write);
+    return entry;
+  }
+
+  /**
    * Say that a run in progress will record contract `contractId`'s verified column: a pending mark,
    * kept apart from the column (`health_<contractId>_pending`), so its health reads as before. The
    * worklist holds back a capability every contract carrying its reason is so marked for, until the
@@ -451,15 +470,16 @@ export class HealthRecord {
    * a story's from the live contracts of all its live capabilities: failing if any is failing,
    * passing only if there is at least one and every one is passing, and not-checked otherwise. A
    * rolled-up column holds its state alone. An id naming no live story, capability or contract has
-   * no entries, so it reads not-checked in both columns.
+   * no entries, so it reads not-checked in both columns. A contract proved by observability as proof reads its verified
+   * column from its newest live reading as of `now` (ownHealth).
    */
-  async health(nodeId: string): Promise<NodeHealth> {
+  async health(nodeId: string, { now = new Date() }: { now?: Date } = {}): Promise<NodeHealth> {
     const node = await liveRecord(this.#records, nodeId, NODE_TYPES);
     if (node === null) return rolledUp([]); // nothing to read: not-checked in both columns
     // A contract's own records alone: reading every health record for one costs a library far away megabytes.
-    if (node.type === "contract") return ownHealth(node.id, new Map((await this.#records.list("health", { ids: (["reported", "verified", "ci"] as const).map((column) => healthId(node.id, column)) })).map((record) => [record.id, record])));
+    if (node.type === "contract") return ownHealth(node.id, new Map((await this.#records.list("health", { ids: (["reported", "verified", "ci", "observed"] as const).map((column) => healthId(node.id, column)) })).map((record) => [record.id, record])), (node.fields as FieldsOf<"contract">).proof, now);
     const entries = await this.#entries();
-    const contracts = (await this.#contractsUnder(node)).map((id) => ownHealth(id, entries));
+    const contracts = (await this.#contractsUnder(node)).map(({ id, fields }) => ownHealth(id, entries, fields.proof, now));
     const capabilities = node.type === "capability" ? [node.id] : (await this.#records.list("capability")).filter((capability) => capability.fields.story === node.id).map(({ id }) => id);
     return rolledUp(contracts, capabilities.flatMap((id) => counted(unclaimedOf(id, entries))));
   }
@@ -484,9 +504,10 @@ export class HealthRecord {
    * `tree`, as WorkModel.projectTree() gives it, with `health` added to every story, capability and
    * contract: a contract's own, and each capability's and story's rolled up from the contracts the
    * tree holds under it; an edge's contracts carry their own and roll into neither. The tree given is not changed. With no tree, the plan as it is now. `parked`,
-   * WorkInFlight.parkedCapabilities()'s reading, marks each capability not proven with the arcs that park it.
+   * WorkInFlight.parkedCapabilities()'s reading, marks each capability not proven with the arcs that park it. A contract proved
+   * by observability as proof reads its newest live reading as of `now`.
    */
-  async annotate(tree?: ProjectTree, parked: ReadonlyMap<string, readonly ParkedOn[]> = new Map()): Promise<AnnotatedTree> {
+  async annotate(tree?: ProjectTree, parked: ReadonlyMap<string, readonly ParkedOn[]> = new Map(), now: Date = new Date()): Promise<AnnotatedTree> {
     const plan = tree ?? (await this.#work.projectTree());
     const owners = new Map(plan.stories.flatMap((story) => story.capabilities.flatMap((capability) => capability.contracts.map((contract) => [contract.id, capability.id] as const))));
     const [entries, open] = await Promise.all([this.#entries(), this.#openWork(owners)]);
@@ -496,7 +517,7 @@ export class HealthRecord {
       ...(plan.anchor === undefined ? {} : { anchor: { ...plan.anchor } }),
       stories: plan.stories.map(({ edges: links, ...story }) => {
         const capabilities = story.capabilities.map((capability) => {
-          const contracts = capability.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries) }));
+          const contracts = capability.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries, contract.proof, now) }));
           const unclaimed = unclaimedOf(capability.id, entries);
           const own = counted(unclaimed);
           const health = rolledUp(contracts.map((contract) => contract.health), own);
@@ -515,7 +536,7 @@ export class HealthRecord {
           return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(unclaimed === undefined ? {} : { unclaimed }), ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}), ...(parkedOn === undefined ? {} : { parkedOn: [...parkedOn] }), ...(open.has(capability.id) ? { openWork: open.get(capability.id)!.map((one) => ({ ...one })) } : {}) };
         });
         const health = rolledUp(capabilities.flatMap((capability) => capability.contracts.map((contract) => contract.health)), capabilities.flatMap((capability) => counted(capability.unclaimed)));
-        const edges = links?.map((edge) => ({ ...edge, contracts: edge.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries) })) }));
+        const edges = links?.map((edge) => ({ ...edge, contracts: edge.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries, contract.proof, now) })) }));
         return { ...story, capabilities, ...(edges === undefined ? {} : { edges }), health };
       }),
       arcs: plan.arcs.map((arc) => ({ ...arc, stories: [...arc.stories] })),
@@ -589,7 +610,7 @@ export class HealthRecord {
     ]);
     const recorded = new Map((await this.#records.list("capability")).map(({ id, createdAt }) => [id, createdAt]));
     const marks = new Map((await this.#records.list("health")).filter(({ id }) => id.endsWith(PENDING)).map((record) => [record.fields.node, record]));
-    return (await this.annotate()).stories
+    return (await this.annotate(undefined, undefined, now)).stories
       .flatMap((story) => story.capabilities.flatMap(({ id, title, status, why, contracts, unclaimed }) => {
         if (why === undefined || routed.has(id)) return [];
         const verified = new Map(contracts.map((contract) => [contract.id, contract.health.verified]));
@@ -623,14 +644,14 @@ export class HealthRecord {
   }
 
   /** Save the entry as the record of node `nodeId`'s column (or its pending mark, or a capability's unclaimed reading), checked inside the write. */
-  async #save(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed" | "ci"): Promise<HealthEntry> {
+  async #save(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed" | "ci" | "observed"): Promise<HealthEntry> {
     const { type, fields, options: write } = this.#entry(column, nodeId, state, options, kept);
     const record = await this.#records.create(type, fields, { ...write, ...(options.signal === undefined ? {} : { signal: options.signal }) });
     return entryOf(record.fields, record.updatedAt);
   }
 
   /** The health record #save writes for an entry, as SchemaRecords.createAll takes it. */
-  #entry(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed" | "ci"): { type: "health"; fields: FieldsOf<"health">; options: { id: string; actor?: string } } {
+  #entry(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed" | "ci" | "observed"): { type: "health"; fields: FieldsOf<"health">; options: { id: string; actor?: string } } {
     const { by, note, skip, was, source, tests } = options;
     const actor = options.actor ?? by;
     return {
@@ -655,14 +676,14 @@ export class HealthRecord {
     return new Map((await this.#records.list("health")).filter(({ id }) => !id.endsWith(PENDING)).map((record) => [record.id, record]));
   }
 
-  /** The ids of the live contracts a capability's or story's health is rolled up from. */
-  async #contractsUnder(node: SchemaRecord<"story" | "capability">): Promise<string[]> {
+  /** The live contracts a capability's or story's health is rolled up from. */
+  async #contractsUnder(node: SchemaRecord<"story" | "capability">): Promise<SchemaRecord<"contract">[]> {
     const capabilities =
       node.type === "capability"
         ? new Set([node.id])
         : new Set((await this.#records.list("capability")).filter((capability) => capability.fields.story === node.id).map(({ id }) => id));
     const contracts = await this.#records.list("contract");
-    return contracts.filter((contract) => contract.fields.capability !== undefined && capabilities.has(contract.fields.capability)).map(({ id }) => id);
+    return contracts.filter((contract) => contract.fields.capability !== undefined && capabilities.has(contract.fields.capability));
   }
 }
 
@@ -671,8 +692,8 @@ function verdictOf(entry: HealthEntry): "passing" | "failing" | undefined {
   return entry.state === "not-checked" ? entry.was?.state : entry.state;
 }
 
-/** The id of the record holding a contract's column, one record per contract and column, or its pending mark, or CI's kept verdict. */
-function healthId(contractId: string, column: HealthColumnName | "pending" | "unclaimed" | "ci"): string {
+/** The id of the record holding a contract's column, one record per contract and column, or its pending mark, CI's kept verdict, or its newest live reading. */
+function healthId(contractId: string, column: HealthColumnName | "pending" | "unclaimed" | "ci" | "observed"): string {
   return `health_${contractId}_${column}`;
 }
 
@@ -714,14 +735,39 @@ function waitingOnNamed(named: NamedOnMain | undefined, why: CapabilityWhy, cont
   return { since: named.at, note: `a test on main (commit ${named.commit}) names ${numbers.join(", ")}; no recorded run has seen it yet` };
 }
 
-/** A contract's own health: each column's latest entry, or not-checked. */
-function ownHealth(contractId: string, entries: ReadonlyMap<string, SchemaRecord<"health">>): NodeHealth {
+/** How a contract is proved, as stored (ADR-1294, ADR-1345). */
+type ContractProof = NonNullable<FieldsOf<"contract">["proof"]>;
+
+/**
+ * A contract's own health: each column's latest entry, or not-checked. One `proof` says is proved by observability as proof
+ * reads its verified column from its newest live reading as of `now` (ADR-1345 D1): a test run's pass or skip does not stand
+ * in for it, and only a test's fail, which still fails it, shows through. So the gear's CI-over-local order (ADR-1320 D2)
+ * orders test runs alone, and its `ci` copy still says what CI's tests saw.
+ */
+function ownHealth(contractId: string, entries: ReadonlyMap<string, SchemaRecord<"health">>, proof?: ContractProof, now: Date = new Date()): NodeHealth {
   const ci = entries.get(healthId(contractId, "ci"));
+  const tested = columnOf(entries.get(healthId(contractId, "verified")));
+  const observed = proof?.by === "observability-as-proof" && tested.state !== "failing";
   return {
     reported: columnOf(entries.get(healthId(contractId, "reported"))),
-    verified: columnOf(entries.get(healthId(contractId, "verified"))),
+    verified: observed ? readingOf(entries.get(healthId(contractId, "observed")), proof.freshness, now) : tested,
     ...(ci === undefined ? {} : { ci: columnOf(ci) }),
   };
+}
+
+/**
+ * A live reading as it stands at `now`: not-checked with none; as written while it is a failing one or no older than
+ * `freshness`; past that, not re-run over the passing it can no longer vouch for, never passing on an old reading.
+ */
+function readingOf(record: SchemaRecord<"health"> | undefined, freshness: string, now: Date): HealthColumn {
+  const reading = columnOf(record);
+  if (reading.state !== "passing" || reading.at === undefined) return reading;
+  const [, count, unit] = FRESHNESS.exec(freshness) ?? [];
+  const limit = Number(count) * (unit === "d" ? 86_400_000 : 3_600_000);
+  if (now.getTime() - Date.parse(reading.at) <= limit) return reading;
+  const { note, ...kept } = reading;
+  const said = `${count} ${unit === "d" ? "day" : "hour"}${count === "1" ? "" : "s"}`;
+  return { ...kept, state: "not-checked", was: { state: "passing", at: reading.at }, note: `not re-run: its newest live reading, at ${reading.at}, is older than its freshness of ${said}${note === undefined ? "" : `: ${note}`}` };
 }
 
 /** A contract's column as its record leaves it: not-checked when there is no record. */
@@ -774,11 +820,11 @@ export function capabilityStatus(proposed: boolean, verified: readonly HealthSta
  * has a reason: `failing`; not checked, `needs owner` for an owner-kind skip, `out of CI's reach`
  * for a platform one, `not re-run` for any other skip or an earlier verdict it did not reproduce,
  * and, for one never recorded, `no test names it`, or `acceptance test not run` when its proof is agentic
- * user acceptance testing, which no plain test names. The capability's is the first of those, in that
+ * user acceptance testing, which no plain test names, or `no live reading` when it is observability as proof. The capability's is the first of those, in that
  * order, its contracts have: the agent's work is ranked before the owner's, so the owner is asked
  * only once nothing an agent can do remains.
  */
-export function capabilityWhy(proposed: boolean, contracts: readonly { id: string; verified: HealthColumn; proof?: ContractProof }[]): CapabilityWhy | undefined {
+export function capabilityWhy(proposed: boolean, contracts: readonly { id: string; verified: HealthColumn; proof?: ContractProof["by"] }[]): CapabilityWhy | undefined {
   if (proposed) return { reason: "not built", mover: "agent", contracts: [] };
   if (contracts.length === 0) return { reason: "no test names it", mover: "agent", contracts: [] };
   const reasons = contracts.map((contract) => ({ ...contract, reason: contractReason(contract.verified, contract.proof) }));
@@ -823,18 +869,16 @@ export const NOT_VERIFIED = "storytree does not check this project's tests yet";
 const REPORTS: Readonly<Record<HealthState, string>> = { passing: "reports passing", failing: "reports failing", "not-checked": "has reported nothing yet" };
 
 /** The reasons a built capability can have, the one it shows first. */
-const RANKED: readonly HealthReason[] = ["failing", "not re-run", "no test names it", "acceptance test not run", "out of CI's reach", "needs owner"];
-
-/** How a contract is proved (CONTRACT_PROOFS). */
-type ContractProof = (typeof CONTRACT_PROOFS)[number];
+const RANKED: readonly HealthReason[] = ["failing", "not re-run", "no test names it", "no live reading", "acceptance test not run", "out of CI's reach", "needs owner"];
 
 /** Why one contract, proved as `proof` says, is not verified passing; undefined when it is. */
-function contractReason(verified: HealthColumn, proof: ContractProof | undefined): HealthReason | undefined {
+function contractReason(verified: HealthColumn, proof: ContractProof["by"] | undefined): HealthReason | undefined {
   if (verified.state === "passing") return undefined;
   if (verified.state === "failing") return "failing";
   if (verified.skip === "owner") return "needs owner";
   if (verified.skip?.startsWith("platform:")) return "out of CI's reach";
   if (verified.skip !== undefined || verified.was !== undefined) return "not re-run";
+  if (proof === "observability-as-proof") return "no live reading";
   return proof === "agentic-user-acceptance-testing" ? "acceptance test not run" : "no test names it";
 }
 

@@ -140,8 +140,23 @@ export const PIN_ICONS = ["cache", "queue", "store", "api", "auth", "config", "j
 /** The longest a pin's label may be: a few words, beside its icon. */
 export const PIN_LABEL_LIMIT = 40;
 
-/** How a contract is proved (ADR-1294): a test criterion, a test reading the answer, or agentic user acceptance testing, an agent trying it on screen. */
-export const CONTRACT_PROOFS = ["test-criterion", "agentic-user-acceptance-testing"] as const;
+/**
+ * How a contract is proved (ADR-1294, ADR-1345 D2): a test criterion, a test reading the answer; agentic user acceptance testing, an
+ * agent trying it on screen; or observability as proof, a recorded live reading taken on the real machines doing the real work.
+ */
+export const CONTRACT_PROOFS = ["test-criterion", "agentic-user-acceptance-testing", "observability-as-proof"] as const;
+
+/** How old a live reading may be and still prove its contract (ADR-1345 D1): a whole number of hours or days, as `36h` or `2d`. */
+export const FRESHNESS = /^([1-9]\d*)([hd])$/;
+
+/**
+ * A contract's proof, with a one-line reason (ADR-1294). Observability as proof also names its freshness and the watcher that
+ * records its readings (ADR-1345 D1, D2); no other proof carries them.
+ */
+const contractProof = z.union([
+  z.object({ by: z.enum(["test-criterion", "agentic-user-acceptance-testing"]), reason: nonEmpty }).strict(),
+  z.object({ by: z.literal("observability-as-proof"), reason: nonEmpty, freshness: z.string().regex(FRESHNESS, "a whole number of hours or days, as 36h or 2d"), watcher: nonEmpty }).strict(),
+]);
 
 /** Who a story reaches (question_1740edf77e9e): the owner alone, the invited users, or the public. */
 export const RISK_AUDIENCES = ["owner", "invited", "public"] as const;
@@ -343,8 +358,8 @@ export const RECORD_SCHEMAS = {
        * naming every test it holds) or another runner's test or suite title. Optional, so no version bump.
        */
       provedBy: z.array(nonEmpty).min(1).optional(),
-      /** How it is proved, with a one-line reason, once its story-author has chosen (ADR-1294). Optional, so no version bump. */
-      proof: z.object({ by: z.enum(CONTRACT_PROOFS), reason: nonEmpty }).strict().optional(),
+      /** How it is proved, with a one-line reason, once its story-author has chosen (ADR-1294, ADR-1345). Optional, so no version bump. */
+      proof: contractProof.optional(),
     })
     .strict()
     .superRefine((fields, context) => {

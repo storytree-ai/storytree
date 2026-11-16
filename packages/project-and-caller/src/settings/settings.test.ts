@@ -90,8 +90,6 @@ test("2.3 unknown names and values that are not positive whole numbers are refus
   });
 });
 
-const INSTANCE = "my-project:australia-southeast1:my-instance";
-
 test("2.10 idle-after defaults to 30 minutes and accepts positive durations without losing other settings", async () => {
   await withTempDir((home) => {
     const initial = agentLink.readSettings(home)["idle-after"];
@@ -142,37 +140,40 @@ test("2.10 invalid idle durations are refused with a reason and leave the file b
   });
 });
 
-test("2.5 the library is local by default, set to a Cloud SQL instance, and set back to local", async () => {
+test("2.5 the library is local by default, set to a Postgres address, and set back to local", async () => {
   await withTempDir((home) => {
+    const address = "postgres://me@db.example.com:5432/postgres";
     const initial = agentLink.readSettings(home).library;
     assert.equal(initial.location, "local");
     assert.equal(initial.default, "local");
     assert.equal(initial.source, "default");
     assert.match(initial.meaning, /where/i);
     agentLink.setSetting("context-guidance", "400000", home);
-    assert.deepEqual(agentLink.setLibrary(["cloudsql", INSTANCE, "you@example.com"], home),
-      { ...initial, location: "cloudsql", instance: INSTANCE, user: "you@example.com", source: "set" });
-    assert.deepEqual(agentLink.readSettings(home).library,
-      { ...initial, location: "cloudsql", instance: INSTANCE, user: "you@example.com", source: "set" });
+    assert.deepEqual(agentLink.setLibrary(["postgres", address], home), { ...initial, location: "postgres", address, source: "set" });
     assert.equal(agentLink.readSettings(home)["context-guidance"].value, 400_000, "the other setting is kept");
-    assert.deepEqual(JSON.parse(readFileSync(path.join(home, "settings.json"), "utf8")).library,
-      { location: "cloudsql", instance: INSTANCE, user: "you@example.com" });
     assert.deepEqual(agentLink.setLibrary(["local"], home), { ...initial, source: "set" });
+    assert.deepEqual(JSON.parse(readFileSync(path.join(home, "settings.json"), "utf8")).library, { location: "local" });
   });
 });
 
-test("2.6 a library setting that is not local or a well-written Cloud SQL instance and account is refused, the file untouched", async () => {
+test("2.6 a library setting that is not local or a Postgres address is refused, the file untouched; one still set to Cloud SQL is refused saying how to reach it by address, never read as local", async () => {
   await withTempDir((home) => {
     agentLink.setLibrary(["local"], home);
     const file = path.join(home, "settings.json");
     const before = readFileSync(file, "utf8");
-    for (const words of [[], ["remote"], ["local", "extra"], ["cloudsql"], ["cloudsql", INSTANCE], ["cloudsql", "my-instance", "you@example.com"],
-      ["cloudsql", INSTANCE, "not an email"], ["cloudsql", INSTANCE, "you@example.com", "extra"]]) {
+    for (const words of [[], ["remote"], ["local", "extra"], ["postgres"], ["cloudsql", "my-project:australia-southeast1:my-instance", "you@example.com"]]) {
       assert.throws(() => agentLink.setLibrary(words, home), /library/i, JSON.stringify(words));
       assert.equal(readFileSync(file, "utf8"), before, JSON.stringify(words));
     }
-    writeFileSync(file, JSON.stringify({ library: { location: "cloudsql", instance: "bad" } }));
-    assert.throws(() => agentLink.readSettings(home), /invalid settings file/i);
+    writeFileSync(file, JSON.stringify({ library: { location: "cloudsql", instance: "my-project:australia-southeast1:my-instance", user: "you@example.com" } }));
+    for (const read of [() => agentLink.readSettings(home), () => agentLink.readLibrary(home)]) {
+      assert.throws(read, (error: Error) => {
+        assert.match(error.message, /invalid settings file/i);
+        assert.match(error.message, /Cloud SQL is no longer built into storytree/);
+        assert.match(error.message, /storytree settings set library postgres postgres:\/\//);
+        return true;
+      });
+    }
   });
 });
 

@@ -58,10 +58,10 @@ export interface Storytree {
   dropProject(name: string): Promise<void>;
   /**
    * A database of the caller's own called `name`, beside the projects on the same server, local or
-   * Cloud SQL (contract 7.7, ADR-0735 D3): created the first time as a project's is, borrowing a
+   * shared (contract 7.7, ADR-0735 D3): created the first time as a project's is, borrowing a
    * creator role where the user may not create databases; never listed as a project; closed with
    * this connection. The one pool the library hands out, and never to a project's database: the
-   * agent activity log keeps its lines here, so it reaches the cloud wherever the library does.
+   * agent activity log keeps its lines here, so it reaches the shared server wherever the library does.
    * Handed its `tables`, the library sets it up (ADR-0973): it runs those the database has not yet
    * applied, in one transaction under the database's own lock, so callers setting it up at once take
    * turns and a database already set up runs no DDL. A
@@ -363,12 +363,10 @@ export interface Changes {
 }
 
 /**
- * Connect to a Postgres server: `{ url }` for one at a postgres:// URL, `{ cloudSql: { instance,
- * user } }` for a Cloud SQL instance, signed in to as your own Google account (capability 8), or
- * `{ address }` for any Postgres by address, its password the `postgres` key (capability 15).
- * Nothing touches the server until a call needs it, but a Cloud SQL instance is signed in to and
- * looked up here. Whatever stops storytree reaching or using a server as it is set up is refused
- * with a ConnectionError saying what to fix.
+ * Connect to a Postgres server: `{ url }` for one at a postgres:// URL, or `{ address }` for any
+ * Postgres by address, its password the `postgres` key (capability 15). Nothing touches the server
+ * until a call needs it. Whatever stops storytree reaching or using a server as it is set up is
+ * refused with a ConnectionError saying what to fix.
  */
 export async function connect(options: ConnectOptions): Promise<Storytree> {
   return new ServerHandle(await connectServer(options));

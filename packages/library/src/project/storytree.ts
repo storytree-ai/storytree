@@ -1,11 +1,10 @@
 /**
  * Capability 1 · Project libraries (the library story): one Postgres server holds many
  * projects, each in its own database, created the first time the project is opened. The server is
- * at a URL, or it is a Cloud SQL instance reached with Google sign-in (capability 8): either way it
- * is reached through a ServerAccess, and everything here works the same on both.
+ * at a URL, or at an address whose password is a key (capability 15): either way it is reached
+ * through a ServerAccess, and everything here works the same on both.
  *
- * A server user that may not create databases (as a Cloud SQL IAM user may not, and cannot be let
- * to) borrows a role granted to it that may, for the CREATE DATABASE alone. With none to borrow,
+ * A server user that may not create databases (as a managed server's user often may not) borrows a role granted to it that may, for the CREATE DATABASE alone. With none to borrow,
  * opening a new project is refused with the two lines that grant one.
  *
  * Setting a project's tables up, or upgrading them, is its owner's alone. Opening a project whose
@@ -29,7 +28,6 @@ import type { Transactions } from "../transactions/types.js";
 import { WorkInFlight } from "../work/work-in-flight.js";
 import { WorkModel } from "../work/work-model.js";
 import { addressServer } from "./address.js";
-import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud-sql.js";
 import { PgVectors, vectorServerIdentity, type VectorDomain } from "./embeddings.js";
 import { CachedTransactions } from "./record-cache.js";
 import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
@@ -42,7 +40,7 @@ import { schemaMerged, type SchemaMerged } from "./schema-merged.js";
 import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
 import { localServer, type ServerAccess, type WaitBounds } from "./server.js";
 
-/** Where the Postgres server is: at a URL, a Cloud SQL instance reached with Google sign-in, or an address whose password is a key. */
+/** Where the Postgres server is: at a URL, or an address whose password is a key. */
 export type ConnectOptions = (
   | {
       /**
@@ -52,7 +50,6 @@ export type ConnectOptions = (
       readonly url: string;
       /** A new local database connection must answer within this long; defaults to 3 seconds. */
       readonly connectTimeoutMs?: number;
-      readonly cloudSql?: undefined;
       readonly address?: undefined;
     }
   | {
@@ -64,16 +61,6 @@ export type ConnectOptions = (
       /** A new connection must answer within this long; defaults to 20 seconds. */
       readonly connectTimeoutMs?: number;
       readonly url?: undefined;
-      readonly cloudSql?: undefined;
-    }
-  | {
-      /**
-       * A Cloud SQL for PostgreSQL instance, signed in to as your own Google account (capability 8).
-       * Its `postgres` database is only used to create and list project databases.
-       */
-      readonly cloudSql: CloudSqlConfig;
-      readonly url?: undefined;
-      readonly address?: undefined;
     }
 ) & {
   /**
@@ -157,7 +144,7 @@ export interface Storytree {
   dropProject(name: string): Promise<void>;
   /**
    * A database of the caller's own called `name`, beside the projects on the same server, local or
-   * Cloud SQL (contract 7.7, ADR-0735 D3): created the first time as a project's is, never listed
+   * shared (contract 7.7, ADR-0735 D3): created the first time as a project's is, never listed
    * as a project, and closed with this connection. A project's database is never handed out.
    * Handed its `tables` (ADR-0973), it runs those the database has not yet applied, in one transaction
    * under the database's own lock, so callers setting the same database up at once take turns and
@@ -197,21 +184,18 @@ export interface Project {
 }
 
 /**
- * Connect to a Postgres server. Nothing touches the server until a call needs it. A Cloud SQL
- * instance is signed in to and looked up first, so a missing or bad Google sign-in, or an instance
- * the account cannot use, is refused here with a ConnectionError saying what to fix. `seams` is
- * internal: tests hand the cloud path a fake connector through it, and ranked search a fake embedder.
+ * Connect to a Postgres server. Nothing touches the server until a call needs it. `seams` is
+ * internal: tests hand ranked search a fake embedder through it.
  */
 export async function connect(options: ConnectOptions, seams: ProjectSeams = {}): Promise<Storytree> {
-  if ([options.url, options.cloudSql, options.address].filter((given) => given !== undefined).length > 1) {
-    throw new ConnectionError("config", "Give connect() one of a url, a cloudSql instance or an address, not more.");
+  if (options.url !== undefined && options.address !== undefined) {
+    throw new ConnectionError("config", "Give connect() one of a url or an address, not both.");
   }
   const bounds: WaitBounds = options;
   if (options.address !== undefined) {
     return new ServerConnection(addressServer(options.address, options.connectTimeoutMs, bounds), { sharedLibrary: !onTestServer(options.address), ...seams });
   }
-  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs, bounds), seams);
-  return new ServerConnection(await cloudSqlServer(options.cloudSql, seams, bounds), { sharedLibrary: seams.connector === undefined, ...seams }, options.cloudSql.instance);
+  return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs, bounds), seams);
 }
 
 /**
@@ -243,8 +227,8 @@ function schemaMergedOnce(file: string): SchemaMerged {
   return standing;
 }
 
-/** What tests may hand connect() in place of the real thing: the Cloud SQL connector, and the embedder. */
-export type ProjectSeams = CloudSqlSeams & {
+/** What tests may hand connect() in place of the real thing: the embedder. */
+export type ProjectSeams = {
   readonly embedder?: EmbedderSource;
   /** Local SQLite file; null disables it. Custom embedders default to no disk cache. */
   readonly vectorCache?: string | null;
@@ -253,7 +237,7 @@ export type ProjectSeams = CloudSqlSeams & {
    * shared library keeps one in the storytree home, except under a test run, whose servers come and go.
    */
   readonly recordCache?: string | null;
-  /** Whether the library is shared, so takes schema statements only from merged code: by default, one reached by address (off the test run's server) or by Google's Cloud SQL connector. */
+  /** Whether the library is shared, so takes schema statements only from merged code: by default, one reached by address (off the test run's server). */
   readonly sharedLibrary?: boolean;
   /** Whether a file declaring tables (the project schema's, or an own database's) is merged; by default read from its checkout. */
   readonly schemaMerged?: (file: string) => SchemaMerged;
@@ -269,15 +253,13 @@ class ServerConnection implements Storytree {
   readonly #embedder: EmbedderSource | undefined;
   readonly #vectorCache: string | null;
   readonly #recordCache: string | null;
-  readonly #cloudInstance: string | undefined;
   /** For a shared library, whether a file declaring tables is merged; undefined for a throwaway one, which takes any. */
   readonly #merged: ((file: string) => SchemaMerged) | undefined;
   #closing: Promise<void> | undefined;
 
-  constructor(server: ServerAccess, seams: ProjectSeams, cloudInstance?: string) {
+  constructor(server: ServerAccess, seams: ProjectSeams) {
     this.#server = server;
     this.#embedder = seams.embedder;
-    this.#cloudInstance = cloudInstance;
     this.#merged = seams.sharedLibrary === true ? (seams.schemaMerged ?? schemaMergedOnce) : undefined;
     this.#vectorCache = seams.vectorCache === undefined
       ? (seams.embedder === undefined ? path.join(modelsFolder(), "vectors.sqlite") : null)
@@ -347,7 +329,7 @@ class ServerConnection implements Storytree {
       await pool.end();
       throw error;
     });
-    const domain = { server: vectorServerIdentity(pool, this.#cloudInstance), database, identity };
+    const domain = { server: vectorServerIdentity(pool), database, identity };
     const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder, factory, options.system, options.kinds, this.#recordCache);
     this.#projects.add(project);
     return project;
@@ -536,7 +518,7 @@ class ServerConnection implements Storytree {
       if (creator !== undefined) return createDatabaseAs(admin, creator, database);
       // None to borrow: say how to grant one.
       const user = await this.#serverUser().catch(() => undefined);
-      if (user !== undefined) throw cannotCreateDatabases(this.#server.kind, user, error);
+      if (user !== undefined) throw cannotCreateDatabases(user, error);
       throw error;
     }
   }

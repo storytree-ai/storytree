@@ -30,7 +30,7 @@ test("7.1 judge: a contract passes only if every test it has passed; any failure
       result("2.1 [postgres] some", "skipped", { message: "no server" }),
       result("8.1 live proof", "skipped", { message: "owner-gated" }),
       // Nested under 8.1, a test named for 2.2 counts for 8.1, the outermost numbered name.
-      { name: "2.2 [cloud-sql] inside", suites: ["8.2 around it"], file: "C:\\repo\\a.test.ts", status: "passed" },
+      { name: "2.2 [address] inside", suites: ["8.2 around it"], file: "C:\\repo\\a.test.ts", status: "passed" },
       result("robustness [memory] no number", "passed"),
       result("9.9 a contract the story does not have", "passed"),
     ],
@@ -702,7 +702,7 @@ test("7.2 judge reads a skipped contract's skip kind from its skip reason's firs
   const { verdicts } = judge({
     contracts: ["1.1", "1.2", "1.3", "1.4"],
     results: [
-      result("1.1 live proof", "skipped", { message: "owner: live Cloud SQL proof needs a sign-in" }),
+      result("1.1 live proof", "skipped", { message: "owner: the live proof needs the owner's machines" }),
       result("1.2 cmd.exe", "skipped", { message: "platform:win32: only Windows reads the .cmd again" }),
       result("1.3 later", "skipped", { message: "no server here" }),
       result("1.4 runs", "passed"),
@@ -731,13 +731,7 @@ test("7.3 on CI with no HEALTH_PG_ADDRESS, nothing is recorded, and it says the 
   }
 });
 
-test("7.3, 7.11 · run by hand, own health is recorded in the library the setting names: the Cloud SQL instance, a Postgres address, or the app's own", () => {
-  const cloud = { location: "cloudsql", instance: "my-project:australia-southeast1:my-instance", user: "you@my-project.iam" };
-  assert.deepEqual(recordingTarget({ env: {}, setting: cloud }), {
-    record: true,
-    library: { cloudSql: { instance: cloud.instance, user: cloud.user } },
-    writer: { by: "storytree test run", source: "local" },
-  });
+test("7.3, 7.11 · run by hand, own health is recorded in the library the setting names: a Postgres address, or the app's own", () => {
   assert.deepEqual(recordingTarget({ env: {}, setting: { location: "local" } }), { record: true, library: "app", writer: { by: "storytree test run", source: "local" } });
   const address = "postgres://me@library-box:5432/postgres";
   assert.deepEqual(recordingTarget({ env: {}, setting: { location: "postgres", address } }), { record: true, library: { address }, writer: { by: "storytree test run", source: "local" } });

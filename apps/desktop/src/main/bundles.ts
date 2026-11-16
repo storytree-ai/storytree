@@ -32,11 +32,6 @@ export const MAIN_EXTERNAL = [
   "pg-native",
   "pg-cloudflare",
   "cloudflare:sockets",
-  // The library's Cloud SQL path (capability 8) loads these lazily, from node_modules, when the
-  // library setting names a Cloud SQL instance (ADR-0734). Google's auth library stays outside the
-  // bundle too: the connector accepts only its own copy's GoogleAuth.
-  "@google-cloud/cloud-sql-connector",
-  "google-auth-library",
   // Ranked search loads the embedding model runtime lazily, from node_modules (native ONNX Runtime).
   "@huggingface/transformers",
 ];

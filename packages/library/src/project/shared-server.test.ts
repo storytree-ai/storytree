@@ -1,9 +1,9 @@
 /**
  * Capability 28 · Shared server, contract 28.1 (ADR-0734 D3), and 28.2-28.6: two accounts on one server,
  * each a member of the role that creates project databases (the laptop's owner and the Mint box's
- * service account on one Cloud SQL instance), both open, write and read one project. Tables made
+ * service account on one shared server), both open, write and read one project. Tables made
  * through either belong to the database's owning role, so neither needs the other's ownership to
- * open the project again. Run here with two roles on the test server, as Cloud SQL makes them: no
+ * open the project again. Run here with two roles on the test server, as a shared server makes them: no
  * superuser, and no right to create databases of their own.
  */
 import assert from "node:assert/strict";

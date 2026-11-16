@@ -8,10 +8,10 @@ import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { openActivityLog } from "@storytree/session-management";
-import { requireApproval } from "@storytree/project-and-caller";
+import { requireApproval, setLibrary } from "@storytree/project-and-caller";
 
 import { setUpProject } from "./making.js";
-import { addProject, deleteProject, markerNamed, projectFolder, projectsOnThisComputer, removeProject, type ProjectRecords } from "./index.js";
+import { addProject, deleteProject, markerNamed, projectFolder, projectsOnThisComputer, removeProject, whoLoses, type ProjectRecords } from "./index.js";
 
 /** The test Postgres `pnpm test` starts; each project made here is dropped afterwards. */
 async function testLibrary(t: { after(fn: () => Promise<void>): void }, projects: string[]): Promise<Storytree> {
@@ -223,4 +223,18 @@ test("3.6 a new project of a deleted one's name inherits nothing: not the lines 
   assert.equal((await addProject(path.join(dir, "second"), name, { home, library })).status, "set up");
   assert.deepEqual((await log.since(name, 0)).lines, [], "the new project starts with no lines");
   assert.ok(projectsOnThisComputer(await library.projectIdentities(), other).includes(name), "and is shown on the computer that hid the old one");
+});
+
+test("3.6 deleting a project says where its records live and who loses them: every computer using a library at a Postgres address, or this computer alone", () => {
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-who-loses-"));
+  try {
+    assert.match(whoLoses("site", home), /from this computer’s library/);
+    const address = "postgres://me@db.example.com:5432/postgres";
+    setLibrary(["postgres", address], home);
+    const shared = whoLoses("site", home);
+    assert.ok(shared.includes(`your shared library at ${address}`), shared);
+    assert.match(shared, /every computer using that library loses it/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
 });

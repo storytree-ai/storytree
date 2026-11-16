@@ -1,6 +1,6 @@
 /**
  * Capability 3 · Arc surface: contracts 3.22, 3.23, 3.32 and 3.33, the `question` family's predict, prediction, score, prep and
- * deviation verbs (ADR-1231 D3) and its evidence links, and 3.42, question and arc reads of another library of the factory's circle, run with a caller on a fresh project's library and activity log on the real Postgres
+ * deviation verbs (ADR-1231 D3) and its evidence links, 3.42, question and arc reads of another library of the factory's circle, and 3.43, the owner's questions and waits gathered across that circle and a question settled in its own project's library, run with a caller on a fresh project's library and activity log on the real Postgres
  * `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -200,4 +200,47 @@ test("3.42 · question list and show and arc list and show read the factory's li
   const arcs = await run("arc", "list", { project: factoryName }, fromProduct);
   assert.ok(arcs.startsWith(`project ${factoryName}:`) && arcs.includes(toolArc.id) && !arcs.includes(siteArc.id));
   await assert.rejects(run("arc", "list", { project: outsideName }, fromProduct), (error: unknown) => error instanceof VerbRefusal && error.message.includes(outsideName));
+});
+
+test("3.43 · question list and arc waits with --project all read every library of the factory's circle, the folder's own first, each under its project's name; question settle --project settles a question in that project's library (ADR-1348 D2)", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const [factoryName, productName] = [0, 1].map(() => `t-${randomBytes(4).toString("hex")}`) as [string, string];
+  const log = await openActivityLog(storytree);
+  t.after(async () => {
+    try {
+      await log.close();
+      for (const name of [productName, factoryName]) await storytree.dropProject(name).catch(() => undefined);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const factory = await storytree.openProject(factoryName);
+  await factory.markFactory();
+  const product = await storytree.openProject(productName);
+  await product.recordFactory(factoryName);
+  const siteArc = await product.createArc({ title: "Ricky's site goes live", intent: "Ship it", endState: "It is live" });
+  const siteQuestion = await product.raiseQuestion({ arc: siteArc.id, ...ASK });
+  const domain = await product.addIncrement({ arc: siteArc.id, title: "Domain", objective: "Domain", body: "…" });
+  await product.addWaitFor(domain.id, { releaser: "owner", note: "Buy the domain", why: "the site needs it" });
+  const toolArc = await factory.createArc({ title: "The factory's tooling", intent: "Tools", endState: "Tooled" });
+  const toolQuestion = await factory.raiseQuestion({ arc: toolArc.id, ...ASK, title: "Which runner?" });
+  const context: ArcVerbContext = { library: factory, log, project: factoryName, session: "person:test", folder: "/work", writer: { actor: "person:test" } };
+  const run = async (family: string, name: string, input: Record<string, unknown>): Promise<string> => {
+    const verb = ARC_FAMILIES.find((one) => one.name === family)!.verbs.find((one) => "name" in one.command && one.command.name === name) as Verb<VerbInputs, ArcVerbContext>;
+    return (await verb.act(input as never, context, WORDS)).text;
+  };
+
+  const questions = await run("question", "list", { arc: undefined, project: ["all"] });
+  const [own, theirs] = questions.split("\n\n");
+  assert.ok(own!.startsWith(`project ${factoryName}:\n`) && own!.includes(toolQuestion.id) && !own!.includes(siteQuestion.id), questions);
+  assert.ok(theirs!.startsWith(`project ${productName}:\n`) && theirs!.includes(siteQuestion.id), questions);
+  const waits = await run("arc", "waits", { audit: false, project: ["all"] });
+  assert.match(waits, new RegExp(`^project ${factoryName}:\\nNo waits[\\s\\S]*\\n\\nproject ${productName}:\\n1 wait for you[\\s\\S]*you +Buy the domain \\(why: the site needs it\\) — ${domain.id}`));
+  assert.doesNotMatch(await run("question", "list", { arc: undefined }), new RegExp(siteQuestion.id), "named nowhere, it reads the folder's own");
+
+  assert.match(await run("question", "settle", { question: siteQuestion.id, answer: "Mailgun", project: productName }), new RegExp(`^project ${productName}:\\nSettled question ${siteQuestion.id}`));
+  assert.equal(((await product.get(siteQuestion.id))?.fields as { lifecycle?: string } | undefined)?.lifecycle, "settled");
+  assert.equal(((await factory.get(toolQuestion.id))?.fields as { lifecycle?: string } | undefined)?.lifecycle, "open");
 });

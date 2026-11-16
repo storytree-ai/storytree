@@ -80,5 +80,5 @@ export function isUnreachable(error: unknown): boolean {
 
 /** The library is down: unreachable, or timed out. A lookup that can do without it falls back. */
 export function libraryDown(error: unknown): boolean {
-  return isUnreachable(error) || (error instanceof ConnectionError && error.problem === "timeout");
+  return isUnreachable(error) || (error instanceof ConnectionError && (error.problem === "timeout" || error.problem === "unreachable"));
 }

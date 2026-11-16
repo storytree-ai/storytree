@@ -6,7 +6,8 @@
  *
  * A product reads its system from its factory (InheritedRecords): its roles, notes and checks are the factory's, except
  * where it holds its own record of the same kind and title, which wins, or retired the factory's. Its memory, and
- * everything it writes, stay its own: an edit of an inherited record writes the product's own copy of it.
+ * everything it writes, stay its own: an edit of an inherited record writes the product's own copy of it. Only its
+ * friction is filed into its factory's library, marked with the project (Friction's capture, ADR-1331 D5).
  */
 import type { Pool } from "pg";
 

@@ -179,6 +179,11 @@ export interface Project {
   readonly health: HealthRecord;
   /** Whether the project is the user's factory or a product naming its factory (ADR-1040). */
   readonly lineage: ProjectLineage;
+  /**
+   * The factory a product reads its system from, opened beside it and closed with it: none for a project naming no
+   * factory, or one that is gone or is not a factory.
+   */
+  readonly factory: Project | undefined;
   /** Close this project's connections. */
   close(): Promise<void>;
 }
@@ -561,10 +566,10 @@ class ProjectLibrary implements Project {
   readonly knowledge: Knowledge;
   readonly health: HealthRecord;
   readonly lineage: ProjectLineage;
+  readonly factory: Project | undefined;
   readonly #forget: () => void;
   #closing: Promise<void> | undefined;
 
-  readonly #factory: Project | undefined;
   readonly #cache: CachedTransactions | undefined;
 
   /**
@@ -581,7 +586,7 @@ class ProjectLibrary implements Project {
     const schema = pluginSchema(kinds);
     const records = factory === undefined ? new SchemaRecords(this.transactions, schema) : new InheritedRecords(this.transactions, factory.records, schema);
     this.records = system === undefined ? records : new SwitchedRecords(this.transactions, records, system, schema);
-    this.#factory = factory;
+    this.factory = factory;
     this.work = new WorkModel(this.records);
     this.flight = new WorkInFlight(this.records, this.work);
     this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool, vectorCache, domain), ...(embedder === undefined ? {} : { embedder }) });
@@ -592,7 +597,7 @@ class ProjectLibrary implements Project {
 
   close(): Promise<void> {
     this.#cache?.close();
-    this.#closing ??= Promise.all([this.pool.end(), this.#factory?.close()]).then(() => undefined).finally(this.#forget);
+    this.#closing ??= Promise.all([this.pool.end(), this.factory?.close()]).then(() => undefined).finally(this.#forget);
     return this.#closing;
   }
 }

@@ -34,3 +34,32 @@ export async function withLibrary(body: (library: Library) => Promise<void>): Pr
     await dropTestDatabases([`storytree_${project}`]);
   }
 }
+
+/**
+ * Run `body` with a fresh product project's library, opened after it named a fresh factory (ADR-1040), and the
+ * factory's; both dropped afterwards, pass or fail.
+ */
+export async function withProduct(body: (product: Library, factory: Library) => Promise<void>): Promise<void> {
+  const [factoryName, productName] = [`t-${randomBytes(4).toString("hex")}`, `t-${randomBytes(4).toString("hex")}`];
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const factory = await storytree.openProject(factoryName);
+    try {
+      await factory.markFactory();
+      const naming = await storytree.openProject(productName);
+      await naming.recordFactory(factoryName);
+      await naming.close();
+      const product = await storytree.openProject(productName);
+      try {
+        await body(product, factory);
+      } finally {
+        await product.close();
+      }
+    } finally {
+      await factory.close();
+    }
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([`storytree_${factoryName}`, `storytree_${productName}`]);
+  }
+}

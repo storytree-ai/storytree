@@ -15,7 +15,7 @@ import type { Library } from "@storytree/library";
 import { consumersOf, mounted, VerbRefusal, type DoorWords, type VerbContext } from "@storytree/library/verbs";
 
 import { recordFriction } from "./filing/capture.js";
-import { withLibrary } from "./testing/pg.js";
+import { withLibrary, withProduct } from "./testing/pg.js";
 import { FRICTION_FAMILIES, FRICTION_TOOLS } from "./verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
@@ -312,6 +312,36 @@ test("17.26 · A re-steer names the increment it redirected: record_resteer take
       await resteer.act({ ...call, increment } as never, context, WORDS);
       const [note] = await library.list("resteer");
       assert.equal(note!.fields.increment, increment);
+    });
+  });
+});
+
+test("17.27 · Friction filed in a product project is written to its factory's library, marked with the project and the product's increment it happened in, where the factory's drain sees it, and a recurrence of it is added there too; a link to the product's own memory is refused, nothing written (ADR-1331 D5)", async () => {
+  await withProduct(async (product, factory) => {
+    const principle = await factory.writeKnowledge("principle", { title: "Test first", description: "Test first.", statement: "Write the test first.", why: "It helps.", howToApply: "Do it." });
+    const memory = await product.recordDecision({ title: "Prices in pounds", text: "The site shows pounds.", status: "accepted" });
+    const story = await product.addStory({ title: "Checkout" });
+    const arc = await product.createArc({ title: "Checkout", intent: "Pay", endState: "Paid", stories: [story.id] });
+    const increment = (await product.addIncrement({ arc: arc.id, title: "pay", objective: "pay", body: "pay" })).id;
+    const report = { title: "Gate hides the failing unit", description: "The gate hid it", statement: "The table said PASS", evidence: "`pnpm gate` exit code 1", impact: "An hour lost", "none-match": true };
+    await onBranch(product, "fix/pay", async (context) => {
+      await assert.rejects(verbNamed("new").act({ ...report, links: memory.id }, context, WORDS), (error: Error) => error instanceof VerbRefusal && error.message.includes(memory.id) && error.message.includes(factory.name));
+      assert.deepEqual([await product.list("friction"), await factory.list("friction")], [[], []], "a refusal writes nothing");
+
+      const filed = await verbNamed("new").act({ ...report, links: principle.id, increment }, context, WORDS);
+      assert.deepEqual(await product.list("friction"), [], "nothing is kept in the product's library");
+      const [note] = await factory.list("friction");
+      assert.equal(filed.text, `Recorded friction ${note!.id} in factory ${factory.name}'s library, from project ${product.name}.`);
+      assert.deepEqual(note!.fields.from, { project: product.name, increment });
+      assert.equal(note!.fields.increment, undefined, "the product's increment is not one of the factory's");
+      assert.deepEqual(note!.fields.links, [principle.id]);
+
+      await verbNamed("reinforce").act({ friction: note!.id, evidence: "`pnpm gate` exit code 1 again" }, context, WORDS);
+      assert.equal((await factory.list("friction"))[0]!.fields.reinforcedBy?.length, 1);
+    });
+    const [note] = await factory.list("friction");
+    await onBranch(factory, "main", async (context) => {
+      assert.match((await verbNamed("drain").act({}, context, WORDS)).text, new RegExp(`  ${note!.id}  \\(1 recurrences\\)  Gate hides the failing unit`));
     });
   });
 });

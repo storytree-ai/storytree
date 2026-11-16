@@ -725,7 +725,7 @@ test("app-setup 8.26 in a project an earlier starter pack seeded, or a product p
 test("app-setup 8.48 in a product project whose factory is a factory, the check hands the agent the factory's session role whole, as its instructions over the card, and names the factory's other roles as its agents; the product's own same-titled role wins, and a project with no factory is handed neither", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    const [factory, product, plain, roleless, roleless2, gone, notFactory, notFactoryProduct] = Array.from({ length: 8 }, () => uniqueProjectName());
+    const [factory, product, plain, roleless, roleless2, gone, notFactory, notFactoryProduct] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
     const storytree = await connect({ url: testServerUrl() });
     try {
       const agentIn = (folder: string) => claudeCode(`claude-${path.basename(folder)}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } });

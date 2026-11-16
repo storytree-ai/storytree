@@ -11,16 +11,18 @@ import { inTunnelMouth, type IslandRoads, type RoadSegment } from "../territorie
 import type { NestedLayout, PartCrossing } from "../territories/nested-territories.js";
 import { insideOf, territoryAt, type Coast, type Point, type TerritoryMap } from "../territories/territories.js";
 import { cutOpenings, dense, landColour, POST, ROAD, ribbon, TERRITORY_JUNCTION, type FillAt } from "./island-roads.js";
-import { segmentInConvex } from "./territory-land.js";
+import type { CapabilityWord } from "@storytree/forest-world/scene";
+import { clipToConvex, landTriangles, PARKED_FILL, segmentInConvex, WORD_FILL } from "./territory-land.js";
 import type { Detail } from "./zoom-detail.js";
 
 /** The capability open on the map, by its story. */
 export type Opened = { readonly story: string; readonly capability: string } | undefined;
 
-/** What opens at `level` with `under` beneath the middle of the view: the capability there, at the parts level only, and only
- * in Forest (the Library's islands are outlines, with no land to open). */
-export function openedAt(level: Detail, under: { kind: string; id: string; capability?: string } | undefined, mode: "forest" | "library" = "forest"): Opened {
-  return opensAt(level, mode) && under?.kind === "story" && under.capability !== undefined ? { story: under.id, capability: under.capability } : undefined;
+/** What opens at `level` with `under` beneath the middle of the view: the capability there, or the top part it is within
+ * (3.118), at the parts level only, and only in Forest (the Library's islands are outlines, with no land to open). */
+export function openedAt(level: Detail, under: { kind: string; id: string; capability?: string; within?: string } | undefined, mode: "forest" | "library" = "forest"): Opened {
+  const open = under?.kind === "story" ? under.within ?? under.capability : undefined;
+  return opensAt(level, mode) && open !== undefined ? { story: under!.id, capability: open } : undefined;
 }
 
 /** Whether anything opens at `level` in `mode`: at the parts level, in Forest. */
@@ -126,8 +128,10 @@ const PART_BORDER = { colour: "#f4f7f8", opacity: 0.7 } as const;
  * island's `coast`, with each gate's and open road's opening cut out; its parts' roads from where the island's roads cross its
  * border, with the island's roads it hid drawn again where they still run (`kept`); a junction where each part's roads meet;
  * and a post either side of each part gate. Each point is placed on the island's ground, raised over its relief, by `onSurface`.
+ * Parts that are capabilities with `words` of their own (a top part's, 3.118) are filled each by its own word, as one mesh
+ * that picks the capability under it (`userData.faces`, by face), and their roads are mixed into that fill.
  */
-export function openedMarks(capability: string, layout: NestedLayout, inner: IslandRoads | undefined, kept: readonly RoadSegment[], cells: readonly (readonly Point[])[], coast: Coast | undefined, onSurface: (p: Point) => Vector3, fillAt: FillAt): Group {
+export function openedMarks(capability: string, layout: NestedLayout, inner: IslandRoads | undefined, kept: readonly RoadSegment[], cells: readonly (readonly Point[])[], coast: Coast | undefined, onSurface: (p: Point) => Vector3, fillAt: FillAt, words: ReadonlyMap<string, { readonly status?: CapabilityWord; readonly parked?: true; readonly title?: string; readonly description?: string }> = new Map()): Group {
   const group = new Group();
   group.name = `opened-capability:${capability}`;
   const { centre, map } = layout;
@@ -155,8 +159,22 @@ export function openedMarks(capability: string, layout: NestedLayout, inner: Isl
   drawnBorders.raycast = () => {};
   group.add(drawnBorders);
 
+  // Its parts that are capabilities, each filled by its own word over the island's ground, cut to the capability's land.
+  const partFill = (territory: number) => {
+    const share = map.territories[territory], word = share?.capability === undefined ? undefined : words.get(share.capability);
+    if (word === undefined) return undefined;
+    const fill = word.parked === true ? PARKED_FILL : WORD_FILL[word.status ?? "untested"];
+    return { colour: new Color(fill.colour), opacity: fill.opacity };
+  };
+  const nearest = (p: Point) => { const at = { x: p.x - centre.x, z: p.z - centre.z }; let best = -1, d = Infinity; for (const cell of map.cells) { const dd = (cell.site.x - at.x) ** 2 + (cell.site.z - at.z) ** 2; if (dd < d) { d = dd; best = cell.territory; } } return best; };
+  const filled = (p: Point) => { const at = nearest(p); return at < 0 ? undefined : partFill(at); };
+  if (words.size > 0) group.add(partFills(capability, map.cells.flatMap((cell) => {
+    const fill = cell.territory < 0 ? undefined : partFill(cell.territory);
+    return fill === undefined ? [] : [{ polygon: cell.polygon.map(placed), part: map.territories[cell.territory]!.capability!, colour: landColour(() => fill)(cell.site) }];
+  }), cells, coast, lifted, Object.fromEntries([...words].map(([part, { title, description }]) => [part, { ...(title === undefined ? {} : { title }), ...(description === undefined ? {} : { description }) }]))));
+
   // Its roads, the island's it hid among them, as one mesh in the island roads' sand mixed into the land under them.
-  const sand = new Color(ROAD.colour), under = landColour(fillAt), mix = (p: Point) => under(p).lerp(sand, ROAD.alpha);
+  const sand = new Color(ROAD.colour), under = landColour((p) => filled(p) ?? fillAt(p)), mix = (p: Point) => under(p).lerp(sand, ROAD.alpha);
   const ways = [...kept.map((s) => ({ pts: s.pts, width: s.width })), ...(inner?.segments ?? []).map((s) => ({ pts: s.pts.map(placed), width: s.width }))];
   flat(merged(ways.map(({ pts, width }) => ribbon(dense(pts), width, lifted, mix))), material(), "part-roads", 3.1);
 
@@ -187,6 +205,40 @@ export function openedMarks(capability: string, layout: NestedLayout, inner: Isl
   flat(merged(posts), material(POST.ink), "part-gates", 3.3);
   group.userData = { capability, parts: map.territories.length, routed: inner !== undefined };
   return group;
+}
+
+/**
+ * One mesh filling each of `pieces` (a part's cell, placed on the island, its colour) where it lies on the opened
+ * capability's land (`cells`, cut to `coast`), drawn under its borders and roads; a ray on it picks the part's capability,
+ * by the face it meets (`userData.faces`), within the opened one (`userData.within`), and is named by `named`.
+ */
+function partFills(capability: string, pieces: readonly { polygon: readonly Point[]; part: string; colour: Color }[], cells: readonly (readonly Point[])[], coast: Coast | undefined, lifted: (p: Point) => Vector3, named: Readonly<Record<string, { title?: string; description?: string }>>): Mesh {
+  const land = coast === undefined ? cells.map((cell) => [...cell]) : landTriangles(coast).flatMap((triangle) => cells.map((cell) => clipToConvex(triangle, cell))).filter((piece) => piece.length >= 3);
+  const box = (loop: readonly Point[]) => ({ x0: Math.min(...loop.map((p) => p.x)), x1: Math.max(...loop.map((p) => p.x)), z0: Math.min(...loop.map((p) => p.z)), z1: Math.max(...loop.map((p) => p.z)) });
+  const boxes = land.map(box);
+  const positions: number[] = [], colours: number[] = [], faces: string[] = [];
+  for (const { polygon, part, colour } of pieces) {
+    const b = box(polygon);
+    land.forEach((ground, at) => {
+      const g = boxes[at]!;
+      if (g.x0 > b.x1 || g.x1 < b.x0 || g.z0 > b.z1 || g.z1 < b.z0) return;
+      const piece = clipToConvex(polygon, ground);
+      if (piece.length < 3) return;
+      const corners = piece.map(lifted);
+      for (let i = 1; i < corners.length - 1; i++) {
+        for (const corner of [corners[0]!, corners[i]!, corners[i + 1]!]) { positions.push(corner.x, corner.y, corner.z); colours.push(colour.r, colour.g, colour.b); }
+        faces.push(part);
+      }
+    });
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new Float32BufferAttribute(colours, 3));
+  const mesh = new Mesh(geometry, new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true, depthWrite: false }));
+  mesh.name = "part-fills";
+  mesh.renderOrder = 3.05;
+  mesh.userData = { faces, within: capability, named };
+  return mesh;
 }
 
 /** Non-indexed geometries with the same attributes as one. */

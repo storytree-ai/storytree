@@ -7,6 +7,7 @@ import type { GlobeOpening } from "../surfaces/surfaces.js";
 import { isDrawn } from "./globe-guide.js";
 import { globeName } from "./nameplates.js";
 import { gateOf, type GatePick } from "./island-roads.js";
+import { isTopPart } from "../render/top-parts.js";
 
 export type ForestMode = "forest" | "library";
 
@@ -24,12 +25,15 @@ export function globeHover(world: Object3D, camera: Camera,
   const hit = pickGlobe(world, camera, box, cursor, mode);
   const pointer = hit === undefined ? "" : "pointer";
   if (hit?.kind === "note") return { cursor: pointer, title: world.getObjectByName(`knowledge-point:${hit.id}`)?.userData.title as string | undefined };
-  const territory = (capability: string) => world.getObjectByName(`territory:${capability}`)?.userData as { title?: string; description?: string } | undefined;
-  if (hit?.kind !== "story" || hit.capability === undefined) return { cursor: pointer, title: undefined };
-  const { title, description } = territory(hit.capability) ?? {};
+  // A capability inside an open top part has no territory of its own: its fill names it (3.118).
+  const territory = (capability: string) => (world.getObjectByName(`territory:${capability}`)?.userData
+    ?? (world.getObjectByName("part-fills")?.userData.named as Record<string, { title?: string; description?: string }> | undefined)?.[capability]) as { title?: string; description?: string } | undefined;
+  const named = hit?.kind === "story" ? hit.capability ?? hit.within : undefined;
+  if (named === undefined) return { cursor: pointer, title: undefined };
+  const { title, description } = territory(named) ?? {};
   // What the capability does is its description's first paragraph; later ones are notes for the agents who build it.
   const detail = description?.trim().split(/\r?\n\s*\r?\n/)[0]?.trim();
-  return { cursor: pointer, title: globeName(title ?? hit.capability), ...(detail === undefined || detail === "" ? {} : { detail }) };
+  return { cursor: pointer, title: globeName(title ?? named), ...(detail === undefined || detail === "" ? {} : { detail }) };
 }
 
 /**
@@ -101,14 +105,24 @@ export function pickIsland(ray: Raycaster, world: Object3D): string | undefined 
   return pickLand(ray, world)?.story;
 }
 
-/** The land a ray meets first: its story, and the capability whose territory it is, if it is one (3.15). */
-function pickLand(ray: Raycaster, world: Object3D): { story: string; capability?: string } | undefined {
+/**
+ * The land a ray meets first: its story, and the capability whose territory it is, if it is one (3.15). On an imported
+ * island's top part (3.118) it is within that part and on no capability, unless the part is open and the ray meets one of
+ * the capabilities filled inside it.
+ */
+function pickLand(ray: Raycaster, world: Object3D): { story: string; capability?: string; within?: string } | undefined {
   for (const hit of ray.intersectObject(world, true)) {
     if (!isDrawn(hit.object)) continue;
-    let capability: string | undefined;
+    let capability: string | undefined, within: string | undefined;
+    if (hit.object.name === "part-fills" && hit.faceIndex != null) {
+      capability = (hit.object.userData.faces as readonly string[] | undefined)?.[hit.faceIndex];
+      within = hit.object.userData.within as string | undefined;
+    }
     for (let object: Object3D | null = hit.object; object !== null; object = object.parent) {
-      if (object.name.startsWith("territory:") && typeof object.userData.capability === "string") capability ??= object.userData.capability;
-      if (object.name.startsWith("planet:")) return capability === undefined ? { story: object.name.slice("planet:".length) } : { story: object.name.slice("planet:".length), capability };
+      if (object.name.startsWith("territory:") && typeof object.userData.capability === "string" && capability === undefined && within === undefined) {
+        if (isTopPart(object.userData.capability)) within = object.userData.capability; else capability = object.userData.capability;
+      }
+      if (object.name.startsWith("planet:")) return { story: object.name.slice("planet:".length), ...(capability === undefined ? {} : { capability }), ...(within === undefined ? {} : { within }) };
     }
   }
   return undefined;
@@ -233,7 +247,7 @@ export function pickGlobe(world: Object3D, camera: Camera,
   if (store !== undefined) return { kind: "store", id: store };
   const land = mode === "forest" ? pickLand(ray, world) : undefined;
   if (land === undefined) return undefined;
-  return land.capability === undefined ? { kind: "story", id: land.story } : { kind: "story", id: land.story, capability: land.capability };
+  return { kind: "story", id: land.story, ...(land.capability === undefined ? {} : { capability: land.capability }), ...(land.within === undefined ? {} : { within: land.within }) };
 }
 
 /** The event the feedback picker dispatches on the canvas to ask what is drawn under the pointer (2.3). A plain string the picker's package pins in its own tests: forest does not depend on it. */

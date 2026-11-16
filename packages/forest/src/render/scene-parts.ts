@@ -10,10 +10,14 @@
  *   holding the files it imports (a link in) or the files importing (a link out). A link the code does not show (a
  *   recorded dependency alone) reaches no part: its road ends at the gate.
  */
+import type { CapabilityWord } from "@storytree/forest-world/scene";
 import type { StorySurvey, SurveyedPart } from "@storytree/library";
 
-/** One of a capability's parts as a territory: its folder (the capability's own id for its files in no part), its name and its lines. */
-export type PartShare = { readonly capability: string; readonly title: string; readonly lines: number };
+/**
+ * One of a capability's parts as a territory: its folder (the capability's own id for its files in no part), its name and its
+ * lines; a top part's capabilities (top-parts.ts) also carry their own word, description and whether parked.
+ */
+export type PartShare = { readonly capability: string; readonly title: string; readonly lines: number; readonly status?: CapabilityWord; readonly parked?: true; readonly description?: string };
 
 /** An opened capability's drawing data: its parts, the roads between them, and the parts each of its links reaches, by the link's `from->to`. */
 export type SceneParts = {

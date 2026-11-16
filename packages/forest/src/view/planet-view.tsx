@@ -481,8 +481,10 @@ function OpenedCapability({ story, parts, drawn, docks, radius, opened }: { stor
     const kept = inner === undefined ? [] : hiddenByOpening(drawn.map, drawn.roads, capability).kept;
     const relief = drawn.relief, onGround = onIslandSurface(radius, ROAD_LIFT);
     const cells = drawn.map.cells.filter((cell) => cell.territory === at).map((cell) => cell.polygon);
-    return openedMarks(capability, layout, inner, kept, cells, drawn.map.coast, (p) => { const v = onGround(p); v.y += relief.raise(p); return v; }, landFill(drawn.map, drawn.group));
-  }, [layout, inner, drawn, capability, at, radius]);
+    // A top part's capabilities are filled by their own words (3.118); a capability's code parts keep its colour.
+    const words = new Map(parts.shares.flatMap(({ capability: part, status, parked, title, description }) => status === undefined ? [] : [[part, { status, ...(parked === undefined ? {} : { parked }), title, ...(description === undefined ? {} : { description }) }] as const]));
+    return openedMarks(capability, layout, inner, kept, cells, drawn.map.coast, (p) => { const v = onGround(p); v.y += relief.raise(p); return v; }, landFill(drawn.map, drawn.group), words);
+  }, [layout, inner, drawn, capability, at, radius, parts]);
   useLayoutEffect(() => {
     if (marks === undefined) return;
     drawn.group.add(marks);

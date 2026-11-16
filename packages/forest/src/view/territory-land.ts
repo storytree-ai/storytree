@@ -230,7 +230,7 @@ export function segmentInConvex(from: Point, to: Point, loop: readonly Point[]):
 }
 
 /** The coast's land as triangles: each outer loop, less the loops inside it (its lakes). */
-function landTriangles(coast: readonly (readonly Point[])[]): Point[][] {
+export function landTriangles(coast: readonly (readonly Point[])[]): Point[][] {
   const loops = coast.filter((ring) => ring.length >= 3);
   const depth = (ring: readonly Point[]) => loops.filter((other) => other !== ring && onLand(ring[0]!, [other])).length;
   return loops.filter((ring) => depth(ring) % 2 === 0).flatMap((outer) => {
@@ -242,7 +242,7 @@ function landTriangles(coast: readonly (readonly Point[])[]): Point[][] {
 }
 
 /** The part of the convex loop `subject` inside the convex loop `clip`: Sutherland and Hodgman's clipping. */
-function clipToConvex(subject: readonly Point[], clip: readonly Point[]): Point[] {
+export function clipToConvex(subject: readonly Point[], clip: readonly Point[]): Point[] {
   const turn = Math.sign(clip.reduce((sum, p, at) => { const q = clip[(at + 1) % clip.length]!; return sum + p.x * q.z - q.x * p.z; }, 0));
   let out = [...subject];
   clip.forEach((a, at) => {

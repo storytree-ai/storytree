@@ -21,6 +21,7 @@ import { grove, type PartStates } from "../capability-tree/capability-tree.js";
 import { islandArea, mappedArea, MIN_ISLAND_AREA, unsurveyedArea } from "../planet-places/island-growth.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 import { sceneParts, type SceneParts } from "./scene-parts.js";
+import { rolledWord, topParts, type TopPart } from "./top-parts.js";
 
 export { PLACE_WIDTH };
 export type { Island, PlacedTree };
@@ -61,6 +62,8 @@ export interface ForestDrawn {
  */
 export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], states: PartStates, survey: Readonly<Record<string, StorySurvey>> = {}, stores: readonly SharedStore[] = []): ForestScene {
   const nodes = new Map(storyNodes(tree, history, survey).map((node) => [node.id, node]));
+  // An imported island opens top-down: its capabilities grouped by their top folders (top-parts.ts).
+  const tops = new Map(tree.stories.flatMap((story) => story.mapped === undefined ? [] : [[story.id, topParts(story.id, story.capabilities, survey[story.id])] as const]));
   const islands = tree.stories.map((story): Island => {
     const node = nodes.get(story.id);
     const trees = grove(story, states);
@@ -73,7 +76,7 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
       ...(status === undefined ? {} : { status }),
       contracts: capability === undefined ? 0 : (contractsOf.get(capability) ?? 0),
     }));
-    const land = story.mapped === undefined ? landOf(story.capabilities, survey[story.id], tree.unverified !== true) : mappedLand(story.capabilities, survey[story.id]);
+    const land = story.mapped === undefined ? landOf(story.capabilities, survey[story.id], tree.unverified !== true) : mappedLand(story.capabilities, survey[story.id], tops.get(story.id) ?? []);
     // ADR-0993 D3: a mapped island's land follows its lines, capped; before its survey, it is the least an island has.
     // ADR-0804 D3, D7, ADR-1212 D2: a surveyed story's land follows its lines of code alone (its files', not the line a capability with no code holds); unsurveyed, it follows its capabilities, a one-capability floor's worth of land each, so it grows in step with the surveyed ones.
     const area = story.mapped !== undefined ? mappedArea(land!.territories.reduce((sum, { lines }) => sum + lines, 0)) : land === undefined || land.files.length === 0 ? unsurveyedArea(story.capabilities.length) : islandArea(land.files.reduce((sum, { lines }) => sum + lines, 0));
@@ -81,11 +84,14 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
     return { story: story.id, title: story.title, x, z, trees: placed, ...(land === undefined ? {} : { land }), area, key };
   });
   const plumbing = plumbingCalls(tree, survey);
-  const edges = tree.stories.flatMap(({ edges = [] }) => edges.flatMap(({ from, to, contracts }): SceneEdge[] => contracts.length === 0 ? [] : [{ from, to, contracts: contracts.map(({ id }) => id) }]));
+  const topOf = new Map([...tops.values()].flat().flatMap(({ id, members }) => members.map((member) => [member.id, id] as const)));
+  const edges = rolledEdges(tree.stories.flatMap(({ edges = [] }) => edges.flatMap(({ from, to, contracts }): SceneEdge[] => contracts.length === 0 ? [] : [{ from, to, contracts: contracts.map(({ id }) => id) }])), topOf);
+  const deepest = capabilityLinks(tree, survey);
   const contracts = tree.stories.flatMap(({ capabilities }) => capabilities.flatMap(({ id, contracts }): SceneContracts[] => contracts.length === 0 ? [] : [{ capability: id, contracts: contracts.map(({ id }) => id) }]));
   const drawn = stores.map(({ address, medium, tables }) => ({ address, medium, tables: tables.map(({ name }) => name) }));
-  const parts = sceneParts(survey, new Map(tree.stories.flatMap(({ capabilities }) => capabilities.map(({ id, title }) => [id, title] as const))));
-  return { islands, links: capabilityLinks(tree, survey), ...(plumbing.length === 0 ? {} : { plumbing }), ...(edges.length === 0 ? {} : { edges }), ...(contracts.length === 0 ? {} : { contracts }), ...(drawn.length === 0 ? {} : { stores: drawn }), ...(parts.length === 0 ? {} : { parts }) };
+  const parts = [...sceneParts(survey, new Map(tree.stories.flatMap(({ capabilities }) => capabilities.map(({ id, title }) => [id, title] as const)))),
+    ...[...tops].flatMap(([story, own]) => own.map((top) => topScene(story, top, deepest, topOf)))];
+  return { islands, links: rolledLinks(deepest, topOf), ...(plumbing.length === 0 ? {} : { plumbing }), ...(edges.length === 0 ? {} : { edges }), ...(contracts.length === 0 ? {} : { contracts }), ...(drawn.length === 0 ? {} : { stores: drawn }), ...(parts.length === 0 ? {} : { parts }) };
 }
 
 /**
@@ -153,18 +159,79 @@ export function forestDrawn(scene: ForestScene): ForestDrawn {
   };
 }
 
+/** Where `id` is drawn: the top part holding it, or itself. */
+const drawnAt = (id: string, topOf: ReadonlyMap<string, string>): string => topOf.get(id) ?? id;
+
+/**
+ * The links as drawn (3.117): each end inside a top part is that top part, so roads join top parts and a road from outside
+ * reaches the top part; a link inside one top part is no road at that level, and the links two top parts share are one,
+ * type-only only when every one of them is.
+ */
+function rolledLinks(links: readonly { from: string; to: string; typeOnly?: true }[], topOf: ReadonlyMap<string, string>): { from: string; to: string; typeOnly?: true }[] {
+  const rolled = new Map<string, { from: string; to: string; typeOnly?: true }>();
+  for (const link of links) {
+    const [from, to] = [drawnAt(link.from, topOf), drawnAt(link.to, topOf)];
+    if (from === to) continue;
+    const key = `${from}->${to}`, held = rolled.get(key);
+    rolled.set(key, held === undefined ? { from, to, ...(link.typeOnly ? { typeOnly: true as const } : {}) } : held.typeOnly && link.typeOnly ? held : { from, to });
+  }
+  return [...rolled.values()];
+}
+
+/** The edges holding contracts as drawn: rolled up as the links are, each top-part pair's contracts gathered. */
+function rolledEdges(edges: readonly SceneEdge[], topOf: ReadonlyMap<string, string>): SceneEdge[] {
+  const rolled = new Map<string, { from: string; to: string; contracts: Set<string> }>();
+  for (const edge of edges) {
+    const [from, to] = [drawnAt(edge.from, topOf), drawnAt(edge.to, topOf)];
+    if (from === to) continue;
+    const held = rolled.get(`${from}->${to}`) ?? { from, to, contracts: new Set<string>() };
+    for (const contract of edge.contracts) held.contracts.add(contract);
+    rolled.set(`${from}->${to}`, held);
+  }
+  return [...rolled.values()].map(({ contracts, ...edge }) => ({ ...edge, contracts: [...contracts] }));
+}
+
+/**
+ * A top part opened (3.118): its capabilities as its parts, each carrying its word, the links between them as its roads,
+ * and, for each rolled-up link reaching it, the capabilities inside it that link stands for.
+ */
+function topScene(story: string, top: TopPart, links: readonly { from: string; to: string }[], topOf: ReadonlyMap<string, string>): SceneParts {
+  const inside = new Set(top.members.map(({ id }) => id));
+  const lanes = new Map<string, Set<string>>();
+  for (const { from, to } of links) {
+    const [a, b] = [drawnAt(from, topOf), drawnAt(to, topOf)];
+    if (a === b || (a !== top.id && b !== top.id)) continue;
+    const key = `${a}->${b}`;
+    lanes.set(key, (lanes.get(key) ?? new Set()).add(a === top.id ? from : to));
+  }
+  return {
+    story,
+    capability: top.id,
+    shares: top.members.map(({ id, title, description, status, parkedOn, lines }) => ({ capability: id, title, lines, status, ...(parkedOn === undefined ? {} : { parked: true as const }), ...(description === undefined ? {} : { description }) })),
+    links: links.filter(({ from, to }) => from !== to && inside.has(from) && inside.has(to)).map(({ from, to }) => ({ from, to })),
+    lanes: Object.fromEntries([...lanes].sort(([a], [b]) => (a < b ? -1 : 1)).map(([key, set]) => [key, [...set].sort()])),
+  };
+}
+
 /**
  * A mapped story's land (ADR-0993 D3, D5, D7): a black box but where an agent explored it, so one territory for each
  * explored capability with surveyed code, in the story's order, then one brown territory for the unexplored rest, side by
  * side and sized by their lines; the whole island is one brown territory before its survey (a weight of 1) or until explored.
  * An explored capability carries its word, so it is drawn green or red by its verified health and yellow with no tests tied
- * (question_7e73e1c75c0d). Its files are never drawn, whether or not the project is verified.
+ * (question_7e73e1c75c0d). Its files are never drawn, whether or not the project is verified. Capabilities sharing a top
+ * folder are drawn as one top part where the first of them would be (3.50, `tops`), the brown rest once beside them.
  */
-function mappedLand(capabilities: readonly { id: string; title: string; description?: string; status: CapabilityWord; parkedOn?: readonly unknown[] }[], survey: StorySurvey | undefined): NonNullable<Island["land"]> {
+function mappedLand(capabilities: readonly { id: string; title: string; description?: string; status: CapabilityWord; parkedOn?: readonly unknown[] }[], survey: StorySurvey | undefined, tops: readonly TopPart[]): NonNullable<Island["land"]> {
   const files = survey?.files ?? [];
   const linesOf = (capability: string | undefined) => files.filter((file) => file.capability === capability).reduce((sum, file) => sum + file.lines, 0);
+  const topOf = new Map(tops.flatMap((top) => top.members.map(({ id }) => [id, top] as const)));
   const territories = [
-    ...capabilities.map(({ id, title, description, status, parkedOn }) => ({ capability: id, title, ...(description === undefined ? {} : { description }), status, ...(parkedOn === undefined ? {} : { parked: true as const }), mapped: true as const, lines: linesOf(id) })),
+    ...capabilities.flatMap(({ id, title, description, status, parkedOn }) => {
+      const top = topOf.get(id);
+      if (top === undefined) return [{ capability: id, title, ...(description === undefined ? {} : { description }), status, ...(parkedOn === undefined ? {} : { parked: true as const }), mapped: true as const, lines: linesOf(id) }];
+      if (top.members[0]!.id !== id) return [];
+      return [{ capability: top.id, title: top.folder, description: top.members.map((member) => member.title).join(", "), ...rolledWord(top.members), mapped: true as const, lines: top.members.reduce((sum, { lines }) => sum + lines, 0) }];
+    }),
     { mapped: true as const, lines: linesOf(undefined) },
   ].filter(({ lines }) => lines > 0);
   return { territories: territories.length > 0 ? territories : [{ mapped: true, lines: 1 }], files: [] };

@@ -779,7 +779,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     if (opened.current || (islands.length === 0 && !opensBare(mode))) return;
     opened.current = true;
     openSheet();
-  }, [islands, turnTo]);
+    // An island-less sheet opens on Library's press (3.63), so the press opens it as well as the islands arriving.
+  }, [islands, turnTo, mode]);
   // The sheet opens framing its height from its west edge (ADR-1043 D4).
   const openSheet = (): void => {
     turnTo(sheetOpening(sheet, size).turn);

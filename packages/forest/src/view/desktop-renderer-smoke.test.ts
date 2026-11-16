@@ -52,7 +52,7 @@ test("7.2, 7.8 · in a real browser, a running session's subagent waits behind i
   assert.deepEqual(summary, { closed: 2, folded: 0, children: 1, worktrees: 3, blocks: ["Worktrees"] });
 });
 
-test("3.55 · in a real browser, the sheet opens straight down and pressing Library from there eases in the tabletop tilt, the eye kept, and Stories after it moves nothing; from a tilt the user gave, above, side on and below, either press leaves the eye and the sheet exactly where they were; the look follows the button, never the tilt, and only Library hangs the notes", { timeout: 200_000 }, async () => {
+test("3.55, 3.63 · in a real browser, the sheet opens straight down and pressing Library from there eases in the tabletop tilt, the eye kept, and Stories after it moves nothing, as Library's press does opening an island-less sheet (3.63); from a tilt the user gave, above, side on and below, either press leaves the eye and the sheet exactly where they were; the look follows the button, never the tilt, and only Library hangs the notes", { timeout: 200_000 }, async () => {
   const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(libraryLookFolder, "capture.mjs"), "--smoke"],
     { cwd: checkout, timeout: 180_000, env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } });
   const summary = JSON.parse(stdout.trim().split("\n").findLast(line => line.startsWith("{"))!);
@@ -60,6 +60,7 @@ test("3.55 · in a real browser, the sheet opens straight down and pressing Libr
   const both = { stories: true, library: true };
   // And turning the map on Stories hangs no note at any tilt; Library hangs them (ADR-1340 D1).
   const notes = { stories: 0, library: true };
-  // Straight down at the opening; Library tilts it to the tabletop tilt, and Stories keeps it there.
-  assert.deepEqual(summary, { opening: { straightDown: true, library: true, stories: true }, unmoved: ["above", "side-on", "below"], looks: { above: both, "side-on": both, below: both }, notes: { above: notes, "side-on": notes, below: notes } });
+  // Straight down at the opening; Library tilts it to the tabletop tilt, and Stories keeps it there; an island-less sheet's
+  // Library press brings in the same tilt.
+  assert.deepEqual(summary, { opening: { straightDown: true, library: true, stories: true, bareLibrary: true }, unmoved: ["above", "side-on", "below"], looks: { above: both, "side-on": both, below: both }, notes: { above: notes, "side-on": notes, below: notes } });
 });

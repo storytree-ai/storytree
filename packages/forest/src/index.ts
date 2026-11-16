@@ -16,6 +16,7 @@ export { forestReading } from "./render/forest-reading.js";
 export type { ForestReadingOptions, ForestReads } from "./render/forest-reading.js";
 export { drillDown, NO_DESCRIPTION } from "./drill-down/drill-down.js";
 export type { AcceptanceState, CapabilityLine, ContractLine, CheckReading, EdgeLine, StoryPanel, WhyLine } from "./drill-down/drill-down.js";
+export type { Microscope, ScopeChild, ScopeGate, ScopeLevel } from "./drill-down/microscope.js";
 export { claimTints, replayWisps, sessionColour, sessionWisps, shownPointers } from "./agent-claims/agent-claims.js";
 export type { ClaimTint, PointerTint, SessionWisp } from "./agent-claims/agent-claims.js";
 export { turnToIsland, type FacingIsland, type GlobeDirection, type GlobeTurn } from "./never-hidden/never-hidden.js";

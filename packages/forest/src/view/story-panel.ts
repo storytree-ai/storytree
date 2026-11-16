@@ -5,10 +5,12 @@
  * named small above it, its whole description and its contracts, each with its own state. Its open work, a contract's
  * detail and the story's extra checks wait in a fold behind a handle saying what is inside and how much, which a single
  * click opens (ADR-1287; ./panel-folds.ts works them). The island draws the capability tree and the territories carry
- * health, so the panel draws neither (ADR-1285). Every word from the library is written as text, never as HTML.
+ * health, so the panel draws neither (ADR-1285); under its head, its microscope shows the story or capability it is rooted
+ * on, drilled as deep as the code goes (ADR-1350 D2, ./microscope.ts). Every word from the library is written as text, never as HTML.
  */
 import type { AcceptanceState, CapabilityLine, CheckReading, ContractLine, EdgeLine, StoryPanel, WhyLine } from "@storytree/forest";
 import type { HealthSource, HealthState } from "@storytree/library";
+import { scopeSection } from "./microscope.js";
 
 /**
  * The panel's HTML: `selected`, the capability picked, when it is one of the story's, else the story alone; no capability
@@ -22,8 +24,9 @@ import type { HealthSource, HealthState } from "@storytree/library";
 export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { details = true, gate, open }: { details?: boolean; gate?: readonly [string, string] | undefined; open?: readonly string[] | undefined } = {}): string {
   if (gate !== undefined) return `${head(panel.title)}${gateLinks(panel, gate, open)}`;
   const shown = details ? panel.capabilities.find(({ id }) => id === selected) : undefined;
-  if (shown !== undefined) return `${head(shown.title, panel.title)}${capability(shown, panel.edges ?? [])}`;
+  if (shown !== undefined) return `${head(shown.title, panel.title)}${panel.microscope === undefined ? "" : scopeSection(panel.microscope, shown.id, shown.id, true)}${capability(shown, panel.edges ?? [])}`;
   return `${head(panel.title)}
+    ${panel.microscope === undefined ? "" : scopeSection(panel.microscope, panel.story, panel.story, true)}
     ${description(panel.description, "panel-sentences")}
     ${panel.mapped === undefined ? "" : mapped(panel.mapped, panel.capabilities)}
     ${needsYou(panel.capabilities)}

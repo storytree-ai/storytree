@@ -6,6 +6,8 @@
  * hint explains any of it (ADR-1283 D2).
  */
 
+import { panelScope } from "./microscope.js";
+
 /** The kinds of fold whose being open is kept across picks: the top-level handles, never a contract's own. */
 const KEPT = new Set(["open-work", "contracts", "extra-checks"]);
 
@@ -18,6 +20,8 @@ export interface PanelFolds {
 export function panelFolds(): PanelFolds {
   const kept = new Set<string>();
   const wired = new WeakSet<HTMLElement>();
+  // The microscope's drills are worked beside the folds, on the same panel just drawn (ADR-1350 D2).
+  const scope = panelScope();
 
   const handles = (panel: HTMLElement): HTMLButtonElement[] => [...panel.querySelectorAll<HTMLButtonElement>(".panel-handle")];
   const shown = (panel: HTMLElement): HTMLButtonElement[] => handles(panel).filter((handle) => handle.closest(".panel-fold-body[hidden]") === null);
@@ -89,6 +93,7 @@ export function panelFolds(): PanelFolds {
   return {
     draw(panel) {
       if (!wired.has(panel)) wire(panel);
+      scope.draw(panel);
       for (const handle of handles(panel)) {
         const which = kind(handle);
         if (which !== undefined && kept.has(which)) set(handle, true);

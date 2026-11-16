@@ -493,6 +493,125 @@
   margin: 0 0 0.5rem;
 }
 
+/* The panel's microscope (ADR-1350 D2): the one thing the panel is rooted on, its parts as territories on a round
+   land, its gates on the edge named by where each road leads, and a breadcrumb back up. */
+.panel-microscope {
+  margin: 0.5rem 0 0.4rem;
+}
+
+.scope-trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.scope-up {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.scope-up:hover,
+.scope-up:focus-visible {
+  color: var(--text);
+  text-decoration-color: currentColor;
+}
+
+.scope-here {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.scope-land {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 0.3rem;
+  font-family: inherit;
+}
+
+.scope-coast {
+  fill: #e9e6dc;
+  stroke: #b9b2a0;
+  stroke-width: 1;
+}
+
+.scope-territories {
+  opacity: 0.82;
+}
+
+.scope-territory.opens {
+  cursor: zoom-in;
+}
+
+.scope-territory.opens:hover,
+.scope-territory.opens:focus-visible {
+  filter: brightness(1.08);
+  outline: none;
+}
+
+.scope-borders {
+  fill: none;
+  stroke: #2f3a2c;
+  stroke-opacity: 0.55;
+  stroke-width: 0.8;
+  pointer-events: none;
+}
+
+.scope-roads {
+  fill: none;
+  stroke: #d8c595;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.scope-roads.busy {
+  stroke-width: 0.7;
+  stroke-opacity: 0.6;
+}
+
+.scope-junction {
+  fill: #f2ead3;
+  stroke: #8f7f57;
+  stroke-width: 0.8;
+  pointer-events: none;
+}
+
+.scope-gate rect {
+  fill: #5b4a2e;
+}
+
+.scope-gate text {
+  font-size: 6.5px;
+  fill: var(--muted);
+}
+
+.scope-name {
+  font-size: 7px;
+  font-weight: 600;
+  fill: #1d231b;
+  paint-order: stroke;
+  stroke: rgb(255 255 255 / 0.75);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.scope-name.opens {
+  text-decoration: underline;
+}
+
 /* A story's capabilities by name, each opening that capability as its territory would (ADR-1297). */
 .panel-capabilities {
   margin: 0.6rem 0 0.4rem;

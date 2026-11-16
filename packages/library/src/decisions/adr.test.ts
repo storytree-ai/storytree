@@ -12,8 +12,8 @@ import type { DoorWords, VerbContext } from "../verbs/verb.js";
 
 import { connect } from "../index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { ADR_FAMILY } from "./adr.js";
-import { LIBRARY_FAMILIES } from "./index.js";
+import { LIBRARY_FAMILIES } from "../commands/index.js";
+import { ADR_FAMILY } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 

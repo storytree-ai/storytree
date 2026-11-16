@@ -5,7 +5,7 @@ import path from "node:path";
 import { z } from "zod";
 
 import { retire } from "../catalogue/index.js";
-import { annotate, correct, supersede } from "../decision-log/index.js";
+import { annotate, correct, supersede } from "../../decisions/index.js";
 import { claudeCodeMemoryFolder, graduate, park } from "../graduation/index.js";
 import { link } from "../links/index.js";
 import type { ToolCall, ToolExtension, ToolHost } from "./host.js";

@@ -5,10 +5,10 @@
  * out as a markdown file, edit it, push it back; write its composed statement; list them.
  * None is a tool: an agent reads a decision with the MCP server's `open` and records one with its `write_note`.
  *
- * - Every rule is the library's own (knowledge/decision-log.ts): numbers handed out inside the write, status,
+ * - Every rule is the library's own (decision-log.ts): numbers handed out inside the write, status,
  *   supersession and its loop check, the owner's words a stamp claiming his authority must quote, and whether a composed
- *   statement is stale. A decision that comes to supersede others while accepted goes through the librarian's
- *   `supersede` (its `recordDecision` and `editDecision`), which moves their shelf and load-bearing mark in one write.
+ *   statement is stale. A decision that comes to supersede others while accepted goes through
+ *   supersede.ts's `supersede` (its `recordDecision` and `editDecision`), which moves their shelf and load-bearing mark in one write.
  * - The file `adr pull` writes: a front matter of `key: <JSON value>` lines, then `# <title>`, a blank line, and the
  *   text. `push` hands `editDecision` only what differs from the stored decision, so a push with no edit
  *   writes nothing, and names no writer. The lines below `# read only` (its id, number, how it reads, its authority and
@@ -17,8 +17,9 @@
  *   supersession and the status shown or filtered.
  */
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
-import type { DecisionView, Library } from "../index.js";
-import { editDecision, recordDecision } from "../librarian/decision-log/index.js";
+import type { Library } from "../index.js";
+import type { DecisionView } from "./decision-log.js";
+import { editDecision, recordDecision } from "./supersede.js";
 
 /** The fields a pushed file may change, in the order the file shows them. */
 const EDITABLE = ["status", "decided", "loadBearing", "supersedes", "links", "frontCoverOf"] as const;

@@ -4,8 +4,8 @@
 // its own.
 export { brokenEdges, link, relatedUnlinked, unrestedDecisions } from "./links/index.js";
 export type { BrokenEdge } from "./links/index.js";
-export { annotate, correct, supersede } from "./decision-log/index.js";
-export type { Annotation, Correction, Successor } from "./decision-log/index.js";
+export { annotate, correct, supersede } from "../decisions/index.js";
+export type { Annotation, Correction, Successor } from "../decisions/index.js";
 export { newNotes, retire } from "./catalogue/index.js";
 export type { NewNote } from "./catalogue/index.js";
 export { claudeCodeMemoryFolder, graduate, memoryWorklist, PARK_DAYS, park, processGaps } from "./graduation/index.js";
@@ -13,5 +13,6 @@ export type { GraduationKind, MemoryItem, ProcessGaps } from "./graduation/index
 export { CURATED, roundDue, worklist } from "./rounds/index.js";
 export type { RoundDue, Worklist, WorklistOptions } from "./rounds/index.js";
 export { librarianToolParts, librarianTools } from "./rounds/tools.js";
+export type { ToolAnswer, ToolCall } from "./rounds/host.js";
 export { LibrarianRefusal } from "./notes.js";
 export type { Reference } from "./notes.js";

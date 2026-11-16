@@ -8,15 +8,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import type { Library } from "../../index.js";
-import { ADR_FAMILY } from "../../commands/adr.js";
-import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../../commands/index.js";
-import type { DoorWords, VerbContext } from "../../verbs/verb.js";
+import type { Library } from "../index.js";
+import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../commands/index.js";
+import type { DoorWords, VerbContext } from "../verbs/verb.js";
 
 import { withLibrary } from "../testing/pg.js";
-import type { ToolAnswer, ToolCall } from "../rounds/host.js";
-import { librarianTools } from "../rounds/tools.js";
-import { supersede } from "./index.js";
+import { librarianTools, type ToolAnswer, type ToolCall } from "../librarian/index.js";
+import { ADR_FAMILY, supersede } from "./index.js";
 
 
 /** A capability, with an accepted, load-bearing decision on its shelf. */

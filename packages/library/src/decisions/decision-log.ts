@@ -6,16 +6,23 @@
  * project numbers only after its one-time floor is set (ADR-0662), and its imported decisions are
  * renumbered once, from their own Full record line or, with none, in founding order.
  *
- * Knowledge (capability 6) is the one door to it: it hands each decision verb here.
+ * Knowledge (capability 6) is the one door to it: it hands each decision verb here, and checks a front cover it
+ * writes with checkFrontCover.
  */
 import { createHash } from "node:crypto";
 
 import { byCreation } from "../creation-order.js";
-import { checkReferences, liveRecord, type Expected } from "../references.js";
-import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import type { FieldsOf } from "../schema/types.js";
+import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
+import type { FieldsOf, SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import { NumberTakenError, type HistoryEntry } from "../transactions/index.js";
-import { checkFrontCover } from "./front-covers.js";
+
+/** What a decision may be the front cover of. */
+const COVERABLE: Expected = { name: "story or capability", types: ["story", "capability"] };
+
+/** A decision may be the front cover of a live story or capability, and of nothing else (capability 9). */
+export function checkFrontCover(records: SchemaRecords, frontCoverOf: unknown): Promise<void> {
+  return checkReference(records, "frontCoverOf", frontCoverOf, COVERABLE);
+}
 
 /**
  * A new decision's fields. Every link must name a live artifact, `frontCoverOf` a live story or

@@ -1,5 +1,5 @@
 /** Capability 5 · Health record. */
-export { capabilityStatus, capabilityWhy, HealthRecord, heldBack, NOT_VERIFIED, wordAndWhy } from "./health-record.js";
+export { capabilityStatus, capabilityWhy, freshnessSaid, HealthRecord, heldBack, NOT_VERIFIED, wordAndWhy } from "./health-record.js";
 export type {
   AnnotatedCapability,
   OpenIncrement,

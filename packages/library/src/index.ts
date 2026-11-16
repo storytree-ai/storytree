@@ -96,5 +96,5 @@ export type {
   SkipKind,
   VerifiedVerdict,
 } from "./health/index.js";
-export { heldBack, NOT_VERIFIED, wordAndWhy } from "./health/index.js";
+export { freshnessSaid, heldBack, NOT_VERIFIED, wordAndWhy } from "./health/index.js";
 export type { DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, NarrowingDecision, PhraseKind, PhraseOptions, PhrasePage, Ranked, RankOptions, Related, RelatedHit, RelatedOptions } from "./knowledge/index.js";

@@ -762,12 +762,22 @@ function ownHealth(contractId: string, entries: ReadonlyMap<string, SchemaRecord
 function readingOf(record: SchemaRecord<"health"> | undefined, freshness: string, now: Date): HealthColumn {
   const reading = columnOf(record);
   if (reading.state !== "passing" || reading.at === undefined) return reading;
-  const [, count, unit] = FRESHNESS.exec(freshness) ?? [];
-  const limit = Number(count) * (unit === "d" ? 86_400_000 : 3_600_000);
-  if (now.getTime() - Date.parse(reading.at) <= limit) return reading;
+  const { count, unit } = freshnessOf(freshness);
+  if (now.getTime() - Date.parse(reading.at) <= count * (unit === "d" ? 86_400_000 : 3_600_000)) return reading;
   const { note, ...kept } = reading;
-  const said = `${count} ${unit === "d" ? "day" : "hour"}${count === "1" ? "" : "s"}`;
-  return { ...kept, state: "not-checked", was: { state: "passing", at: reading.at }, note: `not re-run: its newest live reading, at ${reading.at}, is older than its freshness of ${said}${note === undefined ? "" : `: ${note}`}` };
+  return { ...kept, state: "not-checked", was: { state: "passing", at: reading.at }, note: `not re-run: its newest live reading, at ${reading.at}, is older than its freshness of ${freshnessSaid(freshness)}${note === undefined ? "" : `: ${note}`}` };
+}
+
+/** A freshness as the schema keeps it (FRESHNESS: `36h`, `2d`), as a count and its unit. */
+function freshnessOf(freshness: string): { count: number; unit: string } {
+  const [, count = "0", unit = "h"] = FRESHNESS.exec(freshness) ?? [];
+  return { count: Number(count), unit };
+}
+
+/** A freshness in words, as a person is told it: `36h` is "36 hours", `1d` "1 day". */
+export function freshnessSaid(freshness: string): string {
+  const { count, unit } = freshnessOf(freshness);
+  return `${count} ${unit === "d" ? "day" : "hour"}${count === 1 ? "" : "s"}`;
 }
 
 /** A contract's column as its record leaves it: not-checked when there is no record. */

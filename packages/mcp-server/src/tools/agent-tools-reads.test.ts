@@ -899,6 +899,9 @@ test("9.42 · plan_contract and edit_plan take observability as proof with its f
       const line = (id: string) => plan.split("\n").find((one) => one.includes(`(${id})`)) ?? "";
       assert.match(line(both), /; proved by observability as proof, a live reading no older than 2 days recorded by the Mint box's activity watcher: Only the laptop and the box doing real work show it\.$/, plan);
       assert.match(line(later), /; proved by observability as proof, a live reading no older than 36 hours recorded by /, plan);
+      await agent.call("edit_plan", { id: later, proof: { ...observed, freshness: "1d" } });
+      const again = (await agent.call("show_plan")).text;
+      assert.match(again.split("\n").find((one) => one.includes(`(${later})`)) ?? "", /no older than 1 day recorded by /, "one day, in the singular");
     });
   });
 });

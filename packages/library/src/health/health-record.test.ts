@@ -669,7 +669,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(await offered(), true, "the question gone, it is offered again");
   });
 
-  contract("5.31", "a live reading recorded for a contract proved by observability is its verified state: passing while within its freshness, not re-run once older, failing when it saw a fail", async ({ health, work }) => {
+  contract("5.31", "a live reading recorded for a contract proved by observability is its verified state: passing while within its freshness, not re-run once older, failing when it saw a fail", async ({ health, work, records }) => {
     const { capability, contract, sibling } = await smallPlan(work);
     await work.setProposed(capability.id, false);
     await health.recordVerified(sibling.id, "passing");
@@ -688,6 +688,17 @@ for (const backend of [memory, postgres]) {
     assert.match(stale.note ?? "", /^not re-run: its newest live reading, at .*, is older than its freshness of 2 days: 12 lines from mint and the laptop read back in order, taken on mint$/);
     assert.deepEqual(await whyAt(hours(49)), { reason: "not re-run", mover: "agent", contracts: [contract.id], since: reading.at });
     assert.equal((await health.annotate(undefined, undefined, hours(49))).stories[0]!.capabilities[0]!.status, "untested");
+    await work.editContract(contract.id, { proof: { ...OBSERVED, freshness: "50h" } });
+    assert.equal((await verified(hours(49))).state, "passing", "a freshness in hours: 50 hours covers 49");
+    assert.equal((await verified(hours(51))).state, "not-checked", "and not 51");
+    await work.editContract(contract.id, { proof: { ...OBSERVED, freshness: "1h" } });
+    assert.match((await verified(hours(2))).note ?? "", /older than its freshness of 1 hour: /, "one hour, said in the singular");
+    await work.editContract(contract.id, { proof: { ...OBSERVED, freshness: "1d" } });
+    assert.equal((await verified(hours(23))).state, "passing");
+    assert.match((await verified(hours(25))).note ?? "", /older than its freshness of 1 day: /, "one day, said in the singular");
+    await work.editContract(contract.id, { proof: OBSERVED });
+    const told = async () => (await records.list("fyi")).filter(({ fields }) => fields.about === contract.id).map(({ fields }) => fields.title);
+    assert.deepEqual(await told(), [], "a passing reading tells nothing");
 
     await later();
     const failed = await health.recordObserved(contract.id, "failing", { machine: "laptop", evidence: "the box's lines did not reach the laptop" });
@@ -695,6 +706,11 @@ for (const backend of [memory, postgres]) {
     assert.equal((await verified(after(1))).state, "failing", "a reading that saw it fail fails it");
     assert.equal((await verified(after(100))).state, "failing", "and it stays failing until a reading passes");
     assert.equal((await whyAt(after(1)))?.reason, "failing");
+    assert.deepEqual(await told(), ["Red: 1.1 · Rejects a bad email"], "a reading that turns red tells the owner, as a test run's verdict does");
+    await later();
+    await health.recordObserved(contract.id, "passing", { machine: "mint", evidence: "seen again" });
+    assert.deepEqual((await told()).toSorted(), ["Green again: 1.1 · Rejects a bad email", "Red: 1.1 · Rejects a bad email"], "and one that turns green again");
+    await assert.rejects(health.recordObserved("contract_000000000000", "passing", { machine: "mint", evidence: "seen" }), MissingReferenceError, "a reading for no live contract is refused");
 
     await assert.rejects(health.recordObserved(sibling.id, "passing", { machine: "mint", evidence: "seen" }), /is not proved by observability as proof/, "a reading for a contract another proof proves is refused");
   });

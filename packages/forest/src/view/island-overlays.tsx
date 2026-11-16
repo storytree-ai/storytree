@@ -13,7 +13,7 @@ import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytre
 import { showsNear, type DetailStore } from "./zoom-detail.js";
 import { namesShown, type OpenedStore } from "./opened-capability.js";
 import { LayingOutLabel } from "./layout-progress.js";
-import { pinMarks, PIN_ICONS, type PinMark } from "./pin-marks.js";
+import { badgeShown, markSpot, pinMarks, PIN_ICONS, type PinMark } from "./pin-marks.js";
 
 /** Where an island's middle is, in 0.2 ground units. */
 const centreOf = (island: Island): { x: number; z: number } => ({ x: island.x * GROUND_PER_WORLD_UNIT, z: island.z * GROUND_PER_WORLD_UNIT });
@@ -112,9 +112,7 @@ export function IslandPins({ island, coast, links = [], docks, radius, pins, det
     [here, capabilities, open, partPlates]);
   const near = showsNear(level);
   return <>{marks.map((mark) => {
-    if ("store" in mark.place) return null;
-    const { capability, part } = mark.place;
-    const at = part === undefined ? plates.find((plate) => plate.capability === capability) : partPlates?.find((plate) => plate.part === part);
+    const at = markSpot(mark.place, plates, partPlates);
     return at === undefined ? null : <Overlay key={mark.key} position={surface(at).toArray()} center zIndexRange={[26, 22]} style={{ pointerEvents: "none" }}>
       <PinBadge mark={mark} near={near} />
     </Overlay>;
@@ -130,13 +128,13 @@ export function StorePins({ address, at, pins, detail }: { address: string; at: 
 
 /** A place's pins: near, a row per pin, its icon and label, a stale one greyed and saying so; far, each icon once and how many. */
 function PinBadge({ mark, near }: { mark: PinMark; near: boolean }) {
-  const allStale = (icon: PinIcon) => mark.pins.every((pin) => pin.icon !== icon || pin.stale !== undefined);
+  const shown = badgeShown(mark, near);
   return <div className="forest-label planet-pin" data-pin-place={mark.key} data-pin-count={mark.count} data-pin-icons={mark.icons.join(" ")} data-pin-stale={mark.stale} data-pin-level={near ? "near" : "far"}>
-    {near
-      ? mark.pins.map((pin) => <span key={pin.id} className="planet-pin-row" data-pin-id={pin.id} data-stale={pin.stale === undefined ? undefined : ""} title={pin.stale}>
+    {shown.near
+      ? shown.rows.map((pin) => <span key={pin.id} className="planet-pin-row" data-pin-id={pin.id} data-stale={pin.stale === undefined ? undefined : ""} title={pin.stale}>
         <PinGlyph icon={pin.icon} /><span className="planet-pin-label">{pin.label}</span>{pin.stale !== undefined && <span className="planet-pin-stale">stale</span>}
       </span>)
-      : <span className="planet-pin-row">{mark.icons.map((icon) => <PinGlyph key={icon} icon={icon} stale={allStale(icon)} />)}<span className="planet-pin-count">{mark.count}</span></span>}
+      : <span className="planet-pin-row">{shown.icons.map(({ icon, stale }) => <PinGlyph key={icon} icon={icon} stale={stale} />)}<span className="planet-pin-count">{shown.count}</span></span>}
   </div>;
 }
 

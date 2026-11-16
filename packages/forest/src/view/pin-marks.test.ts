@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import type { Pin, PinReading } from "@storytree/map/pins";
 
-import { pinMarks, PIN_ICONS } from "./pin-marks.js";
+import { badgeShown, markSpot, pinMarks } from "./pin-marks.js";
 
 const CACHE = "capability_00000000000a";
 const WEB = "capability_00000000000b";
@@ -44,8 +44,18 @@ test("3.119 · nearer, with the capability opened into its parts, the part's pin
   assert.deepEqual(marks.find((mark) => mark.key === "store:postgres://db/app")?.pins.map(({ icon, label }) => [icon, label]), [["store", "The users table"]]);
 });
 
-test("3.119 · every preset icon has its drawn mark", () => {
-  for (const icon of ["cache", "queue", "store", "api", "auth", "config", "job", "events", "search", "logging", "flag"] as const) {
-    assert.match(PIN_ICONS[icon], /^M/, `${icon}'s path`);
-  }
+test("3.119 · near, a mark shows a row per pin with its label, the stale one marked; far, each icon once, stale only when every pin bearing it is, and how many", () => {
+  const [mark] = pinMarks(readings, { capabilities: new Set([CACHE]) });
+  assert.deepEqual(badgeShown(mark!, true), { near: true, rows: mark!.pins });
+  assert.deepEqual(badgeShown(mark!, false), { near: false, icons: [{ icon: "cache", stale: false }, { icon: "job", stale: true }, { icon: "config", stale: false }], count: 3 });
+});
+
+test("3.119 · a mark stands on its part's name once the part is drawn, else on its capability's; a store's on no island name, nor one whose name is not placed yet", () => {
+  const plates = [{ capability: CACHE, x: 1, z: 2 }];
+  const parts = [{ part: "pkg/src/infra/cache", x: 5, z: 6 }];
+  assert.deepEqual(markSpot({ capability: CACHE }, plates, parts), { x: 1, z: 2 });
+  assert.deepEqual(markSpot({ capability: CACHE, part: "pkg/src/infra/cache" }, plates, parts), { x: 5, z: 6 });
+  assert.equal(markSpot({ capability: CACHE, part: "pkg/src/infra/cache" }, plates, undefined), undefined, "a part's mark waits for its name");
+  assert.equal(markSpot({ capability: WEB }, plates, parts), undefined);
+  assert.equal(markSpot({ store: "postgres://db/app" }, plates, parts), undefined);
 });

@@ -34,6 +34,23 @@ export function pinMarks(readings: readonly PinReading[], drawn: DrawnPlaces): P
   });
 }
 
+/** What a place's mark shows: near, a row per pin, its icon and label and whether stale; far, each icon once, stale when every pin
+ * bearing it is, and how many pins. */
+export type BadgeShown = { readonly near: true; readonly rows: readonly MarkedPin[] } | { readonly near: false; readonly icons: readonly { readonly icon: PinIcon; readonly stale: boolean }[]; readonly count: number };
+
+/** What `mark` shows near or far (3.119). */
+export function badgeShown(mark: PinMark, near: boolean): BadgeShown {
+  if (near) return { near, rows: mark.pins };
+  return { near, icons: mark.icons.map((icon) => ({ icon, stale: mark.pins.every((pin) => pin.icon !== icon || pin.stale !== undefined) })), count: mark.count };
+}
+
+/** Where a mark on an island stands: on its part's name, or its capability's; none while that name is not placed, or for a store. */
+export function markSpot(place: PinPlace, plates: readonly { readonly capability: string; readonly x: number; readonly z: number }[], parts: readonly { readonly part: string; readonly x: number; readonly z: number }[] | undefined): { readonly x: number; readonly z: number } | undefined {
+  if ("store" in place) return undefined;
+  const at = place.part === undefined ? plates.find((plate) => plate.capability === place.capability) : parts?.find((plate) => plate.part === place.part);
+  return at === undefined ? undefined : { x: at.x, z: at.z };
+}
+
 /** Each preset icon's mark: an SVG path on a 24-unit square, drawn as a line. */
 export const PIN_ICONS: Readonly<Record<PinIcon, string>> = {
   cache: "M13 2 4 14h7l-1 8 9-12h-7z",

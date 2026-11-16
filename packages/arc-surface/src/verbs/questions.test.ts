@@ -232,6 +232,11 @@ test("3.43 · question list and arc waits with --project all read every library 
     return (await verb.act(input as never, context, WORDS)).text;
   };
 
+  // Each says so in its usage, which is how a session finds the flag.
+  for (const [family, name] of [["question", "list"], ["arc", "waits"]] as const) {
+    const verb = ARC_FAMILIES.find((one) => one.name === family)!.verbs.find((one) => "name" in one.command && one.command.name === name)!;
+    assert.match((verb.command as { usage?: string }).usage ?? "", /\[--project <project\|all>\]$/, `${family} ${name}`);
+  }
   const questions = await run("question", "list", { arc: undefined, project: ["all"] });
   const [own, theirs] = questions.split("\n\n");
   assert.ok(own!.startsWith(`project ${factoryName}:\n`) && own!.includes(toolQuestion.id) && !own!.includes(siteQuestion.id), questions);

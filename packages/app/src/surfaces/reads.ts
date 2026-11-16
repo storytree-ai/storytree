@@ -42,7 +42,7 @@ export interface PageReads extends Answers<PageReadsBridge> {
 }
 
 export interface PageReadsOptions {
-  /** The app's connection to its library, local or Cloud SQL; the agent activity log is its own database there. */
+  /** The app's connection to its library, local or at an address; the agent activity log is its own database there. */
   readonly storytree: Storytree;
   /**
    * The folder the sessions' fetched transcript records are kept in between app starts (app 3.10),

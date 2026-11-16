@@ -39,7 +39,7 @@ export async function buildToolBundle(outdir, { platform = process.platform, arc
     outfile: path.join(outdir, "storytree-deliver.mjs"),
     bundle: true, platform: "node", format: "esm", target: "node24", logLevel: "warning",
     banner: { js: ENTRY_BANNER },
-    external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector", "@huggingface/transformers"],
+    external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@huggingface/transformers"],
   }));
   timed(`embedding runtime ${platform}/${arch}`, () => stageEmbeddingRuntime(outdir, platform, arch));
 }

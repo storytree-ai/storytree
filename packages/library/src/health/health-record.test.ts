@@ -669,6 +669,74 @@ for (const backend of [memory, postgres]) {
     assert.equal(await offered(), true, "the question gone, it is offered again");
   });
 
+  contract("5.31", "a live reading recorded for a contract proved by observability is its verified state: passing while within its freshness, not re-run once older, failing when it saw a fail", async ({ health, work, records }) => {
+    const { capability, contract, sibling } = await smallPlan(work);
+    await work.setProposed(capability.id, false);
+    await health.recordVerified(sibling.id, "passing");
+    await work.editContract(contract.id, { proof: OBSERVED });
+    const reading = await health.recordObserved(contract.id, "passing", { machine: "mint", evidence: "12 lines from mint and the laptop read back in order" });
+    const hours = (count: number): Date => new Date(Date.parse(reading.at) + count * 3_600_000);
+    const verified = async (now: Date): Promise<HealthColumn> => (await health.health(contract.id, { now })).verified;
+    const whyAt = async (now: Date) => (await health.worklist({ now })).find((item) => item.capability === capability.id)?.why;
+
+    assert.deepEqual(await verified(hours(47)), { state: "passing", by: OBSERVED.watcher, at: reading.at, note: "12 lines from mint and the laptop read back in order, taken on mint", source: "local" }, "within its freshness it passes, saying the watcher, the machine and the evidence");
+    assert.equal(await whyAt(hours(47)), undefined, "and its capability is healthy");
+    assert.equal((await health.annotate(undefined, undefined, hours(47))).stories[0]!.capabilities[0]!.status, "healthy");
+
+    const stale = await verified(hours(49));
+    assert.deepEqual({ state: stale.state, was: stale.was, by: stale.by }, { state: "not-checked", was: { state: "passing", at: reading.at }, by: OBSERVED.watcher }, "older than its freshness it is not re-run, never passing on an old reading");
+    assert.match(stale.note ?? "", /^not re-run: its newest live reading, at .*, is older than its freshness of 2 days: 12 lines from mint and the laptop read back in order, taken on mint$/);
+    assert.deepEqual(await whyAt(hours(49)), { reason: "not re-run", mover: "agent", contracts: [contract.id], since: reading.at });
+    assert.equal((await health.annotate(undefined, undefined, hours(49))).stories[0]!.capabilities[0]!.status, "untested");
+    await work.editContract(contract.id, { proof: { ...OBSERVED, freshness: "50h" } });
+    assert.equal((await verified(hours(49))).state, "passing", "a freshness in hours: 50 hours covers 49");
+    assert.equal((await verified(hours(51))).state, "not-checked", "and not 51");
+    await work.editContract(contract.id, { proof: { ...OBSERVED, freshness: "1h" } });
+    assert.match((await verified(hours(2))).note ?? "", /older than its freshness of 1 hour: /, "one hour, said in the singular");
+    await work.editContract(contract.id, { proof: { ...OBSERVED, freshness: "1d" } });
+    assert.equal((await verified(hours(23))).state, "passing");
+    assert.match((await verified(hours(25))).note ?? "", /older than its freshness of 1 day: /, "one day, said in the singular");
+    await work.editContract(contract.id, { proof: OBSERVED });
+    const told = async () => (await records.list("fyi")).filter(({ fields }) => fields.about === contract.id).map(({ fields }) => fields.title);
+    assert.deepEqual(await told(), [], "a passing reading tells nothing");
+
+    await later();
+    const failed = await health.recordObserved(contract.id, "failing", { machine: "laptop", evidence: "the box's lines did not reach the laptop" });
+    const after = (count: number): Date => new Date(Date.parse(failed.at) + count * 3_600_000);
+    assert.equal((await verified(after(1))).state, "failing", "a reading that saw it fail fails it");
+    assert.equal((await verified(after(100))).state, "failing", "and it stays failing until a reading passes");
+    assert.equal((await whyAt(after(1)))?.reason, "failing");
+    assert.deepEqual(await told(), ["Red: 1.1 · Rejects a bad email"], "a reading that turns red tells the owner, as a test run's verdict does");
+    await later();
+    await health.recordObserved(contract.id, "passing", { machine: "mint", evidence: "seen again" });
+    assert.deepEqual((await told()).toSorted(), ["Green again: 1.1 · Rejects a bad email", "Red: 1.1 · Rejects a bad email"], "and one that turns green again");
+    await assert.rejects(health.recordObserved("contract_000000000000", "passing", { machine: "mint", evidence: "seen" }), MissingReferenceError, "a reading for no live contract is refused");
+
+    await assert.rejects(health.recordObserved(sibling.id, "passing", { machine: "mint", evidence: "seen" }), /is not proved by observability as proof/, "a reading for a contract another proof proves is refused");
+  });
+
+  contract("5.32", "for a contract proved by observability a test run's skip or pass does not stand in for its live reading, a test's fail still fails it, and with no reading its reason is no live reading", async ({ health, work }) => {
+    const { capability, contract, sibling } = await smallPlan(work);
+    await work.setProposed(capability.id, false);
+    await health.recordVerified(sibling.id, "passing");
+    await work.editContract(contract.id, { proof: OBSERVED });
+    const whyOf = async () => (await health.annotate()).stories[0]!.capabilities[0]!.why;
+    assert.deepEqual(await whyOf(), { reason: "no live reading", mover: "agent", contracts: [contract.id] }, "never read, its reason is no live reading, not a missing test");
+
+    await health.recordVerified(contract.id, "passing", { by: "storytree test run on CI", source: "ci" });
+    assert.equal((await health.health(contract.id)).verified.state, "not-checked", "a test's pass does not stand in for a live reading");
+    assert.deepEqual(await whyOf(), { reason: "no live reading", mover: "agent", contracts: [contract.id] });
+
+    const reading = await health.recordObserved(contract.id, "passing", { machine: "mint", evidence: "seen" });
+    await health.recordVerified(contract.id, "not-checked", { by: "storytree test run on CI", source: "ci", skip: "other", was: { state: "passing", at: reading.at }, note: "not re-run: its live test skipped" });
+    assert.equal((await health.health(contract.id)).verified.state, "passing", "CI's skip of a live-only test does not count against it");
+    assert.equal(await whyOf(), undefined);
+
+    await health.recordVerified(contract.id, "failing", { by: "storytree test run on CI", source: "ci", note: "1 failed" });
+    const red = (await health.health(contract.id)).verified;
+    assert.deepEqual({ state: red.state, note: red.note }, { state: "failing", note: "1 failed" }, "a test's fail still fails it");
+  });
+
   contract("5.11", "a capability whose every contract carrying its reason a run in progress will record says it waits on that run; once the run records it, or the run's time is up, it is offered by what it records", async ({ health, work }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
@@ -1149,6 +1217,9 @@ async function later(): Promise<void> {
   const now = Date.now();
   await waitUntil(() => Date.now() > now, 5_000, "the clock to move on");
 }
+
+/** A proof by observability, as contract 2.5 of the agent activity log states it (ADR-1345 D5). */
+const OBSERVED = { by: "observability-as-proof", reason: "Only the laptop and the Mint box doing real work show it.", freshness: "2d", watcher: "the Mint box's activity watcher" } as const;
 
 /** One story › one capability › two contracts: the plan most of these tests write health on. */
 async function smallPlan(work: WorkModel): Promise<{

@@ -109,6 +109,12 @@ export interface ActivityLog {
   /** The branches worth a look from `machine`, with what the log knows of each (bounded.ts BRANCH_FACTS). */
   branchFacts(project: string, machine: string | undefined): Promise<BranchFacts[]>;
   /**
+   * Each machine that wrote a line to `project`'s log from `since` (ISO 8601) on, with how many it wrote then and from
+   * `recentSince` on, its first line from `recentSince` on (or in the window, when it wrote none since) and its last:
+   * counted on the server, in order of name.
+   */
+  machineTally(project: string, since: string, recentSince: string): Promise<MachineTally[]>;
+  /**
    * Run `work` holding `project`'s lock: what it reads through the LockedLog it is handed, and any
    * line it adds, happen with no other write to the project in between. It is how a claim checks
    * who holds a capability and takes it in one step (capability 5).
@@ -145,6 +151,18 @@ export interface BranchFacts {
   readonly lastAt: string;
   readonly folder?: string;
   readonly state?: Line & { kind: "branch-state" };
+}
+
+/** One machine's lines in a window, as machineTally counts them. */
+export interface MachineTally {
+  readonly machine: string;
+  /** How many lines it wrote in the window, and how many of them from its recent part on. */
+  readonly count: number;
+  readonly recent: number;
+  /** When its first line from the recent part on (from the window's start, when it wrote none since) and its last were written (ISO 8601), and its last's number. */
+  readonly first: string;
+  readonly last: string;
+  readonly lastSeq: number;
 }
 
 /** How a line written earlier elsewhere, and only now reaching the log, is added (a hook's queued line). */
@@ -263,7 +281,7 @@ interface ActivityRow {
 /**
  * Open the agent activity log where `server` is: the database of its own that a library connection
  * hands out and sets up (contract 2.5, ADR-0735 D3, ADR-0973), on whatever server the library
- * resolved to, local or Cloud SQL; or the Postgres server at a postgres:// URL, through a library
+ * resolved to, local or at an address; or the Postgres server at a postgres:// URL, through a library
  * connection of the log's own. From a connection, the log's pool is the connection's, and closes
  * with it; from a URL, closing the log closes the connection it opened.
  */
@@ -426,6 +444,17 @@ class PgActivityLog implements ActivityLog {
       ...(worked_in === null ? {} : { folder: worked_in }),
       ...(state.seq === null || state.seq === undefined ? {} : { state: lineOf(state as ActivityRow) as Line & { kind: "branch-state" } }),
     }));
+  }
+
+  async machineTally(project: string, since: string, recentSince: string): Promise<MachineTally[]> {
+    assertProject(project);
+    // The (project, at) index narrows it to the window, so a month of a busy machine's lines is counted, never sent.
+    const { rows } = await this.#pool.query<{ machine: string; count: string; recent: string; first: Date; last: Date; last_seq: string }>(
+      `SELECT detail->>'machine' AS machine, count(*) AS count, count(*) FILTER (WHERE at >= $3) AS recent, coalesce(min(at) FILTER (WHERE at >= $3), min(at)) AS first, max(at) AS last, max(seq) AS last_seq
+         FROM activity WHERE project = $1 AND at >= $2 AND detail ? 'machine' GROUP BY 1 ORDER BY 1`,
+      [project, since, recentSince],
+    );
+    return rows.map((row) => ({ machine: row.machine, count: Number(row.count), recent: Number(row.recent), first: row.first.toISOString(), last: row.last.toISOString(), lastSeq: Number(row.last_seq) }));
   }
 
   async sessionCount(project: string): Promise<number> {

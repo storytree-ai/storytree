@@ -3,7 +3,7 @@
  * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, STORE_LINK_DIRECTIONS, wordAndWhy, type AnnotatedTree, type StoreLink, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
 import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
@@ -34,6 +34,19 @@ const covers = z
   .min(1)
   .optional()
   .describe("On an imported story whose code storytree cannot read only, and required there: the folders and files of its imported project this capability covers, each from the imported folder (a folder covers everything under it); none may overlap another capability's of the story");
+/** A capability's store links, the mapping agent's judgment from a test run's statement log (ADR-1333 D2). */
+const storeLinks = z
+  .array(
+    z.object({
+      store: z.string().min(1).describe("The store's address as the map names it (postgres://db/shop)"),
+      table: z.string().min(1).describe("The table its code sends statements to"),
+      direction: z.enum(STORE_LINK_DIRECTIONS).describe("What those statements do to it: read, write, both (an UPDATE or DELETE) or unknown"),
+      cites: z.array(z.string().min(1)).min(1).describe("Each file and line that sends one, as file:line from the imported folder"),
+    }),
+  )
+  .min(1)
+  .optional()
+  .describe("A capability's store links, replacing them (ADR-1333). Read them as a person would: start a throwaway copy of the store from the repository's compose service and migrations with its statement log on (never turn it on in the user's own store without asking), point the repository's connection setting at it, run its tests, and parse which statements the run sent to which tables. Read the code that sends them: a shared layer (a data-access module, an ORM, a wrapper) is evidence, never credited. Credit each table to the capability whose code sends the statement, never the test that ran it, each cited by file and line; the tests' own statements and the migrations draw none. Write nothing into the repository.");
 
 const provedBy = z
   .array(z.string().min(1))
@@ -41,10 +54,17 @@ const provedBy = z
   .optional()
   .describe("The existing tests that prove it when they carry no contract number, as an imported repository's own: each a pytest node id (tests/test_api.py::TestAuth::test_login; a file or a class names every test it holds) or another runner's test or suite title");
 
+/** How a contract is proved, as the plan stores it: observability as proof with its freshness and watcher (ADR-1294, ADR-1345). */
+type Proof = { by: (typeof CONTRACT_PROOFS)[number]; reason: string; freshness?: string | undefined; watcher?: string | undefined };
+/** A proof as the library takes it, which checks the freshness and watcher observability as proof needs as it writes. */
+type StoredProof = NonNullable<Parameters<Library["addContract"]>[0]["proof"]>;
+
 const proof = z
   .object({
-    by: z.enum(CONTRACT_PROOFS).describe("test-criterion when a test can see the answer (a stored record, a returned value, a refusal, a state change); agentic-user-acceptance-testing only when a user sees or does something on screen and no plain test can judge it"),
+    by: z.enum(CONTRACT_PROOFS).describe("test-criterion when a test can see the answer (a stored record, a returned value, a refusal, a state change); agentic-user-acceptance-testing only when a user sees or does something on screen and no plain test can judge it; observability-as-proof only when real machines doing real work alone can show it (a route between machines, a shared server, a scheduled job), proved by a recent live reading (ADR-1345)"),
     reason: z.string().min(1).describe("Why, in a line"),
+    freshness: z.string().min(1).optional().describe("observability-as-proof only, and required there: how old its newest live reading may be, in whole hours or days, as 36h or 2d"),
+    watcher: z.string().min(1).optional().describe("observability-as-proof only, and required there: the watcher that records its readings, as the Mint box's activity watcher"),
   })
   .optional()
   .describe("How the contract is proved, with a one-line reason (ADR-1294)");
@@ -152,14 +172,14 @@ export function registerPlanTools(define: Define): void {
         // An edge's contract is numbered from its dependent capability, past that capability's tests, so a test can carry it.
         const from = tree.stories.flatMap((story) => story.edges ?? []).find((one) => one.id === edge)?.from;
         const tested = from === undefined ? [] : await testedNumbers(call, from, tree);
-        const contract = await call.library.addContract({ title: name, edge, ...optional({ description: about, provedBy: proved, proof: how }) }, { ...call.writer, testedNumbers: tested });
+        const contract = await call.library.addContract({ title: name, edge, ...optional({ description: about, provedBy: proved, proof: how as StoredProof | undefined }) }, { ...call.writer, testedNumbers: tested });
         const number = /^(\d+\.\d+) · /.exec(contract.fields.title)?.[1];
         const naming = number === undefined ? " A test named in its proved_by proves it" : ` A test titled "${number} · …", or named in proved_by, proves it`;
         return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}) on edge ${edge}.${naming} under \`storytree health local\`.${await linked(contract.id)}`, data: { id: contract.id } };
       }
       const owner = capability!;
       const tested = await testedNumbers(call, owner, tree);
-      const contract = await call.library.addContract({ title: name, capability: owner, ...optional({ description: about, provedBy: proved, proof: how }) }, { ...call.writer, testedNumbers: tested });
+      const contract = await call.library.addContract({ title: name, capability: owner, ...optional({ description: about, provedBy: proved, proof: how as StoredProof | undefined }) }, { ...call.writer, testedNumbers: tested });
       const joined = await linked(contract.id);
       const orphans = await orphanTests(call, owner, contract.fields.title, tested);
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is the one ${orphans.length === 1 ? "it proves" : "one proves"}, give it that number with edit_plan.`;
@@ -219,6 +239,7 @@ export function registerPlanTools(define: Define): void {
       edge: z.string().min(1).optional().describe("A contract's edge, to move it onto that link inside its story"),
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
       covers: covers.describe("The folders and files of a capability you mapped on code storytree cannot read, replacing them"),
+      store_links: storeLinks,
       proved_by: provedBy.describe("A contract's existing tests that prove it, replacing them"),
       proof: proof.describe("How a contract is proved, with a one-line reason (ADR-1294), replacing it"),
       stories: z.array(z.string().min(1)).optional().describe("An arc's stories, replacing them"),
@@ -250,8 +271,7 @@ export function registerPlanTools(define: Define): void {
       const { library, writer } = call;
       const found = partOf(await library.projectTree(), target);
       if (found === undefined) return { text: `${target} is not a capability, contract or edge in this project's plan: only those are retired here.`, refused: true };
-      // An edge is retired live: an increment holds pending changes only to stories, capabilities and contracts (ADR-0966 D1).
-      const held = found.kind === "edge" ? undefined : await holdPlanChange(library, await claimsOf(call), call.caller.session, { record: target, retire: reason }, writer);
+      const held = await holdPlanChange(library, await claimsOf(call), call.caller.session, { record: target, retire: reason }, writer);
       if (held !== undefined) return { text: `Retiring ${found.kind} ${quoted(found.title)} (${target}) is ${heldSaid(held)}`, data: { id: target } };
       await library.retire(target, reason, writer);
       return { text: `Retired ${found.kind} ${quoted(found.title)} (${target}): ${reason}.`, data: { id: target } };
@@ -293,8 +313,9 @@ interface Changes {
   edge?: string | undefined;
   depends_on?: string[] | undefined;
   covers?: string[] | undefined;
+  store_links?: StoreLink[] | undefined;
   proved_by?: string[] | undefined;
-  proof?: { by: (typeof CONTRACT_PROOFS)[number]; reason: string } | undefined;
+  proof?: Proof | undefined;
   stories?: string[] | undefined;
   intent?: string | undefined;
   end_state?: string | undefined;
@@ -312,7 +333,7 @@ interface Changes {
 /** The fields each kind of plan record can have corrected, as the tool names them. */
 const EDITABLE = {
   story: ["title", "description"],
-  capability: ["title", "description", "story", "depends_on", "covers"],
+  capability: ["title", "description", "story", "depends_on", "covers", "store_links"],
   contract: ["title", "description", "capability", "edge", "proved_by", "proof"],
   edge: ["description"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
@@ -337,14 +358,14 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
     // A drawn capability's covers and links are its code's; only its title and description are the agent's (ADR-1324 D3).
     const story = ((await library.get(target))?.fields as { story?: string } | undefined)?.story;
     const drawn = await drawnBy(call, story);
-    if (drawn !== undefined) return { text: `Not corrected: storytree draws ${drawn.said} capabilities and links from its code's imports, so only a capability's title and description are corrected here; importing the folder again redraws the rest from the code as it stands.`, refused: true };
+    if (drawn !== undefined) return { text: `Not corrected: storytree draws ${drawn.said} capabilities and links from its code's imports, so only a capability's title and description, and the store links you judged, are corrected here; importing the folder again redraws the rest from the code as it stands.`, refused: true };
   }
-  const { depends_on: dependsOn, end_state: endState, proved_by: provedBy, priority, capabilities, machine, escape, ...rest } = changes;
+  const { depends_on: dependsOn, end_state: endState, proved_by: provedBy, store_links: storeLinks, priority, capabilities, machine, escape, ...rest } = changes;
   const own = kind === "increment" ? await incrementFields(target, { capabilities, machine, escape }, call) : { fields: {} };
   if ("refused" in own) return own.refused;
   // "none" clears an arc's priority: the library removes a field given as undefined (ADR-0963 D3).
   const fields = {
-    ...optional({ ...rest, dependsOn, endState, provedBy }),
+    ...optional({ ...rest, dependsOn, endState, provedBy, storeLinks }),
     ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }),
     ...own.fields,
   };
@@ -368,7 +389,8 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   const shared = kind === "increment" ? await library.openListing((listing ?? []).filter((capability) => !had.includes(capability)), target) : [];
   const placed = kind === "contract" && to !== undefined && (changes.capability !== undefined || changes.edge !== undefined) ? placedSaid(await library.projectTree(), target, to) : "";
   const bare = await bareSaid(library, leaves, "plan_contract");
-  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
+  const judged = storeLinks === undefined ? "" : ` It carries ${storeLinks.length} store ${storeLinks.length === 1 ? "link" : "links"}, drawn as judged on its stores' panels.`;
+  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}${judged}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
 }
 
 /**
@@ -752,7 +774,16 @@ async function testedNumbers({ folder }: Call, capability: string, tree: Awaited
 }
 
 /** How a contract is proved, in full words (ADR-1294), or that its story-author has not chosen yet. */
-function proofSaid(contract: { proof?: { by: (typeof CONTRACT_PROOFS)[number]; reason: string } }): string {
-  if (contract.proof === undefined) return "how it is proved is not chosen yet";
-  return `proved by ${contract.proof.by === "test-criterion" ? "a test criterion" : "agentic user acceptance testing"}: ${contract.proof.reason}`;
+function proofSaid(contract: { proof?: Proof }): string {
+  const { proof } = contract;
+  if (proof === undefined) return "how it is proved is not chosen yet";
+  if (proof.by === "observability-as-proof") return `proved by observability as proof, a live reading no older than ${freshnessSaid(proof.freshness)} recorded by ${proof.watcher}: ${proof.reason}`;
+  return `proved by ${proof.by === "test-criterion" ? "a test criterion" : "agentic user acceptance testing"}: ${proof.reason}`;
 }
+
+/** A freshness in words (`36h` is "36 hours", `1d` "1 day"): the schema keeps it a whole number of hours or days (ADR-1345). */
+function freshnessSaid(freshness: string | undefined): string {
+  const [, count = "0", unit] = /^(\d+)([hd])$/.exec(freshness ?? "") ?? [];
+  return `${count} ${unit === "d" ? "day" : "hour"}${count === "1" ? "" : "s"}`;
+}
+

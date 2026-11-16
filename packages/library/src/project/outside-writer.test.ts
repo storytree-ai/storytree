@@ -1,7 +1,7 @@
 /**
  * Capability 30 · Outside writers, contracts 30.1-30.3 and 30.5 (ADR-1178 D1 and D5): an outside writer's own database role,
  * fenced by fenceOutsideWriter as the project database's owner, inserts only its plugin's kinds, is refused everything
- * else, and its rows carry its role in `recorded_by`. Run as Cloud SQL and the Mint box run it: a role that owns the
+ * else, and its rows carry its role in `recorded_by`. Run as the Mint box runs it: a role that owns the
  * project's database, an owner's account acting as it, and the writer's account with no role to take on. The writer
  * writes as storytree writes a record (the history entry first, then the record put with INSERT ... ON CONFLICT DO
  * UPDATE), on a plain connection of its own: its rights, not the library's care.

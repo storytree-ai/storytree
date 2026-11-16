@@ -63,11 +63,9 @@ export async function fenceOutsideWriter(client: ClientBase, writer: OutsideWrit
  * Fence each of `writers`, in order, in project `project`'s library on the server `options` reach, as the account they
  * sign in as, which must be able to act as the project database's owner. Each is its own transaction, so a refusal
  * leaves the ones before it fenced and says which they were. A role the server does not have is refused with what to do:
- * the role, its LOGIN and its password are made apart from this. A Cloud SQL library is refused: it is reached by Google
- * sign-in, as no owner.
+ * the role, its LOGIN and its password are made apart from this.
  */
 export async function fenceProject(options: ConnectOptions, project: string, writers: readonly OutsideWriter[]): Promise<void> {
-  if (options.cloudSql !== undefined) throw new ConnectionError("config", `The library is the Cloud SQL instance ${options.cloudSql.instance}: fence its writers as the owner through the Cloud SQL Auth Proxy instead.`);
   const server: ServerAccess = options.address !== undefined ? addressServer(options.address, options.connectTimeoutMs) : localServer(new URL(options.url), options.connectTimeoutMs);
   const pool = server.pool(projectDatabase(project));
   const fenced: string[] = [];

@@ -12,7 +12,7 @@ test("4.8 · parseJunit reads each test's name, the suites around it, its file, 
     { name: '2.3 [memory] a "quoted" <name> & more', suites: [], file: "C:\\repo\\a.test.ts", status: "passed" },
     { name: "8.1 live proof", suites: [], file: "C:\\repo\\a.test.ts", status: "skipped", message: "owner-gated" },
     { name: "3.1 fails", suites: [], file: "C:\\repo\\a.test.ts", status: "failed", message: "boom" },
-    { name: "2.1 [cloud-sql] inside", suites: ["8.1 capability 2's suite"], file: "C:\\repo\\a.test.ts", status: "passed" },
+    { name: "2.1 [address] inside", suites: ["8.1 capability 2's suite"], file: "C:\\repo\\a.test.ts", status: "passed" },
     { name: "4.4 todo", suites: [], file: "C:\\repo\\a.test.ts", status: "skipped", message: "later" },
   ]);
 });
@@ -35,7 +35,7 @@ Error: boom &lt;&amp;> at TestContext.&lt;anonymous>
 		</failure>
 	</testcase>
 	<testsuite name="8.1 capability 2's suite" time="0.0002" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="box">
-		<testcase name="2.1 [cloud-sql] inside" time="0.0001" classname="test" file="C:\\repo\\a.test.ts"/>
+		<testcase name="2.1 [address] inside" time="0.0001" classname="test" file="C:\\repo\\a.test.ts"/>
 	</testsuite>
 	<testcase name="4.4 todo" time="0.00006" classname="test" file="C:\\repo\\a.test.ts">
 		<skipped type="todo" message="later"/>

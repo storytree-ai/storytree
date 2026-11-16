@@ -73,8 +73,8 @@ test("1.7 an app that does not stop in time is reported as still running, not as
   }
 });
 
-test("1.11 with the library on Cloud SQL (no local database), the running app is found from its launch record and quit", async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "storytree-quit-cloud-"));
+test("1.11 with the library at a Postgres address (no local database), the running app is found from its launch record and quit", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-quit-remote-"));
   // A stand-in for the running app: a live process, named in app.json as the app records itself.
   const app = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
   try {

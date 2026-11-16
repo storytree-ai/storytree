@@ -844,6 +844,33 @@ test("9.12 on an imported story storytree draws, plan_capability is refused, nam
   });
 });
 
+test("9.41 edit_plan sets a drawn capability's store links, the tables the mapping agent judged its code sends statements to, replacing them, says they are drawn as judged, and refuses a link with no cite with nothing written", async () => {
+  await withProject(async ({ folder, library }) => {
+    const shop = path.join(folder, "..", "shop");
+    mkdirSync(path.join(shop, "src", "cart"), { recursive: true });
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop", type: "module" }));
+    writeFileSync(path.join(shop, "src", "cart", "index.js"), "export const cart = () => 1;\n");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      assert.equal((await agent.call("import_project", { folder: "../shop" })).isError, false);
+      const story = (await library.list("story")).find((one) => one.fields.mapped !== undefined)!;
+      const cart = (await library.list("capability")).find((one) => one.fields.story === story.id)!;
+      const orders = { store: "postgres://db/shop", table: "orders", direction: "both", cites: ["src/cart/index.js:1"] };
+
+      const linked = await agent.call("edit_plan", { id: cart.id, live: true, store_links: [orders, { ...orders, table: "people", direction: "read" }] });
+      assert.notEqual(linked.isError, true, linked.text);
+      assert.match(linked.text, /2 store links, drawn as judged/);
+      assert.deepEqual((await library.get(cart.id))?.fields["storeLinks" as never], [orders, { ...orders, table: "people", direction: "read" }]);
+
+      const uncited = await agent.call("edit_plan", { id: cart.id, live: true, store_links: [{ ...orders, cites: ["src/cart/index.js"] }] });
+      assert.equal(uncited.isError, true, uncited.text);
+      assert.equal(((await library.get(cart.id))?.fields as { storeLinks?: unknown[] } | undefined)?.storeLinks?.length, 2, "nothing was written");
+
+      await agent.call("edit_plan", { id: cart.id, live: true, store_links: [orders] });
+      assert.deepEqual((await library.get(cart.id))?.fields["storeLinks" as never], [orders], "a correction replaces them");
+    });
+  });
+});
+
 test("9.12 plan_capability on an imported story whose code storytree cannot read records what the agent mapped with the folders and files it covers, refusing none or an overlap by naming the capability to correct, which edit_plan corrects", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
@@ -877,6 +904,33 @@ test("9.26 plan_contract and edit_plan take proved_by, the existing tests that p
       const corrected = await agent.call("edit_plan", { id: sums, proved_by: ["tests/test_api.py::TestSums"] });
       assert.notEqual(corrected.isError, true, corrected.text);
       assert.deepEqual(await provedBy(), ["tests/test_api.py::TestSums"]);
+    });
+  });
+});
+
+test("9.42 · plan_contract and edit_plan take observability as proof with its freshness and watcher, and show_plan says it in full: proved by observability as proof, its reading within its freshness, recorded by its watcher", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Agent activity log", ...FOUNDED }));
+      const log = idOf(await agent.call("plan_capability", { story, title: "Shared log", ...FOUNDED }));
+      const observed = { by: "observability-as-proof", reason: "Only the laptop and the box doing real work show it.", freshness: "2d", watcher: "the Mint box's activity watcher" };
+      const both = idOf(await agent.call("plan_contract", { capability: log, title: "Two machines' lines read back in order", proof: observed }));
+      assert.deepEqual(((await library.get(both))?.fields as { proof?: unknown } | undefined)?.proof, observed);
+      const later = idOf(await agent.call("plan_contract", { capability: log, title: "Lines arrive within a minute" }));
+      const corrected = await agent.call("edit_plan", { id: later, proof: { ...observed, freshness: "36h" } });
+      assert.notEqual(corrected.isError, true, corrected.text);
+      const refused = await agent.call("edit_plan", { id: later, proof: { by: "observability-as-proof", reason: "Seen live." } });
+      assert.equal(refused.isError, true, "observability as proof without its freshness and watcher is refused");
+
+      const plan = (await agent.call("show_plan")).text;
+      const line = (id: string) => plan.split("\n").find((one) => one.includes(`(${id})`)) ?? "";
+      assert.match(line(both), /; proved by observability as proof, a live reading no older than 2 days recorded by the Mint box's activity watcher: Only the laptop and the box doing real work show it\.$/, plan);
+      assert.match(line(later), /; proved by observability as proof, a live reading no older than 36 hours recorded by /, plan);
+      await agent.call("edit_plan", { id: later, proof: { ...observed, freshness: "1d" } });
+      const again = (await agent.call("show_plan")).text;
+      assert.match(again.split("\n").find((one) => one.includes(`(${later})`)) ?? "", /no older than 1 day recorded by /, "one day, in the singular");
+      await agent.call("edit_plan", { id: later, proof: { ...observed, freshness: "1h" } });
+      assert.match((await agent.call("show_plan")).text.split("\n").find((one) => one.includes(`(${later})`)) ?? "", /no older than 1 hour recorded by /, "one hour, in the singular");
     });
   });
 });

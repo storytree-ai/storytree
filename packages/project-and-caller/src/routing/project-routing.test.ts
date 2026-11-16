@@ -206,8 +206,8 @@ test("1.5 a leftover address from a crashed app counts as not running: it answer
   }
 });
 
-test("1.6 with the library set to Cloud SQL, a project routes to that instance whether or not the app's database runs, and no local address is tried", async () => {
-  const cloudSql = { instance: "my-project:australia-southeast1:my-instance", user: "you@example.com" };
+test("1.6 with the library set to a Postgres address, a project routes to that address whether or not the app's database runs, and no local address is tried", async () => {
+  const address = "postgres://me@db.example.com:5432/postgres?sslmode=require";
   // A live process's record pointing at a port that accepts and never answers: trying it would hang.
   const silent = createServer(() => {});
   await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
@@ -217,13 +217,11 @@ test("1.6 with the library set to Cloud SQL, a project routes to that instance w
       const folder = markedFolder(dir, "site");
       const home = path.join(dir, "home");
       const dataDir = path.join(home, "pgdata");
-      setLibrary(["cloudsql", cloudSql.instance, cloudSql.user], home);
+      setLibrary(["postgres", address], home);
 
-      const stopped = timed(() => route(folder, { dataDir }));
-      assert.deepEqual(stopped.result, { status: "routed", project: "site", folder, library: { cloudSql } });
-      assert.ok(stopped.ms < QUICK_MS, `answered in ${stopped.ms.toFixed(0)} ms`);
+      assert.deepEqual(route(folder, { dataDir }), { status: "routed", project: "site", folder, library: { address } });
       placeTestServer(dataDir, { port });
-      assert.deepEqual(route(folder, { dataDir }), { status: "routed", project: "site", folder, library: { cloudSql } });
+      assert.deepEqual(route(folder, { dataDir }), { status: "routed", project: "site", folder, library: { address } });
 
       // Set back to local, routing follows the app's owner record and its handoff again.
       setLibrary(["local"], home);
@@ -255,9 +253,9 @@ test("1.7 routing reads only the library setting: damage elsewhere in settings.j
     const home = path.join(dir, "home");
     mkdirSync(home, { recursive: true });
     const file = path.join(home, "settings.json");
-    const cloudSql = { instance: "my-project:australia-southeast1:my-instance", user: "you@example.com" };
-    writeFileSync(file, JSON.stringify({ "context-guidance": "four hundred", library: { location: "cloudsql", ...cloudSql } }));
-    assert.deepEqual(route(folder, { home }), { status: "routed", project: "site", folder, library: { cloudSql } });
+    const address = "postgres://me@db.example.com:5432/postgres";
+    writeFileSync(file, JSON.stringify({ "context-guidance": "four hundred", library: { location: "postgres", address } }));
+    assert.deepEqual(route(folder, { home }), { status: "routed", project: "site", folder, library: { address } });
     for (const damaged of ['{"library":{"location":"cloudsql","instance":"bad"}}', "{ half a file"]) {
       writeFileSync(file, damaged);
       assert.throws(() => route(folder, { home }), (error: unknown) => error instanceof Error && error.message.includes(file));

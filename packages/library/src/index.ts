@@ -11,7 +11,7 @@
 // nothing but this entry, so the internals behind it cannot be imported at all.
 export { connect } from "./api/index.js";
 export type { AttachedMedia, Change, Changes, ChangesFilter, FeedbackNote, FeedbackRoute, FyiNote, Library, PinNote, MediaEntry, MediaFile, NewMedia, PluginRecords, Storytree } from "./api/index.js";
-export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, OwnDatabaseOptions, ProjectSnapshot, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./project/index.js";
+export type { ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, OwnDatabaseOptions, ProjectSnapshot, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./project/index.js";
 
 export { CONNECT_TIMEOUT_MS, ConnectionError, connectionString, explainConnectTimeout, ProjectGoneError, ProjectNameError, RestoreRefusedError, SEED_CONNECTION } from "./project/index.js";
 export { knowledgeGuidance, LinkLoopError, referenceEdgesOf, SupersessionLoopError } from "./knowledge/index.js";
@@ -19,7 +19,7 @@ export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
 export type { Counts, KindCount, RecentChange, TitleHit } from "./data/data-questions.js";
 export { ANCHOR_ID, anchorGaps, beforeCutover, CONTRACT_DEFINITION, CONTRACT_PLACEMENT, LifecycleError, LONG_CONTRACT_TITLE, planGuidance, pullSaid, RetireRefusedError, WaitLoopError } from "./work/index.js";
-export { CONTRACT_PROOFS, MissingUpgradeError, NewerSchemaError, NEW_LINE, OWNER_TIME_ZONE, parseSchedule, pluginSchema, SchemaError, UnknownTypeError } from "./schema/index.js";
+export { CONTRACT_PROOFS, STORE_LINK_DIRECTIONS, MissingUpgradeError, NewerSchemaError, NEW_LINE, OWNER_TIME_ZONE, parseSchedule, pluginSchema, SchemaError, UnknownTypeError } from "./schema/index.js";
 
 export type { Agent, CodeEdge, EdgeFile, FieldsOf, FileImport, KnowledgeKind, Line, LineKind, LinesSince, NewLine, PartClash, PluginRecordKind, PluginUpgradeStep, Precheck, RecordType, ScheduleRule, SchemaRecord, SharedStore, StoreColumn, StoreEvidence, StoreForeignKey, StoreMedium, StoreTable, StorySurvey, SurveyedFile, SurveyedPart, SurveyedParts, SurveyedTest, WriteOptions } from "./schema/index.js";
 export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./transactions/index.js";
@@ -64,6 +64,7 @@ export type {
   Pended,
   PendingChange,
   PlanChange,
+  StoreLink,
   StoryEdit,
   Anchor,
   AnchorEdit,

@@ -27,24 +27,18 @@ export interface VectorDomain {
 /**
  * The connection's server, without passwords or connection strings. Use pg's own resolved
  * settings: URL query parameters and PGHOST/PGPORT can override the URL's apparent endpoint.
- * Cloud SQL's authenticated instance is authoritative; its pools' placeholder host is not.
  * A cache namespace does not add authentication to an otherwise unauthenticated connection.
  */
-export function vectorServerIdentity(pool: Pool, cloudInstance?: string): string {
-  let identity: unknown;
-  if (cloudInstance !== undefined) {
-    identity = ["cloud-sql", cloudInstance, pool.options.user];
-  } else {
-    // Construction parses settings only: this client is never connected and holds no socket fd.
-    const client = new pg.Client(pool.options);
-    const ssl = client.ssl as boolean | ConnectionOptions;
-    identity = ["postgres", client.host, client.port, client.user, !ssl ? null : {
-      verify: typeof ssl === "boolean" || ssl.rejectUnauthorized !== false,
-      ca: typeof ssl === "boolean" ? null : ssl.ca ?? null,
-      servername: typeof ssl === "boolean" ? null : ssl.servername ?? null,
-      checkServerIdentity: typeof ssl === "boolean" ? null : ssl.checkServerIdentity?.toString() ?? null,
-    }];
-  }
+export function vectorServerIdentity(pool: Pool): string {
+  // Construction parses settings only: this client is never connected and holds no socket fd.
+  const client = new pg.Client(pool.options);
+  const ssl = client.ssl as boolean | ConnectionOptions;
+  const identity = ["postgres", client.host, client.port, client.user, !ssl ? null : {
+    verify: typeof ssl === "boolean" || ssl.rejectUnauthorized !== false,
+    ca: typeof ssl === "boolean" ? null : ssl.ca ?? null,
+    servername: typeof ssl === "boolean" ? null : ssl.servername ?? null,
+    checkServerIdentity: typeof ssl === "boolean" ? null : ssl.checkServerIdentity?.toString() ?? null,
+  }];
   return createHash("sha256").update(JSON.stringify(identity)).digest("hex");
 }
 

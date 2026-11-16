@@ -75,12 +75,9 @@ export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, bo
  * The library `options` reach as one postgres:// connection string, signed in, for a hand script's psql
  * to `database` (by default the address's own). An address takes its password from the `postgres` key,
  * and a remote one keeps its certificate check in libpq's words; the app's local url is its own. Nothing
- * is stored. Refused for a Cloud SQL instance, which only Google sign-in reaches, and when no password is saved.
+ * is stored. Refused when no password is saved.
  */
 export function connectionString(options: ConnectOptions, database?: string): string {
-  if (options.cloudSql !== undefined) {
-    throw new ConnectionError("config", `The library is the Cloud SQL instance ${options.cloudSql.instance}, reached by Google sign-in with no password to hand on: reach it through the Cloud SQL Auth Proxy instead.`);
-  }
   if (options.address !== undefined && checkedAddress(options.address).protocol === "wss:") {
     throw new ConnectionError("config", "The library is reached over a WebSocket (a wss:// address), which psql cannot speak: there is no postgres:// connection string to hand on.");
   }

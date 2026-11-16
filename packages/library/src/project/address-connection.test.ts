@@ -198,7 +198,6 @@ test("15.5 the library's connection string, signed in with its password, reaches
     } finally {
       await reached.end();
     }
-    assert.throws(() => connectionString({ cloudSql: { instance: "p:r:i", user: "me@example.com" } }), (error: unknown) => error instanceof ConnectionError && /Cloud SQL/.test(error.message));
   } finally {
     await dropTestRoles([role]);
     await removeTemp(keys);

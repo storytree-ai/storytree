@@ -108,6 +108,7 @@ const LIBRARY_API = [
   "questionDeviation",
   "reportHealth",
   "recordVerified",
+  "recordObserved",
   "recordVerifiedAll",
   "recordUnclaimed",
   "markVerifiedPending",
@@ -173,7 +174,7 @@ const LIBRARY_API = [
 /**
  * What the package's entry exports at run time: connect, and the errors callers catch by class.
  * ConnectionError joined the list with capability 8: it is how connect() refuses a server it cannot
- * reach or use as it is set up (a Cloud SQL instance without a Google sign-in, say), with a message
+ * reach or use as it is set up (an address with no password saved, say), with a message
  * saying what to fix, so a caller catches every such refusal by its class. MissingUpgradeError
  * joined it with schema upgrades: how a record no upgrade step can bring up to date is refused.
  * LifecycleError joined it with capability 10: how an increment asked to move backward is refused,
@@ -216,6 +217,7 @@ const RUNTIME_EXPORTS = [
   "RestoreRefusedError",
   "RetireRefusedError",
   "SEED_CONNECTION",
+  "STORE_LINK_DIRECTIONS",
   "SchemaError",
   "SupersessionLoopError",
   "UnknownTypeError",
@@ -510,8 +512,8 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
     }
 
     // What the API throws is what the entry exports, so callers can catch each error by its class.
-    // (A Cloud SQL setting that names no instance is refused before anything reaches the network.)
-    await assert.rejects(connect({ cloudSql: { instance: "storytree-pg", user: "you@example.com" } }), errorClass("ConnectionError"));
+    // (Options naming both a url and an address are refused before anything reaches the network.)
+    await assert.rejects(connect(untyped({ url: "postgres://127.0.0.1/postgres", address: "postgres://127.0.0.1/postgres" })), errorClass("ConnectionError"));
     await assert.rejects(storytree.openProject("Not A Project"), errorClass("ProjectNameError"));
     await assert.rejects(lib.addStory(untyped({ titel: "Visitor can sign up" })), errorClass("SchemaError"));
     await assert.rejects(lib.addCapability({ title: "Email form", story: "story_000000000000" }), errorClass("MissingReferenceError"));

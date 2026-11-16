@@ -118,7 +118,7 @@ const waitsFor = z
   .optional();
 
 /** One pending plan change on an increment (ADR-0966 D1): an edit with its before and after, or a retirement with its reason. */
-const pendingHead = { record: nonEmpty, type: z.enum(["story", "capability", "contract"]), base: z.number().int().min(0) };
+const pendingHead = { record: nonEmpty, type: z.enum(["story", "capability", "contract", "edge"]), base: z.number().int().min(0) };
 const pendingChange = z.union([
   z.object({ ...pendingHead, before: z.record(z.string(), z.unknown()), after: z.record(z.string(), z.unknown()) }).strict(),
   z.object({ ...pendingHead, retire: nonEmpty }).strict(),
@@ -131,6 +131,14 @@ const pendingChange = z.union([
  */
 const guardrails = z.array(z.object({ check: nonEmpty, trigger: z.enum(["change", "release"]) }).strict()).optional();
 
+/** The directions a store link has (ADR-1332 D2): what the capability's statements do to the table. */
+export const STORE_LINK_DIRECTIONS = ["read", "write", "both", "unknown"] as const;
+
+/** A judged link from a capability to a store's table, citing each file and line that sends a statement to it (ADR-1333 D2). */
+const storeLink = z
+  .object({ store: nonEmpty, table: nonEmpty, direction: z.enum(STORE_LINK_DIRECTIONS), cites: z.array(z.string().regex(/^\S.*:[1-9]\d*$/, "a cite is a file and its line, file:line")).min(1) })
+  .strict();
+
 /**
  * A pin's preset icons (question_82b15d496b5b's answer): what an agent found, drawn as one of a few architectural icons
  * rather than free text, to keep the map's signal above its noise. `store` is a shared store's, so only a pin on a store takes it.
@@ -140,8 +148,23 @@ export const PIN_ICONS = ["cache", "queue", "store", "api", "auth", "config", "j
 /** The longest a pin's label may be: a few words, beside its icon. */
 export const PIN_LABEL_LIMIT = 40;
 
-/** How a contract is proved (ADR-1294): a test criterion, a test reading the answer, or agentic user acceptance testing, an agent trying it on screen. */
-export const CONTRACT_PROOFS = ["test-criterion", "agentic-user-acceptance-testing"] as const;
+/**
+ * How a contract is proved (ADR-1294, ADR-1345 D2): a test criterion, a test reading the answer; agentic user acceptance testing, an
+ * agent trying it on screen; or observability as proof, a recorded live reading taken on the real machines doing the real work.
+ */
+export const CONTRACT_PROOFS = ["test-criterion", "agentic-user-acceptance-testing", "observability-as-proof"] as const;
+
+/** How old a live reading may be and still prove its contract (ADR-1345 D1): a whole number of hours or days, as `36h` or `2d`. */
+export const FRESHNESS = /^([1-9]\d*)([hd])$/;
+
+/**
+ * A contract's proof, with a one-line reason (ADR-1294). Observability as proof also names its freshness and the watcher that
+ * records its readings (ADR-1345 D1, D2); no other proof carries them.
+ */
+const contractProof = z.union([
+  z.object({ by: z.enum(["test-criterion", "agentic-user-acceptance-testing"]), reason: nonEmpty }).strict(),
+  z.object({ by: z.literal("observability-as-proof"), reason: nonEmpty, freshness: z.string().regex(FRESHNESS, "a whole number of hours or days, as 36h or 2d"), watcher: nonEmpty }).strict(),
+]);
 
 /** Who a story reaches (question_1740edf77e9e): the owner alone, the invited users, or the public. */
 export const RISK_AUDIENCES = ["owner", "invited", "public"] as const;
@@ -318,6 +341,11 @@ export const RECORD_SCHEMAS = {
        * Optional, so no version bump.
        */
       covers: z.array(nonEmpty).min(1).optional(),
+      /**
+       * The store links the mapping agent judged for it (ADR-1332 D2 (4), ADR-1333 D2): each a store's table its code sends
+       * statements to, the direction, and the file and line of each statement it cites. Optional, so no version bump.
+       */
+      storeLinks: z.array(storeLink).min(1).optional(),
       guardrails,
     })
     .strict(),
@@ -343,8 +371,8 @@ export const RECORD_SCHEMAS = {
        * naming every test it holds) or another runner's test or suite title. Optional, so no version bump.
        */
       provedBy: z.array(nonEmpty).min(1).optional(),
-      /** How it is proved, with a one-line reason, once its story-author has chosen (ADR-1294). Optional, so no version bump. */
-      proof: z.object({ by: z.enum(CONTRACT_PROOFS), reason: nonEmpty }).strict().optional(),
+      /** How it is proved, with a one-line reason, once its story-author has chosen (ADR-1294, ADR-1345). Optional, so no version bump. */
+      proof: contractProof.optional(),
     })
     .strict()
     .superRefine((fields, context) => {

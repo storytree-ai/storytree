@@ -1,6 +1,5 @@
 /**
- * Capability 8 · Cloud connection (GCP): the refusal to connect (contract 8.2 in the library story), and capability
- * 28 · Shared server's telling an unreachable library apart (28.7, 28.8). A
+ * Capability 28 · Shared server: the refusal to connect, and telling an unreachable library apart (28.7, 28.8). A
  * server storytree cannot reach or use as it is set up is refused with a message saying what to
  * fix: never a hang, and never a driver's raw error. It is one class, so a caller catches every
  * such refusal the same way, and its `problem` says which one it is.
@@ -8,15 +7,9 @@
 
 /** What stopped storytree connecting. */
 export type ConnectionProblem =
-  /** The options given to connect() do not describe a server: a Cloud SQL instance not written as project:region:instance, say. */
+  /** The options given to connect() do not describe a server: both a url and an address, say. */
   | "config"
-  /** No Google sign-in was found, or the one found has expired or been revoked. */
-  | "sign-in"
-  /** The Cloud SQL instance does not exist, or the account is not allowed to use it. */
-  | "instance"
-  /** The Cloud SQL instance exists but is not running (stopped), so the library on it cannot be reached. */
-  | "stopped"
-  /** The account is not a database user on the Cloud SQL instance. */
+  /** The server would not let the user in: no such role, or no line letting it connect from here. */
   | "database-user"
   /** A new project's database cannot be made: the server's user may not create databases, nor take on a role that may. */
   | "create-database"
@@ -67,7 +60,7 @@ export const LIBRARY_UNREACHABLE = "The library cannot be reached";
  */
 export function isUnreachable(error: unknown): boolean {
   for (let at = error, depth = 0; typeof at === "object" && at !== null && depth < 5; at = (at as { cause?: unknown }).cause, depth++) {
-    if (at instanceof ConnectionError) return at.problem === "unreachable" || at.problem === "timeout" || at.problem === "stopped";
+    if (at instanceof ConnectionError) return at.problem === "unreachable" || at.problem === "timeout";
     const { code, message } = at as { code?: unknown; message?: unknown };
     if (typeof code === "string" && UNREACHABLE_CODES.has(code)) return true;
     if (typeof message === "string" && (PG_CONNECT_TIMEOUT.test(message) || CONNECTION_GONE.test(message))) return true;
@@ -124,21 +117,16 @@ const CREATOR_ROLE = "storytree_creator";
  * granted to the user, which storytree then borrows to make each project's database.
  *
  * Not `ALTER ROLE <user> CREATEDB`, and not a database made for the user and owned by it: from
- * Postgres 16, both need rights over the user that only a role holding ADMIN OPTION on it has. On
- * Cloud SQL that is Google's cloudsqladmin alone, which made the IAM user, so the instance's
- * `postgres` user can do neither. It can make a role, though, and holds ADMIN OPTION on the role it
- * made, so it may grant that one.
+ * Postgres 16, both need rights over the user that only a role holding ADMIN OPTION on it has, which
+ * on a managed server the provider's own admin role alone may hold. Any role that may create roles
+ * can make one, though, and holds ADMIN OPTION on the role it made, so it may grant that one.
  */
-export function cannotCreateDatabases(server: "postgres" | "cloud-sql", user: string, cause: unknown): ConnectionError {
+export function cannotCreateDatabases(user: string, cause: unknown): ConnectionError {
   const role = quoteIdentifier(user);
-  const [whose, grantor] =
-    server === "cloud-sql"
-      ? ["Your Cloud SQL user", "as the instance's `postgres` user"]
-      : ["Your Postgres user", "as a superuser (such as `postgres`)"];
   return new ConnectionError(
     "create-database",
-    `${whose} cannot create databases, and storytree keeps one database per project. Run these two lines once, ` +
-      `${grantor}, to give it a role that can: \`CREATE ROLE ${CREATOR_ROLE} NOLOGIN CREATEDB;\` ` +
+    `Your Postgres user cannot create databases, and storytree keeps one database per project. Run these two lines once, ` +
+      `as a superuser (such as \`postgres\`), to give it a role that can: \`CREATE ROLE ${CREATOR_ROLE} NOLOGIN CREATEDB;\` ` +
       `\`GRANT ${CREATOR_ROLE} TO ${role};\` Storytree then borrows that role to create each project's database.`,
     cause,
   );

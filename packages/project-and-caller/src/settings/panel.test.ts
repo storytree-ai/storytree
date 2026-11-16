@@ -18,14 +18,14 @@ test("2.7 the panel reads every setting and writes through the CLI's writers", a
     assert.equal(readSettings(home)["context-guidance"].source, "set");
     assert.equal((await panel.saveSetting("idle-after", ["10m"])).ok, true);
     assert.equal(readSettings(home)["idle-after"].value, "10m");
-    assert.equal((await panel.saveSetting("library", ["cloudsql", "my-project:australia-southeast1:my-instance", "you@example.com"])).ok, true);
-    assert.equal(readSettings(home).library.location, "cloudsql");
+    assert.equal((await panel.saveSetting("library", ["postgres", "postgres://me@db.example.com:5432/postgres"])).ok, true);
+    assert.equal(readSettings(home).library.location, "postgres");
     assert.equal((await panel.saveSetting("library", ["local"])).ok, true);
     assert.equal(readSettings(home).library.location, "local");
   });
 });
 
-test("2.13 the panel offers a Postgres address as a third library location, saved through the same writer", async () => {
+test("2.13 the panel offers a Postgres address as the library's other location, saved through the same writer", async () => {
   await withTempDir(async (home) => {
     const panel = settingsActions(home);
     const address = "postgres://me@db.example.com:5432/postgres";
@@ -35,7 +35,7 @@ test("2.13 the panel offers a Postgres address as a third library location, save
     assert.equal(library.location === "postgres" && library.address, address);
     const html = renderSettings(readSettings(home), "library");
     assert.match(html, /<option value="local">On this computer<\/option>/);
-    assert.match(html, /<option value="cloudsql">Google Cloud SQL<\/option>/);
+    assert.deepEqual([...html.matchAll(/<option value="([^"]+)"/g)].map((match) => match[1]), ["local", "postgres"]);
     assert.match(html, /<option value="postgres" selected>[^<]+<\/option>/);
     assert.match(html, new RegExp(`<input name="address"[^>]* value="${address.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
   });
@@ -50,7 +50,7 @@ test("2.8 refusal crosses IPC as the exact writer reason and preserves saved byt
     let reason = "";
     try { setSetting("context-guidance", "0", home); } catch (error) { reason = (error as Error).message; }
     assert.deepEqual(await panel.saveSetting("context-guidance", ["0"]), { ok: false, error: reason });
-    assert.equal((await panel.saveSetting("library", ["cloudsql", "broken", "you@example.com"])).ok, false);
+    assert.equal((await panel.saveSetting("library", ["postgres", "not-an-address"])).ok, false);
     assert.equal((await panel.saveSetting("context-guidance", ["1", "ignored"])).ok, false);
     assert.equal((await panel.saveSetting(null, ["1"])).ok, false);
     for (const value of ["soon", "0m", "-5m"]) {

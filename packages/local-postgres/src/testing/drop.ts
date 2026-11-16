@@ -26,7 +26,7 @@ export interface Queryable {
  * database on a shared server; any other name is refused before anything is sent.
  *
  * They are dropped on the test server as its superuser, or through `server` when given: a
- * connection to another server's own database (a Cloud SQL instance's, say).
+ * connection to another server's own database (a managed server's, say).
  */
 export async function dropTestDatabases(databases: Iterable<string>, server?: Queryable): Promise<void> {
   const names = [...databases];

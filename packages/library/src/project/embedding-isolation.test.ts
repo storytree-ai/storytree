@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile } from "node:fs/promises";
-import { connect as openSocket } from "node:net";
+import { createServer, connect as openSocket, type AddressInfo, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -14,7 +14,7 @@ import pg from "pg";
 import { Knowledge } from "../knowledge/knowledge.js";
 import { chunksOf, renderNote } from "../knowledge/embedding.js";
 import type { SchemaRecord } from "../schema/index.js";
-import { cloudSqlStandIn, createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
+import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 import { PgVectors, vectorServerIdentity } from "./embeddings.js";
 import { connect, type Storytree } from "./storytree.js";
 
@@ -115,12 +115,12 @@ test("14.10 · legacy unscoped entries are ignored, and a store without an ident
   }
 });
 
-test("14.10 · server domains follow pg endpoint overrides, user, TLS trust and Cloud SQL instance without retaining passwords", async () => {
+test("14.10 · server domains follow pg endpoint overrides, user and TLS trust without retaining passwords", async () => {
   const pools: pg.Pool[] = [];
-  const identity = (config: string | pg.PoolConfig, instance?: string) => {
+  const identity = (config: string | pg.PoolConfig) => {
     const pool = new pg.Pool(typeof config === "string" ? { connectionString: config } : config);
     pools.push(pool);
-    return vectorServerIdentity(pool, instance);
+    return vectorServerIdentity(pool);
   };
   try {
     const base = "postgres://alice:secret-one@victim.invalid:5432/postgres?sslmode=disable";
@@ -143,14 +143,8 @@ test("14.10 · server domains follow pg endpoint overrides, user, TLS trust and 
     const trusted = { host: "victim.invalid", user: "alice", ssl: { ca: "synthetic-ca" } };
     assert.notEqual(identity(trusted), identity({ ...trusted, ssl: { ca: "different-synthetic-ca" } }));
     assert.notEqual(identity(trusted), identity({ ...trusted, ssl: { ...trusted.ssl, checkServerIdentity: () => undefined } }));
-    const cloudA = identity(base, "synthetic:region:instance-a");
-    assert.notEqual(cloudA, expected, "the connector's placeholder endpoint cannot alias a URL server");
-    assert.notEqual(cloudA, identity(base, "synthetic:region:instance-b"));
-    // Real Cloud SQL pools carry their IAM user as a pool option, not a URL.
-    const cloudPool = new pg.Pool({ user: "one@example.invalid" });
-    const otherUser = new pg.Pool({ user: "two@example.invalid" });
-    pools.push(cloudPool, otherUser);
-    assert.notEqual(vectorServerIdentity(cloudPool, "synthetic:region:instance-a"), vectorServerIdentity(otherUser, "synthetic:region:instance-a"));
+    // A user given as a pool option, not in a URL, still names its own domain.
+    assert.notEqual(identity({ host: "victim.invalid", user: "one@example.invalid" }), identity({ host: "victim.invalid", user: "two@example.invalid" }));
   } finally {
     await Promise.all(pools.map(pool => pool.end()));
   }
@@ -210,46 +204,53 @@ test("1.4, 14.10 · opened projects isolate identical restored chunks and a recr
   }
 });
 
-test("14.10 · Cloud SQL project openings scope the cache to the authenticated instance, even with identical database identities", async () => {
-  const folder = await mkdtemp(path.join(tmpdir(), "storytree-vector-instances-"));
+test("14.10 · project openings scope the cache to the server reached, even with identical database identities", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "storytree-vector-servers-"));
   const name = uniqueProjectName(), user = `${name}@example.invalid`;
   const opened: Storytree[] = [];
+  // Two endpoints, the test server's own and a relay to it on another port, so both reach one
+  // database: the same name, OID and records, deliberately given two server identities.
+  const sockets = new Set<Socket>();
+  const upstream = new URL(testServerUrl());
+  const relay = createServer((socket) => {
+    const target = openSocket(Number(upstream.port || 5432), upstream.hostname);
+    sockets.add(socket).add(target);
+    socket.on("error", () => target.destroy());
+    target.on("error", () => socket.destroy());
+    socket.pipe(target).pipe(socket);
+  });
+  await new Promise<void>((resolve) => relay.listen(0, "127.0.0.1", resolve));
   try {
     await createTestRole(user, { createdb: true });
-    const standIn = await cloudSqlStandIn();
-    const model = "test/cloud-isolation";
-    const open = async (instance: string) => {
-      const server = await connect({ cloudSql: { instance: `synthetic:region:${instance}`, user } }, {
+    const direct = new URL(testRoleUrl(user));
+    const relayed = new URL(direct);
+    relayed.hostname = "127.0.0.1";
+    relayed.port = String((relay.address() as AddressInfo).port);
+    const model = "test/server-isolation";
+    const open = async (url: URL) => {
+      const server = await connect({ url: url.href }, {
         vectorCache: path.join(folder, "vectors.sqlite"),
         embedder: async () => ({ model, async embed(texts) { return texts.map(() => Float32Array.of(1, 0)); } }),
-        // Both synthetic instances reach the disposable server, deliberately giving them the
-        // same database name, OID and records. Nothing contacts Google: the stand-in signs each socket in.
-        connector: async () => ({
-          async getOptions() { return { stream: () => {
-            const socket = openSocket(standIn.port, standIn.host);
-            socket.connect = () => socket;
-            return socket;
-          } }; },
-          close() {},
-        }),
       });
       opened.push(server);
       return server.openProject(name);
     };
-    const attacker = await open("instance-a");
+    const attacker = await open(direct);
     const a = await attacker.knowledge.defineTerm({ term: "Alpha", meaning: "Known shared text." });
     await new PgVectors(attacker.pool).put(model, new Map([[key(a), Float32Array.of(-1, 0)]]));
     assert.equal((await attacker.knowledge.rank("question")).hits[0]!.score, -1);
     await opened[0]!.close();
-    const victim = await open("instance-b");
+    const victim = await open(relayed);
     assert.equal(victim.identity, attacker.identity, "the server namespace must distinguish these equal database identities");
     await victim.pool.query("UPDATE embedding SET vector = $1", [Buffer.from(Float32Array.of(1, 0).buffer)]);
     assert.equal((await victim.knowledge.rankAll("question")).hits[0]!.score, 1);
     await opened[1]!.close();
-    const again = await open("instance-a");
-    assert.equal((await again.knowledge.rank("question")).hits[0]!.score, -1, "the first instance reuses only its own kept vector");
+    const again = await open(direct);
+    assert.equal((await again.knowledge.rank("question")).hits[0]!.score, -1, "the first server reuses only its own kept vector");
   } finally {
     await Promise.all(opened.map(server => server.close()));
+    for (const socket of sockets) socket.destroy();
+    await new Promise<void>((resolve) => relay.close(() => resolve()));
     await dropTestDatabases([`storytree_${name}`]);
     await dropTestRoles([user]);
     await removeTemp(folder);

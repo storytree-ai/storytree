@@ -16,7 +16,10 @@ import { isDeepStrictEqual } from "node:util";
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, couldBeId, DependencyLoopError, liveRecord } from "../references.js";
 import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
-import type { CONTRACT_PROOFS, FieldsOf } from "../schema/types.js";
+import type { FieldsOf } from "../schema/types.js";
+
+/** How a contract is proved, with its reason, as stored (ADR-1294): observability as proof also names its freshness and watcher (ADR-1345). */
+export type ContractProof = NonNullable<FieldsOf<"contract">["proof"]>;
 import { historyOf, PR_CUTOVER_ID, type PrCutover } from "./pr-cutover.js";
 
 /**
@@ -74,8 +77,8 @@ export interface PluginPlanCapability {
   /** On until the plugin says it is built (ADR-0744 D2); proposed when not given. */
   readonly proposed?: boolean;
   readonly dependsOn?: string[];
-  /** Each contract's proof says how it is proved (CONTRACT_PROOFS), written only here for a plugin's contract. */
-  readonly contracts: readonly { readonly title: string; readonly description?: string; readonly proof?: { readonly by: (typeof CONTRACT_PROOFS)[number]; readonly reason: string } }[];
+  /** Each contract's proof says how it is proved (CONTRACT_PROOFS, ContractProof), written only here for a plugin's contract. */
+  readonly contracts: readonly { readonly title: string; readonly description?: string; readonly proof?: Readonly<ContractProof> }[];
 }
 /** What one importPluginPlan did: the plugin's story, and the ids of the records it added, edited, retired and kept as they stood. */
 export interface ImportedPluginPlan {
@@ -166,6 +169,8 @@ export interface ProjectTree {
 
 /** One extra check a story or capability carries, and what sets it off: a change to it, or a formal release. */
 export type Guardrail = NonNullable<FieldsOf<"story">["guardrails"]>[number];
+/** A judged link from a capability to a store's table (ADR-1333 D2). */
+export type StoreLink = NonNullable<FieldsOf<"capability">["storeLinks"]>[number];
 
 export interface StoryNode {
   id: string;
@@ -208,6 +213,8 @@ export interface CapabilityNode {
   proposed: boolean;
   /** An explored capability of a mapped story: the folders and files of its import it covers (ADR-0993 D5). */
   covers?: string[];
+  /** The store links the mapping agent judged for it, as stored (ADR-1333 D2). */
+  storeLinks?: StoreLink[];
   /** Its own guardrails as stored (question_4cec0ba23052). */
   guardrails?: Guardrail[];
   /** The contracts pointing at this capability, in creation order. */
@@ -221,7 +228,7 @@ export interface ContractNode {
   /** The existing tests that prove it, as stored, when it names any (question_b5918c0ff273). */
   provedBy?: string[];
   /** How it is proved, with its reason, as stored, once chosen (ADR-1294). */
-  proof?: { by: (typeof CONTRACT_PROOFS)[number]; reason: string };
+  proof?: ContractProof;
 }
 
 export interface ArcNode {
@@ -561,10 +568,8 @@ export class WorkModel {
     return this.#serially(async () => {
       const stored = (await liveRecord(this.#records, id, ["edge"])) as SchemaRecord<"edge"> | null;
       if (stored === null) return null;
-      for (const field of ["from", "to"]) {
-        if (field in fields) throw new SchemaError("edge", [{ field, problem: "an edge keeps its two capabilities: retire it and add another" }]);
-      }
-      this.#refusePlugins("edge", "from", await this.#pluginOfCapability(stored.fields.from));
+      this.refuseEdgeEnds(fields);
+      await this.refusePluginEdit(stored, fields);
       return (await this.#records.edit(id, fields, options)) as SchemaRecord<"edge"> | null;
     });
   }
@@ -703,6 +708,7 @@ export class WorkModel {
           dependsOn: faces.get(capability.id) ?? [],
           proposed: capability.fields.proposed,
           ...(capability.fields.covers === undefined ? {} : { covers: [...capability.fields.covers] }),
+          ...(capability.fields.storeLinks === undefined ? {} : { storeLinks: structuredClone(capability.fields.storeLinks) }),
           ...guardrailsOf(capability),
           contracts: (contractsOf.get(capability.id) ?? []).map(contractNode),
         })),
@@ -821,12 +827,14 @@ export class WorkModel {
   }
 
   /**
-   * Refuse `fields`, an edit to live story, capability or contract `record`, when it would change a plugin's plan
-   * (ADR-1187): a SchemaError naming the plugin's plan file, as editStory, editCapability and editContract refuse it,
+   * Refuse `fields`, an edit to live story, capability, contract or edge `record`, when it would change a plugin's plan
+   * (ADR-1187): a SchemaError naming the plugin's plan file, as editStory, editCapability, editContract and editEdge refuse it,
    * and as a pending change is refused before it is staged, so none is held that its landing could only refuse.
    */
-  async refusePluginEdit(record: SchemaRecord<"story"> | SchemaRecord<"capability"> | SchemaRecord<"contract">, fields: Readonly<Record<string, unknown>>): Promise<void> {
-    if (record.type === "story") {
+  async refusePluginEdit(record: SchemaRecord<"story"> | SchemaRecord<"capability"> | SchemaRecord<"contract"> | SchemaRecord<"edge">, fields: Readonly<Record<string, unknown>>): Promise<void> {
+    if (record.type === "edge") {
+      this.#refusePlugins("edge", "from", await this.#pluginOfCapability((record as SchemaRecord<"edge">).fields.from));
+    } else if (record.type === "story") {
       if (PLUGIN_STORY_FIELDS.some((field) => field in fields)) this.#refusePlugins("story", "title", (record as SchemaRecord<"story">).fields.plugin);
     } else if (record.type === "capability") {
       if (PLUGIN_CAPABILITY_FIELDS.some((field) => field in fields)) this.#refusePlugins("capability", "story", await this.#pluginOfStory((record as SchemaRecord<"capability">).fields.story));
@@ -836,6 +844,13 @@ export class WorkModel {
       this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(contract.capability ?? (await this.#fromOf(contract.edge))));
       this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(fields["capability"]));
       this.#refusePlugins("contract", "edge", await this.#pluginOfCapability(await this.#fromOf(fields["edge"])));
+    }
+  }
+
+  /** Refuse an edge edit naming `from` or `to` (SchemaError): an edge keeps its two capabilities. */
+  refuseEdgeEnds(fields: Readonly<Record<string, unknown>>): void {
+    for (const field of ["from", "to"]) {
+      if (field in fields) throw new SchemaError("edge", [{ field, problem: "an edge keeps its two capabilities: retire it and add another" }]);
     }
   }
 

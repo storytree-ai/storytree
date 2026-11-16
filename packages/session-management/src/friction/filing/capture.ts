@@ -98,20 +98,44 @@ const QUOTED = /["“][^"”]{3,}["”]/;
 export async function recordFriction(library: Library, friction: NewFriction, options?: WriteOptions): Promise<SchemaRecord<"friction">> {
   requireConcreteEvidence(friction.evidence);
   await requireIncrement(library, friction);
-  const { branch = "(no branch)", lookup = "none", ...fields } = friction;
+  const home = frictionHome(library);
+  const { branch = "(no branch)", lookup = "none", ...given } = friction;
+  let fields: Omit<NewFriction, "branch" | "lookup"> & { from?: { project: string; increment?: string } } = given;
+  if (home !== library) {
+    await requireFactoryLinks(home, library.name, given.links);
+    const { increment, ...rest } = given;
+    fields = { ...rest, from: { project: library.name, ...(increment === undefined ? {} : { increment }) } };
+  }
   const date = new Date().toISOString().slice(0, 10);
-  const today = (await library.list("friction")).filter(({ fields }) =>
+  const today = (await home.list("friction")).filter(({ fields }) =>
     fields.provenance?.branch === branch && fields.provenance.date === date,
   );
   let filed = 0;
   for (const { id } of today) {
-    const writer = (await library.history({ id }))[0]?.actor;
+    const writer = (await home.history({ id }))[0]?.actor;
     if (writer === undefined || writer === options?.actor) filed++;
   }
   if (filed >= 3) {
     throw new CaptureError(`Filing cap: 3 friction items already filed on "${branch}" for ${date} by this session (ADR-0716; ADR-0168 D3). Distil to the three that fought you hardest, or use storytree friction reinforce <id> --evidence ... for a recurrence.`);
   }
-  return library.writeKnowledge("friction", { ...fields, lookup, provenance: { branch, date, source: "retro" } }, options);
+  return home.writeKnowledge("friction", { ...fields, lookup, provenance: { branch, date, source: "retro" } }, options);
+}
+
+/**
+ * The library friction filed in `library` is kept in (ADR-1331 D5): a product project's is its factory's, where the
+ * factory learns how to work and its drain routes it, marked with the project it came from; any other keeps its own.
+ */
+export function frictionHome(library: Library): Library {
+  return library.factoryLibrary() ?? library;
+}
+
+/** Friction filed into a factory links only to the factory's own records, so the product's memory stays in the product. */
+async function requireFactoryLinks(factory: Library, project: string, links: readonly string[] = []): Promise<void> {
+  for (const link of links) {
+    if ((await factory.get(link)) === null) {
+      throw new CaptureError(`links names ${JSON.stringify(link)}, which factory ${factory.name}'s library does not hold: friction filed in project ${project} is kept in its factory's library, which links only to its own records, so the project's memory stays in the project (ADR-1331 D5). Say what it is in the statement instead.`);
+    }
+  }
 }
 
 /**
@@ -173,9 +197,12 @@ export async function closestFriction(library: Library, friction: Pick<NewFricti
  */
 export async function reinforceFriction(library: Library, id: string, recurrence: Reinforcement, options?: WriteOptions): Promise<SchemaRecord<"friction">> {
   requireConcreteEvidence(recurrence.evidence);
-  const friction = await library.get(id);
+  // A product's friction is in its factory's library, except what it filed before it was kept there.
+  const factory = frictionHome(library);
+  const home = (await factory.get(id))?.type === "friction" ? factory : library;
+  const friction = await home.get(id);
   if (friction?.type !== "friction") throw new CaptureError(`No live friction item ${id} to reinforce.`);
-  const saved = await library.editNote(id, { reinforcedBy: [
+  const saved = await home.editNote(id, { reinforcedBy: [
     ...(friction.fields.reinforcedBy ?? []),
     { branch: recurrence.branch, date: new Date().toISOString().slice(0, 10), evidence: recurrence.evidence },
   ] }, options);

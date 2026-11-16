@@ -579,6 +579,12 @@ export const RECORD_SCHEMAS = {
        */
       increment: nonEmpty.optional(),
       /**
+       * The product project it was filed from, and the increment there it happened in, when a session in a product
+       * filed it into its factory's library (ADR-1331 D5): that increment is the product's, never one of the factory's.
+       * Optional, so no version bump.
+       */
+      from: z.object({ project: nonEmpty, increment: nonEmpty.optional() }).strict().optional(),
+      /**
        * The session the friction drain handed it to, and until when (an ISO time): another session's
        * drain passes it over until then. Optional, so no version bump.
        */

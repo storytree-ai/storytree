@@ -65,10 +65,11 @@ const frictionNew = verb({
   },
   writes: true,
   async act({ "about-storytree": aboutStorytree, "none-match": noneMatch, ...input }, context: VerbContext) {
-    const { closestFriction, recordFriction } = await import("./filing/capture.js");
+    const { closestFriction, frictionHome, recordFriction } = await import("./filing/capture.js");
     // A repeat is a recurrence of the earlier report, so the filer sees the closest first (ADR-1233 D1); filed new
-    // past them, the report records which it was shown, so a repeat filed as new can be found.
-    const closest = await closestFriction(context.library, { title: input.title, statement: input.statement });
+    // past them, the report records which it was shown, so a repeat filed as new can be found. A product's are in its factory's library.
+    const home = frictionHome(context.library);
+    const closest = await closestFriction(home, { title: input.title, statement: input.statement });
     if (!noneMatch && closest.length > 0) {
       return {
         text: [
@@ -86,15 +87,17 @@ const frictionNew = verb({
     const note = await recordFriction(context.library, {
       ...fields(input), branch: await branchIn(context.folder), lookup: { shown: closest.map((one) => one.id), noneMatch: noneMatch === true },
     } as never, context.writer!);
-    const next = [{ command: `library read ${note.id}`, why: "read it whole" }];
-    if (!aboutStorytree) return { text: `Recorded friction ${note.id}.`, data: { id: note.id }, next };
+    // Filed into the factory, it is not read from the product's library (ADR-1331 D5): no step to read it there.
+    const where = home === context.library ? "" : ` in factory ${home.name}'s library, from project ${context.library.name}`;
+    const next = where === "" ? [{ command: `library read ${note.id}`, why: "read it whole" }] : [];
+    if (!aboutStorytree) return { text: `Recorded friction ${note.id}${where}.`, data: { id: note.id }, next };
     // Settled by question_03c165b887c7 (option A), narrowed by ADR-1270: storytree sends nothing and never prompts for it;
     // the draft is there for a user who wants to send it.
     const { issueDraft } = await import("./issue-draft.js");
     const draft = issueDraft({ ...input, project: context.project, folder: context.folder });
     return {
       text: [
-        `Recorded friction ${note.id} in this project's library, which storytree's maintainers cannot see.`,
+        `Recorded friction ${note.id}${where || " in this project's library"}, which storytree's maintainers cannot see.`,
         "It stays in the user's library. Sending it to storytree's maintainers is the user's call: do not prompt them for it with each filing; mention this draft issue only if they ask, or if you judge they would want it. They open it, review it on GitHub and submit it themselves (paths and the project's name are stripped); storytree sends nothing:",
         draft,
       ].join("\n"),

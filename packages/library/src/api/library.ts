@@ -127,6 +127,11 @@ export interface Library
    */
   inherited(): Promise<SchemaRecord[]>;
   /**
+   * The library of the factory a product project names, opened beside it and closed with it, so its close does nothing:
+   * where the product's friction is filed (ADR-1331 D5). None for a project naming no factory, or one gone or not a factory.
+   */
+  factoryLibrary(): Library | undefined;
+  /**
    * Work in flight's workSurvey (10.43): one reading of the open work, its arcs' states and its holds, never a body.
    * Which arcs hold no increment at all is asked of the project's database in one statement, never read record by record.
    */
@@ -426,6 +431,7 @@ async function emptyArcs(pool: Project["pool"], arcs: readonly string[]): Promis
 }
 
 function libraryOf(project: Project): Library {
+  let factory: Library | undefined;
   return {
     name: project.name,
     identity: project.identity,
@@ -440,6 +446,7 @@ function libraryOf(project: Project): Library {
       return project.records.list(kind);
     },
     inherited: async () => (project.records instanceof InheritedRecords ? project.records.inherited() : []),
+    factoryLibrary: () => (project.factory === undefined ? undefined : (factory ??= { ...libraryOf(project.factory), close: async () => undefined })),
     workSurvey: (at, options) => project.flight.workSurvey(at, { ...options, empty: (arcs) => emptyArcs(project.pool, arcs) }),
     /** The work model's tree, annotated with health (capability 5 reads the plan through capability 4). */
     async projectTree(options) {

@@ -297,7 +297,7 @@ export function ringGate(marks: Object3D, roads: IslandRoads, pick: GatePick | u
 }
 
 /** A way resampled every half unit, so its colour follows the land under it. */
-function dense(pts: readonly Point[]): Point[] {
+export function dense(pts: readonly Point[]): Point[] {
   const out: Point[] = [pts[0]!];
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i - 1]!, b = pts[i]!, n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.5));
@@ -307,7 +307,7 @@ function dense(pts: readonly Point[]): Point[] {
 }
 
 /** A flat ribbon `width` wide along `points` on the surface, coloured per point by `colourAt` when given. */
-function ribbon(points: readonly Point[], width: number, onSurface: (p: Point) => Vector3, colourAt?: (p: Point) => Color): BufferGeometry {
+export function ribbon(points: readonly Point[], width: number, onSurface: (p: Point) => Vector3, colourAt?: (p: Point) => Color): BufferGeometry {
   const positions: number[] = [], colours: number[] = [], index: number[] = [];
   points.forEach((p, i) => {
     const a = points[Math.max(0, i - 1)]!, b = points[Math.min(points.length - 1, i + 1)]!;

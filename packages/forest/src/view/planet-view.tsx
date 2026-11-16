@@ -20,7 +20,7 @@ import { islandLayoutSteps, type Link } from "../territories/link-layout.js";
 import { useLayingOut } from "./layout-progress.js";
 import { awaitingLayout, keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
-import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, ignoresClick, feedbackPick, answerFeedbackPicks, type ForestMode, type PickedGate } from "./planet-navigation.js";
+import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, ignoresClick, feedbackPick, answerFeedbackPicks, pickGlobe, type ForestMode, type PickedGate } from "./planet-navigation.js";
 import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, islandCanvasX, type AsidePose } from "./globe-aside.js";
@@ -29,6 +29,9 @@ import { growLand, IslandOpening, presentDetail, shownSurfaces as surfacesFor, T
 import { DetailStore } from "./zoom-detail.js";
 import { useBuiltInSteps } from "./build-turns.js";
 import type { TerritoryMap } from "../territories/territories.js";
+import { keepPartSeeds, keptPartSeeds, nestedLayoutSteps, partCrossings, regionOf } from "../territories/nested-territories.js";
+import type { SceneParts } from "../render/scene-parts.js";
+import { disposeOpened, hiddenByOpening, hideForOpening, openedAt, openedMarks, OpenedStore, opensAt, readsUnder, rollUp } from "./opened-capability.js";
 
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the map is mounted. */
@@ -138,6 +141,13 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
     [layout, seenDocks, scene, places, frame, kept]);
   // 3.86: how much of every island's detail the eye's zoom shows, read once a frame.
   const detail = useMemo(() => new DetailStore(), []);
+  // 3.112: the one capability open on the map, under the middle of the view at the parts level.
+  const opened = useMemo(() => new OpenedStore(), []);
+  const partsOf = useMemo(() => {
+    const by = new Map<string, SceneParts[]>();
+    for (const parts of scene.parts ?? []) by.set(parts.story, [...by.get(parts.story) ?? [], parts]);
+    return by;
+  }, [scene.parts]);
   const underSheet = useMemo((): CoreUnderSheet => ({ ...under, selected }), [under, selected]);
   const links = useKept(layout.scene.links ?? NO_LINKS, JSON.stringify);
   // ADR-1253 D1: the selected arc's open work ringed, and 3.99: each part one of its linked contracts sits on.
@@ -157,14 +167,14 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} pointed={pointed} radius={layout.radius}
         lighting={lighting} surfaces={shownSurfaces} gate={gate?.story === island.story ? gate.pick : undefined}
-        picked={island.story === selected ? selectedCapability : undefined} circled={circled} rung={rung} detail={detail} />}
+        picked={island.story === selected ? selectedCapability : undefined} circled={circled} rung={rung} detail={detail} opened={opened} parts={partsOf.get(island.story)} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
-      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} detail={detail} />}
+      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} detail={detail} opened={opened} />}
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
       <DocksSeen story={island.story} docks={docks} onDocks={onDocks} />
     </>;
-  }, [wisps, claimed, pointed, selected, highlighted, circled, rung, layout.spots, layout.radius, lighting, shownSurfaces, links, gate, selectedCapability, detail, onDocks]);
+  }, [wisps, claimed, pointed, selected, highlighted, circled, rung, layout.spots, layout.radius, lighting, shownSurfaces, links, gate, selectedCapability, detail, onDocks, opened, partsOf]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   // 3.90: the wheel's floor is half the sheet's opening, whatever framing the last pose (a panel's resize or slide) sent.
   const floor = useCallback((size: { width: number; height: number }) => sheetOpening(layout.extent, size).framing, [layout.extent]);
@@ -180,7 +190,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
       sideOffset={sideOffset ?? 0} aside={aside} selected={selected}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} aside={aside} />
-    <DetailFeed detail={detail} />
+    <DetailFeed detail={detail} opened={opened} mode={mode} aside={aside} />
     <CompiledAtLoad under={underSheet} />
     {onPainted !== undefined && <PaintedReport scene={scene} onPainted={onPainted} />}
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
@@ -195,8 +205,18 @@ function DocksSeen({ story, docks: given, onDocks }: { story: string; docks: rea
 }
 
 /** 3.86: reads the eye's zoom on every frame drawn, so the islands show the detail it asks for. */
-function DetailFeed({ detail }: { detail: DetailStore }) {
-  useFrame(({ camera, size }) => { detail.zoom(sheetEyeZoom(camera, size)); });
+function DetailFeed({ detail, opened, mode, aside }: { detail: DetailStore; opened: OpenedStore; mode: ForestMode; aside: number }) {
+  // 3.112: at the parts level, what lies under the middle of the free view is read as often as `readsUnder` says.
+  const last = useRef({ eye: "", at: -Infinity });
+  useFrame(({ camera, size, scene, clock }) => {
+    detail.zoom(sheetEyeZoom(camera, size));
+    if (!opensAt(detail.get(), mode)) { opened.open(undefined); return; }
+    const eye = camera.matrixWorld.elements.join(), now = clock.getElapsedTime();
+    if (!readsUnder(now, eye, last.current)) return;
+    last.current = { eye, at: now };
+    const box = { left: 0, top: 0, width: size.width, height: size.height };
+    opened.open(openedAt(detail.get(), pickGlobe(scene, camera, box, { x: Math.max(0, size.width - aside) / 2, y: size.height / 2 }, mode), mode));
+  });
   return null;
 }
 
@@ -293,6 +313,9 @@ type TerritoriesProps = {
   story: string;
   /** How much of the island the eye's zoom shows (3.86). */
   detail: DetailStore;
+  /** The capability open on the map (3.112), and the island's capabilities' code parts. */
+  opened: OpenedStore;
+  parts?: readonly SceneParts[] | undefined;
   /** The selected arc's open work, ringed (3.83). */
   circled: ReadonlySet<string> | undefined;
   /** The links whose edges' contracts the selected arc's open work makes true, whose gates it rings (3.92). */
@@ -324,6 +347,8 @@ function Territories(props: TerritoriesProps) {
   // 3.72: an update that redraws the island for anything else (its name, its trees) hands it new land and coast that read
   // the same; the territories already cut for them stay.
   const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify), docks = useKept(givenDocks, (docks) => JSON.stringify(docks ?? null));
+  // 3.72: and parts that read the same, so an update that changes none of the island's code parts rebuilds nothing.
+  const parts = useKept(props.parts, (parts) => JSON.stringify(parts ?? null));
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
   // A pointer on another island leaves this one's as they were (5.8).
@@ -347,7 +372,7 @@ function Territories(props: TerritoriesProps) {
   // its IslandLand holds it until that land is drawn.
   useLayingOut(story, docks !== undefined && built?.asked === asked && map !== undefined);
   useEffect(() => { if (docks !== undefined) searchIsland(story, { shares: land.territories, coast, links, docks }, searcher); }, [story, land, coast, links, docks, searcher]);
-  return map === undefined || awaiting ? null : <IslandLand {...props} land={land} coast={coast} docks={docks} tints={tints} pointed={pointed} map={map} joined={waited ? Infinity : joined} />;
+  return map === undefined || awaiting ? null : <IslandLand {...props} land={land} coast={coast} docks={docks} parts={parts} tints={tints} pointed={pointed} map={map} joined={waited ? Infinity : joined} />;
 }
 
 /** When each sheet's first island joined it, by the sheet's clock. */
@@ -364,7 +389,7 @@ type IslandLandProps = Omit<TerritoriesProps, "claimed"> & { tints: ReadonlyMap<
 
 /** The island's land as laid out (`map`), and its roads once routed. */
 function IslandLand(props: IslandLandProps) {
-  const { story, map, coast, links, docks, tints, radius } = props;
+  const { story, map, coast, links, docks, tints, radius, parts } = props;
   // ADR-1236 D1: an island's links are one shared road network, with a gate wherever a road crosses a border.
   // 3.82: routed off the page, so the territories draw at once and the roads when they arrive, or at once from the
   // story's roads kept on this computer when the island is laid out as they were routed for.
@@ -379,7 +404,7 @@ function IslandLand(props: IslandLandProps) {
   }, [ask, roads]);
   // 3.87: its meshes built in their turns, the land's at once and again with its relief and roads when they arrive, the
   // relief, the land, the relief's marks and the roads' each a step of its own, so the biggest island's fits a task.
-  const asked = useMemo(() => ({}), [map, coast, tints, radius, roads]);
+  const asked = useMemo(() => ({}), [map, coast, tints, radius, roads, parts]);
   const built = useBuiltInSteps(function* (): Generator<void, { asked: object; drawn: DrawnLand }, void> {
     // 3.78: and every territory a plateau above its open land, a ramp where a road climbs onto one.
     const relief = roads === undefined ? undefined : islandRelief(map, roads);
@@ -394,7 +419,10 @@ function IslandLand(props: IslandLandProps) {
         const fill = landFill(map, group);
         group.add(islandReliefMarks(relief, onIslandSurface(radius, TERRITORY_LIFT), fill));
         yield;
-        group.add(islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), fill, relief));
+        const marks = islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), fill, relief);
+        // 3.114: each gate on a capability's border carries the count of its part roads it rolls up.
+        for (const { capability, lanes } of parts ?? []) rollUp(marks, capability, partCrossings(map, roads, capability, lanes, docks ?? []));
+        group.add(marks);
         built = true;
       } finally { if (!built) disposeMarks(group); }
     }
@@ -406,6 +434,65 @@ function IslandLand(props: IslandLandProps) {
   // 3.101: the island holds the map's mark until its land is drawn as laid out now, with its roads once they are routed.
   useLayingOut(story, built?.asked === asked);
   return drawn === undefined ? null : <DrawnIsland {...props} drawn={drawn} />;
+}
+
+/** An island's land as built with its roads and relief. */
+type OpenedLand = DrawnLand & { roads: IslandRoads; relief: IslandRelief };
+
+/**
+ * 3.112: an opened capability's parts, laid out in steps on its land as drawn the first time it opens (3.115), grown from
+ * the seeds kept for them (3.113); its parts' roads routed off the page; drawn over the island, which hides the roads its
+ * parts' carry on and its junction once they are routed; closed, its marks let go and the island shown as it was.
+ */
+function OpenedCapability({ story, parts, drawn, docks, radius, opened }: { story: string; parts: SceneParts; drawn: OpenedLand; docks: readonly IslandDock[] | undefined; radius: number; opened: OpenedStore }) {
+  const { invalidate, gl, camera, scene } = useThree();
+  const { capability } = parts;
+  const at = drawn.map.territories.findIndex((t) => t.capability === capability);
+  const region = useMemo(() => at < 0 ? [] : regionOf(drawn.map, at), [drawn.map, at]);
+  const crossings = useMemo(() => partCrossings(drawn.map, drawn.roads, capability, parts.lanes, docks ?? []), [drawn, capability, parts, docks]);
+  const asked = useMemo(() => ({}), [region, parts, crossings]);
+  const built = useBuiltInSteps(function* () {
+    return { asked, layout: yield* nestedLayoutSteps(region, parts.shares, parts.links, crossings, keptPartSeeds(story, capability)) };
+  }, [asked]);
+  const layout = built?.asked === asked ? built.layout : undefined;
+  useEffect(() => {
+    if (layout === undefined) return;
+    if (layout.seeds !== undefined) keepPartSeeds(story, capability, layout.seeds);
+    const names = new Map(parts.shares.map((share) => [share.capability, share.title]));
+    opened.name(story, capability, capabilityPlates(layout.map).map((plate) => ({ part: plate.capability, title: names.get(plate.capability) ?? plate.title, x: plate.x + layout.centre.x, z: plate.z + layout.centre.z })));
+  }, [layout, story, capability, parts, opened]);
+  // Its parts' roads, routed off the page in the island's own coordinates about its centre.
+  const ask = useMemo((): RoadsAsk | undefined => layout === undefined ? undefined : {
+    map: layout.map,
+    links: [...parts.links, ...crossings.flatMap((crossing) => crossing.links.map((key) => { const [from, to] = key.split("->") as [string, string]; return { from, to }; }))],
+    docks: crossings.map((crossing) => ({ local: { x: crossing.local.x - layout.centre.x, z: crossing.local.z - layout.centre.z }, links: crossing.links })),
+    names: capabilityPlates(layout.map),
+  }, [layout, parts, crossings]);
+  const routedVersion = useSyncExternalStore(subscribeRoads, roadsVersion);
+  const inner = useMemo(() => ask === undefined ? undefined : knownIslandRoads(ask), [ask, routedVersion]);
+  useEffect(() => {
+    if (ask === undefined || inner !== undefined) return;
+    const overtaken = new AbortController();
+    islandRoadsWhenRouted(ask, pageIslandRouter(), overtaken.signal);
+    return () => overtaken.abort();
+  }, [ask, inner]);
+  const marks = useMemo(() => {
+    if (layout === undefined) return undefined;
+    const kept = inner === undefined ? [] : hiddenByOpening(drawn.map, drawn.roads, capability).kept;
+    const relief = drawn.relief, onGround = onIslandSurface(radius, ROAD_LIFT);
+    const cells = drawn.map.cells.filter((cell) => cell.territory === at).map((cell) => cell.polygon);
+    return openedMarks(capability, layout, inner, kept, cells, drawn.map.coast, (p) => { const v = onGround(p); v.y += relief.raise(p); return v; }, landFill(drawn.map, drawn.group));
+  }, [layout, inner, drawn, capability, at, radius]);
+  useLayoutEffect(() => {
+    if (marks === undefined) return;
+    drawn.group.add(marks);
+    const roads = drawn.group.getObjectByName("island-roads");
+    const shown = inner === undefined || roads === undefined ? () => {} : hideForOpening(roads, drawn.map, drawn.roads, capability);
+    const frame = requestAnimationFrame(() => gl.compile(marks, camera, scene));
+    invalidate();
+    return () => { cancelAnimationFrame(frame); shown(); marks.removeFromParent(); disposeOpened(marks); invalidate(); };
+  }, [marks, inner, drawn, capability, gl, camera, scene, invalidate]);
+  return null;
 }
 
 /** Lets go of every geometry and material under `group`. */
@@ -420,7 +507,7 @@ function disposeMarks(group: Group): void {
 /** An island's land as built: its territories' meshes, and its relief and roads once they are routed. */
 type DrawnLand = { group: Group; map: TerritoryMap; roads: IslandRoads | undefined; relief: IslandRelief | undefined; onLand: ReturnType<typeof onIslandSurface> };
 
-function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighting, surfaces, gate, picked, circled, rung, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
+function DrawnIsland({ story, drawn, land, coast, docks, tints, pointed, radius, lighting, surfaces, gate, picked, circled, rung, detail, joined, opened, parts }: IslandLandProps & { drawn: DrawnLand }) {
   const { invalidate, clock, camera, size, gl, scene } = useThree();
   const relief = drawn.relief, onLand = drawn.onLand;
   // 3.83: the open work's rings round its settlements, over the land as drawn now, at every zoom (ADR-1272 D2);
@@ -507,7 +594,11 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
     invalidate();
   }, [drawn, level, surfaces, invalidate]);
   useEffect(() => () => disposeMarks(drawn.group), [drawn]);
-  return <><primitive object={drawn.group} /><primitive object={marks.root} />{surfaces.territories !== false && <primitive object={openWork.root} />}</>;
+  // 3.112: the capability open on the map, if it is on this island and has parts to open into, once its roads are routed.
+  const open = useSyncExternalStore(opened.subscribe, opened.get);
+  const openParts = open?.story === story && level === "parts" && surfaces.territories !== false ? parts?.find(({ capability }) => capability === open.capability) : undefined;
+  return <><primitive object={drawn.group} />{openParts !== undefined && drawn.roads !== undefined && drawn.relief !== undefined
+    && <OpenedCapability story={story} parts={openParts} drawn={drawn as OpenedLand} docks={docks} radius={radius} opened={opened} />}<primitive object={marks.root} />{surfaces.territories !== false && <primitive object={openWork.root} />}</>;
 }
 
 

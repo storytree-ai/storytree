@@ -5,6 +5,7 @@ import { build } from "esbuild";
 import { chromium, type Browser, type BrowserServer, type Page } from "playwright-core";
 import { endChrome } from "./end-chrome.js";
 import { waitUntil } from "@storytree/test-waits";
+import { DETAIL_ZOOM } from "./zoom-detail.js";
 
 /** Each bundle is built once for the file, and its tests each mount it on a fresh page. */
 const bundles = new Map<string, Promise<string>>();
@@ -13,9 +14,9 @@ const bundles = new Map<string, Promise<string>>();
  * `__show(titles)` hands it the plan again, a live update, with the stories' titles as given. `linked` gives each story a
  * second capability its first depends on, and story one's first depends on story two's, so each island has roads.
  * `__show(titles, story, more)` shows it with that story selected, and the map view's other props `more` gives (an arc's rings, a pick), `__core` is its knowledge core, and `__flushSync` commits the map's scene at once. `__zoom()` reads the eye's zoom the map shows its detail by. */
-function mapBundle(linked = false, { late = false, unclaimed = false }: { late?: boolean; unclaimed?: boolean } = {}): Promise<string> {
-  const key = JSON.stringify([linked, late, unclaimed]);
-  if (!bundles.has(key)) bundles.set(key, bundleMap(linked, late, unclaimed));
+function mapBundle(linked = false, { late = false, unclaimed = false, parted = false }: { late?: boolean; unclaimed?: boolean; parted?: boolean } = {}): Promise<string> {
+  const key = JSON.stringify([linked, late, unclaimed, parted]);
+  if (!bundles.has(key)) bundles.set(key, bundleMap(linked, late, unclaimed, parted));
   return bundles.get(key)!;
 }
 /** Counts, as `__pending`, the page's work still to come: the frames asked for and the turns handed to the next task (a
@@ -33,7 +34,7 @@ const PENDING_WORK = `globalThis.__pending = 0; {
   globalThis.clearTimeout = id => { turns.delete(id); count(); unlater(id); };
 }
 `;
-async function bundleMap(linked: boolean, late: boolean, unclaimed: boolean): Promise<string> {
+async function bundleMap(linked: boolean, late: boolean, unclaimed: boolean, parted = false): Promise<string> {
   const entry = `import { createElement } from "react";
     import { createRoot } from "react-dom/client";
     import { flushSync } from "@react-three/fiber";
@@ -45,7 +46,10 @@ async function bundleMap(linked: boolean, late: boolean, unclaimed: boolean): Pr
     import { sheetEyeZoom } from "@storytree/forest-world/planet";
     const linked = ${JSON.stringify(linked)};
     // Unclaimed: story one is surveyed with as much code in no part as in its part, so its island has land no part's.
-    const survey = ${JSON.stringify(unclaimed)} ? { one: { files: [{ path: "a.ts", lines: 100, capability: "one-cap" }, { path: "b.ts", lines: 100 }], imports: [] } } : {};
+    const survey = ${JSON.stringify(unclaimed)} ? { one: { files: [{ path: "a.ts", lines: 100, capability: "one-cap" }, { path: "b.ts", lines: 100 }], imports: [] } }
+      // Parted: story one's capability holds two code parts, which it opens into at the parts level (3.112).
+      : ${JSON.stringify(parted)} ? { one: { files: [{ path: "src/a/index.ts", lines: 100, capability: "one-cap" }, { path: "src/b/index.ts", lines: 80, capability: "one-cap" }], imports: [{ from: "src/a/index.ts", to: "src/b/index.ts" }],
+        parts: { capabilities: { "one-cap": [{ folder: "src/a", entry: "src/a/index.ts", files: ["src/a/index.ts"], parts: [] }, { folder: "src/b", entry: "src/b/index.ts", files: ["src/b/index.ts"], parts: [] }] }, clashes: [] } } } : {};
     const health = { reported: { state: "passing" }, verified: { state: "passing" } };
     const capability = (id, dependsOn = []) => ({ id: id + "-cap", title: "1 · " + id, dependsOn, proposed: false, status: "healthy", contracts: [], health });
     const capabilities = id => !linked ? [capability(id)]
@@ -94,10 +98,10 @@ async function freshPage(t: { after(run: () => Promise<void>): void }, viewport:
 }
 
 /** A page with the map mounted, once it has opened and stopped rendering. */
-async function openedMap(t: { after(run: () => Promise<void>): void }, linked = false, viewport = { width: 800, height: 600 }, { unclaimed = false } = {}) {
+async function openedMap(t: { after(run: () => Promise<void>): void }, linked = false, viewport = { width: 800, height: 600 }, { unclaimed = false, parted = false } = {}) {
   const page = await freshPage(t, viewport);
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
-  await page.addScriptTag({ content: await mapBundle(linked, { unclaimed }) });
+  await page.addScriptTag({ content: await mapBundle(linked, { unclaimed, parted }) });
   await page.waitForFunction(() => {
     const { __globe: globe, __nav: nav } = window as unknown as { __globe?: { scene: { getObjectByName(name: string): unknown } }; __nav?: unknown };
     return nav !== undefined && globe?.scene.getObjectByName("planet:two") !== undefined;
@@ -219,8 +223,8 @@ test("3.71 · a drag that turns the glass sheet renders the map view a fixed few
   assert.notDeepEqual(await turn(), before, "the drag turned the sheet's group");
 });
 
-test("3.72 · a burst of live updates that change no island's land, coast or tints keeps its territories' geometry", async t => {
-  const { page } = await openedMap(t);
+for (const parted of [false, true]) test(`3.72 · a burst of live updates that change no island's land, coast or tints keeps its territories' geometry${parted ? ", an island with code parts too" : ""}`, async t => {
+  const { page } = await openedMap(t, false, undefined, { parted });
   type Scene = { getObjectByName(name: string): { getObjectByName(name: string): unknown } | undefined };
   // Each island's territories as drawn, kept on the page to compare with what is drawn after the burst.
   await page.evaluate(() => {
@@ -501,4 +505,50 @@ test("3.105 · while an arc is selected, a click on island land that is no part 
   assert.equal(JSON.parse(await picks()).length, before, "the click on land in no part picked nothing while the arc is selected");
   await page.mouse.click(part.x, part.y);
   assert.deepEqual(JSON.parse(await picks()).at(-1)?.slice(0, 2), ["one", "one-cap"], "the click on the part still picked it");
+});
+
+test("3.112 · zoomed to the parts level over a capability with code parts, it opens: its parts drawn and named, its junction given way; zoomed back out, the island is as it was", async t => {
+  const { page } = await openedMap(t, true, { width: 800, height: 600 }, { parted: true });
+  type Mark = { name: string; visible: boolean; parent: Mark | null; userData: Record<string, unknown>; getObjectByName(name: string): Mark | undefined; getWorldPosition(into: unknown): { project(camera: unknown): { x: number; y: number } }; position: { constructor: new () => unknown } };
+  const read = () => page.evaluate(() => {
+    const { __globe: globe, __zoom: zoom } = window as unknown as { __globe: { scene: Mark; camera: unknown; size: { width: number; height: number } }; __zoom(): number };
+    const plate = globe.scene.getObjectByName("planet:one")!;
+    const at = plate.getWorldPosition(new plate.position.constructor()).project(globe.camera);
+    // Shown when it and everything it hangs from is visible (a named function here would need the bundler's helper).
+    const junction = plate.getObjectByName("territory-junction:one-cap");
+    let junctionShown = junction !== undefined;
+    for (let m: Mark | null | undefined = junction; m; m = m.parent) junctionShown &&= m.visible;
+    const opened = plate.getObjectByName("opened-capability:one-cap");
+    return {
+      zoom: zoom(), x: (at.x + 1) / 2 * globe.size.width, y: (1 - at.y) / 2 * globe.size.height,
+      opened: opened === undefined ? undefined : { parts: opened.userData.parts, routed: opened.userData.routed },
+      junction: junctionShown,
+      names: [...document.querySelectorAll(".planet-nameplate.part")].map(label => label.textContent).sort(),
+    };
+  });
+  const frames = () => page.evaluate(() => new Promise(requestAnimationFrame)).then(() => page.evaluate(() => new Promise(requestAnimationFrame)));
+  const until = async (step: () => Promise<void>, done: (now: Awaited<ReturnType<typeof read>>) => boolean, what: string) => {
+    for (let at = 0; at < 120; at++) {
+      const now = await read();
+      if (done(now)) return now;
+      await step();
+      await frames();
+    }
+    throw new Error(`never ${what}: ${JSON.stringify(await read())}`);
+  };
+  const closed = await until(async () => {}, now => now.junction, "its junction shown");
+  assert.equal(closed.opened, undefined, "nothing is open at the map's opening zoom");
+  // Each step brings island one under the middle of the view, then zooms in there.
+  const centre = { x: 400, y: 300 };
+  const open = await until(async () => {
+    const now = await read();
+    await page.mouse.move(now.x, now.y); await page.mouse.down(); await page.mouse.move(centre.x, centre.y, { steps: 4 }); await page.mouse.up();
+    await page.mouse.move(centre.x, centre.y);
+    await page.mouse.wheel(0, -240);
+  }, now => now.opened?.routed === true && now.names.length > 0, "opened with its parts' roads routed and named");
+  assert.ok(open.zoom >= DETAIL_ZOOM.parts, `opened at the parts level (${open.zoom.toFixed(1)})`);
+  assert.deepEqual([open.opened?.parts, open.names], [2, ["a", "b"]], "its two parts are drawn and named");
+  assert.equal(open.junction, false, "its junction gives way to its parts'");
+  const back = await until(async () => { await page.mouse.move(centre.x, centre.y); await page.mouse.wheel(0, 240); }, now => now.zoom < DETAIL_ZOOM.parts * 0.8 && now.opened === undefined, "closed again");
+  assert.deepEqual([back.junction, back.names], [true, []], "zoomed back out, its junction shows again and its parts are not named");
 });

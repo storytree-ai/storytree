@@ -11,7 +11,7 @@
  * Nothing here loads anything: a door's menus read declarations at start, and the work a verb does is imported
  * inside its act.
  */
-import type { Library, Storytree } from "../api/index.js";
+import type { Library, Storytree } from "../index.js";
 import type { WriteOptions } from "../schema/index.js";
 
 /**

@@ -3,9 +3,17 @@
  * that records or edits a decision comes through it, so the load-bearing mark and the shelf move the same way whichever
  * door wrote it (ADR-1243 D1: the rule once split between 13 and 22 is 13's alone).
  */
-import type { Library, NewDecision, Note, NoteEdit, SchemaRecord, WriteOptions } from "../../index.js";
+import type { Library, Note, NoteEdit, SchemaRecord, WriteOptions } from "../index.js";
 
-import { LibrarianRefusal } from "../notes.js";
+import type { NewDecision } from "./decision-log.js";
+
+/** A change to the decision log its rules refuse; its message names the rule. */
+export class DecisionRefusal extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DecisionRefusal";
+  }
+}
 
 /**
  * A successor's own words, and any other field a new decision takes (its number, the day it was decided, who decided
@@ -26,9 +34,9 @@ export type Successor = Omit<NewDecision, "status" | "supersedes">;
 export function supersede(library: Library, olds: readonly string[], successor: Successor | string, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
   return library.inOneWrite(async () => {
     const existing = typeof successor === "string" ? await library.decision(successor) : undefined;
-    if (existing === null) throw new LibrarianRefusal(`${successor} is not a live decision`);
+    if (existing === null) throw new DecisionRefusal(`${successor} is not a live decision`);
     if (existing !== undefined && existing.status !== "accepted") {
-      throw new LibrarianRefusal(`${label(existing.record)} must be accepted to supersede other decisions; it reads ${existing.status}`);
+      throw new DecisionRefusal(`${label(existing.record)} must be accepted to supersede other decisions; it reads ${existing.status}`);
     }
     const replaced = await Promise.all([...new Set(olds)].map(async (id) => (await library.decision(id))?.record));
     const own = typeof successor === "string" ? existing?.record.fields : successor;
@@ -42,7 +50,7 @@ export function supersede(library: Library, olds: readonly string[], successor: 
     const recorded = typeof successor === "string"
       ? await library.editNote(successor, fields, writer) as SchemaRecord<"decision"> | null
       : await library.recordDecision({ ...successor, status: "accepted", ...fields }, writer);
-    if (recorded === null) throw new LibrarianRefusal(`${successor} is not a live decision`);
+    if (recorded === null) throw new DecisionRefusal(`${successor} is not a live decision`);
     for (const old of replaced) if (old?.fields.loadBearing === true) await library.editNote(old.id, { loadBearing: undefined }, writer);
     return recorded;
   }, writer?.signal === undefined ? undefined : { signal: writer.signal });
@@ -56,7 +64,7 @@ export function supersede(library: Library, olds: readonly string[], successor: 
 export async function recordDecision(library: Library, fields: NewDecision, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
   const { status, supersedes, ...successor } = fields;
   if (status === "proposed") {
-    throw new LibrarianRefusal("A decision is no longer born proposed (ADR-1232 D1): record it accepted only when the owner directed it, and raise what needs his call as an open question on its arc (storytree question new, or the raise_question tool), with the drafted decision in its context");
+    throw new DecisionRefusal("A decision is no longer born proposed (ADR-1232 D1): record it accepted only when the owner directed it, and raise what needs his call as an open question on its arc (storytree question new, or the raise_question tool), with the drafted decision in its context");
   }
   return status === "accepted" && Array.isArray(supersedes) && supersedes.length > 0
     ? supersede(library, supersedes, successor, writer)

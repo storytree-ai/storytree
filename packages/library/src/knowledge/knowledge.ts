@@ -5,7 +5,7 @@
  *
  * Knowledge is also the one door to the knowledge entrances (capability 9, front-covers.ts), which
  * every link and front cover it writes is checked against, and to the decision log (capability 13,
- * decision-log.ts), which numbers and reads its decisions.
+ * decisions/), which numbers and reads its decisions.
  *
  * ADR-0640 grows it by eight kinds, written with writeKnowledge: principles, guardrails, patterns,
  * processes, agent roles, friction, re-steers and tech stack; ADR-0956 D3 adds a ninth, the quality control
@@ -25,9 +25,9 @@ import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.
 import { unstorable } from "../schema/records.js";
 import { judgedState, type FieldsOf, type KnowledgeKind } from "../schema/types.js";
 import { defaultEmbedder } from "./embedding-model.js";
-import { DecisionLog, type DecisionNumberPlan, type DecisionView, type NewDecision } from "./decision-log.js";
+import { checkFrontCover, DecisionLog, type DecisionNumberPlan, type DecisionView, type NewDecision } from "../decisions/index.js";
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
-import { artifactsOnly, checkFrontCover, frontCovers } from "./front-covers.js";
+import { artifactsOnly, frontCovers } from "./front-covers.js";
 import { relatedEach, relatedTo, type Related, type RelatedOptions, type SimilarityDoc } from "./similarity.js";
 import { holdsName, normalisedWords } from "./whole-words.js";
 

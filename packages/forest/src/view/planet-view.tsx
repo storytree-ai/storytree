@@ -19,7 +19,7 @@ import { ClaimMarks } from "./claim-flag.js";
 import { islandLayoutSteps, type Link } from "../territories/link-layout.js";
 import { useLayingOut } from "./layout-progress.js";
 import { awaitingLayout, keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
-import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
+import { IslandPins, NameplateCrowd, Nameplates, reducedMotion, SelectionRing, StorePins } from "./island-overlays.js";
 import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, ignoresClick, feedbackPick, answerFeedbackPicks, pickGlobe, type ForestMode, type PickedGate } from "./planet-navigation.js";
 import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
@@ -31,6 +31,7 @@ import { useBuiltInSteps } from "./build-turns.js";
 import type { TerritoryMap } from "../territories/territories.js";
 import { keepPartSeeds, keptPartSeeds, nestedLayoutSteps, partCrossings, regionOf } from "../territories/nested-territories.js";
 import type { SceneParts } from "../render/scene-parts.js";
+import type { PinReading } from "@storytree/map/pins";
 import { disposeOpened, hiddenByOpening, hideForOpening, openedAt, openedMarks, OpenedStore, opensAt, readsUnder, rollUp } from "./opened-capability.js";
 
 export type PlanetViewProps = {
@@ -157,6 +158,8 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
   const rung = useKept(useMemo(() => rungLinks(scene.edges ?? [], circledContracts), [scene.edges, circledContracts]), (links) => links === undefined ? "none" : JSON.stringify([...links]));
   // 5.8: a session's pointer pulses on the selected arc's open work, or anywhere when it is for a question; the camera stays his.
   const pointed = useMemo(() => shownPointers(wisps, circled), [wisps, circled]);
+  // 3.119: the agents' pins, on the places they anchor on; a scene that reads them the same keeps them.
+  const pins = useKept(scene.pins ?? NO_PINS, JSON.stringify);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[], docks: readonly IslandDock[] | undefined) => {
     // ADR-1236 D1 as narrowed by ADR-1253 D2: every island's territories are laid out by its links, once its docks are known.
     const laidBy = docks;
@@ -171,17 +174,20 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} detail={detail} opened={opened} />}
+      {shownSurfaces.nameplates && pins.length > 0 && <IslandPins island={island} coast={coast} links={links} docks={laidBy} radius={layout.radius} pins={pins} detail={detail} opened={opened} />}
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
       <DocksSeen story={island.story} docks={docks} onDocks={onDocks} />
     </>;
-  }, [wisps, claimed, pointed, selected, highlighted, circled, rung, layout.spots, layout.radius, lighting, shownSurfaces, links, gate, selectedCapability, detail, onDocks, opened, partsOf]);
+  }, [wisps, claimed, pointed, selected, highlighted, circled, rung, layout.spots, layout.radius, lighting, shownSurfaces, links, gate, selectedCapability, detail, onDocks, opened, partsOf, pins]);
+  const storeChildren = useCallback((address: string, at: readonly [number, number, number]) => shownSurfaces.nameplates && <StorePins address={address} at={at} pins={pins} detail={detail} />,
+    [pins, detail, shownSurfaces.nameplates]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   // 3.90: the wheel's floor is half the sheet's opening, whatever framing the last pose (a panel's resize or slide) sent.
   const floor = useCallback((size: { width: number; height: number }) => sheetOpening(layout.extent, size).framing, [layout.extent]);
   const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} places={codePlaces} sheet={underSheet} growing={growth !== undefined} onHung={onLibraryHung} /></UnderTheGlass>,
     [library, outlines, core, codePlaces, underSheet, growth, onLibraryHung]);
   const storeSpots = useMemo(() => new Map(layout.stores.map(store => [store.address, store.spot])), [layout.stores]);
-  return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} storeSpots={storeSpots} radius={layout.radius}
+  return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} storeSpots={storeSpots} storeChildren={storeChildren} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} floor={floor} sideOffset={cameraOffset} sheet={layout.extent} hollow={outlines}
     globe={globe} offset={turned.current.centre} inside={inside}
     rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth} onLanesNotice={onLanesNotice}>
@@ -300,6 +306,7 @@ function useKept<T>(value: T, keyOf: (value: T) => string): T {
 }
 
 const NO_LINKS: readonly Link[] = [];
+const NO_PINS: readonly PinReading[] = [];
 const NO_DOCKS_SEEN: ReadonlyMap<string, readonly IslandDock[]> = new Map();
 
 /** Lifted just off the surface, so a territory's tint never fights the ground it lies on. */

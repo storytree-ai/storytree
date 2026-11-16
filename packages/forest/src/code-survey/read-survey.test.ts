@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import type { AnnotatedTree } from "@storytree/library";
+import type { AnnotatedTree, SchemaRecord } from "@storytree/library";
 import { removeTemp } from "@storytree/test-waits";
 
 import { forestPageAnswers } from "./read-survey.js";
@@ -69,6 +69,32 @@ test("1.14 · the desktop answers the page's shared stores from the project's ch
     assert.deepEqual(stores.map(({ address, tables }) => [address, tables.map(({ name }) => name)]), [["postgres://db/shop", ["orders"]]]);
     projectFolder = undefined;
     assert.deepEqual(await answers.sharedStores("project"), []);
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("3.119 · the desktop answers the page's pins from the library, each read against the code last surveyed: one whose capability the plan lacks reads stale with why; before any survey none is judged", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "forest-pins-"));
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: "pipe", windowsHide: true });
+  try {
+    const origin = path.join(folder, "origin.git");
+    const checkout = path.join(folder, "checkout");
+    git(folder, "init", "--quiet", "--bare", "-b", "main", origin);
+    git(folder, "init", "--quiet", "-b", "main", checkout);
+    git(checkout, "-c", "user.name=Survey test", "-c", "user.email=survey@example.test", "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "fixture");
+    git(checkout, "remote", "add", "origin", origin);
+    git(checkout, "push", "--quiet", "origin", "main");
+    const pin = { id: "pin_000000000001", type: "pin", fields: { anchor: { capability: "capability_00000000000a" }, icon: "cache", label: "A cache", evidence: "seen", commit: "abc", at: "2026-11-16T00:00:00.000Z" } } as unknown as SchemaRecord<"pin">;
+    const { answers } = forestPageAnswers[0]!({
+      home: path.join(folder, "home"),
+      library: () => ({ projectFolder: async () => checkout, projectTree: async () => tree, projectImports: async () => [], pins: async () => [pin] }),
+      treeRead: () => tree,
+      surveyWorker: fileURLToPath(import.meta.resolve("@storytree/map/code-survey/worker")),
+    });
+    assert.deepEqual(await answers.pins("project"), [{ pin }], "no survey yet: read, not judged");
+    await answers.codeSurvey("project");
+    assert.deepEqual(await answers.pins("project"), [{ pin, stale: "no capability capability_00000000000a is in the plan" }]);
   } finally {
     await removeTemp(folder);
   }

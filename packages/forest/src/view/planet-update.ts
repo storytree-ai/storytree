@@ -20,6 +20,8 @@ export function nextScene(shown: OnShow, scene: ForestScene, places: ReadonlyMap
     // The contracts on edges and capabilities, which an arc's open work rings by (3.92, 3.99): a contract planned on a link
     // changes no island, yet must ring its gate at once.
     && JSON.stringify([scene.edges ?? [], scene.contracts ?? []]) === JSON.stringify([shown.scene.edges ?? [], shown.scene.contracts ?? []])
+    // The agents' pins (3.119): a pin written, retired or gone stale changes no island, yet shows at once.
+    && JSON.stringify(scene.pins ?? []) === JSON.stringify(shown.scene.pins ?? [])
     && places.size === shown.places.size && [...places].every(([story, place]) => shown.places.get(story) === place);
   return same ? undefined : { ...scene, islands };
 }

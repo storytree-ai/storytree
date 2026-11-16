@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 
-import { marksOutsideRead, takeWriteLock } from "../transactions/pg.js";
+import { marksOutsideRead, takeWriteLock } from "../transactions/index.js";
 
 /** A record as it is now: a row of the project's `record` table. */
 export interface SnapshotRecord {

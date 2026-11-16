@@ -13,7 +13,7 @@ import path from "node:path";
 
 import { lookAsApp, projectFolder, openActivityLog, pruneTranscripts, readingLines, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/session-management";
 import { idleAfterMs, importsOf, leaveAfterMs, machineOf, storytreeHome, standingDelegations, trunkedProjects } from "@storytree/project-and-caller";
-import type { ChangesFilter, DayWindow, FactoryLink, Library, LineKind, PluginRecordKind, Storytree } from "@storytree/library";
+import type { ChangesFilter, DayWindow, FactoryLink, Library, LineKind, PluginRecordKind, SchemaRecord, Storytree } from "@storytree/library";
 
 /** pg's refusal of a read on a pool already ended: the project's library was closed beneath the reads. */
 const POOL_ENDED = /Cannot use a pool after calling end on the pool/;
@@ -35,6 +35,8 @@ export interface PageReads extends Answers<PageReadsBridge> {
   projectBuildsItself(project: unknown): Promise<boolean>;
   /** The folders this machine imports for the project (ADR-0993 D2), where the code survey reads its mapped stories. */
   projectImports(project: unknown): Promise<{ folder: string; repository?: string }[]>;
+  /** The project's live pin records (map 9), which the forest's answer reads against the code it surveyed (3.119). */
+  pins(project: unknown): Promise<SchemaRecord<"pin">[]>;
   /** The app's own look at every project's branches (Session management 4.21), so the sessions list never waits on a hook's. Never throws, never blocks the process, and never runs twice at once. */
   lookAround(): Promise<void>;
   /** Close the libraries and the log opened here. The connection to the library stays the caller's. */
@@ -182,6 +184,7 @@ export function pageReads({ storytree, transcriptCacheHome, home, kinds }: PageR
       return storedSessionWindow(opened, known, lines, session, { cache: await transcripts(known) });
     },
     projectFolder: async (name) => projectFolder(await activityLog(), await project(name)),
+    pins: (name) => read(name, (library) => library.list("pin")),
     projectLineage: (name) => read(name, (library) => library.factory()),
     projectBuildsItself: async (name) => (await trunkedProjects(storytree)).has(await project(name)),
     projectImports: async (name) => (await importsOf(storytree, await project(name), machineOf(home ?? storytreeHome()).id))

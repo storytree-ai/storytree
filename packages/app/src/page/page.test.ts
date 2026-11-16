@@ -176,7 +176,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
     heard: (on = drawn.at(-1)!) => { for (const listener of [...on.listeners]) void listener.onNews({ changes: [], lines: [] }); },
     readFailed: (error: Error, on = drawn.at(-1)!) => { for (const listener of [...on.listeners]) listener.onError?.(error); },
     /** The fresh tree landing for the project last drawn. */
-    land: (on = drawn.at(-1)!, stores: readonly SharedStore[] = []) => on.reading!.onTree(tree, { changes: [], lines: [] }, {}, stores),
+    land: (on = drawn.at(-1)!, stores: readonly SharedStore[] = []) => on.reading!.onTree(tree, { changes: [], lines: [] }, {}, stores, []),
     heading: () => content.querySelector("h1")?.textContent,
     line: () => content.querySelector("p")?.textContent,
   };

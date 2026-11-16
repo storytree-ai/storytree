@@ -24,5 +24,13 @@ test("12.3 · import of a folder that does not exist is refused, saying there is
   const importing = SETUP_FAMILIES.find((family) => family.name === "import")!.bare! as Verb<never, ImportVerbContext>;
   const context = { folder: tmpdir(), library: { name: "shop" }, server: {} } as unknown as ImportVerbContext;
   const gone = path.join(tmpdir(), "no-such-folder-for-import");
-  await assert.rejects(importing.act({ folder: gone } as never, context, WORDS), (error: unknown) => refusal(error) && /does not exist, so there is nothing to import/.test((error as Error).message));
+  await assert.rejects(importing.act({ folder: gone, project: "shop" } as never, context, WORDS), (error: unknown) => refusal(error) && /does not exist, so there is nothing to import/.test((error as Error).message));
+});
+
+test("12.11 · import names the project it writes to: naming none, or a project other than the folder's, is refused as a misuse naming the folder's, before anything is read (ADR-1348 D3)", async () => {
+  const importing = SETUP_FAMILIES.find((family) => family.name === "import")!.bare! as Verb<never, ImportVerbContext>;
+  const context = { folder: tmpdir(), library: { name: "shop" }, server: {} } as unknown as ImportVerbContext;
+  const misuse = (pattern: RegExp) => (error: unknown) => error instanceof VerbRefusal && error.misuse && pattern.test(error.message);
+  await assert.rejects(importing.act({ folder: "anything" } as never, context, WORDS), misuse(/names the project it writes to.*--project shop/));
+  await assert.rejects(importing.act({ folder: "anything", project: "garden" } as never, context, WORDS), misuse(/this folder's own project, "shop", not "garden"/));
 });

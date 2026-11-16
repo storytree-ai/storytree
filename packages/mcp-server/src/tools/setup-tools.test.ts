@@ -473,10 +473,28 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
         assert.equal(took.isError, false, took.text);
         const checked = await agent.call("check_setup");
         assert.deepEqual(checked.data.starterRoles, ["orchestrator", "librarian", "change-reviewer"]);
-        assert.match(checked.text, /holds the orchestrator, librarian and change-reviewer roles/);
+        // Set up with a factory, the project is its product: the orchestrator is handed whole, the others named as its agents (8.48).
+        assert.equal(checked.data.sessionRole, "orchestrator");
+        assert.match(checked.text, /Its agents are the change-reviewer and librarian roles/);
         const refused = await agent.call("take_starter_pack", { include: ["tester"] });
         assert.equal(refused.isError, true);
         assert.match(refused.text, /"tester" is no part of the starter pack/);
+      });
+      // A project naming no factory that holds a starter role is told of it by name, to open (and handed no session role, 8.48).
+      const holding = `${seeded}-own`;
+      const own = await storytree.openProject(holding);
+      const reading = await own.writeKnowledge("principle", { title: "Read first", description: "Read first.", statement: "Read before you act.", why: "Less to undo.", howToApply: "Open it." });
+      await own.writeKnowledge("agent", { title: "orchestrator", description: "The session.", oneLine: "Runs the session.", role: "Run it.", outcome: "Run.", context: [reading.id], tools: "All", workflow: "Run it." });
+      await own.close();
+      const holdingFolder = path.join(dir, holding);
+      mkdirSync(holdingFolder);
+      writeMarker(holdingFolder, `${JSON.stringify({ project: holding })}\n`);
+      await approveCheckout(holdingFolder, holding, home.storytreeHome);
+      await withAgent(holdingFolder, agentIn(holdingFolder), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.deepEqual(checked.data.starterRoles, ["orchestrator"]);
+        assert.equal(checked.data.sessionRole, null);
+        assert.match(checked.text, /Its library holds the orchestrator roles, which say how to work in this project: find each with search_notes/);
       });
       // A project set up before the starter pack: its library has no roles to name.
       const oldFolder = path.join(dir, older);
@@ -491,7 +509,7 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
       });
     } finally {
       await storytree.close();
-      await dropTestProjects([seeded, older, factory]);
+      await dropTestProjects([seeded, `${seeded}-own`, older, factory]);
     }
   });
 });
@@ -700,6 +718,121 @@ test("app-setup 8.26 in a project an earlier starter pack seeded, or a product p
     } finally {
       await storytree.close();
       await dropTestProjects([earlier, never, factory, product]);
+    }
+  });
+});
+
+test("app-setup 8.48 in a product project whose factory is a factory, the check hands the agent the factory's session role whole, as its instructions over the card, and names the factory's other roles as its agents; the product's own same-titled role wins, and a project with no factory is handed neither", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const [factory, product, plain, roleless, roleless2, gone, notFactory, notFactoryProduct] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const agentIn = (folder: string) => claudeCode(`claude-${path.basename(folder)}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } });
+      const projectFolder = async (project: string) => {
+        const folder = path.join(dir, project);
+        mkdirSync(folder);
+        writeMarker(folder, `${JSON.stringify({ project })}\n`);
+        await approveCheckout(folder, project, home.storytreeHome);
+        return folder;
+      };
+      const answered = (text: string) => text.split("\n\nHow to work with storytree")[0]!;
+      const role = (title: string, said: string) => ({ title, description: `The ${title}.`, oneLine: `Works as the ${title}.`, role: `${said} role.`, outcome: `${said} outcome.`, tools: "Everything.", workflow: `${said} workflow.`, escalation: `${said} escalation.` });
+      // The owner's factory, holding its session role and two agents; a plain project holding the same roles as its own.
+      const made = await storytree.openProject(factory);
+      await made.markFactory();
+      const reading = await made.writeKnowledge("principle", { title: "Read first", description: "Read first.", statement: "Read before you act.", why: "Less to undo.", howToApply: "Open it." });
+      for (const [title, said] of [["session-orchestrator", "Factory's session"], ["change-reviewer", "Factory's review"], ["explorer", "Factory's search"]] as const) {
+        await made.writeKnowledge("agent", { ...role(title, said), context: [reading.id] });
+      }
+      await made.close();
+      const built = await storytree.openProject(product);
+      await built.recordFactory(factory);
+      await built.close();
+      const own = await storytree.openProject(plain);
+      const ownReading = await own.writeKnowledge("principle", { title: "Read first", description: "Read first.", statement: "Read before you act.", why: "Less to undo.", howToApply: "Open it." });
+      await own.writeKnowledge("agent", { ...role("session-orchestrator", "Plain session"), context: [ownReading.id] });
+      await own.close();
+
+      const productFolder = await projectFolder(product);
+      await withAgent(productFolder, agentIn(productFolder), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.isError, false, checked.text);
+        assert.equal(checked.data.sessionRole, "session-orchestrator");
+        assert.deepEqual(checked.data.agents, ["change-reviewer", "explorer"]);
+        const text = answered(checked.text);
+        assert.match(text, new RegExp(`factory "${factory}"`));
+        for (const part of ["Factory's session role.", "Factory's session outcome.", "Factory's session workflow.", "Factory's session escalation."]) assert.ok(text.includes(part), part);
+        assert.match(text, /where it differs from the card that follows, it wins/);
+        assert.match(text, /change-reviewer and explorer/);
+        assert.ok(!text.includes("Factory's review role."), "an agent is named, not handed whole");
+      });
+      // The product's own session role, edited from the factory's, is the one handed (contract 29.2).
+      const edited = await storytree.openProject(product);
+      const inherited = (await edited.list("agent")).find((agent) => agent.fields.title === "session-orchestrator")!;
+      await edited.editNote(inherited.id, { role: "Product's own session role." });
+      await edited.close();
+      await withAgent(productFolder, agentIn(productFolder), async (agent) => {
+        const text = answered((await agent.call("check_setup")).text);
+        assert.ok(text.includes("Product's own session role."), text);
+        assert.ok(!text.includes("Factory's session role."), text);
+      });
+      // Through an MCP client storytree has no hooks for, the same is handed (12.2's connected answer).
+      await withAgent(productFolder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-1" }, dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } }, async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.data.tier, "connected");
+        assert.equal(checked.data.sessionRole, "session-orchestrator");
+        assert.deepEqual(checked.data.agents, ["change-reviewer", "explorer"]);
+        assert.ok(answered(checked.text).includes("Product's own session role."));
+      });
+      const plainFolder = await projectFolder(plain);
+      await withAgent(plainFolder, agentIn(plainFolder), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.data.sessionRole, null);
+        assert.deepEqual(checked.data.agents, []);
+        assert.ok(!checked.text.includes("Plain session role."), "a project with no factory is handed no session role");
+      });
+      // A factory holding agents but no session role: its product works its way and is named its agents, with no role handed.
+      const bare = await storytree.openProject(roleless);
+      await bare.markFactory();
+      const bareReading = await bare.writeKnowledge("principle", { title: "Read first", description: "Read first.", statement: "Read before you act.", why: "Less to undo.", howToApply: "Open it." });
+      await bare.writeKnowledge("agent", { ...role("explorer", "Bare search"), context: [bareReading.id] });
+      await bare.close();
+      // A product whose factory is gone, and one whose named project is no factory: each reads only its own, so is handed neither.
+      await (await storytree.openProject(gone)).close();
+      const plainOne = await storytree.openProject(notFactory);
+      const plainReading = await plainOne.writeKnowledge("principle", { title: "Read first", description: "Read first.", statement: "Read before you act.", why: "Less to undo.", howToApply: "Open it." });
+      await plainOne.writeKnowledge("agent", { ...role("session-orchestrator", "Not a factory's session"), context: [plainReading.id] });
+      await plainOne.close();
+      for (const [project, named] of [[roleless2, roleless], [notFactoryProduct, notFactory]] as const) {
+        const one = await storytree.openProject(project);
+        await one.recordFactory(named);
+        await one.close();
+      }
+      const goneProduct = await storytree.openProject(`${gone}-p`);
+      await goneProduct.recordFactory(gone);
+      await goneProduct.close();
+      await dropTestProjects([gone]);
+      await withAgent(await projectFolder(roleless2), agentIn(path.join(dir, roleless2)), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.data.sessionRole, null);
+        assert.deepEqual(checked.data.agents, ["explorer"]);
+        const text = answered(checked.text);
+        assert.match(text, new RegExp(`built with the factory "${roleless}", and works its way\\. Its agents are the explorer roles`));
+        assert.doesNotMatch(text, /is your instructions/);
+      });
+      for (const project of [`${gone}-p`, notFactoryProduct]) {
+        await withAgent(await projectFolder(project), agentIn(path.join(dir, project)), async (agent) => {
+          const checked = await agent.call("check_setup");
+          assert.equal(checked.isError, false, checked.text);
+          assert.equal(checked.data.sessionRole, null, project);
+          assert.deepEqual(checked.data.agents, [], project);
+          assert.doesNotMatch(checked.text, /built with the factory|Not a factory's session role/, project);
+        });
+      }
+    } finally {
+      await storytree.close();
+      await dropTestProjects([factory, product, plain, roleless, roleless2, gone, `${gone}-p`, notFactory, notFactoryProduct]);
     }
   });
 });

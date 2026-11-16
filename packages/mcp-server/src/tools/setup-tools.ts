@@ -17,7 +17,7 @@ import { MAPPED_CODE_GUIDANCE } from "@storytree/map";
 import { folderLanguages } from "@storytree/map/folder-languages";
 import { unreadableOf, unreadableSentence } from "@storytree/map/languages";
 import { COMMIT_STORYTREE, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, smallFixesArc, smallFixesSentence, starterPackStatus, starterRolesIn, suggestProjectName, unimportedPackages, unimportedSentence, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
-import { checkFile, checkFilesWritten, codexHooksState, FIX_SENTENCES, fixSentence, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
+import { checkFile, checkFilesWritten, codexHooksState, factoryWay, FIX_SENTENCES, fixSentence, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type FactoryWay, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
 import { callLines, labelOf } from "@storytree/session-management";
@@ -86,9 +86,13 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const found = findProject(folder);
         const identity = found.project === undefined ? undefined : found.identity;
         const { library, log, storytree } = await connections.reach(report.storytree.library, report.project.name, identity, { folder: found.project === undefined ? folder : found.folder, home: setup.storytreeHome ?? storytreeHome() });
-        // Seeded roles are read only when the agent is pointed at them (1.14, 8.19).
+        // A product of a factory is handed the factory's session role and named its agents (8.48, ADR-1331 D1);
+        // any other project's seeded roles are read only when the agent is pointed at them (1.14, 8.19).
+        const way = await factoryWay(library, storytree);
         const starterRoles = await starterRolesIn(library);
-        if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
+        if (way !== undefined) said.push(factoryWaySentence(way));
+        else if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
+        const fromFactory = { sessionRole: way?.sessionRole?.title ?? null, agents: way?.agents ?? [] };
         // A library an earlier pack seeded is offered the newer one, for the user to take (8.26); a product's is its factory's.
         const starterPack = await starterPackStatus(library, storytree);
         if (starterPack.offered && served().includes("take_starter_pack")) said.push(newerPackSentence(starterPack));
@@ -106,7 +110,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
         if (connected) {
           said.push(connectedSentence(caller));
-          return result({ text: withCard(said.join(" "), beside), data: { ...data, starterRoles, starterPack, unimported, smallFixesArc: smallFixes ?? null, verified: false, passed: true, missing: [], fixes: [], session: caller.session } });
+          return result({ text: withCard(said.join(" "), beside), data: { ...data, starterRoles, ...fromFactory, starterPack, unimported, smallFixesArc: smallFixes ?? null, verified: false, passed: true, missing: [], fixes: [], session: caller.session } });
         }
         // This session's hook lines alone: the latest of each kind, and its edits for the check file (contract 2.7).
         const [fired, edits] = await Promise.all([
@@ -132,7 +136,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // What this machine's hooks traced of their failures for this session (contract 3.23), so a gap in its lines can be read.
         const failures = hookFailures(setup.storytreeHome ?? storytreeHome(), caller.session);
         if (failures.length > 0) said.push(failuresSentence(failures));
-        return result({ text: withCard(said.join(" "), beside), data: { ...data, starterRoles, starterPack, unimported, smallFixesArc: smallFixes ?? null, ...verification, ...(verification.fixes.includes("edit-check-file") ? { checkFile: checkFile(caller.session) } : {}), passed: verification.verified, hookFailures: failures } });
+        return result({ text: withCard(said.join(" "), beside), data: { ...data, starterRoles, ...fromFactory, starterPack, unimported, smallFixesArc: smallFixes ?? null, ...verification, ...(verification.fixes.includes("edit-check-file") ? { checkFile: checkFile(caller.session) } : {}), passed: verification.verified, hookFailures: failures } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -270,6 +274,18 @@ const SET_UP_THIS_SESSION =
 function rolesSentence(starterRoles: readonly string[]): string {
   const named = starterRoles.length < 3 ? starterRoles.join(" and ") : `${starterRoles.slice(0, -1).join(", ")} and ${starterRoles.at(-1)}`;
   return `Its library holds the ${named} roles, which say how to work in this project: find each with search_notes and read it before you start, and work as it says when you take it up.`;
+}
+
+/**
+ * What a product project's session is handed from its factory (8.48): the factory's session role whole, which wins over
+ * the card where they differ (so its own stops and hand-backs are the session's, ADR-1188 D4), and its other roles named
+ * as the agents to brief, each opened from the library.
+ */
+function factoryWaySentence({ factory, sessionRole, agents }: FactoryWay): string {
+  const named = agents.length < 3 ? agents.join(" and ") : `${agents.slice(0, -1).join(", ")} and ${agents.at(-1)}`;
+  const agentsSaid = agents.length === 0 ? "" : ` Its agents are the ${named} roles: when you hand work to one, brief a fresh-context subagent (or a new session of your harness here) to work as that role, which it opens with search_notes.`;
+  if (sessionRole === undefined) return `This project is built with the factory ${quoted(factory)}, and works its way.${agentsSaid}`;
+  return `This project is built with the factory ${quoted(factory)}, and works its way: the factory's session role below is your instructions, and where it differs from the card that follows, it wins.${agentsSaid}\n\n${sessionRole.text}\n\n`;
 }
 
 /** What the check says of the hook failures this machine traced for the session: how many, and the latest. */

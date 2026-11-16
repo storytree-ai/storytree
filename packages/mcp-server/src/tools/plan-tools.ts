@@ -3,7 +3,7 @@
  * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, freshnessSaid, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
 import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
@@ -762,7 +762,13 @@ async function testedNumbers({ folder }: Call, capability: string, tree: Awaited
 function proofSaid(contract: { proof?: Proof }): string {
   const { proof } = contract;
   if (proof === undefined) return "how it is proved is not chosen yet";
-  if (proof.by === "observability-as-proof") return `proved by observability as proof, a live reading no older than ${freshnessSaid(proof.freshness ?? "")} recorded by ${proof.watcher}: ${proof.reason}`;
+  if (proof.by === "observability-as-proof") return `proved by observability as proof, a live reading no older than ${freshnessSaid(proof.freshness)} recorded by ${proof.watcher}: ${proof.reason}`;
   return `proved by ${proof.by === "test-criterion" ? "a test criterion" : "agentic user acceptance testing"}: ${proof.reason}`;
+}
+
+/** A freshness in words (`36h` is "36 hours", `1d` "1 day"): the schema keeps it a whole number of hours or days (ADR-1345). */
+function freshnessSaid(freshness: string | undefined): string {
+  const [, count = "0", unit] = /^(\d+)([hd])$/.exec(freshness ?? "") ?? [];
+  return `${count} ${unit === "d" ? "day" : "hour"}${count === "1" ? "" : "s"}`;
 }
 

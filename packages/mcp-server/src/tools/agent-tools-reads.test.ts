@@ -902,6 +902,8 @@ test("9.42 · plan_contract and edit_plan take observability as proof with its f
       await agent.call("edit_plan", { id: later, proof: { ...observed, freshness: "1d" } });
       const again = (await agent.call("show_plan")).text;
       assert.match(again.split("\n").find((one) => one.includes(`(${later})`)) ?? "", /no older than 1 day recorded by /, "one day, in the singular");
+      await agent.call("edit_plan", { id: later, proof: { ...observed, freshness: "1h" } });
+      assert.match((await agent.call("show_plan")).text.split("\n").find((one) => one.includes(`(${later})`)) ?? "", /no older than 1 hour recorded by /, "one hour, in the singular");
     });
   });
 });

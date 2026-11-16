@@ -775,7 +775,7 @@ function freshnessOf(freshness: string): { count: number; unit: string } {
 }
 
 /** A freshness in words, as a person is told it: `36h` is "36 hours", `1d` "1 day". */
-export function freshnessSaid(freshness: string): string {
+function freshnessSaid(freshness: string): string {
   const { count, unit } = freshnessOf(freshness);
   return `${count} ${unit === "d" ? "day" : "hour"}${count === 1 ? "" : "s"}`;
 }

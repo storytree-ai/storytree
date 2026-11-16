@@ -10,7 +10,7 @@ import { isDeepStrictEqual } from "node:util";
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import type { FieldsOf } from "../schema/types.js";
+import type { FieldsOf } from "../schema/index.js";
 import type { HistoryEntry } from "../transactions/index.js";
 import type { CapabilityNode, EdgeNode, ProjectTree, StoryNode, WorkModel } from "./work-model.js";
 

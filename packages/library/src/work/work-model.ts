@@ -16,7 +16,7 @@ import { isDeepStrictEqual } from "node:util";
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, couldBeId, DependencyLoopError, liveRecord } from "../references.js";
 import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
-import type { FieldsOf } from "../schema/types.js";
+import type { FieldsOf } from "../schema/index.js";
 
 /** How a contract is proved, with its reason, as stored (ADR-1294): observability as proof also names its freshness and watcher (ADR-1345). */
 export type ContractProof = NonNullable<FieldsOf<"contract">["proof"]>;

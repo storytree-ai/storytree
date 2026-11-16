@@ -34,8 +34,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type SchemaRecord, type WriteOptions } from "../index.js";
-import { PR_CUTOVER_ID } from "../work/index.js";
-import { editPlanRecord, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, type PlanEdit } from "../work/plan-hold.js";
+import { editPlanRecord, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, PR_CUTOVER_ID, type PlanEdit } from "../work/index.js";
 import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { FYI_FAMILY } from "./fyi.js";
@@ -760,7 +759,7 @@ const undo = verb({
 
 export { NOTE_TOOLS, type Found, type NoteRead, type NoteToolContext, type Presenter } from "./notes.js";
 // The plan-edit rule both front doors call (ADR-0966 D1, ADR-0793).
-export { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "../work/plan-hold.js";
+export { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "../work/index.js";
 
 /**
  * What a contract's move onto a link left its part, `capability`, as both front doors say it (question_db632f671942's

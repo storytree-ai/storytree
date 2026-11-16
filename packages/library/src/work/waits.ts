@@ -10,7 +10,7 @@
  */
 import { liveRecord } from "../references.js";
 import type { SchemaRecords } from "../schema/index.js";
-import type { FieldsOf } from "../schema/types.js";
+import type { FieldsOf } from "../schema/index.js";
 
 /** A blocker still holding a wait (capability 11). */
 export interface Hold {

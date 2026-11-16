@@ -5,6 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { randomBytes } from "node:crypto";
 import { connect } from "@storytree/library";
+import { recordRemovedProjects } from "@storytree/project-and-caller";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { projectsOnThisComputer } from "../project/index.js";
 import { setupHelpActions } from "./actions.js";
@@ -67,16 +68,19 @@ test("3.6 the project the app shows when none was chosen, the first on this comp
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
   const token = `t-${randomBytes(4).toString("hex")}`;
-  // Named to sort first on the shared test server, so the picker's fallback is this test's own project.
   const [first, second] = [`0-first-${token}`, `0-second-${token}`];
+  // What a killed run leaves on the server: a project that sorts before this test's own.
+  const leftover = `0-0-t-${randomBytes(4).toString("hex")}`;
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
   const library = await connect({ url });
   t.after(async () => {
     await library.close();
-    await dropTestDatabases([first, second].map((name) => `storytree_${name}`));
+    await dropTestDatabases([first, second, leftover].map((name) => `storytree_${name}`));
   });
-  for (const name of [first, second]) await (await library.openProject(name)).close();
+  for (const name of [leftover, first, second]) await (await library.openProject(name)).close();
+  // Take every other project off this computer's list in the test's own home, so a leftover never sorts first.
+  recordRemovedProjects(home, Object.keys(await library.projectIdentities()).filter((name) => name !== first && name !== second).map((name) => ({ name })));
   const actions = setupHelpActions({
     licenseFile: "", storytreeHome: home, chooseFolder: async () => undefined,
     openExternal: async () => {}, copyText: async () => {}, library: () => library,

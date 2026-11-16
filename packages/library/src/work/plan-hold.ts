@@ -1,6 +1,6 @@
 /**
  * Capability 4 · Work model, its pending plan changes. The one rule both front doors call for a change to the plan (ADR-0966 D1, ADR-0793):
- * an edit or retirement of a story, capability or contract made by a session holding an increment on a branch waits on
+ * an edit or retirement of a story, capability, contract or edge made by a session holding an increment on a branch waits on
  * that increment as a pending change until its branch merges; one made by a session holding none, or holding an
  * increment claimed on no branch or the main line (a library-only one, which no merge will ever apply), is made live
  * (friction_f02365572601).
@@ -9,8 +9,8 @@ import type { Library } from "../api/library.js";
 import type { SchemaRecord, WriteOptions } from "../schema/index.js";
 import type { PendingChange, PlanChange } from "./pending-changes.js";
 
-/** The kinds whose edits and retirements wait on the caller's increment until its branch merges (ADR-0966 D1). */
-export const PLAN_TYPES: ReadonlySet<string> = new Set(["story", "capability", "contract"]);
+/** The kinds whose edits and retirements wait on the caller's increment until its branch merges (ADR-0966 D1), a dependency edge among them (ADR-1282 D2). */
+export const PLAN_TYPES: ReadonlySet<string> = new Set(["story", "capability", "contract", "edge"]);
 
 /** A claim as a door reads it: the session holding it, the increment it is for, if any, since when, and the branch it was claimed on. */
 export interface PlanClaim {
@@ -23,12 +23,12 @@ export interface PlanClaim {
 /** Branches that are a project's main line: an increment claimed on one has no branch of its own to merge. */
 const MAIN_BRANCHES: ReadonlySet<string> = new Set(["main", "master"]);
 
-/** The kinds of plan record a door edits through the plan's own editors; an edge's are made live (ADR-1282 D1). */
+/** The kinds of plan record a door edits through the plan's own editors. */
 export type PlanRecordType = "story" | "capability" | "contract" | "edge" | "arc" | "increment";
 
 /** Whether a record of `type` is edited through the plan's own editors. */
 export function isPlanRecordType(type: string): type is PlanRecordType {
-  return PLAN_TYPES.has(type) || type === "edge" || type === "arc" || type === "increment";
+  return PLAN_TYPES.has(type) || type === "arc" || type === "increment";
 }
 
 /** What a plan edit did: held on the caller's increment, or made live. */
@@ -72,7 +72,7 @@ export async function heldPending(library: Library, claims: readonly PlanClaim[]
 
 /**
  * Edit plan record `id` of `type` through its kind's editor, unless the edit is held on the caller's increment (a
- * story, capability or contract, not `live`: a correction the increment does not change, made live with its claim kept);
+ * story, capability, contract or edge, not `live`: a correction the increment does not change, made live with its claim kept);
  * null when no live record has the id.
  */
 export async function editPlanRecord(

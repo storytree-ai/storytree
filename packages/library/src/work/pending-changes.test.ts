@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Work model, its pending plan changes (ADR-0966): one test per contract 4.28-4.35 in the library story
+ * Capability 4 · Work model, its pending plan changes (ADR-0966): one test per contract 4.28-4.35 and 4.50 in the library story
  * (4.36 is in plan-hold.test.ts), each run on BOTH backends, as work-in-flight.test.ts runs capability 10's:
  *
  * - memory: a WorkModel and a WorkInFlight over SchemaRecords over a fresh MemoryTransactions;
@@ -356,6 +356,41 @@ for (const backend of [memory, postgres]) {
     const later = await flight.addIncrement({ arc: arc.id, ...WORK });
     await flight.advanceIncrement(later.id, "active");
     assert.ok(await flight.pendChange(later.id, { record: form.id, fields: { description: "Where they type it" } }), "another story's record still pends");
+  });
+
+  contract("4.50", "an edge planned before an active increment takes a pending retirement or edit like a capability: the live edge stays until the landing, the branch's plan drops or shows it, and the landing applies it through the edge's editor", async ({ work, flight, records, transactions }) => {
+    const arc = await flight.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const link = await work.addCapability({ title: "Confirmation link", story: story.id });
+    const mail = await work.addCapability({ title: "Mailer", story: story.id });
+    const sends = await work.addEdge({ from: link.id, to: form.id });
+    const mails = await work.addEdge({ from: link.id, to: mail.id });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(increment.id, "active");
+    const live = await work.projectTree();
+
+    const before = await transactions.history();
+    await assert.rejects(flight.pendChange(increment.id, { record: mails.id, fields: { to: form.id } }), SchemaError, "an edge keeps its two capabilities");
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+    const base = (await transactions.history({ id: sends.id, newest: 1 }))[0]!.seq;
+    assert.deepEqual(await flight.pendChange(increment.id, { record: sends.id, retire: "the link reads the form some other way" }), {
+      pending: { record: sends.id, type: "edge", base, retire: "the link reads the form some other way" },
+    });
+    await flight.pendChange(increment.id, { record: mails.id, fields: { description: "Sent by the mailer" } });
+    assert.deepEqual(await records.get(sends.id), sends, "the live edge stays");
+    assert.deepEqual(await work.dependsOn(link.id), [form.id, mail.id], "the live plan keeps the link");
+
+    const branch = await flight.withPending(increment.id, live);
+    const signUp = branch!.stories.find(({ id }) => id === story.id)!;
+    assert.deepEqual(signUp.edges?.map(({ id, description }) => [id, description]), [[mails.id, "Sent by the mailer"]], "the branch drops the retired edge and shows the edit");
+    assert.deepEqual(signUp.capabilities.find(({ id }) => id === link.id)?.dependsOn, [mail.id], "and its dependent no longer depends on it");
+
+    assert.deepEqual((await flight.applyPending(increment.id, "#900"))?.applied, [sends.id, mails.id]);
+    assert.equal(await records.get(sends.id), null, "the retirement applied at the landing");
+    assert.equal(((await records.get(mails.id)) as SchemaRecord<"edge">).fields.description, "Sent by the mailer");
+    assert.equal((await transactions.history({ id: mails.id, newest: 1 }))[0]!.reason, `applied at the merge of PR #900 (${increment.id})`);
+    assert.deepEqual(await work.dependsOn(link.id), [mail.id]);
   });
 
   contract("4.32", "settling closed increments' leftover pending changes applies those of each that landed and drops those of each that did not, and finds nothing the second time", async ({ work, flight, records, transactions }) => {

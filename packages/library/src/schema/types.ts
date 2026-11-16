@@ -118,7 +118,7 @@ const waitsFor = z
   .optional();
 
 /** One pending plan change on an increment (ADR-0966 D1): an edit with its before and after, or a retirement with its reason. */
-const pendingHead = { record: nonEmpty, type: z.enum(["story", "capability", "contract"]), base: z.number().int().min(0) };
+const pendingHead = { record: nonEmpty, type: z.enum(["story", "capability", "contract", "edge"]), base: z.number().int().min(0) };
 const pendingChange = z.union([
   z.object({ ...pendingHead, before: z.record(z.string(), z.unknown()), after: z.record(z.string(), z.unknown()) }).strict(),
   z.object({ ...pendingHead, retire: nonEmpty }).strict(),

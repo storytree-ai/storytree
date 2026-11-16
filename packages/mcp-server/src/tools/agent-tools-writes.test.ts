@@ -224,7 +224,7 @@ test("9.2 it retires a contract and then a capability with a reason, and each is
       assert.equal(wrong.isError, true);
       assert.equal((await library.arcView(arc))?.arc.id, arc, "the arc is not retired");
 
-      // An edge is retired live, even while the session holds an increment that would hold a capability's retirement.
+      // An edge is retired live while the session holds an increment claimed on no branch, which no merge applies.
       const link = idOf(await agent.call("plan_capability", { story: (await library.projectTree()).stories[0]!.id, title: "Confirmation link", ...FOUNDED }));
       const edge = idOf(await agent.call("plan_edge", { from: link, to: capability }));
       const increment = idOf(await agent.call("park_increment", { arc, title: "Tidy", objective: "Tidy the plan", body: "Retire what is overtaken" }));
@@ -1101,12 +1101,14 @@ test("6.39 a tool call's reads do not grow with the log's length: the same calls
   assert.ok(taken[1]! - taken[0]! < 128 * 1024, `the calls took ${taken[0]} bytes from a short log and ${taken[1]} from one ${history} bytes longer: no more than 128 KiB apart`);
 });
 
-test("9.9 edit_plan and retire_from_plan, under an increment's claim, hold a change to a record planned before it as a pending change on the increment, leaving the live record alone (ADR-0966 D1; the rule itself is 10.29's)", async () => {
+test("9.9 edit_plan and retire_from_plan, under an increment's claim, hold a change to a record planned before it (an edge's retirement too) as a pending change on the increment, leaving the live record alone (ADR-0966 D1; the rule itself is 10.29's)", async () => {
   await withProject(async ({ folder, library }) => {
     git(folder, "init", "-b", "claude/address-form"); // the claim is taken on a branch, which merging applies its pending changes
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
-      const { arc, capability } = await planned(agent);
+      const { arc, story, capability } = await planned(agent);
       const contract = idOf(await agent.call("plan_contract", { capability, title: "Accepts a valid address" }));
+      const link = idOf(await agent.call("plan_capability", { story, title: "Confirmation link", ...FOUNDED }));
+      const edge = idOf(await agent.call("plan_edge", { from: link, to: capability }));
       const increment = idOf(await agent.call("park_increment", { arc, title: "Address form", objective: "Rename it", body: "Red then green" }));
       assert.equal((await agent.call("claim", { increment, reason: "driving the address form" })).isError, false);
       const live = await library.get(capability);
@@ -1119,10 +1121,15 @@ test("9.9 edit_plan and retire_from_plan, under an increment's claim, hold a cha
       assert.match(retired.text, new RegExp(`pending on increment ${increment}`));
       assert.deepEqual(await library.get(capability), live, "the live capability is left alone");
       assert.notEqual(await library.get(contract), null, "the contract is still live");
+      const unlinked = await agent.call("retire_from_plan", { id: edge, reason: "the link reads the form some other way" });
+      assert.equal(unlinked.isError, false, unlinked.text);
+      assert.match(unlinked.text, new RegExp(`pending on increment ${increment}`), "an edge's retirement waits as a capability's does");
+      assert.notEqual(await library.get(edge), null, "the edge is still live");
       const pending = ((await library.get(increment))?.fields as { pending?: { record: string; after?: unknown; retire?: string }[] }).pending;
       assert.deepEqual(pending?.map(({ record, after, retire }) => [record, after, retire]), [
         [capability, { title: "Address form", description: "Where they type it" }, undefined],
         [contract, undefined, "overtaken by the address form"],
+        [edge, undefined, "the link reads the form some other way"],
       ]);
     });
   });

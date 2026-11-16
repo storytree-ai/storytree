@@ -568,10 +568,8 @@ export class WorkModel {
     return this.#serially(async () => {
       const stored = (await liveRecord(this.#records, id, ["edge"])) as SchemaRecord<"edge"> | null;
       if (stored === null) return null;
-      for (const field of ["from", "to"]) {
-        if (field in fields) throw new SchemaError("edge", [{ field, problem: "an edge keeps its two capabilities: retire it and add another" }]);
-      }
-      this.#refusePlugins("edge", "from", await this.#pluginOfCapability(stored.fields.from));
+      this.refuseEdgeEnds(fields);
+      await this.refusePluginEdit(stored, fields);
       return (await this.#records.edit(id, fields, options)) as SchemaRecord<"edge"> | null;
     });
   }
@@ -829,12 +827,14 @@ export class WorkModel {
   }
 
   /**
-   * Refuse `fields`, an edit to live story, capability or contract `record`, when it would change a plugin's plan
-   * (ADR-1187): a SchemaError naming the plugin's plan file, as editStory, editCapability and editContract refuse it,
+   * Refuse `fields`, an edit to live story, capability, contract or edge `record`, when it would change a plugin's plan
+   * (ADR-1187): a SchemaError naming the plugin's plan file, as editStory, editCapability, editContract and editEdge refuse it,
    * and as a pending change is refused before it is staged, so none is held that its landing could only refuse.
    */
-  async refusePluginEdit(record: SchemaRecord<"story"> | SchemaRecord<"capability"> | SchemaRecord<"contract">, fields: Readonly<Record<string, unknown>>): Promise<void> {
-    if (record.type === "story") {
+  async refusePluginEdit(record: SchemaRecord<"story"> | SchemaRecord<"capability"> | SchemaRecord<"contract"> | SchemaRecord<"edge">, fields: Readonly<Record<string, unknown>>): Promise<void> {
+    if (record.type === "edge") {
+      this.#refusePlugins("edge", "from", await this.#pluginOfCapability((record as SchemaRecord<"edge">).fields.from));
+    } else if (record.type === "story") {
       if (PLUGIN_STORY_FIELDS.some((field) => field in fields)) this.#refusePlugins("story", "title", (record as SchemaRecord<"story">).fields.plugin);
     } else if (record.type === "capability") {
       if (PLUGIN_CAPABILITY_FIELDS.some((field) => field in fields)) this.#refusePlugins("capability", "story", await this.#pluginOfStory((record as SchemaRecord<"capability">).fields.story));
@@ -844,6 +844,13 @@ export class WorkModel {
       this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(contract.capability ?? (await this.#fromOf(contract.edge))));
       this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(fields["capability"]));
       this.#refusePlugins("contract", "edge", await this.#pluginOfCapability(await this.#fromOf(fields["edge"])));
+    }
+  }
+
+  /** Refuse an edge edit naming `from` or `to` (SchemaError): an edge keeps its two capabilities. */
+  refuseEdgeEnds(fields: Readonly<Record<string, unknown>>): void {
+    for (const field of ["from", "to"]) {
+      if (field in fields) throw new SchemaError("edge", [{ field, problem: "an edge keeps its two capabilities: retire it and add another" }]);
     }
   }
 

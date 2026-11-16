@@ -1,6 +1,6 @@
 /**
  * Capability 4 · Work model, its pending plan changes (the library story, ADR-0966; with plan structure, ADR-1243 D4):
- * an active increment holds the changes to the plan it did not plan as pending, leaving the live records alone until it lands; its branch reads the plan with them laid
+ * an active increment holds the changes to the plan it did not plan (a dependency edge's among them, ADR-1282 D2) as pending, leaving the live records alone until it lands; its branch reads the plan with them laid
  * over; at its landing they apply through the plan's own editors, a stale or refused one parked as residue on its arc,
  * and a close that does not land drops them. These are the rules; WorkInFlight (capability 10) is their one door, and
  * queues each write behind its own as it does for waits (11) and questions (12).
@@ -12,13 +12,13 @@ import { checkReference, checkReferences, liveRecord } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf } from "../schema/types.js";
 import type { HistoryEntry } from "../transactions/index.js";
-import type { CapabilityNode, ProjectTree, StoryNode, WorkModel } from "./work-model.js";
+import type { CapabilityNode, EdgeNode, ProjectTree, StoryNode, WorkModel } from "./work-model.js";
 
 /** A pending plan change, as its increment keeps it (ADR-0966 D1). */
 export type PendingChange = NonNullable<FieldsOf<"increment">["pending"]>[number];
 
 /**
- * A change to a story, capability or contract, to wait on an increment: some of its fields (one
+ * A change to a story, capability, contract or edge, to wait on an increment: some of its fields (one
  * set to undefined is removed), or its retirement with the reason.
  */
 export type PlanChange =
@@ -57,8 +57,8 @@ export interface SettledPending extends AppliedPending {
   readonly dropped: number;
 }
 
-/** What an increment's pending changes may name: its plan's records (ADR-0966 D1). */
-const PLAN_RECORD = { name: "story, capability or contract", types: ["story", "capability", "contract"] } as const;
+/** What an increment's pending changes may name: its plan's records (ADR-0966 D1), a dependency edge among them (ADR-1282 D2). */
+const PLAN_RECORD = { name: "story, capability, contract or edge", types: ["story", "capability", "contract", "edge"] } as const;
 
 /** How a pending retirement retires its record: WorkInFlight's retire, which refuses a capability with live dependents. */
 export type Retire = (id: string, reason: string, options?: WriteOptions) => Promise<void>;
@@ -70,8 +70,8 @@ export type Retire = (id: string, reason: string, options?: WriteOptions) => Pro
  * keeping its base and first values; a retirement replaces an edit, and an edit after a pending
  * retirement is refused. A record the increment planned itself, created after it started, is not
  * held: the answer says so, and the caller edits it live. Refused, with nothing written: an increment
- * that is not active (RangeError); a record that is not a live story, capability or contract
- * (MissingReferenceError); an edit to a plugin's plan, refused as the plan's editors refuse it live (SchemaError,
+ * that is not active (RangeError); a record that is not a live story, capability, contract or edge
+ * (MissingReferenceError); an edit naming an edge's `from` or `to`, which editEdge refuses (SchemaError); an edit to a plugin's plan, refused as the plan's editors refuse it live (SchemaError,
  * 4.35); an edit that would leave the record invalid (SchemaError) or name a
  * missing record (MissingReferenceError); and a record another open increment already holds a
  * pending change for, naming that increment (RangeError, D5). Null if `id` is not a live increment.
@@ -106,7 +106,8 @@ export async function pendChange(records: SchemaRecords, work: WorkModel, id: st
     if (earlier !== undefined && "retire" in earlier) {
       throw new RangeError(`${record.type} ${JSON.stringify(record.id)} is pending retirement on this increment: it takes no edit after that`);
     }
-    await work.refusePluginEdit(record as SchemaRecord<"story"> | SchemaRecord<"capability"> | SchemaRecord<"contract">, change.fields);
+    if (record.type === "edge") work.refuseEdgeEnds(change.fields);
+    await work.refusePluginEdit(record as SchemaRecord<"story"> | SchemaRecord<"capability"> | SchemaRecord<"contract"> | SchemaRecord<"edge">, change.fields);
     const live = record.fields as Record<string, unknown>;
     const given = Object.keys(change.fields);
     const after = { ...(earlier?.after ?? {}), ...Object.fromEntries(given.map((field) => [field, change.fields[field] ?? null])) };
@@ -132,7 +133,7 @@ export async function pendChange(records: SchemaRecords, work: WorkModel, id: st
  * `tree`, as WorkModel.projectTree() gives it, with increment `id`'s pending changes laid over (ADR-0966
  * D3): what its branch's own checks read. An edit's new fields replace the live ones the tree shows
  * (a capability or contract given a new story or capability moves there), and a retirement takes the
- * record, and anything under it, out. The tree given is not changed. Null if `id` is not a live increment.
+ * record, and anything under it, out: a retired edge's link leaves its dependent's dependsOn. The tree given is not changed. Null if `id` is not a live increment.
  */
 export async function withPending(records: SchemaRecords, id: string, tree: ProjectTree): Promise<ProjectTree | null> {
   const increment = await liveRecord(records, id, ["increment"]);
@@ -201,6 +202,7 @@ export async function applyPending(records: SchemaRecords, work: WorkModel, reti
         const write = { ...options, reason: mark };
         if (type === "story") await work.editStory(record, fields, write);
         else if (type === "capability") await work.editCapability(record, fields, write);
+        else if (type === "edge") await work.editEdge(record, fields, write);
         else await work.editContract(record, fields, write);
       }
       applied.push(record);
@@ -331,11 +333,21 @@ function overlay(tree: ProjectTree, pending: readonly PendingChange[]): ProjectT
   };
   const capabilities = tree.stories.flatMap((story) => story.capabilities.map((capability) => ({ capability, story: parentOf(capability.id, "story", story.id) })));
   const contracts = capabilities.flatMap(({ capability }) => capability.contracts.map((contract) => ({ contract, capability: parentOf(contract.id, "capability", capability.id) })));
+  // A retired edge takes its link out of its dependent's dependsOn, which the tree reads from the story's edges (ADR-1282 D1).
+  const unlinked = tree.stories.flatMap((story) => (story.edges ?? []).filter((edge) => retired.has(edge.id)));
+  const edgeNode = (edge: EdgeNode): EdgeNode => {
+    const fields = after.get(edge.id);
+    if (fields === undefined || !Object.hasOwn(fields, "description")) return edge;
+    const { description: _, ...rest } = edge;
+    const description = fields["description"] as string | null;
+    return { ...rest, ...(description === null ? {} : { description }) };
+  };
   const capabilityNode = (capability: CapabilityNode): CapabilityNode => {
     const fields = after.get(capability.id) ?? {};
+    const linked = capability.dependsOn.filter((to) => !unlinked.some((edge) => edge.from === capability.id && edge.to === to));
     return {
       ...shown(capability),
-      dependsOn: Object.hasOwn(fields, "dependsOn") ? [...((fields["dependsOn"] as string[] | null) ?? [])] : [...capability.dependsOn],
+      dependsOn: Object.hasOwn(fields, "dependsOn") ? [...((fields["dependsOn"] as string[] | null) ?? [])] : linked,
       proposed: Object.hasOwn(fields, "proposed") ? fields["proposed"] === true : capability.proposed,
       contracts: contracts.filter((one) => one.capability === capability.id && !retired.has(one.contract.id)).map(({ contract }) => shown(contract)),
     };
@@ -343,9 +355,12 @@ function overlay(tree: ProjectTree, pending: readonly PendingChange[]): ProjectT
   const stories: StoryNode[] = tree.stories
     .filter((story) => !retired.has(story.id))
     .map((story) => {
+      const { edges, ...node } = shown(story);
+      const kept = (edges ?? []).filter((edge) => !retired.has(edge.id)).map(edgeNode);
       return {
-        ...shown(story),
+        ...node,
         capabilities: capabilities.filter((one) => one.story === story.id && !retired.has(one.capability.id)).map(({ capability }) => capabilityNode(capability)),
+        ...(kept.length === 0 ? {} : { edges: kept }),
       };
     });
   return { ...(tree.anchor === undefined ? {} : { anchor: { ...tree.anchor } }), stories, arcs: tree.arcs.map((arc) => ({ ...arc, stories: [...arc.stories] })) };

@@ -704,9 +704,10 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   // by hand it moves nothing, and pressing Stories never does (ADR-1349 D2).
   const lastMode = useRef(mode);
   useEffect(() => {
-    if (mode === "library" && lastMode.current !== "library" && opened.current) {
+    if (mode === "library" && lastMode.current !== "library") {
       const to = libraryTilt(tilting.current.to);
-      if (to !== tilting.current.to) { touch(true); tiltTo(to, 0.6); }
+      // An island-less sheet the press opens (3.63) is not moved from its opening: it keeps to it as its notes lay out.
+      if (to !== tilting.current.to) { if (opened.current) touch(true); tiltTo(to, 0.6); }
     }
     lastMode.current = mode;
   }, [mode]);

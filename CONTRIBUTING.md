@@ -11,7 +11,7 @@ Each of 0.3's stories has its own package (see [How changes land](#how-changes-l
 0.3's own library (below). The first story built was the **library**, the project-scoped store
 behind the app, the agent's tools and the command line. It holds the plan of work (arcs, stories,
 capabilities, contracts), each item's health, and what the project has learned. It keeps one
-database per project: on a local Postgres by default, or on Google Cloud SQL or any Postgres
+database per project: on a local Postgres by default, or on any Postgres
 server named by its address (see [Keys](docs/keys.md)).
 
 ## This repo's own library
@@ -26,7 +26,7 @@ one exception: a factory plugin's story is written from the plan file the plugin
 `storytree plugin import-plan` (ADR-1187), so the library still holds one set of its capabilities
 and contracts, but their source is the plugin's file, and the plan edits refuse them.
 `pnpm storytree settings show` says which library a machine uses, and each script below uses that
-library (the app's local one, one on Cloud SQL, or one at a Postgres address) and says which.
+library (the app's local one, or one at a Postgres address) and says which.
 `pnpm library:export`, `pnpm library:restore` and `pnpm record:acceptance` run Mick's factory plugin
 (`storytree library-tools …`), so they work only on a computer that names it.
 
@@ -44,8 +44,8 @@ app is not running, and waits its turn behind another script, so there is no nee
 
 Since cutover (2026-09-27) the plan lives here too: 0.3's arcs, their increments and the owner's
 questions. `pnpm storytree …` is 0.3's command line run from this checkout, whose `.storytree/project.json`
-names the project `storytree`. It reaches the library the `library` setting names: one on Cloud SQL
-or at a Postgres address with no app needed, and the app's local library only through the running
+names the project `storytree`. It reaches the library the `library` setting names: one at a Postgres
+address with no app needed, and the app's local library only through the running
 app, which it does not start. `pnpm storytree arc list` reads the plan, and `pnpm storytree
 workspace <increment> --reason …` claims a piece of it.
 

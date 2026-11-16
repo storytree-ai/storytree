@@ -263,7 +263,7 @@ interface ActivityRow {
 /**
  * Open the agent activity log where `server` is: the database of its own that a library connection
  * hands out and sets up (contract 2.5, ADR-0735 D3, ADR-0973), on whatever server the library
- * resolved to, local or Cloud SQL; or the Postgres server at a postgres:// URL, through a library
+ * resolved to, local or at an address; or the Postgres server at a postgres:// URL, through a library
  * connection of the log's own. From a connection, the log's pool is the connection's, and closes
  * with it; from a URL, closing the log closes the connection it opened.
  */

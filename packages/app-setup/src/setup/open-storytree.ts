@@ -8,9 +8,9 @@
  * link's live check). So storytree counts as up once its owner record is live and its port accepts
  * a connection.
  *
- * With the library set to a Cloud SQL instance (capability 10, ADR-0734), there is nothing to open:
- * the library is the instance, and reaching it (and saying plainly when it cannot be) is the
- * library's connection's job.
+ * With the library set to a Postgres address (ADR-0846), there is nothing to open: the library is
+ * at that address, and reaching it (and saying plainly when it cannot be) is the library's
+ * connection's job.
  */
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -22,7 +22,7 @@ import type { ConnectOptions } from "@storytree/library";
 
 import { locateStorytree, readLibrary, storytreeHome } from "@storytree/project-and-caller";
 
-/** Where the library is once storytree is up (the local app's database, the Cloud SQL instance, or the Postgres address), or why it is not. */
+/** Where the library is once storytree is up (the local app's database, or the Postgres address), or why it is not. */
 export type StorytreeOpened =
   | { state: "running"; library: ConnectOptions }
   | { state: "opened"; library: ConnectOptions }
@@ -41,7 +41,6 @@ export async function openStorytree(options: OpenOptions = {}): Promise<Storytre
   const dataDir = path.join(home, "pgdata");
   const deadline = Date.now() + (options.waitMs ?? 60_000);
   const setting = readLibrary(home);
-  if (setting.location === "cloudsql") return { state: "running", library: { cloudSql: { instance: setting.instance, user: setting.user } } };
   if (setting.location === "postgres") return { state: "running", library: { address: setting.address } };
 
   const now = locateStorytree({ dataDir });

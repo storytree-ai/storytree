@@ -121,11 +121,11 @@ test('session-management 14.6: own tools, offline Claude MCP refuses self author
 });
 
 // The caller lookup falls back when the library is down, whichever way it is down.
-test('session-management 14.6: own tools fall back on a stopped Cloud SQL library as on an unreachable or timed-out one', () => {
-  assert.equal(libraryDown(new ConnectionError('stopped', 'The shared library is unreachable: its Cloud SQL instance is not running.')), true);
+test('session-management 14.6: own tools fall back on an unreachable or timed-out library', () => {
+  assert.equal(libraryDown(new ConnectionError('unreachable', 'The library at db.example.com:5432 cannot be reached.')), true);
   assert.equal(libraryDown(new ConnectionError('timeout', 'did not answer within 3 seconds')), true);
   assert.equal(libraryDown(Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' })), true);
-  assert.equal(libraryDown(new ConnectionError('database-user', 'Cloud SQL did not let the account in')), false);
+  assert.equal(libraryDown(new ConnectionError('database-user', 'the server did not let the account in')), false);
   assert.equal(libraryDown(new Error('a defect')), false);
 });
 

@@ -9,8 +9,8 @@
 // - On CI (.github/workflows/own-health.yml, after each merge to main, ADR-0744 D3), as "storytree
 //   test run on CI", with the commit in each note: the library at HEALTH_PG_ADDRESS over Tailscale
 //   (ADR-0928 D4). With that variable unset, it says so and records nothing, successfully.
-// - Run by hand, the library the storytree setting names (`storytree settings show`): a Cloud SQL
-//   instance, signed in as the setting's account; a Postgres address; or the desktop app's own (~/.storytree/0.3/pgdata),
+// - Run by hand, the library the storytree setting names (`storytree settings show`): a Postgres
+//   address, or the desktop app's own (~/.storytree/0.3/pgdata),
 //   joining the running app's database, or starting the app's Postgres itself when the app is not
 //   running, and holding the one-writer lock while it records (packages/repo-checks/src/library-server.mjs), so the
 //   app never restarts into an update mid-write.
@@ -81,11 +81,8 @@ async function main({ factory } = {}) {
     console.log(`the app's library: ${home.pgdata}`);
     server = await appLibraryServer(COMMAND, { writes: true });
     where = { url: server.url };
-  } else if ("address" in target.library) {
-    console.log(`the library at ${target.library.address}`);
-    where = target.library;
   } else {
-    console.log(`the library on Cloud SQL: ${target.library.cloudSql.instance}, as ${target.library.cloudSql.user}`);
+    console.log(`the library at ${target.library.address}`);
     where = target.library;
   }
 

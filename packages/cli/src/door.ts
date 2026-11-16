@@ -637,7 +637,7 @@ class Opened {
     }));
   }
 
-  /** The connection to the library where routing says it is: the app's local database, or the Cloud SQL instance the user set. */
+  /** The connection to the library where routing says it is: the app's local database, or the Postgres address the user set. */
   #connection(): Promise<Storytree> {
     return (this.#storytree ??= (async () => {
       const { connect } = await import("@storytree/library");

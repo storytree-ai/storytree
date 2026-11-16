@@ -1,7 +1,7 @@
 /**
  * Capability 1 · Lifecycle, contracts 1.9 and 1.10 (ADR-0734 D1, ADR-0735 D4): where the app opens
  * its library follows the user's library setting. The local Postgres and connect() are handed in,
- * so the cloud path is shown without reaching Google: which is started, and what is connected.
+ * so the address path is shown without reaching a server: which is started, and what is connected.
  */
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -14,7 +14,7 @@ import { ConnectionError, type ConnectOptions, type Storytree } from "@storytree
 
 import { openAppLibrary } from "./open-where-set.js";
 
-const cloudSql = { instance: "my-project:australia-southeast1:my-instance", user: "you@example.com" };
+const address = "postgres://me@db.example.com:5432/postgres?sslmode=require";
 const connected = { close: async () => {} } as unknown as Storytree;
 
 function withHome(body: (home: string) => Promise<void>): () => Promise<void> {
@@ -28,8 +28,8 @@ function withHome(body: (home: string) => Promise<void>): () => Promise<void> {
   };
 }
 
-test("1.9 with the library set to Cloud SQL, the app starts no local Postgres and connects to the instance", withHome(async (home) => {
-  setLibrary(["cloudsql", cloudSql.instance, cloudSql.user], home);
+test("1.9 with the library set to a Postgres address, the app starts no local Postgres and connects to the address", withHome(async (home) => {
+  setLibrary(["postgres", address], home);
   let started = 0;
   const asked: ConnectOptions[] = [];
   const opened = await openAppLibrary({
@@ -38,7 +38,7 @@ test("1.9 with the library set to Cloud SQL, the app starts no local Postgres an
     connect: async (options) => { asked.push(options); return connected; },
   });
   assert.equal(started, 0);
-  assert.deepEqual([...asked], [{ cloudSql }]);
+  assert.deepEqual([...asked], [{ address }]);
   assert.equal(opened.storytree, connected);
   assert.equal(opened.postgres, undefined);
 
@@ -56,9 +56,9 @@ test("1.9 with the library set to Cloud SQL, the app starts no local Postgres an
   assert.equal(local.where, "postgres://postgres@127.0.0.1:1/postgres");
 }));
 
-test("1.10 an unreachable Cloud SQL library is said in the refusal's own words, and the local library is never opened instead", withHome(async (home) => {
-  setLibrary(["cloudsql", cloudSql.instance, cloudSql.user], home);
-  const refusal = new ConnectionError("sign-in", "Storytree could not find your Google sign-in. Run `gcloud auth application-default login`, then try again.");
+test("1.10 an unreachable Postgres-address library is said in the refusal's own words, and the local library is never opened instead", withHome(async (home) => {
+  setLibrary(["postgres", address], home);
+  const refusal = new ConnectionError("unreachable", "Storytree could not reach db.example.com:5432. Check that the server is running and this network can reach it, then try again.");
   let started = 0;
   await assert.rejects(
     openAppLibrary({
@@ -68,7 +68,7 @@ test("1.10 an unreachable Cloud SQL library is said in the refusal's own words, 
     }),
     (error: unknown) => {
       assert.ok(error instanceof Error);
-      assert.ok(error.message.includes(cloudSql.instance), error.message);
+      assert.ok(error.message.includes(address), error.message);
       assert.ok(error.message.includes(refusal.message), error.message);
       return true;
     },

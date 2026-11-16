@@ -1,7 +1,7 @@
 /**
  * Capability 1 · Lifecycle. The storytree 0.3 desktop app's main process. It starts the app's own Postgres on its data
  * directory (~/.storytree/0.3/pgdata) through local-postgres, or, when the user's library setting
- * names a Cloud SQL instance, starts none and uses the instance; connects the library through its
+ * names a Postgres address, starts none and uses the address; connects the library through its
  * public API, opens the project asked for (`--project <name>`, else `storytree` if there is one,
  * else the first), and shows it. It answers the page's questions (bridge.ts) through
  * @storytree/app's pageReads: the projects, a project's tree, and the library's changes and the
@@ -395,7 +395,7 @@ async function run(): Promise<void> {
   /** Open the library where the settings say, and what the page reads through it; the project to show. */
   const openLibrary = async (): Promise<string | undefined> => {
     // Where the library lives is the user's library setting: this app's own Postgres (the default),
-    // or a Cloud SQL instance, when no Postgres is started here at all (ADR-0734, ADR-0735 D4).
+    // or a Postgres address, when no Postgres is started here at all (ADR-0846, ADR-0735 D4).
     const opened = await openAppLibrary({
       home: home.dir,
       startLocal: () => start({ dataDir: home.pgdata, owner: APP_OWNER, bin: postgresBinaries(), log: (message) => console.log(`Postgres: ${message}`) }),
@@ -597,7 +597,7 @@ function recordLaunch(): void {
     return;
   }
   try {
-    // With its own process id: on a Cloud SQL library there is no local database's owner record, so
+    // With its own process id: on a Postgres-address library there is no local database's owner record, so
     // this is how `storytree app quit` finds the running app (app lifecycle 1.11).
     writeFileSync(home.launchRecord, `${JSON.stringify({ ...record, pid: process.pid }, null, 2)}\n`);
   } catch (error) {

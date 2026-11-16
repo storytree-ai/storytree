@@ -598,6 +598,22 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before, "nothing was written");
   });
 
+  contract("3.22", "a contract's proof can name observability as proof with its freshness and the watcher that records its readings; one without them, or another proof carrying them, is refused", async ({ records, transactions }) => {
+    const observed = { by: "observability-as-proof", reason: "Only the laptop and the box together show it.", freshness: "2d", watcher: "the Mint box's activity watcher" } as const;
+    const saved = await records.create("contract", { title: "2.5 · Two machines' lines read back in order", capability: "capability-1", proof: observed }, { id: "contract-observed" });
+    assert.deepEqual((await records.get(saved.id))?.fields, { title: "2.5 · Two machines' lines read back in order", capability: "capability-1", proof: observed });
+    await records.edit("contract-observed", { proof: { ...observed, freshness: "36h" } });
+    assert.equal(((await records.get(saved.id))?.fields as { proof: { freshness: string } }).proof.freshness, "36h", "hours as well as days");
+
+    const before = await transactions.history();
+    const { freshness: _freshness, ...unfresh } = observed;
+    const { watcher: _watcher, ...unwatched } = observed;
+    for (const proof of [unfresh, unwatched, { ...observed, freshness: "2 days" }, { ...observed, freshness: "0d" }, { by: "test-criterion", reason: "A test reads it.", freshness: "2d" }]) {
+      await assert.rejects(records.create("contract", untyped({ title: "1.1 · Refused", capability: "capability-1", proof })), (error) => error instanceof SchemaError && error.fields.some((field) => field.startsWith("proof")), JSON.stringify(proof));
+    }
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
+
   contract("3.12", "a process's schedule, time zone and precheck are validated: good words (a daily schedule's grace among them) are kept, bad words, a grace on any but a daily schedule, an unknown time zone, a precheck not on the fixed list, or a time zone or precheck with no schedule are refused and named", async ({ records, transactions }) => {
     const process = { title: "Read the spend", description: "Daily spend reading", statement: "S", trigger: "T", steps: "1. Read", surfaces: "GCP", failureModes: "None" };
     const good = ["every run", "every hour", "every 2 hours", "Every 30 minutes", "every 1 day", "daily at 09:15", "daily at 09:15 and 21:15", "daily at 06:00, 12:00 and 18:00", "daily at 09:15, grace 2 hours", "daily at 06:00, 18:00, grace 90 minutes"];

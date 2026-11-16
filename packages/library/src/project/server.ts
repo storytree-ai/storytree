@@ -1,6 +1,6 @@
 /**
  * Capability 1 · Project libraries. How storytree reaches a Postgres server: the seam between where the server is (a postgres://
- * URL, or a Cloud SQL instance reached with Google sign-in, capability 8) and what storytree does
+ * URL, or an address whose password is a key, capability 15) and what storytree does
  * there (capability 1). Wherever the server is, every database on it is reached through a pool its
  * PoolFactory makes.
  */
@@ -20,8 +20,6 @@ export type PoolFactory = (database: string, role?: string) => Pool;
 
 /** One Postgres server, as storytree reaches it. */
 export interface ServerAccess {
-  /** What kind of server it is, for the messages that say what to fix. */
-  readonly kind: "postgres" | "cloud-sql";
   /** A pool on the server's own database, used only to create and list project databases. */
   readonly admin: Pool;
   /** Makes the pool for one database on the server: a project's. */
@@ -31,7 +29,7 @@ export interface ServerAccess {
    * this server knows how to explain; any other error as it is.
    */
   explain(error: unknown): unknown;
-  /** Release what reaching the server holds besides its pools (the Cloud SQL connector). */
+  /** Release what reaching the server holds besides its pools. */
   close(): void;
 }
 
@@ -71,7 +69,6 @@ export function localServer(url: URL, givenTimeoutMs = CONNECT_TIMEOUT_MS, bound
   const pool = (connectionString: string, role?: string) =>
     newPool({ connectionString, ...connection, connectionTimeoutMillis: connectTimeoutMs, ...statementBound(bounds), ...actingAs(role) }, base);
   return {
-    kind: "postgres",
     admin: pool(url.href),
     pool: (database, role) => pool(databaseUrl(url, database), role),
     explain: (error) => explainConnectTimeout(error, connectTimeoutMs),

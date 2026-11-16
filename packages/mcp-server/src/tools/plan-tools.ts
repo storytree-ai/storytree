@@ -54,10 +54,17 @@ const provedBy = z
   .optional()
   .describe("The existing tests that prove it when they carry no contract number, as an imported repository's own: each a pytest node id (tests/test_api.py::TestAuth::test_login; a file or a class names every test it holds) or another runner's test or suite title");
 
+/** How a contract is proved, as the plan stores it: observability as proof with its freshness and watcher (ADR-1294, ADR-1345). */
+type Proof = { by: (typeof CONTRACT_PROOFS)[number]; reason: string; freshness?: string | undefined; watcher?: string | undefined };
+/** A proof as the library takes it, which checks the freshness and watcher observability as proof needs as it writes. */
+type StoredProof = NonNullable<Parameters<Library["addContract"]>[0]["proof"]>;
+
 const proof = z
   .object({
-    by: z.enum(CONTRACT_PROOFS).describe("test-criterion when a test can see the answer (a stored record, a returned value, a refusal, a state change); agentic-user-acceptance-testing only when a user sees or does something on screen and no plain test can judge it"),
+    by: z.enum(CONTRACT_PROOFS).describe("test-criterion when a test can see the answer (a stored record, a returned value, a refusal, a state change); agentic-user-acceptance-testing only when a user sees or does something on screen and no plain test can judge it; observability-as-proof only when real machines doing real work alone can show it (a route between machines, a shared server, a scheduled job), proved by a recent live reading (ADR-1345)"),
     reason: z.string().min(1).describe("Why, in a line"),
+    freshness: z.string().min(1).optional().describe("observability-as-proof only, and required there: how old its newest live reading may be, in whole hours or days, as 36h or 2d"),
+    watcher: z.string().min(1).optional().describe("observability-as-proof only, and required there: the watcher that records its readings, as the Mint box's activity watcher"),
   })
   .optional()
   .describe("How the contract is proved, with a one-line reason (ADR-1294)");
@@ -165,14 +172,14 @@ export function registerPlanTools(define: Define): void {
         // An edge's contract is numbered from its dependent capability, past that capability's tests, so a test can carry it.
         const from = tree.stories.flatMap((story) => story.edges ?? []).find((one) => one.id === edge)?.from;
         const tested = from === undefined ? [] : await testedNumbers(call, from, tree);
-        const contract = await call.library.addContract({ title: name, edge, ...optional({ description: about, provedBy: proved, proof: how }) }, { ...call.writer, testedNumbers: tested });
+        const contract = await call.library.addContract({ title: name, edge, ...optional({ description: about, provedBy: proved, proof: how as StoredProof | undefined }) }, { ...call.writer, testedNumbers: tested });
         const number = /^(\d+\.\d+) · /.exec(contract.fields.title)?.[1];
         const naming = number === undefined ? " A test named in its proved_by proves it" : ` A test titled "${number} · …", or named in proved_by, proves it`;
         return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}) on edge ${edge}.${naming} under \`storytree health local\`.${await linked(contract.id)}`, data: { id: contract.id } };
       }
       const owner = capability!;
       const tested = await testedNumbers(call, owner, tree);
-      const contract = await call.library.addContract({ title: name, capability: owner, ...optional({ description: about, provedBy: proved, proof: how }) }, { ...call.writer, testedNumbers: tested });
+      const contract = await call.library.addContract({ title: name, capability: owner, ...optional({ description: about, provedBy: proved, proof: how as StoredProof | undefined }) }, { ...call.writer, testedNumbers: tested });
       const joined = await linked(contract.id);
       const orphans = await orphanTests(call, owner, contract.fields.title, tested);
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is the one ${orphans.length === 1 ? "it proves" : "one proves"}, give it that number with edit_plan.`;
@@ -309,7 +316,7 @@ interface Changes {
   covers?: string[] | undefined;
   store_links?: StoreLink[] | undefined;
   proved_by?: string[] | undefined;
-  proof?: { by: (typeof CONTRACT_PROOFS)[number]; reason: string } | undefined;
+  proof?: Proof | undefined;
   stories?: string[] | undefined;
   intent?: string | undefined;
   end_state?: string | undefined;
@@ -768,7 +775,16 @@ async function testedNumbers({ folder }: Call, capability: string, tree: Awaited
 }
 
 /** How a contract is proved, in full words (ADR-1294), or that its story-author has not chosen yet. */
-function proofSaid(contract: { proof?: { by: (typeof CONTRACT_PROOFS)[number]; reason: string } }): string {
-  if (contract.proof === undefined) return "how it is proved is not chosen yet";
-  return `proved by ${contract.proof.by === "test-criterion" ? "a test criterion" : "agentic user acceptance testing"}: ${contract.proof.reason}`;
+function proofSaid(contract: { proof?: Proof }): string {
+  const { proof } = contract;
+  if (proof === undefined) return "how it is proved is not chosen yet";
+  if (proof.by === "observability-as-proof") return `proved by observability as proof, a live reading no older than ${freshnessSaid(proof.freshness)} recorded by ${proof.watcher}: ${proof.reason}`;
+  return `proved by ${proof.by === "test-criterion" ? "a test criterion" : "agentic user acceptance testing"}: ${proof.reason}`;
 }
+
+/** A freshness in words (`36h` is "36 hours", `1d` "1 day"): the schema keeps it a whole number of hours or days (ADR-1345). */
+function freshnessSaid(freshness: string | undefined): string {
+  const [, count = "0", unit] = /^(\d+)([hd])$/.exec(freshness ?? "") ?? [];
+  return `${count} ${unit === "d" ? "day" : "hour"}${count === "1" ? "" : "s"}`;
+}
+

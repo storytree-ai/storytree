@@ -78,7 +78,7 @@ export function isUnreachable(error: unknown): boolean {
   return (typeof code === "string" && codes.includes(code)) || (typeof message === "string" && /Connection terminated|timeout exceeded when trying to connect/.test(message));
 }
 
-/** The library is down: unreachable, timed out, or its Cloud SQL instance stopped. A lookup that can do without it falls back. */
+/** The library is down: unreachable, or timed out. A lookup that can do without it falls back. */
 export function libraryDown(error: unknown): boolean {
-  return isUnreachable(error) || (error instanceof ConnectionError && (error.problem === "timeout" || error.problem === "stopped"));
+  return isUnreachable(error) || (error instanceof ConnectionError && (error.problem === "timeout" || error.problem === "unreachable"));
 }

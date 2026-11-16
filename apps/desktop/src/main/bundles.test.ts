@@ -38,7 +38,7 @@ const SANDBOX_LOADABLE = ["electron", "electron/common", "electron/renderer", "e
 test("4.37 · the main process bundles whole into main.cjs: it loads nothing from outside it but Node's own modules, Electron and the optional modules it never loads or loads lazily, so a packaged app needs no node_modules", { timeout: 120_000 }, async () => {
   const { outside } = await bundled({ ...mainBuild(dist), entryPoints: [fileURLToPath(new URL("./main.ts", import.meta.url))] });
   const optional = [
-    "electron", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector", "google-auth-library", "@huggingface/transformers",
+    "electron", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@huggingface/transformers",
     // Native helpers ws tries to load and the proxy agent loads lazily, each done without when it is not there.
     "bufferutil", "utf-8-validate", "kerberos",
   ];

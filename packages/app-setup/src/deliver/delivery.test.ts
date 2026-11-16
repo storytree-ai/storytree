@@ -441,11 +441,11 @@ test("1.6 / 2.5: disconnect recognises the delivered launcher and removes it onc
   } finally { f.close(); }
 });
 
-test("delivery on a Cloud SQL library waits for the app itself, not for a local database it never starts (app lifecycle 1.11)", async () => {
-  const home = mkdtempSync(path.join(tmpdir(), "storytree-delivery-cloud-"));
+test("delivery on a Postgres-address library waits for the app itself, not for a local database it never starts (app lifecycle 1.11)", async () => {
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-delivery-remote-"));
   const app = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
   try {
-    writeFileSync(path.join(home, "settings.json"), JSON.stringify({ library: { location: "cloudsql", instance: "my-project:australia-southeast1:my-instance", user: "you@example.com" } }));
+    writeFileSync(path.join(home, "settings.json"), JSON.stringify({ library: { location: "postgres", address: "postgres://me@db.example.com:5432/postgres" } }));
     writeFileSync(path.join(home, "app.json"), JSON.stringify({ command: "app.exe", args: [], pid: app.pid }));
     const started = Date.now();
     await waitForApp(home, 5_000);

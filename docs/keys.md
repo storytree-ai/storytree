@@ -45,19 +45,6 @@ variable, which storytree reads last in its order. For a library reached by addr
     PGPASSWORD: ${{ secrets.STORYTREE_LIBRARY_PASSWORD }}
 ```
 
-Better still, use no key at all. For a library on Cloud SQL, let the job sign in to Google as a
-service account through workload identity federation: the service account has the Cloud SQL
-Client and Cloud SQL Instance User roles and is a database user of type
-`CLOUD_IAM_SERVICE_ACCOUNT` on the instance, named by its email without `.gserviceaccount.com`.
-
-```yaml
-permissions:
-  id-token: write   # GitHub's OIDC token, for the keyless sign-in
-steps:
-  - uses: google-github-actions/auth@v3
-    with:
-      workload_identity_provider: ${{ vars.WIF_PROVIDER }}
-      service_account: ci@my-project.iam.gserviceaccount.com
-  - run: storytree settings set library cloudsql my-project:australia-southeast1:my-instance ci@my-project.iam
-  - run: storytree arc list
-```
+A Cloud SQL instance is reached the same way: as a Postgres address, through the Cloud SQL Auth
+Proxy or its public IP, signed in as an ordinary database user whose password is the key.
+Storytree no longer signs in to Google itself.

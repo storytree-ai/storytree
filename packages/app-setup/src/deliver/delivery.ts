@@ -85,16 +85,16 @@ export function whyAppDidNotStart(launched: Launched, waited: string): string {
 
 /**
  * Wait until the delivered app is up. On a local library that is its database answering; on a
- * Cloud SQL or Postgres-address library the app starts no local database, so it is the app itself running (its launch
+ * Postgres-address library the app starts no local database, so it is the app itself running (its launch
  * record's process, app lifecycle 1.11). An app that exits with an error, or never comes up, fails with why (1.16).
  */
 export async function waitForApp(home: string, timeoutMs = 90_000, launched?: Launched): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  const cloud = readLibrary(home).location !== "local";
+  const remote = readLibrary(home).location !== "local";
   const waited = `${timeoutMs / 1000} seconds`;
   while (Date.now() < deadline) {
     if (launched && failed(launched.exit())) throw new Error(whyAppDidNotStart(launched, waited));
-    if (cloud) {
+    if (remote) {
       if (locateApp(home).running) return;
       await sleep(250);
       continue;

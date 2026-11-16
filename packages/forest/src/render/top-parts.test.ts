@@ -48,7 +48,7 @@ test("3.50 · an imported island's capabilities sharing a top folder are drawn a
 });
 
 test("3.117 · roads between an imported island's top parts roll up the links between the capabilities inside them, one per pair and way; a road from outside reaches the top part", () => {
-  assert.deepEqual(new Set(scene.links.map(({ from, to }) => `${from}->${to}`)), new Set(["top:app:ui->top:app:data", "main->top:app:ui", "page->top:app:ui"]),
+  assert.deepEqual(new Set(scene.links!.map(({ from, to }) => `${from}->${to}`)), new Set(["top:app:ui->top:app:data", "main->top:app:ui", "page->top:app:ui"]),
     "form->store becomes ui->data; main's two links into ui are one road; button->form and cache->store run inside a top part, so no road at this level; page reaches ui");
 });
 

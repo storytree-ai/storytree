@@ -4,7 +4,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LineSegments, Mesh, Vector3, type BufferGeometry, type Object3D } from "three";
+import { Color, Group, LineSegments, Mesh, OrthographicCamera, Vector3, type BufferGeometry, type Object3D } from "three";
 
 import { islandRoads } from "../territories/island-roads.js";
 import { islandRelief } from "../territories/island-relief.js";
@@ -14,7 +14,9 @@ import { territoryAt, type Coast, type Point } from "../territories/territories.
 import { capabilityPlates } from "./nameplates.js";
 import { islandRoadMarks, landFill } from "./island-roads.js";
 import { hiddenByOpening, hideForOpening, namesShown, openedAt, openedMarks, OpenedStore, opensAt, readsUnder, rollUp, touches, UNDER_READS } from "./opened-capability.js";
-import { territoryLand } from "./territory-land.js";
+import { pickGlobe } from "./planet-navigation.js";
+import { PARKED_FILL, territoryLand, WORD_FILL } from "./territory-land.js";
+import { landColour } from "./island-roads.js";
 
 const round = (radius: number): Coast => [Array.from({ length: 96 }, (_, i) => ({ x: radius * Math.cos(i * Math.PI / 48), z: radius * Math.sin(i * Math.PI / 48) }))];
 const R = Math.sqrt(LIBRARY_LAND / Math.PI), coast = round(R);
@@ -33,13 +35,13 @@ const lanes = { "d->a": ["p", "r"], "z1->a": ["p"], "z2->a": ["q"], "a->c": ["q"
 const crossings = partCrossings(map, roads, "a", lanes, docks);
 const partLinks = [{ from: "p", to: "q" }, { from: "q", to: "r" }];
 const sized = (n: number) => [...Array.from({ length: n }, (_, k) => ({ capability: ["p", "q", "r", "s", "t", "u", "v", "w"][k]!, title: `part ${k}`, lines: 400 - k * 40 })), { capability: "a", title: "1 · Alpha", lines: 50 }];
-const opened = (n: number) => {
+const opened = (n: number, words?: Parameters<typeof openedMarks>[8], id = "a") => {
   const layout = nestedLayout(regionOf(map, A), sized(n), partLinks, crossings)!;
   const local = crossings.map((c) => ({ local: { x: c.local.x - layout.centre.x, z: c.local.z - layout.centre.z }, links: c.links }));
   const inner = islandRoads(layout.map, [...partLinks, ...crossings.flatMap((c) => c.links.map((key) => { const [from, to] = key.split("->") as [string, string]; return { from, to }; }))], local, capabilityPlates(layout.map));
   const land = territoryLand(map, flat, coast, new Map(), roads);
   const cells = map.cells.filter((cell) => cell.territory === A).map((cell) => cell.polygon);
-  return { layout, inner, marks: openedMarks("a", layout, inner, [], cells, coast, flat, landFill(map, land)) };
+  return { layout, inner, marks: openedMarks(id, layout, inner, [], cells, coast, flat, landFill(map, land), words) };
 };
 const drawables = (group: Object3D) => { let n = 0; group.traverse((o) => { if (o instanceof Mesh || o instanceof LineSegments) n++; }); return n; };
 const ends = (lines: LineSegments): Point[] => { const p = lines.geometry.getAttribute("position"); return Array.from({ length: p.count }, (_, k) => ({ x: p.getX(k), z: p.getZ(k) })); };
@@ -158,4 +160,40 @@ test("3.115 · an opened capability adds at most five draws however many parts i
   assert.equal(store.platesOn("s"), undefined, "a closed capability's names are not shown");
   store.open(undefined);
   assert.equal(store.get(), undefined);
+});
+
+test("3.118 · an opened top part fills each capability inside it by its own word, and the land there picks that capability within the top part", () => {
+  const words = new Map([["p", { status: "unhealthy" as const, title: "src/ui/p" }], ["q", { status: "healthy" as const, title: "src/ui/q" }], ["r", { status: "proposed" as const, parked: true as const, title: "src/ui/r" }]]);
+  const { layout, marks } = opened(3, words, "top:s:ui");
+  assert.equal(drawables(marks), 5, "one mesh fills them all: still within 3.115's five draws");
+  // The top part is territory a of the island, drawn under the id a top part has.
+  const top = { ...map, territories: map.territories.map((t) => (t.capability === "a" ? { ...t, capability: "top:s:ui" } : t)) };
+  const planet = new Group();
+  planet.name = "planet:s";
+  planet.add(territoryLand(top, flat, coast), marks);
+  const world = new Group().add(planet);
+  const box = { left: 0, top: 0, width: 200, height: 200 };
+  const at = (p: Point) => {
+    const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+    camera.position.set(p.x, 50, p.z); camera.up.set(0, 0, -1); camera.lookAt(p.x, 0, p.z);
+    return pickGlobe(world, camera, box, { x: 100, y: 100 }, "forest");
+  };
+  // The middle of each part's largest cell on a's land, in the island's coordinates.
+  const middleOf = (part: string) => {
+    const index = layout.map.territories.findIndex((t) => t.capability === part);
+    const cell = layout.map.cells.filter((c) => c.territory === index).map((c) => ({ x: c.site.x + layout.centre.x, z: c.site.z + layout.centre.z })).find((p) => territoryAt(map, p.x, p.z) === map.territories[A]);
+    assert.ok(cell, `${part} has land on a's`);
+    return cell;
+  };
+  const fills = marks.getObjectByName("part-fills") as Mesh;
+  const colours = fills.geometry.getAttribute("color");
+  const faces = fills.userData.faces as string[];
+  for (const [part, fill] of [["p", WORD_FILL.unhealthy], ["q", WORD_FILL.healthy], ["r", PARKED_FILL]] as const) {
+    assert.deepEqual(at(middleOf(part)), { kind: "story", id: "s", capability: part, within: "top:s:ui" }, `${part}'s land picks ${part}, within the top part`);
+    const face = faces.indexOf(part), shown = new Color(colours.getX(face * 3), colours.getY(face * 3), colours.getZ(face * 3));
+    const word = landColour(() => ({ colour: new Color(fill.colour), opacity: fill.opacity }))({ x: 0, z: 0 });
+    assert.ok(Math.max(Math.abs(shown.r - word.r), Math.abs(shown.g - word.g), Math.abs(shown.b - word.b)) < 1e-6, `${part} is filled by its own word over the ground`);
+  }
+  assert.deepEqual(at(middleOf("a")), { kind: "story", id: "s", within: "top:s:ui" }, "the top part's land with no capability filled picks the island within the top part, never a capability of that id");
+  assert.deepEqual(openedAt("parts", { kind: "story", id: "s", capability: "p", within: "top:s:ui" }), { story: "s", capability: "top:s:ui" }, "the eye over a capability inside keeps the top part open");
 });

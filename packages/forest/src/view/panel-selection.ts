@@ -3,7 +3,7 @@
 import type { GlobeSwitches, SheetFace } from "./globe-switches.js";
 
 /** A store is picked by its address (ADR-1332 D1). */
-export type Selection = { kind: "story"; id: string; capability?: string; gate?: readonly [string, string] } | { kind: "note"; id: string } | { kind: "store"; id: string } | undefined;
+export type Selection = { kind: "story"; id: string; capability?: string; within?: string; gate?: readonly [string, string] } | { kind: "note"; id: string } | { kind: "store"; id: string } | undefined;
 
 export class PanelSelection {
   current: Selection;

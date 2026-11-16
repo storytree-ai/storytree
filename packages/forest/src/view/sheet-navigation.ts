@@ -4,7 +4,7 @@
  * guide and its Home all carry over: a turn of the big sphere by a hair slides the sheet under the eye, flat to within
  * a degree. The user tilts it like a table (ADR-1062 D2), from looking straight down on the islands, through edge-on, to
  * looking straight up at the knowledge graph beneath, so a sheet's north-south distances are drawn shortened by the tilt's
- * cosine; Stories and Library rest it at a tilt from above or its mirror from below (D3). The user pans it (a drag, WASD or
+ * cosine; it opens looking straight down, and pressing Library from there brings in a tabletop tilt (ADR-1349). The user pans it (a drag, WASD or
  * the arrows), zooms it (the wheel or a pinch), spins it about its upright axis (Q and E, a right-drag's sideways part, a
  * Ctrl+drag or a twist) and tilts it (R and F, or that drag's up-and-down part), and a compass or Home faces it back
  * (ADR-1060); nothing switches what a drag does.
@@ -27,6 +27,9 @@ const CLEAR_BOTTOM = 45;
 
 /** How wide and deep an island-less sheet's sea floor is, in ground units: with no land to set it, room for the user's factory's notes (3.63). */
 const BARE_FLOOR = 180;
+
+/** The tilt the sheet opens at, and Home and the compass bring it back to: straight down on its top face (ADR-1349 D1). */
+export const SHEET_OPENING_TILT = 0;
 
 /** An island-less sheet opens at once only on its Library face, where the user's factory's notes hang (3.63); on Stories it waits for its islands. */
 export function opensBare(mode: ForestMode): boolean {
@@ -151,19 +154,18 @@ function focal(size: { height: number }): number {
 }
 
 /**
- * The view the sheet opens on, and Home returns to (D4), at the top resting tilt: its whole height framed in perspective,
+ * The view the sheet opens on, and Home returns to (D4), looking straight down (ADR-1349 D1): its whole height framed in perspective,
  * the north edge `CLEAR_TOP` below the window's top and the south edge `CLEAR_BOTTOM` above its bottom, from its west edge,
  * so the user scrolls east to follow the depth; a sheet narrower than the window sits in its middle. A sheet that would run
  * past the window's width but fits it whole at `OPENING_FLOOR` or nearer is drawn smaller instead, its edges brought in
  * alike, until its whole width fits, so a short chain opens with every island in view (1.10) and a deep library still
  * scrolls east.
- * The perspective draws the near south half bigger than the far north half, so the middle of the view lies a little south
- * of the sheet's middle. At a `framing` asked for, the whole map is the same view zoomed: still from its west edge, or in the
+ * At a `framing` asked for, the whole map is the same view zoomed: still from its west edge, or in the
  * middle once the sheet is narrower than the window (3.66).
  */
 export function sheetOpening(extent: SheetExtent, size: { width: number; height: number }, framing?: number): GlobePose {
   const f = focal(size), n = extent.height / 2;
-  const sin = Math.sin(SHEET_TILT), cos = Math.cos(SHEET_TILT);
+  const sin = Math.sin(SHEET_OPENING_TILT), cos = Math.cos(SHEET_OPENING_TILT);
   // The view with the north and south edges drawn `scale` of the way from the window's middle to where they are kept.
   const framed = (scale: number) => {
     // How far above and below the window's middle the north and south edges are drawn.
@@ -320,10 +322,16 @@ export function headingHome(heading: number): number {
   return 2 * Math.PI * Math.round(heading / (2 * Math.PI));
 }
 
-/** Where Home and the compass bring the sheet's heading and tilt: its starting heading the short way round, and the top
- * resting tilt (ADR-1060 D3, ADR-1062 D2). */
+/** Where Home and the compass bring the sheet's heading and tilt: its starting heading the short way round, and straight
+ * down, the opening tilt (ADR-1060 D3, ADR-1062 D2 as narrowed by ADR-1349 D1). */
 export function sheetHome(heading: number): { heading: number; tilt: number } {
-  return { heading: headingHome(heading), tilt: SHEET_TILT };
+  return { heading: headingHome(heading), tilt: SHEET_OPENING_TILT };
+}
+
+/** The tilt pressing Library brings the sheet to from `tilt`: the tabletop tilt from straight down, so the notes beneath show
+ * in depth, and otherwise the tilt the user left it at (ADR-1349 D2). */
+export function libraryTilt(tilt: number): number {
+  return tilt === SHEET_OPENING_TILT ? SHEET_TILT : tilt;
 }
 
 /** Where the sheet's starting north lies on the window at `heading`, as an angle anticlockwise from the window's right. */

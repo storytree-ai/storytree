@@ -10,7 +10,7 @@ import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { territories } from "../territories/territories.js";
 import { focusRotation, markersApart, markerSpot } from "./planet-navigation.js";
-import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPointerMarkers, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP, withDocks } from "./sheet-navigation.js";
+import { compassNorth, headingHome, libraryTilt, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPointerMarkers, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, SHEET_OPENING_TILT, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
 import { STORY_PLATE_WIDTH } from "./nameplates.js";
 import { islandCoastReach } from "@storytree/forest-world/geometry";
@@ -43,11 +43,11 @@ function five(chained: boolean) {
 
 /** The zoom a pose frames, in CSS pixels per ground unit at the middle of the view. */
 const zoomOf = (pose: GlobePose) => Math.min(size.width, size.height) / (2 * pose.framing * SHEET_RADIUS);
-/** The tilt from below that mirrors the top resting one: the Library's resting view. */
+/** The tilt from below that mirrors the tabletop one Library brings in. */
 const UNDERNEATH = Math.PI - SHEET_TILT;
 
 /** The page's perspective eye and its globe group, posed as the canvas poses them, the sheet tilted `tilt` and spun to `heading`. */
-function eye(pose: GlobePose, extent: { width: number; height: number }, tilt = SHEET_TILT, heading = 0) {
+function eye(pose: GlobePose, extent: { width: number; height: number }, tilt = SHEET_OPENING_TILT, heading = 0) {
   const camera = new PerspectiveCamera(SHEET_FOV, size.width / size.height, 0.1, 1000);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   camera.position.set(0, Math.sin(elevation), Math.cos(elevation));
@@ -86,27 +86,25 @@ const keyed = (key: string, target?: unknown, extra: { ctrlKey?: boolean; metaKe
 const followed = (before: { x: number; y: number }, after: { x: number; y: number }, drag: { x: number; y: number }) =>
   Math.hypot(after.x - before.x - drag.x, after.y - before.y - drag.y) < 0.5;
 
-test("3.52 on the glass sheet the eye rests at a tabletop tilt from above, the north edge away from it, and opens there framing the sheet's height in perspective from its west edge; a drag or a sideways scroll pans it and the wheel zooms it, and neither changes the tilt", () => {
+test("3.52 on the glass sheet the eye opens looking straight down, framing the sheet's height in perspective from its west edge; the tabletop tilt is the one Library brings in; a drag or a sideways scroll pans it and the wheel zooms it, and neither changes the tilt", () => {
   const layout = sheet(12), { extent } = layout;
   assert.ok(extent.width > extent.height, "a deep library lies wider than tall");
-  assert.ok(SHEET_TILT > 30 * Math.PI / 180 && SHEET_TILT < 50 * Math.PI / 180, `a tabletop tilt, neither top-down nor edge-on (${(SHEET_TILT * 180 / Math.PI).toFixed(1)}°)`);
+  assert.equal(SHEET_OPENING_TILT, 0, "it opens straight down");
+  assert.ok(SHEET_TILT > 30 * Math.PI / 180 && SHEET_TILT < 50 * Math.PI / 180, `Library's tilt is a tabletop one, neither top-down nor edge-on (${(SHEET_TILT * 180 / Math.PI).toFixed(1)}°)`);
   const opening = sheetOpening(extent, size);
   const opened = eye(opening, extent), middle = sheetCentre(opening.turn);
   const north = opened.screen({ x: middle.x, y: extent.height / 2 }), south = opened.screen({ x: middle.x, y: -extent.height / 2 });
   // Nothing is docked over the map's bottom: 85 px are kept at the top, clear of the Stories / Library switch and the compass,
   // and only 45 px at the bottom, room for the names that hang below the southmost islands.
   assert.ok(Math.abs(north.y - 85) < 1 && Math.abs(south.y - (size.height - 45)) < 1, `the sheet's whole height fills the window (${north.y.toFixed(1)} to ${south.y.toFixed(1)})`);
-  assert.ok(middle.y < 0, "the nearer south half drawn bigger, the middle of the view lies south of the sheet's middle");
   const southWest = opened.screen({ x: -extent.width / 2, y: -extent.height / 2 }), northWest = opened.screen({ x: -extent.width / 2, y: extent.height / 2 });
-  assert.ok(Math.abs(southWest.x) < 1 && northWest.x > 0, `the whole west edge in view, its nearest corner at the window's left (${southWest.x.toFixed(2)} px)`);
+  assert.ok(Math.abs(southWest.x) < 1 && Math.abs(northWest.x) < 1, `the whole west edge in view at the window's left (${southWest.x.toFixed(2)} px, ${northWest.x.toFixed(2)} px)`);
   assert.ok(opened.screen({ x: extent.width / 2, y: 0 }).x > size.width, "and the east runs on past the window's right, to scroll to");
   /** The tilt the eye sees at `face` and over `p`, within the degree the big sphere bends across the sheet and the eye's
    * own angle to `p`: the face's angle from the eye, with the edge at the window's top farther from the eye than the edge at its bottom. */
   const tilted = (face: ReturnType<typeof eye>, p: SheetPoint) => {
     const angle = face.facing(p);
-    assert.ok(Math.abs(angle - SHEET_TILT) < Math.PI / 180, `the tilt is ${(angle * 180 / Math.PI).toFixed(2)}°`);
-    const far = face.distance({ x: p.x, y: p.y + 50 }), near = face.distance({ x: p.x, y: p.y - 50 });
-    assert.ok(far > near + 50, "the edge at the window's top lies farther from the eye than the edge at its bottom");
+    assert.ok(angle < Math.PI / 180, `the eye looks straight down (${(angle * 180 / Math.PI).toFixed(2)}°)`);
   };
   tilted(opened, middle);
   // A drag right and down, then a sideways scroll east, then a zoom by the wheel: a point under the pointer follows it.
@@ -207,7 +205,12 @@ test("3.64 the glass sheet tilts like a table: a rotating drag's up-and-down par
   assert.ok(sheetTiltBy(SHEET_TILT, -TILT_STEP) < SHEET_TILT && sheetSpinTilt(0, SHEET_TILT, { x: 0, y: -20 }).tilt > SHEET_TILT, "F and a drag up tip it toward the underside");
 });
 
-test("3.56 under the glass sheet the knowledge graph visibly hangs: seen from below at the mirror of the opening tilt, each computed depth hangs well below the one above it, toward the eye", () => {
+test("3.55 pressing Library from straight down brings in the tabletop tilt; from any tilt the user gave by hand it leaves the tilt where it is", () => {
+  assert.equal(libraryTilt(sheetHome(0).tilt), SHEET_TILT, "from the opening view, and after Home, the tabletop tilt");
+  for (const tilt of [TILT_STEP, SHEET_TILT, 1.2, Math.PI / 2, UNDERNEATH, Math.PI]) assert.equal(libraryTilt(tilt), tilt, `a hand's ${(tilt * 180 / Math.PI).toFixed(0)}° stays`);
+});
+
+test("3.56 under the glass sheet the knowledge graph visibly hangs: seen from below at the mirror of the tabletop tilt, each computed depth hangs well below the one above it, toward the eye", () => {
   const layout = sheet(12), { extent, under } = layout, opening = sheetOpening(extent, size);
   const below = eye(opening, extent, UNDERNEATH);
   const shelf = under.shelfAt("s3")!;
@@ -340,7 +343,7 @@ test("3.65 a rotating drag turns the glass sheet like a table, one way all throu
   }
 });
 
-test("3.60 the compass points to the glass sheet's starting north on the window, and a click on it or the Home key spins it back, tilts it to the top resting view and returns to the opening view", () => {
+test("3.60 the compass points to the glass sheet's starting north on the window, and a click on it or the Home key spins it back, tilts it back to straight down and returns to the opening view", () => {
   const { extent } = sheet(12), opening = sheetOpening(extent, size), held = sheetCentre(opening.turn);
   assert.deepEqual(keyed("Home"), { kind: "home" });
   for (const tilt of [SHEET_TILT, 1.2, 2, UNDERNEATH]) for (const heading of headings) {
@@ -358,7 +361,7 @@ test("3.60 the compass points to the glass sheet's starting north on the window,
   pose = { ...pose, turn: sheetPan(pose.turn, { x: -600, y: 90 }, 1, extent), framing: pose.framing / 2 };
   const spun = 7 * Math.PI + 0.4, home = sheetHome(spun);
   assert.ok(Math.abs(home.heading - 8 * Math.PI) < 1e-12 && home.heading === headingHome(spun), "the nearest starting heading, not seven half-turns back");
-  assert.equal(home.tilt, SHEET_TILT, "and the top resting tilt");
+  assert.equal(home.tilt, 0, "and straight down, the opening tilt");
   assert.equal(guide.home(sheetOpening(extent, size), 600), true);
   guide.frame(300);
   guide.frame(300);

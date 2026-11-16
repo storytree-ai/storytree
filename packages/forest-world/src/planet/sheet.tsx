@@ -16,10 +16,10 @@ import { applyPlanetSideOffset } from './camera.js';
 export const SHEET_RADIUS = 200_000;
 
 /**
- * The eye's resting tabletop tilt (ADR-1059 D1, ADR-1062 D3), in radians: how far the sheet is tipped from facing the eye
- * square-on, its north edge away. Steep enough to show the islands' sides, the glass's edge and the graph's depth, shallow
- * enough that names stay legible. The user tilts it anywhere from straight down on the top face (0) to straight up at the
- * underside (π), and Home and the Stories button rest it here; the Library button rests it at the mirror tilt, π less this.
+ * The tabletop tilt (ADR-1059 D1), in radians: how far the sheet is tipped from facing the eye square-on, its north edge
+ * away. Steep enough to show the islands' sides, the glass's edge and the graph's depth, shallow enough that names stay
+ * legible. The sheet opens straight down, and pressing Library from there brings it to this tilt (ADR-1349); the user tilts
+ * it anywhere from straight down on the top face (0) to straight up at the underside (π).
  */
 export const SHEET_TILT = 40 * Math.PI / 180;
 

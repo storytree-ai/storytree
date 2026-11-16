@@ -4,7 +4,9 @@
 // capture kit's `code-rows` seed, storytree's own library. At three tilts the user gave by a real right-drag (from above, side
 // on, from below), a real press of Library and then of Stories each leaves the eye and the sheet exactly where they were,
 // while the glass clears and the islands become outlines, and back. Only Library hangs the notes beneath: on Stories, at every
-// tilt, none is laid out or drawn (ADR-1340 D1, increment_f205354a6398). Run from the checkout root, in the foreground:
+// tilt, none is laid out or drawn (ADR-1340 D1, increment_f205354a6398). The sheet opens straight down, and the one press that
+// moves it is Library's from there, which eases in the tabletop tilt keeping heading, pan and zoom; Stories pressed after it moves
+// nothing (ADR-1349, increment_c86e855fdcc6). Run from the checkout root, in the foreground:
 //   node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/testing/view/glass-library-look/capture.mjs --retake
 // With --smoke it takes no pictures and prints one line of JSON for the real-browser test (3.55).
 import assert from 'node:assert/strict';
@@ -18,7 +20,7 @@ const smoke = process.argv.includes('--smoke');
 const resting = Math.round(SHEET_TILT * 1800 / Math.PI) / 10;
 /** CSS pixels of a rotating drag up the window per degree of tilt (TILT_PER_PIXEL is π/600 radians). */
 const PER_DEGREE = 600 / 180;
-/** The three tilts, in degrees from straight down: the opening view from above, side on, and from below. */
+/** The three tilts the user gives by hand, in degrees from straight down: the tabletop tilt from above, side on, and from below. */
 const TILTS = [{ name: 'above', deg: resting }, { name: 'side-on', deg: 85 }, { name: 'below', deg: 180 - resting }];
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -49,7 +51,7 @@ const measure = page => page.evaluate(() => {
   };
 });
 
-const { results: summary, out } = await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, settle }) => {
+const { results: summary, opening, out } = await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, settle }) => {
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
@@ -85,7 +87,8 @@ const { results: summary, out } = await withCapture({ folder: evidence, dist }, 
     for (let k = 1; k <= steps; k++) await page.mouse.move(x, y - by * PER_DEGREE * k / steps);
     await page.mouse.up({ button: 'right' });
   };
-  /** Press a button, then wait past the 0.9 s the old swing took, so an eye that moved would be caught where it went. */
+  /** Press a button, then wait past the 0.9 s the old swing took (and Library's 0.6 s tilt from straight down), so an eye that
+   * moved would be caught where it went. */
   const press = async which => {
     await page.locator(`[data-globe-switch="${which}"]`).click();
     // Library lays its notes out a few steps to a task once pressed: wait until they hang.
@@ -99,7 +102,20 @@ const { results: summary, out } = await withCapture({ folder: evidence, dist }, 
   const results = {};
   const opened = await measure(page);
   assert.deepEqual(opened.pressed, { stories: 'true', library: 'false' }, 'it opens on Stories');
-  let at = opened.tiltDeg;
+  assert.ok(Math.abs(opened.tiltDeg) < 1.5, `it opens looking straight down (${opened.tiltDeg}°)`);
+  await shoot('opening');
+  // From straight down, Library eases in the tabletop tilt, the eye, heading, pan and zoom kept; Stories then moves nothing.
+  await press('library');
+  const tilted = await measure(page);
+  await shoot('library-from-opening');
+  assert.ok(Math.abs(tilted.tiltDeg - resting) < 1.5, `Library from straight down brings in the tabletop tilt (${tilted.tiltDeg}°, wanted ${resting}°)`);
+  assert.deepEqual([tilted.eye, tilted.lens], [opened.eye, opened.lens], 'the eye stays where it was: the sheet tilts under it');
+  await press('stories');
+  const kept = await measure(page);
+  await shoot('stories-again');
+  assert.deepEqual([kept.eye, kept.lens, kept.sheet], [tilted.eye, tilted.lens, tilted.sheet], 'pressing Stories leaves the eye and the sheet where they were');
+  results.opening = { tiltDeg: opened.tiltDeg, library: tilted.tiltDeg, stories: kept.tiltDeg };
+  let at = kept.tiltDeg;
   for (const { name, deg } of TILTS) {
     await tiltBy(deg - at);
     await page.mouse.move(2, 2);
@@ -127,13 +143,14 @@ const { results: summary, out } = await withCapture({ folder: evidence, dist }, 
     results[name] = { tiltDeg: stories.tiltDeg, stories: look(stories), library: look(library) };
   }
   assert.deepEqual(errors, []);
-  return { results, out };
+  const { opening, ...tilts } = results;
+  return { results: tilts, opening, out };
 });
 
 function look({ pressed, pane, notesShown, notesHung, filled, coasts }) {
   return { pressed: pressed.library === 'true' ? 'library' : 'stories', pane, notesShown, notesHung, filled, coasts };
 }
 
-if (smoke) console.log(JSON.stringify({ unmoved: Object.keys(summary), looks: Object.fromEntries(Object.entries(summary).map(([name, r]) => [name, { stories: r.stories.filled > 0, library: r.library.filled === 0 }])),
+if (smoke) console.log(JSON.stringify({ opening: { straightDown: Math.abs(opening.tiltDeg) < 1.5, library: Math.abs(opening.library - resting) < 1.5, stories: Math.abs(opening.stories - resting) < 1.5 }, unmoved: Object.keys(summary), looks: Object.fromEntries(Object.entries(summary).map(([name, r]) => [name, { stories: r.stories.filled > 0, library: r.library.filled === 0 }])),
   notes: Object.fromEntries(Object.entries(summary).map(([name, r]) => [name, { stories: r.stories.notesHung, library: r.library.notesHung > 0 }])) }));
-else writeFileSync(path.join(out, 'measurements.json'), JSON.stringify({ viewport, seed: 'code-rows', results: summary }, null, 1) + '\n');
+else writeFileSync(path.join(out, 'measurements.json'), JSON.stringify({ viewport, seed: 'code-rows', opening, results: summary }, null, 1) + '\n');

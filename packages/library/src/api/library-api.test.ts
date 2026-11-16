@@ -216,6 +216,7 @@ const RUNTIME_EXPORTS = [
   "RestoreRefusedError",
   "RetireRefusedError",
   "SEED_CONNECTION",
+  "STORE_LINK_DIRECTIONS",
   "SchemaError",
   "SupersessionLoopError",
   "UnknownTypeError",

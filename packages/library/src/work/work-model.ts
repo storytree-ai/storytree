@@ -169,6 +169,8 @@ export interface ProjectTree {
 
 /** One extra check a story or capability carries, and what sets it off: a change to it, or a formal release. */
 export type Guardrail = NonNullable<FieldsOf<"story">["guardrails"]>[number];
+/** A judged link from a capability to a store's table (ADR-1333 D2). */
+export type StoreLink = NonNullable<FieldsOf<"capability">["storeLinks"]>[number];
 
 export interface StoryNode {
   id: string;
@@ -211,6 +213,8 @@ export interface CapabilityNode {
   proposed: boolean;
   /** An explored capability of a mapped story: the folders and files of its import it covers (ADR-0993 D5). */
   covers?: string[];
+  /** The store links the mapping agent judged for it, as stored (ADR-1333 D2). */
+  storeLinks?: StoreLink[];
   /** Its own guardrails as stored (question_4cec0ba23052). */
   guardrails?: Guardrail[];
   /** The contracts pointing at this capability, in creation order. */
@@ -706,6 +710,7 @@ export class WorkModel {
           dependsOn: faces.get(capability.id) ?? [],
           proposed: capability.fields.proposed,
           ...(capability.fields.covers === undefined ? {} : { covers: [...capability.fields.covers] }),
+          ...(capability.fields.storeLinks === undefined ? {} : { storeLinks: structuredClone(capability.fields.storeLinks) }),
           ...guardrailsOf(capability),
           contracts: (contractsOf.get(capability.id) ?? []).map(contractNode),
         })),

@@ -116,7 +116,7 @@ page = openProjectPage({
       plugins: (on) => mountPluginViews(content, window.storytree.pluginViews, on, { project: name, bridge: window.storytree }),
       reading: (options) => forestReading({ project: name, reads, reading, ...options }),
       renderPanel: (drilled, selected, options) => renderStoryPanel(drilled, selected, options),
-      renderStore: (store) => renderStorePanel(store),
+      renderStore: (store, tree) => renderStorePanel(store, tree),
       foldPanel: (panel) => folds.draw(panel),
     };
   },

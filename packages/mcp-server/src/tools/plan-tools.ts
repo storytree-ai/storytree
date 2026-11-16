@@ -3,7 +3,7 @@
  * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, STORE_LINK_DIRECTIONS, wordAndWhy, type AnnotatedTree, type StoreLink, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
 import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
@@ -34,6 +34,19 @@ const covers = z
   .min(1)
   .optional()
   .describe("On an imported story whose code storytree cannot read only, and required there: the folders and files of its imported project this capability covers, each from the imported folder (a folder covers everything under it); none may overlap another capability's of the story");
+/** A capability's store links, the mapping agent's judgment from a test run's statement log (ADR-1333 D2). */
+const storeLinks = z
+  .array(
+    z.object({
+      store: z.string().min(1).describe("The store's address as the map names it (postgres://db/shop)"),
+      table: z.string().min(1).describe("The table its code sends statements to"),
+      direction: z.enum(STORE_LINK_DIRECTIONS).describe("What those statements do to it: read, write, both (an UPDATE or DELETE) or unknown"),
+      cites: z.array(z.string().min(1)).min(1).describe("Each file and line that sends one, as file:line from the imported folder"),
+    }),
+  )
+  .min(1)
+  .optional()
+  .describe("A capability's store links, replacing them (ADR-1333). Read them as a person would: start a throwaway copy of the store from the repository's compose service and migrations with its statement log on (never turn it on in the user's own store without asking), point the repository's connection setting at it, run its tests, and parse which statements the run sent to which tables. Read the code that sends them: a shared layer (a data-access module, an ORM, a wrapper) is evidence, never credited. Credit each table to the capability whose code sends the statement, never the test that ran it, each cited by file and line; the tests' own statements and the migrations draw none. Write nothing into the repository.");
 
 const provedBy = z
   .array(z.string().min(1))
@@ -226,6 +239,7 @@ export function registerPlanTools(define: Define): void {
       edge: z.string().min(1).optional().describe("A contract's edge, to move it onto that link inside its story"),
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
       covers: covers.describe("The folders and files of a capability you mapped on code storytree cannot read, replacing them"),
+      store_links: storeLinks,
       proved_by: provedBy.describe("A contract's existing tests that prove it, replacing them"),
       proof: proof.describe("How a contract is proved, with a one-line reason (ADR-1294), replacing it"),
       stories: z.array(z.string().min(1)).optional().describe("An arc's stories, replacing them"),
@@ -300,6 +314,7 @@ interface Changes {
   edge?: string | undefined;
   depends_on?: string[] | undefined;
   covers?: string[] | undefined;
+  store_links?: StoreLink[] | undefined;
   proved_by?: string[] | undefined;
   proof?: Proof | undefined;
   stories?: string[] | undefined;
@@ -319,7 +334,7 @@ interface Changes {
 /** The fields each kind of plan record can have corrected, as the tool names them. */
 const EDITABLE = {
   story: ["title", "description"],
-  capability: ["title", "description", "story", "depends_on", "covers"],
+  capability: ["title", "description", "story", "depends_on", "covers", "store_links"],
   contract: ["title", "description", "capability", "edge", "proved_by", "proof"],
   edge: ["description"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
@@ -344,14 +359,14 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
     // A drawn capability's covers and links are its code's; only its title and description are the agent's (ADR-1324 D3).
     const story = ((await library.get(target))?.fields as { story?: string } | undefined)?.story;
     const drawn = await drawnBy(call, story);
-    if (drawn !== undefined) return { text: `Not corrected: storytree draws ${drawn.said} capabilities and links from its code's imports, so only a capability's title and description are corrected here; importing the folder again redraws the rest from the code as it stands.`, refused: true };
+    if (drawn !== undefined) return { text: `Not corrected: storytree draws ${drawn.said} capabilities and links from its code's imports, so only a capability's title and description, and the store links you judged, are corrected here; importing the folder again redraws the rest from the code as it stands.`, refused: true };
   }
-  const { depends_on: dependsOn, end_state: endState, proved_by: provedBy, priority, capabilities, machine, escape, ...rest } = changes;
+  const { depends_on: dependsOn, end_state: endState, proved_by: provedBy, store_links: storeLinks, priority, capabilities, machine, escape, ...rest } = changes;
   const own = kind === "increment" ? await incrementFields(target, { capabilities, machine, escape }, call) : { fields: {} };
   if ("refused" in own) return own.refused;
   // "none" clears an arc's priority: the library removes a field given as undefined (ADR-0963 D3).
   const fields = {
-    ...optional({ ...rest, dependsOn, endState, provedBy }),
+    ...optional({ ...rest, dependsOn, endState, provedBy, storeLinks }),
     ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }),
     ...own.fields,
   };
@@ -375,7 +390,8 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   const shared = kind === "increment" ? await library.openListing((listing ?? []).filter((capability) => !had.includes(capability)), target) : [];
   const placed = kind === "contract" && to !== undefined && (changes.capability !== undefined || changes.edge !== undefined) ? placedSaid(await library.projectTree(), target, to) : "";
   const bare = await bareSaid(library, leaves, "plan_contract");
-  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
+  const judged = storeLinks === undefined ? "" : ` It carries ${storeLinks.length} store ${storeLinks.length === 1 ? "link" : "links"}, drawn as judged on its stores' panels.`;
+  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}${judged}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
 }
 
 /**

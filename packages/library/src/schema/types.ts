@@ -131,6 +131,14 @@ const pendingChange = z.union([
  */
 const guardrails = z.array(z.object({ check: nonEmpty, trigger: z.enum(["change", "release"]) }).strict()).optional();
 
+/** The directions a store link has (ADR-1332 D2): what the capability's statements do to the table. */
+export const STORE_LINK_DIRECTIONS = ["read", "write", "both", "unknown"] as const;
+
+/** A judged link from a capability to a store's table, citing each file and line that sends a statement to it (ADR-1333 D2). */
+const storeLink = z
+  .object({ store: nonEmpty, table: nonEmpty, direction: z.enum(STORE_LINK_DIRECTIONS), cites: z.array(z.string().regex(/^\S.*:[1-9]\d*$/, "a cite is a file and its line, file:line")).min(1) })
+  .strict();
+
 /**
  * A pin's preset icons (question_82b15d496b5b's answer): what an agent found, drawn as one of a few architectural icons
  * rather than free text, to keep the map's signal above its noise. `store` is a shared store's, so only a pin on a store takes it.
@@ -333,6 +341,11 @@ export const RECORD_SCHEMAS = {
        * Optional, so no version bump.
        */
       covers: z.array(nonEmpty).min(1).optional(),
+      /**
+       * The store links the mapping agent judged for it (ADR-1332 D2 (4), ADR-1333 D2): each a store's table its code sends
+       * statements to, the direction, and the file and line of each statement it cites. Optional, so no version bump.
+       */
+      storeLinks: z.array(storeLink).min(1).optional(),
       guardrails,
     })
     .strict(),

@@ -158,7 +158,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
           mine.details.push(options.details);
           return selected === undefined ? "" : `<section class="panel-detail" data-capability-id="${selected}"></section>`;
         },
-        renderStore: (store) => `<h2>${store.address}</h2><button type="button" class="panel-close">×</button>`,
+        renderStore: (store, plan) => `<h2>${store.address}</h2><p class="store-plan">${plan === undefined ? "no plan" : plan.stories.map((story) => story.id).join(" ")}</p><button type="button" class="panel-close">×</button>`,
         foldPanel: (panel) => { mine.folded.push(panel.querySelector<HTMLElement>(".panel-detail")?.dataset.capabilityId); },
       };
     },
@@ -699,7 +699,7 @@ test("2.55 · while a project's forest is on show the page mounts the CI times s
   assert.ok(on.last().mounted.includes("ci-times"));
 });
 
-test("2.62 · the page draws the shared stores the forest's reading read, and a picked store opens its panel in the story panel's slot, whose close deselects it", async (t) => {
+test("2.62 · the page draws the shared stores the forest's reading read, and a picked store opens its panel in the story panel's slot, drawn with the plan last read so it says who touches it, whose close deselects it", async (t) => {
   const on = page(t);
   await settled();
   const shop: SharedStore = { address: "postgres://db/shop", medium: "postgres", evidence: [{ file: "docker-compose.yml", says: "service db" }], tables: [] };
@@ -711,6 +711,7 @@ test("2.62 · the page draws the shared stores the forest's reading read, and a 
   const panel = on.content.querySelector<HTMLElement>(".story-panel")!;
   assert.equal(panel.hidden, false);
   assert.equal(panel.querySelector("h2")?.textContent, shop.address, "the store's panel is on show");
+  assert.equal(panel.querySelector(".store-plan")?.textContent, tree.stories.map((story) => story.id).join(" "), "its panel is drawn with the plan the page last read");
   assert.equal(on.body.dataset.selected, undefined, "no story is selected with it");
   on.land(undefined, [shop]);
   assert.equal(panel.querySelector("h2")?.textContent, shop.address, "a redraw keeps it");

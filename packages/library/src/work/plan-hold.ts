@@ -5,9 +5,18 @@
  * increment claimed on no branch or the main line (a library-only one, which no merge will ever apply), is made live
  * (friction_f02365572601).
  */
-import type { Library } from "../api/library.js";
-import type { SchemaRecord, WriteOptions } from "../schema/index.js";
+import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { PendingChange, PlanChange } from "./pending-changes.js";
+import type { WorkInFlight } from "./work-in-flight.js";
+import type { WorkModel } from "./work-model.js";
+
+/**
+ * What this rule needs of a door's library: the records' reader, and the plan's own editors and pending change, as the work
+ * model and work in flight give them (the library API hands each on as it is).
+ */
+export type PlanEditors = Pick<SchemaRecords, "get">
+  & Pick<WorkModel, "editStory" | "editCapability" | "editContract" | "editEdge">
+  & Pick<WorkInFlight, "editArc" | "editIncrement" | "pendChange">;
 
 /** The kinds whose edits and retirements wait on the caller's increment until its branch merges (ADR-0966 D1), a dependency edge among them (ADR-1282 D2). */
 export const PLAN_TYPES: ReadonlySet<string> = new Set(["story", "capability", "contract", "edge"]);
@@ -51,7 +60,7 @@ export function heldIncrement(claims: readonly PlanClaim[], session: string): st
  * holds none (a person's shell holds none), holds one claimed on no branch or the main line, which no merge applies,
  * or the increment planned the record itself, and the change is made live.
  */
-export async function holdPlanChange(library: Library, claims: readonly PlanClaim[], session: string, change: PlanChange, writer: WriteOptions): Promise<string | undefined> {
+export async function holdPlanChange(library: PlanEditors, claims: readonly PlanClaim[], session: string, change: PlanChange, writer: WriteOptions): Promise<string | undefined> {
   const increment = heldIncrement(claims, session);
   if (increment === undefined) return undefined;
   const pended = await library.pendChange(increment, change, writer);
@@ -64,7 +73,7 @@ export function heldSaid(increment: string): string {
 }
 
 /** The pending changes of the increment `session` holds, which its branch's new capabilities are numbered against (ADR-0966 D3). */
-export async function heldPending(library: Library, claims: readonly PlanClaim[], session: string): Promise<readonly PendingChange[]> {
+export async function heldPending(library: PlanEditors, claims: readonly PlanClaim[], session: string): Promise<readonly PendingChange[]> {
   const increment = heldIncrement(claims, session);
   const record = increment === undefined ? null : await library.get(increment);
   return record?.type === "increment" ? ((record.fields as { pending?: PendingChange[] }).pending ?? []) : [];
@@ -76,7 +85,7 @@ export async function heldPending(library: Library, claims: readonly PlanClaim[]
  * null when no live record has the id.
  */
 export async function editPlanRecord(
-  library: Library,
+  library: PlanEditors,
   claims: readonly PlanClaim[],
   session: string,
   { type, id, fields, live = false }: { readonly type: PlanRecordType; readonly id: string; readonly fields: Record<string, unknown>; readonly live?: boolean },

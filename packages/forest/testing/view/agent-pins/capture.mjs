@@ -29,7 +29,8 @@ const other = library.capabilities.find(c => c.id !== capability).id;
 const gone = `${part.slice(0, part.lastIndexOf('/'))}/gone-from-the-code`;
 console.error(`pinning ${titles.get(capability)} (part ${part}) and ${titles.get(other)}`);
 const STORE = 'postgres://db/library';
-const stores = [{ address: STORE, medium: 'postgres', evidence: [{ file: 'compose.yaml', says: 'service db, image postgres:16' }], tables: [{ name: 'records', columns: [], foreignKeys: [], from: [] }] }];
+// The shared store is drawn from a store link on a capability (ADR-1347 D3).
+library.capabilities.find(c => c.id === other).storeLinks = [{ store: STORE, table: 'records', direction: 'read', cites: ['src/records.ts:1'] }];
 const at = '2026-11-16T00:00:00.000Z';
 const pin = (n, anchor, icon, label, stale) => ({ pin: { id: `pin_${String(n).padStart(12, '0')}`, type: 'pin', version: 1, createdAt: at, updatedAt: at,
   fields: { anchor, icon, label, evidence: 'read in the code', commit: 'f'.repeat(40), at } }, ...(stale === undefined ? {} : { stale }) });
@@ -69,7 +70,7 @@ const own = `${capability}/`, onPart = `${capability}/${part}`, onOther = `${oth
 
 await runCapture({
   folder: pictures, dist, seed, survey, name, layouts: captureSeed('code-rows').layouts,
-  answers: { sharedStores: async () => stores, pins: async () => pins },
+  answers: { pins: async () => pins },
   prepare: async ({ page }) => {
     await until(page, 'the ready map', () => document.body.dataset.state === 'ready');
     await until(page, 'every island laid out', () => document.querySelector('[data-layout="laying-out"]') === null, undefined, 1_200_000);

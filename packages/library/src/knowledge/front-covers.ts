@@ -12,7 +12,7 @@
 import { byCreation } from "../creation-order.js";
 import type { Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords } from "../schema/index.js";
-import type { RecordType } from "../schema/types.js";
+import type { RecordType } from "../schema/index.js";
 
 /** What an artifact may link to: another artifact of `types`, never the work. */
 export function artifactsOnly(types: readonly RecordType[]): Expected {

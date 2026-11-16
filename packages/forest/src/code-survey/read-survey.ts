@@ -4,7 +4,7 @@ import path from "node:path";
 
 import type { AnnotatedTree, SchemaRecord } from "@storytree/library";
 import { pinWorldOf, unresolved, type PinReading } from "@storytree/map/pins";
-import { noMergedMain, offThreadSurveyReader, readStores, type CodeSurveyReader, type ImportedFolder, type ProjectSurvey } from "@storytree/map/code-survey";
+import { noMergedMain, offThreadSurveyReader, type CodeSurveyReader, type ImportedFolder, type ProjectSurvey } from "@storytree/map/code-survey";
 
 import { FOREST_CHANNELS, type ForestBridge } from "../render/page.js";
 
@@ -48,12 +48,6 @@ export const forestPageAnswers = [(frame: SurveyPageFrame) => {
       surveyed.set(project, { folder, survey });
       return survey;
     },
-    // The stores the checkout and its imported folders declare, read from their files as they stand (ADR-1332 D2 (1)).
-    sharedStores: async (project) => {
-      const library = frame.library();
-      const folder = await library.projectFolder(project);
-      return folder === undefined ? [] : readStores(folder, await library.projectImports(project));
-    },
     // The live pins, each read against the code last surveyed here: stale, with why, once its anchor no longer resolves (map
     // 9.2). Before a survey of the project's checkout, none is judged stale.
     pins: async (project) => {
@@ -62,8 +56,7 @@ export const forestPageAnswers = [(frame: SurveyPageFrame) => {
       const last = surveyed.get(project);
       if (pins.length === 0 || last === undefined) return pins.map((pin): PinReading => ({ pin }));
       const tree = frame.treeRead(project) ?? await library.projectTree(project);
-      const stores = await readStores(last.folder, await library.projectImports(project));
-      const world = pinWorldOf(tree.stories, last.survey, last.folder, stores, (file) => readFile(path.resolve(last.folder, file), "utf8").catch(() => undefined));
+      const world = pinWorldOf(tree.stories, last.survey, last.folder, (file) => readFile(path.resolve(last.folder, file), "utf8").catch(() => undefined));
       return Promise.all([...pins].sort((one, other) => one.id.localeCompare(other.id)).map(async (pin): Promise<PinReading> => {
         const stale = await unresolved(pin.fields.anchor, world);
         return stale === undefined ? { pin } : { pin, stale };

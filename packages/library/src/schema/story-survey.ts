@@ -76,14 +76,10 @@ export type StorySurvey = {
   readonly mapped?: { readonly folder: string; readonly loop?: readonly string[] };
 };
 
-/** A column of a table, its type as the migration wrote it, lower-cased and compacted. */
-export type StoreColumn = { readonly name: string; readonly type: string };
-/** A foreign key: the table's columns, the table they reference, and its columns there (empty when the key names none). */
-export type StoreForeignKey = { readonly columns: readonly string[]; readonly table: string; readonly references: readonly string[] };
-/** A table of a SQL store, and the migration files that made or changed it, in the order they were applied. */
-export type StoreTable = { readonly name: string; readonly columns: readonly StoreColumn[]; readonly foreignKeys: readonly StoreForeignKey[]; readonly from: readonly string[] };
-/** A piece of evidence for a store: the file, and what in it names the store. */
-export type StoreEvidence = { readonly file: string; readonly says: string };
-export type StoreMedium = "postgres" | "mysql" | "redis" | "mongodb";
-/** A shared store: its address, its medium, the evidence naming it, and (for a SQL store) its tables. */
-export type SharedStore = { readonly address: string; readonly medium: StoreMedium; readonly evidence: readonly StoreEvidence[]; readonly tables: readonly StoreTable[] };
+/** A table of a shared store, as a capability's store link names it (ADR-1347 D2: links carry no columns or foreign keys). */
+export type StoreTable = { readonly name: string };
+/**
+ * A shared store (ADR-1347 D3): its address, its medium (the address's scheme, one spelling per medium), and the tables
+ * the plan's capabilities link to it.
+ */
+export type SharedStore = { readonly address: string; readonly medium: string; readonly tables: readonly StoreTable[] };

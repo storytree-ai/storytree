@@ -13,7 +13,7 @@ import { nestedLayout, partCrossings, regionOf } from "../territories/nested-ter
 import { territoryAt, type Coast, type Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { islandRoadMarks, landFill } from "./island-roads.js";
-import { CLASH, dockedClashes, hiddenByOpening, hideForOpening, namesShown, openedAt, openedMarks, OpenedStore, opensAt, reachPlates, readsUnder, rollUp, touches, UNDER_READS } from "./opened-capability.js";
+import { CLASH, dockedClashes, hiddenByOpening, hideForOpening, namesShown, openedAt, openedMarks, openedOn, OpenedStore, opensAt, reachPlates, readsUnder, rollUp, touches, UNDER_READS } from "./opened-capability.js";
 import { globeHover, pickGlobe } from "./planet-navigation.js";
 import { PARKED_FILL, territoryLand, WORD_FILL } from "./territory-land.js";
 import { landColour } from "./island-roads.js";
@@ -240,4 +240,16 @@ test("3.120 · an opened capability marks each road an import reaching round a p
   const road = placed(marked.inner.segments.filter((s) => s.links.includes(`q->leave:${out}`)).sort((a, b) => length(b.pts) - length(a.pts))[0]!.pts), m = nearest(road, plates[1]!);
   assert.ok(Math.hypot(road[m]!.x - plates[1]!.x, road[m]!.z - plates[1]!.z) < 1, "on that road");
   assert.ok(Math.abs(length(road.slice(0, m + 1)) - length(road) / 2) < length(road) / 4, "about midway along it");
+});
+
+test("3.112 · an island draws the capability open on the map opened only at the parts level, with its territories shown and its roads built, when it is there with parts to open into", () => {
+  const parts = [{ capability: "a" }, { capability: "top:s:ui" }];
+  const open = { story: "s", capability: "top:s:ui" };
+  assert.equal(openedOn(open, "s", "parts", true, true, parts), parts[1]);
+  assert.equal(openedOn(open, "other", "parts", true, true, parts), undefined, "on another island");
+  assert.equal(openedOn(open, "s", "near", true, true, parts), undefined, "above the parts level");
+  assert.equal(openedOn(open, "s", "parts", false, true, parts), undefined, "with the territories hidden");
+  assert.equal(openedOn(open, "s", "parts", true, false, parts), undefined, "before its roads are built");
+  assert.equal(openedOn({ story: "s", capability: "b" }, "s", "parts", true, true, parts), undefined, "with no parts to open into");
+  assert.equal(openedOn(undefined, "s", "parts", true, true, parts), undefined, "with none open");
 });

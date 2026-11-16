@@ -20,6 +20,12 @@ import type { Detail } from "./zoom-detail.js";
 /** The capability open on the map, by its story. */
 export type Opened = { readonly story: string; readonly capability: string } | undefined;
 
+/** The parts of the capability open on the map that island `story` draws opened: at the parts level, with its territories shown
+ * and its roads and relief built, when it is on this island and has parts to open into (3.112); else none. */
+export function openedOn<P extends { readonly capability: string }>(open: Opened, story: string, level: Detail, territories: boolean, built: boolean, parts: readonly P[] | undefined): P | undefined {
+  return open?.story === story && level === "parts" && territories && built ? parts?.find(({ capability }) => capability === open.capability) : undefined;
+}
+
 /** What opens at `level` with `under` beneath the middle of the view: the capability there, or the top part it is within
  * (3.118), at the parts level only, and only in Forest (the Library's islands are outlines, with no land to open). */
 export function openedAt(level: Detail, under: { kind: string; id: string; capability?: string; within?: string } | undefined, mode: "forest" | "library" = "forest"): Opened {

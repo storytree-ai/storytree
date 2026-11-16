@@ -23,8 +23,7 @@ import type { DatabaseSync } from "node:sqlite";
 
 import type { Pool } from "pg";
 
-import { listed } from "../transactions/records.js";
-import type { EditInput, HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, RetireInput, RevertedWrite, RevertInput, RevertWritesInput, SaveInput, Transactions } from "../transactions/types.js";
+import { listed, type EditInput, type HistoryEntry, type HistoryFilter, type ListFilter, type RecordEnvelope, type RetireInput, type RevertedWrite, type RevertInput, type RevertWritesInput, type SaveInput, type Transactions } from "../transactions/index.js";
 import type { VectorDomain } from "./embeddings.js";
 
 interface CachedRow {

@@ -9,6 +9,7 @@ import { hostname } from "node:os";
 import pg from "pg";
 import type { Pool, PoolClient, PoolConfig } from "pg";
 
+import { seconds, waitsOf, type PoolWaits } from "../transactions/index.js";
 import { ConnectionError, sqlState } from "./connection-error.js";
 import { countReads, lastWordsOf, processReaderName } from "./reads.js";
 
@@ -149,7 +150,7 @@ export interface WaitBounds {
 }
 
 /** A pool's pg config, with how long its calls wait (waitMs) and who hears of each wait (onWait). */
-export type WaitingPoolConfig = PoolConfig & Pick<WaitBounds, "waitMs" | "onWait">;
+export type WaitingPoolConfig = PoolConfig & PoolWaits;
 
 /** The pg config for `bounds`: the server ends each statement still running at its bound; the pool waits and says so as `bounds` asks. */
 export function statementBound({ statementTimeoutMs, waitMs, onWait }: WaitBounds = {}): WaitingPoolConfig {
@@ -164,25 +165,6 @@ export function statementBound({ statementTimeoutMs, waitMs, onWait }: WaitBound
 export function actingAs(role: string | undefined): PoolConfig {
   // A startup option: backslash-escape what libpq's option parser would split on.
   return role === undefined ? {} : { options: `-c role=${role.replace(/[\\ ]/g, (c) => `\\${c}`)}` };
-}
-
-/**
- * How long a pool keeps asking for a connection the server refused for want of a free slot
- * (SQLSTATE 53300: too many clients, or the slots left are reserved) before it passes the refusal
- * on, and how long a write waits for another session's to finish, unless the caller bounds it
- * (waitMs). A server shared by parallel sessions frees a slot within seconds as their idle
- * connections close, so a call waits through the rush rather than failing in it.
- */
-export const WAIT_MS = 30_000;
-
-/**
- * How long calls on `pool` wait, for a slot or for the write lock, and the caller's ear for each
- * wait: told once, as it starts, what the call waits for (seen 2026-10-07: commands on a full
- * storytree-pg waited minutes and said nothing).
- */
-export function waitsOf(pool: Pool): { readonly waitMs: number; say(what: string): void } {
-  const { waitMs, onWait } = pool.options as WaitingPoolConfig;
-  return { waitMs: waitMs ?? WAIT_MS, say: (what) => onWait?.(what) };
 }
 
 /**
@@ -300,11 +282,6 @@ function slotWaitingPool(base: typeof pg.Pool): typeof pg.Pool {
       }
     }
   };
-}
-
-/** `ms` as a person reads it: "30 s", "0.3 s". */
-export function seconds(ms: number): string {
-  return `${Math.round(ms / 100) / 10} s`;
 }
 
 /** The code Node or pg gives an error, if any. */

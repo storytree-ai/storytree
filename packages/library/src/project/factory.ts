@@ -225,3 +225,102 @@ function writerOf(options: WriteOptions): WriteOptions {
     ...(options.outsideRead === undefined ? {} : { outsideRead: options.outsideRead }),
   };
 }
+
+/** A project of a factory's circle: opened, or named with why it could not be (ADR-1348 D2). */
+export type Reached<P> = { readonly project: string; readonly opened: P; readonly unopened?: undefined } | { readonly project: string; readonly opened?: undefined; readonly unopened: string };
+
+/** A project asked for that is not of the asking project's factory's circle, or an asking project in none. */
+export class OutsideCircleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "OutsideCircleError";
+  }
+}
+
+/** What the circle needs of a project: its name, its factory link and a way to close it. */
+interface CircleMember {
+  readonly name: string;
+  readonly lineage: Pick<ProjectLineage, "factory">;
+  close(): Promise<void>;
+}
+
+/**
+ * A factory's circle as one project of it reads it (ADR-1348 D2): the factory and every product naming it, reached from
+ * the factory or from any of those products alike, whichever folder a session started in. A project naming no factory
+ * is in no circle and reaches only itself. Each project it opens is opened once, as the project reading it was (its
+ * switches and kinds), and closed with it; a product's factory too, apart from the one it inherits from.
+ */
+export class FactoryCircle<P extends CircleMember> {
+  readonly #self: P;
+  readonly #open: (name: string) => Promise<P>;
+  readonly #list: () => Promise<string[]>;
+  readonly #opened = new Map<string, Promise<P>>();
+
+  /** `open` opens another project as `self` was opened, and `list` names every project on the server. */
+  constructor(self: P, open: (name: string) => Promise<P>, list: () => Promise<string[]>) {
+    this.#self = self;
+    this.#open = open;
+    this.#list = list;
+  }
+
+  /**
+   * The project called `name`, read from this one: this one itself, its factory, or a product naming that factory. One
+   * outside the circle is refused with an OutsideCircleError, and one not on the server with a ProjectGoneError.
+   */
+  async reach(name: string): Promise<P> {
+    if (name === this.#self.name) return this.#self;
+    const home = await this.#home();
+    if (home === undefined) throw new OutsideCircleError(`Project "${this.#self.name}" names no factory, so it reads only its own library, never "${name}"'s.`);
+    let opening = this.#opened.get(name);
+    if (opening === undefined) {
+      opening = this.#member(name, home);
+      opening.catch(() => this.#opened.delete(name));
+      this.#opened.set(name, opening);
+    }
+    return opening;
+  }
+
+  /**
+   * Every other project of the circle, in name order: each opened, or, when it could not be opened, named with why, so
+   * none is skipped in silence. A project that cannot be opened cannot say whether it names the factory, so it is named.
+   */
+  async reachAll(): Promise<Reached<P>[]> {
+    if ((await this.#home()) === undefined) return [];
+    const reached: Reached<P>[] = [];
+    for (const project of (await this.#list()).filter((name) => name !== this.#self.name)) {
+      try {
+        reached.push({ project, opened: await this.reach(project) });
+      } catch (error) {
+        if (error instanceof OutsideCircleError || (error instanceof Error && error.name === "ProjectGoneError")) continue;
+        reached.push({ project, unopened: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    return reached;
+  }
+
+  /** Close every project this circle opened. */
+  async close(): Promise<void> {
+    const opened = [...this.#opened.values()];
+    this.#opened.clear();
+    await Promise.all(opened.map((opening) => opening.then((project) => project.close(), () => undefined)));
+  }
+
+  /** The circle's factory: this project when it is one, the factory it names when a product, else none. */
+  async #home(): Promise<string | undefined> {
+    const link = await this.#self.lineage.factory();
+    if (link.kind === "factory") return this.#self.name;
+    return link.kind === "product" ? link.factory : undefined;
+  }
+
+  /** Open `name`, keeping it only when it is the factory `home` itself or a product naming it. */
+  async #member(name: string, home: string): Promise<P> {
+    const project = await this.#open(name);
+    const link = await project.lineage.factory().catch(async (error: unknown) => {
+      await project.close();
+      throw error;
+    });
+    if ((name === home && link.kind === "factory") || (link.kind === "product" && link.factory === home)) return project;
+    await project.close();
+    throw new OutsideCircleError(`Project "${name}" is neither factory "${home}" nor a project that names it, so it is not read from project "${this.#self.name}".`);
+  }
+}

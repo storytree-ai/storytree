@@ -6,7 +6,8 @@
 import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, STORE_LINK_DIRECTIONS, wordAndWhy, type AnnotatedTree, type StoreLink, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
-import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
+import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange, libraryNamed } from "@storytree/library/commands";
+import { VerbRefusal } from "@storytree/library/verbs";
 import { oversizedSaid } from "@storytree/arc-surface/verbs";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
 import { elsewhereSaid, type MapNode } from "@storytree/map";
@@ -294,14 +295,27 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "show_plan",
-    "See the plan: every story, capability and contract with its health, who holds what, which sessions are about, and the live arcs with those closed yesterday or today. Give closed, or from and to, for only the arcs closed in that window instead. A plan too large to read whole is given as an overview, each story and arc counted: give id for one story, capability or arc whole.",
+    "See the plan: every story, capability and contract with its health, who holds what, which sessions are about, and the live arcs with those closed yesterday or today. Give closed, or from and to, for only the arcs closed in that window instead. A plan too large to read whole is given as an overview, each story and arc counted: give id for one story, capability or arc whole. Give project for the plan of the factory's library or of a project it builds.",
     z.object({
       id: z.string().optional().describe("A story's, a capability's or an arc's id: that part of the plan whole, instead of the whole plan"),
       closed: z.enum(["today", "yesterday", "week"]).optional().describe("Only the arcs closed today, yesterday or this week (the last seven days)"),
       from: z.string().regex(DAY).optional().describe("Only the arcs closed from this day (YYYY-MM-DD), with to"),
       to: z.string().regex(DAY).optional().describe("Only the arcs closed up to this day (YYYY-MM-DD), included, with from"),
+      project: z.string().optional().describe("Another project's plan instead of this folder's: its factory's, or a project that factory builds"),
     }),
-    async (ask, call) => planAnswer(call, ask),
+    async ({ project, ...ask }, call) => {
+      if (project === undefined || project === call.library.name) return planAnswer(call, ask);
+      // Another library of the factory's circle (ADR-1348 D2): its plan, its claims and its sessions, under its name.
+      let library: Library;
+      try {
+        library = await libraryNamed(call.library, project);
+      } catch (error) {
+        if (error instanceof VerbRefusal) return { text: error.message, refused: true };
+        throw error;
+      }
+      const answer = await planAnswer({ ...call, library, project: library.name }, ask);
+      return answer.refused === true ? answer : { ...answer, text: `project ${library.name}:\n${answer.text}` };
+    },
   );
 }
 

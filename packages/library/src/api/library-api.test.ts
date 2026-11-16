@@ -45,6 +45,8 @@ const LIBRARY_API = [
   "list",
   "inherited",
   "factoryLibrary",
+  "reach",
+  "reachAll",
   "history",
   "addStory",
   "mapStories",

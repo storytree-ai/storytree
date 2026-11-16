@@ -1093,3 +1093,63 @@ test("17.25 · The open tool reads a question with an Evidence line naming each 
   await library.retire(research.id, "overtaken");
   assert.match((await open.act({ id: question.id }, context, WORDS)).text, new RegExp(`Evidence: ${research.id} \\(no longer live\\)$`), "a link whose record was retired says so");
 });
+
+test("17.30 · library search and read, and the search_notes and open tools, read the factory's library or a project it builds when named, from the factory's folder or a project's, each result under its project; all searches every one, naming one that could not be opened; a project outside is refused (ADR-1348 D2)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const [factoryName, productName, outsideName] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  t.after(async () => {
+    try {
+      for (const name of [productName, factoryName, outsideName]) await storytree.dropProject(name).catch(() => undefined);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const factory = await storytree.openProject(factoryName);
+  await factory.markFactory();
+  const howToWork = await factory.recordDecision({ status: "accepted", title: "Land by pull request", text: "Every change lands by pull request." });
+  const product = await storytree.openProject(productName);
+  await product.recordFactory(factoryName);
+  const sitePlan = await product.recordDecision({ status: "accepted", title: "The site's pages land by pull request", text: "The site lands by pull request too." });
+  await storytree.openProject(outsideName);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family.verbs.find((one) => mounted(one.command) && one.command.name === name)!;
+  const toolOf = (name: string): Verb<VerbInputs, NoteToolContext> => NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === name)!;
+  const reads: NoteRead[] = [];
+  const contextOf = (library: typeof factory): LibraryVerbContext & NoteToolContext => ({
+    library, project: library.name, session: "lane", folder: process.cwd(),
+    claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }),
+    notesRead: async () => reads, recordReads: async (more) => void reads.push(...more), presenterOf: async () => undefined,
+  });
+  // The product's folder reopens it, so it reads its factory (29.2).
+  const fromProduct = contextOf(await storytree.openProject(productName));
+  const fromFactory = contextOf(factory);
+
+  // From the factory's folder: the product's library, by name, its results under its name.
+  const searched = await verbOf("search").act({ words: ["land", "by", "pull", "request"], limit: undefined, history: false, kind: [], project: [productName] }, fromFactory, WORDS);
+  assert.match(searched.text, new RegExp(`^project ${productName}:`));
+  assert.ok(searched.text.includes(sitePlan.id) && !searched.text.includes(howToWork.id), "the product's decision, not the factory's");
+  const read = await verbOf("read").act({ ids: [sitePlan.id], linked: false, field: undefined, out: undefined, project: productName }, fromFactory, WORDS);
+  assert.match(read.text, new RegExp(`^project ${productName}:[\\s\\S]*${sitePlan.id}`));
+  await assert.rejects(verbOf("read").act({ ids: [sitePlan.id], linked: false, field: undefined, out: undefined, project: undefined }, fromFactory, WORDS), /no record .* in this project/, "named nowhere, it reads the folder's own");
+
+  // From the product's folder: the factory's library, and every one with all.
+  const all = await verbOf("search").act({ words: ["land", "by", "pull", "request"], limit: undefined, history: false, kind: ["decision"], project: ["all"] }, fromProduct, WORDS);
+  const own = all.text.indexOf(`project ${productName}:`);
+  const theirs = all.text.indexOf(`project ${factoryName}:`);
+  assert.ok(own >= 0 && theirs > own, "its own first, then the factory's");
+  assert.ok(all.text.slice(own, theirs).includes(sitePlan.id) && all.text.slice(theirs).includes(howToWork.id), "each result under its project");
+  assert.ok(!all.text.includes(outsideName), "a project naming no factory is no part of it");
+  const tool = await toolOf("search_notes").act({ query: "land by pull request", limit: undefined, history: false, kinds: ["decision"], projects: [factoryName] }, fromProduct, WORDS);
+  assert.deepEqual((tool.data!.notes as { id: string; project: string }[]).map(({ id, project }) => [id, project]), [[howToWork.id, factoryName]]);
+  const opened = await toolOf("open").act({ id: howToWork.id, field: undefined, project: factoryName }, fromProduct, WORDS);
+  assert.match(opened.text, new RegExp(`^project ${factoryName}:\\n[\\s\\S]*Land by pull request`));
+  assert.equal((await toolOf("open").act({ id: howToWork.id, field: "text", project: factoryName }, fromProduct, WORDS)).text, "Every change lands by pull request.", "one field, exactly as stored");
+  assert.equal((await verbOf("read").act({ ids: [howToWork.id], linked: false, field: "title", out: undefined, project: factoryName }, fromProduct, WORDS)).text, "Land by pull request");
+  assert.ok(!reads.some(({ note }) => note === howToWork.id), "another project's record is no read on this folder's knowledge core");
+
+  // A project outside the circle is refused; one that could not be opened is named with why, never skipped.
+  await assert.rejects(verbOf("read").act({ ids: [sitePlan.id], linked: false, field: undefined, out: undefined, project: outsideName }, fromProduct, WORDS), (error: unknown) => error instanceof VerbRefusal && error.message.includes(outsideName));
+  const shut = { ...fromProduct, library: { ...fromProduct.library, reachAll: async () => [{ project: "elsewhere", unopened: "permission denied for table record" }] } };
+  const named = await verbOf("search").act({ words: ["land"], limit: undefined, history: false, kind: [], project: ["all"] }, shut, WORDS);
+  assert.match(named.text, /project elsewhere: not read: it could not be opened from this computer: permission denied for table record/);
+});

@@ -1,6 +1,6 @@
 /**
  * Capability 1 · Project libraries: one test per contract in the library story; and capability 29 · Factory and
- * product (29.1-29.6) and capability 30 · Outside writers' 30.4, whose tests share this file's fixtures.
+ * product (29.1-29.7) and capability 30 · Outside writers' 30.4, whose tests share this file's fixtures.
  *
  * These run against the real Postgres that `pnpm test` provides. Every project a test makes is
  * named with uniqueProjectName() and its databases are dropped at the end, pass or fail, so tests
@@ -17,7 +17,7 @@ import { quietFor, waitUntil } from "@storytree/test-waits";
 
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
 import { ConnectionError, ProjectGoneError, connect, type Project, type Storytree } from "./index.js";
-import type { InheritedRecords } from "./factory.js";
+import { FactoryCircle, type InheritedRecords } from "./factory.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import type { FieldsOf, RecordType } from "../schema/index.js";
 
@@ -819,6 +819,79 @@ test("30.4 a project opened with a plugin's kinds writes and reads them, its sys
     await assert.rejects(unmounted.records.create(voice, { words: "another" } as FieldsOf<RecordType>), { name: "UnknownTypeError" });
     await unmounted.close();
   });
+});
+
+test("29.7 from a factory or any product naming it, a project reaches each library of that factory's circle by name, refuses one outside it, and lists the circle naming each project it cannot open (ADR-1348 D2)", async () => {
+  const [factory, first, second, hidden, outside] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  const ours = [factory, first, second, hidden, outside];
+  const reader = `${factory}-reader`;
+  let opened: Storytree | undefined;
+  try {
+    await withStorytree(ours.map(databaseOf), async (storytree) => {
+      const made = await storytree.openProject(factory);
+      await made.lineage.markFactory();
+      const role = await made.knowledge.writeKnowledge("principle", { title: "Keep it small", description: "Small.", statement: "Keep it small.", why: "It helps.", howToApply: "Do it." });
+      const decisions: Record<string, string> = {};
+      for (const name of [first, second, hidden]) {
+        const product = await storytree.openProject(name);
+        await product.lineage.recordFactory(factory);
+        decisions[name] = (await product.knowledge.recordDecision({ title: `${name}'s own decision`, text: "Kept in the product.", status: "accepted" })).id;
+      }
+      await storytree.openProject(outside);
+
+      // From the factory: each product naming it, its own memory included, opened once; a project naming no factory is refused.
+      const product = await made.reach(first);
+      assert.equal(product.name, first);
+      assert.equal(await made.reach(first), product, "a project reached again is the one opened before");
+      assert.equal((await product.records.get(decisions[first]!))?.id, decisions[first], "the factory reads a product's own decision");
+      assert.equal(await made.reach(factory), made, "its own name is itself");
+      await assert.rejects(made.reach(outside), new RegExp(`"${outside}".*factory "${factory}"`, "s"));
+      await assert.rejects(made.reach(uniqueProjectName()), /no project/);
+
+      // From a product: its factory and the factory's other products, never one outside, each opened with the product's
+      // switches and kinds, and closed with it.
+      const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" } }, required: ["words"] }, writers: ["storytree_voice"] };
+      const built = await storytree.openProject(second, { system: { off: [role.id], on: [] }, kinds: [note] });
+      const theirs = await built.reach(factory);
+      assert.equal((await theirs.records.get(role.id))?.id, role.id, "a switched-off note still reads by its id");
+      assert.deepEqual(await theirs.records.list("principle"), [], "the factory reached reads with the product's switches");
+      const sibling = await built.reach(first);
+      assert.equal(((await sibling.records.get(decisions[first]!))?.fields as { title?: string } | undefined)?.title, `${first}'s own decision`);
+      assert.deepEqual((await sibling.records.create("voice.note" as RecordType, { words: "a note" } as FieldsOf<RecordType>)).fields, { words: "a note" }, "and with its kinds");
+      await assert.rejects(built.reach(outside), new RegExp(`"${outside}"`));
+      await built.close();
+      await assert.rejects(sibling.records.list("decision"), "what it reached is closed with it");
+      await assert.rejects(theirs.records.list("decision"));
+
+      // A project the server lists but loses before it is opened is gone, not unopened, and left out.
+      const lost = new FactoryCircle(made, async () => {
+        throw new ProjectGoneError("lost");
+      }, async () => ["lost"]);
+      assert.deepEqual(await lost.reachAll(), []);
+
+      // A project naming no factory reaches only itself.
+      const alone = await storytree.openProject(outside);
+      await assert.rejects(alone.reach(factory), /names no factory/);
+      assert.deepEqual(await alone.reachAll(), []);
+
+      // The circle, listed from a connection that may read all but one product: that one is named with why, never skipped,
+      // and one it may read that names no factory is left out.
+      await createReader(reader, databaseOf(factory));
+      for (const name of [first, second, outside]) {
+        await withTestClient((client) => client.query(`GRANT CONNECT ON DATABASE "${databaseOf(name)}" TO "${reader}"`));
+        await withTestClient((client) => client.query(`GRANT USAGE ON SCHEMA public TO "${reader}"; GRANT SELECT ON library_meta, record, record_event TO "${reader}"`), databaseOf(name));
+      }
+      opened = await connect({ url: as(reader) });
+      const reading = await opened.openProject(second);
+      const circle = (await reading.reachAll()).filter(({ project }) => ours.includes(project));
+      assert.deepEqual(circle.map(({ project, opened: library }) => [project, library?.name]), [[factory, factory], [first, first], [hidden, undefined]].sort((a, b) => (a[0]! < b[0]! ? -1 : 1)));
+      const unopened = circle.find(({ project }) => project === hidden);
+      assert.match(unopened?.unopened ?? "", /permission denied/, "it says why it could not be opened");
+    });
+  } finally {
+    await opened?.close();
+    await dropTestRoles([reader]);
+  }
 });
 
 test("1.28 · a change to the history goes only through the logged repair switch, for the owner too, and the owner's ordinary writes pass under the row-level security the project forces", async () => {

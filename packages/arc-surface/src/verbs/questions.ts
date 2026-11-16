@@ -26,7 +26,7 @@
 import { verb, VerbRefusal } from "@storytree/library/verbs";
 import type { SchemaRecord } from "@storytree/library";
 
-import { labelOf, releasedAsking, valueOf, type ArcVerbContext } from "./context.js";
+import { labelOf, readsElsewhere, releasedAsking, valueOf, type ArcVerbContext } from "./context.js";
 
 const NO_TOOL = "the MCP server's own question tools do this";
 
@@ -459,7 +459,7 @@ async function evidenceLine(library: ArcVerbContext["library"], question: Schema
 }
 
 /** The question verbs, as the command line's `question` family lists them. */
-export const QUESTION_VERBS = [raise, show, present, settle, retire, move, list, check, renew, predict, prediction, score, prep, deviation, linkNamed];
+export const QUESTION_VERBS = [raise, readsElsewhere(show), present, settle, retire, move, readsElsewhere(list), check, renew, predict, prediction, score, prep, deviation, linkNamed];
 
 /** Words agents try for reading one question. */
 export const QUESTION_GUESSES: Readonly<Record<string, string>> = { read: "question show <id>", get: "question show <id>", open: "question show <id>" };

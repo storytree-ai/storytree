@@ -27,7 +27,7 @@ import { readClaims } from "@storytree/session-management";
 import { sessionsFrom } from "@storytree/session-management/readings";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
-import { approveCheckout, projectDatabase, testServerDataDir, testServerUrl } from "@storytree/project-and-caller/testing/pg";
+import { approveCheckout, dropTestProjects, projectDatabase, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { createAgentTools, type ToolExtension } from "../index.js";
 import { protectionThrough, storytreeRef } from "@storytree/app-setup/pipeline";
 import { registerPlanTools } from "./plan-tools.js";
@@ -939,6 +939,34 @@ test("app-setup 11.12 when the test command runs pytest without -rA, wire_pipeli
         assert.doesNotMatch(wired.text, /without -rA/, test);
       }
     });
+  });
+});
+
+test("9.43 show_plan with project gives the plan of the factory's library or of a project it builds, from either folder, under that project's name; a project outside the circle is refused (ADR-1348 D2)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    const [productName, outsideName] = [uniqueProjectName(), uniqueProjectName()];
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await library.markFactory();
+      const product = await storytree.openProject(productName);
+      await product.recordFactory(project);
+      await product.createArc({ title: "Ricky's site goes live", intent: "Ship it", endState: "It is live" });
+      await storytree.openProject(outsideName);
+      const acts = new Map<string, (args: never, call: Call) => Promise<{ text: string; refused?: boolean }>>();
+      registerPlanTools(((name, _description, _input, act) => acts.set(name, act as never)) as Define);
+      const call = { library, log, project, folder, caller: { session: "claude-1" }, writer: {}, quietMs: 60_000, agent: "orchestrator" } as Call;
+      const theirs = await acts.get("show_plan")!({ project: productName } as never, call);
+      assert.match(theirs.text, new RegExp(`^project ${productName}:\\n[\\s\\S]*"Ricky's site goes live"`));
+      assert.doesNotMatch((await acts.get("show_plan")!({} as never, call)).text, /Ricky's site/, "named nowhere, it is the folder's own plan");
+      const fromProduct = { ...call, library: await storytree.openProject(productName), project: productName } as Call;
+      assert.match((await acts.get("show_plan")!({ project } as never, fromProduct)).text, new RegExp(`^project ${project}:`));
+      const outside = await acts.get("show_plan")!({ project: outsideName } as never, fromProduct);
+      assert.equal(outside.refused, true);
+      assert.match(outside.text, new RegExp(outsideName));
+    } finally {
+      await storytree.close();
+      await dropTestProjects([productName, outsideName]);
+    }
   });
 });
 

@@ -8,7 +8,7 @@
  *
  * Each story's package declares its own section in its manifest (the guidance kind, ADR-1021), and the card is
  * composed from the packages the server mounts, in their manifests' order (contract 7.10). Only the opening, the
- * setup check's paragraph and the closing are the server's own: what storytree is, how a session starts and what to
+ * setup check's paragraph, where a write goes and the closing are the server's own: what storytree is, how a session starts and what to
  * do when it is not running speak of storytree as a whole, and belong to no one story.
  *
  * A part this computer switches off (ADR-1095) takes its section with it, and the card names it switched off instead,
@@ -51,6 +51,12 @@ const SETUP = "Start every session with `check_setup`, and do what it says. If t
  */
 const WORDS = `The tools name things in the library's words; to the user, say ${(["capability", "arc", "increment"] as const).map((concept) => `"${CONCEPTS[concept].one}" for ${concept}`).join(", ")}.`;
 
+/**
+ * Where a write goes is named, never read from the folder (ADR-1348 D3): every tool that writes takes it, so the card says
+ * it once for them all, as the tool server's own.
+ */
+const PLACE = "A tool that writes the library names where the write goes: give project (this folder's own, its factory, or a project that factory builds), or the arc or increment the write is about; a write naming none is refused.";
+
 const CLOSING = "If storytree says it isn't running, carry on without it.";
 
 /**
@@ -63,5 +69,5 @@ export function habitsCard(off: readonly string[] = [], standIns: StandIns = { p
   const servedBy = new Set(Object.values(composed.standsIn ?? {}));
   const unserved = switched.filter(({ part }) => !servedBy.has(part));
   const said = unserved.length === 0 ? [] : [`Switched off on this computer, so not served here: ${unserved.map(({ part }) => part).join(", ")}. The user switches one on with: storytree settings set module <module> on`];
-  return [`${OPENING} ${SETUP}`, ...mounted, WORDS, ...said, CLOSING].join("\n\n");
+  return [`${OPENING} ${SETUP}`, ...mounted, `${WORDS} ${PLACE}`, ...said, CLOSING].join("\n\n");
 }

@@ -25,6 +25,9 @@
  * - names that hook's line as the cause of its `tool-called` line and of the reads it records
  *   (ADR-0746 D2); a call no hook saw names none;
  * - ends each claim whose pull request has merged since it was taken (ADR-0643 D3);
+ * - when the tool writes a library, takes `project`, `arc` or `increment`, at least one, and writes to the library they
+ *   name (ADR-1348 D3): a call naming none is refused saying what to pass, and so is one naming a project outside the
+ *   folder's factory's circle; the folder still names the session's project, whose log the call is recorded in;
  * - can report each phase of its work as an MCP progress notification, when the client asked for
  *   progress, and stops at its next phase once the client has cancelled it (6.41);
  * - turns a refusal from the library or the claims into a readable answer marked as an error,
@@ -44,10 +47,10 @@ import { findProject, idleAfterMs, importsOf, machineOf, readPartsOff, readStand
 import { mount, offSaid, recordKinds, standIn, switchedOff } from "@storytree/plugin-loader";
 import { unnamedPlugins } from "@storytree/plugin-loader/factory";
 import { heldBack, type Agent, type HealthWorkItem, type Library, type Storytree, type WriteOptions } from "@storytree/library";
-import type { Consumer } from "@storytree/library/verbs";
+import { VerbRefusal, WHERE_INPUTS, whereOf, writtenLibrary, type Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
 import { asReader } from "@storytree/library/reads";
-import type { z } from "zod";
+import { z } from "zod";
 
 // The other stories' tools (ADR-0643 D6), in their manifests' order: the plugin loader composes them from the
 // manifests of the story packages this server depends on (ADR-1021).
@@ -164,6 +167,12 @@ export interface Call {
 /** What else a tool is defined with: who calls it (ADR-1045 D1), both an agent and a person when left out. */
 export interface DefineOptions {
   readonly consumers?: readonly Consumer[];
+  /**
+   * The tool writes a library (ADR-1348 D3): it takes `project`, `arc` and `increment`, those it does not declare itself
+   * added, and a call naming none of them is refused; the call's library is the one they name, the folder's project
+   * still the session's.
+   */
+  readonly writes?: true;
 }
 
 /** Registers one tool: its name, what it is for, its arguments, what it does with them, and who calls it. */
@@ -320,6 +329,9 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   const define: Define = (name, description, input, act, defined = {}) => {
     servedTools.push(name);
     if (defined.consumers !== undefined) consumers.set(name, defined.consumers);
+    // A write takes where it goes: the inputs naming it that the tool does not declare itself are added, and dropped again before it acts.
+    const added = defined.writes === true ? Object.keys(WHERE_INPUTS).filter((key) => !(key in input.shape)) as (keyof typeof WHERE_INPUTS)[] : [];
+    const schema = added.length === 0 ? input : input.extend(Object.fromEntries(added.map((key) => [key, z.string().min(1).optional().describe(WHERE_INPUTS[key].describe)])));
     const handle = async (args: unknown, context: ServerContext): Promise<CallToolResult> => {
       const where = route(options.folder, locate);
       if (where.status === "not-running") return result({ text: NOT_RUNNING_ANSWER });
@@ -348,8 +360,9 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         }
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
         await endMergedClaims({ log, project: where.project, folder, ...lineOf(caller), source: "tool", library: async () => library }, options.merges).catch(() => []);
-        const answered = await act(args as never, {
-          library, log, storytree, project: where.project, caller,
+        const place = defined.writes === true ? await writePlace(library, args as Record<string, unknown>, added) : { library, args };
+        const answered = "refusal" in place ? { text: place.refusal, refused: true } : await act(place.args as never, {
+          library: place.library, log, storytree, project: where.project, caller,
           // What the session's hooks saw it read from outside, asked for only by a write to a marked knowledge kind (6.106).
           writer: { actor: `session:${caller.session}`, signal: context.mcpReq.signal, outsideRead: () => outsideTextReads(log, where.project, caller.session) },
           folder,
@@ -377,7 +390,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     };
     // The SDK checks the arguments against `input` before `handle` runs; its callback type is
     // written per schema, which a wrapper serving every tool cannot name, hence the cast.
-    server.registerTool(name, { description, inputSchema: input }, readAs(name, handle) as never);
+    server.registerTool(name, { description, inputSchema: schema }, readAs(name, handle) as never);
   };
 
   // A harness's tool is answered through the same connections, but its call is not an agent's: no tool-called or
@@ -524,4 +537,18 @@ function text(value: unknown): string | undefined {
 /** `handle` run as reader `tool <name>`: what the call reads from the library, its routing and log lines included, is counted as the tool's (contract 6.107). */
 function readAs<A extends unknown[], R>(name: string, handle: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
   return (...args) => asReader(`tool ${name}`, () => handle(...args));
+}
+
+/**
+ * Where a write lands (ADR-1348 D3): the library its `args` name, read from the folder's `library`, with the inputs the
+ * door `added` dropped, or the refusal saying what to name.
+ */
+async function writePlace(library: Library, args: Record<string, unknown>, added: readonly string[]): Promise<{ library: Library; args: Record<string, unknown> } | { refusal: string }> {
+  try {
+    const target = await writtenLibrary(library, whereOf(args));
+    return { library: target, args: Object.fromEntries(Object.entries(args).filter(([key]) => !added.includes(key))) };
+  } catch (error) {
+    if (error instanceof VerbRefusal) return { refusal: error.message };
+    throw error;
+  }
 }

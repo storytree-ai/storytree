@@ -69,6 +69,7 @@ export function registerWorkTools(define: Define): void {
         return { ...saved, text: `${said}${reopened}` };
       });
     },
+    { writes: true },
   );
 
   define(
@@ -92,6 +93,7 @@ export function registerWorkTools(define: Define): void {
         return { ...saved, text: `${saved.text}${arc}` };
       });
     },
+    { writes: true },
   );
 
   define(
@@ -105,6 +107,7 @@ export function registerWorkTools(define: Define): void {
       const saved = { text: `${said} ${to}.`, data: { id: increment } };
       return afterWrite(saved, async () => ({ ...saved, text: `${said} ${await arcName(library, to)}.` }));
     },
+    { writes: true },
   );
 
   define(
@@ -117,6 +120,7 @@ export function registerWorkTools(define: Define): void {
       if (edited === null) return noIncrement(increment);
       return { text: `${quoted(edited.fields.title)} (${increment}) now remedies ${edited.fields.remedies?.join(", ")}.`, data: { id: increment } };
     },
+    { writes: true },
   );
 
   define(
@@ -133,6 +137,7 @@ export function registerWorkTools(define: Define): void {
       const day = until === undefined ? "" : ` until ${until}: it wakes by itself at UTC midnight`;
       return { text: parked ? `Parked arc ${quoted(done.fields.title)} (${arc})${day}.` : `Unparked arc ${quoted(done.fields.title)} (${arc}).`, data: { id: arc } };
     },
+    { writes: true },
   );
 
   define(
@@ -165,6 +170,7 @@ export function registerWorkTools(define: Define): void {
       if (done === null) return { text: `There is no increment or arc ${waiter} in this project's plan.`, refused: true };
       return { text: `${waiter} now waits on ${on}: ${reason}.`, data: { id: waiter } };
     },
+    { writes: true },
   );
 
   define(
@@ -199,6 +205,7 @@ export function registerWorkTools(define: Define): void {
         : " Nobody holds it, so the pool may start it now: to finish it yourself, claim it at once.";
       return { text: `${waiter} no longer waits ${on !== undefined ? `on ${on}` : `for ${releasedBy(releaser!)}`}.${ready}`, data: { id: waiter } };
     },
+    { writes: true },
   );
 
   define(
@@ -234,6 +241,7 @@ export function registerWorkTools(define: Define): void {
       const waiting = holding.size === 0 ? "" : ` ${[...holding.keys()].join(", ")} ${holding.size === 1 ? "waits" : "wait"} on the answer.`;
       return { text: `Raised ${quoted(asked.title)} (${question.id}) on the arc for the owner.${waiting}${releasedSaid(released)}`, data: { id: question.id, released } };
     },
+    { writes: true },
   );
 
   define(
@@ -258,6 +266,7 @@ export function registerWorkTools(define: Define): void {
       if (corrected === null) return { text: `There is no question ${question} in this project.`, refused: true };
       return { text: `Corrected ${quoted(corrected.fields.title)} (${question}).`, data: { id: question } };
     },
+    { writes: true },
   );
 
   define(
@@ -275,6 +284,7 @@ export function registerWorkTools(define: Define): void {
       const goesOn = freed.length === 0 ? "" : ` Released ${freed.join(", ")}, which no longer ${freed.length === 1 ? "waits" : "wait"} on it.`;
       return { text: `Settled ${quoted(settled.fields.title)} (${question}).${goesOn}`, data: { id: question, released: settled.released } };
     },
+    { writes: true },
   );
 
   define(
@@ -288,6 +298,7 @@ export function registerWorkTools(define: Define): void {
       const saved = { text: `${said} ${to}.`, data: { id: question } };
       return afterWrite(saved, async () => ({ ...saved, text: `${said} ${await arcName(library, to)}.` }));
     },
+    { writes: true },
   );
 
   define(
@@ -302,6 +313,7 @@ export function registerWorkTools(define: Define): void {
       const freed = released.length === 0 ? "" : ` Released ${released.join(", ")}, which no longer ${released.length === 1 ? "holds" : "hold"} on it.`;
       return { text: `Retired question ${question}.${freed}`, data: { id: question, released } };
     },
+    { writes: true },
   );
 }
 

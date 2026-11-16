@@ -5,7 +5,8 @@
  * piece of work done for the calling session, and one answer: a sentence, data, and next steps each door words in its
  * own terms. The library holds the schema so every story downstream, the library's own included, imports it; reading a
  * door's words into a verb's input is each door's own code (ADR-1035 D2). What else a verb's work needs, such as
- * Session management's activity log, its declaring story adds to the context it types.
+ * Session management's activity log, its declaring story adds to the context it types. A verb that writes a library
+ * names where the write goes (WHERE_INPUTS, ADR-1348 D3), and `writtenLibrary` reads the library it names.
  *
  * Nothing here loads anything: a door's menus read declarations at start, and the work a verb does is imported
  * inside its act.
@@ -206,4 +207,77 @@ export function judgedByLines(consumers: readonly Consumer[]): boolean {
 /** Whether a door mounts the verb: a face that is not `Absent`. */
 export function mounted<T extends object>(face: T | Absent): face is T {
   return !("absent" in face);
+}
+
+/**
+ * Where a write goes (ADR-1348 D3): every verb or tool that writes a library takes these, at least one, so the library it
+ * lands in is named, never read from the folder. A door adds each one a write does not declare itself; a write's own
+ * `arc` or `increment` input names its place as well.
+ */
+export const WHERE_INPUTS = {
+  project: { kind: "text", optional: true, describe: "The project this write is about, whose library it lands in: this folder's own, its factory, or a project that factory builds. Name it, the arc or the increment: at least one" },
+  arc: { kind: "text", optional: true, describe: "The arc this write is about: it lands in the library holding that arc" },
+  increment: { kind: "text", optional: true, describe: "The increment this write is about: it lands in the library holding that increment" },
+} as const satisfies VerbInputs;
+
+/** The place a write names: a project, an arc, an increment, or several. */
+export interface WhereNamed {
+  readonly project?: string | undefined;
+  readonly arc?: string | undefined;
+  readonly increment?: string | undefined;
+}
+
+/** The place `given` names: its project, arc and increment, each only when it is text that is not blank. */
+export function whereOf(given: Readonly<Record<string, unknown>>): WhereNamed {
+  const named = (value: unknown): string | undefined => typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+  return { project: named(given.project), arc: named(given.arc), increment: named(given.increment) };
+}
+
+/**
+ * The library a write naming `named` lands in, read from `library`, the folder's own (ADR-1348 D3): the library of the
+ * project it names, which must be this one, its factory or a project that factory builds, and the library holding the
+ * arc or increment it names, looked for in that project's alone when one is named, else in this one's and then in the
+ * rest of its factory's circle. A write naming none is refused as a misuse, saying what to pass; so is a project
+ * outside the circle, an arc or increment no library this folder reads holds, and one another project holds than the
+ * one named or the one its arc or increment is in.
+ */
+export async function writtenLibrary(library: Library, named: WhereNamed): Promise<Library> {
+  const { project, arc, increment } = named;
+  if (project === undefined && arc === undefined && increment === undefined) {
+    throw new VerbRefusal(`A write names where it goes (ADR-1348 D3): give project, the project it is about (this folder's is "${library.name}"), or the arc or the increment it is on.`, { misuse: true });
+  }
+  let target = project === undefined ? undefined : await projectLibrary(library, project);
+  for (const [kind, id] of [["arc", arc], ["increment", increment]] as const) {
+    if (id === undefined) continue;
+    target = await holding(library, target, kind, id);
+  }
+  return target!;
+}
+
+/** The library of `project`, read from `library`: its own, or one of its factory's circle; anything else is refused. */
+async function projectLibrary(library: Library, project: string): Promise<Library> {
+  if (project === library.name) return library;
+  try {
+    return await library.reach(project);
+  } catch (error) {
+    if (error instanceof Error && (error.name === "OutsideCircleError" || error.name === "ProjectGoneError")) {
+      throw new VerbRefusal(`${error.message} A write names this folder's project ("${library.name}"), its factory or a project that factory builds.`, { misuse: true });
+    }
+    throw error;
+  }
+}
+
+/**
+ * The library holding the `kind` called `id`: `within` when a project or another place is already named, which must
+ * hold it, else this folder's own or, failing that, the first of its factory's circle that does.
+ */
+async function holding(library: Library, within: Library | undefined, kind: "arc" | "increment", id: string): Promise<Library> {
+  const holds = async (each: Library): Promise<boolean> => (await each.get(id))?.type === kind;
+  if (within !== undefined) {
+    if (await holds(within)) return within;
+    throw new VerbRefusal(`Project "${within.name}" holds no ${kind} ${id}: name the project, arc and increment of one place.`, { misuse: true });
+  }
+  if (await holds(library)) return library;
+  for (const each of await library.reachAll()) if (each.opened !== undefined && (await holds(each.opened))) return each.opened;
+  throw new VerbRefusal(`No library this folder reads holds ${kind} ${id}: check its id, or name the project it is about instead.`, { misuse: true });
 }

@@ -51,7 +51,7 @@ interface ToolAnswer {
 }
 
 /** Registers one tool: its name, what it is for, its arguments, what it does with them, and who calls it. */
-type Define = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>, options?: { readonly consumers?: readonly Consumer[] }) => void;
+type Define = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>, options?: { readonly consumers?: readonly Consumer[]; readonly writes?: true }) => void;
 
 /** Who started a run, as the process ledger reads it (ADR-1017 D2). */
 interface RunOwner {
@@ -361,6 +361,8 @@ function registerLandingTools(define: Define, landing: Landing | undefined): voi
       note: z.string().min(1).optional().describe("Anything worth saying with it"),
     }),
     async ({ contract, result, note }, call) => reportContract(call.library, { contract, result, ...(note === undefined ? {} : { note }) }, { writer: call.writer, session: call.caller.session, ...(call.caller.harness === undefined ? {} : { harness: call.caller.harness }) }),
+
+    { writes: true },
   );
 
   define(

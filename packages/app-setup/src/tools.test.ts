@@ -102,3 +102,16 @@ test("12.1 · import_project's reply asks the agent to name and describe the cap
     }
   });
 });
+
+test("12.11 · each App setup tool that writes a library, handed a library other than the folder's project, is refused naming the folder's project, reading and writing nothing (ADR-1348 D3)", async () => {
+  const tools = setupTools();
+  // The server hands the library the call named, here the factory's; any read of it or the connection throws.
+  const unread = () => { throw new Error("read"); };
+  const call = { library: new Proxy({}, { get: (_library, key) => (key === "name" ? "shops-factory" : unread()) }), storytree: new Proxy({}, { get: unread }), project: "shop", folder: path.resolve("/nowhere-here") } as never;
+  const asked: Record<string, Record<string, unknown>> = { take_starter_pack: {}, move_onto_factory: {}, import_project: { folder: "." }, wire_pipeline: { test: "npm test" } };
+  for (const [tool, args] of Object.entries(asked)) {
+    const answered = await tools[tool]!(args, call);
+    assert.equal(answered.refused, true, tool);
+    assert.match(answered.text, /this folder's own project, "shop", not "shops-factory": name project "shop"/, tool);
+  }
+});

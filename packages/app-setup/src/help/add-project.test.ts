@@ -69,14 +69,16 @@ test("3.6 the project the app shows when none was chosen, the first on this comp
   const token = `t-${randomBytes(4).toString("hex")}`;
   // Named to sort first on the shared test server, so the picker's fallback is this test's own project.
   const [first, second] = [`0-first-${token}`, `0-second-${token}`];
+  // What a killed run leaves on the server: a project that sorts before this test's own.
+  const leftover = `0-0-t-${randomBytes(4).toString("hex")}`;
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
   const library = await connect({ url });
   t.after(async () => {
     await library.close();
-    await dropTestDatabases([first, second].map((name) => `storytree_${name}`));
+    await dropTestDatabases([first, second, leftover].map((name) => `storytree_${name}`));
   });
-  for (const name of [first, second]) await (await library.openProject(name)).close();
+  for (const name of [leftover, first, second]) await (await library.openProject(name)).close();
   const actions = setupHelpActions({
     licenseFile: "", storytreeHome: home, chooseFolder: async () => undefined,
     openExternal: async () => {}, copyText: async () => {}, library: () => library,

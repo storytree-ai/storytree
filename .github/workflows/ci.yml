@@ -263,7 +263,18 @@ jobs:
           passed() { grep -qs "\"platform\":\"win32\".*\"unit\":\"packages/$1\".*\"result\":\"pass\"" ~/.storytree/0.3/test-timings.jsonl; }
           passed cli || pnpm run test --set-limit=cli=720 --reason="no Windows pass in main's history yet; Windows CI passes took up to 346 s, friction_21e0e923a222"
           passed session-management || pnpm run test --set-limit=session-management=720 --reason="no Windows pass in main's history yet; Windows CI passes took up to 357 s, PR 1625"
+      # The run's deadline is kept by `pnpm test` itself, which a hung process never reaches: PR #884's
+      # Windows 1/2 ran to the job's cancel and lost its log (friction_634d6755cf1b). So the test step
+      # also has its own limit, ending it 33 minutes into the job, two past the deadline: a step cut by
+      # its limit fails, the steps below upload, and its log's last `started <unit>` names what hung.
+      - name: Give the test step what is left of the job, less room to upload
+        id: test-limit
+        shell: bash
+        run: |
+          minutes=$(( (STORYTREE_TEST_DEADLINE + 2 * 60 - $(date +%s)) / 60 ))
+          echo "minutes=$(( minutes < 1 ? 1 : minutes ))" >> "$GITHUB_OUTPUT"
       - run: pnpm run test ${{ matrix.shard && format('--shard={0}/2', matrix.shard) || '' }}
+        timeout-minutes: ${{ fromJSON(steps.test-limit.outputs.minutes) }}
         env:
           STORYTREE_UNIT_LIMIT_MS: 360000
           STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || '' }}

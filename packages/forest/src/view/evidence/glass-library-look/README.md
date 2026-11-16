@@ -18,3 +18,5 @@ and from below (140°), each on Stories and then on Library. Counted from the sc
 Library 40°, Stories again 40°, island-less Library 40°; on Stories 0 notes hung at every tilt, on Library notes hung and shown at every tilt.
 
 Taken by `node --import tsx packages/forest/testing/view/glass-library-look/capture.mjs --retake`.
+
+In the evidence bucket for #896, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `896/opening.png`, `896/library-from-opening.png`, `896/stories-again.png`, `896/bare-library.png`, `896/measurements.json`.

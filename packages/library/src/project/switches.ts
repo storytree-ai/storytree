@@ -3,9 +3,7 @@
  * each switched-off role, check and note out of what it lists and selects, and so out of every search, which reads
  * through its lists. Reading one by its id still finds it, as following a link does, and writes are unchanged.
  */
-import type { FieldsOf, RecordType } from "../schema/index.js";
-import type { LibrarySchema } from "../schema/types.js";
-import { SchemaRecords, type CreateOptions, type SchemaRecord } from "../schema/records.js";
+import { SchemaRecords, type CreateOptions, type FieldsOf, type LibrarySchema, type RecordType, type SchemaRecord } from "../schema/index.js";
 import type { HistoryEntry, HistoryFilter, ListFilter, Transactions } from "../transactions/index.js";
 import { SYSTEM_KINDS } from "./factory.js";
 

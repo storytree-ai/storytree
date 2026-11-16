@@ -102,6 +102,6 @@ export function mountTools(define: Define, verbs: readonly Verb<VerbInputs, Tool
         if (error instanceof VerbRefusal) return { text: error.message, refused: true };
         throw error;
       }
-    }, { consumers: consumersOf(declared) });
+    }, { consumers: consumersOf(declared), ...(declared.writes ? { writes: true } : {}) });
   }
 }

@@ -166,7 +166,7 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
       await blocker.query("BEGIN");
       await blocker.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
       const abort = new AbortController();
-      const pending = client.callTool({ name: "edit_plan", arguments: { id: story.id, title: "Cancelled edit" } }, { signal: abort.signal });
+      const pending = client.callTool({ name: "edit_plan", arguments: { id: story.id, title: "Cancelled edit", project } }, { signal: abort.signal });
       const cancelled = assert.rejects(pending, /cancel/i);
       cancelled.catch(() => {}); // A deadline failure reports itself, not the close that rejects this.
       // Observe a real queued writer, not a sleep that guesses when it reached the lock.
@@ -183,7 +183,7 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
       assert.deepEqual(await library.get(story.id), story);
       assert.deepEqual(await library.history({ id: story.id }), before);
 
-      const accepted = await client.callTool({ name: "edit_plan", arguments: { id: story.id, title: "Wanted edit" } });
+      const accepted = await client.callTool({ name: "edit_plan", arguments: { id: story.id, title: "Wanted edit", project } });
       assert.notEqual(accepted.isError, true);
       assert.deepEqual((await library.get(story.id))?.fields, { title: "Wanted edit" });
       assert.equal((await library.history({ id: story.id })).at(-1)?.actor, "session:cancelled-writer");

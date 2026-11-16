@@ -18,7 +18,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import { roundDue, worklist } from "@storytree/library/librarian";
+import { librarianTools, roundDue, worklist } from "@storytree/library/librarian";
 import { z } from "zod";
 
 import { nameThisMachine } from "@storytree/session-management/machines";
@@ -29,7 +29,7 @@ import { readClaims } from "@storytree/session-management";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
 import { git, withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
-import { approveCheckout, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
+import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
 test("6.4 a held claim refusal explains the running command and the close-out disagreement", async () => {
@@ -1503,7 +1503,8 @@ test("9.31 · plan_contract given an open increment adds the new contract to tha
       for (const wrong of [story, "increment_000000000000"]) {
         const refused = await agent.call("plan_contract", { capability: form, increment: wrong, title: "Belongs to no increment" });
         assert.equal(refused.isError, true, wrong);
-        assert.match(refused.text, /not an open increment/, refused.text);
+        // An id no library holds as an increment is refused where the write is placed (ADR-1348 D3), before the tool runs.
+        assert.match(refused.text, /not an open increment|No library this folder reads holds increment/, refused.text);
       }
       await agent.call("close_increment", { increment, disposition: "withdrawn", note: "replaced" });
       const closed = await agent.call("plan_contract", { edge, increment, title: "Too late" });
@@ -1608,5 +1609,77 @@ test("9.37 · edit_plan moving a contract onto a link that leaves its part with 
       assert.match(left.text, new RegExp(`if you want one of those\\. "1 · Caller identity" \\(${identity}\\) now has no contracts of its own: plan its own behaviour contract \\(plan_contract\\), or leave it bare knowingly\\.$`), left.text);
       assert.doesNotMatch((await agent.call("edit_plan", { id: known, capability: api })).text, bare, "only a move onto a link says it");
     });
+  });
+});
+
+test("6.108 a tool that writes a library takes project, arc or increment, at least one: naming none is refused saying what to pass, and the write lands in the library named, an arc's own found across the folder's factory's circle, while a project outside it is refused (ADR-1348 D3)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    const [productName, outsideName] = [uniqueProjectName(), uniqueProjectName()];
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await library.markFactory();
+      const product = await storytree.openProject(productName);
+      await product.recordFactory(project);
+      await storytree.openProject(outsideName);
+      const theirArc = (await product.createArc({ title: "Ricky's site goes live", intent: "Ship it", endState: "It is live" })).id;
+      await withAgent(folder, claudeCode("writer", { extensions: [librarianTools()] }), async (agent) => {
+        const schema = (tool: string) => agent.inputSchema(tool).then((one) => Object.keys((one.properties ?? {}) as object));
+        for (const tool of ["plan_arc", "park_increment", "write_note", "raise_question"]) {
+          const keys = await schema(tool);
+          assert.deepEqual(["arc", "increment", "project"].filter((key) => !keys.includes(key)), [], `${tool} takes where it writes`);
+        }
+        assert.equal((await schema("show_plan")).includes("arc"), false, "a read takes no place to write");
+
+        const arcAsked = { title: "Launch", intent: "Ship the site", end_state: "It is live" };
+        const unnamed = await agent.callExactly("plan_arc", arcAsked);
+        assert.equal(unnamed.isError, true);
+        assert.match(unnamed.text, new RegExp(`names where it goes.*give project.*this folder's is "${project}".*arc or the increment`));
+        // Each other tool that writes is refused the same, the librarian's, the pins and the contract report among them.
+        const others = {
+          link: { from: "principle_000000000000", to: "decision_000000000000" },
+          supersede: { olds: ["decision_000000000000"], successor: "decision_111111111111" },
+          correct: { id: "decision_000000000000", fields: { title: "Better" } },
+          annotate: { target: "decision_000000000000", by: "decision_111111111111", note: "narrowed" },
+          retire: { id: "principle_000000000000", reason: "finished" },
+          graduate: { memory: "memory.md", kind: "principle", fields: {} },
+          pin: { on: "capability_000000000000", icon: "cache", label: "A cache", evidence: "cache.ts:1" },
+          retire_pin: { id: "pin_000000000000", reason: "stale" },
+          report: { contract: "contract_000000000000", result: "red" },
+        };
+        for (const [tool, args] of Object.entries(others)) {
+          const refused = await agent.callExactly(tool, args);
+          assert.equal(refused.isError, true, tool);
+          assert.match(refused.text, /names where it goes/, `${tool}: ${refused.text}`);
+        }
+        const note = await agent.callExactly("write_note", { kind: "decision", title: "Email first", text: "Signing up by email" });
+        assert.equal(note.isError, true, "a declared verb that writes is refused the same");
+        assert.match(note.text, /names where it goes/);
+
+        const own = idOf(await agent.callExactly("plan_arc", { ...arcAsked, project }));
+        assert.equal((await library.get(own))?.type, "arc", "naming the folder's own project writes there");
+        const theirs = idOf(await agent.callExactly("plan_arc", { ...arcAsked, title: "Their launch", project: productName }));
+        assert.equal((await product.get(theirs))?.type, "arc", "naming a project its factory builds writes in its library");
+        assert.equal(await library.get(theirs), null);
+        const onTheirs = idOf(await agent.callExactly("park_increment", { arc: theirArc, title: "Home page", objective: "Build it", body: "Red then green" }));
+        assert.equal((await product.get(onTheirs))?.type, "increment", "an arc carries its project: the tool's own arc input names the place");
+        const closed = await agent.callExactly("close_increment", { increment: onTheirs, disposition: "withdrawn", note: "not needed" });
+        assert.equal(closed.isError, false, closed.text);
+
+        const outside = await agent.callExactly("plan_arc", { ...arcAsked, project: outsideName });
+        assert.equal(outside.isError, true);
+        assert.match(outside.text, new RegExp(outsideName));
+        const mismatched = await agent.callExactly("park_increment", { arc: theirArc, project, title: "Elsewhere", objective: "Build it", body: "Red then green" });
+        assert.equal(mismatched.isError, true);
+        assert.match(mismatched.text, new RegExp(`Project "${project}" holds no arc ${theirArc}`));
+        const unknown = await agent.callExactly("set_wait", { waiter: "increment_000000000000", increment: "increment_000000000000", for: "owner", note: "sign in", why: "unblocks it" });
+        assert.equal(unknown.isError, true);
+        assert.match(unknown.text, /No library this folder reads holds increment increment_000000000000/);
+      });
+      const called = await log.lines(project, { kinds: ["tool-called"], omit: ["transcript"] });
+      assert.ok(called.some((line) => line.kind === "tool-called" && line.tool === "park_increment"), "the folder's project still records the session's calls");
+    } finally {
+      await storytree.close();
+      await dropTestProjects([productName, outsideName]);
+    }
   });
 });

@@ -95,7 +95,7 @@ test("library 26.4 the shared server lists and calls every librarian verb, attri
     const discarded = await library.defineTerm({ term: "Draft", meaning: "Obsolete wording" });
     let cursor = (await library.changesSince(0)).cursor;
     async function write(name: string, args: Record<string, unknown>, session = "curator") {
-      const result = await call(client, name, args, session);
+      const result = await call(client, name, { ...args, project: library.name }, session);
       assert.notEqual(result.isError, true, JSON.stringify(result));
       const changes = await library.history({ since: cursor });
       assert.ok(changes.length > 0, `${name} wrote`);
@@ -124,13 +124,13 @@ test("library 26.4 the shared server lists and calls every librarian verb, attri
     const parked = await call(client, "worklist", { memoryFolders: [memory] });
     assert.deepEqual((parked.structuredContent!.worklist as typeof work).graduation.map((item) => item.file), [durable]);
     cursor = (await library.changesSince(cursor)).cursor;
-    assert.equal((await call(client, "graduate", { memory: durable, kind: "definition", fields: { term: "Missing meaning" } })).isError, true);
+    assert.equal((await call(client, "graduate", { memory: durable, kind: "definition", fields: { term: "Missing meaning" }, project: library.name })).isError, true);
     assert.ok(existsSync(durable), "a refused graduation keeps its source");
     const graduated = await write("graduate", { memory: durable, kind: "definition", fields: { term: "Library", meaning: "The single copy" } }, "after-clear");
     assert.equal((await fields(library, graduated.id as string)).meaning, "The single copy");
     assert.ok(!existsSync(durable));
     const before = await library.history();
-    const refused = await call(client, "correct", { id: narrowing.id, fields: { status: "proposed" } });
+    const refused = await call(client, "correct", { id: narrowing.id, fields: { status: "proposed" }, project: library.name });
     assert.equal(refused.isError, true);
     assert.match(JSON.stringify(refused.content), /only the owner/);
     assert.deepEqual(await library.history(), before);

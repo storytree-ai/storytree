@@ -92,6 +92,7 @@ export function registerPlanTools(define: Define): void {
       const arc = await library.createArc({ title: name, intent: aim, endState: end, ...optional({ description: about, stories }) }, writer);
       return { text: `Planned arc ${quoted(name)} (${arc.id}).`, data: { id: arc.id } };
     },
+    { writes: true },
   );
 
   define(
@@ -115,6 +116,7 @@ export function registerPlanTools(define: Define): void {
         data: { id: story.id, founding: book.id },
       };
     },
+    { writes: true },
   );
 
   define(
@@ -140,6 +142,7 @@ export function registerPlanTools(define: Define): void {
         data: { id: capability.id, founding: book.id },
       };
     },
+    { writes: true },
   );
 
   define(
@@ -198,6 +201,7 @@ export function registerPlanTools(define: Define): void {
         : ` ${proved.length === 1 ? proved[0] : `${proved.slice(0, -1).join(", ")} and ${proved.at(-1)}`} already ${proved.length === 1 ? "exists" : "exist"}, so write no test for it: ${proved.length === 1 ? "its result credits" : "their results credit"} it at the project's next test run, \`storytree health local\` in your shell.`;
       return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${joined}${named}${open}${strays}${advice}${build}`, data: { id: contract.id, orphans, untested, long, ...(strays === "" ? {} : { elsewhere }) } };
     },
+    { writes: true },
   );
 
   define(
@@ -224,6 +228,7 @@ export function registerPlanTools(define: Define): void {
       const edge = await library.addEdge({ from, to, ...optional({ description: about }) }, writer);
       return { text: `Planned edge ${edge.id}: ${from} depends on ${to}. Plan its contracts with plan_contract and edge ${edge.id}.`, data: { id: edge.id } };
     },
+    { writes: true },
   );
 
   define(
@@ -262,6 +267,7 @@ export function registerPlanTools(define: Define): void {
       live: z.boolean().optional().describe("While you hold an increment, make this change to a story, capability or contract live instead of pending, keeping the increment's claim: for a correction the increment does not change"),
     }),
     async ({ id: target, live, ...changes }, call) => editPlan(target, changes, call, live === true),
+    { writes: true },
   );
 
   define(
@@ -277,6 +283,7 @@ export function registerPlanTools(define: Define): void {
       await library.retire(target, reason, writer);
       return { text: `Retired ${found.kind} ${quoted(found.title)} (${target}): ${reason}.`, data: { id: target } };
     },
+    { writes: true },
   );
 
   define(
@@ -291,6 +298,7 @@ export function registerPlanTools(define: Define): void {
         data: { id: capability },
       };
     },
+    { writes: true },
   );
 
   define(

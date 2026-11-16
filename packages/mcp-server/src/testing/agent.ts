@@ -1,12 +1,16 @@
 /**
  * An agent for the MCP server's tests: a tool server (capability 6) and an MCP client connected to
  * it in memory, as Claude Code or Codex would be, with no real agent and no network. Claude Code's
- * session id reaches the server in its environment; Codex's on each call's `_meta`.
+ * session id reaches the server in its environment; Codex's on each call's `_meta`. Like an agent following the habits
+ * card, it names the project of the folder it works in on a call to a tool that writes a library and names no place
+ * itself (ADR-1348 D3); `callExactly` sends a call as given.
  */
 import assert from "node:assert/strict";
 
 import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
+
+import { findProject } from "@storytree/project-and-caller/routing";
 
 import { createAgentTools, type AgentToolOptions } from "../tools/index.js";
 import { testServerDataDir } from "@storytree/project-and-caller/testing/pg";
@@ -19,7 +23,10 @@ export interface Answer {
 }
 
 export interface Agent {
+  /** Call a tool; one that writes a library, given no project, arc or increment, is given the folder's project. */
   call(tool: string, args?: Record<string, unknown>, meta?: Record<string, unknown>): Promise<Answer>;
+  /** Call a tool with exactly `args`. */
+  callExactly(tool: string, args?: Record<string, unknown>, meta?: Record<string, unknown>): Promise<Answer>;
   tools(): Promise<string[]>;
   /** A tool's input schema, as tools/list publishes it to the agent. */
   inputSchema(tool: string): Promise<Record<string, unknown>>;
@@ -34,6 +41,9 @@ export interface AgentOptions extends Partial<Omit<AgentToolOptions, "folder">> 
   readonly meta?: Record<string, unknown>;
 }
 
+/** The inputs naming where a write goes. */
+const PLACE = ["project", "arc", "increment"] as const;
+
 /** A tool server for `folder`, and a client connected to it in memory, as a harness would be. */
 export async function agentIn(folder: string, options: AgentOptions = {}): Promise<Agent> {
   const { client: clientName, meta, ...serverOptions } = options;
@@ -42,17 +52,29 @@ export async function agentIn(folder: string, options: AgentOptions = {}): Promi
   await tools.server.connect(serverSide);
   const client = new Client({ name: clientName ?? "claude-code", version: "test" });
   await client.connect(clientSide);
+  // A tool that writes a library takes all three of the inputs naming where it goes (ADR-1348 D3); a read takes no more than project.
+  let writes: Set<string> | undefined;
+  const writing = async (tool: string): Promise<boolean> => {
+    writes ??= new Set((await client.listTools()).tools.filter(({ inputSchema }) => PLACE.every((key) => key in (inputSchema.properties ?? {}))).map(({ name }) => name));
+    return writes.has(tool);
+  };
+  const callExactly: Agent["callExactly"] = async (tool, args = {}, perCall) => {
+    const sent = perCall ?? meta;
+    const result = await client.callTool({ name: tool, arguments: args, ...(sent === undefined ? {} : { _meta: sent }) });
+    const content = result.content as { type: string; text?: string }[];
+    return {
+      text: content.map((block) => block.text ?? "").join("\n"),
+      isError: result.isError === true,
+      data: (result.structuredContent ?? {}) as Record<string, unknown>,
+    };
+  };
   return {
     async call(tool, args = {}, perCall) {
-      const sent = perCall ?? meta;
-      const result = await client.callTool({ name: tool, arguments: args, ...(sent === undefined ? {} : { _meta: sent }) });
-      const content = result.content as { type: string; text?: string }[];
-      return {
-        text: content.map((block) => block.text ?? "").join("\n"),
-        isError: result.isError === true,
-        data: (result.structuredContent ?? {}) as Record<string, unknown>,
-      };
+      if (PLACE.some((key) => key in args) || !(await writing(tool))) return callExactly(tool, args, perCall);
+      const found = findProject(folder);
+      return callExactly(tool, found.project === undefined ? args : { ...args, project: found.project }, perCall);
     },
+    callExactly,
     async tools() {
       return (await client.listTools()).tools.map((tool) => tool.name).sort();
     },

@@ -68,6 +68,7 @@ const pinNew: Verb<typeof newInputs, PinVerbContext> = {
     description: `Pin what you found on the map so it lasts: a cache, a queue, an API, found inside a capability, maybe nested several parts deep. Anchor it on a capability id, a nested part of it by the part's folder as the map names it (capability_x/packages/web/src/cache), or an exported name in either (#name); a shared store (a database, a Redis) is pinned on the stores' drawing instead, as store:<address>, optionally #<table>. Give one of the preset icons (${PIN_ICON_NAMES.join(", ")}), a short label, and the evidence (file, line, what it says); it records the commit it was checked at. The map shows it on the deepest part drawn and rolls it up to the parent when zoomed out; it reads stale once its anchor no longer resolves. At most ${PIN_CAP} pins on one place: retire one with retire_pin first.`,
   },
   inputs: newInputs,
+  writes: true,
   async act(input, context) {
     const { parseAnchor, writePin } = await import("./pins.js");
     const anchor = parseAnchor(input.on);
@@ -108,6 +109,7 @@ const pinRetire: Verb<typeof retireInputs, PinVerbContext> = {
   command: { family: "pin", name: "retire", summary: "retire a pin, saying why; any agent may", usage: "pin retire <pin> --reason <text>" },
   tool: { name: "retire_pin", description: "Retire a pin from the map, saying why: any agent may, a stale one above all. Its history keeps it with your reason, and it frees its place for another." },
   inputs: retireInputs,
+  writes: true,
   async act(input, context) {
     const { retirePin } = await import("./pins.js");
     const retired = await retirePin(shelfOf(context.library, context), input.id, input.reason);

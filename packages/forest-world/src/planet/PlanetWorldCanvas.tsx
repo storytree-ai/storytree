@@ -69,6 +69,9 @@ export interface PlanetWorldCanvasProps {
   /** Names, selection and claim markers mount in each plate's local ground coordinates. They are handed the docks the
    * island's lanes come ashore at, once its lanes are routed (undefined before). */
   plateChildren?: (island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[], docks: readonly IslandDock[] | undefined) => ReactNode;
+  /** Marks a host lays on a shared store's slab while it shows, in the slab's own coordinates: handed the store's address
+   * and where its name stands: the forest's pins on a store (Map view 3.119). */
+  storeChildren?: ((address: string, name: readonly [number, number, number]) => ReactNode) | undefined;
   /** R3F children, drawn in the canvas with the host's own controls. */
   children?: ReactNode;
   /** False hides every plate, for looking at the knowledge under the glass alone (E1). */
@@ -162,10 +165,11 @@ const STORE_COLOUR = '#4f7fae';
 const TILE_COLOUR = '#edf3f5';
 
 /** A shared store: its own slab on the glass beside the islands, named by its address, with its tables' tiles inside it
- * (4.46), picked by its name `store:<address>`. */
-const StorePlate = memo(function StorePlate({ store, spot, radius, visible }: { store: Store; spot: PlanetSpot; radius: number; visible: boolean }) {
+ * (4.46), picked by its name `store:<address>`; the host's marks on it beside its name. */
+const StorePlate = memo(function StorePlate({ store, spot, radius, visible, children }: { store: Store; spot: PlanetSpot; radius: number; visible: boolean; children?: PlanetWorldCanvasProps['storeChildren'] }) {
   const transform = useMemo(() => plateTransform(spot, radius, SHEET_LAND_LIFT), [spot.x, spot.y, spot.z, radius]);
   const laid = useMemo(() => storeLayout(store.tables), [store.tables]);
+  const named = useMemo(() => [0, TILE_RISE, -laid.depth / 2 + 18] as const, [laid.depth]);
   const label = { pointerEvents: 'none', whiteSpace: 'nowrap', font: '13px system-ui, sans-serif' } as const;
   return <group position={transform.position} quaternion={transform.quaternion} name={`store:${store.address}`} visible={visible}>
     <mesh position={[0, -STORE_THICKNESS / 2, 0]}>
@@ -177,12 +181,13 @@ const StorePlate = memo(function StorePlate({ store, spot, radius, visible }: { 
       <meshLambertMaterial color={TILE_COLOUR} />
     </mesh>)}
     {visible && <>
-      <Overlay className="planet-store-name" position={[0, TILE_RISE, -laid.depth / 2 + 18]} center zIndexRange={[25, 21]} style={label}>
+      <Overlay className="planet-store-name" position={[...named]} center zIndexRange={[25, 21]} style={label}>
         <span style={{ color: '#e8f0f8', fontWeight: 600 }} data-store={store.address}>{store.address}</span>
       </Overlay>
       {laid.tiles.map(tile => <Overlay key={tile.name} className="planet-store-table" position={[tile.x, TILE_RISE, tile.z]} center zIndexRange={[25, 21]} style={label}>
         <span style={{ color: '#1c2733' }}>{tile.name}</span>
       </Overlay>)}
+      {children?.(store.address, named)}
     </>}
   </group>;
 });
@@ -292,7 +297,7 @@ function drawnOnResize(state: () => RootState | undefined): typeof ResizeObserve
 
 /** The map: one Canvas, the glass sheet, and each story's island as a raised plate with a coast (ADR-0804 D1, ADR-1059 D2).
  * A lamp shades the islands' sides and the glass's edge, and the land's top keeps its exact colour (ADR-1062 D1). */
-export function PlanetWorldCanvas({ scene, spots, storeSpots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, floor, sideOffset = 0, lanes = NO_LANES, growth, sheet, hollow = false, onLanesNotice }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, storeSpots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, storeChildren, children, surface = true, surfaces, inside, framing = 1.18, floor, sideOffset = 0, lanes = NO_LANES, growth, sheet, hollow = false, onLanesNotice }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const pathways = drawing.plan;
   const exterior = globeExterior(surface, surfaces);
@@ -335,7 +340,7 @@ export function PlanetWorldCanvas({ scene, spots, storeSpots, radius, rotation =
       })}
       {scene.stores?.map(store => {
         const spot = storeSpots?.get(store.address);
-        return spot === undefined ? null : <StorePlate key={store.address} store={store} spot={spot} radius={radius} visible={exterior.plates && !hollow} />;
+        return spot === undefined ? null : <StorePlate key={store.address} store={store} spot={spot} radius={radius} visible={exterior.plates && !hollow} children={storeChildren} />;
       })}
       <group name="globe-lanes" visible={exterior.roads}><RestLanes stretches={rest} selected={sea.lanes.length > 0} scale={laneScale} /><SelectionLanes routes={sea.lanes} scale={laneScale} /></group>
       {inside}

@@ -122,6 +122,7 @@ const QUIET: StorytreeBridge = {
   standingDelegations: async () => undefined,
   codeSurvey: async () => ({}),
   sharedStores: async () => [],
+  pins: async () => [],
   recordLag: async () => {},
   feedbackSetup: async () => ({ offered: false, surfaces: [] }),
   // No CI times recorded: no strip in the map's corner unless a capture hands it a reading.

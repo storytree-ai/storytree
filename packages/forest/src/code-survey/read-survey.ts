@@ -1,7 +1,9 @@
 // Capability 1 · Story nodes. Compatibility for existing app mounts; The map owns the code survey (ADR-0864).
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { AnnotatedTree } from "@storytree/library";
+import type { AnnotatedTree, SchemaRecord } from "@storytree/library";
+import { pinWorldOf, unresolved, type PinReading } from "@storytree/map/pins";
 import { noMergedMain, offThreadSurveyReader, readStores, type CodeSurveyReader, type ImportedFolder, type ProjectSurvey } from "@storytree/map/code-survey";
 
 import { FOREST_CHANNELS, type ForestBridge } from "../render/page.js";
@@ -16,6 +18,8 @@ export interface SurveyPageFrame {
     projectFolder(project: unknown): Promise<string | undefined>;
     projectTree(project: unknown): Promise<AnnotatedTree>;
     projectImports(project: unknown): Promise<ImportedFolder[]>;
+    /** The project's live pin records; a host without it has none. */
+    pins?(project: unknown): Promise<SchemaRecord<"pin">[]>;
   };
   /** The tree the page last read for the project, if it read one: the survey surveys it rather than reading it a second time. */
   treeRead(project: unknown): AnnotatedTree | undefined;
@@ -30,6 +34,8 @@ export const forestPageAnswers = [(frame: SurveyPageFrame) => {
   // from the main already fetched, without waiting on the fetch; the page asks again for what it brought (map 8.27).
   // Made at the first survey, as the worker's file is read to name the code that keeps them.
   let surveys: CodeSurveyReader | undefined;
+  // The last survey answered for each project, which its pins are read against (3.119).
+  const surveyed = new Map<unknown, { folder: string; survey: ProjectSurvey }>();
   const answers: { [Method in keyof ForestBridge]: (project: unknown) => ReturnType<ForestBridge[Method]> } = {
     codeSurvey: async (project) => {
       const library = frame.library();
@@ -38,13 +44,30 @@ export const forestPageAnswers = [(frame: SurveyPageFrame) => {
       surveys ??= offThreadSurveyReader(frame.surveyWorker, { keptIn: path.join(frame.home, "code-survey"), startFromFetched: true });
       // The folders this machine imports, where the survey reads the project's mapped stories (ADR-0993 D2).
       const reading = surveys.read(folder, frame.treeRead(project) ?? await library.projectTree(project), await library.projectImports(project));
-      return refusalSaidOnce(folder, reading);
+      const survey = await refusalSaidOnce(folder, reading);
+      surveyed.set(project, { folder, survey });
+      return survey;
     },
     // The stores the checkout and its imported folders declare, read from their files as they stand (ADR-1332 D2 (1)).
     sharedStores: async (project) => {
       const library = frame.library();
       const folder = await library.projectFolder(project);
       return folder === undefined ? [] : readStores(folder, await library.projectImports(project));
+    },
+    // The live pins, each read against the code last surveyed here: stale, with why, once its anchor no longer resolves (map
+    // 9.2). Before a survey of the project's checkout, none is judged stale.
+    pins: async (project) => {
+      const library = frame.library();
+      const pins = await library.pins?.(project) ?? [];
+      const last = surveyed.get(project);
+      if (pins.length === 0 || last === undefined) return pins.map((pin): PinReading => ({ pin }));
+      const tree = frame.treeRead(project) ?? await library.projectTree(project);
+      const stores = await readStores(last.folder, await library.projectImports(project));
+      const world = pinWorldOf(tree.stories, last.survey, last.folder, stores, (file) => readFile(path.resolve(last.folder, file), "utf8").catch(() => undefined));
+      return Promise.all([...pins].sort((one, other) => one.id.localeCompare(other.id)).map(async (pin): Promise<PinReading> => {
+        const stale = await unresolved(pin.fields.anchor, world);
+        return stale === undefined ? { pin } : { pin, stale };
+      }));
     },
   };
   // A project whose origin has no fetchable main is refused its survey at every ask; a rejected answer would have Electron

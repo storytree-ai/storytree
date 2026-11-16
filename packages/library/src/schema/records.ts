@@ -18,8 +18,7 @@ import { randomUUID } from "node:crypto";
 
 import type { z } from "zod";
 
-import type { HistoryEntry, HistoryFilter, ListFilter, OutsideRead, RecordEnvelope, RevertedWrite, Transactions } from "../transactions/types.js";
-import { pickFields, writtenBy } from "../transactions/records.js";
+import { pickFields, writtenBy, type HistoryEntry, type HistoryFilter, type ListFilter, type OutsideRead, type RecordEnvelope, type RevertedWrite, type Transactions } from "../transactions/index.js";
 import { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError, type FieldProblem } from "./errors.js";
 import type { FieldsOf, LibrarySchema, RecordType } from "./types.js";
 import { isPluginKind } from "./plugin-kinds.js";

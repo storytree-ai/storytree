@@ -4,7 +4,7 @@ import type { PoolClient } from "pg";
 import { RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../schema/types.js";
 import type { NoteType } from "../knowledge/knowledge.js";
 import { KNOWLEDGE_KINDS, REFERENCE_FIELD_NAMES } from "../knowledge/knowledge.js";
-import type { RecordEnvelope } from "../transactions/types.js";
+import type { RecordEnvelope } from "../transactions/index.js";
 
 const KINDS: readonly string[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
 

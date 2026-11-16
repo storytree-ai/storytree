@@ -2,7 +2,7 @@
  * Capability 3 · First-run guide and capability 12 · Import an existing project.
  * `storytree project remove <project>`: take a project added by mistake off this computer's list.
  * `storytree project delete <project> --confirm <project>`: delete its records (ADR-0831).
- * `storytree import <folder>`: import an existing JavaScript, TypeScript or Python project into this one, as mapped stories (ADR-0993).
+ * `storytree import <folder> --project <project>`: import an existing JavaScript, TypeScript or Python project into this one, as mapped stories (ADR-0993).
  */
 import { verb, VerbRefusal, type Verb, type VerbInputs } from "@storytree/library/verbs";
 
@@ -74,8 +74,15 @@ export const IMPORT = verb({
     summary: "record the folder as imported by this project and make each package it declares an imported story; again, it adds new packages and drops gone ones; nothing is written into the folder",
   },
   tool: NO_TOOL,
-  inputs: { folder: { kind: "text", word: 0, describe: "the folder of the project to import" } },
-  async act({ folder }, context: ImportVerbContext) {
+  inputs: {
+    folder: { kind: "text", word: 0, describe: "the folder of the project to import" },
+    project: { kind: "text", optional: true, describe: "the project to import it into, whose library it writes to: this folder's own (ADR-1348 D3)" },
+  },
+  async act({ folder, project }, context: ImportVerbContext) {
+    // A write names the library it lands in (ADR-1348 D3, contract 12.11): an import goes into this folder's own project.
+    const own = context.library.name;
+    if (project === undefined) throw new VerbRefusal(`An import names the project it writes to (ADR-1348 D3): add --project ${own}, this folder's project.`, { misuse: true });
+    if (project !== own) throw new VerbRefusal(`An import writes to this folder's own project, "${own}", not "${project}": add --project ${own}, or run it from ${project}'s folder.`, { misuse: true });
     const path = await import("node:path");
     const { importLines, importProject, ImportRefusedError } = await import("./importing.js");
     const imported = await importProject({ folder: path.resolve(context.folder, folder), library: context.library, storytree: context.server }).catch((error: unknown) => {

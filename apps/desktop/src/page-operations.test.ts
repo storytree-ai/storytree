@@ -24,7 +24,7 @@ test("8.1 a page operation a story declares reaches that story's answer in the m
   answerPage(ipc, SETTINGS_CHANNELS, { readSettings: answer("readSettings"), saveSetting: answer("saveSetting") });
   answerPage(ipc, SURFACES_CHANNELS, { readSurfaces: answer("readSurfaces"), saveSurface: answer("saveSurface") });
   answerPage(ipc, PAGE_READS_CHANNELS, Object.fromEntries(Object.keys(PAGE_READS_CHANNELS).map((method) => [method, answer(method)])) as Record<keyof typeof PAGE_READS_CHANNELS, ReturnType<typeof answer>>);
-  answerPage(ipc, FOREST_CHANNELS, { codeSurvey: answer("codeSurvey"), sharedStores: answer("sharedStores") });
+  answerPage(ipc, FOREST_CHANNELS, { codeSurvey: answer("codeSurvey"), sharedStores: answer("sharedStores"), pins: answer("pins") });
 
   const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args)) as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
   assert.equal(await page.chooseJourney!(true), "chooseJourney answered");

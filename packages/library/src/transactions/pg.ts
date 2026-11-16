@@ -6,9 +6,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { Pool, PoolClient } from "pg";
 
-import { sqlState } from "../project/connection-error.js";
-import { seconds, waitsOf } from "../project/server.js";
 import { check, listFilter, saveAllInputs, editedRecord, historyEntry, historyFilter, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
+import { seconds, waitsOf } from "./waits.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -47,7 +46,8 @@ export async function takeWriteLock(client: PoolClient, pool: Pool): Promise<voi
   try {
     await client.query(WRITE_LOCK);
   } catch (error) {
-    if (sqlState(error) !== "55P03") throw error;
+    // SQLSTATE 55P03, lock_not_available: the lock_timeout above ran out.
+    if ((error as { code?: unknown } | null)?.code !== "55P03") throw error;
     throw new Error(`Another session kept writing to this project for ${seconds(waitMs)}, so nothing was written: ${(error as Error).message}. Try again.`, { cause: error });
   }
 }

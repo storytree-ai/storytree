@@ -338,8 +338,19 @@ test("17.27 · Friction filed in a product project is written to its factory's l
 
       await verbNamed("reinforce").act({ friction: note!.id, evidence: "`pnpm gate` exit code 1 again" }, context, WORDS);
       assert.equal((await factory.list("friction"))[0]!.fields.reinforcedBy?.length, 1);
+
+      const shown = (await verbNamed("new").act({ ...report, "none-match": undefined }, context, WORDS)).data as { closest: { id: string }[] };
+      assert.deepEqual(shown.closest.map((one) => one.id), [note!.id], "the closest earlier reports are the factory's");
+      const sent = await verbNamed("new").act({ ...report, title: "Hook drops the branch", "about-storytree": true }, context, WORDS);
+      assert.match(sent.text, new RegExp(`^Recorded friction \\S+ in factory ${factory.name}'s library, from project ${product.name}, which storytree's maintainers cannot see\\.`));
+      await verbNamed("new").act({ ...report, title: "Review brief misses a file" }, context, WORDS);
+      await assert.rejects(verbNamed("new").act({ ...report, title: "A fourth" }, context, WORDS), (error: Error) => error instanceof VerbRefusal && /Filing cap/.test(error.message), "the cap counts this writer's reports in the factory");
+
+      const earlier = await product.writeKnowledge("friction", { title: "Kept before", description: "Kept", statement: "Kept", evidence: "`pnpm test` exit code 1", impact: "Time" });
+      await verbNamed("reinforce").act({ friction: earlier.id, evidence: "`pnpm test` exit code 1 again" }, context, WORDS);
+      assert.equal((await product.list("friction"))[0]!.fields.reinforcedBy?.length, 1, "a report the product kept before is reinforced where it is");
     });
-    const [note] = await factory.list("friction");
+    const note = (await factory.list("friction")).find((one) => one.fields.title === report.title);
     await onBranch(factory, "main", async (context) => {
       assert.match((await verbNamed("drain").act({}, context, WORDS)).text, new RegExp(`  ${note!.id}  \\(1 recurrences\\)  Gate hides the failing unit`));
     });

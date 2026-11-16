@@ -8,9 +8,8 @@ import { ASK_EVERY_MS, pageReading, type LiveReading, type LiveReads, type News,
 import type { AnnotatedTree } from "@storytree/library";
 
 import type { SharedStore, StorySurvey } from "@storytree/library";
-import type { PinReading } from "@storytree/map/pins";
 
-import type { ForestBridge } from "./page.js";
+import type { ForestBridge, ForestPin } from "./page.js";
 
 /** The live reading's two reads and the project's tree: `window.storytree`'s. */
 export interface ForestReads extends LiveReads {
@@ -27,7 +26,7 @@ export interface ForestReadingOptions {
   project: string;
   reads: ForestReads;
   /** Called with the tree, the news it was read for, the code's survey, the shared stores and the pins; a failure here is retried like a failed read. */
-  onTree(tree: AnnotatedTree, news: News, survey: Readonly<Record<string, StorySurvey>>, stores: readonly SharedStore[], pins: readonly PinReading[]): unknown;
+  onTree(tree: AnnotatedTree, news: News, survey: Readonly<Record<string, StorySurvey>>, stores: readonly SharedStore[], pins: readonly ForestPin[]): unknown;
   /** Called when a read fails; the next ask tries again. */
   onError(error: unknown): void;
   /** Called once a minute with the time. */
@@ -49,7 +48,7 @@ export const SURVEY_EVERY_MS = 10_000;
 
 type Survey = Readonly<Record<string, StorySurvey>>;
 /** A survey, the shared stores read with it (7.36), and the pins read against it (3.119). */
-type Read = { readonly survey: Survey; readonly stores: readonly SharedStore[]; readonly pins: readonly PinReading[] };
+type Read = { readonly survey: Survey; readonly stores: readonly SharedStore[]; readonly pins: readonly ForestPin[] };
 
 /**
  * The survey's pacing: `want` asks for a survey; one runs at a time, at most every SURVEY_EVERY_MS, and
@@ -143,7 +142,7 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
   let tree: AnnotatedTree | undefined;
   let survey: Survey = kept;
   let stores: readonly SharedStore[] = [];
-  let pins: readonly PinReading[] = [];
+  let pins: readonly ForestPin[] = [];
   let stopped = false;
   // The start settles once the fresh tree is drawn and the start's first survey is done with (3.49, 7.31).
   const start = { drawn: false, surveyed: reads.codeSurvey === undefined, settled: false };

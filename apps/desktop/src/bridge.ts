@@ -10,8 +10,7 @@ import { UPDATES_CHANNELS, type UpdatesBridge } from "@storytree/app/updates/bri
 import type { SurfacesBridge } from "@storytree/app";
 import { FEEDBACK_IDENTITY_CHANNELS, SETUP_HELP_CHANNELS, type FeedbackIdentityBridge, type SetupHelpBridge } from "@storytree/app-setup/bridge";
 import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/app-setup/journey-events/bridge";
-import type { SharedStore, StorySurvey } from "@storytree/library";
-import type { PinReading } from "@storytree/map/pins";
+import type { SchemaRecord, SharedStore, StorySurvey } from "@storytree/library";
 import type { CiTimesBridge } from "@storytree/ci-health/bridge";
 
 import PAGE_CHANNELS from "#parts/pageChannels";
@@ -29,7 +28,7 @@ export interface StoryPageBridge {
   /** The forest's: the project's shared stores (map 8.66). */
   sharedStores(project: string): Promise<readonly SharedStore[]>;
   /** The forest's: the project's pins, each live or stale (3.119). */
-  pins(project: string): Promise<readonly PinReading[]>;
+  pins(project: string): Promise<readonly { readonly pin: SchemaRecord<"pin">; readonly stale?: string }[]>;
   /** Lag in real use's: the page's readings of how long it took to answer. */
   recordLag(readings: readonly object[]): Promise<void>;
   /** Surface feedback's: whether the corner is offered here, and the surfaces a note may name. */

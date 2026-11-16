@@ -49,6 +49,8 @@ test("16.3 · a write names where it goes, a project, an arc or an increment: no
     get: async (id: string) => (records[name]![id] === undefined ? null : { id, type: records[name]![id] }),
     reach: async (project: string) => {
       if (project === "other") throw Object.assign(new Error(`Project "other" is neither factory "factory" nor a project that names it.`), { name: "OutsideCircleError" });
+      if (project === "gone") throw Object.assign(new Error(`Project "gone" is not on this server.`), { name: "ProjectGoneError" });
+      if (project === "down") throw new Error("connection refused");
       return libraries.get(project)!;
     },
     reachAll: async () => [{ project: "site", opened: libraries.get("site")! }, { project: "gone", unopened: "it is not on this server" }],
@@ -62,6 +64,8 @@ test("16.3 · a write names where it goes, a project, an arc or an increment: no
   assert.equal(await writtenLibrary(factory, { project: "factory" }), factory);
   assert.equal((await writtenLibrary(factory, { project: "site" })).name, "site");
   await assert.rejects(writtenLibrary(factory, { project: "other" }), refused(/"other" is neither factory.*A write names this folder's project \("factory"\)/));
+  await assert.rejects(writtenLibrary(factory, { project: "gone" }), refused(/"gone" is not on this server/));
+  await assert.rejects(writtenLibrary(factory, { project: "down" }), (error: unknown) => !(error instanceof VerbRefusal) && error instanceof Error && error.message === "connection refused", "a library that fails to open is no refusal");
   assert.equal(await writtenLibrary(factory, { arc: "arc_f" }), factory, "an arc in the folder's own library");
   assert.equal((await writtenLibrary(factory, { increment: "increment_s" })).name, "site", "an increment carries its project, found in the circle");
   assert.equal((await writtenLibrary(factory, { project: "site", arc: "arc_s", increment: "increment_s" })).name, "site");

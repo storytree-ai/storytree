@@ -18,7 +18,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import { roundDue, worklist } from "@storytree/library/librarian";
+import { librarianTools, roundDue, worklist } from "@storytree/library/librarian";
 import { z } from "zod";
 
 import { nameThisMachine } from "@storytree/session-management/machines";
@@ -1622,7 +1622,7 @@ test("6.108 a tool that writes a library takes project, arc or increment, at lea
       await product.recordFactory(project);
       await storytree.openProject(outsideName);
       const theirArc = (await product.createArc({ title: "Ricky's site goes live", intent: "Ship it", endState: "It is live" })).id;
-      await withAgent(folder, claudeCode("writer"), async (agent) => {
+      await withAgent(folder, claudeCode("writer", { extensions: [librarianTools()] }), async (agent) => {
         const schema = (tool: string) => agent.inputSchema(tool).then((one) => Object.keys((one.properties ?? {}) as object));
         for (const tool of ["plan_arc", "park_increment", "write_note", "raise_question"]) {
           const keys = await schema(tool);
@@ -1634,6 +1634,23 @@ test("6.108 a tool that writes a library takes project, arc or increment, at lea
         const unnamed = await agent.callExactly("plan_arc", arcAsked);
         assert.equal(unnamed.isError, true);
         assert.match(unnamed.text, new RegExp(`names where it goes.*give project.*this folder's is "${project}".*arc or the increment`));
+        // Each other tool that writes is refused the same, the librarian's, the pins and the contract report among them.
+        const others = {
+          link: { from: "principle_000000000000", to: "decision_000000000000" },
+          supersede: { olds: ["decision_000000000000"], successor: "decision_111111111111" },
+          correct: { id: "decision_000000000000", fields: { title: "Better" } },
+          annotate: { target: "decision_000000000000", by: "decision_111111111111", note: "narrowed" },
+          retire: { id: "principle_000000000000", reason: "finished" },
+          graduate: { memory: "memory.md", kind: "principle", fields: {} },
+          pin: { on: "capability_000000000000", icon: "cache", label: "A cache", evidence: "cache.ts:1" },
+          retire_pin: { id: "pin_000000000000", reason: "stale" },
+          report: { contract: "contract_000000000000", result: "red" },
+        };
+        for (const [tool, args] of Object.entries(others)) {
+          const refused = await agent.callExactly(tool, args);
+          assert.equal(refused.isError, true, tool);
+          assert.match(refused.text, /names where it goes/, `${tool}: ${refused.text}`);
+        }
         const note = await agent.callExactly("write_note", { kind: "decision", title: "Email first", text: "Signing up by email" });
         assert.equal(note.isError, true, "a declared verb that writes is refused the same");
         assert.match(note.text, /names where it goes/);

@@ -4,3 +4,7 @@ export type { Findable, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, P
 export { MemoryVectors } from "./embedding.js";
 export type { Embedder, EmbedderSource, VectorStore } from "./embedding.js";
 export type { Related, RelatedHit, RelatedOptions } from "./similarity.js";
+export { modelsFolder } from "./embedding-model.js";
+export { PgVectors, vectorServerIdentity } from "./embeddings.js";
+export type { VectorDomain } from "./embeddings.js";
+export { pendingMemories, upgradeMemories } from "./memory-upgrade.js";

@@ -25,7 +25,7 @@ import { WebSocketServer } from "ws";
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { addressServer, connectionString } from "./address.js";
 import { ConnectionError } from "./connection-error.js";
-import { vectorServerIdentity } from "./embeddings.js";
+import { vectorServerIdentity } from "../knowledge/index.js";
 import { proxyFor } from "./websocket.js";
 
 const TLS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "testing", "tls");

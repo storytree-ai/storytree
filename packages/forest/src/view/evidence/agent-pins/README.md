@@ -22,3 +22,5 @@ Counted from the page (`after-measurements.json`):
 | opened (parts level) | Library settings · Nightly reindex (stale) | Search results cached | Public read routes | Every record |
 
 Taken by `node --import tsx packages/forest/testing/view/agent-pins/capture.mjs after` (append `--retake` to write here).
+
+In the evidence bucket for #902, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `902/after-far.png`, `902/after-near.png`, `902/after-opened.png`.

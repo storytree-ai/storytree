@@ -12,9 +12,8 @@ import { test } from "node:test";
 
 import { connect as connectLibrary, type Library } from "@storytree/library";
 
-import { Knowledge } from "../knowledge/index.js";
+import { Knowledge, PgVectors } from "../knowledge/index.js";
 import { connect } from "./index.js";
-import { PgVectors } from "./embeddings.js";
 import type { Project } from "./storytree.js";
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
 

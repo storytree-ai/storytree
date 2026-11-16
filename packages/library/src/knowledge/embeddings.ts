@@ -14,7 +14,7 @@ import type { ConnectionOptions } from "node:tls";
 import pg from "pg";
 import type { Pool } from "pg";
 
-import type { VectorStore } from "../knowledge/embedding.js";
+import type { VectorStore } from "./embedding.js";
 
 /** Established by the connection, never by an embedding row or a note. */
 export interface VectorDomain {

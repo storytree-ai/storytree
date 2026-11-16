@@ -271,8 +271,7 @@ export function registerPlanTools(define: Define): void {
       const { library, writer } = call;
       const found = partOf(await library.projectTree(), target);
       if (found === undefined) return { text: `${target} is not a capability, contract or edge in this project's plan: only those are retired here.`, refused: true };
-      // An edge is retired live: an increment holds pending changes only to stories, capabilities and contracts (ADR-0966 D1).
-      const held = found.kind === "edge" ? undefined : await holdPlanChange(library, await claimsOf(call), call.caller.session, { record: target, retire: reason }, writer);
+      const held = await holdPlanChange(library, await claimsOf(call), call.caller.session, { record: target, retire: reason }, writer);
       if (held !== undefined) return { text: `Retiring ${found.kind} ${quoted(found.title)} (${target}) is ${heldSaid(held)}`, data: { id: target } };
       await library.retire(target, reason, writer);
       return { text: `Retired ${found.kind} ${quoted(found.title)} (${target}): ${reason}.`, data: { id: target } };

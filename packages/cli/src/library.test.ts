@@ -520,6 +520,8 @@ test("3.14 `library edit` and `retire`, run by a session holding an increment, h
     const story = await library.addStory({ title: "Sign up" });
     const form = await library.addCapability({ story: story.id, title: "Form" });
     const promise = await library.addContract({ capability: form.id, title: "Accepts an address" });
+    const link = await library.addCapability({ story: story.id, title: "Link" });
+    const edge = await library.addEdge({ from: link.id, to: form.id });
     const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Red then green" });
     const log = await openActivityLog(testServerUrl());
     try {
@@ -534,12 +536,17 @@ test("3.14 `library edit` and `retire`, run by a session holding an increment, h
       assert.equal(retired.code, 0, retired.stderr);
       assert.deepEqual(await library.get(form.id), live, "the live record is left alone");
       assert.notEqual(await library.get(promise.id), null, "the contract is still live");
+      const unlinked = await world.run(["library", "retire", edge.id, "--reason", "read some other way"], as);
+      assert.equal(unlinked.code, 0, unlinked.stderr);
+      assert.match(unlinked.stdout, new RegExp(`pending on increment ${increment.id}`), "an edge's retirement waits as a contract's does");
+      assert.notEqual(await library.get(edge.id), null, "the edge is still live");
 
       const read = await world.run(["library", "read", increment.id]);
       assert.equal(read.code, 0, read.stderr);
-      assert.match(read.stdout, /^pending: 2 changes/m, "listed under the field's own name, as every other field is");
+      assert.match(read.stdout, /^pending: 3 changes/m, "listed under the field's own name, as every other field is");
       assert.match(read.stdout, new RegExp(`${form.id}.*\\n.*description: \\(none\\) -> Where they type it`));
       assert.match(read.stdout, new RegExp(`${promise.id}.*\\n.*retire: overtaken`));
+      assert.match(read.stdout, new RegExp(`${edge.id}.*\\n.*retire: read some other way`));
     } finally {
       await log.close();
     }

@@ -13,7 +13,8 @@
     "./tools": "./src/tools.ts",
     "./tree-sitter-bundle": "./src/code-survey/tree-sitter-bundle.ts",
     "./verbs": "./src/verbs.ts",
-    "./pin-verbs": "./src/pins/verbs.ts"
+    "./pin-verbs": "./src/pins/verbs.ts",
+    "./pins": "./src/pins/pins.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

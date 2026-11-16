@@ -78,3 +78,9 @@ test("3.92 · on an imported island drawn top-down, the edges holding contracts 
     { from: "main", to: "top:app:ui", contracts: ["c3", "c4"] },
   ], "button->form runs inside ui, so its edge is no gate at the island's level; main's two edges into ui are one");
 });
+
+test("3.119 · a pin on a capability inside an imported island's top part is drawn on the top part, and on the capability once the top part opens; one on a lone capability stays on it", () => {
+  const pin = (id: string, capability: string) => ({ pin: { id, type: "pin", fields: { anchor: { capability }, icon: "cache", label: id, evidence: "seen", commit: "abc", at: "2026-11-16T00:00:00.000Z" } } }) as never;
+  const pinned = forestScene(tree, [], workStates([]), survey, [], [pin("pin_1", "form"), pin("pin_2", "main")]);
+  assert.deepEqual(pinned.pins!.map(({ pin }) => pin.fields.anchor), [{ capability: "top:app:ui", part: "form" }, { capability: "main" }]);
+});

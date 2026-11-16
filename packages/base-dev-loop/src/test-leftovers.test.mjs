@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { start } from "@storytree/local-postgres";
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { removeFolder, sweepLeftovers } from "./test-leftovers.mjs";
+import { removeFolder, removeWhenFree, sweepLeftovers } from "./test-leftovers.mjs";
 import { killTree, runUnit } from "./unit-run.mjs";
 
 const localPostgres = pathToFileURL(fileURLToPath(import.meta.resolve("@storytree/local-postgres"))).href;
@@ -163,6 +163,32 @@ test("4.20 · 4.21 · a folder whose files stay held for a while after its serve
   clock = 0;
   assert.throws(() => removeFolder(at, { ...time, rm: () => { throw Object.assign(new Error("EPERM: still held"), { code: "EPERM" }); } }), /still held/);
   assert.ok(clock >= 10_000, "after retrying for the whole ten-second budget");
+});
+
+// increment_6237cbe8961f: on Windows CI a unit's temp folder was still held when the ten seconds ran out,
+// and nothing tried again, so the folder stayed.
+test("4.20 · a folder still held past the budget is removed in the background once the hold lets go", async (t) => {
+  const steps = cleanups(t);
+  const at = folder(steps, "leftovers-late-");
+  writeFileSync(path.join(at, "file"), "x");
+  let clock = 0;
+  let held = true;
+  const logged = [];
+  const removed = removeWhenFree(at, {
+    now: () => clock,
+    pause: (ms) => (clock += ms),
+    retryMs: 1,
+    log: (message) => logged.push(message),
+    rm: (target) => {
+      if (held) throw Object.assign(new Error("EPERM: held"), { code: "EPERM" });
+      rmSync(target, { recursive: true, force: true });
+    },
+  });
+  assert.equal(existsSync(at), true, "still there while the hold lasts");
+  assert.match(logged.join("\n"), /still held/, "and the wait is said");
+  held = false;
+  assert.equal(await removed, true);
+  assert.equal(existsSync(at), false, "removed once the hold lets go");
 });
 
 test("4.22 · a run's start removes storytree scratch folders in Temp older than three days, keeping a newer one and one a live server still uses", { timeout: 120_000 }, async (t) => {

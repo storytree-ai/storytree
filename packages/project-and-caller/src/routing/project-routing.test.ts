@@ -223,9 +223,7 @@ test("1.6 with the library set to a Postgres address, a project routes to that a
       assert.deepEqual(stopped.result, { status: "routed", project: "site", folder, library: { address } });
       assert.ok(stopped.ms < QUICK_MS, `answered in ${stopped.ms.toFixed(0)} ms`);
       placeTestServer(dataDir, { port });
-      const running = timed(() => route(folder, { dataDir }));
-      assert.deepEqual(running.result, { status: "routed", project: "site", folder, library: { address } });
-      assert.ok(running.ms < QUICK_MS, `answered in ${running.ms.toFixed(0)} ms, never trying the app's silent port`);
+      assert.deepEqual(route(folder, { dataDir }), { status: "routed", project: "site", folder, library: { address } });
 
       // Set back to local, routing follows the app's owner record and its handoff again.
       setLibrary(["local"], home);

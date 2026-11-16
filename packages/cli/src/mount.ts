@@ -179,8 +179,8 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
   if (!mounted(declared.command)) throw new Error(`no command to mount: ${declared.command.absent}`);
   const face = declared.command;
   const where = wherePlaces(declared);
-  const taking = { ...declared, inputs: { ...declared.inputs, ...Object.fromEntries(where.taken.map((key) => [key, WHERE_INPUTS[key]])) } };
-  const usage = face.usage === undefined || where.added.length === 0 ? commandUsage(taking) : `${face.usage} ${where.added.map((key) => `[--${key} <${key}>]`).join(" ")}`;
+  const taking = { ...declared, inputs: { ...declared.inputs, ...Object.fromEntries(where.map((key) => [key, WHERE_INPUTS[key]])) } };
+  const usage = face.usage === undefined || where.length === 0 ? commandUsage(taking) : `${face.usage} ${where.map((key) => `[--${key} <${key}>]`).join(" ")}`;
   const switches = Object.entries(declared.inputs).flatMap(([name, input]) => input.kind === "switch" ? [name] : []);
   const misused = (error: VerbRefusal): Refusal => new Refusal(error.misuse ? `${error.message}\nusage: storytree ${usage}` : error.message, {
     code: error.misuse ? 2 : 1,
@@ -197,7 +197,7 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
         const given = commandInput(taking, { word: (index) => args.words[index], flag: (name) => args.text(name), flags: (name) => args.texts(name), has: (name) => args.has(name), names: () => args.names });
         // A write's place: what it was given, a field it writes (an increment's arc, a friction's increment) naming it as well.
         const named = whereOf({ ...fieldsOf(declared, given), ...given });
-        const input = Object.fromEntries(Object.entries(given).filter(([key]) => !(where.taken as readonly string[]).includes(key)));
+        const input = Object.fromEntries(Object.entries(given).filter(([key]) => !(where as readonly string[]).includes(key)));
         if (declared.agentOnly !== undefined && commandSession() === undefined) throw new Refusal(`Run storytree ${face.family} ${face.name} from the agent's shell: ${declared.agentOnly}.`);
         const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces, parts, hostVerbs, projectRecords: () => projectRecords(), claims: () => context.claims(), testedNumbers: async (capability) => testedNumbersOf(context.cwd, await context.library(), capability), placeFiles: async (paths) => placeFilesOf(context.cwd, await context.library(), paths), pluginInFactory };
         const opened = declared.callerless ? { ...place, ...soleSession() } as CommandCaller & CommandPlace : { ...place, ...await context.activityContext() };
@@ -214,15 +214,14 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
 }
 
 /**
- * The inputs naming a write's place that `declared` does not take itself (ADR-1348 D3): `added` to its usage, and
- * `taken` from its flags, but `arc` and `increment` for a verb whose fields take every flag, which a record's fields
- * may hold, so they stay its fields and name its place as well. A verb that does not write takes none.
+ * The inputs naming a write's place that `declared` does not take itself (ADR-1348 D3), added to its flags and usage:
+ * only `project` for a verb whose fields take every flag, whose `arc` and `increment` a record's fields may hold, so
+ * they stay its fields and name its place as well. A verb that does not write takes none.
  */
-function wherePlaces(declared: Verb<VerbInputs, never>): { added: (keyof typeof WHERE_INPUTS)[]; taken: (keyof typeof WHERE_INPUTS)[] } {
-  if (!declared.writes || declared.callerless) return { added: [], taken: [] };
+function wherePlaces(declared: Verb<VerbInputs, never>): (keyof typeof WHERE_INPUTS)[] {
+  if (!declared.writes || declared.callerless) return [];
   const added = (Object.keys(WHERE_INPUTS) as (keyof typeof WHERE_INPUTS)[]).filter((key) => !(key in declared.inputs));
-  const fields = Object.values(declared.inputs).some((one) => one.kind === "fields");
-  return { added, taken: fields ? added.filter((key) => key === "project") : added };
+  return Object.values(declared.inputs).some((one) => one.kind === "fields") ? added.filter((key) => key === "project") : added;
 }
 
 /** The fields a verb whose fields take every flag was given, or nothing. */

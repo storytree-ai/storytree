@@ -601,7 +601,7 @@ function securitySteps({ pr, increment, checks, closed, project, use }) {
   One that may be a real credential: change nothing and push nothing. Raise one question on ${increment}'s arc${closed ? "" : ` holding ${increment}`},
   naming only PR #${pr} and the check secret-check, so the owner rotates the key; record it with
   \`${use.watch} verdict ${pr} owner --summary "a secret-check hit may be a real credential" --question <question>\`, close out and end.` : ""}
-- Once you have fixed it, before handing back, leave the owner a retro: file a friction report (\`${use.storytree} friction new\`)
+- Once you have fixed it, before handing back, leave the owner a retro: file a friction report (\`${use.storytree} friction new --increment ${increment}\`)
   on the mistake behind it, and raise one open question on ${increment}'s arc, holding nothing, so voice reads it to him: what
   the alert was, what leaked (or that nothing did), the mistake behind it, and how to prevent it (a local check for the pattern
   that fails before a push, with your recommendation). The library is private, so these two may name the alert.`;
@@ -944,7 +944,7 @@ export async function watchOnce({ dir, look, stateOf, storytree, cutover = async
           "--description", `The watcher retried PR #${pr} ${record.fixes.filter((fix) => fix.flake).length} times for reds it judged random, and gave it to the owner at its cap.`,
           "--statement", "Tests outside a pull request's reach failed it at random, so it could not land.",
           "--evidence", `PR #${pr} (${increment}) failed on: ${flaky.join("; ")}.`,
-          "--impact", `PR #${pr} waits on the owner instead of landing; the Windows-flakes arc can take these tests.`, "--none-match"], at);
+          "--impact", `PR #${pr} waits on the owner instead of landing; the Windows-flakes arc can take these tests.`, "--none-match", "--increment", increment], at);
       }
       await tell(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr} is still red after ${record.fixes.length} sessions: it goes to the owner`], at);
       await letGo(record, `PR #${pr} still red after ${record.fixes.length} sessions; released by the watcher`);

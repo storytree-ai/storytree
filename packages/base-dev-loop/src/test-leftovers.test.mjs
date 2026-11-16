@@ -95,25 +95,44 @@ test("starts a server and never stops it", async () => {
   return root;
 }
 
-async function untilRecord(root) {
+/**
+ * The unit's RECORD, waited for until it is written or the unit ends without it, as one whose server
+ * start outlasted its limits does: no budget of its own, the test's timeout bounds it.
+ */
+async function untilRecord(root, run) {
   const file = path.join(root, "RECORD");
-  await waitUntil(() => existsSync(file), 30_000, `the unit to write ${file}`);
+  let ended;
+  run.then((result) => (ended = result), (error) => (ended = { output: error.stack }));
+  while (!existsSync(file)) {
+    if (ended !== undefined && !existsSync(file)) assert.fail(`the unit ended (code ${ended.code}) before it wrote ${file}:\n${ended.output}`);
+    await new Promise((done) => setTimeout(done, 100));
+  }
   return JSON.parse(readFileSync(file, "utf8"));
 }
 
-test("4.20 · a unit's end stops every Postgres server running on a data folder in its temp folder, whether it passed, failed or was killed, before the folder is removed", { timeout: 180_000 }, async (t) => {
+/** Wait until `at` is gone: the harness removes a held folder once its hold lets go, bounded by the test's timeout. */
+async function untilGone(at) {
+  while (existsSync(at)) await new Promise((done) => setTimeout(done, 100));
+}
+
+// increment_6237cbe8961f: on Windows CI a Postgres start outlasted the inner unit's 60 s test limit, so no
+// RECORD came, and a unit's temp folder stayed held past the harness's ten seconds. The inner units get
+// limits a slow start fits in, and the test waits on the unit's write and the folder's removal.
+const SLOW_START_MS = 300_000;
+
+test("4.20 · a unit's end stops every Postgres server running on a data folder in its temp folder, whether it passed, failed or was killed, before the folder is removed", { timeout: 900_000 }, async (t) => {
   const steps = cleanups(t);
   for (const [ending, kill] of [["", false], ["throw new Error('red');", false], ["await new Promise(() => {});", true]]) {
     const root = serverUnit(steps, ending);
     let child;
-    const run = runUnit({ root, files: ["server.test.mjs"], env: process.env, stdio: "ignore", onSpawn: (spawned) => (child = spawned) });
-    const seen = await untilRecord(root);
+    const run = runUnit({ root, files: ["server.test.mjs"], env: process.env, hold: true, testLimitMs: SLOW_START_MS, unitLimitMs: SLOW_START_MS, onSpawn: (spawned) => (child = spawned) });
+    const seen = await untilRecord(root, run);
     stopLater(steps, seen.pid);
     if (kill) killTree(child);
     const result = await run;
-    assert.equal(result.code === 0, ending === "", `the unit ${ending === "" ? "passed" : "did not pass"}`);
+    assert.equal(result.code === 0, ending === "", `the unit ${ending === "" ? "passed" : "did not pass"}:\n${result.output}`);
     await waitUntil(() => !alive(seen.pid), 1_000, `the server a unit left running (${ending || "pass"}) to be stopped when the unit ends`);
-    assert.equal(existsSync(seen.temp), false, "and its temp folder is removed with the data folder in it");
+    await untilGone(seen.temp);
   }
 });
 
@@ -187,6 +206,7 @@ test("4.20 · a folder still held past the budget is removed in the background o
   assert.equal(existsSync(at), true, "still there while the hold lasts");
   assert.match(logged.join("\n"), /still held/, "and the wait is said");
   held = false;
+  await untilGone(at);
   assert.equal(await removed, true);
   assert.equal(existsSync(at), false, "removed once the hold lets go");
 });

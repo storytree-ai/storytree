@@ -101,7 +101,7 @@ const HELD = new Set(["EBUSY", "EPERM", "ENOTEMPTY", "EACCES"]);
  * throwing the last error. Synchronous, so a harness exiting can call it; @storytree/test-waits'
  * removeTemp, with the same codes and budget, is async.
  */
-export function removeFolder(at, { budgetMs = 10_000, rm = (target) => rmSync(target, { recursive: true, force: true }), now = Date.now, pause = sleep } = {}) {
+export function removeFolder(at, { budgetMs = 10_000, rm = removeAll, now = Date.now, pause = sleep } = {}) {
   for (const until = now() + budgetMs; ; ) {
     try {
       rm(at);
@@ -111,6 +111,42 @@ export function removeFolder(at, { budgetMs = 10_000, rm = (target) => rmSync(ta
       pause(100);
     }
   }
+}
+
+/**
+ * Remove `at` as removeFolder does, and if it is still held past the budget, try again every `retryMs`
+ * on a timer that keeps no process alive, resolving true once it goes or false on an error that is not
+ * a hold. A harness exiting first leaves the folder to the next run's sweep, which removes a gone
+ * run's unit folder. On Windows CI a unit's temp folder was held past the ten seconds (increment_6237cbe8961f).
+ */
+export function removeWhenFree(at, { log = () => {}, retryMs = 1_000, rm = removeAll, ...options } = {}) {
+  try {
+    removeFolder(at, { ...options, rm });
+    return Promise.resolve(true);
+  } catch (error) {
+    if (!HELD.has(error.code)) {
+      log(`could not remove ${at}: ${error.message}`);
+      return Promise.resolve(false);
+    }
+    log(`${at} is still held (${error.message}); removing it once it lets go`);
+  }
+  return new Promise((resolve) => {
+    const retry = () => {
+      try {
+        rm(at);
+        resolve(true);
+      } catch (error) {
+        if (HELD.has(error.code)) return void setTimeout(retry, retryMs).unref();
+        log(`could not remove ${at}: ${error.message}`);
+        resolve(false);
+      }
+    };
+    setTimeout(retry, retryMs).unref();
+  });
+}
+
+function removeAll(target) {
+  rmSync(target, { recursive: true, force: true });
 }
 
 /** The pid in a data folder's postmaster.pid, which Postgres writes on start and removes on a clean stop. */

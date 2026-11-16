@@ -6,3 +6,4 @@ export type { LauncherRuns } from "./command.js";
 export { CODEX_TRUST_STEP } from "../connect/codex.js";
 export { CHECK_COMMAND, checkFile, checkFilesWritten, FIX_SENTENCES, fixSentence, HOOK_TESTS, verifyHooks } from "./verify.js";
 export type { Fix, HookTest, Verification } from "./verify.js";
+export { factoryWay, SESSION_ROLE_TITLES, type FactoryWay } from "./factory-way.js";

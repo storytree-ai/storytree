@@ -19,6 +19,12 @@ test("1.34 · the friction family's drain answers, then says what the doors lear
   const surfaces = async () => ({ commands: [], tools: [], twins: [] });
   const answer = await learning(drained, surfaces).verbs[0]!.act(parseArgs([], [], process.cwd()), context);
   assert.equal(answer.text, "No friction is due.\nThe doors learner did not run: no library here");
+  // The learner writes to the library the drain names (ADR-1348 D3): naming none, it does not run; naming its project, it goes on to read the log.
+  const named: Context = { ...context, library: async () => ({ name: "p" }) as Library, activityContext: async () => { throw new Error("no activity log here"); } };
+  const unnamed = await learning(drained, surfaces).verbs[0]!.act(parseArgs([], [], process.cwd()), named);
+  assert.match(unnamed.text, /^No friction is due\.\nThe doors learner did not run: A write names where it goes/);
+  const placed = await learning(drained, surfaces).verbs[0]!.act(parseArgs(["--project", "p"], [], process.cwd()), named);
+  assert.equal(placed.text, "No friction is due.\nThe doors learner did not run: no activity log here");
   const other: Family = { ...drained, name: "resteer" };
   assert.equal(learning(other, surfaces), other);
 

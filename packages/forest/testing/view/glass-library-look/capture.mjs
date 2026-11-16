@@ -105,6 +105,9 @@ const { results: summary, opening, out } = await withCapture({ folder: evidence,
   const shoot = async (name, on = page) => { if (!smoke) await on.screenshot({ path: path.join(out, `${name}.png`), timeout: 180000 }); };
 
   const results = {};
+  // The opening is taken once every island is laid out and its roads drawn.
+  await page.waitForFunction(() => !document.body.innerText.includes('laying out'), undefined, { timeout: 180000 });
+  await settle(page, 12);
   const opened = await measure(page);
   assert.deepEqual(opened.pressed, { stories: 'true', library: 'false' }, 'it opens on Stories');
   assert.ok(Math.abs(opened.tiltDeg) < 1.5, `it opens looking straight down (${opened.tiltDeg}°)`);

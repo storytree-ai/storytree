@@ -18,3 +18,5 @@ export { captureSeed, seedFile, seedLayoutsFile } from "./seeds.js";
 export type { CaptureSeedName } from "./seeds.js";
 export { visibleGlobeTargets, zoomGlobe } from "./globe.js";
 export type { GlobeTarget, GlobeTargets } from "./globe.js";
+export { captureSequence } from "./sequence.js";
+export type { MapPose, Sequence, SequenceCell, SequenceKind, SequenceOptions } from "./sequence.js";

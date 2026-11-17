@@ -104,6 +104,22 @@ not change the camera. See the [reach-sized dots capture](../../../../packages/k
 for choosing visible notes, seeding their reads, then framing both full and close
 views in one invocation.
 
+Claude reads no video, so a turn, tilt or zoom reaches it as a frame sequence and one
+contact sheet. Once the map is ready, `await captureSequence(page, { kind: 'turn', from: 0,
+to: 150, out, view: 'spin' })` poses the map in code at `frames` (6 unless asked) evenly
+spaced steps, settles each, and writes `spin-01.png` … and `spin-sheet.png`: the frames in
+order in one picture 2576 px wide, each under its step and value, drawn as an HTML grid in
+the same browser. `turn` spins the sheet about its upright axis through the middle of the
+view, anticlockwise on its top face; `tilt` tips it from straight down (0°) through edge-on
+(90°) to its underside (180°), as the app's own tilt is measured; both in degrees, the
+sheet posed as the map's navigation poses it. `zoom` moves the eye along its line of sight,
+in CSS pixels per unit at the middle of the view (`visibleGlobeTargets(page).zoom` reads it);
+one outside the wheel's range is refused. Each step changes only its own part of the pose,
+and the map is put back as it was afterwards. The pose is set past the page's own
+navigation, so the compass keeps its opening reading. Read the sheet with the Read tool; the
+frames stay beside it for a closer look. It returns each frame's file and the pose read back
+from the map, and each cell's place on the sheet.
+
 Existing interaction journeys and performance probes use `withCapture` with a
 callback receiving `{ browser, origin, out, settle }`. They keep their local
 expectations while sharing server/browser lifetime; this form does not create a

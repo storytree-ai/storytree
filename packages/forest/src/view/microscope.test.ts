@@ -10,7 +10,7 @@ import { waitUntil } from "@storytree/test-waits";
 import type { CapabilityLine, StoryPanel } from "@storytree/forest";
 
 import { microscope } from "../drill-down/microscope.js";
-import { namesShown } from "./microscope.js";
+import { namesShown, scopeDrawing, scopeSection } from "./microscope.js";
 import { panelFolds } from "./panel-folds.js";
 import { renderStoryPanel } from "./story-panel.js";
 import { PARKED_FILL } from "./territory-land.js";
@@ -55,14 +55,14 @@ const plan = {
 };
 const story: StoryPanel = { story: "s", title: "Story s", description: "What s is.", capabilities: [capability("a"), capability("b")], microscope: microscope(plan, surveys) };
 
-function page() {
+function page(drawn: StoryPanel = story) {
   const window = new Window();
   const host = window.document.createElement("aside") as unknown as HTMLElement;
   window.document.body.appendChild(host as never);
   const folds = panelFolds();
   /** Draw the panel for `selected` as the page does, then let its microscope's layout finish. */
   const draw = async (selected: string | undefined): Promise<void> => {
-    host.innerHTML = renderStoryPanel(story, selected);
+    host.innerHTML = renderStoryPanel(drawn, selected);
     folds.draw(host);
     await settled();
   };
@@ -150,4 +150,43 @@ test("4.55 · where two of the microscope's names would be written over each oth
   const children = [{ id: "small", title: "2 · Small", lines: 10 }, { id: "large", title: "1 · Large", lines: 90 }, { id: "apart", title: "3 · Apart", lines: 5 }, { id: "below", title: "4 · Below", lines: 8 }];
   const places = new Map([["small", { x: 3, z: 2 }], ["large", { x: 0, z: 0 }], ["apart", { x: 0, z: 40 }], ["below", { x: 6, z: 9 }]]);
   assert.deepEqual(namesShown(children, places).map(({ child }) => child.id), ["large", "apart"]);
+});
+
+test("4.55 · news that leaves the story unchanged draws the panel the same once its microscope is laid out, so the page touches nothing (2.51)", async () => {
+  // Its own sizes, so no other test has laid its level out already.
+  const resized = { ...surveys, s: { ...survey.s, files: survey.s.files.map((file) => ({ ...file, lines: file.lines + 1 })) } };
+  const unchanged: StoryPanel = { ...story, microscope: microscope(plan, resized) };
+  const { draw, host } = page(unchanged);
+  const before = renderStoryPanel(unchanged, undefined);
+  await draw(undefined);
+  assert.ok(host.querySelector(".scope-territory"), "the microscope's level laid out on the panel");
+  assert.equal(renderStoryPanel(unchanged, undefined), before, "the panel's HTML is the same after its microscope was laid out");
+});
+
+test("4.55 · a capability whose code is one part opens on that part's parts, the capability named on the way; a dependency only the plan records ends at its gate; a level of many roads draws them fine", () => {
+  const window = new Window();
+  // r's code is one part, lib, holding two parts of its own; the plan alone says r depends on q.
+  const one = microscope({
+    story: "s", title: "Story s",
+    capabilities: [{ id: "r", title: "The r", status: "healthy" }, { id: "q", title: "The q", status: "healthy" }],
+    edges: [{ from: "r", to: "q" }],
+    names: new Map([["s", "Story s"], ["r", "The r"], ["q", "The q"]]),
+  }, { s: {
+    files: ["src/r/lib/index.ts", "src/r/lib/one/index.ts", "src/r/lib/two/index.ts", "src/q/q.ts"].map((path) => ({ path, lines: 20, capability: path.startsWith("src/q") ? "q" : "r" })),
+    parts: { capabilities: { r: [{ folder: "src/r/lib", files: ["src/r/lib/index.ts"], parts: [
+      { folder: "src/r/lib/one", files: ["src/r/lib/one/index.ts"], parts: [] }, { folder: "src/r/lib/two", files: ["src/r/lib/two/index.ts"], parts: [] }] }] } },
+  } });
+  const host = window.document.createElement("div");
+  host.innerHTML = scopeSection(one, "r");
+  assert.equal(host.querySelector(".panel-microscope")?.getAttribute("data-scope-root"), "r:src/r/lib", "the one part's level is shown");
+  assert.deepEqual([...host.querySelectorAll("[data-scope-child]")].map((child) => child.getAttribute("data-scope-child")), ["src/r/lib/one", "src/r/lib/two", "src/r/lib"]);
+  const through = host.querySelector(".scope-through");
+  assert.equal(through?.textContent, "The r", "the capability is named on the way down, not offered, since it would show this level again");
+  assert.deepEqual(one.levels["r"]!.gates, [{ name: "The q", reaches: [] }], "a dependency the code does not show still has its gate");
+
+  const many = Array.from({ length: 12 }, (_, k) => ({ id: `p${k}`, title: `p${k}`, lines: 10 }));
+  const roads = many.flatMap((a, i) => many.slice(i + 1).map((b) => ({ from: a.id, to: b.id })));
+  const busy = (level: typeof roads) => scopeDrawing({ id: "m", path: ["s", "m"], titles: ["S", "M"], children: many, roads: level, gates: [] }).includes('class="scope-roads busy"');
+  assert.equal(busy(roads), true, "sixty-six roads drawn fine");
+  assert.equal(busy(roads.slice(0, 3)), false, "three drawn full");
 });

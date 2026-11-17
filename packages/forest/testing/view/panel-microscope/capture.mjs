@@ -80,7 +80,7 @@ const pickStory = (story, { laid = true } = {}) => async ({ page, settle }) => {
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await settle(page, 6);
   if (laid) await laidOut(page);
-  else await until(page, id => document.querySelector(`aside.story-panel .panel-microscope[data-scope-story="${id}"]`) !== null, story.id, 60_000);
+  else await until(page, id => document.querySelector(`aside.story-panel .panel-microscope[data-scope-story="${id}"]`) !== null, story.id);
 };
 
 await runCapture({

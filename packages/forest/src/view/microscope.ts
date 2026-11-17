@@ -64,9 +64,12 @@ function chooses(level: ScopeLevel, child: ScopeLevel["children"][number]): stri
 const GATE_NAME = 24;
 const cut = (name: string) => (name.length <= GATE_NAME ? name : `${name.slice(0, GATE_NAME - 1).trimEnd()}…`);
 
-/** The drawing of `level`: its land, children, roads and gates, as SVG; with `later`, a level not yet laid out is its bare land, marked to be laid out. */
-export function scopeDrawing(level: ScopeLevel, later = false): string {
-  if (later && !laidOutYet(level)) return `<svg class="scope-land" viewBox="${-(SCOPE_RADIUS + 90)} ${-(SCOPE_RADIUS + 16)} ${2 * (SCOPE_RADIUS + 90)} ${2 * (SCOPE_RADIUS + 16)}" role="img" aria-label="${attribute(level.titles.at(-1)!)}" aria-busy="true" data-scope-pending><circle class="scope-coast" r="${SCOPE_RADIUS + 1.5}"/></svg>`;
+/**
+ * The drawing of `level`: its land, children, roads and gates, as SVG; with `later`, a level not yet laid out is its bare
+ * land, marked to be laid out, and with "bare" every level is, so the panel's HTML does not change once one is laid out.
+ */
+export function scopeDrawing(level: ScopeLevel, later: boolean | "bare" = false): string {
+  if (later === "bare" || (later && !laidOutYet(level))) return `<svg class="scope-land" viewBox="${-(SCOPE_RADIUS + 90)} ${-(SCOPE_RADIUS + 16)} ${2 * (SCOPE_RADIUS + 90)} ${2 * (SCOPE_RADIUS + 16)}" role="img" aria-label="${attribute(level.titles.at(-1)!)}" aria-busy="true" data-scope-pending><circle class="scope-coast" r="${SCOPE_RADIUS + 1.5}"/></svg>`;
   const layout = scopeLayout(level);
   const own = level.parked === true ? PARKED_FILL : WORD_FILL[level.word ?? "untested"];
   const fillOf = (child: ScopeLevel["children"][number]) => level.path.length > 1 ? own : child.parked === true ? PARKED_FILL : WORD_FILL[child.word ?? "untested"];
@@ -143,7 +146,7 @@ function trail(scope: Microscope, level: ScopeLevel): string {
  * The microscope's section in the panel, rooted on `root` (a level of `scope`), its `base` the story or capability the panel
  * shows. A level that is one part and nothing else shows that part's level, so every drill shows two or more things.
  */
-export function scopeSection(scope: Microscope, base: string, root: string = base, later = false): string {
+export function scopeSection(scope: Microscope, base: string, root: string = base, later: boolean | "bare" = false): string {
   const level = shown(scope, scope.levels[root] ?? scope.levels[base]);
   if (level === undefined) return "";
   // The microscope's levels travel with the panel's HTML, as an attribute written as text, so a part chosen is drawn from it.
@@ -175,7 +178,8 @@ export function panelScope(): PanelScope {
     kept.set(scope.story, { base, root: to });
     const current = () => panel.querySelector<HTMLElement>(".panel-microscope");
     const pending = () => current()?.querySelector("[data-scope-pending]") != null;
-    if (section.dataset.scopeRoot !== level.id) section.outerHTML = scopeSection(scope, base, level.id, true);
+    // A level laid out already is drawn at once; the panel's HTML carries every level bare (scopeDrawing).
+    if (section.dataset.scopeRoot !== level.id || (pending() && laidOutYet(level))) section.outerHTML = scopeSection(scope, base, level.id, true);
     if (!pending() || laying.has(level.id)) return;
     laying.add(level.id);
     const steps = scopeLayoutSteps(level);

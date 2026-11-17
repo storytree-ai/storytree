@@ -138,9 +138,12 @@ test("4.8 the panel draws no tree, card or pop-out: its one pick is a story's ca
 });
 
 test("4.6 with the capability details switched off, the panel is the story's sentences alone, with no capability names and no capability shown (ADR-0750)", () => {
-  const html = renderStoryPanel(panel, "next", { details: false });
+  // A story whose microscope would show its capabilities on its land.
+  const scoped: StoryPanel = { ...panel, microscope: { story: "s", levels: { s: { id: "s", path: ["s"], titles: ["S"], children: [{ id: "next", title: "Next", lines: 10, opens: "next" }], roads: [], gates: [] } } } };
+  const html = renderStoryPanel(scoped, "next", { details: false });
   assert.match(html, /What s is\. Why\./);
   assert.doesNotMatch(html, /data-capability-id|data-pick-capability/, "no capability shown or named");
+  assert.doesNotMatch(html, /panel-microscope/, "and no microscope, which would show them");
 });
 
 function notGreen(why: CapabilityLine["why"], lastSeen?: { state: "passing" | "failing"; at: string }): StoryPanel {

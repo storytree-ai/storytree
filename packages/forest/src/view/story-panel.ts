@@ -24,9 +24,10 @@ import { scopeSection } from "./microscope.js";
 export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { details = true, gate, open }: { details?: boolean; gate?: readonly [string, string] | undefined; open?: readonly string[] | undefined } = {}): string {
   if (gate !== undefined) return `${head(panel.title)}${gateLinks(panel, gate, open)}`;
   const shown = details ? panel.capabilities.find(({ id }) => id === selected) : undefined;
-  if (shown !== undefined) return `${head(shown.title, panel.title)}${panel.microscope === undefined ? "" : scopeSection(panel.microscope, shown.id, shown.id, true)}${capability(shown, panel.edges ?? [])}`;
+  // The microscope's land is bare in the HTML and laid out on the page (./microscope.ts), so news drawing the same panel changes nothing.
+  if (shown !== undefined) return `${head(shown.title, panel.title)}${panel.microscope === undefined ? "" : scopeSection(panel.microscope, shown.id, shown.id, "bare")}${capability(shown, panel.edges ?? [])}`;
   return `${head(panel.title)}
-    ${panel.microscope === undefined ? "" : scopeSection(panel.microscope, panel.story, panel.story, true)}
+    ${panel.microscope === undefined || !details ? "" : scopeSection(panel.microscope, panel.story, panel.story, "bare")}
     ${description(panel.description, "panel-sentences")}
     ${panel.mapped === undefined ? "" : mapped(panel.mapped, panel.capabilities)}
     ${needsYou(panel.capabilities)}

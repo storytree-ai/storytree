@@ -61,6 +61,12 @@ export function gatePosts(gates: readonly { readonly at: { x: number; z: number 
   return posts;
 }
 
+/** What of `claimed` marks the capabilities inside the island's top parts (`parts`), once one opens (3.122): equal while only
+ * other capabilities' claims change, so a claim moving inside a closed top part redraws its opened land and leaves the island's. */
+export function claimsInside(claimed: ReadonlyMap<string, ClaimTint>, parts: readonly { readonly shares: readonly { readonly capability?: string }[] }[]): string {
+  return JSON.stringify(parts.map(({ shares }) => shares.map(({ capability }) => capability === undefined ? undefined : claimed.get(capability))));
+}
+
 /** What of `claimed` tints island land `land`: equal while only other islands' claims change. */
 export function claimsOn(claimed: ReadonlyMap<string, ClaimTint>, land: NonNullable<Island["land"]>): string {
   return JSON.stringify(land.territories.map(({ capability }) => capability === undefined ? undefined : claimed.get(capability)));

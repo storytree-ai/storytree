@@ -239,8 +239,11 @@ test("4.37 a worktree reaped while a test Postgres still runs on its .pgtest/dat
       const server = await start({ dataDir: path.join(folder, ".pgtest", "data"), serverLog: path.join(dir, "pg.log"), toolLog: path.join(dir, "tools.log") });
       try {
         // A server answers on its own url, whose password is that server's alone, and no other process
-        // can hold its port while it runs: once that url stops connecting, this server has stopped. (Its
-        // pid is no proof: Windows hands a freed pid to a new process within moments.)
+        // can hold its port while it runs. Stopped, its url is refused for one of two reasons: nothing
+        // listens on the port (ECONNREFUSED), or another server took the port and refuses this password
+        // (28P01). A server still running on a deleted folder refuses it too, for a missing file (58P01),
+        // so any other refusal is no proof. (Nor is its pid: Windows hands a freed pid to a new process
+        // within moments.)
         const connectsOn = async (url: string) => {
           const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 5_000 });
           try {
@@ -257,7 +260,10 @@ test("4.37 a worktree reaped while a test Postgres still runs on its .pgtest/dat
         const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
         assert.deepEqual(await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, watch), [folder]);
         assert.equal(existsSync(folder), false);
-        await assert.rejects(connectsOn(server.url), "the server is stopped: its url no longer connects");
+        await assert.rejects(connectsOn(server.url), (error: Error & { code?: string }) => {
+          assert.ok(error.code === "ECONNREFUSED" || error.code === "28P01", `the server is stopped: its url is refused as no server listens on its port, or as another server's, not for ${error.code}: ${error.message}`);
+          return true;
+        }, "the server is stopped: its url no longer connects");
       } finally {
         await server.stop();
       }

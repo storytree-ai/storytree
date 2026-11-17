@@ -25,5 +25,6 @@ export type {
   HealthSource,
   SkipKind,
   ToldTurn,
+  FlakeSeen,
   VerifiedVerdict,
 } from "./health-record.js";

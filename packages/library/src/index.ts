@@ -96,6 +96,7 @@ export type {
   HealthSource,
   SkipKind,
   VerifiedVerdict,
+  FlakeSeen,
 } from "./health/index.js";
 export { heldBack, NOT_VERIFIED, wordAndWhy } from "./health/index.js";
 export type { DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision } from "./decisions/index.js";

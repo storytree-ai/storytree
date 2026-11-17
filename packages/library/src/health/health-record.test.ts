@@ -1253,6 +1253,17 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(others, []);
     assert.notEqual(next!.id, investigation!.id, "once its investigation is closed, a new flake parks a new one");
     assert.equal(next!.fields.arc, fields.arc, "on the same test's arc");
+
+    // A flake of the same test found elsewhere (the watcher's retry of a pull request's red) reaches the same investigation (ADR-1352 D1).
+    const elsewhere = { test: flaky, story: story.id, seen: "PR #9 at abc1234", evidence: "PR #9 at abc1234: retried as random", found: "The watcher retried PR #9 for it", by: "the watcher" };
+    assert.equal(await health.investigateFlake(elsewhere), next!.id);
+    assert.equal(await health.investigateFlake(elsewhere), next!.id);
+    const [held] = await open();
+    assert.equal(held!.fields.body.split("\n").filter((line) => line.includes("PR #9 at abc1234")).length, 1, "its evidence is added once");
+    const fresh = await health.investigateFlake({ ...elsewhere, test: "a test own health never saw flake", contract: contract.id });
+    const parked = (await open()).find(({ id }) => id === fresh)!;
+    assert.ok(parked.fields.body.includes("the watcher") && parked.fields.links?.includes(contract.id), "a test first found elsewhere parks its investigation, saying who parked it");
+    assert.notEqual(parked.fields.arc, fields.arc, "on that test's own arc");
   });
 }
 

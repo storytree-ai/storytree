@@ -11,11 +11,10 @@
  *   capability its code imports or is imported by, or, inside the same capability, the part beside it at the deepest
  *   level that holds both; each names the children its road reaches.
  */
-import type { CapabilityWord } from "@storytree/forest-world/scene";
-import type { CodeEdge, FileImport, SurveyedFile, SurveyedPart } from "@storytree/library";
+import type { CapabilityStatus, CodeEdge, FileImport, SurveyedFile, SurveyedPart } from "@storytree/library";
 
 /** One thing on a level: a capability, a part, or the files in no part; `opens`, the id of its own level when it has one. */
-export type ScopeChild = { readonly id: string; readonly title: string; readonly lines: number; readonly opens?: string; readonly word?: CapabilityWord; readonly parked?: true };
+export type ScopeChild = { readonly id: string; readonly title: string; readonly lines: number; readonly opens?: string; readonly word?: CapabilityStatus; readonly parked?: true };
 /** A road off the level's edge: the neighbour it leads to, and the children of the level it reaches inside. */
 export type ScopeGate = { readonly name: string; readonly reaches: readonly string[] };
 /** One level of the microscope: the path down to it (story, capability, parts), each step's title, and what it holds. */
@@ -24,7 +23,7 @@ export type ScopeLevel = {
   readonly path: readonly string[];
   readonly titles: readonly string[];
   /** The capability's word its parts keep (question_211620bd75de); a story's level colours each capability by its own. */
-  readonly word?: CapabilityWord;
+  readonly word?: CapabilityStatus;
   readonly parked?: true;
   readonly children: readonly ScopeChild[];
   readonly roads: readonly { readonly from: string; readonly to: string }[];
@@ -45,7 +44,7 @@ export type ScopeSurvey = {
 export type ScopePlan = {
   readonly story: string;
   readonly title: string;
-  readonly capabilities: readonly { readonly id: string; readonly title: string; readonly status: CapabilityWord; readonly parked?: boolean }[];
+  readonly capabilities: readonly { readonly id: string; readonly title: string; readonly status: CapabilityStatus; readonly parked?: boolean }[];
   readonly edges: readonly { readonly from: string; readonly to: string }[];
   /** Every story's and capability's title, by id, for gates naming a neighbour on another island. */
   readonly names: ReadonlyMap<string, string>;

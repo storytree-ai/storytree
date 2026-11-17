@@ -116,7 +116,7 @@ test("4.55 · the panel's microscope shows the one thing it is rooted on, drills
   // The panel's behaviours drawn again over the same panel keep the microscope as it is.
   const kept = section();
   folds.draw(host);
-  assert.equal(section(), kept, "drawing the panel's behaviours again replaces nothing");
+  assert.ok(section() === kept, "drawing the panel's behaviours again replaces nothing");
 
   // Into x by the keyboard, then on into deep: each drill re-rooted, only its own parts drawn, with a breadcrumb back up.
   await press('[data-scope-child="src/a/x"]', "Enter");

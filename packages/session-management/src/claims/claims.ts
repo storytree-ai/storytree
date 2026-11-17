@@ -24,6 +24,8 @@
  *   their claimed lines name as `under`, whoever closes it and whatever the disposition (ADR-0944 D5, ADR-0949 D4).
  * - A claim also ends when a pull request from the branch it was taken on merges after it was
  *   taken (ADR-0643 D3): a "merged" line, which merges.ts writes when GitHub shows one.
+ * - A claim on an increment, or a capability under it, taken on a branch another increment's standing claim is on
+ *   records no branch, so that branch's merge ends only the work it was for (5.75, branchFor).
  * - A holder that reads gone, crashed or abandoned with no end line, keeps its claim until the session
  *   manager releases it from its stale-claim worklist (stale-claims.ts, ADR-0953 D4); its unclosed
  *   increment, like any released one, is a proposal again (5.29).
@@ -145,7 +147,9 @@ export async function claim(context: ClaimContext, id: string, reason: string, g
     const standing = await heldNow(log, context);
     const current = standing.get(id);
     const mine = current?.session === context.session;
-    if (mine && current.holder === "live" && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
+    const under = underOf(standing, context.session, found.part);
+    const branch = branchFor(standing, context.branch, found.part.increment ?? under.under);
+    if (mine && current.holder === "live" && !(options.moveBranch && context.branch !== undefined && branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
     if (!mine && current?.holder === "live" && !takesOver(current, context)) {
       await log.append({ ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason, ...file, ...underOf(standing, context.session, found.part) });
       return held(standing.values(), current);
@@ -166,11 +170,11 @@ export async function claim(context: ClaimContext, id: string, reason: string, g
       ...found.part,
       reason,
       ...(current === undefined || mine ? {} : { takenOverFrom: current.session, ...(current.quiet === undefined ? {} : { quietSince: current.quiet.since, takenBecause: current.quiet.because }) }),
-      ...(context.branch === undefined ? {} : { branch: context.branch }),
+      ...(branch === undefined ? {} : { branch }),
       ...file,
-      ...underOf(standing, context.session, found.part),
+      ...under,
     });
-    const claimed: Claim = { ...claimOf(line.session, line.harness, found.part, reason, line.at, context.branch), holder: "live" } as Claim;
+    const claimed: Claim = { ...claimOf(line.session, line.harness, found.part, reason, line.at, branch), holder: "live" } as Claim;
     return current === undefined || mine ? { ok: true, claim: claimed } : { ok: true, claim: claimed, takenOverFrom: current };
   });
 }
@@ -507,6 +511,16 @@ function underOf(standing: ReadonlyMap<string, Claim>, session: string, part: Pa
   if (part.capability === undefined) return {};
   const under = [...standing.values()].filter((claim) => claim.session === session && claim.increment !== undefined).sort((a, b) => a.since.localeCompare(b.since)).at(-1)?.increment;
   return under === undefined ? {} : { under };
+}
+
+/**
+ * The branch a claim for `increment` (the one claimed, or a capability's `under`) records: `branch`, unless a standing claim
+ * on another increment, its session's own or its pull request's held one, is on it; then none, so that branch's merge,
+ * which is that increment's, does not end this one (5.75).
+ */
+function branchFor(standing: ReadonlyMap<string, Claim>, branch: string | undefined, increment: string | undefined): string | undefined {
+  if (branch === undefined || increment === undefined) return branch;
+  return [...standing.values()].some((claim) => claim.increment !== undefined && claim.increment !== increment && claim.branch === branch) ? undefined : branch;
 }
 
 /** Who holds what right now, read under the project's lock, by the database's clock. */

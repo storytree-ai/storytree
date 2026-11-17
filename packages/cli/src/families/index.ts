@@ -53,6 +53,17 @@ export const POINTERS: Readonly<Record<string, string>> = {
   "resteer list": "library list resteer",
 };
 
+/**
+ * Words agents try for a job no command of its own does, keyed by the words after `storytree`, each with why and the
+ * command that does the job instead: the door refuses them saying so, rather than running that command for them.
+ */
+export const NO_SUCH_JOB: Readonly<Record<string, { why: string; instead: string }>> = {
+  "arc close": {
+    why: "an arc has no close of its own: it reads closed once none of its increments is open and none of its questions waits, so it closes when its last increment does",
+    instead: "arc increment close",
+  },
+};
+
 /** The families still kept here, each at the place it takes among the declared ones in `storytree`'s list. */
 const KEPT: readonly Placed[] = [
   { order: 6, family: doors },

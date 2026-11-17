@@ -32,7 +32,7 @@ export const OWN_HEALTH = "Own health";
 /** The title the library gives the arc of a flaky test's one investigation (investigateFlake, 5.33), naming the test. */
 const INVESTIGATION = /^The flaky test "(.*)" passes reliably$/;
 /** Who the harvest's flakes and patterns are by. */
-const BY = "storytree health harvest";
+const BY = "storytree harvest ci";
 
 /** A failed GitHub Actions run, as the harvest lists it. */
 export interface FailedRun {

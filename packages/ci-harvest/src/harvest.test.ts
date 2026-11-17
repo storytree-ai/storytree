@@ -193,7 +193,7 @@ test("1.2 · The harvest sends each flaky failing test of a CI run to its one in
   assert.match(String(flakes[0]!.evidence), /run 11 \(PR #7\) at a{10}11 \(pull_request\): the harvest read it as a flake, since it failed outside what its pull request changes/);
   assert.match(String(flakes[1]!.evidence), /passed on a rerun, unchanged/);
   assert.match(String(flakes[3]!.evidence), /merge queue's red merged at the head it was red at/);
-  assert.equal(flakes.every(({ by }) => by === "storytree health harvest"), true);
+  assert.equal(flakes.every(({ by }) => by === "storytree harvest ci"), true);
   assert.deepEqual(written, [], "no flake is recorded as an escape pattern");
   assert.equal(counts.flakes, 6);
   assert.match(harvestText(counts), /flakes routed: 6 flaky tests to 4 investigations/);

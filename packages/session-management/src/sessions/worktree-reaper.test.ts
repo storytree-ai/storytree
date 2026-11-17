@@ -9,6 +9,8 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, ut
 import path from "node:path";
 import { test } from "node:test";
 
+import pg from "pg";
+
 import { connect } from "@storytree/library";
 import { start } from "@storytree/local-postgres";
 import { waitUntil } from "@storytree/test-waits";
@@ -236,7 +238,18 @@ test("4.37 a worktree reaped while a test Postgres still runs on its .pgtest/dat
       // A run whose harness was killed outright leaves its server running, never stopped.
       const server = await start({ dataDir: path.join(folder, ".pgtest", "data"), serverLog: path.join(dir, "pg.log"), toolLog: path.join(dir, "tools.log") });
       try {
-        const pid = Number(readFileSync(path.join(server.dataDir, "postmaster.pid"), "utf8").split("\n")[0]);
+        // A server answers on its own url, whose password is that server's alone, and no other process
+        // can hold its port while it runs: once that url stops connecting, this server has stopped. (Its
+        // pid is no proof: Windows hands a freed pid to a new process within moments.)
+        const connectsOn = async (url: string) => {
+          const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 5_000 });
+          try {
+            await client.connect();
+          } finally {
+            await client.end().catch(() => undefined);
+          }
+        };
+        await connectsOn(server.url);
         const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
         await log.append(project, { ...here, session: "s-tested", folder, branch: "claude/tested", kind: "file-edited", files: ["x.ts"] });
         await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: "claude/tested", open: false, how: "not-ahead" });
@@ -244,7 +257,7 @@ test("4.37 a worktree reaped while a test Postgres still runs on its .pgtest/dat
         const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
         assert.deepEqual(await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, watch), [folder]);
         assert.equal(existsSync(folder), false);
-        assert.throws(() => process.kill(pid, 0), "the server is stopped");
+        await assert.rejects(connectsOn(server.url), "the server is stopped: its url no longer connects");
       } finally {
         await server.stop();
       }

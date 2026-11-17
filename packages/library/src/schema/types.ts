@@ -407,6 +407,11 @@ export const RECORD_SCHEMAS = {
       source: z.enum(["local", "ci"]).optional(),
       /** The names of the tests whose results made a verified verdict, each with the suites around it. Optional, so no version bump. */
       tests: z.array(z.string()).optional(),
+      /**
+       * Of a failing verdict's tests, those a passing CI run of the same commit ran without failing: flakes, each named as
+       * `tests` names it. Optional, so no version bump.
+       */
+      flaky: z.array(z.string()).optional(),
     })
     .strict(),
   /**

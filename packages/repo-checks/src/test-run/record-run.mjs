@@ -60,6 +60,12 @@ export async function checkStory(library, story, writer, { root, folders, eviden
     dependant,
   });
   applyJobProofs(verdicts, name, jobProofs);
+  // A flake stays red; it is named so the box's telling parks one investigation of the test (7.19, library 5.33).
+  const flakes = [...new Set([...verdicts.values()].flatMap((verdict) => verdict.flaky ?? []))];
+  if (flakes.length > 0) {
+    log(`\n${flakes.length} failing test(s) the passing CI run of this commit passed, recorded failing and named flaky, so the box's telling investigates each:`);
+    for (const flake of flakes) log(`  ${flake}`);
+  }
   // A run can re-run only its own platform's tests and those its CI evidence credits: a platform:<os> skip of any other
   // was never reached, so a pass from that platform stands (7.15), as the laptop's factory run skipping a Linux-only test.
   const platformsSeen = new Set([platform, ...evidence.filter(Boolean).map(({ platform: seen }) => seen)]);

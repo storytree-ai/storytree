@@ -11,6 +11,7 @@ import { test } from "node:test";
 import type { Browser, Page } from "playwright-core";
 
 import { MENU_TABS } from "@storytree/app/surfaces/named";
+import { waitUntil } from "@storytree/test-waits";
 
 import namedSurfaces from "../main/parts/named-surfaces.js";
 import surfaces from "../main/parts/surfaces.js";
@@ -55,20 +56,19 @@ async function named(page: Page, pick: string): Promise<string> {
 }
 
 /**
- * The first library note in the middle of the globe once it holds its place for two reads running, or undefined if none
- * does within `timeoutMs`. Library lays its notes out a few steps to a task once pressed and tilts the sheet over, which one
- * settle's frames on a loaded runner do not see out (own health's Linux run at 7c3cfb88 found no dot yet).
+ * The first library note in the middle of the globe once it holds its place for two reads running. Library lays its notes
+ * out a few steps to a task once pressed and tilts the sheet over, which one settle's frames on a loaded runner do not see
+ * out (own health's Linux run at 7c3cfb88 found no dot yet).
  */
-async function restingDot(page: Page, settle: (page: Page) => Promise<void>, timeoutMs = 180_000): Promise<{ id: string; x: number; y: number } | undefined> {
-  const until = Date.now() + timeoutMs;
+async function restingDot(page: Page, settle: (page: Page) => Promise<void>): Promise<{ id: string; x: number; y: number }> {
   let last: { id: string; x: number; y: number } | undefined;
-  do {
+  return waitUntil(async () => {
     await settle(page);
     const [dot] = (await visibleGlobeTargets(page, { x: 0.6, y: 0.6 })).dots;
-    if (dot !== undefined && last?.id === dot.id && Math.hypot(dot.x - last.x, dot.y - last.y) < 0.5) return dot;
+    const held = dot !== undefined && last?.id === dot.id && Math.hypot(dot.x - last.x, dot.y - last.y) < 0.5;
     last = dot;
-  } while (Date.now() < until);
-  return undefined;
+    return held ? dot : undefined;
+  }, 180_000, "the seed's library to show a note to open, held in its place");
 }
 
 test("3.15 · every canvas, gear menu tab and dialog the app opens carries a declared surface id, and the corner names it", { timeout: 600_000 }, async (t) => {
@@ -125,7 +125,6 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
 
     await page.click("[data-globe-switch=library]");
     const dot = await restingDot(page, settle);
-    assert.ok(dot !== undefined, "the seed's library shows a note to open");
     await page.mouse.click(dot.x, dot.y);
     await page.waitForFunction(() => document.body.dataset.note !== undefined);
     assert.equal(await named(page, ".app-gear"), "library");

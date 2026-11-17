@@ -756,11 +756,13 @@ test("1.23 · when its engine exits, the runner stops what the engine left runni
   const { server, hook, job, bare, stubborn } = JSON.parse(await readFile(pids, "utf8"));
   // A killed process its new parent has not yet reaped is a zombie (state Z): stopped, though signal 0 still finds it.
   const alive = (pid) => { try { const stat = readFileSync(`/proc/${pid}/stat`, "utf8"); return stat.slice(stat.lastIndexOf(")") + 2)[0] !== "Z"; } catch { return false; } };
-  t.after(() => { for (const pid of [server, job, bare, stubborn]) if (alive(pid)) process.kill(pid, "SIGKILL"); });
-  assert.equal(alive(server), false, "the detached server is stopped");
-  assert.equal(alive(job), false, "the shell's background job is stopped");
-  assert.equal(alive(bare), false, "a job that cleared its environment is stopped by its process group");
-  assert.equal(alive(stubborn), false, "a job that ignores SIGTERM is killed");
+  // Only what was seen running is stopped here: a pid seen gone may already be another process's (increment_845f8cd71c6d).
+  const running = new Set([server, job, bare, stubborn].filter(alive));
+  t.after(() => { for (const pid of running) if (alive(pid)) process.kill(pid, "SIGKILL"); });
+  assert.equal(running.has(server), false, "the detached server is stopped");
+  assert.equal(running.has(job), false, "the shell's background job is stopped");
+  assert.equal(running.has(bare), false, "a job that cleared its environment is stopped by its process group");
+  assert.equal(running.has(stubborn), false, "a job that ignores SIGTERM is killed");
   const said = options.lines.join("\n");
   assert.match(said, new RegExp(`left running by the engine, stopped: pid ${server} \\(.*lane-server\\)`));
   assert.match(said, new RegExp(`left running by the engine, stopped: pid ${job} \\(sleep 300\\)`));

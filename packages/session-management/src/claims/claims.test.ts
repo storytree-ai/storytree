@@ -1200,6 +1200,34 @@ test("5.33 the session manager's worklist lists claimed increments whose holder 
   });
 });
 
+test("5.33 a quiet holder whose claim was taken on the main line, on main or on no branch, but who worked on a branch of its own with an open pull request, is left off the worklist; one whose own branch has no open pull request is still listed (regression: friction_818dadd6a06a)", async () => {
+  await withWorld(async ({ log, project, library, as }) => {
+    const quietMs = 1_000;
+    const { park } = await arcOf(library);
+    const [onMain, branchless, unpulled] = [await park("claimed on main"), await park("claimed on no branch"), await park("no pull request")];
+    // A pool lane's runner claims from the main checkout; the lane then works in a worktree on its own branch.
+    assert.ok((await claim(as("A", { branch: "main" }), onMain, "driving it")).ok);
+    assert.ok((await claim(as("B"), branchless, "driving it")).ok);
+    assert.ok((await claim(as("C", { branch: "main" }), unpulled, "driving it")).ok);
+    assert.equal((await readClaims(log, project)).find(({ increment }) => increment === onMain)?.branch, "main", "A's claim records the main line");
+    for (const [session, harness] of [["A", "claude-code"], ["B", "codex"], ["C", "claude-code"]] as const) {
+      await log.append(project, { session, harness, source: "hook", folder: `/worktrees/${session}`, branch: `claude/increment-${session}`, kind: "file-edited", files: ["x.ts"] });
+    }
+    await clockPastLastLine(log, project, quietMs + 300, "A, B and C to be quiet");
+
+    const open: OpenPull = { number: 7, draft: false, queued: false };
+    const pulls = async () => new Map([["claude/increment-A", open], ["claude/increment-B", { ...open, number: 8 }]]);
+    const worklist = await staleClaims({ log, project, folder: "." }, { quietMs, allOpenPulls: pulls });
+    assert.deepEqual(worklist.claims.map(({ increment, holder, route }) => [increment, holder, route]), [[unpulled, "C", "ask"]],
+      "A's and B's own branches have open pull requests; C's has none");
+    assert.equal(worklist.pullsUnread, undefined);
+
+    assert.deepEqual(await releaseFor(as("D", { quietMs }), onMain, "A", "quiet: checking the branchless rest"), { ok: true, returned: true });
+    const branchlessOnly = await staleClaims({ log, project, folder: "." }, { quietMs, allOpenPulls: pulls });
+    assert.deepEqual(branchlessOnly.claims.map(({ increment }) => increment), [unpulled], "with no quiet claim naming a branch, GitHub is still asked for the holders' own branches");
+  });
+});
+
 test("5.44 a hand-over moves the session's claims to its pull request's holder, which reads live until it merges or closes: the session's close-out releases nothing and still reads safe, its end ends nothing, a quiet holder is never taken over, and another session is refused naming the increment it is held for (ADR-1037 D1, D4)", async () => {
   await withWorld(async ({ log, library, project, emailForm, as }) => {
     const { arc, park } = await arcOf(library);
@@ -1307,6 +1335,23 @@ test("5.56 a hand-over also holds the session's branchless claims on the handed 
     assert.deepEqual((await readClaims(log, project)).map(({ increment, capability, session, branch }) => [increment ?? capability, session, branch]), [
       [reset, "A", undefined], [signup, "pull-request-12", "feature/signup"], [emailForm, "pull-request-12", "feature/signup"],
     ], "the branchless capability is held on the pull request's branch; the other increment stays the session's");
+  });
+});
+
+test("5.56 a hand-over also holds the session's claims on the handed increment, and under it, recorded on main because it took them from the main checkout; a main claim on other work stays its own (regression: friction_818dadd6a06a)", async () => {
+  await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const lane = await park("email form", [emailForm]);
+    const onMain = as("A", { branch: "main" });
+    assert.ok((await claim(onMain, passwordReset, "fixing the reset link")).ok, "other work, under no increment");
+    assert.ok((await claim(onMain, lane, "driving the email form")).ok, "a pool lane's runner claims from the main checkout");
+    assert.ok((await claim(onMain, emailForm, "building the email form")).ok);
+    assert.deepEqual((await readClaims(log, project)).map(({ branch }) => branch), ["main", "main", "main"], "each claim records the main line");
+
+    assert.deepEqual(await holdForPull(as("C"), "A", 12, "claude/increment-lane", lane), [lane, emailForm]);
+    assert.deepEqual((await readClaims(log, project)).map(({ increment, capability, session, branch }) => [increment ?? capability, session, branch]), [
+      [passwordReset, "A", "main"], [lane, "pull-request-12", "claude/increment-lane"], [emailForm, "pull-request-12", "claude/increment-lane"],
+    ], "the handed increment and its capability are held on the pull request's branch; the other work stays the session's");
   });
 });
 

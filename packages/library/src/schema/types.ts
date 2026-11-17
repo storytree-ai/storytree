@@ -41,7 +41,8 @@ export type RecordType =
 /**
  * Capability 6's kinds beyond decisions and definitions: ADR-0640's eight, each with 0.2's fields
  * (`packages/library/src/knowledge.ts` in storytree 0.2), ADR-0956 D3's quality control check and
- * ADR-1058's research, ADR-1064 D5's experiment and ADR-1356 D2's escape pattern, each with a title and a one-line description.
+ * ADR-1058's research, ADR-1064 D5's experiment, ADR-1356 D2's escape pattern and ADR-1356 D1's red-team drill, each with a title
+ * and a one-line description.
  */
 export type KnowledgeKind =
   | "principle"
@@ -55,7 +56,8 @@ export type KnowledgeKind =
   | "check"
   | "research"
   | "experiment"
-  | "escape";
+  | "escape"
+  | "drill";
 
 /**
  * An increment's lifecycle, in the only order it moves (capability 10). Its ready step, between
@@ -77,6 +79,23 @@ const ids = z.array(z.string());
  * increment for an increment, with the reason. Absent means it waits on nothing.
  */
 const waits = z.array(z.object({ on: z.string(), reason: nonEmpty }).strict()).optional();
+
+/** A red-team drill's layers (ADR-1356 D1), in the fixed order every drill gives them. */
+export const DRILL_LAYERS = ["test-writer", "builder", "lint", "tests", "mutation", "test-reviewer", "code-reviewer", "ci-linux", "ci-windows"] as const;
+export type DrillLayer = (typeof DRILL_LAYERS)[number];
+/** The fixed table: the agent a drill's first catching layer hands the fix to; a drill no layer caught escaped. */
+export const DRILL_FIXERS: Readonly<Record<DrillLayer | "none", "test-writer" | "builder" | "watcher-fix-session" | "escaped">> = {
+  "test-writer": "builder",
+  builder: "builder",
+  lint: "builder",
+  tests: "builder",
+  mutation: "test-writer",
+  "test-reviewer": "test-writer",
+  "code-reviewer": "builder",
+  "ci-linux": "watcher-fix-session",
+  "ci-windows": "watcher-fix-session",
+  none: "escaped",
+};
 
 /** A day, YYYY-MM-DD, that is a real day. */
 const day = z
@@ -702,9 +721,10 @@ export const RECORD_SCHEMAS = {
    * carrying the escape link when it reached main; `reasoning` says why it is real and not a flake. The harvest writes it
    * unjudged; the agent judging it adds the `construct` to look for, the other places it appears (`elsewhere`), and whether
    * it `generalises` (yes, no or local) with its reason against the three criteria (a nameable class, recurring elsewhere,
-   * checkable). Its `defences` (blue team) and `plants` (red team) are linked as they are made. A pattern judged yes takes
-   * the blue team's `rung`, the cheapest that can see it (lint, property, fault-injection, learned-break, reviewer-check, or
-   * none), with its reason (`rungWhy`); every rung but none names its `defences`.
+   * checkable). Its `defences` (blue team) are linked as they are made, and its `plants` (red team) link the drill records
+   * that replant it. A pattern judged yes takes the blue team's `rung`, the cheapest that can see it (lint, property,
+   * fault-injection, learned-break, reviewer-check, or none), with its reason (`rungWhy`); every rung but none names its
+   * `defences`.
    */
   escape: z
     .object({
@@ -755,6 +775,60 @@ export const RECORD_SCHEMAS = {
       }
       if (fields.rung !== undefined && fields.rung !== "none" && (fields.defences === undefined || fields.defences.length === 0)) {
         context.addIssue({ code: "custom", path: ["defences"], message: 'a rung other than none names its "defences"' });
+      }
+    }),
+  /**
+   * A red-team drill (ADR-1356 D1, increment_86f5de0cdd1e): one plant of a harvested escape pattern, the live escape it
+   * replants named by its `pattern`. The `plant` says where it went (story, capability, file) and its shape in one line; its
+   * `mode` is a planted defect, which the test writer and builder never see, or a planted task, which they do. Each of the
+   * nine `layers` gives its result (caught, missed or not-run) with its evidence, in DRILL_LAYERS' fixed order, CI's Windows
+   * leg not run. `caughtBy` is the first layer that caught it (or none), `fixer` the agent the fixed table hands that layer's
+   * catch to (DRILL_FIXERS), and `sameModel`, given exactly when a reviewer caught it, whether the reviewer was the planter's
+   * model. Its `session` and `date` say who ran it and when.
+   */
+  drill: z
+    .object({
+      ...knowledgeHead,
+      pattern: nonEmpty,
+      plant: z.object({ story: nonEmpty, capability: nonEmpty, file: nonEmpty, shape: nonEmpty }).strict(),
+      mode: z.enum(["defect", "task"]),
+      layers: z.array(z.object({ layer: z.enum(DRILL_LAYERS), result: z.enum(["caught", "missed", "not-run"]), evidence: nonEmpty }).strict()),
+      caughtBy: z.enum([...DRILL_LAYERS, "none"]),
+      fixer: z.enum(["test-writer", "builder", "watcher-fix-session", "escaped"]),
+      sameModel: z.boolean().optional(),
+      session: nonEmpty,
+      date: day,
+    })
+    .strict()
+    .superRefine((fields, context) => {
+      const inOrder = fields.layers.length === DRILL_LAYERS.length && fields.layers.every((row, at) => row.layer === DRILL_LAYERS[at]);
+      if (!inOrder) {
+        context.addIssue({ code: "custom", path: ["layers"], message: `a drill gives each layer's result once, in the fixed order: ${DRILL_LAYERS.join(", ")}` });
+      }
+      const resultOf = (layer: DrillLayer) => fields.layers.find((row) => row.layer === layer)?.result;
+      if (inOrder && resultOf("ci-windows") !== "not-run") {
+        context.addIssue({ code: "custom", path: ["layers"], message: "CI's Windows leg is not run in a drill: its result is not-run" });
+      }
+      if (inOrder && fields.mode === "defect" && (resultOf("test-writer") !== "not-run" || resultOf("builder") !== "not-run")) {
+        context.addIssue({ code: "custom", path: ["layers"], message: "a planted defect skips the test writer and the builder: their results are not-run" });
+      }
+      if (inOrder) {
+        const first = fields.layers.find((row) => row.result === "caught")?.layer ?? "none";
+        if (fields.caughtBy !== first) {
+          context.addIssue({ code: "custom", path: ["caughtBy"], message: `the first layer that caught this drill is ${first}, not ${fields.caughtBy}` });
+        }
+      }
+      const fixer = DRILL_FIXERS[fields.caughtBy];
+      if (fields.fixer !== fixer) {
+        context.addIssue({ code: "custom", path: ["fixer"], message: `a catch by ${fields.caughtBy} goes to ${fixer}, not ${fields.fixer}` });
+      }
+      const byReviewer = fields.caughtBy === "test-reviewer" || fields.caughtBy === "code-reviewer";
+      if (byReviewer !== (fields.sameModel !== undefined)) {
+        context.addIssue({
+          code: "custom",
+          path: ["sameModel"],
+          message: byReviewer ? "a reviewer's catch says whether the reviewer was the planter's model (sameModel)" : "only a reviewer's catch carries sameModel",
+        });
       }
     }),
   /**
@@ -1077,6 +1151,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   research: 1,
   experiment: 1,
   escape: 1,
+  drill: 1,
   increment: 3,
   question: 1,
   prediction: 1,

@@ -523,6 +523,7 @@ for (const backend of [memory, postgres]) {
       for (const [field, wrong, why] of [
         ["rungWhy", { ...judged, rung: "lint", defences: ["contract_eeeeeeeeeeee"] }, "a rung carries its reason"],
         ["rung", { ...judged, rungWhy: "a lint shape can see it", defences: ["contract_eeeeeeeeeeee"] }, "a reason carries its rung"],
+        ["rungWhy", { ...judged, ...lint, rungWhy: "" }, "a rung's reason is not empty"],
         ["defences", { ...judged, rung: "property", rungWhy: "no lint shape can see it; a property can" }, "a rung other than none names its defences"],
         ["defences", { ...judged, rung: "property", rungWhy: "no lint shape can see it; a property can", defences: [] }, "an empty defence list names no defence"],
         ["rung", { ...judged, rung: "unit-test", rungWhy: "a test can see it", defences: ["contract_eeeeeeeeeeee"] }, "a rung is one of the six"],

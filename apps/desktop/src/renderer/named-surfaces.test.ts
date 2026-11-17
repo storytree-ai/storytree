@@ -54,6 +54,23 @@ async function named(page: Page, pick: string): Promise<string> {
   return surface;
 }
 
+/**
+ * The first library note in the middle of the globe once it holds its place for two reads running, or undefined if none
+ * does within `timeoutMs`. Library lays its notes out a few steps to a task once pressed and tilts the sheet over, which one
+ * settle's frames on a loaded runner do not see out (own health's Linux run at 7c3cfb88 found no dot yet).
+ */
+async function restingDot(page: Page, settle: (page: Page) => Promise<void>, timeoutMs = 180_000): Promise<{ id: string; x: number; y: number } | undefined> {
+  const until = Date.now() + timeoutMs;
+  let last: { id: string; x: number; y: number } | undefined;
+  do {
+    await settle(page);
+    const [dot] = (await visibleGlobeTargets(page, { x: 0.6, y: 0.6 })).dots;
+    if (dot !== undefined && last?.id === dot.id && Math.hypot(dot.x - last.x, dot.y - last.y) < 0.5) return dot;
+    last = dot;
+  } while (Date.now() < until);
+  return undefined;
+}
+
 test("3.15 · every canvas, gear menu tab and dialog the app opens carries a declared surface id, and the corner names it", { timeout: 600_000 }, async (t) => {
   const dist = mkdtempSync(path.join(tmpdir(), "storytree-named-surfaces-"));
   t.after(() => rmSync(dist, { recursive: true, force: true }));
@@ -107,8 +124,7 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     await page.locator("aside.story-panel").waitFor({ state: "hidden" });
 
     await page.click("[data-globe-switch=library]");
-    await settle(page);
-    const [dot] = (await visibleGlobeTargets(page, { x: 0.6, y: 0.6 })).dots;
+    const dot = await restingDot(page, settle);
     assert.ok(dot !== undefined, "the seed's library shows a note to open");
     await page.mouse.click(dot.x, dot.y);
     await page.waitForFunction(() => document.body.dataset.note !== undefined);

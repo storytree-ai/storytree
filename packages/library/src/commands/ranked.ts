@@ -10,7 +10,7 @@ import { VerbRefusal } from "../verbs/verb.js";
 
 /** The kinds a search may be narrowed to. */
 const SEARCHABLE: readonly string[] = [
-  "decision", "definition", "principle", "guardrail", "pattern", "process", "agent", "friction", "resteer", "techstack", "check", "research", "experiment",
+  "decision", "definition", "principle", "guardrail", "pattern", "process", "agent", "friction", "resteer", "techstack", "check", "research", "experiment", "escape",
   "story", "capability", "contract",
 ];
 

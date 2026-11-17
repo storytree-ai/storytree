@@ -580,6 +580,50 @@ test("5.10 a claim taken on branch feature/signup ends with a merged line once G
   });
 });
 
+test("5.75 · a claim on increment B, or a capability under it, taken on increment A's branch records no branch, so A's merge ends A's claims with merged lines and B's stand; a claim under A on that branch records it", async () => {
+  await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const a = await park("email form", [emailForm]);
+    const b = await park("password reset", [passwordReset]);
+    const branch = "claude/increment-a-111111";
+    const onA = as("A", { branch });
+    assert.ok((await claim(onA, a, "driving the email form")).ok);
+    assert.ok((await claim(onA, emailForm, "building the email form")).ok);
+    // Still on A's branch, the session claims the next increment and its capability.
+    assert.ok((await claim(onA, b, "driving the password reset")).ok);
+    assert.ok((await claim(onA, passwordReset, "building the password reset")).ok);
+    const branches = async () => new Map((await readClaims(log, project)).map(({ increment, capability, branch }) => [increment ?? capability, branch]));
+    assert.deepEqual(await branches(), new Map([[a, branch], [emailForm, branch], [b, undefined], [passwordReset, undefined]]),
+      "A and the capability under it are on A's branch; B and its capability record none");
+
+    await clockPastLastLine(log, project, 20, "the clock to pass the claims, so a merge now comes after them");
+    const merges: MergeWatch = { mergedPulls: async (_folder, asked) => (asked === branch ? [{ number: 12, mergedAt: new Date().toISOString() }] : []), everyMs: 0 };
+    await endMergedClaims({ log, project, folder: "/work/site", session: "C", source: "tool" }, merges);
+    assert.deepEqual(new Set((await readClaims(log, project)).map(({ increment, capability }) => increment ?? capability)), new Set([b, passwordReset]), "B's claims stand");
+    const merged = (await log.since(project, 0)).lines.filter((line) => line.kind === "merged");
+    assert.deepEqual(new Set(merged.map((line) => line.kind === "merged" && (line.increment ?? line.capability))), new Set([a, emailForm]), "A's claims ended merged");
+  });
+});
+
+test("5.75 · after A's claim is held for its pull request, the session still on A's branch claims increment B with no branch, and the pull request's merge ends A's held claim while B's stands", async () => {
+  await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const a = await park("email form", [emailForm]);
+    const b = await park("password reset", [passwordReset]);
+    const branch = "claude/increment-a-111111";
+    assert.ok((await claim(as("A", { branch }), a, "driving the email form")).ok);
+    await holdForPull(as("C"), "A", 12, branch);
+    assert.ok((await claim(as("A", { branch }), b, "driving the password reset")).ok);
+    assert.deepEqual(new Map((await readClaims(log, project)).map(({ increment, session, branch }) => [increment, [session, branch]])),
+      new Map([[a, ["pull-request-12", branch]], [b, ["A", undefined]]]), "B's claim records no branch");
+
+    await clockPastLastLine(log, project, 20, "the clock to pass the claims, so a merge now comes after them");
+    const merges: MergeWatch = { mergedPulls: async (_folder, asked) => (asked === branch ? [{ number: 12, mergedAt: new Date().toISOString() }] : []), everyMs: 0 };
+    await endMergedClaims({ log, project, folder: "/work/site", session: "C", source: "tool" }, merges);
+    assert.deepEqual((await readClaims(log, project)).map(({ increment, session }) => [increment, session]), [[b, "A"]], "the merge ended A's held claim, and B's stands");
+  });
+});
+
 test("5.37 when a claim on an increment ends because its branch's pull request merged, that increment's pending plan changes are applied first, marked with the pull request and written by the session that saw the merge", async () => {
   await withWorld(async ({ log, library, project, emailForm, as }) => {
     const arc = await library.createArc({ title: "Sign-up", intent: "Ship sign-up", endState: "Visitors can sign up" });

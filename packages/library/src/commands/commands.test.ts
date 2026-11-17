@@ -4,10 +4,12 @@
  * the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { connect } from "../index.js";
 import { connect as connectProject } from "../project/index.js";
@@ -23,7 +25,7 @@ test("17.1 · The library declares the library family first among storytree's fa
   const project = uniqueProjectName();
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-library-verbs-"));
   t.after(async () => {
-    rmSync(folder, { recursive: true, force: true });
+    await removeTemp(folder);
     try {
       await storytree.dropProject(project);
     } finally {
@@ -175,6 +177,15 @@ test("17.2 · The library declares search_notes, find_text, open, write_note and
   assert.deepEqual(((await library.get(term))?.fields as { links?: string[] } | undefined)?.links, [cover.id], "a definition links inside the cover opened last");
 
   await assert.rejects(toolOf("write_note").act({ kind: "memory", fields: {}, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS), VerbRefusal);
+
+  const pattern = { title: "A window's end treated as inclusive", description: "Found by the CI harvest", instance: { run: 7, test: "2.1 · totals" }, caughtAt: "ci", reasoning: "It passed only once its pull request changed the window" };
+  const escaped = await toolOf("write_note").act({ kind: "escape", fields: pattern, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS);
+  assert.deepEqual(await library.get((escaped.data as { id: string }).id).then((record) => [record?.type, (record?.fields as { caughtAt?: string } | undefined)?.caughtAt]), ["escape", "ci"], "an escape pattern is written through the door");
+  const create = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "new")!;
+  const made = await create.act({ "<kind>": "escape", "<fields>": { ...pattern, title: "A retry counted as a pass", instance: JSON.stringify({ run: 8, test: "2.2 · retries" }) } }, { ...context, testedNumbers: async () => ({ tested: [], untested: [] }) }, WORDS);
+  assert.match(made.text, /^Wrote escape escape_[0-9a-f]{12}\./, "and through library new");
+  const narrowed = await toolOf("search_notes").act({ query: "retry counted as a pass", limit: undefined, history: false, kinds: ["escape"], projects: undefined }, context, WORDS);
+  assert.match(narrowed.text, /A retry counted as a pass/, "a search narrows to escape patterns");
 });
 
 test("17.26 · write_note files a decision on no guessed part: a part in links is refused naming front_cover_of, and two held parts with none named is refused asking which", async (t) => {
@@ -259,7 +270,7 @@ test("17.4 · One field round-trips byte for byte: library read --field and the 
   const project = uniqueProjectName();
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-library-field-"));
   t.after(async () => {
-    rmSync(folder, { recursive: true, force: true });
+    await removeTemp(folder);
     try {
       await storytree.dropProject(project);
     } finally {

@@ -451,3 +451,46 @@ for (const backend of [memory, postgres]) {
     }
   });
 }
+
+for (const backend of [memory, postgres]) {
+  test(`6.21 [${backend.label}] an escape pattern is saved with its instance, where it was caught and its reasoning, judged later with its reason; a judgement without its reason, a yes without its construct and places, or an escape naming no increment is refused`, async () => {
+    const { knowledge, transactions, cleanup } = await backend.open();
+    try {
+      const pattern = {
+        title: "A path joined with / that breaks on Windows",
+        description: "3.112 failed on Windows at a head and passed once the join was fixed",
+        instance: { run: 19234567890, pr: 941, head: "8d402aeb1234", test: "3.112 · the pins read", contract: "contract_aaaaaaaaaaaa", story: "story_bbbbbbbbbbbb", capability: "capability_cccccccccccc" },
+        caughtAt: "ci" as const,
+        reasoning: "It failed at 8d402aeb and passed only after the pull request changed packages/forest, the unit it is in",
+      };
+      const saved = await knowledge.writeKnowledge("escape", pattern);
+      assert.equal(saved.type, "escape");
+      assert.deepEqual((await transactions.get(saved.id))?.fields, pattern, "an unjudged pattern reads back as given");
+
+      const judged = { construct: "a path built with a literal / and read on Windows", elsewhere: "packages/map/src/read.ts, packages/cli/src/front-door.ts", generalises: "yes" as const, generalisesWhy: "nameable, two other places, a lint shape can see it" };
+      assert.deepEqual((await knowledge.editNote(saved.id, judged))?.fields, { ...pattern, ...judged }, "the agent's judgement is added to it");
+
+      const before = await transactions.history();
+      for (const [field, wrong, why] of [
+        ["generalisesWhy", { generalises: "no" }, "a judgement carries its reason"],
+        ["generalises", { generalises: "yes", generalisesWhy: "it recurs" }, "a yes names its construct and the other places"],
+        ["instance", { caughtAt: "escaped" }, "an escaped pattern names the increment carrying its escape"],
+        ["instance", { instance: { test: "3.112 · the pins read" } }, "one CI caught names its run or pull request"],
+        ["caughtAt", { caughtAt: "review" }, "it was caught by CI or escaped"],
+        ["reasoning", { reasoning: "" }, "it says why it is real"],
+      ] as const) {
+        await assert.rejects(
+          knowledge.writeKnowledge("escape", { ...pattern, ...wrong } as never),
+          (error: unknown) => error instanceof SchemaError && error.fields.includes(field),
+          why,
+        );
+      }
+      assert.deepEqual(await transactions.history(), before, "nothing was written");
+
+      const escaped = await knowledge.writeKnowledge("escape", { ...pattern, instance: { pr: 900, escape: "increment_dddddddddddd", story: "story_bbbbbbbbbbbb" }, caughtAt: "escaped" as const });
+      assert.equal(escaped.fields.caughtAt, "escaped", "one that reached main is saved naming its escape");
+    } finally {
+      await cleanup();
+    }
+  });
+}

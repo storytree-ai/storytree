@@ -332,6 +332,31 @@ importers:
         specifier: ^8.23.0
         version: 8.23.0
 
+  packages/ci-harvest:
+    dependencies:
+      '@storytree/ci-health':
+        specifier: workspace:*
+        version: link:../ci-health
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+    devDependencies:
+      '@storytree/agent-pool':
+        specifier: workspace:*
+        version: link:../agent-pool
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
   packages/ci-health:
     dependencies:
       '@storytree/base-dev-loop':
@@ -386,6 +411,9 @@ importers:
       '@storytree/arc-surface':
         specifier: workspace:*
         version: link:../arc-surface
+      '@storytree/ci-harvest':
+        specifier: workspace:*
+        version: link:../ci-harvest
       '@storytree/ci-health':
         specifier: workspace:*
         version: link:../ci-health

@@ -41,7 +41,7 @@ export type RecordType =
 /**
  * Capability 6's kinds beyond decisions and definitions: ADR-0640's eight, each with 0.2's fields
  * (`packages/library/src/knowledge.ts` in storytree 0.2), ADR-0956 D3's quality control check and
- * ADR-1058's research and ADR-1064 D5's experiment, each with a title and a one-line description.
+ * ADR-1058's research, ADR-1064 D5's experiment and ADR-1356 D2's escape pattern, each with a title and a one-line description.
  */
 export type KnowledgeKind =
   | "principle"
@@ -54,7 +54,8 @@ export type KnowledgeKind =
   | "techstack"
   | "check"
   | "research"
-  | "experiment";
+  | "experiment"
+  | "escape";
 
 /**
  * An increment's lifecycle, in the only order it moves (capability 10). Its ready step, between
@@ -695,6 +696,54 @@ export const RECORD_SCHEMAS = {
       }
     }),
   /**
+   * An escape pattern (ADR-1356 D2, research_f0fba6695fbd section 2): a real failure, one CI caught (`caughtAt` `ci`) or one
+   * that reached main (`escaped`), its title the class in plain words. Its `instance` says where it happened: the run, the
+   * pull request, the head commit, the failing test and its contract, the story and capability it hit, and the increment
+   * carrying the escape link when it reached main; `reasoning` says why it is real and not a flake. The harvest writes it
+   * unjudged; the agent judging it adds the `construct` to look for, the other places it appears (`elsewhere`), and whether
+   * it `generalises` (yes, no or local) with its reason against the three criteria (a nameable class, recurring elsewhere,
+   * checkable). Its `defences` (blue team) and `plants` (red team) are linked as they are made.
+   */
+  escape: z
+    .object({
+      ...knowledgeHead,
+      instance: z
+        .object({
+          run: z.number().int().min(1).optional(),
+          pr: z.number().int().min(1).optional(),
+          head: z.string().regex(/^[0-9a-f]{7,40}$/, "a commit, 7 to 40 hex characters").optional(),
+          test: nonEmpty.optional(),
+          contract: nonEmpty.optional(),
+          story: nonEmpty.optional(),
+          capability: nonEmpty.optional(),
+          escape: z.string().regex(/^increment_/, "the increment carrying the escape link").optional(),
+        })
+        .strict(),
+      caughtAt: z.enum(["ci", "escaped"]),
+      reasoning: nonEmpty,
+      construct: nonEmpty.optional(),
+      elsewhere: nonEmpty.optional(),
+      generalises: z.enum(["yes", "no", "local"]).optional(),
+      generalisesWhy: nonEmpty.optional(),
+      defences: ids.optional(),
+      plants: ids.optional(),
+    })
+    .strict()
+    .superRefine((fields, context) => {
+      if (fields.caughtAt === "escaped" && fields.instance.escape === undefined) {
+        context.addIssue({ code: "custom", path: ["instance", "escape"], message: "an escaped pattern names the increment carrying its escape link" });
+      }
+      if (fields.caughtAt === "ci" && fields.instance.run === undefined && fields.instance.pr === undefined) {
+        context.addIssue({ code: "custom", path: ["instance"], message: "a pattern CI caught names its run or its pull request" });
+      }
+      if ((fields.generalises === undefined) !== (fields.generalisesWhy === undefined)) {
+        context.addIssue({ code: "custom", path: ["generalisesWhy"], message: 'whether a pattern generalises is judged with its reason: give "generalises" and "generalisesWhy" together' });
+      }
+      if (fields.generalises === "yes" && (fields.construct === undefined || fields.elsewhere === undefined)) {
+        context.addIssue({ code: "custom", path: ["generalises"], message: 'a pattern that generalises names its "construct" and the other places it appears ("elsewhere")' });
+      }
+    }),
+  /**
    * One increment of an arc's work (capability 10), from the moment it is decided until it closes;
    * closed, it is the arc's log entry. It names the `capabilities` it changes, the lock list a claim
    * on it lights (ADR-0949 D2), parked empty and filled by the session that claims it; it cites
@@ -1013,6 +1062,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   check: 1,
   research: 1,
   experiment: 1,
+  escape: 1,
   increment: 3,
   question: 1,
   prediction: 1,

@@ -21,7 +21,7 @@ import { buildCapture, buildFolder, captureOutput, fakeBridge, fallbackChromium,
 
 const checkout = path.resolve(import.meta.dirname, "../../../..");
 
-test("a capture finds front-facing dots and islands in canvas coordinates, excluding hidden and off-screen targets", async () => {
+test("2.66 · a capture finds front-facing dots and islands in canvas coordinates, excluding hidden and off-screen targets, with the eye's zoom", async () => {
   const { Scene, Group, Object3D, PerspectiveCamera } = createRequire(path.join(checkout, "packages/forest/package.json"))("three");
   const scene = new Scene(), globe = new Group();
   globe.name = "globe";
@@ -64,7 +64,7 @@ test("a capture finds front-facing dots and islands in canvas coordinates, exclu
   await assert.rejects(visibleGlobeTargets({ evaluate: async (source: string) => runInNewContext(source, { globalThis: {} }) } as unknown as Page), /capture.*globe/i);
 });
 
-test("a capture wheels the perspective eye to a target zoom and back, and refuses an unreachable zoom", async () => {
+test("2.66 · a capture wheels the perspective eye to a target zoom and back, and refuses an unreachable zoom", async () => {
   // As the map's controls dolly it: the eye moves along its line of sight toward the middle of the view, 5% a notch.
   const camera = { isPerspectiveCamera: true, fov: 90, zoom: 1, position: { x: 0, y: 0, z: 3 + 150 } };
   const state = { camera, controls: { target: { x: 0, y: 0, z: 3 }, minDistance: 10, maxDistance: 3000 }, size: { width: 800, height: 600 },

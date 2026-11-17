@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { BuiltCommand, inWorld } from "./testing/cli.js";
+import { assertExitCode, BuiltCommand, inWorld } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 
@@ -28,10 +28,11 @@ test("6.3 a superseded decision drops out of `--current`; filters use the librar
       [["--status", "proposed"], [proposal.id], [old.id, replacement.id, ordinary.id]],
       [["--current", "--load-bearing"], [replacement.id], [old.id, proposal.id, ordinary.id]],
     ] as const) {
+      const listed = `adr list ${flags.join(" ")}`;
       const ran = await world.run(["adr", "list", ...flags]);
-      assert.equal(ran.code, 0, ran.stderr);
-      for (const id of included) assert.ok(ran.stdout.includes(id), ran.stdout);
-      for (const id of excluded) assert.ok(!ran.stdout.includes(id), ran.stdout);
+      assertExitCode(ran, 0, listed);
+      for (const id of included) assert.ok(ran.stdout.includes(id), `${listed}: ${id} missing\nstdout:\n${ran.stdout}`);
+      for (const id of excluded) assert.ok(!ran.stdout.includes(id), `${listed}: ${id} present\nstdout:\n${ran.stdout}`);
     }
   });
 });

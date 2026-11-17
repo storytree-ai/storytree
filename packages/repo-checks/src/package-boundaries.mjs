@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "./rules/package-rule/package-rule.ts";
 
 /** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1078 rule 4). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-health", "claude-code-mod", "cli", "forest", "forest-world", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "repo-checks", "service-host", "session-management", "shown-words", "surface-feedback", "teaching-cards", "test-waits"];
+export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-harvest", "ci-health", "claude-code-mod", "cli", "forest", "forest-world", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "repo-checks", "service-host", "session-management", "shown-words", "surface-feedback", "teaching-cards", "test-waits"];
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3).
 // app-setup: story_b91056a06337 (Setup), which holds Journey events in src/journey-events (ADR-1076 D3).
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
@@ -29,6 +29,7 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-d
 // library: story_754e87e7d531 (The library), which holds the librarian in its own package (ADR-1071 D3).
 // keys: story_d47051f035f0 (Keys, ADR-1075), out of The library again: The library and Experiments call it.
 // local-postgres: story_5e19e65c3433 (The local database, ADR-1076 D1), out of The library again: Setup and the dev loop call it.
+// ci-harvest: story_182aab94fc80 (CI harvest, ADR-1356 D2), out of CI health: it reaches the agent runner, and CI health is in the renderer's reach (ADR-1302).
 // ci-health: story_5c212e7a9a6c (CI health, ADR-0902).
 // mcp-server: The MCP server, ADR-0969 D1, which reads its own tools' use (ADR-1071 D3).
 // repo-checks: story_c27bd2a8f61e (Storytree's own repository checks, ADR-1199): the checks this repository runs on every pull request, these declarations among them.

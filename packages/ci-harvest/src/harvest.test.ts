@@ -212,6 +212,43 @@ test("1.2 · The harvest sends each flaky failing test of a CI run to its one in
   assert.match(harvestText(counts), /flakes routed: 6 flaky tests to 4 investigations/);
 });
 
+test("1.2 · A failed CI run on no pull request is sorted by the watcher's reading of an empty reach, with no pull request read", async () => {
+  const runs = [
+    // A push to main: no pull request, and none looked for.
+    failed(31, { event: "push", branch: "main" }),
+    // A pull request run whose branch GitHub finds no pull request for.
+    failed(32, { branch: "gone" }),
+  ];
+  const job = (id: number, test: string) => ({ [`${API}/actions/runs/${id}/attempts/1/jobs?per_page=100`]: { jobs: [{ id: id * 10, name: "verify on Linux", conclusion: "failure", steps: [{}] }] }, [`${API}/actions/jobs/${id * 10}/logs`]: logOf("packages/shop", [test]) });
+  const none = { workflow_runs: [] };
+  const github = gitHub({
+    ...job(31, "2.1 · totals add up"), ...job(32, "2.4 · prices show"),
+    [`${API}/actions/runs?head_sha=${runs[0]!.head}&status=success&per_page=100&page=1`]: none,
+    [`${API}/actions/runs?head_sha=${runs[1]!.head}&status=success&per_page=100&page=1`]: none,
+    [`${API}/pulls?head=acme:gone&state=all&per_page=1`]: [],
+  });
+  const watcher = await watcherReading();
+  const source = gitHubSource(github, REPO, watcher, scope);
+  const { library, flakes, written } = libraryOf();
+  const ledger = memoryLedger();
+  const counts = await harvest({ library, source: { failedRuns: async () => runs, facts: source.facts }, ledger, watcher, now: NOW });
+
+  assert.deepEqual(github.asked.filter((route) => route.includes("/pulls")), [`${API}/pulls?head=acme:gone&state=all&per_page=1`],
+    "only the pull request run's branch is looked up, and with none found no pull request is read");
+  for (const run of runs) {
+    const facts = await source.facts(run);
+    assert.deepEqual({ pr: facts.pr, reach: [...facts.reach], queue: facts.queue, laterGreen: facts.laterGreen }, { pr: undefined, reach: [], queue: undefined, laterGreen: undefined }, `run ${run.id} reads no pull request`);
+  }
+  assert.equal(counts.unread, 0, "a run on no pull request is read, not counted as one GitHub could not read");
+  assert.deepEqual(flakes.map(({ test, seen }) => ({ test, seen })), [{ test: "2.1 · totals add up", seen: "run 31" }, { test: "2.4 · prices show", seen: "run 32" }],
+    "with nothing its pull request changes, every failing unit is outside it, so the watcher's reading sends each test to its investigation");
+  assert.match(String(flakes[0]!.evidence), /^run 31 at a{10}31 \(push\): the harvest read it as a flake/, "its evidence names no pull request");
+  assert.match(String(flakes[1]!.evidence), /^run 32 at a{10}32 \(pull_request\): /);
+  assert.deepEqual(written, [], "nothing is recorded as an escape pattern");
+  assert.deepEqual([...ledger.rows], [[31, "flake"], [32, "flake"]], "both runs are harvested, so neither is read again");
+  assert.deepEqual({ flakes: counts.flakes, real: counts.real, waiting: counts.waiting, unsettled: counts.unsettled }, { flakes: 2, real: 0, waiting: 0, unsettled: 0 });
+});
+
 test("1.3 · The harvest records each real failure, and each increment fixing an escape, as one unjudged escape pattern", async () => {
   const runs = [
     // PR #20 changes packages/shop and packages/lib; red at its first head, green at the next, whose change to packages/lib

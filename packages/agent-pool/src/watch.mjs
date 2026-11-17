@@ -650,16 +650,12 @@ ${security ? securitySteps({ pr, increment, checks: security, closed, project, u
 `;
 }
 
-/** The verdicts a review session may return (4.37): retry, retry after parking the flaky test's fix, fix again, or the owner's question. */
+/** The verdicts a review session may return (4.37): retry, retry after parking the flaky test's investigation, fix again, or the owner's question. */
 export const VERDICTS = ["flake", "elsewhere", "fix", "owner"];
-/** The arc a review session parks a slow or flaky test's fix on (4.37). */
-export const FLAKES_ARC = "arc_1a42179de853";
 
 function reviewBrief({ pr, increment, why, logs, fixLogs, n, cap, closed, project }) {
   const use = commandsOf(project);
   const verdict = `${use.watch} verdict ${pr}`;
-  // Storytree's slow and flaky tests have their own arc; another project's go on the increment's own (4.49).
-  const flakes = project ? `${increment}'s own arc` : FLAKES_ARC;
   return `# Review session (session ${n} of at most ${cap}): pull request #${pr} (${increment}) is still red after its fix sessions
 
 The pool's watcher started you. PR #${pr} for ${increment} has gone red again after its fix sessions: ${why}.
@@ -669,9 +665,10 @@ You are an independent reviewer, not a fixer: you did not write this pull reques
 branch. Work from {checkout}. Read the failing runs (\`gh run view <run> --log-failed\`, \`gh pr checks ${pr}\`),
 the fix sessions' logs and the pull request's diff (\`gh pr diff ${pr}\`), and decide exactly ONE verdict:
 - flake: the failure is random, and another try may pass. \`${verdict} flake --summary "<why>"\`
-- elsewhere: a slow or flaky test the pull request does not own fails it. Park that test's fix as its own increment on
-  ${flakes} (\`${use.storytree} arc increment new --arc ${project ? "<arc>" : FLAKES_ARC} …\`, capabilities list empty), never loosening it
-  inside this pull request, then \`${verdict} elsewhere --summary "<why>" --parked <increment>\`
+- elsewhere: a slow or flaky test the pull request does not own fails it. Park that test's one investigation, or add this
+  flake to the open one (ADR-1352), never loosening the test inside this pull request:
+  \`${use.storytree} health investigate --test "<title>" --unit <packages/x> --seen "PR #${pr} at <head>" --evidence "<what failed, with the run>" --found "<how this review found it>" --increment ${increment}\`,
+  then \`${verdict} elsewhere --summary "<why>" --parked <the investigation it names>\`
 - fix: a bug in the pull request that a session can fix. \`${verdict} fix --summary "<what is broken and where>"\`; your
   summary is the next fix session's brief.
 - owner: only the owner can unblock it (a decision, access, a spend). Raise the question on ${increment}'s arc${closed ? "" : `, holding it

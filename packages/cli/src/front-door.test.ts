@@ -25,6 +25,7 @@ import { WORKSPACE_FAMILIES } from "@storytree/session-management/workspace-verb
 import { FRICTION_FAMILIES } from "@storytree/session-management/friction/verbs";
 import { SCHEDULE_FAMILIES } from "@storytree/session-management/schedules/verbs";
 import { ACTIVITY_FAMILIES } from "@storytree/session-management/activity/verbs";
+import { MEASURES_FAMILIES } from "@storytree/session-management/measures/verbs";
 import { SETUP_FAMILIES } from "@storytree/app-setup/verbs";
 import { PROCESSES_FAMILIES } from "@storytree/session-management/processes/verbs";
 import { SERVICES_FAMILIES } from "@storytree/service-host/verbs";
@@ -42,7 +43,7 @@ import armCheckParts from "./parts/arm-checks.js";
 import { BuiltCommand, dropTestProjects, inWorld, storytree, testServerUrl, uniqueProjectName } from "./testing/cli.js";
 
 const command = new BuiltCommand();
-const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SERVICES_FAMILIES, ...SCHEDULE_FAMILIES, ...ACTIVITY_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...MAP_FAMILIES, ...PIN_FAMILIES, ...FEEDBACK_FAMILIES, ...PLUGIN_FAMILIES];
+const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SERVICES_FAMILIES, ...SCHEDULE_FAMILIES, ...ACTIVITY_FAMILIES, ...MEASURES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...MAP_FAMILIES, ...PIN_FAMILIES, ...FEEDBACK_FAMILIES, ...PLUGIN_FAMILIES];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 before(() => command.build());

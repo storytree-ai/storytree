@@ -66,7 +66,8 @@ export default async function* running(source) {
       if (!isFile && testFile !== undefined) {
         const key = (id) => `${testFile}\0${id}`;
         if (event.type === "test:dequeue") names.set(key(testId), { name, parentId });
-        else if (!event.data.skip && !event.data.todo) {
+        else if (event.data.skip) entry.skipped = true; // counted on its unit's row in the results table (4.32)
+        else if (!event.data.todo) {
           const chain = [name];
           for (let parent = names.get(key(testId))?.parentId; names.has(key(parent)); parent = names.get(key(parent)).parentId) chain.unshift(names.get(key(parent)).name);
           Object.assign(entry, { fullName: chain.join(" › "), ms: event.data.details.duration_ms, passed: event.data.details.passed, timeout: event.data.details.error?.failureType === "testTimeoutFailure" });

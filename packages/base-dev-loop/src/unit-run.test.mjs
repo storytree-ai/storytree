@@ -404,6 +404,22 @@ test("a unit's row gives its time, its deadline and where the deadline came from
   assert.match(unitReason({ ms: 80_100, timedOut: true, running: [], unitLimitMs: 80_000, limitSource: "learned" }, "/"), /timed out after 80\.1 s \(limit 80 s, learned\), killed/);
 });
 
+test("4.32 · a unit's row counts the tests it skipped, so a skip is seen in the results table", async (t) => {
+  const root = fixture(t, {
+    "skips.test.mjs": `import { test } from "node:test";
+test("runs", () => {});
+test("skipped by option", { skip: "flaky: increment_x" }, () => {});
+test("skipped from inside", (t) => t.skip("platform:win32: needs Windows"));
+test("left to do", { todo: "not yet" }, () => {});`,
+    "plain.test.mjs": `import { test } from "node:test";\ntest("runs", () => {});`,
+  });
+  const skipping = await runUnit({ root, files: ["skips.test.mjs"], env: process.env, stdio: "ignore" });
+  assert.equal(skipping.code, 0);
+  assert.match(unitReason(skipping, root), /^\d+\.\d s, 2 skipped$/);
+  const plain = await runUnit({ root, files: ["plain.test.mjs"], env: process.env, stdio: "ignore" });
+  assert.doesNotMatch(unitReason(plain, root), /skipped/, "a unit that skipped nothing says nothing of skips");
+});
+
 // increment_eb1972ba9017 (ADR-1152): each test's limit is learned from its own passing times on this machine,
 // as a unit's deadline is; voice's real.test.ts passed in 36-55 s on Windows and timed out at the flat 60 s.
 function testHistory(t, rows) {

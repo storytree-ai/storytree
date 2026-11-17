@@ -65,9 +65,10 @@ process.on("exit", () => {
 });
 
 /**
- * Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs, tests, unloaded },
+ * Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs, tests, unloaded, skipped },
  * `tests` being each test that ended: { file (from root), name (its full name), result, ms, timedOut (at testLimitMs) },
- * and `unloaded` each file (from root) that failed with no test in it ended, as one whose import is not built yet does.
+ * `unloaded` each file (from root) that failed with no test in it ended, as one whose import is not built yet does,
+ * and `skipped` how many of its tests were skipped.
  * With `hold`, as when other units run beside it, nothing is printed: its stdout and stderr, in the
  * order they came, are resolved as `output` once the process has ended.
  */
@@ -173,10 +174,11 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
     child.on("exit", (code) => {
       stop();
       const tests = endedTests(runningFile, root, testLimitMs);
+      const skipped = readJsonLines(runningFile).filter((entry) => entry.event === "end" && entry.skipped === true).length;
       const unloaded = failedUnloaded(runningFile, root);
       rmSync(runningFile, { force: true });
       removeTemp();
-      const result = { code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, unitLimitMs, tests, unloaded };
+      const result = { code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, unitLimitMs, tests, unloaded, skipped };
       if (report !== undefined) {
         try {
           let xml = "";
@@ -513,7 +515,7 @@ export function unitReason(run, root) {
     return `first try ${unitReason(firstTry, root)}; second try: ${unitReason(second, root)}`;
   }
   const timeouts = (run.tests ?? []).filter((test) => test.timedOut);
-  const reason = unitRowReason(run, root);
+  const reason = `${unitRowReason(run, root)}${run.skipped > 0 ? `, ${run.skipped} skipped` : ""}`;
   if (timeouts.length === 0) return reason;
   return `${reason}; timed out at the per-test limit of ${run.testLimitMs / 1000} s (${run.testLimitSource}): ${timeouts.map(({ file, name }) => `${file} › ${name}`).join("; ")}`;
 }

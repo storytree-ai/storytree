@@ -73,6 +73,11 @@ const choose = id => async ({ page, settle }) => {
 
 /** A click on the island's name selects the story alone; its panel's microscope shows the island's capabilities. */
 const pickStory = (story, { laid = true } = {}) => async ({ page, settle }) => {
+  // Another story's panel let go first, as the lag catalogue's reset does, so it cannot cover this island's name.
+  if (await page.evaluate(() => document.body.dataset.selected !== undefined)) {
+    await page.keyboard.press('Escape');
+    await until(page, () => document.body.dataset.selected === undefined && document.querySelector('aside.story-panel')?.hidden !== false, undefined, 60_000);
+  }
   if (!await page.evaluate(id => window.storytreeGlobe.face({ kind: 'story', story: id }), story.id)) throw new Error(`no camera stop for ${story.title}`);
   await until(page, () => window.storytreeGlobe.still());
   // The name is drawn over the canvas, which picks what lies under the pointer, the name among it (3.41).

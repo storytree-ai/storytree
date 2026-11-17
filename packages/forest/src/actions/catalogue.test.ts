@@ -31,7 +31,7 @@ test("3.42 the lag catalogue names each action by what it opens, picks its islan
   // The first entries, by name: an island is opened by its size or its story's name, never a point, and settles on that island's panel.
   const by = new Map(CATALOGUE.map(action => [action.name, action]));
   assert.deepEqual([...by.keys()], ["open-fewest-island", "open-most-island", "open-named-island", "open-part-after-arc", "open-app-kept", "open-app-fresh", "close-panel",
-    "click-fold", "open-fold", "open-contract", "library-and-back", "open-library-note", "open-session-row", "hover-sweep", "turn-forest", "turn-library", "whole-map", "idle"]);
+    "click-fold", "drill-microscope", "open-fold", "open-contract", "library-and-back", "open-library-note", "open-session-row", "hover-sweep", "turn-forest", "turn-library", "whole-map", "idle"]);
   assert.deepEqual(["open-fewest-island", "open-most-island", "open-named-island"].map(name => by.get(name)!.perform),
     [[{ kind: "island", island: "fewest" }], [{ kind: "island", island: "most" }], [{ kind: "island", island: { story: "The library" } }]]);
   assert.deepEqual(by.get("open-named-island")!.settled, { selected: "island", panel: "open", still: true });

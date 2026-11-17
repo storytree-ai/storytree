@@ -123,6 +123,7 @@ export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
   "research",
   "experiment",
   "escape",
+  "drill",
 ];
 
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
@@ -209,6 +210,8 @@ function refuseFrozenEdit(note: Note, change: object): void {
 const NOTE: Expected = artifactsOnly(NOTE_TYPES);
 /** What a check may enforce (ADR-0956 D3): the principles and guardrails that carry a rule's reason. */
 const ENFORCEABLE: Expected = { name: "principle or guardrail", types: ["principle", "guardrail"], why: "a check enforces the principle or guardrail note that carries its rule's reason" };
+/** What a red-team drill replants (ADR-1356 D1): a live escape pattern. */
+const REPLANTABLE: Expected = { name: "escape pattern", types: ["escape"], why: "a drill replants a harvested escape pattern" };
 
 export class Knowledge {
   readonly #records: SchemaRecords;
@@ -567,8 +570,8 @@ export class Knowledge {
   /**
    * Every reference an artifact's fields hold must name a live artifact: its links, and an agent role's
    * required reading, rules, anti-patterns and step reading, and a process's branch edges. Not one loop
-   * over REFERENCE_FIELD_NAMES: `enforces` must name a principle or guardrail, not any note, and
-   * `supersedes` is checked against decisions by the decision log.
+   * over REFERENCE_FIELD_NAMES: `enforces` must name a principle or guardrail, not any note, a drill's
+   * `pattern` a live escape pattern, and `supersedes` is checked against decisions by the decision log.
    */
   async #checkNoteReferences(fields: object): Promise<void> {
     const at = fields as Record<string, unknown>;
@@ -578,6 +581,7 @@ export class Knowledge {
     for (const step of listOf(at["stepRefs"])) await checkReferences(this.#records, "stepRefs", fieldOf(step, "refs"), NOTE);
     for (const edge of listOf(at["branchEdges"])) await checkReference(this.#records, "branchEdges", fieldOf(edge, "to"), NOTE);
     await checkReferences(this.#records, "enforces", at["enforces"], ENFORCEABLE);
+    await checkReference(this.#records, "pattern", at["pattern"], REPLANTABLE);
   }
 
   /** An artifact may link to a live artifact, and to nothing else. */

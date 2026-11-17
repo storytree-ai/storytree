@@ -1217,7 +1217,9 @@ test("4.36 · a pull request whose session cap is spent on flakes goes to the ow
   const storytree = b.options.storytree;
   b.options.storytree = async (args, at) => {
     await storytree(args, at);
-    return args[0] === "health" && args[1] === "investigate" ? `"${args[args.indexOf("--test") + 1]}" is investigated by increment_${"f".repeat(12)}.` : "";
+    if (args[0] !== "health" || args[1] !== "investigate") return "";
+    const test = args[args.indexOf("--test") + 1];
+    return test === "1.2 · flaky" ? `"${test}" is not to be investigated: its arc was retired.` : `"${test}" is investigated by increment_${"f".repeat(12)}.`;
   };
   await handOff(b);
   const rounds = [
@@ -1249,6 +1251,8 @@ test("4.36 · a pull request whose session cap is spent on flakes goes to the ow
   assert.ok(wait, "an owner wait");
   assert.match(wait[7], /No review ran/);
   assert.ok(wait[7].includes(`1.1 · flaky (investigated by increment_${"f".repeat(12)})`), "the owner still hears of each flaky test, and where it is investigated");
+  assert.ok(wait[7].includes("1.2 · flaky;") || wait[7].includes("1.2 · flaky."), "one whose investigation arc was retired is still named, with no investigation");
+  assert.doesNotMatch(wait[7], /1\.2 · flaky \(investigated/);
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
   assert.match(b.lines.at(-1), /PR #41.*waits on the owner/);
 });

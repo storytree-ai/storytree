@@ -88,7 +88,8 @@ were. An island the library lacks too fails, naming the stories it has. Refresh
 the committed pair only when the shared snapshot itself should move.
 
 Globe captures built with `buildCapture` can call `visibleGlobeTargets(page)` once
-the globe is ready. It returns the camera's `zoom` and sorted `dots` and `islands`,
+the globe is ready. It returns the eye's `zoom` (CSS pixels per ground unit at the
+middle of the view, as the sheet measures it: `sheetEyeZoom`) and sorted `dots` and `islands`,
 each with an `id` and page coordinates `x`, `y`. It conservatively chooses centres
 nearer the eye than the globe's centre, excluding hidden objects and centres
 outside the canvas. Pass `{ x: 0.5, y: 0.6 }` to choose
@@ -96,13 +97,11 @@ only the middle half-width and 60% half-height. This is a scene observation, so 
 HTML panel may still cover a target; dismiss panels before using its coordinates.
 
 `await zoomGlobe(page, opening.zoom * 1.5)` sends real wheel events over the canvas
-until the orthographic zoom is within 3% of the target (the wheel moves in notches),
-and returns the attained zoom. Pass a target's coordinates as a third argument to
-place the pointer there. `zoomGlobe(page, opening.zoom)` returns to the opening
-scale. It refuses targets outside the controls' range and fails if the wheel does
-not change the camera. See the [reach-sized dots capture](../../../../packages/knowledge-core/evidence/reach-sized-dots/capture.mjs)
-for choosing visible notes, seeding their reads, then framing both full and close
-views in one invocation.
+until the eye's zoom (the same measure, which `captureSequence`'s `pose.zoom` reads too)
+is within 3% of the target (the wheel moves in notches), and returns the attained zoom.
+Pass a target's coordinates as a third argument to place the pointer there.
+`zoomGlobe(page, opening.zoom)` returns to the opening scale. It refuses targets
+outside the controls' range and fails if the wheel does not move the eye.
 
 Claude reads no video, so a turn, tilt or zoom reaches it as a frame sequence and one
 contact sheet. Once the map is ready, `await captureSequence(page, { kind: 'turn', from: 0,

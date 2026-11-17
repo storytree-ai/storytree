@@ -9,10 +9,21 @@ export interface GlobeTarget {
 }
 
 export interface GlobeTargets {
+  /** The eye's zoom, CSS pixels per ground unit at the middle of the view (`sheetEyeZoom`), as zoomGlobe takes it. */
   zoom: number;
   dots: GlobeTarget[];
   islands: GlobeTarget[];
 }
+
+// The perspective eye's zoom as the sheet measures it (`sheetEyeZoom`, and captureSequence's pose.zoom): its focal length
+// in CSS pixels over its distance from the middle of the view, which the controls hold as their target. Text, as below.
+const EYE_ZOOM = `(state => {
+  const { camera, controls, size } = state;
+  if (!camera?.isPerspectiveCamera || !controls?.target || !size) throw new Error('Capture needs the map\\'s perspective eye, its controls and its size; wait for the globe');
+  const focal = Math.max(size.height, 1) / 2 / Math.tan(camera.fov * Math.PI / 360);
+  const eye = camera.position, middle = controls.target;
+  return focal / (Math.hypot(eye.x, eye.y, eye.z) - Math.hypot(middle.x, middle.y, middle.z));
+})`;
 
 /**
  * Targets nearer the eye than the globe's centre, inside the canvas and not hidden by an ancestor.
@@ -36,7 +47,7 @@ export async function visibleGlobeTargets(page: Page, bounds = { x: 1, y: 1 }): 
     const eye = camera.getWorldPosition(camera.position.clone());
     const centreDistance = centre.distanceTo(eye);
     const box = gl.domElement.getBoundingClientRect();
-    const found = { zoom: camera.zoom, dots: [], islands: [] };
+    const found = { zoom: ${EYE_ZOOM}(state), dots: [], islands: [] };
     scene.traverseVisible(object => {
       const kind = object.name.startsWith('knowledge-point:') ? 'dots' : object.name.startsWith('planet:') ? 'islands' : undefined;
       if (!kind) return;
@@ -53,17 +64,19 @@ export async function visibleGlobeTargets(page: Page, bounds = { x: 1, y: 1 }): 
 }
 
 /**
- * Wheel toward an absolute camera zoom, returning the attained zoom (within 3%, one half-notch).
- * Save visibleGlobeTargets(...).zoom to return to an opening view, or multiply it for a close-up.
+ * Wheel toward an absolute zoom (CSS pixels per ground unit at the middle of the view), returning the attained zoom (within
+ * 3%, one half-notch). Save visibleGlobeTargets(...).zoom to return to an opening view, or multiply it for a close-up.
  * The pointer defaults to the canvas centre; callers can choose a returned target's coordinates.
  */
 export async function zoomGlobe(page: Page, target: number, at?: { x: number; y: number }): Promise<number> {
   if (!Number.isFinite(target) || target <= 0) throw new Error("Globe zoom must be positive and finite");
   const state = await page.evaluate(`(() => {
     const state = globalThis.__globe;
-    if (!state?.camera.isOrthographicCamera) throw new Error('Capture needs the orthographic globe before zooming');
-    const box = state.gl.domElement.getBoundingClientRect();
-    return { zoom: state.camera.zoom, min: state.controls.minZoom, max: state.controls.maxZoom,
+    if (!state) throw new Error('Capture globe observation is unavailable; use buildCapture and wait for the globe');
+    const zoom = ${EYE_ZOOM}(state), { camera, controls, size, gl } = state;
+    const focal = Math.max(size.height, 1) / 2 / Math.tan(camera.fov * Math.PI / 360);
+    const box = gl.domElement.getBoundingClientRect();
+    return { zoom, min: focal / (controls.maxDistance ?? Infinity), max: focal / (controls.minDistance ?? 0),
       x: box.left + box.width / 2, y: box.top + box.height / 2 };
   })()`) as { zoom: number; min: number; max: number; x: number; y: number };
   if (target < state.min || target > state.max) throw new Error(`Globe zoom ${target} is outside ${state.min}–${state.max}`);
@@ -73,11 +86,11 @@ export async function zoomGlobe(page: Page, target: number, at?: { x: number; y:
     if (Math.abs(zoom / target - 1) <= 0.03) return zoom;
     await page.mouse.wheel(0, zoom < target ? -240 : 240);
     try {
-      await page.waitForFunction(`globalThis.__globe.camera.zoom !== ${zoom}`, undefined, { timeout: 2000 });
+      await page.waitForFunction(`${EYE_ZOOM}(globalThis.__globe) !== ${zoom}`, undefined, { timeout: 2000 });
     } catch (cause) {
       throw new Error(`Globe wheel did not change zoom ${zoom} toward ${target}; check that the canvas receives the pointer`, { cause });
     }
-    zoom = await page.evaluate(`globalThis.__globe.camera.zoom`);
+    zoom = await page.evaluate(`${EYE_ZOOM}(globalThis.__globe)`);
   }
   throw new Error(`Globe wheel could not reach zoom ${target}; last zoom was ${zoom}`);
 }

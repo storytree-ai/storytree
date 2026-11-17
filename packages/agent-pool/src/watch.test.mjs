@@ -163,7 +163,7 @@ test("4.3 · past its fix limit the watcher starts a review session, never a thi
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is forgotten once the owner has it");
 });
 
-test("4.37 · a review session's one verdict decides the red: retried, retried after parking the flaky test's fix, fixed again, or put to the owner by its question", async (t) => {
+test("4.37 · a review session's one verdict decides the red: retried, retried after parking the flaky test's investigation, fixed again, or put to the owner by its question", async (t) => {
   const retried = async (kind) => {
     const b = await box(t);
     const reruns = [];
@@ -172,6 +172,9 @@ test("4.37 · a review session's one verdict decides the red: retried, retried a
     b.looks[41] = flaky({ outside: false });
     for (let round = 0; round < 3; round++) { await watchOnce(b.options); b.live.clear(); }
     assert.equal(b.reviews.length, 1);
+    // A test elsewhere is parked on, or added to, that test's one investigation, never a new increment on a shared arc (ADR-1352).
+    assert.match(b.reviews[0].brief, /`pnpm storytree health investigate --test "<title>" --unit <packages\/x> --seen "PR #41 at <head>" --evidence "[^`]*" --found "[^`]*" --increment increment_one`/);
+    assert.doesNotMatch(b.reviews[0].brief, /arc increment new|arc_1a42179de853/);
     await recordVerdict({ dir: b.dir, pr: 41, kind, summary: "random timing on a loaded runner" });
     await watchOnce(b.options);
     assert.deepEqual(reruns, [5], `${kind}: its failed runs are rerun`);

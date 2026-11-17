@@ -19,7 +19,7 @@ import { noteCodexHookRan, noteHookFailure, type Homes } from "@storytree/sessio
 import { PROJECT_FILE, ROOT_MARKER_FILE } from "@storytree/project-and-caller";
 import { registerHooks, type GhState, type HookCommand } from "@storytree/app-setup/setup";
 import { buildBins } from "@storytree/app-setup/bins";
-import { STARTER_PACK_VERSION } from "@storytree/app-setup/project";
+import { seedStarterPack, STARTER_PACK_VERSION } from "@storytree/app-setup/project";
 import { withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect } from "@storytree/library";
@@ -45,6 +45,26 @@ before(async () => {
 after(() => {
   rmSync(bins, { recursive: true, force: true });
 });
+
+/**
+ * Make `name` this test's own factory, marked and seeded with the bare bones as setup makes one, before a project is
+ * set up with it: found by its name first, so setup never falls back on a factory another test or a killed run left
+ * in the test Postgres with a folder of its own (ADR-1352 D1).
+ */
+async function ownFactory(name: string): Promise<void> {
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const library = await storytree.openProject(name);
+    try {
+      await library.markFactory();
+      await seedStarterPack(library);
+    } finally {
+      await library.close();
+    }
+  } finally {
+    await storytree.close();
+  }
+}
 
 /**
  * What gh and the machine answer, for tests about something else: asking this machine's own gh,
@@ -354,6 +374,7 @@ test("app-setup 8.22 a session that sets its project up finishes the setup in th
       return answer!;
     };
     try {
+      await ownFactory(factory);
       registerHooks(home.homes, HOOK);
       // Codex has storytree's hooks but none has run: the user has not trusted them yet.
       const untrusted = await setUp(waiting, codex);
@@ -462,6 +483,7 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
     const [seeded, older, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
     const storytree = await connect({ url: testServerUrl() });
     try {
+      await ownFactory(factory);
       const agentIn = (folder: string) => claudeCode(`claude-${path.basename(folder)}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome, factory } });
       const newFolder = path.join(dir, seeded);
       mkdirSync(newFolder);

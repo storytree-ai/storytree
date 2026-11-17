@@ -6,8 +6,9 @@
  * The printed form these tests read: a "field reading" heading, then lines "<n> caught by CI … <m> escaped", overall and
  * per story (the story's id on its line, or "story not recorded"); a "drill reading" heading, then the nine layer lines
  * overall, again after a line naming each pattern's id, and again after a "per story" heading and a line naming each
- * story's id. A layer line is "<layer>: <n> caught first, <m> not run", a reviewer's adding ", <k> same-model". In
- * `storytree measures` the per-story catch follows a "catch rate" heading.
+ * story's id, each such line saying how many drills it is over. A layer line is "<layer>: <n> caught first, <m> not
+ * run", a reviewer's adding ", <k> same-model". In `storytree measures` the per-story catch follows a "catch rate"
+ * heading. --json gives the reading's numbers as fields, read here against the same worked values.
  */
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
@@ -120,6 +121,22 @@ function expected(counts: Partial<Record<Name, readonly number[]>>): (readonly [
   });
 }
 
+interface JsonLayer { layer: string; caughtFirst: number; notRun: number; sameModel?: number }
+interface JsonDrills { drills: number; layers: JsonLayer[] }
+type JsonField = { caughtByCi: number; escaped: number };
+/** The reading as --json gives it. */
+interface JsonReading {
+  field: { overall: JsonField; storyNotRecorded: JsonField };
+  drills: JsonDrills;
+  patterns: (JsonDrills & { pattern: string })[];
+  stories: { story: string; field: JsonField; drills: JsonDrills }[];
+}
+
+/** --json's layer counts as [layer, caught first, not run, same-model]. */
+function tuples(layers: readonly JsonLayer[]): (readonly [string, number, number, number | undefined])[] {
+  return layers.map((one) => [one.layer, one.caughtFirst, one.notRun, one.sameModel] as const);
+}
+
 /** The first line after `from` (and before `to`) that `match` finds, or -1. */
 function lineAfter(lines: readonly string[], from: number, match: (line: string) => boolean, to = lines.length): number {
   for (let at = from + 1; at < to; at++) if (match(lines[at]!)) return at;
@@ -134,7 +151,7 @@ function context(world: World, folder: string) {
 
 test("20.5 · `storytree measures catch` prints, over its window, the field reading (caught by CI, escaped) overall and per story, and the drill reading's first catches and not-run counts for every layer overall, per pattern and per story, reviewer catches counted same-model; --json gives the reading", async () => {
   await withWorld(async (world) => {
-    const { library, signUp, mail, p1, p2 } = world;
+    const { signUp, mail, p1, p2 } = world;
     const family = MEASURES_FAMILIES.find((one) => one.name === "measures")!;
     const verb = family.verbs.find((one) => "name" in one.command && one.command.name === "catch");
     assert.ok(verb, "the measures family has a catch verb");
@@ -180,11 +197,30 @@ test("20.5 · `storytree measures catch` prints, over its window, the field read
       assert.match(earlier[lineAfter(earlier, earlierField, (line) => /caught by CI/.test(line), earlierDrills)] ?? "", /\b0 caught by CI\b.*\b0 escaped\b/);
       assert.deepEqual(layersAfter(earlier, earlierDrills), expected({ "test writer": [1, 2], builder: [0, 2], "mutation report": [1], "test reviewer": [1, 0, 0] }), "d1, d4 and d5 alone");
 
-      // --json: the window and the reading the text was printed from.
-      const { catchReading, catchText } = await import("./catch.js");
-      const reading = await catchReading(library, window);
-      assert.equal(text, catchText(reading, window), "the text is the reading's");
-      assert.deepEqual(JSON.parse(await run({ ...window, json: true })), JSON.parse(JSON.stringify({ window, ...reading })));
+      // How many drills each reading is over, and the patterns with the most drills first.
+      assert.match(lines[lineAfter(lines, drills, (line) => /overall/.test(line))] ?? "", /\b5 drills\b/);
+      const p1At = lineAfter(lines, drills, (line) => line.includes(p1));
+      const p2At = lineAfter(lines, drills, (line) => line.includes(p2));
+      assert.match(lines[p1At] ?? "", /\b3 drills\b/);
+      assert.match(lines[p2At] ?? "", /\b2 drills\b/);
+      assert.ok(p1At < p2At, "p1, replanted three times, before p2, twice");
+
+      // --json: the same numbers.
+      const json = JSON.parse(await run({ ...window, json: true })) as JsonReading & { window: unknown };
+      assert.deepEqual(json.window, window);
+      assert.deepEqual(json.field, { overall: { caughtByCi: 3, escaped: 1 }, storyNotRecorded: { caughtByCi: 1, escaped: 0 } });
+      assert.equal(json.drills.drills, 5);
+      assert.deepEqual(tuples(json.drills.layers), expected({
+        "test writer": [1, 4], builder: [0, 4], "mutation report": [1, 1], "test reviewer": [1, 0, 0], "code reviewer": [1, 0, 1], CI: [0, 1], escaped: [1, 0],
+      }));
+      assert.deepEqual(json.patterns.map((one) => [one.pattern, one.drills]), [[p1, 3], [p2, 2]], "the most drills first");
+      assert.deepEqual(tuples(json.patterns[1]!.layers), expected({ "test writer": [1, 1], builder: [0, 1], "mutation report": [0, 1], CI: [0, 1], escaped: [1, 0] }));
+      const story = (id: string) => json.stories.find((one) => one.story === id)!;
+      assert.deepEqual(story(signUp).field, { caughtByCi: 2, escaped: 0 });
+      assert.deepEqual(story(mail).field, { caughtByCi: 0, escaped: 1 });
+      assert.deepEqual(tuples(story(mail).drills.layers), expected({
+        "test writer": [1, 2], builder: [0, 2], "mutation report": [0, 1], "test reviewer": [1, 0, 0], CI: [0, 1], escaped: [1, 0],
+      }));
 
       // The same window rules as `storytree measures`.
       const week = JSON.parse(await run({ json: true })) as { window: unknown };
@@ -199,7 +235,7 @@ test("20.5 · `storytree measures catch` prints, over its window, the field read
 
 test("20.6 · `storytree measures` prints, beside the lane measures, the catch rate per story with escapes or drills in its window (caught by CI, escaped, and first catches per layer, reviewer catches same-model), and its --json carries the catch reading per story", async () => {
   await withWorld(async (world) => {
-    const { library, signUp, mail } = world;
+    const { signUp, mail } = world;
     const family = MEASURES_FAMILIES.find((one) => one.name === "measures")!;
     const folder = mkdtempSync(path.join(tmpdir(), "measures-catch-"));
     try {
@@ -225,15 +261,22 @@ test("20.6 · `storytree measures` prints, beside the lane measures, the catch r
       const october = (await run({ from: "2026-10-01", to: "2026-10-01", json: false })).split("\n");
       const octoberHeading = october.findIndex((line) => /catch rate/i.test(line));
       assert.ok(octoberHeading >= 0, "the catch is printed when no increment closed in the window");
-      assert.deepEqual(layersAfter(october, lineAfter(october, octoberHeading, (line) => line.includes(signUp))), expected({ "test writer": [0, 1], builder: [0, 1], lint: [1] }));
+      const octoberSignUp = lineAfter(october, octoberHeading, (line) => line.includes(signUp));
+      assert.deepEqual(layersAfter(october, octoberSignUp), expected({ "test writer": [0, 1], builder: [0, 1], lint: [1] }));
+      assert.match(october[lineAfter(october, octoberSignUp, (line) => /\bdrills?\b/.test(line))] ?? "", /\b1 drill\b/, "one drill, singular");
       assert.equal(lineAfter(october, octoberHeading, (line) => line.includes(mail)), -1, "a story with nothing in the window is left out");
 
-      const report = JSON.parse(await run({ ...window, json: true })) as { catch?: unknown };
-      assert.ok(report.catch !== undefined, "--json carries the catch");
-      const { catchReading } = await import("./catch.js");
-      const reading = (await catchReading(library, window)) as unknown as { stories: unknown };
-      assert.deepEqual(report.catch, JSON.parse(JSON.stringify(reading.stories)), "per story, the numbers `measures catch` reads");
-      assert.match(JSON.stringify(report.catch), new RegExp(`${signUp}[^]*${mail}|${mail}[^]*${signUp}`), "both stories");
+      const report = JSON.parse(await run({ ...window, json: true })) as { catch: JsonReading["stories"] };
+      assert.deepEqual(report.catch.map((one) => one.story).sort(), [signUp, mail].sort(), "--json carries each story with escapes or drills in the window");
+      const story = (id: string) => report.catch.find((one) => one.story === id)!;
+      assert.deepEqual(story(signUp).field, { caughtByCi: 2, escaped: 0 });
+      assert.equal(story(signUp).drills.drills, 2);
+      assert.deepEqual(tuples(story(signUp).drills.layers), expected({ "test writer": [0, 2], builder: [0, 2], "mutation report": [1], "code reviewer": [1, 0, 1] }));
+      assert.deepEqual(story(mail).field, { caughtByCi: 0, escaped: 1 });
+      assert.equal(story(mail).drills.drills, 3);
+      assert.deepEqual(tuples(story(mail).drills.layers), expected({
+        "test writer": [1, 2], builder: [0, 2], "mutation report": [0, 1], "test reviewer": [1, 0, 0], CI: [0, 1], escaped: [1, 0],
+      }));
     } finally {
       await removeTemp(folder);
     }

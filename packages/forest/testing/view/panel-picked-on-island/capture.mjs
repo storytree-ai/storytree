@@ -51,7 +51,8 @@ const panel = page => page.evaluate(() => {
     contractStates: [...aside?.querySelectorAll('.panel-detail [data-contract-id] .panel-handle .panel-mark') ?? []].length,
     gate: aside?.querySelector('.panel-gate') !== null && aside?.querySelector('.panel-gate') !== undefined,
     links: [...aside?.querySelectorAll('.panel-gate h3') ?? []].map(h => ({ said: h.textContent, contracts: h.nextElementSibling?.querySelectorAll('[data-contract-id]').length ?? 0, state: (h.nextElementSibling?.classList.contains('panel-link-state') ? [h.nextElementSibling.querySelector('.panel-handle')?.textContent, h.nextElementSibling.querySelector('.panel-link-failing')?.textContent, h.nextElementSibling.querySelector('.panel-link-open')?.textContent].filter(Boolean).join(' ') : h.nextElementSibling?.textContent) ?? '' })),
-    tree: aside?.querySelectorAll('svg:not(.panel-mark > svg), .panel-tree, [data-open-tree], [role="button"]').length ?? 0,
+    // The microscope (ADR-1350 D2, narrowing ADR-1285) is not the capability tree ADR-1285 retired, so it is not counted.
+    tree: [...aside?.querySelectorAll('svg:not(.panel-mark > svg), .panel-tree, [data-open-tree], [role="button"]') ?? []].filter(e => e.closest('.panel-microscope') === null).length,
     handles: [...aside?.querySelectorAll('.panel-handle') ?? []].filter(h => h.closest('.panel-fold-body[hidden]') === null).map(h => h.textContent),
     opened: [...aside?.querySelectorAll('.panel-handle[aria-expanded="true"]') ?? []].map(h => h.textContent),
     picked: (() => { const found = []; window.__globe.scene.traverse(o => { if (o.visible && o.name.startsWith('picked-ring:')) found.push(o.name.slice('picked-ring:'.length)); }); return found; })(),

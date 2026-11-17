@@ -16,6 +16,7 @@ import type { AnnotatedContract, AnnotatedStory, AnnotatedTree, CapabilityStatus
 
 
 import { grove, type PartStates } from "../capability-tree/capability-tree.js";
+import { microscope, type Microscope, type ScopeSurvey } from "./microscope.js";
 
 /** One contract, as the panel lists it on request. */
 export interface ContractLine {
@@ -126,6 +127,8 @@ export interface StoryPanel {
    * risk rating is switched off (question_0de2b8280384), so the panel carries none.
    */
   checks?: ExtraCheck[];
+  /** What the panel's microscope shows of the story, its capabilities and their parts (ADR-1350 D2); present when it has capabilities. */
+  microscope?: Microscope;
 }
 
 /** An extra check only this story or one of its capabilities carries; standard unit and integration tests are not listed. */
@@ -141,8 +144,8 @@ export const NO_DESCRIPTION = "no description yet";
 /** The words for each reported state in a trail. */
 const WORD: Readonly<Record<HealthState, string>> = { passing: "green", failing: "red", "not-checked": "not checked" };
 
-/** A story's code survey as the panel counts it: the forest's own copy of the map's surveyed files, their lines alone (ADR-1017 D2). */
-type SurveyedFiles = { readonly files: readonly { readonly lines: number }[] };
+/** A story's code survey as the panel reads it: its files' lines, and for the microscope their capabilities, imports, edges and parts. */
+type SurveyedFiles = ScopeSurvey;
 
 /**
  * The panel for story `story` of `tree`, or undefined if the tree has no such story. `history` is the project's changes from the start,
@@ -190,7 +193,15 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
   const files = survey[found.id]?.files ?? [];
   const mapped = found.mapped === undefined ? undefined : files.length === 0 ? {} : { files: files.length, lines: files.reduce((sum, file) => sum + file.lines, 0) };
   const checks = extraChecks(found);
-  return { story: found.id, title: found.title, description: sentences(found.description), capabilities, ...(edges.length === 0 ? {} : { edges }), ...(mapped === undefined ? {} : { mapped }), ...(checks.length === 0 ? {} : { checks }) };
+  const names = new Map(tree.stories.flatMap((each) => [[each.id, each.title] as const, ...each.capabilities.map(({ id, title }) => [id, title] as const)]));
+  const scope = capabilities.length === 0 ? undefined : microscope({
+    story: found.id,
+    title: found.title,
+    capabilities: capabilities.map(({ id, title, status, parkedOn }) => ({ id, title, status, ...(parkedOn === undefined ? {} : { parked: true }) })),
+    edges: edges.map(({ from, to }) => ({ from, to })),
+    names,
+  }, survey);
+  return { story: found.id, title: found.title, description: sentences(found.description), capabilities, ...(edges.length === 0 ? {} : { edges }), ...(mapped === undefined ? {} : { mapped }), ...(checks.length === 0 ? {} : { checks }), ...(scope === undefined ? {} : { microscope: scope }) };
 }
 
 /** Contracts in the order their numbers say ("6.2 · …" before "6.10 · …"), the unnumbered after them, each kept in the library's order. */

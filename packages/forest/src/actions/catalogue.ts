@@ -158,6 +158,12 @@ export const CATALOGUE: readonly LagAction[] = [
   // folds leave it. The page shows no fold's state to settle on, so the click's answer and frames are read, and the field recorder files none.
   { name: "click-fold", setup: [...RESET, ...NAMED_CAPABILITY],
     perform: [{ kind: "click", selector: ".story-panel [data-fold] > .panel-handle" }], settled: { panel: "open" }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: DRILL_DOWN },
+  // A capability chosen in the library's story microscope (ADR-1350 D2) re-roots the panel on it, its parts laid out in the microscope.
+  // The story's microscope is laid out after its panel paints, so the setup leaves it a few seconds before the click.
+  { name: "drill-microscope", setup: [...RESET, ...NAMED_OPEN, { kind: "click", selector: ".story-panel .panel-story-name", optional: true },
+    { kind: "wait", until: { selected: "island", panel: "open", still: true } }, { kind: "idle", ms: 5000 }],
+    perform: [{ kind: "click", selector: ".story-panel .panel-microscope [data-pick-capability]" }], settled: { panel: "open", still: true },
+    budget: DEFAULT_BUDGET, limitMs: 10_000, owner: DRILL_DOWN },
   // Opening a contract on the library's first capability's panel. A contract's fold is never kept, so the panel drawn afresh has it shut.
   { name: "open-fold", setup: [...RESET, ...NAMED_CAPABILITY],
     perform: [{ kind: "click", selector: CONTRACT }], settled: { fold: "contract" }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: PANEL_FOLDS },

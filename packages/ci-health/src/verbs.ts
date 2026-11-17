@@ -110,14 +110,14 @@ const local = verb({
 });
 
 const tell = verb({
-  command: { family: "health", name: "tell", summary: "tell the owner by FYI each verified verdict turn of the last hours that its writer's role could not tell (CI's writes only health), and release the work a red was waiting for" },
+  command: { family: "health", name: "tell", summary: "tell the owner by FYI each verified verdict turn of the last hours that its writer's role could not tell (CI's writes only health), release the work a red was waiting for, and park or add to one investigation of each flaky test a red names" },
   tool: { absent: "a step for the Mint box's schedule, under the library owner's account (factory-health.sh)" },
   inputs: { hours: { kind: "count", optional: true, describe: "how many hours back to look for verdicts told to no one; 12 when not given" } },
   async act({ hours = 12 }, { library }) {
     const turns = await library.tellUntold(new Date(Date.now() - hours * 3_600_000).toISOString());
     if (turns.length === 0) return { text: `Nothing untold: every verified verdict turn of the last ${hours} hours was already told.` };
     return {
-      text: [`Told ${turns.length} verdict ${turns.length === 1 ? "turn" : "turns"} its writer could not:`, ...turns.map(({ title, at, released }) => `  ${title} (verdict at ${at})${released.length === 0 ? "" : `; released ${released.join(", ")}`}`)].join("\n"),
+      text: [`Told ${turns.length} verdict ${turns.length === 1 ? "turn" : "turns"} its writer could not:`, ...turns.map(({ title, at, released, investigated = [] }) => `  ${title} (verdict at ${at})${released.length === 0 ? "" : `; released ${released.join(", ")}`}${investigated.length === 0 ? "" : `; its flaky tests investigated by ${investigated.join(", ")}`}`)].join("\n"),
     };
   },
 });

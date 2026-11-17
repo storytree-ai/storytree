@@ -31,6 +31,8 @@ export type RecordedVerdict = {
   unrun?: true;
   /** The names of the tests that judged a passing or failing verdict, written with it. */
   tests?: readonly string[];
+  /** Of a failing verdict's tests, those a passing CI run of the same commit ran without failing: flakes, written with it. */
+  flaky?: readonly string[];
 };
 
 /** The CI systems whose evidence credits a `platform:<os>` skip, by Node's platform name. */
@@ -49,7 +51,8 @@ function seenAt(writer: Writer): string {
 
 /**
  * Write each verdict to its contract's VERIFIED column, by `writer`, with its tally and where it was seen as the note,
- * and a passing or failing one with the names of the tests that judged it, when it carries them.
+ * and a passing or failing one with the names of the tests that judged it, when it carries them, and a failing one with
+ * its flaky tests, when it names any (the box's telling parks their investigations, library 5.33).
  * A not-checked verdict is written only when its tests were skipped or crashed; one whose column already says the same
  * is not written again, so its note keeps the commit it was first not re-run at. A run that saw no CI evidence for a
  * platform (one missing from `platformsSeen`) cannot re-run a test that only runs there, so a passing verdict from
@@ -78,7 +81,7 @@ export async function recordHealth(
     if (id === undefined) throw new Error(`there is no contract ${number} in the library to record its health on`);
     const at = seenAt(writer);
     const note = at === "" ? verdict.note : `${verdict.note ?? ""},${at}`;
-    return [{ number, id, state: verdict.state, note, options: { by: writer.by, source: writer.source, ...(note === undefined || note === "" ? {} : { note }), ...(verdict.tests === undefined ? {} : { tests: verdict.tests }) } }];
+    return [{ number, id, state: verdict.state, note, options: { by: writer.by, source: writer.source, ...(note === undefined || note === "" ? {} : { note }), ...(verdict.tests === undefined ? {} : { tests: verdict.tests }), ...(verdict.flaky === undefined ? {} : { flaky: verdict.flaky }) } }];
   });
   // Every verdict that tells nothing in one write: one at a time, a library far away cost Own health its time limit (3.23).
   let together: readonly unknown[] = [];

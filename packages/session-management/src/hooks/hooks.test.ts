@@ -727,14 +727,16 @@ test("9.9 past context guidance, the Claude Code prompt hook advises handing off
       const writeTokens = (tokens: number, harness: "claude-code" | "codex" = "claude-code") => writeFileSync(transcript, JSON.stringify(harness === "codex"
         ? { type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: tokens } } } }
         : { type: "assistant", requestId: "request-1", message: { model: "claude-opus-5-5", usage: { input_tokens: 1, cache_read_input_tokens: tokens - 1, cache_creation_input_tokens: 0 } } }) + "\n");
+      // Every hook here is given the guard's time, so a slow runner's advice (or its absence) is not its 5 s deadline's.
+      const guarded = { STORYTREE_TEST_GUARD_MS: "60000" };
       const start = async (session: string, harness: "claude-code" | "codex" = "claude-code") => {
         const input = { ...JSON.parse(recorded(harness, "session-start-startup", folder)), session_id: `${project}-${session}`, transcript_path: transcript };
-        const ran = await runHook(harness, JSON.stringify(input), home);
+        const ran = await runHook(harness, JSON.stringify(input), home, [], guarded);
         assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" });
       };
       const ask = async (session: string, harness: "claude-code" | "codex" = "claude-code", prompt = "Continue", where = home) => {
         const input = { ...JSON.parse(prompted(harness, folder, prompt, `${project}-${session}`)), transcript_path: transcript };
-        const ran = await runHook(harness, JSON.stringify(input), where);
+        const ran = await runHook(harness, JSON.stringify(input), where, [], guarded);
         assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" }, "the prompt is never refused");
         const context = addedContext(ran);
         if (context !== undefined) assert.deepEqual(JSON.parse(ran.stdout), { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: context } }, "only advice, no blocking decision");
@@ -784,7 +786,7 @@ test("9.9 past context guidance, the Claude Code prompt hook advises handing off
       await t.test("no reading, an unreadable transcript, stopped storytree, and unreadable settings add none", async () => {
         writeTokens(900_000);
         // No reading: the transcript its hooks name (the recorded one's) is not on this machine.
-        const unrecorded = await runHook("claude-code", prompted("claude-code", folder, "Continue", `${project}-unrecorded`), home);
+        const unrecorded = await runHook("claude-code", prompted("claude-code", folder, "Continue", `${project}-unrecorded`), home, [], guarded);
         assert.equal(addedContext(unrecorded), undefined);
         await start("missing");
         rmSync(transcript);

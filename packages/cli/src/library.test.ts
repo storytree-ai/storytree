@@ -491,6 +491,7 @@ test("3.21 `new contract`'s answer counts the capability's other contracts that 
     assert.doesNotMatch(written.stdout, /lane/, "a user's project has no lanes");
 
     const more = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Empties the cart", "--project", world.project]);
+    assert.equal(more.code, 0, more.stderr);
     assert.match(more.stdout, /2 other contracts of this capability have no test yet\. If this one repeats any of them, retire it and build that one \(list them with `storytree map/, more.stdout);
   });
 });

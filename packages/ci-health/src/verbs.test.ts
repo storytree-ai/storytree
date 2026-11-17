@@ -97,11 +97,12 @@ test("3.24 `health investigate` parks, or adds a flake to, the one investigation
     stories: [
       { id: "story_aaaaaaaaaaaa", title: "Agent pool", capabilities: [{ id: "capability_a", title: "4 · Watching", contracts: [contract("contract_aaaaaaaaaaaa", "4.36 · Flakes"), contract("contract_bbbbbbbbbbbb", "4.3 · Cap")] }] },
       { id: "story_cccccccccccc", title: "Session management", capabilities: [{ id: "capability_c", title: "4 · Claims", contracts: [contract("contract_cccccccccccc", "4.36 · Other")] }] },
+      { id: "story_eeeeeeeeeeee", title: "Cart", mapped: { folders: ["./services/cart/"] }, capabilities: [], edges: [{ contracts: [contract("contract_eeeeeeeeeeee", "1.2 · Totals")] }] },
     ],
   };
   const library = {
     projectTree: async () => tree,
-    investigateFlake: async (flake: Record<string, unknown>) => (asked.push(flake), asked.length === 3 ? undefined : "increment_dddddddddddd"),
+    investigateFlake: async (flake: Record<string, unknown>) => (asked.push(flake), asked.length === 5 ? undefined : "increment_dddddddddddd"),
   } as unknown as Library;
   const investigate = HEALTH_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "investigate")!;
   const context = { library, project: "p", session: "test", folder: tmpdir() };
@@ -114,6 +115,12 @@ test("3.24 `health investigate` parks, or adds a flake to, the one investigation
 
   await investigate.act({ test: "a test with no number", unit: "apps/desktop", by: "the watcher", ...flake }, context, WORDS);
   assert.deepEqual(asked[1], { test: "a test with no number", ...flake, by: "the watcher", of: "apps/desktop" }, "a unit no story owns stands for the story");
+
+  await investigate.act({ test: "cart 1.2 adds up", unit: "services/cart", ...flake }, context, WORDS);
+  assert.deepEqual(asked[2], { test: "cart 1.2 adds up", ...flake, by: "storytree health investigate", story: "story_eeeeeeeeeeee", contract: "contract_eeeeeeeeeeee" },
+    "an imported story owns the folder it was mapped from, and an edge's contract counts as the story's");
+  await investigate.act({ test: "form › 1.2 adds up", ...flake }, context, WORDS);
+  assert.deepEqual(asked[3], { test: "form › 1.2 adds up", ...flake, by: "storytree health investigate", of: "unplaced" }, "with no unit, the title alone finds it");
 
   assert.match((await investigate.act({ test: "4.3 · capped", unit: "packages/agent-pool", ...flake }, context, WORDS)).text, /not to be investigated/);
 });

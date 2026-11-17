@@ -568,3 +568,48 @@ test("3.49 · a start draws the tree and settles on its first survey without wai
   assert.equal(seen.at(-1), "drawn 1 with 1 pins", "the pins are drawn once they land");
   reading.stop();
 });
+
+test("3.119 · of pins reads overlapping, only the newest asked is drawn; a failed read is reported, and one landing after the reading stops draws nothing", async () => {
+  const pin = (id: string) => ({ pin: { id } }) as never;
+  const asked: { resolve: (pins: readonly never[]) => void; reject: (error: Error) => void }[] = [];
+  let next: unknown[] = [];
+  const timers = handTimers();
+  const drawn: unknown[] = [];
+  const errors: unknown[] = [];
+  const reading = forestReading({
+    project: "shop",
+    reads: {
+      changesSince: async () => { const changes = next; next = []; return { changes: changes as never, cursor: 0 }; },
+      linesSince: async () => ({ lines: [], cursor: 0 }),
+      projectTree: async () => tree,
+      pins: () => new Promise((resolve, reject) => { asked.push({ resolve, reject }); }),
+    },
+    timers,
+    onTree: (_tree, _news, _survey, pins) => { drawn.push(pins); },
+    onError: (error) => errors.push(error),
+  });
+  const pinNews = async () => {
+    next = [{ seq: 1, type: "pin", recordId: "pin_1", action: "created", record: { fields: {} } }];
+    await timers.tick();
+  };
+  await settle();
+  await pinNews();
+  assert.equal(asked.length, 2);
+  asked[1]!.resolve([pin("newer")]);
+  await settle();
+  asked[0]!.resolve([pin("older")]);
+  await settle();
+  assert.deepEqual(drawn.at(-1), [pin("newer")], "the older read landing last is not drawn");
+
+  await pinNews();
+  asked[2]!.reject(new Error("library gone"));
+  await settle();
+  assert.deepEqual(errors.map((error) => (error as Error).message), ["library gone"]);
+
+  await pinNews();
+  const before = drawn.length;
+  reading.stop();
+  asked[3]!.resolve([pin("late")]);
+  await settle();
+  assert.equal(drawn.length, before, "a read landing after the stop draws nothing");
+});

@@ -1,5 +1,6 @@
 {
   "name": "@storytree/project-and-caller",
+  "story": "story_6def59292b78",
   "private": true,
   "type": "module",
   "description": "The Context story (story_6def59292b78, ADR-1025, ADR-1071 D3): which project a folder is, what the user set on this computer, which session is calling, and who is signed in (Identity, in src/identity).",

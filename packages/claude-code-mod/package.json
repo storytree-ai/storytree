@@ -1,5 +1,6 @@
 {
   "name": "@storytree/claude-code-mod",
+  "story": "story_5da0dcea1405",
   "private": true,
   "type": "module",
   "description": "Claude Code mod (ADR-1076 D5, ADR-1216 D2): the plugin that rides in every Claude Code session given its folder, a pool's lanes and interactive sessions alike, and hands the session's hook events, heartbeat and live usage to storytree's tool server. Its declared interface is its plugin folder, the function hooks variable and the session file variable, which the agent runner and any stand-in for it reach.",

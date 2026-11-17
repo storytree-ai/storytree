@@ -1,5 +1,6 @@
 {
   "name": "@storytree/cli",
+  "story": "story_f9fb5136c28f",
   "private": true,
   "type": "module",
   "exports": {

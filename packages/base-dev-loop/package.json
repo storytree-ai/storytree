@@ -1,5 +1,6 @@
 {
   "name": "@storytree/base-dev-loop",
+  "story": "story_4aeaccd76a1a",
   "private": true,
   "type": "module",
   "description": "The base dev loop (ADR-1170 D1, ADR-1192 D1): the gate runner, its step interface and its results table, and the run holds a project's parts contribute; the scoped test runner (`pnpm test`: its scope, units, run table, rerun and leftovers, holding whatever its caller hands it) and the red-run reporter a run outside it keeps its reds with; the worktree installer; and the merge-queue scripts CI calls (queue-verdict.mjs, land-enqueue.mjs). It runs in a user's project as in storytree's own, whose own entries (packages/repo-checks) wrap the gate and the test runner with the holds its parts contribute (Mick's factory plugin micks-dev-loop's heavy-run lock), and whose parts contribute their checks through the gate's step interface.",

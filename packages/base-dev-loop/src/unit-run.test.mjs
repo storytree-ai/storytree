@@ -100,6 +100,16 @@ test("records its environment", () => writeFileSync("RECORD", JSON.stringify(pro
   assert.deepEqual(Object.keys(named).filter((name) => name in seen), []);
 });
 
+// increment_587ac81c2015: a run with STORYTREE_FACTORY set let its tests read and write the factory folder it named.
+test("4.33 · a unit's tests start with no inherited STORYTREE_FACTORY, so a run with it set names no factory folder to them", async (t) => {
+  const root = fixture(t, {
+    "factory.test.mjs": `import assert from "node:assert/strict"; import { test } from "node:test";
+test("sees no factory", () => assert.equal(process.env.STORYTREE_FACTORY, undefined));`,
+  });
+  const run = await runUnit({ root, files: ["factory.test.mjs"], env: { ...process.env, STORYTREE_FACTORY: path.join(root, "factory") }, stdio: "ignore" });
+  assert.equal(run.code, 0, "the unit's test saw STORYTREE_FACTORY set");
+});
+
 // increment_655d99c13fc3: a file dying before it reports any test must explain its failure.
 test("4.6 file failures name the file, exit status and its own stderr under concurrent execution", async (t) => {
   const files = {

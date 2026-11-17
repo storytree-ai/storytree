@@ -46,7 +46,7 @@ import type { Hold, Holds, IncrementStatus, Library, Line, SchemaRecord, WriteOp
 
 import { thisMachine, type ActivityLog } from "../activity/index.js";
 import { worktreeRoot } from "../activity/branch.js";
-import { attributeFrom, CLAIM_KINDS, claimOf, holdersOf, LogFold, LONGEST_COMMAND_MS, partOf, pullHolder, pullOf, type Attributed, type Claim, type Beat, type ClaimsOptions, type Part, type Restart } from "../readings.js";
+import { attributeFrom, CLAIM_KINDS, claimOf, holdersOf, isMainBranch, LogFold, LONGEST_COMMAND_MS, partOf, pullHolder, pullOf, type Attributed, type Claim, type Beat, type ClaimsOptions, type Part, type Restart } from "../readings.js";
 import { idleAfterMs } from "@storytree/project-and-caller";
 import { endClaim } from "./endings.js";
 
@@ -301,8 +301,9 @@ export async function release(context: ClaimContext, id: string): Promise<Releas
 /**
  * A hand-over keeps its claims (ADR-1037 D1): every claim `session` took on the pull request's `branch` moves to pull
  * request `pr`'s holder (pullHolder), so that its merge ends them, each capability still under its increment; its claims
- * on other branches stay its own (5.50). So does each claim it took on no branch, from the main checkout, that is the
- * handed `increment` or under it or under an increment it holds on the branch, and moves onto the branch (5.56).
+ * on other branches stay its own (5.50). So does each claim it took from the main checkout, on no branch or on the main
+ * line, that is the handed `increment` or under it or under an increment it holds on the branch, and moves onto the
+ * branch (5.56).
  * Nothing is released, so no increment returns to proposal, and the session's close-out or end leaves them standing.
  * The ids moved.
  */
@@ -312,7 +313,7 @@ export async function holdForPull(context: ClaimContext, session: string, pr: nu
     const own = [...(await heldNow(log, context)).values()].filter((claim) => claim.session === session);
     const handed = new Set([...(increment === undefined ? [] : [increment]), ...own.filter((claim) => claim.branch === branch).flatMap((claim) => claim.increment ?? [])]);
     for (const claim of own) {
-      const branchless = claim.branch === undefined && [claim.increment, claim.under].some((id) => id !== undefined && handed.has(id));
+      const branchless = (claim.branch === undefined || isMainBranch(claim.branch)) && [claim.increment, claim.under].some((id) => id !== undefined && handed.has(id));
       if (claim.branch !== branch && !branchless) continue;
       await log.append({ session: pullHolder(pr), harness: "watcher", source: context.source ?? "tool", kind: "claimed", ...partOf(claim),
         reason: claim.reason, takenOverFrom: session, branch, ...(claim.under === undefined ? {} : { under: claim.under }) });

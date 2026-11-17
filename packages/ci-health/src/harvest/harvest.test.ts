@@ -81,8 +81,8 @@ test("3.25 · The harvest counts a failed run of a workflow that tests no code, 
     failed(1, { workflow: "Release installed app", event: "push" }),
     failed(2, { workflow: "Own health", event: "schedule" }),
     failed(3, { conclusion: "timed_out" }),
-    failed(4),
-    failed(5),
+    failed(4, { event: "merge_group", branch: "gh-readonly-queue/main/pr-40-0123abc" }),
+    failed(5, { pr: 50 }),
     failed(6, { createdAt: "2026-11-01T08:00:00Z" }),
   ];
   const jobs: Record<number, RunJob[]> = {
@@ -90,15 +90,16 @@ test("3.25 · The harvest counts a failed run of a workflow that tests no code, 
     5: [{ name: "verify on Linux", conclusion: "failure", steps: 5, log: "2026-11-17T08:00:00Z error TS2322: Type 'string' is not assignable" }],
   };
   // GitHub lists failed and timed-out runs apart, by the day they were made: run 3 in both, run 6 before the window.
-  const api = (one: FailedRun) => ({ id: one.id, run_attempt: 1, name: one.workflow, event: one.event, head_sha: one.head, head_branch: one.branch, conclusion: one.conclusion, created_at: one.createdAt, pull_requests: [] });
+  const api = (one: FailedRun) => ({ id: one.id, run_attempt: 1, name: one.workflow, event: one.event, head_sha: one.head, head_branch: one.branch, conclusion: one.conclusion, created_at: one.createdAt, pull_requests: one.pr === undefined ? [] : [{ number: one.pr }] });
   const listing = gitHub({
     [`${API}/actions/runs?status=failure&created=>=2026-11-10&per_page=100&page=1`]: { workflow_runs: [...runs.filter(({ id }) => id !== 3), runs[2]!].map(api) },
     [`${API}/actions/runs?status=timed_out&created=>=2026-11-10&per_page=100&page=1`]: { workflow_runs: [api(runs[2]!)] },
   });
   const read: number[] = [];
+  const named: (number | undefined)[] = [];
   const source: HarvestSource = {
     failedRuns: gitHubSource(listing, REPO, await watcherReading(), scope).failedRuns,
-    facts: async (run) => (read.push(run.id), { jobs: jobs[run.id]!, reach: new Set(), passedSameHead: false }),
+    facts: async (run) => (read.push(run.id), named.push(run.pr), { jobs: jobs[run.id]!, reach: new Set(), passedSameHead: false }),
   };
   const { library, flakes, written } = libraryOf();
   const ledger = harvestLedger(db, project, () => NOW);
@@ -108,6 +109,7 @@ test("3.25 · The harvest counts a failed run of a workflow that tests no code, 
   assert.deepEqual({ runs: first.runs, infra: first.infra, ownHealth: first.ownHealth, noTest: first.noTest, already: first.already }, { runs: 5, infra: 3, ownHealth: 1, noTest: 1, already: 0 },
     "the release run, the timed-out run and the run whose jobs only timed out or were cancelled are infra; own health's is skipped; one before the window is not listed");
   assert.deepEqual(read, [4, 5], "only a CI run's jobs are read");
+  assert.deepEqual(named, [40, 50], "a merge-queue run's pull request is the one its branch names, a pull request run's the one GitHub lists");
   assert.deepEqual(flakes, [], "nothing here is a flake");
   assert.deepEqual(written, [], "nor a real failure");
   const text = harvestText(first);

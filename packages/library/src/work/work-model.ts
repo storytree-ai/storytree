@@ -308,7 +308,8 @@ export class WorkModel {
    * record (one another lane landed after a stale source was cut) as it stands, reporting it left. Given `held.versions`
    * as well, it changes a kept record's text (a story's, capability's or contract's title and description, a capability's
    * text and proposed, a contract's proof) only from a value one of them held, and leaves a field another lane changed since as it stands,
-   * reporting the record stood; a story it adopts has no such history. Everything is checked first, and a plan with a capability or contract carrying no number or a number
+   * reporting the record stood, and retires a record under a held number only when its live title is one they held there, leaving
+   * another lane's record under a number the source held and renumbered; a story it adopts has no such history. Everything is checked first, and a plan with a capability or contract carrying no number or a number
    * twice, a contract numbered under another capability, or an `adopt` that is mapped, another plugin's or not this
    * plugin's own story, is refused (SchemaError) with nothing written.
    */
@@ -374,6 +375,11 @@ export class WorkModel {
         await this.#records.edit(record.id, edit, options);
         done.edited.push(record.id);
       };
+      /**
+       * Whether the source held `record` itself, not only its number: with no versions, its number is enough; with them, its
+       * live title must be one a version held under `key`, so a number the source held and renumbered retires no other lane's record under it.
+       */
+      const heldRecord = (record: SchemaRecord<"capability" | "contract">, key: string): boolean => held === undefined || (held.get(`${key}:title`) ?? []).some((value) => isDeepStrictEqual(value, record.fields.title));
       if (story === undefined) {
         story = await this.#records.create("story", storyFields, options);
         done.added.push(story.id);
@@ -409,7 +415,7 @@ export class WorkModel {
           else await update(theirs, fieldsOf, PLUGIN_CONTRACT_FIELDS, `contract ${number}`);
         }
         for (const [number, gone] of contracts) {
-          if (heldContracts !== undefined && !heldContracts.has(number)) {
+          if ((heldContracts !== undefined && !heldContracts.has(number)) || !heldRecord(gone, `contract ${number}`)) {
             done.left.push(gone.id);
             continue;
           }
@@ -419,7 +425,7 @@ export class WorkModel {
       }
       for (const [number, gone] of capabilities) {
         if (planned.has(number)) continue;
-        if (heldCapabilities !== undefined && !heldCapabilities.has(number)) {
+        if ((heldCapabilities !== undefined && !heldCapabilities.has(number)) || !heldRecord(gone, `capability ${number}`)) {
           done.left.push(gone.id, ...(await this.#contractsOf(gone.id)).map((contract) => contract.id));
           continue;
         }

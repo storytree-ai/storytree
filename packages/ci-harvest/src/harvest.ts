@@ -11,6 +11,8 @@
  * - A test that failed at a head and passed only once the pull request changed code it reaches is a real failure, and so is
  *   every increment that landed fixing an escape; each is recorded once as an escape pattern, unjudged, for the agent that
  *   runs the harvest to judge whether it generalises (1.3).
+ * - A red run of the property checks' nightly tier finds a counterexample on a fresh seed, which no later green run on
+ *   another seed clears: each failing test it names is a real failure, never a flake (1.4).
  *
  * A run nothing settles yet (its pull request still red, say) is left for the next harvest, until it is as old as the
  * window, when it is recorded unsettled; every count is printed, so nothing is dropped silently.
@@ -27,6 +29,11 @@ export type ScopeRule = (files: readonly string[]) => { readonly full: boolean; 
 
 /** The workflows whose runs test code: every other workflow's failed run is infra. */
 export const CODE_WORKFLOWS: ReadonlySet<string> = new Set(["CI"]);
+/**
+ * The property checks' nightly tier (story_c4838b46de87 contract 3.2, .github/workflows/property-nightly.yml): it tests
+ * code, and each failing test it names is a real failure (1.4).
+ */
+export const PROPERTY_NIGHTLY = "Property checks nightly";
 /** Own health's workflow, whose failures contract 5.33 already routes. */
 export const OWN_HEALTH = "Own health";
 /** The title the library gives the arc of a flaky test's one investigation (investigateFlake, 5.33), naming the test. */
@@ -104,7 +111,7 @@ export type RunSort =
 /** Whether `run` is sorted without reading its jobs: a workflow that tests no code, own health's, or a run that only timed out or was cancelled. */
 export function sortByWorkflow(run: FailedRun): RunSort | undefined {
   if (run.workflow === OWN_HEALTH) return { kind: "own-health" };
-  if (!CODE_WORKFLOWS.has(run.workflow)) return { kind: "infra", why: `${run.workflow} tests no code` };
+  if (!CODE_WORKFLOWS.has(run.workflow) && run.workflow !== PROPERTY_NIGHTLY) return { kind: "infra", why: `${run.workflow} tests no code` };
   if (run.conclusion === "timed_out" || run.conclusion === "cancelled") return { kind: "infra", why: `the run ${run.conclusion === "timed_out" ? "timed out" : "was cancelled"}` };
   return undefined;
 }
@@ -113,7 +120,7 @@ export function sortByWorkflow(run: FailedRun): RunSort | undefined {
  * What a CI run's failing tests are (1.2, 1.3), by the watcher's reading: none when its red jobs only timed out or were
  * cancelled (infra), or named no test; else each test a flake (outside what the pull request changes, its head rerun green,
  * or a queue red the watcher read as a flake, or green later with no change reaching it), real (green only once the pull
- * request changed code it reaches), or undecided.
+ * request changed code it reaches), or undecided. Each failing test of a property-checks nightly run is real (1.4).
  */
 export function sortRun(run: FailedRun, facts: RunFacts, watcher: WatcherReading): RunSort {
   const byWorkflow = sortByWorkflow(run);
@@ -127,6 +134,8 @@ export function sortRun(run: FailedRun, facts: RunFacts, watcher: WatcherReading
   const tests = failures.tests.map((test): SortedTest => {
     const unit = failures.where[test];
     const placed = unit === undefined ? {} : { unit };
+    // A counterexample is deterministic for its seed: no rerun on another seed clears it.
+    if (run.workflow === PROPERTY_NIGHTLY) return { test, ...placed, verdict: "real", why: "a property check found a counterexample on a fresh seed" };
     if (failures.outside) return { test, ...placed, verdict: "flake", why: "it failed outside what its pull request changes" };
     if (facts.passedSameHead) return { test, ...placed, verdict: "flake", why: `its head ${run.head.slice(0, 12)} passed on a rerun, unchanged` };
     if (facts.queue === "flake") return { test, ...placed, verdict: "flake", why: "the merge queue's red merged at the head it was red at" };
@@ -227,7 +236,8 @@ export async function harvest({ library, source, ledger, watcher, now = new Date
   }
 
   // A test already under investigation as a flaky test (ADR-1352), or one that flaked in another run of the window, is a
-  // flake wherever else it failed: it joins its one investigation, never becomes an escape pattern.
+  // flake wherever else it failed: it joins its one investigation, never becomes an escape pattern. A property-checks
+  // nightly run's counterexample is real whatever else flaked (1.4).
   const increments = await library.list("increment");
   const investigating = new Set(increments.filter(({ fields }) => fields.status !== "closed").map(({ fields }) => fields.arc));
   const flaky = new Map<string, string>();
@@ -238,7 +248,7 @@ export async function harvest({ library, source, ledger, watcher, now = new Date
   for (const { run, tests } of sortedRuns) for (const one of tests) if (one.verdict === "flake" && !flaky.has(one.test)) flaky.set(one.test, `it flaked in run ${run.id} too`);
 
   for (const { run, pr, tests: read } of sortedRuns) {
-    const tests = read.map((one): SortedTest => (one.verdict !== "flake" && flaky.has(one.test) ? { ...one, verdict: "flake", why: flaky.get(one.test)! } : one));
+    const tests = read.map((one): SortedTest => (run.workflow !== PROPERTY_NIGHTLY && one.verdict !== "flake" && flaky.has(one.test) ? { ...one, verdict: "flake", why: flaky.get(one.test)! } : one));
     const old = now.getTime() - Date.parse(run.createdAt) >= windowMs - 86_400_000;
     if (tests.some(({ verdict }) => verdict === "undecided") && !old) { counts.waiting++; continue; }
     const where = `run ${run.id}${pr === undefined ? "" : ` (PR #${pr})`} at ${run.head.slice(0, 12)}`;
@@ -294,7 +304,8 @@ export async function harvest({ library, source, ledger, watcher, now = new Date
     counts.escaped++;
   }
 
-  await ledger.mark(marks);
+  const order = new Map(runs.map(({ id }, at) => [id, at]));
+  await ledger.mark(marks.sort((a, b) => order.get(a.id)! - order.get(b.id)!)); // in the order the runs were listed
   const all = [...patterns, ...written];
   return {
     ...counts,

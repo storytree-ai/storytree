@@ -327,3 +327,47 @@ test("1.3 · The harvest records each real failure, and each increment fixing an
   const lost = await harvest({ library: libraryOf(increments, recorded).library, source: { failedRuns: async () => runs, facts: source.facts }, ledger: memoryLedger(), watcher, now: NOW });
   assert.deepEqual({ already: lost.already, real: lost.real, escaped: lost.escaped }, { already: 0, real: 0, escaped: 0 }, "with the harvested runs lost, a real failure already recorded is still not recorded again");
 });
+
+test("1.4 · The harvest records each failing test of a red property-checks nightly run as a real failure, its head's green rerun notwithstanding, and a nightly run that only timed out or was cancelled as infra", async () => {
+  const NIGHTLY = "Property checks nightly";
+  const runs = [
+    // A scheduled run on main that found counterexamples to two property checks; a run by hand at the same head, on
+    // another fresh seed, passed.
+    failed(41, { workflow: NIGHTLY, event: "schedule", branch: "main" }),
+    // One that timed out, and one whose only red job was cancelled while another timed out.
+    failed(42, { workflow: NIGHTLY, event: "schedule", branch: "main", conclusion: "timed_out" }),
+    failed(43, { workflow: NIGHTLY, event: "schedule", branch: "main" }),
+  ];
+  const github = gitHub({
+    [`${API}/actions/runs/41/attempts/1/jobs?per_page=100`]: { jobs: [{ id: 410, name: "property checks, nightly tier", conclusion: "failure", steps: [{}, {}] }] },
+    [`${API}/actions/jobs/410/logs`]: logOf("packages/shop", ["2.1 · totals add up", "2.5 · totals carry"]),
+    [`${API}/actions/runs?head_sha=${runs[0]!.head}&status=success&per_page=100&page=1`]: { workflow_runs: [
+      { id: 44, name: NIGHTLY, head_sha: runs[0]!.head, created_at: "2026-11-17T09:00:00Z" },
+    ] },
+    [`${API}/actions/runs/43/attempts/1/jobs?per_page=100`]: { jobs: [
+      { id: 430, name: "property checks, nightly tier", conclusion: "cancelled", steps: [{}] },
+      { id: 431, name: "property checks, nightly tier", conclusion: "timed_out", steps: [{}] },
+    ] },
+    [`${API}/actions/jobs/431/logs`]: "",
+    [`${API}/actions/runs?head_sha=${runs[2]!.head}&status=success&per_page=100&page=1`]: { workflow_runs: [] },
+  });
+  const watcher = await watcherReading();
+  const source = gitHubSource(github, REPO, watcher, scope);
+  const { library, flakes, written } = libraryOf();
+  const ledger = memoryLedger();
+  const counts = await harvest({ library, source: { failedRuns: async () => runs, facts: source.facts }, ledger, watcher, now: NOW });
+
+  assert.deepEqual(written.map(({ kind, fields }) => ({ kind, instance: fields.instance, caughtAt: fields.caughtAt, generalises: fields.generalises })), [
+    { kind: "escape", instance: { run: 41, head: runs[0]!.head, test: "2.1 · totals add up", contract: "contract_aaaaaaaaaaaa", story: "story_aaaaaaaaaaaa", capability: "capability_s" }, caughtAt: "ci", generalises: undefined },
+    { kind: "escape", instance: { run: 41, head: runs[0]!.head, test: "2.5 · totals carry", story: "story_aaaaaaaaaaaa" }, caughtAt: "ci", generalises: undefined },
+  ], "each failing test of the red nightly run is one unjudged escape pattern, on no pull request");
+  for (const { fields } of written) {
+    assert.match(fields.reasoning, /^Real, not a flake: .*fresh seed/, "its reasoning says a fresh seed found it");
+    assert.match(fields.description, /on Property checks nightly \(schedule\)/);
+  }
+  assert.deepEqual(flakes, [], "no failing test of it is sent to a flake investigation, though its head passed on a rerun");
+  assert.deepEqual([...ledger.rows], [[41, "real"], [42, "infra"], [43, "infra"]], "the red run is harvested real; the timed-out and cancelled ones infra");
+  assert.deepEqual({ infra: counts.infra, real: counts.real, flakes: counts.flakes, noTest: counts.noTest, waiting: counts.waiting, unsettled: counts.unsettled },
+    { infra: 2, real: 2, flakes: 0, noTest: 0, waiting: 0, unsettled: 0 });
+  assert.match(harvestText(counts), /real failures recorded: 2 caught by CI, 0 that reached main/);
+});

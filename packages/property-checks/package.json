@@ -1,0 +1,18 @@
+{
+  "name": "@storytree/property-checks",
+  "story": "story_c4838b46de87",
+  "private": true,
+  "type": "module",
+  "description": "Property checks (story_c4838b46de87, ADR-1355 D4, ADR-1356 D3-D4): a targeted property or fuzz check written once with fast-check inside a numbered test of the contract it protects, run on fixed seeds in every pnpm test and on fresh seeds each night on main's head. fast-check is a dev dependency: only tests import this package, and it is never shipped in the app.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": { "typecheck": "tsc -p ." },
+  "devDependencies": {
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "fast-check": "4.10.2",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

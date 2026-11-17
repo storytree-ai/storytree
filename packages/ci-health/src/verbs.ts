@@ -13,6 +13,8 @@
  * averages the map's bottom-left strip shows; the Mint box runs it on a schedule, and the app while it shows the strip.
  * `health tell` (capability 3, 3.21) tells the owner each verdict turn CI's role could not (it writes only health, 3.20):
  * the Mint box's factory-health tick runs it as the library's owner (question_67e971f31102's answer, option A).
+ * `health investigate` (capability 3, 3.24) parks, or adds a flake to, the one investigation of a flaky test the watcher
+ * found on a pull request's run, as own health's flakes do (ADR-1352 D1).
  */
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
 
@@ -122,7 +124,26 @@ const tell = verb({
   },
 });
 
+const investigate = verb({
+  command: { family: "health", name: "investigate", summary: "park, or add a flake to, the one investigation of a flaky test found outside own health (a pull request's or the merge queue's run), never friction (ADR-1352)" },
+  tool: { absent: "a step for the Mint box's watcher, which retried the test's red as random" },
+  inputs: {
+    test: { kind: "text", describe: "the flaky test's title, as its run named it" },
+    unit: { kind: "text", optional: true, describe: "the unit its run named it in (packages/<folder>), which says its story" },
+    seen: { kind: "text", describe: "what names this flake (a pull request at a head): evidence already holding it is not added again" },
+    evidence: { kind: "text", describe: "the evidence line added for it" },
+    found: { kind: "text", describe: "how it was found, as a clause" },
+    by: { kind: "text", optional: true, describe: "who parks it, as the investigation's body says; storytree health investigate when not given" },
+  },
+  writes: true,
+  async act({ test, unit, seen, evidence, found, by = "storytree health investigate" }, { library, writer }) {
+    const { investigateFlakyTest } = await import("./investigate/investigate.js");
+    const id = await investigateFlakyTest(library, { test, seen, evidence, found, by, ...(unit === undefined ? {} : { unit }) }, writer);
+    return { text: id === undefined ? `"${test}" is not to be investigated: its arc was retired.` : `"${test}" is investigated by ${id}.` };
+  },
+});
+
 /** The command line's `health` family, 18th among `storytree`'s families. */
 export const HEALTH_FAMILIES: readonly VerbFamily[] = [
-  { name: "health", summary: "the health worklist, and reading a project's CI, a local run of its own tests, or a factory plugin's own tests, into its verified health; recording its CI times", order: 18, verbs: [worklist, ci, times, local, plugin, tell] },
+  { name: "health", summary: "the health worklist, and reading a project's CI, a local run of its own tests, or a factory plugin's own tests, into its verified health; recording its CI times", order: 18, verbs: [worklist, ci, times, local, plugin, tell, investigate] },
 ];

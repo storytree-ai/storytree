@@ -35,7 +35,7 @@ test("3.14 CI health declares the `health` verbs the command line mounts: `healt
   execFileSync("git", ["-C", folder, "init", "-q"]);
 
   const [health] = HEALTH_FAMILIES;
-  assert.deepEqual(health!.verbs.map((one) => "family" in one.command ? one.command.name : undefined), ["worklist", "ci", "times", "local", "plugin", "tell"]);
+  assert.deepEqual(health!.verbs.map((one) => "family" in one.command ? one.command.name : undefined), ["worklist", "ci", "times", "local", "plugin", "tell", "investigate"]);
   const ci = health!.verbs.find((one) => "name" in one.command && one.command.name === "ci")!;
   const answer = await ci.act({}, { library, project: name, session: "test", folder }, WORDS);
   assert.match(answer.text, /no GitHub origin/);
@@ -88,4 +88,32 @@ test("3.21 `health tell` tells the owner each verdict turn of the last twelve ho
   assert.ok(Math.abs(Date.now() - Date.parse(asked[1]!) - 3 * 3_600_000) < 60_000, "the hours given");
   assert.match(one.text, /^Told 1 verdict turn /);
   assert.match((await tell.act({}, context, WORDS)).text, /^Nothing untold/);
+});
+
+test("3.24 `health investigate` parks, or adds a flake to, the one investigation of a flaky test found outside own health, under the story owning the unit its run named and linking the contract its number names", async () => {
+  const asked: Record<string, unknown>[] = [];
+  const contract = (id: string, title: string) => ({ id, title });
+  const tree = {
+    stories: [
+      { id: "story_aaaaaaaaaaaa", title: "Agent pool", capabilities: [{ id: "capability_a", title: "4 · Watching", contracts: [contract("contract_aaaaaaaaaaaa", "4.36 · Flakes"), contract("contract_bbbbbbbbbbbb", "4.3 · Cap")] }] },
+      { id: "story_cccccccccccc", title: "Session management", capabilities: [{ id: "capability_c", title: "4 · Claims", contracts: [contract("contract_cccccccccccc", "4.36 · Other")] }] },
+    ],
+  };
+  const library = {
+    projectTree: async () => tree,
+    investigateFlake: async (flake: Record<string, unknown>) => (asked.push(flake), asked.length === 3 ? undefined : "increment_dddddddddddd"),
+  } as unknown as Library;
+  const investigate = HEALTH_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "investigate")!;
+  const context = { library, project: "p", session: "test", folder: tmpdir() };
+  const flake = { seen: "PR #9 at abc1234", evidence: "PR #9 at abc1234: retried as random", found: "The watcher retried PR #9 for it" };
+
+  const said = await investigate.act({ test: "watch › 4.36 · a flake goes to the owner", unit: "packages/agent-pool", ...flake }, context, WORDS);
+  assert.deepEqual(asked[0], { test: "watch › 4.36 · a flake goes to the owner", ...flake, by: "storytree health investigate", story: "story_aaaaaaaaaaaa", contract: "contract_aaaaaaaaaaaa" },
+    "the story owning its unit, and that story's contract its number names, not another story's of the same number");
+  assert.equal(said.text, `"watch › 4.36 · a flake goes to the owner" is investigated by increment_dddddddddddd.`);
+
+  await investigate.act({ test: "a test with no number", unit: "apps/desktop", by: "the watcher", ...flake }, context, WORDS);
+  assert.deepEqual(asked[1], { test: "a test with no number", ...flake, by: "the watcher", of: "apps/desktop" }, "a unit no story owns stands for the story");
+
+  assert.match((await investigate.act({ test: "4.3 · capped", unit: "packages/agent-pool", ...flake }, context, WORDS)).text, /not to be investigated/);
 });

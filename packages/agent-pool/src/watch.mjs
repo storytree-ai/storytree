@@ -298,31 +298,40 @@ export function reachOf(files) {
 
 /**
  * What a red pull request's failed CI runs ({ id, attempt, repo, jobs: [{ name, conclusion, steps, log }] }) say failed
- * (4.34): the units in their results tables' FAIL rows and the tests their `✖ <name> (<n>ms)` lines name, and whether it
+ * (4.34): the units in their results tables' FAIL rows and the tests their `✖ <name> (<n>ms)` lines name, each test's unit
+ * where its log says it (`where`: the `=== <unit> ===` heading it printed under, or its job's one failing unit), and whether it
  * is `outside` `reach`, every failing unit a package or app the pull request changes no file of. A red job with no FAIL
  * row failed on no test (an install, a typecheck), and a unit outside packages/ and apps/ is no package: neither is outside.
  * The reach is only what the pull request changes, not its dependents: a red it caused in a dependent fails again on a
  * rerun, and that repeat counts (4.35, ADR-1147).
  */
 export function readFailures(runs, reach) {
-  const units = new Set(), tests = new Set();
+  const units = new Set(), tests = new Set(), where = {};
   let outside = true;
   for (const job of runs.flatMap((one) => one.jobs).filter(redJob)) {
-    let rows = 0;
+    const failed = new Set(), unplaced = new Set();
+    let heading;
     for (const line of (job.log ?? "").split("\n")) {
+      heading = /\s=== ((?:packages|apps)\/[^/\s]+) ===\s*$/.exec(line)?.[1] ?? heading;
       const unit = /\sFAIL {4}(\S+)/.exec(line)?.[1];
       if (unit) {
-        rows++;
+        failed.add(unit);
         units.add(unit);
         if (!/^(?:packages|apps)\/[^/]+$/.test(unit) || reach.has(unit)) outside = false;
       }
       const test = failedTest(line);
-      if (test) tests.add(test);
+      if (test) {
+        tests.add(test);
+        if (heading) where[test] ??= heading;
+        else unplaced.add(test);
+      }
     }
-    if (!rows) outside = false;
+    if (!failed.size) outside = false;
+    // A test under no unit's heading is its job's when the job failed one unit alone.
+    if (failed.size === 1) for (const test of unplaced) where[test] ??= [...failed][0];
   }
   if (!units.size) outside = false;
-  return { outside, units: [...units], tests: [...tests], runs: runs.map(({ id, attempt, repo }) => ({ id, attempt, repo })),
+  return { outside, units: [...units], tests: [...tests], where, runs: runs.map(({ id, attempt, repo }) => ({ id, attempt, repo })),
     key: runs.map((one) => `${one.id}:${one.attempt}`).join(",") };
 }
 
@@ -706,7 +715,7 @@ const named = (failures) => (failures.tests.length ? failures.tests : failures.u
  * pull request and its branch (4.20). A fix session whose branch moved while it ran made progress, so it counts for
  * nothing when the next red is a conflict, since a newer main made that one (4.19); `cap` sessions on one pull
  * request, counted or not, end it: past the limit as the limit does, and below it, the cap spent on reds the owner cannot
- * judge, to the owner with a friction naming any flaky tests (4.36). Past the limit, a red is no owner wait: an independent
+ * judge, to the owner naming any flaky tests, each sent to its one investigation, never to friction (4.36, ADR-1352). Past the limit, a red is no owner wait: an independent
 review session (`startReview`) reads it, and its one verdict decides the next red: retried as a flake is, a fix session
 that counts toward the cap, or the question it raised, which the hand-off is dropped for; a review that recorded none is
 reviewed again (4.37). At the cap the increment waits on the owner with the last review's summary (4.3). A red whose failing tests all lie
@@ -783,7 +792,7 @@ export async function watchOnce({ dir, look, stateOf, storytree, cutover = async
         return false;
       }
     }
-    record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, flake: true, by, units: failures?.units ?? [], tests: failures?.tests ?? [], runs: failures?.key });
+    record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, flake: true, by, units: failures?.units ?? [], tests: failures?.tests ?? [], where: failures?.where ?? {}, runs: failures?.key });
     await save(dir, record);
     return true;
   };
@@ -937,14 +946,27 @@ export async function watchOnce({ dir, look, stateOf, storytree, cutover = async
     if (record.fixes.length >= cap) {
       // The cap on all sessions, fix and review together, is spent: the owner gets it with the last review's summary,
       // never the arc, whose pool would start it over with a fresh count (4.3, 4.36).
-      const flaky = [...new Set(record.fixes.filter((fix) => fix.flake).flatMap((fix) => fix.tests?.length ? fix.tests : fix.units ?? []))];
       const review = record.fixes.findLast((fix) => fix.review && fix.verdict)?.verdict;
-      if (flaky.length) {
-        await tell(["friction", "new", "--title", `Flaky tests kept PR #${pr} red past the watcher's cap`,
-          "--description", `The watcher retried PR #${pr} ${record.fixes.filter((fix) => fix.flake).length} times for reds it judged random, and gave it to the owner at its cap.`,
-          "--statement", "Tests outside a pull request's reach failed it at random, so it could not land.",
-          "--evidence", `PR #${pr} (${increment}) failed on: ${flaky.join("; ")}.`,
-          "--impact", `PR #${pr} waits on the owner instead of landing; the Windows-flakes arc can take these tests.`, "--none-match", "--increment", increment], at);
+      // Each flaky test goes to the one investigation of that test, never to friction (ADR-1352 D1): a unit no test was
+      // named in is investigated as itself.
+      const flakes = new Map();
+      for (const fix of record.fixes.filter((one) => one.flake)) {
+        for (const test of fix.tests?.length ? fix.tests : fix.units ?? []) {
+          const unit = fix.tests?.length ? fix.where?.[test] ?? (fix.units?.length === 1 ? fix.units[0] : undefined) : test;
+          const seen = flakes.get(test) ?? { unit, heads: [] };
+          seen.unit ??= unit;
+          seen.heads.push(fix.head);
+          flakes.set(test, seen);
+        }
+      }
+      const flaky = [];
+      for (const [test, { unit, heads }] of flakes) {
+        const said = await tell(["health", "investigate", "--test", test, ...(unit ? ["--unit", unit] : []), "--seen", `PR #${pr} at ${heads.at(-1)}`,
+          "--evidence", `PR #${pr} at ${heads.at(-1)} (${increment}): the watcher retried it ${heads.length} ${heads.length === 1 ? "time" : "times"} for a red only on tests outside what it changes, failing on this one${unit && unit !== test ? ` in ${unit}` : ""}, and gave it to the owner at its cap of ${cap} sessions.`,
+          "--found", `The Mint box's watcher retried pull request #${pr} for it, a red only on tests outside what the pull request changes`,
+          "--by", "the Mint box's watcher", "--increment", increment], at);
+        const investigation = /investigated by (increment_[0-9a-f]{12})/.exec(said)?.[1];
+        flaky.push(investigation ? `${test} (investigated by ${investigation})` : test);
       }
       await tell(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr} is still red after ${record.fixes.length} sessions: it goes to the owner`], at);
       await letGo(record, `PR #${pr} still red after ${record.fixes.length} sessions; released by the watcher`);

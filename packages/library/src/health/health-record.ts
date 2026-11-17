@@ -103,6 +103,26 @@ export interface ToldTurn {
   investigated?: string[];
 }
 
+/** A flake of one test, as investigateFlake takes it (5.33). */
+export interface FlakeSeen {
+  /** The flaky test's title, as its run named it. */
+  readonly test: string;
+  /** The story the test is of: with the title, what finds its one investigation. */
+  readonly story?: string;
+  /** What stands for the story when the test has none (a contract with no story, a unit no story owns). */
+  readonly of?: string;
+  /** The contract the test proves, linked from a new investigation, when known. */
+  readonly contract?: string;
+  /** What names this flake (a commit, a pull request at a head): evidence already holding it is not added again. */
+  readonly seen: string;
+  /** The evidence line added for it. */
+  readonly evidence: string;
+  /** How it was found, as a clause: "Own health's run on main failed it where …". */
+  readonly found: string;
+  /** Who parked it, as the investigation's body says. */
+  readonly by: string;
+}
+
 /** One health entry, as it was written. */
 export interface HealthEntry {
   column: HealthColumnName;
@@ -425,11 +445,9 @@ export class HealthRecord {
   }
 
   /**
-   * For each flaky test a failing `entry` on `contract` names (5.33): one investigation per test, not per flake. The test's
-   * own arc (its id made from its story and its title, so every flake of it finds the same one) is made the first time;
-   * an open increment on it is the investigation, and the flake is added to its evidence unless it already holds that
-   * commit's; with none open, one is parked. An arc id once held and retired means the test is not to be investigated,
-   * and nothing is parked. The investigations written to or already holding this flake.
+   * For each flaky test a failing `entry` on `contract` names (5.33): one investigation per test, not per flake, through
+   * investigateFlake, keyed by the contract's story (its own id when it has none). The investigations written to or
+   * already holding this flake.
    */
   async #investigate(contract: SchemaRecord<"contract">, entry: HealthEntry, write: WriteOptions): Promise<string[]> {
     if (this.#flight === undefined || entry.flaky === undefined || entry.flaky.length === 0) return [];
@@ -437,50 +455,77 @@ export class HealthRecord {
     const story = capability === null ? null : await liveRecord(this.#records, capability.fields.story, ["story"]);
     const commit = /\bat commit ([0-9a-f]{7,40})\b/.exec(entry.note ?? "")?.[1];
     const seen = commit === undefined ? `the verdict of ${entry.at}` : `commit ${commit}`;
-    const evidence = `- ${seen} (verdict ${entry.at}${entry.by === undefined ? "" : `, by ${entry.by}`}): ${contract.fields.title} failed${entry.note === undefined ? "" : `: ${entry.note}`}`;
     const investigated: string[] = [];
     for (const test of entry.flaky) {
-      const arcId = `arc_${createHash("sha256").update(`${story?.id ?? contract.id}\n${test}`).digest("hex").slice(0, 12)}`;
-      if ((await liveRecord(this.#records, arcId, ["arc"])) === null) {
-        try {
-          await this.#flight.createArc({
-            title: `The flaky test "${test}" passes reliably`,
-            intent: `Own health's run on main failed "${test}"${story === null ? "" : ` (${story.fields.title})`} where a passing CI run of the same commit passed it: a flake, which stays red on main's health and is investigated here, one investigation for the test however often it flakes.`,
-            endState: "Every investigation on it is closed: the test was fixed so it no longer flakes, or the fix that would change what it checks was put to the owner as a question on this arc.",
-            ...(story === null ? {} : { stories: [story.id] }),
-          }, { ...write, id: arcId, onlyIfNew: true });
-        } catch (error) {
-          if (error instanceof RangeError) continue; // held once and retired: the test is not to be investigated
-          throw error;
-        }
-      }
-      const open = (await this.#records.select("increment", ["arc"], { not: { status: "closed" } })).filter(({ fields }) => fields.arc === arcId).sort(byCreation);
-      const [current] = open.length === 0 ? [] : await this.#records.list("increment", { ids: [open[0]!.id] });
-      if (current !== undefined) {
-        const { body } = current.fields as FieldsOf<"increment">;
-        if (!body.includes(seen)) await this.#flight.editIncrement(current.id, { body: `${body}\n${evidence}` }, write);
-        investigated.push(current.id);
-        continue;
-      }
-      const parked = await this.#flight.addIncrement({
-        arc: arcId,
-        title: `Find why "${test}" flakes, and fix the test`,
-        objective: `Find why the test "${test}" fails now and then where a passing run of the same code passes it, and fix the test.`,
-        body: [
-          `Parked by storytree's telling of verified health: own health's run on main failed the test below where a passing CI run of the same commit passed it, a flake. Main's health stays red for it; this is the one investigation of the test, and each later flake of it is added to the evidence below.`,
-          "",
-          `Test: ${test}${story === null ? "" : ` (story: ${story.fields.title})`}; contract: ${contract.fields.title}.`,
-          "",
-          "What to do: find why the test is flaky, and fix the test quietly when the fix is clear-cut (it waits for what it checks, it no longer depends on timing, order or a shared resource), keeping what it checks. Only when the fix would change what the test checks, raise an open question to the owner on this arc, holding this increment.",
-          "",
-          "Flakes seen:",
-          evidence,
-        ].join("\n"),
-        links: [contract.id],
+      const id = await this.investigateFlake({
+        test,
+        ...(story === null ? { of: contract.id } : { story: story.id }),
+        contract: contract.id,
+        seen,
+        evidence: `${seen} (verdict ${entry.at}${entry.by === undefined ? "" : `, by ${entry.by}`}): ${contract.fields.title} failed${entry.note === undefined ? "" : `: ${entry.note}`}`,
+        found: `Own health's run on main failed it where a passing CI run of the same commit passed it`,
+        by: "storytree's telling of verified health",
       }, write);
-      investigated.push(parked.id);
+      if (id !== undefined) investigated.push(id);
     }
     return investigated;
+  }
+
+  /**
+   * Make sure one investigation of the flaky test `flake.test` exists, wherever the flake was found (5.33, ADR-1352 D1):
+   * one per test, not per flake. The test's own arc (its id made from its story, or from `of` when the test has none, and
+   * its title, so every flake of it from every finder reaches the same one) is made the first time; an open increment on
+   * it is the investigation, and `flake.evidence` is added to its evidence unless it already holds `flake.seen`; with none
+   * open, one is parked, linking `flake.contract` when given. An arc id once held and retired means the test is not to be
+   * investigated: nothing is parked, and undefined is returned. Needs work in flight; refused (RangeError) without it.
+   * The investigation written to or already holding this flake.
+   */
+  async investigateFlake(flake: FlakeSeen, write: WriteOptions = {}): Promise<string | undefined> {
+    if (this.#flight === undefined) throw new RangeError("investigating a flaky test needs work in flight");
+    const { test, contract: contractId } = flake;
+    const key = flake.story ?? flake.of;
+    if (key === undefined) throw new RangeError("a flaky test is investigated under its story, or what stands for it (of)");
+    const story = flake.story === undefined ? null : await liveRecord(this.#records, flake.story, ["story"]);
+    const contract = contractId === undefined ? null : await liveRecord(this.#records, contractId, ["contract"]);
+    const evidence = `- ${flake.evidence}`;
+    const arcId = `arc_${createHash("sha256").update(`${key}\n${test}`).digest("hex").slice(0, 12)}`;
+    if ((await liveRecord(this.#records, arcId, ["arc"])) === null) {
+      try {
+        await this.#flight.createArc({
+          title: `The flaky test "${test}" passes reliably`,
+          intent: `${flake.found}: "${test}"${story === null ? "" : ` (${story.fields.title})`} is a flaky test, which stays red where it is seen and is investigated here, one investigation for the test however often and wherever it flakes.`,
+          endState: "Every investigation on it is closed: the test was fixed so it no longer flakes, or the fix that would change what it checks was put to the owner as a question on this arc.",
+          ...(story === null ? {} : { stories: [story.id] }),
+        }, { ...write, id: arcId, onlyIfNew: true });
+      } catch (error) {
+        if (error instanceof RangeError) return undefined; // held once and retired: the test is not to be investigated
+        throw error;
+      }
+    }
+    const open = (await this.#records.select("increment", ["arc"], { not: { status: "closed" } })).filter(({ fields }) => fields.arc === arcId).sort(byCreation);
+    const [current] = open.length === 0 ? [] : await this.#records.list("increment", { ids: [open[0]!.id] });
+    if (current !== undefined) {
+      const { body } = current.fields as FieldsOf<"increment">;
+      if (!body.includes(flake.seen)) await this.#flight.editIncrement(current.id, { body: `${body}\n${evidence}` }, write);
+      return current.id;
+    }
+    const parked = await this.#flight.addIncrement({
+      arc: arcId,
+      title: `Find why "${test}" flakes, and fix the test`,
+      objective: `Find why the test "${test}" fails now and then where a passing run of the same code passes it, and fix the test.`,
+      body: [
+        `Parked by ${flake.by}: ${flake.found}, a flake. The red stays where it was seen; this is the one investigation of the test, and each later flake of it, wherever it is found, is added to the evidence below.`,
+        "",
+        `Test: ${test}${story === null ? "" : ` (story: ${story.fields.title})`}${contract === null ? "" : `; contract: ${contract.fields.title}`}.`,
+        "",
+        "What to do: find why the test is flaky, and fix the test quietly when the fix is clear-cut (it waits for what it checks, it no longer depends on timing, order or a shared resource), keeping what it checks. Only when the fix would change what the test checks, raise an open question to the owner on this arc, holding this increment.",
+        "",
+        "Flakes seen:",
+        evidence,
+      ].join("\n"),
+      ...(contract === null ? {} : { links: [contract.id] }),
+    }, write);
+    return parked.id;
   }
 
   /** The last passing or failing verdict in contract `contractId`'s verified column: a not-checked entry keeps the one it did not reproduce. */

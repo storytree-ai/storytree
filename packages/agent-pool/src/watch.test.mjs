@@ -1153,7 +1153,11 @@ test("4.34 · a red's failing units and tests are read from its red jobs' logs, 
   const verify = job("verify", "", "failure");
   const read = readFailures([ci([windows, macos, verify, job("verify on Linux", "", "success")])], reach);
   assert.deepEqual(read, { outside: true, units: ["packages/agent-pool", "packages/forest-world"], tests: ["3.5 · a lane launches", "4.17 · a browser draws"],
-    runs: [{ id: 5, attempt: 1, repo: "storytree-ai/storytree" }], key: "5:1" }, "the follower verify job's red is no failure of its own");
+    where: { "3.5 · a lane launches": "packages/agent-pool", "4.17 · a browser draws": "packages/forest-world" }, runs: [{ id: 5, attempt: 1, repo: "storytree-ai/storytree" }], key: "5:1" }, "the follower verify job's red is no failure of its own");
+  const two = job("verify on Linux", logged("=== packages/agent-pool ===", "✖ 3.5 · a lane launches (9ms)", "=== packages/forest-world ===", "✖ 4.17 · a browser draws (12ms)",
+    "  FAIL    packages/agent-pool — 3 s", "  FAIL    packages/forest-world — 4 s"));
+  assert.deepEqual(readFailures([ci([two])], reach).where, { "3.5 · a lane launches": "packages/agent-pool", "4.17 · a browser draws": "packages/forest-world" },
+    "a job failing two units places each test under the unit heading it printed under");
   assert.equal(readFailures([ci([windows, job("verify on Linux", logged("  FAIL    packages/library — 3 s"))])], reach).outside, false, "a unit the pull request changes is in reach");
   assert.equal(readFailures([ci([windows, job("verify on Linux", logged("error TS2322: nope"))])], reach).outside, false, "a red job with no FAIL row failed on no test");
   assert.equal(readFailures([ci([job("verify on Linux", logged("  FAIL    guidance — 3 s"))])], reach).outside, false, "a unit outside packages/ and apps/ is no package");
@@ -1206,24 +1210,45 @@ test("4.35 · a test that fails again on the same pull request counts, wherever 
   assert.equal(b.fixes.length, 2, "a red in reach counts as before");
 });
 
-test("4.36 · a pull request whose session cap is spent on flakes goes to the owner with a friction naming the flaky tests, never back on its arc", async (t) => {
+test("4.36 · a pull request whose session cap is spent on flakes goes to the owner naming its flaky tests, each parked on or added to the one investigation of that test and none filed as friction, never back on its arc", async (t) => {
   const b = await box(t);
   b.options.cap = 3;
   b.options.refresh = async () => {};
+  const storytree = b.options.storytree;
+  b.options.storytree = async (args, at) => {
+    await storytree(args, at);
+    return args[0] === "health" && args[1] === "investigate" ? `"${args[args.indexOf("--test") + 1]}" is investigated by increment_${"f".repeat(12)}.` : "";
+  };
   await handOff(b);
-  for (let round = 0; round < 3; round++) { b.looks[41] = { ...flaky({ head: `h${round}`, run: round, tests: [`1.${round} · flaky`] }), branch: "claude/increment-one" }; await watchOnce(b.options); }
+  const rounds = [
+    { tests: ["1.0 · flaky"], units: ["packages/forest-world"] },
+    { tests: ["1.1 · flaky", "1.2 · flaky"], units: ["packages/forest-world", "packages/library"], where: { "1.1 · flaky": "packages/library", "1.2 · flaky": "packages/forest-world" } },
+    { tests: [], units: ["packages/session-management"] },
+  ];
+  for (const [round, { where, ...read }] of rounds.entries()) {
+    const look = { ...flaky({ head: `h${round}`, run: round, ...read }), branch: "claude/increment-one" };
+    if (where) look.failures.where = where;
+    b.looks[41] = look;
+    await watchOnce(b.options);
+  }
   assert.equal(b.fixes.length, 0);
   b.looks[41] = { ...flaky({ head: "h9", run: 9, tests: ["1.9 · flaky"] }), branch: "claude/increment-one" };
   await watchOnce(b.options);
   assert.ok(!b.calls.some(([, , verb, id]) => verb === "edit" && id === "increment_one"), "not given back to its arc, where the pool would start it over");
+  assert.ok(!b.calls.some(([noun]) => noun === "friction"), "no flaky test is filed as friction (ADR-1352)");
+  const investigated = b.calls.filter(([noun, verb]) => noun === "health" && verb === "investigate");
+  const flag = (call, name) => (call.includes(name) ? call[call.indexOf(name) + 1] : undefined);
+  assert.deepEqual(investigated.map((call) => [flag(call, "--test"), flag(call, "--unit")]),
+    [["1.0 · flaky", "packages/forest-world"], ["1.1 · flaky", "packages/library"], ["1.2 · flaky", "packages/forest-world"], ["packages/session-management", "packages/session-management"]],
+    "each flaky test under the unit its run named it in, a job's one failing unit when no heading says; a unit that named no test as itself");
+  for (const call of investigated) {
+    assert.equal(flag(call, "--increment"), "increment_one", "it names the increment it is on, so the write knows its library (ADR-1348 D3)");
+    assert.match(flag(call, "--evidence"), /PR #41/);
+  }
   const wait = b.calls.find(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner");
   assert.ok(wait, "an owner wait");
   assert.match(wait[7], /No review ran/);
-  const friction = b.calls.find(([noun, verb]) => noun === "friction" && verb === "new");
-  assert.ok(friction, "a friction is filed");
-  for (const name of ["1.0 · flaky", "1.1 · flaky", "1.2 · flaky", "PR #41"]) assert.ok(friction.join(" ").includes(name), name);
-  assert.ok(friction.includes("--none-match"), "it files new past the closest earlier reports filing would show (ADR-1233), or nothing is filed");
-  assert.equal(friction[friction.indexOf("--increment") + 1], "increment_one", "it names the increment it is on, so the write knows its library (ADR-1348 D3)");
+  assert.ok(wait[7].includes(`1.1 · flaky (investigated by increment_${"f".repeat(12)})`), "the owner still hears of each flaky test, and where it is investigated");
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
   assert.match(b.lines.at(-1), /PR #41.*waits on the owner/);
 });

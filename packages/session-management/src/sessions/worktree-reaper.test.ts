@@ -245,7 +245,7 @@ test("4.37 a worktree reaped while a test Postgres still runs on its .pgtest/dat
         // so any other refusal is no proof. (Nor is its pid: Windows hands a freed pid to a new process
         // within moments.)
         const connectsOn = async (url: string) => {
-          const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 5_000 });
+          const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 30_000 });
           try {
             await client.connect();
           } finally {

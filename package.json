@@ -30,6 +30,7 @@
     "desktop:dist": "pnpm --filter @storytree/desktop dist",
     "build:guidance": "pnpm -s storytree guidance build",
     "check:guidance": "pnpm -s storytree guidance check",
+    "property:nightly": "node --import tsx packages/property-checks/src/nightly.ts",
     "check:seed-records": "node --import tsx packages/repo-checks/src/seed-records.mjs",
     "check:leaks": "node --import tsx packages/repo-checks/src/leak-scan.mjs",
     "check:secrets": "node --import tsx packages/repo-checks/src/leak-scan.mjs --secrets",

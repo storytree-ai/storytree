@@ -1,0 +1,41 @@
+name: Property checks nightly
+
+# Every property check runs once a night on main's head in the nightly tier (story Property checks, contract 3.2,
+# ADR-1356 D4): `pnpm property:nightly` finds each test file importing @storytree/property-checks and runs them as
+# one `pnpm test` unit on fresh random seeds with many more cases, within about ten minutes. A check that fails names
+# the seed to pin into its quick tier; that failure is a red scheduled run on main, which the CI harvest reads.
+#
+# It can be run by hand (Actions > Property checks nightly > Run workflow) on main.
+
+on:
+  schedule:
+    # 03:47 UTC, half an hour after the macOS nightly and off the hour GitHub's scheduled runs crowd.
+    - cron: "47 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: property-nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  nightly:
+    name: property checks, nightly tier
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: main
+          persist-credentials: false
+          fetch-depth: 0
+      # pnpm 10.34.7, from package.json's packageManager field.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm property:nightly

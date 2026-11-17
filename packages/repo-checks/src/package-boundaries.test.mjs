@@ -6,11 +6,13 @@
 // Contract 5.4: which packages are a story's comes from each package's own package.json ("story": "story_<12 hex>"),
 // read from the checkout boundaryProblems is given, not from a hand-kept list.
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { boundaryProblems, STORIES } from "./package-boundaries.mjs";
 
@@ -23,7 +25,7 @@ test("5.1 · this repo keeps every story in its own package, behind a thin frame
 /** A planted checkout: one packages/<folder>/package.json per entry, each the given manifest; removed after the test. */
 function plant(t, manifests) {
   const dir = mkdtempSync(path.join(tmpdir(), "package-boundaries-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   for (const [folder, manifest] of Object.entries(manifests)) {
     mkdirSync(path.join(dir, "packages", folder), { recursive: true });
     writeFileSync(path.join(dir, "packages", folder, "package.json"), JSON.stringify(manifest));
@@ -71,6 +73,10 @@ test("5.4 · two packages naming the same story id are refused in one sentence n
   assert.match(problems[0], /packages\/beta\b/);
   assert.match(problems[0], /story_aaaaaaaaaaaa/);
   assert.doesNotMatch(problems[0], /gamma|story_bbbbbbbbbbbb/);
+});
+
+test("5.4 · a checkout with no packages/ folder names no story and has no problem", (t) => {
+  assert.deepEqual(boundaryProblems(plant(t, {})), []);
 });
 
 test("5.4 · STORIES is this repo's marked packages by folder name: every folder under packages/ with a package.json", () => {

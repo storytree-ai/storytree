@@ -186,6 +186,12 @@ test("17.2 · The library declares search_notes, find_text, open, write_note and
   assert.match(made.text, /^Wrote escape escape_[0-9a-f]{12}\./, "and through library new");
   const narrowed = await toolOf("search_notes").act({ query: "retry counted as a pass", limit: undefined, history: false, kinds: ["escape"], projects: undefined }, context, WORDS);
   assert.match(narrowed.text, /A retry counted as a pass/, "a search narrows to escape patterns");
+  const layers = ["test-writer", "builder", "lint", "tests", "mutation", "test-reviewer", "code-reviewer", "ci-linux", "ci-windows"].map((layer) => ({ layer, result: ["test-writer", "builder", "ci-windows"].includes(layer) ? "not-run" : "missed", evidence: `${layer} ran on the scratch branch and said nothing` }));
+  const drill = { title: "Drill: a retry tallied twice", description: "The window pattern replanted in the retry tally", pattern: (escaped.data as { id: string }).id, plant: { story: story.id, capability: form.id, file: "packages/form/src/tally.ts", shape: "a retry's end counted as inside its window" }, mode: "defect", layers, caughtBy: "none", fixer: "escaped", session: "red-team-lane", date: "2026-11-18" };
+  await toolOf("write_note").act({ kind: "drill", fields: drill, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS);
+  const drills = await toolOf("search_notes").act({ query: "retry tallied", limit: undefined, history: false, kinds: ["drill"], projects: undefined }, context, WORDS);
+  assert.match(drills.text, /Drill: a retry tallied twice/, "a red-team drill is written through the door, and a search narrows to drills");
+  assert.doesNotMatch(drills.text, /A retry counted as a pass/, "and finds no escape pattern there");
 });
 
 test("17.26 · write_note files a decision on no guessed part: a part in links is refused naming front_cover_of, and two held parts with none named is refused asking which", async (t) => {

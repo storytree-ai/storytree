@@ -494,3 +494,52 @@ for (const backend of [memory, postgres]) {
     }
   });
 }
+
+for (const backend of [memory, postgres]) {
+  test(`6.22 [${backend.label}] an escape pattern judged yes takes the blue team's rung with its reason and, but for none, its defences; a rung without its reason, a reason without its rung, a defended rung naming no defence, an unknown rung, or a rung on a pattern not judged yes is refused`, async () => {
+    const { knowledge, transactions, cleanup } = await backend.open();
+    try {
+      const pattern = {
+        title: "A path joined with / that breaks on Windows",
+        description: "3.112 failed on Windows at a head and passed once the join was fixed",
+        instance: { run: 19234567890, pr: 941, head: "8d402aeb1234", test: "3.112 · the pins read" },
+        caughtAt: "ci" as const,
+        reasoning: "It failed at 8d402aeb and passed only after the pull request changed packages/forest, the unit it is in",
+      };
+      const judged = { ...pattern, construct: "a path built with a literal / and read on Windows", elsewhere: "packages/map/src/read.ts", generalises: "yes" as const, generalisesWhy: "nameable, recurs, a lint shape can see it" };
+      const saved = await knowledge.writeKnowledge("escape", judged);
+
+      const lint = { rung: "lint", rungWhy: "a literal / in a path join is a syntax shape, so the first rung holds it", defences: ["contract_eeeeeeeeeeee"] };
+      assert.deepEqual((await knowledge.editNote(saved.id, lint as never))?.fields, { ...judged, ...lint }, "a judged-yes pattern is edited to add its rung, its reason and its defences");
+      for (const rung of ["property", "fault-injection", "learned-break", "reviewer-check"]) {
+        assert.deepEqual((await knowledge.editNote(saved.id, { rung } as never))?.fields, { ...judged, ...lint, rung }, `${rung} is a rung`);
+      }
+
+      const none = { rung: "none", rungWhy: "no lint shape, property, fault or reviewer check can see a path read only on Windows" };
+      const undefended = await knowledge.writeKnowledge("escape", { ...judged, ...none } as never);
+      assert.deepEqual((await transactions.get(undefended.id))?.fields, { ...judged, ...none }, "rung none is saved with its reason and no defences");
+
+      const before = await transactions.history();
+      for (const [field, wrong, why] of [
+        ["rungWhy", { ...judged, rung: "lint", defences: ["contract_eeeeeeeeeeee"] }, "a rung carries its reason"],
+        ["rung", { ...judged, rungWhy: "a lint shape can see it", defences: ["contract_eeeeeeeeeeee"] }, "a reason carries its rung"],
+        ["rungWhy", { ...judged, ...lint, rungWhy: "" }, "a rung's reason is not empty"],
+        ["defences", { ...judged, rung: "property", rungWhy: "no lint shape can see it; a property can" }, "a rung other than none names its defences"],
+        ["defences", { ...judged, rung: "property", rungWhy: "no lint shape can see it; a property can", defences: [] }, "an empty defence list names no defence"],
+        ["rung", { ...judged, rung: "unit-test", rungWhy: "a test can see it", defences: ["contract_eeeeeeeeeeee"] }, "a rung is one of the six"],
+        ["rung", { ...judged, generalises: "no", ...lint }, "a rung is chosen only on a pattern judged yes, not no"],
+        ["rung", { ...judged, generalises: "local", ...lint }, "a rung is chosen only on a pattern judged yes, not local"],
+        ["rung", { ...pattern, ...lint }, "a rung is chosen only on a judged pattern"],
+      ] as const) {
+        await assert.rejects(
+          knowledge.writeKnowledge("escape", wrong as never),
+          (error: unknown) => error instanceof SchemaError && assert.deepEqual(error.fields, [field], why) === undefined,
+          why,
+        );
+      }
+      assert.deepEqual(await transactions.history(), before, "nothing was written");
+    } finally {
+      await cleanup();
+    }
+  });
+}

@@ -702,7 +702,9 @@ export const RECORD_SCHEMAS = {
    * carrying the escape link when it reached main; `reasoning` says why it is real and not a flake. The harvest writes it
    * unjudged; the agent judging it adds the `construct` to look for, the other places it appears (`elsewhere`), and whether
    * it `generalises` (yes, no or local) with its reason against the three criteria (a nameable class, recurring elsewhere,
-   * checkable). Its `defences` (blue team) and `plants` (red team) are linked as they are made.
+   * checkable). Its `defences` (blue team) and `plants` (red team) are linked as they are made. A pattern judged yes takes
+   * the blue team's `rung`, the cheapest that can see it (lint, property, fault-injection, learned-break, reviewer-check, or
+   * none), with its reason (`rungWhy`); every rung but none names its `defences`.
    */
   escape: z
     .object({
@@ -725,6 +727,8 @@ export const RECORD_SCHEMAS = {
       elsewhere: nonEmpty.optional(),
       generalises: z.enum(["yes", "no", "local"]).optional(),
       generalisesWhy: nonEmpty.optional(),
+      rung: z.enum(["lint", "property", "fault-injection", "learned-break", "reviewer-check", "none"]).optional(),
+      rungWhy: nonEmpty.optional(),
       defences: ids.optional(),
       plants: ids.optional(),
     })
@@ -741,6 +745,16 @@ export const RECORD_SCHEMAS = {
       }
       if (fields.generalises === "yes" && (fields.construct === undefined || fields.elsewhere === undefined)) {
         context.addIssue({ code: "custom", path: ["generalises"], message: 'a pattern that generalises names its "construct" and the other places it appears ("elsewhere")' });
+      }
+      if ((fields.rung === undefined) !== (fields.rungWhy === undefined)) {
+        const missing = fields.rung === undefined ? "rung" : "rungWhy";
+        context.addIssue({ code: "custom", path: [missing], message: 'a rung is chosen with its reason: give "rung" and "rungWhy" together' });
+      }
+      if (fields.rung !== undefined && fields.generalises !== "yes") {
+        context.addIssue({ code: "custom", path: ["rung"], message: 'a rung is chosen only for a pattern judged to generalise ("generalises" yes)' });
+      }
+      if (fields.rung !== undefined && fields.rung !== "none" && (fields.defences === undefined || fields.defences.length === 0)) {
+        context.addIssue({ code: "custom", path: ["defences"], message: 'a rung other than none names its "defences"' });
       }
     }),
   /**

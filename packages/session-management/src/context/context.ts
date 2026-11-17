@@ -25,6 +25,18 @@ import { claudeCodeCompositionFold, codexCompositionFold, type Composition, type
 import { contextGuidance, type ContextGuidance } from "./guidance.js";
 import { isCount, isRecord, SYNTHETIC, type JsonRecord } from "./transcript.js";
 
+/**
+ * One model's share of a transcript's spend, by the kind of token it was billed as: a Claude Code request's fresh
+ * input, cache reads, cache writes kept five minutes or an hour, and output (Lane measures 20.1 prices them).
+ */
+export interface ModelUsage {
+  input: number;
+  cacheRead: number;
+  cacheWrite5m: number;
+  cacheWrite1h: number;
+  output: number;
+}
+
 /** Tokens a transcript's latest own request held, or why there is no figure. Never a 0 standing in for an absence. */
 export type TokenCount = { readonly tokens: number } | { readonly absent: string };
 
@@ -96,6 +108,8 @@ export class ContextFold {
   #latest: number | undefined;
   /** Each own request's spend, by its `requestId`, a request written across several lines counted once (a Claude Code transcript). */
   readonly #requests = new Map<string, number>();
+  /** Each own request's tokens by kind and the model that answered it, by the same key as `#requests`. */
+  readonly #billed = new Map<string, { model: string; usage: ModelUsage }>();
   /** What a Codex rollout's running total says it has spent, or a Pi session's messages summed. */
   #total = 0;
 
@@ -159,6 +173,21 @@ export class ContextFold {
     return sum;
   }
 
+  /**
+   * What `spent` adds up, split by the model that answered each own request and by kind of token: a Claude Code
+   * transcript's; undefined for a Codex rollout or a Pi session, whose running totals name no such split.
+   */
+  bill(): Map<string, ModelUsage> | undefined {
+    if (this.#codex || this.#pi || this.#unread) return undefined;
+    const bill = new Map<string, ModelUsage>();
+    for (const { model, usage } of this.#billed.values()) {
+      const sum = bill.get(model) ?? { input: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0, output: 0 };
+      for (const kind of Object.keys(sum) as (keyof ModelUsage)[]) sum[kind] += usage[kind];
+      bill.set(model, sum);
+    }
+    return bill;
+  }
+
   composition(): Composition | undefined {
     return this.#lines === 0 || this.#pi ? undefined : this.#composition.composition();
   }
@@ -190,7 +219,16 @@ export class ContextFold {
     const { input_tokens: input, cache_read_input_tokens: read, cache_creation_input_tokens: created, output_tokens: output } = message.usage;
     if (!isCount(input)) return;
     this.#latest = input + (isCount(read) ? read : 0) + (isCount(created) ? created : 0);
-    this.#requests.set(typeof record.requestId === "string" ? record.requestId : `line ${this.#lines}`, this.#latest + (isCount(output) ? output : 0));
+    const key = typeof record.requestId === "string" ? record.requestId : `line ${this.#lines}`;
+    this.#requests.set(key, this.#latest + (isCount(output) ? output : 0));
+    // A cache write names how long it is kept when the harness splits it; one that does not is billed as five minutes'.
+    const split = isRecord(message.usage.cache_creation) ? message.usage.cache_creation : {};
+    const hour = isCount(split.ephemeral_1h_input_tokens) ? split.ephemeral_1h_input_tokens : 0;
+    const written = isCount(created) ? created : 0;
+    this.#billed.set(key, {
+      model: typeof message.model === "string" ? message.model : "an unnamed model",
+      usage: { input, cacheRead: isCount(read) ? read : 0, cacheWrite5m: Math.max(0, written - hour), cacheWrite1h: Math.min(hour, written), output: isCount(output) ? output : 0 },
+    });
   }
 }
 

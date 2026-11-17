@@ -19,7 +19,7 @@ export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; r
   tools: { hosts: "the MCP server", shape: "a function (host) => { registerTools(define) } | undefined, handed the MCP server's tool host" },
   claimChecks: { hosts: "the MCP server", shape: "{ name, landing(capability, { library, folder }) => Promise<string[]> }: the problems, none when it may land" },
   pipelineJobs: { hosts: "the MCP server", shape: "{ name, needsHistory?, commands(ref, workspace) => string[] }: a job storytree adds to a project's CI" },
-  projectRecords: { hosts: "the command line and the desktop app", shape: "{ name, forget(server, project) => Promise<void> }: records kept for a project outside its library" },
+  projectRecords: { hosts: "the command line and the desktop app", shape: "{ name, forget(server, project) => Promise<void>, reviewRounds?(server, project, increments) => Promise<Map<increment, rounds>> }: records kept for a project outside its library; one keeping a QA ledger may say each increment's review rounds, which `storytree measures` reads" },
   surfaces: { hosts: "the desktop app", shape: "{ id, name, description, switchable, within?, follows?, settings: [] }: a surface of the window" },
   pageAnswers: { hosts: "the desktop app", shape: "an answer the window's page asks the app for, by channel" },
   pageChannels: { hosts: "the desktop app", shape: "a channel the window's page may ask the app on" },

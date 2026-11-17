@@ -175,6 +175,10 @@ test("17.2 · The library declares search_notes, find_text, open, write_note and
   assert.deepEqual(((await library.get(term))?.fields as { links?: string[] } | undefined)?.links, [cover.id], "a definition links inside the cover opened last");
 
   await assert.rejects(toolOf("write_note").act({ kind: "memory", fields: {}, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS), VerbRefusal);
+
+  const pattern = { title: "A window's end treated as inclusive", description: "Found by the CI harvest", instance: { run: 7, test: "2.1 · totals" }, caughtAt: "ci", reasoning: "It passed only once its pull request changed the window" };
+  const escaped = await toolOf("write_note").act({ kind: "escape", fields: pattern, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS);
+  assert.deepEqual(await library.get((escaped.data as { id: string }).id).then((record) => [record?.type, (record?.fields as { caughtAt?: string } | undefined)?.caughtAt]), ["escape", "ci"], "an escape pattern is written through the door");
 });
 
 test("17.26 · write_note files a decision on no guessed part: a part in links is refused naming front_cover_of, and two held parts with none named is refused asking which", async (t) => {

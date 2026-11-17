@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
+import type { DoorWords } from "@storytree/library/verbs";
+import { removeTemp } from "@storytree/test-waits";
+
+import { HEALTH_FAMILIES } from "../verbs.js";
 
 import { ciTimesPool, harvestLedger } from "../ci-times/store.js";
 import type { GitHub } from "../read-ci/read-ci.js";
@@ -81,9 +89,15 @@ test("3.25 · The harvest counts a failed run of a workflow that tests no code, 
     4: [{ name: "verify on Linux", conclusion: "cancelled", steps: 5, log: "" }, { name: "verify on Windows", conclusion: "timed_out", steps: 5, log: "" }],
     5: [{ name: "verify on Linux", conclusion: "failure", steps: 5, log: "2026-11-17T08:00:00Z error TS2322: Type 'string' is not assignable" }],
   };
+  // GitHub lists failed and timed-out runs apart, by the day they were made: run 3 in both, run 6 before the window.
+  const api = (one: FailedRun) => ({ id: one.id, run_attempt: 1, name: one.workflow, event: one.event, head_sha: one.head, head_branch: one.branch, conclusion: one.conclusion, created_at: one.createdAt, pull_requests: [] });
+  const listing = gitHub({
+    [`${API}/actions/runs?status=failure&created=>=2026-11-10&per_page=100&page=1`]: { workflow_runs: [...runs.filter(({ id }) => id !== 3), runs[2]!].map(api) },
+    [`${API}/actions/runs?status=timed_out&created=>=2026-11-10&per_page=100&page=1`]: { workflow_runs: [api(runs[2]!)] },
+  });
   const read: number[] = [];
   const source: HarvestSource = {
-    failedRuns: async (since) => runs.filter((one) => Date.parse(one.createdAt) >= since.getTime()),
+    failedRuns: gitHubSource(listing, REPO, await watcherReading(), scope).failedRuns,
     facts: async (run) => (read.push(run.id), { jobs: jobs[run.id]!, reach: new Set(), passedSameHead: false }),
   };
   const { library, flakes, written } = libraryOf();
@@ -105,6 +119,17 @@ test("3.25 · The harvest counts a failed run of a workflow that tests no code, 
   const again = await harvest({ library, source, ledger, watcher, now: NOW });
   assert.deepEqual({ already: again.already, infra: again.infra, ownHealth: again.ownHealth, noTest: again.noTest }, { already: 5, infra: 0, ownHealth: 0, noTest: 0 }, "a run harvested once is never sorted again");
   assert.deepEqual(read, [], "nor read again");
+
+  // The command: a folder with no GitHub origin has nothing to harvest; one with an origin needs the library's server.
+  const harvestVerb = HEALTH_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "harvest")!;
+  const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
+  const folder = mkdtempSync(path.join(tmpdir(), "ci-harvest-"));
+  t.after(() => removeTemp(folder));
+  execFileSync("git", ["init", "-q", folder]);
+  const context = { library, project, session: "test", folder };
+  assert.match((await harvestVerb.act({}, context, words)).text, /no GitHub origin, so storytree has no failed CI runs to harvest; nothing was sorted/);
+  execFileSync("git", ["-C", folder, "remote", "add", "origin", "https://github.com/acme/shop.git"]);
+  await assert.rejects(harvestVerb.act({}, context, words), /kept beside the library, and this door has no library server open/);
 });
 
 test("3.26 · The harvest sends each flaky failing test of a CI run to its one investigation, sorted by the watcher's own reading", async () => {
@@ -183,6 +208,8 @@ test("3.27 · The harvest records each real failure, and each increment fixing a
     failed(25, { pr: 24 }),
     // PR #26 is still red at the window's end: recorded unsettled.
     failed(27, { pr: 26, createdAt: "2026-11-11T06:00:00Z" }),
+    // PR #28's queue red at its head e…, which merged only at a new head f… whose change reaches packages/shop.
+    failed(29, { pr: 28, event: "merge_group", branch: "gh-readonly-queue/main/pr-28-b0b" }),
   ];
   const job = (id: number, test = "2.1 · totals add up") => ({ [`${API}/actions/runs/${id}/attempts/1/jobs?per_page=100`]: { jobs: [{ id: id * 10, name: "verify on Linux", conclusion: "failure", steps: [{}] }] }, [`${API}/actions/jobs/${id * 10}/logs`]: logOf("packages/shop", [test]) });
   const none = { workflow_runs: [] };
@@ -203,6 +230,13 @@ test("3.27 · The harvest records each real failure, and each increment fixing a
     ...pull(22, runs[1]!.head, { sha: "d".repeat(40), at: "2026-11-17T10:00:00Z" }),
     [`${API}/compare/${runs[1]!.head}...${"d".repeat(40)}`]: { files: [{ filename: "packages/lib/src/round.ts" }] },
     ...pull(24, runs[2]!.head), ...pull(26, runs[3]!.head),
+    ...job(29, "2.5 · totals carry"),
+    [`${API}/actions/runs?head_sha=${runs[4]!.head}&status=success&per_page=100&page=1`]: none,
+    [`${API}/pulls/28`]: { merged: true, head: { sha: "f".repeat(40), ref: "b28" } },
+    [`${API}/pulls/28/files?per_page=100`]: [{ filename: "packages/shop/src/carry.ts" }],
+    [`${API}/commits/${runs[4]!.head}`]: { parents: [{ sha: "b".repeat(40) }, { sha: "e".repeat(40) }] },
+    [`${API}/compare/main...${"b".repeat(40)}`]: { status: "behind" },
+    [`${API}/compare/${"e".repeat(40)}...${"f".repeat(40)}`]: { files: [{ filename: "packages/shop/src/carry.ts" }] },
   });
   const watcher = await watcherReading();
   const source = gitHubSource(github, REPO, watcher, scope);
@@ -218,18 +252,21 @@ test("3.27 · The harvest records each real failure, and each increment fixing a
 
   assert.deepEqual(written.map(({ kind, fields }) => ({ kind, instance: fields.instance, caughtAt: fields.caughtAt, generalises: fields.generalises })), [
     { kind: "escape", instance: { run: 21, pr: 20, head: runs[0]!.head, test: "2.1 · totals add up", contract: "contract_aaaaaaaaaaaa", story: "story_aaaaaaaaaaaa", capability: "capability_s" }, caughtAt: "ci", generalises: undefined },
+    { kind: "escape", instance: { run: 29, pr: 28, head: runs[4]!.head, test: "2.5 · totals carry", story: "story_aaaaaaaaaaaa" }, caughtAt: "ci", generalises: undefined },
     { kind: "escape", instance: { pr: 940, head: "abcdef1", story: "story_aaaaaaaaaaaa", escape: "increment_eeeeeeeeeeee" }, caughtAt: "escaped", generalises: undefined },
   ], "a real failure CI caught, with its instance; an increment that fixed an escape, caught-at escaped; one already recorded is not recorded again; none is judged by the harvest");
   assert.match(written[0]!.fields.reasoning, /failed at a{10}21 and passed only at c{12}, once the pull request changed code packages\/shop reaches/);
   assert.deepEqual(flakes.map(({ seen }) => seen), ["run 23"], "green later with no change of its pull request's own reaching its unit, it is a flake");
-  assert.deepEqual([...ledger.rows], [[21, "real"], [23, "flake"], [27, "unsettled"]], "a run nothing settles yet is not marked, so the next harvest reads it again; one at the window's end is marked unsettled");
+  assert.deepEqual([...ledger.rows], [[21, "real"], [23, "flake"], [27, "unsettled"], [29, "real"]], "a run nothing settles yet is not marked, so the next harvest reads it again; one at the window's end is marked unsettled");
   assert.deepEqual({ real: counts.real, escaped: counts.escaped, waiting: counts.waiting, unsettled: counts.unsettled, unjudged: counts.unjudged, generalise: counts.generalise },
-    { real: 1, escaped: 1, waiting: 1, unsettled: 1, unjudged: 2, generalise: 1 });
+    { real: 2, escaped: 1, waiting: 1, unsettled: 1, unjudged: 3, generalise: 1 });
   const text = harvestText(counts);
-  assert.match(text, /real failures recorded: 1 caught by CI, 1 that reached main/);
-  assert.match(text, /Escape patterns: 1 generalise; 2 wait for the agent's judgement/);
+  assert.match(text, /real failures recorded: 2 caught by CI, 1 that reached main/);
+  assert.match(text, /Escape patterns: 1 generalise; 3 wait for the agent's judgement/);
 
-  written.length = 0;
-  const again = await harvest({ library: libraryOf(increments, [{ fields: { instance: { run: 21, test: "2.1 · totals add up" }, caughtAt: "ci" } }, { fields: { instance: { escape: "increment_eeeeeeeeeeee" }, caughtAt: "escaped" } }]).library, source: { failedRuns: async () => runs, facts: source.facts }, ledger, watcher, now: NOW });
-  assert.deepEqual({ already: again.already, real: again.real, escaped: again.escaped, waiting: again.waiting }, { already: 3, real: 0, escaped: 0, waiting: 1 }, "harvested again, nothing is recorded twice");
+  const recorded = written.map(({ fields }) => ({ fields }));
+  const again = await harvest({ library: libraryOf(increments, recorded).library, source: { failedRuns: async () => runs, facts: source.facts }, ledger, watcher, now: NOW });
+  assert.deepEqual({ already: again.already, real: again.real, escaped: again.escaped, waiting: again.waiting }, { already: 4, real: 0, escaped: 0, waiting: 1 }, "harvested again, nothing is recorded twice");
+  const lost = await harvest({ library: libraryOf(increments, recorded).library, source: { failedRuns: async () => runs, facts: source.facts }, ledger: memoryLedger(), watcher, now: NOW });
+  assert.deepEqual({ already: lost.already, real: lost.real, escaped: lost.escaped }, { already: 0, real: 0, escaped: 0 }, "with the harvested runs lost, a real failure already recorded is still not recorded again");
 });

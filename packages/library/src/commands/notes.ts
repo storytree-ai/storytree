@@ -159,12 +159,12 @@ const writeNote = verb({
   command: NO_COMMAND("new"),
   tool: {
     name: "write_note",
-    description: "Write an artifact: a decision (title and text), definition (term and meaning), or principle, guardrail, pattern, process, agent, techstack, check, research or experiment (required fields in fields). Use record_friction and record_resteer for their evidence rules. With no place named, it goes onto the shelf of the capability you hold; holding more than one, name which.",
+    description: "Write an artifact: a decision (title and text), definition (term and meaning), or principle, guardrail, pattern, process, agent, techstack, check, research, experiment or escape pattern (required fields in fields). Use record_friction and record_resteer for their evidence rules. With no place named, it goes onto the shelf of the capability you hold; holding more than one, name which.",
   },
   writes: true,
   inputs: {
-    kind: { kind: "text", describe: "decision, definition, principle, guardrail, pattern, process, agent, techstack, check, research or experiment; friction and resteer have capture tools" },
-    fields: { kind: "fields", json: true, describe: "Required fields of a principle, guardrail, pattern, process, agent, techstack, check, research or experiment" },
+    kind: { kind: "text", describe: "decision, definition, principle, guardrail, pattern, process, agent, techstack, check, research, experiment or escape; friction and resteer have capture tools" },
+    fields: { kind: "fields", json: true, describe: "Required fields of a principle, guardrail, pattern, process, agent, techstack, check, research, experiment or escape" },
     text: { kind: "text", optional: true, verbatim: true, blank: true, describe: "A decision's text" },
     title: { kind: "text", optional: true, verbatim: true, blank: true, describe: "A decision's title" },
     term: { kind: "text", optional: true, verbatim: true, blank: true, describe: "A definition's term" },

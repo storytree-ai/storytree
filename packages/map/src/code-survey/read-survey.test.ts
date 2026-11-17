@@ -109,15 +109,6 @@ test("8.10 disk, fetched-main and focus surveys skip oversized titles and retain
   }
 });
 
-/** The command lines of running processes that name `needle`. */
-function processesNaming(needle: string): string[] {
-  const lines = process.platform === "win32"
-    ? execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-Command",
-      "Get-CimInstance Win32_Process | ForEach-Object { $_.CommandLine }"], { encoding: "utf8", windowsHide: true })
-    : execFileSync("ps", ["-A", "-o", "args="], { encoding: "utf8" });
-  return lines.split(/\r?\n/).filter(line => line.includes(needle));
-}
-
 test("8.1 a numbered test reaches its own package's public subpath through package.json exports", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-self-"));
   try {
@@ -643,6 +634,7 @@ test("8.11 a stalled origin is bounded, shared across worktrees and readers, and
     connections++;
     sockets.add(socket);
     socket.on("error", () => {});
+    socket.resume(); // Read what Git sends, answering nothing, so its end is seen and the connection closes.
     socket.on("close", () => sockets.delete(socket));
   });
   try {
@@ -662,8 +654,9 @@ test("8.11 a stalled origin is bounded, shared across worktrees and readers, and
     assert.ok(results.every(result => result.status === "rejected"));
     assert.equal(connections, 1, "the two readers share the same pending fetch");
     assert.ok(Date.now() - started < 15_000, "Git's timeout bounds a nonresponsive origin");
-    // On Windows, `git` is often Git for Windows' launcher, whose real git.exe is its child.
-    assert.deepEqual(processesNaming(path.basename(folder)), [], "no git process the reading started outlives it");
+    // The fetch's own connection closing is its git ending: on Windows, Git for Windows' launcher's real git.exe holds it.
+    // A scan of the process table could not see it (its command line names no folder) and held the event loop on Windows.
+    await waitUntil(() => sockets.size === 0, 5_000, "the stalled fetch's connection to close: no git process the reading started outlives it");
   } finally {
     for (const socket of sockets) socket.destroy();
     await new Promise<void>(resolve => server.close(() => resolve()));
@@ -803,6 +796,7 @@ test("8.27 a start's reader answers its first ask from the main already fetched 
     connections++;
     sockets.add(socket);
     socket.on("error", () => {});
+    socket.resume(); // Read what Git sends, answering nothing, so its end is seen and the connection closes.
     socket.on("close", () => sockets.delete(socket));
   });
   const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: "pipe", windowsHide: true }).trim();
@@ -842,7 +836,7 @@ test("8.27 a start's reader answers its first ask from the main already fetched 
     assert.equal(sockets.size, 1, "and is still open when the first answer lands");
     assert.equal(await claimLines(restarted.read(stalled, tree)), 2, "a fetch that fails leaves the next ask on the main already fetched");
     assert.equal(connections, 1, "the next ask waits on the start's fetch rather than starting another");
-    assert.deepEqual(processesNaming(path.basename(folder)), [], "no git process the reading started outlives it");
+    await waitUntil(() => sockets.size === 0, 5_000, "the start's fetch's connection to close: no git process the reading started outlives it");
   } finally {
     for (const socket of sockets) socket.destroy();
     await new Promise<void>(resolve => server.close(() => resolve()));

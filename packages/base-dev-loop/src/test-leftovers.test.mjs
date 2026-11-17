@@ -79,11 +79,17 @@ function goneOwner(dataDir) {
   writeFileSync(owner, JSON.stringify({ ...JSON.parse(readFileSync(owner, "utf8")), pid: deadPid() }));
 }
 
-/** A stopper for a server the test itself must stop if what it tests did not. */
+/**
+ * A stopper for a server the test itself must stop if what it tests did not, and a check, true once the
+ * server is seen gone. A pid seen gone is never signalled: Windows can give it at once to another
+ * process, as a test file's of this same run, killed with exit code 1 and no word on CI (increment_bd97e464ae7a).
+ */
 function stopLater(steps, pid) {
+  let gone = false;
   steps.push(() => {
-    if (alive(pid)) process.kill(pid, "SIGKILL");
+    if (!gone && alive(pid)) process.kill(pid, "SIGKILL");
   });
+  return () => (gone = !alive(pid));
 }
 
 /** A unit whose one test starts a server in the unit's temp folder, records it, then ends as `ending` says. */
@@ -128,11 +134,11 @@ test("4.20 · a unit's end stops every Postgres server running on a data folder 
     let child;
     const run = runUnit({ root, files: ["server.test.mjs"], env: process.env, hold: true, testLimitMs: SLOW_START_MS, unitLimitMs: SLOW_START_MS, onSpawn: (spawned) => (child = spawned) });
     const seen = await untilRecord(root, run);
-    stopLater(steps, seen.pid);
+    const stopped = stopLater(steps, seen.pid);
     if (kill) killTree(child);
     const result = await run;
     assert.equal(result.code === 0, ending === "", `the unit ${ending === "" ? "passed" : "did not pass"}:\n${result.output}`);
-    await waitUntil(() => !alive(seen.pid), 1_000, `the server a unit left running (${ending || "pass"}) to be stopped when the unit ends`);
+    await waitUntil(stopped, 1_000, `the server a unit left running (${ending || "pass"}) to be stopped when the unit ends`);
     await untilGone(seen.temp, `the unit's temp folder (${ending || "pass"}) to be removed with the data folder in it`);
   }
 });
@@ -142,10 +148,10 @@ test("4.21 · a run's start stops any Postgres server in Temp left by a run that
   const temp = folder(steps, "leftovers-temp-");
   const deadRun = path.join(temp, `st-unit-${deadPid()}-AbC123`);
   const orphan = abandoned(path.join(deadRun, "db"));
-  stopLater(steps, orphan);
+  const orphanStopped = stopLater(steps, orphan);
   const legacy = path.join(temp, "storytree-local-postgres-Xy9876");
   const stale = abandoned(path.join(legacy, "stale"));
-  stopLater(steps, stale);
+  const staleStopped = stopLater(steps, stale);
   goneOwner(path.join(legacy, "stale"));
   const owned = await start({ dataDir: path.join(legacy, "owned") });
   steps.push(() => owned.stop());
@@ -154,9 +160,9 @@ test("4.21 · a run's start stops any Postgres server in Temp left by a run that
 
   sweepLeftovers({ tmp: temp });
 
-  await waitUntil(() => !alive(orphan), 10_000, "the server in a gone run's unit folder to be stopped");
+  await waitUntil(orphanStopped, 10_000, "the server in a gone run's unit folder to be stopped");
   assert.equal(existsSync(deadRun), false, "and the gone run's unit folder removed");
-  await waitUntil(() => !alive(stale), 10_000, "a server in a storytree scratch folder whose owner has gone to be stopped");
+  await waitUntil(staleStopped, 10_000, "a server in a storytree scratch folder whose owner has gone to be stopped");
   assert.equal(alive(postmaster(owned.dataDir)), true, "a server whose owner lives is left running");
   assert.equal(existsSync(liveRun), true, "a live run's unit folder is left alone");
 });

@@ -104,6 +104,9 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
   // Nor are its tests an agent's session: a command a test runs in the real project would record on the session
   // that started the run, its fixture words read as that agent's (friction_fa050a39ba6f). A test that needs one sets its own.
   for (const name of SESSION_VARIABLES) delete own[name];
+  // Nor do they inherit the run's factory folder: its plugin tests would read and write that factory's plugins
+  // instead of their own (friction_32a74f49b40f). A test that needs a factory sets its own.
+  delete own.STORYTREE_FACTORY;
   // A temp folder of the unit's own, named by each platform's variable and removed with whatever its
   // tests left in it when it ends: a run leaves nothing of its own in the system temp folder
   // (increment_74ca830203db). A Postgres a test started there is stopped first, however the unit

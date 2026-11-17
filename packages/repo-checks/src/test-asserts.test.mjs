@@ -29,6 +29,8 @@ test("8.13 pnpm lint refuses a numbered test that calls no assertion, naming fil
   const root = checkout(t, {
     "packages/a/src/thing.mjs": "export function make() { if (Math.random() > 2) throw new Error('never'); return 1; }\n",
     "packages/a/testing/check.mjs": "export function mustBeOne(value) { if (value !== 1) throw new Error('not one'); }\n",
+    "packages/a/src/inner.mjs": "import { ok } from 'node:assert';\nexport function holds(value) { ok(value); }\n",
+    "packages/a/src/index.mjs": "export * from './missing.mjs';\nexport * from './inner.mjs';\n",
     "packages/a/src/helpers.mjs": "import assert from 'node:assert/strict';\nexport const same = (a, b) => assert.equal(a, b);\nexport { same as alike };\n",
     "packages/a/src/thing.test.ts": [
       `import assert, { equal } from "node:assert/strict";`,
@@ -36,6 +38,7 @@ test("8.13 pnpm lint refuses a numbered test that calls no assertion, naming fil
       `import { make } from "./thing.mjs";`,
       `import { alike } from "./helpers.mjs";`,
       `import { mustBeOne } from "../testing/check.mjs";`,
+      `import { holds } from "./index.mjs";`,
       `function local(x: number) { [x].forEach((y) => equal(y, 1)); }`,
       `test("1.1 builds only", async () => { make(); });`,
       `test("1.2 asserts", () => { assert.equal(make(), 1); });`,
@@ -50,16 +53,17 @@ test("8.13 pnpm lint refuses a numbered test that calls no assertion, naming fil
       `test.skip("1.11 skipped", () => {});`,
       `test.todo("1.12 todo");`,
       `test("helper, not numbered", () => { make(); });`,
+      `test("1.14 helper re-exported by export *", () => holds(make()));`,
       `test("1.13 rejects", async () => { await assert.rejects(Promise.reject(new Error("x"))); });`,
       "",
     ].join("\n"),
   });
 
   assert.deepEqual(where(testAssertProblems(root)), [
-    "packages/a/src/thing.test.ts:7 1.1 builds only",
-    "packages/a/src/thing.test.ts:15 story 2.1 an it with a prefix",
-    "packages/a/src/thing.test.ts:16 1.9 parent",
-    "packages/a/src/thing.test.ts:16 1.10 sub asserts nothing",
+    "packages/a/src/thing.test.ts:8 1.1 builds only",
+    "packages/a/src/thing.test.ts:16 story 2.1 an it with a prefix",
+    "packages/a/src/thing.test.ts:17 1.9 parent",
+    "packages/a/src/thing.test.ts:17 1.10 sub asserts nothing",
   ]);
   assert.match(testAssertProblems(root)[0], /calls no assertion.*node:assert, t\.assert, or a helper that asserts/);
 });

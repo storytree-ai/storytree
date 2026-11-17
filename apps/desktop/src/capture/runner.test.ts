@@ -6,7 +6,7 @@ import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { chromium, type Browser, type Page } from "playwright-core";
+import { chromium, errors, type Browser, type Page } from "playwright-core";
 
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
@@ -16,9 +16,21 @@ import { removeTemp } from "@storytree/test-waits";
 import { browserProcess, captureSeed, closeBrowser, fakeBridge, outputFolder, pageStorage, runCapture, settle, settledMap, withCapture } from "./index.js";
 import { liveAnswers } from "./live.js";
 
+// Chrome is installed on the three CI runner images; no browser download during tests. On a starved Windows runner a
+// Chrome now and then starts and never answers on its pipe (PR #758's run waited out Playwright's whole 180 s while the
+// next launch took 41 s): a launch gets a minute, then a fresh Chrome is started in its place, at most three in all.
+async function launchChrome(): Promise<Browser> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await chromium.launch({ channel: "chrome", headless: true, timeout: 60_000 });
+    } catch (error) {
+      if (attempt === 3 || !(error instanceof errors.TimeoutError)) throw error;
+    }
+  }
+}
+
 test("2.9 · capture settling awaits each requested frame after invalidating the globe", async t => {
-  // Chrome is installed on the three CI runner images; no browser download during tests.
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await launchChrome();
   t.after(() => browser.close());
   const page = await browser.newPage();
   await page.evaluate(`(() => {
@@ -46,7 +58,7 @@ test("2.9 · capture settling awaits each requested frame after invalidating the
 });
 
 test("2.12 · a capture's stand-in bridge opens the page with the first-run guide already seen, unless the capture pictures the guide", async t => {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await launchChrome();
   t.after(() => browser.close());
   const guideSeen = async (options?: { guide: "unseen" }) => {
     const page = await browser.newPage();
@@ -62,7 +74,7 @@ test("2.12 · a capture's stand-in bridge opens the page with the first-run guid
 });
 
 test("2.16 · a capture's stand-in bridge hides every teaching card the page shows, unless the capture pictures the cards", async t => {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await launchChrome();
   t.after(() => browser.close());
   const cardsShown = async (options?: { teaching: "shown" }) => {
     const page = await browser.newPage();
@@ -80,7 +92,7 @@ test("2.16 · a capture's stand-in bridge hides every teaching card the page sho
 });
 
 test("2.56 · a capture opens its seed's map with the layouts the seed kept already on the page, and waits for the map to say it has settled", async t => {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await launchChrome();
   t.after(() => browser.close());
   const page = await browser.newPage();
   // The map's settled mark comes, goes again two frames later, then stays from the twentieth: a stand-in frame clock, as in
@@ -115,7 +127,7 @@ test("2.56 · a capture opens its seed's map with the layouts the seed kept alre
 });
 
 test("2.63 · a capture's settling, while the map says it is laying out its islands, waits until the map says it has settled", async t => {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await launchChrome();
   t.after(() => browser.close());
   const page = await browser.newPage();
   // The map's mark reads laying out until the thirtieth frame of a stand-in frame clock, as in 2.56.
@@ -134,7 +146,7 @@ test("2.63 · a capture's settling, while the map says it is laying out its isla
 });
 
 test("2.64 · a capture's stand-in bridge opens the page with the kept layouts of the shared seed the capture read, unless the capture hands it its own", async t => {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await launchChrome();
   t.after(() => browser.close());
   const kept = async (options?: { layouts: Record<string, string> }) => {
     const page = await browser.newPage();
@@ -342,7 +354,7 @@ test("2.13 · a capture whose browser disconnects but whose close never returns 
 });
 
 test("2.14 · a real capture browser whose close hangs after disconnect is killed, so its pipes no longer hold the run open", async () => {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await launchChrome();
   const child = browserProcess(browser);
   assert.ok(child?.pid, "the kit finds the process Playwright launched");
   const close = browser.close.bind(browser);

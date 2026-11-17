@@ -6,8 +6,9 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-// @ts-expect-error a probe reaching into the harness
-import { runUnit } from "../../../base-dev-loop/src/unit-run.mjs";
+import { pathToFileURL } from "node:url";
+
+const harness = ["..", "..", "..", "base-dev-loop", "src", "unit-run.mjs"].join("/");
 
 const body = (yieldFirst: boolean) => `import test, { beforeEach } from "node:test";
 import { execFileSync } from "node:child_process";
@@ -25,6 +26,8 @@ for (const yieldFirst of [false, true]) {
     const root = mkdtempSync(join(tmpdir(), "sync-start-"));
     const file = join(root, "block.test.mjs");
     writeFileSync(file, body(yieldFirst));
+    const { runUnit } = await import(new URL(harness, import.meta.url).href) as { runUnit: (o: object) => Promise<any> };
+    void pathToFileURL;
     const r = await runUnit({ root, files: [file], env: process.env, unitLimitMs: 100_000, hold: true });
     console.log(`probe ${yieldFirst ? "with" : "without"} yield: ${JSON.stringify({ code: r.code, exitHung: r.exitHung, ms: r.ms, tests: r.tests.map((t: { name: string }) => t.name) })}`);
     assert.ok(true);

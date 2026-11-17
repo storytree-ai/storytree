@@ -14,7 +14,8 @@ import { connect, createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
-import { after, test } from "node:test";
+import { after, beforeEach, test } from "node:test";
+import { setImmediate as nextTurn } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { removeTemp, waitUntil } from "@storytree/test-waits";
@@ -36,6 +37,11 @@ const toolAccount = serverAccount();
 const servers = new Set<LocalPostgres>();
 const holders = new Set<ChildProcess>();
 
+// A test here may start with minutes of synchronous work on Windows (initdb, pg_ctl, PowerShell making
+// a sign-in private), which holds back the runner's word that it started: the harness then reads the
+// file as ended and idle and kills it (CI, PRs #694 and #712). One turn of the event loop first sends it.
+beforeEach(() => nextTurn());
+
 after(async () => {
   for (const holder of holders) holder.kill();
   for (const server of servers) await server.stop().catch(() => {});
@@ -44,7 +50,10 @@ after(async () => {
     const dataDir = path.join(root, entry);
     if (existsSync(path.join(dataDir, "PG_VERSION")) && serverRunning(dataDir)) pgCtl(["-D", dataDir, "-m", "immediate", "-w", "stop"]);
   }
-  await removeTemp(root);
+  // Briefly: the harness gives a file's end 20 s, and Windows can hold a just-stopped server's files
+  // for 40 s (the hang after the last test, PR #802); under the harness, the unit's temp folder, root's
+  // parent, is removed after the unit ends.
+  await removeTemp(root, 2_000);
 });
 
 test("1.1, 1.2 the binaries come from this machine's @embedded-postgres package, and on Windows arm64 from the x64 one, run under emulation", () => {

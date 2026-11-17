@@ -97,9 +97,13 @@ test("4.1 historical ranges retain deleted and renamed proof, ignore dirty state
   assert.deepEqual(linked.rows!.map(row => row.path), ["linked note.md"]);
 });
 
-test("4.1 a range of hundreds of thousands of dots is refused without stalling, and a range missing a ref on one side is refused", { timeout: 20_000 }, async t => {
+test("4.1 a range of hundreds of thousands of dots is refused without stalling, and a range missing a ref on one side is refused", async t => {
   const repo = await repository(t);
-  await assert.rejects(focusProject(repo.library, repo.folder, { select: `diff:a${"..".repeat(200_000)}\n` }), /needs both refs/);
+  // The stall bound times only the refusal: the git repository it needs takes most of 20 s to build on a loaded Windows runner.
+  await t.test("the refusal does not stall", { timeout: 20_000 }, async () => {
+    await assert.rejects(focusProject(repo.library, repo.folder, { select: `diff:a${"..".repeat(200_000)}\n` }), /needs both refs/);
+    await new Promise(resolve => setTimeout(resolve, 0)); // a stalled refusal now fails at the timeout, which settles only on a timer turn
+  });
   for (const range of ["main..", "..main"]) await assert.rejects(focusProject(repo.library, repo.folder, { select: `diff:${range}` }), /needs both refs/);
 });
 

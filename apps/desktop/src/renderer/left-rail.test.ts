@@ -53,8 +53,9 @@ test("2.8 · the left rail and the forest beside it start directly below the 48 
     const page = await browser.newPage({ viewport, deviceScaleFactor: 1, colorScheme: "dark" });
     await bridge.install(page);
     await page.goto(`${origin}/index.html`, { waitUntil: "domcontentloaded", timeout: 180_000 });
+    // The rail is mounted before the page says it is ready, so it is measured at once: a locator's wait for it, with the rail
+    // already there, ran past its 30 s on a loaded Windows runner.
     await page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: 180_000 });
-    await page.locator(".side-rail").waitFor();
     const boxes = await page.evaluate(() => Object.fromEntries([".app-bar", ".side-rail", "main > .forest"].map((selector) => {
       const { left, top, right, bottom } = document.querySelector(selector)!.getBoundingClientRect();
       return [selector, { left, top, right, bottom }];
@@ -77,8 +78,8 @@ test("2.46 · while the left rail is resized, collapsed or shown again, the map 
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1, colorScheme: "dark" });
   await bridge.install(page);
   await page.goto(`${origin}/index.html`, { waitUntil: "domcontentloaded", timeout: 180_000 });
+  // Ready means the rail is mounted (as in 2.8), so nothing waits for it.
   await page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: 180_000 });
-  await page.locator(".side-rail").waitFor();
   /** The rail's right edge (0 when it is collapsed), and the forest's and its drawing's boxes, once the drawing has followed. */
   const beside = async (state: string) => {
     await page.waitForFunction(() => {

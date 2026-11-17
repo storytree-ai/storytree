@@ -543,3 +543,124 @@ for (const backend of [memory, postgres]) {
     }
   });
 }
+
+const DRILL_LAYERS = ["test-writer", "builder", "lint", "tests", "mutation", "test-reviewer", "code-reviewer", "ci-linux", "ci-windows"] as const;
+type DrillResult = "caught" | "missed" | "not-run";
+
+/** One layer row per result, in the fixed order, each with evidence a red-team session would record. */
+function drillLayers(results: readonly DrillResult[]): { layer: string; result: DrillResult; evidence: string }[] {
+  assert.equal(results.length, DRILL_LAYERS.length, "the fixture gives a result for each of the nine layers");
+  return DRILL_LAYERS.map((layer, at) => ({ layer, result: results[at]!, evidence: `${layer}: ${results[at]} on packages/map/src/read.ts at scratch head 3f9c2a1b` }));
+}
+
+for (const backend of [memory, postgres]) {
+  test(`6.23 [${backend.label}] a red-team drill is saved with the live escape it replants, its plant, mode, each layer's result in the fixed order, the first catching layer, the fixer from the fixed table, a same-model flag on a reviewer catch, its session and date; a drill naming no live escape, a disagreeing first layer or fixer, a Windows leg that ran, or a defect drill whose test writer or builder ran is refused`, async () => {
+    const { knowledge, transactions, cleanup } = await backend.open();
+    try {
+      const escape = await knowledge.writeKnowledge("escape", {
+        title: "A path joined with / that breaks on Windows",
+        description: "3.112 failed on Windows at a head and passed once the join was fixed",
+        instance: { run: 19234567890, pr: 941, head: "8d402aeb1234", test: "3.112 · the pins read" },
+        caughtAt: "ci" as const,
+        reasoning: "It failed at 8d402aeb and passed only after the pull request changed packages/forest, the unit it is in",
+        construct: "a path built with a literal / and read on Windows",
+        elsewhere: "packages/map/src/read.ts, packages/cli/src/front-door.ts",
+        generalises: "yes" as const,
+        generalisesWhy: "nameable, two other places, a lint shape can see it",
+      });
+      const base = {
+        title: "Drill: a / join replanted in the map's reader",
+        description: "The Windows path pattern replanted as a template-string join in the map's file reader",
+        pattern: escape.id,
+        plant: { story: "story_bbbbbbbbbbbb", capability: "capability_cccccccccccc", file: "packages/map/src/read.ts", shape: "a template string `${root}/${name}` handed to readFile" },
+        session: "red-team-lane-7f3a",
+        date: "2026-11-18",
+      };
+      const nr = "not-run", m = "missed", c = "caught";
+
+      for (const [why, drill] of [
+        ["a defect drill caught first by mutation, then by the test reviewer, goes to the test writer", { mode: "defect", layers: drillLayers([nr, nr, m, m, c, c, m, m, nr]), caughtBy: "mutation", fixer: "test-writer" }],
+        ["a defect drill caught first by the code reviewer, the same model as the planter, goes to the builder", { mode: "defect", layers: drillLayers([nr, nr, m, m, m, m, c, c, nr]), caughtBy: "code-reviewer", fixer: "builder", sameModel: true }],
+        ["a defect drill no layer caught escaped", { mode: "defect", layers: drillLayers([nr, nr, m, m, nr, m, m, m, nr]), caughtBy: "none", fixer: "escaped" }],
+        ["a task drill caught by the test writer goes to the builder", { mode: "task", layers: drillLayers([c, m, m, c, m, m, m, m, nr]), caughtBy: "test-writer", fixer: "builder" }],
+        ["a task drill caught first by the builder goes to the builder", { mode: "task", layers: drillLayers([m, c, m, m, m, m, m, m, nr]), caughtBy: "builder", fixer: "builder" }],
+        ["a drill caught first by lint goes to the builder", { mode: "defect", layers: drillLayers([nr, nr, c, c, m, m, m, m, nr]), caughtBy: "lint", fixer: "builder" }],
+        ["a drill caught first by the tests goes to the builder", { mode: "defect", layers: drillLayers([nr, nr, m, c, m, m, m, m, nr]), caughtBy: "tests", fixer: "builder" }],
+        ["a drill caught first by the test reviewer, another model, goes to the test writer", { mode: "defect", layers: drillLayers([nr, nr, m, m, m, c, m, m, nr]), caughtBy: "test-reviewer", fixer: "test-writer", sameModel: false }],
+        ["a drill caught first by CI's Linux leg goes to the watcher's fix session", { mode: "defect", layers: drillLayers([nr, nr, m, m, m, m, m, c, nr]), caughtBy: "ci-linux", fixer: "watcher-fix-session" }],
+      ] as const) {
+        const fields = { ...base, ...drill };
+        const saved = await knowledge.writeKnowledge("drill", fields as never);
+        assert.equal(saved.type, "drill", why);
+        assert.deepEqual((await transactions.get(saved.id))?.fields, fields, `${why}: it reads back as given`);
+      }
+
+      const caughtByMutation = { ...base, mode: "defect", layers: drillLayers([nr, nr, m, m, c, c, m, m, nr]), caughtBy: "mutation", fixer: "test-writer" };
+      const caughtByReviewer = { ...base, mode: "defect", layers: drillLayers([nr, nr, m, m, m, m, c, m, nr]), caughtBy: "code-reviewer", fixer: "builder", sameModel: false };
+      const caughtByNone = { ...base, mode: "defect", layers: drillLayers([nr, nr, m, m, m, m, m, m, nr]), caughtBy: "none", fixer: "escaped" };
+      const { pattern: _pattern, ...unpatterned } = caughtByMutation;
+      const { sameModel: _sameModel, ...unflagged } = caughtByReviewer;
+      const { shape: _shape, ...shapeless } = base.plant;
+      const swapped = drillLayers([nr, nr, m, m, c, c, m, m, nr]);
+      [swapped[2], swapped[3]] = [swapped[3]!, swapped[2]!];
+
+      const before = await transactions.history();
+      for (const [field, wrong, why] of [
+        ["description", { ...caughtByMutation, description: "" }, "a drill says what it planted"],
+        ["pattern", unpatterned, "a drill names the escape pattern it replants"],
+        ["plant", { ...caughtByMutation, plant: shapeless }, "a plant gives its shape in one line"],
+        ["plant", { ...caughtByMutation, plant: { ...base.plant, file: "" } }, "a plant names its file"],
+        ["plant", { ...caughtByMutation, plant: { ...base.plant, line: 42 } }, "a plant holds its story, capability, file and shape, and nothing else"],
+        ["mode", { ...caughtByMutation, mode: "drill" }, "a drill is a planted defect or a planted task"],
+        ["layers", { ...caughtByMutation, layers: drillLayers([nr, nr, m, m, c, c, m, m, nr]).slice(0, 8) }, "a drill gives every layer's result, CI's Windows leg included"],
+        ["layers", { ...caughtByMutation, layers: swapped }, "the layers are in the fixed order"],
+        ["layers", { ...caughtByMutation, layers: drillLayers([nr, nr, m, m, c, c, m, m, nr]).map((row, at) => (at === 7 ? { ...row, layer: "lint" } : row)) }, "each layer is given once"],
+        ["layers", { ...caughtByMutation, layers: drillLayers([nr, nr, m, m, c, c, m, m, nr]).map((row, at) => (at === 2 ? { ...row, result: "skipped" } : row)) }, "a layer's result is caught, missed or not-run"],
+        ["layers", { ...caughtByMutation, layers: drillLayers([nr, nr, m, m, c, c, m, m, nr]).map((row, at) => (at === 3 ? { ...row, evidence: "" } : row)) }, "a layer's result carries its evidence"],
+        ["layers", { ...caughtByMutation, layers: drillLayers([nr, nr, m, m, c, c, m, m, c]) }, "CI's Windows leg is not run, so it caught nothing"],
+        ["layers", { ...caughtByMutation, layers: drillLayers([nr, nr, m, m, c, c, m, m, m]) }, "CI's Windows leg is not run, so it missed nothing"],
+        ["layers", { ...caughtByMutation, layers: drillLayers([m, nr, m, m, c, c, m, m, nr]) }, "a planted defect skips the test writer"],
+        ["layers", { ...caughtByMutation, layers: drillLayers([nr, m, m, m, c, c, m, m, nr]) }, "a planted defect skips the builder"],
+        ["caughtBy", { ...caughtByMutation, caughtBy: "test-reviewer", sameModel: false }, "the first catching layer is the first, not a later one that also caught it"],
+        ["caughtBy", { ...caughtByMutation, caughtBy: "none", fixer: "escaped" }, "a drill some layer caught was not caught by none"],
+        ["caughtBy", { ...caughtByNone, caughtBy: "lint", fixer: "builder" }, "a drill no layer caught names no catching layer"],
+        ["fixer", { ...caughtByMutation, fixer: "builder" }, "a mutation survivor goes to the test writer"],
+        ["fixer", { ...caughtByReviewer, fixer: "test-writer" }, "a code reviewer's catch goes to the builder"],
+        ["fixer", { ...caughtByNone, fixer: "builder" }, "a drill no layer caught escaped"],
+        ["fixer", { ...caughtByMutation, fixer: "owner" }, "the fixer is one of the table's four"],
+        ["sameModel", unflagged, "a reviewer's catch says whether the reviewer was the planter's model"],
+        ["sameModel", { ...caughtByMutation, sameModel: true }, "only a reviewer's catch carries the same-model flag"],
+        ["sameModel", { ...caughtByReviewer, sameModel: "yes" }, "the same-model flag is true or false"],
+        ["session", { ...caughtByMutation, session: "" }, "a drill names the session that ran it"],
+        ["date", { ...caughtByMutation, date: "17/11/2026" }, "a drill's date is a day written YYYY-MM-DD"],
+        ["date", { ...caughtByMutation, date: "2026-11-17T09:00:00Z" }, "a drill's date is a day, not a moment"],
+      ] as const) {
+        await assert.rejects(
+          knowledge.writeKnowledge("drill", wrong as never),
+          (error: unknown) => error instanceof SchemaError && assert.deepEqual(error.fields, [field], why) === undefined,
+          why,
+        );
+      }
+      assert.deepEqual(await transactions.history(), before, "nothing was written");
+
+      const rule = await knowledge.writeKnowledge("principle", { title: "Paths are joined, never built", description: "One line", statement: "S", why: "W", howToApply: "H" } as never);
+      const retired = await knowledge.writeKnowledge("escape", { ...escape.fields, title: "A retired escape" } as never);
+      await transactions.retire({ id: retired.id, reason: "judged a duplicate" });
+      const settled = await transactions.history();
+      for (const [id, why] of [
+        ["escape_000000000000", "a drill naming no stored escape is refused"],
+        [rule.id, "a drill naming a principle, not an escape pattern, is refused"],
+        [retired.id, "a drill naming a retired escape pattern is refused"],
+      ] as const) {
+        await assert.rejects(
+          knowledge.writeKnowledge("drill", { ...caughtByMutation, pattern: id } as never),
+          (error: unknown) => error instanceof MissingReferenceError && error.field === "pattern" && error.id === id,
+          why,
+        );
+      }
+      assert.deepEqual(await transactions.history(), settled, "nothing was written");
+    } finally {
+      await cleanup();
+    }
+  });
+}

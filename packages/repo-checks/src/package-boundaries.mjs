@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "./rules/package-rule/package-rule.ts";
 
 /** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1078 rule 4). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-harvest", "ci-health", "claude-code-mod", "cli", "forest", "forest-world", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "repo-checks", "service-host", "session-management", "shown-words", "surface-feedback", "teaching-cards", "test-waits"];
+export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-harvest", "ci-health", "claude-code-mod", "cli", "forest", "forest-world", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "property-checks", "repo-checks", "service-host", "session-management", "shown-words", "surface-feedback", "teaching-cards", "test-waits"];
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3).
 // app-setup: story_b91056a06337 (Setup), which holds Journey events in src/journey-events (ADR-1076 D3).
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
@@ -34,6 +34,7 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-d
 // mcp-server: The MCP server, ADR-0969 D1, which reads its own tools' use (ADR-1071 D3).
 // repo-checks: story_c27bd2a8f61e (Storytree's own repository checks, ADR-1199): the checks this repository runs on every pull request, these declarations among them.
 // project-and-caller: story_6def59292b78 (Context, ADR-1025), which owns identity too (ADR-1066 D4).
+// property-checks: story_c4838b46de87 (Property checks, ADR-1355 D4, ADR-1356 D3-D4): only tests import it; fast-check is a dev dependency.
 // plugin-loader: story_09e58d68f87c (Plugin loader, ADR-1021).
 // teaching-cards: story_4b5db00e51a0 (Teaching cards, ADR-1196 D1), out of Website again: no counted caller since the tour stopped using them.
 // mark: story_08790ee19bbf (Marketing artifacts, ADR-1071 D3), out of Website again.

@@ -3,12 +3,13 @@
  * Postgres `pnpm test` provides, in a fresh project dropped afterwards.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
+import { removeTemp } from "@storytree/test-waits";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
@@ -188,16 +189,21 @@ test("20.2 the measures print per story and per capability as median, middle hal
     const folder = mkdtempSync(path.join(tmpdir(), "measures-"));
     try {
       const context = {
-        log, library, project, session: "me", folder, server: {} as never,
+        log, library, project, session: "me", folder, server: {} as never, placeFiles: async () => [],
         projectRecords: async () => [{ name: "Other" }, { name: "QA ledger", reviewRounds: async (_server: unknown, asked: string, increments: readonly string[]) => new Map(increments.map((id) => [id, asked === project ? 4 : 0])) }],
       };
       const answer = await family.bare!.act({ from: "2026-11-10", to: "2026-11-10", json: true }, context as never, {} as never);
       const report = JSON.parse(answer.text) as { rows: LaneRow[] };
       assert.deepEqual(report.rows.map((one) => [one.increment, one.rounds]), [[inc.built, 4]]);
+      assert.match(report.rows[0]!.unattributed.files!, /#5's merge is not on the checkout's main line/, "a folder with no git history finds no pull request's merge");
+      // With no days given, the window is the seven days to today.
+      const today = new Date().toISOString().slice(0, 10);
+      const week = JSON.parse((await family.bare!.act({ json: true }, context as never, {} as never)).text) as { window: { from: string; to: string } };
+      assert.deepEqual(week.window, { from: new Date(Date.parse(`${today}T00:00:00Z`) - 6 * 86_400_000).toISOString().slice(0, 10), to: today });
       await assert.rejects(family.bare!.act({ from: "2026-11-31", json: false }, context as never, {} as never), /not a day/);
       await assert.rejects(family.bare!.act({ from: "2026-11-12", to: "2026-11-10", json: false }, context as never, {} as never), /after --to/);
     } finally {
-      rmSync(folder, { recursive: true, force: true });
+      await removeTemp(folder);
     }
   });
 });

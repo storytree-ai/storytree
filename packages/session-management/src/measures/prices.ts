@@ -1,7 +1,7 @@
 /**
  * Capability 20 · Lane measures: list-price dollars (contract 20.1). Anthropic's first-party list prices per million
  * tokens, as published when this was written (2026-11-17), for the models a lane runs; a cache write kept five minutes
- * costs 1.25 times the input price and one kept an hour twice it. A model not listed here has no price, so the lane's
+ * costs 1.25 times the input price and one kept an hour twice it. A model not listed here, by its exact id, has no price, so the lane's
  * dollars are unattributed rather than guessed; list a model here when lanes start running it.
  */
 import type { ModelUsage } from "../context/index.js";
@@ -21,20 +21,12 @@ export const LIST_PRICES: Readonly<Record<string, ListPrice>> = {
   "claude-haiku-4-5": { input: 1, cacheRead: 0.1, output: 5 },
 };
 
-/** The list price of `model`, by its exact id or that id with a date or context suffix after it; undefined when none is listed. */
-function priceOf(model: string): ListPrice | undefined {
-  const exact = LIST_PRICES[model];
-  if (exact !== undefined) return exact;
-  const base = Object.keys(LIST_PRICES).filter((id) => model.startsWith(`${id}-`) || model.startsWith(`${id}[`)).sort((a, b) => b.length - a.length)[0];
-  return base === undefined ? undefined : LIST_PRICES[base];
-}
-
 /** The dollars `bill` comes to at list price, or the models it names that have no list price. */
 export function dollarsOf(bill: ReadonlyMap<string, ModelUsage>): { dollars: number } | { unpriced: string[] } {
   let dollars = 0;
   const unpriced: string[] = [];
   for (const [model, usage] of bill) {
-    const price = priceOf(model);
+    const price = LIST_PRICES[model];
     if (price === undefined) {
       unpriced.push(model);
       continue;

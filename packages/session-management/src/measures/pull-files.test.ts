@@ -3,10 +3,12 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { pullFiles } from "./pull-files.js";
 
@@ -30,6 +32,6 @@ test("20.3 a pull request's changed files are read from its merge commit on the 
     assert.deepEqual(await filesOf(7), ["a.ts", "b.ts"], "the merge's files against its first parent, not main's own change");
     assert.equal(await filesOf(8), undefined);
   } finally {
-    rmSync(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });

@@ -328,6 +328,9 @@ importers:
       '@storytree/test-waits':
         specifier: workspace:*
         version: link:../test-waits
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
 
   packages/ci-health:
     dependencies:

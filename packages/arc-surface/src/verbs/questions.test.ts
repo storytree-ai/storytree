@@ -238,9 +238,13 @@ test("3.43 · question list and arc waits with --project all read every library 
     assert.match((verb.command as { usage?: string }).usage ?? "", /\[--project <project\|all>\]$/, `${family} ${name}`);
   }
   const questions = await run("question", "list", { arc: undefined, project: ["all"] });
-  const [own, theirs] = questions.split("\n\n");
-  assert.ok(own!.startsWith(`project ${factoryName}:\n`) && own!.includes(toolQuestion.id) && !own!.includes(siteQuestion.id), questions);
-  assert.ok(theirs!.startsWith(`project ${productName}:\n`) && theirs!.includes(siteQuestion.id), questions);
+  // The shared test Postgres holds other tests' projects too, so the circle may name one it could not open
+  // (dropped mid-read) between these two: find the product's section by its name, not its position.
+  const sections = questions.split("\n\n");
+  const own = sections[0]!;
+  const theirs = sections.find((section) => section.startsWith(`project ${productName}:\n`));
+  assert.ok(own.startsWith(`project ${factoryName}:\n`) && own.includes(toolQuestion.id) && !own.includes(siteQuestion.id), questions);
+  assert.ok(theirs !== undefined && theirs.includes(siteQuestion.id), questions);
   const waits = await run("arc", "waits", { audit: false, project: ["all"] });
   assert.match(waits, new RegExp(`^project ${factoryName}:\\nNo waits[\\s\\S]*\\n\\nproject ${productName}:\\n1 wait for you[\\s\\S]*you +Buy the domain \\(why: the site needs it\\) — ${domain.id}`));
   assert.doesNotMatch(await run("question", "list", { arc: undefined }), new RegExp(siteQuestion.id), "named nowhere, it reads the folder's own");

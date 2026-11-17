@@ -75,20 +75,20 @@ test("3.63 with --test-guard by-agent only the test-writer agent edits test code
     assert.equal(await byAgent(harness, "test-writer", ["src/cart.test.ts"]), undefined, `${harness}: test writer edits a test`);
     assert.equal(await byAgent(harness, "test-writer", ["src/testing/fake-shop.ts"]), undefined, `${harness}: test writer edits test support`);
     const toBuilder = refused(await byAgent(harness, "test-writer", ["src/cart.ts"]));
-    assert.match(toBuilder, /src\/cart\.ts/);
+    assert.match(toBuilder, /src[\\/]cart\.ts/);
     assert.match(toBuilder, /\bbuilder\b/);
 
     // The builder, any other agent and the session itself: code goes through, test code is refused and handed to the test writer.
     for (const agent of ["builder", "explorer", undefined]) {
       assert.equal(await byAgent(harness, agent, ["src/cart.ts"]), undefined, `${harness}: ${agent ?? "the session"} edits code`);
       const toWriter = refused(await byAgent(harness, agent, ["src/cart.test.ts"]));
-      assert.match(toWriter, /src\/cart\.test\.ts/);
+      assert.match(toWriter, /src[\\/]cart\.test\.ts/);
       assert.match(toWriter, /test-writer/);
     }
   }
   // A Codex patch is judged by every path it names: one test file among code is refused to the builder.
-  assert.match(refused(await byAgent("codex", "builder", ["src/cart.ts", "src/fixtures/cart.json"])), /src\/fixtures\/cart\.json/);
-  assert.match(refused(await byAgent("codex", "test-writer", ["src/cart.test.ts", "src/cart.ts"])), /src\/cart\.ts/);
+  assert.match(refused(await byAgent("codex", "builder", ["src/cart.ts", "src/fixtures/cart.json"])), /src[\\/]fixtures[\\/]cart\.json/);
+  assert.match(refused(await byAgent("codex", "test-writer", ["src/cart.test.ts", "src/cart.ts"])), /src[\\/]cart\.ts/);
 
   // A tool that edits no file, or an input it cannot read, is let through.
   assert.equal(await runHook({ argv: ["codex", TEST_GUARD, "by-agent"], input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s1", cwd: folder, agent_type: "builder", tool_name: "Bash", tool_input: { command: "ls" } }) }), undefined);

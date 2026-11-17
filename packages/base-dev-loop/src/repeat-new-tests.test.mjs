@@ -37,7 +37,7 @@ function write(dir, files) {
 test("6.1 · the tests a change adds are its numbered tests whose titles open on added lines, less one reworded in its file, moved or renumbered, or written in a string", (t) => {
   const { dir, git } = repository(t, {
     "a.test.mjs": `import { test } from "node:test";\ntest("1.1 · old", () => { kept(); });\ntest("1.3 · reworded", () => { before(); });\n`,
-    "b.test.mjs": `import { test } from "node:test";\ntest("2.1 · moving", () => {\n  movingBody();\n});\n`,
+    "b.test.mjs": `import { test } from "node:test";\ntest("2.1 · moving", () => {\n  movingBody();\n});\ntest("2.2 · moving twin", () => {\n  movingBody();\n});\n`,
     "src/c.mjs": `export const c = 1;\n`,
   });
   write(dir, {
@@ -45,7 +45,9 @@ test("6.1 · the tests a change adds are its numbered tests whose titles open on
       + `const fixture = 'test("1.9 · in a string", () => {})';\ntest("helper, not numbered", () => {});\n`
       + `test("1.3 · reworded", () => { after(); });\n`,
     "b.test.mjs": null,
-    "c.test.mjs": `import { test } from "node:test";\ntest("3.1 · moved", () => {\n  movingBody();\n});\ntest("3.2 · also new", () => {});\n`,
+    "c.test.mjs": `import { test } from "node:test";\ntest("3.1 · moved", () => {\n  movingBody();\n});\ntest("3.2 · also new", () => {});\n`
+      + `test("3.3 · moved twin", () => {\n  movingBody();\n});\ntest("3.4 · new, with a moved test's body", () => {\n  movingBody();\n});\n`
+      + `test("3.5 · it\\u2019s \\"escaped\\"", () => {});\n`,
     "src/c.mjs": `export const c = 2;\ntest("4.1 · not a test file", () => {});\n`,
   });
   git("add", "-A");
@@ -54,7 +56,8 @@ test("6.1 · the tests a change adds are its numbered tests whose titles open on
   git("add", "d.test.mjs");
 
   assert.deepEqual(changeNewTests(dir).map(({ file, test }) => `${file} › ${test}`).sort(),
-    ["a.test.mjs › 1.2 · new", "c.test.mjs › 3.2 · also new", "d.test.mjs › 5.1 · uncommitted"]);
+    ["a.test.mjs › 1.2 · new", "c.test.mjs › 3.2 · also new", "c.test.mjs › 3.4 · new, with a moved test's body",
+      "c.test.mjs › 3.5 · it\u2019s \"escaped\"", "d.test.mjs › 5.1 · uncommitted"]);
 });
 
 test("6.2 · each new test runs five times through the test entry, old tests never; a failure among the repeats fails the run naming it flaky, and no new test runs nothing", (t) => {
@@ -98,4 +101,11 @@ test("1.2 · new (flaky)", () => {
   assert.deepEqual(lines.filter((line) => line.startsWith("flaky:")),
     ["flaky: a.test.mjs › 1.2 · new (flaky) failed 1 of 5 repeats. A new test that does not pass every time is weak: investigate it (ADR-1352), never file it as friction."]);
   assert.ok(!readFileSync(path.join(dir, ".pgtest", "red-runs.jsonl"), "utf8").includes("1.1 · old"));
+
+  // A repeat that fails naming none of the new tests (its process died before any test ended) names their file.
+  writeFileSync(path.join(dir, "dies.mjs"), "process.exit(1);\n");
+  lines.length = 0;
+  assert.equal(repeatTests({ root: dir, tests: changeNewTests(dir), times: 2, entry: [path.join(dir, "dies.mjs")], env, print: (line) => lines.push(line) }), 1);
+  assert.deepEqual(lines.filter((line) => line.startsWith("flaky:")),
+    ["flaky: a.test.mjs failed 2 of 2 repeats. A new test that does not pass every time is weak: investigate it (ADR-1352), never file it as friction."]);
 });

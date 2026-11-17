@@ -78,8 +78,8 @@ function newEdge(main, branch, off, part, because) {
   }
   const way = [because];
   while (before.get(way[0]) !== undefined) way.unshift(before.get(way[0]));
-  for (let at = 0; at + 1 < way.length; at++) if (!(main[way[at]] ?? []).includes(way[at + 1])) return [way[at], way[at + 1]];
-  return [way.at(-2) ?? part, because];
+  // A way wholly on origin/main's graph would take the part off there too, so one of its edges is new.
+  return way.slice(1).map((to, index) => [way[index], to]).find(([from, to]) => !(main[from] ?? []).includes(to));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

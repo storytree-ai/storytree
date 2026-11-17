@@ -23,7 +23,9 @@ function workspace(t) {
   git(root, "init", "-q", "-b", "main");
   write(root, "library", { storytree: {} });
   write(root, "agent-pool", { dependencies: { "@storytree/library": "workspace:*" }, storytree: { services: [] } });
+  write(root, "glue", { dependencies: { "@storytree/library": "workspace:*" }, storytree: { verbs: [] } });
   write(root, "ci-health", { dependencies: { "@storytree/library": "workspace:*", pg: "^8" }, storytree: { verbs: [] } });
+  write(root, "reports", { dependencies: { "@storytree/glue": "workspace:*" }, storytree: { verbs: [] } });
   write(root, "repo-checks", { dependencies: { "@storytree/ci-health": "workspace:*" }, storytree: { gateSteps: [] } });
   git(root, "add", ".");
   git(root, "commit", "-q", "-m", "main");
@@ -46,4 +48,10 @@ test("8.15 · pnpm gate fails a branch under which a part mounted on origin/main
 
   write(root, "ci-health", { dependencies: { "@storytree/library": "workspace:*" }, devDependencies: { "@storytree/agent-pool": "workspace:*" }, storytree: { verbs: [] } });
   assert.deepEqual(unmountedParts(root, ["agent-pool"]), [], "a services part taken as a development dependency draws no edge");
+
+  write(root, "glue", { dependencies: { "@storytree/library": "workspace:*", "@storytree/agent-pool": "workspace:*" }, storytree: { verbs: [] } });
+  assert.deepEqual(unmountedParts(root, ["agent-pool"]), [
+    "glue mounts on origin/main but is switched off here on this branch: its new edge glue → agent-pool stands it on agent-pool, which this computer switches off",
+    "reports mounts on origin/main but is switched off here on this branch: its new edge glue → agent-pool stands it on agent-pool, which this computer switches off",
+  ], "a part reaching the switched-off one through a part it already stood on is named with the edge one hop further on");
 });

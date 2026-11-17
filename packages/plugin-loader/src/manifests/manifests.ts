@@ -19,7 +19,7 @@ export interface StoryPart {
   readonly export: string;
 }
 
-interface PackageJson {
+export interface PackageJson {
   readonly name?: string;
   readonly exports?: unknown;
   readonly dependencies?: Record<string, string>;
@@ -100,16 +100,27 @@ const declaresServices = (pkg: PackageJson | undefined): boolean => manifested(p
  * takes the agent runner it mounts (contract 4.4), but with no edge from the one taking it, which stays on without it.
  */
 export function partsGraph(host: string): PartsGraph {
+  return partsGraphOf(dependencies(host).map(({ name }) => name), host, installedAt);
+}
+
+/** A package.json and the folder its own dependencies are found from, as `find` gives it for a name. */
+export type FoundPackage = { readonly pkg: PackageJson; readonly dir: string };
+
+/**
+ * The parts graph reached from `names`, found from `from`, each package found by `find(name, from)`: partsGraph's rule
+ * over packages read any way, as storytree's own gate reads them at another commit (repository checks' 8.15).
+ */
+export function partsGraphOf(names: readonly string[], from: string, find: (name: string, from: string) => FoundPackage | undefined): PartsGraph {
   const graph: Record<string, string[]> = {};
   const visit = (name: string, from: string): void => {
-    const found = installedAt(name, from);
+    const found = find(name, from);
     if (!manifested(found?.pkg) || Object.hasOwn(graph, partName(name))) return;
-    const standsOn = Object.keys(found!.pkg.dependencies ?? {}).filter((one) => manifested(installedAt(one, found!.dir)?.pkg));
+    const standsOn = Object.keys(found!.pkg.dependencies ?? {}).filter((one) => manifested(find(one, found!.dir)?.pkg));
     graph[partName(name)] = standsOn.map(partName).sort();
     for (const one of standsOn) visit(one, found!.dir);
-    for (const one of Object.keys(found!.pkg.devDependencies ?? {})) if (declaresServices(installedAt(one, found!.dir)?.pkg)) visit(one, found!.dir);
+    for (const one of Object.keys(found!.pkg.devDependencies ?? {})) if (declaresServices(find(one, found!.dir)?.pkg)) visit(one, found!.dir);
   };
-  for (const { name } of dependencies(host)) visit(name, host);
+  for (const name of names) visit(name, from);
   return Object.fromEntries(Object.entries(graph).sort(([a], [b]) => a.localeCompare(b)));
 }
 

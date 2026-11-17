@@ -13,7 +13,10 @@
 // (evidence-check.mjs, ADR-1234 D1); it reads only files, so CI runs it too.
 // check:capability-list (ADR-0949 D3) fails a branch that changes a capability its increment does not list; a
 // branch whose name carries no increment is NOT RUN with that reason.
+// check:mounted-parts (mounted-parts.mjs, contract 8.15) fails a branch whose new dependency edge takes a part
+// mounted on origin/main off under the parts this computer switches off; where it switches none off it is NOT RUN.
 import { capabilityListFor } from "./capability-list.mjs";
+import { mountedPartsFor } from "./mounted-parts.mjs";
 
 const node = (...args) => ({ command: process.execPath, args: ["--import", "tsx", ...args], shell: false });
 // The gate runs in a checkout, whose branch Git knows; CI's own run of the check reads its pull request's.
@@ -26,4 +29,5 @@ export const gateSteps = [
   { name: "check:secrets", command: () => node("packages/repo-checks/src/leak-scan.mjs", "--secrets") },
   { name: "check:evidence", command: () => node("packages/repo-checks/src/evidence-check.mjs") },
   { name: "check:capability-list", when: listed, command: () => node("packages/repo-checks/src/capability-list.mjs") },
+  { name: "check:mounted-parts", when: (options) => mountedPartsFor(options), command: () => node("packages/repo-checks/src/mounted-parts.mjs") },
 ];

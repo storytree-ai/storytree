@@ -2,8 +2,8 @@
 // becomes like a looking glass a microscope that allows you to adjust the zoom level and drill into individual level
 // capabilities"): The library's island alone, from a fresh seed and code survey built from the library and this checkout
 // (the committed snapshot predates the survey's parts), as the app opens it. A capability's territory clicked on the island
-// opens the panel; the story's name opens the story alone, its microscope showing its capabilities; one chosen in the
-// microscope re-roots the panel on it, its parts filling the microscope with their gates named; 26 · Rounds, whose code is
+// opens the panel; the story's name opens the story alone, its microscope showing its capabilities; the one whose code holds the most parts, chosen in the
+// microscope, re-roots the panel on it, its parts filling the microscope with their gates named; 26 · Rounds, whose code is
 // one part (librarian) holding parts of its own, opens two levels down, its breadcrumb back up. `node --import tsx
 // capture.mjs <name>` (append --retake to write into src/view/evidence/panel-microscope). Measures, from the page, each
 // level the microscope shows: its breadcrumb, its parts and its gates.
@@ -20,11 +20,18 @@ const name = process.argv.slice(2).find(a => !a.startsWith('--')) ?? 'after';
 const fresh = await seedHolding(['The library'], { committed: () => ({ seed: { tree: { stories: [] } }, survey: {} }) });
 const library = fresh.seed.tree.stories.find(story => story.title === 'The library');
 // The library's island alone (every island laid out from nothing takes the box tens of minutes): the other stories are kept
-// by name, bare (no capabilities, no survey of their own), so the gates to their islands are named as the app names them;
-// The library's survey alone names its roads out, so its gates are those its own code reaches.
-const others = fresh.seed.tree.stories.filter(story => story !== library).map(story => ({ ...story, capabilities: [], edges: [] }));
-const seed = { ...fresh.seed, tree: { ...fresh.seed.tree, stories: [library, ...others] } }, survey = { [library.id]: fresh.survey[library.id] };
+// by name, bare (no capabilities), so the gates to their islands are named as the app names them. Every story's survey
+// keeps its roads (the other stories' files left out, which would lay their islands out), so the library's gates are those
+// its own code reaches and those the other stories' code reaches it by, as in the app. Desktop app, the one story carrying
+// extra checks, keeps its capabilities, so its panel shows them behind their closed handle (4.52).
+const desktop = fresh.seed.tree.stories.find(story => story.title === 'Desktop app');
+const others = fresh.seed.tree.stories.filter(story => story !== library).map(story => story === desktop ? story : { ...story, capabilities: [], edges: [] });
+const seed = { ...fresh.seed, tree: { ...fresh.seed.tree, stories: [library, ...others] } };
+const survey = Object.fromEntries(Object.entries(fresh.survey).map(([id, each]) => [id, id === library.id ? each : { files: [], edges: each.edges ?? [] }]));
 const capability = prefix => library.capabilities.find(c => c.title.startsWith(prefix)).id;
+// The capability whose code holds the most parts, so its microscope shows them with their gates.
+const partsOf = id => (survey[library.id].parts?.capabilities[id] ?? []).length;
+const widest = [...library.capabilities].sort((a, b) => partsOf(b.id) - partsOf(a.id))[0];
 const dist = buildFolder(here);
 await buildCapture({ dist });
 
@@ -44,6 +51,11 @@ const scope = page => page.evaluate(() => {
       return boxes.flatMap((a, i) => boxes.slice(i + 1).filter(b => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom)).length;
     })(),
     pending: section.querySelector('[data-scope-pending]') !== null,
+    // The story's extra checks, behind their handle (4.52): whether the handle is there, and closed.
+    extraChecks: (() => {
+      const handle = document.querySelector('aside.story-panel [data-fold="extra-checks"] > .panel-handle');
+      return handle === null ? undefined : { handle: handle.textContent, open: handle.getAttribute('aria-expanded') === 'true' };
+    })(),
   };
 });
 const laidOut = page => until(page, () => { const s = document.querySelector('aside.story-panel .panel-microscope'); return s !== null && s.querySelector('[data-scope-pending]') === null; });
@@ -59,6 +71,18 @@ const choose = id => async ({ page, settle }) => {
   await laidOut(page);
 };
 
+/** A click on the island's name selects the story alone; its panel's microscope shows the island's capabilities. */
+const pickStory = (story, { laid = true } = {}) => async ({ page, settle }) => {
+  if (!await page.evaluate(id => window.storytreeGlobe.face({ kind: 'story', story: id }), story.id)) throw new Error(`no camera stop for ${story.title}`);
+  await until(page, () => window.storytreeGlobe.still());
+  // The name is drawn over the canvas, which picks what lies under the pointer, the name among it (3.41).
+  const box = await page.locator(`.planet-nameplate[data-story-id="${story.id}"]`).first().boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await settle(page, 6);
+  if (laid) await laidOut(page);
+  else await until(page, id => document.querySelector(`aside.story-panel .panel-microscope[data-scope-story="${id}"]`) !== null, story.id, 60_000);
+};
+
 await runCapture({
   folder: pictures, dist, seed, survey, name,
   prepare: async ({ page }) => {
@@ -69,16 +93,7 @@ await runCapture({
   },
   views: [{
     name: `${name}-story`,
-    prepare: async ({ page, settle }) => {
-      // A click on the island's name selects the story; its panel's microscope shows the island's capabilities.
-      if (!await page.evaluate(story => window.storytreeGlobe.face({ kind: 'story', story }), library.id)) throw new Error('no camera stop for The library');
-      await until(page, () => window.storytreeGlobe.still());
-      // The name is drawn over the canvas, which picks what lies under the pointer, the name among it (3.41).
-      const box = await page.locator(`.planet-nameplate[data-story-id="${library.id}"]`).first().boundingBox();
-      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-      await settle(page, 6);
-      await laidOut(page);
-    },
+    prepare: pickStory(library),
     measure: async ({ page, out }) => shot(page, out, 'story'),
     expect: found => {
       assert.equal(found.root, library.id, 'the story alone, rooted on the story');
@@ -87,11 +102,11 @@ await runCapture({
       assert.ok(found.gates.every(gate => !gate.startsWith('story_')), 'every other island named by its story');
     },
   }, {
-    name: `${name}-decision-log`,
-    prepare: choose(capability('13 ')),
-    measure: async ({ page, out }) => shot(page, out, 'decision-log'),
+    name: `${name}-capability`,
+    prepare: choose(widest.id),
+    measure: async ({ page, out }) => shot(page, out, 'capability'),
     expect: found => {
-      assert.deepEqual(found.trail, ['The library', '13 · Decision log']);
+      assert.deepEqual(found.trail, ['The library', widest.title]);
       assert.ok(found.parts.length >= 2 && found.gates.length > 0, 'its parts fill the microscope, its gates named');
     },
   }, {
@@ -106,6 +121,19 @@ await runCapture({
     expect: found => {
       assert.deepEqual(found.trail, ['The library', '26 · Rounds', 'librarian'], 'two levels down: the capability, then its one part, librarian');
       assert.ok(found.parts.length >= 2, 'librarian\'s own parts');
+    },
+  }, {
+    name: `${name}-extra-checks`,
+    // Its foot, not its microscope, is what this picture is for, so the panel is taken as soon as it is drawn.
+    prepare: pickStory(desktop, { laid: false }),
+    measure: async ({ page, out }) => {
+      // The panel's foot, scrolled to, so the story's extra checks' closed handle is in the picture.
+      await page.locator('aside.story-panel [data-fold="extra-checks"]').scrollIntoViewIfNeeded();
+      return shot(page, out, 'extra-checks');
+    },
+    expect: found => {
+      assert.equal(found.root, desktop.id, 'Desktop app alone, rooted on the story');
+      assert.ok(found.extraChecks !== undefined && !found.extraChecks.open, 'its extra checks behind a closed handle');
     },
   }],
 });

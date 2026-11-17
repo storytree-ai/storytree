@@ -146,7 +146,8 @@ test("4.55 · the panel's microscope shows the one thing it is rooted on, drills
 });
 
 test("4.55 · where two of the microscope's names would be written over each other, the larger part's is written and the other's left to its hover", () => {
-  const children = [{ id: "small", title: "2 · Small", lines: 10 }, { id: "large", title: "1 · Large", lines: 90 }, { id: "apart", title: "3 · Apart", lines: 5 }];
-  const places = new Map([["small", { x: 3, z: 2 }], ["large", { x: 0, z: 0 }], ["apart", { x: 0, z: 40 }]]);
+  // "below" sits a line under "large", nearer than a 7-unit name's own height with its stroke, so it gives way too.
+  const children = [{ id: "small", title: "2 · Small", lines: 10 }, { id: "large", title: "1 · Large", lines: 90 }, { id: "apart", title: "3 · Apart", lines: 5 }, { id: "below", title: "4 · Below", lines: 8 }];
+  const places = new Map([["small", { x: 3, z: 2 }], ["large", { x: 0, z: 0 }], ["apart", { x: 0, z: 40 }], ["below", { x: 6, z: 9 }]]);
   assert.deepEqual(namesShown(children, places).map(({ child }) => child.id), ["large", "apart"]);
 });

@@ -100,8 +100,8 @@ export function scopeDrawing(level: ScopeLevel, later = false): string {
     <circle class="scope-coast" r="${SCOPE_RADIUS + 1.5}"/><g class="scope-territories">${territories}</g>${borders}<path class="scope-roads${busy}" d="${roads.join("")}"/>${junctions}${gates}${names}</svg>`;
 }
 
-/** A name's box on the drawing: about this wide a letter and this tall, in the drawing's units at the names' size. */
-const LETTER = 4.1, LINE = 8.5;
+/** A name's box on the drawing: about this wide a bold letter and this tall a line with its stroke, in the drawing's units at the names' size. */
+const LETTER = 4.4, LINE = 10;
 
 /**
  * The children whose names the drawing writes: the largest first, each left out where it would cross a name already

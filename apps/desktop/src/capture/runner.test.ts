@@ -6,7 +6,7 @@ import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { chromium, type Browser, type Page } from "playwright-core";
+import { chromium, errors, type Browser, type Page } from "playwright-core";
 
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
@@ -24,7 +24,7 @@ async function launchChrome(): Promise<Browser> {
     try {
       return await chromium.launch({ channel: "chrome", headless: true, timeout: 60_000 });
     } catch (error) {
-      if (attempt === 3 || !/Timeout \d+ms exceeded/.test(String(error))) throw error;
+      if (attempt === 3 || !(error instanceof errors.TimeoutError)) throw error;
     }
   }
 }

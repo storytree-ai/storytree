@@ -85,35 +85,47 @@ test("1.1 · The harvest counts a failed run of a workflow that tests no code, o
     failed(4, { event: "merge_group", branch: "gh-readonly-queue/main/pr-40-0123abc" }),
     failed(5, { pr: 50 }),
     failed(6, { createdAt: "2026-11-01T08:00:00Z" }),
+    failed(7),
   ];
   const jobs: Record<number, RunJob[]> = {
     4: [{ name: "verify on Linux", conclusion: "cancelled", steps: 5, log: "" }, { name: "verify on Windows", conclusion: "timed_out", steps: 5, log: "" }],
     5: [{ name: "verify on Linux", conclusion: "failure", steps: 5, log: "2026-11-17T08:00:00Z error TS2322: Type 'string' is not assignable" }],
   };
-  // GitHub lists failed and timed-out runs apart, by the day they were made: run 3 in both, run 6 before the window.
+  // GitHub lists failed and timed-out runs apart, by the day they were made, a hundred to a page: run 3 in both, run 6
+  // before the window, and the failed runs' ten full pages, the most the harvest reads, repeating run 1.
   const api = (one: FailedRun) => ({ id: one.id, run_attempt: 1, name: one.workflow, event: one.event, head_sha: one.head, head_branch: one.branch, conclusion: one.conclusion, created_at: one.createdAt, pull_requests: one.pr === undefined ? [] : [{ number: one.pr }] });
+  const page = (some: FailedRun[]) => ({ workflow_runs: [...some, ...Array.from({ length: 100 - some.length }, () => runs[0]!)].map(api) });
   const listing = gitHub({
-    [`${API}/actions/runs?status=failure&created=>=2026-11-10&per_page=100&page=1`]: { workflow_runs: [...runs.filter(({ id }) => id !== 3), runs[2]!].map(api) },
+    [`${API}/actions/runs?status=failure&created=>=2026-11-10&per_page=100&page=1`]: page([...runs.filter(({ id }) => id !== 3), runs[2]!]),
+    ...Object.fromEntries(Array.from({ length: 9 }, (_, at) => [`${API}/actions/runs?status=failure&created=>=2026-11-10&per_page=100&page=${at + 2}`, page([])])),
     [`${API}/actions/runs?status=timed_out&created=>=2026-11-10&per_page=100&page=1`]: { workflow_runs: [api(runs[2]!)] },
   });
   const read: number[] = [];
   const named: (number | undefined)[] = [];
   const source: HarvestSource = {
     failedRuns: gitHubSource(listing, REPO, await watcherReading(), scope).failedRuns,
-    facts: async (run) => (read.push(run.id), named.push(run.pr), { jobs: jobs[run.id]!, reach: new Set(), passedSameHead: false }),
+    facts: async (run) => {
+      read.push(run.id);
+      if (run.id === 7) throw new Error("GitHub answered 502");
+      named.push(run.pr);
+      return { jobs: jobs[run.id]!, reach: new Set(), passedSameHead: false };
+    },
   };
   const { library, flakes, written } = libraryOf();
   const ledger = harvestLedger(db, project, () => NOW);
   const watcher = await watcherReading();
 
   const first = await harvest({ library, source, ledger, watcher, now: NOW });
-  assert.deepEqual({ runs: first.runs, infra: first.infra, ownHealth: first.ownHealth, noTest: first.noTest, already: first.already }, { runs: 5, infra: 3, ownHealth: 1, noTest: 1, already: 0 },
-    "the release run, the timed-out run and the run whose jobs only timed out or were cancelled are infra; own health's is skipped; one before the window is not listed");
-  assert.deepEqual(read, [4, 5], "only a CI run's jobs are read");
+  assert.deepEqual({ runs: first.runs, infra: first.infra, ownHealth: first.ownHealth, noTest: first.noTest, already: first.already, unread: first.unread }, { runs: 6, infra: 3, ownHealth: 1, noTest: 1, already: 0, unread: 1 },
+    "the release run, the timed-out run and the run whose jobs only timed out or were cancelled are infra; own health's is skipped; one before the window is not listed; one GitHub could not be read for is counted");
+  assert.deepEqual(read, [4, 5, 7], "only a CI run's jobs are read");
+  assert.ok(listing.asked.some((route) => route.endsWith("page=10")) && !listing.asked.some((route) => route.endsWith("page=11")), "ten pages of failed runs are read, and no more");
   assert.deepEqual(named, [40, 50], "a merge-queue run's pull request is the one its branch names, a pull request run's the one GitHub lists");
   assert.deepEqual(flakes, [], "nothing here is a flake");
   assert.deepEqual(written, [], "nor a real failure");
   const text = harvestText(first);
+  assert.match(text, /^Harvested 6 failed runs \(0 already harvested before\):/);
+  assert.match(text, /1 GitHub could not read/);
   assert.match(text, /infra: 3 \(a workflow that tests no code, or only a timeout or a cancel\); own health's, skipped: 1; red on no named test: 1/, "both counts are printed");
   const { rows } = await db.query<{ run_id: string; sorted: string }>("SELECT run_id, sorted FROM ci_harvested WHERE project = $1 ORDER BY run_id", [project]);
   assert.deepEqual(rows.map(({ run_id, sorted }) => [Number(run_id), sorted]), [[1, "infra"], [2, "own-health"], [3, "infra"], [4, "infra"], [5, "no-test"]]);
@@ -121,7 +133,8 @@ test("1.1 · The harvest counts a failed run of a workflow that tests no code, o
   read.length = 0;
   const again = await harvest({ library, source, ledger, watcher, now: NOW });
   assert.deepEqual({ already: again.already, infra: again.infra, ownHealth: again.ownHealth, noTest: again.noTest }, { already: 5, infra: 0, ownHealth: 0, noTest: 0 }, "a run harvested once is never sorted again");
-  assert.deepEqual(read, [], "nor read again");
+  assert.deepEqual(read, [7], "nor read again, while one GitHub could not be read for is read again");
+  assert.match(harvestText(again), /^Harvested 1 failed run \(5 already harvested before\):/);
 
   // The command: a folder with no GitHub origin has nothing to harvest; one with an origin needs the library's server.
   const harvestVerb = HARVEST_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "ci")!;
@@ -220,7 +233,9 @@ test("1.3 · The harvest records each real failure, and each increment fixing an
     [`${API}/actions/runs?head_sha=${head}&status=success&per_page=100&page=1`]: none,
     [`${API}/pulls/${pr}`]: { merged: false, head: { sha: later?.sha ?? head, ref: `b${pr}` } },
     [`${API}/pulls/${pr}/files?per_page=100`]: files.map((filename) => ({ filename })),
+    // Listed newest first: a later green at a head after the next, which the harvest must not take for the next.
     [`${API}/actions/runs?branch=b${pr}&event=pull_request&status=success&per_page=100&page=1`]: { workflow_runs: later === undefined ? [] : [
+      { id: pr * 100 + 2, name: "CI", head_sha: "9".repeat(40), created_at: "2026-11-17T11:00:00Z" },
       { id: pr * 100, name: "CI", head_sha: head, created_at: "2026-11-17T07:00:00Z" },
       { id: pr * 100 + 1, name: "CI", head_sha: later.sha, created_at: later.at },
     ] },
@@ -228,7 +243,9 @@ test("1.3 · The harvest records each real failure, and each increment fixing an
   const github = gitHub({
     ...job(21), ...job(23, "2.4 · prices show"), ...job(25), ...job(27),
     [`${API}/pulls?head=acme:b20&state=all&per_page=1`]: [{ number: 20 }],
-    ...pull(20, runs[0]!.head, { sha: "c".repeat(40), at: "2026-11-17T10:00:00Z" }, ["packages/shop/src/cart.ts", "packages/lib/src/round.ts"]),
+    // PR #20's files fill thirty pages, the most the harvest reads: its first names both its files.
+    ...pull(20, runs[0]!.head, { sha: "c".repeat(40), at: "2026-11-17T10:00:00Z" }, ["packages/shop/src/cart.ts", "packages/lib/src/round.ts", ...Array<string>(98).fill("packages/shop/src/cart.ts")]),
+    ...Object.fromEntries(Array.from({ length: 29 }, (_, at) => [`${API}/pulls/20/files?per_page=100&page=${at + 2}`, Array(100).fill({ filename: "packages/shop/src/cart.ts" })])),
     [`${API}/compare/${runs[0]!.head}...${"c".repeat(40)}`]: { files: [{ filename: "packages/lib/src/round.ts" }] },
     ...pull(22, runs[1]!.head, { sha: "d".repeat(40), at: "2026-11-17T10:00:00Z" }),
     [`${API}/compare/${runs[1]!.head}...${"d".repeat(40)}`]: { files: [{ filename: "packages/lib/src/round.ts" }] },

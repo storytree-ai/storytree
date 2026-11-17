@@ -88,12 +88,11 @@ export async function watcherReading(): Promise<WatcherReading> {
 }
 
 /** One failing test of a CI run, sorted. */
-export interface SortedTest {
-  readonly test: string;
-  readonly unit?: string;
-  readonly verdict: "flake" | "real" | "undecided";
-  readonly why: string;
-}
+export type SortedTest = { readonly test: string; readonly unit?: string } & (
+  | { readonly verdict: "flake" | "real"; readonly why: string }
+  /** Nothing settles it yet: it is never routed or recorded, so it carries no reason. */
+  | { readonly verdict: "undecided" }
+);
 
 /** What one failed run is. */
 export type RunSort =
@@ -133,7 +132,7 @@ export function sortRun(run: FailedRun, facts: RunFacts, watcher: WatcherReading
     if (facts.queue === "flake") return { test, ...placed, verdict: "flake", why: "the merge queue's red merged at the head it was red at" };
     const green = facts.laterGreen;
     if (green === undefined || green.head === run.head || unit === undefined) {
-      return { test, ...placed, verdict: "undecided", why: unit === undefined ? "its run named no unit for it" : "its pull request has not passed since" };
+      return { test, ...placed, verdict: "undecided" };
     }
     return green.reaches(unit)
       ? { test, ...placed, verdict: "real", why: `it failed at ${run.head.slice(0, 12)} and passed only at ${green.head.slice(0, 12)}, once the pull request changed code ${unit} reaches` }

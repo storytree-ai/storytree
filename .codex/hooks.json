@@ -1,5 +1,5 @@
 {
-  "description": "0.3's own development: install a fresh or stale worktree's dependencies at session start.",
+  "description": "0.3's own development: install a fresh or stale worktree's dependencies at session start, and let only the test-writer agent edit test code (ADR-1355 D2).",
   "hooks": {
     "SessionStart": [
       {
@@ -8,6 +8,18 @@
             "type": "command",
             "command": "node packages/base-dev-loop/src/provision-worktree.mjs --hook",
             "timeout": 300
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "^apply_patch$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node --import tsx packages/app-setup/src/bins/storytree-hook.ts codex --test-guard by-agent",
+            "timeout": 10
           }
         ]
       }

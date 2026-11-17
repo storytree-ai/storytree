@@ -45,8 +45,6 @@ export interface ForestReadingOptions {
 export const SURVEY_EVERY_MS = 10_000;
 
 type Survey = Readonly<Record<string, StorySurvey>>;
-/** A survey, and the pins read against it (3.119). */
-type Read = { readonly survey: Survey; readonly pins: readonly ForestPin[] };
 
 /**
  * The survey's pacing: `want` asks for a survey; one runs at a time, at most every SURVEY_EVERY_MS, and
@@ -54,7 +52,7 @@ type Read = { readonly survey: Survey; readonly pins: readonly ForestPin[] };
  * that fails is asked again. `again` asks for one more without waiting out that time: it runs as soon as the
  * one running ends.
  */
-function surveyPacing(read: () => Promise<Read>, landed: (read: Read) => unknown, failed: () => void, timers: Timers): { want(): void; again(): void; stop(): void } {
+function surveyPacing(read: () => Promise<Survey>, landed: (survey: Survey) => unknown, failed: () => void, timers: Timers): { want(): void; again(): void; stop(): void } {
   let wanted = false;
   let running = false;
   let last = -Infinity;
@@ -155,18 +153,27 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
   // A survey that lands draws the last tree again, unless it changes nothing on show (ADR-0836 D1). The start's first
   // may answer from the main fetched before the start, so the page asks once more at once for what its fetch brought (7.32).
   let askedAgain = false;
-  // The pins are read once the survey is in, so each is judged against it (3.119).
-  const read = async (): Promise<Read> => {
-    const next = await reads.codeSurvey!(project);
-    return { survey: next, pins: await reads.pins?.(project) ?? [] };
+  // The pins are read beside the drawing, never before it: neither a draw nor the start's settling waits on them (3.49), and
+  // pins that land changed draw the tree again. Only the newest read's answer is taken.
+  let pinsAsked = 0;
+  const readPins = (): void => {
+    if (reads.pins === undefined) return;
+    const asked = ++pinsAsked;
+    reads.pins(project).then(async (next) => {
+      if (stopped || asked !== pinsAsked || JSON.stringify(next) === JSON.stringify(pins)) return;
+      pins = next;
+      if (tree !== undefined) await onTree(tree, { changes: [], lines: [] }, survey, pins);
+    }).catch(onError);
   };
-  const pacing = surveyPacing(read, async (next) => {
+  const pacing = surveyPacing(() => reads.codeSurvey!(project), async (next) => {
     if (stopped) return;
-    if (JSON.stringify(next.survey) !== JSON.stringify(survey) || JSON.stringify(next.pins) !== JSON.stringify(pins)) {
-      ({ survey, pins } = next);
+    if (JSON.stringify(next) !== JSON.stringify(survey)) {
+      survey = next;
       if (tree !== undefined) await Promise.resolve(onTree(tree, { changes: [], lines: [] }, survey, pins)).catch(onError);
     }
     surveyed();
+    // The pins are read again once the survey is in, so each is judged against it (3.119).
+    readPins();
     if (!askedAgain) {
       askedAgain = true;
       pacing.again();
@@ -178,11 +185,11 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
       let refreshSurvey = landsCode(news);
       // 3.119: the pins are read at the start and again when one is written or retired.
       const pinsMoved = tree === undefined || news.changes.some((change) => change.type === "pin");
+      if (pinsMoved) readPins();
       if (tree === undefined || changesTree(news, tree)) {
         tree = await reads.projectTree(project);
         refreshSurvey = true;
       }
-      if (pinsMoved && reads.pins !== undefined) pins = await reads.pins(project);
       if (stopped) return;
       if (reads.codeSurvey !== undefined && refreshSurvey) pacing.want();
       await onTree(tree, news, survey, pins);

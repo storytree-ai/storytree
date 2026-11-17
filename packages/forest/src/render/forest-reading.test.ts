@@ -542,3 +542,29 @@ test("3.119 · the pins are read again with each survey, after it, so each is ju
   assert.deepEqual(landed, [[live], [stale]], "the survey unchanged, a pin gone stale draws again");
   reading.stop();
 });
+
+test("3.49 · a start draws the tree and settles on its first survey without waiting on the pins' read, and draws the pins once they land", async () => {
+  const pinned = { pin: { id: "pin_1" } } as never;
+  let land: (pins: readonly never[]) => void = () => {};
+  const seen: string[] = [];
+  const reading = forestReading({
+    project: "shop",
+    reads: {
+      changesSince: async () => ({ changes: [], cursor: 0 }),
+      linesSince: async () => ({ lines: [], cursor: 0 }),
+      projectTree: async () => tree,
+      codeSurvey: async () => survey,
+      pins: () => new Promise((resolve) => { land = resolve; }),
+    },
+    timers: clockTimers(),
+    onTree: (_tree, _news, read, pins) => { seen.push(`drawn ${Object.keys(read).length} with ${pins.length} pins`); },
+    onError: () => {},
+    onSettled: () => seen.push("settled"),
+  });
+  await settle();
+  assert.deepEqual(seen, ["drawn 0 with 0 pins", "drawn 1 with 0 pins", "settled"], "the pins still coming hold back neither the drawing nor the start");
+  land([pinned]);
+  await settle();
+  assert.equal(seen.at(-1), "drawn 1 with 1 pins", "the pins are drawn once they land");
+  reading.stop();
+});

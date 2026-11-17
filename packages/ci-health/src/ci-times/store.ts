@@ -73,6 +73,14 @@ export const CI_TIMES_SCHEMA: readonly string[] = [
     read_at     timestamptz NOT NULL,
     PRIMARY KEY (project, pull)
   )`,
+  // One row per failed run the CI harvest sorted (capability 3, 3.25): what it was sorted as and when, so it is never sorted twice.
+  `CREATE TABLE IF NOT EXISTS ci_harvested (
+    project     text NOT NULL,
+    run_id      bigint NOT NULL,
+    sorted      text NOT NULL,
+    at          timestamptz NOT NULL,
+    PRIMARY KEY (project, run_id)
+  )`,
 ];
 
 /** What the CI times are read and written through: the database's pool. */
@@ -83,4 +91,20 @@ export interface CiTimesDb {
 /** The CI times' database on `server`, its tables set up; a shared library takes them only once this file is merged (1.29). */
 export function ciTimesPool(server: Pick<Storytree, "ownDatabase">): Promise<CiTimesDb> {
   return server.ownDatabase(CI_TIMES_DATABASE, { tables: CI_TIMES_SCHEMA, declaredIn: [import.meta.url] });
+}
+
+/** The failed runs of `project` the CI harvest already sorted (capability 3, 3.25), kept beside its CI times. */
+export function harvestLedger(db: CiTimesDb, project: string, now: () => Date = () => new Date()) {
+  return {
+    async harvested(ids: readonly number[]): Promise<ReadonlySet<number>> {
+      if (ids.length === 0) return new Set();
+      const { rows } = await db.query<{ run_id: string }>("SELECT run_id FROM ci_harvested WHERE project = $1 AND run_id = ANY($2::bigint[])", [project, ids]);
+      return new Set(rows.map(({ run_id }) => Number(run_id)));
+    },
+    async mark(rows: readonly { id: number; sorted: string }[]): Promise<void> {
+      for (const { id, sorted } of rows) {
+        await db.query("INSERT INTO ci_harvested (project, run_id, sorted, at) VALUES ($1, $2, $3, $4) ON CONFLICT (project, run_id) DO NOTHING", [project, id, sorted, now()]);
+      }
+    },
+  };
 }

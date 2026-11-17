@@ -334,6 +334,9 @@ importers:
 
   packages/ci-health:
     dependencies:
+      '@storytree/agent-pool':
+        specifier: workspace:*
+        version: link:../agent-pool
       '@storytree/base-dev-loop':
         specifier: workspace:*
         version: link:../base-dev-loop

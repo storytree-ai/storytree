@@ -122,6 +122,7 @@ export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
   "check",
   "research",
   "experiment",
+  "escape",
 ];
 
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];

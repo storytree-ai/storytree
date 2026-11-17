@@ -6,6 +6,8 @@
     ".": "./src/index.ts",
     "./verbs": "./src/verbs.ts",
     "./bridge": "./src/ci-times/bridge.ts",
+    "./investigate": "./src/investigate/investigate.ts",
+    "./scope": "./src/ci-times/scope.ts",
     "./runtime": "./src/ci-times/runtime.ts",
     "./store": "./src/ci-times/store.ts",
     "./view": "./src/ci-times/view.ts"

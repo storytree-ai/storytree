@@ -7,4 +7,4 @@ export declare const PART: "agent-pool";
 export declare const DECLARED: readonly string[];
 
 /** The file that answers the agent runner's declared entry `from` on the computer whose storytree home is `home`. */
-export declare function agentRunnerEntry(from: "./launch" | "./runner", home?: string): string;
+export declare function agentRunnerEntry(from: "./launch" | "./runner" | "./watch", home?: string): string;

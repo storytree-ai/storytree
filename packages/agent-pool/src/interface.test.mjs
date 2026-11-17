@@ -16,20 +16,22 @@ function home(t) {
   return dir;
 }
 
-test("3.34 · a dependent reaches the lane runner and the ready pool through the agent runner's declared interface: the base's own while the part is on, the stand-in's while it is off, and nothing with no stand-in", (t) => {
+test("3.34 · a dependent reaches the lane runner, the ready pool and the watcher's reading of a red through the agent runner's declared interface: the base's own while the part is on, the stand-in's while it is off, and nothing with no stand-in", (t) => {
   const at = home(t);
   assert.equal(agentRunnerEntry("./runner", at), fileURLToPath(new URL("./runner.mjs", import.meta.url)));
   assert.equal(agentRunnerEntry("./launch", at), fileURLToPath(new URL("./launch.mjs", import.meta.url)));
-  assert.throws(() => agentRunnerEntry("./watch", at), /declares no "\.\/watch" in its interface; it declares \.\/launch, \.\/runner/);
+  assert.equal(agentRunnerEntry("./watch", at), fileURLToPath(new URL("./watch.mjs", import.meta.url)));
+  assert.throws(() => agentRunnerEntry("./feed", at), /declares no "\.\/feed" in its interface; it declares \.\/launch, \.\/runner, \.\/watch/);
 
   const factory = join(at, "factory");
   const plugin = join(factory, "plugins", "my-runner");
   mkdirSync(join(plugin, "src"), { recursive: true });
-  writeFileSync(join(plugin, "package.json"), JSON.stringify({ name: "my-runner", exports: { "./runner": "./src/runner.mjs", "./launch": "./src/launch.mjs" }, storytree: { interface: 1, for: "agent-pool" } }));
+  writeFileSync(join(plugin, "package.json"), JSON.stringify({ name: "my-runner", exports: { "./runner": "./src/runner.mjs", "./launch": "./src/launch.mjs", "./watch": "./src/watch.mjs" }, storytree: { interface: 1, for: "agent-pool" } }));
   setFactory(factory, at);
   setPartOff("agent-pool", true, at, "my-runner");
   assert.equal(agentRunnerEntry("./runner", at), join(plugin, "src", "runner.mjs"));
   assert.equal(agentRunnerEntry("./launch", at), join(plugin, "src", "launch.mjs"));
+  assert.equal(agentRunnerEntry("./watch", at), join(plugin, "src", "watch.mjs"));
 
   setPartOff("agent-pool", false, at);
   assert.equal(agentRunnerEntry("./runner", at), fileURLToPath(new URL("./runner.mjs", import.meta.url)), "switched back on, the base's again");

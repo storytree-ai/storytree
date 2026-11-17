@@ -379,7 +379,7 @@ export class WorkModel {
        * Whether the source held `record` itself, not only its number: with no versions, its number is enough; with them, its
        * live title must be one a version held under `key`, so a number the source held and renumbered retires no other lane's record under it.
        */
-      const heldRecord = (record: SchemaRecord, key: string): boolean => held === undefined || (held.get(`${key}:title`) ?? []).some((value) => isDeepStrictEqual(value, record.fields.title));
+      const heldRecord = (record: SchemaRecord<"capability" | "contract">, key: string): boolean => held === undefined || (held.get(`${key}:title`) ?? []).some((value) => isDeepStrictEqual(value, record.fields.title));
       if (story === undefined) {
         story = await this.#records.create("story", storyFields, options);
         done.added.push(story.id);

@@ -56,9 +56,11 @@ await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, set
     };
   }, seed);
   await page.goto(`${origin}/index.html`, { waitUntil: 'domcontentloaded' });
-  const closeHelp = page.getByRole('button', { name: /^Close/ }).first();
   await page.waitForFunction(() => document.body.dataset.state === 'ready', null, { timeout: 15000 }).catch(async error => { console.error(errors, await page.evaluate(() => [document.body.dataset.state, document.body.innerText.slice(0, 400)])); throw error; });
-  if (await closeHelp.isVisible()) await closeHelp.click();
+  // The map's first layout keeps a slow runner's page busy past a click's 30 s: let it settle under its own longer bound first.
+  await settle(page, smoke ? 2 : 12);
+  // By exact name: a /^Close/ pattern also matched the arc board's Closed scope button, and clicking it switched the board's scope.
+  for (const name of ['Close help', 'Close app menu']) { const button = page.getByRole('button', { name, exact: true }); if (await button.isVisible().catch(() => false)) await button.click(); }
   await page.locator('[data-rail-tab="sessions"]').click(); // the sessions list is the left rail's Sessions tab (ADR-1219)
   const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
   const row = list.locator(`.session-row[data-session-id="${ids.builder}"]`);

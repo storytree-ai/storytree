@@ -55,8 +55,9 @@ test("4.41 no marker, or one that cannot be read, never stops a start", async (t
 });
 
 test("4.41 windows: a running program's installer reads as running, and one that is not running does not", { skip: process.platform === "win32" ? false : "platform:win32: the installer is found by Windows' tasklist" }, () => {
-  assert.equal(installerRunning(process.execPath), true);
-  assert.equal(installerRunning(path.join(tmpdir(), "storytree-no-such-installer-setup.exe")), false);
+  // A loaded CI runner's tasklist can outlast a start's five seconds, which reads as not running: give it a minute.
+  assert.equal(installerRunning(process.execPath, 60_000), true);
+  assert.equal(installerRunning(path.join(tmpdir(), "storytree-no-such-installer-setup.exe"), 60_000), false);
 });
 
 const FLAGS = { smoke: false, startCheck: false, callbackCheck: false, quit: false, background: false };

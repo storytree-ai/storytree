@@ -103,12 +103,15 @@ export function answerStartWhileInstalling(start: StartWhileInstalling): boolean
   return true;
 }
 
-/** Whether a program named as `installer` is running, by Windows' tasklist; elsewhere, or if tasklist fails, false. */
-export function installerRunning(installer: string): boolean {
+/**
+ * Whether a program named as `installer` is running, by Windows' tasklist; elsewhere, or if tasklist fails or takes
+ * longer than `timeoutMs` (a start waits on it), false.
+ */
+export function installerRunning(installer: string, timeoutMs = 5_000): boolean {
   if (process.platform !== "win32") return false;
   const image = path.win32.basename(installer);
   try {
-    const listed = execFileSync("tasklist", ["/FI", `IMAGENAME eq ${image}`, "/FO", "CSV", "/NH"], { encoding: "utf8", windowsHide: true, timeout: 5_000 });
+    const listed = execFileSync("tasklist", ["/FI", `IMAGENAME eq ${image}`, "/FO", "CSV", "/NH"], { encoding: "utf8", windowsHide: true, timeout: timeoutMs });
     return listed.toLowerCase().includes(`"${image.toLowerCase()}"`);
   } catch {
     return false;

@@ -8,6 +8,7 @@ import { test, type TestContext } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
 import { DEFAULT_SEEDS, fc, findCheckFiles, propertyCheck, runNightly } from "./index.js";
+import { freshSeed } from "./nightly.js";
 
 function tempDir(t: TestContext): string {
   const dir = mkdtempSync(path.join(tmpdir(), "property-checks-"));
@@ -37,15 +38,30 @@ test("3.1 · the nightly tier runs a check on a fresh seed with many more cases 
   assert.notDeepEqual(again.slice(0, 10), nightly.slice(0, 10), "a fresh seed each run");
 });
 
+// The limit is fast-check's own interruptAfterTimeLimit, which reads the time through the Date.now it captured when it
+// loaded and takes no clock, and an interrupt before any case has passed fails the run: so this test spends real time,
+// up to its limit, but waits for nothing. Far more cases than the limit allows are asked for, and it must stop short.
 test("3.1 · the nightly tier stops at its time limit without failing for it", async (t) => {
   let cases = 0;
-  const slow = fc.asyncProperty(fc.integer(), async () => {
+  const endless = fc.property(fc.integer(), () => {
     cases++;
-    await new Promise((resolve) => setTimeout(resolve, 10));
     return true;
   });
-  await propertyCheck(t, { why }, slow, { env: NIGHTLY, timeLimitMs: 150, tallyPath: path.join(tempDir(t), "tally") });
-  assert.ok(cases >= 1 && cases < 100, `stopped at 150 ms after ${cases} cases of 10 ms`);
+  const runs = 1_000_000_000;
+  await propertyCheck(t, { why, runs }, endless, { env: NIGHTLY, timeLimitMs: 200, tallyPath: path.join(tempDir(t), "tally") });
+  assert.ok(cases >= 1 && cases < runs, `stopped at its 200 ms limit after ${cases} cases, short of the ${runs} cases per seed asked for`);
+});
+
+test("3.1 · a nightly seed is never one already taken, even when the random source lands on one", (t) => {
+  const draws = [0.25, 0.75];
+  let draw = 0;
+  t.mock.method(Date, "now", () => 1_000);
+  t.mock.method(Math, "random", () => draws[draw++ % draws.length]!);
+  const first = freshSeed([]);
+  draw = 0;
+  const again = freshSeed([first, ...DEFAULT_SEEDS]);
+  assert.notEqual(again, first, "the source's first draw is taken, so another is drawn");
+  assert.equal(DEFAULT_SEEDS.includes(again), false);
 });
 
 test("3.1 · a nightly failure says it was found on a fresh seed and to pin that seed into the check's seeds", async (t) => {

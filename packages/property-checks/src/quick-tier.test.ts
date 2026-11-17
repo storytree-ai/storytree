@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { removeTemp } from "@storytree/test-waits";
 
 import { DEFAULT_SEEDS, fc, propertyCheck } from "./index.js";
+import { addToTally } from "./quick-tier.js";
 
 function tempDir(t: TestContext): string {
   const dir = mkdtempSync(path.join(tmpdir(), "property-checks-"));
@@ -88,6 +89,14 @@ test("2.2 · the check that takes its package's checks past 30 s fails naming th
     assert.match(error.message, /\b30 s\b/);
     return true;
   });
+});
+
+test("2.2 · outside pnpm test, with no tally file, a package's checks add up in the process, each package to its own", () => {
+  const first = "packages/in-process-tally-a/src/one.test.ts";
+  const other = "packages/in-process-tally-b/src/two.test.ts";
+  assert.equal(addToTally(1_900, first, {}), 1_900);
+  assert.equal(addToTally(1_900, first.replace("one", "three"), {}), 3_800, "a second file of the same package adds to its total");
+  assert.equal(addToTally(500, other, {}), 500, "another package starts from nothing");
 });
 
 test("2.3 · under pnpm test each run of a check adds one line to the property-runs record, and none outside it", async (t) => {

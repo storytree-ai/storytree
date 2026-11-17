@@ -14,13 +14,13 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@storytree/agent-pool": "workspace:*",
     "@storytree/base-dev-loop": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/project-and-caller": "workspace:*"
   },
   "devDependencies": {
+    "@storytree/agent-pool": "workspace:*",
     "@storytree/plugin-loader": "workspace:*",
     "@storytree/test-waits": "workspace:*",
     "@types/node": "^24.13.6",

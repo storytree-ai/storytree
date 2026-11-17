@@ -16,11 +16,14 @@ function run(t: { skip: (why: string) => void }, body: string): { status: number
   return { status: result.status, out: result.stdout + result.stderr };
 }
 
-test("4.45 · the Windows update check tries its one-liner again when GitHub refuses it a download (403 or 429), and a refusal on every try fails naming GitHub, not the build", (t) => {
+test("4.45 · the Windows update check tries its one-liner again when GitHub refuses it a download (403 or 429) or answers with a server error (500, 502, 503 or 504), and a refusal on every try fails naming GitHub, not the build", (t) => {
   const answer = run(t, `
     # The refusal as run 43596024668's one-liner wrote it (Windows PowerShell 5.1), and as PowerShell 7 words it.
     Write-Output "51: $(Get-GitHubRefusal 'storytree delivery failed at download: The remote server returned an error: (403) Forbidden.. Retry')"
     Write-Output "7: $(Get-GitHubRefusal 'Response status code does not indicate success: 429 (Too Many Requests).')"
+    # GitHub's server error fetching the install script, as run 43994201959's one-liner wrote it.
+    Write-Output "504: $(Get-GitHubRefusal 'The remote server returned an error: (504) Gateway Timeout.')"
+    Write-Output "503: $(Get-GitHubRefusal 'Response status code does not indicate success: 503 (Service Unavailable).')"
     Write-Output "other: [$(Get-GitHubRefusal 'storytree delivery failed at install: NSIS installer exited with code 2.')]"
     $script:tries = 0
     Write-Output "recovered: $(Invoke-PastRefusal { $script:tries++; if ($script:tries -lt 3) { throw 'GitHub refused a download (403 Forbidden)' }; 'installed 0.3.2838' } @(0, 0))"
@@ -33,6 +36,8 @@ test("4.45 · the Windows update check tries its one-liner again when GitHub ref
   assert.equal(answer.status, 0, answer.out);
   assert.match(answer.out, /^51: 403 Forbidden$/m);
   assert.match(answer.out, /^7: 429 Too Many Requests$/m);
+  assert.match(answer.out, /^504: 504 Gateway Timeout$/m);
+  assert.match(answer.out, /^503: 503 Service Unavailable$/m);
   assert.match(answer.out, /^other: \[\]$/m);
   assert.match(answer.out, /^recovered: installed 0\.3\.2838, after GitHub refused 2 tries \(403 Forbidden; 403 Forbidden\)$/m);
   // A failure that is not GitHub's refusal is the build's, and is not tried again.

@@ -31,9 +31,10 @@ $repo = 'storytree-ai/storytree'
 $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
 
 # What a one-liner's error output says of GitHub refusing it a download: 403 Forbidden, as an unauthenticated read
-# from a runner's shared address is refused past its rate limit (run 43596024668), or 429 Too Many Requests; else null.
+# from a runner's shared address is refused past its rate limit (run 43596024668), 429 Too Many Requests, or a server
+# error of GitHub's own (500, 502, 503, 504: run 43994201959's 504 Gateway Timeout); else null.
 function Get-GitHubRefusal([string] $Text) {
-  if ($Text -match '\(?\b(403|429)\)? \(?([A-Za-z ]+?)[.)]') { return "$($Matches[1]) $($Matches[2])" }
+  if ($Text -match '\(?\b(403|429|500|502|503|504)\)? \(?([A-Za-z ]+?)[.)]') { return "$($Matches[1]) $($Matches[2])" }
   $null
 }
 

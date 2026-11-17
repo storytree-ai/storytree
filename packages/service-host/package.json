@@ -1,5 +1,6 @@
 {
   "name": "@storytree/service-host",
+  "story": "story_44a8cd58a7cf",
   "private": true,
   "type": "module",
   "description": "Service host (ADR-1180 D2, D4): one long-running process per machine runs the long-running services the mounted parts declare.",

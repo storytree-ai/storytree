@@ -11,37 +11,52 @@
 //   in the repo's storytree.check.json, with his own words and the date (D2), where `storytree check` reads it too. The list holds only
 //   his exceptions; a lane never adds one.
 //
-// The stories live only in the library (ADR-0641), which CI cannot read, so their ids are declared
-// here: a story added to the library is added to STORIES with its package, in the same change.
+// The stories live only in the library (ADR-0641), which CI cannot read, so they are not declared
+// here: each package's own package.json names its story at a top-level "story" field
+// ("story": "story_<12 hex>", contract 5.4), so a new story's package needs no edit of this file.
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { packageProblems } from "./rules/package-rule/package-rule.ts";
 
-/** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1078 rule 4). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-harvest", "ci-health", "claude-code-mod", "cli", "forest", "forest-world", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "property-checks", "repo-checks", "service-host", "session-management", "shown-words", "surface-feedback", "teaching-cards", "test-waits"];
-// agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3).
-// app-setup: story_b91056a06337 (Setup), which holds Journey events in src/journey-events (ADR-1076 D3).
-// app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
-// claude-code-mod: story_5da0dcea1405 (Claude Code mod, ADR-1216 D2), out of Agent runner: every Claude Code session carries it, so switching the runner off never touches it.
-// base-dev-loop: story_4aeaccd76a1a (Base dev loop, ADR-1170 D1, ADR-1192 D1): the gate runner, the test runner, the worktree installer and the merge-queue scripts.
-// forest: story_deee4230348c (Map view).
-// forest-world: story_ed2c6b55715d (The drawing engine, ADR-1076 D2), out of Map view again: Map view and the Website (now its own repository, ADR-1171) call it.
-// library: story_754e87e7d531 (The library), which holds the librarian in its own package (ADR-1071 D3).
-// keys: story_d47051f035f0 (Keys, ADR-1075), out of The library again: The library and Experiments call it.
-// local-postgres: story_5e19e65c3433 (The local database, ADR-1076 D1), out of The library again: Setup and the dev loop call it.
-// ci-harvest: story_182aab94fc80 (CI harvest, ADR-1356 D2), out of CI health: it reaches the agent runner, and CI health is in the renderer's reach (ADR-1302).
-// ci-health: story_5c212e7a9a6c (CI health, ADR-0902).
-// mcp-server: The MCP server, ADR-0969 D1, which reads its own tools' use (ADR-1071 D3).
-// repo-checks: story_c27bd2a8f61e (Storytree's own repository checks, ADR-1199): the checks this repository runs on every pull request, these declarations among them.
-// project-and-caller: story_6def59292b78 (Context, ADR-1025), which owns identity too (ADR-1066 D4).
-// property-checks: story_c4838b46de87 (Property checks, ADR-1355 D4, ADR-1356 D3-D4): only tests import it; fast-check is a dev dependency.
-// plugin-loader: story_09e58d68f87c (Plugin loader, ADR-1021).
-// teaching-cards: story_4b5db00e51a0 (Teaching cards, ADR-1196 D1), out of Website again: no counted caller since the tour stopped using them.
-// mark: story_08790ee19bbf (Marketing artifacts, ADR-1071 D3), out of Website again.
-// surface-feedback: story_6c75e0587cc6 (Surface feedback): the feedback corner, mounted by the frame.
-// shown-words: story_52845caa9a8c (Shown words, ADR-1315 D3): the one table of shown words every surface reads, so it depends on no workspace package.
-// service-host: story_44a8cd58a7cf (Service host, ADR-1180 D2): one host per machine runs the mounted parts' declared services.
-// test-waits: story_9299f25282ad (Test waits, ADR-1156): every package's tests import it, so it depends on no workspace package.
+/** A story's id as a package names it: "story_" and twelve lower-case hex digits. */
+const STORY_ID = /^story_[0-9a-f]{12}$/;
+
+/** The packages under `root`'s packages/ whose package.json names a story, each folder with the story id it names. */
+function markedPackages(root) {
+  const dir = path.join(root, "packages");
+  let folders;
+  try {
+    folders = readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+  } catch {
+    return [];
+  }
+  const marked = [];
+  for (const folder of folders) {
+    let manifest;
+    try {
+      manifest = JSON.parse(readFileSync(path.join(dir, folder, "package.json"), "utf8").replace(/^\uFEFF/, ""));
+    } catch {
+      continue;
+    }
+    const story = manifest?.story;
+    if (typeof story === "string" && STORY_ID.test(story)) marked.push({ folder, story });
+  }
+  return marked;
+}
+
+/** A sentence for each story id two or more packages name: a story owns exactly one package (ADR-1078 rule 4). */
+function sharedStoryProblems(marked) {
+  const byStory = new Map();
+  for (const { folder, story } of marked) byStory.set(story, [...(byStory.get(story) ?? []), folder]);
+  return [...byStory]
+    .filter(([, folders]) => folders.length > 1)
+    .map(([story, folders]) => `${folders.map((folder) => `packages/${folder}`).join(" and ")} name the same story ${story} in their package.json: a story owns exactly one package (ADR-1078 rule 4)`);
+}
+
+/** 0.3's own stories, each by the folder of the package whose package.json names it (packages/<folder>). */
+export const STORIES = markedPackages(fileURLToPath(new URL("../../..", import.meta.url))).map(({ folder }) => folder);
 
 /**
  * Story code the frame still holds, each with the open question on storytree-0-3-scales-arc that
@@ -64,5 +79,7 @@ export const EDGES = { edges: DECLARED.edges };
 
 /** What in the repo at `root` breaks the boundaries, one sentence each; empty when nothing does. */
 export function boundaryProblems(root) {
-  return packageProblems(root, { stories: STORIES, frames: FRAMES, notYetMoved: NOT_YET_MOVED, edges: EDGES });
+  const marked = markedPackages(root);
+  const stories = marked.map(({ folder }) => folder);
+  return [...sharedStoryProblems(marked), ...packageProblems(root, { stories, frames: FRAMES, notYetMoved: NOT_YET_MOVED, edges: EDGES })];
 }

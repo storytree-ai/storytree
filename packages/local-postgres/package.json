@@ -1,5 +1,6 @@
 {
   "name": "@storytree/local-postgres",
+  "story": "story_5e19e65c3433",
   "private": true,
   "type": "module",
   "exports": {

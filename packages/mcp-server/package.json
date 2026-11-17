@@ -1,5 +1,6 @@
 {
   "name": "@storytree/mcp-server",
+  "story": "story_a310ca42460e",
   "private": true,
   "type": "module",
   "exports": {

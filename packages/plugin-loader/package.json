@@ -1,5 +1,6 @@
 {
   "name": "@storytree/plugin-loader",
+  "story": "story_09e58d68f87c",
   "private": true,
   "type": "module",
   "description": "Plugin loader (ADR-1021): reads the `storytree` manifests of the story packages a host depends on and composes their parts into the host's bundle.",

@@ -1,5 +1,6 @@
 {
   "name": "@storytree/app-setup",
+  "story": "story_b91056a06337",
   "private": true,
   "type": "module",
   "imports": {

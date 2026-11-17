@@ -1,5 +1,6 @@
 {
   "name": "@storytree/ci-health",
+  "story": "story_5c212e7a9a6c",
   "private": true,
   "type": "module",
   "exports": {

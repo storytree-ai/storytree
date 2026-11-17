@@ -1,5 +1,6 @@
 {
   "name": "@storytree/forest-world",
+  "story": "story_ed2c6b55715d",
   "private": true,
   "type": "module",
   "description": "The drawing engine (ADR-0633 D2, ADR-0920): the globe and the ground under its islands, from 0.2's forest-world core (src/core), and the join that feeds it 0.3's story node places.",

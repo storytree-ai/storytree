@@ -22,7 +22,8 @@
     "./friction": "./src/friction/index.ts",
     "./friction/verbs": "./src/friction/verbs.ts",
     "./schedules/verbs": "./src/schedules/verbs.ts",
-    "./activity/verbs": "./src/activity/verbs.ts"
+    "./activity/verbs": "./src/activity/verbs.ts",
+    "./measures/verbs": "./src/measures/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -87,6 +88,10 @@
       {
         "from": "./schedules/verbs",
         "export": "SCHEDULE_FAMILIES"
+      },
+      {
+        "from": "./measures/verbs",
+        "export": "MEASURES_FAMILIES"
       }
     ],
     "guidance": [

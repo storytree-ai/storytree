@@ -1,7 +1,8 @@
 // Capability 8 · Storytree's own test and gate entries. `pnpm lint`: storytree's three code-structure rules, and the
 // happy-dom assertion rule (happy-dom-asserts.mjs, friction_edc7a93a10fe) and the CodeQL patterns a pull request has met
 // (codeql-patterns.mjs, increment_15f747652fc7) and the *.min.js name of a minified design-sketch bundle
-// (sketch-bundles.mjs, increment_25ec3aa5f204), as one lint
+// (sketch-bundles.mjs, increment_25ec3aa5f204) and a numbered test that asserts nothing or an assertion swallowed in a catch
+// (test-asserts.mjs, increment_ceee8864623d), as one lint
 // step (ADR-1199 D2), run by `pnpm gate` (gate-steps.mjs) and by CI on every pull request. The rules are the existing
 // checks, storytree's own house rules rather than base ones: a type-only import ends only at the library
 // (type-imports.mjs, ADR-1017 D2), each story keeps its code in its own package behind a thin frame and front door
@@ -14,6 +15,7 @@ import { codeqlPatternProblems } from "./codeql-patterns.mjs";
 import { happyDomAssertProblems } from "./happy-dom-asserts.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
 import { sketchBundleProblems } from "./sketch-bundles.mjs";
+import { testAssertProblems } from "./test-asserts.mjs";
 import { typeImportProblems } from "./type-imports.mjs";
 
 /** The rules, each `{ name, problems(root) }`, its problems one sentence each naming the file that breaks it. */
@@ -24,6 +26,7 @@ export const RULES = [
   { name: "happy-dom-asserts", problems: happyDomAssertProblems },
   { name: "codeql-patterns", problems: codeqlPatternProblems },
   { name: "sketch-bundle-names", problems: sketchBundleProblems },
+  { name: "test-asserts", problems: testAssertProblems },
 ];
 
 /** Run `rules` over the checkout at `root`, logging each problem under its rule's name; 1 when any rule breaks, else 0. */

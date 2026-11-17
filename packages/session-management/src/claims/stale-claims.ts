@@ -1,7 +1,9 @@
 /**
  * Capability 5 · Claims. The session manager's one stale-claim worklist (ADR-0953 D4): the claimed increments
  * whose holder is quiet, with no command still running and no open pull request from the claim's branch, each
- * with its route. A holder that reads gone (no line for longer than a command may run, ADR-0754 D5), whose
+ * with its route. A claim taken on the main line (main, or no branch), as a pool lane's runner takes it from the
+ * main checkout, is judged by the branches its holder worked on instead: one of them with an open pull request
+ * leaves it off. A holder that reads gone (no line for longer than a command may run, ADR-0754 D5), whose
  * safe close-out is verified, or whose process stopped (4.41) and that stayed quiet past the quiet time since
  * (ADR-1311 D2), is routed to release, through the manager's release (releaseFor, ADR-0944 D7); one only quiet is
  * routed to ask the holder first. Reading the worklist ends nothing: it replaces the hooks ending
@@ -9,7 +11,7 @@
  * stand beside it (ADR-0953 D1, D2).
  */
 import type { ActivityLog } from "../activity/index.js";
-import { holdersOf, LogFold, type Claim, type Restart } from "../readings.js";
+import { holdersOf, isMainBranch, LogFold, type Claim, type Restart } from "../readings.js";
 import { idleAfterMs } from "@storytree/project-and-caller";
 import { COMMANDS_MS, thisRestart } from "./claims.js";
 import { ghAllOpenPulls, type AllOpenPulls, type OpenPull } from "./merges.js";
@@ -64,13 +66,16 @@ export async function staleClaims(context: { readonly log: ActivityLog; readonly
   const quiet = fold.claims({ now, quietMs, beats, ...(restarted === undefined ? {} : { restarted }) })
     .filter((claim): claim is Claim & { increment: string } => claim.increment !== undefined && claim.holder === "idle");
   if (quiet.length === 0) return { claims: [] };
-  // GitHub is asked only when a quiet claim names a branch a pull request could come from.
-  const pulls: ReadonlyMap<string, OpenPull> | undefined = quiet.some((claim) => claim.branch !== undefined)
+  const sessions = new Map(fold.sessions({ now }).map((session) => [session.session, session]));
+  // A claim on its own branch is judged by that branch; one on the main line by the branches its holder worked on.
+  const branchesOf = (claim: Claim): readonly string[] =>
+    claim.branch !== undefined && !isMainBranch(claim.branch) ? [claim.branch] : sessions.get(claim.session)?.branches ?? [];
+  // GitHub is asked only when a quiet claim names a branch, or its holder has one, a pull request could come from.
+  const pulls: ReadonlyMap<string, OpenPull> | undefined = quiet.some((claim) => claim.branch !== undefined || branchesOf(claim).length > 0)
     ? await (options.allOpenPulls ?? ghAllOpenPulls)(context.folder).catch(() => undefined)
     : new Map();
-  const sessions = new Map(fold.sessions({ now }).map((session) => [session.session, session]));
   const claims = quiet
-    .filter((claim) => claim.branch === undefined || !pulls?.has(claim.branch))
+    .filter((claim) => !branchesOf(claim).some((branch) => pulls?.has(branch)))
     .map((claim): StaleClaim => {
       const session = sessions.get(claim.session);
       const gone = session?.state === "gone" || session?.closeOut?.verified === true;

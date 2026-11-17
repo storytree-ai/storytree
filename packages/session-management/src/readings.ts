@@ -71,6 +71,11 @@ export type SessionApp = "claude-desktop" | "codex";
 /** Branches that are a project's main line, never a session's own work. */
 const MAIN_BRANCHES = new Set(["main", "master"]);
 
+/** Whether `branch` is a project's main line, as a claim taken from the main checkout records. */
+export function isMainBranch(branch: string): boolean {
+  return MAIN_BRANCHES.has(branch);
+}
+
 /** A command a session started and has not seen finish: its text, and when it started. */
 export interface RunningCommand {
   command: string;

@@ -96,6 +96,7 @@ test("1.2 cancelling the foreground gate stops the typecheck process and its com
   assert.equal(await running, 130);
   const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
   await waitUntil(() => !pids.some(alive), 10_000, `the typecheck children (${pids.join(", ")}) to exit after the gate completed`);
+  pids.length = 0; // seen gone, so never signalled: Windows can give a pid at once to another process (increment_bd97e464ae7a)
 });
 
 test("1.4 a factory plugin's gate steps run where this computer names it, in its part's place or as a part it adds, and one that cannot be loaded is NOT RUN with why", async (t) => {

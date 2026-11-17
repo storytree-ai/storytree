@@ -171,9 +171,10 @@ test("4.1 a unit past its deadline keeps completed failure details and names the
   // Detached, the wedged child leaves Windows' kill-on-close job and the Unix process group, as a
   // tool's own children may: only a kill that walks the process tree reaches it.
   const pidFile = path.join(tmpdir(), `unit-run-grandchild-${process.pid}.txt`);
+  let reaped = false; // seen gone, it is never signalled: Windows can give its pid at once to another process (increment_bd97e464ae7a)
   t.after(() => {
     try {
-      process.kill(Number(readFileSync(pidFile, "utf8")));
+      if (!reaped) process.kill(Number(readFileSync(pidFile, "utf8")));
     } catch {} // killed by the harness, as it should be
     rmSync(pidFile, { force: true });
   });
@@ -200,6 +201,7 @@ test("4.1 a unit past its deadline keeps completed failure details and names the
   const grandchild = Number(readFileSync(pidFile, "utf8"));
   const gone = () => { try { process.kill(grandchild, 0); return false; } catch { return true; } };
   await waitUntil(gone, 5_000, "the test's own child process to be killed too");
+  reaped = true;
 
   const reason = unitReason({ ...result, unitLimitMs }, root);
   assert.match(reason, /timed out/);
@@ -546,7 +548,9 @@ test("4.1 a run given a deadline cuts the unit it is running to the time left, n
     run = harnessRun(t, {
       "hangs.test.mjs": `import { writeFileSync } from "node:fs";\nimport { test } from "node:test";\ntest("never ends", () => { writeFileSync(${JSON.stringify(marker)}, String(Date.now())); return new Promise(() => { setInterval(() => {}, 1000); }); });`,
     }, { deadline, timeout: budget * 1000 + 40_000 });
-    if (existsSync(marker) && Number(readFileSync(marker, "utf8")) < deadline * 1000 - 2000) break;
+    // A kill as the test starts can leave the marker empty, which is no start time (PR #826's Windows run).
+    const at = existsSync(marker) ? Number(readFileSync(marker, "utf8")) : 0;
+    if (at > 0 && at < deadline * 1000 - 2000) break;
   }
   assert.equal(run.status, 1, run.output);
   assert.match(run.output, /test harness: .*timed out after .*cut to the run's deadline\), killed; still running: .*hangs\.test\.mjs › never ends/);

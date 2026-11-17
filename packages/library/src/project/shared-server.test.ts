@@ -244,15 +244,21 @@ test("28.5 a library call kept waiting for a connection slot says once what it w
   });
 });
 
+/**
+ * The bound leaves room for the first refusal: a call refused within one pause of its bound gives
+ * up without waiting, and so says nothing, and on Windows Postgres starts a process for each
+ * connection, so a refusal there can take a few hundred milliseconds (a 300 ms bound failed so on
+ * the Windows runner, run 43086384622).
+ */
 test("28.5 a library call still refused a connection slot at its wait bound fails with the server's reason", async () => {
   await withFullDatabase(async (url, project) => {
     const said: string[] = [];
-    const storytree = await connect({ url, waitMs: 300, onWait: (what) => said.push(what) });
+    const storytree = await connect({ url, waitMs: 2_000, onWait: (what) => said.push(what) });
     try {
       await withTestClient(async () => {
         const started = Date.now();
         await assert.rejects(storytree.openProject(project), /too many connections/);
-        assert.ok(Date.now() - started < 3_000, "given up at the bound");
+        assert.ok(Date.now() - started < 6_000, "given up at the bound");
       }, `storytree_${project}`);
       assert.equal(said.length, 1);
     } finally {

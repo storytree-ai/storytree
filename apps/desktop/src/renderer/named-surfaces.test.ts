@@ -11,6 +11,7 @@ import { test } from "node:test";
 import type { Browser, Page } from "playwright-core";
 
 import { MENU_TABS } from "@storytree/app/surfaces/named";
+import { waitUntil } from "@storytree/test-waits";
 
 import namedSurfaces from "../main/parts/named-surfaces.js";
 import surfaces from "../main/parts/surfaces.js";
@@ -52,6 +53,22 @@ async function named(page: Page, pick: string): Promise<string> {
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.querySelector<HTMLElement>("[data-corner-composer]")!.hidden);
   return surface;
+}
+
+/**
+ * The first library note in the middle of the globe once it holds its place for two reads running. Library lays its notes
+ * out a few steps to a task once pressed and tilts the sheet over, which one settle's frames on a loaded runner do not see
+ * out (own health's Linux run at 7c3cfb88 found no dot yet).
+ */
+async function restingDot(page: Page, settle: (page: Page) => Promise<void>): Promise<{ id: string; x: number; y: number }> {
+  let last: { id: string; x: number; y: number } | undefined;
+  return waitUntil(async () => {
+    await settle(page);
+    const [dot] = (await visibleGlobeTargets(page, { x: 0.6, y: 0.6 })).dots;
+    const held = dot !== undefined && last?.id === dot.id && Math.hypot(dot.x - last.x, dot.y - last.y) < 0.5;
+    last = dot;
+    return held ? dot : undefined;
+  }, 180_000, "the seed's library to show a note to open, held in its place");
 }
 
 test("3.15 · every canvas, gear menu tab and dialog the app opens carries a declared surface id, and the corner names it", { timeout: 600_000 }, async (t) => {
@@ -107,9 +124,7 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     await page.locator("aside.story-panel").waitFor({ state: "hidden" });
 
     await page.click("[data-globe-switch=library]");
-    await settle(page);
-    const [dot] = (await visibleGlobeTargets(page, { x: 0.6, y: 0.6 })).dots;
-    assert.ok(dot !== undefined, "the seed's library shows a note to open");
+    const dot = await restingDot(page, settle);
     await page.mouse.click(dot.x, dot.y);
     await page.waitForFunction(() => document.body.dataset.note !== undefined);
     assert.equal(await named(page, ".app-gear"), "library");

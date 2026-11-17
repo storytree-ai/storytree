@@ -19,7 +19,16 @@ import { SMALL_FIXES_ARC, smallFixesArc } from "./small-fixes.js";
 test("6.15 a user project has exactly one standing small-fixes arc, made by storytree: setting up makes it, an older project gains it once, a retry, a join or two calls at once make no second, a retired one is never made again, and storytree's own project gets none", async () => {
   const [project, older, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
-    const storytree = await connect({ url: testServerUrl() });
+    const shared = await connect({ url: testServerUrl() });
+    // Only these projects are listed, so a factory another test brought (marked, with a folder) and drops at the same
+    // time is never named: opening a project while its named factory is dropped ends that open's connection (57P01).
+    const storytree = new Proxy(shared, {
+      get: (target, key) => {
+        if (key === "listProjects") return async () => (await target.listProjects()).filter((each) => [project, older, factory].includes(each));
+        const value: unknown = Reflect.get(target, key, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
     try {
       const [folder, boxFolder] = [path.join(dir, "site"), path.join(dir, "box-site")];
       for (const each of [folder, boxFolder]) mkdirSync(each);

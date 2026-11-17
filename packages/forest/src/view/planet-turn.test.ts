@@ -567,6 +567,8 @@ test("3.112 · zoomed to the parts level over a capability with code parts, it o
   const centre = { x: 400, y: 300 };
   const open = await until(async () => {
     const now = await read();
+    // Once it has opened, it is left as it is while the rest of its parts' names reach the page: no further drag or zoom.
+    if (now.opened?.routed === true) return;
     await page.mouse.move(now.x, now.y); await page.mouse.down(); await page.mouse.move(centre.x, centre.y, { steps: 4 }); await page.mouse.up();
     await page.mouse.move(centre.x, centre.y);
     await page.mouse.wheel(0, -240);

@@ -1,16 +1,16 @@
 /**
- * Capability 3 · Reading the project's CI. The harvest of every failed CI run (ADR-1356 D2, research_f0fba6695fbd sections
+ * Capability 1 · Harvesting failed CI runs. The harvest of every failed CI run (ADR-1356 D2, research_f0fba6695fbd sections
  * 1 and 2): each failed GitHub Actions run of the window is sorted once, by run id, and never again.
  *
  * - A run of a workflow that tests no code (a release, a staging build, a Windows update) is infra, and so is one whose red
- *   jobs only timed out or were cancelled; own health's are skipped, since 5.33 already routes them (3.25).
+ *   jobs only timed out or were cancelled; own health's are skipped, since 5.33 already routes them (1.1).
  * - A CI run's failing tests are read by the watcher's own reading (the agent runner's `readFailures`, through its declared
  *   interface), and sorted by its flake rules: a test outside what the pull request changes, one whose head later passed
  *   unchanged, or one in a merge-queue red the watcher reads as a flake (`queueOutcome`) is a flake, and goes to the one
- *   investigation of that test (`investigateFlakyTest`, ADR-1352), never a second flake record (3.26).
+ *   investigation of that test (CI health's `investigateFlakyTest`, ADR-1352), never a second flake record (1.2).
  * - A test that failed at a head and passed only once the pull request changed code it reaches is a real failure, and so is
  *   every increment that landed fixing an escape; each is recorded once as an escape pattern, unjudged, for the agent that
- *   runs the harvest to judge whether it generalises (3.27).
+ *   runs the harvest to judge whether it generalises (1.3).
  *
  * A run nothing settles yet (its pull request still red, say) is left for the next harvest, until it is as old as the
  * window, when it is recorded unsettled; every count is printed, so nothing is dropped silently.
@@ -19,9 +19,11 @@ import { pathToFileURL } from "node:url";
 
 import type { FieldsOf, Library, SchemaRecord, WriteOptions } from "@storytree/library";
 
-import type { ScopeRule } from "../ci-times/record.js";
-import type { GitHub } from "../read-ci/read-ci.js";
-import { investigateFlakyTest, placeOf } from "../investigate/investigate.js";
+import type { GitHub } from "@storytree/ci-health";
+import { investigateFlakyTest, placeOf } from "@storytree/ci-health/investigate";
+
+/** Which packages a change to `files` reaches: CI's scope rule (CI health's ciScopeRule), every package when it cannot say. */
+export type ScopeRule = (files: readonly string[]) => { readonly full: boolean; readonly dirs: readonly string[] };
 
 /** The workflows whose runs test code: every other workflow's failed run is infra. */
 export const CODE_WORKFLOWS: ReadonlySet<string> = new Set(["CI"]);
@@ -109,7 +111,7 @@ export function sortByWorkflow(run: FailedRun): RunSort | undefined {
 }
 
 /**
- * What a CI run's failing tests are (3.26, 3.27), by the watcher's reading: none when its red jobs only timed out or were
+ * What a CI run's failing tests are (1.2, 1.3), by the watcher's reading: none when its red jobs only timed out or were
  * cancelled (infra), or named no test; else each test a flake (outside what the pull request changes, its head rerun green,
  * or a queue red the watcher read as a flake, or green later with no change reaching it), real (green only once the pull
  * request changed code it reaches), or undecided.
@@ -140,7 +142,7 @@ export function sortRun(run: FailedRun, facts: RunFacts, watcher: WatcherReading
   return { kind: "tests", tests };
 }
 
-/** The harvested runs, by run id: each sorted once (3.25). */
+/** The harvested runs, by run id: each sorted once (1.1). */
 export interface HarvestLedger {
   harvested(ids: readonly number[]): Promise<ReadonlySet<number>>;
   mark(rows: readonly { id: number; sorted: string }[]): Promise<void>;
@@ -152,7 +154,7 @@ export interface HarvestSource {
   facts(run: FailedRun): Promise<RunFacts>;
 }
 
-/** What one harvest sorted, as it prints it (3.27). */
+/** What one harvest sorted, as it prints it (1.3). */
 export interface HarvestCounts {
   readonly runs: number;
   readonly already: number;
@@ -181,7 +183,7 @@ function capabilityOf(library: Awaited<ReturnType<Library["projectTree"]>>, cont
 }
 
 /**
- * Harvest every failed run created in the `days` before `now` (3.25 to 3.27): sort each not yet harvested, send its
+ * Harvest every failed run created in the `days` before `now` (1.1 to 1.3): sort each not yet harvested, send its
  * flakes to their investigations, record its real failures and every increment that landed fixing an escape as escape
  * patterns, once each, and mark the run harvested; a run nothing settles yet waits for the next harvest, until it is as
  * old as the window.
@@ -274,7 +276,7 @@ export async function harvest({ library, source, ledger, watcher, now = new Date
     marks.push({ id: run.id, sorted: tests.some(({ verdict }) => verdict === "real") ? "real" : tests.every(({ verdict }) => verdict === "flake") ? "flake" : "unsettled" });
   }
 
-  // Every increment that landed fixing an escape is a real failure every layer missed (3.27).
+  // Every increment that landed fixing an escape is a real failure every layer missed (1.3).
   for (const increment of increments) {
     const escape = (increment.fields as FieldsOf<"increment">).escape;
     if (escape === undefined || escape === "none" || recorded.has(increment.id)) continue;
@@ -303,7 +305,7 @@ export async function harvest({ library, source, ledger, watcher, now = new Date
   };
 }
 
-/** What a harvest printed, in plain words (3.27). */
+/** What a harvest printed, in plain words (1.3). */
 export function harvestText(counts: HarvestCounts): string {
   const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
   return [
@@ -329,7 +331,7 @@ export function queuedPr(branch: string): number | undefined {
 }
 
 /**
- * The harvest's reading of `repository` on GitHub (3.25 to 3.27): its failed and timed-out runs since a time, and each CI
+ * The harvest's reading of `repository` on GitHub (1.1 to 1.3): its failed and timed-out runs since a time, and each CI
  * run's facts: its jobs with their logs, its pull request's reach, whether its head later passed unchanged, a merge-queue
  * red's outcome as the watcher reads it, and the head the pull request was next green at with what the change to it reaches.
  */

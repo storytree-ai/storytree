@@ -14,9 +14,7 @@
  * `health tell` (capability 3, 3.21) tells the owner each verdict turn CI's role could not (it writes only health, 3.20):
  * the Mint box's factory-health tick runs it as the library's owner (question_67e971f31102's answer, option A).
  * `health investigate` (capability 3, 3.24) parks, or adds a flake to, the one investigation of a flaky test the watcher
- * found on a pull request's run, as own health's flakes do (ADR-1352 D1). `health harvest` (capability 3, 3.25 to 3.27) sorts
- * every failed CI run of the last days once: infra counted, flakes to their investigations, real failures and escapes
- * recorded as escape patterns for the agent running it to judge (ADR-1356 D2); the Mint box runs it daily as a scheduled process.
+ * found on a pull request's run, as own health's flakes do (ADR-1352 D1).
  */
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
 
@@ -145,29 +143,7 @@ const investigate = verb({
   },
 });
 
-const harvest = verb({
-  command: { family: "health", name: "harvest", summary: "sort every failed CI run of the last days once: infra counted, each flaky test to its one investigation, each real failure and escape to an escape pattern for you to judge" },
-  tool: { absent: "a step for the Mint box's daily scheduled process, whose agent then judges the escape patterns it recorded" },
-  inputs: { days: { kind: "count", optional: true, describe: "how many days back to list failed runs; 7 when not given" } },
-  writes: true,
-  async act({ days = 7 }, { library, project, folder, server, writer }) {
-    const [{ gitHubSource, harvest: harvestRuns, harvestText, watcherReading }, { ciTimesPool, harvestLedger }, { ghApi, gitIn, repositoryOf }, { ciScopeRule }] = await Promise.all([
-      import("./harvest/harvest.js"), import("./ci-times/store.js"), import("./read-ci/read-ci.js"), import("./ci-times/scope.js"),
-    ]);
-    const repository = repositoryOf(await gitIn(folder)(["remote", "get-url", "origin"]).catch(() => ""));
-    if (repository === undefined) return { text: "This project has no GitHub origin, so storytree has no failed CI runs to harvest; nothing was sorted." };
-    if (server === undefined) throw new VerbRefusal("The harvested runs are kept beside the library, and this door has no library server open.");
-    const watcher = await watcherReading();
-    const counts = await harvestRuns({
-      library, watcher, days, ...(writer === undefined ? {} : { write: writer }),
-      source: gitHubSource(ghApi(), repository, watcher, ciScopeRule(folder)),
-      ledger: harvestLedger(await ciTimesPool(server), project),
-    });
-    return { text: harvestText(counts), next: [{ command: "library list escape", why: "judge each unjudged escape pattern: its class, construct, other places, and whether it generalises" }] };
-  },
-});
-
 /** The command line's `health` family, 18th among `storytree`'s families. */
 export const HEALTH_FAMILIES: readonly VerbFamily[] = [
-  { name: "health", summary: "the health worklist, and reading a project's CI, a local run of its own tests, or a factory plugin's own tests, into its verified health; recording its CI times", order: 18, verbs: [worklist, ci, times, local, plugin, tell, investigate, harvest] },
+  { name: "health", summary: "the health worklist, and reading a project's CI, a local run of its own tests, or a factory plugin's own tests, into its verified health; recording its CI times", order: 18, verbs: [worklist, ci, times, local, plugin, tell, investigate] },
 ];

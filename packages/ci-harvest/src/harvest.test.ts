@@ -10,10 +10,11 @@ import { connect, type Library } from "@storytree/library";
 import type { DoorWords } from "@storytree/library/verbs";
 import { removeTemp } from "@storytree/test-waits";
 
-import { HEALTH_FAMILIES } from "../verbs.js";
+import type { GitHub } from "@storytree/ci-health";
 
-import { ciTimesPool, harvestLedger } from "../ci-times/store.js";
-import type { GitHub } from "../read-ci/read-ci.js";
+import { HARVEST_FAMILIES } from "./verbs.js";
+
+import { harvestLedger, harvestPool } from "./store.js";
 import { gitHubSource, harvest, harvestText, watcherReading, type FailedRun, type HarvestLedger, type RunJob, type HarvestSource } from "./harvest.js";
 
 const NOW = new Date("2026-11-17T12:00:00Z");
@@ -68,11 +69,11 @@ const scope = (files: readonly string[]) => {
   return { full: false, dirs: [...dirs] };
 };
 
-test("3.25 · The harvest counts a failed run of a workflow that tests no code, or one only a timeout or cancel failed, as infra, skips own health's, and harvests a run only once", async (t) => {
+test("1.1 · The harvest counts a failed run of a workflow that tests no code, or one only a timeout or cancel failed, as infra, skips own health's, and harvests a run only once", async (t) => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
   const storytree = await connect({ url });
-  const db = await ciTimesPool(storytree);
+  const db = await harvestPool(storytree);
   const project = `t-${randomBytes(4).toString("hex")}`;
   t.after(async () => {
     try { await db.query("DELETE FROM ci_harvested WHERE project = $1", [project]); } finally { await storytree.close(); }
@@ -123,7 +124,7 @@ test("3.25 · The harvest counts a failed run of a workflow that tests no code, 
   assert.deepEqual(read, [], "nor read again");
 
   // The command: a folder with no GitHub origin has nothing to harvest; one with an origin needs the library's server.
-  const harvestVerb = HEALTH_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "harvest")!;
+  const harvestVerb = HARVEST_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "ci")!;
   const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
   const folder = mkdtempSync(path.join(tmpdir(), "ci-harvest-"));
   t.after(() => removeTemp(folder));
@@ -134,7 +135,7 @@ test("3.25 · The harvest counts a failed run of a workflow that tests no code, 
   await assert.rejects(harvestVerb.act({}, context, words), /kept beside the library, and this door has no library server open/);
 });
 
-test("3.26 · The harvest sends each flaky failing test of a CI run to its one investigation, sorted by the watcher's own reading", async () => {
+test("1.2 · The harvest sends each flaky failing test of a CI run to its one investigation, sorted by the watcher's own reading", async () => {
   const runs = [
     // PR #7 changes only packages/web, and its run failed a test in packages/shop: outside what it changes.
     failed(11, { pr: 7 }),
@@ -198,7 +199,7 @@ test("3.26 · The harvest sends each flaky failing test of a CI run to its one i
   assert.match(harvestText(counts), /flakes routed: 6 flaky tests to 4 investigations/);
 });
 
-test("3.27 · The harvest records each real failure, and each increment fixing an escape, as one unjudged escape pattern", async () => {
+test("1.3 · The harvest records each real failure, and each increment fixing an escape, as one unjudged escape pattern", async () => {
   const runs = [
     // PR #20 changes packages/shop and packages/lib; red at its first head, green at the next, whose change to packages/lib
     // reaches packages/shop. Merged since, its run no longer names it: it is found by its branch.

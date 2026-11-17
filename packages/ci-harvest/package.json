@@ -1,0 +1,31 @@
+{
+  "name": "@storytree/ci-harvest",
+  "private": true,
+  "type": "module",
+  "description": "The CI harvest (ADR-1356 D2): every failed CI run sorted once, infra counted, each flaky test to its one investigation, each real failure and escape recorded as an escape pattern for the agent running it to judge. Its own story, apart from CI health, because it reads the watcher through the agent runner's declared interface, and CI health is in the renderer's reach (ADR-1302).",
+  "exports": {
+    "./verbs": "./src/verbs.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/ci-health": "workspace:*",
+    "@storytree/library": "workspace:*"
+  },
+  "devDependencies": {
+    "@storytree/agent-pool": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "HARVEST_FAMILIES"
+      }
+    ]
+  }
+}

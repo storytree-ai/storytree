@@ -1,6 +1,7 @@
+import assert from "node:assert/strict";
 import { test } from "node:test";
 import { execFile } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,4 +14,5 @@ test("15.1–15.2 the consent and settings capture's renderer builds", { timeout
   const dist = mkdtempSync(path.join(tmpdir(), "journey-capture-build-"));
   t.after(() => rmSync(dist, { recursive: true, force: true }));
   await run(process.execPath, ["--import", "tsx", path.join(pkg, "testing/journey-events/build.mjs"), dist], { cwd: path.resolve(pkg, "../.."), timeout: 120_000 });
+  for (const built of ["index.html", "styles.css", "renderer.js"]) assert.ok(existsSync(path.join(dist, built)), `the build wrote ${built}`);
 });

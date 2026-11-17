@@ -117,6 +117,6 @@ test("14.2 a slow but successful US acknowledgement counts as delivery, as a col
   await requested;
   for (const deadline of [...deadlines]) if (deadline.ms <= 1_300) deadline.fire();
   answer(Response.json({ status: 1 }));
-  await sent;
+  await assert.doesNotReject(sent, "the acknowledgement after a second counts as delivered, not timed out");
   await transport.close();
 });

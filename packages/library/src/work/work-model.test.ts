@@ -1009,6 +1009,22 @@ for (const backend of [memory, postgres]) {
     assert.equal(((await records.get(contract))?.fields as { description?: string } | undefined)?.description, "A path it never serves.");
   });
 
+  contract("4.51", "importPluginPlan given the versions its source held retires a live capability or contract under a held number only when its title is one that source held there; another lane's record under a number the source once held and renumbered stays live and is reported left", async ({ work, records }) => {
+    const plan = (capabilities: PluginPlan["capabilities"]): PluginPlan => ({ story: { title: "Voice" }, capabilities });
+    const address = (...contracts: string[]) => ({ title: "1 · The address", contracts: [{ title: "1.1 · A wrong path is answered 404" }, ...contracts.map((title) => ({ title }))] });
+    const cut = plan([address()]);
+    await work.importPluginPlan("voice", cut);
+    // Lane A imports its new 1.2 and capability 2 from its own folder.
+    const a = plan([address("1.2 · A wrong method is answered 405"), { title: "2 · Speech", contracts: [{ title: "2.1 · Speaks" }] }]);
+    const theirs = await work.importPluginPlan("voice", a, { held: { capabilities: [1, 2], contracts: ["1.1", "1.2", "2.1"], versions: [cut, a] } });
+    // Lane B's folder once held its own 1.2 and capability 2, and renumbered them to 1.3 and 3 before importing.
+    const b = (contract: string, capability: string) => plan([address(`${contract} · A slow request is cut off`), { title: `${capability} · Listening`, contracts: [{ title: `${capability}.1 · Hears` }] }]);
+    const mine = await work.importPluginPlan("voice", b("1.3", "3"), { held: { capabilities: [1, 2, 3], contracts: ["1.1", "1.2", "1.3", "2.1", "3.1"], versions: [cut, b("1.2", "2"), b("1.3", "3")] } });
+    assert.deepEqual(mine.retired, [], "nothing of lane A's is retired under a number lane B's folder once held");
+    assert.deepEqual(new Set(mine.left), new Set(theirs.added.filter((id) => !id.startsWith("story_"))), "lane A's contract and capability are left, and said");
+    for (const id of theirs.added) assert.notEqual(await records.get(id), null, `${id} stays live`);
+  });
+
   contract("4.45", "a contract moved to a numbered capability whose number its old one's prefix is not takes the new capability's next free number, past its contracts and tests; one given a title, or moved within its prefix, keeps its own", async ({ work }) => {
     const story = await work.addStory({ title: "Context service" });
     const retrieval = await work.addCapability({ title: "3 · Retrieval", story: story.id });

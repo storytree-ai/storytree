@@ -1,6 +1,8 @@
 // Capability 3 · The agent runner's declared interface (ADR-1216 D3, ADR-1112): the entries its manifest declares
 // (`storytree.declares`), which its dependents reach it by, never a path into its package: the ready pool
-// (`./launch`, whose `ready` says what the pool would start) and the lane runner (`./runner`, whose `run` runs one lane).
+// (`./launch`, whose `ready` says what the pool would start), the lane runner (`./runner`, whose `run` runs one lane) and
+// the watcher (`./watch`, whose `readFailures` and `queueOutcome` say what a red failed on and whether it was a flake,
+// which the CI health story's harvest sorts every failed run by, ci-health 3.26).
 // While this computer's settings switch the part off and name a factory plugin standing in for it, an entry is the
 // stand-in's export of the same name; switched off with none, it answers nothing, said with why.
 import { readFileSync } from "node:fs";

@@ -49,7 +49,7 @@ export function checkEvidence({ root, log = console.log, error = console.error }
   }
   if (approved.length > 0) {
     said.push(
-      `The branch commits an owner-approved reference, which the library keeps beside the note citing it instead (ADR-1234 D3). Attach each and take it out of the branch:\n${approved.map((file) => `  storytree media attach <the note citing it> ${file}`).join("\n")}`,
+      `The branch commits an owner-approved reference, which the library keeps beside the note citing it instead (ADR-1234 D3). Attach each and take it out of the branch:\n${approved.map((file) => `  storytree media attach <the note citing it> ${file} --project <project>`).join("\n")}`,
     );
   }
   if (said.length > 0) {

@@ -39,3 +39,16 @@ test("4.45 · the Windows update check tries its one-liner again when GitHub ref
   assert.match(answer.out, /^build: the one-liner exited 1 after 1$/m);
   assert.match(answer.out, /^spent: GitHub refused a download on all 3 tries \(429 Too Many Requests; 429 Too Many Requests; 429 Too Many Requests\): an outside fault, not the build's after 3$/m);
 });
+
+test("4.45 · the Windows update check names where a setup crashed, from Windows' crash record, so a crash is told apart as the setup's own or another program's", (t) => {
+  // The record of run 43873306710's crash, as Get-WinEvent words event 1000.
+  const answer = run(t, `
+    $record = "Faulting application name: storytree-0.3-0.3.2878-windows-x64-setup.exe, version: 0.3.2878.0, time stamp: 0x5c157f86\`r\`nFaulting module name: SpiderBanner.dll_unloaded, version: 0.0.0.0, time stamp: 0x576d7b54\`r\`nException code: 0xc0000005\`r\`nFault offset: 0x00001ba7\`r\`nFaulting process id: 0x2678\`r\`nFaulting module path: SpiderBanner.dll\`r\`nReport Id: 38cf5603-2337-46e2-9f6e-aed346618713"
+    Write-Output "place: $(Get-CrashPlace $record)"
+    Write-Output "none: [$(Get-CrashPlace 'Application popup: storytree-0.3.exe - System Error')]"
+  `);
+  if (!answer) return;
+  assert.equal(answer.status, 0, answer.out);
+  assert.match(answer.out, /^place: SpiderBanner\.dll_unloaded\+0x00001ba7 \(SpiderBanner\.dll\)$/m);
+  assert.match(answer.out, /^none: \[\]$/m);
+});

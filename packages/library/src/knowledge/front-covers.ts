@@ -6,12 +6,13 @@
  * the cover of two, and nothing has to check for it.
  *
  * Knowledge (capability 6) and the decision log (capability 13) check every link and front cover
- * they write here, before the write; a broken one throws with nothing written.
+ * they write before the write, the front cover with the decision log's checkFrontCover (decisions/); a broken one
+ * throws with nothing written.
  */
 import { byCreation } from "../creation-order.js";
-import { checkReference, type Expected } from "../references.js";
+import type { Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords } from "../schema/index.js";
-import type { RecordType } from "../schema/types.js";
+import type { RecordType } from "../schema/index.js";
 
 /** What an artifact may link to: another artifact of `types`, never the work. */
 export function artifactsOnly(types: readonly RecordType[]): Expected {
@@ -20,14 +21,6 @@ export function artifactsOnly(types: readonly RecordType[]): Expected {
     types,
     why: "artifacts link only to other artifacts: a story or capability is reached through its front covers, the decisions whose frontCoverOf names it",
   };
-}
-
-/** What a decision may be the front cover of. */
-const COVERABLE: Expected = { name: "story or capability", types: ["story", "capability"] };
-
-/** A decision may be the front cover of a live story or capability, and of nothing else. */
-export function checkFrontCover(records: SchemaRecords, frontCoverOf: unknown): Promise<void> {
-  return checkReference(records, "frontCoverOf", frontCoverOf, COVERABLE);
 }
 
 /**

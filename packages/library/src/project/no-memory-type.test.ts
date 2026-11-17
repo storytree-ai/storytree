@@ -2,8 +2,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { SchemaRecords } from "../schema/records.js";
-import { MemoryTransactions } from "../transactions/memory.js";
+import { SchemaRecords } from "../schema/index.js";
+import { MemoryTransactions } from "../transactions/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { connect } from "./storytree.js";
 

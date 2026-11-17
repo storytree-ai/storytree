@@ -9,16 +9,15 @@
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
 import type { AnnotatedTree, ChangedOnMain, HealthWorkItem, NamedOnMain } from "../health/index.js";
-import { connect as connectServer, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
+import { connect as connectServer, InheritedRecords, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Reached, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
-import { InheritedRecords, type Reached } from "../project/factory.js";
 import { DataQuestions } from "../data/data-questions.js";
 import { couldBeId } from "../references.js";
 import { createHash, randomUUID } from "node:crypto";
 
 import { isPluginKind, UnknownTypeError, type FieldEdit, type FieldsOf, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
 import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
-import type { SurveyOptions, WorkSurvey } from "../work/work-in-flight.js";
+import type { SurveyOptions, WorkSurvey } from "../work/index.js";
 
 /** A connection to one Postgres server and the storytree projects on it. */
 export interface Storytree {

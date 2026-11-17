@@ -17,7 +17,7 @@ import { connect } from "../project/index.js";
 import { SchemaError, SchemaRecords } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, NumberTakenError, type Transactions } from "../transactions/index.js";
-import { Knowledge, SupersessionLoopError } from "./index.js";
+import { Knowledge, SupersessionLoopError } from "../knowledge/index.js";
 
 interface Library {
   readonly knowledge: Knowledge;

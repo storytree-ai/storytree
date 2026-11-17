@@ -3,7 +3,9 @@
  * arc_0c4277f81731). At the parts level the capability under the middle of the view opens; below it, or with no capability
  * there, none is. Its parts keep its health colour (question_211620bd75de): only their borders are drawn, as lines, with
  * their roads, junctions and gate posts, each kind one mesh however many parts (3.115). Where it opens, the island's roads
- * into it give way to its parts' from the border in, and its own junction to theirs; closed, every mark is as it was.
+ * into it give way to its parts' from the border in, and its own junction to theirs; closed, every mark is as it was. A road
+ * an import reaching round a part's front door rides on is drawn in a clash tint, with its gate's posts, and named with the
+ * part it reaches when that is deeper than the parts shown (3.120).
  * Plain three.js, so the marks are read without a browser.
  */
 import { BoxGeometry, BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, type Object3D, type Vector3 } from "three";
@@ -17,6 +19,12 @@ import type { Detail } from "./zoom-detail.js";
 
 /** The capability open on the map, by its story. */
 export type Opened = { readonly story: string; readonly capability: string } | undefined;
+
+/** The parts of the capability open on the map that island `story` draws opened: at the parts level, with its territories shown
+ * and its roads and relief built, when it is on this island and has parts to open into (3.112); else none. */
+export function openedOn<P extends { readonly capability: string }>(open: Opened, story: string, level: Detail, territories: boolean, built: boolean, parts: readonly P[] | undefined): P | undefined {
+  return open?.story === story && level === "parts" && territories && built ? parts?.find(({ capability }) => capability === open.capability) : undefined;
+}
 
 /** What opens at `level` with `under` beneath the middle of the view: the capability there, or the top part it is within
  * (3.118), at the parts level only, and only in Forest (the Library's islands are outlines, with no land to open). */
@@ -43,8 +51,9 @@ export function namesShown<P extends { readonly capability: string }>(plates: re
   return open === undefined || parts === undefined ? { plates: [...plates], parts: [] } : { plates: plates.filter((plate) => plate.capability !== open), parts };
 }
 
-/** A part's name where the map writes it, on the island's ground. */
-export type PartPlate = { readonly part: string; readonly title: string; readonly x: number; readonly z: number };
+/** A part's name where the map writes it, on the island's ground; a road's (`reach`, its `from->to` as `part`) names the part
+ * deeper than those shown that an import on it reaches round a front door (3.120). */
+export type PartPlate = { readonly part: string; readonly title: string; readonly x: number; readonly z: number; readonly reach?: true };
 
 /** The capability open on the map, one at a time, and its parts' names once laid out; it tells its listeners only on a change. */
 export class OpenedStore {
@@ -120,6 +129,8 @@ export function hideForOpening(land: Object3D, map: TerritoryMap, roads: IslandR
 
 /** How far above the land under them the opened capability's marks are drawn, so they lie on the island's roads. */
 const LIFT = 0.02;
+/** A road an import reaching round a part's front door rides on, and its gate's posts (3.120). */
+export const CLASH = { colour: "#e8873a" } as const;
 /** A part's border line, a little fainter than the island's. */
 const PART_BORDER = { colour: "#f4f7f8", opacity: 0.7 } as const;
 
@@ -129,9 +140,11 @@ const PART_BORDER = { colour: "#f4f7f8", opacity: 0.7 } as const;
  * border, with the island's roads it hid drawn again where they still run (`kept`); a junction where each part's roads meet;
  * and a post either side of each part gate. Each point is placed on the island's ground, raised over its relief, by `onSurface`.
  * Parts that are capabilities with `words` of their own (a top part's, 3.118) are filled each by its own word, as one mesh
- * that picks the capability under it (`userData.faces`, by face), and their roads are mixed into that fill.
+ * that picks the capability under it (`userData.faces`, by face), and their roads are mixed into that fill. A road carrying
+ * a key of `clashes` (an import reaching round a part's front door, by its key as routed: dockedClashes, 3.120) and the
+ * posts of its gates are drawn in its tint.
  */
-export function openedMarks(capability: string, layout: NestedLayout, inner: IslandRoads | undefined, kept: readonly RoadSegment[], cells: readonly (readonly Point[])[], coast: Coast | undefined, onSurface: (p: Point) => Vector3, fillAt: FillAt, words: ReadonlyMap<string, { readonly status?: CapabilityWord; readonly parked?: true; readonly title?: string; readonly description?: string }> = new Map()): Group {
+export function openedMarks(capability: string, layout: NestedLayout, inner: IslandRoads | undefined, kept: readonly RoadSegment[], cells: readonly (readonly Point[])[], coast: Coast | undefined, onSurface: (p: Point) => Vector3, fillAt: FillAt, words: ReadonlyMap<string, { readonly status?: CapabilityWord; readonly parked?: true; readonly title?: string; readonly description?: string }> = new Map(), clashes: Readonly<Record<string, readonly string[]>> = {}): Group {
   const group = new Group();
   group.name = `opened-capability:${capability}`;
   const { centre, map } = layout;
@@ -175,8 +188,9 @@ export function openedMarks(capability: string, layout: NestedLayout, inner: Isl
 
   // Its roads, the island's it hid among them, as one mesh in the island roads' sand mixed into the land under them.
   const sand = new Color(ROAD.colour), under = landColour((p) => filled(p) ?? fillAt(p)), mix = (p: Point) => under(p).lerp(sand, ROAD.alpha);
-  const ways = [...kept.map((s) => ({ pts: s.pts, width: s.width })), ...(inner?.segments ?? []).map((s) => ({ pts: s.pts.map(placed), width: s.width }))];
-  flat(merged(ways.map(({ pts, width }) => ribbon(dense(pts), width, lifted, mix))), material(), "part-roads", 3.1);
+  const clashing = (keys: readonly string[]) => keys.some((key) => Object.hasOwn(clashes, key)), tint = new Color(CLASH.colour);
+  const ways = [...kept.map((s) => ({ pts: s.pts, width: s.width, clash: false })), ...(inner?.segments ?? []).map((s) => ({ pts: s.pts.map(placed), width: s.width, clash: clashing(s.links) }))];
+  flat(merged(ways.map(({ pts, width, clash }) => ribbon(dense(pts), width, lifted, clash ? () => tint : mix))), material(), "part-roads", 3.1);
 
   // A junction wherever its roads meet, and where each part's roads end, a little wider than the widest there.
   const discs: { at: Point; width: number }[] = (inner?.junctions ?? []).map(({ at, width }) => ({ at: placed(at), width }));
@@ -195,16 +209,74 @@ export function openedMarks(capability: string, layout: NestedLayout, inner: Isl
     return disc;
   })), material(), "part-junctions", 3.15);
 
-  // A small post either side of each part gate's opening.
+  // A small post either side of each part gate's opening, tinted where a clash's road enters by it.
+  const ink = new Color(POST.ink);
   const posts = (inner?.gates ?? []).filter((gate) => !inTunnelMouth(inner!, gate)).flatMap((gate) => [-1, 1].map((sign) => {
     const side = Math.max(0.15, gate.opening * 0.12), at = placed({ x: gate.at.x + gate.along.x * (gate.opening / 2 + side / 2) * sign, z: gate.at.z + gate.along.z * (gate.opening / 2 + side / 2) * sign });
-    const v = lifted(at), post = new BoxGeometry(side, side * 2.2, side).toNonIndexed().translate(v.x, v.y + side * 1.1, v.z);
+    const v = lifted(at), post = new BoxGeometry(side, side * 2.2, side).toNonIndexed().translate(v.x, v.y + side * 1.1, v.z), colour = clashing(gate.entrances) ? tint : ink;
     post.deleteAttribute("normal"); post.deleteAttribute("uv");
+    post.setAttribute("color", new Float32BufferAttribute(Array.from({ length: post.getAttribute("position").count }, () => [colour.r, colour.g, colour.b]).flat(), 3));
     return post;
   }));
-  flat(merged(posts), material(POST.ink), "part-gates", 3.3);
-  group.userData = { capability, parts: map.territories.length, routed: inner !== undefined };
+  flat(merged(posts), material(), "part-gates", 3.3);
+  const clashRoads = [...new Set((inner?.segments ?? []).flatMap((s) => s.links.filter((key) => Object.hasOwn(clashes, key))))].sort();
+  group.userData = { capability, parts: map.territories.length, routed: inner !== undefined, clashRoads };
   return group;
+}
+
+/**
+ * 3.120: `clashes` (by a road's `from->to` as the capability shows it) on its parts' roads as routed: a road between two of
+ * `layout`'s parts keeps its key, and one in or out of the capability takes the key it is routed by from its crossing
+ * (`docks`, partCrossings' in order): `arrive:k->part` coming in, `part->leave:k` going out.
+ */
+export function dockedClashes(clashes: Readonly<Record<string, readonly string[]>>, docks: readonly { readonly links: readonly string[] }[], layout: NestedLayout): Record<string, readonly string[]> {
+  const here = new Set(layout.map.territories.flatMap(({ capability }) => capability === undefined ? [] : [capability]));
+  const found = new Map<string, Set<string>>();
+  const add = (key: string, parts: readonly string[]) => { const set = found.get(key) ?? new Set<string>(); for (const part of parts) set.add(part); found.set(key, set); };
+  for (const [key, parts] of Object.entries(clashes)) {
+    const [from, to] = key.split("->") as [string, string];
+    if (here.has(from) && here.has(to)) add(key, parts);
+  }
+  docks.forEach(({ links }, k) => {
+    for (const link of links) {
+      if (!Object.hasOwn(clashes, link)) continue;
+      const parts = clashes[link]!;
+      const [from, to] = link.split("->") as [string, string];
+      if (here.has(to) && !here.has(from)) add(`arrive:${k}->${to}`, parts);
+      else if (here.has(from) && !here.has(to)) add(`${from}->leave:${k}`, parts);
+    }
+  });
+  return Object.fromEntries([...found].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([key, set]) => [key, [...set].sort()]));
+}
+
+/**
+ * 3.120: the names of the roads an import reaching round a part's front door rides on (`clashes`, by the road's key as routed),
+ * where the part it reaches lies deeper than the parts `layout` shows: "into" that part, by its path within the part the road
+ * goes to, at the road's gate into it, else midway along its longest stretch; placed on the island like the parts' names.
+ */
+export function reachPlates(layout: NestedLayout, inner: IslandRoads, clashes: Readonly<Record<string, readonly string[]>>): PartPlate[] {
+  const shown = new Set(layout.map.territories.flatMap(({ capability }) => capability === undefined ? [] : [capability]));
+  const length = (pts: readonly Point[]) => pts.slice(1).reduce((sum, p, i) => sum + Math.hypot(p.x - pts[i]!.x, p.z - pts[i]!.z), 0);
+  return Object.entries(clashes).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).flatMap(([key, parts]): PartPlate[] => {
+    const to = key.slice(key.indexOf("->") + 2), deeper = parts.filter((part) => !shown.has(part));
+    if (deeper.length === 0) return [];
+    const gate = inner.gates.find((g) => g.entrances.includes(key));
+    const longest = inner.segments.filter((s) => s.links.includes(key)).sort((a, b) => length(b.pts) - length(a.pts))[0];
+    const at = gate?.at ?? (longest === undefined ? undefined : midway(longest.pts, length(longest.pts) / 2));
+    if (at === undefined) return [];
+    const title = `into ${deeper.map((part) => (part.startsWith(`${to}/`) ? part.slice(to.length + 1) : part)).join(", ")}`;
+    return [{ part: key, title, x: at.x + layout.centre.x, z: at.z + layout.centre.z, reach: true }];
+  });
+}
+
+/** The point `along` the way of `pts`. */
+function midway(pts: readonly Point[], along: number): Point {
+  for (let i = 1; i < pts.length; i++) {
+    const [a, b] = [pts[i - 1]!, pts[i]!], l = Math.hypot(b.x - a.x, b.z - a.z);
+    if (along <= l) return { x: a.x + (b.x - a.x) * (along / (l || 1)), z: a.z + (b.z - a.z) * (along / (l || 1)) };
+    along -= l;
+  }
+  return pts.at(-1)!;
 }
 
 /**

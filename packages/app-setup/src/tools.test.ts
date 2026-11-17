@@ -22,9 +22,9 @@ function setupTools(): Record<string, Tool> {
 
 test("12.3 · the import_project tool answers a folder that does not exist with the refusal saying there is nothing to import, marked refused, reading nothing", async () => {
   const tools = setupTools();
-  // A call whose library and connection throw on any read: the refusal comes first.
+  // A call whose library and connection throw on any read but the library's name, the folder's project the call names: the refusal comes first.
   const unread = () => { throw new Error("read"); };
-  const call = { library: new Proxy({}, { get: unread }), storytree: new Proxy({}, { get: unread }), project: "shop", folder: path.resolve("/nowhere-here") } as never;
+  const call = { library: new Proxy({}, { get: (_library, key) => (key === "name" ? "shop" : unread()) }), storytree: new Proxy({}, { get: unread }), project: "shop", folder: path.resolve("/nowhere-here") } as never;
   const answered = await tools.import_project!({ folder: "gone" }, call);
   assert.equal(answered.refused, true);
   assert.match(answered.text, /gone does not exist, so there is nothing to import\.$/);
@@ -101,4 +101,17 @@ test("12.1 · import_project's reply asks the agent to name and describe the cap
       }
     }
   });
+});
+
+test("12.11 · each App setup tool that writes a library, handed a library other than the folder's project, is refused naming the folder's project, reading and writing nothing (ADR-1348 D3)", async () => {
+  const tools = setupTools();
+  // The server hands the library the call named, here the factory's; any read of it or the connection throws.
+  const unread = () => { throw new Error("read"); };
+  const call = { library: new Proxy({}, { get: (_library, key) => (key === "name" ? "shops-factory" : unread()) }), storytree: new Proxy({}, { get: unread }), project: "shop", folder: path.resolve("/nowhere-here") } as never;
+  const asked: Record<string, Record<string, unknown>> = { take_starter_pack: {}, move_onto_factory: {}, import_project: { folder: "." }, wire_pipeline: { test: "npm test" } };
+  for (const [tool, args] of Object.entries(asked)) {
+    const answered = await tools[tool]!(args, call);
+    assert.equal(answered.refused, true, tool);
+    assert.match(answered.text, /this folder's own project, "shop", not "shops-factory": name project "shop"/, tool);
+  }
 });

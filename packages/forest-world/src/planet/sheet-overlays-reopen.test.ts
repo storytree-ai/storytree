@@ -9,3 +9,10 @@ test('4.35, 4.45 · in a real browser, a sheet opened, closed and opened again s
     env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? 'chrome' },
   });
 });
+
+test('4.47 · in a real browser, a host that turns the big sphere through its group keeps the pose it set last: a render the canvas commits after that turn never puts back the pose the render read', { timeout: 150_000 }, async () => {
+  await promisify(execFile)(process.execPath, ['--import', 'tsx', 'packages/forest-world/testing/sheet-overlays/turning.mjs'], {
+    cwd: fileURLToPath(new URL('../../../..', import.meta.url)), timeout: 140_000,
+    env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? 'chrome' },
+  });
+});

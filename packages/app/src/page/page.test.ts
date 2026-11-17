@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { setImmediate } from "node:timers/promises";
-import type { AnnotatedTree, SharedStore } from "@storytree/library";
+import type { AnnotatedTree } from "@storytree/library";
 import { Window } from "happy-dom";
 
 import { captureSeed } from "../../../../apps/desktop/src/capture/index.js";
@@ -176,7 +176,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
     heard: (on = drawn.at(-1)!) => { for (const listener of [...on.listeners]) void listener.onNews({ changes: [], lines: [] }); },
     readFailed: (error: Error, on = drawn.at(-1)!) => { for (const listener of [...on.listeners]) listener.onError?.(error); },
     /** The fresh tree landing for the project last drawn. */
-    land: (on = drawn.at(-1)!, stores: readonly SharedStore[] = []) => on.reading!.onTree(tree, { changes: [], lines: [] }, {}, stores, []),
+    land: (on = drawn.at(-1)!, landed: AnnotatedTree = tree) => on.reading!.onTree(landed, { changes: [], lines: [] }, {}, []),
     heading: () => content.querySelector("h1")?.textContent,
     line: () => content.querySelector("p")?.textContent,
   };
@@ -699,11 +699,13 @@ test("2.55 · while a project's forest is on show the page mounts the CI times s
   assert.ok(on.last().mounted.includes("ci-times"));
 });
 
-test("2.62 · the page draws the shared stores the forest's reading read, and a picked store opens its panel in the story panel's slot, drawn with the plan last read so it says who touches it, whose close deselects it", async (t) => {
+test("2.62 · the page draws the shared stores the plan's store links name, and a picked store opens its panel in the story panel's slot, drawn with the plan last read so it says who touches it, whose close deselects it", async (t) => {
   const on = page(t);
   await settled();
-  const shop: SharedStore = { address: "postgres://db/shop", medium: "postgres", evidence: [{ file: "docker-compose.yml", says: "service db" }], tables: [] };
-  on.land(undefined, [shop]);
+  const shop = { address: "postgres://db/shop" };
+  const [first, ...rest] = tree.stories;
+  const linked: AnnotatedTree = { ...tree, stories: [{ ...first!, capabilities: first!.capabilities.map((capability, k) => k === 0 ? { ...capability, storeLinks: [{ store: shop.address, table: "orders", direction: "read" as const, cites: ["src/orders.ts:3"] }] } : capability) }, ...rest] };
+  on.land(undefined, linked);
   const project = on.last();
   assert.deepEqual((project.view.scene as { stores?: { address: string }[] }).stores?.map(({ address }) => address), [shop.address], "the store is drawn");
 
@@ -713,7 +715,7 @@ test("2.62 · the page draws the shared stores the forest's reading read, and a 
   assert.equal(panel.querySelector("h2")?.textContent, shop.address, "the store's panel is on show");
   assert.equal(panel.querySelector(".store-plan")?.textContent, tree.stories.map((story) => story.id).join(" "), "its panel is drawn with the plan the page last read");
   assert.equal(on.body.dataset.selected, undefined, "no story is selected with it");
-  on.land(undefined, [shop]);
+  on.land(undefined, linked);
   assert.equal(panel.querySelector("h2")?.textContent, shop.address, "a redraw keeps it");
   const before = project.view.selected.length;
   panel.querySelector<HTMLButtonElement>(".panel-close")!.click();

@@ -9,6 +9,9 @@ name: Own health
 # passing nightly macOS run of that exact commit (macos-nightly.yml, ADR-1303 D2), whose completion starts this too, so
 # the commit it tested is recorded with it (packages/repo-checks/src/test-run/main-commit.mjs). Never from a pull
 # request's run: only main's own commits are recorded.
+# A failing test that the credited CI run of the same commit (the merge queue's, which passed) also ran is a flake: it
+# is still recorded failing, named flaky on the verdict, and the Mint box's `storytree health tell` parks one
+# investigation of that test, or adds the flake to the one already open (contracts 7.19 and library 5.33).
 # A contract proved by a named workflow job rather than a test (CI's Windows installer job, the release's Windows
 # update legs) is recorded from that job's verdict (packages/repo-checks/src/test-run/job-proofs.mjs).
 #

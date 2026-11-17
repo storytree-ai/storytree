@@ -11,9 +11,8 @@
  */
 import type { Pool } from "pg";
 
-import { SchemaRecords, type FieldEdit, type SchemaRecord, type WriteOptions } from "../schema/records.js";
-import type { LibrarySchema, RecordType } from "../schema/types.js";
-import type { ListFilter, Transactions } from "../transactions/types.js";
+import { SchemaRecords, type FieldEdit, type LibrarySchema, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
+import type { ListFilter, Transactions } from "../transactions/index.js";
 import { assertProjectName } from "./names.js";
 
 /** The kinds that are a project's system, which a product reads from its factory; never memory (ADR-1040 D3). */

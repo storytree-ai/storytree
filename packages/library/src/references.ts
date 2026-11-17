@@ -5,8 +5,7 @@
  * capability it is a front cover of. A write whose references are broken is refused, and writes
  * nothing: the checks here run before the write, and throw.
  */
-import { unstorable, type SchemaRecord, type SchemaRecords } from "./schema/records.js";
-import type { RecordType } from "./schema/types.js";
+import { unstorable, type RecordType, type SchemaRecord, type SchemaRecords } from "./schema/index.js";
 
 /**
  * A reference that names no record it may name: the record is missing, retired, or of the wrong

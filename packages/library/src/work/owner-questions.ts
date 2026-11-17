@@ -18,10 +18,10 @@
  * correcting, moving and settling a question are here.
  */
 import { byCreation } from "../creation-order.js";
-import { KNOWLEDGE_KINDS } from "../knowledge/knowledge.js";
+import { KNOWLEDGE_KINDS } from "../knowledge/index.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import { VERDICTS, type FieldsOf, type RecordType } from "../schema/types.js";
+import { VERDICTS, type FieldsOf, type RecordType } from "../schema/index.js";
 
 /** A new question for the owner, on a live arc (capability 12). */
 export type NewQuestion = Omit<FieldsOf<"question">, "lifecycle" | "answer" | "settledAt" | "settledBy" | "verifiedAt">;

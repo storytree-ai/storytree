@@ -12,7 +12,9 @@
  * - Zoomed out, a pin sits on the deepest drawn place holding its anchor: its part, else the nearest drawn part around
  *   it, else its capability.
  */
-import type { FieldsOf, SchemaRecord, SharedStore, StorySurvey, SurveyedPart } from "@storytree/library";
+import type { FieldsOf, SchemaRecord, SharedStore, StoreLink, StorySurvey, SurveyedPart } from "@storytree/library";
+
+import { linkedStores } from "../code-survey/stores.js";
 
 export type PinAnchor = FieldsOf<"pin">["anchor"];
 export type PinIcon = FieldsOf<"pin">["icon"];
@@ -139,7 +141,7 @@ export type PinWritten = { readonly ok: true; readonly pin: Pin } | { readonly o
 export async function writePin(shelf: PinShelf, world: PinWorld, input: PinInput): Promise<PinWritten> {
   if (input.icon === "store" && !("store" in input.anchor)) {
     const stores = world.stores.map(({ address }) => `store:${address}`);
-    return { ok: false, refused: `A store is pinned on the stores' drawing, not on a capability or part: anchor it on store:<address>${stores.length === 0 ? "; the survey finds no shared store here" : `, one of ${stores.join(", ")}`}.` };
+    return { ok: false, refused: `A store is pinned on the stores' drawing, not on a capability or part: anchor it on store:<address>${stores.length === 0 ? "; no capability links a shared store here yet" : `, one of ${stores.join(", ")}`}.` };
   }
   const why = await unresolved(input.anchor, world);
   if (why !== undefined) return { ok: false, refused: `Nothing to pin on ${anchorWords(input.anchor)}: ${why}.` };
@@ -226,8 +228,8 @@ export function pinLine({ pin, stale }: PinReading): string {
   return `${pin.id}  [${icon}] ${label}  on ${anchorWords(anchor)}  at ${commit.slice(0, 12)}${stale === undefined ? "" : `  STALE: ${stale}`}\n    evidence: ${evidence}`;
 }
 
-/** The world a checkout reads: each capability's files and parts in `survey`, by the plan's stories, and its stores. */
-export function pinWorldOf(stories: readonly { readonly id: string; readonly capabilities: readonly { readonly id: string }[] }[], survey: Readonly<Record<string, StorySurvey>>, top: string, stores: readonly SharedStore[], readText: PinWorld["readText"]): PinWorld {
+/** The world a checkout reads: each capability's files and parts in `survey`, by the plan's stories, and the stores their capabilities link. */
+export function pinWorldOf(stories: readonly { readonly id: string; readonly capabilities: readonly { readonly id: string; readonly storeLinks?: readonly StoreLink[] }[] }[], survey: Readonly<Record<string, StorySurvey>>, top: string, readText: PinWorld["readText"]): PinWorld {
   const storyOf = new Map(stories.flatMap((story) => story.capabilities.map(({ id }) => [id, story.id] as const)));
   return {
     capability(id) {
@@ -240,7 +242,7 @@ export function pinWorldOf(stories: readonly { readonly id: string; readonly cap
         root: surveyed?.mapped?.folder ?? top,
       };
     },
-    stores,
+    stores: linkedStores(stories),
     readText,
   };
 }

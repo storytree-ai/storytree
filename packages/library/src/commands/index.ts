@@ -7,7 +7,7 @@
  * writer. Long text can come from a file; refusals are the library's own messages. No verb is a tool: an agent searches,
  * opens, writes and corrects artifacts with the tools the library declares beside them (notes.ts), which record its reads.
  * Capability 27's fixed data questions (`count`, `changes`, `find`) join the family from data/commands.ts, and `read`
- * takes a decision's number in place of its id. Beside it the list mounts capability 13's `adr` family (adr.ts, ADR-1077 D2), the `fyi` family (fyi.ts, ADR-1184 D3) and the `media` family (media.ts, ADR-1234 D3), whose verbs are tools too.
+ * takes a decision's number in place of its id. Beside it the list mounts capability 13's `adr` family (decisions/adr.ts, ADR-1077 D2), the `fyi` family (fyi.ts, ADR-1184 D3) and the `media` family (media.ts, ADR-1234 D3), whose verbs are tools too.
  *
  * - `new` hands the fields to the one library function that writes that kind, and the library
  *   judges them. A new contract skips the numbers its story package's tests carry, and one whose title runs past
@@ -34,15 +34,13 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type SchemaRecord, type WriteOptions } from "../index.js";
-import { PR_CUTOVER_ID } from "../work/index.js";
-import { editPlanRecord, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, type PlanEdit } from "../work/plan-hold.js";
+import { editPlanRecord, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, PR_CUTOVER_ID, type PlanEdit } from "../work/index.js";
 import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
-import { ADR_FAMILY } from "./adr.js";
 import { FYI_FAMILY } from "./fyi.js";
 import { MEDIA_FAMILY } from "./media.js";
 export { mediaGuidance } from "./media.js";
-import { editDecision, recordDecision } from "../librarian/decision-log/index.js";
+import { ADR_FAMILY, editDecision, recordDecision } from "../decisions/index.js";
 import { partsBeside } from "./notes.js";
 import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
@@ -761,7 +759,7 @@ const undo = verb({
 
 export { NOTE_TOOLS, type Found, type NoteRead, type NoteToolContext, type Presenter } from "./notes.js";
 // The plan-edit rule both front doors call (ADR-0966 D1, ADR-0793).
-export { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "../work/plan-hold.js";
+export { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "../work/index.js";
 
 /**
  * What a contract's move onto a link left its part, `capability`, as both front doors say it (question_db632f671942's

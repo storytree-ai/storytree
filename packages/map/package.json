@@ -14,7 +14,8 @@
     "./tree-sitter-bundle": "./src/code-survey/tree-sitter-bundle.ts",
     "./verbs": "./src/verbs.ts",
     "./pin-verbs": "./src/pins/verbs.ts",
-    "./pins": "./src/pins/pins.ts"
+    "./pins": "./src/pins/pins.ts",
+    "./stores": "./src/code-survey/stores.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

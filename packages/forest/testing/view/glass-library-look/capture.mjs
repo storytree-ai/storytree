@@ -17,6 +17,12 @@ import { buildCapture, buildFolder, captureSeed, fakeBridge, withCapture } from 
 import { SHEET_TILT } from '@storytree/forest-world/planet';
 
 const smoke = process.argv.includes('--smoke');
+// Each step goes to stderr as it starts, so a run killed from outside still says where it was (macOS runs were killed at the
+// test's 180 s limit with nothing said, increment_247fd3f83e86).
+const started = performance.now();
+const phase = message => console.error(`[library-look +${Math.round(performance.now() - started)} ms] ${message}`);
+/** Frames the eye and the sheet must hold still for, and how long a wait for that goes on before it fails, naming its step. */
+const STILL_FRAMES = 12, STILL_CAP_MS = 60_000;
 const resting = Math.round(SHEET_TILT * 1800 / Math.PI) / 10;
 /** CSS pixels of a rotating drag up the window per degree of tilt (TILT_PER_PIXEL is π/600 radians). */
 const PER_DEGREE = 600 / 180;
@@ -56,6 +62,7 @@ const { results: summary, opening, out } = await withCapture({ folder: evidence,
   const copy = value => structuredClone(value);
   /** A page of the desktop app showing `tree`, once every one of its stories' islands stands on the sheet. */
   const openOn = async tree => {
+    phase(`open a page on ${tree.stories.length} stories`);
     const page = await browser.newPage({ viewport, deviceScaleFactor: 1, colorScheme: 'dark' });
     page.on('pageerror', error => errors.push(String(error)));
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -92,22 +99,51 @@ const { results: summary, opening, out } = await withCapture({ folder: evidence,
     for (let k = 1; k <= steps; k++) await page.mouse.move(x, y - by * PER_DEGREE * k / steps);
     await page.mouse.up({ button: 'right' });
   };
-  /** Press a button, then wait past the 0.9 s the old swing took (and Library's 0.6 s tilt from straight down), so an eye that
-   * moved would be caught where it went. */
+  /** Wait, past `atLeast` ms, until the eye, its lens and the sheet have held exactly still for STILL_FRAMES frames running: a
+   * tilt still easing in is never taken for where it came to rest (Library's 0.6 s tilt lands its last step a frame late on a
+   * loaded runner, and Windows CI measured the sheet 0.3 short of it), however slowly the page draws. */
+  const still = async (on, what, atLeast = 0) => {
+    phase(`wait for the eye and the sheet to hold still: ${what}`);
+    const held = await on.evaluate(async ({ atLeast, frames, capMs }) => {
+      const from = performance.now();
+      let last, run = 0, drawn = 0;
+      for (;;) {
+        window.__globe.invalidate();
+        await new Promise(requestAnimationFrame);
+        drawn++;
+        const { scene, camera } = window.__globe;
+        scene.updateMatrixWorld(true); camera.updateMatrixWorld(true);
+        const now = JSON.stringify([[...camera.matrixWorld.elements], camera.fov, camera.zoom, [...scene.getObjectByName('sheet:glass').parent.matrixWorld.elements]]);
+        run = now === last ? run + 1 : 0;
+        last = now;
+        if (run >= frames && performance.now() - from >= atLeast) return { ok: true, drawn };
+        if (performance.now() - from > capMs) return { ok: false, drawn };
+      }
+    }, { atLeast, frames: STILL_FRAMES, capMs: STILL_CAP_MS });
+    if (!held.ok) throw new Error(`${what}: the eye or the sheet was still moving after ${STILL_CAP_MS} ms (${held.drawn} frames drawn)`);
+  };
+  /** Press a button, then wait past the 0.9 s the old swing took (and Library's 0.6 s tilt from straight down) until the eye and
+   * the sheet hold still, so an eye that moved would be caught where it went. */
   const press = async (which, on = page) => {
+    phase(`press ${which}`);
     await on.locator(`[data-globe-switch="${which}"]`).click();
     // Library lays its notes out a few steps to a task once pressed: wait until they hang.
-    if (which === 'library') await on.waitForFunction(() => { let n = 0; window.__globe.scene.getObjectByName('sheet:under')?.traverse(o => { if (o.name.startsWith('knowledge-point:')) n++; }); return n > 0; }, undefined, { timeout: 180000 });
+    if (which === 'library') {
+      phase('wait for the notes to hang beneath the glass');
+      await on.waitForFunction(() => { let n = 0; window.__globe.scene.getObjectByName('sheet:under')?.traverse(o => { if (o.name.startsWith('knowledge-point:')) n++; }); return n > 0; }, undefined, { timeout: 180000 });
+    }
     await on.mouse.move(2, 2);
-    await on.waitForTimeout(1200);
     await settle(on, 12);
+    await still(on, `${which} pressed`, 1200);
   };
   const shoot = async (name, on = page) => { if (!smoke) await on.screenshot({ path: path.join(out, `${name}.png`), timeout: 180000 }); };
 
   const results = {};
   // The opening is taken once every island is laid out and its roads drawn.
+  phase('wait for every island to be laid out');
   await page.waitForFunction(() => !document.body.innerText.includes('laying out'), undefined, { timeout: 180000 });
   await settle(page, 12);
+  await still(page, 'the opening');
   const opened = await measure(page);
   assert.deepEqual(opened.pressed, { stories: 'true', library: 'false' }, 'it opens on Stories');
   assert.ok(Math.abs(opened.tiltDeg) < 1.5, `it opens looking straight down (${opened.tiltDeg}°)`);
@@ -125,9 +161,11 @@ const { results: summary, opening, out } = await withCapture({ folder: evidence,
   results.opening = { tiltDeg: opened.tiltDeg, library: tilted.tiltDeg, stories: kept.tiltDeg };
   let at = kept.tiltDeg;
   for (const { name, deg } of TILTS) {
+    phase(`tilt by hand to ${name} (${deg}°)`);
     await tiltBy(deg - at);
     await page.mouse.move(2, 2);
     await settle(page, 12);
+    await still(page, `tilted ${name}`);
     const stories = await measure(page);
     at = stories.tiltDeg;
     assert.ok(Math.abs(stories.tiltDeg - deg) < 1.5, `${name}: tilted by hand to ${stories.tiltDeg}° (wanted ${deg}°)`);

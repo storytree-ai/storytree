@@ -1223,6 +1223,7 @@ test("4.36 · a pull request whose session cap is spent on flakes goes to the ow
   assert.ok(friction, "a friction is filed");
   for (const name of ["1.0 · flaky", "1.1 · flaky", "1.2 · flaky", "PR #41"]) assert.ok(friction.join(" ").includes(name), name);
   assert.ok(friction.includes("--none-match"), "it files new past the closest earlier reports filing would show (ADR-1233), or nothing is filed");
+  assert.equal(friction[friction.indexOf("--increment") + 1], "increment_one", "it names the increment it is on, so the write knows its library (ADR-1348 D3)");
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
   assert.match(b.lines.at(-1), /PR #41.*waits on the owner/);
 });

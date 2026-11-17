@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Vector3, type Group, type PerspectiveCamera } from 'three';
 import type { ForestScene, Island, Store } from '../scene.js';
-import { storeLayout } from './store.js';
+import { storeLayout, tableNameSizes } from './store.js';
 import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
 import { drawnAtOnce, islandDocks, pageRoadRouter, roadsWhenRouted, type IslandDock } from './road-routing.js';
 import { RestLanes, SelectionLanes } from './PlanetTrailRibbons.js';
@@ -62,7 +62,9 @@ export interface PlanetWorldCanvasProps {
   /** A host turns the big sphere, sliding the sheet under the eye, without rebuilding the plates. */
   rotation?: [number, number, number, number];
   /** The big sphere's group: a host that turns it often sets its quaternion and position here and asks for a frame,
-   * rendering nothing, and passes the same pose as `rotation` and `offset` whenever it does render. */
+   * rendering nothing. Its `rotation` and `offset` then pose the group only when it is made: the canvas's root commits a
+   * host's render a task after the host rendered it, so a pose committed later would put back one the host has since
+   * turned on from (4.47). */
   globe?: Ref<Group> | undefined;
   /** Where the big sphere's centre stands, at the origin by default: tilting the glass sheet moves it (ADR-1043 D3). */
   offset?: [number, number, number] | undefined;
@@ -171,7 +173,24 @@ const StorePlate = memo(function StorePlate({ store, spot, radius, visible, chil
   const laid = useMemo(() => storeLayout(store.tables), [store.tables]);
   const named = useMemo(() => [0, TILE_RISE, -laid.depth / 2 + 18] as const, [laid.depth]);
   const label = { pointerEvents: 'none', whiteSpace: 'nowrap', font: '13px system-ui, sans-serif' } as const;
-  return <group position={transform.position} quaternion={transform.quaternion} name={`store:${store.address}`} visible={visible}>
+  // Each table's name is sized every drawn frame from how wide its tile is drawn, so it scales with the tile and stays whole
+  // inside it at whatever zoom the map shows (4.46): a label is in the window's pixels, its tile in ground units.
+  const plate = useRef<Group>(null);
+  const names = useRef(new Map<string, HTMLSpanElement>());
+  const at = useMemo(() => new Vector3(), []);
+  useFrame(({ camera, size }) => {
+    const group = plate.current;
+    if (group === null || !visible) return;
+    const sizes = tableNameSizes(laid, (x, z) => {
+      group.localToWorld(at.set(x, TILE_RISE, z)).project(camera);
+      return [(at.x + 1) * size.width / 2, (1 - at.y) * size.height / 2];
+    });
+    for (const [table, px] of sizes) {
+      const name = names.current.get(table), font = `${px.toFixed(1)}px`;
+      if (name !== undefined && name.style.fontSize !== font) name.style.fontSize = font;
+    }
+  });
+  return <group ref={plate} position={transform.position} quaternion={transform.quaternion} name={`store:${store.address}`} visible={visible}>
     <mesh position={[0, -STORE_THICKNESS / 2, 0]}>
       <boxGeometry args={[laid.width, STORE_THICKNESS, laid.depth]} />
       <meshLambertMaterial color={STORE_COLOUR} />
@@ -185,7 +204,7 @@ const StorePlate = memo(function StorePlate({ store, spot, radius, visible, chil
         <span style={{ color: '#e8f0f8', fontWeight: 600 }} data-store={store.address}>{store.address}</span>
       </Overlay>
       {laid.tiles.map(tile => <Overlay key={tile.name} className="planet-store-table" position={[tile.x, TILE_RISE, tile.z]} center zIndexRange={[25, 21]} style={label}>
-        <span style={{ color: '#1c2733' }}>{tile.name}</span>
+        <span ref={(span) => { if (span === null) names.current.delete(tile.name); else names.current.set(tile.name, span); }} style={{ color: '#1c2733' }}>{tile.name}</span>
       </Overlay>)}
       {children?.(store.address, named)}
     </>}
@@ -317,6 +336,10 @@ export function PlanetWorldCanvas({ scene, spots, storeSpots, radius, rotation =
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
   const root = useRef<() => RootState>(undefined);
+  // 4.47: a host that turns the group itself gives its pose once, as the group is made; one that does not, at every render.
+  const made = useRef<{ rotation: typeof rotation; offset: typeof offset }>(undefined);
+  made.current ??= { rotation, offset };
+  const pose = globe === undefined ? { rotation, offset } : made.current;
   const resize = useMemo(() => ({ debounce: 0, polyfill: drawnOnResize(() => root.current?.()) }), []);
   const onCreated = useCallback(({ camera, get }: RootState) => {
     camera.lookAt(0, 0, 0);
@@ -330,7 +353,7 @@ export function PlanetWorldCanvas({ scene, spots, storeSpots, radius, rotation =
     <color attach="background" args={['#101418']} />
     <Framing radius={radius} framing={framing} sideOffset={sideOffset} sheet={sheet} />
     <GrowthProvider growth={growth}>
-    <group ref={globe ?? null} name="globe" quaternion={rotation} position={offset ?? ORIGIN}>
+    <group ref={globe ?? null} name="globe" quaternion={pose.rotation} position={pose.offset ?? ORIGIN}>
       <SheetGlass extent={sheet} clear={hollow} />
       {scene.islands.map(island => {
         const spot = spots.get(island.story);

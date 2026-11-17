@@ -705,6 +705,38 @@ test("app-setup 11.1 on GitHub, wire_pipeline writes storytree's workflow: the p
   });
 });
 
+test("app-setup 12.11 App setup's tools that write a library take the project they write to: wire_pipeline naming none, or its factory, is refused and writes no workflow; naming the folder's own project writes it (ADR-1348 D3)", async () => {
+  await withProject(async ({ folder, library }) => {
+    const factory = uniqueProjectName();
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await (await storytree.openProject(factory)).markFactory();
+      await library.recordFactory(factory);
+      git(folder, "init", "-q");
+      git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
+      await withAgent(folder, claudeCode("claude-1", { protection: async () => "allowed" }), async (agent) => {
+        for (const tool of ["take_starter_pack", "move_onto_factory", "import_project", "wire_pipeline"]) {
+          assert.ok("project" in ((await agent.inputSchema(tool)).properties as object), `${tool} takes the project it writes to`);
+        }
+        const workflow = path.join(folder, ".github/workflows/storytree.yml");
+        const unnamed = await agent.callExactly("wire_pipeline", { test: "npm test" });
+        assert.equal(unnamed.isError, true);
+        assert.match(unnamed.text, new RegExp(`names where it goes.*this folder's is "${library.name}"`));
+        const theirs = await agent.callExactly("wire_pipeline", { test: "npm test", project: factory });
+        assert.equal(theirs.isError, true);
+        assert.match(theirs.text, new RegExp(`this folder's own project, "${library.name}", not "${factory}"`));
+        assert.equal(existsSync(workflow), false, "a refused call writes nothing");
+        const own = await agent.callExactly("wire_pipeline", { test: "npm test", project: library.name });
+        assert.equal(own.isError, false, own.text);
+        assert.equal(existsSync(workflow), true);
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([factory]);
+    }
+  });
+});
+
 test("app-setup 11.2 in a project not on GitHub, wire_pipeline writes nothing and gives the commands to add to the user's own pipeline", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");

@@ -67,10 +67,10 @@ test("6.5 `health times` records the project's CI times and prints the reading; 
   assert.deepEqual((await db.query("SELECT project FROM ci_readings WHERE project = $1", [name])).rows, [], "nothing was recorded");
 });
 
-test("3.21 `health tell` tells the owner each verdict turn of the last twelve hours, or the hours given, that its writer could not, naming each with what it released", async () => {
+test("3.21 `health tell` tells the owner each verdict turn of the last twelve hours, or the hours given, that its writer could not, naming each with what it released and the investigations of its flaky tests", async () => {
   const asked: string[] = [];
   const turns = [
-    { contract: "contract_aaaaaaaaaaaa", title: "Red: 4.45 · Updates", at: "2026-11-11T06:02:13.000Z", released: ["increment_bbbbbbbbbbbb"] },
+    { contract: "contract_aaaaaaaaaaaa", title: "Red: 4.45 · Updates", at: "2026-11-11T06:02:13.000Z", released: ["increment_bbbbbbbbbbbb"], investigated: ["increment_dddddddddddd"] },
     { contract: "contract_cccccccccccc", title: "Green again: 3.49 · Opening fresh", at: "2026-11-11T06:57:35.000Z", released: [] },
   ];
   const library = { tellUntold: async (from: string) => (asked.push(from), [turns, turns.slice(1), []][asked.length - 1]!) } as unknown as Library;
@@ -82,7 +82,7 @@ test("3.21 `health tell` tells the owner each verdict turn of the last twelve ho
   const hours = (Date.now() - Date.parse(asked[0]!)) / 3_600_000;
   assert.ok(hours >= 12 && hours <= 12 + (Date.now() - started) / 3_600_000 + 0.01, `twelve hours back by default, not ${hours}`);
   assert.match(told.text, /^Told 2 verdict turns /);
-  for (const said of ["Red: 4.45 · Updates (verdict at 2026-11-11T06:02:13.000Z); released increment_bbbbbbbbbbbb", "Green again: 3.49 · Opening fresh (verdict at 2026-11-11T06:57:35.000Z)"]) assert.ok(told.text.includes(said), `it says ${said}`);
+  for (const said of ["Red: 4.45 · Updates (verdict at 2026-11-11T06:02:13.000Z); released increment_bbbbbbbbbbbb; its flaky tests investigated by increment_dddddddddddd", "Green again: 3.49 · Opening fresh (verdict at 2026-11-11T06:57:35.000Z)"]) assert.ok(told.text.includes(said), `it says ${said}`);
 
   const one = await tell.act({ hours: 3 }, context, WORDS);
   assert.ok(Math.abs(Date.now() - Date.parse(asked[1]!) - 3 * 3_600_000) < 60_000, "the hours given");

@@ -63,7 +63,9 @@ function validEvidence(evidence, commit, platform = evidence?.platform) {
 /**
  * Replace only a local `platform:<os>` skip whose complete test identity passed in that system's matching run. A skip
  * whose file that run never ran (its scope, ADR-0649 D4, did not reach the package) is marked `unrun`: the run could not
- * re-run it, so it proves nothing either way.
+ * re-run it, so it proves nothing either way. A local failure stays a failure, marked `flaky` when its complete identity is
+ * in such a run (7.19): that run passed (its evidence is kept only when it did), and its scope ran the test's unit on every
+ * system, Linux's job included, so the same commit passed the test there: a flake, which stays red.
  */
 export function creditPlatforms(results, evidence, { root, commit }) {
   const key = (test, file = test.file) => JSON.stringify([file, test.suites, test.name]);
@@ -78,6 +80,10 @@ export function creditPlatforms(results, evidence, { root, commit }) {
     byPlatform.set(run.platform, { run: run.run, byTest, files: new Set(run.results.map((test) => test.file)) });
   }
   return results.map((test) => {
+    if (test.status === "failed") {
+      const file = path.relative(root, path.resolve(root, test.file)).replaceAll("\\", "/");
+      return [...byPlatform.values()].some((proof) => proof.byTest.has(key(test, file))) ? { ...test, flaky: true } : test;
+    }
     const platform = test.status === "skipped" ? /^platform:([a-z0-9]+)(?:[-\s:]|$)/.exec(test.message ?? "")?.[1] : undefined;
     const proof = platform === undefined ? undefined : byPlatform.get(platform);
     if (proof === undefined) return test;
@@ -246,7 +252,11 @@ export function judge({ contracts, results, coverage, show = (file) => file, pre
     let verdict;
     if (judged.state !== "failing" && crashedUnder.has(number)) {
       verdict = { number, state: "not-checked", ...counts, crashed: true, reason: `${show(crashedUnder.get(number))} produced no results (its process died before running any test)` };
-    } else if (judged.state !== "not-checked") verdict = { number, state: judged.state, ...counts, note: `${note}${ciRuns.map((run) => `; ${run}`).join("")}`, ...(named === undefined ? {} : { tests: named }) };
+    } else if (judged.state !== "not-checked") {
+      // Named as verdictOf names its tests: the suites around it and its name.
+      const flaky = own.filter((test) => test.status === "failed" && test.flaky === true).map(({ suites, name }) => [...suites, name].join(" › "));
+      verdict = { number, state: judged.state, ...counts, note: `${note}${ciRuns.map((run) => `; ${run}`).join("")}`, ...(named === undefined ? {} : { tests: named }), ...(flaky.length === 0 ? {} : { flaky }) };
+    }
     else {
       const unrun = judged.skip !== undefined && own.every(({ status, unrun }) => status !== "skipped" || unrun === true);
       verdict = { number, state: "not-checked", ...counts, ...(judged.skip === undefined ? {} : { skip: judged.skip }), reason: note, ...(unrun ? { unrun } : {}) };

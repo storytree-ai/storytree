@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { workStates } from "@storytree/arc-surface";
 import { forestScene, type SessionWisp } from "@storytree/forest";
 import type { AnnotatedTree } from "@storytree/library";
-import { claimsOn, gatePosts, nextScene, pointersOn, sameWisps } from "./planet-update.js";
+import { claimsInside, claimsOn, gatePosts, nextScene, pointersOn, sameWisps } from "./planet-update.js";
 import { oncePerFrame } from "./planet-navigation.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -97,8 +97,16 @@ test("3.92 a live update that only puts a contract on an edge or a capability is
 test("3.119 · a live update whose only change is a pin written, or one gone stale, is drawn", () => {
   const pin = { pin: { id: "pin_1", type: "pin", fields: { anchor: { capability: "cap" }, icon: "cache", label: "A cache", evidence: "seen", commit: "abc", at: "2026-11-16T00:00:00.000Z" } } } as never as import("@storytree/map/pins").PinReading;
   const shown = forestScene(tree("A"), [], workStates([]));
-  const pinned = forestScene(tree("A"), [], workStates([]), {}, [], [pin]);
+  const pinned = forestScene(tree("A"), [], workStates([]), {}, [pin]);
   assert.notEqual(nextScene({ scene: shown, places: places() }, pinned, places()), undefined, "a pin written");
-  assert.notEqual(nextScene({ scene: pinned, places: places() }, forestScene(tree("A"), [], workStates([]), {}, [], [{ ...pin, stale: "gone" }]), places()), undefined, "a pin gone stale");
-  assert.equal(nextScene({ scene: pinned, places: places() }, forestScene(tree("A"), [], workStates([]), {}, [], [pin]), places()), undefined, "the same pin is not drawn again");
+  assert.notEqual(nextScene({ scene: pinned, places: places() }, forestScene(tree("A"), [], workStates([]), {}, [{ ...pin, stale: "gone" }]), places()), undefined, "a pin gone stale");
+  assert.equal(nextScene({ scene: pinned, places: places() }, forestScene(tree("A"), [], workStates([]), {}, [pin]), places()), undefined, "the same pin is not drawn again");
+});
+
+test("3.122 · a claim moving between the capabilities inside a top part redraws the part's opened land, and one elsewhere leaves it as it was", () => {
+  const parts = [{ shares: [{ capability: "button" }, { capability: "form" }, {}] }];
+  const tint = { colour: "hsl(1, 80%, 68%)", faded: false };
+  const before = claimsInside(new Map([["form", tint]]), parts);
+  assert.notEqual(claimsInside(new Map([["button", tint]]), parts), before, "the flag moves from form to button");
+  assert.equal(claimsInside(new Map([["form", tint], ["elsewhere", tint]]), parts), before);
 });

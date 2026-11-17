@@ -1,15 +1,14 @@
 /**
- * Capability 22 · Decision corrections (The library story, its librarian package): every accepted decision stays true
+ * Capability 22 · Decision corrections (The library story, its decision register): every accepted decision stays true
  * in full. The dividing question is the agent's: did the decision change? No, and it is corrected in place
  * (`correct`); yes, and a successor supersedes it (capability 13's `supersede`); a decision that narrows another
  * leaves a note in it (`annotate`). Finished business nothing points at is retired (capability 23's
  * `retire`), and one something points at is consolidated: superseded by a successor restating what
  * is still true.
  */
-import type { Library, SchemaRecord, WriteOptions } from "../../index.js";
+import type { Library, SchemaRecord, WriteOptions } from "../index.js";
 
-import { LibrarianRefusal } from "../notes.js";
-import { label } from "./supersede.js";
+import { DecisionRefusal, label } from "./supersede.js";
 
 /** What a correction in place may change. */
 export interface Correction {
@@ -34,7 +33,7 @@ export interface Annotation {
 export async function correct(library: Library, id: string, fields: Correction, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
   const decision = await liveDecision(library, id);
   if (fields.status === "proposed" && decision.fields.status === "accepted") {
-    throw new LibrarianRefusal(`${label(decision)} is accepted, and only the owner turns an accepted decision back to proposed`);
+    throw new DecisionRefusal(`${label(decision)} is accepted, and only the owner turns an accepted decision back to proposed`);
   }
   return (await library.editNote(id, fields, writer)) as SchemaRecord<"decision">;
 }
@@ -56,6 +55,6 @@ export async function annotate(library: Library, target: string, { by, note, dat
 
 async function liveDecision(library: Library, id: string): Promise<SchemaRecord<"decision">> {
   const decision = (await library.decision(id))?.record;
-  if (decision === undefined) throw new LibrarianRefusal(`${id} is not a live decision`);
+  if (decision === undefined) throw new DecisionRefusal(`${id} is not a live decision`);
   return decision;
 }

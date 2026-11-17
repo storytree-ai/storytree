@@ -30,7 +30,7 @@ function shelf(): PinShelf & { retired: Map<string, string> } {
 }
 
 const part = (folder: string, files: string[], parts: SurveyedPart[] = []): SurveyedPart => ({ folder, entry: `${folder}/index.ts`, files, parts });
-const store = (address: string, tables: string[] = []): SharedStore => ({ address, medium: "postgres", evidence: [{ file: "compose.yaml", says: "postgres" }], tables: tables.map((name) => ({ name, columns: [], foreignKeys: [], from: [] })) });
+const store = (address: string, tables: string[] = []): SharedStore => ({ address, medium: "postgres", tables: tables.map((name) => ({ name })) });
 
 /** A checkout: the cache capability's files, one part nested inside another, the text of each file, and the shared stores. */
 function world(texts: Record<string, string>, stores: SharedStore[] = [store("postgres://db/app", ["users"])]): PinWorld {
@@ -148,6 +148,9 @@ test("9.4 · a pin on a shared store is placed on that store, never on a territo
   assert.ok(!onCapability.ok);
   assert.match(onCapability.refused, /stores' drawing.*store:postgres:\/\/db\/app, store:redis:\/\/cache/);
   assert.equal((await pins.list()).length, 0);
+  const unlinked = await writePin(pins, world(CODE, []), pin(CACHE, { icon: "store" }));
+  assert.ok(!unlinked.ok);
+  assert.match(unlinked.refused, /store:<address>; no capability links a shared store here yet/, "with no store linked, the refusal says so");
 
   assert.ok((await writePin(pins, here, pin("store:redis://cache", { label: "Session cache" }))).ok, "a cache that is a shared store is pinned on the store");
   assert.ok((await writePin(pins, here, pin("store:postgres://db/app#users", { icon: "store", label: "Accounts" }))).ok);
@@ -176,18 +179,17 @@ test("9.5 · any agent may retire a pin with a reason: it leaves the list and fr
   assert.deepEqual(await retirePin(pins, ids[1]!, "again"), { ok: false, refused: `${ids[1]} is no live pin.` });
 });
 
-test("9.2 · a checkout's pin world gives each capability its own files and parts from its story's survey, from the folder a mapped story's paths are from", async () => {
-  const stories = [{ id: "story_web", capabilities: [{ id: CACHE }, { id: WEB }] }, { id: "story_mapped", capabilities: [{ id: "capability_00000000000c" }] }];
+test("9.2 · a checkout's pin world gives each capability its own files and parts from its story's survey, from the folder a mapped story's paths are from, and the stores its capabilities link", async () => {
+  const stories = [{ id: "story_web", capabilities: [{ id: CACHE, storeLinks: [{ store: "postgres://db/app", table: "users", direction: "read" as const, cites: ["pkg/src/infra/index.ts:1"] }] }, { id: WEB }] }, { id: "story_mapped", capabilities: [{ id: "capability_00000000000c" }] }];
   const nested = part("pkg/src/infra", ["pkg/src/infra/index.ts"]);
   const survey = {
     story_web: { files: [{ path: "pkg/src/infra/index.ts", lines: 1, capability: CACHE }, { path: "pkg/src/web.ts", lines: 1, capability: WEB }], imports: [], parts: { capabilities: { [CACHE]: [nested] }, clashes: [] } },
     story_mapped: { files: [{ path: "lib/a.py", lines: 1, capability: "capability_00000000000c" }], imports: [], mapped: { folder: "/imported" } },
   };
-  const stores = [store("postgres://db/app")];
-  const read = pinWorldOf(stories, survey, "/checkout", stores, async () => undefined);
+  const read = pinWorldOf(stories, survey, "/checkout", async () => undefined);
   assert.deepEqual(read.capability(CACHE), { files: ["pkg/src/infra/index.ts"], parts: [nested], root: "/checkout" });
   assert.deepEqual(read.capability(WEB), { files: ["pkg/src/web.ts"], parts: [], root: "/checkout" });
   assert.deepEqual(read.capability("capability_00000000000c"), { files: ["lib/a.py"], parts: [], root: "/imported" });
   assert.equal(read.capability("capability_00000000000f"), undefined);
-  assert.equal(read.stores, stores);
+  assert.deepEqual(read.stores, [store("postgres://db/app", ["users"])]);
 });

@@ -35,8 +35,11 @@ interface ToolAnswer {
   readonly refused?: boolean;
 }
 
-/** Registers one tool: its name, what it is for, its arguments and what it does with them. */
-type Define = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>) => void;
+/**
+ * Registers one tool: its name, what it is for, its arguments, what it does with them, and whether it writes a library
+ * (ADR-1348 D3), when the server then takes the project it writes to and hands it that project's library.
+ */
+type Define = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>, options?: { readonly writes?: true }) => void;
 
 /** App setup's contribution to the MCP server's one tool server. */
 export interface ToolExtension {
@@ -60,6 +63,18 @@ function quoted(title: string): string {
   return `"${title}"`;
 }
 
+/**
+ * The refusal of a write naming a library other than the folder's project (ADR-1348 D3, contract 12.11): App setup's tools
+ * set up, import into and wire the project this folder is, so the project they name must be it; none when it is.
+ */
+function otherProject({ library, project }: ToolCall): ToolAnswer | undefined {
+  if (library.name === project) return undefined;
+  return { text: `This tool writes to this folder's own project, "${project}", not "${library.name}": name project "${project}", or run it from ${library.name}'s folder.`, refused: true };
+}
+
+/** What a tool App setup serves is defined with: it writes the folder's project's library, named by the call. */
+const WRITES = { writes: true } as const;
+
 /** The tools App setup serves. */
 export function setupTools(readProtection: ProtectionReader = ghProtection, jobs: readonly PipelineJob[] = []): ToolExtension {
   return {
@@ -70,7 +85,10 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
         z.object({
           include: z.array(z.string()).optional().describe("Parts of the starter pack to take in by title, only those the user asked for"),
         }),
-        async ({ include }, { library, storytree }) => {
+        async ({ include }, call) => {
+          const refused = otherProject(call);
+          if (refused !== undefined) return refused;
+          const { library, storytree } = call;
           const took = await takeStarterPack(library, storytree, include);
           const into = took.factory === undefined ? "" : ` into the factory ${quoted(took.factory)}, which this project reads its system from`;
           const said = [`Took the starter pack${into}: added ${took.added.length} and replaced ${took.replaced.length} of its records.`];
@@ -79,23 +97,31 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
           }
           return { text: said.join(" "), data: { ...took } };
         },
+        WRITES,
       );
       define(
         "move_onto_factory",
         "Move this project onto the user's factory, the project holding the system their projects build with (ADR-1040): call it only when the user said yes. Each copy of a role, note or check this project never edited, and the factory also holds, is dropped so the factory's shows through; every one the user edited or added stays this project's own. Moving again changes nothing.",
         z.object({}),
-        async (_args, { storytree, project }) => {
+        async (_args, call) => {
+          const refused = otherProject(call);
+          if (refused !== undefined) return refused;
+          const { storytree, project } = call;
           const moved = await moveOntoFactory({ storytree, project });
           const said = [`This project now builds with the factory "${moved.factory}": dropped ${moved.dropped.length} unedited ${moved.dropped.length === 1 ? "copy" : "copies"} of its system.`];
           if (moved.kept.length > 0) said.push(`Kept as this project's own: ${moved.kept.map(({ kind, title, why }) => `the ${kind} ${quoted(title)}${why === "own" ? "" : ` (${why})`}`).join(", ")}.`);
           return { text: said.join(" "), data: { ...moved } };
         },
+        WRITES,
       );
       define(
         "import_project",
-        "Import an existing JavaScript, TypeScript or Python project into this storytree project, before any story is planned on it: this project's own folder when its code is here (plan_story refuses until it is imported), another folder when the user names one. Its folder is recorded as imported, and each package it declares becomes an imported story, with the capabilities and links storytree draws from its code (one per module or folder, links exactly its imports), titled by their paths. Name and describe each with edit_plan, and never merge, split or redraw them: the map shows the code as it is. Code storytree cannot read gets none: only there do you map capabilities by reading it, with plan_capability and the files each covers. A folder with one manifest at its top and no workspace (a flat src/, say) is one package, imported in place as one story: never move or restructure the code to fit storytree. As you name each capability, plan a contract for what each existing test checks on the capability whose code decides it, naming that test in plan_contract's proved_by, so the repository's own tests turn their contracts green or red, never renaming or editing them. Mapping includes running the repository's tests: once it maps, run `storytree health local` in your shell, as its reply says; no tool runs them, so they sit under your own permission prompt. A shared store the map draws with tables is linked to the code that sends to them from its statement log during a test run, never to the test: edit_plan's store links say how. Importing again adds new packages and drops gone ones, says the commit recorded before and now and the files changed between them, and redraws each imported story from its code as it now stands, keeping the names, descriptions and contracts written on it, and names each capability merged, split, added or retired. Nothing is written into the folder. This project's own folder may be imported, in place, the repository storytree was set up inside; a folder nested inside this project is refused.",
+        "Import an existing JavaScript, TypeScript or Python project into this storytree project, before any story is planned on it: this project's own folder when its code is here (plan_story refuses until it is imported), another folder when the user names one. Its folder is recorded as imported, and each package it declares becomes an imported story, with the capabilities and links storytree draws from its code (one per module or folder, links exactly its imports), titled by their paths. Name and describe each with edit_plan, and never merge, split or redraw them: the map shows the code as it is. Code storytree cannot read gets none: only there do you map capabilities by reading it, with plan_capability and the files each covers. A folder with one manifest at its top and no workspace (a flat src/, say) is one package, imported in place as one story: never move or restructure the code to fit storytree. As you name each capability, plan a contract for what each existing test checks on the capability whose code decides it, naming that test in plan_contract's proved_by, so the repository's own tests turn their contracts green or red, never renaming or editing them. Mapping includes running the repository's tests: once it maps, run `storytree health local` in your shell, as its reply says; no tool runs them, so they sit under your own permission prompt. The map draws a shared store and its tables only from the store links you record, each linking the code that sends to a table, read from the store's statement log during a test run, never the test: edit_plan's store links say how. Importing again adds new packages and drops gone ones, says the commit recorded before and now and the files changed between them, and redraws each imported story from its code as it now stands, keeping the names, descriptions and contracts written on it, and names each capability merged, split, added or retired. Nothing is written into the folder. This project's own folder may be imported, in place, the repository storytree was set up inside; a folder nested inside this project is refused.",
         z.object({ folder: z.string().min(1).describe("The folder of the project to import, absolute or relative to this project's folder") }),
-        async ({ folder }, { library, storytree, folder: here }) => {
+        async ({ folder }, call) => {
+          const refused = otherProject(call);
+          if (refused !== undefined) return refused;
+          const { library, storytree, folder: here } = call;
           const imported = await importProject({ folder: path.resolve(here, folder), library, storytree }).catch((error: unknown) => {
             if (error instanceof ImportRefusedError) return error;
             throw error;
@@ -117,6 +143,7 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
             },
           };
         },
+        WRITES,
       );
       define(
         "wire_pipeline",
@@ -126,7 +153,10 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
           install: z.string().min(1).optional().describe("The command that installs its dependencies first, if any"),
           systems: z.array(z.enum(["linux", "macos", "windows"] satisfies System[])).min(1).optional().describe("The systems the user chose to test on; linux when not given"),
         }),
-        async ({ test, install, systems = ["linux"] as System[] }, { folder, storytree, library }) => {
+        async ({ test, install, systems = ["linux"] as System[] }, call) => {
+          const refused = otherProject(call);
+          if (refused !== undefined) return refused;
+          const { folder, storytree, library } = call;
           const ref = storytreeRef();
           const repository = githubRepository(folder);
           const imports = await importFetches({ storytree, project: library.name, folder });
@@ -173,6 +203,7 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
             data: { written: true, file: WORKFLOW_FILE, ref, imports, protection: { approved: false, command } },
           };
         },
+        WRITES,
       );
     },
   };

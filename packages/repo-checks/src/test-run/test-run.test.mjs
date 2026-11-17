@@ -737,6 +737,43 @@ test("7.3, 7.11 · run by hand, own health is recorded in the library the settin
   assert.deepEqual(recordingTarget({ env: {}, setting: { location: "postgres", address } }), { record: true, library: { address }, writer: { by: "storytree test run", source: "local" } });
 });
 
+test("7.19 · own health records a failing test the passing CI run of the same commit ran without failing as failing, and names it flaky; a failing test that run did not reach, or with no such run's evidence, is named flaky by none", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-flaky-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages", "app-setup", "src"), { recursive: true });
+  const commit = "a".repeat(40);
+  const windowsRun = "https://github.com/storytree-ai/storytree/actions/runs/123/attempts/1";
+  const quiet = { log: () => {}, error: () => {} };
+  await withLibrary(async (lib) => {
+    const story = await lib.addStory({ title: "The app setup" });
+    const capability = await lib.addCapability({ story: story.id, title: "1 · Install and run" });
+    const contracts = [];
+    for (const number of ["1.1", "1.2", "1.3"]) contracts.push(await lib.addContract({ capability: capability.id, title: `${number} · a promise` }));
+    const planned = (await lib.projectTree()).stories[0];
+    const test = (number) => ({ name: `${number} a promise kept`, suites: ["install"], file: "packages/app-setup/src/install.test.ts" });
+    const failed = (number) => ({ ...test(number), file: path.join(root, test(number).file), status: "failed", message: "timed out" });
+    const directory = path.join(root, "evidence");
+    mkdirSync(path.join(directory, "unit-1"), { recursive: true });
+    writeFileSync(path.join(directory, "unit-1", "result.json"), JSON.stringify({
+      platform: "win32", commit, run: windowsRun, unit: "app-setup", code: 0,
+      results: [{ ...test("1.1"), status: "passed" }, { ...test("1.2"), status: "skipped", message: "platform:linux: needs Linux" }],
+    }));
+    const record = async (evidence) => {
+      await checkStory(lib, planned, { by: "storytree test run on CI", commit }, {
+        root, platform: "linux", ...quiet, evidence: [evidence], runTests: async () => ({ code: 1, results: ["1.1", "1.2", "1.3"].map(failed) }),
+      });
+      return Promise.all(contracts.map(async ({ id }) => (await lib.health(id)).verified));
+    };
+    const [one, two, three] = await record(readCiEvidence(directory, { commit, run: windowsRun, platform: "win32" }));
+    for (const verified of [one, two, three]) assert.equal(verified.state, "failing", "a flake still records red");
+    assert.deepEqual(one.flaky, ["install › 1.1 a promise kept"], "a test the passing run of the same commit passed is named flaky");
+    assert.deepEqual(two.flaky, ["install › 1.2 a promise kept"], "so is one it reached and skipped as the Linux job's: that job passed it");
+    assert.equal(three.flaky, undefined, "a test that run never reached is no flake it can show");
+    const without = await record(undefined);
+    for (const verified of without) assert.equal(verified.flaky, undefined, "with no passing run's evidence, no failure is named flaky");
+  });
+});
+
 /** A story file with three capabilities, their dependencies and their contracts, for syncStory to load and reload. */
 
 /** Run `body` with a library for a fresh project on the test server, dropped afterwards, pass or fail. */

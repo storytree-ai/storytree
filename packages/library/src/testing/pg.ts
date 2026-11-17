@@ -27,6 +27,7 @@ import { connect as connectSocket, createServer, type AddressInfo, type Socket }
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { waitUntil } from "@storytree/test-waits";
 
+import { connect as connectLibrary, type Library } from "../index.js";
 import { connect, type Project } from "../project/index.js";
 
 import pg from "pg";
@@ -59,6 +60,23 @@ function testAdminUrl(): string {
 /** A project name no other test, and no earlier run, is using: `t-` and 8 random hex digits. */
 export function uniqueProjectName(): string {
   return `t-${randomBytes(4).toString("hex")}`;
+}
+
+/** Run `body` with a fresh project's library, as everything outside the library reaches it, dropped afterwards, pass or fail. */
+export async function withLibrary(body: (library: Library) => Promise<void>): Promise<void> {
+  const name = uniqueProjectName();
+  const storytree = await connectLibrary({ url: testServerUrl() });
+  try {
+    const library = await storytree.openProject(name);
+    try {
+      await body(library);
+    } finally {
+      await library.close();
+    }
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([`storytree_${name}`]);
+  }
 }
 
 /**

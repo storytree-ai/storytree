@@ -16,6 +16,7 @@ import type { HealthColumn, NodeHealth } from "@storytree/library";
 import { Refusal } from "../answer.js";
 import type { Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
+import { WHERE_USAGE, writtenFor } from "../mount.js";
 import { commandSession, person } from "../writer.js";
 import { edgeContracts, edgeLabel, healthOf, storyEdgeLabel } from "./tree.js";
 
@@ -88,19 +89,20 @@ const show: Verb = {
  * `storytree contract report`, the report tool's twin (ADR-0793): a session whose agent link dropped records a contract's
  * test red or green from its shell (friction_42f65edd6dcc). It reads its words and hands them to Session management's
  * reportContract, the work the tool does, so both doors write the same entry and are refused the same way. The shell's
- * harness session reports it, or else the person at the terminal.
+ * harness session reports it, or else the person at the terminal, in the library its `--project`, `--arc` or
+ * `--increment` names (ADR-1348 D3).
  */
 const report: Verb = {
   name: "report",
-  usage: "contract report <contract> --result red|green [--note <text|@file>]",
+  usage: `contract report <contract> --result red|green [--note <text|@file>] ${WHERE_USAGE}`,
   summary: "record a contract's test red (written, and failing) or green (passing), as the report tool does",
   async act(args, context) {
-    reads(args, ["result", "note"], this.usage);
+    reads(args, ["result", "note", "project", "arc", "increment"], this.usage);
     const contract = args.word(0, "the contract's id", this.usage);
     const result = args.need("result", this.usage);
     if (result !== "red" && result !== "green") throw new Refusal(`--result is red or green, not "${result}"\nusage: storytree ${this.usage}`, { code: 2 });
     const note = args.text("note");
-    const [{ reportContract }, library] = await Promise.all([import("@storytree/session-management/tools"), context.library()]);
+    const [{ reportContract }, library] = await Promise.all([import("@storytree/session-management/tools"), writtenFor(args, context, this.usage)]);
     const caller = commandSession() ?? { session: person(), harness: "person" };
     const answer = await reportContract(library, { contract, result, ...(note === undefined ? {} : { note }) }, { writer: context.writer(), ...caller });
     return { text: answer.text, next: [{ command: `storytree contract show ${contract}`, why: "read its health back" }] };

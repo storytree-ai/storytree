@@ -1197,6 +1197,63 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await health.tellUntold(from), [], "told once, never again");
     assert.equal((await fyis()).length, count);
   });
+
+  contract("5.33", "a failing verified verdict naming a flaky test parks one investigation increment for that test, on that test's own arc, or attaches the flake as evidence to the investigation already open for it; telling again adds nothing, and a failing verdict naming no flaky test parks none", async ({ work, flight, records }) => {
+    const health = new HealthRecord(records, work, flight);
+    const ci = new HealthRecord(onlyHealth(records), work);
+    const onCi = (id: string, state: "passing" | "failing", note: string, flaky?: string[]) =>
+      ci.recordVerified(id, state, { by: "storytree test run on CI", source: "ci", note, ...(flaky === undefined ? {} : { flaky }) }).catch((error: { code?: string }) => {
+        if (error.code !== "42501") throw error;
+      });
+    const { story, contract, sibling } = await smallPlan(work);
+    const flaky = "email form › 1.1 rejects a bad email";
+    const first = "a".repeat(40);
+    const second = "b".repeat(40);
+    const from = new Date().toISOString();
+    const open = async () => (await records.list("increment")).filter(({ fields }) => fields.status !== "closed");
+
+    await onCi(contract.id, "failing", `0/1 tests passed; first failure: timed out, at commit ${first}`, [flaky]);
+    await onCi(sibling.id, "failing", `0/1 tests passed; first failure: timed out, at commit ${first}`, [flaky]);
+    assert.equal((await health.health(contract.id)).verified.state, "failing", "a flake still records red");
+    assert.deepEqual(await open(), [], "CI's role parks nothing itself");
+    await health.tellUntold(from);
+    const [investigation, ...extra] = await open();
+    assert.deepEqual(extra, [], "the first flake of a test parks one investigation, however many contracts its test fails");
+    const { fields } = investigation!;
+    for (const said of [flaky, first, "fix the test", "question"]) assert.ok(`${fields.title} ${fields.objective} ${fields.body}`.includes(said), `the investigation says ${said}`);
+    assert.ok(fields.links?.includes(contract.id), "it links the contract the flake turned red");
+    const arc = await records.get(fields.arc);
+    assert.deepEqual((arc?.fields as { stories?: string[] }).stories, [story.id], "on the test's own arc, under its story");
+    assert.ok((await records.list("fyi")).some(({ fields: fyi }) => fyi.about === contract.id && fyi.what.includes(investigation!.id)), "the red FYI names the investigation");
+
+    await onCi(contract.id, "passing", `1/1 tests passed, at commit ${first}`);
+    await later();
+    await onCi(contract.id, "failing", `0/1 tests passed; first failure: timed out again, at commit ${second}`, [flaky]);
+    await health.tellUntold(from);
+    await health.tellUntold(from);
+    const [same, ...more] = await open();
+    assert.deepEqual(more, [], "a second flake of the same test parks no second investigation");
+    assert.equal(same!.id, investigation!.id);
+    const body = same!.fields.body;
+    assert.ok(body.includes(second) && body.includes("timed out again"), "the repeat is attached to it as evidence");
+    assert.equal(body.split("\n").filter((line) => line.includes(second)).length, 1, "telling again attaches it once");
+
+    await onCi(sibling.id, "passing", `1/1 tests passed, at commit ${second}`);
+    await later();
+    await onCi(sibling.id, "failing", `0/1 tests passed; first failure: a real break, at commit ${second}`);
+    await health.tellUntold(from);
+    assert.deepEqual((await open()).map(({ id }) => id), [investigation!.id], "a red no passing run of its commit passed parks no investigation");
+
+    await flight.closeIncrement(investigation!.id, { disposition: "withdrawn", note: "the test was fixed" });
+    await onCi(contract.id, "passing", `1/1 tests passed, at commit ${second}`);
+    await later();
+    await onCi(contract.id, "failing", `0/1 tests passed; first failure: timed out, at commit ${"c".repeat(40)}`, [flaky]);
+    await health.tellUntold(from);
+    const [next, ...others] = await open();
+    assert.deepEqual(others, []);
+    assert.notEqual(next!.id, investigation!.id, "once its investigation is closed, a new flake parks a new one");
+    assert.equal(next!.fields.arc, fields.arc, "on the same test's arc");
+  });
 }
 
 /** `records` as CI's database role writes through it (infra/library-host/grants.sql): health only, anything else refused as row-level security refuses it. */

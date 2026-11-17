@@ -14,10 +14,11 @@
  * and capability 2's append-only history holds every entry it ever had: who wrote it (`by`, and
  * the change's actor), when, and its note.
  */
+import { createHash } from "node:crypto";
+
 import { byCreation } from "../creation-order.js";
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
-import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import { FRESHNESS, type FieldsOf, type RecordType } from "../schema/types.js";
+import { FRESHNESS, type FieldsOf, type RecordType, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, Holds, ParkedOn, ProjectTree, StoryNode, WorkInFlight, WorkModel } from "../work/index.js";
 
 /** A column's state. A column with no entry reads `not-checked`, never `passing`. */
@@ -43,6 +44,8 @@ export interface HealthColumn {
   source?: HealthSource;
   /** The names of the tests whose results made the verdict, when the writer said. */
   tests?: string[];
+  /** Of a failing verdict's tests, those a passing CI run of the same commit ran without failing (5.33). */
+  flaky?: string[];
 }
 
 /** Where a verdict was seen: by a run on this computer through storytree, or read from CI. */
@@ -79,6 +82,8 @@ export interface HealthOptions extends WriteOptions {
   readonly was?: EarlierVerdict;
   readonly source?: HealthSource;
   readonly tests?: readonly string[];
+  /** Of a failing verdict's tests, those a passing CI run of the same commit ran without failing (5.33). */
+  readonly flaky?: readonly string[];
 }
 
 /** One verdict for recordVerifiedAll: what recordVerified takes for one contract. */
@@ -94,6 +99,8 @@ export interface ToldTurn {
   title: string;
   at: string;
   released: string[];
+  /** The investigations of its flaky tests it parked or added this flake to (5.33), when it named any. */
+  investigated?: string[];
 }
 
 /** One health entry, as it was written. */
@@ -114,6 +121,8 @@ export interface HealthEntry {
   source?: HealthSource;
   /** The tests that judged it, when the writer said. */
   tests?: string[];
+  /** Of a failing verdict's tests, the flakes: those a passing CI run of the same commit ran without failing. */
+  flaky?: string[];
 }
 
 /** A contract in the annotated tree, with its own health. */
@@ -285,13 +294,13 @@ const ROLLED_UP: Partial<Readonly<Record<RecordType, string>>> = {
 export class HealthRecord {
   readonly #records: SchemaRecords;
   readonly #work: WorkModel;
-  readonly #flight: Pick<WorkInFlight, "releaseOnVerdict" | "holds"> | undefined;
+  readonly #flight: Pick<WorkInFlight, "releaseOnVerdict" | "holds" | "createArc" | "addIncrement" | "editIncrement"> | undefined;
 
   /**
    * Given `flight`, a failing verified verdict releases the increments waiting on an event about its contract (10.44), and
-   * each capability's open work says what holds it (5.28).
+   * each capability's open work says what holds it (5.28), and a failing one naming flaky tests parks their investigations (5.33).
    */
-  constructor(records: SchemaRecords, work: WorkModel, flight?: Pick<WorkInFlight, "releaseOnVerdict" | "holds">) {
+  constructor(records: SchemaRecords, work: WorkModel, flight?: Pick<WorkInFlight, "releaseOnVerdict" | "holds" | "createArc" | "addIncrement" | "editIncrement">) {
     this.#records = records;
     this.#work = work;
     this.#flight = flight;
@@ -318,7 +327,7 @@ export class HealthRecord {
   async recordVerified(contractId: string, state: HealthState, options: HealthOptions = {}): Promise<HealthEntry> {
     const earlier = await this.#lastVerdict(contractId);
     const entry = await this.#write("verified", contractId, state, options);
-    const { by: _by, note: _note, skip: _skip, was: _was, source: _source, tests: _tests, ...write } = options;
+    const { by: _by, note: _note, skip: _skip, was: _was, source: _source, tests: _tests, flaky: _flaky, ...write } = options;
     await this.#tell(contractId, earlier, entry, write);
     return entry;
   }
@@ -398,6 +407,7 @@ export class HealthRecord {
       return { contract: contractId, title, at: entry.at, released: [] };
     }
     const verdict = `VERDICT ${entry.at}: ${contract.fields.title} verified failing${by === "" ? "" : ` by ${by}`}${entry.note === undefined ? "." : `: ${entry.note}.`}`;
+    const investigated = await this.#investigate(contract, entry, write);
     const released = this.#flight === undefined ? [] : await this.#flight.releaseOnVerdict(contractId, contract.fields.capability, verdict, write, asOf);
     if (earlier === "failing" && released.length === 0) return undefined;
     const title = earlier === "failing" ? `Still red after a fix: ${contract.fields.title}` : `Red: ${contract.fields.title}`;
@@ -411,7 +421,66 @@ export class HealthRecord {
       const after = released.length === 0 ? "" : ` It was still failing on the run ${released.join(", ")} waited for, so that work is ready again.`;
       await this.#records.create("fyi", { ...fyi, title, what: `${verdict}${after} ${doing}` }, write);
     }
-    return { contract: contractId, title, at: entry.at, released };
+    return { contract: contractId, title, at: entry.at, released, ...(investigated.length === 0 ? {} : { investigated }) };
+  }
+
+  /**
+   * For each flaky test a failing `entry` on `contract` names (5.33): one investigation per test, not per flake. The test's
+   * own arc (its id made from its story and its title, so every flake of it finds the same one) is made the first time;
+   * an open increment on it is the investigation, and the flake is added to its evidence unless it already holds that
+   * commit's; with none open, one is parked. An arc id once held and retired means the test is not to be investigated,
+   * and nothing is parked. The investigations written to or already holding this flake.
+   */
+  async #investigate(contract: SchemaRecord<"contract">, entry: HealthEntry, write: WriteOptions): Promise<string[]> {
+    if (this.#flight === undefined || entry.flaky === undefined || entry.flaky.length === 0) return [];
+    const capability = contract.fields.capability === undefined ? null : await liveRecord(this.#records, contract.fields.capability, ["capability"]);
+    const story = capability === null ? null : await liveRecord(this.#records, capability.fields.story, ["story"]);
+    const commit = /\bat commit ([0-9a-f]{7,40})\b/.exec(entry.note ?? "")?.[1];
+    const seen = commit === undefined ? `the verdict of ${entry.at}` : `commit ${commit}`;
+    const evidence = `- ${seen} (verdict ${entry.at}${entry.by === undefined ? "" : `, by ${entry.by}`}): ${contract.fields.title} failed${entry.note === undefined ? "" : `: ${entry.note}`}`;
+    const investigated: string[] = [];
+    for (const test of entry.flaky) {
+      const arcId = `arc_${createHash("sha256").update(`${story?.id ?? contract.id}\n${test}`).digest("hex").slice(0, 12)}`;
+      if ((await liveRecord(this.#records, arcId, ["arc"])) === null) {
+        try {
+          await this.#flight.createArc({
+            title: `The flaky test "${test}" passes reliably`,
+            intent: `Own health's run on main failed "${test}"${story === null ? "" : ` (${story.fields.title})`} where a passing CI run of the same commit passed it: a flake, which stays red on main's health and is investigated here, one investigation for the test however often it flakes.`,
+            endState: "Every investigation on it is closed: the test was fixed so it no longer flakes, or the fix that would change what it checks was put to the owner as a question on this arc.",
+            ...(story === null ? {} : { stories: [story.id] }),
+          }, { ...write, id: arcId, onlyIfNew: true });
+        } catch (error) {
+          if (error instanceof RangeError) continue; // held once and retired: the test is not to be investigated
+          throw error;
+        }
+      }
+      const open = (await this.#records.select("increment", ["arc"], { not: { status: "closed" } })).filter(({ fields }) => fields.arc === arcId).sort(byCreation);
+      const [current] = open.length === 0 ? [] : await this.#records.list("increment", { ids: [open[0]!.id] });
+      if (current !== undefined) {
+        const { body } = current.fields as FieldsOf<"increment">;
+        if (!body.includes(seen)) await this.#flight.editIncrement(current.id, { body: `${body}\n${evidence}` }, write);
+        investigated.push(current.id);
+        continue;
+      }
+      const parked = await this.#flight.addIncrement({
+        arc: arcId,
+        title: `Find why "${test}" flakes, and fix the test`,
+        objective: `Find why the test "${test}" fails now and then where a passing run of the same code passes it, and fix the test.`,
+        body: [
+          `Parked by storytree's telling of verified health: own health's run on main failed the test below where a passing CI run of the same commit passed it, a flake. Main's health stays red for it; this is the one investigation of the test, and each later flake of it is added to the evidence below.`,
+          "",
+          `Test: ${test}${story === null ? "" : ` (story: ${story.fields.title})`}; contract: ${contract.fields.title}.`,
+          "",
+          "What to do: find why the test is flaky, and fix the test quietly when the fix is clear-cut (it waits for what it checks, it no longer depends on timing, order or a shared resource), keeping what it checks. Only when the fix would change what the test checks, raise an open question to the owner on this arc, holding this increment.",
+          "",
+          "Flakes seen:",
+          evidence,
+        ].join("\n"),
+        links: [contract.id],
+      }, write);
+      investigated.push(parked.id);
+    }
+    return investigated;
   }
 
   /** The last passing or failing verdict in contract `contractId`'s verified column: a not-checked entry keeps the one it did not reproduce. */
@@ -652,7 +721,7 @@ export class HealthRecord {
 
   /** The health record #save writes for an entry, as SchemaRecords.createAll takes it. */
   #entry(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed" | "ci" | "observed"): { type: "health"; fields: FieldsOf<"health">; options: { id: string; actor?: string } } {
-    const { by, note, skip, was, source, tests } = options;
+    const { by, note, skip, was, source, tests, flaky } = options;
     const actor = options.actor ?? by;
     return {
       type: "health",
@@ -666,6 +735,7 @@ export class HealthRecord {
         ...(was === undefined ? {} : { was: was.state, wasAt: was.at }),
         ...(source === undefined ? {} : { source }),
         ...(tests === undefined ? {} : { tests: [...tests] }),
+        ...(flaky === undefined || flaky.length === 0 ? {} : { flaky: [...flaky] }),
       },
       options: { id: healthId(nodeId, kept), ...(actor === undefined ? {} : { actor }) },
     };
@@ -894,7 +964,7 @@ function contractReason(verified: HealthColumn, proof: ContractProof["by"] | und
 
 /** An entry: a health record's fields, and when they were written. Each optional field only when there is one. */
 function entryOf(fields: FieldsOf<"health">, at: string): HealthEntry {
-  const { column, state, by, note, skip, was, wasAt, source, tests } = fields;
+  const { column, state, by, note, skip, was, wasAt, source, tests, flaky } = fields;
   return {
     column,
     state,
@@ -905,5 +975,6 @@ function entryOf(fields: FieldsOf<"health">, at: string): HealthEntry {
     ...(was === undefined || wasAt === undefined ? {} : { was: { state: was, at: wasAt } }),
     ...(source === undefined ? {} : { source }),
     ...(tests === undefined ? {} : { tests }),
+    ...(flaky === undefined ? {} : { flaky }),
   };
 }

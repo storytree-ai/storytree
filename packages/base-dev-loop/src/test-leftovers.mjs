@@ -28,7 +28,7 @@ export function serversUnder(folder, depth = DEPTH) {
     }
     if (entries.some((entry) => entry.name === "PG_VERSION")) {
       const pid = postmasterPid(dir);
-      if (pid !== undefined && isPostgres(pid)) found.push({ dataDir: dir, pid });
+      if (pid !== undefined && isPostmaster(pid)) found.push({ dataDir: dir, pid });
       return;
     }
     if (left === 0) return;
@@ -171,17 +171,30 @@ function ownerAlive(dataDir) {
 }
 
 /**
- * Whether `pid` is a Postgres process. A postmaster.pid outlives a crash or a reboot, and its pid may
- * since have been given to some other program, which must never be killed for it.
+ * Whether `pid` is a Postgres server's postmaster. A postmaster.pid outlives a crash, a kill or a
+ * reboot, and its pid may since have been given to some other program, which must never be killed for
+ * it: a backend of another live server above all, whose killing puts that whole server into recovery
+ * (friction_963e813bb97c). A server's other processes are its postmaster's children: on Windows each is
+ * started with --forkchild, elsewhere its parent is the postmaster.
  */
-function isPostgres(pid) {
+function isPostmaster(pid) {
   if (!isAlive(pid)) return false;
+  const read = (command, args) => execFileSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
   try {
-    if (process.platform === "linux") return readFileSync(`/proc/${pid}/comm`, "utf8").includes("postgres");
     if (process.platform === "win32") {
-      return /postgres/i.test(execFileSync("tasklist", ["/fi", `PID eq ${pid}`, "/fo", "csv", "/nh"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }));
+      if (!/postgres/i.test(read("tasklist", ["/fi", `PID eq ${pid}`, "/fo", "csv", "/nh"]))) return false;
+      const line = read("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine`]);
+      return /postgres/i.test(line) && !/--fork/i.test(line);
     }
-    return /postgres/.test(execFileSync("ps", ["-p", String(pid), "-o", "comm="], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }));
+    if (process.platform === "linux") {
+      const comm = (of) => readFileSync(`/proc/${of}/comm`, "utf8");
+      const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+      const parent = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
+      return comm(pid).includes("postgres") && !(parent > 1 && isAlive(parent) && comm(parent).includes("postgres"));
+    }
+    const [parent, ...name] = read("ps", ["-p", String(pid), "-o", "ppid=,comm="]).trim().split(/\s+/);
+    if (!/postgres/.test(name.join(" "))) return false;
+    return !(Number(parent) > 1 && /postgres/.test(read("ps", ["-p", parent, "-o", "comm="])));
   } catch {
     return false;
   }

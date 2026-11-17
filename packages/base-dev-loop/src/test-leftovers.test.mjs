@@ -11,9 +11,10 @@ import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { start } from "@storytree/local-postgres";
+import pg from "pg";
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { removeFolder, removeWhenFree, sweepLeftovers } from "./test-leftovers.mjs";
+import { removeFolder, removeWhenFree, stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
 import { killTree, runUnit } from "./unit-run.mjs";
 
 const localPostgres = pathToFileURL(fileURLToPath(import.meta.resolve("@storytree/local-postgres"))).href;
@@ -219,6 +220,30 @@ test("4.20 · a folder still held past the budget is removed in the background o
   let tries = 0;
   assert.equal(await removeWhenFree(at, { ...time, log: (message) => said.push(message), rm: () => fail(++tries < 200 ? "EBUSY" : "EIO") }), false, "and so does one that comes after a hold");
   assert.equal(said.filter((message) => /could not remove .*EIO/.test(message)).length, 2, "each with the reason");
+});
+
+// friction_963e813bb97c: on 2026-11-12 Windows CI's shared test Postgres went into recovery mode four times
+// under packages/cli while the base dev loop's unit, whose tests kill servers, ran beside it. A killed
+// server leaves its postmaster.pid, and Windows hands its pid to the next process, often a backend of the
+// live test Postgres (every connection is a process there): stopping that pid crashed the server.
+test("4.20 · 4.21 · a data folder's stale postmaster.pid whose pid is now another server's backend stops nothing", { timeout: 120_000 }, async (t) => {
+  const steps = cleanups(t);
+  const live = await start({ dataDir: path.join(folder(steps, "leftovers-live-"), "db") });
+  steps.push(() => live.stop());
+  const client = new pg.Client({ connectionString: live.url });
+  await client.connect();
+  steps.push(() => client.end().catch(() => {}));
+  const backend = (await client.query("SELECT pg_backend_pid() AS pid")).rows[0].pid;
+  const stale = path.join(folder(steps, "leftovers-stale-"), "db");
+  mkdirSync(stale, { recursive: true });
+  writeFileSync(path.join(stale, "PG_VERSION"), "17\n");
+  writeFileSync(path.join(stale, "postmaster.pid"), `${backend}\n${stale}\n`);
+
+  const stopped = stopServersUnder(path.dirname(stale));
+
+  assert.deepEqual(stopped, [], "the pid is not that folder's server");
+  assert.equal(alive(backend), true, "the live server's backend is left running");
+  assert.deepEqual((await client.query("SELECT 1 AS one")).rows, [{ one: 1 }], "and the live server still answers it");
 });
 
 test("4.22 · a run's start removes storytree scratch folders in Temp older than three days, keeping a newer one and one a live server still uses", { timeout: 120_000 }, async (t) => {

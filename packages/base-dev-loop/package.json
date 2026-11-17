@@ -10,7 +10,8 @@
     "tsx": "^4.23.15"
   },
   "devDependencies": {
-    "@storytree/test-waits": "workspace:*"
+    "@storytree/test-waits": "workspace:*",
+    "pg": "^8.23.0"
   },
   "exports": {
     ".": "./src/gate.mjs",

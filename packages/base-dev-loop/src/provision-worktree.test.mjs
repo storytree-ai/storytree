@@ -300,13 +300,17 @@ test("the tool server starts in a fresh worktree once the session-start install 
 /**
  * A git command in a test's repository. A slow Windows runner once took past a 10 s limit on a plain
  * commit, and the kill read as exit 1 with no reason (friction_eaa48abc2b88), so the limit is wide
- * and a failure says how the command ended and everything it printed.
+ * and a failure says how the command ended and everything it printed. On Windows a fetch from a local
+ * repository has exited 1 with nothing on stderr after updating its ref (increment_aeae14578dbd), so a
+ * fetch that fails is run once more: fetching again is harmless.
  */
 async function git(root, ...args) {
   const timeout = 60_000;
-  const result = await run("git", ["-c", "user.name=Provision test", "-c", "user.email=provision@example.test", "-c", "commit.gpgsign=false", ...args], {
+  const once = () => run("git", ["-c", "user.name=Provision test", "-c", "user.email=provision@example.test", "-c", "commit.gpgsign=false", ...args], {
     cwd: root, timeout,
   });
+  let result = await once();
+  if (result.status !== 0 && !result.signal && args[0] === "fetch") result = await once();
   const ended = result.signal ? `killed by ${result.signal}, its limit ${timeout / 1000} s` : `exit ${result.status}`;
   assert.equal(result.status, 0, `git ${args.join(" ")}: ${ended}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
   return result.stdout.trim();
@@ -390,6 +394,8 @@ test("3.4 a clean primary whose fast-forward git refuses is left as it was and r
   await git(remote, "add", "notes.txt");
   await git(remote, "commit", "-m", "notes");
   writeFileSync(path.join(root, "notes.txt"), "an untracked file the merge would overwrite\n");
+  // Fetched here, so the session start's own fetch has nothing new to bring and its Windows exit 1 cannot stand in for the refused merge.
+  await git(root, "fetch", "origin", "main");
   const before = await git(root, "rev-parse", "HEAD");
   const result = provision({ root, install: () => assert.fail("updating the checkout comes first") });
   assert.match(result.message, /1 commit behind.*fast-forward failed/);

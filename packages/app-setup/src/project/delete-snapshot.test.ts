@@ -171,27 +171,21 @@ for (const existing of [false, true]) {
   });
 }
 
-for (const operation of ["directories", "snapshot"] as const) {
-  test(`3.6 · Windows ${operation} ACL refusal prevents snapshot bytes and project removal`, async (t) => {
-    const home = fs.mkdtempSync(path.join(tmpdir(), "storytree-delete-acl-refusal-"));
-    t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-    const { library, calls } = inertLibrary();
-    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
-    Object.defineProperty(process, "platform", { value: "win32" });
-    t.after(() => Object.defineProperty(process, "platform", platform));
-    let permissions = 0;
-    const mock = t.mock.method(childProcess, "execFileSync", () => {
-      if (++permissions === 1 && operation === "snapshot") return Buffer.alloc(0);
-      throw new Error("synthetic ACL refusal");
-    });
-    syncBuiltinESMExports();
-    t.after(() => { mock.mock.restore(); syncBuiltinESMExports(); });
-    await assert.rejects(deleteProject(project, { home, library, now, confirm: project, snapshot: true }), /synthetic ACL refusal/);
-    assert.equal(calls.drops, 0);
-    assert.equal(fs.existsSync(path.join(home, "backups", project, stamp)), false);
-    assert.equal(fs.existsSync(path.join(home, "removed-projects.json")), false, "local project removal has not begun");
-  });
-}
+test("3.6 · a Windows ACL refusal prevents snapshot bytes and project removal", async (t) => {
+  const home = fs.mkdtempSync(path.join(tmpdir(), "storytree-delete-acl-refusal-"));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const { library, calls } = inertLibrary();
+  const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+  Object.defineProperty(process, "platform", { value: "win32" });
+  t.after(() => Object.defineProperty(process, "platform", platform));
+  const mock = t.mock.method(childProcess, "execFileSync", () => { throw new Error("synthetic ACL refusal"); });
+  syncBuiltinESMExports();
+  t.after(() => { mock.mock.restore(); syncBuiltinESMExports(); });
+  await assert.rejects(deleteProject(project, { home, library, now, confirm: project, snapshot: true }), /synthetic ACL refusal/);
+  assert.equal(calls.drops, 0);
+  assert.equal(fs.existsSync(path.join(home, "backups", project, stamp)), false);
+  assert.equal(fs.existsSync(path.join(home, "removed-projects.json")), false, "local project removal has not begun");
+});
 
 function powershell(script: string, files: string[]): string {
   const env = { ...process.env };

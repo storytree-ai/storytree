@@ -238,11 +238,12 @@ export async function deleteProject(project: string, options: DeleteProjectOptio
         if (!lstatSync(dir).isDirectory()) throw new Error(`Backup folder is not a directory: ${dir}`);
         if (process.platform !== "win32") chmodSync(dir, 0o700);
       }
-      if (process.platform === "win32") windowsSnapshotPermissions([backups, folder].map(file => ({ file, kind: "directory" })));
       snapshot = path.join(folder, `${(options.now ?? new Date()).toISOString().replace(/[:.]/g, "-")}.json`);
       const contents = `${JSON.stringify(await storytree.snapshot(project))}\n`;
-      // Create the Windows file exclusively with its DACL before it receives the snapshot.
-      if (process.platform === "win32") windowsSnapshotPermissions([{ file: snapshot, kind: "create" }]);
+      // Lock both folders, then create the Windows file exclusively with its DACL before it receives the snapshot.
+      if (process.platform === "win32") {
+        windowsSnapshotPermissions([...[backups, folder].map(file => ({ file, kind: "directory" as const })), { file: snapshot, kind: "create" }]);
+      }
       writeFileSync(snapshot, contents, { mode: 0o600, flag: process.platform === "win32" ? "r+" : "wx" });
     }
     const { freed, kept } = await freeOnThisComputer(storytree, project, home);
@@ -268,19 +269,13 @@ $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User
 # SetAccessControl/SetNamedSecurityInfo propagate removal of inherited rules into unrelated files.
 # This supported legacy API changes only the named object (including its protected-DACL flag).
 # https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-setfilesecurityw
-Add-Type -TypeDefinition @'
-using System;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-public static class DeletionSnapshotPermissions {
-  [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
-  static extern bool SetFileSecurityW(string name, uint information, byte[] descriptor);
-  public static void Set(string name, byte[] descriptor) {
-    // OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION
-    if (!SetFileSecurityW(name, 0x80000005, descriptor)) throw new Win32Exception(Marshal.GetLastWin32Error());
-  }
-}
-'@
+# Bound in memory: Add-Type would start csc.exe, whose cold compile has run past 30 s on a loaded Windows CI runner.
+$type = [AppDomain]::CurrentDomain.DefineDynamicAssembly([Reflection.AssemblyName]::new('DeletionSnapshotPermissions'), [Reflection.Emit.AssemblyBuilderAccess]::Run).DefineDynamicModule('DeletionSnapshotPermissions').DefineType('DeletionSnapshotPermissions', 'Public, Class')
+$method = $type.DefineMethod('SetFileSecurityW', 'Public, Static, PinvokeImpl', [bool], [Type[]]@([string], [uint32], [byte[]]))
+$dllImport = [Runtime.InteropServices.DllImportAttribute]
+$fields = [Reflection.FieldInfo[]]@($dllImport.GetField('SetLastError'), $dllImport.GetField('CharSet'), $dllImport.GetField('EntryPoint'))
+$method.SetCustomAttribute([Reflection.Emit.CustomAttributeBuilder]::new($dllImport.GetConstructor([Type[]]@([string])), [object[]]@('advapi32.dll'), $fields, [object[]]@($true, [Runtime.InteropServices.CharSet]::Unicode, 'SetFileSecurityW')))
+$native = $type.CreateType()
 foreach ($entry in $entries) {
   $acl = if ($entry.kind -eq 'directory') { [Security.AccessControl.DirectorySecurity]::new() } else { [Security.AccessControl.FileSecurity]::new() }
   $acl.SetOwner($owner)
@@ -296,13 +291,16 @@ foreach ($entry in $entries) {
       throw
     }
   } else {
-    [DeletionSnapshotPermissions]::Set($entry.file, $acl.GetSecurityDescriptorBinaryForm())
+    # OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION (0x80000005)
+    if (-not $native::SetFileSecurityW($entry.file, [uint32]2147483653, $acl.GetSecurityDescriptorBinaryForm())) {
+      throw [ComponentModel.Win32Exception]::new([Runtime.InteropServices.Marshal]::GetLastWin32Error())
+    }
   }
 }`;
   const env = { ...process.env };
   // A parent PowerShell 7's module path can break Windows PowerShell 5's built-in cmdlets.
   for (const key of Object.keys(env)) if (key.toUpperCase() === "PSMODULEPATH") delete env[key];
-  // Starting PowerShell 5 and compiling the type above has passed 30 s on a loaded Windows CI runner.
+  // Starting PowerShell 5 has passed 30 s on a loaded Windows CI runner.
   try {
     execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
     ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],

@@ -113,8 +113,8 @@ the same browser. `turn` spins the sheet about its upright axis through the midd
 view, anticlockwise on its top face; `tilt` tips it from straight down (0°) through edge-on
 (90°) to its underside (180°), as the app's own tilt is measured; both in degrees, the
 sheet posed as the map's navigation poses it. `zoom` moves the eye along its line of sight,
-in CSS pixels per unit at the middle of the view (`visibleGlobeTargets(page).zoom` reads it);
-one outside the wheel's range is refused. Each step changes only its own part of the pose,
+in CSS pixels per unit at the middle of the view (each frame's returned `pose.zoom` reads it,
+not the camera's own `zoom`); one outside the wheel's range is refused. Each step changes only its own part of the pose,
 and the map is put back as it was afterwards. The pose is set past the page's own
 navigation, so the compass keeps its opening reading. Read the sheet with the Read tool; the
 frames stay beside it for a closer look. It returns each frame's file and the pose read back

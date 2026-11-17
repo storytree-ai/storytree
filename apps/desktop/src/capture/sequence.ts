@@ -5,7 +5,7 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { Page } from "playwright-core";
+import type { Browser, Page } from "playwright-core";
 
 import { settle as settleFrames } from "./runner.js";
 
@@ -65,7 +65,7 @@ const POSE = `const mul = (a, b) => ({ w: a.w * b.w - a.x * b.x - a.y * b.y - a.
   const state = globalThis.__globe;
   if (!state?.camera) throw new Error('Capture sequence needs the map; use buildCapture and wait for the globe');
   const { camera, controls, size, scene } = state, sheet = scene.getObjectByName('globe');
-  if (!sheet || !controls?.target) throw new Error('Capture sequence needs the map\\'s sheet and its controls; wait for the globe');
+  if (!sheet || !controls?.target || !globalThis.__nav?.onRotate) throw new Error('Capture sequence needs the map\\'s sheet, its controls and its navigation; wait for the globe');
   const eye = { x: camera.quaternion.x, y: camera.quaternion.y, z: camera.quaternion.z, w: camera.quaternion.w };
   const upright = turned(eye, { x: 0, y: 0, z: 1 }), across = turned(eye, { x: 1, y: 0, z: 0 }), above = turned(eye, { x: 0, y: 1, z: 0 });
   const pivot = { x: controls.target.x, y: controls.target.y, z: controls.target.z }, held = Math.hypot(pivot.x, pivot.y, pivot.z);
@@ -74,9 +74,8 @@ const POSE = `const mul = (a, b) => ({ w: a.w * b.w - a.x * b.x - a.y * b.y - a.
   const tilt = Math.acos(Math.min(1, Math.max(-1, dot(turned(now, { x: 0, y: 0, z: 1 }), upright))));
   const north = turned(mul(about(across, tilt), now), { x: 0, y: 1, z: 0 });
   const turn = Math.atan2(-dot(north, across), dot(north, above));
-  const zoom = camera.isOrthographicCamera ? camera.zoom : focal / (Math.hypot(camera.position.x, camera.position.y, camera.position.z) - held);
-  const range = camera.isOrthographicCamera ? { min: controls.minZoom ?? 0, max: controls.maxZoom ?? Infinity }
-    : { min: focal / (controls.maxDistance ?? Infinity), max: focal / (controls.minDistance ?? 0) };`;
+  const zoom = focal / (Math.hypot(camera.position.x, camera.position.y, camera.position.z) - held);
+  const range = { min: focal / (controls.maxDistance ?? Infinity), max: focal / (controls.minDistance ?? 0) };`;
 
 const READ_POSE = `(() => { ${POSE}
   return { pose: { turn: turn * 180 / Math.PI, tilt: tilt * 180 / Math.PI, zoom }, range };
@@ -87,13 +86,10 @@ const setPose = (pose: MapPose) => `(pose => { ${POSE}
   const base = mul(about(upright, -turn), mul(about(across, tilt), now));
   const tip = about(across, -pose.tilt * Math.PI / 180), next = mul(tip, mul(about(upright, pose.turn * Math.PI / 180), base));
   const moved = turned(tip, pivot), centre = [pivot.x - moved.x, pivot.y - moved.y, pivot.z - moved.z];
-  if (globalThis.__nav?.onRotate) globalThis.__nav.onRotate(next, centre);
-  else { sheet.quaternion.set(next.x, next.y, next.z, next.w); sheet.position.set(...centre); }
-  if (camera.isOrthographicCamera) { camera.zoom = pose.zoom; camera.updateProjectionMatrix(); }
-  else {
-    const away = held + focal / pose.zoom, length = Math.hypot(camera.position.x, camera.position.y, camera.position.z);
-    camera.position.set(camera.position.x * away / length, camera.position.y * away / length, camera.position.z * away / length);
-  }
+  globalThis.__nav.onRotate(next, centre);
+  // The eye moves along its line of sight, as the wheel moves it: a zoom moves the eye, never the lens.
+  const away = held + focal / pose.zoom, length = Math.hypot(camera.position.x, camera.position.y, camera.position.z);
+  camera.position.set(camera.position.x * away / length, camera.position.y * away / length, camera.position.z * away / length);
   camera.updateMatrixWorld();
   state.invalidate();
 })(${JSON.stringify(pose)})`;
@@ -102,15 +98,13 @@ const setPose = (pose: MapPose) => `(pose => { ${POSE}
 const SAVE = `(() => {
   const { camera, scene } = globalThis.__globe, sheet = scene.getObjectByName('globe');
   return { rotation: { x: sheet.quaternion.x, y: sheet.quaternion.y, z: sheet.quaternion.z, w: sheet.quaternion.w },
-    centre: [sheet.position.x, sheet.position.y, sheet.position.z], eye: [camera.position.x, camera.position.y, camera.position.z], zoom: camera.zoom };
+    centre: [sheet.position.x, sheet.position.y, sheet.position.z], eye: [camera.position.x, camera.position.y, camera.position.z] };
 })()`;
 
 const restore = (saved: unknown) => `(saved => {
-  const state = globalThis.__globe, { camera, scene } = state, sheet = scene.getObjectByName('globe'), { rotation: q } = saved;
-  if (globalThis.__nav?.onRotate) globalThis.__nav.onRotate(q, saved.centre);
-  else { sheet.quaternion.set(q.x, q.y, q.z, q.w); sheet.position.set(...saved.centre); }
+  const state = globalThis.__globe, { camera } = state;
+  globalThis.__nav.onRotate(saved.rotation, saved.centre);
   camera.position.set(...saved.eye);
-  if (camera.isOrthographicCamera) { camera.zoom = saved.zoom; camera.updateProjectionMatrix(); }
   camera.updateMatrixWorld();
   state.invalidate();
 })(${JSON.stringify(saved)})`;
@@ -133,6 +127,9 @@ function round(value: number): number {
 export async function captureSequence(page: Page, { kind, frames = 6, from, to, out, view, settle = settleFrames }: SequenceOptions): Promise<Sequence> {
   if (!Number.isInteger(frames) || frames < 1) throw new Error(`A capture sequence takes a whole number of frames, at least 1, not ${frames}`);
   if (!Number.isFinite(from) || !Number.isFinite(to)) throw new Error("A capture sequence's from and to must be finite");
+  // The sheet is drawn in a page of the map's browser; a page whose context has none (an Electron window) cannot make one.
+  const browser = page.context().browser();
+  if (browser === null) throw new Error("A capture sequence draws its contact sheet in the map's browser; this page has none to open a page in");
   const values = Array.from({ length: frames }, (_, step) => frames === 1 ? from : from + (to - from) * step / (frames - 1));
   const { pose: opening, range } = await page.evaluate(READ_POSE) as { pose: MapPose; range: { min: number; max: number } };
   for (const value of values) {
@@ -156,16 +153,14 @@ export async function captureSequence(page: Page, { kind, frames = 6, from, to, 
     await settle(page);
   }
   const captions = values.map((value, index) => `${index + 1} · ${kind} ${UNITS[kind](value)}`);
-  return { frames: taken, sheet: await contactSheet(page, taken.map(frame => frame.file), captions, path.join(out, `${view}-sheet.png`)) };
+  return { frames: taken, sheet: await contactSheet(browser, taken.map(frame => frame.file), captions, path.join(out, `${view}-sheet.png`)) };
 }
 
 /** The frames in a grid as wide as one image Claude reads, each under its caption, drawn and photographed in a page of its own. */
-async function contactSheet(page: Page, files: string[], captions: string[], file: string): Promise<Sequence["sheet"]> {
+async function contactSheet(browser: Browser, files: string[], captions: string[], file: string): Promise<Sequence["sheet"]> {
   const columns = Math.min(files.length, Math.max(3, Math.ceil(Math.sqrt(files.length))));
   // A page of its own in the same browser, so the sheet is not drawn at the map's viewport or in its context.
-  const browser = page.context().browser();
-  const sheet = browser === null ? await page.context().newPage() : await browser.newPage({ viewport: { width: SHEET_WIDTH, height: 400 }, deviceScaleFactor: 1 });
-  if (browser === null) await sheet.setViewportSize({ width: SHEET_WIDTH, height: 400 });
+  const sheet = await browser.newPage({ viewport: { width: SHEET_WIDTH, height: 400 }, deviceScaleFactor: 1 });
   try {
     const cells = files.map((frame, index) => `<figure><figcaption>${captions[index]}</figcaption><img src="data:image/png;base64,${readFileSync(frame).toString("base64")}"></figure>`).join("");
     await sheet.setContent(`<style>

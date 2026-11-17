@@ -38,6 +38,8 @@ async function standInMap(page: Page): Promise<void> {
     // Spun 10° about the eye's axis, then tipped 40° about the window's horizontal, its north edge away.
     const spin = 10 * Math.PI / 360, tip = -40 * Math.PI / 360;
     const sheet = { quaternion: quaternion(Math.sin(tip) * Math.cos(spin), -Math.sin(tip) * Math.sin(spin), Math.cos(tip) * Math.sin(spin), Math.cos(tip) * Math.cos(spin)), position: vector(0, 0, 0) };
+    // The app's own navigation sets the sheet's turn on its group (planet-view's onRotate).
+    globalThis.__nav = { onRotate(next, centre) { sheet.quaternion.set(next.x, next.y, next.z, next.w); sheet.position.set(...centre); } };
     globalThis.__globe = { camera, size: { width: 480, height: 320 }, scene: { getObjectByName: name => name === 'globe' ? sheet : undefined },
       controls: { target: vector(0, 0, pivot), minDistance: focal / 30, maxDistance: focal / 0.25 },
       invalidate() {
@@ -117,5 +119,8 @@ test("2.65 · a capture's frame sequence sets the map's turn, tilt or zoom by th
 
   await assert.rejects(captureSequence(page, { kind: "zoom", frames: 2, from: 1, to: 40, out, view: "far" }), /zoom 40.*outside/);
   await assert.rejects(captureSequence(page, { kind: "tilt", frames: 2, from: 0, to: 200, out, view: "top" }), /tilt 200.*between/);
+  await assert.rejects(captureSequence(page, { kind: "turn", from: 0, to: Number.NaN, out, view: "lost" }), /finite/);
+  const windowed = { context: () => ({ browser: () => null }) } as unknown as Page;
+  await assert.rejects(captureSequence(windowed, { kind: "turn", from: 0, to: 90, out, view: "window" }), /browser/);
   await assert.rejects(captureSequence(page, { kind: "turn", frames: 0, from: 0, to: 90, out, view: "none" }), /frames/);
 });

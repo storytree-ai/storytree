@@ -39,7 +39,8 @@
     ],
     "declares": [
       "./launch",
-      "./runner"
+      "./runner",
+      "./watch"
     ]
   }
 }

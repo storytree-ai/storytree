@@ -34,6 +34,7 @@ import { LIBRARY_FAMILIES } from "@storytree/library/commands";
 import { MAP_FAMILIES } from "@storytree/map/verbs";
 import { PIN_FAMILIES } from "@storytree/map/pin-verbs";
 import { PLUGIN_FAMILIES } from "@storytree/plugin-loader/verbs";
+import { HARVEST_FAMILIES } from "@storytree/ci-harvest/verbs";
 import type { Reading } from "./usage/reading.js";
 
 import type { Family } from "./door.js";
@@ -43,7 +44,7 @@ import armCheckParts from "./parts/arm-checks.js";
 import { BuiltCommand, dropTestProjects, inWorld, storytree, testServerUrl, uniqueProjectName } from "./testing/cli.js";
 
 const command = new BuiltCommand();
-const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SERVICES_FAMILIES, ...SCHEDULE_FAMILIES, ...ACTIVITY_FAMILIES, ...MEASURES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...MAP_FAMILIES, ...PIN_FAMILIES, ...FEEDBACK_FAMILIES, ...PLUGIN_FAMILIES];
+const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SERVICES_FAMILIES, ...SCHEDULE_FAMILIES, ...ACTIVITY_FAMILIES, ...MEASURES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...MAP_FAMILIES, ...PIN_FAMILIES, ...FEEDBACK_FAMILIES, ...PLUGIN_FAMILIES, ...HARVEST_FAMILIES];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 before(() => command.build());

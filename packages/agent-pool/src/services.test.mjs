@@ -93,11 +93,14 @@ test("3.33 · stopping the dispatcher's service ends the dispatcher and leaves i
   const running = service.start({ stopping: stopping.signal, log: (line) => lines.push(line) });
   const lane = Number(await waitUntil(async () => (await readFile(join(lanesDir, "lane.pid"), "utf8").catch(() => "")), 10_000, "the fake lane's pid"));
   const dispatcherPid = Number(await readFile(join(lanesDir, "pool.pid"), "utf8"));
-  t.after(() => { try { process.kill(lane); } catch {} });
+  // A lane seen gone is never signalled: Windows can give its pid at once to another process (increment_845f8cd71c6d).
+  let laneGone = false;
+  t.after(() => { if (!laneGone) try { process.kill(lane); } catch {} });
   stopping.abort();
   await running;
   await waitUntil(() => !alive(dispatcherPid), 10_000, "the dispatcher to end");
-  assert.equal(alive(lane), true, "the lane runs on after its dispatcher's service stopped");
+  laneGone = !alive(lane);
+  assert.equal(laneGone, false, "the lane runs on after its dispatcher's service stopped");
   assert.match(lines.join("\n"), new RegExp(`stopped the dispatcher \\(pid ${dispatcherPid}\\)`));
   assert.match(await readFile(join(lanesDir, "pool.status"), "utf8"), new RegExp(`dispatcher ${dispatcherPid} stopped by its service; its running lanes run on`));
 });
@@ -146,9 +149,13 @@ test("3.33 · stopping the watcher's service ends the watcher and its look loop,
   const service = poolService("watcher", { lanesDir, checkout: lanesDir, command: [process.execPath, [script, "run", lanesDir]], pollMs: 50 });
   const running = service.start({ stopping: stopping.signal, log: () => {} });
   const pids = JSON.parse(await waitUntil(async () => (await readFile(join(lanesDir, "pids"), "utf8").catch(() => "")), 10_000, "the fake watcher's pids"));
-  t.after(() => { for (const pid of Object.values(pids)) { try { process.kill(pid); } catch {} } });
+  const left = new Set(Object.values(pids));
+  t.after(() => { for (const pid of left) { try { process.kill(pid); } catch {} } });
   stopping.abort();
   await running;
   await waitUntil(() => !alive(pids.run) && !alive(pids.loop), 10_000, "the watcher and its look loop to end");
+  // Seen gone, so never signalled: their pids may already be another process's (increment_845f8cd71c6d).
+  left.delete(pids.run);
+  left.delete(pids.loop);
   assert.equal(alive(pids.fix), true, "the fix session runs on after the watcher's service stopped");
 });

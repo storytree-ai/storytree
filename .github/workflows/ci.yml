@@ -277,6 +277,16 @@ jobs:
         env:
           STORYTREE_UNIT_LIMIT_MS: 360000
           STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || '' }}
+      # Before a test a pull request adds counts, it runs five more times, on Linux and on Windows (one shard's job), through
+      # the same test entry (packages/base-dev-loop/src/repeat-new-tests.mjs, arc_9631097b677e): a repeat that fails names the
+      # test as flaky, for an investigation under ADR-1352. Old tests are not repeated, and a pull request adding none runs
+      # nothing here. The merge queue does not repeat them again.
+      - name: Repeat the tests this pull request adds
+        if: github.event_name == 'pull_request' && matrix.shard != 2
+        timeout-minutes: 15
+        run: node packages/base-dev-loop/src/repeat-new-tests.mjs packages/repo-checks/src/test.mjs
+        env:
+          STORYTREE_UNIT_LIMIT_MS: 360000
       # Only main's own runs carry their times forward, a failed or cut one too: its kills grow the
       # next run's deadline for that unit.
       - name: Keep this run's test timing history for the next

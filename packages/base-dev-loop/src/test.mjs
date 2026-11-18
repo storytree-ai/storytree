@@ -27,6 +27,7 @@ let flags;
 let testArgs;
 let namedFiles;
 let hold;
+let now;
 let deadline;
 const children = new Set();
 let jobs = 1;
@@ -39,8 +40,9 @@ let clock;
 
 const holdNothing = async () => () => {};
 
-export function testCommand({ argv: given = process.argv.slice(2), hold: takeHold = holdNothing, root: tested = fileURLToPath(new URL("../../..", import.meta.url)), alone: runAlone = [], alwaysRun: carried = [] } = {}) {
+export function testCommand({ argv: given = process.argv.slice(2), hold: takeHold = holdNothing, root: tested = fileURLToPath(new URL("../../..", import.meta.url)), alone: runAlone = [], alwaysRun: carried = [], now: clockNow = Date.now } = {}) {
   hold = takeHold;
+  now = clockNow;
   root = tested;
   work = path.join(root, ".pgtest");
   dataDir = path.join(work, "data");
@@ -150,7 +152,7 @@ async function main() {
   }
   phase = "waiting for the heavy-run lock";
   const release = await hold({ root, what: "pnpm test", stopped: () => interrupted, ...(namedFiles ? { scope: "files" } : {}) });
-  clock = startClock();
+  clock = startClock(now);
   try {
     let worktreeRun = { release: () => {} };
     if (!process.env.STORYTREE_TEST_PG_URL) {

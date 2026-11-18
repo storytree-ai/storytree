@@ -1,5 +1,2 @@
-/**
- * Capability 1 · Key store and resolver. Keys (ADR-0843): a key a user gives storytree once, saved in an owner-only `auth.json` in
- * storytree's home, and resolved the same way by every storytree process.
- */
+// Capability 1 · Key store and resolver
 export { authFile, KeyCommandError, listKeys, removeKey, resolveKey, saveKey, type KeyReading, type KeySource, type ResolveOptions, type StoreOptions } from "./keys.js";

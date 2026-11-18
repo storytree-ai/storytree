@@ -1,7 +1,4 @@
-/**
- * Capability 5 · Claims: the owners query, which names each file's capability and its holder before an edit, so a
- * session claims them all in one call (ADR-1079 D2). Against the real Postgres `pnpm test` provides.
- */
+// Capability 5 · Claims
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Hooks, contract 3.49: a hook records each read of outside text (an issue, a pull request, an email, a
- * fetched page), so a later library write by the same session can be marked with it (increment_572ffca14851).
- */
+// Capability 3 · Hooks
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -13,7 +10,6 @@ import { outsideTextReads } from "./outside-text.js";
 
 const base = { session_id: "s-1", cwd: "/work", hook_event_name: "PostToolUse", tool_use_id: "call-1" };
 
-/** What each line the hook makes for one tool call says: its kind, and what was read when it is a read. */
 function made(harness: string, tool: string, input: Record<string, unknown>): [string, string | undefined][] {
   return (hookLines(harness, { ...base, tool_name: tool, tool_input: input })?.lines ?? []).map((line) => [line.kind, (line as { what?: string }).what]);
 }
@@ -28,7 +24,6 @@ test("3.49 a hook records each read of outside text: a fetched page, a web searc
     assert.deepEqual(made("codex", "Bash", { command }), [["command-run", undefined], ["outside-text-read", command]], `Codex: ${command}`);
   }
 
-  // What is not outside text: the session's own work, storytree's tools, and commands that read nothing from outside.
   for (const command of ["gh pr create --title x", "gh pr checks 12", "git log", "curl http://localhost:5432/health", "pnpm test"]) {
     assert.deepEqual(made("claude-code", "Bash", { command }), [["command-run", undefined]], `not a read: ${command}`);
   }

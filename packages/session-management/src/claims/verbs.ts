@@ -1,21 +1,14 @@
-/**
- * Capability 5 · Claims. The workspace verbs, declared once (ADR-0969 D2, ADR-1033): make or attach a claimed
- * workspace, claim or release work for the calling agent session, list the stale claims, and the user's yes to
- * changing imported code. The command line mounts them as its `workspace` family (WORKSPACE_FAMILIES); the MCP server answers the
- * same work through Session management's tool part (tools.ts), so none is mounted as a tool here.
- */
+// Capability 5 · Claims
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
 
 import type { SessionVerbContext } from "../sessions/verbs.js";
 import type { Waiting } from "./claims.js";
 import type { WorkspaceRefusal } from "./workspace.js";
 
-/** Why a workspace verb has no tool: Session management's own tool for the work, served from its tool part (tools.ts). */
 function ownTool(tool: string) {
   return { absent: `Session management's own ${tool} tool answers this` } as const;
 }
 
-/** A claim belongs to the agent session that will work there: a person's shell, which has none, is refused. */
 function agentOnly(context: SessionVerbContext): void {
   if (context.session.startsWith("person:")) throw new VerbRefusal("Run workspace from the agent's shell: a claim belongs to the agent session that will work there.");
 }
@@ -75,7 +68,6 @@ const attach = verb({
   },
   async act({ work: id, folder, ref, name, reason: why }, context: SessionVerbContext) {
     agentOnly(context);
-    // Codex attaches the folder create_worktree returned, with its --ref and --name; Claude Code, the worktree it is in.
     const needed = (flag: string, value: string | undefined): string => {
       if (value === undefined) throw new VerbRefusal(`this needs --${flag}`, { misuse: true });
       return value;
@@ -217,7 +209,6 @@ const allow = verb({
   tool: { absent: "the yes is the user's own, given at their own terminal, never by an agent (ADR-1015 D2)" },
   inputs: { increment: { kind: "text", word: 0, describe: "the increment's id" } },
   async act({ increment: id }, context: SessionVerbContext, words) {
-    // The yes is the user's own: never from an agent's shell, nor from anything that is not a person at a terminal (ADR-1015 D2).
     if (!context.session.startsWith("person:")) throw new VerbRefusal(`An agent cannot give the user's yes: ask the user, and if they agree, they run \`${words.say({ command: "workspace allow <increment>" })}\` at their own terminal.`);
     if (process.stdin.isTTY !== true) throw new VerbRefusal("This needs you at your own terminal: run it there, not through a pipe or a script.");
     const { allowIncrement } = await import("./edit-gate.js");
@@ -239,7 +230,6 @@ const approveSetup = verb({
   tool: { absent: "the approval is the user's own, given at their own terminal, never by an agent" },
   inputs: { fingerprint: { kind: "text", word: 0, describe: "the fingerprint of the commands, as the workspace's answer named it" } },
   async act({ fingerprint }, context: SessionVerbContext, words) {
-    // A checked-in command runs only once the user has seen and approved it: never on an agent's say (19.7).
     if (!context.session.startsWith("person:")) throw new VerbRefusal(`An agent cannot approve the project's setup commands: ask the user, and if they agree, they run \`${words.say({ command: "workspace approve-setup <fingerprint>" })}\` at their own terminal.`);
     if (process.stdin.isTTY !== true) throw new VerbRefusal("This needs you at your own terminal: run it there, not through a pipe or a script.");
     const { approveCheckedInSetup } = await import("./worktree-setup.js");
@@ -251,7 +241,6 @@ const approveSetup = verb({
 
 const pr = { kind: "text", word: 0, describe: "the pull request's number" } as const;
 
-/** A pull request's number, as typed. */
 function prNumber(typed: string): number {
   if (!/^\d+$/.test(typed)) throw new VerbRefusal(`${typed} is not a pull request's number`, { misuse: true });
   return Number(typed);
@@ -378,7 +367,6 @@ const queueRed = verb({
   },
 });
 
-/** The command line's `workspace` family, which the package's manifest names under `verbs` (ADR-1033): its bare name makes a workspace. */
 export const WORKSPACE_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [{
   name: "workspace",
   summary: "prepare or attach a workspace, claim or release work for this agent session, list stale claims, allow an increment's changes to imported code, or approve a project's checked-in worktree setup",
@@ -387,21 +375,15 @@ export const WORKSPACE_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [{
   bare: make,
 }];
 
-/** An increment released without closing is nobody's work in progress: it is a proposal again (11.11). Says so, or ends the sentence. */
 function returnedSaid(answer: { returned?: true }): string {
   return answer.returned ? "; nobody holds it, so it is a proposal again." : ".";
 }
 
-/**
- * What a refused claim's holder leaves the late session: for a capability, a wait on its claim, which clears the moment
- * its holder releases it (ADR-1228 D1); for an increment, when it is free.
- */
 function backOffSaid(id: string, heldFor: readonly string[]): string {
   if (id.startsWith("capability_")) return `. To have your increment wait for it, wait on its claim (storytree arc increment wait <increment> --on ${id} --reason …), which clears the moment its holder releases it (ADR-1228)`;
   return heldFor.length === 0 ? "" : `; this is free once ${heldFor[0]} closes`;
 }
 
-/** A refused claim or workspace, as the command line words it. */
 export function workspaceRefusalText(id: string, answer: WorkspaceRefusal): string {
   switch (answer.refused) {
     case "held":
@@ -415,11 +397,9 @@ export function workspaceRefusalText(id: string, answer: WorkspaceRefusal): stri
     case "unknown-capability":
       return `There is no capability or increment ${id} in this project's plan. Find its id with storytree tree.`;
     case "no-workspace":
-      // The refusal words the open pull requests; the command line names its own way past them (5.25).
       if (answer.openPulls !== undefined) {
         return `Workspace setup refused: ${answer.why}: storytree workspace ${id} --reason <text> --despite-open-pulls.`;
       }
-      // Likewise the local branches (5.69).
       if (answer.localBranches !== undefined) {
         return `Workspace setup refused: ${answer.why}: storytree workspace ${id} --reason <text> --despite-local-branches.`;
       }
@@ -427,7 +407,6 @@ export function workspaceRefusalText(id: string, answer: WorkspaceRefusal): stri
   }
 }
 
-/** One thing holding the work: other work, the owner's question, or the owner or an outside event it waits for with a note (ADR-0938 D1). */
 function waitSaid(wait: Waiting): string {
   if (wait.waitsFor === "owner") return `${wait.increment} waits for the owner: ${wait.reason}`;
   if (wait.waitsFor === "event") return `${wait.increment} waits for an outside event: ${wait.reason} (check back ${wait.checkBack})`;

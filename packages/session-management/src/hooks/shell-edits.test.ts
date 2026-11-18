@@ -8,7 +8,6 @@ import { runGit } from "../activity/git.js";
 import { LEARNED_FILE } from "./learned-limits.js";
 import { PRUNE_EVERY_MS, pruneBaselines, pruneBaselinesWhenDue, shellEdits } from "./shell-edits.js";
 
-/** A deadline no loaded runner reaches: these tests protect what an observation sees, not how fast its Git reads run. */
 const UNHURRIED = 60_000;
 
 test("3.22 a first observation invents no edit, worktrees keep separate baselines, and a failed Git read preserves the last good observation and says why", async () => {
@@ -156,7 +155,6 @@ test("3.22 a checkout moved to a published commit invents no edit even when HEAD
       git(where, "commit", "-q", "-m", text);
     };
     const headLog = path.join(root, ".git", "logs", "HEAD");
-    // What another process left: HEAD moved, and its log no longer records the move.
     const unlogged = () => writeFileSync(headLog, readFileSync(headLog, "utf8").split("\n").filter(Boolean).slice(0, -1).map((entry) => `${entry}\n`).join(""));
     git(upstream, "init", "-q", "-b", "main");
     commit(upstream, "source.ts", "one");
@@ -204,7 +202,6 @@ test("3.22 a shell write is seen without starting the repository's own commands:
     writeFileSync(path.join(root, "file.txt"), "first\n");
     git(root, "add", ".");
     git(root, "commit", "-q", "-m", "first");
-    // The repository's own config names a command git starts on each file's content, and one it starts to watch the folder.
     const marker = path.join(dir, "ran").replace(/\\/g, "/");
     git(root, "config", "filter.quiet.clean", `echo clean >> '${marker}'; cat`);
     git(root, "config", "filter.quiet.required", "true");
@@ -229,7 +226,6 @@ test("3.22 an observation given its own deadline keeps to it, not to the one lea
     const failures: unknown[] = [];
     const observe = (deadlineMs: number) => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "node script.js", folder: root }, (error) => failures.push(error), runGit, deadlineMs);
 
-    // No time is left for the first read, however fast it would run inside the learned 5 s.
     assert.deepEqual(observe(0), []);
     assert.match(String(failures[0]), /took longer than 0 ms/);
     assert.deepEqual(observe(UNHURRIED), []);
@@ -260,7 +256,6 @@ test("3.22 a baseline no observation has written for a week is pruned, a bounded
     assert.equal(pruneBaselines(home, { now, limit: 3 }), 1);
     assert.deepEqual(stale.filter((file) => existsSync(file)), []);
     assert.deepEqual(readdirSync(path.join(home, "shell-edits")), ["fresh.json"]);
-    // A machine with no baselines yet prunes nothing and never throws.
     assert.equal(pruneBaselines(path.join(dir, "elsewhere"), { now }), 0);
   });
 });

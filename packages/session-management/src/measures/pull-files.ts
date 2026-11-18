@@ -1,8 +1,4 @@
-/**
- * Capability 20 · Lane measures: a pull request's changed files (contract 20.3), read from the checkout's own git
- * history with no network call. A pull request merged by GitHub leaves a merge commit, "Merge pull request #N from …",
- * on the main line; the files it changed are that commit's against its first parent.
- */
+// Capability 20 · Lane measures
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -14,10 +10,6 @@ async function git(folder: string, args: readonly string[]): Promise<string> {
   return stdout;
 }
 
-/**
- * A reader of the files each pull request changed, from `folder`'s history along `ref` (origin's main when the checkout
- * has it, else its own HEAD): undefined for a pull request whose merge is not there.
- */
 export async function pullFiles(folder: string, ref?: string): Promise<(pr: number) => Promise<readonly string[] | undefined>> {
   const line = ref ?? await git(folder, ["rev-parse", "--verify", "--quiet", "origin/main"]).then(() => "origin/main", () => "HEAD");
   const merges = new Map<number, string>();

@@ -1,17 +1,9 @@
-/**
- * The log fold (ADR-0836 D1, D4): the sessions and claims a reading shows are an exact fold over the
- * log's lines in order, with the time applied when it is read. A fold fed the log a piece at a time,
- * as the page's live reading hears it, or kept as a snapshot and restored, reads the same as one fed
- * every line at once (sessionsFrom and claimsFrom are that fold).
- * No database: the lines are written out here as the log hands them out.
- */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Line, NewLine } from "@storytree/library";
 import { claimsFrom, inCi, LogFold, sessionsFrom } from "./readings.js";
 
-/** A small seeded generator, so the log is the same on every run. */
 function random(seed: number): () => number {
   let state = seed;
   return () => {
@@ -22,12 +14,6 @@ function random(seed: number): () => number {
 
 const START = Date.parse("2026-09-01T00:00:00Z");
 
-/**
- * A busy log: several sessions in two harnesses starting, prompting, running commands (some never
- * finished, some finished before their start line, some left in the background), compacting,
- * claiming, releasing, landing, closing out and ending, while others' lines say what merged, what a
- * branch's state is, and what the apps keep.
- */
 function busyLog(seed: number, count: number): Line[] {
   const next = random(seed);
   const pick = <T,>(of: readonly T[]): T => of[Math.floor(next() * of.length)]!;
@@ -60,7 +46,6 @@ function busyLog(seed: number, count: number): Line[] {
       calls.push(call);
       line = { ...common, kind: "command-started", command: `run ${seq}`, call, ...(next() < 0.2 ? { limitMs: 3_600_000 } : {}) };
     } else if (roll < 0.48) {
-      // A finish for a command already started, or one whose start line comes later.
       const call = next() < 0.8 && calls.length > 0 ? pick(calls) : `call-${seq + 1}`;
       line = { ...common, kind: "command-run", command: "", ...(next() < 0.9 ? { call } : {}) };
     } else if (roll < 0.53) line = { ...common, kind: "file-edited", files: ["/work/x.ts"] };
@@ -109,7 +94,6 @@ test("a fold kept as a plain snapshot and restored, then fed the rest, reads the
     for (const cut of [1, 50, 299, 600]) {
       const first = new LogFold();
       first.add(lines.slice(0, cut));
-      // Kept as the page keeps it: written out and read back, so nothing of the first fold is shared.
       const restored = LogFold.fromSnapshot(JSON.parse(JSON.stringify(first.snapshot())));
       restored.add(lines.slice(cut));
       const last = Date.parse(lines.at(-1)!.at);
@@ -149,7 +133,6 @@ test("4.46 · a fold names the sessions with a line of their own it has never fo
   const earlier = [line(1, "back", "session-started", { folder: "/back", machine: "mint" }), line(3, "back", "session-named", { title: "Fix the rail" }),
     line(4, "back", "claimed", { capability: "cap-1", reason: "mine" }), line(5, "back", "branch-state", { of: "feat/a", open: true, how: "ahead" })];
   const between = [line(6, "back", "released", { capability: "cap-1" }), line(7, "watch", "branch-state", { of: "feat/a", open: false, how: "merged" }), line(8, "here", "prompt-submitted")];
-  // A bounded start of the log: the session in view and the line about feat/a, with the standing claims (none).
   const fold = LogFold.fromBounded([here, between[1]!, between[2]!], []);
   const news = [line(9, "back", "prompt-submitted", { folder: "/back/.wt/x" }), line(10, "watch", "branch-state", { of: "feat/b", open: true, how: "ahead" }), line(11, "pull-request-12", "claimed", { capability: "cap-2", reason: "landing" })];
 

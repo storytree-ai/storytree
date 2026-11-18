@@ -1,8 +1,4 @@
-/**
- * Capability 4 · Sessions: one test per contract 4.1-4.5 in the Session management story. Lines are written
- * to the real agent activity log on the Postgres `pnpm test` provides, under projects named with
- * uniqueProjectName(), and the sessions are read back from it, judged at a chosen time.
- */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -13,7 +9,6 @@ import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/
 import { claimsFrom, readClaims } from "../claims/index.js";
 import { LEAVE_MS, LONGEST_COMMAND_MS, QUIET_MS, readSessions, readSessionStates, sessionsFrom } from "./index.js";
 
-/** Run `body` with the log open on the test server and a fresh project to write in. */
 async function withProject(body: (log: ActivityLog, project: string) => Promise<void>): Promise<void> {
   const log = await openActivityLog(testServerUrl());
   try {
@@ -23,7 +18,6 @@ async function withProject(body: (log: ActivityLog, project: string) => Promise<
   }
 }
 
-/** `ms` milliseconds after the time `line` was written. */
 function after(line: Line, ms: number): Date {
   return new Date(Date.parse(line.at) + ms);
 }
@@ -104,7 +98,6 @@ test('4.4 a Codex session whose hooks never ran, but which calls a storytree too
 
 test("4.5 a command that started 40 minutes ago and has not finished keeps its session live; once it finishes, or its turn ends, the quiet time counts again, and one older than the longest a command may run no longer counts", async () => {
   await withProject(async (log, project) => {
-    // Codex sets no limit of its own on a command; Claude Code's is claims' 5.6.
     const CODEX = { ...CLAUDE, harness: "codex" } as const;
     const started = await log.append(project, { ...CODEX, kind: "command-started", command: "npm run build", call: "call-1" });
     const [running] = await readSessions(log, project, { now: after(started, 40 * 60 * 1000) });
@@ -116,7 +109,6 @@ test("4.5 a command that started 40 minutes ago and has not finished keeps its s
     const [done] = await readSessions(log, project, { now: after(finished, QUIET_MS + 1) });
     assert.equal(done?.state, "waiting", "idle once the quiet time has passed after it finished");
 
-    // A command the harness refused never finishes: the end of its turn closes it.
     await log.append(project, { ...CLAUDE, kind: "command-started", command: "rm -rf build", call: "call-2" });
     const turn = await log.append(project, { ...CLAUDE, kind: "turn-ended" });
     const [refused] = await readSessions(log, project, { now: after(turn, QUIET_MS + 1) });
@@ -175,27 +167,23 @@ test("4.9 who is listed (ADR-0754 D4): a session holding unmerged work stays lis
     const observer = { session: "observer", harness: "claude-code", source: "hook", folder: "/work/site", branch: "main" } as const;
     const listing = async (session: string, now: Date) => (await readSessions(log, project, { now })).find((one) => one.session === session);
 
-    // A terminal session that worked on a branch and ended: its work is open, so it stays.
     const terminal = { ...CLAUDE, session: "terminal", folder: "/work/site/.claude/worktrees/fix", branch: "claude/fix" } as const;
     await log.append(project, { ...terminal, kind: "file-edited", files: ["a.ts"] });
     const ended = await log.append(project, { ...terminal, kind: "session-ended", reason: "other" });
     const open = await listing("terminal", after(ended, 2 * LEAVE_MS));
     assert.deepEqual(open?.openWork, ["claude/fix"]);
     assert.equal(open?.listing, "listed", "open work keeps it listed long after its end");
-    // A merged line names the claim's branch, not the observer's: it makes the observer no session with work.
     await log.append(project, { ...observer, kind: "merged", increment: "inc-1", holder: "terminal", branch: "claude/other", pr: 7 });
     assert.equal(await listing("observer", after(ended, 1_000)), undefined);
     await log.append(project, { ...observer, kind: "branch-state", of: "claude/fix", open: false, how: "merged", pr: 12 });
     assert.equal((await listing("terminal", after(ended, 1_000)))?.listing, "hidden", "resolved and ended: gone at once");
 
-    // A terminal session that never branched and never ended leaves after the leave-after quiet time.
     const quiet = { ...CLAUDE, session: "quiet", branch: "main" } as const;
     const last = await log.append(project, { ...quiet, kind: "session-started", how: "startup" });
     assert.deepEqual((await listing("quiet", after(last, LEAVE_MS)))?.listing, "listed");
     assert.deepEqual((await listing("quiet", after(last, LEAVE_MS + 1)))?.listing, "hidden");
     assert.equal((await readSessions(log, project, { now: after(last, 60 * 60 * 1000 + 1), leaveMs: 60 * 60 * 1000 })).find((one) => one.session === "quiet")?.listing, "hidden", "a leave-after of one hour");
 
-    // The quiet time counts from the resolution when that came after the session's last line.
     const late = { ...CLAUDE, session: "late", folder: "/work/site/.claude/worktrees/late", branch: "claude/late" } as const;
     const worked = await log.append(project, { ...late, kind: "turn-ended" });
     const resolved = await log.append(project, { ...observer, kind: "branch-state", of: "claude/late", open: false, how: "not-ahead" }, { at: new Date(Date.parse(worked.at) + 60_000).toISOString() });
@@ -204,7 +192,6 @@ test("4.9 who is listed (ADR-0754 D4): a session holding unmerged work stays lis
     await log.append(project, { ...observer, kind: "branch-state", of: "claude/late", open: true, how: "ahead" });
     assert.equal((await listing("late", after(resolved, LEAVE_MS + 1)))?.listing, "listed", "reopened work is open again");
 
-    // A desktop session: its end line does not remove it; resolved and settled it shows done until archived.
     const desktop = { ...CLAUDE, session: "desktop", branch: "main" } as const;
     await log.append(project, { ...observer, kind: "session-unarchived", of: "desktop", app: "claude-desktop" });
     const desktopEnd = await log.append(project, { ...desktop, kind: "session-ended", reason: "other" });
@@ -273,7 +260,6 @@ test("4.22 a session reads, for each folder it worked in, the branches it record
     await log.append(project, { ...CLAUDE, folder: "/work/site", branch: "main", kind: "session-started", how: "startup" });
     await log.append(project, { ...CLAUDE, folder: old, branch: "claude/old", kind: "file-edited", files: ["a.ts"] });
     await log.append(project, { ...CLAUDE, folder: fix, branch: "claude/fix", kind: "file-edited", files: ["b.ts"] });
-    // A line that names a branch but no folder (written by a tool with none to name).
     const last = await log.append(project, { session: CLAUDE.session, harness: "claude-code", source: "tool", branch: "claude/stray", kind: "claimed", increment: "inc-1", reason: "stray" });
     await log.append(project, { ...observer, kind: "branch-state", of: "claude/old", open: false, how: "merged", pr: 9 });
     const [session] = await readSessions(log, project, { now: after(last, 1_000) });
@@ -313,7 +299,6 @@ test("4.28 the sessions read from the lines that decide them, and the claims rea
     const d = { session: "d", harness: "claude-code", source: "hook" } as const;
     const watcher = { session: "app:box", source: "tool", folder: "/w/main", machine: "box" } as const;
 
-    // a works in its worktree through many commands, claims, and leaves one running.
     await write({ ...a, kind: "session-started", how: "startup" });
     for (let turn = 0; turn < 3; turn++) {
       await write({ ...a, kind: "prompt-submitted" });
@@ -328,7 +313,6 @@ test("4.28 the sessions read from the lines that decide them, and the claims rea
     await write({ ...a, kind: "prompt-submitted" });
     await write({ ...a, kind: "command-started", command: "pnpm test", call: "a-run" });
 
-    // b claims and releases, finishes a command before its start is written, renames itself, closes out; its branch merges and an app archives it.
     await write({ ...b, kind: "session-started", how: "startup" });
     await write({ ...b, source: "tool", kind: "claimed", increment: "inc-1", reason: "the increment" });
     await write({ ...b, kind: "command-run", command: "quick", call: "b-1" });
@@ -339,13 +323,11 @@ test("4.28 the sessions read from the lines that decide them, and the claims rea
     await write({ ...b, source: "tool", kind: "closed-out", safe: true, why: "done", running: 0 });
     await write({ ...watcher, kind: "branch-state", of: "feat-b", open: false, how: "merged", pr: 9 });
 
-    // c edits on main, and outside its folder; it ends.
     await write({ ...c, kind: "session-started", how: "startup" });
     await write({ ...c, kind: "file-edited", files: ["/w/main/readme.md"] });
     await write({ ...c, kind: "file-edited", files: ["/elsewhere/note.md"] });
     await write({ ...c, kind: "session-ended", reason: "exit" });
 
-    // d moves between two worktrees, compacts mid-turn, leaves a background task running, and takes a's claim over.
     await write({ ...d, folder: "/w/d1", branch: "d1", kind: "session-started", how: "startup" });
     for (let turn = 0; turn < 4; turn++) {
       const where = turn % 2 === 0 ? { folder: "/w/d1", branch: "d1" } : { folder: "/w/d2", branch: "d2" };
@@ -393,7 +375,6 @@ test("4.29 a session last seen on a machine before that machine's recorded start
     await write({ ...elsewhere, kind: "session-started", how: "startup" });
     await write({ ...elsewhere, source: "tool", kind: "claimed", increment: "inc-laptop", reason: "laptop work" });
     await write({ ...elsewhere, kind: "prompt-submitted" });
-    // Mint starts again after the dead lane's last line; the first hook there records it.
     await waitUntil(() => Date.now() > Date.parse(lastWords.at) + 20, 1_000, "the clock to pass the dead lane's last line");
     await write({ ...alive, kind: "machine-started", startedAt: after(lastWords, 10).toISOString() });
     await write({ ...alive, kind: "session-started", how: "startup" });

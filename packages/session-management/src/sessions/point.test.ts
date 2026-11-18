@@ -1,7 +1,4 @@
-/**
- * Capability 4 · Sessions: contracts 4.43 and 4.44, a session points at one capability, or at the gate between two, where the owner's eye is needed, against
- * the real Postgres `pnpm test` provides, in a fresh project. Read back from the whole log and from the bounded read.
- */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

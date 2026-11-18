@@ -1,8 +1,4 @@
-/**
- * Capability 4 · Sessions, the listing (contract 4.13): the running-sessions list read out as
- * text for the command line, one block per session, or as JSON. Lines go to the real agent
- * activity log on the Postgres `pnpm test` provides.
- */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

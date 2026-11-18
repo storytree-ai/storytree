@@ -1,17 +1,9 @@
-/**
- * Capability 5 · Claims (the Session management story), contract 5.36: a session putting an open question to
- * the owner marks it with itself (the library's `presenting`, 12.10), so two sessions never ask him the
- * same thing at once. One live session presents a question at a time, as one holds a claim: another is
- * refused, naming it. A mark binds only while its session is live: it stops binding when the session
- * stops presenting it, ends, goes quiet past the longest a command may run, or closes out, and settling
- * the question clears it. A refused session skips the question; nothing queues.
- */
+// Capability 5 · Claims
 import type { Library, SchemaRecord } from "@storytree/library";
 
 import { readSessions } from "../sessions/sessions.js";
 import type { ClaimContext } from "./claims.js";
 
-/** The live session putting a question to the owner, and since when. */
 export interface Presenter {
   readonly session: string;
   readonly label: string;
@@ -25,10 +17,6 @@ export type PresentAnswer =
 
 type PresentContext = Pick<ClaimContext, "log" | "library" | "project" | "session" | "writer">;
 
-/**
- * Mark open question `id` as being put to the owner by the context's session, unless another live
- * session already is. Presenting one it already presents changes nothing.
- */
 export async function presentQuestion(context: PresentContext, id: string): Promise<PresentAnswer> {
   return context.log.locked(context.project, async () => {
     const question = await questionNamed(context.library, id);
@@ -44,7 +32,6 @@ export async function presentQuestion(context: PresentContext, id: string): Prom
   });
 }
 
-/** Clear the context's session's mark on question `id`: whether there was one. Another session's mark stands. */
 export async function stopPresenting(context: PresentContext, id: string): Promise<boolean> {
   return context.log.locked(context.project, async () => {
     const question = await questionNamed(context.library, id);
@@ -54,7 +41,6 @@ export async function stopPresenting(context: PresentContext, id: string): Promi
   });
 }
 
-/** Of `questions`, the open ones a live session is putting to the owner, each with that session, read in one look at the log. */
 export async function presentersOf(log: ClaimContext["log"], project: string, questions: readonly SchemaRecord<"question">[]): Promise<Map<string, Presenter>> {
   const marked = questions.filter((question) => question.fields.lifecycle === "open" && question.fields.presenting !== undefined);
   if (marked.length === 0) return new Map();

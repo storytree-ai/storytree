@@ -1,9 +1,4 @@
-/**
- * Capability 5 · Claims. A stand-in for the map's file-to-capability lookup (its declared half), for the agent
- * link's own tests of the gate before each edit: a file in a story's package (`packages/<the story's title,
- * lower-cased and hyphenated>/`) is placed by an opening "Capability N · …" alone. The rule itself is the
- * map's (packages/map/src/code-survey), which the release hook is given by the app setup story.
- */
+// Capability 5 · Claims
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
 
 export const declaredInTests: DeclaredCapabilities = async (_checkout, files, tree, readText) => {

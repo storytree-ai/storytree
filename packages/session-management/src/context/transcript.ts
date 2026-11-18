@@ -1,11 +1,9 @@
-/** Capability 9 · Context readings. Reading a harness transcript line by line: shared by the token reading (9.1-9.3) and the composition (9.8). */
+// Capability 9 · Context readings
 
 export type JsonRecord = Record<string, unknown>;
 
-/** The harness's marker for a line it made itself rather than the model answering. */
 export const SYNTHETIC = "<synthetic>";
 
-/** Each line of `text` that is a JSON object; "empty" for a text with no lines at all. */
 export function jsonLines(text: string): JsonRecord[] | "empty" {
   const lines = text.split("\n").filter((line) => line.trim() !== "");
   if (lines.length === 0) return "empty";
@@ -15,7 +13,6 @@ export function jsonLines(text: string): JsonRecord[] | "empty" {
       const parsed: unknown = JSON.parse(line);
       if (isRecord(parsed)) records.push(parsed);
     } catch {
-      // A line cut short while the harness writes it, or one that is not JSON: not a reading.
     }
   }
   return records;

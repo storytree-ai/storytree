@@ -1,4 +1,4 @@
-/** Capability 3 · Hooks, contract 3.47: a hook's Git and storytree steps learn this machine's speed (ADR-1163 D2). */
+// Capability 3 · Hooks
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -21,19 +21,15 @@ test("3.47 a step's limit is its floor on a new machine, three times its slowest
       assert.equal(limitOf(home, step), step.floorMs, `${step.name}: a new machine uses the floor`);
       assert.ok(step.ceilingMs > step.floorMs, `${step.name}: the ceiling leaves room to widen`);
     }
-    // A fast machine keeps today's limit.
     for (let i = 0; i < 3; i++) learn(home, EDIT_GATE_STEP, 150);
     assert.equal(limitOf(home, EDIT_GATE_STEP), EDIT_GATE_STEP.floorMs);
-    // A slow machine widens: three times its slowest recent time.
     learn(home, SHELL_GUARD_STEP, 1_200);
     learn(home, SHELL_GUARD_STEP, 1_500);
     assert.equal(limitOf(home, SHELL_GUARD_STEP), SHELL_GUARD_STEP.floorMs, "two times are too few to learn from");
     learn(home, SHELL_GUARD_STEP, 1_400);
     assert.equal(limitOf(home, SHELL_GUARD_STEP), 4_500);
-    // A machine that gave up three times, each learned at the limit it had, reaches the ceiling and no further.
     for (let i = 0; i < 3; i++) learn(home, EDIT_GATE_STEP, limitOf(home, EDIT_GATE_STEP));
     assert.equal(limitOf(home, EDIT_GATE_STEP), EDIT_GATE_STEP.ceilingMs);
-    // Steps learn apart, and a file that cannot be read gives the floor.
     assert.equal(limitOf(home, OBSERVE_STEP), OBSERVE_STEP.floorMs);
     writeFileSync(path.join(home, LEARNED_FILE), "not json");
     assert.equal(limitOf(home, SHELL_GUARD_STEP), SHELL_GUARD_STEP.floorMs);
@@ -68,13 +64,11 @@ test("3.47 a shell-edit observation's Git reads get the time this machine learne
     const learned = JSON.parse(readFileSync(path.join(home, LEARNED_FILE), "utf8")) as Record<string, number[]>;
     assert.equal(learned[OBSERVE_STEP.name]?.length, 1, "the observation's own time is learned");
 
-    // A slow machine: its observations took 2 s (only these, not the real one above, which a slow runner may take longer over).
     writeFileSync(path.join(home, LEARNED_FILE), JSON.stringify({ [OBSERVE_STEP.name]: [2_000, 2_000, 2_000] }));
     given.length = 0;
     shellEdits(home, root, line, () => undefined, watching);
     assert.ok(given[0]! > OBSERVE_STEP.floorMs && given[0]! <= 6_000, `the first read is given the learned 6 s, not the floor (${given[0]})`);
 
-    // Reads that run out of the observation's time are learned at its whole limit.
     const limit = limitOf(home, OBSERVE_STEP);
     mock.timers.enable({ apis: ["Date"], now: Date.now() });
     try {

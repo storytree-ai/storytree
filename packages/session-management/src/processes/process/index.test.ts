@@ -63,7 +63,6 @@ test("13.3 Linux distinguishes absent processes from unreadable or malformed evi
 });
 
 test("13.3/13.4 Linux uses exact boot and start ticks even with spaces and parentheses in command", async () => {
-  // Fields 3 through 21 precede starttime (22); the command is permitted to contain ')'.
   const stat = `42 (a tricky ) command) S ${Array.from({ length: 18 }, () => "0").join(" ")} 9007199254740993 0`;
   const read = async (file: string): Promise<string> => file.endsWith("/stat") ? stat : "boot-identity\n";
   assert.deepEqual(await readLinuxProcess(42, read), {

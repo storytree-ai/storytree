@@ -1,8 +1,4 @@
-/**
- * Capability 4 · Sessions, contract 4.18: the hooks reap a merged worktree once every session that
- * worked in it has left (ADR-0790), on a real git repository and the real activity log on the
- * Postgres `pnpm test` provides.
- */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
@@ -49,7 +45,6 @@ test("4.12, 4.18 a new admitted claim reopens a closed-out session and keeps its
       git(repo, "worktree", "add", "-q", "-b", branch, folder, "main");
       const next = { ...who, folder, branch };
       assert.equal((await claim(next, increment.id, "Build the next piece")).ok, true);
-      // A fresh branch is already in main: branch resolution must not mask the stale close-out.
       const observer = { log, project, session: "observer", harness: "codex", folder: repo, source: "hook" } as const;
       await log.append(project, { session: observer.session, source: "hook", kind: "branch-state", of: branch, open: false, how: "not-ahead" });
       const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
@@ -116,7 +111,6 @@ test("4.18 a clean worktree whose head is in main, and whose sessions have all c
       await left("s-locked", locked, "closed-out");
       await left("s-guarded", guarded, "closed-out");
       await left("s-running", running, "closed-out");
-      // One session left the worktree, but another still works in it.
       await left("s-used", used, "closed-out");
       await log.append(project, { ...here, session: "s-still", folder: used, branch: "claude/used", kind: "file-edited", files: ["y.ts"] });
 
@@ -192,16 +186,12 @@ test("4.18 a merged, clean worktree whose sessions have all ended or gone silent
         await log.append(project, { ...here, session, folder, branch, kind: "file-edited", files: ["x.ts"] }, at === undefined ? {} : { at });
         await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: branch, open: false, how: "not-ahead" });
       };
-      // A pool lane hands its pull request over, closes out before the merge (so never verified), and its process exits.
       await worked("lane", handed);
       await log.append(project, { ...here, session: "lane", folder: repo, kind: "closed-out", safe: false, why: "handed to the watcher" });
       await log.append(project, { ...here, session: "lane", folder: repo, kind: "turn-ended", exits: true, background: 0 });
-      // A fix session ends without closing out at all.
       await worked("fixer", exited);
       await log.append(project, { ...here, session: "fixer", folder: exited, kind: "session-ended", reason: "exit" });
-      // A session last heard from longer ago than any command may run has gone, though it wrote no end.
       await worked("silent", silent, new Date(Date.now() - 13 * 60 * 60_000).toISOString());
-      // Its session ended, but a process still works in the folder.
       await worked("left-behind", occupied);
       await log.append(project, { ...here, session: "left-behind", folder: occupied, kind: "session-ended", reason: "exit" });
       occupant = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60_000)"], { cwd: occupied, stdio: "ignore" });
@@ -235,15 +225,8 @@ test("4.37 a worktree reaped while a test Postgres still runs on its .pgtest/dat
       git(repo, "commit", "-q", "-m", "first");
       const folder = path.join(repo, ".claude", "worktrees", "tested");
       git(repo, "worktree", "add", "-q", "-b", "claude/tested", folder, "main");
-      // A run whose harness was killed outright leaves its server running, never stopped.
       const server = await start({ dataDir: path.join(folder, ".pgtest", "data"), serverLog: path.join(dir, "pg.log"), toolLog: path.join(dir, "tools.log") });
       try {
-        // A server answers on its own url, whose password is that server's alone, and no other process
-        // can hold its port while it runs. Stopped, its url is refused for one of two reasons: nothing
-        // listens on the port (ECONNREFUSED), or another server took the port and refuses this password
-        // (28P01). A server still running on a deleted folder refuses it too, for a missing file (58P01),
-        // so any other refusal is no proof. (Nor is its pid: Windows hands a freed pid to a new process
-        // within moments.)
         const connectsOn = async (url: string) => {
           const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 30_000 });
           try {
@@ -287,7 +270,6 @@ test("4.37 a worktree whose folder cannot be renamed for a moment after its test
       const folder = path.join(trees, "released-late");
       git(repo, "worktree", "add", "-q", "-b", "claude/released-late", folder, "main");
       const server = await start({ dataDir: path.join(folder, ".pgtest", "data"), serverLog: path.join(dir, "pg.log"), toolLog: path.join(dir, "tools.log") });
-      // Held as a killed server's handles hold it: no rename until a moment after the server stops.
       chmodSync(trees, 0o555);
       let release: NodeJS.Timeout | undefined;
       try {
@@ -322,7 +304,6 @@ test("4.37 a live process on a worktree's postmaster.pid whose name cannot be re
       git(repo, "commit", "-q", "-m", "first");
       const folder = path.join(repo, ".claude", "worktrees", "slow-tasklist");
       git(repo, "worktree", "add", "-q", "-b", "claude/slow-tasklist", folder, "main");
-      // Stands in for the server: alive until stopped, its name read only through the watch's nameOf.
       const server = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
       const exited = new Promise((resolve) => server.once("exit", resolve));
       try {
@@ -339,7 +320,6 @@ test("4.37 a live process on a worktree's postmaster.pid whose name cannot be re
           asked += 1;
           throw new Error("spawnSync tasklist ETIMEDOUT");
         };
-        // The budget is also git's timeout: room for its calls on a loaded Windows runner, the name unread throughout.
         assert.deepEqual(await reapWorktrees(observer, { everyMs: 0, budgetMs: 5_000, protect: [], empty, nameOf: timedOut }), []);
         assert.ok(asked > 0, "the pass reached the process and asked its name");
         assert.equal(existsSync(folder), true, "a process of unknown name keeps its folder");
@@ -370,7 +350,6 @@ test("4.36 a folder under .claude/worktrees that git no longer lists goes once i
     git(repo, "add", "a.txt", ".gitignore");
     git(repo, "commit", "-q", "-m", "first");
     const trees = path.join(repo, ".claude", "worktrees");
-    // A removal that failed on long paths: git no longer lists it, and its checkout is still there.
     const orphan = path.join(trees, "orphan");
     git(repo, "worktree", "add", "-q", "-b", "claude/orphan", orphan, "main");
     rmSync(path.join(orphan, ".git"));
@@ -396,7 +375,6 @@ test("4.36 a folder under .claude/worktrees that git no longer lists goes once i
     const user = spawn(process.execPath, ["-e", "console.log('ready'); setInterval(() => {}, 1000)"], { cwd: used, stdio: ["ignore", "pipe", "ignore"] });
     try {
       await new Promise((resolve) => user.stdout.once("data", resolve));
-      // The trash is emptied by the script the detached process runs, here in the foreground.
       const emptyNow = (trash: string) => execFileSync(process.execPath, ["-e", EMPTY_TRASH, trash]);
       const reaped = await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, { everyMs: 0, budgetMs: 60_000, protect: [], empty: emptyNow });
       assert.deepEqual([...reaped].sort(), [empty, orphan].sort());
@@ -500,7 +478,6 @@ test("3.46 the look the hooks hand on runs git with the repository's own command
       git(repo, "commit", "-q", "--allow-empty", "-m", "first");
       const folder = path.join(repo, ".claude", "worktrees", "landed");
       git(repo, "worktree", "add", "-q", "-b", "claude/landed", folder, "main");
-      // The repository's own config names a monitor and a folder of hooks; each leaves a line when git starts it.
       const marker = path.join(dir, "ran").replace(/\\/g, "/");
       const hooks = path.join(dir, "repo-hooks");
       mkdirSync(hooks);

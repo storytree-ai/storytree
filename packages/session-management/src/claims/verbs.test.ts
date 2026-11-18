@@ -1,7 +1,4 @@
-/**
- * Capability 5 · Claims. The workspace verbs' wording of a refused claim or workspace, as the command line's
- * `workspace` family, mounted from this package's manifest, answers it.
- */
+// Capability 5 · Claims
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

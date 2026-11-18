@@ -1,7 +1,4 @@
-/**
- * Capability 20 · Lane measures: contract 20.4, the one catch-layer vocabulary and what maps onto it, and 20.5's layer
- * definitions in the `measures catch` help. Pure values: no library.
- */
+// Capability 20 · Lane measures
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

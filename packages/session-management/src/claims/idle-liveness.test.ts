@@ -1,4 +1,4 @@
-/** Capability 5 · Claims, contract 5.43: the user's idle duration controls both liveness and claim takeover (the setting itself is Project and caller's 2.10). */
+// Capability 5 · Claims
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
@@ -26,7 +26,6 @@ test("5.43 after 15 quiet minutes, the default keeps sessions and claims live; 1
       const first = await claim({ log, library, project, session: "A" }, capability.id, "building");
       assert.ok(first.ok);
       const now = new Date(Date.parse(first.claim.since) + 15 * 60_000);
-      // Move only the log's clock forward: no wall-clock sleep and no settings-derived override.
       const later = new Proxy(log, {
         get(target, key) {
           if (key === "locked") return (name: string, work: (locked: LockedLog) => Promise<unknown>) => log.locked(name, (locked) => work({ ...locked, now: async () => now }));

@@ -1,8 +1,4 @@
-/**
- * Capability 4 · Sessions: contracts 4.49 to 4.51, a message to a running pool lane (increment_783a63fe5b16), against the real
- * Postgres `pnpm test` provides, in a fresh project. The lane is the session holding the increment's claim whose harness beats
- * as a lane; a steer is taken at its next tool call's end, a follow-up at its turn's end, a note written on its increment.
- */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -16,10 +12,8 @@ import { claim } from "../claims/claims.js";
 import { deliveryText, messageLane } from "./message-lane.js";
 import { SESSION_VERBS } from "./verbs.js";
 
-/** The command line's words for the steps a verb names. */
 const COMMAND: DoorWords = { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` };
 
-/** A project with an increment the session "lane" holds, beating as a pool lane (a Claude Code lane's) or, for `codex`, with no beat; `work` runs with it and is cleaned up after. */
 async function withLane(work: (on: { project: string; increment: string; log: Awaited<ReturnType<typeof openActivityLog>>; library: Awaited<ReturnType<Awaited<ReturnType<typeof connect>>["openProject"]>> }) => Promise<void>, harness: "claude-code" | "codex" = "claude-code"): Promise<void> {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
@@ -60,7 +54,6 @@ test("4.49 · A message to a running pool lane is queued against the session hol
     assert.deepEqual(atEnd.map((one) => one.text), ["Then write the docs.", "Keep the old template."], "the turn's end takes the follow-up and a steer still waiting, in the order sent");
     assert.deepEqual(await log.messages.take(project, "lane", "stop"), []);
 
-    // Either door: the message verb queues, refuses a mode it does not know or an empty message as misuse, and passes on the work's refusals.
     const verb = SESSION_VERBS.find((one) => "name" in one.tool && one.tool.name === "message_lane")!;
     const doorContext = { ...owner, harness: "claude-code", folder: "/work/owner" };
     const queued = await verb.act({ increment, mode: "steer", text: "Through the door." }, doorContext, COMMAND);
@@ -70,7 +63,6 @@ test("4.49 · A message to a running pool lane is queued against the session hol
     await assert.rejects(verb.act({ increment, mode: "steer", text: " " }, doorContext, COMMAND), (error: unknown) => error instanceof VerbRefusal && error.misuse);
     await assert.rejects(verb.act({ increment: "increment_none", mode: "steer", text: "x" }, doorContext, COMMAND), (error: unknown) => error instanceof VerbRefusal && !error.misuse && /No session holds increment_none/.test(error.message));
 
-    // Two takes at once never both deliver one message.
     for (const text of ["one", "two", "three"]) await messageLane(owner, { increment, mode: "steer", text });
     const [first, second] = await Promise.all([log.messages.take(project, "lane", "tool"), log.messages.take(project, "lane", "tool")]);
     assert.deepEqual([...first, ...second].map((one) => one.text).sort(), ["one", "three", "two"]);
@@ -88,7 +80,6 @@ test("4.50 · A message that cannot reach a running pool lane is refused with th
     assert.deepEqual(await steer("owner-terminal", "x", unheld), { ok: false, refused: "no-lane", increment: unheld });
     assert.deepEqual(await steer("owner-terminal", "   "), { ok: false, refused: "empty" });
 
-    // A session that read an issue may not pass its words on to an unattended lane.
     await log.append(project, { session: "reader", harness: "claude-code", source: "hook", kind: "outside-text-read", what: "github issue #12" });
     assert.deepEqual(await steer("reader"), { ok: false, refused: "outside-text", reads: ["github issue #12"] });
 

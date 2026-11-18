@@ -1,9 +1,4 @@
-/**
- * Capability 4 · Sessions, close-out (ADR-0758 D2, D3): a session ends its work by recording whether
- * it is safe to close, and the reading checks a "yes" against its branches and its own running work
- * before letting it leave the list. Lines go to the real agent activity log on the Postgres
- * `pnpm test` provides; running work is a real process registered in a throwaway ledger.
- */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -74,7 +69,6 @@ test("4.12 a yes is checked, never trusted: it leaves the list at once when its 
     const who = (session: string, branch: string) => ({ log, project, session, harness: "claude-code", folder: `/work/site/.claude/worktrees/${branch}`, branch });
     const sessionOf = async (session: string, now: Date) => (await readSessions(log, project, { now })).find((one) => one.session === session);
 
-    // Says safe, and its branch merged: gone at once.
     const done = { ...CLAUDE, session: "done", folder: "/work/site/.claude/worktrees/fix-done", branch: "fix-done" } as const;
     await log.append(project, { ...done, kind: "file-edited", files: ["a.ts"] });
     await log.append(project, { ...observer, kind: "branch-state", of: "fix-done", open: false, how: "merged", pr: 3 });
@@ -82,14 +76,12 @@ test("4.12 a yes is checked, never trusted: it leaves the list at once when its 
     const gone = await sessionOf("done", after(verified.line, 1_000));
     assert.deepEqual({ verified: gone?.closeOut?.verified, needsYou: gone?.closeOut?.needsYou, listing: gone?.listing }, { verified: true, needsYou: undefined, listing: "hidden" });
 
-    // Says safe, but its branch is unmerged: it stays, needing you, and says why.
     const login = { ...CLAUDE, session: "login", folder: "/work/site/.claude/worktrees/fix-login", branch: "fix-login" } as const;
     await log.append(project, { ...login, kind: "file-edited", files: ["b.ts"] });
     const unmerged = await closeOut(who("login", "fix-login"), { safe: true, why: "all landed" }, { home });
     const stays = await sessionOf("login", after(unmerged.line, 1_000));
     assert.deepEqual({ verified: stays?.closeOut?.verified, needsYou: stays?.closeOut?.needsYou, listing: stays?.listing }, { verified: false, needsYou: "says safe, but fix-login is unmerged", listing: "listed" });
 
-    // Says safe, but a run of its own still runs on its machine: recorded by the command, never by the agent.
     const busy = { ...CLAUDE, session: "busy", folder: "/work/site/.claude/worktrees/fix-busy", branch: "fix-busy" } as const;
     await log.append(project, { ...busy, kind: "file-edited", files: ["c.ts"] });
     await log.append(project, { ...observer, kind: "branch-state", of: "fix-busy", open: false, how: "merged", pr: 4 });
@@ -103,14 +95,12 @@ test("4.12 a yes is checked, never trusted: it leaves the list at once when its 
       if (launched.status === "tracked") await stopOwned({ home, owner: { session: "busy", harness: "claude-code" }, targets: [launched.run.id] });
     }
 
-    // Says not safe: it stays, needing you, with its why.
     const held = { ...CLAUDE, session: "held" } as const;
     await log.append(project, { ...held, kind: "prompt-submitted" });
     const no = await closeOut({ log, project, session: "held", harness: "claude-code", folder: "/work/site", branch: "main" }, { safe: false, why: "waiting on the owner's look" }, { home });
     const waits = await sessionOf("held", after(no.line, LEAVE_MS + 1));
     assert.deepEqual({ needsYou: waits?.closeOut?.needsYou, listing: waits?.listing }, { needsYou: "waiting on the owner's look", listing: "listed" }, "past the leave-after time, still listed");
 
-    // A prompt after the close-out puts the session back to work: the close-out no longer stands.
     const prompt = await log.append(project, { ...done, kind: "prompt-submitted" });
     const back = await sessionOf("done", after(prompt, 1_000));
     assert.deepEqual({ closeOut: back?.closeOut, listing: back?.listing }, { closeOut: undefined, listing: "listed" });

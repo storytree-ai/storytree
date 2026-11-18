@@ -1,8 +1,4 @@
-/**
- * Capability 17 · Friction, its filing: one test per contract 17.1-17.7, filing through the declared friction verbs
- * (both doors mount them) and its public capture functions, each in a fresh project's library on the real Postgres
- * `pnpm test` provides.
- */
+// Capability 17 · Friction
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -18,18 +14,15 @@ import { FRICTION_FAMILIES } from "../verbs.js";
 import { CaptureError, recordFriction, reinforceFriction } from "../index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
-/** The day capture stamps, pinned by mocking the clock at its noon (UTC). */
 const DAY = "2026-03-04";
 const pinDay = (t: TestContext) => t.mock.timers.enable({ apis: ["Date"], now: Date.parse(`${DAY}T12:00:00Z`) });
 
-/** Run Friction's `family name` verb with `input` as `actor`, in `folder`. */
 function run(library: Library, folder: string, actor: string, family: string, name: string, input: Record<string, unknown>): Promise<VerbAnswer> {
   const declared = FRICTION_FAMILIES.find((one) => one.name === family)!.verbs.find((one) => "name" in one.command && one.command.name === name)!;
   const context: VerbContext = { library, project: "p", session: actor, folder, writer: { actor } };
   return declared.act(input as never, context, WORDS);
 }
 
-/** Run `body` in a fresh folder, a Git repository on `branch` when one is given. */
 async function inFolder(branch: string | undefined, body: (folder: string) => Promise<void>): Promise<void> {
   const folder = mkdtempSync(path.join(tmpdir(), "friction-"));
   try {
@@ -41,7 +34,6 @@ async function inFolder(branch: string | undefined, body: (folder: string) => Pr
 }
 
 const report = (title: string, evidence = `src/${title}.ts: Error`) => ({ title, description: title, statement: title, evidence, impact: "Lost time" });
-/** A report filed through `friction new` as new, past the closest earlier reports it would show (17.21). */
 const filedNew = (title: string) => ({ ...report(title), "none-match": true });
 const resteer = { title: "Simpler", description: "Less UI", doing: "Many fields", redirect: "Just email", disposition: "taste", "judged-by": "owner" };
 

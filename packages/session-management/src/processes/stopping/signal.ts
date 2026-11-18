@@ -1,11 +1,10 @@
-/** Capability 15 · Stop the work I own. */
+// Capability 15 · Stop the work I own
 import { probeProcess } from '../process/index.js';
 import type { ProcessIdentity } from '../process/index.js';
 export type StopPhase = 'polite' | 'force';
 export type SignalResult = { readonly status: 'sent' | 'gone' } |
   { readonly status: 'unknown' | 'unsupported'; readonly reason: string };
 
-/** Internal signal boundary. No PID-only or process-group fallback is permitted. */
 export async function signalProcess(identity: ProcessIdentity, phase: StopPhase): Promise<SignalResult> {
   const current = await probeProcess(identity);
   if (current.state !== 'live') return current.state === 'gone' ? { status: 'gone' } : { status: 'unknown', reason: current.reason };

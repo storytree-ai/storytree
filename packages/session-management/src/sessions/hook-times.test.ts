@@ -1,7 +1,4 @@
-/**
- * Capability 4 · Sessions: the hook times read back (ADR-1056 D1). Lines go to the real agent activity log on the
- * Postgres `pnpm test` provides.
- */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

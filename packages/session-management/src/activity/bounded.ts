@@ -1,66 +1,35 @@
-/**
- * Capability 2 · Agent activity log, its bounded reads (contract 2.7): a reader asks the log for the
- * lines it needs, and the server sends only those. The log grows with every tool call of every
- * session on every machine, so a reader that fetched the whole of it on each call took more from the
- * store the longer the project lived, many times a minute (the Cloud SQL egress bill of
- * 2026-10-05: 25 GB an hour). Each read here is narrowed on the server, by kind, session, a time window and a
- * field's value, or to the latest line for each key; the sessions and claims readings get the few
- * lines that decide them, never the history that does not.
- */
+// Capability 2 · Agent activity log
 import { ENDING_KINDS_SQL, ENDS_STANDING } from "../claims/endings.js";
 import type { LineKind } from "@storytree/library";
 
-/** What a bounded read asks for: each condition given narrows what the server sends. */
 export interface LineFilter {
-  /** Only lines of these kinds. */
   readonly kinds?: readonly LineKind[];
-  /** Only these sessions' lines. */
   readonly sessions?: readonly string[];
-  /** Only lines after this one: a cursor. */
   readonly after?: number;
-  /** Only lines written at this time or later (ISO 8601). */
   readonly since?: string;
-  /** Only lines written at this time or earlier (ISO 8601). */
   readonly until?: string;
-  /**
-   * Only lines whose field has this value, or one of these values, or (null) none. A field is a
-   * line's own column (session, harness, source, kind, folder) or any field it carries (call, of, …).
-   */
   readonly where?: Readonly<Record<string, string | readonly string[] | null>>;
-  /** Only lines that carry each of these fields. */
   readonly has?: readonly string[];
-  /** Only lines whose folder is one of these or inside one, matched without regard to case or slash: a reader makes it exact. */
   readonly within?: readonly string[];
-  /** Only the latest line for each value of these fields together. */
   readonly latestBy?: readonly string[];
-  /** Only the newest this many of what matched, still oldest first. */
   readonly newest?: number;
-  /** Only the oldest this many of what matched. */
   readonly oldest?: number;
-  /** Fields left out of each line, for a reader that never looks at them: a command's text, a transcript's path. */
   readonly omit?: readonly string[];
 }
 
-/** The columns every line row is read with. */
 const ROW = "seq, project, at, session, harness, source, kind, folder";
-/** The fields every line has its own column for. */
 const COLUMN_FIELDS = new Set(["session", "harness", "source", "kind", "folder"]);
-/** The kinds of line whose writer only looked at others' work (readings.ts ABOUT_OTHERS). */
 const ABOUT_OTHERS = ["merged", "branch-state", "main-state", "session-archived", "session-unarchived", "session-described", "machine-started", "hook-times", "usage-measured", "turn-failed", "ci-rerun", "queue-red", "lane-failed", "lane-reoffered"];
-/** Fields the sessions fold never reads from a line that only places its session: dropped from those. */
 const PLACING_ONLY = ["command", "files", "transcript", "task"];
 
-/** A line's folder as a folder match reads it, without regard to case or slash: what activity_project_folder_idx keeps. */
 const FOLDER_KEY = "lower(replace(a.folder, '\\', '/'))";
 
-/** A field as SQL: its column, or the value it carries in `detail`. Field names come from code, never from input. */
 function field(name: string): string {
   if (COLUMN_FIELDS.has(name)) return name;
   if (!/^[a-zA-Z][a-zA-Z0-9]*$/.test(name)) throw new RangeError(`not a field a line carries: ${JSON.stringify(name)}`);
   return `detail->>'${name}'`;
 }
 
-/** The query for `filter` on `project`'s lines: its text and values. */
 export function selectLines(project: string, filter: LineFilter): { text: string; values: unknown[] } {
   const values: unknown[] = [project];
   const param = (value: unknown) => {
@@ -81,9 +50,6 @@ export function selectLines(project: string, filter: LineFilter): { text: string
   for (const name of filter.has ?? []) where.push(`${field(name)} IS NOT NULL`);
   if (filter.within !== undefined) {
     const folders = param(filter.within.map((folder) => folder.replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()));
-    // Each folder is a range of the index on the key (activity_project_folder_idx): from the folder to
-    // the folder with '0' after it, the byte after '/': the folder and its subfolders are in it, and the
-    // match leaves out the few others whose names only start with the folder's.
     where.push(`seq IN (SELECT a.seq FROM unnest(${folders}::text[]) AS w(folder) JOIN activity a
       ON a.project = $1 AND ${FOLDER_KEY} ~>=~ w.folder AND ${FOLDER_KEY} ~<~ (w.folder || '0')
       WHERE ${FOLDER_KEY} = w.folder OR left(${FOLDER_KEY}, length(w.folder) + 1) = w.folder || '/')`);
@@ -99,12 +65,6 @@ export function selectLines(project: string, filter: LineFilter): { text: string
   return { text: `SELECT ${ROW}, ${detail} FROM (${picked}) AS picked ${order}`, values };
 }
 
-/**
- * The claim lines that decide who holds what now (capability 5): for each capability or increment
- * whose latest claim no later line ended, every claim line on it. Closing the increment a capability claim names as `under`, whoever closes it, or its
- * holder releasing that increment, ends it too (ADR-0944 D5, ADR-0949 D4). Folded in order they give the standing claims, in the order a fold of the whole
- * log gives them; ended claims, however many, send nothing.
- */
 export const STANDING_CLAIMS = `
 WITH latest AS (
   SELECT DISTINCT ON (coalesce(detail->>'increment', detail->>'capability')) seq, session, coalesce(detail->>'increment', detail->>'capability') AS id, detail->>'under' AS under
@@ -121,21 +81,9 @@ SELECT ${ROW}, detail FROM activity
 WHERE project = $1 AND kind IN ('claimed', ${ENDING_KINDS_SQL}) AND coalesce(detail->>'increment', detail->>'capability') IN (SELECT id FROM standing)
 ORDER BY seq`;
 
-/** The latest start each machine recorded (Session management 4.29): one line a machine, however often it started. */
 const MACHINE_STARTS = `SELECT DISTINCT ON (detail->>'machine') seq FROM activity WHERE project = $1 AND kind = 'machine-started'
     ORDER BY detail->>'machine', (detail->>'startedAt')::timestamptz DESC, seq DESC`;
 
-/**
- * The lines the sessions fold needs for sessions $2 (capability 4), which it reads exactly as it
- * reads their whole history: the first and the last line each session wrote from each place (folder,
- * branch, machine, harness, source; about others or not), and the finish of any command among them;
- * the latest line of each kind that turns, ends, closes out, names or claims, and its first start
- * naming a folder; its commands started since $3 with no finish, and every turn's end, start and
- * end after the first of them; and what others' lines last said of its branches and of it in the apps;
- * and each machine's latest start.
- * Lines kept only to place a session leave out what the fold never reads ($5): a command's text, an
- * edit's files (kept as none), a transcript's path, a subagent's task.
- */
 export const FOLD_LINES = `
 WITH own AS (
   SELECT seq, session, at, kind, folder, harness, source, detail->>'branch' AS branch, detail->>'machine' AS machine,
@@ -188,18 +136,10 @@ SELECT a.${ROW.split(", ").join(", a.")},
 FROM (SELECT seq, bool_or(whole) AS whole FROM picked GROUP BY seq) p JOIN activity a ON a.seq = p.seq
 ORDER BY a.seq`;
 
-/** The values FOLD_LINES takes, after the project. */
 export function foldValues(project: string, sessions: readonly string[], commandsSince: string): unknown[] {
   return [project, [...sessions], commandsSince, ABOUT_OTHERS, PLACING_ONLY];
 }
 
-/**
- * The lines that decide the state alone (working, waiting, gone or ended) of each session that wrote
- * a line of its own since $2, for a reader that shows nothing else of them (the status line): its
- * latest line, and the finish of a command it may be; the latest line of each kind that turns or ends;
- * and its commands started since $3 with no finish, with every turn's end, start and end after the
- * first of them; and each machine's latest start. Read as FOLD_LINES reads, these give each session the state its whole history gives.
- */
 export const STATE_LINES = `
 WITH own AS (
   SELECT seq, session, at, kind, detail->>'how' AS how, detail->>'call' AS call FROM activity
@@ -236,18 +176,10 @@ SELECT a.${ROW.split(", ").join(", a.")},
 FROM (SELECT seq, bool_or(whole) AS whole FROM picked GROUP BY seq) p JOIN activity a ON a.seq = p.seq
 ORDER BY a.seq`;
 
-/** The values STATE_LINES takes, after the project. */
 export function stateValues(project: string, activeSince: string, commandsSince: string): unknown[] {
   return [project, activeSince, commandsSince, ABOUT_OTHERS, PLACING_ONLY];
 }
 
-/**
- * The sessions the running-sessions list may show at a time (capability 4): those that wrote since
- * $2, those with a branch still open or resolved since $2, those whose standing close-out is not
- * plainly safe, those that edited a folder on the main line that is dirty or was looked at since $2,
- * and those an app keeps unarchived. Every other session is hidden (the readings' `listing`), so the
- * fold need read no other. The holders of claims are added by the caller.
- */
 export const SESSIONS_IN_VIEW = `
 WITH branch_states AS (
   SELECT DISTINCT ON (coalesce(detail->>'of', detail->>'branch')) coalesce(detail->>'of', detail->>'branch') AS branch, at, kind, detail->>'open' AS open
@@ -276,18 +208,10 @@ WHERE NOT EXISTS (SELECT 1 FROM activity r WHERE r.project = $1 AND r.session = 
 UNION
 SELECT session FROM records WHERE kind = 'session-unarchived'`;
 
-/** The values SESSIONS_IN_VIEW takes, after the project. */
 export function inViewValues(project: string, since: string): unknown[] {
   return [project, since, ABOUT_OTHERS];
 }
 
-/**
- * The branches worth a look on machine $2 (capability 4, ADR-0754 D4): for each branch the project's
- * lines name (off the main line, merge lines aside), when it was first and last worked on and the
- * latest folder this machine worked on it in, with its latest `branch-state` line, for those no line
- * has resolved, still open, worked on since, or taken for deleted by another machine. The caller
- * makes the last of those exact with what it remembers of its own looks.
- */
 export const BRANCH_FACTS = `
 WITH worked AS (
   SELECT detail->>'branch' AS branch, min(seq) AS first_seq, (array_agg(at ORDER BY seq))[1] AS first_at, (array_agg(at ORDER BY seq DESC))[1] AS last_at,
@@ -305,28 +229,20 @@ WHERE s.seq IS NULL OR a.detail->>'open' = 'true' OR w.last_at > a.at
   OR (a.detail->>'how' = 'deleted' AND w.worked_in IS NOT NULL AND a.detail ? 'machine' AND a.detail->>'machine' IS DISTINCT FROM $2::text)
 ORDER BY w.first_seq`;
 
-/** Every session that wrote a line of its own: how many there are, for a list that says how many it hides. */
 export const SESSION_COUNT = "SELECT count(DISTINCT session) AS count FROM activity WHERE project = $1 AND kind <> ALL($2::text[])";
 
 export function countValues(project: string): unknown[] {
   return [project, ABOUT_OTHERS];
 }
 
-/** A window's door-answered lines, from $2 (ISO 8601) on: the window the doors learner reads (contract 2.18). */
 const DOOR_WINDOW = "SELECT seq, session, at, detail FROM activity WHERE project = $1 AND kind = 'door-answered' AND at >= $2::timestamptz";
 
-/** The window's door-answered lines counted on the server: how many sessions wrote one, the first one's time, and the calls of each verb. */
 export const DOOR_COUNTS = `
 WITH w AS (${DOOR_WINDOW})
 SELECT count(DISTINCT session) AS sessions, min(at) AS first,
   coalesce((SELECT json_object_agg(verb, calls) FROM (SELECT detail->>'verb' AS verb, count(*) AS calls FROM w GROUP BY 1) AS v), '{}') AS calls
 FROM w`;
 
-/**
- * The window's door-answered lines a refusal or a pointer is judged by, and no other: each command refused as unknown
- * with its word and the session's next line, whatever its door, and each call a pointer ran with the session's next
- * command. Read in order, they follow each refusal and pointed call as every line of the window would.
- */
 export const DOOR_STEPS = `
 WITH w AS (
   SELECT seq, session, detail->>'door' = 'command' AS command,

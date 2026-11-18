@@ -1,15 +1,4 @@
-/**
- * Capability 5 · Claims. Capability 5.12–5.14 · Claimed workspaces (ADR-0653, owner A2/B1).
- * Claude Code keeps its original fetch/claim/create path. Codex preparation only checks and
- * fetches: the agent calls the desktop app's create_worktree, then attaches that returned folder.
- * Storytree never creates or removes a Codex folder. App creation does not change the agent's cwd.
- * A Claude Code session the Claude desktop app started in its own linked worktree attaches that
- * worktree the same way, on the branch it is on, rather than making a second one it never uses.
- * An increment asked for from inside a linked worktree is refused with the claim that takes it
- * there, so no old or queued branch is adopted silently and no second worktree is made (5.19).
- * A workspace for an increment claims every capability on its list with it, all or nothing, so a
- * lane backs off in seconds, not after its worktree is installed and its plan read (5.59, ADR-1079 D2).
- */
+// Capability 5 · Claims
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, realpathSync } from "node:fs";
@@ -23,11 +12,8 @@ import { setUpWorktree, wasSetUp, type SetupLimits, type WorktreeSetup } from ".
 type WorkspaceContext = ClaimContext & { readonly folder: string };
 
 export interface WorkspaceAttachment {
-  /** The directory returned by the Codex app's create_worktree, or the Claude Code session's own linked worktree, used explicitly. */
   readonly folder: string;
-  /** Codex: the exact commit returned by preparation and passed to create_worktree. */
   readonly ref?: string;
-  /** Codex: the work-derived name returned by preparation. */
   readonly name?: string;
 }
 
@@ -37,21 +23,16 @@ export type WorkspaceRefusal =
   | { ok: false; refused: "yours"; claim: Claim }
   | { ok: false; refused: "no-workspace"; why: string; openPulls?: readonly OpenPullForWork[]; localBranches?: readonly LocalBranchForWork[] };
 
-/** A capability on the increment's list another live session holds: `listed` names it (5.59). */
 export type ListedHeld = Held & { listed: string };
 
-/** An open pull request already made for the work, as a no-workspace refusal carries it (5.25). */
 export interface OpenPullForWork {
   readonly number: number;
   readonly branch: string;
 }
 
-/** A local branch made for the work with commits main does not have, as a no-workspace refusal carries it (5.69). */
 export interface LocalBranchForWork {
   readonly branch: string;
-  /** How many of its commits freshly fetched origin's main does not have. */
   readonly ahead: number;
-  /** The worktree that has it checked out, when one does. */
   readonly folder?: string;
 }
 
@@ -61,12 +42,9 @@ export interface ClaimedWorkspace {
   claim: Claim;
   folder: string;
   branch: string;
-  /** The fresh remote branch (Claude Code), or the pinned commit (Codex attachment). */
   base: string;
   takenOverFrom?: Claim;
-  /** Claimed in the worktree the session called from, which already held its work: nothing was made (5.19). */
   existing?: true;
-  /** What the project's local setup file did in the new worktree, made here or by Codex's app; absent when the project has none (19.1-19.3, 19.5). */
   setup?: WorktreeSetup;
 }
 
@@ -76,20 +54,15 @@ export type WorkspaceAnswer =
   | WorkspaceRefusal;
 
 export interface WorkspaceOptions {
-  /** Make the workspace even though open pull requests are already for this work (5.25). */
   readonly despiteOpenPulls?: boolean;
-  /** Make the workspace even though local branches made for this work have commits main does not (5.69). */
   readonly despiteLocalBranches?: boolean;
-  /** The caps a new worktree's setup copies within. */
   readonly setupLimits?: SetupLimits;
 }
 
 const FETCH_TIMEOUT_MS = 120_000;
-/** Checking out the whole tree can take minutes on a slow Windows disk: a git stopped part-way leaves a locked, half-made worktree. */
 const WORKTREE_ADD_TIMEOUT_MS = 600_000;
 const NAME_PART_MAX = 32;
 
-/** Create and claim for Claude Code; for Codex return the app's creation arguments without a claim. */
 export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch = {}, options: WorkspaceOptions = {}): Promise<WorkspaceAnswer> {
   const refused = await workspaceRefusal(context, id, reason, watch);
   if (refused !== undefined) return refused;
@@ -127,13 +100,9 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
   }
 
   const where = placeFor(repository, id);
-  // A claim this session still holds is on a branch in the merge queue, or one no worktree of its own has checked out,
-  // as main (workspaceRefusal): it moves to the new one. Its line names the workspace's folder, where the branch lives,
-  // not the caller's (4.22).
   const before = await readClaim(context.log, context.project, id);
   const claimed = await claim({ ...context, folder: where.folder, branch: where.branch }, id, reason, { moveBranch: true });
   if (!claimed.ok) return claimed;
-  // A claim the session held before goes back to its branch; one taken here is let go.
   const giveBack = async () => {
     if (before?.session === context.session && before.branch !== undefined) await claim({ ...context, branch: before.branch }, id, before.reason, { moveBranch: true });
     else await release(context, id);
@@ -147,13 +116,11 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
     mkdirSync(path.dirname(where.folder), { recursive: true });
     run(repository, ["worktree", "add", "-b", where.branch, where.folder, `refs/remotes/${base}`], WORKTREE_ADD_TIMEOUT_MS);
   } catch (error) {
-    // Only git's exit says it failed: what it printed on stderr before then is progress (5.47). What it made part-way goes.
     unmake(repository, where);
     await releaseTaken(context, capabilities);
     await giveBack();
     return { ok: false, refused: "no-workspace", why: `git could not make the worktree: ${failureOf(error)}` };
   }
-  // The project's own local file sets it up; whatever fails there is reported, and the claim and the worktree stay (19.2).
   const setup = setUpWorktree(repository, where.folder, options.setupLimits);
   return {
     ok: true, status: "ready", claim: claimed.claim, ...where, base,
@@ -162,9 +129,7 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
   };
 }
 
-/** Attach an app-created worktree (Codex's, or the one a Claude Code session is already in) to this session's work, leaving its lifetime to the app. */
 export async function attachWorkspace(context: WorkspaceContext, id: string, reason: string, attachment: WorkspaceAttachment, watch: MergeWatch = {}): Promise<ClaimedWorkspace | WorkspaceRefusal> {
-  // The attached worktree's branch, not the calling folder's, decides whether a pull request's held claim is taken over (11.17).
   const checking = { ...context, ...attachedBranch(context.folder, attachment.folder) };
   const refused = await workspaceRefusal(checking, id, reason, watch);
   if (refused !== undefined) return refused;
@@ -192,13 +157,11 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
     return { ok: false, refused: "no-workspace", why: `cannot attach the app worktree: ${firstLine(error)}` };
   }
 
-  const branch = existingBranch || `codex/${attachment.name}`; // Only Codex's may be detached.
-  // A claim this session held from the main checkout before attaching (workspaceRefusal) moves onto the attached branch.
+  const branch = existingBranch || `codex/${attachment.name}`;
   const before = await readClaim(context.log, context.project, id);
   const moving = before?.session === context.session && before.holder === "live";
   const claimed = await claim({ ...context, folder, branch }, id, reason, moving ? { moveBranch: true } : { keepBranch: true });
-  if (!claimed.ok) return claimed; // Another session may have claimed since preparation.
-  // A claim this session took elsewhere while checking must not be retargeted or released.
+  if (!claimed.ok) return claimed;
   if (claimed.alreadyHeld) return { ok: false, refused: "yours", claim: claimed.claim };
   const capabilities = await claimAll({ ...context, folder, branch }, listed, reason);
   if (!capabilities.ok) {
@@ -213,7 +176,6 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
     if (!existingBranch) run(folder, ["switch", "-c", branch]);
   } catch (error) {
     await releaseTaken(context, capabilities);
-    // A claim the session held before goes back to its branch; one taken here is let go.
     if (moving && before.branch !== undefined) {
       await claim({ ...context, branch: before.branch }, id, before.reason, { moveBranch: true });
       return { ok: false, refused: "no-workspace", why: `could not attach the app worktree; the claim went back to ${before.branch}: ${firstLine(error)}` };
@@ -221,8 +183,6 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
     await release(context, id);
     return { ok: false, refused: "no-workspace", why: `could not attach the app worktree; the claim was released: ${firstLine(error)}` };
   }
-  // Codex's app made this worktree at the prepared commit, so it is new: the local file sets it up once, as makeWorkspace does (19.5).
-  // A Claude Code session's own worktree is where it already works, and is left as it is.
   const repository = codex && !wasSetUp(folder) ? repositoryOf(context.folder) : undefined;
   const setup = typeof repository === "string" ? setUpWorktree(repository, folder) : undefined;
   return {
@@ -232,7 +192,6 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
   };
 }
 
-/** The branch the worktree at `folder` (resolved from `from`) has checked out, when it can be read; its full check comes later. */
 function attachedBranch(from: string, folder: string): { branch?: string } {
   try {
     const branch = run(path.resolve(from, folder), ["branch", "--show-current"]).trim();
@@ -242,12 +201,6 @@ function attachedBranch(from: string, folder: string): { branch?: string } {
   }
 }
 
-/**
- * Why this session may not have a workspace for `id`. A claim it holds on a branch that has since
- * merged is ended first, and one on a branch waiting in the merge queue, which can take no more
- * commits, is not pointed back at either, nor is one held, from the main checkout, on a branch no
- * linked worktree has checked out (as main): there is nowhere to work there, so the workspace takes it.
- */
 async function workspaceRefusal(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch): Promise<WorkspaceRefusal | undefined> {
   const mine = await readClaim(context.log, context.project, id);
   if (mine?.session === context.session && !(await endIfMerged({ ...context, source: "tool" }, mine, watch)) && !(await inMergeQueue(context.folder, mine, watch))
@@ -257,11 +210,6 @@ async function workspaceRefusal(context: WorkspaceContext, id: string, reason: s
   return claimRefusal(context, id, reason);
 }
 
-/**
- * The capabilities on increment `id`'s list a workspace claims with it, in ascending id order, or the refusal of the first one
- * another live session holds, its claim-refused line written under the increment (5.59). Checked before anything slow, as the
- * increment is; one that cannot be claimed for another reason (a retired one) is left off.
- */
 async function listedCapabilities(context: WorkspaceContext, id: string, reason: string): Promise<string[] | ListedHeld> {
   const work = await context.library.get(id);
   if (work?.type !== "increment") return [];
@@ -275,21 +223,14 @@ async function listedCapabilities(context: WorkspaceContext, id: string, reason:
   return free;
 }
 
-/** A listed capability's refusal, as the workspace answers it. */
 function listedRefusal(answer: Extract<ClaimAllAnswer, { ok: false }>): WorkspaceRefusal {
   return answer.refusal.refused === "held" ? { ...answer.refusal, listed: answer.id } : answer.refusal;
 }
 
-/** Let go of the listed capabilities a workspace claimed, when it is not made after all; one the session held before is kept. */
 async function releaseTaken(context: ClaimContext, answer: Extract<ClaimAllAnswer, { ok: true }>): Promise<void> {
   for (const taken of answer.claims) if (taken.alreadyHeld !== true) await release(context, taken.claim.capability!);
 }
 
-/**
- * Why a new workspace would rebuild work already in flight: the open pull requests whose head branch
- * was made for `id` (`<harness>/<id's name>-<suffix>`), other than on a branch this session holds work on,
- * as one waiting in the merge queue. Undefined when there is none, or GitHub cannot be asked (5.25).
- */
 async function openPullsRefusal(context: WorkspaceContext, id: string, watch: MergeWatch): Promise<WorkspaceRefusal | undefined> {
   const pulls = await (watch.allOpenPulls ?? ghAllOpenPulls)(context.folder).catch(() => undefined);
   if (pulls === undefined) return undefined;
@@ -306,11 +247,6 @@ async function openPullsRefusal(context: WorkspaceContext, id: string, watch: Me
   };
 }
 
-/**
- * Why a new workspace would rebuild work an earlier session left on this computer: the local branches
- * made for `id` (`<harness>/<id's name>-<suffix>`) with commits `base` does not have, each with the
- * worktree that has it checked out. Undefined when there is none (5.69).
- */
 function localBranchesRefusal(repository: string, id: string, base: string): WorkspaceRefusal | undefined {
   const made = new RegExp(`(?:^|/)${stemFor(id)}-[a-z0-9]+$`);
   const folders = worktreeFolders(repository);
@@ -332,7 +268,6 @@ function localBranchesRefusal(repository: string, id: string, base: string): Wor
   };
 }
 
-/** Each branch a worktree of the repository has checked out, with that worktree's folder. */
 function worktreeFolders(repository: string): Map<string, string> {
   const folders = new Map<string, string>();
   for (const entry of run(repository, ["worktree", "list", "--porcelain"]).split(/\r?\n\r?\n/)) {
@@ -344,11 +279,10 @@ function worktreeFolders(repository: string): Map<string, string> {
   return folders;
 }
 
-/** The linked worktree `folder` is in, and its branch (empty when detached); undefined in the main checkout or outside git. */
 function linkedWorktree(folder: string): { folder: string; branch: string } | undefined {
   try {
     const absolute = (flag: string) => realpathSync(run(folder, ["rev-parse", "--path-format=absolute", flag]).trim());
-    if (absolute("--absolute-git-dir") === absolute("--git-common-dir")) return undefined; // the main checkout
+    if (absolute("--absolute-git-dir") === absolute("--git-common-dir")) return undefined;
     const root = absolute("--show-toplevel");
     return { folder: root, branch: run(root, ["branch", "--show-current"]).trim() };
   } catch {
@@ -356,7 +290,6 @@ function linkedWorktree(folder: string): { folder: string; branch: string } | un
   }
 }
 
-/** The branches the repository's linked worktrees have checked out (not the main checkout's). */
 function linkedBranches(folder: string): Set<string> {
   try {
     const entries = run(folder, ["worktree", "list", "--porcelain"]).split(/\r?\n\r?\n/).slice(1);
@@ -366,18 +299,12 @@ function linkedBranches(folder: string): Set<string> {
   }
 }
 
-/**
- * The linked worktree the context's folder is in, `linked`, when a capability is asked for and
- * this session already holds work on its branch: a capability claimed from inside it is claimed
- * there, never given a second worktree (5.19). Undefined otherwise, as from the main checkout.
- */
 async function worktreeHoldingWork(context: WorkspaceContext, linked: { folder: string; branch: string }): Promise<{ folder: string; branch: string } | undefined> {
   if (!linked.branch) return undefined;
   const held = (await readClaims(context.log, context.project)).some((one) => one.session === context.session && one.branch === linked.branch);
   return held ? linked : undefined;
 }
 
-/** The main checkout of the repository `folder` is in, or why there is none to make a workspace from. */
 function repositoryOf(folder: string): string | { ok: false; refused: "no-workspace"; why: string } {
   let common: string;
   try {
@@ -394,7 +321,6 @@ function repositoryOf(folder: string): string | { ok: false; refused: "no-worksp
   return repository;
 }
 
-/** The branch `origin` names as its default, as this clone last heard; `main` when it never said. */
 function defaultBranch(repository: string): string {
   try {
     const named = run(repository, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]).trim();
@@ -404,7 +330,6 @@ function defaultBranch(repository: string): string {
   }
 }
 
-/** Fetch `main` from `origin` into `origin/<main>`; undefined when it was fetched, else why not. */
 function fetchMain(repository: string, main: string): { ok: false; refused: "no-workspace"; why: string } | undefined {
   try {
     run(repository, ["fetch", "--quiet", "origin", `+refs/heads/${main}:refs/remotes/origin/${main}`], FETCH_TIMEOUT_MS);
@@ -414,17 +339,14 @@ function fetchMain(repository: string, main: string): { ok: false; refused: "no-
   }
 }
 
-/** A work-derived app-compatible name; the random suffix separates parallel preparations. */
 function nameFor(id: string): string {
   return `${stemFor(id)}-${randomBytes(3).toString("hex")}`;
 }
 
-/** The part of a workspace's name that comes from its work's id. */
 function stemFor(id: string): string {
   return id.toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, NAME_PART_MAX).replace(/^-+|-+$/g, "") || "work";
 }
 
-/** Claude Code's existing placement: a name no folder or branch has yet. */
 function placeFor(repository: string, id: string): { folder: string; branch: string } {
   for (;;) {
     const name = nameFor(id);
@@ -442,23 +364,19 @@ function branchExists(repository: string, branch: string): boolean {
   }
 }
 
-/** Run git in `cwd` with the repository's own commands off, and return what it printed; throws, with what git said on stderr, when it fails. */
 function run(cwd: string, args: readonly string[], timeout = 30_000): string {
   return execFileSync("git", [...NO_REPOSITORY_COMMANDS, ...args], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout, windowsHide: true });
 }
 
-/** Remove the worktree and branch a failed `worktree add` made part-way, as far as git can; placeFor chose names nothing had. */
 function unmake(repository: string, where: { folder: string; branch: string }): void {
   for (const args of [["worktree", "remove", "--force", "--force", where.folder], ["worktree", "prune"], ["branch", "-D", where.branch]]) {
     try {
       run(repository, args);
     } catch {
-      // Not made, or already gone.
     }
   }
 }
 
-/** Why git failed, by how it ended: stopped, or its exit status with its own error line, never the progress it printed first. */
 function failureOf(error: unknown): string {
   const ended = error as { status?: number | null; signal?: string | null; code?: string };
   if (ended.code === "ETIMEDOUT" || (ended.status === null && ended.signal)) return `git was stopped before it finished (${ended.signal ?? ended.code}), and what it had made was removed`;
@@ -468,7 +386,6 @@ function failureOf(error: unknown): string {
   return own ?? firstLine(error);
 }
 
-/** The first line of what a failed git said. */
 function firstLine(error: unknown): string {
   const said = (error as { stderr?: unknown }).stderr;
   const text = typeof said === "string" && said.trim() !== "" ? said : error instanceof Error ? error.message : String(error);

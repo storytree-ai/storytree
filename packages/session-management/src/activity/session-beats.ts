@@ -1,16 +1,10 @@
-/**
- * Capability 2 · Agent activity log. Sessions' heartbeats (ADR-1056 D3): the latest beat of each session whose harness keeps
- * one (Claude Code's mod, from its own timer), and when it said the session ended, beside the activity log in the same
- * database. One row per session, overwritten at each beat, so the beats never grow the log the claims reading folds.
- */
+// Capability 2 · Agent activity log
 import type { Pool } from "pg";
 
 import type { Beat } from "../readings.js";
 
-/** The file declaring BEATS_SCHEMA, which a shared library reads for being merged before it takes the table. */
 export const BEATS_SCHEMA_FILE = import.meta.url;
 
-/** The table, appended to the activity log's schema. */
 export const BEATS_SCHEMA: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS session_beats (
     project  text NOT NULL,
@@ -19,22 +13,14 @@ export const BEATS_SCHEMA: readonly string[] = [
     ended_at timestamptz,
     PRIMARY KEY (project, session)
   )`,
-  // Whether the latest beat came from a pool lane's engine, which messages may be sent to (4.49).
   `ALTER TABLE session_beats ADD COLUMN IF NOT EXISTS lane boolean NOT NULL DEFAULT false`,
 ];
 
-/** The heartbeats of every project's sessions. */
 export interface SessionBeats {
-  /**
-   * `session` of `project` beats now, by the database's clock; with `ended`, it says it ended now. A beat after an end opens it again.
-   * With `lane`, the beat comes from a pool lane's engine; each beat says so or not afresh.
-   */
   beat(project: string, session: string, options?: { ended?: boolean; lane?: boolean }): Promise<void>;
-  /** The latest beat of each of `sessions` that has one. */
   of(project: string, sessions: readonly string[]): Promise<Map<string, Beat>>;
 }
 
-/** The beat statement and the read, for a pool or a client holding the project's lock alike. */
 interface Queries {
   query<R extends object>(text: string, values: unknown[]): Promise<{ rows: R[] }>;
 }
@@ -59,7 +45,6 @@ export class PgSessionBeats implements SessionBeats {
   }
 }
 
-/** The latest beat of each of `sessions` of `project` that has one, read through `db`. */
 export async function beatsOf(db: Queries, project: string, sessions: readonly string[]): Promise<Map<string, Beat>> {
   if (sessions.length === 0) return new Map();
   const { rows } = await db.query<{ session: string; beat_at: Date; ended_at: Date | null; lane: boolean }>(

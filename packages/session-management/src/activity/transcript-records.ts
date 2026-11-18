@@ -1,18 +1,9 @@
-/**
- * Capability 2 · Agent activity log. Transcript records in the shared log (ADR-0749 D3, D4): each session's transcript, one record per
- * line of its file, as its own machine's hooks stream it in, beside the activity log in the same
- * database. Records arrive already scrubbed; this only stores, reads and expires them, and keeps
- * what was worked out from a session's records once they expire.
- */
+// Capability 2 · Agent activity log
 import type { Pool } from "pg";
 
-/** The file declaring TRANSCRIPT_SCHEMA, which a shared library reads for being merged before it takes the tables. */
 export const TRANSCRIPT_SCHEMA_FILE = import.meta.url;
 
-/** The tables, appended to the activity log's schema. */
 export const TRANSCRIPT_SCHEMA: readonly string[] = [
-  // `part` is '' for the session's own transcript, or a subagent's id for that subagent's; `start` and
-  // `finish` are the record's bytes in its file, so a record already stored is never stored twice.
   `CREATE TABLE IF NOT EXISTS transcript_records (
     project text NOT NULL,
     session text NOT NULL,
@@ -33,22 +24,18 @@ export const TRANSCRIPT_SCHEMA: readonly string[] = [
   )`,
 ];
 
-/** One line of a transcript file, scrubbed, and the bytes it took in the file (its newline included). */
 export interface TranscriptRecord {
-  /** '' for the session's own transcript; a subagent's id for that subagent's. */
   readonly part: string;
   readonly start: number;
   readonly finish: number;
   readonly record: string;
 }
 
-/** A session, by the project it is logged under. */
 export interface StoredSession {
   readonly project: string;
   readonly session: string;
 }
 
-/** A stored record, where it is stored and when it was. */
 export interface StampedRecord {
   readonly session: string;
   readonly part: string;
@@ -56,28 +43,15 @@ export interface StampedRecord {
   readonly record: string;
 }
 
-/** The transcript records of every project's sessions. */
 export interface TranscriptRecords {
-  /** How far each part of a session's transcript is stored: the byte its next record starts at. */
   cursors(project: string, session: string): Promise<Map<string, number>>;
-  /** Store records; one already stored at its place is left as it was. */
   store(project: string, session: string, records: readonly TranscriptRecord[]): Promise<void>;
-  /** A part of a session's transcript as stored (by default its own), one record per line in file order; undefined when none is. */
   text(project: string, session: string, part?: string): Promise<string | undefined>;
-  /** The records of a part of a session's transcript (by default its own) that start at or after byte `from`, in file order, and the byte past the last. */
   since(project: string, session: string, from: number, part?: string): Promise<{ records: string[]; finish: number }>;
-  /**
-   * `project`'s records stored at or before `upTo`, of every part of a session that had one stored then, or, given
-   * `after`, only of the parts that had one stored after it too: one row per record, in file order within each part.
-   */
   storedUpTo(project: string, upTo: Date, after?: Date): Promise<StampedRecord[]>;
-  /** The sessions with a record stored before `before`. */
   storedBefore(before: Date): Promise<StoredSession[]>;
-  /** Delete every record stored before `before`, and say how many went. */
   deleteBefore(before: Date): Promise<number>;
-  /** Keep what was worked out from a session's records, to outlast them. */
   keep(project: string, session: string, reading: unknown): Promise<void>;
-  /** What was kept for a session, or undefined. */
   kept(project: string, session: string): Promise<unknown>;
 }
 

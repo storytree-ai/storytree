@@ -1,7 +1,4 @@
-/**
- * Capability 23 · Catalogue: one test per contract 23.1-23.3 in The library story, each in a fresh
- * project's library on the real Postgres `pnpm test` provides.
- */
+// Capability 23 · Catalogue
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

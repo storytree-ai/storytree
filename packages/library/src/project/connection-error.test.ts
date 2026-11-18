@@ -1,4 +1,4 @@
-/** Capability 28 · Shared server: telling a failure apart as the library being unreachable (contract 28.7), and saying it once per outage (28.8). */
+// Capability 28 · Shared server
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

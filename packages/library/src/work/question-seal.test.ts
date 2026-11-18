@@ -1,8 +1,4 @@
-/**
- * Capability 12 · Owner questions: contract 12.14, the would-be answer's seal, through the library's own reads of a
- * question (library read and the open tool), on a fresh project's library on the real Postgres `pnpm test` provides.
- * The arc surface's question show and list are held to it in its own 3.22 test.
- */
+// Capability 12 · Owner questions
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { test } from "node:test";

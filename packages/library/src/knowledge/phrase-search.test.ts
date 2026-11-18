@@ -1,4 +1,4 @@
-/** Capability 14 · Explicit literal lookup alongside ranked search. */
+// Capability 14 · Ranked search
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

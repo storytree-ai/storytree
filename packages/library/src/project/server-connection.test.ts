@@ -1,16 +1,4 @@
-/**
- * Capability 28 · Shared server, in the library story: how a project's database is made by a
- * server user that may not create databases (28.14, 28.15), and the deadline on a stalled local
- * handshake (28.9, 28.11).
- *
- * A managed server's user often may not create databases, and on Postgres 16 and later only a role
- * holding ADMIN OPTION on that user may let it. What a role that may create roles can do is make
- * one that may create databases and grant it to the user, which then borrows that role (SET ROLE)
- * to make each project's database. These prove the refusal and the borrowing on the local test
- * Postgres, in the same privilege shape: a user the superuser made, with no CREATEDB. The messages
- * are restated here from the brief, not taken from the code. Every role and database a test makes
- * is named with uniqueProjectName() and dropped at the end, pass or fail.
- */
+// Capability 28 · Shared server
 import assert from "node:assert/strict";
 import { createServer, connect as openSocket, type AddressInfo, type Socket } from "node:net";
 import { after, before, describe, mock, test } from "node:test";
@@ -57,9 +45,6 @@ test("28.14 opening a new project as a server user that may not create databases
     await assertBorrowed(project, role, creator);
     assert.deepEqual(await databasesContaining(run), [`storytree_${run}`]);
 
-    // Only that refusal is taken for a missing grant. A user who may create databases, on a server
-    // where CREATE DATABASE fails for another reason (a read-only one, as a read replica is), is
-    // told the server's own reason: a grant would fix nothing.
     await createTestRole(reader, { createdb: true });
     await withTestClient((client) => client.query(`ALTER ROLE "${reader}" SET default_transaction_read_only = on`));
     readOnly = await connect({ url: testRoleUrl(reader) });
@@ -80,8 +65,6 @@ test("28.14 opening a new project as a server user that may not create databases
 
 test("28.15 a user that may not create databases opens a new project by borrowing a role that may, and hands the role back", async () => {
   const run = uniqueProjectName();
-  // A database user that may not create databases, and a role that may, granted to it: what the
-  // two lines of the refusal above make.
   const user = `${run}@storytree.test`;
   const creator = `${run}-creator`;
   const [first, raced, later] = ["first", "raced", "later"].map((part) => `${run}-${part}`) as [string, string, string];
@@ -97,15 +80,11 @@ test("28.15 a user that may not create databases opens a new project by borrowin
 
     await assertBorrowed(await one.openProject(first), user, creator);
 
-    // Two first opens of one project racing each other, on two connections, are as safe as ever:
-    // both succeed, and there is one database, set up once.
     const both = await Promise.all([one.openProject(raced), two.openProject(raced)]);
     assert.deepEqual(both.map((project) => project.name), [raced, raced]);
     assert.deepEqual(await databasesContaining(raced), [`storytree_${raced}`]);
     for (const project of both) await assertBorrowed(project, user, creator);
 
-    // The role was taken on for the CREATE DATABASE alone and handed back: once the grant is
-    // withdrawn, the same connections are refused a new project again, as the user itself.
     await withTestClient((client) => client.query(`REVOKE "${creator}" FROM "${user}"`));
     for (const storytree of opened) await refusalOf(storytree.openProject(later), "create-database");
     assert.deepEqual(await databasesContaining(later), [], "no database was made");
@@ -119,9 +98,6 @@ test("28.15 a user that may not create databases opens a new project by borrowin
 test("28.15 of the roles a user may take on that may create databases, it borrows the first by name, reached directly or through another role, and never one it may not SET ROLE to", async () => {
   const run = uniqueProjectName();
   const user = `${run}@storytree.test`;
-  // Three roles that may create databases, made and granted in the opposite order to their names,
-  // so that neither order can pass for the other. `-creator-0` comes first by name, but is granted
-  // WITH SET FALSE, so the user may not take it on; `-creator-a` is reached through `-group`.
   const [notSettable, throughGroup, direct] = ["0", "a", "b"].map((suffix) => `${run}-creator-${suffix}`) as [
     string,
     string,
@@ -141,7 +117,6 @@ test("28.15 of the roles a user may take on that may create databases, it borrow
     });
     storytree = await connect({ url: testRoleUrl(user) });
 
-    // The same role every time.
     for (const part of ["one", "two"]) await assertBorrowed(await storytree.openProject(`${run}-${part}`), user, throughGroup);
   } finally {
     await storytree?.close();
@@ -161,7 +136,7 @@ describe("28.15 capability 2's behaviour suite, unchanged, in projects a user th
     await withTestClient((client) => client.query(`GRANT "${creator}" TO "${user}"`));
   });
   after(async () => {
-    await dropTestDatabases(made); // each test's own cleanup dropped its database; this catches any it could not
+    await dropTestDatabases(made);
     await dropTestRoles([user, creator]);
   });
   transactionsBehaviourSuite("a borrowed creator role", async () => {
@@ -196,17 +171,9 @@ test("28.11 a local url naming a connect_timeout longer than the given deadline 
   await refusedAtDeadline({ connectTimeout: "5" }, 10_000);
 });
 
-/** The real clock, kept for waiting on the network while a test runs on a mocked one. */
 const realSetTimeout = setTimeout;
 const networkClock = { now: () => performance.now(), sleep: (ms: number) => new Promise<void>((resolve) => realSetTimeout(resolve, ms)) };
 
-/**
- * Open a project through a server that stalls each fresh handshake, on the admin pool and then the
- * project's, connecting with `connectTimeoutMs` (the default when undefined) and the test server's
- * url carrying `connectTimeout` as its connect_timeout (none when undefined): each is still waiting
- * just short of `deadlineMs` and refused at it, saying so, and the next call recovers. The deadline
- * runs on a mocked clock, so the test does not wait for it.
- */
 async function refusedAtDeadline(
   { connectTimeout, connectTimeoutMs }: { readonly connectTimeout?: string; readonly connectTimeoutMs?: number },
   deadlineMs: number,
@@ -238,8 +205,6 @@ async function refusedAtDeadline(
   const name = uniqueProjectName();
   mock.timers.enable({ apis: ["setTimeout"] });
   try {
-    // The first attempt stalls on the admin pool. Once that pool is connected, opening
-    // the project again must also bound the separate handshake to the project's database.
     for (const pool of ["admin", "project"]) {
       stalled = true;
       const before = stalls;
@@ -280,14 +245,12 @@ async function refusedAtDeadline(
   }
 }
 
-/** Assert that `error` is a ConnectionError refusing for `problem`, and return it. */
 function refusal(error: unknown, problem: ConnectionProblem): ConnectionError {
   assert.ok(error instanceof ConnectionError, `a ConnectionError, not ${String(error)}`);
   assert.equal(error.problem, problem, error.message);
   return error;
 }
 
-/** The ConnectionError `promise` rejects with, refusing for `problem`. */
 async function refusalOf(promise: Promise<unknown>, problem: ConnectionProblem): Promise<ConnectionError> {
   try {
     await promise;
@@ -297,27 +260,19 @@ async function refusalOf(promise: Promise<unknown>, problem: ConnectionProblem):
   assert.fail(`expected a refusal (${problem}), but the call succeeded`);
 }
 
-/** The SQLSTATE of a Postgres error, as pg reports it. */
 function codeOf(error: unknown): unknown {
   return typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
 }
 
-/** The SQL lines a refusal's message gives the owner to run: each `…;` in it, in order. */
 function linesIn(message: string): string[] {
   const lines = [...message.matchAll(/`([^`]+;)`/g)].map((match) => match[1] ?? assert.fail(`no line in ${match[0]}`));
   return lines.length > 0 ? lines : assert.fail(`no lines to run in: ${message}`);
 }
 
-/** `line` with its role, storytree_creator, renamed to `role`: a test server is shared by other runs. */
 function renamed(line: string, role: string): string {
   return line.replaceAll("storytree_creator", `"${role}"`);
 }
 
-/**
- * Assert that `project` was opened by borrowing `creator`: its database is the borrowed role's; the
- * project is signed in as `user` itself, the role handed back; it has its tables, every one made by
- * the user, holding the project's name (capability 1); and it saves and reads a record (capability 2).
- */
 async function assertBorrowed(project: Project, user: string, creator: string): Promise<void> {
   const database = `storytree_${project.name}`;
   const owners = await withTestClient(async (client) => {
@@ -332,8 +287,6 @@ async function assertBorrowed(project: Project, user: string, creator: string): 
   const { rows: signedIn } = await project.pool.query<{ current: string; session: string; db: string }>(
     "SELECT current_user AS current, session_user AS session, current_database() AS db",
   );
-  // Signed in as the user itself, acting as the role that owns the database (contract 28.1), so a
-  // second account sharing that role reaches the same tables.
   assert.deepEqual(signedIn, [{ current: creator, session: user, db: database }], "signed in as the user, acting as the owning role");
 
   const { tables, meta } = await withTestClient(async (client) => {
@@ -352,7 +305,6 @@ async function assertBorrowed(project: Project, user: string, creator: string): 
   assert.deepEqual(await store.get("probe"), saved);
 }
 
-/** The databases on the test server whose names contain `token`, in byte order. */
 async function databasesContaining(token: string): Promise<string[]> {
   return withTestClient(async (client) => {
     const { rows } = await client.query<{ datname: string }>(
@@ -363,7 +315,6 @@ async function databasesContaining(token: string): Promise<string[]> {
   });
 }
 
-/** Let the event loop turn `count` times. */
 async function turns(count: number): Promise<void> {
   for (let turn = 0; turn < count; turn++) await new Promise((resolve) => setImmediate(resolve));
 }

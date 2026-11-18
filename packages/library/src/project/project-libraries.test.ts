@@ -1,11 +1,4 @@
-/**
- * Capability 1 · Project libraries: one test per contract in the library story; and capability 29 · Factory and
- * product (29.1-29.7) and capability 30 · Outside writers' 30.4, whose tests share this file's fixtures.
- *
- * These run against the real Postgres that `pnpm test` provides. Every project a test makes is
- * named with uniqueProjectName() and its databases are dropped at the end, pass or fail, so tests
- * can share one server, and run beside other test files, without seeing each other's projects.
- */
+// Capability 1 · Project libraries
 import assert from "node:assert/strict";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -21,15 +14,10 @@ import { FactoryCircle, type InheritedRecords } from "./factory.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import type { FieldsOf, RecordType } from "../schema/index.js";
 
-/** The spec's naming, restated here rather than taken from the code: project `x` is database `storytree_x`. */
 function databaseOf(project: string): string {
   return `storytree_${project}`;
 }
 
-/**
- * Run `body` with a fresh connection to the test server. Afterwards close it and drop
- * `databases`, whether the body passed or failed.
- */
 async function withStorytree(
   databases: readonly string[],
   body: (storytree: Storytree) => Promise<void>,
@@ -47,7 +35,6 @@ async function withStorytree(
   }
 }
 
-/** The databases on the test server whose names contain `token`, in byte order. */
 async function databasesContaining(token: string): Promise<string[]> {
   return withTestClient(async (client) => {
     const { rows } = await client.query<{ datname: string }>(
@@ -58,7 +45,6 @@ async function databasesContaining(token: string): Promise<string[]> {
   });
 }
 
-/** A project database's library_meta rows as { key: value }, read over an independent connection. */
 async function metaOf(database: string): Promise<Record<string, string>> {
   return withTestClient(async (client) => {
     const { rows } = await client.query<{ key: string; value: string }>("SELECT key, value FROM library_meta");
@@ -66,7 +52,6 @@ async function metaOf(database: string): Promise<Record<string, string>> {
   }, database);
 }
 
-/** The database a project's pool is actually connected to. */
 async function connectedDatabase(project: Project): Promise<string | undefined> {
   const { rows } = await project.pool.query<{ db: string }>("SELECT current_database() AS db");
   return rows[0]?.db;
@@ -81,11 +66,8 @@ test("1.1 openProject creates the project's database and its tables, and gives a
 
     assert.equal(project.name, name);
     assert.deepEqual(await databasesContaining(name), [databaseOf(name)], "its database is storytree_<name>");
-    // Its tables exist, seen from outside the library: library_meta, holding the project's name.
     assert.equal((await metaOf(databaseOf(name))).project, name);
 
-    // A project set up before a table gained a column gains it at its next open: feedback_screenshot's element_jpeg,
-    // where a feedback note's crop is kept (Library API 7.18).
     const cropColumn = () => withTestClient(async (client) => (await client.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'feedback_screenshot' AND column_name = 'element_jpeg'")).rowCount, databaseOf(name));
     assert.equal(await cropColumn(), 1);
     await withTestClient((client) => client.query("ALTER TABLE feedback_screenshot DROP COLUMN element_jpeg; DELETE FROM library_meta WHERE key = 'schema'"), databaseOf(name));
@@ -110,7 +92,6 @@ test("1.2 opening the same project again succeeds and changes nothing", async ()
     const before = await metaOf(databaseOf(name));
     assert.equal(before.probe, "saved before reopening");
 
-    // Open it again from a second connection, as a new process would.
     const later = await connect({ url: testServerUrl() });
     try {
       const again = await later.openProject(name);
@@ -119,8 +100,6 @@ test("1.2 opening the same project again succeeds and changes nothing", async ()
       assert.deepEqual(await databasesContaining(name), [databaseOf(name)], "no second database");
       assert.deepEqual(await metaOf(databaseOf(name)), before, "its records are untouched");
 
-      // Two first opens of one project racing each other are just as safe: both succeed and
-      // there is one database, set up once.
       const both = await Promise.all([storytree.openProject(raced), later.openProject(raced)]);
       assert.deepEqual(both.map((project) => project.name), [raced, raced]);
       assert.deepEqual(await databasesContaining(raced), [databaseOf(raced)]);
@@ -166,8 +145,6 @@ test("1.13 closing waits for an opening project and concurrent closers, then rel
       assert.deepEqual(finishedWhileOpening, [false, false], "neither close finishes while the project is still opening");
       await assert.rejects(project.transactions.get("after-close"), /pool after calling end/);
       await withTestClient(async (observer) => {
-        // A backend leaves pg_stat_activity a moment after its client disconnects (the blocker's
-        // too), so wait for the count to reach zero rather than reading it once.
         await waitUntil(async () => {
           const { rows } = await observer.query<{ n: number }>(
             "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1", [databaseOf(name)],
@@ -176,7 +153,6 @@ test("1.13 closing waits for an opening project and concurrent closers, then rel
         }, 5_000, "no project connection to be left on Postgres");
       });
     } finally {
-      // Also cleans up the orphan when this regression is run against the broken implementation.
       await project?.close();
     }
   });
@@ -210,14 +186,10 @@ test("1.2 reopening while a record write is in flight does not deadlock (PR 75 m
   const name = uniqueProjectName();
   await withStorytree([databaseOf(name)], async (storytree) => {
     const project = await storytree.openProject(name);
-    // A current project's reopen writes nothing and takes no lock (1.10); one whose tables are
-    // behind sets them up, under the locks this is about.
     await project.pool.query("DELETE FROM library_meta WHERE key = 'schema'");
     const later = await connect({ url: testServerUrl() });
     try {
       await withTestClient(async (writer) => {
-        // Pause the real SQL write after its history append, before it saves the current record.
-        // This is the lock order of PgTransactions.save, made deterministic rather than raced.
         await writer.query("BEGIN");
         await writer.query("SET LOCAL statement_timeout = '5s'");
         await writer.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
@@ -255,20 +227,16 @@ test("1.3 listProjects returns exactly the storytree projects, sorted, and no ot
   const run = uniqueProjectName();
   const site = `${run}-site`;
   const app = `${run}-app`;
-  // Databases on the same server that are NOT storytree projects, including near misses that a
-  // loose match would take: '_' is a LIKE wildcard, ILIKE ignores case, and the prefix must lead.
   const others = [run, `storytree-${run}`, `Storytree_${run}`, `xstorytree_${run}`];
   await withStorytree([databaseOf(site), databaseOf(app), ...others], async (storytree) => {
     await withTestClient(async (client) => {
       for (const database of others) await client.query(`CREATE DATABASE "${database}"`);
     });
-    await storytree.openProject(site); // opened first, listed second: the order is the sort's
+    await storytree.openProject(site);
     await storytree.openProject(app);
 
     const listed = await storytree.listProjects();
 
-    // The server is shared with other tests, so "exactly" is judged on the names this test made:
-    // whatever is listed that carries this run's token must be precisely app and site.
     const token = run.slice("t-".length);
     assert.deepEqual(listed.filter((project) => project.includes(token)), [app, site]);
     assert.deepEqual(listed, [...listed].sort(), "the list is sorted");
@@ -297,8 +265,6 @@ test("1.12 dropProject waits out a connection to the project it may not end, and
   await withStorytree([databaseOf(site)], async (storytree) => {
     await storytree.openProject(site);
     let dropped: Promise<unknown> = Promise.resolve();
-    // A superuser's connection, as an autovacuum worker's would be: the client's ordinary role may
-    // not end it (42501), and it ends by itself moments later.
     await withTestClient(async () => {
       let settled = false;
       dropped = storytree.dropProject(site).then(() => undefined, (error: unknown) => error).finally(() => (settled = true));
@@ -327,7 +293,6 @@ test("1.12 a project whose database a drop has marked invalid is refused as gone
   const site = uniqueProjectName();
   await withStorytree([databaseOf(site)], async (storytree) => {
     await (await storytree.openProject(site)).close();
-    // What DROP DATABASE does before it removes the files, and what a drop cut short by a crash leaves behind.
     await withTestClient((client) => client.query("UPDATE pg_database SET datconnlimit = -2 WHERE datname = $1", [databaseOf(site)]));
 
     await assert.rejects(storytree.openProject(site, { create: false }), (error: unknown) => error instanceof ProjectGoneError && error.project === site);
@@ -357,7 +322,6 @@ test("1.12 a connection a caller holds when another computer deletes its project
     try {
       const ended = new Promise((resolve) => held.once("end", resolve));
       await dropTestDatabases([databaseOf(site)]);
-      // An error the held connection raised with no one listening would fail this test as uncaught before it ends.
       await ended;
       await assert.rejects(held.query("SELECT 1"));
     } finally {
@@ -382,15 +346,12 @@ test("1.4 a record saved in one project cannot be read from another", async () =
     assert.deepEqual(await values(siteLibrary), ["saved in site"], "site reads its own record");
     assert.deepEqual(await values(appLibrary), [], "app cannot read site's record");
     assert.equal((await metaOf(databaseOf(app)))["isolation-probe"], undefined, "app's database holds only its own records");
-    // Each library is its own database, not a view onto a shared one.
     assert.equal(await connectedDatabase(siteLibrary), databaseOf(site));
     assert.equal(await connectedDatabase(appLibrary), databaseOf(app));
   });
 });
 
 test("1.5 a bad project name is refused before anything touches the server, and the error names the rule", async () => {
-  // Nothing listens on port 1: a name check that ran after reaching for the server would fail
-  // with a connection error instead of naming the rule.
   const offline = await connect({ url: "postgres://postgres@127.0.0.1:1/postgres" });
   try {
     const refused = [
@@ -420,14 +381,11 @@ test("1.5 a bad project name is refused before anything touches the server, and 
         `${JSON.stringify(name)} should be refused`,
       );
     }
-    // Control: a good name passes the rule (one character is enough) and does reach for the
-    // server, which proves the server above really was out of reach.
     await assert.rejects(offline.openProject("a"), { code: "ECONNREFUSED" });
   } finally {
     await offline.close();
   }
 
-  // The rule's far edges open for real: forty characters, and a leading digit.
   const run = uniqueProjectName();
   const longest = `${run}-${"x".repeat(29)}`;
   const digitFirst = `9-${run}`;
@@ -440,11 +398,6 @@ test("1.5 a bad project name is refused before anything touches the server, and 
   });
 });
 
-/**
- * A server user that may read a project's tables and nothing more: not their owner, no CREATE on
- * its schema, and no role to take on. It is the shape of an account let only read, or write a
- * little (CI's health account, contract 8.4), rather than set tables up.
- */
 async function createReader(role: string, database: string): Promise<void> {
   await createTestRole(role, { createdb: false });
   await withTestClient((client) => client.query(`GRANT CONNECT ON DATABASE "${database}" TO "${role}"`));
@@ -488,7 +441,6 @@ test("1.11 an account that may not change a project's tables opens it set up, be
       await storytree.openProject(name);
       await createReader(reader, databaseOf(name));
       await withTestClient((client) => client.query(`GRANT INSERT, UPDATE ON library_meta, record, record_event TO "${reader}"; GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO "${reader}"`), databaseOf(name));
-      // As a project made before its latest table was added stands: set up, but not all the way.
       await withTestClient((client) => client.query("DROP TABLE embedding"), databaseOf(name));
       await withTestClient((client) => client.query("DELETE FROM library_meta WHERE key <> 'project'"), databaseOf(name));
       const behind = await tables();
@@ -508,7 +460,6 @@ test("1.11 an account that may not change a project's tables opens it set up, be
       await opened.close();
       opened = undefined;
 
-      // A project never set up is refused, and nothing is attempted.
       await withTestClient((client) => client.query("DROP TABLE library_meta, record_event, record, feedback_screenshot, media, history_repair CASCADE"), databaseOf(name));
       opened = await connect({ url: as(reader) });
       await assert.rejects(opened.openProject(name), (error: unknown) => {
@@ -520,7 +471,6 @@ test("1.11 an account that may not change a project's tables opens it set up, be
       });
       assert.deepEqual(await tables(), [], "no table was made");
 
-      // Its owner still sets it up, as before.
       assert.equal((await storytree.openProject(name)).name, name);
       assert.ok((await tables()).includes("embedding"), "its owner sets the tables up");
     });
@@ -543,7 +493,6 @@ test("29.1 a project records whether it is the user's factory or a product namin
     assert.deepEqual(await made.lineage.factory(), { kind: "factory" });
     assert.deepEqual(await built.lineage.factory(), { kind: "product", factory });
 
-    // Kept in the project's own library, read again over a fresh connection.
     await built.close();
     assert.deepEqual(await (await storytree.openProject(product)).lineage.factory(), { kind: "product", factory });
 
@@ -574,7 +523,6 @@ test("29.2 a product project reads its factory's roles, notes and checks, and it
     const added = await before.knowledge.writeKnowledge("principle", principle("Name things plainly", "The product's own note."));
     await before.close();
 
-    // A product's library reads its factory from the next opening on.
     const built = await storytree.openProject(product);
     const statements = (await built.records.list("principle")).map((each) => [each.fields.title, each.fields.statement]).sort();
     assert.deepEqual(statements, [
@@ -585,17 +533,14 @@ test("29.2 a product project reads its factory's roles, notes and checks, and it
     assert.deepEqual((await built.records.list("agent")).map((each) => each.id), [role.id]);
     assert.deepEqual((await built.records.list("check")).map((each) => each.id), [check.id]);
 
-    // A role's links, written as the factory's ids, read the note the product edited in place of the factory's.
     assert.equal((await built.records.get(shared.id))?.id, shared.id, "a note the product holds no copy of reads as the factory's");
     assert.equal((await built.records.get(edited.id))?.id, own.id, "the product's own note shadows the factory's under its id too");
     assert.equal((await built.records.get(added.id))?.id, added.id);
     assert.deepEqual((await built.knowledge.search("wording")).map((note) => note.id).sort(), [shared.id, own.id].sort());
 
-    // The factory's memory stays its own, and nothing the product wrote reaches the factory.
     assert.deepEqual(await built.records.list("decision"), []);
     assert.deepEqual((await made.records.list("principle")).map((each) => each.fields.statement), ["The factory's wording.", "The factory's wording."]);
 
-    // A product whose factory is gone reads only its own records.
     await made.close();
     await storytree.dropProject(factory);
     const orphan = await storytree.openProject(product);
@@ -626,7 +571,6 @@ test("29.3 a product's link to a system record it retired, as moving onto its fa
     const edited = await built.knowledge.writeKnowledge("principle", principle("Keep it small", "The product's later wording."));
     assert.equal((await built.records.get(copy.id))?.id, edited.id, "its own record of the title wins over the factory's");
 
-    // Memory the product retired stays retired.
     await built.records.retire(decision.id, "withdrawn");
     assert.equal(await built.records.get(decision.id), null);
   });
@@ -649,17 +593,14 @@ test("29.2 a change to the factory's system after a product was set up is in the
     await before.close();
     const since = Math.max(0, ...(await made.records.history()).map((entry) => entry.seq));
 
-    // The user's agents change the factory's system: a role edited, a check added, a note retired, a shadowed note edited.
     await made.knowledge.editNote(role.id, { workflow: "Build it test-first." });
     const check = await made.knowledge.writeKnowledge("check", { title: "Proxy assertion", description: "Proxies pass.", question: "Is any assertion a proxy?", enforces: [shadowed.id] });
     await made.records.retire(dropped.id, "no longer part of the system");
     await made.knowledge.editNote(shadowed.id, { statement: "The factory's new wording." });
 
-    // The factory's globe draws from its history, which holds each change.
     const changes = (await made.records.history({ since })).map((entry) => [entry.recordId, entry.action]);
     assert.deepEqual(changes, [[role.id, "updated"], [check.id, "created"], [dropped.id, "retired"], [shadowed.id, "updated"]]);
 
-    // The product's next session works with the changed system, and its own note still wins.
     const built = await storytree.openProject(product);
     assert.equal(((await built.records.get(role.id))?.fields as { workflow?: string } | undefined)?.workflow, "Build it test-first.");
     assert.deepEqual((await built.records.list("agent")).map((each) => each.fields.workflow), ["Build it test-first."]);
@@ -692,7 +633,6 @@ test("29.4 an edit through a product of a system record it reads from its factor
     assert.equal(((await built.records.get(edited.id))?.fields as { statement?: string } | undefined)?.statement, "The product's edit.");
     await built.knowledge.editNote(edited.id, { statement: "The product's second edit." });
 
-    // An edit through the factory's id of a record the product shadows edits the product's own.
     assert.equal((await built.knowledge.editNote(shadowed.id, { statement: "The product's edited wording." }))?.id, own.id);
 
     await built.records.retire(retired.id, "not part of this product");
@@ -702,7 +642,6 @@ test("29.4 an edit through a product of a system record it reads from its factor
       [own.id, "The product's edited wording."],
     ].sort());
 
-    // The factory is unchanged, and the product's next session reads the same.
     assert.deepEqual((await made.records.list("principle")).map((each) => each.fields.statement), ["The factory's wording.", "The factory's wording.", "The factory's wording."]);
     await made.knowledge.editNote(retired.id, { statement: "The factory's later wording." });
     await built.close();
@@ -710,7 +649,6 @@ test("29.4 an edit through a product of a system record it reads from its factor
     assert.equal(await again.records.get(retired.id), null, "a factory edit does not bring back what the product retired");
     assert.deepEqual((await again.records.list("principle")).map((each) => each.id).sort(), [edited.id, own.id].sort());
 
-    // Retiring through the factory's id a record the product shadows retires its own as well.
     await again.records.retire(shadowed.id, "not part of this product");
     assert.equal(await again.records.get(shadowed.id), null);
     assert.equal(await again.records.get(own.id), null);
@@ -743,7 +681,6 @@ test("29.5 a product's inherited records are the factory's system records it rea
     assert.deepEqual(await inherited(), [read.id, check.id].sort());
     assert.ok(!(await inherited()).includes(shadowed.id), "the factory's record a product's own of that title shadows is not inherited");
 
-    // It reads the factory as it is now.
     await made.knowledge.editNote(read.id, { statement: "The factory's new wording." });
     const [now] = (await (built.records as InheritedRecords).inherited()).filter((each) => each.id === read.id);
     assert.equal((now?.fields as { statement?: string } | undefined)?.statement, "The factory's new wording.");
@@ -807,7 +744,7 @@ test("29.6 a project opened with system switches leaves each switched-off role, 
 test("30.4 a project opened with a plugin's kinds writes and reads them, its system switches and its factory beside; opened without them, a record of that kind reads dormant, as stored, in no list, and a write of it is refused (ADR-1178 D3)", async () => {
   const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
   const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" } }, required: ["words"] }, writers: ["storytree_voice"] };
-  const voice = "voice.note" as RecordType; // a plugin's kind is no core RecordType
+  const voice = "voice.note" as RecordType;
   await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
     const made = await storytree.openProject(factory);
     await made.lineage.markFactory();
@@ -852,7 +789,6 @@ test("29.7 from a factory or any product naming it, a project reaches each libra
       }
       await storytree.openProject(outside);
 
-      // From the factory: each product naming it, its own memory included, opened once; a project naming no factory is refused.
       const product = await made.reach(first);
       assert.equal(product.name, first);
       assert.equal(await made.reach(first), product, "a project reached again is the one opened before");
@@ -861,8 +797,6 @@ test("29.7 from a factory or any product naming it, a project reaches each libra
       await assert.rejects(made.reach(outside), new RegExp(`"${outside}".*factory "${factory}"`, "s"));
       await assert.rejects(made.reach(uniqueProjectName()), /no project/);
 
-      // From a product: its factory and the factory's other products, never one outside, each opened with the product's
-      // switches and kinds, and closed with it.
       const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" } }, required: ["words"] }, writers: ["storytree_voice"] };
       const built = await storytree.openProject(second, { system: { off: [role.id], on: [] }, kinds: [note] });
       const theirs = await built.reach(factory);
@@ -876,19 +810,15 @@ test("29.7 from a factory or any product naming it, a project reaches each libra
       await assert.rejects(sibling.records.list("decision"), "what it reached is closed with it");
       await assert.rejects(theirs.records.list("decision"));
 
-      // A project the server lists but loses before it is opened is gone, not unopened, and left out.
       const lost = new FactoryCircle(made, async () => {
         throw new ProjectGoneError("lost");
       }, async () => ["lost"]);
       assert.deepEqual(await lost.reachAll(), []);
 
-      // A project naming no factory reaches only itself.
       const alone = await storytree.openProject(outside);
       await assert.rejects(alone.reach(factory), /names no factory/);
       assert.deepEqual(await alone.reachAll(), []);
 
-      // The circle, listed from a connection that may read all but one product: that one is named with why, never skipped,
-      // and one it may read that names no factory is left out.
       await createReader(reader, databaseOf(factory));
       for (const name of [first, second, outside]) {
         await withTestClient((client) => client.query(`GRANT CONNECT ON DATABASE "${databaseOf(name)}" TO "${reader}"`));
@@ -922,7 +852,6 @@ test("1.28 · a change to the history goes only through the logged repair switch
       "SELECT relname, relforcerowsecurity FROM pg_class WHERE relname IN ('record', 'record_event') AND relkind = 'r' ORDER BY relname",
     )).rows.map((row) => [row.relname, row.relforcerowsecurity]), database);
     assert.deepEqual(forced, [["record", true], ["record_event", true]], "the opened project forces row-level security on its owner");
-    // As the library host's grants leave it: row-level security switched on, so the owner meets the policies too.
     await withTestClient((client) => client.query(
       "ALTER TABLE record ENABLE ROW LEVEL SECURITY; ALTER TABLE record_event ENABLE ROW LEVEL SECURITY",
     ), database);
@@ -977,7 +906,6 @@ test("1.29 · a shared library gets schema statements only from merged code: a b
   const full = String(PROJECT_SCHEMA.length);
   let shared: Storytree | undefined;
   try {
-    // A shared library never set up is refused, and nothing is made.
     shared = await connect({ url: testServerUrl() }, unmerged);
     await assert.rejects(shared.openProject(name), (error: unknown) => {
       assert.ok(error instanceof ConnectionError, `a ConnectionError, not ${String(error)}`);
@@ -990,7 +918,6 @@ test("1.29 · a shared library gets schema statements only from merged code: a b
 
     await withStorytree([database], async (storytree) => {
       await (await storytree.openProject(name)).close();
-      // As the library stands before a branch adds its last statement: one short, that statement's effect absent.
       await withTestClient((client) => client.query(`UPDATE library_meta SET value = '${PROJECT_SCHEMA.length - 1}' WHERE key = 'schema'; ALTER TABLE record_event NO FORCE ROW LEVEL SECURITY`), database);
 
       const warn = t.mock.method(console, "warn", () => undefined);
@@ -1043,12 +970,10 @@ test("1.29 · a shared library gets an own database's table statements only from
     return storytree;
   };
   try {
-    // Merged code sets the shared library's own database up, the probe reading the file its caller names.
     await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first], declaredIn: [declaredIn, undefined] });
     assert.deepEqual(asked, [declaredIn], "the probe reads the file that declares the tables, and a bundled one with no URL reads as released");
     assert.equal(await has(own, "entries"), true);
 
-    // A branch adds a statement in a file not on main: the shared library opens as it stands, warning once.
     const warn = t.mock.method(console, "warn", () => undefined);
     const branchFile = path.resolve("/checkout/packages/caller/src/branch-tables.ts");
     const shared = await open({ sharedLibrary: true, schemaMerged: probe });
@@ -1061,13 +986,11 @@ test("1.29 · a shared library gets an own database's table statements only from
     assert.equal(warnings.length, 1, `one warning over two connections, not ${JSON.stringify(warnings)}`);
     assert.match(warnings[0]!, /not merged.*branch-tables\.ts's last change is a test branch's/s, "saying why");
 
-    // Statements naming no declaring file count as unmerged on a shared library.
     const quiet = t.mock.method(console, "warn", () => undefined);
     await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first, branch] });
     quiet.mock.restore();
     assert.equal(await has(own, "branch_only"), false, "statements naming no declaring file are not applied");
 
-    // An own database a branch would make from nothing on the shared library is refused, its tables unmade.
     await assert.rejects((await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(fresh, { tables: [branch], declaredIn: [branchFile] }), (error: unknown) => {
       assert.ok(error instanceof ConnectionError, `a ConnectionError, not ${String(error)}`);
       assert.match(error.message, /not merged.*test branch's/s);
@@ -1075,7 +998,6 @@ test("1.29 · a shared library gets an own database's table statements only from
     });
     assert.equal(await has(fresh, "branch_only"), false, "no table was made");
 
-    // A throwaway library takes the branch's statement.
     await (await open({ schemaMerged: probe })).ownDatabase(own, { tables: [first, branch], declaredIn: [branchFile] });
     assert.equal(await has(own, "branch_only"), true, "a throwaway library takes the branch's tables");
   } finally {
@@ -1095,7 +1017,6 @@ test("1.22 each history entry carries the server's own time and the account that
   try {
     await withStorytree([database], async (storytree) => {
       const project = await storytree.openProject(name);
-      // An entry written before the project had these columns keeps them empty, rather than the upgrade's time and account.
       await withTestClient((client) => client.query(
         `DROP TRIGGER record_event_recorded ON record_event; DROP TRIGGER record_event_append_only ON record_event;
          ALTER TABLE record_event DROP COLUMN recorded_at, DROP COLUMN recorded_by; DELETE FROM library_meta WHERE key = 'schema';

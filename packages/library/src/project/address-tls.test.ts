@@ -1,15 +1,4 @@
-/**
- * Capability 15 · Connection by address, ADR-0943 D1: a library at a remote address gets its
- * password only after the server proves who it is with a certificate storytree checks. Each test
- * dials a disposable peer that speaks just enough of Postgres's wire protocol to ask for the
- * password in plain text, and records every byte it is sent. The address names `library.test`,
- * which is not a local address, and the socket is pointed at the peer on this machine; the
- * certificate is still checked against `library.test`. The certificates in ../testing/tls are
- * synthetic, made for these tests alone (trusted-ca.crt signed library.crt and elsewhere.crt;
- * impostor.crt is signed by a CA nobody trusts; self-signed-library.crt and self-signed-elsewhere.crt
- * signed themselves and are not authorities, as the Mint library's is). The whole file runs again
- * under the desktop app's own runtime, Electron, whose TLS is not Node's.
- */
+// Capability 15 · Connection by address
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -34,13 +23,11 @@ const SSL_REQUEST = 80877103;
 
 type Certificate = "library" | "elsewhere" | "impostor" | "self-signed-library" | "self-signed-elsewhere";
 
-/** How the peer answers: with no TLS at all, or over TLS with `certificate`, then asking for the password in plain text or letting the client in. */
 interface Peer {
   readonly tls?: Certificate;
   readonly then: "cleartext" | "let-in";
 }
 
-/** A peer listening on this machine, and every byte any client sent it, decrypted. */
 async function peer(behaviour: Peer): Promise<{ port: number; received: () => string; close: () => Promise<void> }> {
   const chunks: Buffer[] = [];
   const sockets = new Set<Socket>();
@@ -65,7 +52,6 @@ async function peer(behaviour: Peer): Promise<{ port: number; received: () => st
         secure.once("data", (startup) => { chunks.push(startup); answer(secure); });
         return;
       }
-      // No SSLRequest: this was the startup message, sent in the clear.
       answer(raw);
     });
   });
@@ -99,7 +85,6 @@ function message(type: string, body: Buffer): Buffer {
   return Buffer.concat([Buffer.from(type), int32(body.length + 4), body]);
 }
 
-/** A throwaway storytree home holding the synthetic password as the `postgres` key. */
 function home(): string {
   const made = mkdtempSync(path.join(tmpdir(), "storytree-address-tls-"));
   process.env.STORYTREE_HOME = made;
@@ -114,7 +99,6 @@ function pinning(file: string): string {
   return `sslrootcert=${encodeURIComponent(file)}`;
 }
 
-/** Connect the admin pool, then a project's, to the peer behaving as `behaviour`, at an address naming library.test. */
 async function connectBoth(behaviour: Peer, query = PINNED): Promise<{ admin: unknown; project: unknown; received: string }> {
   const keys = home();
   const listening = await peer(behaviour);
@@ -175,7 +159,6 @@ test("15.4 a remote address presenting the pinned certificate for its name conne
 });
 
 test("15.4 a remote address presenting exactly a certificate its sslrootcert holds, though no authority signed it, connects, on the admin and project pools", async () => {
-  // The file holds an authority first and the server's own certificate after it, as one of several.
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-address-tls-pins-"));
   const pins = path.join(folder, "pins.crt");
   writeFileSync(pins, [readFileSync(path.join(TLS, "trusted-ca.crt"), "utf8"), readFileSync(path.join(TLS, "self-signed-library.crt"), "utf8")].join(""));
@@ -223,7 +206,6 @@ test("15.4 an address asking for a weaker check, or overriding the host it dials
 
 const UNDER_ELECTRON = "STORYTREE_TLS_TEST_UNDER_ELECTRON";
 
-/** Electron's binary, at the version the desktop app ships (package.json pins the same), or why there is none here. */
 function electronBinary(): string | Error {
   try {
     return createRequire(import.meta.url)("electron") as string;
@@ -233,21 +215,15 @@ function electronBinary(): string | Error {
 }
 
 const electron = process.env[UNDER_ELECTRON] === undefined ? electronBinary() : undefined;
-// A checkout whose install skipped Electron's download skips this, saying so; CI never does.
 const skip = process.env[UNDER_ELECTRON] !== undefined
   ? "other: this run is the one under Electron, which does not start another"
   : electron instanceof Error && process.env.CI === undefined ? `other: Electron is not installed here (${electron.message.split("\n")[0]})` : false;
 
 test("15.4 every check in this file holds under the desktop app's runtime, Electron, whose TLS is not Node's", { skip, timeout: 150_000 }, async () => {
   assert.ok(typeof electron === "string", `Electron is not installed: ${String(electron)}`);
-  // NODE_TEST_CONTEXT would make the child report to this runner's protocol instead of running its own.
   const { NODE_TEST_CONTEXT: _parent, NODE_OPTIONS: options, ...env } = process.env;
-  // Electron refuses to start with Node's CA-store flags (a cloud container sets --use-openssl-ca for
-  // its proxy), so they are dropped and every other flag kept; NODE_EXTRA_CA_CERTS still passes on.
   const kept = (options ?? "").split(/\s+/).filter((flag) => flag !== "" && !/^--use-(openssl|bundled)-ca$/.test(flag));
   if (kept.length > 0) env.NODE_OPTIONS = kept.join(" ");
-  // Not spawnSync: blocking this process holds back the report that this test has started, so the
-  // test harness, seeing a file with no test running, would kill it as one that never exits.
   const run = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve, reject) => {
     const child = spawn(electron, ["--import", "tsx", "--test", "--test-reporter=spec", fileURLToPath(import.meta.url)], {
       cwd: fileURLToPath(new URL("../..", import.meta.url)),

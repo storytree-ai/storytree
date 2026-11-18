@@ -1,23 +1,15 @@
-/**
- * Capability 27 · Fixed data questions: the `library count`, `changes` (the latest, or one writer's as a diff) and `find` commands, mounted in the library
- * family beside capability 17's (commands/index.ts). Each asks one of data-questions.ts's fixed questions and answers
- * in plain text, at most ANSWER_ROWS rows, each value cut to one short line. None is a tool: the voice door mounts the
- * questions it needs itself.
- */
+// Capability 27 · Fixed data questions
 import type { Library } from "../index.js";
 import { ANSWER_ROWS, type TitleHit } from "./data-questions.js";
 import { verb, VerbRefusal, type VerbContext } from "../verbs/verb.js";
 
-/** The longest a value is shown: past it, it is cut, so no answer runs long. */
 const SHOWN = 80;
 
-/** `value`'s first line, cut at SHOWN characters; a blank for none. */
 function cut(value: string | null): string {
   const line = (value ?? "").split(/\r?\n/, 1)[0] ?? "";
   return line.length > SHOWN ? `${line.slice(0, SHOWN - 1)}…` : line;
 }
 
-/** "ADR-1103", "adr-1103" or "1103": the number it names, else undefined. */
 export function decisionNumber(name: string): number | undefined {
   const digits = /^(?:adr-)?(\d{1,15})$/i.exec(name.trim())?.[1];
   return digits === undefined ? undefined : Number(digits);
@@ -65,7 +57,6 @@ export const changes = verb({
   },
 });
 
-/** Every record `actor` wrote, by id, with each field that differs from before their first write to after their last, whole. */
 async function writerDiff(actor: string, library: Library): Promise<{ text: string; next?: { command: string; why: string }[] }> {
   const written = await library.writtenBy(actor);
   if (written.length === 0) return { text: `${actor} wrote nothing (health left out).` };
@@ -110,7 +101,6 @@ export const find = verb({
   },
 });
 
-/** The live decision `name` numbers (1103 or ADR-1103), its id; undefined when `name` is no number. */
 export async function decisionNamed(library: Library, name: string): Promise<string | undefined> {
   const number = decisionNumber(name);
   if (number === undefined) return undefined;

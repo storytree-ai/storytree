@@ -1,14 +1,4 @@
 // Capability 7 · Library API. @storytree/library: the project library every later storytree story reads and writes, and the
-// only way to reach it (capability 7 · Library API, the library story). At run time this entry
-// exports connect(), the errors a caller may need to catch by class, the default connect limit and
-// the one wording of its refusal (CONNECT_TIMEOUT_MS, explainConnectTimeout, ADR-1163 D1), the name a seed's
-// connection carries while it writes (SEED_CONNECTION), and the schema an activity log line is
-// checked against (NEW_LINE, ADR-1017 D3), and the one reader of a process's schedule (parseSchedule, OWNER_TIME_ZONE,
-// ADR-1105 D1), so what works out what is due reads the words as they were validated, and the one reader of a plugin's
-// declared record kinds (pluginSchema, ADR-1178 D3), so the plugin loader checks a manifest's as the library will. Everything else it exports
-// is a type, and none of them reaches a connection pool, a store or a table, but for one: a
-// connection's own database beside the projects (contract 7.7). The package exports
-// nothing but this entry, so the internals behind it cannot be imported at all.
 export { connect } from "./api/index.js";
 export type { AttachedMedia, Change, Changes, ChangesFilter, FeedbackNote, FeedbackRoute, FyiNote, Library, PinNote, MediaEntry, MediaFile, NewMedia, PluginRecords, Storytree } from "./api/index.js";
 export type { ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, Reached, OwnDatabaseOptions, ProjectSnapshot, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./project/index.js";

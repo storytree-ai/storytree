@@ -1,7 +1,4 @@
-/**
- * Capability 22 · Decision corrections: one test per contract 22.2 and 22.3 in The library story, each in a
- * fresh project's library on the real Postgres `pnpm test` provides.
- */
+// Capability 22 · Decision corrections
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -10,7 +7,6 @@ import type { Library } from "../index.js";
 import { withLibrary } from "../testing/pg.js";
 import { annotate, correct } from "./index.js";
 
-/** A capability, with an accepted, load-bearing decision on its shelf. */
 async function shelf(library: Library) {
   const story = await library.addStory({ title: "Visitor can sign up" });
   const capability = await library.addCapability({ title: "Email form", story: story.id });
@@ -18,7 +14,6 @@ async function shelf(library: Library) {
   return { capability, cover };
 }
 
-/** Every text a record has held, oldest first, from the change feed. */
 async function textsOf(library: Library, id: string): Promise<unknown[]> {
   return (await library.changesSince(0)).changes.filter((change) => change.recordId === id).map((change) => change.record.fields.text);
 }

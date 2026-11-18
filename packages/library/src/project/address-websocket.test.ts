@@ -1,12 +1,4 @@
-/**
- * Capability 15 · Connection by address, ADR-1093 D2: a library at a wss:// address is reached over
- * HTTPS, through Cloudflare Access and the session's HTTPS_PROXY, by Neon's WebSocket driver. Each
- * test stands up what sits between a cloud session and the library on this machine: a CONNECT proxy
- * with an allow list (the agent proxy), and a gate that checks the Access headers over TLS, then
- * carries the WebSocket to Postgres as wsproxy does (Access, cloudflared and wsproxy in one). The
- * address names `library.test`, which only the proxy resolves; the gate presents the synthetic
- * certificate for that name in ../testing/tls, trusted here through addressServer's test-only `ca`.
- */
+// Capability 15 · Connection by address
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { createServer as createHttpServer, type IncomingHttpHeaders } from "node:http";
@@ -32,16 +24,11 @@ const TLS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "testi
 const CA = readFileSync(path.join(TLS, "trusted-ca.crt"), "utf8");
 const [TOKEN_ID, TOKEN_SECRET] = ["synthetic-id.access", "synthetic-access-secret"];
 
-/** What the gate was asked: each upgrade's path and headers. */
 interface Upgrade {
   readonly url: string;
   readonly headers: IncomingHttpHeaders;
 }
 
-/**
- * The gate: TLS for library.test, a 403 to any upgrade without the token, and every other upgrade's
- * WebSocket carried to `backend` (the test server, unless a test gives a peer of its own).
- */
 async function gate(backend: { host: string; port: number }): Promise<{ port: number; upgrades: Upgrade[]; close: () => Promise<void> }> {
   const upgrades: Upgrade[] = [];
   const sockets = new Set<Socket>();
@@ -74,7 +61,6 @@ async function gate(backend: { host: string; port: number }): Promise<{ port: nu
   };
 }
 
-/** The agent proxy: CONNECT only, to library.test alone unless `allow` says otherwise, which it reaches at 127.0.0.1. */
 async function proxy(allow = ["library.test"]): Promise<{ url: string; connects: string[]; close: () => Promise<void> }> {
   const connects: string[] = [];
   const sockets = new Set<Socket>();
@@ -104,7 +90,6 @@ async function proxy(allow = ["library.test"]): Promise<{ url: string; connects:
   };
 }
 
-/** A throwaway storytree home for the keys, with none of the variables they fall back on. */
 function home(): string {
   const made = mkdtempSync(path.join(tmpdir(), "storytree-wss-"));
   process.env.STORYTREE_HOME = made;
@@ -132,8 +117,6 @@ test("15.6 a wss:// address is reached through HTTPS_PROXY and the gate with the
     saveKey("postgres", new URL(testRoleUrl(role)).password, { home: keys });
     saveToken(keys);
     process.env.HTTPS_PROXY = agent.url;
-    // TLS, the proxy, the WebSocket and SCRAM before the first answer: a loaded Windows runner took
-    // longer than 10 s (CI run 39974004167), so the connection gets 30 s.
     server.current = addressServer(`wss://${role}@library.test:${front.port}/postgres`, 30_000, {}, undefined, CA);
     const { admin } = server.current;
     assert.deepEqual((await admin.query<{ who: string }>("SELECT current_user AS who")).rows[0], { who: role });
@@ -242,7 +225,6 @@ test("15.6 a wss:// library that asks for the password in plain text is refused 
   const sockets = new Set<Socket>();
   let hungUp: () => void;
   const closed = new Promise<void>((resolve) => { hungUp = resolve; });
-  // Asks for the password in plain text (AuthenticationCleartextPassword), then reads whatever comes until the client hangs up.
   const asker: Server = createServer((socket) => {
     sockets.add(socket);
     socket.on("close", () => hungUp());
@@ -307,7 +289,6 @@ test("15.6 a wss:// address skips HTTPS_PROXY for a loopback host and for a host
   assert.equal(via("wss://library.example/postgres", ""), proxy, "an empty NO_PROXY names nothing");
 });
 
-/** A listener on 127.0.0.1 that counts the connections it is dialled with, then hangs up. */
 async function listener(): Promise<{ port: number; dialled: () => number; close: () => Promise<void> }> {
   let dialled = 0;
   const sockets = new Set<Socket>();
@@ -325,7 +306,6 @@ test("15.6 with HTTPS_PROXY set, a wss:// address on a loopback host or one NO_P
   const direct = await listener();
   const agent = await proxy(["library.test", "127.0.0.1"]);
   const opened: ReturnType<typeof addressServer>[] = [];
-  // Short: a direct dial of library.test, which only the proxy resolves, fails or waits out its timeout.
   const reach = async (address: string) => {
     const server = addressServer(address, 1_500, {}, undefined, CA);
     opened.push(server);

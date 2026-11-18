@@ -1,17 +1,4 @@
-/**
- * Capability 15 · Connection by address, ADR-1093 D2: a library at a wss:// address, reached over
- * HTTPS where nothing but HTTPS gets out (a cloud session's container). Its connections are Neon's
- * WebSocket driver, `wss://<host>/v1?address=127.0.0.1:5432`: Cloudflare Access in front, checking the
- * service token the request carries; a tunnel to wsproxy on the library's box; Postgres on that box's
- * loopback, which is the only address wsproxy will reach. When HTTPS_PROXY is set, a socket is opened
- * through it with CONNECT, unless its host is loopback or NO_PROXY names it (`proxyFor`).
- *
- * The outer TLS is checked against Node's authorities (ADR-0997 D1), and is all the TLS there is: the
- * driver never speaks Postgres's own, so an address asking for sslmode or sslrootcert is refused rather
- * than let it seem honoured. Cloudflare sees what goes inside, so the password goes by SCRAM alone,
- * never in plain text nor as an MD5 answer, and is never sent before the server asks (the driver's
- * pipelined connect would). What the spike found and why each choice is made: research_2dd40286e14b.
- */
+// Capability 15 · Connection by address
 import { isIPv4 } from "node:net";
 
 import { Client as NeonClient, Pool as NeonPool } from "@neondatabase/serverless";
@@ -23,20 +10,12 @@ import WebSocket from "ws";
 import { ConnectionError } from "./connection-error.js";
 import type { Transport } from "./server.js";
 
-/** The keys the Access service token is read from, and the variables each falls back on. */
 export const ACCESS_KEYS = { id: ["cf-access-client-id", "CF_ACCESS_CLIENT_ID"], secret: ["cf-access-client-secret", "CF_ACCESS_CLIENT_SECRET"] } as const;
 
-/** Where wsproxy, on the library's box, carries each connection: its Postgres, and nothing else (ADR-1093 D3). */
 const BACKEND = "127.0.0.1:5432";
 
-/** Connection-string settings that choose Postgres's own TLS, which a wss:// address has none of. */
 const TLS_PARAM = /^(ssl|uselibpqcompat)/i;
 
-/**
- * The transport for the wss:// address `url`: Neon's pool and a client that carries the Access token
- * through HTTPS_PROXY where `proxyFor` says. Refused when the address asks for TLS settings or the token is not saved.
- * `ca`, for tests alone, is an authority trusted besides Node's.
- */
 export function webSocketTransport(url: URL, ca?: string): Transport {
   const tls = [...url.searchParams.keys()].find((key) => TLS_PARAM.test(key));
   if (tls !== undefined) {
@@ -50,11 +29,9 @@ export function webSocketTransport(url: URL, ca?: string): Transport {
   class WebSocketClient extends NeonClient {
     constructor(config?: ConstructorParameters<typeof NeonClient>[0]) {
       super(config);
-      // This client's own settings, not the driver's shared ones, so no other pool in the process changes.
       this.neonConfig.webSocketConstructor = AccessWebSocket;
       this.neonConfig.wsProxy = () => `${host}/v1?address=${BACKEND}`;
       this.neonConfig.pipelineConnect = false;
-      // The driver's pg declares its password handlers as properties: they are replaced on each client.
       this._handleAuthCleartextPassword = () => this.#refuse("in plain text");
       (this as unknown as { _handleAuthMD5Password: () => void })._handleAuthMD5Password = () => this.#refuse("as an MD5 answer");
     }
@@ -69,7 +46,6 @@ export function webSocketTransport(url: URL, ca?: string): Transport {
     }
   }
 
-  // The driver's pool puts its own client in place of the one it is given, so this one is put back after it.
   class WebSocketPool extends NeonPool {
     constructor(options?: ConstructorParameters<typeof NeonPool>[0]) {
       super(options);
@@ -79,12 +55,6 @@ export function webSocketTransport(url: URL, ca?: string): Transport {
   return { Pool: WebSocketPool as unknown as typeof pg.Pool };
 }
 
-/**
- * The proxy a connection to the wss:// address `url` goes through: HTTPS_PROXY's, unless the host is
- * this machine's loopback or NO_PROXY names it (the upper-case variables first, then the lower-case).
- * NO_PROXY is a comma-separated list of hosts, each covering its subdomains too (`.host` and `*.host`
- * alike), optionally with a port, and `*` for every host, much as curl and Go read it; CIDR ranges are not read.
- */
 export function proxyFor(url: URL, env: NodeJS.ProcessEnv = process.env): string | undefined {
   const proxy = env.HTTPS_PROXY || env.https_proxy || undefined;
   if (proxy === undefined) return undefined;
@@ -95,33 +65,27 @@ export function proxyFor(url: URL, env: NodeJS.ProcessEnv = process.env): string
   return named.some((entry) => covers(entry, host, port)) ? undefined : proxy;
 }
 
-/** Whether the NO_PROXY entry `entry` covers `host` (lower case, unbracketed) at `port`. */
 function covers(entry: string, host: string, port: string): boolean {
   if (entry === "*") return true;
-  // A port follows a bracketed IPv6 address or a name; a bare IPv6 address has colons of its own.
   const ported = /^(\[[^\]]+\]|[^:]+):(\d+)$/.exec(entry);
   if (ported !== null && ported[2] !== port) return false;
   const name = bare(ported === null ? entry : ported[1]!).replace(/^\*?\./, "");
   return host === name || host.endsWith(`.${name}`);
 }
 
-/** `hostname` in lower case without an IPv6 address's brackets or a name's trailing dot. */
 function bare(hostname: string): string {
   return hostname.toLowerCase().replace(/^\[(.*)\]$/, "$1").replace(/\.$/, "");
 }
 
-/** Whether `host` (lower case, unbracketed) is this machine's loopback: localhost and its subdomains, 127.0.0.0/8, ::1. */
 function loopback(host: string): boolean {
   if (host === "localhost" || host.endsWith(".localhost") || host === "::1") return true;
   return isIPv4(host) && host.startsWith("127.");
 }
 
-/** The postgres:// form of the wss:// address `url`, for the pool's own settings: its user, host, database and options. */
 export function postgresForm(url: URL): URL {
   return new URL(`postgres://${url.username}@${url.host}${url.pathname}${url.search}`);
 }
 
-/** The Access token's `part`, or the refusal saying where to save it. */
 function accessKey(part: keyof typeof ACCESS_KEYS): string {
   const [key, variable] = ACCESS_KEYS[part];
   const value = resolveKey(key, { variable });
@@ -135,11 +99,6 @@ function accessKey(part: keyof typeof ACCESS_KEYS): string {
   return value;
 }
 
-/**
- * A WebSocket that carries `headers` and goes through `proxy` when there is one. The driver builds it
- * from a URL alone. A refused upgrade is said as the hop that refused it: the proxy's CONNECT, or the
- * gate (Access) behind it, which ws alone reports alike.
- */
 function accessWebSocket(headers: Record<string, string>, proxy: string | undefined, host: string, ca: string | undefined): typeof WebSocket {
   return class AccessWebSocket extends WebSocket {
     readonly #connectStatus: () => number | undefined;
@@ -152,7 +111,6 @@ function accessWebSocket(headers: Record<string, string>, proxy: string | undefi
       this.#connectStatus = () => status;
     }
 
-    // The driver listens with addEventListener, which would hand it an ErrorEvent without the error's code: it is given the error itself.
     override addEventListener(...args: Parameters<WebSocket["addEventListener"]>): void {
       const [type, listener] = args;
       if (type !== "error" || typeof listener !== "function") return super.addEventListener(...args);

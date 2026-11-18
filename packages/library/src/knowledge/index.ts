@@ -1,4 +1,4 @@
-/** Capability 6 · Knowledge artifacts. */
+// Capability 6 · Knowledge artifacts
 export { Knowledge, KNOWLEDGE_KINDS, knowledgeGuidance, RANK_LIMIT, LinkLoopError, referenceEdgesOf, SupersessionLoopError } from "./knowledge.js";
 export type { Findable, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, PhraseKind, PhraseOptions, PhrasePage, NarrowingDecision, PlanKind, Ranked, Ranking, RankOptions } from "./knowledge.js";
 export { ARTIFACT_KINDS, WRITTEN_KINDS } from "./kinds.js";

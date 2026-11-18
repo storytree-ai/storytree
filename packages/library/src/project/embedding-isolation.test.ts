@@ -18,8 +18,6 @@ import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl, testServ
 import { PgVectors, vectorServerIdentity } from "../knowledge/index.js";
 import { connect, type Storytree } from "./storytree.js";
 
-// The original two-project poisoning probe: real ranking and SQLite, synthetic records,
-// database responses and embedder. No network, credentials, model download or live library.
 const note = (id: string, term: string): SchemaRecord => ({
   id, type: "definition", version: 1,
   createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
@@ -59,9 +57,6 @@ function search(notes: SchemaRecord[], pool: ReturnType<typeof remote>, cache: s
   });
 }
 
-// Each search opens and closes its SQLite cache on disk, about two dozen times a test; a loaded
-// Windows runner stalled those long enough to pass 60 s once (CI run 39952854378) for a test that
-// takes about a second, so the bound is 180 s.
 for (const method of ["rank", "rankAll"] as const) {
   test(`14.10 · ${method} ignores another server, project or database incarnation's cached remote vectors`, { timeout: 180_000 }, async () => {
     const folder = await mkdtemp(path.join(tmpdir(), "storytree-vector-isolation-"));
@@ -143,7 +138,6 @@ test("14.10 · server domains follow pg endpoint overrides, user and TLS trust w
     const trusted = { host: "victim.invalid", user: "alice", ssl: { ca: "synthetic-ca" } };
     assert.notEqual(identity(trusted), identity({ ...trusted, ssl: { ca: "different-synthetic-ca" } }));
     assert.notEqual(identity(trusted), identity({ ...trusted, ssl: { ...trusted.ssl, checkServerIdentity: () => undefined } }));
-    // A user given as a pool option, not in a URL, still names its own domain.
     assert.notEqual(identity({ host: "victim.invalid", user: "one@example.invalid" }), identity({ host: "victim.invalid", user: "two@example.invalid" }));
   } finally {
     await Promise.all(pools.map(pool => pool.end()));
@@ -179,7 +173,6 @@ test("1.4, 14.10 · opened projects isolate identical restored chunks and a recr
         [Buffer.from(Float32Array.of(-1, 0).buffer), model, key(a)]);
       await server.close();
 
-      // Rotating a password must not invalidate this database's cache or persist either secret.
       await withTestClient((client) => client.query(`ALTER ROLE "${role}" PASSWORD 'synthetic-secret-after-rotation'`));
       url.password = "synthetic-secret-after-rotation";
       server = await connect({ url: url.href }, seams);
@@ -208,8 +201,6 @@ test("14.10 · project openings scope the cache to the server reached, even with
   const folder = await mkdtemp(path.join(tmpdir(), "storytree-vector-servers-"));
   const name = uniqueProjectName(), user = `${name}@example.invalid`;
   const opened: Storytree[] = [];
-  // Two endpoints, the test server's own and a relay to it on another port, so both reach one
-  // database: the same name, OID and records, deliberately given two server identities.
   const sockets = new Set<Socket>();
   const upstream = new URL(testServerUrl());
   const relay = createServer((socket) => {

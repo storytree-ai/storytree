@@ -1,16 +1,4 @@
-/**
- * Capability 10 · Work in flight (ADR-0640): one test per contract of 10 in the library story,
- * its pending plan changes now capability 4's (pending-changes.test.ts), and 6.18 and 6.19, Knowledge
- * artifacts' move of the friction a close remedies, pinned here through the close that runs it,
- * each run on BOTH backends:
- *
- * - memory: a WorkModel and a WorkInFlight over SchemaRecords over a fresh MemoryTransactions;
- * - postgres: the `work` and `flight` of a fresh project on the server `pnpm test` provides,
- *   dropped afterwards, pass or fail.
- *
- * Whether anything was written is judged one layer down, through the project's Transactions: every
- * change appends a history entry (capability 2), so an unchanged history means nothing was written.
- */
+// Capability 10 · Work in flight
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -75,7 +63,6 @@ const postgres: Backend = {
 const ARC = { title: "Launch v1", intent: "Ship sign-up", endState: "Visitors can sign up" };
 const WORK = { title: "Email form", objective: "Build the form", body: "Form, then its checks." };
 const TODAY = /^\d{4}-\d{2}-\d{2}$/;
-/** An arc's and an increment's required fields but their titles, for tests that name each one. */
 const BARE_ARC = { intent: "An intent", endState: "An end state" };
 const BARE_WORK = { objective: "Do it", body: "The steps." };
 const ASK = {
@@ -115,7 +102,6 @@ for (const backend of [memory, postgres]) {
     assert.match(landed.fields.outcome?.date ?? "", TODAY);
     assert.deepEqual({ ...landed.fields.outcome, date: undefined }, { date: undefined, pr: "#12", disposition: "landed" });
 
-    // An increment's arc must be a live arc.
     const story = await work.addStory({ title: "Visitor can sign up" });
     const retired = await flight.createArc(ARC);
     await records.retire(retired.id, "withdrawn");
@@ -129,7 +115,6 @@ for (const backend of [memory, postgres]) {
       await assert.rejects(flight.addIncrement(fields), (error: unknown) => error instanceof MissingReferenceError && error.field === field);
     }
     assert.deepEqual(await transactions.history(), history, "nothing was written");
-    // The work the arc holds.
     assert.deepEqual((await flight.arcView(arc.id))?.increments.map(({ id }) => id), [proposal.id, landed.id]);
   });
 
@@ -162,7 +147,6 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(flight.closeIncrement(increment.id, { pr: "#4", disposition: "landed" }), LifecycleError, "closed is final");
     await assert.rejects(flight.advanceIncrement(increment.id, "active"), LifecycleError);
 
-    // Straight from a proposal to closed with a pull request needs no note.
     const other = await flight.addIncrement({ arc: arc.id, ...WORK });
     const merged = await flight.closeIncrement(other.id, { pr: "#5", disposition: "landed" });
     assert.deepEqual({ ...merged?.fields.outcome, date: undefined }, { date: undefined, pr: "#5", disposition: "landed" });
@@ -281,7 +265,6 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("10.3", "an arc reads closed exactly when none of its increments is open, active otherwise or with none, and parked until unparked", async ({ work, flight, records }) => {
-    // (Its other half, "and none of its questions waits on the owner", is proved with capability 12.)
     const arc = await flight.createArc(ARC);
     const state = async (): Promise<string | undefined> => (await flight.arcView(arc.id))?.state;
     assert.equal(await state(), "active", "no increments yet");
@@ -362,7 +345,6 @@ for (const backend of [memory, postgres]) {
     const live = await flight.createArc({ ...ARC, title: "Live" });
     await flight.parkArc(shelved.id);
     await flight.addIncrement({ arc: shelved.id, ...WORK, capabilities: [form!.id, mail!.id] });
-    // A second open increment on one capability is listed by an edit, since parking it would be refused (10.35).
     const dated = await flight.addIncrement({ arc: later.id, ...WORK });
     await flight.editIncrement(dated.id, { capabilities: [form!.id] });
     await flight.addWaitFor(dated.id, { releaser: "event", note: "deletion finishes", checkBack: new Date(Date.now() + 4 * 86_400_000).toISOString().slice(0, 10) });
@@ -387,7 +369,6 @@ for (const backend of [memory, postgres]) {
     assert.equal(lone!.id in (await parked()), false);
   });
 
-  /** File one friction report through the library's own door, judged as given. */
   const report = async (records: SchemaRecords, judgement: Record<string, string> = {}): Promise<string> => {
     const knowledge = new Knowledge(records);
     const filed = await knowledge.writeKnowledge("friction", { title: "The seed refused", description: "One line", statement: "It refused", evidence: "`pnpm seed` exit code 1", impact: "The seed waits" });
@@ -638,7 +619,6 @@ for (const backend of [memory, postgres]) {
     }
     const board = await flight.boardArcs({ from: "2026-10-18", to: "2026-10-20" }, at);
     assert.ok(reads <= 6, `${reads} reads`);
-    // Arcs made in one millisecond have no creation order, so each is found by its id.
     const byId = new Map(board.map((view) => [view.arc.id, view]));
     assert.deepEqual([...byId.keys()].sort(), [active.id, parked.id, yesterday, today].sort(), "live arcs, and those closed in the window by their last close");
     assert.deepEqual([active.id, parked.id, yesterday, today].map((id) => byId.get(id)!.state), ["active", "parked", "closed", "closed"]);
@@ -675,7 +655,6 @@ for (const backend of [memory, postgres]) {
     await flight.closeIncrement(first.id, { pr: "#3", disposition: "landed" });
     const dated = await flight.addIncrement({ arc: asleep.id, ...WORK });
     await flight.addWaitFor(dated.id, { releaser: "event", note: "deletion finishes", checkBack: day(4) });
-    // Its other open work waits on its own landed work and is held on a settled question: still asleep, as arcViews reads it.
     const after = await flight.addIncrement({ arc: asleep.id, ...WORK });
     await flight.addWaitFor(after.id, { releaser: "event", note: "the week ends", checkBack: day(9) });
     await flight.addWait(after.id, dated.id, "needs the deletion");
@@ -731,7 +710,6 @@ for (const backend of [memory, postgres]) {
     assert.equal(last?.reason, "belongs with the launch work", "the history keeps why it moved");
     assert.equal(last?.actor, "agent-m");
 
-    // Completed history can be decomposed without reopening either arc or losing its outcome.
     await flight.closeIncrement(blocker.id, { pr: "#1", disposition: "landed" });
     await flight.closeIncrement(increment.id, { pr: "#2", disposition: "landed" });
     const movedHistory = await flight.moveIncrement(blocker.id, to.id, "split the completed arc", { actor: "owner" });
@@ -752,7 +730,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), history, "nothing was written");
     assert.equal(await flight.moveIncrement("increment_000000000000", to.id, "ghost"), null);
 
-    // The refusal names the way back for an arc split in the wrong order: park it, move the open work, unpark it.
     assert.match(refusal, new RegExp(`arc park ${to.id}.*arc unpark ${to.id}`));
     await flight.parkArc(to.id);
     await flight.moveIncrement(open.id, to.id, "new work");
@@ -771,7 +748,6 @@ for (const backend of [memory, postgres]) {
     }
     assert.deepEqual(await transactions.history(), history, "nothing was written");
 
-    // An arc as storytree wrote it before (version 1): a title, a description, and stories.
     await transactions.save({ id: "arc-old", type: "arc", version: 1, fields: { title: "Old arc", description: "Grow sign-up" } });
     const upgraded = await records.get("arc-old");
     assert.equal(upgraded?.version, 2);
@@ -786,7 +762,6 @@ for (const backend of [memory, postgres]) {
     const other = await work.addStory({ title: "Visitor can sign in" });
     const unlisted = await work.addStory({ title: "Visitor can leave" });
 
-    // Arcs listing no stories, as a research arc may: with no stories field, and with an empty list.
     const research = await flight.createArc({ title: "Research: pricing", intent: "An intent", endState: "An end state" });
     assert.deepEqual((await transactions.get(research.id))?.fields, { title: "Research: pricing", intent: "An intent", endState: "An end state" });
     await laterThan(research);
@@ -794,8 +769,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await transactions.get(spike.id))?.fields, { title: "Spike", intent: "An intent", endState: "An end state", description: "Nothing to grow yet", stories: [] });
     await laterThan(spike);
 
-    // Arcs listing the story (one of them lists another story first), created in an order that is
-    // not their ids' order; then an arc listing only the other story.
     const launches = await createInOrder(3, (n) =>
       flight.createArc({ title: `Launch ${n}`, intent: "An intent", endState: "An end state", stories: n === 1 ? [other.id, story.id] : [story.id] }),
     );
@@ -807,7 +780,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await flight.arcsFor(unlisted.id), [], "a story no arc lists");
     assert.deepEqual(await flight.arcsFor("story_000000000000"), [], "an id naming no story");
 
-    // The plan's tree lists every arc, in creation order, with the stories each one lists.
     assert.deepEqual((await work.projectTree()).arcs, [
       { id: research.id, title: "Research: pricing", stories: [] },
       { id: spike.id, title: "Spike", description: "Nothing to grow yet", stories: [] },
@@ -815,12 +787,9 @@ for (const backend of [memory, postgres]) {
       { id: invite.id, title: "Invite friends", stories: [other.id] },
     ]);
 
-    // A retired arc no longer lists anything.
     await records.retire(launches[0]!.id, "folded into Launch 1");
     assert.deepEqual(await flight.arcsFor(story.id), launches.slice(1));
 
-    // An arc listing a story that is missing, retired, or not a story, even among good ones, is
-    // refused naming the first bad one; an id given, or one the library cannot store, is the schema's to refuse.
     const retiredStory = await work.addStory({ title: "Visitor can pay" });
     await records.retire(retiredStory.id, "out of scope");
     const capability = await work.addCapability({ title: "Email form", story: story.id });
@@ -843,7 +812,6 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.editArc(capability.id, { title: "A capability, not an arc" }), null, "only a live arc is edited");
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
 
-    // Control: the same writes, naming live stories, go through.
     const launch = await flight.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, other.id] });
     assert.deepEqual((await transactions.get(launch.id))?.fields.stories, [story.id, other.id]);
     assert.deepEqual((await flight.editArc(invite.id, { stories: [unlisted.id] }))?.fields.stories, [unlisted.id]);
@@ -867,13 +835,9 @@ for (const backend of [memory, postgres]) {
 
     await refused(a1.id, a1.id, [a1.id, a1.id]);
     await refused(a.id, a.id, [a.id, a.id]);
-    // Increments alone: a1 waits on b1, so b1 cannot wait on a1.
     await flight.addWait(a1.id, b1.id, "needs b1");
     await refused(b1.id, a1.id, [b1.id, a1.id, b1.id]);
-    // Across the kinds: arc B cannot wait on arc A, since B's b1 would wait for A to close, which
-    // waits for a1, which waits on b1.
     await refused(b.id, a.id, [b1.id, a.id, a1.id, b1.id]);
-    // Arcs alone.
     const c = await flight.createArc({ title: "C", ...BARE_ARC });
     await flight.addWait(c.id, a.id, "after A");
     await refused(a.id, c.id, [a.id, c.id, a.id]);
@@ -899,7 +863,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await stored(form.id), [templates.id], "a withdrawn blocker's wait stays, holding for good");
     assert.deepEqual(await stored(launch.id), undefined, "its arc closed with its last increment, and the arc wait on it is gone");
 
-    // An arc closed by settling its last open question clears the waits on it too.
     const copy = await flight.createArc({ title: "Copy", ...BARE_ARC });
     await flight.addWait(launch.id, copy.id, "needs the words");
     const question = await flight.raiseQuestion({ arc: copy.id, title: "Tone?", stakes: "The words", statement: "Which tone?", context: "None yet", options: "Warm or plain" });
@@ -908,7 +871,6 @@ for (const backend of [memory, postgres]) {
     await flight.settleQuestion(question.id, { answer: "Plain" });
     assert.deepEqual(await stored(launch.id), undefined);
 
-    // A withdrawn blocker corrected to landed clears its wait; moving an arc's last open work away closes it and clears the waits on it.
     await flight.correctIncrementClosure(templates.id, { pr: "#3", disposition: "landed" }, "it did land, in #3");
     assert.deepEqual(await stored(form.id), undefined);
     const site = await flight.createArc({ title: "Site", ...BARE_ARC });
@@ -954,14 +916,12 @@ for (const backend of [memory, postgres]) {
       (error: unknown) => error instanceof RangeError && error.message.includes(first.id) && error.message.includes("Route the form") && error.message.includes(arc.id) && error.message.includes(form.id) && !error.message.includes(checks.id)
         && error.message.includes(`on ${form.id}'s claim`),
     );
-    // Waiting on the claim of only some of the capabilities they share is still refused.
     await assert.rejects(
       flight.addIncrement({ arc: other.id, title: "Route both", ...BARE_WORK, capabilities: [form.id], waits: [{ on: checks.id, reason: "after the checks" }] }),
       RangeError,
     );
     assert.deepEqual(await transactions.history(), history, "nothing was written");
 
-    // A list overlapping several open increments is told of every one in the one refusal.
     const plans = await work.addCapability({ story: story.id, title: "Plans" });
     const third = await flight.addIncrement({ arc: other.id, title: "Price the plans", ...BARE_WORK, capabilities: [plans.id] });
     const several = await transactions.history();
@@ -970,7 +930,6 @@ for (const backend of [memory, postgres]) {
       (error: unknown) => error instanceof RangeError && [first.id, "Route the form", arc.id, third.id, "Price the plans", other.id].every((part) => error.message.includes(part))
         && error.message.includes(`${form.id}'s claim`) && error.message.includes(`${plans.id}'s claim`) && !error.message.includes(checks.id),
     );
-    // One it follows is left out of the refusal, which still names the rest.
     await assert.rejects(
       flight.addIncrement({ arc: other.id, title: "After the form", ...BARE_WORK, capabilities: [plans.id, form.id], waits: [{ on: first.id, reason: "after the form" }] }),
       (error: unknown) => error instanceof RangeError && error.message.includes(third.id) && !error.message.includes(first.id),
@@ -978,15 +937,12 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), several, "nothing was written");
     await flight.closeIncrement(third.id, { note: "Not needed", disposition: "withdrawn" });
 
-    // Split off a held capability's work, born waiting on that capability's claim, not on the increment that lists it, parks (ADR-1228 D1).
     const split = await flight.addIncrement({ arc: other.id, title: "The form's split-off", ...BARE_WORK, capabilities: [form.id], waits: [{ on: form.id, reason: "its claim is held" }] });
     assert.deepEqual(split.fields.waits, [{ on: form.id, reason: "its claim is held" }]);
     await flight.closeIncrement(split.id, { note: "Folded into the first", disposition: "withdrawn" });
 
-    // A later step of a split, born waiting on the increment that holds the capability, parks.
     const next = await flight.addIncrement({ arc: arc.id, title: "Then the form's checks", ...BARE_WORK, capabilities: [form.id], waits: [{ on: first.id, reason: "after the form" }] });
     assert.equal(next.fields.status, "proposal");
-    // Born closed is a record of work done, never refused; and a capability whose increments have all closed is free.
     await flight.addIncrement({ arc: other.id, title: "Done before", ...BARE_WORK, capabilities: [form.id], outcome: { pr: "#3", disposition: "landed" } });
     await flight.closeIncrement(first.id, { pr: "#4", disposition: "landed" });
     await flight.closeIncrement(next.id, { pr: "#5", disposition: "landed" });
@@ -1214,8 +1170,6 @@ test("10.8 work reads stay small as unrelated closed history grows, preserving b
     const measure = async (read: () => Promise<void>) => { const before = received(); await read(); return received() - before; };
     const small = new Map<string, number>();
     for (const [name, read] of Object.entries(readings)) small.set(name, await measure(read));
-    // Hundreds of old increments and settled questions, with long bodies and outcome notes.
-    // No shared project is touched; seed traffic is outside the measured reads.
     await pool.query(`INSERT INTO record (id, type, version, fields, created_at, updated_at)
       SELECT 'old-' || g, 'increment', 2,
         jsonb_build_object('arc', $1::text, 'status', 'closed', 'title', 'Old work', 'objective', repeat('o', 1000),
@@ -1236,7 +1190,6 @@ test("10.8 work reads stay small as unrelated closed history grows, preserving b
     const question = await flight.raiseQuestion({ arc: history.id, title: "Still needed?", stakes: "Keeps arc open", statement: "Which?", context: "Context", options: "A or B" });
     assert.ok((await flight.waitHolds(waiter.id)).some(({ on }) => on === history.id), "a closed-work arc with an open question holds");
     await flight.settleQuestion(question.id, { answer: "A" });
-    // Settling its last question closed the arc and cleared the wait on it (10.33): written again, a parked arc holds.
     await flight.addWait(arc.id, history.id, "closed arc releases");
     await flight.parkArc(history.id);
     assert.ok((await flight.waitHolds(waiter.id)).some(({ on }) => on === history.id), "a parked arc holds");
@@ -1246,16 +1199,10 @@ test("10.8 work reads stay small as unrelated closed history grows, preserving b
   });
 });
 
-/** Wait until the clock has passed `record`'s creation, so the next record is created strictly later. */
 async function laterThan(record: { readonly createdAt: string }): Promise<void> {
   await waitUntil(() => Date.now() > Date.parse(record.createdAt), 5_000, `the clock to pass ${record.createdAt}`);
 }
 
-/**
- * Create records one after another with `create`, each strictly later than the one before, until
- * there are at least `count` and their ids' own order is NOT their creation order, so any order a
- * test then sees them in can only be creation order.
- */
 async function createInOrder<R extends { readonly id: string; readonly createdAt: string }>(count: number, create: (n: number) => Promise<R>): Promise<R[]> {
   const created: R[] = [];
   while (created.length < count || created.every((record, n) => n === 0 || created[n - 1]!.id < record.id)) {

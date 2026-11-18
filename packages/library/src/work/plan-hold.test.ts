@@ -1,7 +1,4 @@
-/**
- * Capability 4 · Work model, its pending plan changes: the one rule both front doors call for a plan edit (ADR-0966 D1), run on the
- * server `pnpm test` provides, its project dropped afterwards.
- */
+// Capability 4 · Work model
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

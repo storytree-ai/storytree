@@ -1,4 +1,4 @@
-/** Capability 2 · Library transactions. */
+// Capability 2 · Library transactions
 export { MemoryTransactions } from "./memory.js";
 export { LaterWriterError, NumberTakenError, StaleRevertError, listed, pickFields, writtenBy, type LaterWrite } from "./records.js";
 export { PgTransactions, WRITE_LOCK, marksOutsideRead, takeWriteLock } from "./pg.js";

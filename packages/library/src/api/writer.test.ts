@@ -1,4 +1,3 @@
-/** Capability 2.10 / 7.6: the writer survives every library write, on both stores and through the public API. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -11,8 +10,6 @@ import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/
 import { MemoryTransactions } from "../transactions/index.js";
 import { WorkInFlight, WorkModel } from "../work/index.js";
 
-// The same journey runs on the domain layers over memory and Postgres, then on the public handle.
-// The public journey reads its history through the public API too.
 for (const backend of ["memory", "postgres", "public postgres"] as const) {
   test(`2.10 / 7.6 [${backend}] every write keeps its optional writer in history`, async () => {
     const name = uniqueProjectName();
@@ -57,7 +54,7 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
         await knowledge.defineTerm({ term: "Sender", meaning: "The sending domain" }, options);
         await knowledge.writeKnowledge("principle", { title: "Keep it simple", description: "One mailer", statement: "Use one mailer", why: "Less setup", howToApply: "Reuse it" }, options);
         await health.reportHealth(contract.id, "failing", options);
-        await health.reportHealth(contract.id, "passing", options); // another save of the same health record
+        await health.reportHealth(contract.id, "passing", options);
         await health.recordVerified(contract.id, "passing", options);
         await flight.retire(note.id, "Folded into the decision", options);
 
@@ -70,13 +67,11 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
         }
         assert.equal(entries.at(-1)?.reason, "Folded into the decision");
 
-        // Refused writes and harmless no-ops cannot invent an attributed history entry.
         await assert.rejects(work.editStory(story.id, { title: "" }, options));
         assert.equal(await work.editStory("missing", { title: "Missing" }, options), null);
         await flight.retire(note.id, "Already retired", options);
         assert.deepEqual(await reader.history({ since: before }), entries);
 
-        // Health's reporter can differ from the person/session recording it.
         await health.reportHealth(contract.id, "passing", { by: "test-runner", actor: "session:scribe" });
         const report = (await reader.history()).at(-1)!;
         assert.equal(report.actor, "session:scribe");

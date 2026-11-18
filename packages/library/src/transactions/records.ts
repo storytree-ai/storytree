@@ -1,20 +1,10 @@
-/**
- * Capability 2 · Library transactions. What a write stores, worked out by one piece of code for both backends so that they agree
- * exactly: the record a save or an edit would leave, the check on it, and the shape of a history
- * entry. Each backend only decides where these go and how a write stays atomic.
- */
+// Capability 2 · Library transactions
 import type { HistoryEntry, HistoryFilter, ListFilter, OutsideRead, RecordEnvelope, RevertedWrite, RevertInput, RevertWritesInput, SaveInput, Upgrade, Validate } from "./types.js";
 
-/** The time now, as records carry it: an ISO 8601 UTC timestamp. */
 export function now(): string {
   return new Date().toISOString();
 }
 
-/**
- * `filter` as both backends apply it: its time as records carry one (UTC, to the millisecond), so
- * that a comparison means the same in each. A malformed filter is refused before anything is read.
- */
-/** Every action a history entry can have. */
 const HISTORY_ACTIONS: readonly HistoryEntry["action"][] = ["created", "updated", "retired"];
 
 export function historyFilter(filter: HistoryFilter): HistoryFilter {
@@ -34,7 +24,6 @@ export function historyFilter(filter: HistoryFilter): HistoryFilter {
   return { ...filter, from: new Date(at).toISOString() };
 }
 
-/** Refuse malformed list filters the same way on both backends, before a read. */
 export function listFilter(filter: ListFilter): ListFilter {
   if (filter.limit !== undefined && !(Number.isSafeInteger(filter.limit) && filter.limit > 0)) {
     throw new RangeError("list's limit must be a whole number above 0");
@@ -52,7 +41,6 @@ export function listFilter(filter: ListFilter): ListFilter {
   return filter;
 }
 
-/** A stored JSON field path; inherited object properties are never fields. */
 export function fieldAt(fields: Record<string, unknown>, path: string): unknown {
   let value: unknown = fields;
   for (const key of path.split(".")) {
@@ -62,23 +50,16 @@ export function fieldAt(fields: Record<string, unknown>, path: string): unknown 
   return value;
 }
 
-/** The fields a projection keeps of a record on `version`, or undefined where it keeps the record whole. */
 export function projectedFields(projection: ListFilter["projection"], version: number): readonly string[] | undefined {
   if (projection === undefined) return undefined;
   if (projection.version === version) return projection.fields;
   return projection.older?.find((older) => older.version === version)?.fields;
 }
 
-/** Pick top-level fields, keeping an absent field absent (and a present null present). */
 export function pickFields(fields: Record<string, unknown>, names: readonly string[]): Record<string, unknown> {
   return Object.fromEntries(names.filter((name) => Object.hasOwn(fields, name)).map((name) => [name, fields[name]]));
 }
 
-/**
- * What `list` gives of `records` (the live ones), as PgTransactions reads them on the server: those of `type` its filter
- * keeps, in id order, cut to its limit and projected. For a store that holds its records itself (the in-memory twin, a
- * machine's record cache); the records handed back are `records`' own, not copies.
- */
 export function listed(records: Iterable<RecordEnvelope>, type: string | readonly string[], given: ListFilter): RecordEnvelope[] {
   const filter = listFilter(given);
   return [...records]
@@ -98,16 +79,10 @@ export function listed(records: Iterable<RecordEnvelope>, type: string | readonl
     });
 }
 
-/**
- * Code-point order, which is UTF-8 byte order: the order Postgres's C collation gives, so `list`
- * orders ids exactly as PgTransactions does. (JavaScript's default string order is by UTF-16 code
- * unit, which puts characters beyond U+FFFF before U+E000-U+FFFF.)
- */
 function compareIds(a: string, b: string): number {
   return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
 
-/** `inputs` as saveAll takes them: refused (RangeError) when two name one id or one is numbered or written only if new. */
 export function saveAllInputs(inputs: readonly SaveInput[]): readonly SaveInput[] {
   const ids = new Set<string>();
   for (const input of inputs) {
@@ -118,7 +93,6 @@ export function saveAllInputs(inputs: readonly SaveInput[]): readonly SaveInput[
   return inputs;
 }
 
-/** The record `save` would store, given the record stored now (if any). */
 export function savedRecord(input: SaveInput, current: RecordEnvelope | undefined, at: string): RecordEnvelope {
   return {
     id: input.id,
@@ -130,11 +104,6 @@ export function savedRecord(input: SaveInput, current: RecordEnvelope | undefine
   };
 }
 
-/**
- * The record `edit` would store: `fields` merged shallowly onto the stored fields (after the
- * writer's upgrade, if any), a key whose value is undefined being removed. Everything else about
- * the record stays as stored, or as the upgrade left it.
- */
 export function editedRecord(
   stored: RecordEnvelope,
   fields: Record<string, unknown>,
@@ -142,7 +111,6 @@ export function editedRecord(
   upgrade?: Upgrade,
 ): RecordEnvelope {
   const current = upgrade === undefined ? stored : upgrade(jsonCopy(stored));
-  // A Map rather than assignment into an object, so a field named "__proto__" is kept as a field.
   const merged = new Map(Object.entries(current.fields));
   for (const [key, value] of Object.entries(fields)) {
     if (value === undefined) merged.delete(key);
@@ -151,7 +119,6 @@ export function editedRecord(
   return { ...current, fields: jsonCopy(Object.fromEntries(merged)), updatedAt: at };
 }
 
-/** Refuse a revert whose entry numbers are not history's, the same way on both backends, before a read. */
 export function revertInput(input: RevertInput): RevertInput {
   for (const [name, seq] of [["to", input.to], ["read", input.read]] as const) {
     if (!(Number.isSafeInteger(seq) && seq > 0)) throw new RangeError(`revert's ${name} is a history entry's seq, a whole number above 0, not ${String(seq)}`);
@@ -159,11 +126,6 @@ export function revertInput(input: RevertInput): RevertInput {
   return input;
 }
 
-/**
- * The record a revert writes back: `target`, the record's own entry numbered `input.to` (if it has one), as it was
- * stored, upgraded by the writer, created when the record now live (or else the entry's record) was. Refused as
- * RevertInput says: no such entry of the record's, a retirement, or `newest`, its newest entry, not the one read.
- */
 export function revertedRecord(
   input: RevertInput,
   target: Pick<HistoryEntry, "action" | "record"> | undefined,
@@ -177,29 +139,20 @@ export function revertedRecord(
   return restoredRecord(input.id, target.record, current, at, input.upgrade);
 }
 
-/** `kept`, a record as a history entry stored it, upgraded by the writer, to be written back under `id` at `at`. */
 function restoredRecord(id: string, kept: RecordEnvelope, current: RecordEnvelope | undefined, at: string, upgrade: Upgrade | undefined): RecordEnvelope {
   const stored = jsonCopy(kept);
   const record = upgrade === undefined ? stored : upgrade(stored);
   return { ...record, id, createdAt: current?.createdAt ?? stored.createdAt, updatedAt: at };
 }
 
-/** One record a writer wrote, as its history shows it. */
 export interface WrittenRecord {
   readonly id: string;
   readonly type: string;
-  /** Its newest entry before the writer's first write to it; none when the writer's first write made it. */
   readonly before?: HistoryEntry;
-  /** The writer's own entries on it, oldest first. */
   readonly own: readonly HistoryEntry[];
-  /** Entries other writers made to it after the writer's first, oldest first. */
   readonly others: readonly HistoryEntry[];
 }
 
-/**
- * Every record `of` wrote, health left out, by id, from `entries`: the history of those records (it may hold others,
- * and comes in any order). What both backends revert and what a per-writer diff reads.
- */
 export function writtenBy(of: string, entries: readonly HistoryEntry[]): WrittenRecord[] {
   const byRecord = new Map<string, HistoryEntry[]>();
   for (const entry of [...entries].sort((one, other) => one.seq - other.seq)) {
@@ -222,14 +175,12 @@ export function writtenBy(of: string, entries: readonly HistoryEntry[]): Written
   return written.sort((one, other) => compareCodePoints(one.id, other.id));
 }
 
-/** One record's part of a revert of a writer's writes: what it reports, the record its entry keeps, and the entry's reason. */
 export interface RevertWrite {
   readonly reverted: RevertedWrite;
   readonly record: RecordEnvelope;
   readonly reason: string;
 }
 
-/** What a revert of `input.of`'s writes does to each record, refused (LaterWriterError) where another writer wrote since. */
 export function writesReverted(
   input: RevertWritesInput,
   written: readonly WrittenRecord[],
@@ -250,22 +201,18 @@ export function writesReverted(
   });
 }
 
-/** Code-point order, which is UTF-8 byte order and Postgres's C collation: how ids are ordered everywhere. */
 function compareCodePoints(a: string, b: string): number {
   return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
 
-/** The reason a revert's history entry carries: the entry it reverts to, then the writer's own reason. */
 export function revertReason(input: RevertInput): string {
   return `reverted to ${input.to}${input.reason === undefined ? "" : `: ${input.reason}`}`;
 }
 
-/** Run the writer's check on a copy of the would-be record. If it throws, the write aborts. */
 export function check(record: RecordEnvelope, validate: Validate | undefined): void {
   validate?.(jsonCopy(record));
 }
 
-/** A history entry. `reason` and `actor` are present only when there is one. */
 export function historyEntry(entry: {
   seq: number;
   recordId: string;
@@ -288,25 +235,15 @@ export function historyEntry(entry: {
   };
 }
 
-/** What the writer's `outsideRead` names for a record of `type`: the mark its history entry keeps, or undefined for none. */
 export function outsideReadOf(outsideRead: OutsideRead | undefined, type: string): string[] | undefined {
   const read = outsideRead?.(type);
   return read === undefined || read.length === 0 ? undefined : [...read];
 }
 
-/**
- * A deep copy through JSON, which is what a Postgres jsonb column hands back: a Date comes back as
- * its ISO string, undefined inside an array as null, and a key whose value is undefined not at
- * all. Every record is normalised this way before it is checked or stored, on both backends.
- */
 export function jsonCopy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-/**
- * A save gave its record a number that another record of its type has held, now or before it was
- * retired: a number is never used twice.
- */
 export class NumberTakenError extends Error {
   readonly type: string;
   readonly field: string;
@@ -321,11 +258,6 @@ export class NumberTakenError extends Error {
   }
 }
 
-/**
- * The save `input` numbered, for a save with a `sequence` field: the fields with that field stamped
- * one past `highest` when they leave it out. A number they give that `taken` says another record
- * has held is refused. (One that is not a number is left for the writer's check to refuse.)
- */
 export function numbered(input: SaveInput, highest: number, taken: (number: number) => boolean): SaveInput {
   const field = input.sequence;
   if (field === undefined) return input;
@@ -335,7 +267,6 @@ export function numbered(input: SaveInput, highest: number, taken: (number: numb
   return input;
 }
 
-/** A revert whose writer read the record before its newest change: another writer's work would be overwritten. */
 export class StaleRevertError extends Error {
   readonly id: string;
   readonly read: number;
@@ -350,14 +281,12 @@ export class StaleRevertError extends Error {
   }
 }
 
-/** A record one writer wrote, and the first entry another writer made to it after that writer's first. */
 export interface LaterWrite {
   readonly id: string;
   readonly seq: number;
   readonly actor?: string;
 }
 
-/** A revert of one writer's writes where another writer has written to a record since: theirs would be lost too. */
 export class LaterWriterError extends Error {
   readonly of: string;
   readonly records: readonly LaterWrite[];

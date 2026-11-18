@@ -1,4 +1,3 @@
-/** Capability 7.5: whole-record reads agree with the memory twin; history stays as written. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -51,7 +50,6 @@ for (const backend of ["memory", "public postgres"] as const) {
       assert.deepEqual(await reader.history({ since: history[0]!.seq }), all.slice(1));
       assert.deepEqual(await reader.history({ since: all.at(-1)!.seq }), []);
 
-      // Live reads upgrade old records; history must not rewrite the past or add a new event.
       const old = await transactions.save({ id: "old-arc", type: "arc", version: 1, fields: { title: "Launch", description: "Ship sign-up" } });
       const before = await transactions.history();
       const upgraded = await reader.get(old.id);
@@ -62,7 +60,6 @@ for (const backend of ["memory", "public postgres"] as const) {
       assert.deepEqual((await reader.history({ id: old.id }))[0]?.record, old);
       assert.deepEqual(await transactions.history(), before, "reads write nothing");
 
-      // A caller owns its returned data, never the store's current record or history.
       upgraded!.fields.title = "Changed locally";
       history[0]!.record.fields.title = "Changed locally";
       const unchanged = await reader.get(old.id);

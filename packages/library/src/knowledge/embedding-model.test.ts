@@ -1,7 +1,4 @@
-/**
- * Capability 14 · Ranked search: the embedding model's first-use download behind a proxy, as a cloud
- * container's agent proxy is the only way out of it (friction_84c6d7d08f35).
- */
+// Capability 14 · Ranked search
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { access, mkdir, mkdtemp, writeFile } from "node:fs/promises";
@@ -15,7 +12,6 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { defaultEmbedder, throughProxy, verifyModelFolder } from "./embedding-model.js";
 
-/** A proxy that refuses every tunnel it is asked for, as an agent proxy refuses a host it does not allow. */
 async function refusingProxy(): Promise<{ url: string; asked: string[]; close(): Promise<void> }> {
   const asked: string[] = [];
   const server = http.createServer((_request, response) => response.writeHead(405).end());
@@ -61,7 +57,6 @@ test("14.13 · a fetch inside throughProxy goes by the proxy, NO_PROXY is honour
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 
-/** A synthetic model folder: config.json and onnx/model.onnx, with the hashes they should have. */
 async function modelFolder(t: import("node:test").TestContext): Promise<{ folder: string; expected: Record<string, string> }> {
   const folder = await mkdtemp(path.join(tmpdir(), "storytree-model-"));
   t.after(() => removeTemp(folder));

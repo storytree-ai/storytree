@@ -1,36 +1,21 @@
-/**
- * Capability 3 · Data schema. The refusals of the data schema (capability 3). Each one names what is wrong, so whoever wrote
- * the record, an agent included, can put it right.
- */
+// Capability 3 · Data schema
 import { fileURLToPath } from "node:url";
 import { codeDistance } from "./code-distance.js";
 import { SCHEMA_VERSIONS } from "./types.js";
 
-// CommonJS bundles have no ESM source URL and cannot identify the loaded source revision.
 const runningCodeDistance = import.meta.url === undefined
   ? () => undefined
   : codeDistance(fileURLToPath(import.meta.url));
 
-/** One thing wrong with a record's fields. */
 export interface FieldProblem {
-  /** The field at fault, or undefined when it is the fields as a whole (they are not an object). */
   readonly field: string | undefined;
-  /** What is wrong, naming the field: `missing required field "title"`. */
   readonly problem: string;
-  /** Set when the field wants a list and was given text, so a caller reading text can offer it as one. */
   readonly textForList?: true;
 }
 
-/**
- * A record's fields do not fit its type. The message starts with the type and names every field
- * at fault: `story: missing required field "title"; unknown field "titel"`.
- */
 export class SchemaError extends Error {
-  /** The type the fields were checked against. */
   readonly type: string;
-  /** The fields at fault, each once, in the order their problems were found. */
   readonly fields: readonly string[];
-  /** The fields at fault that want a list and were given text (`links: "a,b"`), each once. */
   readonly lists: readonly string[];
 
   constructor(type: string, problems: readonly FieldProblem[]) {
@@ -42,11 +27,8 @@ export class SchemaError extends Error {
   }
 }
 
-/** A record type the schema does not declare: asked for by a caller, or found on a stored record. */
 export class UnknownTypeError extends Error {
-  /** The type that is not known. */
   readonly type: string;
-  /** The stored record carrying it, when it was found on one. */
   readonly id: string | undefined;
 
   constructor(type: string, id?: string) {
@@ -66,18 +48,10 @@ export class UnknownTypeError extends Error {
   }
 }
 
-/**
- * A stored record was written on a schema version newer than this code knows for its type. It is
- * refused, never guessed at: read by an older version's rules, it could be silently misread.
- */
 export class NewerSchemaError extends Error {
-  /** The record's id. */
   readonly id: string;
-  /** The record's type. */
   readonly type: string;
-  /** The schema version the record was written on. */
   readonly version: number;
-  /** The newest version of the type this code knows. */
   readonly knownVersion: number;
 
   constructor(id: string, type: string, version: number, knownVersion: number) {
@@ -98,19 +72,10 @@ export class NewerSchemaError extends Error {
   }
 }
 
-/**
- * A stored record was written on an older schema version of its type, and no upgrade step brings
- * it from that version to the next. It is refused, never guessed at: read by today's rules, its
- * fields could be silently misread.
- */
 export class MissingUpgradeError extends Error {
-  /** The record's id. */
   readonly id: string;
-  /** The record's type. */
   readonly type: string;
-  /** The version no step leads on from. */
   readonly from: number;
-  /** The version this code reads the type at. */
   readonly knownVersion: number;
 
   constructor(id: string, type: string, from: number, knownVersion: number) {

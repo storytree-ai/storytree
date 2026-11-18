@@ -1,11 +1,4 @@
-/**
- * Capability 14 · Ranked search: a project's vectors, kept in its own database's `embedding` table
- * (schema.ts), with an optional machine-local copy. Remote vectors are authoritative only inside
- * their server and project database: a model + chunk hash does not authenticate the vector's source.
- * Only keys missing in that domain need a server read. SQLite serializes writers from independent processes; WAL keeps
- * readers from blocking them, and the wait outlasts a slow runner's lock contention (Windows CI held a
- * writer past 5 s, and the swallowed busy error lost its vectors).
- */
+// Capability 14 · Ranked search
 import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -16,21 +9,13 @@ import type { Pool } from "pg";
 
 import type { VectorStore } from "./embedding.js";
 
-/** Established by the connection, never by an embedding row or a note. */
 export interface VectorDomain {
   readonly server: string;
   readonly database: string;
-  /** The database's identity, not just its reusable name (Project.identity). */
   readonly identity: string;
 }
 
-/**
- * The connection's server, without passwords or connection strings. Use pg's own resolved
- * settings: URL query parameters and PGHOST/PGPORT can override the URL's apparent endpoint.
- * A cache namespace does not add authentication to an otherwise unauthenticated connection.
- */
 export function vectorServerIdentity(pool: Pool): string {
-  // Construction parses settings only: this client is never connected and holds no socket fd.
   const client = new pg.Client(pool.options);
   const ssl = client.ssl as boolean | ConnectionOptions;
   const identity = ["postgres", client.host, client.port, client.user, !ssl ? null : {
@@ -47,7 +32,6 @@ export class PgVectors implements VectorStore {
   readonly #cache: string | null;
   readonly #domain: string | null;
 
-  /** Without an explicit domain, shared storage is unsafe: use plain Postgres. */
   constructor(pool: Pool, cache: string | null = null, domain: VectorDomain | null = null) {
     this.#pool = pool;
     this.#cache = cache;
@@ -110,7 +94,6 @@ export class PgVectors implements VectorStore {
     });
   }
 
-  /** Open only while using it, so idle projects hold no handles and callers need no new close step. */
   async #locally(use: (db: DatabaseSync) => void): Promise<void> {
     if (this.#cache === null || this.#domain === null) return;
     let db: DatabaseSync | undefined;
@@ -122,15 +105,10 @@ export class PgVectors implements VectorStore {
       try {
         db.exec("PRAGMA journal_mode = WAL");
       } catch {
-        // Another process switching the mode at the same moment: the file still works in its current mode.
       }
-      // Never copy from the old table: its rows have no trustworthy source identity. A distinct
-      // table also lets an older process finish without its writes entering the new namespace.
       db.exec("CREATE TABLE IF NOT EXISTS embedding_v2 (domain TEXT NOT NULL, model TEXT NOT NULL, key TEXT NOT NULL, vector BLOB NOT NULL, PRIMARY KEY (domain, model, key))");
       use(db);
     } catch {
-      // A missing, read-only, busy or damaged cache cannot make a shared-library search fail.
-      // Remote reads and writes are outside this catch: their errors still reach the caller.
     } finally {
       db?.close();
     }

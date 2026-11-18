@@ -1,10 +1,4 @@
-/**
- * Capability 11 · Waits (ADR-0640): one test per contract 11.1, 11.2, 11.4-11.6 and 11.12 in the library story (its wait writes' 10.32-10.34 and 10.36-10.38 are in work-in-flight.test.ts), each run
- * on BOTH backends: a WorkModel and a WorkInFlight over a fresh MemoryTransactions, and the `work`
- * and `flight` of a fresh Postgres project, dropped afterwards, pass or fail.
- *
- * Whether anything was written is judged one layer down: an unchanged history means nothing was.
- */
+// Capability 11 · Waits
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -103,7 +97,6 @@ for (const backend of [memory, postgres]) {
       { on: domain, reason: "sends from it", forGood: true },
     ], "the landed blocker released it; the rest never will");
 
-    // A blocker must be live when the wait is written, and an increment waits on an increment.
     await assert.rejects(flight.addWait(waiter.id, "increment_000000000000", "?"), MissingReferenceError);
     await assert.rejects(flight.addWait(waiter.id, other.id, "?"), MissingReferenceError);
     await flight.removeWait(waiter.id, templates);
@@ -117,7 +110,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await flight.waitHolds(launch.id), [{ on: mail.id, reason: "launch needs mail", forGood: false }], "an arc with no increments is active");
 
     const mailer = await flight.addIncrement({ arc: mail.id, title: "Mailer", ...WORK });
-    // The arc's wait holds each of its increments too: its work cannot start.
     const first = await flight.addIncrement({ arc: launch.id, title: "Landing page", ...WORK });
     assert.deepEqual(await flight.waitHolds(first.id), [{ on: mail.id, reason: "launch needs mail", forGood: false }]);
 
@@ -203,7 +195,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await flight.holds(new Date(), { claimed: new Set() })).waits[fix.id], []);
     assert.deepEqual(await flight.waitHolds(fix.id), [claim], "a reader that cannot see claims reads it as holding");
 
-    // A wait on the increment, recorded on purpose, is unchanged: it holds until that increment lands, whoever holds what (D3).
     await flight.removeWait(fix.id, surface.id);
     await flight.addWait(fix.id, expansion.id, "goes after it");
     assert.deepEqual(await flight.waitHolds(fix.id, { claimed: new Set() }), [{ on: expansion.id, reason: "goes after it", forGood: false }]);

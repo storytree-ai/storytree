@@ -1,12 +1,4 @@
-/**
- * Capability 28 · Shared server, contract 28.16 (ADR-0747): CI's health account, granted
- * exactly what each authored grants.sql grants, opens the project, records a contract's verified
- * health, and is refused any other record and any change to the tables; the project's owner is
- * unaffected. Run here as the shared server runs it: a role that owns the project's database, an owner's
- * account acting as it (contract 28.1), and CI's account with no role to take on. grants.sql is run
- * as written for CI and the library host, with only its two names (the database, and CI's user,
- * the psql variable ci_role) filled in with this test's. Its health history cannot reserve or raise decision numbers.
- */
+// Capability 28 · Shared server
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -45,8 +37,6 @@ for (const source of GRANTS_FILES) test(`28.16 CI's health account (${source}/gr
     const ownerProjects = await connectProjects({ url: as(owner) });
     opened.push(ownerProjects);
     const ownerProject = await ownerProjects.openProject(run);
-    // Exact production numbering mode over real SchemaRecords/PgTransactions, while the
-    // disposable database retains its unique test name for isolation and safe cleanup.
     const decisions = new Knowledge(ownerProject.records, "storytree");
     const decision = { title: "Use a queue", text: "Jobs wait their turn.", status: "accepted" as const };
     await decisions.setDecisionNumberFloor(662, { apply: true });
@@ -57,13 +47,10 @@ for (const source of GRANTS_FILES) test(`28.16 CI's health account (${source}/gr
     const onCi = await connect({ url: as(ci) });
     opened.push(onCi);
     const recorder = await onCi.openProject(run);
-    // The same account on a plain connection of its own: its rights, not the library's care.
     const asCi = (sql: string, params: unknown[] = []) => withTestClientAs(ci, (client) => client.query(sql, params), database);
     await recorder.recordVerified(contract.id, "passing", { by: "storytree test run on CI", note: "1/1 tests passed" });
     assert.equal((await onLaptop.health(contract.id)).verified.state, "passing", "the owner reads what CI recorded");
 
-    // These are the health role's actual SQL rights, bypassing application validation. A
-    // fresh-id event needs no current row; its arbitrary number must have no authority.
     const poison = { id: "fresh-health", type: "health", version: 1, fields: { number: 5000 } };
     assert.equal((await asCi(
       "INSERT INTO record_event (record_id, type, action, record) VALUES ($1, 'health', 'created', $2::jsonb)",
@@ -84,10 +71,7 @@ for (const source of GRANTS_FILES) test(`28.16 CI's health account (${source}/gr
     await assert.rejects(decisions.recordDecision({ ...decision, number: 5000 }), NumberTakenError, "the owner's decision now reserves it");
     assert.equal((await decisions.recordDecision(decision)).fields.number, 5001, "owner decisions still advance numbering");
 
-    // Anything but health is refused, and leaves nothing behind.
     await assert.rejects(recorder.addStory({ title: "Refunds", description: "Written by CI?" }), /row-level security/);
-    // Rows it may not change are not there for it to change: the edit finds no story, and a plain
-    // UPDATE changes no row.
     assert.equal(await recorder.editStory(story.id, { title: "Renamed by CI" }), null);
     assert.equal((await asCi("UPDATE record SET fields = '{}' WHERE id = $1", [story.id])).rowCount, 0);
     await assert.rejects(
@@ -96,8 +80,6 @@ for (const source of GRANTS_FILES) test(`28.16 CI's health account (${source}/gr
       "no history entry under another record's id, even one that says it is health",
     );
     assert.deepEqual((await onLaptop.projectTree()).stories.map((each) => [each.title, each.description]), [["Checkout", "Paying for an order."]]);
-    // It reads the plan its run walks and health, nothing else: the decisions and the retired
-    // legacy record are not there for it, in the table or in their history.
     assert.deepEqual((await recorder.projectTree()).stories.map((each) => each.title), ["Checkout"]);
     const PLAN_AND_HEALTH = "('health', 'story', 'capability', 'contract', 'arc', 'increment', 'anchor')";
     assert.equal((await asCi(`SELECT count(*)::int AS n FROM record WHERE type NOT IN ${PLAN_AND_HEALTH}`)).rows[0].n, 0);
@@ -109,7 +91,6 @@ for (const source of GRANTS_FILES) test(`28.16 CI's health account (${source}/gr
       /row-level security/,
       "no history entry under the id of a record it cannot see",
     );
-    // No change to the tables, and no way out of the rule.
     for (const ddl of [
       "CREATE INDEX IF NOT EXISTS record_updated_idx ON record (updated_at)",
       "ALTER TABLE record DISABLE ROW LEVEL SECURITY",
@@ -119,7 +100,6 @@ for (const source of GRANTS_FILES) test(`28.16 CI's health account (${source}/gr
       await assert.rejects(asCi(ddl), /must be owner|permission denied/, ddl);
     }
 
-    // The owner is unaffected: it still writes every kind of record.
     await onLaptop.addStory({ title: "Refunds", description: "Written by the owner." });
   } finally {
     await Promise.allSettled(opened.map((storytree) => storytree.close()));
@@ -146,7 +126,6 @@ for (const source of GRANTS_FILES) test(`28.16 Granted (${source}/grants.sql) be
       .replaceAll("storytree_storytree", database).replaceAll(':"ci_role"', `"${ci}"`).replaceAll(":'ci_role'", `'${ci}'`);
     await withTestClientAs(owner, (client) => client.query(grants), database);
 
-    // The health role's own SQL rights, at the floor's id, before the owner has set it.
     const forged = { id: "project-decision-number-floor", type: "health", version: 1, fields: { floor: 900000 } };
     await withTestClientAs(ci, (client) => client.query(
       "INSERT INTO record_event (record_id, type, action, record) VALUES ($1, 'health', 'created', $2::jsonb)",

@@ -1,16 +1,9 @@
-/**
- * Capability 17 · The library's commands: the `media` family (17.18, ADR-1234 D3), mounted beside `library`, `adr` and
- * `fyi`. Durable media (an approved look, a build's input) is kept in the library beside the note that cites it:
- * `attach` keeps a file from the caller's folder, `list` names a record's files, and `get` saves one back, through the
- * library's attachMedia, media and mediaFile. Each is also a tool (attach_media, list_media, fetch_media), so an agent
- * keeps and fetches a file by its path as a person does; a file's bytes never travel in an answer.
- */
+// Capability 17 · The library's commands
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 
-/** The media type a file's extension says, for a file attached without one: application/octet-stream when it says none. */
 const TYPES: Readonly<Record<string, string>> = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
   ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".json": "application/json", ".gz": "application/gzip", ".pdf": "application/pdf",
@@ -97,7 +90,6 @@ const get = verb({
   },
 });
 
-/** Its section of the habits card (ADR-1021, the guidance kind): where a file worth keeping goes. */
 export const mediaGuidance: readonly string[] = [
   "Keep a file worth keeping in the library: `attach_media` keeps an approved look or an input a build or test reads (never evidence) beside the note that cites it; `list_media` names a note's files and `fetch_media` saves one back.",
 ];

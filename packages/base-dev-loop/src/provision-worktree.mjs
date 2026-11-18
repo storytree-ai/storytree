@@ -497,7 +497,8 @@ export function cloudFactory({
   const header = `Authorization: Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
   const gitEnv = { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "http.extraHeader", GIT_CONFIG_VALUE_0: header };
   const cloned = existsSync(path.join(folder, ".git"));
-  const fetched = git(cloned ? ["-C", folder, "pull", "--ff-only", factory, "main"] : ["clone", "--depth", "1", factory, folder], { env: gitEnv });
+  // "--" ends git's options, so an address or folder starting with "-" is read as a name, never a flag.
+  const fetched = git(cloned ? ["-C", folder, "pull", "--ff-only", "--", factory, "main"] : ["clone", "--depth", "1", "--", factory, folder], { env: gitEnv });
   if (fetched.status !== 0) return failed(cloned ? "git pull" : "git clone", fetched.error?.message ?? `exit ${fetched.status}`);
   try {
     const link = path.join(folder, "storytree");

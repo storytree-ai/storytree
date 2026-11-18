@@ -62,6 +62,8 @@ function repository(t: TestContext): Repository {
   git("init", "-q", "-b", "main");
   git("remote", "add", "origin", "https://example.test/fixture.git");
   write("package.json", '{ "name": "fixture", "private": true }\n');
+  // The readers' modules are read from the working tree, never committed: committed, they would be Alpha's source too.
+  write(".gitignore", "packages/alpha-tools/src/*.mjs\n");
   write("pnpm-workspace.yaml", 'packages:\n  - "packages/*"\n');
   write("packages/alpha-tools/src/a.ts", "export function a(x: number): number {\n  if (x > 0) return x;\n  return -x;\n}\n");
   write("packages/beta-kit/package.json", '{ "name": "@ws/beta-kit" }\n');

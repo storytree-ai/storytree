@@ -1,4 +1,4 @@
-// Capability 4 · Running the tests: the red runs a checkout keeps, which the change-reviewer's brief reads (ADR-1153 D3).
+// Capability 4 · Running the tests
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -12,7 +12,6 @@ import { removeTemp } from "@storytree/test-waits";
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const record = path.join(root, ".pgtest", "red-runs.jsonl");
 
-/** Run test.mjs on the named files with a home of its own, as `pnpm test <file>` would. */
 function run(dir, files) {
   const env = { ...process.env, STORYTREE_HOME: path.join(dir, "home") };
   return spawnSync(process.execPath, ["--import", "tsx", "packages/base-dev-loop/src/test.mjs", ...files], { cwd: root, env, encoding: "utf8" });
@@ -27,7 +26,7 @@ function rows() {
 }
 
 test("4.25 · a run keeps each test that failed by its full name, and a file that failed to load, in the checkout's red runs, which a later green run does not erase", (t) => {
-  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "red-runs-"))); // macOS: /var is /private/var
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "red-runs-")));
   t.after(() => removeTemp(dir));
   const failing = path.join(dir, "failing.test.mjs");
   const unloadable = path.join(dir, "unloadable.test.mjs");

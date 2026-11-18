@@ -1,10 +1,4 @@
-/**
- * Capability 6 · Make a folder a project: contract 6.12, an existing project moving onto the user's factory (ADR-1040).
- *
- * Each library is a throwaway project on the real Postgres `pnpm test` provides, named with uniqueProjectName()
- * and dropped afterwards, pass or fail. The project made before factories is stood in for by a library holding every
- * part of the pack, as the pack seeded it before the bare bones (ADR-1094 D1), and its factory by one holding the same.
- */
+// Capability 6 · Make a folder a project.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -39,7 +33,6 @@ async function opened<T>(storytree: Storytree, project: string, read: (library: 
 
 const principle = (title: string) => PRINCIPLES.find((note) => note.title === title)!;
 
-/** Every part of the pack, by title: what it seeded before the bare bones. */
 const WHOLE_PACK = [...STARTER_ROLES, ...STARTER_CHECKS, ...[...PRINCIPLES, ...GUARDRAILS, ...PATTERNS, ...PROCESSES].map((note) => note.title)];
 
 test("6.12 moving an existing project onto the user's factory drops each copy of the system it holds unedited that the factory holds too, keeps each it edited or added as its own, and names the factory; links to a dropped copy read the factory's, moving again changes nothing, and a factory is refused", async () => {
@@ -49,8 +42,6 @@ test("6.12 moving an existing project onto the user's factory drops each copy of
       await library.markFactory();
       await takeStarterPack(library, undefined, WHOLE_PACK);
     }, true);
-    // A project set up before factories: the whole pack seeded, one principle and one role edited, one principle its own,
-    // and one copy unedited from a pack that no longer carries it.
     const ids = await opened(storytree, project, async (library) => {
       await takeStarterPack(library, undefined, WHOLE_PACK);
       const notes = await library.list("principle");
@@ -80,7 +71,6 @@ test("6.12 moving an existing project onto the user's factory drops each copy of
       assert.notEqual(statements.get("Minimum test to red")?.id, ids.redCopy, "the unedited copy gives way to the factory's");
       assert.equal(statements.get("Name things plainly")?.id, ids.added);
       assert.equal(statements.get("A note the pack dropped")?.id, ids.gone);
-      // The kept role still links the copies it was seeded with: each reads the factory's record now, or the project's own.
       const linked = await Promise.all(ids.roleLinks.map(async ([link]) => [link, ((await library.get(link))?.fields as { title?: string } | undefined)?.title] as const));
       assert.deepEqual(linked, ids.roleLinks, "each link of the kept role reads the note of the title it was written for");
       assert.equal((await library.get(ids.redCopy))?.id, statements.get("Minimum test to red")?.id);

@@ -1,11 +1,4 @@
-/**
- * Capability 10 · Plan view (the command line story): `storytree capability built <capability>`
- * switches a capability's proposed flag off once the agent considers it built, and
- * `storytree capability proposed <capability>` switches it back on (ADR-0744 D2). Switching it off
- * makes nothing healthy: the card's word then comes from storytree's verified column. Both call the
- * library's one setProposed, which records the writer like any edit, in the library its `--project`, `--arc` or
- * `--increment` names (ADR-1348 D3).
- */
+// Capability 10 · Plan view
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
 import { WHERE_USAGE, writtenFor } from "../mount.js";

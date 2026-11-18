@@ -1,15 +1,13 @@
-/** Capability 2 · Settings. */
+// Capability 2 · Settings
 import type { PanelReadings, SettingsResult } from "../settings/bridge.js";
 import type { SettingGroup } from "../settings/settings.js";
 
-/** Each group's tab heading and the line beneath it; a setting joins a tab by declaring its group. */
 export const SETTING_GROUPS: Readonly<Record<SettingGroup, { readonly title: string; readonly description: string }>> = {
   sessions: { title: "Sessions", description: "How sessions are guided and listed. Yours on this computer, for all projects." },
   machine: { title: "Machine", description: "The limits machine health reads this computer against. Yours on this computer, for all projects." },
   library: { title: "Library", description: "Where the library lives. Yours on this computer, for all projects." },
 };
 
-/** The rows of one group's settings, or of every setting when no group is given. */
 export function renderSettings(readings: PanelReadings, group?: SettingGroup): string {
   return Object.values(readings).filter((reading) => group === undefined || reading.group === group).map((reading, index) => {
     const id = `setting-${group ?? "all"}-${index}`;
@@ -34,7 +32,6 @@ export function renderSettings(readings: PanelReadings, group?: SettingGroup): s
   }).join("");
 }
 
-/** A bridge call settled: its result, or a transport failure (a rejection) as a failure with its reason. */
 export async function settle<T>(call: Promise<SettingsResult<T>>): Promise<SettingsResult<T>> {
   try {
     return await call;
@@ -44,12 +41,10 @@ export async function settle<T>(call: Promise<SettingsResult<T>>): Promise<Setti
   }
 }
 
-/** What the panel shows once a read settles: the rows, or the failure's reason and Retry, never defaults in their place. */
 export function readState(result: SettingsResult<PanelReadings>, group?: SettingGroup): { rows: string; error: string | undefined; retry: boolean } {
   return result.ok ? { rows: renderSettings(result.value, group), error: undefined, retry: false } : { rows: "", error: result.error, retry: true };
 }
 
-/** What a row shows once a save settles: saved and set by you, or the failure's reason with Save still available for retry. */
 export function saveState(name: string, result: SettingsResult<unknown>): { error: string; status: string; saveAvailable: boolean; set: boolean } {
   if (!result.ok) return { error: result.error, status: "", saveAvailable: true, set: false };
   return { error: "", status: name === "library" ? "Saved · applies when storytree next opens" : "Saved", saveAvailable: false, set: true };

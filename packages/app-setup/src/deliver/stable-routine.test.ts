@@ -7,9 +7,6 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
-// The stable routine (fortnight.sh) and its judge (judge.sh) run on the Mint box, from a weekly timer. Here each runs
-// from a copy in a git folder of its own, with storytree's command line (pnpm), the acceptance run (run.sh) and Claude
-// Code (claude) stood in for by scripts that record how they were called and answer as each case needs.
 const harness = fileURLToPath(new URL("../../testing/stable-acceptance/harness/", import.meta.url));
 const skip = process.platform === "win32" && "platform:posix: the routine runs under bash on the Mint box, which Windows CI does not provide";
 const NONE = "No build newer than stable's 0.3.1482 is fit to pin yet.";
@@ -18,7 +15,6 @@ const CANDIDATE = { text: "Stable candidate: storytree 0.3.2164 (stable is 0.3.1
 
 interface Routine { root: string; home: string; calls: string[]; runs: string[] }
 
-/** Runs the routine, its `release candidate` answering each of `candidates` in turn (the last again after), and returns what it called. */
 function routine(candidates: { text: string; status?: number }[], { runLog = "", runStatus = 1, filing = 0 } = {}): Routine {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-routine-"));
   const repo = path.join(root, "repo"), home = path.join(root, "home"), stub = path.join(root, "stub"), bin = path.join(root, "bin");
@@ -48,7 +44,6 @@ esac`);
 const lastRun = (r: Routine) => existsSync(path.join(r.home, "storytree-lanes", "stable-acceptance", "last-run"));
 const filed = (r: Routine) => r.calls.filter((call) => call.includes("friction new"));
 const asked = (r: Routine) => r.calls.filter((call) => call.includes("release candidate")).length;
-/** The text of the file a call passed as `--<flag> @file`. */
 const fileOf = (call: string, flag: string) => readFileSync(new RegExp(`--${flag} @(\\S+)`).exec(call)![1]!, "utf8");
 const done = (r: Routine) => removeTemp(r.root);
 
@@ -153,7 +148,6 @@ test("1.17 a run whose acceptance user's Claude Code is not signed in files a fr
   } finally { await done(r); }
 });
 
-/** Runs the acceptance run's named phases against a laptop stood in for by ssh and scp, its sign-in step saying `signin`. */
 function acceptance(signin: string, phases: string[], seed: Record<string, string> = {}) {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-run-"));
   const here = path.join(root, "harness"), bin = path.join(root, "bin"), out = path.join(root, "out");
@@ -167,7 +161,6 @@ function acceptance(signin: string, phases: string[], seed: Record<string, strin
   writeFileSync(token, "sk-ant-oat01-abc\n");
   const script = (name: string, body: string) => { writeFileSync(path.join(bin, name), `#!/bin/bash\n${body}\n`); chmodSync(path.join(bin, name), 0o755); };
   script("ssh", `echo "ssh $*" >> "${root}/calls"; case "$*" in *signin.ps1*) printf '%s\\n' ${JSON.stringify(signin)} ;; esac; exit 0`);
-  // The DevTools steps sent to the laptop are recorded with the call, as the laptop would take them in turn.
   script("scp", `echo "scp $*" >> "${root}/calls"; case "$2" in *cdp-steps.txt) sed 's/^/  cdp /' "$2" >> "${root}/calls" ;; esac; exit 0`);
   script("curl", "echo STORYTREE_ACCEPTANCE_VERSION");
   script("pnpm", "exit 0");
@@ -237,7 +230,6 @@ test("1.17 the acceptance run's user connects Claude Code and adds its project i
   } finally { await removeTemp(r.root); }
 });
 
-/** A PowerShell to run the laptop's step scripts with: Windows PowerShell on Windows, elsewhere pwsh when it is installed. */
 const powershell = process.platform === "win32" ? "powershell.exe" : spawnSync("pwsh", ["-NoProfile", "-Command", "exit 0"]).status === 0 ? "pwsh" : undefined;
 
 test("1.17 the run's evidence step enters the project its user's turns built when the scrubbed transcript names it under <home>, the user's own profile folder", { skip: powershell === undefined && "other: PowerShell is not installed here; Windows CI runs it under Windows PowerShell" }, async () => {
@@ -281,7 +273,6 @@ test("1.17 a turn's summary names the project folder its writes went to, whereve
       write("D:\\work\\tip-calculator\\index.html"),
       write("D:\\work\\tip-calculator\\tests\\tip.test.js"),
       write("D:\\work\\.claude\\settings.json"),
-      // check_setup's connection check, which a connected user's agent writes into its temp folder.
       write("D:\\Users\\u\\AppData\\Local\\Temp\\storytree-check-2b7a7426"),
       { type: "assistant", message: { content: [{ type: "tool_use", name: "Edit", input: { file_path: "D:\\work\\tip-calculator\\app.js" } }] } },
       { type: "result", subtype: "success", duration_ms: 1000, result: "done", usage: {} },

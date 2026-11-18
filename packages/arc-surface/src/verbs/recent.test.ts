@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Arc surface: contracts 3.15 and 3.16, `arc recent`, and 3.19, its and `arc show`'s pull requests
- * across a repository cut-over, run with a caller on a fresh project's library on the real Postgres `pnpm test` provides.
- */
+// Capability 3 · Arc surface.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test, type TestContext } from "node:test";
@@ -15,7 +12,6 @@ import { ARC_FAMILIES, type ArcVerbContext } from "./index.js";
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 const recent = ARC_FAMILIES.find((family) => family.name === "arc")!.verbs.find((one) => "name" in one.command && one.command.name === "recent") as Verb<VerbInputs, ArcVerbContext>;
 
-/** A fresh project's library, dropped when the test ends, and a caller's context on it. */
 async function aProject(t: TestContext): Promise<{ library: Library; context: ArcVerbContext }> {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
@@ -70,7 +66,6 @@ test("3.15 · `arc recent` lists what landed since --since grouped by arc, each 
     `  ${docs.id}  Docs (closed ${today()})`,
   ]);
 
-  // A window that starts after every landing has nothing to say.
   const later = await recent.act({ since: new Date(Date.now() + 60_000).toISOString() }, context, WORDS);
   assert.match(later.text, /^Nothing landed since \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\.$/);
 });

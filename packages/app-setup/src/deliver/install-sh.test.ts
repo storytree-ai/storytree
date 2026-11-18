@@ -6,8 +6,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-// install.sh is POSIX sh: run by sh under curl | sh, and promised under bash and zsh. On macOS all three are
-// required (zsh is the Mac's login shell); elsewhere a shell that is not installed is skipped with its reason.
 const script = fileURLToPath(new URL("./install.sh", import.meta.url));
 const steps = fileURLToPath(new URL("./install.test.sh", import.meta.url));
 const linuxSteps = fileURLToPath(new URL("./install-linux.test.sh", import.meta.url));

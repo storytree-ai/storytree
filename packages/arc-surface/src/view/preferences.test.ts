@@ -11,7 +11,6 @@ test("3.7 each project remembers its arcs' scope between launches, and keeps no 
     assert.deepEqual(readPreferences("alpha"), { scope: "parked" });
     assert.deepEqual(readPreferences("beta"), { scope: "closed" });
     assert.deepEqual(readPreferences("gamma"), { scope: "active" });
-    // A value kept by the drawer before the rail: its open state, picked arc and size are read no more.
     saved.set("storytree.arc-surface.v1:alpha", '{"open":true,"scope":"parked","picked":"arc-b","expanded":true}');
     assert.deepEqual(readPreferences("alpha"), { scope: "parked" });
   } finally {

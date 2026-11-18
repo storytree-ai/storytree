@@ -1,22 +1,15 @@
-// The glass sheet's opening now that nothing is docked over the map's bottom (increment_a436e9d46195, ADR-1219 moved the
-// sessions list into the left rail). Drawn by the actual desktop page from the capture kit's `code-rows` seed, storytree's own
-// library, on the left rail's Arcs tab. It measures where the sheet's north and south edges are drawn in the map's canvas, against
-// the Stories / Library switch and the compass at the top, and the lowest story name. Run from the checkout root, in the foreground:
-//   node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/testing/view/map-opening/capture.mjs --retake
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildCapture, buildFolder, captureSeed, fakeBridge, withCapture } from '../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-// Pictures and measurements go to the package's evidence set of this name (a scratch folder unless --retake); nothing here reads them.
 const evidence = path.join(here, '../../../src/view/evidence', 'map-opening');
 const dist = buildFolder(here);
 const { seed, survey } = captureSeed('code-rows');
 const viewports = [{ width: 1440, height: 960 }, { width: 1280, height: 720 }];
 await buildCapture({ dist });
 
-/** In the canvas's pixels: the sheet's north and south edges as drawn, the switch's and compass's bottoms, and the lowest story name's. */
 const measure = page => page.evaluate(() => {
   const { scene, camera } = window.__globe, V = camera.position.constructor;
   scene.updateMatrixWorld(true); camera.updateMatrixWorld(true);

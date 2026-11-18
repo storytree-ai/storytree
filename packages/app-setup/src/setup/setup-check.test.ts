@@ -1,13 +1,4 @@
-/**
- * Capability 8 · Setup check: the check's answer, in the app setup story (Session management's until ADR-0969 D3). Hook
- * registration's tests are Connect an agent's (./hooks-config.test.ts) and the command's on the path Built commands'
- * (./command.test.ts). Contract 8.6, the live check with a real Claude Code and a real Codex, is subscription-billed,
- * and is run once by hand as the story's final proof rather than here.
- *
- * Each test works in a throwaway home (../testing/homes.ts): its own Claude Code config folder and Codex home, holding
- * settings of the user's own that the setup check must leave alone, and a storytree home that says where storytree
- * listens (a copy of the test Postgres's owner record) or how to open it.
- */
+// Capability 8 · Setup check.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -31,7 +22,6 @@ import { runSetupCheck } from "./index.js";
 import { FIX_SENTENCES, ghState, launcherFile, machineState, putCommandOnPath, registerHooks, verifyHooks, type HookCommand } from "./index.js";
 import { ANSWERED, fakeTool, HOOK, readJson, throwawayHome, type HookEntry } from "../testing/homes.js";
 
-/** The stub app and the harness payload fixtures stay with Session management, whose hooks they feed. */
 const AGENT_LINK_SRC = path.dirname(fileURLToPath(import.meta.resolve("@storytree/session-management")));
 const STUB_APP = path.join(AGENT_LINK_SRC, "testing", "stub-app.mjs");
 const FIXTURES = path.join(AGENT_LINK_SRC, "hooks", "fixtures") + path.sep;
@@ -54,13 +44,11 @@ test("8.43 the check registers hooks only for an agent already connected, or the
     writeFileSync(home.codexConfig, 'model = "gpt-5"\n');
     const settings = readFileSync(home.claudeSettings, "utf8");
 
-    // The tool server's own start-up check asks for no session: neither agent has storytree's hooks, so neither gets them.
     const start = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
     assert.deepEqual(start.hooks, { "claude-code": "not connected", codex: "not connected", cursor: "not here", pi: "not here", antigravity: "not here", statusLine: "not here" });
     assert.equal(readFileSync(home.claudeSettings, "utf8"), settings, "Claude Code's settings are untouched");
     assert.equal(existsSync(path.join(home.homes.claude, "agents")), false, "and no builder agents are installed");
 
-    // A Claude Code session asking connects Claude Code; Codex, never connected, is left alone and only named.
     const asked = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, calling: "claude-code" });
     assert.equal(asked.hooks?.["claude-code"], "registered");
     assert.equal(asked.hooks?.codex, "not connected");
@@ -70,14 +58,11 @@ test("8.43 the check registers hooks only for an agent already connected, or the
     assert.deepEqual(codexLines.map((line) => line.state), ["note"], JSON.stringify(asked.lines));
     assert.match(codexLines[0]!.message, /Codex is on this computer and not connected to storytree.*Connect Codex.*storytree setup connect --codex/);
 
-    // Once Codex carries storytree's hooks, any build's, the check keeps them current from any session.
     const old = path.join(dir, "old", "storytree-hook.mjs");
     registerHooks({ codex: home.homes.codex }, { ...HOOK, script: old });
     const later = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
     assert.deepEqual([later.hooks?.["claude-code"], later.hooks?.codex, later.hooks?.replaced], ["already registered", "registered", { codex: [old] }]);
 
-    // Pi and Antigravity CLI keep storytree's hooks in their own shapes: an extension, and a named hook. Antigravity's, an
-    // older build's, makes it connected; a Pi with none is left alone and named.
     const homes = { ...home.homes, pi: path.join(dir, ".pi", "agent"), antigravity: path.join(dir, ".gemini") };
     for (const folder of [homes.pi, homes.antigravity]) mkdirSync(folder, { recursive: true });
     registerHooks({ antigravity: homes.antigravity }, { ...HOOK, script: old });
@@ -85,19 +70,15 @@ test("8.43 the check registers hooks only for an agent already connected, or the
     assert.deepEqual([others.hooks?.pi, others.hooks?.antigravity, others.hooks?.replaced], ["not connected", "registered", { antigravity: [old] }]);
     assert.deepEqual(readdirSync(homes.pi), [], "nothing is written for Pi");
     assert.ok(others.lines.some((line) => line.state === "note" && line.message.includes("Pi is on this computer and not connected") && line.message.includes("storytree setup connect --pi")), JSON.stringify(others.lines));
-    // Once Pi has storytree's extension, it is connected too.
     registerHooks({ pi: homes.pi }, { ...HOOK, script: old });
     assert.equal((await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes, storytreeHome: home.storytreeHome })).hooks?.pi, "registered");
   });
 });
 
-/** Run one of storytree's registered hooks as `harness` runs it: Claude Code a program with arguments, Codex a line through this machine's shell. */
 function runRegistered(harness: "claude-code" | "codex", hook: HookEntry["hooks"][number], input: string, storytreeHome: string): string {
-  // Codex's line reaches the shell in an environment variable, so the command spawned here is fixed text that runs it.
   const env = { ...process.env, STORYTREE_HOME: storytreeHome, ...(harness === "codex" ? { STORYTREE_HOOK_LINE: hook.command } : {}) };
   const [command, args] =
     harness === "claude-code" ? [hook.command, hook.args ?? []] : process.platform === "win32" ? ["powershell", ["-NoProfile", "-Command", "Invoke-Expression $env:STORYTREE_HOOK_LINE"]] : ["sh", ["-c", 'eval "$STORYTREE_HOOK_LINE"']];
-  // A cold Windows PowerShell and Node can take most of 10 s on CI; a hang still fails.
   const ran = spawnSync(command, args, { input, env, encoding: "utf8", timeout: 60_000 });
   assert.equal(ran.status, 0, `${harness}: ${ran.stderr}`);
   return ran.stdout;
@@ -111,7 +92,6 @@ test("8.12 at the start of a session in a folder that isn't a storytree project,
     mkdirSync(stopped);
     const fresh = path.join(dir, "new-site");
     mkdirSync(fresh);
-    // An install from before ADR-0752 registered a second Claude Code start hook, which the harness waits for.
     const older = { type: "command", command: process.execPath, args: [hookScript, "claude-code", "--ask-setup"] };
     for (const [harness, settings] of [["claude-code", home.claudeSettings], ["codex", home.codexHooks]] as const) {
       const starts = [...((readJson(settings).hooks as Record<string, HookEntry[]>).SessionStart ?? []).flatMap((entry) => entry.hooks), ...(harness === "claude-code" ? [older] : [])];
@@ -127,8 +107,6 @@ test("8.3 with storytree closed, a session start opens it", async () => {
     const storytreeHome = path.join(dir, "storytree-home");
     mkdirSync(storytreeHome);
     const dataDir = path.join(storytreeHome, "pgdata");
-    // How to open storytree, as the app records it: here, a stand-in that says where the test Postgres listens,
-    // handing over its sign-in as the app does (the handoff waits beside a record the stand-in writes).
     const { port, token, auth } = placeTestServer(dataDir);
     rmSync(`${dataDir}.owner.json`);
     writeFileSync(path.join(storytreeHome, "app.json"), JSON.stringify({ command: process.execPath, args: [STUB_APP, dataDir, String(port), JSON.stringify({ token, auth })] }));
@@ -143,7 +121,6 @@ test("8.3 with storytree closed, a session start opens it", async () => {
       if (pid !== undefined) await stop(pid);
     }
 
-    // With nothing saying how to open it, it says so rather than waiting.
     const unopenable = path.join(dir, "no-app");
     mkdirSync(unopenable);
     const report = await runSetupCheck({ ...ANSWERED, folder: dir, homes: {}, storytreeHome: unopenable, openWaitMs: 20_000 });
@@ -157,7 +134,6 @@ test("opening storytree waits until it accepts connections, not only until it ha
     mkdirSync(storytreeHome);
     const dataDir = path.join(storytreeHome, "pgdata");
     const port = await freePort();
-    // The stand-in says where it listens at once, and starts listening only 1.5 s later, handing over its sign-in as the app does.
     const { token, auth } = placeTestServer(dataDir, { port });
     rmSync(`${dataDir}.owner.json`);
     writeFileSync(path.join(storytreeHome, "app.json"), JSON.stringify({ command: process.execPath, args: [STUB_APP, dataDir, String(port), "1500", JSON.stringify({ token, auth })] }));
@@ -192,7 +168,7 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
       assert.equal(existsSync(path.join(folder, PROJECT_FILE)), false);
       assert.equal((await storytree.listProjects()).includes(name), false);
 
-      await setUpProject({ folder, project: name, storytree, storytreeHome: home.storytreeHome }); // the terminal's explicit yes
+      await setUpProject({ folder, project: name, storytree, storytreeHome: home.storytreeHome });
       const ready = await runSetupCheck({ ...options, gh: async () => "signed in" as const });
       assert.deepEqual(ready.project, { status: "set up", name });
       assert.equal(ready.lines.find((line) => line.check === "project")?.state, "ok");
@@ -314,7 +290,6 @@ test("8.31 a project's repository begun with no git identity, its marker staged,
     mkdirSync(folder);
     const options = { ...ANSWERED, folder, homes: home.homes, storytreeHome: home.storytreeHome };
     const storytree = await connect({ url: testServerUrl() });
-    // Git reads no config of this machine's: the test chooses the identity, or none.
     const noConfig = path.join(dir, "no-gitconfig");
     writeFileSync(noConfig, "");
     const keys = ["GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL"];
@@ -356,7 +331,6 @@ test("8.31 a project's repository begun with no git identity, its marker staged,
   });
 });
 
-/** A port nothing on 127.0.0.1 listens on just now. */
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
@@ -368,7 +342,6 @@ function freePort(): Promise<number> {
   });
 }
 
-/** Whether something on 127.0.0.1:`port` accepts a connection within half a second. */
 function accepts(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = connectTo({ port, host: "127.0.0.1", timeout: 500 });
@@ -384,12 +357,11 @@ function accepts(port: number): Promise<boolean> {
   });
 }
 
-/** Kill process `pid`, and wait until it has gone. */
 async function stop(pid: number): Promise<void> {
   try {
     process.kill(pid);
   } catch {
-    return; // already gone
+    return;
   }
   await waitUntil(() => {
     try {
@@ -406,7 +378,6 @@ test("8.11 a Codex installed only as its desktop app, off the PATH, is found whe
     const bin = path.join(dir, "bin");
     const codexHome = path.join(dir, ".codex");
     for (const folder of [bin, codexHome]) mkdirSync(folder, { recursive: true });
-    // Codex's CLI stand-in is a Node: `--version` answers, and `login status` fails as a signed-out Codex does.
     const desktopCodex = (file: string): string => {
       mkdirSync(path.dirname(file), { recursive: true });
       if (process.platform === "win32") copyFileSync(process.execPath, file);
@@ -415,12 +386,10 @@ test("8.11 a Codex installed only as its desktop app, off the PATH, is found whe
     };
     assert.equal((await machineState({ path: bin, waitMs: 10_000, codexHome, localAppData: path.join(dir, "Local") })).codex, "missing");
 
-    // Where the desktop app installs its CLI: %LOCALAPPDATA%\OpenAI\Codex\bin\<hash>\codex.exe.
     const localAppData = path.join(dir, "AppData", "Local");
     desktopCodex(path.join(localAppData, "OpenAI", "Codex", "bin", "3f2a9c", "codex.exe"));
     assert.equal((await machineState({ path: bin, waitMs: 10_000, codexHome, localAppData })).codex, "signed out");
 
-    // Where Codex's config.toml names it.
     const named = desktopCodex(path.join(dir, "Programs", "codex.exe"));
     writeFileSync(path.join(codexHome, "config.toml"), `model = "gpt-5"\n\n[shell_environment_policy.set]\nCODEX_CLI_PATH = ${JSON.stringify(named)}\n`);
     assert.equal((await machineState({ path: bin, waitMs: 10_000, codexHome, localAppData: path.join(dir, "Local") })).codex, "signed out");
@@ -463,7 +432,6 @@ test("8.23 the check's codex-server line judges the tool server a Codex session 
     assert.equal(missing?.state, "needs-attention");
     assert.match(missing?.fix ?? "", /storytree setup connect --codex/);
 
-    // A 0.3 worktree: Codex reads the repository's own .codex/config.toml, from its root down to the session's folder, over its own.
     const repo = path.join(dir, "repo");
     const folder = path.join(repo, "packages", "app");
     for (const made of [path.join(repo, ".git"), path.join(repo, ".codex"), folder]) mkdirSync(made, { recursive: true });
@@ -473,7 +441,6 @@ test("8.23 the check's codex-server line judges the tool server a Codex session 
     assert.equal(served?.state, "ok");
     assert.ok(served?.message.includes(projectConfig), served?.message);
 
-    // A removed install: Codex would start a command, or a server file, that is not there.
     const gone = path.join(dir, "Programs", "storytree-0.3", "resources", "agent-tools");
     for (const [command, server] of [[path.join(gone, "node.exe"), path.join(gone, "storytree-mcp.mjs")], [process.execPath, path.join(gone, "storytree-mcp.mjs")]] as const) {
       writeFileSync(home.codexConfig, `model = "gpt-5"\n\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(command)}\nargs = [${JSON.stringify(server)}]\n\n[projects.'c:\\code']\ntrust_level = "trusted"\n`);
@@ -538,7 +505,6 @@ test("8.17 an elevated process is recognised by its high integrity label", { ski
   });
 });
 
-/** A line's state and fix, to pin that an optional tool is a note and never a fix. */
 function noteOf(lines: readonly { check: string; state: string; fix?: string }[], check: string) {
   const line = lines.find((each) => each.check === check);
   return { state: line?.state, fix: line?.fix };
@@ -549,14 +515,11 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
     const home = throwawayHome(dir);
     const bin = path.join(dir, "bin");
     mkdirSync(bin);
-    // Claude Code is installed and signed out, Codex never answers, Node is too old, and git is not there.
     fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 1 } });
     fakeTool(bin, "codex", {});
     fakeTool(bin, "node", { "--version": { out: "v20.11.0", code: 0 } });
     const check = (waitMs: number) => runSetupCheck({ folder: dir, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, machine: () => machineState({ path: bin, waitMs }) });
 
-    // The bound is generous, so a fake run through a shell on a loaded machine or as a Windows .cmd still answers within it
-    // (the product's own bound is shorter); Codex's fake waits a minute, so finishing well inside that proves it was left behind.
     const started = Date.now();
     const report = await check(10_000);
     assert.ok(Date.now() - started < 40_000, `a tool that never answers is not waited on: ${Date.now() - started}ms`);
@@ -565,13 +528,9 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
     assert.match(line("agent-cli")?.message ?? "", /Claude Code is installed and not signed in/);
     assert.match(line("agent-cli")?.message ?? "", /Codex did not answer/);
     assert.match(line("agent-cli")?.fix ?? "", /claude auth login/);
-    // Owner, 2026-09-29 (question_bb3efa1e3191): "dont list them as fixes". storytree runs on its own Node.
     assert.deepEqual(noteOf(report.lines, "git"), { state: "note", fix: undefined });
     assert.deepEqual(noteOf(report.lines, "node"), { state: "note", fix: undefined });
 
-    // Claude Code signed in, git and Node 24 there: nothing to fix, and Codex is not needed as well.
-    // Claude Code answers slower than the short bound above, as it does on a loaded machine starting
-    // it, so this half waits as long as a busy machine needs; with no Codex there is nothing silent to wait on.
     fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 0 } }, 3);
     fakeTool(bin, "git", { "--version": { out: "git version 2.50.0", code: 0 } });
     fakeTool(bin, "node", { "--version": { out: "v24.1.0", code: 0 } });
@@ -584,7 +543,6 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
 });
 
 test("8.46 the check says whether Cursor, Pi and Antigravity CLI are installed, each alone a harness storytree watches, and never that one is signed in, since Cursor's command line reports a lapsed sign-in as logged in", async () => {
-  // Their command lines as measured (2026-10-12): Cursor's says "Logged in" whether or not it is; agy and pi answer their version signed in or not.
   const harnesses = [
     { harness: "cursor", folder: ".cursor", command: "cursor-agent", answers: { "--version": { out: "2026.07.09", code: 0 }, status: { out: "Logged in", code: 0 } }, name: "Cursor" },
     { harness: "pi", folder: path.join(".pi", "agent"), command: "pi", answers: { "--version": { out: "1.1.0", code: 0 } }, name: "Pi" },
@@ -638,7 +596,6 @@ test("8.11 a tool that exits while something it started still holds its output i
   await withTempDir(async (dir) => {
     const bin = path.join(dir, "bin");
     mkdirSync(bin);
-    // `gh auth status` answers signed in, leaving behind a process that keeps its output open for 20s.
     if (process.platform === "win32") {
       writeFileSync(path.join(bin, "gh.cmd"), `@echo off\r\nstart "" /b "%SystemRoot%\\System32\\PING.EXE" -n 20 127.0.0.1\r\nexit /b 0\r\n`);
     } else {
@@ -660,7 +617,6 @@ test("8.11 a tool that answered while the check was busy reading synchronously i
     fakeTool(bin, "git", { "--version": { out: "git version 2.50.0", code: 0 } });
 
     const reading = machineState({ path: bin, waitMs: 300 });
-    // The setup check reads the app's session records synchronously beside the probes; here, for longer than the wait.
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2_500);
     const machine = await reading;
     assert.deepEqual({ claude: machine.claude, git: machine.git }, { claude: "signed out", git: "present" });
@@ -712,13 +668,11 @@ test("8.37 a look (the doctor without --repair) writes no file: each connected h
     const home = throwawayHome(dir);
     const homes = { ...home.homes, cursor: path.join(dir, ".cursor"), pi: path.join(dir, ".pi", "agent"), antigravity: path.join(dir, ".gemini") };
     for (const folder of [homes.cursor, homes.pi, homes.antigravity]) mkdirSync(folder, { recursive: true });
-    // Cursor's hooks run another build's script, as an older install left them.
     const other = path.join(dir, "older", "storytree-hook.mjs");
     writeFileSync(path.join(homes.cursor, "hooks.json"), `${JSON.stringify({ version: 1, hooks: { sessionStart: [{ command: `node ${other} cursor` }] } }, null, 2)}\n`);
     const bin = path.join(dir, ".local", "bin");
     mkdirSync(bin, { recursive: true });
     const hook: HookCommand = { node: process.execPath, script: hookScript };
-    // Run from a Claude Code session's shell: Claude Code is the asking harness, and Cursor is connected by its older hooks (8.43).
     const check = (look: boolean) => runSetupCheck({ ...ANSWERED, folder: dir, hook, homes, storytreeHome: home.storytreeHome, command: { path: bin, home: dir }, look, calling: "claude-code" });
     const files = () => Object.fromEntries([homes.claude, homes.codex, homes.cursor, homes.pi, homes.antigravity, bin]
       .flatMap((folder) => readdirSync(folder, { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => path.join(entry.parentPath, entry.name)))
@@ -748,8 +702,6 @@ test("8.37 a look (the doctor without --repair) writes no file: each connected h
     assert.equal(line(repaired, "status-line")?.state, "fixed");
     assert.equal(repaired.command, "installed");
 
-    // storytree's command on the path, running another build: a look names it and leaves it.
-    // Beside the built scripts, where a Windows launcher finds the program it is made from.
     const older = path.join(path.dirname(hookScript), "an older storytree.mjs");
     rmSync(path.join(bin, launcherFile()));
     putCommandOnPath({ path: bin, home: dir }, process.execPath, older);
@@ -767,7 +719,6 @@ test("8.42 a folder whose marker names a project this computer's library lacks r
     const name = uniqueProjectName();
     const folder = path.join(dir, "checkout");
     mkdirSync(folder);
-    // A marker committed on another computer, against another library: this one never had the project.
     writeFileSync(path.join(folder, ROOT_MARKER_FILE), `${JSON.stringify({ project: name, identity: "19697429" })}\n`);
     const options = { ...ANSWERED, folder, homes: home.homes, storytreeHome: home.storytreeHome };
     const storytree = await connect({ url: testServerUrl() });

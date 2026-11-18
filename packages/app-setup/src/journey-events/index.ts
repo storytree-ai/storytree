@@ -1,4 +1,4 @@
-/** Capability 13 · Consent and allowed milestones. */
+// Capability 13 · Consent and allowed milestones.
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -9,7 +9,6 @@ import { createPostHogTransport, JOURNEY_EVENTS, JOURNEY_VERSION, type DeliveryE
 export type { JourneyState, JourneyBridge, DeletionRequest } from "./bridge.js";
 export { JOURNEY_CHANNELS } from "./bridge.js";
 
-/** No key ships yet. Configuration is supplied only after the owner's activation gate. */
 export interface JourneyConfiguration {
   projectKey: string;
   retention: string;
@@ -23,7 +22,6 @@ const MAX_EVENTS = 500;
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const FLUSH_LIMIT_MS = 5_000;
 
-/** One @ between a name and a domain with a dot inside it, and no white space: checked in parts, so no regex backtracks over a long run of dots. */
 function isEmailAddress(text: string): boolean {
   const [name, domain, ...more] = text.split("@");
   if (more.length > 0 || domain === undefined || name === "" || /\s/.test(text)) return false;
@@ -31,10 +29,8 @@ function isEmailAddress(text: string): boolean {
   return dot > 0 && dot < domain.length - 1;
 }
 
-/** One computer-wide consent record and bounded queue, shared atomically by app and CLI. */
 export function openJourney(options: {
   home: string; appVersion: string; configuration?: JourneyConfiguration;
-  /** The flush deadline's clock; real time by default. */
   now?: () => number;
 }) {
   if (!JOURNEY_VERSION.test(options.appVersion)) throw new Error("Journey events need a release version.");
@@ -110,7 +106,7 @@ export function openJourney(options: {
         db.prepare("DELETE FROM events WHERE uuid=?").run(row.uuid);
         sent++;
       }
-    } catch { /* Offline or revoked: leave unacknowledged events for a later invocation. */ }
+    } catch {}
     finally { await transport.close().catch(() => {}); }
     return sent;
   }

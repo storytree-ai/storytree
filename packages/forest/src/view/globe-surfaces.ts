@@ -1,24 +1,18 @@
-/** Capability 3 · Story node render. */
+// Capability 3 · Story node render
 import type { BufferAttribute, Color, Group, LineSegments, Mesh, MeshBasicMaterial, Object3D } from "three";
 import { filledUnder } from "./territory-land.js";
 import { showsNear, type Detail } from "./zoom-detail.js";
 
-/** The app's attention switches, also available to guides mounted outside the app. */
 export type GlobeSurfaces = {
   grounds: boolean; roads: boolean; nameplates: boolean;
   territories: false | "plain" | "health";
   knowledgeCore: boolean; sessionTints: boolean;
 };
 
-/** The ordinary Forest view. */
 const FOREST: GlobeSurfaces = { grounds: true, roads: true, nameplates: true, territories: "health", knowledgeCore: true, sessionTints: true };
 
-/** The glass sheet's Library face: the islands as outlines with their names over the knowledge, their territories as borders
- * with no fill and no roads; a session's tints still light them (ADR-1061 D2). */
 const OUTLINES = { roads: false } as const;
 
-/** What the sheet shows: a host's switches over the Forest view; on the glass sheet's Library face (`outlines`), only the
- * islands' outlines and names. */
 export function shownSurfaces(surfaces: Partial<GlobeSurfaces> | undefined, outlines = false): GlobeSurfaces {
   const shown = { ...FOREST, ...surfaces };
   return outlines ? { ...shown, ...OUTLINES, territories: shown.territories && "plain" } : shown;
@@ -27,18 +21,13 @@ export function shownSurfaces(surfaces: Partial<GlobeSurfaces> | undefined, outl
 const healthOpacity = new WeakMap<Mesh, number>();
 const healthColour = new WeakMap<Mesh, Color>();
 const presentation = new WeakMap<Object3D, GlobeSurfaces["territories"]>();
-/** The detail each island's land shows at the eye's zoom (3.86); absent is all of it. */
 const shownDetail = new WeakMap<Object3D, Detail>();
-/** How far each territory has filled in on a growing globe (3.30); absent is whole. */
 const grownBy = new WeakMap<Object3D, number>();
-/** A fill as presented: its colour and opacity. */
 type Look = { colour: Color; opacity: number };
-/** How far each new territory's fill has eased in (3.46), over the fill it was carved `from` where it had one; absent is whole. */
 const drawnBy = new WeakMap<Object3D, { eased: number; from: Look | undefined }>();
 
 export function presentTerritories(group: Group, mode: GlobeSurfaces["territories"]): void {
   presentation.set(group, mode);
-  // 3.86: the territories show at every zoom, the roads and relief only near; only what shows changes, never a shape.
   const land = mode !== false, near = land && showsNear(shownDetail.get(group) ?? "near");
   for (const mark of group.children) {
     if (mark.name.startsWith("territory:")) {
@@ -59,13 +48,11 @@ export function presentTerritories(group: Group, mode: GlobeSurfaces["territorie
   }
 }
 
-/** Shows as much of an island's `land` as `detail` asks (3.86), under the territory switches it was presented with. */
 export function presentDetail(land: Group, detail: Detail): void {
   shownDetail.set(land, detail);
   presentTerritories(land, presentation.get(land) ?? "health");
 }
 
-/** Session emphasis replaces materials temporarily; restoring one also restores the current presentation. */
 export function restoreTerritoryPresentation(root: Object3D): void {
   root.traverse(object => {
     const mode = presentation.get(object);
@@ -73,11 +60,6 @@ export function restoreTerritoryPresentation(root: Object3D): void {
   });
 }
 
-/**
- * An island's land on a growing globe (3.30): each capability's territory fills in by how far the globe's growth has
- * brought it; at 1 each is exactly as drawn without one.
- * The territory switches still hold. Returns whether everything is whole.
- */
 export function growLand(land: Group, grown: { capability(capability: string): number }): boolean {
   let whole = true;
   for (const mark of land.children) {
@@ -91,26 +73,17 @@ export function growLand(land: Group, grown: { capability(capability: string): n
   return whole;
 }
 
-/** A new border traces on along its length over `borders` rendered seconds, at constant speed as the roads do (world 6.17).
- * A new territory's fill eases in with it, or, where it was carved from land already filled, eases in over that fill over
- * `fill` once its borders are drawn (3.46). */
 export const TERRITORY_DRAW = { borders: 1, fill: 0.4 } as const;
 
-/**
- * 3.87: an island there as the map opens stands, its land drawn whole, until a frame has drawn it whole: laid out by its
- * docks and with its roads. A whole build overtaken before any frame drew it was never on screen, so it ends nothing.
- */
 export class IslandOpening {
   private open = true;
   private whole = false;
 
-  /** A build presented, `whole` when it is the island's whole land; whether it stands. */
   built(whole: boolean): boolean {
     this.whole = whole;
     return this.open;
   }
 
-  /** A frame drew the land as last built. */
   drew(): void {
     if (this.whole) this.open = false;
   }
@@ -119,21 +92,12 @@ export class IslandOpening {
 type Segment = { key: string; from: string; to: string; index: number };
 type Chain = { start: number; steps: { index: number; flip: boolean; length: number }[]; length: number };
 
-/**
- * One island's territories arriving (3.46): what it has drawn is kept by its ground, so a rebuilt land shows the borders and
- * fills it already had, whole, from its first frame, and only new land draws on: each new border along its chain, and each new
- * territory's fill easing in with it. A territory carved from land the island already filled shows that fill until its own has
- * eased in over it, so it never shows the bare ground, which reads as parked. Hiding the territories forgets them, so showing
- * them again draws them on. Under reduced motion, or as the globe first opens, everything stands whole at once.
- */
 export class TerritoryDrawOn {
   private borders = new Map<string, number>();
   private fills = new Map<string, { began: number; from: Look | undefined }>();
-  /** The land last shown with its fills, which a rebuild's new territories were carved from. */
   private filled: Group | undefined;
   private land: { group: Group; lines: LineSegments; full: Float32Array; kept: number[]; chains: Chain[] } | undefined;
 
-  /** Presents a freshly built (or re-shown) `group` at `now`, before it is drawn. */
   take(group: Group, mode: GlobeSurfaces["territories"], now: number, { standing, reduced }: { standing: boolean; reduced: boolean }): void {
     this.restore();
     presentTerritories(group, mode);
@@ -173,11 +137,9 @@ export class TerritoryDrawOn {
     this.frame(now, reduced);
   }
 
-  /** Draws the land at `now`; whether anything is still arriving. */
   frame(now: number, reduced: boolean): boolean {
     const land = this.land;
     if (land === undefined) return false;
-    // A plain view shows no fill, so a fill still easing in asks for no frames.
     const mode = presentation.get(land.group) ?? "health";
     let drawing = false;
     for (const mark of land.group.children) {
@@ -216,7 +178,6 @@ export class TerritoryDrawOn {
     return true;
   }
 
-  /** Puts the borders back as built, every segment whole. */
   private restore(): void {
     const land = this.land;
     if (land === undefined) return;
@@ -227,7 +188,6 @@ export class TerritoryDrawOn {
   }
 }
 
-/** New border segments as chains to trace: each walks on from a loose end where it has one, so a line draws from end to end. */
 function chainsOf(segments: readonly Segment[], full: Float32Array): Omit<Chain, "start">[] {
   const at = new Map<string, Segment[]>();
   for (const segment of segments) for (const end of [segment.from, segment.to]) at.set(end, [...at.get(end) ?? [], segment]);

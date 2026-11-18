@@ -1,54 +1,23 @@
-/**
- * Capability 3 · Story node render (the forest story): each island's territories arranged by the capability
- * tree mock's network-scored search (3.80, ADR-1236 D1, rollout 2 step 2b), ported from
- * docs/design/capability-tree-3d/q-all-islands/tools/layout.ts's search, score and mutate.
- *
- * - Simulated annealing over the territories' seeds, seeded so it repeats: each step swaps two seeds of a kind (two
- *   interfaces, or two internals) or moves one, mostly to a neighbouring cell of its kind, sometimes anywhere of it.
- * - Each arrangement that grows is scored on the shared road network routed over it (island-roads.ts): 100 for each tunnel
- *   it draws, 10 for each inside link through a third territory and 3 for each border it crosses, 0.05 a unit of road
- *   drawn, 0.2 a unit of border between two territories, less 4 for each inside link between neighbours, and 500 for each
- *   interface off the coast. One a link finds no road over is refused. The mock's 8 for each crowded entrance is left
- *   out: 0.3's network does not report them.
- * - A tunnel is a last resort (Mick, 2026-11-07, question_ad09fc6c81bd: "it should be a last resort"): at 100 it outweighs
- *   2,000 units of road, more than any island's way round. It is counted as drawn, not by the links over a third territory:
- *   a road carrying a link that calls the land it crosses is open road there, so The library's start had 96 links over a
- *   third territory and 3 tunnels. The border term keeps territories compact: a territory reaching an arm between two
- *   others draws a border along each side of it, so it grows outward instead.
- * - It starts from the arrangement the page draws (link-layout.ts's start, or the kept seeds) and answers the best it
- *   found, never worse than that start. The territories it is asked to fix keep their start's seeds, so a territory
- *   added to a kept island finds its place and the rest only make room (3.94). Each cell a fixed territory held where its
- *   kept seeds draw the island without the newcomers, and loses, costs the arrangement 5, and each newcomer starts from
- *   the cell of its kind that loses them fewest, so it takes the room it is given rather than pushing a placed territory,
- *   and its name, aside (the eighth guided run's sixth part moved all five). A step routes the whole network (0.3 to
- *   0.7 s an island), so it runs off the page.
- */
+// Capability 3 · Story node render
 import { drawnIsland, grownFrom, prepareIsland, seedKind, seedPoints, settle, sharedEdge, startSeeds, type PreparedIsland, type Seeds } from "./link-layout.js";
 import { roadMeasures, type RoadMeasures } from "./island-roads.js";
 import { capabilityPlates } from "../view/nameplates.js";
 import { insideOf } from "./territories.js";
 import type { SearchAsk } from "./kept-layout.js";
 
-/** The mock's steps, its starting temperature and how far it cools, and its random seed. */
 const STEPS = 300, HEAT = 20, COOL = 0.03, SEED = 43;
 
-/** What a tunnel costs an arrangement, and a unit of border between two territories. */
 export const TUNNEL = 100, BORDER = 0.2;
-/** What an arrangement pays for each cell a fixed territory held before the newcomers and loses. */
 const PLACE = 5;
 
-/** The score of an arrangement's network, lower better; undefined when a link finds no road. */
 export function networkScore(island: PreparedIsland, owners: readonly number[], m: RoadMeasures): number | undefined {
   if (m.unrouted > 0) return undefined;
   const offCoast = [...island.dockOf.keys()].filter((t) => !owners.some((o, c) => o === t && island.frontier[c])).length;
   return TUNNEL * m.tunnels + 10 * m.overThird + 3 * m.overThirdBorders + 0.05 * m.roadDrawn + BORDER * borderLength(island, owners) - 4 * m.neighbours + 500 * offCoast;
 }
 
-/** Each pair of neighbouring cells of an island's fine cut, with the length of the edge they share on the land. */
 const edgesOf = new WeakMap<PreparedIsland, readonly (readonly [number, number, number])[]>();
 
-/** The length of the borders between two territories of `owners` on the land, in The library's units: open land and the
- * coast are no border. A territory that reaches an arm between two others draws more of it than one grown outward. */
 export function borderLength(island: PreparedIsland, owners: readonly number[]): number {
   let edges = edgesOf.get(island);
   if (edges === undefined) {
@@ -56,7 +25,6 @@ export function borderLength(island: PreparedIsland, owners: readonly number[]):
     cells.forEach((cell, at) => {
       for (const n of cell.touching) {
         const edge = n > at ? sharedEdge(cell, cells[n]!) : undefined;
-        // A cell at the coast reaches past it: only the edge's stretch on the land is border.
         if (edge) found.push([at, n, insideOf(edge[0], edge[1], coast).reduce((s, p) => s + Math.hypot(p.to.x - p.from.x, p.to.z - p.from.z), 0)]);
       }
     });
@@ -67,8 +35,6 @@ export function borderLength(island: PreparedIsland, owners: readonly number[]):
   return length;
 }
 
-/** The best seeds the search finds for the island `ask` describes, its score and its start's, or undefined when no
- * arrangement of it grows and routes. */
 export function searchTerritories(ask: SearchAsk): { seeds: Seeds; score: number; start: number } | undefined {
   const { shares, coast, links, docks, kept, fixed = [], steps = STEPS } = ask;
   const island = prepareIsland(shares, coast, links, docks);
@@ -80,8 +46,6 @@ export function searchTerritories(ask: SearchAsk): { seeds: Seeds; score: number
     const map = drawnIsland(island, owners), s = networkScore(island, owners, roadMeasures(map, links, docks, capabilityPlates(map)));
     return s === undefined ? undefined : { seeds, s: s + moved(owners) };
   };
-  // The start is what the page draws, the seeds the seed walk grew it from, with each territory not fixed moved to
-  // where the fixed lose least.
   const first = startSeeds(island, kept), settled = first && settle(island, first);
   if (settled === undefined) return undefined;
   const grown = placed === undefined ? settled : leastMoved(island, settled, held, placed);
@@ -102,8 +66,6 @@ export function searchTerritories(ask: SearchAsk): { seeds: Seeds; score: number
   return { seeds: seedPoints(island, best.seeds), score: best.s, start };
 }
 
-/** The mock's change of an arrangement: swap two seeds of a kind (30%), else move one to a free cell of its kind, a
- * neighbour of it 75% of the time. Only the territories `free` marks are swapped or moved. */
 function mutation(island: PreparedIsland, random: () => number, free: readonly boolean[]): (seeds: readonly number[]) => number[] {
   const kinds = island.ids.map((_, t) => seedKind(island, t)), coastal = (t: number) => island.dockOf.has(t);
   const cells = island.fine.cells, movable = island.ids.map((_, t) => t).filter((t) => free[t]), n = movable.length;
@@ -122,15 +84,12 @@ function mutation(island: PreparedIsland, random: () => number, free: readonly b
   };
 }
 
-/** Which fixed territory held each of the island's cells where its kept seeds draw the island without the territories
- * not fixed (undefined for none), or undefined when every territory is fixed or none is. */
 function landBefore(ask: SearchAsk, island: PreparedIsland, held: ReadonlySet<string>): (string | undefined)[] | undefined {
   if (held.size === 0 || island.ids.every((id) => held.has(id))) return undefined;
   const before = prepareIsland(ask.shares.filter((s) => held.has(s.capability ?? "")), ask.coast, ask.links, ask.docks);
   const seeds = before && startSeeds(before, ask.kept), grown = before && seeds && settle(before, seeds);
   if (grown === undefined) return undefined;
   const cells = before!.fine.cells;
-  // A cell's site lies in the cell of the earlier cut whose site is nearest it.
   return island.fine.cells.map(({ site }) => {
     let at = 0, d = Infinity;
     cells.forEach((cell, c) => { const dd = Math.hypot(cell.site.x - site.x, cell.site.z - site.z); if (dd < d) { d = dd; at = c; } });
@@ -139,15 +98,12 @@ function landBefore(ask: SearchAsk, island: PreparedIsland, held: ReadonlySet<st
   });
 }
 
-/** How many cells a fixed territory held in `land` another holds in `owners`. */
 function displacement(island: PreparedIsland, owners: readonly number[], land: readonly (string | undefined)[]): number {
   let taken = 0;
   owners.forEach((o, c) => { if (land[c] !== undefined && (o < 0 || island.ids[o] !== land[c])) taken++; });
   return taken;
 }
 
-/** `start` with each territory not `held` moved, one at a time, to the free cell of its kind growing from which the
- * held territories lose fewest of the cells `placed` gives them. */
 function leastMoved(island: PreparedIsland, start: { owners: number[]; seeds: readonly number[] }, held: ReadonlySet<string>, placed: readonly (string | undefined)[]): { owners: number[]; seeds: readonly number[] } {
   let best = { ...start, moved: displacement(island, start.owners, placed) };
   island.ids.forEach((id, t) => {

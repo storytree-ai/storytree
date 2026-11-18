@@ -1,6 +1,4 @@
-// Capability 3 · Surfaces. @storytree/app: the app story. The parts of storytree 0.3's app that are plain
-// logic, apart from Electron, so they are tested without it: what the app answers when the page
-// asks, and the smoke check's judgement. apps/desktop is the app itself, and wires them to the page.
+// Capability 3 · Surfaces
 export { pageReads } from "./surfaces/reads.js";
 export { projectSelection } from "./projects/selection.js";
 export type { ProjectSelection } from "./projects/selection.js";

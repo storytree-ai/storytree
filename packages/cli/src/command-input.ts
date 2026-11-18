@@ -1,13 +1,6 @@
-/**
- * Capability 13 · Reading a command (ADR-1035 D2): the command line's own mounting code, reading a command's words and
- * flags into a declared verb's input and spelling its usage. The schema it reads is the library's.
- */
+// Capability 13 · Reading a command
 import { fieldValue, mounted, VerbRefusal, type InputOf, type Verb, type VerbInput, type VerbInputs, type VerbValue } from "@storytree/library/verbs";
 
-/**
- * A command's usage, after `storytree `, from the verb's inputs: `session close-out --safe yes|no --why <why>`. A family's
- * bare verb, named as its family, is used as `<family> …`.
- */
 export function commandUsage(declared: Verb<VerbInputs, never>): string {
   if (!mounted(declared.command)) throw new Error(`${mounted(declared.tool) ? declared.tool.name : "this verb"} has no command: ${declared.command.absent}`);
   if (declared.command.usage !== undefined) return declared.command.usage;
@@ -24,29 +17,19 @@ export function commandUsage(declared: Verb<VerbInputs, never>): string {
   return [family, ...(name === family ? [] : [name]), ...words, ...flags].join(" ");
 }
 
-/** A text input's place in a usage: `[…]` when it may be left out, `…` after it when it may come again. */
 function spelt(input: VerbInput & { kind: "text" }, place: string): string {
   const many = input.many ? `${place} …` : place;
   return input.optional ? `[${many}]` : many;
 }
 
-/** A command's words and flags, as `commandInput` reads them. */
 export interface CommandGiven {
   word(index: number): string | undefined;
-  /** The flag's value, the last given. */
   flag(name: string): string | undefined;
-  /** Every value given for the flag, in order. */
   flags(name: string): readonly string[];
   has(name: string): boolean;
-  /** The flags given, by name. */
   names(): readonly string[];
 }
 
-/**
- * A command's words and flags read as the verb's input, or a refusal saying what is wrong. A word past the ones it
- * takes, or a flag it does not take, is refused as a misuse; the flag is named, but a word never is, since a stray word
- * may be a secret (`auth set <name> <key>`). A verb with `fields` takes every flag, and one with `many` words every word.
- */
 export function commandInput(declared: Verb<VerbInputs, never>, given: CommandGiven): InputOf<VerbInputs> {
   const inputs = Object.entries(declared.inputs);
   if (!inputs.some(([, one]) => one.kind === "fields")) {
@@ -90,17 +73,12 @@ export function commandInput(declared: Verb<VerbInputs, never>, given: CommandGi
   return input;
 }
 
-/** Each word from `index` on. */
 function wordsFrom(given: CommandGiven, index: number): string[] {
   const words: string[] = [];
   for (let at = index; given.word(at) !== undefined; at++) words.push(given.word(at)!);
   return words;
 }
 
-/**
- * A text input, trimmed unless it is marked verbatim: one that says nothing is refused, unless it is marked blank, as
- * the MCP server refuses it.
- */
 function said(name: string, input: VerbInput, value: string): string {
   const text = value.trim();
   if (text === "" && !(input.kind === "text" && input.blank)) throw new VerbRefusal(`${name} is empty: ${input.describe}`, { misuse: true });

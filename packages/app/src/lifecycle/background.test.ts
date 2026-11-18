@@ -1,8 +1,4 @@
-/**
- * Capability 1 · Lifecycle: the app keeps running in the background, contract 1.7 in
- * the app story (ADR-0636 D3). It is plain logic, apart from Electron, so it is tested without it;
- * apps/desktop wires it to the window's close, the tray's menu and a second start of the app.
- */
+// Capability 1 · Lifecycle
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -33,7 +29,6 @@ test("1.7 smoke teardown stops page polling before closing the library, without 
     stopPages: () => following.stop(),
     stopDatabase: async () => {
       libraryOpen = false;
-      // Postgres may take longer to stop than the page's next poll.
       t.mock.timers.tick(3000);
       await following.refresh();
     },
@@ -118,7 +113,6 @@ test("1.7 a restart into an update whose stopping hangs still starts the install
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const done: string[] = [];
   const app = background({
-    // A late writer hit the closed pool, and the rest of the stop never finished.
     stopDatabase: () => new Promise<void>(() => {}),
     exit: (code) => done.push(`exit ${code}`),
     relaunch: (target) => done.push(`relaunch ${target?.execPath}`),

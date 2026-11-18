@@ -1,37 +1,24 @@
-/**
- * Capability 1 · Lifecycle, contracts 1.9 and 1.10 (ADR-0734 D1, ADR-0735 D4), and 1.45: the app opens its
- * library where the user's library setting says. Local (the default), it starts its own Postgres on
- * its data folder and connects there, as it always has. Set to a Postgres address (ADR-0846), it starts no Postgres at all and connects there; when it cannot be reached it says so in
- * the refusal's own words, and never opens the local library instead, which would split one board
- * in two.
- */
+// Capability 1 · Lifecycle
 import { readLibrary } from "@storytree/project-and-caller";
 import type { ConnectOptions, Storytree } from "@storytree/library";
 
-/** The app's own Postgres, as local-postgres hands it back: where it listens, and how to stop it. */
 export interface StartedPostgres {
   readonly url: string;
   stop(): Promise<void>;
 }
 
 export interface AppLibraryOptions<P extends StartedPostgres = StartedPostgres> {
-  /** The storytree home, whose settings.json says where the library lives. */
   readonly home: string;
-  /** Start the app's own Postgres; called only when the library is local. */
   readonly startLocal: () => Promise<P>;
-  /** The library's connect(). */
   readonly connect: (options: ConnectOptions) => Promise<Storytree>;
 }
 
 export interface AppLibrary<P extends StartedPostgres = StartedPostgres> {
   readonly storytree: Storytree;
-  /** The app's own Postgres, when the library is local; undefined at a Postgres address. */
   readonly postgres: P | undefined;
-  /** Where the library is, for the app's log: never the local url's password. */
   readonly where: string;
 }
 
-/** Open the library where the settings say, starting the app's own Postgres only when it is local. */
 export async function openAppLibrary<P extends StartedPostgres>(options: AppLibraryOptions<P>): Promise<AppLibrary<P>> {
   const setting = readLibrary(options.home);
   if (setting.location === "postgres") {
@@ -56,17 +43,12 @@ export async function openAppLibrary<P extends StartedPostgres>(options: AppLibr
   }
 }
 
-/** The url as it may be shown or logged: the installation's password taken out. */
 function withoutPassword(url: string): string {
   const shown = new URL(url);
   shown.password = "";
   return shown.href;
 }
 
-/**
- * What the app says when its library cannot be opened (contract 1.45): a data folder another program holds names that
- * program, its process and what to do; any other failure says why. local-postgres's DataDirInUseError is known by its name.
- */
 export function libraryProblem(error: unknown): string {
   if (error instanceof Error && error.name === "DataDirInUseError") {
     const { dataDir, owner, pid } = error as Error & { dataDir: string; owner?: string; pid: number };

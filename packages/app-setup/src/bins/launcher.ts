@@ -1,16 +1,10 @@
-/**
- * Capability 18 · Built commands. Build the `storytree` command for Windows (ADR-0854): a small program of its own, compiled from
- * ../setup/launcher.c with LLVM alone (clang, lld-link and llvm-dlltool), so no C library or Windows
- * SDK is needed and either Windows architecture builds on any machine that has LLVM. The setup check
- * and the installer append to it what it runs (../setup/command.ts).
- */
+// Capability 18 · Built commands.
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** The built program's name, beside the scripts it is told to run. */
 export const LAUNCHER_PROGRAM = "storytree-launcher.exe";
 
 const SOURCE = fileURLToPath(new URL("../setup/launcher.c", import.meta.url));
@@ -19,12 +13,10 @@ const TARGETS = {
   arm64: { clang: "aarch64-pc-windows-msvc", dlltool: "arm64" },
 } as const;
 
-/** Compile the launcher program for one Windows architecture into `file`. */
 export function buildLauncher(file: string, arch: keyof typeof TARGETS): void {
   const target = TARGETS[arch];
   const work = mkdtempSync(path.join(tmpdir(), "storytree-launcher-"));
   try {
-    // The kernel32 calls the source declares, one IMPORT line each, become the import library it links against.
     const calls = [...readFileSync(SOURCE, "utf8").matchAll(/^IMPORT\b[^(]*[^\w(](\w+)\(/gm)].map((match) => match[1]);
     const definition = path.join(work, "kernel32.def");
     const library = path.join(work, "kernel32.lib");
@@ -43,7 +35,6 @@ function run(tool: string, args: string[]): void {
   if (ran.error !== undefined || ran.status !== 0) throw new Error(`${tool} could not build storytree's Windows command: ${ran.error?.message ?? ""}${ran.stdout}${ran.stderr}`.trim());
 }
 
-/** An LLVM tool on the PATH, or in LLVM's own folder on Windows. */
 function llvm(tool: string): string {
   const name = process.platform === "win32" ? `${tool}.exe` : tool;
   const folders = (process.env.PATH ?? process.env.Path ?? "").split(path.delimiter).filter(Boolean);

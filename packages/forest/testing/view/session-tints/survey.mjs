@@ -1,5 +1,3 @@
-// Precomputes the code survey of the seed's stories from this checkout's code (run via tsx), so the
-// capture's stand-in bridge can answer window.storytree.codeSurvey without the page touching disk.
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

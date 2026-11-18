@@ -19,22 +19,18 @@ const attempt = ({ id, created, conclusion = "failure", attempt = 1, status = "c
 const judge = ({ attempts = [], main = [], now = 30 } = {}) => judgeReleases({ release, attempts, main, now: at + now * 60_000 });
 
 test("4.16 · a stopped release is rerun once, then judged an alarm; a quiet main is nothing", () => {
-  // Only a run in which a job after `source` ran attempted a release.
   assert.equal(attempted([{ name: "source", conclusion: "success", steps: 7 }, { name: "verify", conclusion: "skipped", steps: 0 }]), false);
   assert.equal(attempted([]), false);
   assert.equal(attempted([{ name: "source", conclusion: "success", steps: 7 }, { name: "verify (macos-latest)", conclusion: "failure", steps: 9 }]), true);
 
-  // A quiet night: main's newest commit is the released one.
   assert.deepEqual(judge({ main: [mainRun({ id: 1, sha: "c0", created: -20 })], now: 600 }), { reruns: [], alarm: null });
 
-  // One failed attempt is rerun once; nothing is alarmed while it reruns.
   const main = [mainRun({ id: 2, sha: "c1", created: 5 }), mainRun({ id: 1, sha: "c0", created: -20 })];
   const once = judge({ attempts: [attempt({ id: 50, created: 25 })], main, now: 50 });
   assert.deepEqual(once.reruns.map((rerun) => rerun.run.id), [50]);
   assert.equal(once.alarm, null);
   assert.equal(judge({ attempts: [attempt({ id: 50, created: 25, attempt: 2, status: "in_progress", conclusion: null })], main, now: 200 }).alarm, null);
 
-  // The rerun failing too, after an earlier failed attempt: an alarm naming the newest, and no second rerun.
   const twice = judge({ attempts: [attempt({ id: 50, created: 25, attempt: 2 }), attempt({ id: 40, created: 10, attempt: 2, conclusion: "cancelled" })], main, now: 60 });
   assert.deepEqual(twice.reruns, []);
   assert.equal(twice.alarm.run.id, 50);
@@ -43,11 +39,8 @@ test("4.16 · a stopped release is rerun once, then judged an alarm; a quiet mai
   const fresh = attempt({ id: 60, created: 55, status: "in_progress", conclusion: null });
   assert.equal(judge({ attempts: [fresh, attempt({ id: 50, created: 25, attempt: 2 }), attempt({ id: 40, created: 10, attempt: 2 })], main, now: 60 }).alarm, null);
 
-  // An attempt made before the latest release published is not this stop's, and is never rerun.
   assert.deepEqual(judge({ attempts: [attempt({ id: 30, created: -5 })], main: [mainRun({ id: 1, sha: "c0", created: -20 })] }).reruns, []);
 
-  // The run that published the latest release without the Mac's new build ended red (4.6): it is rerun once, and red
-  // after its rerun it is an alarm naming the Mac's job, though the release published and main has nothing newer.
   const quiet = [mainRun({ id: 1, sha: "c0", created: -20 })];
   const partial = (n, conclusion = "failure") => ({ ...attempt({ id: 31, created: -5, attempt: n, conclusion }), sha: "c0" });
   assert.deepEqual(judge({ attempts: [partial(1)], main: quiet }).reruns.map((rerun) => rerun.run.id), [31]);
@@ -55,10 +48,8 @@ test("4.16 · a stopped release is rerun once, then judged an alarm; a quiet mai
   assert.equal(behind.alarm.run.id, 31);
   assert.equal(behind.alarm.run.job, "package (macOS)");
   assert.match(behind.alarm.why, /v0\.3\.1355 published without one platform's new build/);
-  // Its rerun proving the Mac's build clears it; that build comes with the next version.
   assert.deepEqual(judge({ attempts: [partial(2, "success")], main: quiet, now: 300 }), { reruns: [], alarm: null });
 
-  // Main's own CI red once: rerun once on the same commit. Red after its rerun: an alarm naming it.
   const red = (n) => [mainRun({ id: 3, sha: "c2", created: 10, conclusion: "failure", attempt: n, job: "test-unit (macOS)" }), mainRun({ id: 1, sha: "c0", created: -20 })];
   assert.deepEqual(judge({ main: red(1) }).reruns.map((rerun) => [rerun.what, rerun.run.id]), [["main", 3]]);
   const still = judge({ main: red(2) });
@@ -66,7 +57,6 @@ test("4.16 · a stopped release is rerun once, then judged an alarm; a quiet mai
   assert.equal(still.alarm.run.id, 3);
   assert.match(still.alarm.why, /main's CI/);
 
-  // A green commit unreleased past the limit, and not before it.
   const green = [mainRun({ id: 2, sha: "c1", created: 5 }), mainRun({ id: 1, sha: "c0", created: -20 })];
   const limit = RELEASE_LIMIT_MS / 60_000;
   assert.equal(judge({ main: green, now: 5 + 15 + limit - 1 }).alarm, null);
@@ -82,25 +72,20 @@ test("4.29 · a red only the runner caused (no runner took a job, the browser cr
   const follower = ran("verify", "failure");
   const crash = "verify on macOS\ttest\t2026-10-20T10:00:00Z browserType.launch: Target page, context or browser has been closed\n"
     + "verify on macOS\ttest\t2026-10-20T10:00:00Z <process did exit: exitCode=null, signal=SIGSEGV>";
-  // run 39460677369's two attempts: each is the runner's, and `verify`, which only reads the platforms, follows them.
   assert.match(runnerFault([ran("verify on Linux"), unrun, follower]), /verify on macOS: no runner took it/);
   assert.match(runnerFault([ran("verify on Linux"), crashed, follower], crash), /verify on macOS: the browser crashed at launch/);
-  // A job that ran and failed for any other reason is the code's, even beside a runner's failure.
   assert.equal(runnerFault([ran("verify on Linux"), crashed, follower], "verify on macOS\ttest\tAssertionError: 3.55 expected 2"), null);
   assert.equal(runnerFault([ran("verify on Windows", "failure"), unrun, follower], crash), null);
   assert.equal(runnerFault([{ ...unrun, steps: 4, runner: "GitHub Actions 3" }]), null, "a job the time limit cancelled ran");
-  // The crash said by another job does not excuse this one.
   assert.equal(runnerFault([crashed], crash.replaceAll("verify on macOS", "verify on Linux")), null);
   assert.equal(runnerFault([ran("verify on Linux")]), null, "nothing red");
 
-  // A pull request's red runs are rerun while each is the runner's and below the bound; one code red or a spent bound reruns none.
   const run = (id, attempt, jobs, log = "") => ({ id, attempt, status: "completed", jobs, log });
   assert.deepEqual(runnerReruns([run(5, 2, [unrun, follower])])?.runs.map((one) => one.id), [5]);
   assert.equal(runnerReruns([run(5, RUNNER_ATTEMPTS, [unrun, follower])]), null);
   assert.equal(runnerReruns([run(5, 1, [unrun]), run(6, 1, [ran("lint", "failure")])]), null);
   assert.equal(runnerReruns([]), null);
 
-  // Main's CI red on the runner is rerun past its once-only retry, up to the bound; a code red is not.
   const head = (attempt, fault) => [{ ...mainRun({ id: 3, sha: "c2", created: 10, conclusion: "failure", attempt, job: "verify on macOS" }), fault },
     mainRun({ id: 1, sha: "c0", created: -20 })];
   const again = judge({ main: head(2, "verify on macOS: no runner took it") });
@@ -129,7 +114,6 @@ async function box(t, { judged, release: latest = release } = {}) {
     waitHolds: async (id) => held.has(id),
     raise: async (brief) => { questions.push(brief); open.add("question_r"); return "question_r"; },
     startFix: async (fix) => { fixes.push(fix); const pid = 2000 + fixes.length; live.add(pid); return { pid, log: `/lanes/release-fix-${fix.n}.log` }; },
-    // What a restart finds of a session it may have started: its log, and its pid while it runs (4.59).
     startedAs: async ({ name }) => {
       const i = fixes.findIndex((fix) => name === `release-fix-${fix.stamp}-${fix.n}`);
       return i < 0 ? undefined : { ...(live.has(2001 + i) ? { pid: 2001 + i } : {}), log: `/lanes/release-fix-${fixes[i].n}.log` };
@@ -160,7 +144,6 @@ test("4.17 · a release alarm starts one fix session per stop, quiet while it or
   const name = /session name "(Releases stopped since [^"]+)"/.exec(b.fixes[0].brief)[1];
   assert.ok(name.length <= 40, name);
 
-  // One per stop: none while the session lives, none while the pull request it recorded is with the watcher.
   await watchReleases(b.options);
   assert.equal(b.fixes.length, 1);
   b.live.clear();
@@ -170,7 +153,6 @@ test("4.17 · a release alarm starts one fix session per stop, quiet while it or
   await watchReleases(b.options);
   assert.equal(b.fixes.length, 1);
 
-  // The pull request merged and releases are still stopped: a second session, then the owner is asked once.
   await rm(join(b.dir, "77.json"));
   await watchReleases(b.options);
   assert.equal(b.fixes.length, 2);
@@ -181,7 +163,6 @@ test("4.17 · a release alarm starts one fix session per stop, quiet while it or
   assert.equal(b.questions.length, 1);
   assert.match(b.questions[0].statement, /https:\/\/ci\/run\/50/);
 
-  // Settled, the alarm may start a session again; a new release ends the stop and forgets it.
   b.open.clear();
   await watchReleases(b.options);
   assert.equal(b.fixes.length, 3);
@@ -200,7 +181,6 @@ test("4.17 · an outside stop the fix session parks on an event wait keeps the a
   assert.match(b.fixes[0].brief, /--for event --note/, "the brief routes an outside stop to an event wait");
   assert.match(b.fixes[0].brief, /release-fix --wait <increment>/);
 
-  // The session parked the stop on an event wait, recorded it and ended: no second session and no question while it holds.
   b.live.clear();
   const outs = [];
   assert.equal(await main(["release-fix", "--wait", "increment_outage"], { dir: b.dir, out: (line) => outs.push(line) }), 0, outs.join("\n"));
@@ -211,14 +191,12 @@ test("4.17 · an outside stop the fix session parks on an event wait keeps the a
   assert.equal(b.fixes.length, 1);
   assert.equal(b.questions.length, 0);
 
-  // Its wait cleared or its check-back passed with releases still stopped: the alarm starts sessions again, counted afresh.
   b.held.clear();
   await watchReleases(b.options);
   assert.equal(b.fixes.length, 2);
   assert.equal(b.fixes[1].n, 1);
   assert.ok(b.lines.some((line) => /increment_outage's wait no longer holds/.test(line)));
 
-  // Waited out: the next release ends the stop and closes the parked increment, so the pool never takes it up.
   b.live.clear();
   await main(["release-fix", "--wait", "increment_outage"], { dir: b.dir, out: () => {} });
   b.held.add("increment_outage");
@@ -229,14 +207,12 @@ test("4.17 · an outside stop the fix session parks on an event wait keeps the a
   assert.match(close[7], /v0\.3\.1356 published/);
   await assert.rejects(readFile(join(b.dir, "release.json"), "utf8"), { code: "ENOENT" });
 
-  // Whether a wait holds, read as the library does: an owner wait until cleared, an event wait until its check-back day.
   const event = (checkBack) => ({ status: "proposal", waitsFor: [{ releaser: "event", note: "GitHub Actions recovers", checkBack }] });
   assert.equal(waitHolding(event("2026-10-14"), "2026-10-13"), true);
   assert.equal(waitHolding(event("2026-10-13"), "2026-10-13"), false, "from its check-back day it no longer holds");
   assert.equal(waitHolding({ status: "active", waitsFor: [{ releaser: "owner", note: "set the secret", why: "a signed build" }] }, "2026-10-13"), true);
   assert.equal(waitHolding({ ...event("2026-10-14"), status: "closed" }, "2026-10-13"), false);
   assert.equal(waitHolding({ status: "proposal" }, "2026-10-13"), false);
-  // Read from the library's command line; an increment it cannot read holds nothing.
   const library = (fields) => async ([, , id, , field]) => { if (!(id in fields)) throw new Error(`no record "${id}"`); return `${fields[id][field] ?? ""}\n`; };
   const fields = { increment_outage: { status: "proposal", waitsFor: JSON.stringify(event("2026-10-14").waitsFor) }, increment_open: { status: "active" } };
   assert.equal(await readWait(library(fields), "increment_outage", "2026-10-13"), true);
@@ -244,7 +220,6 @@ test("4.17 · an outside stop the fix session parks on an event wait keeps the a
   assert.equal(await readWait(library(fields), "increment_gone", "2026-10-13"), false);
   assert.equal(await readWait(async () => { throw new Error("no record"); }, "increment_gone", "2026-10-13"), false);
 
-  // The command records each thing a session leaves under its own name; with no stop recorded there is nothing to attach it to.
   const left = await box(t, { judged: { reruns: [], alarm } });
   assert.equal(await main(["release-fix", "--wait", "increment_outage"], { dir: left.dir, out: () => {} }), 1);
   await watchReleases(left.options);
@@ -271,7 +246,6 @@ test("4.27 · each rerun the watcher starts is recorded as a ci-rerun line namin
   assert.deepEqual(told, [], "a rerun GitHub refused started nothing to record");
   assert.match(b.lines.at(-1), /the rerun was refused \(HTTP 403\)/);
 
-  // The library refusing the line costs the rerun nothing: it is said, and the look goes on.
   b.options.rerun = async () => {};
   b.options.storytree = async () => { throw new Error("library unreachable"); };
   await watchReleases(b.options);
@@ -316,7 +290,6 @@ test("4.59 · a watcher killed while it starts a release fix session finds on re
   assert.deepEqual(c.fixes.map((fix) => fix.n), [1], "it starts once the restart finds it never did");
   assert.ok(c.lines.some((line) => /fix session 1 never started before the watcher stopped/.test(line)), c.lines.join("\n"));
 
-  // The waited increment's close is taken while the stop is still on disk, so a watcher stopped before it closes it on restart.
   const d = await box(t, { judged: { reruns: [], alarm: null }, release: { ...release, tag: "v0.3.1356" } });
   await writeFile(join(d.dir, "release.json"), JSON.stringify({ stop: "v0.3.1355", fixes: [], fixing: null, wait: "increment_outage" }));
   const kept = [];
@@ -351,8 +324,6 @@ test("4.62 · a watcher killed while it raises a release stop's owner question a
   assert.equal(c.questions.length, 1, "it asks once the restart finds it never did");
   assert.equal(JSON.parse(await readFile(join(c.dir, "release.json"), "utf8")).question, "question_r");
 
-  // The live lookup adopts only the question raised under that title on the release arc since the intent; an older one
-  // under the same title, a stop before, is never taken.
   const records = { question_old: "2026-11-14T09:59:59.000Z", question_new: "2026-11-14T10:00:01.000Z" };
   const asked = [];
   const storytree = async (args) => {

@@ -1,7 +1,6 @@
-/** Capability 15 · Sharing controls. */
+// Capability 15 · Sharing controls.
 import type { JourneyBridge, JourneyState } from "./bridge.js";
 
-/** Story-owned surfaces; the app frame supplies only hosts and the local bridge. */
 export function mountJourneySettings(host: HTMLElement, bridge: JourneyBridge) {
   return mount(host, bridge, false);
 }
@@ -16,7 +15,6 @@ function mount(host: HTMLElement, bridge: JourneyBridge, firstLaunch: boolean) {
   doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
   const panel = doc.createElement("section");
   panel.className = `journey-panel${firstLaunch ? " journey-consent" : ""}`;
-  // The first launch's consent is a canvas of its own, over the page (journeyNamedSurfaces); in Sharing it is the tab's.
   if (firstLaunch) Object.assign(panel.dataset, { surfaceId: "journey-consent", surfaceLayer: "overlay" });
   panel.setAttribute("aria-label", firstLaunch ? "Choose journey sharing" : "Journey sharing");
   panel.hidden = true;
@@ -66,7 +64,6 @@ function mount(host: HTMLElement, bridge: JourneyBridge, firstLaunch: boolean) {
       render();
     } catch {
       if (stopped || revision !== mine) return;
-      // A failed read never claims consent or prevents the app from being used.
       if (!firstLaunch) { panel.hidden = !opened; error.textContent = "Sharing settings could not be read. Reopen Sharing to retry."; error.hidden = false; }
     }
   }

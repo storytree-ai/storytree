@@ -1,4 +1,3 @@
-/** Keys 1.5: `storytree auth` saves a key from standard input, lists names only, and removes one, offline (ADR-0843). */
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

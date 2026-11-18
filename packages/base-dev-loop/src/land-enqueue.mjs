@@ -1,43 +1,15 @@
-// Capability 5 · The merge queue's CI scripts. Whether land.yml tries a refused merge-queue enqueue again.
-//
-// GitHub can refuse the enqueue after this run's `verify` passed on the very commit, before it has
-// taken the result in, with wordings that name required checks as not yet passed:
-// `Required status check "verify" is in progress` (PR #681), `... is queued` (PR #1589, and PR #1684
-// run 39795272167, refused for 75 s before a later run got in after about 67 s more), `... is
-// expected` (PR #1684's re-run), or `2 of 2 required status checks have not succeeded` with every
-// check green (PR #1589 run 39284191451). Those alone are retried, for RETRY_WINDOW_SECONDS from the
-// first try; any other refusal, or the same ones past the window, stops the job.
-//
-// A failed enqueue can still have enqueued the pull request: on PR #403 (run 41814666825) gh got an
-// HTML page, not JSON, back (`invalid character '<' ...`) and GitHub had queued it in that run. So
-// the job reads the pull request's merge-queue entry after every failure: an entry means it is
-// enqueued, whatever the reply said. A reply that will not parse, with no entry, is retried like the
-// refusals above, and so is GitHub's transient GraphQL error `Something went wrong while executing
-// your query` (PR #706 run 42848031894: every check green, and re-running the job enqueued it).
-//
-// Command line, for the land job: `node land-enqueue.mjs <seconds since the first try> [<the pull
-// request's mergeQueueEntry state, empty if none>]` with the reply on stdin; it prints what it
-// decided and exits 0 to try again, 1 to stop, 2 when the pull request is already in the queue.
+// Capability 5 · The merge queue's CI scripts
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-/** Five minutes: four times the 75 s that PR #1684 outlasted, and inside the job's 8-minute timeout. */
 export const RETRY_WINDOW_SECONDS = 300;
 
 const NOT_YET_READ = /Required status check "[^"]+" is (in progress|queued|expected)|required status checks? (has|have) not succeeded/;
 
-/** What gh says when GitHub's reply is not JSON (an HTML error page). */
 const UNPARSEABLE = /invalid character '<' looking for beginning of value|unexpected end of JSON input/;
 
-/** GitHub's transient GraphQL failure, which a later try gets past. */
 const WENT_WRONG = /Something went wrong while executing your query/;
 
-/**
- * @param {string} refusal what GitHub answered the enqueue
- * @param {number} elapsedSeconds seconds since the first try
- * @param {string} [queueState] the pull request's mergeQueueEntry state read after the failure, empty if none
- * @returns {{ retry: boolean, enqueued: boolean, reason: string }}
- */
 export function enqueueDecision(refusal, elapsedSeconds, queueState = "") {
   if (queueState) {
     return {

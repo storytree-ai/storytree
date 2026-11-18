@@ -13,7 +13,6 @@ import { requireApproval, setLibrary } from "@storytree/project-and-caller";
 import { setUpProject } from "./making.js";
 import { addProject, deleteProject, markerNamed, projectFolder, projectsOnThisComputer, removeProject, whoLoses, type ProjectRecords } from "./index.js";
 
-/** The test Postgres `pnpm test` starts; each project made here is dropped afterwards. */
 async function testLibrary(t: { after(fn: () => Promise<void>): void }, projects: string[]): Promise<Storytree> {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
@@ -153,9 +152,9 @@ test("3.6 deleting a project drops its records for every machine once its name i
     assert.ok(await still(), "a refusal deletes nothing");
   };
   await refused({ confirm: "downloads" }, /type/i);
-  await refused({ confirm: name }, /in use/i); // the app on this computer shows it
+  await refused({ confirm: name }, /in use/i);
   writeFileSync(path.join(home, "project-choice.json"), JSON.stringify({ current: shown }));
-  await refused({ confirm: name, inUse: name }, /in use/i); // the folder a command runs in is its
+  await refused({ confirm: name, inUse: name }, /in use/i);
   await refused({ confirm: name }, new RegExp(`${session}.*building|building.*${session}`));
   await log.append(name, { session, source: "tool", kind: "released", capability: `capability_${token}` });
 
@@ -188,7 +187,6 @@ test("3.6 a deleted project leaves no activity rows behind, nor the records the 
   await log.append(name, { session: `old-${token}`, source: "tool", kind: "claimed", capability: `capability_${token}`, reason: "left behind" });
   await log.append(name, { session: `old-${token}`, source: "tool", kind: "released", capability: `capability_${token}` });
   await log.transcripts.store(name, `old-${token}`, [{ part: "", start: 0, finish: 3, record: "{}\n" }]);
-  // A part's records kept outside the library, as a mounted part's manifest contributes them (a plugin's QA ledger).
   const kept = new Map([[name, 1], [shown, 1]]);
   const projectRecords: ProjectRecords[] = [{ name: "a part's rows", forget: async (server, project) => { assert.equal(server, library); kept.delete(project); } }];
   assert.equal((await removeProject(name, { home: other, library })).status, "removed", "another computer hid it");
@@ -198,7 +196,7 @@ test("3.6 a deleted project leaves no activity rows behind, nor the records the 
   assert.deepEqual((await log.since(name, 0)).lines, [], "its lines go with it");
   assert.equal(await log.transcripts.text(name, `old-${token}`), undefined, "and its transcripts");
   assert.deepEqual([...kept.keys()], [shown], "and the rows a mounted part keeps for it, and no other project's");
-  projectsOnThisComputer(await library.projectIdentities(), other); // the other computer's app lists its projects
+  projectsOnThisComputer(await library.projectIdentities(), other);
 
   assert.equal((await addProject(path.join(dir, "second"), name, { home, library })).status, "set up");
   assert.ok(projectsOnThisComputer(await library.projectIdentities(), other).includes(name), "the new project of that name is shown there");
@@ -218,7 +216,7 @@ test("3.6 a new project of a deleted one's name inherits nothing: not the lines 
   assert.equal((await deleteProject(name, { home, library, snapshot: false, confirm: name })).status, "deleted");
   const log = await openActivityLog(library);
   t.after(() => log.close());
-  await log.append(name, { session: `stale-${token}`, source: "hook", kind: "session-started" }); // an older install's hook, in a folder still naming it
+  await log.append(name, { session: `stale-${token}`, source: "hook", kind: "session-started" });
 
   assert.equal((await addProject(path.join(dir, "second"), name, { home, library })).status, "set up");
   assert.deepEqual((await log.since(name, 0)).lines, [], "the new project starts with no lines");

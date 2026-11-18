@@ -1,10 +1,9 @@
-/** Capability 3 · First-run guide. */
+// Capability 3 · First-run guide.
 import type { SetupHelpBridge } from "../help/bridge.js";
 import { sayProjectGone } from "./add-project.js";
 
 type Removal = { removed: string | null; kept?: string } | { failed: string };
 
-/** Take the project on show off this computer's list, then let the frame refresh; nothing on show removes nothing. */
 export async function removeCurrentProject(bridge: Pick<SetupHelpBridge, "removeProject">, options: { current(): string | undefined; onRemoved(project: string): Promise<void> }): Promise<Removal> {
   const project = options.current();
   if (project === undefined) return { removed: null };
@@ -18,10 +17,6 @@ export async function removeCurrentProject(bridge: Pick<SetupHelpBridge, "remove
   }
 }
 
-/**
- * Remove project, in the app menu's Projects section beside Add project: offers to take the project
- * on show off this computer's list. A quiet button asks in place first; the records stay in the library.
- */
 export function mountRemoveProject(host: HTMLElement, bridge: Pick<SetupHelpBridge, "removeProject">, options: { current(): string | undefined; onRemoved(project: string): Promise<void> }): { stop(): void; refresh(): void } {
   const root = document.createElement("div");
   root.className = "setup-help setup-remove-project";

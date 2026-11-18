@@ -1,11 +1,10 @@
-/** Capability 1 · Get storytree. */
+// Capability 1 · Get storytree
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import type { Architecture } from "./payload.js";
 
-/** A pinned Node runtime: the downloaded file's hash, and for an archive the entry to extract and that executable's hash. */
 export interface Runtime {
   readonly url: string;
   readonly sha256: string;
@@ -13,8 +12,6 @@ export interface Runtime {
   readonly executableSha256?: string;
 }
 
-// Pinned release + hashes from https://nodejs.org/dist/v24.22.3/SHASUMS256.txt.
-// The runtime travels with the app release; the bootstrap never installs a global Node.
 export const NODE_VERSION = "24.22.3";
 const hashes: Record<Architecture, string> = {
   x64: "86fc4785327db5f5c7558dc6156c543b433c313e813a222e088086222ab4afa6",
@@ -24,7 +21,6 @@ export function windowsRuntime(arch: Architecture): Runtime {
   return { url: `https://nodejs.org/dist/v${NODE_VERSION}/win-${arch}/node.exe`, sha256: hashes[arch] };
 }
 
-/** Apple Silicon only (decision_dfb6e40aa9f7). The executable's hash was measured from the pinned archive's bin/node. */
 export function macRuntime(arch: Architecture): Runtime & { entry: string; executableSha256: string } {
   if (arch !== "arm64") throw new Error("storytree on macOS supports Apple Silicon (arm64) only");
   const name = `node-v${NODE_VERSION}-darwin-arm64`;
@@ -36,7 +32,6 @@ export function macRuntime(arch: Architecture): Runtime & { entry: string; execu
   };
 }
 
-/** x64 Linux only (arc_38613dac8d7c). The executable's hash was measured from the pinned archive's bin/node. */
 export function linuxRuntime(arch: Architecture): Runtime & { entry: string; executableSha256: string } {
   if (arch !== "x64") throw new Error("storytree on Linux supports x64 only");
   const name = `node-v${NODE_VERSION}-linux-x64`;
@@ -69,7 +64,6 @@ export async function stageRuntime(file: string, runtime: Runtime, download: typ
   } finally { rmSync(temp, { force: true }); }
 }
 
-/** One regular file's bytes from a ustar/pax/GNU tar, as Node's release archives are. */
 function tarEntry(tar: Buffer, wanted: string): Buffer {
   const text = (start: number, length: number) => tar.toString("utf8", start, start + length).replace(/\0.*$/s, "");
   let longName: string | undefined;

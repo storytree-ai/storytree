@@ -1,8 +1,4 @@
-/**
- * Capability 1 · Work states (the arc surface story), at part grain: one state for each part, from
- * the agent activity log's claimed and landed lines, and one for each story, from its parts. The
- * log's lines are written out here as the log hands them out, so no database is needed.
- */
+// Capability 1 · Work states.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -10,7 +6,6 @@ import type { Line, NewLine } from "@storytree/library";
 
 import { keptWorkStates, workStates } from "./work-states.js";
 
-/** A project's agent activity log, as linesSince hands it out. */
 class Log {
   readonly lines: Line[] = [];
 

@@ -1,7 +1,4 @@
-// Capability 13 · Reading a command (ADR-1035 D2): the command line reads a declared verb's words and flags to the same
-// input the MCP server reads its tool's arguments to, refuses the same wrong input, and the verb does the same work and
-// answers in the same sentence for either door. The verbs are this test's own, one of them on a context its declaring
-// story extends, besides the declared `release pin` and the session verbs.
+// Capability 13 · Reading a command
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -24,7 +21,6 @@ function given(words: readonly string[], flags: Readonly<Record<string, string |
   return { word: (index: number) => words[index], flag: (name: string) => all(name).at(-1), flags: all, has: (name: string) => name in flags, names: () => Object.keys(flags) };
 }
 
-/** The declaring story's own context: what its verbs need beyond the caller, here a tally the work writes to. */
 interface TallyContext extends VerbContext {
   readonly tally: string[];
 }
@@ -65,7 +61,6 @@ test("13.1 · a verb declared once reads a command's words and flags and a tool'
   assert.deepEqual(fromCommand, fromTool);
   assert.deepEqual(fromTool, { tree: "oak", water: true, label: "by the gate", quiet: false });
 
-  // Wrong input is refused on both doors, as a misuse the command line shows its usage for.
   for (const refused of [
     () => commandInput(plant, given([], { water: "yes", label: "x" })),
     () => commandInput(plant, given(["oak"], { water: "maybe", label: "x" })),
@@ -74,7 +69,6 @@ test("13.1 · a verb declared once reads a command's words and flags and a tool'
     () => toolInput(plant, { tree: "  ", water: true, label: "x" }),
   ]) assert.throws(refused, (error: unknown) => error instanceof VerbRefusal && error.misuse);
 
-  // A door that does not mount a verb says why, and the other still does.
   assert.equal(mounted(sweep.tool), false);
   assert.equal("absent" in sweep.tool && sweep.tool.absent, "an agent has no broom");
   assert.equal(commandUsage(sweep), "garden sweep");
@@ -87,17 +81,14 @@ test("13.1 · a verb declared once reads a command's words and flags and a tool'
   assert.equal(byCommand.text, "Planted oak (by the gate), watered for claude-1.");
   assert.equal(byTool.text, byCommand.text);
   assert.deepEqual(tally, ["claude-1:oak", "claude-1:oak"], "the same work, once for each door");
-  // Each door names the step it offers next in its own terms.
   assert.equal(byCommand.next?.[0]?.why, "see it: storytree garden show");
   assert.equal(byTool.next?.[0]?.why, "see it: show_garden");
   assert.equal((await sweep.act({}, context, DOORS.command)).text, "Swept for p.");
 
-  // A refusal from the work is the verb's own, on either door, and is not a misuse.
   for (const door of [DOORS.command, DOORS.tool]) {
     await assert.rejects(plant.act({ tree: "weed", water: false, label: "x", quiet: false }, context, door), (error: unknown) => error instanceof VerbRefusal && !error.misuse && error.message === "a weed is not planted");
   }
 
-  // Session management's declared verbs read the same on both doors.
   const tool = (name: string) => SESSION_VERBS.find((one) => mounted(one.tool) && one.tool.name === name)!;
   const close = tool("close_out");
   assert.equal(commandUsage(close), "session close-out --safe yes|no --why <why>");
@@ -133,7 +124,6 @@ test("13.2 · a text input marked optional may be left out on either door and re
   assert.deepEqual(left, toolInput(prune, { tree: "oak" }));
   assert.deepEqual(left, { tree: "oak", to: undefined, by: undefined });
   assert.deepEqual(commandInput(prune, given(["oak"], { to: " 2m " })), toolInput(prune, { tree: "oak", to: "2m" }));
-  // Given, it is still refused when it says nothing, on both doors.
   for (const refused of [() => commandInput(prune, given(["oak"], { to: " " })), () => toolInput(prune, { tree: "oak", to: " " })]) {
     assert.throws(refused, (error: unknown) => error instanceof VerbRefusal && error.misuse);
   }
@@ -200,10 +190,8 @@ test("13.5 · a word past the ones a verb takes, or a flag it does not take, is 
   const stray = refusal(["openai", "sk-secret"], {});
   assert.doesNotMatch(stray.message, /sk-secret/, "a stray word is never echoed: it may be the key");
   assert.match(refusal(["openai"], { key: "sk-secret" }).message, /^--key is not a flag this takes$/);
-  // A word input is not also a flag, and a verb that takes nothing takes no word.
   assert.match(refusal(["openai"], { name: "x" }).message, /--name/);
   assert.throws(() => commandInput(sweep, given(["extra"], {})), (error: unknown) => error instanceof VerbRefusal && error.misuse && !error.message.includes("extra"));
-  // A verb words its own refusal through its usage: auth set's standard input.
   assert.equal(commandUsage(keep), "keys set <name> (its key on standard input)");
 
   assert.equal(keep.callerless, true);
@@ -212,7 +200,6 @@ test("13.5 · a word past the ones a verb takes, or a flag it does not take, is 
   const lag = verb({ command: { family: "lag", name: "lag", summary: "the lag readings" }, tool: { absent: "the desktop's own" }, inputs: { days: { kind: "text", optional: true, describe: "how many days" } }, callerless: true, async act() { return { text: "" }; } });
   assert.equal(commandUsage(lag), "lag [--days <days>]");
 
-  // The app's declared `release pin` refuses a missing version and a stray word before its act could publish anything.
   const pin = RELEASE_FAMILIES[0]!.verbs.find((each) => mounted(each.command) && each.command.name === "pin")!;
   assert.equal(commandUsage(pin), "release pin <0.3.n> [--preview] [--back | --expedited <why>]");
   assert.throws(() => commandInput(pin, given([], {})), (error) => error instanceof VerbRefusal && error.misuse && error.message === "this needs <version>: the owner's chosen release");

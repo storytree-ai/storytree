@@ -1,6 +1,4 @@
-/** Capability 3 · Story node render: the real forest view, in Chrome, says when it has painted the scene on show (3.75), and
- * draws an arc's open work on an edge's contracts, and none, without a fault (3.92), and says why a map read with no stories is
- * empty (3.107), and that the Library's loading bar leaves once its notes are hung (3.116). */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import path from "node:path";
 import { after, test } from "node:test";
@@ -9,8 +7,6 @@ import { chromium, type Browser, type BrowserServer } from "playwright-core";
 import { endChrome } from "./end-chrome.js";
 import { quietFor, scaled } from "@storytree/test-waits";
 
-/** The forest view opened on a two-story plan, the first's two capabilities joined by an edge holding a contract; `__show()`
- * hands it the plan again, `__showEmpty()` a read with no stories, `__guided` counts its first-run guide opened, `__circle(capabilities, contracts)` is its circle(), and `__drawn(ms)` is its drawn(), given up after `ms`; `__library` set before it loads offers the Library, its loading bar due at once. */
 function viewBundle(): Promise<string> {
   return bundled ??= bundleView();
 }
@@ -46,14 +42,10 @@ async function bundleView(): Promise<string> {
   return result.outputFiles[0]!.text;
 }
 
-/** One browser for the file, launched on first use; each test opens its page in a context of its own. */
 let server: Promise<BrowserServer> | undefined;
 let launched: Promise<Browser> | undefined;
-// Ended without waiting on Chrome's pipes, which a loaded Windows runner left open after the last test, so the file never exited
-// (PR #695, then PR #720 when awaiting the server's kill hung the same way; 3.100).
 after(async () => { endChrome(await server, await launched); });
 async function freshPage(t: { after(run: () => Promise<void>): void }) {
-  // Chrome is installed on the three CI runner images; no browser download during tests.
   server ??= chromium.launchServer({ channel: "chrome", headless: true });
   launched ??= server.then(running => chromium.connect(running.wsEndpoint()));
   const page = await (await launched).newPage({ viewport: { width: 800, height: 600 } });
@@ -68,11 +60,9 @@ test("3.75 · the globe says when it has painted a frame of the scene on show, i
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
   await page.addScriptTag({ content: await viewBundle() });
   await page.waitForFunction(() => (window as unknown as Page).__ready === true, undefined, { timeout: 60_000 });
-  // A loaded Windows runner paints its first frame in software, slower than Linux by the environment's factor (ADR-1156).
   const frame = scaled(20_000);
   await page.evaluate(ms => { const win = window as unknown as Page; win.__show(); return win.__drawn(ms); }, frame);
   assert.ok(await page.evaluate(() => document.querySelector("#map canvas") !== null), "the globe is on the page once its scene is drawn");
-  // The same plan again is a scene equal to the one on show: it is drawn as soon as that one's frame is.
   await page.evaluate(ms => { const win = window as unknown as Page; win.__show(); return win.__drawn(ms); }, frame);
   assert.equal(await page.evaluate(() => (window as unknown as Page).__painted), 2);
 });
@@ -97,7 +87,6 @@ test("3.92 · the forest view draws an arc's open work on an edge's contracts, a
 test("3.107 · the map says why it is empty once a read finds no stories, its button opens the first-run guide, and it goes when stories arrive", async t => {
   const page = await freshPage(t);
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
-  // The forest's own stylesheet, as the app loads it: the box is placed over the canvas by it.
   await page.addStyleTag({ path: path.join(import.meta.dirname, "styles.css") });
   await page.addScriptTag({ content: await viewBundle() });
   await page.waitForFunction(() => (window as unknown as Page).__ready === true, undefined, { timeout: 60_000 });
@@ -107,7 +96,6 @@ test("3.107 · the map says why it is empty once a read finds no stories, its bu
   await page.evaluate(ms => { const win = window as unknown as Page; win.__showEmpty(); return win.__drawn(ms); }, scaled(20_000));
   await box.waitFor({ timeout: 10_000 });
   assert.match(await box.innerText(), /Nothing on the map yet/);
-  // News that changes nothing on show leaves the box as it is: no node of it is replaced, rewritten or restyled.
   await page.evaluate(() => {
     const shown = document.querySelector("#map .forest-empty-map")!;
     const win = window as unknown as Page & { __boxChanged: () => boolean };
@@ -136,7 +124,6 @@ test("3.116 · pressing Library shows its loading bar while its notes are being 
   await page.addScriptTag({ content: await viewBundle() });
   await page.waitForFunction(() => (window as unknown as Page).__ready === true, undefined, { timeout: 60_000 });
   await page.evaluate(ms => { const win = window as unknown as Page; win.__show(); return win.__drawn(ms); }, scaled(20_000));
-  // The bar is due at once here, so it shows before the notes' first layout lands; a watcher notes it, however briefly it stays.
   await page.evaluate(() => {
     const win = window as unknown as { __barShown: boolean };
     win.__barShown = false;
@@ -145,7 +132,6 @@ test("3.116 · pressing Library shows its loading bar while its notes are being 
   });
   await page.locator("#map [data-globe-switch=library]").click();
   await page.waitForFunction(() => (window as unknown as { __barShown: boolean }).__barShown, undefined, { timeout: scaled(10_000) });
-  // A bar never told the notes are hung would stay.
   await page.waitForFunction(() => document.querySelector("#map .forest-library-progress") === null, undefined, { timeout: scaled(20_000) });
   assert.deepEqual(faults, [], "the Library opened with no error");
 });

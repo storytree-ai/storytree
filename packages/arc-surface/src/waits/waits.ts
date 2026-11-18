@@ -1,8 +1,7 @@
-/** Capability 4 · Waits: give the library's holding waits names and a queue shape, without rejudging them. */
+// Capability 4 · Waits.
 import type { Hold } from "@storytree/library";
 import type { ArcState, IncrementState } from "../work-states/board-states.js";
 
-/** A wait as the queue reads it: `arc` is set when it waits on an increment, naming that increment's arc. */
 export interface ArcWait extends Hold {
   title?: string;
   arc?: { id: string };
@@ -11,9 +10,7 @@ export interface QueueArc {
   id: string;
   title: string;
   state: ArcState;
-  /** The arc's own waits, or for a queued arc its increments' waits. */
   waits: readonly ArcWait[];
-  /** Its increments, read only when the arc is queued (ADR-0760 D1). */
   bars?: readonly { reading: { state: IncrementState }; waits: readonly ArcWait[] }[];
 }
 export interface ArcQueue {
@@ -26,7 +23,6 @@ export interface QueueChip {
   hidden: number;
   otherWaits: number;
   reasons: string[];
-  /** The increments it waits on in the arc it is queued behind; empty for an arc-level wait. */
   waitsOn: string[];
 }
 export interface QueueRun {
@@ -37,9 +33,6 @@ export interface QueueRun {
 const blocker = (wait: ArcWait) => wait.arc?.id ?? wait.on;
 const blockers = (arc: QueueArc) => [...new Set(arc.waits.map(blocker))];
 
-/** `arcs` is already sorted and limited to the selected lifecycle. Off-scope blockers hide nothing.
- * An arc folds under one visible blocker: the first in board order. A queued arc folds only when
- * every open increment waits on another visible arc. A cycle is cut at its first arc in board order. */
 export function arcQueues(arcs: readonly QueueArc[]): ArcQueue[] {
   const order = new Map(arcs.map(({ id }, index) => [id, index]));
   const onBoard = (id: string, self: QueueArc) => id !== self.id && order.has(id);
@@ -64,7 +57,6 @@ export function arcQueues(arcs: readonly QueueArc[]): ArcQueue[] {
   return arcs.filter(({ id }) => !parents.has(id)).map(build);
 }
 
-/** Hoist a linear queue; stop at its first branch, whose depth remains visible as +N. */
 export function queueRun(queue: ArcQueue): QueueRun {
   const chip = ({ arc }: ArcQueue, behind: string, hidden: number): QueueChip => ({
     id: arc.id, title: arc.title, hidden,
@@ -98,11 +90,9 @@ export interface BoardWaits {
   heldUpBy(id: string): (WorkName & { reason: string })[];
 }
 
-/** Names come from the same project read; holding and permanence come only from waitHolds. */
 export function waitsOnBoard(work: readonly WorkName[], holds: ReadonlyMap<string, readonly Hold[]>): BoardWaits {
   const names = new Map(work.map((item) => [item.id, item]));
   const name = (id: string): WorkName => names.get(id) ?? { id, title: `${id} (missing)` };
-  // What each piece of work holds up, indexed once: a board asks it of every arc and increment (story node render 3.49).
   const holding = new Map<string, { waiting: string; reason: string }[]>();
   for (const [waiting, held] of holds) for (const { on, reason } of held) {
     const list = holding.get(on) ?? [];

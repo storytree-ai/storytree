@@ -1,4 +1,4 @@
-/** Capability 4 · Keeping the factory current, contracts 4.1 and 4.2: the factory pull, on a throwaway factory repository. */
+// Capability 4 · Keeping the factory current
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

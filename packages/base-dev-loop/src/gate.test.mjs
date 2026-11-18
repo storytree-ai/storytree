@@ -1,5 +1,3 @@
-// ADR-1170 D1, D2: the base dev loop's gate runs the project's typecheck and tests, then every step a part
-// contributes, in one PASS / FAIL / NOT RUN table, and an interrupted gate never reports a pass.
 import assert from "node:assert/strict";
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,9 +9,7 @@ import { removeTemp, waitUntil } from "@storytree/test-waits";
 import { contributedHold, runGate } from "./gate.mjs";
 
 const command = () => ({ command: process.execPath, args: [], shell: false });
-// Two contributed steps from one part, with nothing switched off.
 const composition = { parts: [{ name: "check:lint", command }, { name: "check:spelling", command }], owners: ["linter", "linter"], graph: { linter: [] } };
-// No factory plugin named for a part, whatever this computer's own settings name.
 const noStandIns = () => ({ folder: undefined, plugins: {} });
 const gate = (options) => runGate({ steps: async () => composition, partsOff: () => [], standIns: noStandIns, ...options });
 
@@ -61,8 +57,6 @@ test("1.2 interruption leaves the current and remaining checks NOT RUN and exits
 test("1.2 cancelling the foreground gate stops the typecheck process and its compiler descendant", { timeout: 60_000 }, async (t) => {
   const root = project(t);
   const write = (file, text) => writeFileSync(path.join(root, file), text);
-  // A package manager starting a compiler, as pnpm typecheck does. Use real processes here:
-  // a callback-only cancellation test cannot detect an abandoned compiler.
   write("manager.mjs", `
     import { spawn } from 'node:child_process';
     import { writeFileSync } from 'node:fs';
@@ -86,8 +80,6 @@ test("1.2 cancelling the foreground gate stops the typecheck process and its com
     for (const pid of pids) { try { process.kill(pid, "SIGKILL"); } catch {} }
   });
   const running = gate({ root, signal: controller.signal, log: () => {} });
-  // A pid file can exist before its pid is written, and an empty one reads as pid 0, which
-  // process.kill takes as this process (Windows) or its group (Unix): wait for a real pid.
   const pidIn = (file) => existsSync(file) ? Number(readFileSync(file, "utf8")) : 0;
   for (const file of ["manager.pid", "compiler.pid"].map((name) => path.join(root, name))) {
     pids.push(await waitUntil(() => pidIn(file) > 0 && pidIn(file), 10_000, `a real pid in ${path.basename(file)}`));
@@ -96,7 +88,7 @@ test("1.2 cancelling the foreground gate stops the typecheck process and its com
   assert.equal(await running, 130);
   const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
   await waitUntil(() => !pids.some(alive), 10_000, `the typecheck children (${pids.join(", ")}) to exit after the gate completed`);
-  pids.length = 0; // seen gone, so never signalled: Windows can give a pid at once to another process (increment_bd97e464ae7a)
+  pids.length = 0;
 });
 
 test("1.4 a factory plugin's gate steps run where this computer names it, in its part's place or as a part it adds, and one that cannot be loaded is NOT RUN with why", async (t) => {
@@ -138,7 +130,6 @@ test("1.5 a run takes every run hold placed on this computer, in order, and its 
   const factory = project(t);
   const log = path.join(factory, "events");
   const events = () => readFileSync(log, "utf8").trim().split("\n");
-  // Each hold records its take and its release in one file, the plugin's from its own process-loaded module.
   const hold = (name) => ({ name, take: async ({ what }) => (appendFileSync(log, `take ${name} for ${what}\n`), () => appendFileSync(log, `release ${name}\n`)) });
   const composition = { parts: [hold("base lock"), hold("quiet lock")], owners: ["locker", "quiet"], graph: { locker: [], quiet: [] } };
   const plugin = (name, body) => {

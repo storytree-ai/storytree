@@ -1,7 +1,4 @@
-/**
- * Capability 3 · First-run guide and capability 12 · Import an existing project: the `project` and `import` verbs the app
- * setup declares for the command line, refusing before they reach any library.
- */
+// Capability 3 · First-run guide and capability 12 · Import an existing project.
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import path from "node:path";

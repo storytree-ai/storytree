@@ -1,20 +1,14 @@
-/**
- * Capability 2 · Settings, contract 2.18: `settings set system <name> on|off` and the system `settings show` lists
- * (ADR-1092 D2). The roles, checks and notes switched off here are left out of what an agent reads through the command
- * line and the tool server; the library decides each record from these names (Project libraries 1.21).
- */
+// Capability 2 · Settings
 import { VerbRefusal } from "@storytree/library/verbs";
 
 import { storytreeHome } from "../routing/index.js";
 import { setSystemSwitch, type SystemSwitches } from "./settings.js";
 
-/** Switch the system named `name` on or off for this computer, and return what is now off and on. A state but on or off is refused, saving nothing. */
 export function switchSystem(name: string, state: string, home: string = storytreeHome()): SystemSwitches {
   if (state !== "on" && state !== "off") throw new VerbRefusal(`the system is switched on or off, not ${JSON.stringify(state)}`, { misuse: true });
   return setSystemSwitch(name, state === "off", home);
 }
 
-/** What of the system is switched off and on, how a record is decided, and when a door takes a change. */
 export function systemSaid(switches: SystemSwitches): string {
   const head = "System of storytree (switch with `storytree settings set system <name> on|off`, the name all, roles, checks, notes, or a role's, check's or note's title or id; a record's own name beats its group, which beats all):";
   const state = switches.off.length === 0

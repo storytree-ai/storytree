@@ -1,7 +1,4 @@
-/**
- * Capability 18 · Built commands: contract 18.3, the file-to-capability lookup the hook command setup registers gives the gate
- * before each edit; contract 18.7, its language rule; contract 18.4, the hook command runs none of Session management's work while that part is switched off.
- */
+// Capability 18 · Built commands.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";

@@ -1,8 +1,4 @@
-/**
- * Capability 1 · Lifecycle, contracts 1.9 and 1.10 (ADR-0734 D1, ADR-0735 D4): where the app opens
- * its library follows the user's library setting. The local Postgres and connect() are handed in,
- * so the address path is shown without reaching a server: which is started, and what is connected.
- */
+// Capability 1 · Lifecycle
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -42,9 +38,7 @@ test("1.9 with the library set to a Postgres address, the app starts no local Po
   assert.equal(opened.storytree, connected);
   assert.equal(opened.postgres, undefined);
 
-  // Local, the app starts its own Postgres and connects to it, as before.
   setLibrary(["local"], home);
-  // Its url carries the installation's password: connect() is given it, the log's where never is.
   const local = await openAppLibrary({
     home,
     startLocal: async () => { started += 1; return { url: "postgres://postgres:s3cret-pass@127.0.0.1:1/postgres", stop: async () => {} }; },

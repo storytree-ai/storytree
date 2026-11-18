@@ -1,4 +1,4 @@
-// Capability 3: dropping a throwaway test database, against the server `pnpm test` starts.
+// Capability 3 · Dropping a throwaway test database
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import net from "node:net";
@@ -70,10 +70,8 @@ test("3.2 a drop propagates every other error at once", async () => {
   }
 });
 
-/** What a stand-in server does with one connection, once the client has sent its startup packet. */
 type Answer = "reset" | "full" | "through";
 
-/** A Postgres ErrorResponse refusing the connection for want of a slot, as the server sends it. */
 function tooManyClients(): Buffer {
   const fields = Buffer.concat([
     ...[["S", "FATAL"], ["V", "FATAL"], ["C", "53300"], ["M", "sorry, too many clients already"]]
@@ -85,11 +83,6 @@ function tooManyClients(): Buffer {
   return Buffer.concat([Buffer.from("E"), length, fields]);
 }
 
-/**
- * A stand-in for the test server on 127.0.0.1: the nth connection (from 1) is answered as
- * `answer(n)` says, and one let through is piped to the real test server. While `run` runs, the
- * drop's superuser url names the stand-in; it is restored afterwards.
- */
 async function throughStandIn(answer: (n: number) => Answer, run: () => Promise<void>): Promise<number> {
   const real = new URL(adminUrl());
   const sockets = new Set<net.Socket>();
@@ -127,7 +120,6 @@ async function throughStandIn(answer: (n: number) => Answer, run: () => Promise<
   return connections;
 }
 
-/** Make a database on the real test server for `run`, which is handed its name and a way to ask whether it still exists. */
 async function withDatabase(run: (name: string, exists: () => Promise<boolean>) => Promise<void>): Promise<void> {
   const name = testName();
   const admin = new pg.Client({ connectionString: adminUrl() });

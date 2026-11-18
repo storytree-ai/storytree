@@ -1,4 +1,4 @@
-/** Capability 1 · Project routing. Read the local-postgres producer's private connection handoff (contract 1.16). */
+// Capability 1 · Project routing
 import { execFileSync } from "node:child_process";
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, type Stats } from "node:fs";
 import path from "node:path";
@@ -12,22 +12,15 @@ export interface LocalOwner {
   auth?: unknown;
 }
 
-/** A connection failure only: callers must not confuse this with app liveness. No material is echoed. */
 export const HANDOFF_UNAVAILABLE = "storytree's local database credentials are unavailable or invalid; restart the storytree app to repair its connection handoff";
 
 type WindowsRefusal = "windows-acl-process" | "windows-acl-owner" |
   "windows-acl-inheritance" | "windows-acl-exposed" | "windows-acl-no-owner-grant" | "windows-acl-output";
 
-/** Only fixed reason codes cross discovery's error boundary; never attach the original cause. */
 export class HandoffPrivacyError extends Error {
   constructor(reason: WindowsRefusal) { super(`${HANDOFF_UNAVAILABLE} (${reason})`); }
 }
 
-/**
- * The signed-in url the producer's private handoff gives. Every local cluster asks for a password
- * (ADR-0941, ADR-0948), so a record without auth metadata is a missing handoff and refused like
- * any other: no failure becomes a passwordless url. See contract 1.16.
- */
 export function authenticatedLocalUrl(dataDir: string, owner: LocalOwner): string {
   const directory = `${path.resolve(dataDir)}.auth`;
   const auth = owner.auth;
@@ -43,8 +36,6 @@ export function authenticatedLocalUrl(dataDir: string, owner: LocalOwner): strin
     posixPrivate(dirStat, true);
     posixPrivate(fileStat, false);
     if (process.platform === "darwin") {
-      // macOS ACL grants can exceed mode bits. Refuse extended ACLs instead of assuming 0600
-      // means private. Linux's POSIX ACL mask is reflected in the group mode bits checked above.
       const listing = execFileSync("/bin/ls", ["-lde", directory, file], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 3000 });
       if (listing.split("\n").some((line) => /^[d-][rwxstST-]{9}\+|^\s*\d+: /.test(line))) throw new Error(HANDOFF_UNAVAILABLE);
     }
@@ -64,7 +55,6 @@ export function authenticatedLocalUrl(dataDir: string, owner: LocalOwner): strin
       typeof credentials.password !== "string" || credentials.password.length < 32 || credentials.password.length > 1024 || /[\x00-\x1f\x7f]/.test(credentials.password)) {
       throw new Error(HANDOFF_UNAVAILABLE);
     }
-    // Endpoint and database are fixed locally, never accepted from credential JSON.
     return `postgres://${encodeURIComponent(credentials.user)}:${encodeURIComponent(credentials.password)}@127.0.0.1:${owner.port}/postgres`;
   } finally { closeSync(fd); }
 }
@@ -77,17 +67,9 @@ function posixPrivate(stat: Stats, directory: boolean): void {
 const SYSTEM = "S-1-5-18";
 const ADMINISTRATORS = "S-1-5-32-544";
 
-// The identity of each handoff last proven private, by its directory. Changing a file's content or
-// access list moves its change time, and replacing it moves its file id, so an equal identity is the
-// same private pair and is not checked again. Only passes are kept: every refusal is re-checked.
 const provenPrivate = new Map<string, string>();
 const identity = (...stats: Stats[]) => stats.map((s) => `${s.dev}:${s.ino}:${s.size}:${s.mtimeMs}:${s.ctimeMs}:${s.birthtimeMs}`).join("|");
 
-/**
- * Check actual SIDs in the binary descriptors, not translated/localized icacls text or Windows' synthetic Unix mode.
- * Windows' own security calls answer in this process: a check that started programs (whoami, a script host)
- * waited on their cold start, which a loaded machine stretched past any deadline (CI, 2026-10-09 and 2026-10-14).
- */
 function windowsPrivate(directory: string, file: string, dirStat: Stats, fileStat: Stats): void {
   const proven = identity(dirStat, fileStat);
   if (provenPrivate.get(directory) === proven) return;
@@ -108,7 +90,6 @@ function windowsPrivate(directory: string, file: string, dirStat: Stats, fileSta
   provenPrivate.set(directory, proven);
 }
 
-/** The SID at `offset` in `bytes`, in its S-1-… form, and its length; a RangeError where it runs past the end. */
 function sidAt(bytes: Buffer, offset: number): { sid: string; length: number } {
   if (offset < 0 || offset + 8 > bytes.length) throw new RangeError("sid");
   const count = bytes[offset + 1]!;
@@ -118,7 +99,6 @@ function sidAt(bytes: Buffer, offset: number): { sid: string; length: number } {
   return { sid: `S-${bytes[offset]}-${authority}${subs.map((sub) => `-${sub}`).join("")}`, length: 8 + 4 * count };
 }
 
-/** Owner, protected DACL, no foreign allow, and a non-inherit-only grant to the owner, in that order. */
 function descriptorRefusal(sd: Buffer, sid: string): WindowsRefusal | undefined {
   if (sd.length < 20) return "windows-acl-output";
   const at = (offset: number, length: number) => {
@@ -132,7 +112,6 @@ function descriptorRefusal(sd: Buffer, sid: string): WindowsRefusal | undefined 
     if (sd[0] !== 1 || !(control & 0x8000)) return "windows-acl-output";
     if (ownerOffset === 0 || sidAt(sd, ownerOffset).sid !== sid) return "windows-acl-owner";
     if (!(control & 0x1000)) return "windows-acl-inheritance";
-    // An absent or null DACL grants everyone everything.
     if (!(control & 0x0004) || daclOffset === 0) return "windows-acl-exposed";
     const aceCount = sd.readUInt16LE(at(daclOffset, 8) + 4);
     let own = false;
@@ -141,8 +120,6 @@ function descriptorRefusal(sd: Buffer, sid: string): WindowsRefusal | undefined 
       const size = sd.readUInt16LE(offset + 2);
       if (size < 4) return "windows-acl-output";
       at(offset, size);
-      // Plain denies only narrow access. Any other kind of entry (object, callback, compound
-      // or unknown) is refused rather than interpreted.
       if (type === 0) {
         if (size < 16) return "windows-acl-output";
         const trustee = sidAt(sd, offset + 8);

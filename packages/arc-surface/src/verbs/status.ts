@@ -1,10 +1,4 @@
-/**
- * Capability 3 · Arc surface. `arc status`: one line per active arc, those moving first, each with its state and why
- * (contracts 3.13 and 3.14), for the session manager's per-run reading of which arcs move and why the others do not.
- * Every state is the board's own (`boardView`, from one read of the board's arcs and one of the holds, and the claims
- * standing in the activity log): this only sorts its lanes into Working, Landed, Ready, Waiting on you, Blocked and
- * Idle, and says why in words.
- */
+// Capability 3 · Arc surface.
 import { verb, VerbRefusal } from "@storytree/library/verbs";
 
 import { boardView, type Bar, type Lane } from "../board/board.js";
@@ -13,14 +7,12 @@ import { oversizedSaid } from "./arc-size.js";
 import { claimsReading } from "./claimed.js";
 import type { ArcVerbContext } from "./context.js";
 
-/** The states, strongest first: the order the lines print in. */
 const STATES = ["Working", "Landed", "Ready", "Waiting on you", "Blocked", "Idle"] as const;
 type Status = (typeof STATES)[number];
 
 const SPAN = /^(\d+)([mhd])$/;
 const UNIT_MS = { m: 60_000, h: 3_600_000, d: 86_400_000 } as const;
 
-/** `--since`: a time, or a span back from `now` (30m, 2h, 1d); not given, `fallback` back (two hours unless said). Shared with `arc recent`. */
 export function sinceOf(given: string | undefined, now: number, fallback = 2 * UNIT_MS.h): number {
   if (given === undefined) return now - fallback;
   const span = SPAN.exec(given);
@@ -30,12 +22,10 @@ export function sinceOf(given: string | undefined, now: number, fallback = 2 * U
   return at;
 }
 
-/** A time as the line says it: to the minute, in UTC. */
 export const timeSaid = (at: string): string => `${at.slice(0, 16).replace("T", " ")} UTC`;
 
 const named = (bar: Pick<Bar, "id" | "title">): string => `${bar.id} ${bar.title}`;
 
-/** What an open increment nobody holds waits for, in words: the owner's questions and waits, other work, events, or a capability another holds. */
 function waitsSaid(bar: Bar): string {
   const said = [
     ...(bar.reading.state === "waiting-on-you"
@@ -51,21 +41,18 @@ function waitsSaid(bar: Bar): string {
   return said.length > 0 ? said.join(", ") : "waiting on you";
 }
 
-/** What the lines are said from beside the board: each holder's machine, each question's title, and the open questions each increment is held on (the library's heldOn reading). */
 interface Names {
   readonly machines: ReadonlyMap<string, string>;
   readonly questionTitles: ReadonlyMap<string, string>;
   readonly heldOn: Readonly<Record<string, readonly string[]>>;
 }
 
-/** One lane's state and why, from the board's reading of it: landings counted from `since`, holders named with their machines. */
 function statusOf(lane: Lane, since: number, { machines, questionTitles, heldOn }: Names): { state: Status; why: string } {
   const open = lane.bars.filter(({ reading }) => reading.state !== "landed" && reading.state !== "not-completed");
   const landed = lane.view.increments
     .filter((increment) => increment.fields.status === "closed" && increment.fields.outcome?.disposition === "landed" && Date.parse(increment.updatedAt) >= since)
     .map((increment) => `${increment.id} ${increment.fields.title} (${increment.fields.outcome?.pr ?? "no pull request"})`);
   const titleOf = (id: string) => lane.bars.find((bar) => bar.id === id)?.title ?? id;
-  // Each increment held, by its own claim or else by a capability claim taken under it (ADR-0949 D1).
   const holders = lane.agents.filter(({ increment }) => increment !== undefined);
   const working = (holders.length > 0 ? holders : lane.agents).map((agent) => {
     const id = agent.increment ?? agent.under!;
@@ -93,14 +80,12 @@ function statusOf(lane: Lane, since: number, { machines, questionTitles, heldOn 
   return rest();
 }
 
-/** An increment held on the owner directly: the titles of the questions it is held on, and the notes of the owner's waits on it. */
 function ownerSaid(bar: Bar, held: readonly string[], questionTitles: ReadonlyMap<string, string>): string {
   const asked = held.map((id) => `question "${questionTitles.get(id) ?? id}"`);
   const notes = bar.noteWaits.filter(({ releaser, holds }) => releaser === "owner" && holds).map(({ note }) => note);
   return [...asked, ...notes].join(", ") || "waiting on you";
 }
 
-/** An arc past its size tripwire, said after its why on the same line (3.40); nothing at or under it. */
 const sizeSaid = (count: number): string => {
   const oversized = oversizedSaid(count);
   return oversized === undefined ? "" : `. ${oversized}`;
@@ -118,15 +103,12 @@ export const status = verb({
   async act({ since: given }, { library, log, project }: ArcVerbContext) {
     const now = Date.now();
     const since = sinceOf(given, now);
-    // One read of the board's arcs, and the claims standing with their holders' recent lines.
     const [arcs, { fold, lines }] = await Promise.all([library.boardArcs(recentWindow(now)), claimsReading({ log, project }, now)]);
     const machines = new Map(fold.sessions({ now: new Date(now) }).flatMap(({ session, machine }): [string, string][] => (machine === undefined ? [] : [[session, machine]])));
-    // Then one of every hold, naming a claim wait's capability by title; the board reads a claim wait against the capabilities live sessions hold now (ADR-1228 D1, 3.26).
     const { waits, heldOn, waitsFor } = await library.holds(new Date(now));
     const board = boardView({ arcs: [...arcs], waits: { ...waits }, heldOn: { ...heldOn }, waitsFor: { ...waitsFor } }, { fold, lines }, new Date(now), "active");
     const questionTitles = new Map(arcs.flatMap(({ questions }) => questions.map((question): [string, string] => [question.id, question.fields.title])));
     const said = board.lanes.map((lane) => ({ lane, ...statusOf(lane, since, { machines, questionTitles, heldOn }) }));
-    // The board's order (priority first) within each state; a stable sort keeps it.
     said.sort((one, other) => STATES.indexOf(one.state) - STATES.indexOf(other.state));
     if (said.length === 0) return { text: "No active arcs in this project." };
     const width = Math.max(...STATES.map((state) => state.length));

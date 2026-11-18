@@ -1,6 +1,4 @@
-/**
- * Capability 4 · Updates, contract 4.36: when the app may restart itself into an update.
- */
+// Capability 4 · Updates
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

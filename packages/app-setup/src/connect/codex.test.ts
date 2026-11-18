@@ -1,7 +1,4 @@
-/**
- * Capability 2 · Connect an agent: contracts 2.21 and 2.6. The shape of Codex's hooks depends on the version Codex says it is,
- * so connecting reads it from the Codex the user would run: the one on the PATH, else the desktop app's own CLI.
- */
+// Capability 2 · Connect an agent
 import assert from "node:assert/strict";
 import { chmodSync, copyFileSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -20,7 +17,6 @@ test("2.21 the Codex version connecting reads is the one Codex on the PATH says 
     const options = { path: bin, waitMs: 10_000, codexHome, localAppData, applications: [] };
     assert.equal(installedCodexVersion(options), undefined);
 
-    // The desktop app's CLI stand-in is a Node, whose `--version` says Node's own version.
     const desktop = path.join(localAppData, "OpenAI", "Codex", "bin", "3f2a9c", "codex.exe");
     mkdirSync(path.dirname(desktop), { recursive: true });
     if (process.platform === "win32") copyFileSync(process.execPath, desktop);

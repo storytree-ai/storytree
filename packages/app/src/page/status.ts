@@ -1,21 +1,11 @@
-/**
- * Capability 2 · Storytree projects. What the desktop page says about itself on its body and over its content: `data-state`
- * (loading, ready, empty, missing, error, waiting), the start's bar and `data-start`, the kept forest's `data-fresh="no"` mark, the notice
- * over a forest whose first read failed, a message in place of the project, and `data-drew`, the census every mounted surface adds
- * its reading to, which the smoke check reads.
- */
+// Capability 2 · Storytree projects
 export interface PageStatus {
   state(): string | undefined;
   setState(state: string): void;
-  /** Show the start's bar (index.html's, on show from the window opening) while the forest settles, or take it away when settled. */
   showProgress(on: boolean): void;
-  /** Mark the forest on show as the one last read, with why (`data-fresh="no"`), or clear the mark. */
   showFreshness(text: string | undefined): void;
-  /** Say over the forest why its first read failed, while the reading keeps trying (`data-state="error"`), or take it away. */
   showReadError(heading: string | undefined, text?: string): void;
-  /** A heading and a line of text in place of the project, written as text (never as HTML). */
   showMessage(state: string, heading: string, text: string): void;
-  /** Add `drawn` to the page's census of what its surfaces drew. */
   sayWhatWasDrawn(drawn: object): void;
 }
 

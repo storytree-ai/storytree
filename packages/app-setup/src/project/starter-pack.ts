@@ -1,31 +1,16 @@
-/**
- * Capability 6 · Make a folder a project. The starter pack (contract 6.7): what a new project's library holds on day one.
- * Since ADR-1094 D1 that is the bare bones: the record and the map, with no role, check or note. Every part of the
- * system ADR-0996 had grown the pack to stays reachable, taken in by its title when a build shows it is needed (D2):
- * every role (starter-roles.ts), the principles, guardrails, patterns and processes they stand on (starter-notes.ts),
- * and the six quality control checks a change-reviewer answers for every green change before it lands (here). A part
- * comes with every note it links. starter-pack-classification.md records where each came from. These files are the
- * one place its text lives: change it there and raise STARTER_PACK_VERSION.
- *
- * Seeding or taking writes only what the library does not already hold under the same title, so doing it again adds
- * no second copy, and it never deletes a record. Only the user's factory is seeded (ADR-1040): a product project holds
- * no copy and reads the factory's, so its pack is checked and taken in the factory.
- */
+// Capability 6 · Make a folder a project.
 import { isDeepStrictEqual } from "node:util";
 
 import { ProjectGoneError, type Library, type NewKnowledge, type Storytree } from "@storytree/library";
 import { GUARDRAILS, NO_MODULE_MOCK, PATTERNS, PRINCIPLES, PROCESSES, TEST_CREATION } from "./starter-notes.js";
 import { ROLES } from "./starter-roles.js";
 
-/** The pack's version: raise it whenever its text changes. */
 export const STARTER_PACK_VERSION = 17;
 
-/** Who the history says wrote the pack's records. */
 const ACTOR = `storytree setup (starter pack v${STARTER_PACK_VERSION})`;
 
 type Check = Omit<NewKnowledge<"check">, "enforces"> & { readonly enforces: readonly string[] };
 
-/** The quality control checks the change-reviewer answers for every green change (adapted from storytree's own six). */
 const CHECKS: readonly Check[] = [
   {
     title: "Tautological expected value",
@@ -71,32 +56,25 @@ const CHECKS: readonly Check[] = [
   },
 ];
 
-/** The titles of the pack's roles, in the order the setup check names them. */
 export const STARTER_ROLES: readonly string[] = ROLES.map((role) => role.title);
-/** The titles of the pack's checks. */
 export const STARTER_CHECKS: readonly string[] = CHECKS.map((check) => check.title);
 
-/** The parts a new factory is seeded with (ADR-1094 D1): none; the record and the map are the bare bones. */
 const BARE_BONES: readonly string[] = [];
 
 type NoteKind = "principle" | "guardrail" | "pattern" | "process";
 export type PackKind = NoteKind | "check" | "agent";
-/** The kinds of record the pack writes. */
 export const PACK_KINDS: readonly PackKind[] = ["principle", "guardrail", "pattern", "process", "check", "agent"];
 type Fields = { readonly title: string } & Readonly<Record<string, unknown>>;
-/** One record of the pack, as it would be written. */
 interface PackRecord {
   readonly kind: PackKind;
   readonly fields: Fields;
 }
-/** A pack record the library holds or was given, by kind and title. */
 export interface StarterPackRecord {
   readonly kind: PackKind;
   readonly title: string;
   readonly id: string;
 }
 
-/** The notes the roles and checks link to, in the order they are written. */
 const NOTES: readonly PackRecord[] = [
   ...PRINCIPLES.map((fields) => ({ kind: "principle" as const, fields })),
   ...GUARDRAILS.map((fields) => ({ kind: "guardrail" as const, fields })),
@@ -104,10 +82,6 @@ const NOTES: readonly PackRecord[] = [
   ...PROCESSES.map((fields) => ({ kind: "process" as const, fields })),
 ];
 
-/**
- * The titles of the pack's records that taking `parts` writes: each part named, and every note a role or check among
- * them links. A title that names no part of the pack is refused, naming the roles and checks it offers.
- */
 function partsOf(parts: Iterable<string>): Set<string> {
   const chosen = new Set<string>();
   for (const title of parts) {
@@ -121,18 +95,15 @@ function partsOf(parts: Iterable<string>): Set<string> {
   return chosen;
 }
 
-/** The parts of the pack `holding` already holds, by title: a later pack keeps each up to date (6.9). */
 function heldParts(holding: Held): string[] {
   const held = (kind: PackKind, title: string) => (holding.get(kind)!.has(title) ? [title] : []);
   return [...NOTES.flatMap(({ kind, fields }) => held(kind, fields.title)), ...CHECKS.flatMap(({ title }) => held("check", title)), ...ROLES.flatMap(({ title }) => held("agent", title))];
 }
 
-/** The notes whose titles `chosen` holds. */
 function notesOf(chosen: ReadonlySet<string>): PackRecord[] {
   return NOTES.filter(({ fields }) => chosen.has(fields.title));
 }
 
-/** The checks and roles whose titles `chosen` holds, each link given as the id `linked` finds for the title it names. */
 function linkedRecords(chosen: ReadonlySet<string>, linked: (titles: readonly string[]) => string[]): PackRecord[] {
   const wanted = ({ title }: { readonly title: string }) => chosen.has(title);
   return [
@@ -144,7 +115,6 @@ function linkedRecords(chosen: ReadonlySet<string>, linked: (titles: readonly st
   ];
 }
 
-/** Write the starter pack, the bare bones, into `library`, skipping each record it already holds under the same title. */
 export async function seedStarterPack(library: Library): Promise<void> {
   const holding = await heldRecords(library);
   const ids = new Map<string, string>();
@@ -156,19 +126,11 @@ export async function seedStarterPack(library: Library): Promise<void> {
   for (const record of linkedRecords(chosen, linkedBy(ids))) await write(record);
 }
 
-/** The titles of the starter roles `library` holds, in the pack's order. */
 export async function starterRolesIn(library: Library): Promise<string[]> {
   const titles = new Set((await library.list("agent")).map((agent) => agent.fields.title));
   return STARTER_ROLES.filter((title) => titles.has(title));
 }
 
-/**
- * Which pack seeded `library` and whether the newer one is offered (contract 8.26). The version is the highest a pack
- * record's history names in its writer, `storytree setup (starter pack vN)`; a library no pack wrote was never seeded
- * (null). The newer pack is offered only while taking it would add or replace something, so a library whose remaining
- * differences are all its user's edits is not offered it again. Given `storytree`, a product project holding no
- * record a pack wrote is answered for its factory, which it reads its pack from, named in `factory`.
- */
 export interface StarterPackStatus {
   readonly seeded: number | null;
   readonly current: number;
@@ -186,11 +148,6 @@ export async function starterPackStatus(library: Library, storytree?: Storytree)
   }
 }
 
-/**
- * The factory whose pack `library` reads (8.26, 6.9): its factory, opened from `storytree`, when `library` is a
- * product project no pack wrote a record of. Undefined otherwise, and for a factory gone or no longer one: the
- * library's pack is then its own.
- */
 async function packFactory(library: Library, storytree: Storytree | undefined): Promise<{ readonly name: string; readonly library: Library } | undefined> {
   if (storytree === undefined) return undefined;
   const link = await library.factory();
@@ -208,7 +165,6 @@ async function packFactory(library: Library, storytree: Storytree | undefined): 
 async function statusIn(library: Library): Promise<StarterPackStatus> {
   const holding = await heldRecords(library);
   const ids = new Map([...holding.values()].flatMap((byTitle) => [...byTitle].map(([title, record]) => [title, record.id] as const)));
-  // A note not held yet is linked by a stand-in no id equals, so a role that links it differs from the pack's.
   const chosen = partsOf([...BARE_BONES, ...heldParts(holding)]);
   const records = [...notesOf(chosen), ...linkedRecords(chosen, (titles) => titles.map((title) => ids.get(title) ?? `(not held) ${title}`))];
   const verdicts = await Promise.all(records.map((record) => verdictOf(library, holding, record)));
@@ -218,23 +174,13 @@ async function statusIn(library: Library): Promise<StarterPackStatus> {
   return { seeded, current: STARTER_PACK_VERSION, offered: seeded !== null && seeded < STARTER_PACK_VERSION && writes };
 }
 
-/** What taking the newer pack did (contract 6.9): each record added, each replaced, and each left as its user edited it, with the newer fields beside it. */
 export interface StarterPackTake {
   readonly added: StarterPackRecord[];
   readonly replaced: StarterPackRecord[];
   readonly kept: (StarterPackRecord & { readonly newer: Fields })[];
-  /** The factory the pack was taken into, for a product project that reads its pack from there. */
   readonly factory?: string;
 }
 
-/**
- * Take the current pack into `library` (contract 6.9): the bare bones, each part of it the library already holds, and
- * each part `include` names by title (ADR-1094 D2), with every note those parts link. Write each record it does not
- * hold under the title, replace a pack record whose fields differ from the current pack's and whose newest change a
- * pack wrote, and leave one whose newest change is anyone else's: the user's edit is never overwritten, and nothing is
- * deleted. A role's links are resolved as seeding does. Given `storytree`, a product project that reads its pack from
- * its factory (starterPackStatus) takes it there.
- */
 export async function takeStarterPack(library: Library, storytree?: Storytree, include: readonly string[] = []): Promise<StarterPackTake> {
   partsOf(include);
   const factory = await packFactory(library, storytree);
@@ -269,21 +215,14 @@ async function takeInto(library: Library, include: readonly string[]): Promise<S
   return took;
 }
 
-/** Who the history says wrote a pack record, with the pack's version. */
 export const PACK_ACTOR = /^storytree setup \(starter pack v(\d+)\)$/;
 
 type Held = ReadonlyMap<PackKind, ReadonlyMap<string, { readonly id: string; readonly fields: Readonly<Record<string, unknown>> }>>;
 
-/** The live pack-kind records `library` holds, by kind and title. */
 async function heldRecords(library: Library): Promise<Held> {
   return new Map(await Promise.all(PACK_KINDS.map(async (kind) => [kind, new Map((await library.list(kind)).map((record) => [record.fields.title, { id: record.id, fields: record.fields as Record<string, unknown> }]))] as const)));
 }
 
-/**
- * What the current pack would do to `record` in `library`: add it when no record of its kind holds the title, leave it
- * when the held one carries the pack's fields already, replace it when a pack wrote its newest change, and keep it when
- * someone else did. Also the highest pack version the held record's history names.
- */
 async function verdictOf(library: Library, holding: Held, { kind, fields }: PackRecord): Promise<{ action: "add" | "same" | "replace" | "keep"; id?: string; seeded?: number }> {
   const held = holding.get(kind)!.get(fields.title);
   if (held === undefined) return { action: "add" };
@@ -298,7 +237,6 @@ async function verdictOf(library: Library, holding: Held, { kind, fields }: Pack
   return { action: PACK_ACTOR.test(history.at(-1)?.actor ?? "") ? "replace" : "keep", id: held.id, ...seeded };
 }
 
-/** A resolver of titles to the ids in `ids`, refusing a title the pack does not hold. */
 function linkedBy(ids: ReadonlyMap<string, string>): (titles: readonly string[]) => string[] {
   return (titles) => titles.map((title) => ids.get(title) ?? fail(`the starter pack links "${title}", which it does not hold`));
 }

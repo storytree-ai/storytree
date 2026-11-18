@@ -5,9 +5,19 @@
  * one named) at the commit without changing the checkout, and prints them, or the same readings as data with --json.
  * Report only (ADR-1354, ADR-1238): no threshold, no verdict, nothing stored, and it answers whatever the readings are.
  */
+import type { Library } from "@storytree/library";
 import { verb, VerbRefusal, type Verb, type VerbContext, type VerbFamily, type VerbInputs } from "@storytree/library/verbs";
 
 import { DEFAULT_DAYS } from "./read.js";
+
+async function storiesOf(library: Library): Promise<{ id: string; title: string; plugin?: string }[]> {
+  return (await library.list("story"))
+    .map((record) => {
+      const fields = record.fields as { title?: unknown; plugin?: unknown };
+      return { id: record.id, title: String(fields.title ?? record.id), ...(typeof fields.plugin === "string" ? { plugin: fields.plugin } : {}) };
+    })
+    .sort((a, b) => a.title.localeCompare(b.title));
+}
 
 const CODE_MEASURES = verb({
   command: {
@@ -25,13 +35,7 @@ const CODE_MEASURES = verb({
   },
   async act({ story, commit, since, json }, context: VerbContext) {
     const [{ readStoryMeasures }, { measuresText }] = await Promise.all([import("./read.js"), import("./report.js")]);
-    const stories = (await context.library.list("story"))
-      .map((record) => {
-        const fields = record.fields as { title?: unknown; plugin?: unknown };
-        return { id: record.id, title: String(fields.title ?? record.id), ...(typeof fields.plugin === "string" ? { plugin: fields.plugin } : {}) };
-      })
-      .sort((a, b) => a.title.localeCompare(b.title));
-    const reading = await readStoryMeasures({ folder: context.folder, stories, ...(story === undefined ? {} : { story }), ...(commit === undefined ? {} : { commit }), ...(since === undefined ? {} : { since }) });
+    const reading = await readStoryMeasures({ folder: context.folder, stories: await storiesOf(context.library), ...(story === undefined ? {} : { story }), ...(commit === undefined ? {} : { commit }), ...(since === undefined ? {} : { since }) });
     if (json) return { text: JSON.stringify(reading, null, 2), raw: true };
     return { text: measuresText(reading) };
   },
@@ -66,7 +70,27 @@ const PAIR = verb({
   },
 });
 
-/** The command line's `code-measures` family: its readings are its bare verb, and pair its one named verb. */
+const RECORD = verb({
+  command: {
+    family: "code-measures",
+    name: "record",
+    summary: "record every story's base measures read on this machine at origin/main, in the readings kept beside the library: once a head, at most once a day",
+    usage: "code-measures record --machine <name>",
+  },
+  tool: { absent: "a step for the Mint box's scheduled recording, run at the command line over a checkout" },
+  inputs: {
+    machine: { kind: "text", optional: true, describe: "the machine recording: the base measures whose machine is this name are read" },
+  },
+  async act({ machine }, context: VerbContext) {
+    if (machine === undefined) throw new VerbRefusal("Give --machine <name>: the machine whose base measures this records.", { misuse: true });
+    if (context.server === undefined) throw new VerbRefusal("Measure readings are kept beside the library, and this door has no library server open.");
+    const [{ measureReadersOf }, { recordMeasures }, { measureReadingsPool }] = await Promise.all([import("./pair.js"), import("./record.js"), import("./readings.js")]);
+    const [records, readers, stories] = await Promise.all([context.library.measures(), measureReadersOf(context.folder), storiesOf(context.library)]);
+    const db = await measureReadingsPool(context.server);
+    return { text: await recordMeasures({ folder: context.folder, project: context.project, machine, stories, records: records.map(({ id, fields }) => ({ id, fields })), readers, db }) };
+  },
+});
+
 export const CODE_MEASURES_FAMILIES: readonly VerbFamily[] = [
-  { name: "code-measures", summary: "each story's base code-structure measures at a commit (report only; Code measures')", order: 37.5, verbs: [PAIR as Verb<VerbInputs, VerbContext>], bare: CODE_MEASURES as Verb<VerbInputs, VerbContext> },
+  { name: "code-measures", summary: "each story's base code-structure measures at a commit (report only; Code measures')", order: 37.5, verbs: [PAIR as Verb<VerbInputs, VerbContext>, RECORD as Verb<VerbInputs, VerbContext>], bare: CODE_MEASURES as Verb<VerbInputs, VerbContext> },
 ];

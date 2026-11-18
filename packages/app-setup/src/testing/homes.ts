@@ -1,9 +1,3 @@
-/**
- * A throwaway home for the setup tests (capabilities 2, 8 and 18): its own Claude Code config folder and Codex home,
- * holding settings of the user's own that storytree must leave alone, and a storytree home that says where storytree
- * listens (a copy of the test Postgres's owner record). Shared by the setup check's, hook registration's and the
- * built commands' test files, which are split by the capability each proves.
- */
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -13,18 +7,12 @@ import { SHELL_GUARD } from "@storytree/session-management";
 
 import type { HookCommand, Homes } from "../setup/index.js";
 
-/** A hook command as the setup check registers it: registering never runs it. */
 export const HOOK: HookCommand = { node: process.execPath, script: path.join(tmpdir(), "storytree", "dist", "storytree-hook.mjs") };
-/**
- * What gh and the machine answer, for tests about something else: asking this machine's own gh,
- * Claude Code and Codex is slow, differs between machines, and once hung the suite (2026-09-28).
- */
 export const ANSWERED = {
   gh: async () => "signed in" as const,
   machine: async () => ({ claude: "signed in", codex: "signed in", git: "present", node: { state: "ok", version: "v24.1.0" }, waitMs: 5_000 }) as const,
 };
 
-/** The user's own settings, which the setup check must leave as they are. */
 export const CLAUDE_SETTINGS = {
   permissions: { allow: ["Bash(npm test:*)"] },
   model: "opus",
@@ -37,11 +25,9 @@ export interface Home {
   claudeSettings: string;
   codexConfig: string;
   codexHooks: string;
-  /** A storytree home whose owner record says storytree listens where the test Postgres does. */
   storytreeHome: string;
 }
 
-/** A throwaway home with only the storytree tool server installed, and storytree running. */
 export function throwawayHome(dir: string): Home {
   const claude = path.join(dir, ".claude");
   const codexHome = path.join(dir, ".codex");
@@ -68,18 +54,12 @@ export interface HookEntry {
   hooks: { type: string; command: string; args?: string[]; async?: boolean }[];
 }
 
-/** One of storytree's hook entries: its matcher, and whether the harness is left to go on without waiting for it. */
 export interface Registered {
   matcher: string;
   background: boolean;
   guard: boolean;
 }
 
-/**
- * The events for which `settings` runs storytree's hook `script` for `harness`, each with its
- * entries: Claude Code runs it as a command with arguments (in the background when `async`), Codex
- * as one command line (handing its work to the background when it passes `--background`).
- */
 export function storytreeHooks(settings: Record<string, unknown>, script: string, harness: string): Record<string, Registered[]> {
   const events = (settings.hooks ?? {}) as Record<string, HookEntry[]>;
   const found: Record<string, Registered[]> = {};
@@ -96,16 +76,9 @@ export function storytreeHooks(settings: Record<string, unknown>, script: string
   return found;
 }
 
-/** Whether `tool` is one `entry` runs for. Claude Code anchors a matcher of names; Codex's are regular expressions as written. */
 export function runsFor(entry: Registered | undefined, tool: string, anchored: boolean): boolean {
   return entry !== undefined && new RegExp(anchored ? `^(${entry.matcher})$` : entry.matcher).test(tool);
 }
-/**
- * A command named `name` in `bin` that answers each argument line in `answers` with its output and
- * exit code, and waits without end for any other: a shell script on macOS and Linux, a batch file on
- * Windows, run by name as the check runs the user's own tools. It answers after `delaySeconds`, as a
- * tool does on a loaded machine.
- */
 export function fakeTool(bin: string, name: string, answers: Record<string, { out?: string; code: number }>, delaySeconds = 0): void {
   if (process.platform === "win32") {
     const cases = Object.entries(answers).map(([args, { out, code }]) => `if "%*"=="${args}" (${out === undefined ? "" : `echo ${out}& `}exit /b ${code})`);

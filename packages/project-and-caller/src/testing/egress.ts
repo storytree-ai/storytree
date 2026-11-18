@@ -1,8 +1,3 @@
-/**
- * A stand-in for the store's network, for the tests that pin how much a reader takes from it: every
- * connection is passed on to the test Postgres, and the bytes the server sends back are counted, as
- * a hosted server bills them (its egress).
- */
 import { readFileSync } from "node:fs";
 import { connect, createServer, type AddressInfo, type Socket } from "node:net";
 
@@ -12,16 +7,12 @@ import pg from "pg";
 import { testServerDataDir, testServerUrl } from "./pg.js";
 
 export interface CountingStore {
-  /** The port to give a reader in place of the server's. */
   readonly port: number;
-  /** The bytes the server has sent through it so far. */
   received(): number;
-  /** Resolves once no connection has been open, and nothing sent, for `quietMs`: the readers it served are done. */
   settled(quietMs?: number, timeoutMs?: number): Promise<void>;
   close(): Promise<void>;
 }
 
-/** Start a counting stand-in in front of the test Postgres. */
 export async function countingStore(): Promise<CountingStore> {
   const { port: upstreamPort } = JSON.parse(readFileSync(`${testServerDataDir()}.owner.json`, "utf8")) as { port: number };
   let received = 0;
@@ -67,12 +58,6 @@ export async function countingStore(): Promise<CountingStore> {
   };
 }
 
-/**
- * Fill `project`'s log with a long history from three days ago: `sessions` old sessions, each with
- * fat shell commands (a kilobyte each, as heredocs make them), file edits and tool calls. Written
- * straight into the table, as a log that has grown for weeks would hold them. Returns how many bytes
- * the project's lines take in the table.
- */
 export async function longHistory(project: string, folder: string, sessions: number, machine: string): Promise<number> {
   const url = new URL(testServerUrl());
   url.pathname = "/storytree-activity";

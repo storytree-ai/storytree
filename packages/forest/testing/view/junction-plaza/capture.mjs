@@ -1,9 +1,3 @@
-// A territory's junction is a small raised plaza, not a flat dot (ADR-1339 D2's 2026-11-16 look; Mick: "I do like the idea of
-// like a um, plaza or something. Nothing too um, gimmicky."): storytree's own map (the code-rows snapshot and its survey) as
-// the app opens it, from each island's own camera stop, near and far, straight down (the map's opening view) and tilted
-// (Library pressed, which eases in the tabletop tilt keeping heading, pan and zoom). `node --import tsx capture.mjs
-// <before|after>` (append --retake to write into src/view/evidence/junction-plaza). Counts, from the scene, the junctions
-// shown and how high each stands above the land under its centre, so "raised" is measured.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +17,6 @@ const phase = message => console.error(`[junction plaza +${Math.round(performanc
 const until = async (page, what, predicate, arg, timeout = 180_000) => { phase(`wait for ${what}`); await page.waitForFunction(predicate, arg, { timeout, polling: 200 }); };
 const storyOf = title => seed.tree.stories.find(story => story.title === title).id;
 const islands = [['the-library', 'The library'], ['the-agent-link', 'The agent link'], ['the-command-line', 'The command line'], ['the-dev-loop', 'The dev loop']];
-/** What an island shows, counted from the scene: its settlement symbols and its territories' junctions whose every ancestor is visible. */
 const measure = (page, story) => page.evaluate(story => {
   const found = { settlements: 0, territoryJunctions: 0, raised: [] };
   const shown = object => { for (let o = object; o; o = o.parent) if (!o.visible) return false; return true; };
@@ -41,7 +34,6 @@ const measure = (page, story) => page.evaluate(story => {
   return found;
 }, story);
 const eye = { radius: SHEET_RADIUS + PLATE_CLEARANCE, fov: SHEET_FOV };
-/** The sheet's own camera stop for `story`, then the eye at `times` the near detail zoom. */
 const closeUp = async (page, settle, story, times) => {
   if (!await page.evaluate(story => window.storytreeGlobe.face({ kind: 'story', story }), story)) throw new Error(`no camera stop for ${story}`);
   await until(page, 'the globe still', () => window.storytreeGlobe.still());
@@ -53,7 +45,6 @@ const closeUp = async (page, settle, story, times) => {
   await settle(page, 12);
 };
 const results = {};
-/** Library pressed on (tilted) or off (straight down), waited until the eye stops moving. */
 const library = async (page, settle, on) => {
   const button = page.locator('[data-globe-switch="library"]');
   if ((await button.getAttribute('aria-pressed') === 'true') !== on) await button.click();

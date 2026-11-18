@@ -1,11 +1,4 @@
-/**
- * Capability 1 · Front door. `storytree doors`: how the two front doors are used, read on demand (ADR-0998 D1), a thin
- * front door over this door's usage reading (capability 14, ADR-1071 D3). The declared surfaces it counts against are the doors' own:
- * every command walked from this door's table, and every tool the tool server serves in this folder, each with
- * the consumers its story declared for it (ADR-1045 D1).
- * Nothing recurs and nothing is written; it prints and ends. `storytree doors learn` runs the doors learner alone, for the
- * tool server's friction_drain (ADR-1045 D7 on both doors): the tool server cannot import this door, so it runs this command.
- */
+// Capability 1 · Front door
 import type { DeclaredVerb } from "../usage/reading.js";
 import { consumersOf } from "@storytree/library/verbs";
 
@@ -16,10 +9,6 @@ import type { learn } from "./drain.js";
 
 const usage = "doors [--days <n>] [--trend <n>] [--json]";
 
-/**
- * Every command the door answers, as its door-answered lines name it, with its consumers: a family's verbs, its bare
- * command, and its families' within it.
- */
 export function commandsOf(families: readonly Family[], path = "storytree"): DeclaredVerb[] {
   return families.filter((family) => family.waitsOn === undefined).flatMap((family) => {
     const at = `${path} ${family.name}`;
@@ -28,7 +17,6 @@ export function commandsOf(families: readonly Family[], path = "storytree"): Dec
   });
 }
 
-/** A flag's whole number of days, 1 or more, or `fallback` when it is not given. */
 function daysOf(value: string | undefined, flag: string, fallback: number): number {
   if (value === undefined) return fallback;
   const days = Number(value);
@@ -57,11 +45,6 @@ const read: Verb = {
 
 const learnUsage = `doors learn --session <id> [--harness <harness>] ${WHERE_USAGE}`;
 
-/**
- * `storytree doors learn`: the doors learner on the session `--session` names, writing as it. The tool server runs it after
- * its friction_drain, with no session in the shell, so the command records no call of its own on the doors it reads. It
- * writes to the library its `--project`, `--arc` or `--increment` names (ADR-1348 D3), the drain's own.
- */
 export function learner(run?: typeof learn): Verb {
   return {
     name: "learn",

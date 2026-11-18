@@ -1,28 +1,19 @@
-/**
- * Capability 3 · Story node render (the forest story): the selected island's territories laid out by their links
- * (ADR-1236 D1, rollout 2 step 2): open land round each dock its sea lanes come ashore at, each capability a lane
- * lands at beside it, every territory one connected piece of its size, laid out at The library's size and drawn at
- * the island's.
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { islandLayout, islandLayoutSteps, linkLayout, LIBRARY_LAND } from "./link-layout.js";
 import { islandTerritories, onLand, territoryAt, type Coast, type TerritoryMap } from "./territories.js";
 
-/** A round coast of `radius`, as a polygon of 96 sides. */
 const round = (radius: number): Coast => [Array.from({ length: 96 }, (_, i) => ({ x: radius * Math.cos(i * Math.PI / 48), z: radius * Math.sin(i * Math.PI / 48) }))];
-/** The library's size, so its island scale is 1. */
 const LIBRARY_RADIUS = Math.sqrt(LIBRARY_LAND / Math.PI);
 const shares = [
   { capability: "a", lines: 900 }, { capability: "b", lines: 700 }, { capability: "c", lines: 500 },
   { capability: "d", lines: 300 }, { capability: "e", lines: 200 }, { capability: "f", lines: 1 }, { lines: 150 },
 ];
-// a and b have lanes over the sea (z1 and z2 on other islands build on a; b builds on y); c to f link only at home.
 const links = [{ from: "z1", to: "a" }, { from: "z2", to: "a" }, { from: "z3", to: "a" }, { from: "b", to: "y" },
   { from: "c", to: "a" }, { from: "d", to: "c" }, { from: "e", to: "d" }, { from: "f", to: "e" }];
 const east = (r: number) => ({ local: { x: r, z: 0 }, links: ["z1->a", "z2->a", "z3->a"] });
-// The west dock also lists links with both ends at home, which are no lanes and open no land.
 const west = (r: number) => ({ local: { x: -r, z: 0 }, links: ["b->y", "c->a", "d->c", "e->d"] });
 const far = (p: { x: number; z: number }, q: { x: number; z: number }) => Math.hypot(p.x - q.x, p.z - q.z);
 const cellsOf = (map: TerritoryMap, capability: string | undefined) => {
@@ -34,7 +25,6 @@ test("3.76 the selected island leaves open land round each dock, wider the more 
   const r = LIBRARY_RADIUS, map = linkLayout(shares, round(r), links, [east(r), west(r)]);
   const open = map.cells.filter((cell) => cell.territory === -1);
   for (const cell of map.cells) if (far(cell.site, east(r).local) < 11 || far(cell.site, west(r).local) < 11) assert.equal(cell.territory, -1, "within 11 units of a dock is open land");
-  // A dock carrying three lanes opens land further out than one carrying one.
   assert.ok(open.some((cell) => far(cell.site, east(r).local) > 13), "the three-lane dock's open land reaches past 13 units");
   assert.ok(!open.some((cell) => far(cell.site, west(r).local) > 13 && far(cell.site, east(r).local) > 30), "the one-lane dock's does not");
   for (const [capability, dock] of [["a", east(r).local], ["b", west(r).local]] as const) {
@@ -77,7 +67,6 @@ test("3.76 only an island given its docks is laid out by its links; any other ke
 });
 
 test("3.76 land the open land cuts off from the rest of the island is open land too", () => {
-  // A long thin island, cut across off its middle by the open land round two docks facing each other.
   const coast: Coast = [[{ x: -200, z: -18 }, { x: 200, z: -18 }, { x: 200, z: 18 }, { x: -200, z: 18 }]];
   const many = Array.from({ length: 64 }, (_, i) => `z${i}->a`);
   const map = linkLayout(shares, coast, links, [90, 100, 110].flatMap((x) => [{ local: { x, z: -18 }, links: many }, { local: { x, z: 18 }, links: many }]));
@@ -96,7 +85,6 @@ test("3.87 · an island's layout settles in steps, a later one for each part of 
   const r = LIBRARY_RADIUS, steps = islandLayoutSteps("stepped", [...shares], round(r), links, [east(r), west(r)]);
   let taken = 1, at = steps.next();
   for (; !at.done; at = steps.next()) taken++;
-  // The fine cut alone is about 260 cells, a step to every 32.
   assert.ok(taken >= 10, `settled in ${taken} steps`);
   const map = at.value;
   assert.ok(map.cells.length > islandTerritories([...shares], round(r)).cells.length, "cut finer than the map's own");
@@ -107,13 +95,11 @@ test("3.87 · an island's layout settles in steps, a later one for each part of 
 test("3.14, 3.76 on a lumpy coast every territory is drawn in one piece, laid out by its links or on the map's own cut: its cells join only across edges with land on them, never across a bay", () => {
   let state = 7;
   const random = () => { state = (state * 1103515245 + 12345) & 0x7fffffff; return state / 0x7fffffff; };
-  // A coast with three and five lobes, so bays reach in between them.
   const lumpy = (r: number): Coast => {
     const [a, b, k3, k5] = [random() * 6, random() * 6, 0.15 + random() * 0.15, random() * 0.15];
     return [Array.from({ length: 120 }, (_, i) => { const t = (i * Math.PI) / 60, s = r * (1 + k3 * Math.sin(3 * t + a) + k5 * Math.sin(5 * t + b)); return { x: s * Math.cos(t), z: s * Math.sin(t) }; })];
   };
   const close = (p: { x: number; z: number }, q: { x: number; z: number }) => Math.abs(p.x - q.x) < 1e-5 && Math.abs(p.z - q.z) < 1e-5;
-  // Whether two cells' shared edge has any land on it, as the drawing clips each cell to the land.
   const joined = (map: TerritoryMap, a: number, b: number) => {
     const common = map.cells[a]!.polygon.filter((p) => map.cells[b]!.polygon.some((q) => close(p, q)));
     if (common.length < 2) return false;

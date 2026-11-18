@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Story node render: the capability open on the map and its parts' marks (3.112, ADR-1339 D1), within the
- * map's frame budget (3.115), rolled up to its gates when closed (3.114).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Color, Group, LineSegments, Mesh, OrthographicCamera, Vector3, type BufferGeometry, type Object3D } from "three";
@@ -79,7 +76,6 @@ test("3.112 · an opened capability's parts are drawn as border lines on its lan
   const borders = marks.getObjectByName("part-borders") as LineSegments;
   const points = ends(borders);
   const partAt = (p: Point) => { const at = { x: p.x - layout.centre.x, z: p.z - layout.centre.z }; return layout.map.cells.reduce((b, c) => (Math.hypot(c.site.x - at.x, c.site.z - at.z) < Math.hypot(b.site.x - at.x, b.site.z - at.z) ? c : b)).territory; };
-  // Each border line lies on Alpha's land and parts two of its parts: a step either side of its middle are different parts.
   const parted = new Set<string>();
   for (let k = 0; k + 1 < points.length; k += 2) {
     const [a, b] = [points[k]!, points[k + 1]!], mid = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 }, l = Math.hypot(b.x - a.x, b.z - a.z);
@@ -91,11 +87,8 @@ test("3.112 · an opened capability's parts are drawn as border lines on its lan
   }
   assert.ok(parted.size >= 3, `the lines part ${parted.size} pairs of its four territories`);
   const count = (name: string) => ((marks.getObjectByName(name) as Mesh).geometry as BufferGeometry).getAttribute("position").count;
-  // Two posts a gate, each a box of 36 corners; a disc of 16 triangles at each junction and where each part's roads end.
   assert.equal(count("part-gates"), inner.gates.length * 2 * 36, "a post either side of each part gate");
-  // p, q and r each meet their roads at a junction of their own; Alpha's own files, which no road reaches, have none.
   assert.equal(count("part-junctions"), (inner.junctions.length + 3) * 16 * 3, "a junction where roads meet and where each part's end");
-  // Every road's way is drawn: a ribbon of two triangles each half unit along it.
   assert.ok(count("part-roads") >= inner.segments.reduce((sum, s) => sum + s.pts.slice(1).reduce((l, p, i) => l + Math.hypot(p.x - s.pts[i]!.x, p.z - s.pts[i]!.z), 0) / 0.5 * 6 * 0.9, 0), "the parts' roads are drawn their whole way");
   assert.equal(marks.getObjectByName("territory:p"), undefined, "a part has no fill of its own: it keeps its capability's colour");
 });
@@ -124,7 +117,6 @@ test("3.114 · closed, the island's gate on the capability's border carries the 
   const posts: Object3D[] = [];
   marks.traverse((o) => { if (o.userData.gate === true && o.userData.index === gate) posts.push(o); });
   assert.ok(posts.length > 0);
-  // d's files reach p and r, so its road in rolls up two.
   for (const post of posts) assert.deepEqual(post.userData.partRoads, { a: 2 });
   const sea = roads.gates.findIndex((g) => g.entrances.includes("arrive:0->a"));
   let seaPosts = 0;
@@ -140,7 +132,6 @@ test("3.112 · the island's roads it hides are drawn again by the opened capabil
     if (stretch.links.some((key) => !touches(key, "a"))) continue;
     for (const p of stretch.pts) assert.notEqual(territoryAt(map, p.x, p.z), own, "a road of Alpha's alone is drawn again only off its land");
   }
-  // d's road is drawn again from d's junction to within a step of Alpha's border.
   const d = kept.filter((s) => s.links.includes("d->a") && s.links.every((key) => touches(key, "a")));
   assert.ok(d.length > 0);
   const gate = roads.gates.find((g) => g.entrances.includes("d->a"))!;
@@ -167,7 +158,6 @@ test("3.118 · an opened top part fills each capability inside it by its own wor
   const words = new Map([["p", { status: "unhealthy" as const, title: "src/ui/p" }], ["q", { status: "healthy" as const, title: "src/ui/q" }], ["r", { status: "proposed" as const, parked: true as const, title: "src/ui/r" }]]);
   const { layout, marks } = opened(3, words, "top:s:ui");
   assert.equal(drawables(marks), 5, "one mesh fills them all: still within 3.115's five draws");
-  // The top part is territory a of the island, drawn under the id a top part has.
   const top = { ...map, territories: map.territories.map((t) => (t.capability === "a" ? { ...t, capability: "top:s:ui" } : t)) };
   const planet = new Group();
   planet.name = "planet:s";
@@ -180,7 +170,6 @@ test("3.118 · an opened top part fills each capability inside it by its own wor
     return camera;
   };
   const at = (p: Point) => pickGlobe(world, above(p), box, { x: 100, y: 100 }, "forest");
-  // The middle of each part's largest cell on a's land, in the island's coordinates.
   const middleOf = (part: string) => {
     const index = layout.map.territories.findIndex((t) => t.capability === part);
     const cell = layout.map.cells.filter((c) => c.territory === index).map((c) => ({ x: c.site.x + layout.centre.x, z: c.site.z + layout.centre.z })).find((p) => territoryAt(map, p.x, p.z) === map.territories[A]);
@@ -202,7 +191,6 @@ test("3.118 · an opened top part fills each capability inside it by its own wor
 });
 
 test("3.120 · an opened capability marks each road an import reaching round a part's front door rides on, and its gate into that part, naming the part it reaches when it is deeper than those shown", () => {
-  // p reaches round q's door into q/deep/payments; d's road in reaches p itself; q's road out to c reaches c/deep.
   const clashes = { "p->q": ["q/deep/payments"], "d->p": ["p"], "q->c": ["c/deep"], "x->y": ["y"] };
   const plain = opened(3), { layout } = plain;
   const [into, out] = ["d->p", "q->c"].map((link) => crossings.findIndex((c) => c.links.includes(link)));
@@ -223,19 +211,16 @@ test("3.120 · an opened capability marks each road an import reaching round a p
   assert.ok(gates.length > 0, "a clash road enters its part by a gate");
   assert.equal(coloured(marked.marks, "part-gates").filter(({ tinted }) => tinted).length, gates.length * 2 * 36, "both posts of each gate a clash enters by are tinted, and no other");
   assert.ok(coloured(plain.marks, "part-gates").every(({ tinted }) => !tinted));
-  // Named where the part reached lies deeper than the parts shown; d's road in reaches p itself, so it is not.
   const plates = reachPlates(layout, marked.inner, drawn);
   assert.deepEqual(plates.map(({ part, title, reach }) => [part, title, reach]), [["p->q", "into deep/payments", true], [`q->leave:${out}`, "into c/deep", true]], "within the part the road goes to, else by its whole path");
   assert.deepEqual(reachPlates(layout, plain.inner, {}), []);
   const partAt = (p: Point) => { const at = { x: p.x - centre.x, z: p.z - centre.z }; return layout.map.territories[layout.map.cells.reduce((b, c) => (Math.hypot(c.site.x - at.x, c.site.z - at.z) < Math.hypot(b.site.x - at.x, b.site.z - at.z) ? c : b)).territory]?.capability; };
   const placed = (pts: readonly Point[]) => pts.map((p) => ({ x: p.x + centre.x, z: p.z + centre.z }));
   const nearest = (way: readonly Point[], at: Point) => way.reduce((best, p, i) => (Math.hypot(p.x - at.x, p.z - at.z) < Math.hypot(way[best]!.x - at.x, way[best]!.z - at.z) ? i : best), 0);
-  // p -> q's name is on its road where it crosses into q: a few points back is another part's land, a few on is q's.
   const way = placed(marked.inner.segments.filter((s) => s.links.includes("p->q")).flatMap((s) => [...s.pts])), k = nearest(way, plates[0]!);
   assert.ok(Math.hypot(way[k]!.x - plates[0]!.x, way[k]!.z - plates[0]!.z) < 1, "on the road p -> q");
   const sides = [partAt(way[Math.max(0, k - 3)]!), partAt(way[Math.min(way.length - 1, k + 3)]!)];
   assert.ok(sides.includes("q") && sides[0] !== sides[1], `where it crosses into q: ${sides}`);
-  // q's road out has no gate into the part it reaches, which lies beyond the capability: its name is midway along it.
   assert.ok(!marked.inner.gates.some((g) => g.entrances.includes(`q->leave:${out}`)));
   const road = placed(marked.inner.segments.filter((s) => s.links.includes(`q->leave:${out}`)).sort((a, b) => length(b.pts) - length(a.pts))[0]!.pts), m = nearest(road, plates[1]!);
   assert.ok(Math.hypot(road[m]!.x - plates[1]!.x, road[m]!.z - plates[1]!.z) < 1, "on that road");

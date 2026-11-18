@@ -1,8 +1,3 @@
-// A road leaving a gate runs down its ramp (increment_24ae471597e5): storytree's own map (the code-rows snapshot and its
-// survey) as the app opens it, every ramp on every island (where a road climbs from the open land onto a plateau) framed
-// close on the middle of its slope. `node --import tsx capture.mjs --prefix <name>` (append --retake to write into
-// src/view/evidence/ramp-lead-out). Run on a checkout of main as well, with `--at <this branch's measurements.json>`, so its
-// pictures stand where this branch's ramps do.
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,7 +25,6 @@ const zoomTo = async (page, settle, zoom) => {
   }, { zoom, ...eye });
   await settle(page, 12);
 };
-/** Every ramp on the map: its island, whether a gate stands at its top, and the middle of its slope in the island's own frame. */
 const rampsAt = page => page.evaluate(() => {
   const found = [];
   window.__globe.scene.traverse(island => {
@@ -39,7 +33,6 @@ const rampsAt = page => page.evaluate(() => {
     if (!rings) return;
     rings.updateWorldMatrix(true, false);
     const { relief, onSurface } = rings.userData;
-    // In the island's own frame: the globe turns as it faces each point, so a point read in the scene goes stale.
     const local = island.matrixWorld.clone().invert().multiply(rings.matrixWorld);
     for (const r of relief.ramps) {
       const mid = { x: r.at.x + r.out.x * relief.rampDepth / 2, z: r.at.z + r.out.z * relief.rampDepth / 2 };

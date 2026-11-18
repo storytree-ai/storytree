@@ -30,9 +30,7 @@ function fixture() {
     failed: new Set(["0.3.13"]),
     concerns: [] as { id: string; title: string; text: string }[],
     checked: [] as string[],
-    // The box's lag run measured every build's own commit and found each catalogue action within its baseline.
     lag: [11, 12, 13, 14, 15].flatMap(n => lagWithin(`c${n}`)),
-    /** Pairs `<commit>><later>` whose app code is the same. */
     sameApp: new Set<string>(),
   };
   const ports: CandidatePorts = {
@@ -66,7 +64,6 @@ test("4.23 the stable candidate is the newest build that covers the pin's platfo
   assert.match(found.candidate!.evidence.join("\n"), /passed, mac-acceptance included/);
   assert.match(found.candidate!.evidence.join("\n"), /50 hours/);
   assert.match(found.candidate!.notes, /Stable updates/);
-  // Runs are read only for a build the cheaper rules have not already passed over.
   assert.deepEqual(state.checked, ["0.3.13", "0.3.12"]);
 });
 
@@ -74,11 +71,9 @@ test("4.23 GitHub's release says which platforms it carries, and a release run p
   const asset = (name: string) => ({ name, browser_download_url: "", id: 1, size: 1 });
   assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: ["storytree-0.3-0.3.5-setup.exe", "storytree-0.3-0.3.5-linux-x86_64.AppImage", "latest-linux.yml", "latest.yml"].map(asset) }), ["windows", "linux"]);
   assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: ["storytree-0.3-0.3.4-setup.exe", "storytree-0.3-0.3.5-mac-arm64.zip", "latest-mac.yml"].map(asset) }), ["mac"]);
-  // Windows' build is its two installers, one per architecture; one alone is not a build.
   const split = (...arches: string[]) => arches.map(arch => `storytree-0.3-0.3.5-windows-${arch}-setup.exe`);
   assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: [...split("x64", "arm64"), "latest.yml"].map(asset) }), ["windows"]);
   assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: [...split("x64"), "latest.yml"].map(asset) }), []);
-  // A feed carried from an earlier build (4.6) is not this release's build of its platform.
   assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: ["storytree-0.3-0.3.5-setup.exe", "latest.yml", "latest-mac.yml", "latest-linux.yml"].map(asset) }), ["windows"]);
   const run = (id: number, publish: string, acceptance: string | null) => ({ id, jobs: [{ name: "source", conclusion: "success" }, { name: "publish", conclusion: publish }, { name: "mac-acceptance / run", conclusion: acceptance }] });
   assert.equal(releaseRunPassed([]).passed, false);
@@ -99,7 +94,6 @@ test("4.23 an open friction or question naming a regression in a build passes ov
   assert.deepEqual(found.passedOver.map(b => b.version), ["0.3.15", "0.3.14", "0.3.13", "0.3.12", "0.3.11"]);
   assert.match(found.passedOver[3]!.reasons.join(" "), /friction_a.*0\.3\.11/);
   assert.match(found.passedOver[4]!.reasons.join(" "), /friction_a/);
-  // A report naming a build without a regression, or naming a longer build, passes over nothing.
   state.concerns.splice(0, 1, { id: "question_b", title: "Is 0.3.12 slow to start?", text: "It took a minute once" },
     { id: "friction_c", title: "Regression", text: "broke in 0.3.110" });
   assert.equal((await stableCandidate(ports)).candidate?.version, "0.3.12");
@@ -148,12 +142,10 @@ test("4.23 a build the lag run has not measured, nor any later build with the sa
   const found = await stableCandidate(ports);
   assert.equal(found.candidate?.version, "0.3.11");
   assert.match(found.passedOver.find(b => b.version === "0.3.12")!.reasons.join(" "), /lag run has not measured it/);
-  // One action's contract measured is not enough: every catalogue action must have been measured.
   state.lag.push(lagWithin("c12")[0]!);
   const partly = await stableCandidate(ports);
   assert.equal(partly.candidate?.version, "0.3.11");
   assert.match(partly.passedOver.find(b => b.version === "0.3.12")!.reasons.join(" "), /not measured it.*for the actions of contract_start$/);
-  // A later build measured counts for it only when its app code is the same.
   state.lag = state.lag.filter(v => v.commit !== "c12");
   state.sameApp.add("c12>c13");
   const later = await stableCandidate(ports);

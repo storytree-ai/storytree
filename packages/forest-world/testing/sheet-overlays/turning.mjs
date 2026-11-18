@@ -1,6 +1,3 @@
-// The drawing engine 4.47: a host that turns the big sphere through its group keeps the pose it set last. The canvas's own root
-// commits a host's render a task after the host rendered it, so a turn set in between (the last step of an eased tilt) must
-// stand, not be put back to the pose the render read. Run: node --import tsx packages/forest-world/testing/sheet-overlays/turning.mjs
 import assert from 'node:assert/strict';
 import { rmSync } from 'node:fs';
 import path from 'node:path';

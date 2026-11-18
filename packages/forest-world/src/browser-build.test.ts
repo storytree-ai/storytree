@@ -5,7 +5,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-// Exercise the capture's own build, without Chromium or new pictures.
 const pkg = fileURLToPath(new URL("..", import.meta.url));
 const checkout = path.resolve(pkg, "../..");
 const run = promisify(execFile);

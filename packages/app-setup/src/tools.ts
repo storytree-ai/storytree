@@ -1,12 +1,4 @@
-/**
- * Capability 12 · Import an existing project, with capability 11 · Pipeline wiring and capability 6 · Make a folder a project:
- * App setup's tools on the MCP server's one server, named in its manifest (ADR-1021), so switching App setup off takes
- * them with it (ADR-1095): `take_starter_pack` and `move_onto_factory` (6), `wire_pipeline` (11, ADR-0911 D3) and
- * `import_project` (12). `check_setup` and `set_up_project` stay the server's own (ADR-1099 D2): they answer in a folder that is not
- * a project yet, where no part serves. The extension's shape is restated rather than imported, as quality assurance's
- * is: no story may depend on the MCP server, which depends on this package to serve the tools, and checks the two still
- * fit where it mounts its tool parts (its 6.75).
- */
+// Capability 12 · Import an existing project, with capability 11 · Pipeline wiring and capability 6 · Make a folder a project.
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -19,63 +11,43 @@ import { moveOntoFactory } from "./project/factory-move.js";
 import { ImportRefusedError, importLines, importProject } from "./project/importing.js";
 import { STARTER_CHECKS, STARTER_ROLES, takeStarterPack } from "./project/starter-pack.js";
 
-/** What a tool has for one call, of what the server hands it. */
 interface ToolCall {
   readonly library: Library;
   readonly storytree: Storytree;
   readonly project: string;
-  /** The folder the agent works in. */
   readonly folder: string;
 }
 
-/** What a tool answers. */
 interface ToolAnswer {
   readonly text: string;
   readonly data?: Record<string, unknown>;
   readonly refused?: boolean;
 }
 
-/**
- * Registers one tool: its name, what it is for, its arguments, what it does with them, and whether it writes a library
- * (ADR-1348 D3), when the server then takes the project it writes to and hands it that project's library.
- */
 type Define = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>, options?: { readonly writes?: true }) => void;
 
-/** App setup's contribution to the MCP server's one tool server. */
 export interface ToolExtension {
   readonly registerTools?: (define: Define) => void;
 }
 
-/**
- * What the part is given: how wire_pipeline reads whether a repository's plan allows branch protection, when not through
- * `gh`, and the pipeline jobs the parts the host mounts contribute (ADR-1170 D2), none when it gives none.
- */
 export interface ToolHost {
   readonly protection?: ProtectionReader;
   readonly pipelineJobs?: readonly PipelineJob[];
 }
 
-/** App setup's tool part, named in its manifest (ADR-1021): served for every project's library. */
 export const setupToolParts = [(host: ToolHost): ToolExtension => setupTools(host.protection, host.pipelineJobs)];
 
-/** A title, quoted as the tools quote names. */
 function quoted(title: string): string {
   return `"${title}"`;
 }
 
-/**
- * The refusal of a write naming a library other than the folder's project (ADR-1348 D3, contract 12.11): App setup's tools
- * set up, import into and wire the project this folder is, so the project they name must be it; none when it is.
- */
 function otherProject({ library, project }: ToolCall): ToolAnswer | undefined {
   if (library.name === project) return undefined;
   return { text: `This tool writes to this folder's own project, "${project}", not "${library.name}": name project "${project}", or run it from ${library.name}'s folder.`, refused: true };
 }
 
-/** What a tool App setup serves is defined with: it writes the folder's project's library, named by the call. */
 const WRITES = { writes: true } as const;
 
-/** The tools App setup serves. */
 export function setupTools(readProtection: ProtectionReader = ghProtection, jobs: readonly PipelineJob[] = []): ToolExtension {
   return {
     registerTools(define) {
@@ -128,7 +100,6 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
           });
           if (imported instanceof ImportRefusedError) return { text: imported.message, refused: true };
           const added = imported.added.map((story) => `${quoted(story.title)} (${story.id}), capabilities drawn: ${story.capabilities}`).join("; ");
-          // How to build beside the code just imported rides with the answer, off the habits card (contract 7.9, ADR-1341).
           return {
             text: [`Imported ${imported.folder}: ${imported.added.length} imported stories added${added === "" ? "" : `: ${added}`}; ${imported.retired.length} retired, their package gone; ${imported.kept.length} kept as they stand.`, ...importLines(imported), ...namingSaid(imported.added), RUN_THE_TESTS, "", MAPPED_CODE_GUIDANCE].join("\n"),
             data: {
@@ -209,16 +180,8 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
   };
 }
 
-/**
- * What import_project's reply asks of the agent once it maps a folder (ADR-1275 D1): the repository's own tests run in its shell,
- * never by a tool (ADR-1193 D2); then one arc fixes what they leave red and carries the user's requests (ADR-1271).
- */
 const RUN_THE_TESTS = "Run `storytree health local` now, in your shell, from this project's folder: it runs the repository's own tests, and their results read red or green on the contracts naming them. Until it runs, its capabilities read yellow, not yet proven. Its reply names the capabilities it leaves red: then plan one arc, an increment fixing each, its capabilities list naming it, and the user's own requests as increments on that arc.";
 
-/**
- * What import_project's reply asks of the agent for the stories it added (ADR-1324 D3, D4): to name and describe the
- * capabilities storytree drew, never redrawing them, and to map by reading only a story whose code it could not read.
- */
 function namingSaid(added: readonly { title: string; id: string; capabilities: number }[]): string[] {
   const unread = added.filter((story) => story.capabilities === 0);
   return [
@@ -227,7 +190,6 @@ function namingSaid(added: readonly { title: string; id: string; capabilities: n
   ];
 }
 
-/** What the answer says of the folders the project imports: each fetched at its commit, or named as one CI cannot fetch. */
 function importsSaid(imports: readonly ImportFetch[]): string[] {
   const fetched = imports.filter((imported) => "commands" in imported);
   return [

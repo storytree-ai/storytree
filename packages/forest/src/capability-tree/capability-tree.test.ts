@@ -1,10 +1,4 @@
-/**
- * Capability 2 · Capability tree (the forest story): each story node is a grove, one tree per
- * capability. A tree's size follows the arc surface's work state, and its leaves the health the
- * agent reports. The story is written out as the library's projectTree() hands it over, and the
- * work states come from agent activity log lines written out as linesSince hands them over, so no
- * database is needed.
- */
+// Capability 2 · Capability tree
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -30,7 +24,6 @@ const claimed = (capability: string): NewLine => ({ kind: "claimed", session: "s
 const landed = (capability: string): NewLine => ({ kind: "landed", session: "s1", source: "tool", capability });
 
 test("2.1 planned, being built, landed and passing, and landed and failing give a seedling, a seedling, a full green tree and a dead tree, in build order, each with what it builds on", () => {
-  // Created in an order that is not the build order: the dead tree's capability builds on the green one's.
   const trees = grove(
     story(capability("cap_dead", "failing", ["cap_green"]), capability("cap_green", "passing"), capability("cap_planned", "not-checked", ["cap_dead"]), capability("cap_building", "not-checked")),
     workStates(log(claimed("cap_green"), landed("cap_green"), claimed("cap_dead"), landed("cap_dead"), claimed("cap_building"))),

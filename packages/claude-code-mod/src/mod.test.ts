@@ -1,4 +1,3 @@
-/** The Claude Code mod: its hooks module, run against a stand-in for the engine's `$`, and the plugin folder its hosts load. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -10,7 +9,6 @@ import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "./index.mjs";
 
 type Hook = (engine: Engine, e: Input, next: (e: Input) => Promise<unknown>) => Promise<unknown>;
 
-/** The module registered, with an engine whose tool server answers as `answer` does, and what happened, in order. */
 function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), after: Engine["clock"]["after"] = (ms, fn) => {
   const timer = setTimeout(fn, ms);
   return { cancel: () => clearTimeout(timer) };
@@ -19,12 +17,10 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
   register((event, hook) => void hooks.set(event, hook));
   const happened: string[] = [];
   const sent: { server: string; tool: string; args: Record<string, unknown> | undefined }[] = [];
-  // The engine's own timers, its environment and the files the module wrote, standing in.
   const timers: { ms: number; fn: () => void; cancelled: boolean }[] = [];
   const env = new Map<string, string>();
   const written = new Map<string, string>();
   let id = "session-1";
-  // The session's figures as the status line has them, and the engine's time.
   let usage: Usage = { startedAt: 1_000, context: { window: 200_000 }, rateLimits: [] };
   let now = 5_000;
   const engine: Engine = {
@@ -48,7 +44,6 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
     env: { get: async (name) => env.get(name) },
     fs: { write: async (file, text) => void written.set(file, text) },
   };
-  /** Raise `event` with `e`; resolves with what the hooks beneath were given. */
   const raise = async (event: string, e: Input) => {
     const hook = hooks.get(`classic.${event}`);
     assert.ok(hook, `the module hooks classic.${event}`);
@@ -58,23 +53,19 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
       beneath = passed;
       return {};
     });
-    // A delivery the chain did not wait for settles on its own.
     await new Promise((resolve) => setImmediate(resolve));
     return beneath;
   };
-  /** Raise one of the engine's own events, `session.start` or `session.end`. */
   const own = async (event: string, e: Input) => {
     const hook = hooks.get(event);
     assert.ok(hook, `the module hooks ${event}`);
     await hook(engine, e, async () => ({}));
     await new Promise((resolve) => setImmediate(resolve));
   };
-  /** Let a period of every live timer pass. */
   const tick = async () => {
     for (const timer of timers.filter((one) => !one.cancelled)) timer.fn();
     await new Promise((resolve) => setImmediate(resolve));
   };
-  /** Raise `event` with `e`, the hooks beneath answering `beneath`; resolves with what the module's hook answered. */
   const reply = async (event: string, e: Input, beneath: Record<string, unknown> = {}) => {
     const hook = hooks.get(`classic.${event}`);
     assert.ok(hook, `the module hooks classic.${event}`);
@@ -86,7 +77,6 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
 const base = { session_id: "session-1", transcript_path: "/home/dev/.claude/projects/p/session-1.jsonl", cwd: "/work/site", permission_mode: "default" };
 
 test("1.1 · Each recorded classic event reaches the tool server's hook_event tool before the settings hooks beneath it run; a storytree tool's PreToolUse and an unrecorded event are passed on untouched; a failed or slow delivery still runs the hooks beneath", { timeout: 20_000 }, async () => {
-  // A prompt: its whole input, delivered before the foreground hook beneath looks for the tool's note.
   {
     const { raise, happened, sent } = loaded();
     const prompt = { ...base, hook_event_name: "UserPromptSubmit", prompt: "build it" };
@@ -94,7 +84,6 @@ test("1.1 · Each recorded classic event reaches the tool server's hook_event to
     assert.deepEqual(happened, ["delivered", "beneath"]);
     assert.deepEqual(sent, [{ server: "storytree", tool: "hook_event", args: { harness: "claude-code", input: prompt } }]);
   }
-  // Each event a command hook records is delivered, once, and passed on as it came.
   {
     const { raise, sent } = loaded();
     const events: [string, Input][] = [
@@ -108,7 +97,6 @@ test("1.1 · Each recorded classic event reaches the tool server's hook_event to
     for (const [event, e] of events) assert.deepEqual(await raise(event, e), e, event);
     assert.deepEqual(sent.map((one) => (one.args?.input as Input).hook_event_name), events.map(([event]) => event));
   }
-  // Before a shell command: the input its command hook reads, rebuilt from the call's envelope, in the folder the session last named.
   {
     const { raise, sent } = loaded();
     await raise("SessionStart", { ...base, hook_event_name: "SessionStart", source: "startup" });
@@ -119,7 +107,6 @@ test("1.1 · Each recorded classic event reaches the tool server's hook_event to
       input: { session_id: "session-1", transcript_path: base.transcript_path, cwd: "/work/site", hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "pnpm test", description: "Run the tests" }, tool_use_id: "toolu_4" },
     });
   }
-  // A storytree tool's PreToolUse (its command hook alone names the subagent asking) and an event no command hook records: passed on, never delivered.
   {
     const { raise, happened } = loaded();
     const claim = { tool: "mcp__storytree__claim", tool_use_id: "toolu_5", increment: "increment_1", reason: "x" };
@@ -128,7 +115,6 @@ test("1.1 · Each recorded classic event reaches the tool server's hook_event to
     assert.deepEqual(await raise("PostToolUse", read), read);
     assert.deepEqual(happened, ["beneath", "beneath"]);
   }
-  // A delivery that fails, or never answers, still runs the hooks beneath: they record the event themselves.
   {
     const { raise, happened } = loaded(async () => {
       throw new Error("no tool hook_event on a server named storytree");
@@ -137,7 +123,6 @@ test("1.1 · Each recorded classic event reaches the tool server's hook_event to
     assert.deepEqual(happened, ["delivered", "beneath"]);
   }
   {
-    // The engine's clock, standing in: the bound it is asked for passes at once.
     const asked: number[] = [];
     const { raise, happened } = loaded(() => new Promise(() => undefined), (ms, fn) => {
       asked.push(ms);
@@ -162,21 +147,18 @@ test("1.2 · From session.start the mod beats on its own timer for the session's
   await tick();
   assert.equal(beats().length, 3);
 
-  // A /clear ends the session's id, and the process beats on under the new one.
   await own("session.end", { reason: "clear", sessionId: "session-1" });
   assert.deepEqual(beats().at(-1), { session: "session-1", cwd: "/work/start", ended: true });
   become("session-2");
   await tick();
   assert.deepEqual(beats().at(-1), { session: "session-2", cwd: "/work/start" });
 
-  // Its real end: the last word, and no beat after it.
   await own("session.end", { reason: "prompt_input_exit", sessionId: "session-2" });
   assert.deepEqual(beats().at(-1), { session: "session-2", cwd: "/work/start", ended: true });
   const count = beats().length;
   await tick();
   assert.equal(beats().length, count);
 
-  // A reload starts the beat again with no second timer left running, and without the variable writes no file.
   const again = loaded(async () => {
     throw new Error("no tool heartbeat on a server named storytree");
   });
@@ -188,14 +170,12 @@ test("1.2 · From session.start the mod beats on its own timer for the session's
 });
 
 test("1.3 · In a pool lane (STORYTREE_LANE_RUN set) the mod beats as a lane, adds the steers waiting for it to each tool call's result as added context, and at its turn's end keeps the turn going with a waiting follow-up; outside a lane, or with nothing waiting, it asks nothing or leaves the answer as it was", async () => {
-  // The tool server's lane_messages tool answers with the text waiting, or nothing.
   let waiting = "";
   const lane = loaded(async () => ({ content: [{ type: "text", text: waiting }] }));
   lane.env.set("STORYTREE_LANE_RUN", "lane-1");
   await lane.own("session.start", { cwd: "/work/start" });
   assert.deepEqual(lane.sent.find((one) => one.tool === "heartbeat")?.args, { session: "session-1", cwd: "/work/start", lane: true }, "a lane's beat says it is a lane");
 
-  // The event's own session is asked for, with when the lane stops waiting, so the tool server takes nothing it could not hand back.
   const asked = () => {
     const { before, ...rest } = lane.sent.at(-1)?.args ?? {};
     assert.equal(lane.sent.at(-1)?.tool, "lane_messages");
@@ -216,7 +196,6 @@ test("1.3 · In a pool lane (STORYTREE_LANE_RUN set) the mod beats as a lane, ad
   waiting = "";
   assert.deepEqual(await lane.reply("Stop", { ...base, hook_event_name: "Stop", stop_hook_active: true }), {}, "nothing waiting: the turn ends");
 
-  // A tool server too slow to answer within the lane's wait leaves the answer as it was.
   const slow = loaded(() => new Promise(() => undefined), (_ms, fn) => {
     queueMicrotask(fn);
     return { cancel: () => undefined };
@@ -225,7 +204,6 @@ test("1.3 · In a pool lane (STORYTREE_LANE_RUN set) the mod beats as a lane, ad
   assert.deepEqual(await slow.reply("PostToolUse", read, { additionalContext: ["beneath said"] }), { additionalContext: ["beneath said"] });
   assert.deepEqual(await slow.reply("Stop", { ...base, hook_event_name: "Stop", stop_hook_active: false }), {});
 
-  // An engine whose environment cannot be read is taken for no lane.
   const unread = loaded(async () => ({ content: [{ type: "text", text: "a steer" }] }));
   unread.env.get = () => {
     throw new Error("no environment");
@@ -233,7 +211,6 @@ test("1.3 · In a pool lane (STORYTREE_LANE_RUN set) the mod beats as a lane, ad
   assert.deepEqual(await unread.reply("PostToolUse", read), {});
   assert.deepEqual(unread.sent.filter((one) => one.tool === "lane_messages"), []);
 
-  // An interactive session asks for no messages, and its beat says nothing of lanes.
   const own = loaded();
   await own.own("session.start", { cwd: "/work/start" });
   await own.reply("PostToolUse", read);
@@ -242,7 +219,6 @@ test("1.3 · In a pool lane (STORYTREE_LANE_RUN set) the mod beats as a lane, ad
   assert.deepEqual(own.sent.find((one) => one.tool === "heartbeat")?.args, { session: "session-1", cwd: "/work/start" });
 });
 
-/** A main-loop turn's end, as the engine raises it, or a subagent's with `agentId`. */
 const turn = (turnId: string, reason: string, extra: Input = {}): Input => ({ answer: "", durationMs: 10, isAborted: reason === "aborted", turnId, reason, ...extra });
 
 test("3.1 · At each main-loop turn's end, and each minute while a turn runs when a figure moved, the session's usage reaches hook_event; an idle or ended session sends none", async () => {
@@ -253,13 +229,11 @@ test("3.1 · At each main-loop turn's end, and each minute while a turn runs whe
   const figures: Usage = { startedAt: 1_000, context: { tokens: 50_000, window: 200_000, percent: 25 }, rateLimits: [{ kind: "five_hour", percentUsed: 12.5, resetsAt: "2026-10-17T09:00:00.000Z" }], cost: { usd: 0.42 } };
   measure(figures);
 
-  // A turn's end: its usage and why it ended, delivered before the chain goes on.
   await own("turn.complete", turn("turn-1", "answer"));
   const [first] = reports();
   assert.deepEqual({ ...first, measured_at: 0 }, { session_id: "session-1", cwd: "/work/start", measured_at: 0, usage: { context: figures.context, rateLimits: figures.rateLimits, cost: figures.cost },
     hook_event_name: "TurnComplete", turn_id: "turn-1", reason: "answer" });
 
-  // A minute with nothing moved sends nothing; a figure that moved is sent.
   await tick();
   assert.equal(reports().length, 1, "an idle session sends none");
   measure({ ...figures, context: { tokens: 90_000, window: 200_000, percent: 45 } });
@@ -271,7 +245,6 @@ test("3.1 · At each main-loop turn's end, and each minute while a turn runs whe
   await tick();
   assert.equal(reports().length, 2);
 
-  // Ended: no timer left to send.
   await own("session.end", { reason: "prompt_input_exit", sessionId: "session-1" });
   measure({ ...figures, cost: { usd: 9 } });
   await tick();

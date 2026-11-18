@@ -1,11 +1,4 @@
-/**
- * Capability 3 · Story node render (the forest story): the plan the page draws the 3D forest from.
- * Every story node is an island at its place, carrying its grove, and named; what the page drew is
- * said as the smoke check reads it (every story and capability by id); a change redraws only the islands it changed; and a click on the
- * ground picks the island there. The library's tree and history, and the agent log's lines, are
- * written out here as the app hands them to the page, so no database and no app are needed. The
- * look itself is judged by the owner's eye.
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -17,7 +10,6 @@ import { nextScene } from "../view/planet-update.js";
 
 const NO_HEALTH = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 
-/** A project: three stories, the first with two capabilities, the second with one, the third with none yet. */
 function project(): { tree: AnnotatedTree; history: Change[] } {
   const capability = (id: string): AnnotatedCapability => ({ id, title: `The ${id}`, dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health: NO_HEALTH });
   const story = (id: string, title: string, ...capabilities: AnnotatedCapability[]): AnnotatedStory => ({ id, title, capabilities, health: NO_HEALTH });
@@ -91,10 +83,8 @@ test("3.67 each plumbing call the survey marks between two stories is one island
   const file = (from: string, extra: object = {}) => ({ from, typeOnly: false, ...extra });
   const survey = {
     story_1: { files: [], imports: [], edges: [
-      // Two build-step files to one story make one entry; an unmarked import from the same file is no plumbing.
       { story: "story_2", typeOnly: false, files: [file("src/build.ts", { plumbing: "build step" }), file("src/run.ts", { plumbing: "build step" }), file("src/sell.ts")] },
       { story: "story_2", from: "cap_1a", to: "cap_2a", typeOnly: false, files: [file("src/old.ts", { forwarder: true })] },
-      // A capability edge with one ordinary import beside its plumbing is a link, as one made only of plumbing is.
       { story: "story_2", from: "cap_1b", to: "cap_2a", typeOnly: false, files: [file("src/old.ts", { forwarder: true }), file("src/cart.ts")] },
       { story: "story_3", typeOnly: false, files: [file("src/remove.ts", { plumbing: "cleanup" })] },
     ] },
@@ -105,8 +95,6 @@ test("3.67 each plumbing call the survey marks between two stories is one island
     { from: "story_1", to: "story_2", kind: "forwarder", files: ["src/old.ts"] },
     { from: "story_1", to: "story_3", kind: "cleanup", files: ["src/remove.ts"] },
   ]);
-  // A plumbing call is a link like a dependency (ADR-1277 D1): on a capability edge, that edge's link; on an edge with no
-  // capability end, a link from its island to the other as a whole, so every call is drawn as one more link between them.
   assert.deepEqual(scene.links, [
     { from: "story_1", to: "story_2" },
     { from: "cap_1a", to: "cap_2a" },

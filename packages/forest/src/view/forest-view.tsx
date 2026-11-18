@@ -1,10 +1,4 @@
-/**
- * Capability 3 · Story node render. The forest's page (the forest story, capability 3): its stories on the glass sheet, depth
- * running west to east (ADR-1043, which supersedes ADR-0655 D1's globe-only page), and the knowledge graph on the sheet's
- * underside, which the Library face turns it over to. PlanetView reuses the ported island drawing, with story names, selection and claims.
- * Unchanged islands retain their objects, and a live update that changed nothing on show is not drawn again.
- * The page mounts only the globe, and loads none of 0.2's pine kit: no island carries a tree (ADR-0804 D1).
- */
+// Capability 3 · Story node render
 import { createRoot } from "react-dom/client";
 import type { LanesNotice } from "@storytree/forest-world/planet";
 import type { ForestScene, SessionWisp } from "@storytree/forest";
@@ -28,60 +22,34 @@ import { searchFirst } from "../territories/kept-layout.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
 
 export interface ForestView {
-  /** Draw `scene`, recomputing only the islands that changed since the last one. */
   show(scene: ForestScene, places: ReadonlyMap<string, number>): void;
-  /** Resolves once the globe has painted a frame of the scene on show (3.75). */
   drawn(): Promise<void>;
-  /** Show where each running session works: the outline on each territory it claimed (capability 5, ADR-0923). */
   showWisps(wisps: readonly SessionWisp[]): void;
-  /** Light a session’s claimed islands, without changing the selected story. */
   highlight(stories: readonly string[] | undefined): void;
-  /** Ring the territories of these capabilities, the selected arc's open work, and the gates of the edges whose `contracts` it
-   * links (3.92), and dim the rest; undefined for no arc (3.83). */
   circle(capabilities: readonly string[] | undefined, contracts?: readonly string[] | undefined): void;
-  /** Mark `story` selected (undefined for none), as a click would. */
   select(story: string | undefined): void;
-  /** Stop drawing and let go of the GPU. */
   dispose(): void;
 }
 
-/** What the page draws, as one value handed to React on every change. */
 interface Drawn {
-  /** The glass sheet's face toward the eye (ADR-1043 D3). */
   face: SheetFace;
   places: ReadonlyMap<string, number>;
   scene: ForestScene;
   wisps: readonly SessionWisp[];
   selected: string | undefined;
-  /** The selected story's capability, ringed (3.91). */
   capability: string | undefined;
   highlighted: readonly string[] | undefined;
   circled: readonly string[] | undefined;
   circledContracts: readonly string[] | undefined;
   viewport: { width: number; height: number } | undefined;
-  /** CSS pixels of the page's right the story panel or note card covers (3.40). */
   aside: number;
-  /** That some lanes could not be drawn, shown in the top row (3.103). */
   lanesNotice: LanesNotice | undefined;
-  /** Whether a read of the project has been shown, so an empty scene means no stories rather than none read yet (3.107). */
   read: boolean;
-  /** Whether the Library's loading bar is on show: its open has run past about a third of a second (3.116). */
   libraryBar: boolean;
 }
 
-/**
- * Open the globe in `container`. `onSelect` hears the story or artifact picked, or empty space.
- * The app's existing core supplies the faint points; its inspection page stays deferred.
- * Its Stories and Library buttons are the glass sheet's two looks, one pressed at a time: Library clears the glass and
- * outlines the islands, Stories smokes it and fills them again, and neither moves the eye, which only the user tilts and turns
- * (ADR-1062 D3, replacing ADR-1002's four combinations here). With `library` off (ADR-0750) nothing hangs beneath and only
- * Stories is offered; `opening` is how close it opens, and every project opens on Stories.
- * The page offers `window.storytreeGlobe`, the locator the lag instrument clicks islands by (3.41). A project read with no
- * story says so on the map, and `openGuide`, where the frame gives it, is its button to the first-run guide (3.107).
- */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
   { library = true, opening = "whole-planet", openGuide, libraryBarAfterMs }: { library?: boolean; opening?: GlobeOpening | undefined; openGuide?: (() => void) | undefined;
-    /** How long a Library open runs before its loading bar shows: about a third of a second unless given (3.116). */
     libraryBarAfterMs?: number | undefined } = {}): Promise<ForestView> {
   const root = createRoot(container);
   let drawn: Drawn = {
@@ -93,7 +61,6 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   const render = (next: Partial<Drawn>): void => {
     drawn = { ...drawn, ...next };
     const stories = drawn.scene.islands.map(island => island.story);
-    // 3.97: the island on screen, selected or else the newest, is searched before the others waiting.
     searchFirst(onScreen(stories, drawn.selected));
     if (drawn.viewport === undefined) return;
     const layers = sheetFaces(drawn.face, library);
@@ -112,7 +79,6 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       <ForestTop layers={layers} onTurn={turn} notice={drawn.lanesNotice} aside={drawn.aside} rings={openWorkCount(drawn.scene, drawn.circled, drawn.circledContracts)}
         islands={drawn.scene.islands.map(island => ({ story: island.story, territories: island.land?.territories }))} />
       <EmptyMap read={drawn.read} face={drawn.face} islands={drawn.scene.islands.length} onGuide={openGuide} />
-      {/* The knowledge core's kind list unfolds under the Library button while it is pressed (knowledge core 5, D1). */}
       {layers.mode === "library" && <KnowledgeKinds core={core} />}
     </>);
   };
@@ -121,7 +87,6 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     render({ selected: next?.kind === "story" ? next.id : undefined, capability: next?.kind === "story" ? next.capability : undefined });
     onSelect(next);
   });
-  // A press of Library loads its notes then (ADR-1340): past about a third of a second a bar shows until they are hung (3.116).
   const libraryOpens = libraryOpening(shown => render({ libraryBar: shown }), libraryBarAfterMs);
   const turn = (face: SheetFace): void => {
     if (face === drawn.face) return;
@@ -132,7 +97,6 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   const pick = (story: string | undefined, capability?: string, gate?: readonly [string, string]): void => selection.picked(story, capability, gate);
   const pickNote = (note: string): void => selection.note(note);
   const pickStore = (address: string): void => selection.store(address);
-  // The canvas tells it only when the notice changes (4.45).
   const onLanesNotice = (notice: LanesNotice | undefined): void => render({ lanesNotice: notice });
   const onKey = (event: KeyboardEvent): void => selection.key(event.key);
   let controls: PlacedGlobeControls | undefined;
@@ -142,8 +106,6 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     box: () => (container.querySelector("canvas") ?? container).getBoundingClientRect(), aside: () => measuredAside(), names: () => drawnNames(container) });
   window.addEventListener("keydown", onKey);
 
-  // The right-hand slot (the story panel or the Library's note card) is the globe's sibling; the globe moves aside for
-  // the width it measures, so a panel's own width (narrowed while the tree has its space) reaches it as drawn.
   const panel = container.parentElement?.querySelector<HTMLElement>(":scope > .story-panel") ?? undefined;
   const measuredAside = (): number => panel === undefined ? 0 : panelAside(container.getBoundingClientRect(), [...panel.getClientRects()]);
   const measure = (): void => {
@@ -153,10 +115,8 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   };
   const observer = new ResizeObserver(measure);
   observer.observe(container);
-  // Opening or closing the panel toggles its `hidden`, which a size observer alone may miss.
   const shown = new MutationObserver(measure);
   if (panel !== undefined) { observer.observe(panel); shown.observe(panel, { attributes: true, attributeFilter: ["hidden"] }); }
-  // A capability's name on the story panel picks it here, so its territory is ringed as a click on it would (4.8).
   const stopPicks = panel === undefined ? undefined : panelPicks(panel, selection);
 
   return {
@@ -193,11 +153,9 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   };
 }
 
-/** Mount the Library panel, the knowledge core's card for the note picked, in the slot the story panel also uses. */
 export function mountLibraryPanel(container: HTMLElement, core: KnowledgeCore, onClose: () => void): () => void {
   const root = createRoot(container);
   root.render(<KnowledgeNoteCard core={core} onClose={onClose} />);
-  // The slot is the Library's canvas while the card is in it (Surface feedback names it).
   Object.assign(container.dataset, { surfaceId: "library", surfaceLayer: "panel" });
   return () => {
     root.unmount();

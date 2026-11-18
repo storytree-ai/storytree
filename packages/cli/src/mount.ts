@@ -1,15 +1,4 @@
-/**
- * Capability 1 · Front door. A verb its owning story declared once (ADR-0969 D2), mounted as a command: its usage is
- * read from the verb's inputs, its words and flags become the verb's input, a step it offers next is named as a
- * command, and the verb's own refusal is the door's, with the usage when the input was wrong. A word or flag the verb does
- * not take is refused with its usage, and a refusal's next steps are named as commands. A callerless verb is handed only
- * its place, with the shell's session when it names one alone, so it runs where no library opens. A
- * verb that writes is handed the writer, named below its answer once its work asks for it, so one that wrote nothing names
- * none; it takes `--project`, `--arc` or `--increment`, at least one, those it does not take itself added, and is handed
- * the library they name (ADR-1348 D3): one naming none is refused with its usage, saying what to pass, and so is a project
- * outside the folder's factory's circle, while the folder's project stays the session's. A raw answer is printed as it is. The verb's consumers go with it, for a reading of the doors. A declared family is
- * mounted with the families within it, its bare verb, its guesses and its retired words.
- */
+// Capability 1 · Front door
 import type { Library, PluginRecordKind, Storytree } from "@storytree/library";
 import type { Composition, PartsGraph } from "@storytree/plugin-loader";
 import type { ProvidingFamily } from "@storytree/plugin-loader/switch";
@@ -26,105 +15,59 @@ const WORDS: DoorWords = {
   say: (step) => step.command === undefined ? `the ${step.tool!} tool` : `storytree ${step.command}`,
 };
 
-/**
- * The caller this door hands a verb, with the activity log its work reads and writes: the door's own copy of
- * Session management's verb context (ADR-1017 D2).
- */
 export type CommandCaller = VerbContext & Pick<ClaimContext, "log">;
 
-/**
- * What this door hands every verb besides its caller: the command's own script, when known (storytree's other commands
- * sit beside an installed one), the per-process journey runtime, which the door finishes after the answer, where a line
- * is printed before the answer (sign-in's code while it waits), the app's surfaces this host's story packages declare, the
- * records they keep for a project outside its library, and what the library's verbs read from above the library: the
- * project's claims and the contract numbers a story package's tests carry.
- */
 export interface CommandPlace extends VerbPlace {
   readonly script?: string;
   journey: Context["journey"];
   out(text: string): void;
   surfaces(): Promise<readonly SurfaceDeclaration[]>;
-  /** The host's parts, each with the parts it stands on (ADR-1095): what `settings set module` switches. */
   parts(): Promise<PartsGraph>;
-  /** The host's command families, each with the part that declares it: what `settings set module` says a switch takes away, and `plugin check` a stand-in lacks. */
   hostVerbs(): Promise<Composition<ProvidingFamily>>;
-  /** The records the parts this computer mounts keep for a project outside its library, which `project delete` forgets with it. */
   projectRecords(): Promise<readonly ProjectRecords[]>;
-  /** The project's claims, which the library's `edit` and `retire` read for the increment the caller holds (ADR-0966). */
   claims(): Promise<readonly Claim[]>;
-  /** The contract numbers `capability`'s story package's numbered tests carry in this checkout, and its planned contracts none carries. */
   testedNumbers(capability: string): Promise<{ tested: string[]; untested: string[] }>;
-  /** Where each of `paths` belongs in this checkout, by the map's placement: what `workspace owners` reads. */
   placeFiles(paths: readonly string[]): Promise<readonly FilePlaceOf[]>;
-  /** Whether this computer's factory folder holds the plugin `plugin`: what the library's lists name as its mount, or say is missing. */
   pluginInFactory(plugin: string): Promise<boolean>;
 }
 
-/** A file's place as the map gives it: the door hands it on (ADR-1017 D2). */
 type FilePlaceOf = Awaited<ReturnType<typeof import("@storytree/map/code-survey").placeFiles>>[number];
 
-/** A surface a story's manifest declares: the door hands the list on and reads none of its fields (ADR-1017 D2). */
 export type SurfaceDeclaration = object;
 
-/** Records a story's manifest contributes under `projectRecords` (ADR-1170 D2): the door's own copy of the shape (ADR-1017 D2). */
 export interface ProjectRecords {
   readonly name: string;
   forget(server: Storytree, project: string): Promise<void>;
 }
 
-/**
- * The app's surfaces, as each story's manifest declares them (ADR-0750, ADR-1021), in the order the Surfaces menu lists
- * them, but those of a part this computer switches off (ADR-1095).
- */
 async function surfaces(): Promise<readonly SurfaceDeclaration[]> {
   const [{ mount }, { readPartsOff }] = await Promise.all([import("@storytree/plugin-loader"), import("@storytree/project-and-caller")]);
   return mount((await import("#parts/surfaces")).default, readPartsOff()).mounted;
 }
 
-/**
- * The project records the story packages contribute (code review's QA ledger), but those of a part switched off in
- * `home`, with a factory plugin's in the place of a part it stands in for, so a project is deleted with no import of
- * the part that keeps them.
- */
 export async function projectRecords(home?: string): Promise<readonly ProjectRecords[]> {
   const [{ mount, standIn }, { readPartsOff, readStandIns }] = await Promise.all([import("@storytree/plugin-loader"), import("@storytree/project-and-caller")]);
   return mount(standIn((await import("#parts/projectRecords")).default, "projectRecords", readStandIns(home)), readPartsOff(home)).mounted;
 }
 
-/**
- * A check a story's manifest contributes under `armChecks`: whether a door may run a verb for a caller whose storytree
- * home is `home`, or the experiment arm that denies it, with why (ADR-1064 D2): the door's own copy of the shape (ADR-1017 D2).
- */
 export interface ArmCheck {
   readonly name: string;
   verdict(door: "tool" | "command", verb: string, home?: string): { readonly allowed: true } | { readonly allowed: false; readonly message: string };
 }
 
-/**
- * The arm checks the story packages contribute, but those of a part switched off in `home`,
- * with a factory plugin's in the place of a part it stands in for, so the door enforces an arm with no import of the
- * part that keeps arms, and with none mounted runs every command.
- */
 export async function armChecks(home?: string): Promise<readonly ArmCheck[]> {
   const [{ mount, standIn }, { readPartsOff, readStandIns }] = await Promise.all([import("@storytree/plugin-loader"), import("@storytree/project-and-caller")]);
   return mount(standIn((await import("#parts/armChecks")).default, "armChecks", readStandIns(home)), readPartsOff(home)).mounted;
 }
 
-/** The host's command families, as its story packages' manifests declare them, each with the part that declares it. */
 async function hostVerbs(): Promise<Composition<ProvidingFamily>> {
   return (await import("#parts/verbs")).default;
 }
 
-/** The host's parts graph: the same for every kind it composes. */
 async function parts(): Promise<PartsGraph> {
   return (await import("#parts/surfaces")).default.graph;
 }
 
-/**
- * The kinds of record the factory plugins this host mounts declare (ADR-1178 D3), which the project's library is opened
- * with, and a line for each part whose stand-in's kinds could not be read, said as a stand-in that failed is. A settings
- * file that cannot be read mounts none, and the command that reads it next says why.
- */
 export async function recordKindsMounted(): Promise<{ kinds: PluginRecordKind[]; said: string[] }> {
   const [{ offSaid, recordKinds, switchedOff }, { readPartsOff, readStandIns }] = await Promise.all([import("@storytree/plugin-loader"), import("@storytree/project-and-caller")]);
   let off: readonly string[];
@@ -141,25 +84,18 @@ export async function recordKindsMounted(): Promise<{ kinds: PluginRecordKind[];
   return { kinds, said: Object.entries(failed).map(([part, why]) => offSaid({ part, because: because.get(part) ?? part, failed: why })) };
 }
 
-/**
- * The contract numbers `capability`'s story package's numbered tests carry in the checkout `cwd` is in, and the
- * titles of its planned contracts none of them carries yet.
- */
 async function testedNumbersOf(cwd: string, library: Library, capability: string): Promise<{ tested: string[]; untested: string[] }> {
   const { testedNumbers, untestedContracts } = await import("@storytree/map/code-survey");
   const tree = await library.projectTree();
-  // The survey reads the checkout `cwd` is in, from its top.
   const tested = await testedNumbers(cwd, tree, capability);
   return { tested, untested: untestedContracts(tree, capability, tested) };
 }
 
-/** Where each of `paths`, absolute or relative to `cwd`, belongs in the checkout `cwd` is in, by the map's placement. */
 async function placeFilesOf(cwd: string, library: Library, paths: readonly string[]): Promise<FilePlaceOf[]> {
   const { placeFiles } = await import("@storytree/map/code-survey");
   return placeFiles(cwd, paths, await library.projectTree());
 }
 
-/** Whether this computer's factory folder holds a plugin called `plugin`, with a manifest the loader reads. */
 async function pluginInFactory(plugin: string): Promise<boolean> {
   const [{ factoryFolder }, { pluginFor }] = await Promise.all([import("@storytree/project-and-caller"), import("@storytree/plugin-loader/factory")]);
   try {
@@ -170,11 +106,6 @@ async function pluginInFactory(plugin: string): Promise<boolean> {
   }
 }
 
-/**
- * The command for `declared`, which must have one. Its context is the caller's, with the activity log, and this door's
- * place; a callerless verb's is the place alone, the folder the command runs in and the shell's sole session, and no
- * library is opened for it.
- */
 export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>): Command {
   if (!mounted(declared.command)) throw new Error(`no command to mount: ${declared.command.absent}`);
   const face = declared.command;
@@ -195,7 +126,6 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
     async act(args, context) {
       try {
         const given = commandInput(taking, { word: (index) => args.words[index], flag: (name) => args.text(name), flags: (name) => args.texts(name), has: (name) => args.has(name), names: () => args.names });
-        // A write's place: what it was given, a field it writes (an increment's arc, a friction's increment) naming it as well.
         const named = whereOf({ ...fieldsOf(declared, given), ...given });
         const input = Object.fromEntries(Object.entries(given).filter(([key]) => !(where as readonly string[]).includes(key)));
         if (declared.agentOnly !== undefined && commandSession() === undefined) throw new Refusal(`Run storytree ${face.family} ${face.name} from the agent's shell: ${declared.agentOnly}.`);
@@ -213,31 +143,23 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
   };
 }
 
-/**
- * The inputs naming a write's place that `declared` does not take itself (ADR-1348 D3), added to its flags and usage:
- * only `project` for a verb whose fields take every flag, whose `arc` and `increment` a record's fields may hold, so
- * they stay its fields and name its place as well. A verb that does not write takes none.
- */
 function wherePlaces(declared: Verb<VerbInputs, never>): (keyof typeof WHERE_INPUTS)[] {
   if (!declared.writes || declared.callerless) return [];
   const added = (Object.keys(WHERE_INPUTS) as (keyof typeof WHERE_INPUTS)[]).filter((key) => !(key in declared.inputs));
   return Object.values(declared.inputs).some((one) => one.kind === "fields") ? added.filter((key) => key === "project") : added;
 }
 
-/** The fields a verb whose fields take every flag was given, or nothing. */
 function fieldsOf(declared: Verb<VerbInputs, never>, given: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
   const name = Object.entries(declared.inputs).find(([, one]) => one.kind === "fields")?.[0];
   const fields = name === undefined ? undefined : given[name];
   return typeof fields === "object" && fields !== null ? fields as Record<string, unknown> : {};
 }
 
-/** `caller` with the writer, asked of the door only when the work first reads it: the door names a writer it was asked for. */
 function writing<C extends object>(caller: C, context: Pick<Context, "writer">): C & { readonly writer: ReturnType<Context["writer"]> } {
   let writer: ReturnType<Context["writer"]> | undefined;
   return Object.defineProperty({ ...caller }, "writer", { enumerable: true, get: () => (writer ??= context.writer()) }) as C & { readonly writer: ReturnType<Context["writer"]> };
 }
 
-/** The family for `declared`, with the families within it, each verb mounted as a command but one whose command is declared absent (a tool alone). */
 export function family(declared: VerbFamilies<CommandCaller & CommandPlace>): Family {
   return {
     name: declared.name,
@@ -251,14 +173,8 @@ export function family(declared: VerbFamilies<CommandCaller & CommandPlace>): Fa
   };
 }
 
-/** What a command family kept here adds to its usage when it writes (ADR-1348 D3): where the write goes. */
 export const WHERE_USAGE = "--project <project> | --arc <arc> | --increment <increment>";
 
-/**
- * The library a write by a command family kept here lands in (ADR-1348 D3): the one its `--project`, `--arc` or
- * `--increment` names, read from the folder's own, as a declared verb's is; naming none, or a project outside the
- * folder's factory's circle, is refused with `usage`.
- */
 export async function writtenFor(args: Pick<Args, "text">, context: Pick<Context, "library">, usage: string): Promise<Library> {
   const named = whereOf({ project: args.text("project"), arc: args.text("arc"), increment: args.text("increment") });
   try {

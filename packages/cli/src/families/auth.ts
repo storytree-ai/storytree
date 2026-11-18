@@ -1,8 +1,4 @@
-/**
- * Capability 1 · Front door. A thin front door onto the keys story (ADR-0843): save, list and remove the keys storytree keeps.
- * Each is a person's own (ADR-1045 D1): a key is given at a terminal, never by an agent. `auth connection` hands a hand
- * script's psql the routed library, signed in with its key, and stores nothing; an agent or a person may run it.
- */
+// Capability 1 · Front door
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";
 
@@ -68,7 +64,6 @@ export const auth: Family = {
   }],
 };
 
-/** Standard input whole, or one line typed at a terminal with nothing shown. */
 async function readSecret(prompt: string): Promise<string> {
   const input = process.stdin;
   if (!input.isTTY) {

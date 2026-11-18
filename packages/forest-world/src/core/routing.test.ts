@@ -1,17 +1,5 @@
-// The trail router's inner-loop dogfood (ADR-0169 §1): the cost-grid engine is
-// DETERMINISTIC (same input → deep-equal network, byte-identical d strings),
-// island-avoiding, trunk-MERGING under the reuse discount, cave-forced only
-// when walled in, meander-bounded by clearance, and chain-continuous from rim
-// to rim. The LOOK is operator-attested (ADR-0070) — these pin the geometry.
-
 import { HEX_R, PRE_ADR0528_TILE } from './hex.js';
 
-/**
- * The router's defaults are `HEX_R`-relative (cell, clearance, falloff, meander), and the tile is
- * DERIVED since ADR-0528 (≈ 11.06). The island fixtures in the two tests below are absolute
- * coordinates authored against the radius-27 tile, so they are routed with that tile's tuning —
- * the same geometry relative to the tile the behaviour was judged on.
- */
 const R27 = PRE_ADR0528_TILE.hexR;
 const TUNED_AT_27 = {
   cellSize: R27 / 2,
@@ -34,8 +22,6 @@ import {
 } from './routing.js';
 import { hash, rand01 } from './rng.js';
 
-// ---------- helpers ----------
-
 function isle(id: string, x: number, y: number, r: number): TrailIsland {
   return { id, x, y, r };
 }
@@ -51,8 +37,6 @@ function orientedPoints(net: TrailNetwork, ref: { id: string; reversed: boolean 
   return ref.reversed ? pts.reverse() : pts;
 }
 
-/** Walk an edge's segment chain: consecutive endpoints must coincide, and the
- *  chain must dock exactly on the from/to island rims. */
 function assertChainContinuous(net: TrailNetwork, islands: readonly TrailIsland[], edge: TrailEdgeOut): void {
   const byId = new Map(islands.map((i) => [i.id, i]));
   assert.ok(edge.segments.length > 0, `${edge.from}->${edge.to} has segments`);
@@ -82,7 +66,6 @@ function assertChainContinuous(net: TrailNetwork, islands: readonly TrailIsland[
   );
 }
 
-/** Islands that are NOT an endpoint of any edge routed through the segment. */
 function foreignIslandsOf(net: TrailNetwork, segId: string, islands: readonly TrailIsland[]): TrailIsland[] {
   const endpoints = new Set<string>();
   for (const e of net.edges) {
@@ -94,10 +77,6 @@ function foreignIslandsOf(net: TrailNetwork, segId: string, islands: readonly Tr
   return islands.filter((i) => !endpoints.has(i.id));
 }
 
-// ---------- determinism ----------
-
-// test-removed: `routeTrails is deterministic: same input, deep-equal network + byte-identical d` was renamed to bind its declared contract; the unchanged predicate is covered by the title below.
-// test-updated (refactor): `routeTrails is deterministic: same input, deep-equal network + byte-identical d` gained only its declared-contract title prefix; its assertions are unchanged.
 test('1.2 rc-trail-router-deterministic-network: routeTrails is deterministic: same input, deep-equal network + byte-identical d', () => {
   const islands = [isle('A', 0, 0, 40), isle('B', 520, 0, 40), isle('O', 260, 10, 55)];
   const edges: TrailEdgeIn[] = [
@@ -115,8 +94,6 @@ test('1.2 rc-trail-router-deterministic-network: routeTrails is deterministic: s
   assert.ok(n1.segments.length > 0);
   for (const s of n1.segments) assert.match(s.d, /^M -?\d/);
 });
-
-// ---------- avoidance + meander bound ----------
 
 test('1.2 visible trails avoid foreign islands and the meander never enters one', () => {
   const islands = [isle('A', 0, 0, 40), isle('B', 520, 0, 40), isle('O', 260, 0, 55)];
@@ -136,7 +113,6 @@ test('1.2 visible trails avoid foreign islands and the meander never enters one'
 
 test('an explicit meanderAmp override is clamped below clearance — never into an island', () => {
   const islands = [isle('A', 0, 0, 40), isle('B', 520, 0, 40), isle('O', 260, 0, 55)];
-  // an absurd amplitude must not break the invariant the default derivation keeps
   const net = routeTrails(islands, [{ from: 'A', to: 'B' }], 'seed-amp', { meanderAmp: 500 });
   assert.equal(net.caves.length, 0);
   for (const seg of net.segments) {
@@ -148,13 +124,11 @@ test('an explicit meanderAmp override is clamped below clearance — never into 
 });
 
 test('a pinched-out third island keeps its hard clearance (three block slots, not two)', () => {
-  // A and B are the edge's OWN islands and the two nearest blockers throughout the
-  // pinch, so a 2-slot mask would drop X entirely and let the trail hug its coast.
   const X = isle('X', 45, 24, 10);
   const islands = [isle('A', 0, 0, 40), isle('B', 90, 0, 40), X];
   const net = routeTrails(islands, [{ from: 'A', to: 'B' }], 'seed-pinch');
   assert.equal(net.caves.length, 0, 'the pinch routes around, never under');
-  const clearance = 0.6 * HEX_R; // resolveTuning default from HEX_R
+  const clearance = 0.6 * HEX_R;
   for (const seg of net.segments) {
     for (const p of seg.points) {
       const d = Math.hypot(p.x - X.x, p.y - X.y);
@@ -162,8 +136,6 @@ test('a pinched-out third island keeps its hard clearance (three block slots, no
     }
   }
 });
-
-// ---------- merge emergence ----------
 
 test('near-parallel edges to one destination share a trunk segment (usage >= 2)', () => {
   const islands = [isle('A', -800, -60, 35), isle('B', -800, 60, 35), isle('C', 0, 0, 45)];
@@ -181,11 +153,9 @@ test('near-parallel edges to one destination share a trunk segment (usage >= 2)'
   const shared = bc.segments.filter((r) => acIds.has(r.id));
   assert.ok(shared.length > 0, 'the two edges share at least one segment');
   for (const r of shared) assert.ok(segById(net, r.id).usage >= 2, 'shared segment counts both edges');
-  // spur segments stay usage 1
   assert.ok(net.segments.some((s) => s.usage === 1), 'each edge keeps its own spur');
 });
 
-/** Total length of a segment-chain's polylines. */
 function chainLength(net: TrailNetwork, edge: TrailEdgeOut): number {
   let L = 0;
   for (const ref of edge.segments) {
@@ -206,10 +176,6 @@ function sharedLength(net: TrailNetwork, edge: TrailEdgeOut): number {
 }
 
 test('near-parallel edges MERGE onto one trunk for most of their length (no side-by-side lanes)', () => {
-  // Owner feedback 2026-07-06: the map showed unnecessary side-by-side parallel trails.
-  // Two edges from near-adjacent sources to a common destination must SHARE one trunk
-  // for the dominant part of the run — only a short spur peels off at each source, they
-  // do not run a cell apart the whole way. The reuse-discount funnel is what merges them.
   const islands = [isle('A', -800, -40, 35), isle('B', -800, 40, 35), isle('C', 0, 0, 45)];
   const net = routeTrails(
     islands,
@@ -225,11 +191,7 @@ test('near-parallel edges MERGE onto one trunk for most of their length (no side
   }
 });
 
-// ---------- single-dock: converging approaches merge into ONE trunk (item 1, 2026-07-07) ----------
-
-/** The point where an edge's chain lands on the given island's rim. */
 function dockPointOn(net: TrailNetwork, edge: TrailEdgeOut, isl: TrailIsland): { x: number; y: number } {
-  // the chain is ordered from -> to; the endpoint on `isl` is whichever rim it docks
   const firstRef = edge.segments[0]!;
   const lastRef = edge.segments[edge.segments.length - 1]!;
   const firstPts = orientedPoints(net, firstRef);
@@ -247,9 +209,6 @@ function dockPointOn(net: TrailNetwork, edge: TrailEdgeOut, isl: TrailIsland): {
 }
 
 test('near-coincident approaches to one island share ONE dock trunk, not separate lines', () => {
-  // Owner feedback 2026-07-07: trails fanned into 2+ separate lines right at the island
-  // rim. Three sources left of C at near-coincident bearings must merge into ONE dock on
-  // C's rim (a single thicker trunk), never three parallel approach lines.
   const C = isle('C', 0, 0, 45);
   const islands = [isle('A', -800, -50, 30), isle('B', -800, 0, 30), isle('D', -800, 50, 30), C];
   const net = routeTrails(
@@ -267,19 +226,15 @@ test('near-coincident approaches to one island share ONE dock trunk, not separat
     docks.add(`${p.x.toFixed(4)},${p.y.toFixed(4)}`);
   }
   assert.equal(docks.size, 1, 'the three edges share exactly ONE dock point into C');
-  // and the shared docking trunk carries all three edges — the width IS the merge signal
   assert.ok(
     net.segments.some((s) => s.usage === 3),
     'a usage-3 trunk exists where the three approaches merge',
   );
-  // §5 honesty: every real edge is still drawn — nothing dropped by the merge
   assert.equal(net.edges.length, 3);
   assert.equal(net.dropped.length, 0);
 });
 
 test('opposite-side approaches keep their own dock — merging never forces a detour', () => {
-  // The anti-chaining guard: an approach from the far side of the island is NOT pulled
-  // into the near-side cluster. Three sources left of C merge; one to the RIGHT stays put.
   const C = isle('C', 0, 0, 45);
   const islands = [
     isle('A', -800, -50, 30),
@@ -304,7 +259,6 @@ test('opposite-side approaches keep their own dock — merging never forces a de
     docks.add(`${p.x.toFixed(4)},${p.y.toFixed(4)}`);
   }
   assert.equal(docks.size, 2, 'left trio shares one dock; the right edge keeps its own');
-  // E's approach is its own spur (usage 1); the left trio still forms a usage-3 trunk
   const ec = net.edges.find((e) => e.from === 'E')!;
   const eDock = dockPointOn(net, ec, C);
   const eSeg = orientedPoints(net, ec.segments[ec.segments.length - 1]!);
@@ -317,10 +271,6 @@ test('opposite-side approaches keep their own dock — merging never forces a de
 });
 
 test('a moderate ~95° fan docks as ONE trunk (dockMergeSpan 100°, owner 2026-07-08)', () => {
-  // Owner feedback 2026-07-08 ("pathways split unnecessarily when joining together"): the
-  // old 90° span cap cut a moderate fan into two docks, and that split rendered as a Y-fork
-  // right at the rim. Three sources fanning ~±47° (94° total) around C must now dock as ONE
-  // trunk — under the old 90° cap this same fan would have split into two docks.
   const C = isle('C', 0, 0, 45);
   const islands = [isle('A', 546, -585, 30), isle('B', 800, 0, 30), isle('D', 546, 585, 30), C];
   const net = routeTrails(
@@ -340,14 +290,10 @@ test('a moderate ~95° fan docks as ONE trunk (dockMergeSpan 100°, owner 2026-0
   assert.equal(docks.size, 1, 'the ~94° fan shares ONE dock (would be two under the old 90° cap)');
   assert.ok(net.segments.some((s) => s.usage === 3), 'a usage-3 trunk carries the merged fan');
   assert.equal(net.dropped.length, 0);
-  // determinism: byte-identical network on a re-route
   assert.deepEqual(routeTrails(islands, [{ from: 'A', to: 'C' }, { from: 'B', to: 'C' }, { from: 'D', to: 'C' }], 'seed-fan-95'), net);
 });
 
 test('a genuinely wide ~110° fan keeps ≥2 docks — the span cap still bites (no rim-wrap)', () => {
-  // The anti-detour cap survives the widening: a fan wider than 100° is NOT force-merged
-  // onto one dock (which would bend an extreme edge into a rim-wrap). Sources fanning ~±55°
-  // (110° total, gaps 55° < dockMergeGap so only the SPAN cap can split them) keep 2 docks.
   const C = isle('C', 0, 0, 45);
   const islands = [isle('A', 459, -655, 30), isle('B', 800, 0, 30), isle('D', 459, 655, 30), C];
   const net = routeTrails(
@@ -370,19 +316,12 @@ test('a genuinely wide ~110° fan keeps ≥2 docks — the span cap still bites 
 });
 
 test('edges that FUNNEL together dock ONCE — approach recluster collapses the rim Y-fork (owner 2026-07-08)', () => {
-  // Owner feedback 2026-07-08 ("can still see some instances of unnecessary splitting"): the
-  // straight CHORD bearing toward the far island is a poor predictor of where a trail actually
-  // reaches the rim — the reuse funnel bends near-parallel edges onto a shared trunk, so two
-  // edges whose chords fan WIDE (here 108°, past the 100° span cap) can arrive from the SAME
-  // direction and then fork into a Y at the rim. A long P→Q trunk BELOW C funnels both C→P and
-  // C→Q down onto it, so both approach C from below despite the wide chords. The second pass
-  // re-clusters on the ACTUAL approach bearing, collapsing the two chord-docks into one trunk.
   const C = isle('C', 0, 0, 45);
   const P = isle('P', -700, 500, 40);
   const Q = isle('Q', 700, 500, 40);
   const islands = [C, P, Q];
   const edges: TrailEdgeIn[] = [
-    { from: 'P', to: 'Q' }, // the long trunk (routes first) both C-edges funnel onto
+    { from: 'P', to: 'Q' },
     { from: 'P', to: 'C' },
     { from: 'Q', to: 'C' },
   ];
@@ -395,26 +334,17 @@ test('edges that FUNNEL together dock ONCE — approach recluster collapses the 
     }
     return s.size;
   };
-  // chord-only clustering forks at the rim — the two C-edges take SEPARATE docks
   const chordOnly = routeTrails(islands, edges, 'seed-funnel', { ...TUNED_AT_27, reclusterOnApproach: false });
   assert.equal(docksInto(chordOnly), 2, 'without the recluster the wide chords split into two docks (the Y-fork)');
-  // the default two-pass reads the real approach and merges them into ONE trunk
   const net = routeTrails(islands, edges, 'seed-funnel', TUNED_AT_27);
   assert.equal(docksInto(net), 1, 'the funnelled C→P and C→Q share ONE dock after the approach recluster');
   assert.equal(net.dropped.length, 0, '§5 honesty: nothing dropped by the merge');
   assert.equal(net.caves.length, 0, 'a shared dock never forces a cave (cost only rises)');
   for (const edge of net.edges) assertChainContinuous(net, islands, edge);
-  // deterministic: byte-identical on a re-route
   assert.deepEqual(routeTrails(islands, edges, 'seed-funnel', TUNED_AT_27), net);
 });
 
 test('meander stays on open runs but is suppressed at junctions and near other trails (owner 2026-07-08)', () => {
-  // Owner feedback 2026-07-08 ("turn it off when the path gets close to another pathway or at
-  // junctions"): the organic wander stays on long OPEN solo stretches but tapers to nothing at
-  // each dock/junction end and fades out beside any other trail — so a wander never reads as a
-  // fake fork. A single long straight edge routes along y=0, so |y| IS the perpendicular wander.
-  // A single long straight edge routes along y=0, so max |y| is the wander ON TOP of the small
-  // grid-routing residual. Comparisons are relative to that residual (never absolute-zero).
   const A = isle('A', 0, 0, 30);
   const B = isle('B', 900, 0, 30);
   const maxDevOf = (net: TrailNetwork, from: string): number => {
@@ -423,13 +353,11 @@ test('meander stays on open runs but is suppressed at junctions and near other t
     return Math.max(...seg.points.map((p) => Math.abs(p.y)));
   };
   const solo = routeTrails([A, B], [{ from: 'A', to: 'B' }], 'seed-meander', TUNED_AT_27);
-  // a taper wider than the whole segment never lets any point ramp up to full → the grid baseline
   const flat = routeTrails([A, B], [{ from: 'A', to: 'B' }], 'seed-meander', { ...TUNED_AT_27, meanderTaper: 100000 });
   const soloDev = maxDevOf(solo, 'A');
   const flatDev = maxDevOf(flat, 'A');
   assert.ok(soloDev > flatDev + 1, `the open solo run wanders well above the tapered baseline (${soloDev} vs ${flatDev})`);
 
-  // proximity wiring: same geometry, aggressive clear band vs none — a neighbour trail flattens A→B
   const C = isle('C', 0, 400, 30);
   const D = isle('D', 900, 400, 30);
   const geo = [A, B, C, D];
@@ -443,9 +371,6 @@ test('meander stays on open runs but is suppressed at junctions and near other t
 });
 
 test('near-coincident junctions weld into one — the ~1-cell merge stub is gone (owner 2026-07-08)', () => {
-  // Owner feedback 2026-07-08: where trunks converge, edges can join at ADJACENT grid cells
-  // rather than one shared cell, leaving a ~1-cell stub between two junctions that reads as a
-  // hook. The weld collapses junction nodes closer than `junctionWeld` into ONE shared point.
   const islands = [
     isle('H', 0, 0, 50),
     isle('A', -600, -300, 30),
@@ -485,16 +410,11 @@ test('near-coincident junctions weld into one — the ~1-cell merge stub is gone
   assert.ok(minJunctionGap(junctionsOf(on)) > WELD, 'after welding, no two junctions sit within the weld radius');
   assert.ok(on.segments.length < off.segments.length, 'welding removes the tiny stub segments');
   assert.equal(on.dropped.length, 0, '§5 honesty: welding drops no edge');
-  for (const edge of on.edges) assertChainContinuous(on, islands, edge); // chains stay connected through the weld
-  assert.deepEqual(routeTrails(islands, edges, 'seed-weld', { junctionWeld: WELD }), on); // deterministic
+  for (const edge of on.edges) assertChainContinuous(on, islands, edge);
+  assert.deepEqual(routeTrails(islands, edges, 'seed-weld', { junctionWeld: WELD }), on);
 });
 
 test('the reuse-halo MOAT knob threads through — routes join the trunk or clear it, no 1-cell lane (item 4)', () => {
-  // Owner feedback re-pushed 2026-07-07: still too many side-by-side parallel trails a
-  // cell apart. The default halo is now a MOAT (reuseHaloInner > 1): the ring beside a
-  // laid trail costs MORE than base, so a nearby route can't settle into a comfortable
-  // parallel lane — it either shares the trunk's exact cells or stays well clear. Three
-  // near-adjacent sources fanning to one destination exercise it.
   const islands = [
     isle('A', -800, -70, 32),
     isle('B', -800, 0, 32),
@@ -506,21 +426,15 @@ test('the reuse-halo MOAT knob threads through — routes join the trunk or clea
     { from: 'B', to: 'D' },
     { from: 'C', to: 'D' },
   ];
-  // dock-merge OFF here (dockMergeGap 0) so this test isolates the HALO knob: with the
-  // shared single-dock (item 1) on, this near-coincident fan collapses onto one dock and
-  // the halo shaping no longer changes the pinned route. Dock-merge has its own tests above.
   const moatOpts = { dockMergeGap: 0 } as const;
   const cheapOpts = { dockMergeGap: 0, reuseHaloInner: 0.4, reuseHaloOuter: 0.7, discountFloor: 0.25 } as const;
-  const moat = routeTrails(islands, edges, 'seed-moat', moatOpts); // default halo = moat
-  // the pre-item-4 cheap-halo shaping, as an explicit override: proves the knob is wired
+  const moat = routeTrails(islands, edges, 'seed-moat', moatOpts);
   const cheap = routeTrails(islands, edges, 'seed-moat', cheapOpts);
-  // the knob changes routing (not a silently-ignored param)
   assert.notDeepEqual(
     moat.segments.map((s) => s.d),
     cheap.segments.map((s) => s.d),
     'the halo shaping actually changes the routed network',
   );
-  // both stay deterministic, continuous, and still MERGE (a shared trunk exists)
   for (const net of [moat, cheap]) {
     assert.deepEqual(net, routeTrails(islands, edges, 'seed-moat', net === cheap ? cheapOpts : moatOpts));
     assert.equal(net.dropped.length, 0);
@@ -529,8 +443,6 @@ test('the reuse-halo MOAT knob threads through — routes join the trunk or clea
     assert.ok(net.segments.some((s) => s.usage >= 2), 'the fan still merges onto a shared trunk');
   }
 });
-
-// ---------- caves only when forced ----------
 
 test('a walled-in edge routes under the wall: hidden segments + cave portal pair', () => {
   const islands: TrailIsland[] = [isle('A', 0, 0, 30), isle('B', 600, 0, 30)];
@@ -550,14 +462,10 @@ test('a walled-in edge routes under the wall: hidden segments + cave portal pair
     const isl = islands.find((i) => i.id === cave.islandId)!;
     const rim = Math.hypot(cave.x - isl.x, cave.y - isl.y);
     assert.ok(Math.abs(rim - isl.r) < 1.5, `portal sits on the rim (${rim} vs r ${isl.r})`);
-    // bearing is the outward normal at the portal point
     const bx = Math.cos(cave.bearing);
     const by = Math.sin(cave.bearing);
     assert.ok(Math.hypot(isl.x + bx * rim - cave.x, isl.y + by * rim - cave.y) < 1e-6);
   }
-  // the surface/under split is geometric and edge-independent: a VISIBLE segment
-  // never runs inside ANY island's r — own endpoints included (rim contact only),
-  // so no surface trail can cross an island another edge caves under
   for (const seg of net.segments.filter((s) => !s.hidden)) {
     for (const p of seg.points) {
       for (const isl of islands) {
@@ -578,14 +486,10 @@ test('an unobstructed edge produces zero caves and zero hidden segments', () => 
 });
 
 test('a blocked dock cell re-bearings around the blocker instead of flipping into cave mode', () => {
-  // A long thin wall a route AROUND exists for — pass 1 must keep finding it.
   const islands: TrailIsland[] = [isle('A', 0, 0, 40), isle('B', 1200, 0, 40)];
   for (let k = -66; k <= 66; k++) islands.push(isle(`w${k}`, 600, k * 30, 20));
   const open = routeTrails(islands, [{ from: 'A', to: 'B' }], 'seed-dock');
   assert.equal(open.caves.length, 0, 'a route around the wall exists');
-  // A decor islet whose inflated ring covers A's chord-bearing dock cell must not
-  // abort pass 1 and tunnel the wall the open route avoids (§1: caves only when
-  // FORCED, never because the doorstep was covered).
   const withIslet = [...islands, isle('X', 70, 0, 12)];
   const net = routeTrails(withIslet, [{ from: 'A', to: 'B' }], 'seed-dock');
   assert.equal(net.caves.length, 0, 'the dock scans to an unblocked bearing — no cave');
@@ -593,8 +497,6 @@ test('a blocked dock cell re-bearings around the blocker instead of flipping int
   assert.equal(net.dropped.length, 0);
   assertChainContinuous(net, withIslet, net.edges[0]!);
 });
-
-// ---------- chain continuity ----------
 
 test('every edge chain is continuous from the from-rim to the to-rim', () => {
   const islands = [
@@ -614,8 +516,6 @@ test('every edge chain is continuous from the from-rim to the to-rim', () => {
   for (const edge of net.edges) assertChainContinuous(net, islands, edge);
 });
 
-// ---------- canonical order: input order must not matter ----------
-
 test('shuffling the input edge array yields the same network', () => {
   const islands = [
     isle('A', -800, -60, 35),
@@ -633,23 +533,19 @@ test('shuffling the input edge array yields the same network', () => {
   assert.deepEqual(routeTrails(islands, edges, 'seed-7'), routeTrails(islands, shuffled, 'seed-7'));
 });
 
-// ---------- degenerate inputs ----------
-
 test('unknown endpoints, self-edges and duplicates are dropped; empty input is empty', () => {
   const islands = [isle('A', 0, 0, 40), isle('B', 400, 0, 40)];
   const net = routeTrails(
     islands,
     [
       { from: 'A', to: 'B' },
-      { from: 'A', to: 'B' }, // duplicate
-      { from: 'A', to: 'A' }, // self
-      { from: 'A', to: 'ghost' }, // unknown island
+      { from: 'A', to: 'B' },
+      { from: 'A', to: 'A' },
+      { from: 'A', to: 'ghost' },
     ],
     'seed-8',
   );
   assert.equal(net.edges.length, 1);
-  // §5 honesty: the unknown-endpoint edge is OBSERVABLE on the network, never a
-  // silent swallow; self/duplicate folds are not drops (nothing distinct to draw)
   assert.deepEqual(net.dropped, [{ from: 'A', to: 'ghost' }]);
   assert.deepEqual(routeTrails([], [{ from: 'A', to: 'B' }], 'seed-8'), {
     segments: [],
@@ -666,7 +562,6 @@ test('unknown endpoints, self-edges and duplicates are dropped; empty input is e
 });
 
 test("island ids containing '->' never fold two distinct edges into one", () => {
-  // both edges stringify to 'a->b->c'; the internal key must still tell them apart
   const islands = [
     isle('a->b', 0, 0, 30),
     isle('c', 400, 0, 30),
@@ -685,26 +580,15 @@ test("island ids containing '->' never fold two distinct edges into one", () => 
   assert.equal(net.dropped.length, 0);
 });
 
-// ---------- the width rule ----------
-
 test('trailFillWidth is 1.2 + 1.8*sqrt(n): a thin spur, a legible thin→thick trunk ladder', () => {
-  // Owner feedback 2026-07-07: thinner overall so WIDTH ALONE reads the merge signal.
-  assert.equal(trailFillWidth(1), 3.0); // a usage-1 spur is a thin line
-  assert.equal(trailFillWidth(4), 4.8); // a shared trunk is clearly thicker
+  assert.equal(trailFillWidth(1), 3.0);
+  assert.equal(trailFillWidth(4), 4.8);
   assert.equal(trailFillWidth(0), 1.2);
-  // strictly increasing with usage, and the spur is genuinely THINNER than the
-  // pre-2026-07-07 width (4.5) so the retune actually slimmed the base line
   assert.ok(trailFillWidth(1) < 4.5, 'spur is thinner than before');
   assert.ok(trailFillWidth(2) > trailFillWidth(1), 'a shared trunk steps up');
   assert.ok(trailFillWidth(4) > trailFillWidth(2), 'more sharing, thicker still');
 });
 
-// ---------- perf sanity ----------
-
-// The 2s bound is asserted only under STORYTREE_PERF=1 (ADR-0276): on a gate run the box is
-// shared with concurrent suites and sessions, so elapsed measures CPU starvation, not the
-// routine — measured 386ms quiet vs 6185ms isolated-but-loaded (PR #1010). The functional
-// proof below stays gate-tier; the elapsed still prints every run as a TAP diagnostic.
 test('30 islands / 60 edges route correctly (2s bound opt-in via STORYTREE_PERF=1)', (t) => {
   const islands: TrailIsland[] = [];
   for (let i = 0; i < 30; i++) {
@@ -733,7 +617,6 @@ test('30 islands / 60 edges route correctly (2s bound opt-in via STORYTREE_PERF=
   if (process.env.STORYTREE_PERF === '1') {
     assert.ok(elapsed < 2000, `routed in ${elapsed.toFixed(0)}ms`);
   }
-  // segment ids are unique even under 32-bit hash collisions (the -N extension)
   assert.equal(new Set(net.segments.map((s) => s.id)).size, net.segments.length);
   for (const edge of net.edges) assertChainContinuous(net, islands, edge);
 });

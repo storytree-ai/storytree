@@ -1,88 +1,39 @@
-/**
- * Capability 3 · Story node render (the forest story): each island's roads and gates (ADR-1236 D1 as narrowed by ADR-1253 D2, rollout 2
- * step 3), from its territories as laid out by its links and the docks its sea lanes come ashore at, ported from the
- * capability tree mock's page (docs/design/capability-tree-3d/q-all-islands/tools/overlay.ts).
- *
- * - Laid out at The library's size, as the territories are, and given back at the island's own, widths and posts too,
- *   so every mark stands as large on the page as The library's.
- * - The links: each one between two of the island's capabilities, between their settlements; and per dock and
- *   capability, one arrival carrying every lane in to it there and one way out carrying every lane out.
- * - Each road ends at its territory's settlement: a clear spot beside its name toward the roads it meets, its whole
- *   clear spot (3.4, 4.0 or 4.7 across by the roads meeting there, where round 12's symbol stood until ADR-1339 D2 made it a
- *   junction) kept off every name and back from every border and the coast (3.79, polish round 1).
- * - One gate per link (ADR-1253 D3): where it last enters the territory it calls (the way out: where it first leaves its
- *   own), so a pair of neighbours' on their shared border; links whose gates stand together share one. Any other crossing
- *   is open road, and a road under a third territory is in a tunnel: from a portal set back from each border it crosses, on
- *   the land of the territory on its road's side (Mick, 2026-11-07: "The tunnel entrance and exit should sit inside the
- *   capability that needs it"), and not drawn between (question_921aee319481).
- * - Kept per story on this computer once routed, in the page's localStorage beside the kept arrangement (ADR-1252 D1),
- *   under a key of the routing's version and the island exactly as laid out, so a restart draws an unchanged island's
- *   roads at once (3.82); the islands still routing are counted by the map's top-left mark (3.96, `islandsRouting`).
- */
+// Capability 3 · Story node render
 import { LIBRARY_LAND, ontoCoast, openReach, type Link, type LinkDock } from "./link-layout.js";
 import { insideOf, landArea, type Coast, type Point, type TerritoryMap } from "./territories.js";
 import { roadNetwork, type BorderSeg, type Net, type NetLink } from "./road-network.js";
 import { TERRITORY_WORKER_META } from "./kept-layout.js";
 import { RELIEF } from "./island-relief.js";
 
-/** A road segment: its way, the links it carries, and its width by how many (1, 2-3, 4-7, 8 or more). */
 export type RoadSegment = { readonly pts: readonly Point[]; readonly links: readonly string[]; readonly width: number };
-/** A gate: one per linked pair (ADR-1253 D3), where its road enters the capability depended on (a way out's: where it
- * leaves its own), the border's direction there, the links on the road through it, the links whose gate it is (a few
- * where their gates stand together, 3.88), the opening cut in it, and the two sides of the border it stands on, sorted
- * (3.88: each a capability, or "open" for open land). */
 export type RoadGate = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly entrances: readonly string[]; readonly opening: number; readonly between: readonly [string, string] };
-/** Open road: where a road crosses a border with no gate (leaving the territory that depends), its opening cut the same. */
 export type RoadPass = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly opening: number };
-/** A tunnel's portal: where a road goes under a third territory, or comes out from under it (ADR-1253 D3): its mouth, set
- * back from the `border` its road crosses onto that land at, on the land on its road's side (on the land it goes under where
- * that side is open land), `into` along the road into the tunnel, `along` across its mouth, the links it carries, and its
- * mouth's width. */
 export type RoadPortal = { readonly at: Point; readonly border: Point; readonly along: Point; readonly into: Point; readonly links: readonly string[]; readonly width: number };
-/** A tunnel's way under the land, from mouth to mouth (or to where it meets another tunnel's way), and the links it carries. */
 export type RoadTunnel = { readonly pts: readonly Point[]; readonly links: readonly string[] };
-/** A settlement: where its roads meet, how many, and its clear spot's size across. */
 export type Settlement = { readonly at: Point; readonly roads: number; readonly size: number };
 export type IslandRoads = { readonly segments: readonly RoadSegment[]; readonly junctions: readonly { at: Point; width: number }[]; readonly gates: readonly RoadGate[]; readonly passes: readonly RoadPass[]; readonly portals: readonly RoadPortal[]; readonly tunnels: readonly RoadTunnel[]; readonly towns: ReadonlyMap<string, Point>; readonly settlements: ReadonlyMap<string, Settlement> };
-/** A capability's name on the island, where the map writes it. */
 export type NameAnchor = { readonly capability: string; readonly title: string; readonly x: number; readonly z: number };
 
-/** Round 11's `sand-faint` widths, by the links a road carries: 1, 2-3, 4-7, 8 or more. */
 const WIDTHS = [0.5, 0.7, 0.95, 1.3] as const;
-/** How far a tunnel's mouth stands back from the border its road crosses at: at most `setback`, on its road's own land at
- * most `near` of its road there, on the land it goes under leaving `way` between its mouths where it
- * can, and at least `least` or this share of the stretch; and how much wider than its road its mouth is (Mick, 2026-11-07:
- * "they shouldn't necessarily be required to be at the border ... I think the footprint should be smallish"). */
 const MOUTH = { setback: 1.8, way: 3.2, near: 0.6, least: 1.1, most: 0.2, room: 0.6 } as const;
 export const MOUTH_ROOM = MOUTH.room;
-/** The least gate opening (its posts stand on the relief, island-relief.ts). */
 const GATE_OPENING = 3;
-/** The least clear ground, in The library's units, between two gates' nearest posts where their border has room (Mick,
- * 2026-11-08: "push the gates away from each other if possible"): the router keeps their entrances COST.entranceApart apart. */
 export const GATE_POSTS_APART = 2;
-/** The mock measured names on the page at about 2.6 pixels per ground unit: a name's box, and its padding in pixels. */
 const PX = 2.6;
 const nameBox = (title: string) => ({ w: (title.length * 6.5 + 12) / PX, h: 7 });
-/** A settlement's clear spot across, by how many roads it meets (1-2, 3-5, 6 or more), and how far its edge keeps from a border. */
 const SYMBOL = [3.4, 4.0, 4.7] as const, SYMBOL_EDGE = 1.5, CLEAR = 2.3;
-/** How far, in pixels, every corner of a settlement's clear spot keeps from a name (polish round 1's SYMBOL_CLEAR). */
 const SYMBOL_CLEAR = 4;
 const symbolSize = (roads: number) => SYMBOL[roads >= 6 ? 2 : roads >= 3 ? 1 : 0];
-/** What a gate under a name or beside a settlement costs more (polish round 3), and a road under a name. */
 const GATE_CLEAR = 18, UNDER_NAME = 2.5;
 
 const far = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 const times = (p: Point, k: number): Point => ({ x: p.x * k, z: p.z * k });
 export const widthOf = (n: number) => WIDTHS[n >= 8 ? 3 : n >= 4 ? 2 : n >= 2 ? 1 : 0];
 
-/** Whether `gate` stands where a tunnel's road comes up into the territory it calls: the portal stands for it there, so it
- * has no posts (Mick, 2026-11-06). */
 export const inTunnelMouth = (roads: Pick<IslandRoads, "portals">, gate: { readonly at: Point }): boolean => roads.portals.some((p) => far(p.border, gate.at) < 1e-6);
 
 let routed = new WeakMap<TerritoryMap, { key: string; roads: IslandRoads }>();
 
-/** The roads and gates of `map` (the island as drawn, laid out by `links` and `docks`), its names at `names`; routed
- * once for the same map, links, docks and names, whoever asks. */
 export function islandRoads(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDock[], names: readonly NameAnchor[]): IslandRoads {
   const key = JSON.stringify([links, docks, names]), known = routed.get(map);
   if (known?.key === key) return known.roads;
@@ -91,16 +42,10 @@ export function islandRoads(map: TerritoryMap, links: readonly Link[], docks: re
   return roads;
 }
 
-/** What routing an island's roads is asked: the island as drawn, its links, its docks and its names, and its story,
- * whose roads are kept on the page's storage when it names one. */
 export type RoadsAsk = { readonly map: TerritoryMap; readonly links: readonly Link[]; readonly docks: readonly LinkDock[]; readonly names: readonly NameAnchor[]; readonly story?: string };
-/** What the worker posts back for a `{ roads }` ask: the roads, or why routing failed. */
 export type RoadsAnswer = { roads: IslandRoads } | { error: string };
-/** Routes an island's roads somewhere, answering what `islandRoads` would; an aborted signal means the island was overtaken. */
 export type IslandRouter = (ask: RoadsAsk, signal: AbortSignal) => Promise<IslandRoads>;
 
-/** The roads already routed for the island `ask` names, if any, routing nothing: kept in this run, or on the page's
- * storage for its story under the island's key. */
 export function knownIslandRoads(ask: RoadsAsk): IslandRoads | undefined {
   const key = JSON.stringify([ask.links, ask.docks, ask.names]), known = routed.get(ask.map);
   if (known?.key === key) return known.roads;
@@ -115,28 +60,20 @@ export function knownIslandRoads(ask: RoadsAsk): IslandRoads | undefined {
   return undefined;
 }
 
-/** The version of the routing (route below): raised whenever a change to it routes an island's roads differently, so
- * roads kept by an earlier version are routed again. */
 const ROUTING = 1;
 const ROADS_KEY = "storytree.roads.";
-/** Roads kept on the page's storage, per story, with the key of the island they were routed for. */
 export interface RoadsShelf { read(story: string): { key: string; roads: IslandRoads } | undefined; write(story: string, key: string, roads: IslandRoads): void }
 let roadShelf: RoadsShelf | undefined | null = null;
-/** The islands whose story's storage held no roads for them as laid out, so it is not read again. */
 let unshelved = new WeakMap<TerritoryMap, string>();
 
-/** Island roads are kept on `next` from now on (a test's own; undefined for none), forgetting every island routed so far. */
 export function shelveRoadsOn(next: RoadsShelf | undefined): void {
   roadShelf = next; routed = new WeakMap(); unshelved = new WeakMap();
 }
 
-/** The key `ask`'s roads are kept under: the routing's version and a hash of the island exactly as laid out, its links,
- * docks and names. */
 function storedKey(ask: RoadsAsk): string {
   return `routing ${ROUTING} ${hashOf(JSON.stringify([ask.map, ask.links, ask.docks, ask.names]))}`;
 }
 
-/** A 53-bit hash of `text` (cyrb53), as hex. */
 function hashOf(text: string): string {
   let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
   for (let i = 0; i < text.length; i++) {
@@ -149,8 +86,6 @@ function hashOf(text: string): string {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
 }
 
-/** The page's localStorage as a shelf of roads, or none where the page has no storage or refuses it. An entry that cannot
- * be read, or lacks a part of the roads, is none. */
 export function roadsShelf(storage: Pick<Storage, "getItem" | "setItem"> | undefined = pageStorage()): RoadsShelf | undefined {
   if (storage === undefined) return undefined;
   return {
@@ -167,17 +102,15 @@ export function roadsShelf(storage: Pick<Storage, "getItem" | "setItem"> | undef
     write(story, key, roads) {
       try {
         storage.setItem(ROADS_KEY + story, JSON.stringify({ key, roads: { ...roads, towns: [...roads.towns], settlements: [...roads.settlements] } }));
-      } catch { /* a full or refused storage keeps them for this run only */ }
+      } catch {}
     },
   };
 }
 
-/** The page's localStorage, or none where reading it throws (a page with no origin, or storage switched off). */
 function pageStorage(): Storage | undefined {
   try { return (globalThis as { localStorage?: Storage }).localStorage; } catch { return undefined; }
 }
 
-/** Routes one island's roads, as the page would: what the worker answers a `{ roads }` ask with. */
 export function answerRoads(ask: RoadsAsk): RoadsAnswer {
   try {
     return { roads: route(ask.map, ask.links, ask.docks, ask.names) };
@@ -188,32 +121,25 @@ export function answerRoads(ask: RoadsAsk): RoadsAnswer {
 
 const listeners = new Set<() => void>();
 let version = 0;
-/** Hears every island's roads that arrive from now on (React's useSyncExternalStore, with `roadsVersion`). */
 export function subscribeRoads(listener: () => void): () => void {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
 }
-/** Changes whenever an island's roads arrive. */
 export const roadsVersion = (): number => version;
 
-/** How many islands' roads route at once: every island is laid out (ADR-1253 D2), and the rest wait their turn. */
 export const ROUTING_AT_ONCE = 2;
 let routing = 0;
 const waitingToRoute: (() => void)[] = [];
-/** How many routings of each story's island are in flight or wait their turn (3.96). */
 const routingFor = new Map<string, number>();
 const routingListeners = new Set<() => void>();
 let routingAt = 0;
-/** The islands whose roads are routing or wait their turn (3.96). */
 export function islandsRouting(): ReadonlySet<string> {
   return new Set(routingFor.keys());
 }
-/** Hears every island that starts or stops routing (React's useSyncExternalStore, with `routingVersion`). */
 export function subscribeRouting(listener: () => void): () => void {
   routingListeners.add(listener);
   return () => { routingListeners.delete(listener); };
 }
-/** Changes whenever an island starts or stops routing. */
 export const routingVersion = (): number => routingAt;
 function counted(story: string, by: 1 | -1): void {
   const was = routingFor.get(story) ?? 0, now = was + by;
@@ -222,8 +148,6 @@ function counted(story: string, by: 1 | -1): void {
   routingAt++;
   for (const listener of routingListeners) listener();
 }
-/** Runs `route` once fewer than ROUTING_AT_ONCE routings are in flight; it is passed over if `signal` aborts first.
- * `story`'s island counts as routing until it ends or is let go. */
 function inTurn(route: () => Promise<unknown>, signal: AbortSignal, story: string | undefined): void {
   let pending = story !== undefined && !signal.aborted;
   const settled = () => { if (!pending) return; pending = false; signal.removeEventListener("abort", settled); counted(story!, -1); };
@@ -242,12 +166,6 @@ function next(): void {
   if (routing < ROUTING_AT_ONCE) waitingToRoute.shift()?.();
 }
 
-/**
- * An island's roads (3.82): those already routed for it at once, or undefined while `router` routes them off the page,
- * so its territories are drawn without waiting. A few islands route at a time (ROUTING_AT_ONCE), the rest in the order
- * asked. When they arrive they are kept for the island as laid out (`knownIslandRoads` has them), and on the page's
- * storage for its story, and every listener hears it; an island overtaken first (`signal` aborted) keeps nothing, and one overtaken while it waits is not routed.
- */
 export function islandRoadsWhenRouted(ask: RoadsAsk, router: IslandRouter, signal: AbortSignal): IslandRoads | undefined {
   const known = knownIslandRoads(ask);
   if (known !== undefined) return known;
@@ -266,14 +184,12 @@ export function islandRoadsWhenRouted(ask: RoadsAsk, router: IslandRouter, signa
   return undefined;
 }
 
-/** Routes on the page itself, once the territories have had a frame to be drawn: for a page that offers no worker. */
 export const routeIslandOnThePage: IslandRouter = async (ask, signal) => {
   await new Promise<void>((resolve) => (globalThis.requestAnimationFrame ?? setTimeout)(() => setTimeout(resolve, 0)));
   if (signal.aborted) throw signal.reason;
   return islandRoads(ask.map, ask.links, ask.docks, ask.names);
 };
 
-/** The part of a Worker the router uses. */
 export interface RoadsWorker {
   postMessage(message: { roads: RoadsAsk }): void;
   terminate(): void;
@@ -281,8 +197,6 @@ export interface RoadsWorker {
   onerror: ((event: unknown) => void) | null;
 }
 
-/** Routes in a fresh worker from `start`, ended when it answers or is overtaken. A worker that cannot start or fails to
- * load leaves the routing to `fallback`, and is logged; one that answers an error fails it. */
 export function routeIslandInWorker(start: () => RoadsWorker, fallback: IslandRouter = routeIslandOnThePage): IslandRouter {
   return (ask, signal) => {
     let worker: RoadsWorker;
@@ -309,19 +223,13 @@ export function routeIslandInWorker(start: () => RoadsWorker, fallback: IslandRo
   };
 }
 
-/** The router a page offers: the territory worker it names (TERRITORY_WORKER_META), else routing on the page. */
 export function pageIslandRouter(page: Pick<Document, "querySelector"> | undefined = (globalThis as { document?: Document }).document): IslandRouter {
   const script = page?.querySelector(`meta[name="${TERRITORY_WORKER_META}"]`)?.getAttribute("content");
   return script ? routeIslandInWorker(() => new Worker(script) as unknown as RoadsWorker) : routeIslandOnThePage;
 }
 
-/** What the territory search scores an arrangement by (3.80), as the mock's tool measured its network, in The library's
- * units: the inside links that pass through a third territory and the borders those cross, the length of road drawn,
- * the inside links between neighbours, and the links no road reaches; and the tunnels the network draws (a road is in a
- * tunnel only where every link it carries goes under the land, so a link over a third territory is often open road). */
 export type RoadMeasures = { readonly overThird: number; readonly overThirdBorders: number; readonly roadDrawn: number; readonly neighbours: number; readonly unrouted: number; readonly tunnels: number };
 
-/** The measures of the network `islandRoads` routes over `map`, routed once. */
 export function roadMeasures(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDock[], names: readonly NameAnchor[]): RoadMeasures {
   let measures: Omit<RoadMeasures, "tunnels"> = { overThird: 0, overThirdBorders: 0, roadDrawn: 0, neighbours: 0, unrouted: 0 };
   const drawn = route(map, links, docks, names, (net, netLinks, tAt, borders) => {
@@ -352,7 +260,6 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
   if (sites.length === 0) return empty;
   const ownerOf = (territory: number) => (territory < 0 ? "open" : map.territories[territory]?.capability ?? "");
   const nearest = nearestOf(sites), land = landOf(coast);
-  /** The territory under a point: the nearest cell site's (the cells are Voronoi), "open" on open land, undefined off the coast. */
   const tAt = (p: Point): string | undefined => (land(p) ? ownerOf(map.cells[nearest(p)]!.territory) : undefined);
   const coastEdges = coast.flatMap((ring) => ring.map((a, i) => [a, ring[(i + 1) % ring.length]!] as const));
   const toCoast = nearEdges(coastEdges);
@@ -367,10 +274,8 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
   const boxes = names.filter((n) => here.has(n.capability)).map((n) => ({ ...nameBox(n.title), at: times(n, 1 / S), capability: n.capability }));
   const anchor = new Map(boxes.map((b) => [b.capability, b.at]));
   const underName = (p: Point, pad: number) => boxes.some((b) => Math.abs(p.x - b.at.x) < b.w / 2 + pad / PX && Math.abs(p.z - b.at.z) < b.h / 2 + pad / PX);
-  /** Whether a spot `half` across each way at `p` keeps clear of every name: its middle, and its box by SYMBOL_CLEAR. */
   const clearOfNames = (p: Point, half: number) => !underName(p, 7) && !boxes.some((b) => Math.abs(p.x - b.at.x) < b.w / 2 + half + SYMBOL_CLEAR / PX && Math.abs(p.z - b.at.z) < b.h / 2 + half + SYMBOL_CLEAR / PX);
 
-  // The links: inside the island, and per dock and capability one arrival and one way out.
   const inside = links.filter((l) => here.has(l.from) && here.has(l.to) && l.from !== l.to);
   const ashore = docks.map((dock) => ({ at: ontoCoast(times(dock.local, 1 / S), coast), lanes: dock.links.map((key) => key.split("->") as [string, string]).filter(([a, b]) => here.has(a) !== here.has(b)) }));
   const landings: { key: string; kind: "arrival" | "out"; dock: Point; capability: string; links: number }[] = [];
@@ -384,7 +289,6 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     for (const [capability, n] of count("out")) landings.push({ key: `${capability}->leave:${k}`, kind: "out", dock: at, capability, links: n });
   });
 
-  // Each territory's settlement, toward the middle of what its roads reach: its partners' names and its docks.
   const spot = (territory: string, toward: Point, half: number): Point => {
     const name = anchor.get(territory) ?? { x: 0, z: 0 }, want = { x: toward.x - name.x, z: toward.z - name.z };
     let best: Point | undefined, score = Infinity;
@@ -430,8 +334,6 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
   });
   heard?.(net, netLinks, tAt, borders);
 
-  // Each road cut where it crosses a border: a stretch on land every link it carries calls neither from nor to is in a
-  // tunnel (ADR-1253 D3), a portal where it meets the land; each link's own gate where it enters the territory it calls.
   const byKey = new Map(netLinks.map((l) => [l.key, l]));
   const under = (t: string | undefined, keys: readonly string[]) => t !== undefined && t !== "open" && keys.every((k) => { const l = byKey.get(k)!; return t !== l.fromT && t !== l.toT; });
   type Crossing = { p: Point; along: Point; pair: readonly [string, string]; step: number };
@@ -447,8 +349,6 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     }
     return out;
   };
-  // Where a road climbs from the open land onto a territory its ramp is laid (island-relief.ts), so the road leaves it
-  // straight down the ramp's middle to its foot before it turns (Mick, 2026-11-07).
   const rampOut = (x: Crossing): Point | undefined => {
     const n = { x: -x.along.z, z: x.along.x }, a = tAt({ x: x.p.x + n.x * 0.8, z: x.p.z + n.z * 0.8 }), b = tAt({ x: x.p.x - n.x * 0.8, z: x.p.z - n.z * 0.8 });
     if (a === "open" && b !== undefined && b !== "open") return n;
@@ -475,8 +375,6 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     const hidden = pieces.map((piece) => under(tAt(halfway(piece)), s.links));
     return { s, xs, pieces, hidden };
   });
-  // A tunnel starts only at a border: a road that came onto the land with a link that calls it stays on the land until it
-  // leaves, so a stretch meeting land drawn at a junction is drawn too, and so on along the stretches it meets.
   const ends = cut.flatMap((c, j) => [{ at: c.s.pts[0]!, j, k: 0 }, { at: c.s.pts.at(-1)!, j, k: c.pieces.length - 1 }]);
   for (let changed = true; changed;) {
     changed = false;
@@ -496,9 +394,6 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
   for (const { s, xs, pieces, hidden } of cut) {
     const width = widthOf(s.links.length) * S;
     if (!hidden.some(Boolean)) segments.push({ pts: s.pts.map((p) => times(p, S)), links: s.links, width });
-    // Each tunnel's mouth is set back from the border it crosses onto the land on its road's side (Mick, 2026-11-07: "The
-    // tunnel entrance and exit should sit inside the capability that needs it"), or where that side is open land, onto the
-    // land it goes under; the tunnel runs from mouth to mouth.
     const on = xs.map((_, i) => (hidden[i] === hidden[i + 1] ? -1 : hidden[i] ? (onOpen(pieces[i + 1]!) ? i : i + 1) : (onOpen(pieces[i]!) ? i + 1 : i)));
     const mouths: (Point | undefined)[] = xs.map(() => undefined);
     if (hidden.some(Boolean)) {
@@ -509,8 +404,6 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
       };
       pieces.forEach((piece, i) => {
         const atStart = i > 0 && on[i - 1] === i, atEnd = i < xs.length && on[i] === i, m = (atStart ? 1 : 0) + (atEnd ? 1 : 0), long = lengthOf(piece);
-        // Under the land, as far as leaves room for a rise between its mouths; on the road's own land, as far as leaves the
-        // road on to its settlement in sight; never on the border itself.
         const back = Math.max(hidden[i] ? Math.min(MOUTH.setback, (long - MOUTH.way) / Math.max(1, m)) : Math.min(MOUTH.setback, long * MOUTH.near / Math.max(1, m)), Math.min(MOUTH.least, long * MOUTH.most));
         const [head, rest] = atStart ? splitAt(piece, back) : [[piece[0]!], piece];
         const [middle, tail] = atEnd ? splitAt(rest, lengthOf(rest) - back) : [rest, [rest.at(-1)!]];
@@ -527,7 +420,6 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
       const at = times(x.p, S), gated = entering.get(x);
       if (gated !== undefined) gates.push({ at, along: x.along, links: s.links, entrances: gated.sort(), opening: opening(s.links), between: [...x.pair].sort() as [string, string] });
       if (on[i]! >= 0) {
-        // Into the tunnel: toward the border from a mouth on its road's side, away from it on the land it goes under.
         const mouth = mouths[i]!, d = far(mouth, x.p), away = hidden[on[i]!] ? 1 : -1;
         const into = d > 1e-9 ? times({ x: mouth.x - x.p.x, z: mouth.z - x.p.z }, away / d) : { x: -x.along.z, z: x.along.x };
         portals.push({ at: times(mouth, S), border: at, along: { x: -into.z, z: into.x }, into, links: s.links, width: width + MOUTH.room * S });
@@ -538,7 +430,6 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
   const endsAt = (at: Point) => ends.filter((e) => far(e.at, at) < 1e-6);
   return {
     segments,
-    // A junction in a tunnel is not drawn.
     junctions: net.junctions.filter((at) => endsAt(at).some((e) => !cut[e.j]!.hidden[e.k])).map((at) => ({ at: times(at, S), width: Math.max(...endsAt(at).map((e) => widthOf(cut[e.j]!.s.links.length)), WIDTHS[0]) * S })),
     gates, passes, portals, tunnels,
     towns: scaled(towns, S),
@@ -546,16 +437,10 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
   };
 }
 
-/** `pts` with its way onto the open land from the border crossing `x` (between its points `step` and `step + 1`) run
- * straight along `out` for a ramp's depth, to the ramp's foot, then turning in a curve on to the line: where, within a
- * few ramps' depth of the border and at least half as far again from it as the foot, it stands most nearly straight on
- * from the foot; else its end. */
 function leadOut(pts: readonly Point[], step: number, x: Point, out: Point): Point[] {
   const forward = (pts[step + 1]!.x - x.x) * out.x + (pts[step + 1]!.z - x.z) * out.z >= 0;
   const line = forward ? pts : [...pts].reverse(), from = forward ? step : pts.length - 2 - step, D = RELIEF.ramp.depth;
   const w = (p: Point) => (p.x - x.x) * out.x + (p.z - x.z) * out.z, foot = { x: x.x + out.x * D, z: x.z + out.z * D };
-  // A curve leaving the foot along `out` and meeting the line along its own way on: its join stands half a ramp's depth past
-  // the foot, and no control point stands back from the foot or the join by more, so the whole curve is past the foot.
   const curve = (q: Point, onward: Point): Point[] => {
     const c = Math.min(D * 0.5, far(foot, q) / 2), p1 = { x: foot.x + out.x * c, z: foot.z + out.z * c }, p2 = { x: q.x - onward.x * c, z: q.z - onward.z * c };
     return [1, 2, 3, 4, 5, 6, 7].map((k) => {
@@ -568,7 +453,6 @@ function leadOut(pts: readonly Point[], step: number, x: Point, out: Point): Poi
     const a = k === from + 1 ? x : line[k - 1]!, b = line[k]!, l = far(a, b);
     walked += l;
     if (w(b) < 1.5 * D) continue;
-    // The point the line first reaches half as far again past the foot on this step, or this step's end.
     const t = w(a) < 1.5 * D ? (1.5 * D - w(a)) / (w(b) - w(a)) : 1, q = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
     const rest = far(q, b) > 1e-6 ? [q, ...line.slice(k)] : line.slice(k), next = rest[1];
     const onward = next === undefined ? out : unitOf({ x: next.x - q.x, z: next.z - q.z }), toward = unitOf({ x: q.x - foot.x, z: q.z - foot.z });
@@ -581,10 +465,8 @@ function leadOut(pts: readonly Point[], step: number, x: Point, out: Point): Poi
 
 const unitOf = (p: Point): Point => { const l = Math.hypot(p.x, p.z) || 1; return { x: p.x / l, z: p.z / l }; };
 
-/** How long a line is. */
 const lengthOf = (pts: readonly Point[]) => pts.reduce((s, p, i) => (i ? s + far(pts[i - 1]!, p) : 0), 0);
 
-/** A line cut in two `d` along it, the point there ending the first and starting the second. */
 function splitAt(pts: readonly Point[], d: number): [Point[], Point[]] {
   let left = Math.max(0, d);
   for (let i = 1; i < pts.length; i++) {
@@ -595,7 +477,6 @@ function splitAt(pts: readonly Point[], d: number): [Point[], Point[]] {
   return [[...pts], [pts.at(-1)!]];
 }
 
-/** The point halfway along a line. */
 function halfway(pts: readonly Point[]): Point {
   const total = pts.reduce((s, p, i) => (i ? s + far(pts[i - 1]!, p) : 0), 0);
   let left = total / 2;
@@ -625,7 +506,6 @@ function toSegment(p: Point, a: Point, b: Point): number {
   return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
 }
 
-/** Whether a point is on the land `coast` encloses, each row's crossings of the coast found once. */
 function landOf(coast: Coast): (p: Point) => boolean {
   const rows = new Map<number, number[]>();
   return (p) => {
@@ -644,7 +524,6 @@ function landOf(coast: Coast): (p: Point) => boolean {
   };
 }
 
-/** The index of the point of `sites` nearest a point, by a grid of buckets searched outward. */
 function nearestOf(sites: readonly Point[]): (p: Point) => number {
   const size = 6, buckets = new Map<string, number[]>();
   const at = (v: number) => Math.floor(v / size);
@@ -654,7 +533,6 @@ function nearestOf(sites: readonly Point[]): (p: Point) => number {
     const cx = at(p.x), cz = at(p.z);
     let best = 0, d = Infinity;
     for (let r = 0; r <= reach; r++) {
-      // Every site within r buckets is searched; one nearer than the ring beyond them cannot be bettered.
       for (let x = cx - r; x <= cx + r; x++) for (let z = cz - r; z <= cz + r; z++) {
         if (Math.max(Math.abs(x - cx), Math.abs(z - cz)) !== r) continue;
         for (const i of buckets.get(`${x},${z}`) ?? []) { const s = sites[i]!, dd = (s.x - p.x) ** 2 + (s.z - p.z) ** 2; if (dd < d) { d = dd; best = i; } }
@@ -665,7 +543,6 @@ function nearestOf(sites: readonly Point[]): (p: Point) => number {
   };
 }
 
-/** How far a point is from the nearest of `edges`, exactly within a few units of one; further off, a lower bound. */
 function nearEdges(edges: readonly (readonly [Point, Point])[]): (p: Point) => number {
   const size = 4, buckets = new Map<string, number[]>();
   const at = (v: number) => Math.floor(v / size);

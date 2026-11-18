@@ -1,16 +1,4 @@
-/**
- * Capability 10 · Plan view (the command line story): `storytree contract show <contract>` prints one contract, its
- * capability and description, with its two health columns, what the agent reported and what storytree verified, each
- * with who wrote it, when and its note. Agents typed `storytree contract` most often on their way to plan one or to read
- * one's health (friction_896be858baa5), so `contract new` and `contract health` are pointed to the commands for those
- * jobs (./index.ts's POINTERS), and the family's help names both. `storytree contract list [<story|capability>]` lists
- * contracts under their capabilities, every story's or one story's or capability's, by id or title, since agents typed
- * it on their way to a story's contracts (friction_2d5163d338d3); a story's list ends with its edges' contracts under their
- * edges, and `contract show` of an edge's contract names its edge, from › to, where another names its capability
- * (ADR-1282 D1). Each verb refuses a flag it does not read before it
- * opens the library, so a mistyped narrowing (`contract list --capability <id>`) is never answered with every contract
- * (friction_3bb49532533f).
- */
+// Capability 10 · Plan view
 import type { HealthColumn, NodeHealth } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
@@ -78,20 +66,12 @@ const show: Verb = {
     async function edgeOf(edge: string): Promise<string> {
       const ends = (await library.get(edge))?.fields as { from: string; to: string } | undefined;
       if (ends === undefined) return `edge: [${edge}]`;
-      // A live edge's ends are live: the library refuses to retire a capability an edge depends on.
       const [from, to] = await Promise.all([titleOf(ends.from), titleOf(ends.to)]);
       return edgeLabel(edge, from!, to!);
     }
   },
 };
 
-/**
- * `storytree contract report`, the report tool's twin (ADR-0793): a session whose agent link dropped records a contract's
- * test red or green from its shell (friction_42f65edd6dcc). It reads its words and hands them to Session management's
- * reportContract, the work the tool does, so both doors write the same entry and are refused the same way. The shell's
- * harness session reports it, or else the person at the terminal, in the library its `--project`, `--arc` or
- * `--increment` names (ADR-1348 D3).
- */
 const report: Verb = {
   name: "report",
   usage: `contract report <contract> --result red|green [--note <text|@file>] ${WHERE_USAGE}`,
@@ -109,14 +89,12 @@ const report: Verb = {
   },
 };
 
-/** Refuse the first flag given that is not one of `taken`, naming it, then `instead` when there is one, then the usage. */
 function reads(args: Args, taken: readonly string[], usage: string, instead?: string): void {
   const stray = args.names.find((name) => !taken.includes(name));
   if (stray === undefined) return;
   throw new Refusal([`--${stray} is not a flag storytree ${usage.split(" ").slice(0, 2).join(" ")} reads`, ...(instead === undefined ? [] : [instead]), `usage: storytree ${usage}`].join("\n"), { code: 2 });
 }
 
-/** One health column as a line: its state, then who wrote it, when and its note, each when it has one. */
 function said(column: HealthColumn): string {
   const state = column.state === "not-checked" ? "not checked" : column.state;
   const by = [state, ...(column.by === undefined ? [] : [`by ${column.by}`]), ...(column.at === undefined ? [] : [column.at])].join(", ");

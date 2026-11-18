@@ -1,4 +1,4 @@
-/** Capability 6 · Social sign-in and session, contract 6.4, as the declared `sign-in`, `status` and `sign-out` answer it unconfigured. */
+// Capability 6 · Social sign-in and session
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

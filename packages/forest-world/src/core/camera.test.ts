@@ -1,19 +1,3 @@
-// The land's DECLARED CAMERA (ADR-0367 D1) — red-green on the one fact this increment brings
-// into existence.
-//
-// BEFORE this suite the land had no camera at all. `hexCenter` mapped axial coordinates to pixels
-// with no y-scale, no elevation and no projection matrix, and every stage downstream — the relaxed
-// substrate mesh, the coast, the scene builders — worked in that same untransformed space. The
-// hero-tree sprite, meanwhile, is authored at an explicitly declared camera: `ELEV_DEG = 20.0` in
-// `docs/research/chapter2-code-only-art-2026-08-01/blender-hero-v1/blender_tree.py`, projecting
-// world to screen as `sy = p[1]*sin(EL) + (p[2]-TZ)*cos(EL)`. So ground depth foreshortens by
-// sin(elevation) and upright height by cos(elevation) — and the land applied NEITHER.
-//
-// ADR-0367 D1: the land gets a declared camera, it is the SAME one the hero tree declares, it is
-// expressed ONCE as a named constant carrying an angle in degrees, and both the land's coordinate
-// mapping and the object sprites read that one value. These tests fence that: the land side here,
-// the land/sprite composition in `@storytree/app-surface`'s `land-camera-composition.test.ts`.
-
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -36,16 +20,8 @@ import {
   type Pt,
 } from './hex.js';
 
-
-/**
- * The declared value, plus a sweep either side of it — the range every invariant below holds
- * over. 26.565 is the classic 2:1 dimetric angle and 30 the classic isometric one; they are here
- * because "across the range of the constant" has to mean the angles the land could plausibly be
- * re-declared at, not a numerical neighbourhood of 20.
- */
 const SWEEP = [12, 15, 20, 26.565, 30, 45, 60] as const;
 
-/** Ray-cast point-in-polygon; polygons here are convex, but the cast needs no convexity. */
 function pointInPolygon(p: Pt, poly: readonly Pt[]): boolean {
   let inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -57,8 +33,6 @@ function pointInPolygon(p: Pt, poly: readonly Pt[]): boolean {
   }
   return inside;
 }
-
-// ---------- the constant itself ----------
 
 test('the land declares ONE camera elevation, in degrees, above the ground plane', () => {
   assert.ok(
@@ -73,23 +47,16 @@ test('the land declares ONE camera elevation, in degrees, above the ground plane
 });
 
 test("the land's projection is DERIVED from the declared elevation, never a second literal", () => {
-  // If either of these ever stops being sin/cos of the ONE constant, the land has grown a second
-  // camera — which is exactly the state ADR-0367 D1 was written to end. The expected values are
-  // worked by hand from known angles, not recomputed the way the code computes them.
   const near = (actual: number, expected: number, what: string): void =>
     assert.ok(Math.abs(actual - expected) < 1e-4, `${what}: ${actual}, worked ${expected}`);
-  // The declared camera (50 deg): sin 50 = 0.7660, cos 50 = 0.6428.
   assert.equal(groundFlattening(), groundFlattening(LAND_CAMERA_ELEVATION_DEG));
   assert.equal(uprightForeshortening(), uprightForeshortening(LAND_CAMERA_ELEVATION_DEG));
   near(groundFlattening(50), 0.766, 'groundFlattening(50)');
   near(uprightForeshortening(50), 0.6428, 'uprightForeshortening(50)');
-  // Edge-on and plan view, the two ends.
   near(groundFlattening(0), 0, 'groundFlattening(0)');
   near(uprightForeshortening(0), 1, 'uprightForeshortening(0)');
   near(groundFlattening(90), 1, 'groundFlattening(90)');
   near(uprightForeshortening(90), 0, 'uprightForeshortening(90)');
-  // The sweep, against a table of worked sines and cosines: 30 deg halves the ground, 60 deg halves
-  // an upright, and 26.565 deg (tan = 1/2, the 2:1 dimetric view) flattens it to 1/sqrt(5).
   const worked: Record<(typeof SWEEP)[number], [ground: number, upright: number]> = {
     12: [0.2079, 0.9781],
     15: [0.2588, 0.9659],
@@ -110,17 +77,11 @@ test('the plan view is the elevation the land used to be drawn at, and it is the
   assert.deepEqual(projectGround({ x: 3, y: 7 }, PLAN_VIEW_ELEVATION_DEG), { x: 3, y: 7 });
 });
 
-// ---------- the land's coordinate mapping reads it ----------
-
 test('hexCenter reads the declared camera: ground depth foreshortens, screen x does not', () => {
-  // The lattice pitch is a GROUND-plane quantity, so the r axis carries the flattening and the q
-  // axis does not. Pinned against the constant, not against 0.342, so re-declaring the camera
-  // moves the assertion with the code.
   assert.equal(hexCenter({ q: 0, r: 1 }).y, 1.5 * HEX_R * groundFlattening());
   assert.equal(hexCenter({ q: 1, r: 0 }).x, HEX_W);
   assert.equal(hexCenter({ q: 1, r: 0 }).y, 0);
 
-  // ...and at the plan-view limit it is byte-for-byte the pre-camera mapping.
   assert.equal(hexCenter({ q: 0, r: 1 }, { elevationDeg: PLAN_VIEW_ELEVATION_DEG }).y, 1.5 * HEX_R);
   assert.equal(hexCenter({ q: 2, r: 3 }, { elevationDeg: PLAN_VIEW_ELEVATION_DEG }).y, 1.5 * HEX_R * 3);
 });
@@ -138,8 +99,6 @@ test('a lower camera flattens the land strictly more: hexCenter.y is monotone in
 });
 
 test('pixelToHex inverts hexCenter at the same camera, across the sweep', () => {
-  // The land's forward and inverse mappings must read the SAME value: an inverse still dividing by
-  // a plan-view pitch would mis-key every hit target on the map.
   for (const deg of [...SWEEP, PLAN_VIEW_ELEVATION_DEG]) {
     for (let q = -4; q <= 4; q++) {
       for (let r = -4; r <= 4; r++) {
@@ -162,8 +121,6 @@ test('projectGround / unprojectGround are inverses at the same camera', () => {
   }
 });
 
-// ---------- the cells project as ground polygons, and the lattice still closes ----------
-
 test('hexCorners project onto the camera ground ellipse, not a circle', () => {
   for (const deg of SWEEP) {
     const f = groundFlattening(deg);
@@ -176,17 +133,12 @@ test('hexCorners project onto the camera ground ellipse, not a circle', () => {
       );
     }
   }
-  // At the plan view the ellipse is the circle the pre-camera code drew.
   for (const c of hexCorners(10, 20, HEX_R, PLAN_VIEW_ELEVATION_DEG)) {
     assert.ok(Math.abs(Math.hypot(c.x - 10, c.y - 20) - HEX_R) < 1e-9);
   }
 });
 
 test('the projected lattice still CLOSES: neighbouring cells share their edge corners exactly', () => {
-  // This is what separates a ground PROJECTION from an arbitrary vertical squash: the same affine
-  // map applied to the pitch and to the corner offsets keeps every shared edge shared, so the
-  // relaxed substrate mesh and the territory boundary still weld. Tear this and the island grows
-  // seams no test downstream would name.
   for (const deg of SWEEP) {
     for (let q = -2; q <= 2; q++) {
       for (let r = -2; r <= 2; r++) {
@@ -197,8 +149,6 @@ test('the projected lattice still CLOSES: neighbouring cells share their edge co
           const n: Axial = { q: q + d.q, r: r + d.r };
           const nc = hexCenter(n, { elevationDeg: deg });
           const theirs = hexCorners(nc.x, nc.y, HEX_R, deg);
-          // My edge e runs corner e -> e+1; the neighbour across it draws the same two points as
-          // its own corners e+3 and e+4 (the opposite edge), reversed.
           const a = mine[e]!;
           const b = mine[(e + 1) % 6]!;
           const a2 = theirs[(e + 4) % 6]!;
@@ -217,13 +167,7 @@ test('the projected lattice still CLOSES: neighbouring cells share their edge co
   }
 });
 
-// ---------- the tile extrusion is UPRIGHT, so it foreshortens by cos ----------
-
-// ---------- the composition property, in land terms ----------
-
 test('a ground contact anchored to a cell lands ON that cell, across the sweep', () => {
-  // Proof assertion 2, land half: the anchor and the cell polygon must be computed at the SAME
-  // declared camera. The sprite half (the rendered contact row) is fenced in app-surface.
   for (const deg of SWEEP) {
     for (let q = -3; q <= 3; q++) {
       for (let r = -3; r <= 3; r++) {
@@ -241,9 +185,6 @@ test('a ground contact anchored to a cell lands ON that cell, across the sweep',
 });
 
 test('the contact assertion has TEETH: an anchor at a different camera falls off the cell', () => {
-  // Without this control the test above would pass vacuously for any mapping whatsoever. A cell
-  // drawn at the declared camera with its anchor still placed by the pre-camera (plan-view)
-  // mapping is exactly today's mismatch, and it must be caught.
   const h: Axial = { q: 0, r: 3 };
   const hc = hexCenter(h, { elevationDeg: LAND_CAMERA_ELEVATION_DEG });
   const cell = hexCorners(hc.x, hc.y, HEX_R, LAND_CAMERA_ELEVATION_DEG);

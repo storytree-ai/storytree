@@ -1,4 +1,4 @@
-/** Capability 4 · Updates: a copy that does not install releases says so, and does nothing else. */
+// Capability 4 · Updates
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

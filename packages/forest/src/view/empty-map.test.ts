@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Story node render: what the map says while its project has no story (3.107, from Fable's first judged run,
- * research_e16161487f5a F1.1). Read as the page draws it; its button is clicked in Chrome (forest-view-painted.test.ts).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createElement } from "react";

@@ -1,18 +1,7 @@
-// Capability 5 · The merge queue's CI scripts. Whether CI's run on a push to main may stand on the merge queue's verdict (ci.yml's
-// `queue-verdict` job calls this through actions/github-script, so `github` is its Octokit).
-//
-// Each merge reaches main through the merge queue (ADR-0796), whose `merge_group` run tests the very commit main is
-// fast-forwarded to, on all three systems; retesting it on the push took 22% of runner time (increment_08dac5c25a06).
-// The queue merges once that run's `verify` job passes, which can be before the run itself reads as completed, so the
-// job is read, not the run's conclusion. Anything else (a direct merge with no queue run, a batch whose head differs,
-// a verify not passed, an unreadable API) leaves the push to test in full.
+// Capability 5 · The merge queue's CI scripts
 
-/** The prefix of the branch the merge queue tests main's next commit on. */
 const QUEUE = "gh-readonly-queue/main/";
 
-/**
- * @returns {Promise<{ run?: { id: number, attempt: number }, reason: string }>}
- */
 export async function queueVerdict({ github, repo, sha }) {
   try {
     const { data } = await github.rest.actions.listWorkflowRuns({ ...repo, workflow_id: "ci.yml", head_sha: sha, event: "merge_group", per_page: 20 });

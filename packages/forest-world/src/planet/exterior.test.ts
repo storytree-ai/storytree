@@ -1,5 +1,3 @@
-// The half of The drawing engine 4.7 that a headless test can reach: which of the map's exterior layers it draws for
-// the host's switches. The camera and the inside sit outside this rule, so no switch reaches them.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { globeExterior } from './exterior.js';

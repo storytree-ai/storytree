@@ -1,4 +1,4 @@
-/** Capability 2 · Listing and restarting services, contracts 2.1 to 2.3: `storytree services`, `services restart` and `services run`, against a host run in a throwaway home. */
+// Capability 2 · Listing and restarting services
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,7 +22,6 @@ const family = SERVICES_FAMILIES[0]!;
 const list = family.bare as Verb<VerbInputs, VerbPlace>;
 const named = (name: string) => family.verbs.find((one) => "name" in one.command && one.command.name === name) as Verb<VerbInputs, VerbPlace>;
 
-/** Stand-in children: voice/listen fails at once saying why, every other one runs until it is signalled. */
 function children() {
   const starts: string[] = [];
   const start = ({ id }: { id: string }): Child => {
@@ -35,7 +34,6 @@ function children() {
   return { starts, start };
 }
 
-/** STORYTREE_HOME set to `home` for the test, as the command line's verbs read it. */
 function homeIs(t: TestContext, home: string): void {
   const was = process.env.STORYTREE_HOME;
   process.env.STORYTREE_HOME = home;

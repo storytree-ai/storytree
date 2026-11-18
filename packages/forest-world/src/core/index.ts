@@ -1,13 +1,7 @@
-// Capability 1 · Scene layout. The drawing engine's geometry core, from 0.2's forest-world (ADR-0093): pure, browser-safe,
-// deterministic geometry, data in and geometry out. The hex lattice, the relaxed mesh, the smoothed
-// coast and the trail router under the globe's islands. 0.2's 2D scene graph, its trees, plants
-// and flora went with the flat canvas (ADR-0920).
+// Capability 1 · Scene layout
 
 export { hash, rand01 } from './rng.js';
 
-
-// The land's ONE declared camera (ADR-0367 D1) — read by the land's coordinate mapping below and,
-// across the package boundary, by the object sprites that stand on it.
 export {
   LAND_CAMERA_ELEVATION_DEG,
   PLAN_VIEW_ELEVATION_DEG,
@@ -76,5 +70,4 @@ export {
   trailFillWidth,
 } from './routing.js';
 
-/** The status a parcel's ground wears, folded from its capability's form by the forest's join. */
 export type SceneStatus = 'healthy' | 'mapped' | 'proposed' | 'building' | 'unhealthy' | 'unknown';

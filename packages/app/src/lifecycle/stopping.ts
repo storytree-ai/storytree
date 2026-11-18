@@ -1,10 +1,5 @@
-/**
- * Capability 1 · Lifecycle: how the desktop app stops what it holds. Quitting stops the journey, then the page reads,
- * then the library, then Postgres (contract 1.43): each reads what it stands on before that closes. The desktop's main
- * process hands its parts to this and wires it to Electron.
- */
+// Capability 1 · Lifecycle
 
-/** Something the app holds, found when it is needed, and let go of once stopped. */
 export interface Held<T> {
   held(): T | undefined;
   letGo?(): void;
@@ -16,14 +11,11 @@ export interface AppParts {
   reads: Held<{ close(): Promise<void> }>;
   library: Held<{ close(): Promise<void> }>;
   postgres: Held<{ stop(): Promise<void> }>;
-  /** Says a part that failed to stop; the next part stops all the same. */
   error(line: string): void;
 }
 
 export interface AppShutdown {
-  /** Stops the app's parts in order. Safe to call more than once: every call answers the first's stop. */
   shutdown(): Promise<void>;
-  /** Whether a shutdown has begun. */
   stopping(): boolean;
 }
 

@@ -1,7 +1,4 @@
-/**
- * Capability 2 · Storytree projects: the story panel under library news (ADR-0836 D1, D2). News that changes nothing on show
- * touches nothing; a change keeps the folds the user opened (a contract's own too), the handle in focus and the scroll.
- */
+// Capability 2 · Storytree projects
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
@@ -31,10 +28,10 @@ function setup() {
     drill: () => ({ story: "s", title, description: "", capabilities: [] }) as unknown as StoryPanel,
     store: () => undefined,
     render: () => `<h2>${title}</h2>${fold("contracts", `<ul><li data-contract-id="k1">${fold("contract", "k1 body")}</li></ul>`)}`,
-    folds: (panel) => { // the forest's folds keep the top-level kinds open; a contract's own is the panel's to keep
+    folds: (panel) => {
       for (const handle of panel.querySelectorAll<HTMLElement>('[data-fold="contracts"] > .panel-handle')) { handle.setAttribute("aria-expanded", "true"); (handle.nextElementSibling as HTMLElement).hidden = false; }
     },
-    libraryCard: (panel) => { panel.replaceChildren(); panel.append(document.createElement("article") as never); return () => {}; }, // the card takes the panel
+    libraryCard: (panel) => { panel.replaceChildren(); panel.append(document.createElement("article") as never); return () => {}; },
     deselect: () => {},
     openIncrement: (id) => { opened.push(id); },
   });

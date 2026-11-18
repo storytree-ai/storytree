@@ -20,7 +20,6 @@ function work(ids, extra = {}) {
   };
 }
 
-/** A cloud overflow over an in-memory ledger: every fire is recorded, and answered by `answer` (a session, or a thrown error). */
 function overflowOf({ config = { enabled: true, cap: 2, trigger: "trig_01abc", reviews: true }, token = "sk-ant-oat01-x", answer, clock = () => T0, lines = [], ledger = {}, body } = {}) {
   const fires = [];
   const cloud = cloudOverflow({
@@ -32,7 +31,6 @@ function overflowOf({ config = { enabled: true, cap: 2, trigger: "trig_01abc", r
   return { cloud, fires, lines, ledger };
 }
 
-/** runPool on a box held back for `looks` looks, every lane the box starts recorded, stopped after the last look. */
 async function poolRun({ found, cloud, looks = 3, paces, engines = 0, cap = 2, clock = () => T0 }) {
   const started = [], lines = [];
   let looked = 0, stop = false;
@@ -63,13 +61,11 @@ test("3.40 · while the box reads saturated and the overflow is switched on, the
   assert.deepEqual(clear.fires, [], "a clear box starts its own lanes and fires nothing");
   assert.deepEqual(box.started, ["a"]);
 
-  // One cloud lane already live under a cap of 2: one more fire, not two.
   const ledger = { text: JSON.stringify({ lanes: [{ increment: "z", session: "session_z", at: new Date(T0).toISOString(), state: "live" }], fireErrors: 0 }) };
   const topped = overflowOf({ ledger });
   await poolRun({ found: work(["a", "b", "z"]), cloud: topped.cloud });
   assert.deepEqual(topped.fires.map((fire) => fire.text), ["a"], "the cap counts the lane already live");
 
-  // A machine-only dispatcher (the laptop's) never overflows, held back or not.
   const laptop = overflowOf();
   let looked = 0;
   await runPool({
@@ -144,11 +140,9 @@ test("3.42 · an increment fired to the cloud is not started on the box while it
   await poolRun({ found: work(["a"]), cloud, clock: () => clock });
   assert.deepEqual(fires.map((fire) => fire.text), ["a"]);
 
-  // The box clears before the cloud lane has claimed: the box leaves a alone.
   const early = await poolRun({ found: work(["a", "b"]), cloud, paces: [undefined, undefined, undefined], clock: () => clock });
   assert.deepEqual(early.started, ["b"], "a is running in the cloud: only b starts on the box");
 
-  // The lane claims a, then its claim is released with no hand-over: it failed, and a is the box's again.
   clock = T0 + 5 * 60_000;
   const claimed = work(["a"], { claims: [{ increment: "a", session: "session_a", holder: "live", since: new Date(clock).toISOString() }] });
   assert.deepEqual(await cloud.live(claimed), ["a"], "claimed and live");
@@ -158,7 +152,6 @@ test("3.42 · an increment fired to the cloud is not started on the box while it
   assert.deepEqual(fires.map((fire) => fire.text), ["a"], "never fired a second time");
   assert.deepEqual(after.started, ["a"], "the box takes it once clear");
 
-  // A fired lane that never claims fails after the grace.
   const quiet = overflowOf({ clock: () => clock });
   await quiet.cloud.overflow(work(["c"]), {});
   clock += CLAIM_GRACE_MS + 1;
@@ -184,17 +177,14 @@ test("3.43 · a fire error leaves the increment ready, is said once in pool stat
   assert.equal(fires.at(-1).text, "a", "past the hold it fires again");
   assert.deepEqual(await cloud.live(work(["a"])), ["a"]);
 
-  // A ledger that already counts fire errors adds to them.
   const counted = overflowOf({ ledger: { text: JSON.stringify({ lanes: [], fireErrors: 2 }) }, answer: () => { throw new Error("HTTP 503"); } });
   await counted.cloud.overflow(work(["a"]), {});
   assert.equal(JSON.parse(counted.ledger.text).fireErrors, 3);
 
-  // Through runPool, an overflow that throws leaves the dispatcher running.
   const throwing = { live: async () => [], wants: async () => true, overflow: async () => { throw new Error("library unread"); } };
   const { lines: said } = await poolRun({ found: work(["a"]), cloud: throwing });
   assert.ok(said.some((line) => /cloud overflow skipped \(library unread\)/.test(line)), said.join("\n"));
 
-  // Cloud lanes that cannot be read count as none: the box dispatches as usual.
   const unread = { live: async () => { throw new Error("ledger unreadable"); }, wants: async () => false, overflow: async () => {} };
   const box = await poolRun({ found: work(["a"]), cloud: unread, paces: [undefined, undefined, undefined], looks: 2 });
   assert.deepEqual(box.started, ["a"]);
@@ -231,7 +221,6 @@ test("3.44 · the trial's lanes are counted fired, landed, failed, live and with
   assert.ok(out.some((line) => /^ {2}a {2}landed/.test(line)));
   assert.equal(JSON.parse(await readFile(join(lanesDir, "pool-cloud.json"), "utf8")).lanes.length, 5, "reading back changes nothing");
 
-  // The token and, when the switch names none, the trigger come from secrets.json.
   await writeFile(join(lanesDir, "secrets.json"), JSON.stringify({ CLOUD_TRIGGER_TOKEN: "sk-ant-oat01-y", CLOUD_TRIGGER_ID: "trig_02" }));
   assert.deepEqual(await cloudSecrets(join(lanesDir, "secrets.json")), { token: "sk-ant-oat01-y", trigger: "trig_02" });
   assert.deepEqual(await cloudSecrets(join(lanesDir, "missing.json")), {});

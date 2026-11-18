@@ -1,9 +1,4 @@
-/**
- * Capability 1 · Lifecycle, contract 1.7 (ADR-0656 D1): the app can be asked to quit from outside
- * (`storytree app quit`), as the tray's Quit does. The request goes to the running app as a second
- * start with `--quit`, through the record of how to open it (app.json), and the answer comes once
- * its database has stopped. Stand-ins for the running app: its owner record, and its start.
- */
+// Capability 1 · Lifecycle
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -75,7 +70,6 @@ test("1.7 an app that does not stop in time is reported as still running, not as
 
 test("1.11 with the library at a Postgres address (no local database), the running app is found from its launch record and quit", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-quit-remote-"));
-  // A stand-in for the running app: a live process, named in app.json as the app records itself.
   const app = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
   try {
     writeFileSync(path.join(dir, "app.json"), JSON.stringify({ command: "slot/electron.exe", args: ["slot/app"], pid: app.pid }));
@@ -90,7 +84,6 @@ test("1.11 with the library at a Postgres address (no local database), the runni
     });
     assert.deepEqual(opened, [["slot/electron.exe", "slot/app", "--quit"]]);
     assert.equal(result.state, "quit");
-    // Stopped, it reads as not running, and nothing is started.
     const again = await quitApp({ home: dir, open: (command, args) => opened.push([command, ...args]) });
     assert.equal(again.state, "not running");
     assert.equal(opened.length, 1);

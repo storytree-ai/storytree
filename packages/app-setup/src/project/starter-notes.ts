@@ -1,11 +1,4 @@
-/**
- * Capability 6 · Make a folder a project. The starter pack's notes (contract 6.7): the principles,
- * guardrails, patterns and processes the starter roles stand on, adapted from storytree's own for a
- * user's project (ADR-0996 D2): its own test command and the pipeline `wire_pipeline` sets up
- * stand in for storytree's gate, merge queue and machines, and storytree's
- * own history is left out. starter-pack-classification.md records where each came from and what was
- * dropped. This file is part of the pack's one versioned place: change it and raise STARTER_PACK_VERSION.
- */
+// Capability 6 · Make a folder a project.
 import type { NewKnowledge } from "@storytree/library";
 
 export type Principle = NewKnowledge<"principle">;

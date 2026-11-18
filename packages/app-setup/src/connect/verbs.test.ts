@@ -1,7 +1,4 @@
-/**
- * Capability 2 · Connect an agent: the `setup connect`, `disconnect` and `uninstall` verbs the app setup declares for the
- * command line, run beside a stand-in for the installed helper that says the words it was handed.
- */
+// Capability 2 · Connect an agent
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

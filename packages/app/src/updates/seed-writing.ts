@@ -1,14 +1,7 @@
-/**
- * Capability 4 · Updates: the restart into a new build waits while a seed is writing the app's
- * library. A library script that writes (`pnpm check:own-health`, `pnpm library:restore`) writes into
- * the running app's database, holding its writing lock on
- * a connection it names SEED_CONNECTION; restarting stops that database, so the updater asks first.
- * Only a seed on that database counts: one writing another database on the same server is not this app's.
- */
+// Capability 4 · Updates
 import { SEED_CONNECTION } from "@storytree/library";
 import pg from "pg";
 
-/** Whether a seed is connected to the database at `url`. */
 export async function seedWriting(url: string): Promise<boolean> {
   const client = new pg.Client({ connectionString: url });
   await client.connect();

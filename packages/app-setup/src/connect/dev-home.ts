@@ -1,16 +1,4 @@
-/**
- * Capability 2 · Connect an agent. A dev build's commands, connected to a throwaway home: what a live Codex or Claude Code check runs
- * against on any box, instead of a rig hand-built for it. Its own HOME, CODEX_HOME, CLAUDE_CONFIG_DIR
- * and storytree home, its own Postgres (started on demand, as the app would start), and the same
- * connection an installed storytree makes. The user's own homes are only read, for Codex's sign-in, which
- * goes back to the user's when Codex refreshed it inside (a refresh ends the sign-in it replaced). Claude
- * Code's sign-in is never copied, for the same reason: start it with CLAUDE_CODE_OAUTH_TOKEN set (a
- * long-lived token from `claude setup-token`).
- *
- *   pnpm --filter @storytree/app-setup dev-home <dir> --codex [--claude]
- *   . <dir>/env.sh            (PowerShell: . <dir>/env.ps1), then codex or claude in a new folder
- *   pnpm --filter @storytree/app-setup dev-home <dir> --remove
- */
+// Capability 2 · Connect an agent
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -36,22 +24,17 @@ interface DevHomeMarker {
 export interface DevHomeOptions {
   readonly dir: string;
   readonly harnesses: readonly Harness[];
-  /** Where Codex's sign-in is read from (and handed back to). By default the user's own ~/.codex. */
   readonly signedIn?: { readonly codex?: string };
-  /** Builds the dev build's commands into a folder. By default Session management's own build. */
   readonly build?: (outdir: string) => Promise<Record<string, string>>;
   readonly run?: RunHarness;
 }
 
 export interface DevHome {
   readonly results: readonly ConnectionResult[];
-  /** The environment a session in the throwaway home runs with. */
   readonly env: Record<string, string>;
-  /** env.sh (env.ps1 on Windows): source it, then start the agent. */
   readonly envFile: string;
 }
 
-/** Make (or remake) the throwaway home in `dir` and connect the chosen agents there. */
 export async function makeDevHome(options: DevHomeOptions): Promise<DevHome> {
   const dir = path.resolve(options.dir);
   await removeDevHome(dir);
@@ -60,8 +43,6 @@ export async function makeDevHome(options: DevHomeOptions): Promise<DevHome> {
   const codex = path.join(home, ".codex");
   const claude = path.join(home, ".claude");
   const storytree = path.join(home, ".storytree", "0.3");
-  // Install an inheritable owner-only DACL when creating the root, before any sign-in
-  // bytes or children exist. POSIX modes alone leave Windows inheritance unchanged.
   if (process.platform === "win32") windowsPermissions([{ file: dir, kind: "create" }]);
   for (const folder of [codex, claude, storytree]) mkdirSync(folder, { recursive: true, mode: 0o700 });
   const userAuth = path.join(options.signedIn?.codex ?? path.join(homedir(), ".codex"), "auth.json");
@@ -71,7 +52,6 @@ export async function makeDevHome(options: DevHomeOptions): Promise<DevHome> {
 
   const bins = await (options.build ?? buildBins)(tools);
 
-  // Its own database: a storytree command that finds it closed opens it from this record, as it opens the app.
   const database = fileURLToPath(new URL("./dev-database.ts", import.meta.url));
   writeFileSync(path.join(storytree, "app.json"), `${JSON.stringify({ command: process.execPath, args: ["--import", import.meta.resolve("tsx"), database, storytree] })}\n`);
 
@@ -93,15 +73,9 @@ export async function makeDevHome(options: DevHomeOptions): Promise<DevHome> {
   return { results, env, envFile };
 }
 
-/**
- * Stop the throwaway home's database, if it runs, hand back a Codex sign-in refreshed inside it, and delete
- * the home. Refuses a folder this did not make.
- */
 export async function removeDevHome(dir: string): Promise<void> {
   if (!existsSync(dir)) return;
   if (!existsSync(path.join(dir, MARK))) throw new Error(`${dir} exists and is not a dev home made by this command: choose a new folder.`);
-  // Repair legacy homes before handling their marker or refreshed sign-in. A conflict
-  // keeps the home, so protect its sensitive children as well as its root.
   const markerFile = path.join(dir, MARK);
   const inside = path.join(dir, "home", ".codex", "auth.json");
   if (process.platform === "win32") {
@@ -124,9 +98,7 @@ export async function removeDevHome(dir: string): Promise<void> {
     const now = readFileSync(inside, "utf8");
     const users = existsSync(codexSignIn.from) ? readFileSync(codexSignIn.from, "utf8") : undefined;
     if (signInDigest(now) !== codexSignIn.copiedSha256) {
-      // Refreshed inside, so the user's copy is spent. Theirs changed too only if they signed in again meanwhile: keep theirs.
       if (users !== undefined && signInDigest(users) === codexSignIn.copiedSha256) {
-        // writeFile's mode only applies to creation, not an existing sign-in file.
         if (process.platform === "win32") windowsPermissions([{ file: codexSignIn.from, kind: "file" }]);
         else chmodSync(codexSignIn.from, 0o600);
         writeFileSync(codexSignIn.from, now, { mode: 0o600 });
@@ -142,8 +114,6 @@ export async function removeDevHome(dir: string): Promise<void> {
   if (record !== undefined) {
     const { pid } = JSON.parse(record) as { pid: number };
     if (!Number.isInteger(pid) || pid <= 0) throw new Error(`Invalid database owner ${pid}; keeping ${dir}.`);
-    // Signal only the owner's own lifetime: a freed pid (soon reused on Windows) is another process's,
-    // and process.kill would end it with exit 1 and no output.
     const identityFile = path.join(dir, "home", ".storytree", "0.3", "dev-database.json");
     const identity = existsSync(identityFile) ? JSON.parse(readFileSync(identityFile, "utf8")) as ProcessIdentity : undefined;
     const reading = identity?.pid === pid ? await probeProcess(identity) : undefined;
@@ -151,8 +121,6 @@ export async function removeDevHome(dir: string): Promise<void> {
       try { process.kill(pid, "SIGTERM"); } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
       }
-      // Windows kill terminates Node without running its cleanup handler. Wait for the process,
-      // not its owner file: that file remains when the handler never ran (also after a crash).
       for (let waited = 0; (await probeProcess(identity)).state === "live" && waited < 20_000; waited += 250) await sleep(250);
       if ((await probeProcess(identity)).state === "live") throw new Error(`The database process ${pid} has not stopped; keeping ${dir}.`);
     } else if (reading?.state !== "gone" && processAlive(pid)) {
@@ -160,7 +128,6 @@ export async function removeDevHome(dir: string): Promise<void> {
     }
   }
   if (existsSync(path.join(dataDir, "PG_VERSION"))) {
-    // Run as the server runs (as root, the tools' account): Postgres refuses root, which reads as neither running nor stopped.
     const run = (...args: string[]) => pgCtl(dataDir, args, { timeoutMs: 25_000 });
     let status = await run("status");
     if (status === 0) {
@@ -169,7 +136,6 @@ export async function removeDevHome(dir: string): Promise<void> {
     }
     if (status !== 3) throw new Error(`Could not confirm the database stopped; keeping ${dir}.`);
   }
-  // pg_ctl can observe postmaster.pid disappearing just before the OS process has exited.
   if (postgresPid !== undefined) await waitForExit(postgresPid, dir);
   if (existsSync(owner)) {
     if (readFileSync(owner, "utf8") !== record) throw new Error(`The database owner changed; keeping ${dir}.`);
@@ -178,11 +144,6 @@ export async function removeDevHome(dir: string): Promise<void> {
   rmSync(dir, { recursive: true, force: true });
 }
 
-/** The throwaway tree belongs entirely to this command, so its owner grant propagates to
- * children. Hand-back changes only the source file, leaving the real home's ACL/settings alone.
- * Windows PowerShell's .NET Framework overload creates a directory with its DACL atomically.
- * A failed ACL operation aborts; never fall back to chmod or write sign-in bytes anyway.
- */
 function windowsPermissions(entries: { file: string; kind: "create" | "directory" | "file" }[]): void {
   const script = `
 $ErrorActionPreference = 'Stop'
@@ -201,7 +162,6 @@ foreach ($entry in $entries) {
   else { [IO.File]::SetAccessControl($entry.file, $acl) }
 }`;
   const env = { ...process.env };
-  // A parent PowerShell 7's module path can break Windows PowerShell 5's built-in cmdlets.
   for (const key of Object.keys(env)) if (key.toUpperCase() === "PSMODULEPATH") delete env[key];
   execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
     ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],

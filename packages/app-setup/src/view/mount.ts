@@ -1,4 +1,4 @@
-/** Capability 3 · First-run guide. */
+// Capability 3 · First-run guide.
 import type { FeedbackAccount, SetupHelpBridge } from "../help/bridge.js";
 import type { JourneyBridge } from "../journey-events/bridge.js";
 import { draftSaid, feedbackText } from "../journey-events/feedback.js";
@@ -7,10 +7,7 @@ import { guideOffered, rememberGuideDismissed } from "./first-run.js";
 import { guideFor, platformOf, recoveryRequest, type GuidePlatform } from "./guide.js";
 import { ACTIONS } from "@storytree/shown-words";
 
-/** A single help surface survives empty/error states and project switching in the thin frame. */
-/** `readJourney`, where the app asks for a sharing choice: on a first launch the guide waits for its ask to be answered (3.21). */
 export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge & Partial<Pick<JourneyBridge, "readJourney">>, options: { returnFocus?: HTMLElement; embedded?: boolean; onOpen?: () => void; platform?: GuidePlatform | undefined } = {}): { open(): void; close(): void; stop(): void } {
-  // The troubleshooting shown is the platform's the app runs on (3.15), read from Electron's user agent unless given.
   const platform = "platform" in options ? options.platform : platformOf(globalThis.navigator?.userAgent ?? "");
   const entry = options.embedded ? null : document.createElement("div");
   if (entry) {
@@ -81,11 +78,10 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge & Part
     if (name === "guide") { void agents(); void offerAgents(); }
     if (name === "feedback") void identity("status");
   }
-  /** Each connected agent still waiting on a step from the user, or past it, read afresh whenever the guide shows. */
   async function agents(): Promise<void> {
     const box = get("[data-agents]");
     let connections: Awaited<ReturnType<SetupHelpBridge["agentConnections"]>> = [];
-    try { connections = await bridge.agentConnections(); } catch (error) { console.error("app-setup guide: the connected agents could not be read", error); /* The guide stands without it. */ }
+    try { connections = await bridge.agentConnections(); } catch (error) { console.error("app-setup guide: the connected agents could not be read", error); }
     box.replaceChildren(...connections.map((connection) => {
       const item = document.createElement("p");
       item.className = `setup-help-agent setup-help-agent-${connection.state}`;
@@ -97,7 +93,6 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge & Part
     }));
     box.hidden = connections.length === 0;
   }
-  /** The agents this computer runs, each connected already or offered with its own Connect: nothing is connected unasked (ADR-1162 D3). */
   async function offerAgents(): Promise<void> {
     const box = get("[data-connect]");
     let found: Awaited<ReturnType<SetupHelpBridge["agentsToConnect"]>>;
@@ -116,7 +111,6 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge & Part
       return;
     }
     box.setAttribute("role", "status");
-    // What check_setup tells the agent, told to the user before they press Connect (3.16).
     const records = document.createElement("p");
     records.dataset.connectRecords = "";
     records.textContent = "Once an agent is connected, storytree's hooks send each session's transcript, and with it the code the agent reads, into your library, " +
@@ -140,7 +134,6 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge & Part
           said.textContent = result.next;
           if (result.connected) {
             row.replaceChildren(name, " is connected. ", said);
-            // Where it was written is for a reader who asks: folded, one step away.
             if (result.where !== undefined) {
               const where = document.createElement("details");
               where.dataset.connectWhere = "";
@@ -216,9 +209,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge & Part
     } catch (error) {
       console.error(`app-setup feedback: the storytree account could not be updated (${action})`, error);
       if (stopped) return;
-      // A status failure cannot leave a previously verified account offered as current.
       if (action !== "signOut") account = null;
-      // Said without its error, which may be private (contract 5.5); app.log has it.
       say(status, "Your account could not be updated. You can continue preparing feedback without signing in.", true);
     } finally {
       signIn.disabled = signOut.disabled = include.disabled = false;
@@ -326,10 +317,6 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge & Part
   return { open, close, stop() { stopped = true; document.removeEventListener("keydown", key, true); entry?.remove(); panel.remove(); } };
 }
 
-/**
- * Resolves once the first launch's sharing ask is answered, so it is asked alone, before the guide opens over it (3.21): at
- * once when it was answered before, and when sharing cannot be read, since a failed read never holds the guide back.
- */
 function sharingAnswered(read: JourneyBridge["readJourney"], stopped: () => boolean): Promise<void> {
   return new Promise((answered) => {
     const check = async (): Promise<void> => {

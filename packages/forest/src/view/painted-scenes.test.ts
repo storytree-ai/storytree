@@ -1,11 +1,10 @@
-/** Capability 3 · Story node render: which scene the globe has painted, and the waits on it. */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setImmediate } from "node:timers/promises";
 
 import { paintedScenes } from "./painted-scenes.js";
 
-/** Whether `promise` has resolved once the queue has run. */
 async function resolved(promise: Promise<void>): Promise<boolean> {
   let done = false;
   void promise.then(() => { done = true; });
@@ -18,7 +17,6 @@ test("3.75 · the globe says when it has painted a frame of the scene on show, i
   const scenes = paintedScenes<object>(kept);
   const keptDrawn = scenes.drawn();
   assert.equal(await resolved(keptDrawn), false, "nothing is painted yet");
-  // A show equal to the one on show changes nothing, so it waits only for that scene's own frame.
   scenes.shown(kept);
   scenes.painted(kept);
   assert.equal(await resolved(keptDrawn), true);

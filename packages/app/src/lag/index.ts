@@ -1,7 +1,4 @@
-/**
- * Capability 7 · Lag report. Lag in real use (Desktop app): what the desktop app's own recorder kept, read back. The main process's side is
- * `createLagRuntime`; the page's is `@storytree/app/lag/view`; `storytree lag` prints `lagReportText`.
- */
+// Capability 7 · Lag report
 import { CATALOGUE } from "@storytree/forest/actions";
 
 import { lagFile, readReadings, storytreeHome } from "./readings.js";
@@ -11,7 +8,6 @@ export { createLagRuntime } from "./runtime.js";
 export { lagFile, readReadings, storytreeHome, type KeptReading } from "./readings.js";
 export { lagReport } from "./report.js";
 
-/** The report over the readings kept in `home` (the storytree home by default), as of now. */
 export function lagReportText(home: string = storytreeHome()): string {
   return lagReport(readReadings(home), { now: Date.now(), catalogue: CATALOGUE, file: lagFile(home) });
 }

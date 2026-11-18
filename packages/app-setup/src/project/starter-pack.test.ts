@@ -1,11 +1,4 @@
-/**
- * Capability 6 · Make a folder a project: contract 6.9, a project an earlier starter pack seeded taking the newer one,
- * or a product project holding no copy of it taking it into its factory, and a part the bare bones leave out taken in
- * by its title (ADR-1094 D2).
- *
- * Each library is a throwaway project on the real Postgres `pnpm test` provides, named with uniqueProjectName()
- * and dropped afterwards, pass or fail. The earlier pack is stood in for by records written under its actor.
- */
+// Capability 6 · Make a folder a project.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -16,19 +9,16 @@ import { PRINCIPLES, PROCESSES } from "./starter-notes.js";
 import { ROLES } from "./starter-roles.js";
 import { seedStarterPack, STARTER_PACK_VERSION, starterPackStatus, takeStarterPack } from "./starter-pack.js";
 
-/** Who the history says wrote a record when version 1 of the pack seeded it. */
 const V1 = { actor: "storytree setup (starter pack v1)" };
 
 const KINDS = ["principle", "guardrail", "pattern", "process", "check", "agent"] as const;
 
-/** Every live pack-kind record `library` holds, as `kind: title`, sorted. */
 async function held(library: Library): Promise<string[]> {
   return (await Promise.all(KINDS.map(async (kind) => (await library.list(kind)).map((record) => `${kind}: ${record.fields.title}`)))).flat().sort();
 }
 
 const principle = (title: string) => PRINCIPLES.find((note) => note.title === title)!;
 
-/** The explorer role as taking it writes it: the role and every note it stands on, keeps as a rule or refuses. */
 const EXPLORER = [
   "agent: explorer",
   "guardrail: Escalate up when blocked or out of scope",
@@ -50,7 +40,6 @@ test("6.9 taking a newer starter pack replaces a pack record its user has not ed
 
     const library = await storytree.openProject(project);
     try {
-      // As version 1 left them: one principle whose text the pack has since changed, one its user edited since, one unchanged.
       const changed = await library.writeKnowledge("principle", { ...principle("Minimum to green"), statement: "Write the least code that passes." }, V1);
       const edited = await library.writeKnowledge("principle", { ...principle("Minimum test to red"), why: "A test never seen failing may test nothing." }, V1);
       await library.editNote(edited.id, { why: "Our team's own reason." }, { actor: "session:the-user" });
@@ -95,7 +84,6 @@ test("6.9 a product project holding no copy of the pack is offered and takes the
   try {
     const made = await storytree.openProject(factory);
     await made.markFactory();
-    // Version 1 seeded the factory: one principle whose text the pack has since changed.
     const changed = await made.writeKnowledge("principle", { ...principle("Minimum to green"), statement: "Write the least code that passes." }, V1);
     await made.close();
     const built = await storytree.openProject(product);

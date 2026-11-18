@@ -50,7 +50,6 @@ test('4.44 · the dots at rest are round quads in the lane blue, one per dot at 
   const lane = laneMaterial(SEA_LANE, 1);
   drawLane(lane, 1, 0, 10, 8);
   assert.equal(lane.uniforms.uScale!.value, 8, 'a fill scales with the dots');
-  // Measured as the screen draws it: one unit of the drawing, scaled up twice, seen square on by a camera zoomed twice.
   const mesh = new Mesh(geometry);
   mesh.scale.setScalar(2);
   mesh.updateMatrixWorld();

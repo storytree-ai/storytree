@@ -7,23 +7,13 @@ import { endChrome } from "./end-chrome.js";
 import { waitUntil } from "@storytree/test-waits";
 import { DETAIL_ZOOM } from "./zoom-detail.js";
 
-/** Each bundle is built once for the file, and its tests each mount it on a fresh page. */
 const bundles = new Map<string, Promise<string>>();
 
-/** The real map view, bundled for the browser and mounted on a two-story plan: the capture seam counts its renders.
- * `__show(titles)` hands it the plan again, a live update, with the stories' titles as given. `linked` gives each story a
- * second capability its first depends on, and story one's first depends on story two's, so each island has roads.
- * `__show(titles, story, more)` shows it with that story selected, and the map view's other props `more` gives (an arc's rings, a pick), `__core` is its knowledge core, and `__flushSync` commits the map's scene at once. `__zoom()` reads the eye's zoom the map shows its detail by.
- * `__showNow(...)` is `__show` committed at once, the page's tree and the map's scene with its effects, so a click after it
- * is read by the view as shown; `__pick` is one pick handler for every show, which pushes each pick to `__picks`. */
 function mapBundle(linked = false, { late = false, unclaimed = false, parted = false }: { late?: boolean; unclaimed?: boolean; parted?: boolean } = {}): Promise<string> {
   const key = JSON.stringify([linked, late, unclaimed, parted]);
   if (!bundles.has(key)) bundles.set(key, bundleMap(linked, late, unclaimed, parted));
   return bundles.get(key)!;
 }
-/** Counts, as `__pending`, the page's work still to come: the frames asked for and the turns handed to the next task (a
- * zero-delay timeout: the islands' builds in steps, their roads' routing, the notes' roots). The map draws on demand, so a
- * page with none pending has drawn all it was asked to, and will draw nothing more until something changes. */
 const PENDING_WORK = `globalThis.__pending = 0; {
   const frames = new Set(), turns = new Set(), frame = requestAnimationFrame.bind(globalThis), unframe = cancelAnimationFrame.bind(globalThis);
   const later = setTimeout.bind(globalThis), unlater = clearTimeout.bind(globalThis), count = () => { globalThis.__pending = frames.size + turns.size; };
@@ -87,15 +77,10 @@ async function bundleMap(linked: boolean, late: boolean, unclaimed: boolean, par
   return result.outputFiles[0]!.text;
 }
 
-/** One browser for the file, launched on first use: each test opens its own page in a context of its own, so none sees another's
- * state, and the file pays one launch rather than one a test. */
 let server: Promise<BrowserServer> | undefined;
 let launched: Promise<Browser> | undefined;
-// Ended without waiting on Chrome's pipes, which a loaded Windows runner left open after the last test, so the file never exited
-// (PR #695, then PR #720 when awaiting the server's kill hung the same way; 3.100).
 after(async () => { endChrome(await server, await launched); });
 async function freshPage(t: { after(run: () => Promise<void>): void }, viewport: { width: number; height: number }): Promise<Page> {
-  // Chrome is installed on the three CI runner images; no browser download during tests.
   server ??= chromium.launchServer({ channel: "chrome", headless: true });
   launched ??= server.then(running => chromium.connect(running.wsEndpoint()));
   const page = await (await launched).newPage({ viewport });
@@ -103,7 +88,6 @@ async function freshPage(t: { after(run: () => Promise<void>): void }, viewport:
   return page;
 }
 
-/** A page with the map mounted, once it has opened and stopped rendering. */
 async function openedMap(t: { after(run: () => Promise<void>): void }, linked = false, viewport = { width: 800, height: 600 }, { unclaimed = false, parted = false } = {}) {
   const page = await freshPage(t, viewport);
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
@@ -113,10 +97,6 @@ async function openedMap(t: { after(run: () => Promise<void>): void }, linked = 
     return nav !== undefined && globe?.scene.getObjectByName("planet:two") !== undefined;
   }, undefined, { timeout: 60_000 });
   const renders = () => page.evaluate(() => (window as unknown as { __renders: number }).__renders);
-  // The opening settles: the sheet opens framed and the islands report their places, then the view stops rendering, and
-  // each island's land, built in its turn (3.87), stands built again with its roads and relief, its borders whole, and no
-  // build or frame is still to come. Every island is routed, linked or not, and its first land, built before its roads
-  // arrive, stands meanwhile: a slow computer can leave it unchanged across two reads (macOS, 2026-11-10).
   const built = () => page.evaluate(() => {
     type Part = { uuid: string; geometry?: { drawRange: { count: number } } };
     const { __globe: globe, __renders: renders, __pending: pending } = window as unknown as { __renders: number; __pending: number; __globe: { scene: { getObjectByName(name: string): { getObjectByName(name: string): Part | undefined } | undefined } } };
@@ -128,15 +108,11 @@ async function openedMap(t: { after(run: () => Promise<void>): void }, linked = 
   });
   let last: string | undefined;
   await waitUntil(async () => { const now = await built(); const still = now !== undefined && now === last; last = now; return still; }, 30_000, "the map view to stop rendering after it opens, its islands' land built");
-  // A land built last compiles its shaders on the frame after.
   await page.evaluate(() => new Promise(requestAnimationFrame));
   await page.evaluate(() => new Promise(requestAnimationFrame));
   return { page, renders };
 }
 
-/** What `read` finds once the page has settled: no frame or turn still to come, and the same reading twice running, so a
- * show or a step a slow runner draws over several frames is drawn in full (3.104, 3.105, 3.112). A failure names the last
- * reading, the page's pending work and its render count with it. */
 async function settled<T>(page: Page, read: () => Promise<T>, what: string): Promise<T> {
   let last: string | undefined, now: { pending: number; renders: number; read: T } | undefined;
   try {
@@ -155,15 +131,11 @@ async function settled<T>(page: Page, read: () => Promise<T>, what: string): Pro
 test("3.87 · an island on the map as it opens has its land stand when it is built, however late its turn comes, never traced on", async t => {
   const page = await freshPage(t, { width: 800, height: 600 });
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
-  // Every turn the page hands on comes 1.5 s late, so each island's land is built well after the sheet first drew.
   await page.evaluate(() => {
     const later = window.setTimeout.bind(window);
     window.setTimeout = ((run: () => void, ms?: number) => later(run, ms ? ms : 1500)) as typeof window.setTimeout;
   });
-  // Linked, so each island has two territories and a border between them to trace.
   await page.addScriptTag({ content: await mapBundle(true) });
-  // Each frame, until island one's borders are first drawn, which is when they are read: whole, or how far traced on.
-  // As a script, since a named function in an evaluated one would need the bundler's helper.
   await page.addScriptTag({ content: `(function look() {
     const lines = window.__globe?.scene.getObjectByName("planet:one")?.getObjectByName("territory-borders");
     if (lines === undefined) { if (window.__globe?.gl.info.render.frame > 0) window.__drewBefore = true; requestAnimationFrame(look); return; }
@@ -178,10 +150,7 @@ test("3.87 · an island on the map as it opens has its land stand when it is bui
 test("3.87 · islands that arrive as the map opens, after it first drew, have their land stand, built again with their roads too, never traced on", async t => {
   const page = await freshPage(t, { width: 800, height: 600 });
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
-  // The map opens empty and its plan comes 1.5 s later, as the app's does; linked, so each island has roads, routed after
-  // its land is first built, which build it again.
   await page.addScriptTag({ content: await mapBundle(true, { late: true }) });
-  // Each frame, island one's borders are read the first time its land is drawn, and the first time its roads are.
   await page.addScriptTag({ content: `(function look() {
     const island = window.__globe?.scene.getObjectByName("planet:one");
     const lines = island?.getObjectByName("territory-borders");
@@ -202,14 +171,11 @@ test("3.87 · islands that arrive as the map opens, after it first drew, have th
 test("3.101 · once its islands are on the map, it says it has settled only on a frame where each one's land is drawn with its roads", async t => {
   const page = await freshPage(t, { width: 800, height: 600 });
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
-  // Every turn the page hands on comes 300 ms late, so each island stands on the sheet many frames before it is laid out.
   await page.evaluate(() => {
     const later = window.setTimeout.bind(window);
     window.setTimeout = ((run: () => void, ms?: number) => later(run, ms ? ms : 300)) as typeof window.setTimeout;
   });
-  // Linked, so each island is laid out by its docks and has roads.
   await page.addScriptTag({ content: await mapBundle(true) });
-  // Each frame both islands stand on the sheet, until the mark first reads settled: whose land and roads are drawn then.
   await page.addScriptTag({ content: `(function look() {
     const islands = ["one", "two"].map(story => window.__globe?.scene.getObjectByName("planet:" + story));
     const shown = islands.every(island => island?.visible === true);
@@ -228,7 +194,6 @@ test("3.71 · a drag that turns the glass sheet renders the map view a fixed few
   const before = await turn();
   await page.evaluate(() => { (window as unknown as { __renders: number }).__renders = 0; });
 
-  // A Ctrl+drag spins and tilts the sheet; twenty steps, each drawn on the next frame.
   await page.keyboard.down("Control");
   await page.mouse.move(400, 300);
   await page.mouse.down();
@@ -238,7 +203,6 @@ test("3.71 · a drag that turns the glass sheet renders the map view a fixed few
   }
   await page.mouse.up();
   await page.keyboard.up("Control");
-  // The drag's last step is drawn on the frame after it.
   await page.evaluate(() => new Promise(requestAnimationFrame));
   await page.evaluate(() => new Promise(requestAnimationFrame));
 
@@ -250,13 +214,11 @@ test("3.71 · a drag that turns the glass sheet renders the map view a fixed few
 for (const parted of [false, true]) test(`3.72 · a burst of live updates that change no island's land, coast or tints keeps its territories' geometry${parted ? ", an island with code parts too" : ""}`, async t => {
   const { page } = await openedMap(t, false, undefined, { parted });
   type Scene = { getObjectByName(name: string): { getObjectByName(name: string): unknown } | undefined };
-  // Each island's territories as drawn, kept on the page to compare with what is drawn after the burst.
   await page.evaluate(() => {
     const page = window as unknown as { __globe: { scene: Scene }; __drawn: unknown[] };
     page.__drawn = ["one", "two"].map(story => page.__globe.scene.getObjectByName(`planet:${story}`)?.getObjectByName("territory-land"));
     return page.__drawn.every(drawn => drawn !== undefined);
   }).then(drawn => assert.ok(drawn, "each island draws its territories"));
-  // Each update renames a story: its island is drawn again for its name, and its land is the same.
   for (const titles of [["One", "two"], ["One", "Two"], ["one", "Two"], ["one", "two"]]) {
     await page.evaluate(titles => (window as unknown as { __show(titles: string[]): void }).__show(titles), titles);
     await page.evaluate(() => new Promise(requestAnimationFrame));
@@ -297,12 +259,9 @@ test("3.73 · the notes' roots drawn anew after the map opened, as the core's sh
     const drawn = globe.scene.getObjectByName("knowledge-roots");
     return drawn && { uuid: drawn.uuid, compiled: globe.gl.properties.get(drawn.material).currentProgram !== undefined };
   });
-  // A selected story's roots, compiled with the map as the selection draws them.
   await page.evaluate(() => (window as unknown as Page).__show(["one", "two"], "one"));
   await waitUntil(async () => (await roots())?.compiled === true, 10_000, "the selected story's roots to be drawn and compiled");
   const before = (await roots())!;
-  // A kind switched off changes the notes shown, and so the roots, while the map's sheet stays as it was; the change is
-  // committed at once and the roots read in the same task, before a frame draws them (drawing compiles what it draws).
   const after = await page.evaluate(before => {
     const { __globe: globe, __core: core, __flushSync: flushSync } = window as unknown as { __globe: Globe; __flushSync(run: () => void): void } & Page;
     flushSync(() => core.showKind("principle", false));
@@ -313,7 +272,6 @@ test("3.73 · the notes' roots drawn anew after the map opened, as the core's sh
 });
 
 test("3.86 · an island nobody selected is laid out with its roads; zooming out past the threshold hides its roads, the territories stay shown down to the wheel's floor, zooming back shows the roads, and the shapes never change", async t => {
-  // A small window, so the whole map opens below the near marks' zoom and the wheel can draw back to its floor.
   const { page } = await openedMap(t, true, { width: 400, height: 300 });
   type Mark = { visible: boolean; parent: Mark | null; geometry?: { getAttribute(name: string): { array: ArrayLike<number> } } };
   type Scene = { getObjectByName(name: string): { getObjectByName(name: string): Mark | undefined } | undefined };
@@ -321,7 +279,6 @@ test("3.86 · an island nobody selected is laid out with its roads; zooming out 
     const { __globe: globe, __zoom: zoom } = window as unknown as { __globe: { scene: Scene }; __zoom(): number };
     const plate = globe.scene.getObjectByName("planet:one");
     const roads = plate?.getObjectByName("island-roads"), borders = plate?.getObjectByName("territory-borders");
-    // Shown when it and everything it hangs from is visible (a named function here would need the bundler's helper).
     const [roadsShown, bordersShown] = [roads, borders].map(mark => {
       let shown = mark !== undefined;
       for (let at: Mark | null | undefined = mark; at; at = at.parent) shown &&= at.visible;
@@ -344,7 +301,6 @@ test("3.86 · an island nobody selected is laid out with its roads; zooming out 
   const near = await wheel(-240, now => now.roads === true, "an island not selected with its roads shown, near");
   const territories = await wheel(240, now => now.roads === false, "the roads hidden");
   assert.equal(territories.territories, true, "the territories still show where the roads hide");
-  // Drawn back until a step of the wheel moves the eye no further: its floor.
   let before = Infinity;
   const floor = await wheel(240, now => { const still = now.zoom >= before * 0.999; before = now.zoom; return still; }, "its floor");
   assert.ok(floor.zoom < territories.zoom && territories.zoom < near.zoom, "the eye drew back past the roads' threshold to the floor");
@@ -356,8 +312,6 @@ test("3.86 · an island nobody selected is laid out with its roads; zooming out 
 test("3.90 · a panel opened beside the map, narrowing it from the left, never lowers how far the wheel zooms out, though the view was zoomed in when it opened", async t => {
   const { page } = await openedMap(t, false, { width: 1000, height: 600 });
   const zoom = () => page.evaluate(() => (window as unknown as { __zoom(): number }).__zoom());
-  // Wheeled `by` until a step moves the eye no further, or for `steps` steps when they are given. Each notch moves the eye
-  // as it turns, so the zoom is read on the frame after it; every notch zooms by one factor, whatever its size.
   const wheel = async (by: number, at: number, steps?: number): Promise<number> => {
     await page.mouse.move(at, 300);
     let before = await zoom();
@@ -372,7 +326,6 @@ test("3.90 · a panel opened beside the map, narrowing it from the left, never l
   const floor = await wheel(240, 500);
   const near = await wheel(-240, 500, 15);
   assert.ok(near > floor * 2, `the wheel drew the eye well in from its floor (${floor} to ${near})`);
-  // The arcs panel opens on the left, as the rail does: the map's frame loses its left 300 CSS pixels, its short side kept.
   await page.evaluate(() => { document.querySelector<HTMLElement>("#map")!.style.left = "300px"; });
   await waitUntil(() => page.evaluate(() => (window as unknown as { __globe: { size: { width: number } } }).__globe.size.width === 700), 10_000, "the map's frame to narrow");
   const after = await wheel(240, 650);
@@ -380,7 +333,6 @@ test("3.90 · a panel opened beside the map, narrowing it from the left, never l
 });
 
 test("3.73 · roads that arrive hidden, after the map opened, have their shader programs too, so the zoom that first shows them stops to compile none", async t => {
-  // A window small enough that the map opens below the near marks' zoom, so every island's roads arrive hidden.
   const { page } = await openedMap(t, true, { width: 400, height: 300 });
   type Drawn = { name: string; visible: boolean; parent: Drawn | null; material?: object | object[]; isMesh?: boolean; isLine?: boolean };
   type Globe = { gl: { properties: { get(material: object): { currentProgram?: unknown } } }; scene: { getObjectByName(name: string): { traverse(visit: (object: Drawn) => void): void; visible: boolean } | undefined } };
@@ -416,7 +368,6 @@ test("3.102 · the first pick after an arc is selected draws its gold ring alone
   await page.evaluate(arc => (window as unknown as Page).__show(["one", "two"], "one", arc), arc);
   await waitUntil(async () => Object.values(await rings() ?? {}).filter(({ compiled }) => compiled).length === 2, 10_000, "the arc's two rings drawn and compiled");
   const before = (await rings())!;
-  // What is compiled from here on, by the names it holds; the pick committed at once and its rings read before a frame draws.
   await page.evaluate(arc => {
     const page = window as unknown as Page, gl = page.__globe.gl, compile = gl.compile.bind(gl), compiled: string[][] = page.__compiled = [];
     gl.compile = (object, ...rest) => { const names: string[] = []; object.traverse(({ name }) => { if (name !== "") names.push(name); }); compiled.push(names); return compile(object, ...rest); };
@@ -430,7 +381,6 @@ test("3.102 · the first pick after an arc is selected draws its gold ring alone
   assert.deepEqual(compiled.filter(names => names.includes("territory-land") && !names.includes("knowledge-roots")), [], "the island's land not compiled again");
 });
 
-/** The sheet's turn as drawn: its group's quaternion and position. */
 const sheetTurn = (page: Page) => page.evaluate(() => {
   const globe = (window as unknown as { __globe: { scene: { getObjectByName(name: string): { quaternion: { toArray(): number[] }; position: { toArray(): number[] } } } } }).__globe.scene.getObjectByName("globe");
   return [...globe.quaternion.toArray(), ...globe.position.toArray()];
@@ -438,18 +388,13 @@ const sheetTurn = (page: Page) => page.evaluate(() => {
 
 test("3.104 · a click on a story's name on the map selects that story, and a drag that starts on the name pans", async t => {
   const { page } = await openedMap(t);
-  // As script text: a function written here would be named by the bundler's helper, which the page lacks.
   await page.evaluate(`globalThis.__showNow(["one", "two"], undefined, { onPick: globalThis.__pick });`);
   const picks = () => page.evaluate(() => (window as unknown as { __picks: unknown[][] }).__picks);
-  // Measured where it settles: a name measured before the show is drawn can move off the point the click then lands on.
   const name = await settled(page, () => page.locator('.planet-nameplate[data-story-id="two"]').boundingBox(), "story two's name to stand still");
   assert.ok(name !== null, "story two's name is drawn");
   const middle = { x: name.x + name.width / 2, y: name.y + name.height / 2 };
   await page.mouse.click(middle.x, middle.y);
   assert.deepEqual((await picks()).at(-1)?.[0], "two", "the click on the name picked its story");
-  // A name faded as crowded, or not displayed, names nothing: the click falls to the water under it. The map's crowd pass
-  // judges every name's fade again on each frame it draws, so a frame between the fade and the click (a slow macOS runner,
-  // 2026-11-13) would take it off: the fade is held, put back as soon as a frame takes it, until the click is read.
   const hold = "globalThis.__held = new MutationObserver(() => { if (!label.classList.contains('crowded')) label.classList.add('crowded'); }); __held.observe(label, { attributeFilter: ['class'] })";
   for (const hide of [`label.classList.add('crowded'); ${hold}`, "label.parentElement.style.display = 'none'"]) {
     await page.evaluate(`{ const label = document.querySelector('.planet-nameplate[data-story-id="two"]'); ${hide}; }`);
@@ -467,7 +412,6 @@ test("3.104 · a click on a story's name on the map selects that story, and a dr
   assert.notDeepEqual(await sheetTurn(page), before, "the drag from the name panned the sheet");
   assert.equal((await picks()).length, picked, "the drag picked nothing");
 
-  // Near, a part's name shows; drawn off its land, over the water, a click on it still picks that part.
   const part = page.locator('.planet-nameplate.capability[data-capability-id="two-cap"]');
   await page.mouse.move(400, 300);
   for (let step = 0; step < 40 && await part.count() === 0; step++) {
@@ -484,7 +428,6 @@ test("3.104 · a click on a story's name on the map selects that story, and a dr
 test("3.106 · the Whole map button shows once the view is moved, returns it to its opening, and goes", async t => {
   const { page } = await openedMap(t);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  // The map's own styles, as the app loads them: they let the button take the pointer the overlay's layer does not.
   await page.addStyleTag({ path: path.join(import.meta.dirname, "styles.css") });
   const button = page.locator("button.whole-map");
   assert.equal(await button.count(), 0, "no button at the opening");
@@ -506,14 +449,12 @@ test("3.106 · the Whole map button shows once the view is moved, returns it to 
 
 test("3.105 · while an arc is selected, a click on island land that is no part picks nothing, and on a part still picks it; with no arc, bare land picks its story", async t => {
   const { page } = await openedMap(t, false, undefined, { unclaimed: true });
-  // Committed at once and drawn in full before any click, so the click is read by the view as shown, arc or none.
   const show = (arc: boolean) => page.evaluate(`globalThis.__showNow(["one", "two"], undefined, { ${arc ? "circled: [], " : ""}onPick: globalThis.__pick });`);
   const picks = () => page.evaluate(() => JSON.stringify((window as unknown as { __picks: unknown[][] }).__picks));
   const nameplates = () => page.locator(".planet-nameplate").evaluateAll(labels => labels.map(label => label.getBoundingClientRect().toJSON() as DOMRect));
   await show(false);
   const names = await settled(page, nameplates, "the map shown with no arc to stand still");
   const onName = (x: number, y: number) => names.some(box => x >= box.left - 4 && x <= box.right + 4 && y >= box.top - 4 && y <= box.bottom + 4);
-  // Found on the map as drawn: a point on island one's land in no part, away from any name, and one on its part.
   let bare: { x: number; y: number } | undefined, part: { x: number; y: number } | undefined;
   for (let y = 10; y < 600 && (bare === undefined || part === undefined); y += 20) for (let x = 10; x < 800; x += 20) {
     if (onName(x, y)) continue;
@@ -540,7 +481,6 @@ test("3.112 · zoomed to the parts level over a capability with code parts, it o
     const { __globe: globe, __zoom: zoom } = window as unknown as { __globe: { scene: Mark; camera: unknown; size: { width: number; height: number } }; __zoom(): number };
     const plate = globe.scene.getObjectByName("planet:one")!;
     const at = plate.getWorldPosition(new plate.position.constructor()).project(globe.camera);
-    // Shown when it and everything it hangs from is visible (a named function here would need the bundler's helper).
     const junction = plate.getObjectByName("territory-junction:one-cap");
     let junctionShown = junction !== undefined;
     for (let m: Mark | null | undefined = junction; m; m = m.parent) junctionShown &&= m.visible;
@@ -552,7 +492,6 @@ test("3.112 · zoomed to the parts level over a capability with code parts, it o
       names: [...document.querySelectorAll(".planet-nameplate.part")].map(label => label.textContent).sort(),
     };
   });
-  // Each step is judged on the map once it has settled from it: a zoom a slow runner draws over several frames is read whole.
   const until = async (step: () => Promise<void>, done: (now: Awaited<ReturnType<typeof read>>) => boolean, what: string) => {
     for (let at = 0; at < 120; at++) {
       const now = await settled(page, read, `the map to settle (until ${what})`);
@@ -563,16 +502,13 @@ test("3.112 · zoomed to the parts level over a capability with code parts, it o
   };
   const closed = await until(async () => {}, now => now.junction, "its junction shown");
   assert.equal(closed.opened, undefined, "nothing is open at the map's opening zoom");
-  // Each step brings island one under the middle of the view, then zooms in there.
   const centre = { x: 400, y: 300 };
   const open = await until(async () => {
     const now = await read();
-    // Once it has opened, it is left as it is while the rest of its parts' names reach the page: no further drag or zoom.
     if (now.opened?.routed === true) return;
     await page.mouse.move(now.x, now.y); await page.mouse.down(); await page.mouse.move(centre.x, centre.y, { steps: 4 }); await page.mouse.up();
     await page.mouse.move(centre.x, centre.y);
     await page.mouse.wheel(0, -240);
-    // Each part's name mounts in its own overlay, so they can reach the page a frame apart: wait for as many names as parts.
   }, now => now.opened?.routed === true && now.names.length > 0 && now.names.length === now.opened.parts, "opened with its parts' roads routed and named");
   assert.ok(open.zoom >= DETAIL_ZOOM.parts, `opened at the parts level (${open.zoom.toFixed(1)})`);
   assert.deepEqual([open.opened?.parts, open.names], [2, ["a", "b"]], "its two parts are drawn and named");

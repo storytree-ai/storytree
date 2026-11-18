@@ -1,15 +1,10 @@
-/** Capability 4 · Updates. */
+// Capability 4 · Updates
 import type { LifecycleBridge } from "../lifecycle/bridge.js";
 import type { UpdatesBridge } from "../updates/bridge.js";
 import type { UpdateAction, UpdateState } from "../updates/update-state.js";
 import { nextInstallAt, type InstallChoice, type InstallChoiceState } from "../updates/install-choice.js";
 import type { ReleaseChannel, ReleaseChannelState } from "../updates/release-channel.js";
 
-/**
- * Plain, live status inside the gear; closing the menu never cancels an update. The status is read
- * every minute as well, so a downloaded release waiting to install is announced (`pending`) and can
- * be installed now from the same button. The build running is named once, under the section's lead. `pending` hears the line naming the build waiting, or undefined when none is (4.47).
- */
 export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) => Promise<UpdateState>, pending: (ready: string | undefined) => void = () => {}, choice: () => InstallChoice | undefined = () => undefined, channel: () => ReleaseChannel | undefined = () => undefined) {
   const button = host.querySelector<HTMLButtonElement>("[data-app-updates]")!;
   const status = host.querySelector<HTMLElement>("#app-update-status")!;
@@ -23,7 +18,6 @@ export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) 
     action = state.phase === "pending" ? "install" : "check";
     button.textContent = state.phase === "pending" ? "Restart to update" : "Check for updates";
     pending(state.phase !== "pending" ? undefined : state.nextBuild === undefined ? "Update ready to install" : `Update ready: storytree ${state.nextBuild}`);
-    // The one place the build running is named (4.49); a state that names none keeps the last named.
     if (state.runningBuild !== "") { running.textContent = `Running storytree ${state.runningBuild}.`; running.hidden = false; }
     status.hidden = state.phase === "idle";
     status.dataset.phase = state.phase;
@@ -55,7 +49,6 @@ export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) 
   return { stop() { stopped = true; clearTimeout(timer); button.removeEventListener("click", check); }, refresh() { if (!stopped) void read("status"); } };
 }
 
-/** `channel` is the one the gear now follows, and `now` the time the line is drawn at. */
 export function updateText(state: UpdateState, choice?: InstallChoice, at: { channel?: ReleaseChannel | undefined; now?: Date } = {}): readonly [string, string] {
   switch (state.phase) {
     case "idle": return ["", ""];
@@ -69,18 +62,15 @@ export function updateText(state: UpdateState, choice?: InstallChoice, at: { cha
   }
 }
 
-/** Up to date as of its check, on the channel it followed, without naming the build (the lead does); a check on a channel the gear has since left says so instead (4.7). */
 function upToDate(state: UpdateState, channel: ReleaseChannel | undefined, now: Date): readonly [string, string] {
   if (channel !== undefined && state.channel !== undefined && channel !== state.channel) {
     return ["Channel changed", `Now following ${channel}. Check for updates to look for ${channel}’s newest build; the app also checks by itself within three minutes.`];
   }
-  // The build running is named in the section's lead (4.49), so this line says only how it stands.
   if (state.checkedAt === undefined) return ["Up to date", "No newer build was found."];
   const newest = state.channel === undefined ? "the newest build" : `the newest on ${state.channel}`;
   return ["Up to date", `The build running is ${newest} as of ${checkedTime(new Date(state.checkedAt), now)}.`];
 }
 
-/** A check's local time, with its day when it was not today. */
 function checkedTime(checked: Date, now: Date): string {
   const two = (n: number) => String(n).padStart(2, "0");
   const time = `${two(checked.getHours())}:${two(checked.getMinutes())}`;
@@ -88,18 +78,15 @@ function checkedTime(checked: Date, now: Date): string {
   return sameDay ? time : `${checked.getFullYear()}-${two(checked.getMonth() + 1)}-${two(checked.getDate())} ${time}`;
 }
 
-/** When a downloaded release waiting to install will install itself, by the user's choice (4.13). */
 function waitingFor(choice: InstallChoice | undefined): string {
   if (choice?.mode === "manual") return "It installs when you click Restart to update.";
   if (choice?.mode === "hours") return `It installs during your quiet hours, ${choice.from} to ${choice.to}, once no one is using storytree.`;
   return "It installs once no one is using storytree.";
 }
 
-/** Whether the app opens at sign-in, in the tray (lifecycle 1.12), and whether it can here. */
 export interface SignInState { available: boolean; on: boolean }
 export interface SignInBridge { read: LifecycleBridge["readSignIn"]; set: LifecycleBridge["setSignIn"] }
 
-/** The Updates section's Open at sign-in switch; shown only where the app is installed and can open at sign-in. */
 export function mountSignIn(host: HTMLElement, bridge: SignInBridge | undefined) {
   const label = host.querySelector<HTMLElement>("[data-app-sign-in]")!;
   const box = label.querySelector<HTMLInputElement>("input")!;
@@ -126,7 +113,6 @@ export function mountSignIn(host: HTMLElement, bridge: SignInBridge | undefined)
     });
   };
   box.addEventListener("change", change);
-  // A failed read shows the switch with its failure, unchangeable, rather than hiding it.
   void bridge?.read().then(show, (reason: unknown) => {
     console.error("app updates: Open at sign-in could not be read", reason);
     if (stopped) return;
@@ -138,10 +124,8 @@ export function mountSignIn(host: HTMLElement, bridge: SignInBridge | undefined)
   return { stop() { stopped = true; box.removeEventListener("change", change); } };
 }
 
-/** The gear's install choice (4.14); the bridge reads and keeps it in the main process. */
 export interface InstallChoiceBridge { read: UpdatesBridge["readInstallChoice"]; set: UpdatesBridge["setInstallChoice"] }
 
-/** What the Updates section says about when the next automatic install may happen, or nothing when the chosen option already says it. */
 export function nextInstallText(choice: InstallChoice, now: Date): string {
   if (choice.mode === "manual") return "Updates still download in the background, ready for when you press Check for updates.";
   if (choice.mode === "quiet") return "";
@@ -151,10 +135,6 @@ export function nextInstallText(choice: InstallChoice, now: Date): string {
   return `Next automatic install: ${day} from ${choice.from}, until ${choice.to}, when no one is using storytree.`;
 }
 
-/**
- * The Updates section's When updates install choice; shown only where the app installs releases. Its line under the
- * options is hidden while a build waits (`waiting`), whose status line already says when it installs.
- */
 export function mountInstallChoice(host: HTMLElement, bridge: InstallChoiceBridge | undefined, now: () => Date = () => new Date(), changed: () => void = () => {}) {
   const field = host.querySelector<HTMLElement>("[data-app-install-choice]")!;
   const radios = [...field.querySelectorAll<HTMLInputElement>('input[name="app-install-mode"]')];
@@ -200,7 +180,6 @@ export function mountInstallChoice(host: HTMLElement, bridge: InstallChoiceBridg
     if (stopped) return;
     unreadable(field, error, reason);
   });
-  // The next window's day moves with the clock.
   timer = setInterval(say, 60_000);
   return {
     stop() { stopped = true; clearInterval(timer); field.removeEventListener("change", change); },
@@ -209,10 +188,8 @@ export function mountInstallChoice(host: HTMLElement, bridge: InstallChoiceBridg
   };
 }
 
-/** The gear's update channel (4.24); the bridge reads and keeps it in the installation's release-channel.json. */
 export interface ReleaseChannelBridge { read: UpdatesBridge["readReleaseChannel"]; set: UpdatesBridge["setReleaseChannel"] }
 
-/** The Updates section's Update channel choice; shown only where the app installs releases. */
 export function mountReleaseChannel(host: HTMLElement, bridge: ReleaseChannelBridge | undefined, changed: () => void = () => {}) {
   const field = host.querySelector<HTMLElement>("[data-app-release-channel]")!;
   const radios = [...field.querySelectorAll<HTMLInputElement>('input[name="app-release-channel"]')];
@@ -224,7 +201,6 @@ export function mountReleaseChannel(host: HTMLElement, bridge: ReleaseChannelBri
     if (stopped) return;
     kept = state.channel;
     field.hidden = !state.available;
-    // A change's answer does not read the pin again, so the line from the first read stays (4.34).
     if (state.stable) {
       stableLine.textContent = `Stable is at storytree ${state.stable.version}, published on ${state.stable.published}. Work that landed after that day is only in alpha.`;
       stableLine.hidden = false;
@@ -254,7 +230,6 @@ export function mountReleaseChannel(host: HTMLElement, bridge: ReleaseChannelBri
   return { stop() { stopped = true; field.removeEventListener("change", change); }, channel: () => kept };
 }
 
-/** A choice whose first read failed: shown with the failure and nothing to change, rather than hidden. */
 function unreadable(field: HTMLElement, error: HTMLElement, reason: unknown): void {
   field.hidden = false;
   for (const input of field.querySelectorAll<HTMLInputElement>("input")) input.disabled = true;

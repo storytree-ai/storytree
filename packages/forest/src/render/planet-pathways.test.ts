@@ -1,5 +1,3 @@
-/** Story node render 3.6/3.7: real capability edges between stories survive the join, as continuous sea lanes between shore
- * docks (ADR-1261: the roads between islands are retired). */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Vector3 } from 'three';
@@ -18,10 +16,8 @@ const tree = { arcs: [], stories: [
   { id: 'c', title: 'C', health, capabilities: [capability('c1', ['a1', 'b2']), capability('c2', ['c1'])] },
 ] };
 const scene = forestScene(tree, [], workStates([]));
-// The islands where the glass sheet lays them, on its big sphere.
 const { spots, radius: RADIUS } = sheetLayout(scene, new Map(storyNodes(tree, []).map(({ id, place }) => [id, place])));
 const owner = new Map(tree.stories.flatMap(s => s.capabilities.map(c => [c.id, s.id])));
-// Links between stories; a link within one story has no lane (3.26 never lights one, and nothing else draws it).
 const links = tree.stories.flatMap(s => s.capabilities.flatMap(c => c.dependsOn.filter(to => owner.get(to) !== s.id).map(to => `${c.id}->${to}`))).sort();
 
 test('3.6 every recorded builds-on link between stories has one continuous lane chain, with shared trunks drawn once, as wide as the lit lanes they carry', () => {
@@ -47,7 +43,6 @@ test('3.6 every recorded builds-on link between stories has one continuous lane 
     assert.deepEqual([...segment.links].sort(), [...users.get(segment.id)!].sort(), 'no invented or orphan trail');
   }
   assert.ok(plan.lanes.segments.some(s => s.links.length > 1), 'the cost-grid still merges lanes');
-  // Every link lit at once: on each shared trunk the lane is as wide as the links it carries make it.
   const lit = laneRoutes(plan.lanes, plan.lanes.edges.map(e => ({ from: e.from, to: e.to, dir: 'up' as const })));
   for (const segment of plan.lanes.segments) {
     const middle = segment.points[Math.floor(segment.points.length / 2)]!;
@@ -86,7 +81,6 @@ test('3.7 cross-story chains land at both actual clipped shores', () => {
   }
 });
 
-// Routing errors must never take a failing island off the page (ADR-0646 D4).
 test('3.6 routing failure is visible while every island and its failing trees still draw', async () => {
   const { planetPathwayDrawing } = await import('@storytree/forest-world/geometry');
   const broken = { ...scene, links: [{ from: 'a1', to: 'missing-capability' }],
@@ -104,7 +98,6 @@ test('3.6 a change on one island routes nothing again (ADR-0836 D1)', () => {
   const before = buildPlanetPathways(scene, spots, RADIUS, route);
   const healthy = { ...tree, stories: tree.stories.map(s => s.id !== 'c' ? s : { ...s, capabilities: s.capabilities.map(c => c.id !== 'c2' ? c : { ...c, proposed: false, status: 'healthy' as const }) }) };
   const changed = forestScene(healthy, [], workStates([]));
-  // The page hands on unchanged islands as the objects already on show (ForestView.show).
   const next = { ...changed, islands: changed.islands.map(island => scene.islands.find(old => old.key === island.key) ?? island) };
   assert.notEqual(next.islands[2], scene.islands[2], 'island c changed');
   routed.length = 0;
@@ -116,7 +109,6 @@ test('3.6 a change on one island routes nothing again (ADR-0836 D1)', () => {
 test('3.6 the lanes are the survey\'s derived capability edges with the recorded dependsOn, each saying whether it is type-only (ADR-0991 D1, D3)', () => {
   const edge = (story: string, from: string | undefined, to: string | undefined, typeOnly: boolean) =>
     ({ story, ...(from === undefined ? {} : { from }), ...(to === undefined ? {} : { to }), typeOnly, files: [] });
-  // b's code takes types from a1 and a2, and b1 → a1 is also recorded; c's import of a reaches no capability on a.
   const survey = {
     b: { files: [], imports: [], edges: [edge('a', 'b1', 'a1', true), edge('a', 'b1', 'a2', true)] },
     c: { files: [], imports: [], edges: [edge('a', 'c1', undefined, false)] },
@@ -139,7 +131,6 @@ test('3.43 a built story whose package depends on an imported story\'s has a lan
   const mapped = { id: 'old', title: 'old', health, capabilities: [], mapped: { from: '/code/shop', package: 'packages/old', folders: ['packages/old'] } };
   const built = { id: 'new', title: 'new', health, capabilities: [capability('n1', [])] };
   const other = { id: 'b', title: 'b', health, capabilities: [capability('b1', [])] };
-  // new's package names the mapped old and the built b; only the imported one has no capability edge to stand for it.
   const survey = { new: { files: [], imports: [], dependsOn: ['old', 'b'] }, old: { files: [], imports: [], dependsOn: [], mapped: { folder: '/code/shop' } } };
   const scene = forestScene({ arcs: [], stories: [mapped, built, other] }, [], workStates([]), survey);
   assert.deepEqual(scene.links, [{ from: 'new', to: 'old' }], 'one lane, island to island; a built-to-built package dependency draws none');

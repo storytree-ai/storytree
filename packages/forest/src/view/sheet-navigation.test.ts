@@ -1,4 +1,3 @@
-/** The forest on the glass sheet: what moves it, and where it opens (ADR-1043 D4). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Group, Mesh, OrthographicCamera, PerspectiveCamera, Quaternion, Vector3 } from "three";
@@ -18,7 +17,6 @@ import { islandCoastReach } from "@storytree/forest-world/geometry";
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const size = { width: 1440, height: 960 };
 
-/** A deep, narrow library: a chain of `depth` stories, each building on the last, beside two foundations. */
 function sheet(depth: number) {
   const ids = [...Array.from({ length: depth }, (_, k) => `s${k}`), "loose-a", "loose-b"];
   const tree: AnnotatedTree = { arcs: [], stories: ids.map((id, k) => ({ id, title: `Story ${id}`, health, capabilities: [
@@ -30,7 +28,6 @@ function sheet(depth: number) {
   return sheetLayout(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
 }
 
-/** Five stories, each building on the one before (a chain), or building on nothing (a row): contract 1.10's two forests. */
 function five(chained: boolean) {
   const ids = ["account", "comment", "feed", "articles", "follow"];
   const tree: AnnotatedTree = { arcs: [], stories: ids.map((id, k) => ({ id, title: `Story ${id}`, health, capabilities: [
@@ -41,12 +38,9 @@ function five(chained: boolean) {
   return sheetLayout(forestScene(tree, history, workStates([])), new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
 }
 
-/** The zoom a pose frames, in CSS pixels per ground unit at the middle of the view. */
 const zoomOf = (pose: GlobePose) => Math.min(size.width, size.height) / (2 * pose.framing * SHEET_RADIUS);
-/** The tilt from below that mirrors the tabletop one Library brings in. */
 const UNDERNEATH = Math.PI - SHEET_TILT;
 
-/** The page's perspective eye and its globe group, posed as the canvas poses them, the sheet tilted `tilt` and spun to `heading`. */
 function eye(pose: GlobePose, extent: { width: number; height: number }, tilt = SHEET_OPENING_TILT, heading = 0) {
   const camera = new PerspectiveCamera(SHEET_FOV, size.width / size.height, 0.1, 1000);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
@@ -64,12 +58,9 @@ function eye(pose: GlobePose, extent: { width: number; height: number }, tilt = 
     const at = world(p, z).project(camera);
     return { x: (at.x + 1) * size.width / 2, y: (1 - at.y) * size.height / 2 };
   };
-  // The angle between the top face's outward normal at `p` and the direction to the eye.
   const facing = (p: SheetPoint) => new Vector3(...plateTransform(sheetSpot(p), SHEET_RADIUS).position).normalize().applyQuaternion(globe.quaternion)
     .angleTo(new Vector3(0, 0, 1).applyQuaternion(camera.quaternion));
-  // How far from the eye a place on the sheet lies, along its line of sight.
   const distance = (p: SheetPoint, z = 0) => -world(p, z).applyMatrix4(camera.matrixWorldInverse).z;
-  /** A drag on the window from `from` by `drag`, as the page pans by it: the grabbed place kept under the pointer. */
   const dragged = (from: { x: number; y: number }, drag: { x: number; y: number }) => {
     const grabbed = sheetUnder(camera, globe, pose.turn, from, size, extent), now = sheetUnder(camera, globe, pose.turn, { x: from.x + drag.x, y: from.y + drag.y }, size, extent);
     assert.ok(grabbed !== undefined && now !== undefined, "the pointer is over the glass");
@@ -78,11 +69,9 @@ function eye(pose: GlobePose, extent: { width: number; height: number }, tilt = 
   return { camera, globe, screen, facing, distance, dragged, zoom: sheetEyeZoom(camera, size) };
 }
 
-/** Headings the key, spin and compass tests read the sheet at: none, a quarter, odd ones, a half and past it backwards. */
 const headings = [0, Math.PI / 2, 1.1, Math.PI, -2.3];
 const keyed = (key: string, target?: unknown, extra: { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean } = {}) => sheetKey({ type: "keydown", key, target, ...extra });
 
-/** Whether a drag of `drag` moved a point from `before` to `after` on the window, to within half a pixel. */
 const followed = (before: { x: number; y: number }, after: { x: number; y: number }, drag: { x: number; y: number }) =>
   Math.hypot(after.x - before.x - drag.x, after.y - before.y - drag.y) < 0.5;
 
@@ -94,20 +83,15 @@ test("3.52 on the glass sheet the eye opens looking straight down, framing the s
   const opening = sheetOpening(extent, size);
   const opened = eye(opening, extent), middle = sheetCentre(opening.turn);
   const north = opened.screen({ x: middle.x, y: extent.height / 2 }), south = opened.screen({ x: middle.x, y: -extent.height / 2 });
-  // Nothing is docked over the map's bottom: 85 px are kept at the top, clear of the Stories / Library switch and the compass,
-  // and only 45 px at the bottom, room for the names that hang below the southmost islands.
   assert.ok(Math.abs(north.y - 85) < 1 && Math.abs(south.y - (size.height - 45)) < 1, `the sheet's whole height fills the window (${north.y.toFixed(1)} to ${south.y.toFixed(1)})`);
   const southWest = opened.screen({ x: -extent.width / 2, y: -extent.height / 2 }), northWest = opened.screen({ x: -extent.width / 2, y: extent.height / 2 });
   assert.ok(Math.abs(southWest.x) < 1 && Math.abs(northWest.x) < 1, `the whole west edge in view at the window's left (${southWest.x.toFixed(2)} px, ${northWest.x.toFixed(2)} px)`);
   assert.ok(opened.screen({ x: extent.width / 2, y: 0 }).x > size.width, "and the east runs on past the window's right, to scroll to");
-  /** The tilt the eye sees at `face` and over `p`, within the degree the big sphere bends across the sheet and the eye's
-   * own angle to `p`: the face's angle from the eye, with the edge at the window's top farther from the eye than the edge at its bottom. */
   const tilted = (face: ReturnType<typeof eye>, p: SheetPoint) => {
     const angle = face.facing(p);
     assert.ok(angle < Math.PI / 180, `the eye looks straight down (${(angle * 180 / Math.PI).toFixed(2)}°)`);
   };
   tilted(opened, middle);
-  // A drag right and down, then a sideways scroll east, then a zoom by the wheel: a point under the pointer follows it.
   let turn = opening.turn, zoom = opened.zoom;
   const steps: { drag: { x: number; y: number }; zoom?: number }[] = [{ drag: { x: 300, y: 120 } }, { drag: { x: -900, y: 0 } }, { drag: { x: 0, y: 0 }, zoom: 2.5 }, { drag: { x: -400, y: -200 } }];
   for (const step of steps) {
@@ -164,7 +148,6 @@ test("3.54 seen from below, the glass sheet's depth still runs west to east, its
   assert.ok(Math.abs(under.facing(held) - UNDERNEATH) < 1e-6, "the underside looks at the eye at the mirror of the top's tilt");
   for (const face of [top, under]) assert.ok(face.screen(west).x < face.screen(east).x - 300, "depth runs west to east from above and below");
   assert.ok(top.screen(north).y < top.screen(south).y && under.screen(north).y > under.screen(south).y + 100, "from below, the north edge comes to the bottom");
-  // A drag on the underside: the point under the pointer follows it.
   const grabbed = under.screen({ x: held.x + 40, y: held.y - 30 });
   const panned = under.dragged(grabbed, { x: 120, y: 80 });
   const moved = eye({ ...opening, turn: panned }, extent, UNDERNEATH).screen({ x: held.x + 40, y: held.y - 30 });
@@ -190,18 +173,14 @@ test("3.64 the glass sheet tilts like a table: a rotating drag's up-and-down par
     assert.ok(Math.abs(face.facing(held) - tilt) < 1e-6, `tipped ${degrees}° from straight down`);
     const at = face.screen(held);
     assert.ok(Math.hypot(at.x - pivot.x, at.y - pivot.y) < 1e-3, "it pivots on the middle of the view");
-    // The sheet's upright axis at the middle stays upright on the window: no roll, whatever the heading.
     const up = face.screen(held, 30);
     assert.ok(Math.abs(up.x - at.x) < 1e-3 && up.y < at.y, `its upright axis points up the window at ${degrees}°`);
   }
-  // Edge-on: the islands stand above the glass's line and the graph hangs below it.
   const level = eye(opening, extent, Math.PI / 2), glass = level.screen(held);
   assert.ok(level.screen(held, 9).y < glass.y - 3 && level.screen(held, -60).y > glass.y + 20, "edge-on, the islands above and the graph below");
-  // Edge-on, a pointer above the glass's line is over no place on it; a drag there still pans the sheet the way it moves.
   assert.equal(sheetUnder(level.camera, level.globe, opening.turn, { x: glass.x, y: glass.y - 200 }, size, extent), undefined);
   const along = sheetCentre(sheetPan(opening.turn, { x: 100, y: 0 }, level.zoom, extent, Math.PI / 2)).x - held.x;
   assert.ok(Math.abs(along + 100 / level.zoom) < 1e-6, `a drag right brings the west into view (${along.toFixed(2)} units)`);
-  // The keys' steps and the drag's tilt agree on the way: R toward the top face, F toward the underside.
   assert.ok(sheetTiltBy(SHEET_TILT, -TILT_STEP) < SHEET_TILT && sheetSpinTilt(0, SHEET_TILT, { x: 0, y: -20 }).tilt > SHEET_TILT, "F and a drag up tip it toward the underside");
 });
 
@@ -241,7 +220,6 @@ test("3.11 on the glass sheet a failing island past the window's edge gets a mar
   assert.equal(spot.left, size.width - 20, "at the window's right edge, the edge nearest the island");
   assert.ok(Math.abs(spot.top - at11.y) < 0.5, "level with where it is drawn");
   assert.deepEqual(sheetMarkers(failing("s11"), drawn, size, "library"), [], "in Library, where the islands are outlines over the knowledge, none is marked (ADR-0660 D4)");
-  // Its click pans the island to the middle of the view, at the same zoom, and the marker goes.
   const centred = sheetCentre(marker!.turn), at = where("s11");
   assert.ok(Math.abs(centred.x - at.x) < 1e-6 && Math.abs(centred.y - at.y) < 1e-6, "the island comes to the middle of the view");
   const there = eye({ ...opening, turn: marker!.turn }, extent);
@@ -251,25 +229,20 @@ test("3.11 on the glass sheet a failing island past the window's edge gets a mar
 test("3.57 on the glass sheet WASD and the arrow keys pan it the way they point on the window, whatever its heading and tilt, from above or below, at a speed that keeps pace with the zoom", () => {
   const { extent } = sheet(12), opening = sheetOpening(extent, size);
   const ways: Record<string, { x: number; y: number }> = { w: { x: 0, y: 1 }, arrowup: { x: 0, y: 1 }, s: { x: 0, y: -1 }, arrowdown: { x: 0, y: -1 }, a: { x: 1, y: 0 }, arrowleft: { x: 1, y: 0 }, d: { x: -1, y: 0 }, arrowright: { x: -1, y: 0 } };
-  // From the middle of the sheet, so no edge stops the pan.
   const turn = sheetPanUnder(opening.turn, { x: 0, y: 0 }, sheetCentre(opening.turn), extent);
   for (const [key, way] of Object.entries(ways)) {
     const pressed = keyed(key === "w" || key === "a" || key === "s" || key === "d" ? key.toUpperCase() : key.replace("arrow", "Arrow").replace(/(Arrow)(\w)/, (_, a, b) => a + b.toUpperCase()));
     assert.deepEqual(pressed, { kind: "pan", key }, `${key} pans`);
-    // A tenth of a second: steeply tilted, a held key's pixels cross far more of the far ground.
     const drag = sheetKeyPan(new Set([key]), 0.1);
     for (const tilt of [SHEET_TILT, 1.2, UNDERNEATH]) for (const heading of headings) {
-      // A held key drags the middle of the view.
       const held = sheetCentre(turn), from = eye({ ...opening, turn }, extent, tilt, heading), before = from.screen(held);
       const moved = from.dragged(before, drag);
       const after = eye({ ...opening, turn: moved }, extent, tilt, heading).screen(held);
       const dx = after.x - before.x, dy = after.y - before.y;
-      // W is away from you: the view goes up the window, so what is under it slides down; A goes left, so it slides right.
       assert.ok(followed(before, after, drag) && Math.sign(Math.round(dx)) === way.x && Math.sign(Math.round(dy)) === way.y,
         `${key} at heading ${heading.toFixed(2)}, tilted ${tilt.toFixed(2)}, slides the sheet (${dx.toFixed(1)}, ${dy.toFixed(1)})`);
     }
   }
-  // The same key held as long crosses the same distance on the window at any zoom, so half the ground at twice the zoom.
   const ground = (framing: number) => {
     const at = eye({ ...opening, turn, framing }, extent), middle = at.screen(sheetCentre(turn));
     return sheetCentre(at.dragged(middle, sheetKeyPan(new Set(["d"]), 0.25))).x - sheetCentre(turn).x;
@@ -293,10 +266,8 @@ test("3.58 Q and E spin the glass sheet a quarter turn about its upright axis, t
       assert.ok(Math.abs(after.facing(held) - tilt) < 1e-6, "the tilt holds");
       const middle = before.screen(held), still = after.screen(held);
       assert.ok(Math.hypot(still.x - middle.x, still.y - middle.y) < 1e-3, "it pivots on the middle of the view");
-      // A road running east from the middle turns a quarter of the way round on the window, clockwise for E from above or below.
       const east = (face: ReturnType<typeof eye>) => { const a = face.screen(held), b = face.screen({ x: held.x + 50, y: held.y }); return Math.atan2(b.y - a.y, b.x - a.x); };
       const turned = Math.atan2(Math.sin(east(after) - east(before)), Math.cos(east(after) - east(before)));
-      // Clockwise on the window is a growing angle with y down; the tilt squashes the quarter turn, so read its sense, not its size.
       assert.ok(Math.sign(turned) === by && Math.abs(turned) > 0.3, `${by > 0 ? "E" : "Q"} at ${heading.toFixed(2)}, tilted ${tilt.toFixed(2)}, turns it ${(turned * 180 / Math.PI).toFixed(0)}° on the window`);
     }
   }
@@ -318,7 +289,6 @@ test("3.59 a plain drag pans the glass sheet; a right-drag or a Ctrl+drag spins 
       ({ heading, tilt } = next);
     }
   }
-  // Two fingers turned a tenth of a turn clockwise on the window spin it a tenth of a turn that way.
   const twist = sheetTwist([{ x: 100, y: 100 }, { x: 300, y: 100 }], [{ x: 100, y: 100 }, { x: 100 + 200 * Math.cos(Math.PI / 5), y: 100 + 200 * Math.sin(Math.PI / 5) }]);
   assert.ok(Math.abs(twist - Math.PI / 5) < 1e-12, `clockwise on the window (${twist.toFixed(3)})`);
   assert.ok(Math.abs(sheetTwist([{ x: 0, y: 0 }, { x: -1, y: 0.01 }], [{ x: 0, y: 0 }, { x: -1, y: -0.01 }]) - 0.02) < 1e-3, "and across the half-turn without a jump");
@@ -328,14 +298,12 @@ test("3.65 a rotating drag turns the glass sheet like a table, one way all throu
   const { extent } = sheet(12), opening = sheetOpening(extent, size), held = sheetCentre(opening.turn);
   const step = { x: 30, y: 0 }, turned: number[] = [];
   for (const tilt of [0.3, 1.4, 1.75, 2.8]) {
-    // The south edge stays nearest the eye at every tilt, as the eye passes from above it to below it.
     const next = sheetSpinTilt(0, tilt, step), south = { x: held.x, y: held.y - 40 };
     const before = eye(opening, extent, tilt, 0).screen(south), after = eye(opening, extent, tilt, next.heading).screen(south);
     assert.ok(after.x > before.x, `a drag right carries the near edge right at a tilt of ${tilt} (${(after.x - before.x).toFixed(1)} px)`);
     turned.push(Math.sign(next.heading));
   }
   assert.ok(turned.every(sign => sign === turned[0]), "the spin keeps one way as the tilt passes level");
-  // At the stops, looking straight down or straight up, the sheet's east still runs along the window and its north up or down it.
   for (const tilt of [0, 1e-3, Math.PI - 1e-3, Math.PI]) {
     const face = eye(opening, extent, tilt), at = face.screen(held), east = face.screen({ x: held.x + 30, y: held.y }), north = face.screen({ x: held.x, y: held.y + 30 });
     assert.ok(east.x - at.x > 1 && Math.abs(east.y - at.y) < 1e-3, `east runs right along the window at a tilt of ${tilt}`);
@@ -350,12 +318,10 @@ test("3.60 the compass points to the glass sheet's starting north on the window,
     const face = eye(opening, extent, tilt, heading);
     const a = face.screen(held), b = face.screen({ x: held.x, y: held.y + 1 });
     const drawn = Math.atan2(-(b.y - a.y), b.x - a.x), north = compassNorth(heading, seesUnderside(tilt));
-    // The tilt squashes the window's up and down, so the drawn north is the compass's needle squashed the same way.
     const squashed = Math.atan2(Math.sin(north) * Math.abs(Math.cos(tilt)), Math.cos(north));
     assert.ok(Math.abs(Math.atan2(Math.sin(drawn - squashed), Math.cos(drawn - squashed))) < 0.02, `the needle at ${heading.toFixed(2)}, tilted ${tilt.toFixed(2)}, points north`);
   }
   assert.ok(Math.abs(compassNorth(0, false) - Math.PI / 2) < 1e-12, "facing its starting heading, north is up");
-  // Spun three and a half turns, tilted under, panned and zoomed: Home brings it back by the short way round, to the opening view.
   let pose: GlobePose = opening;
   const guide = createGlobeGuide({ world: () => new Group(), camera: () => new OrthographicCamera(), size: () => size, read: () => pose, write: next => { pose = next; }, invalidate() {}, opening: () => pose });
   pose = { ...pose, turn: sheetPan(pose.turn, { x: -600, y: 90 }, 1, extent), framing: pose.framing / 2 };
@@ -388,8 +354,6 @@ test("3.63 an island-less sheet, such as the user's factory, waits for islands o
   assert.ok(empty.extent.width >= empty.under.floor.width && empty.extent.height >= empty.under.floor.height, "the glass runs over the whole floor");
   assert.equal(opensBare("library"), true);
   assert.equal(opensBare("forest"), false);
-  // At the opening view from above, through the Library's clear glass, a note on its floor is on show, so its
-  // first-encounter card anchors at its dot.
   const opened = eye(sheetOpening(empty.extent, size), empty.extent), world = new Group(), glass = new Group(), dot = new Mesh();
   opened.globe.name = "globe";
   glass.name = "sheet:under";
@@ -414,8 +378,6 @@ test("3.66 on the glass sheet, a stop at the whole map pans and zooms to the vie
   guide.frame(600);
   assert.ok(Math.abs(centre(pose.turn).x - opened.x) < 1e-6 && Math.abs(centre(pose.turn).y - opened.y) < 1e-6, "with no framing asked for, back over the place it opened on");
   assert.equal(pose.framing, opening.framing, "at the zoom it opened at");
-  // The opening frames the sheet's height from its west edge: closer in the middle of the view moves west, the edge kept at
-  // the window's left; far enough out that the whole sheet fits across the window, it sits in the middle.
   assert.ok(opened.x < 0, "this sheet is wider than the window at its opening");
   assert.equal(guide.stop({ target: { kind: "core" }, framing: opening.framing / 2, duration: 0 }), true);
   assert.equal(pose.framing, opening.framing / 2);
@@ -434,14 +396,12 @@ test("3.66 a stop at the whole map aimed while the last map's sheet was still on
   const framing = sheetOpening(wide, size).framing / 2, at = (turn: GlobePose["turn"]) => sheetCentre(turn);
   assert.equal(guide.stop({ target: { kind: "core" }, framing, duration: 600 }), true);
   guide.frame(300);
-  // The new map's sheet arrives mid-glide: the stop is aimed again at the whole of it.
   extent = narrow;
   assert.equal(guide.reframe(), true);
   guide.frame(600);
   const whole = sheetOpening(narrow, size, framing);
   assert.ok(Math.abs(at(pose.turn).x - at(whole.turn).x) < 1e-6 && Math.abs(at(pose.turn).y - at(whole.turn).y) < 1e-6, "over the new sheet's whole map");
   assert.equal(pose.framing, framing);
-  // A hand on the sheet, Home or another stop ends it: a sheet changing after that leaves the view where it is.
   for (const move of [() => guide.cancel(), () => guide.home(pose, 0), () => guide.stop({ target: { kind: "story", story: "s0" } })]) {
     extent = narrow;
     guide.stop({ target: { kind: "core" }, framing, duration: 0 });
@@ -460,7 +420,6 @@ test("3.28 on the glass sheet, a plan still growing, framed by its full plan, ke
     record: { id, type: "story", version: 1, fields: { title: id }, createdAt: new Date(index).toISOString(), updatedAt: new Date(index).toISOString() } }));
   const places = new Map(storyNodes(tree, history).map(node => [node.id, node.place]));
   const full = forestScene(tree, history, workStates([]));
-  // The first two of the chain: the deepest column and the loose foundations not yet recorded.
   const growing = { ...full, islands: full.islands.filter(island => island.story === "s0" || island.story === "s1"), links: [] };
   const whole = sheetLayout(full, places), framed = sheetLayout(growing, places, full);
   assert.deepEqual([...framed.spots.keys()], ["s0", "s1"], "only the growing plan's islands are drawn");
@@ -513,12 +472,10 @@ test("3.89 · a session's pointer drawn outside the canvas gets an edge marker i
   const marks = new ClaimMarks();
   marks.setLand(territories([{ capability: "cap-a", lines: 40 }, { capability: "cap-b", lines: 30 }], 20), p => new Vector3(p.x, 0, p.z), () => new Vector3(0, 1, 0), false);
   marks.pointers(new Map([["cap-b", { colour: "#56b4e9" }]]));
-  // An eye looking straight down on the land, which faces it.
   const down = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
   marks.frame(0, { zoom: 2, eye: down, reduced: true });
   island.add(marks.root);
   const islands = [{ story: "s1", spot: sheetSpot({ x: 3, y: -2 }) }, { story: "s2", spot: sheetSpot({ x: 0, y: 0 }) }] as unknown as Parameters<typeof sheetMarkers>[0];
-  // Drawn 20 px per world unit from the canvas's middle.
   const drawn = (at: Vector3) => ({ left: size.width / 2 + at.x * 20, top: size.height / 2 + at.z * 20 });
   assert.deepEqual(sheetPointerMarkers(world, islands, drawn, size), [], "a pointer in view needs none");
   island.position.set(60, 0, 0);
@@ -572,7 +529,6 @@ test("3.109 each shared store its capabilities link is placed beside the islands
     const { west, east, south, north } = box(store);
     for (const island of scene.islands) {
       const middle = layout.under.shelfAt(island.story)!;
-      // The nearest point of the store's slab to the island's middle lies beyond the island's coast and the sea between.
       const dx = Math.max(west - middle.x, 0, middle.x - east), dy = Math.max(south - middle.y, 0, middle.y - north);
       assert.ok(Math.hypot(dx, dy) > islandCoastReach(island), `${store.address} lies on ${island.story}'s land`);
     }

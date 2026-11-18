@@ -1,9 +1,6 @@
-// What one model-driven user turn did and cost, from its Claude Code stream-json transcript.
-// Usage: node sum.mjs <turn-N.jsonl>  →  JSON on stdout: seconds, cost, tokens, tools used, refusals, its last reply.
 import { readFileSync } from "node:fs";
 
 const raw = readFileSync(process.argv[2]);
-// cmd's redirection keeps Claude Code's UTF-8; a transcript written by PowerShell's `>` would be UTF-16.
 const text = raw[0] === 0xff && raw[1] === 0xfe ? raw.toString("utf16le") : raw.toString("utf8");
 const events = text.split(/\r?\n/).flatMap((line) => { try { return [JSON.parse(line)]; } catch { return []; } });
 const tools = {};
@@ -16,11 +13,6 @@ for (const e of events) {
     if (["Write", "Edit", "MultiEdit"].includes(c.name) && typeof c.input?.file_path === "string") written.push(c.input.file_path);
   }
 }
-// The project is the folder the turn's writes went to, which need not be the folder the turn ran in: on 2026-11-02 a
-// turn ran in C:\Windows\System32 and built in Documents\tip-calculator, and the run's evidence looked in neither. A
-// write into a dot folder (the agent's own settings, as .claude\) is not the project's, nor one into a temp folder: on
-// 2026-11-04 the connected agent wrote check_setup's connection check into AppData\Local\Temp, and the project read as
-// the whole profile folder.
 function project(all) {
   const paths = all.filter((p) => !p.split(/[\\/]/).some((part) => part.startsWith(".") || /^te?mp$/i.test(part)));
   if (!paths.length) return "";

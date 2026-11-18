@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Story node render (the forest story): an opened capability's code parts laid out as territories inside
- * its own, with roads and gates of their own (ADR-1339 D1, arc_0c4277f81731).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -27,11 +24,8 @@ const names = (map: TerritoryMap) => map.territories.flatMap((t, at) => {
 const island = linkLayout(shares, round(LIBRARY_RADIUS), links, docks);
 const roads = islandRoads(island, links, docks, names(island));
 const A = island.territories.findIndex((t) => t.capability === "a");
-// Alpha's code: three folders with their own entry files, and a few files of its own in none.
 const parts = [{ capability: "p", title: "p", lines: 400 }, { capability: "q", title: "q", lines: 300 }, { capability: "r", title: "r", lines: 150 }, { capability: "a", title: "1 · Alpha", lines: 50 }];
 const partLinks: Link[] = [{ from: "p", to: "q" }, { from: "q", to: "r" }];
-// Which parts each of Alpha's links reaches, by the files behind it: d's imports reach p and r, z1's p, z2's q; a->c
-// starts in q. No file is behind z2's second link, which reaches no part.
 const lanes = { "d->a": ["p", "r"], "z1->a": ["p"], "z2->a": ["q"], "a->c": ["q"] };
 const far = (p: Point, q: Point) => Math.hypot(p.x - q.x, p.z - q.z);
 const shifted = (p: Point, by: Point): Point => ({ x: p.x + by.x, z: p.z + by.z });
@@ -41,7 +35,6 @@ test("3.112 · a capability's land is traced as a coast of its own: on its land 
   assert.ok(region.length >= 1, "it has a coast");
   const cells = island.cells.filter((cell) => cell.territory === A);
   const step = Math.sqrt(landArea(region) / cells.length);
-  // Every point of the island well inside or well outside Alpha's land reads the same on its traced coast.
   for (let x = -LIBRARY_RADIUS; x <= LIBRARY_RADIUS; x += 3) for (let z = -LIBRARY_RADIUS; z <= LIBRARY_RADIUS; z += 3) {
     const p = { x, z }, own = territoryAt(island, x, z) === island.territories[A];
     const sure = [0, 1, 2, 3].every((k) => { const q = { x: x + Math.cos(k * Math.PI / 2) * step * 0.3, z: z + Math.sin(k * Math.PI / 2) * step * 0.3 }; return (territoryAt(island, q.x, q.z) === island.territories[A]) === own; });
@@ -54,7 +47,6 @@ test("3.112 · an opened capability's parts are laid out inside its land, each o
   const laid = nestedLayout(region, parts, partLinks, crossings)!;
   const { map, centre } = laid;
   const owned = map.cells.filter((cell) => cell.territory >= 0);
-  // Traced on a grid, its coast may stand a step past the island's: no part's cell lies on another capability's land.
   const under = owned.map((cell) => territoryAt(island, cell.site.x + centre.x, cell.site.z + centre.z));
   assert.ok(under.every((t) => t === island.territories[A] || t === undefined), "no part's cell lies on another capability's land");
   assert.ok(under.filter((t) => t === undefined).length <= owned.length * 0.02, "and hardly any off the island's coast");
@@ -90,7 +82,6 @@ test("3.112 · each road crossing the capability's border carries its lanes on t
   const carried = new Set(inner.segments.flatMap((segment) => segment.links));
   for (const key of ["p->q", "q->r"]) assert.ok(carried.has(key), `the parts' road ${key} is drawn`);
   assert.ok(inner.gates.some((gate) => gate.entrances.includes("p->q") && gate.between.includes("q")), "the road from p enters q through a gate of q's");
-  // Each road in comes ashore where the island's crosses Alpha's border.
   for (const crossing of local) assert.ok(inner.segments.some((segment) => [segment.pts[0]!, segment.pts.at(-1)!].some((p) => far(p, crossing.local) < 6)), "a part road starts at the crossing");
 });
 
@@ -133,7 +124,6 @@ test("3.115 · an opened capability is laid out in steps, so the frame that open
   const steps = nestedLayoutSteps(region, [...parts, { capability: "t", title: "t", lines: 90 }], partLinks, crossings);
   let taken = 0;
   for (let at = steps.next(); !at.done; at = steps.next()) taken++;
-  // The fine cut alone takes a step for each 32 cells it cuts and each 32 it hands out (3.87), then a step for each try at growing.
   const laid = nestedLayout(region, [...parts, { capability: "t", title: "t", lines: 90 }], partLinks, crossings)!;
   assert.ok(taken >= Math.floor(laid.map.cells.length / 32), `${taken} steps for a cut of ${laid.map.cells.length} cells`);
 });

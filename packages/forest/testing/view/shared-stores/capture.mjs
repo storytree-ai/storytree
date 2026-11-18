@@ -1,10 +1,3 @@
-// A project's shared store drawn beside its islands, with its tables inside it, and its panel once clicked
-// (increment_0228e9896ea9, ADR-1332 D1; drawn from store links since increment_9359decfd1eb, ADR-1347 D3). Drawn by the actual
-// desktop page from the capture kit's `code-rows` seed (storytree's own library), with store links the mapping agent might have
-// judged put on two of its capabilities: the map draws a store only from those, never from compose files or migrations. The
-// tables are the checkbox interview repository's, its two longest names among them (increment_049bcbe63687). Run from the
-// checkout root, in the foreground:
-//   node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/testing/view/shared-stores/capture.mjs --retake
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +11,6 @@ const { seed, survey } = captureSeed('code-rows');
 
 const STORE = 'postgres://db/checkbox';
 const link = (table, direction, cite) => ({ store: STORE, table, direction, cites: [cite] });
-// Two of the seed's capabilities, each with the links a mapping run might judge for it.
 const [writer, reader] = seed.tree.stories.flatMap(({ capabilities }) => capabilities).slice(0, 2);
 writer.storeLinks = [link('users', 'write', 'api/users.py:14'), link('forms', 'write', 'api/forms.py:22'), link('answers', 'both', 'api/answers.py:31'), link('source_objects', 'write', 'ingest/load.py:40')];
 reader.storeLinks = [link('sessions', 'read', 'web/session.py:9'), link('checks', 'read', 'web/checks.py:17'), link('document_summaries', 'read', 'web/summary.py:12'), link('answers', 'read', 'web/answers.py:28')];
@@ -52,13 +44,11 @@ const { results, out } = await withCapture({ folder: evidence, dist }, async ({ 
   await settle(page);
   await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(out, 'store-beside-islands-1440x960.png'), timeout: 180000 });
-  // The store's slab, in the window's pixels, and the table names drawn on it.
   const slab = await page.evaluate(address => {
     const { scene, camera } = window.__globe, V = camera.position.constructor;
     scene.updateMatrixWorld(true); camera.updateMatrixWorld(true);
     const canvas = document.querySelector('canvas').getBoundingClientRect();
     const at = scene.getObjectByName(`store:${address}`).getWorldPosition(new V()).project(camera);
-    // Each table's tile, its corners projected into the window, beside its drawn name's box: a name is whole when its box lies inside.
     const px = v => { const p = v.project(camera); return { x: canvas.left + (p.x + 1) * canvas.width / 2, y: canvas.top + (1 - p.y) * canvas.height / 2 }; };
     const plate = scene.getObjectByName(`store:${address}`);
     const tiles = [...document.querySelectorAll('.planet-store-table')].map(n => {

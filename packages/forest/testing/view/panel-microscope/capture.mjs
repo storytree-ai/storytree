@@ -1,12 +1,3 @@
-// The right-hand panel as a microscope (ADR-1350 D2, 4.55; Mick, 2026-11-16: "the right hand capabilities panel basically
-// becomes like a looking glass a microscope that allows you to adjust the zoom level and drill into individual level
-// capabilities"): The library's island alone, from a fresh seed and code survey built from the library and this checkout
-// (the committed snapshot predates the survey's parts), as the app opens it. A capability's territory clicked on the island
-// opens the panel; the story's name opens the story alone, its microscope showing its capabilities; the one whose code holds the most parts, chosen in the
-// microscope, re-roots the panel on it, its parts filling the microscope with their gates named; 26 · Rounds, whose code is
-// one part (librarian) holding parts of its own, opens two levels down, its breadcrumb back up. `node --import tsx
-// capture.mjs <name>` (append --retake to write into src/view/evidence/panel-microscope). Measures, from the page, each
-// level the microscope shows: its breadcrumb, its parts and its gates.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -19,24 +10,17 @@ const pictures = path.join(here, '../../../src/view/evidence', 'panel-microscope
 const name = process.argv.slice(2).find(a => !a.startsWith('--')) ?? 'after';
 const fresh = await seedHolding(['The library'], { committed: () => ({ seed: { tree: { stories: [] } }, survey: {} }) });
 const library = fresh.seed.tree.stories.find(story => story.title === 'The library');
-// The library's island alone (every island laid out from nothing takes the box tens of minutes): the other stories are kept
-// by name, bare (no capabilities), so the gates to their islands are named as the app names them. Every story's survey
-// keeps its roads (the other stories' files left out, which would lay their islands out), so the library's gates are those
-// its own code reaches and those the other stories' code reaches it by, as in the app. Desktop app, the one story carrying
-// extra checks, keeps its capabilities, so its panel shows them behind their closed handle (4.52).
 const desktop = fresh.seed.tree.stories.find(story => story.title === 'Desktop app');
 const others = fresh.seed.tree.stories.filter(story => story !== library).map(story => story === desktop ? story : { ...story, capabilities: [], edges: [] });
 const seed = { ...fresh.seed, tree: { ...fresh.seed.tree, stories: [library, ...others] } };
 const survey = Object.fromEntries(Object.entries(fresh.survey).map(([id, each]) => [id, id === library.id ? each : { files: [], edges: each.edges ?? [] }]));
 const capability = prefix => library.capabilities.find(c => c.title.startsWith(prefix)).id;
-// The capability whose code holds the most parts, so its microscope shows them with their gates.
 const partsOf = id => (survey[library.id].parts?.capabilities[id] ?? []).length;
 const widest = [...library.capabilities].sort((a, b) => partsOf(b.id) - partsOf(a.id))[0];
 const dist = buildFolder(here);
 await buildCapture({ dist });
 
 const until = async (page, predicate, arg, timeout = 300_000) => page.waitForFunction(predicate, arg, { timeout, polling: 200 });
-/** What the microscope shows now. */
 const scope = page => page.evaluate(() => {
   const section = document.querySelector('aside.story-panel .panel-microscope');
   return section === null ? undefined : {
@@ -51,7 +35,6 @@ const scope = page => page.evaluate(() => {
       return boxes.flatMap((a, i) => boxes.slice(i + 1).filter(b => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom)).length;
     })(),
     pending: section.querySelector('[data-scope-pending]') !== null,
-    // The story's extra checks, behind their handle (4.52): whether the handle is there, and closed.
     extraChecks: (() => {
       const handle = document.querySelector('aside.story-panel [data-fold="extra-checks"] > .panel-handle');
       return handle === null ? undefined : { handle: handle.textContent, open: handle.getAttribute('aria-expanded') === 'true' };
@@ -65,22 +48,18 @@ const shot = async (page, out, view) => {
   return (results[view] = await scope(page));
 };
 const choose = id => async ({ page, settle }) => {
-  // A territory in pieces has its box's middle on another's land, so the click is sent to the territory itself.
   await page.locator(`aside.story-panel .panel-microscope [data-pick-capability="${id}"]`).dispatchEvent('click');
   await settle(page, 6);
   await laidOut(page);
 };
 
-/** A click on the island's name selects the story alone; its panel's microscope shows the island's capabilities. */
 const pickStory = (story, { laid = true } = {}) => async ({ page, settle }) => {
-  // Another story's panel let go first, as the lag catalogue's reset does, so it cannot cover this island's name.
   if (await page.evaluate(() => document.body.dataset.selected !== undefined)) {
     await page.keyboard.press('Escape');
     await until(page, () => document.body.dataset.selected === undefined && document.querySelector('aside.story-panel')?.hidden !== false, undefined, 60_000);
   }
   if (!await page.evaluate(id => window.storytreeGlobe.face({ kind: 'story', story: id }), story.id)) throw new Error(`no camera stop for ${story.title}`);
   await until(page, () => window.storytreeGlobe.still());
-  // The name is drawn over the canvas, which picks what lies under the pointer, the name among it (3.41).
   const box = await page.locator(`.planet-nameplate[data-story-id="${story.id}"]`).first().boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await settle(page, 6);
@@ -129,10 +108,8 @@ await runCapture({
     },
   }, {
     name: `${name}-extra-checks`,
-    // Its foot, not its microscope, is what this picture is for, so the panel is taken as soon as it is drawn.
     prepare: pickStory(desktop, { laid: false }),
     measure: async ({ page, out }) => {
-      // The panel's foot, scrolled to, so the story's extra checks' closed handle is in the picture.
       await page.locator('aside.story-panel [data-fold="extra-checks"]').scrollIntoViewIfNeeded();
       return shot(page, out, 'extra-checks');
     },

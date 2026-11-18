@@ -1,14 +1,4 @@
-/**
- * Capability 2 · Connect an agent: instructions for Codex (contract 2.9). Codex keeps a tool server's tools out of
- * the agent's first view until it searches for them, and never shows the server's instructions, so
- * the habits card does not reach a Codex session. The AGENTS.md in Codex's home does, in every
- * session, whether or not the user has trusted storytree's hooks yet. So connecting Codex writes one
- * short storytree section there, between markers, that sends the agent to check_setup before its
- * first change in a storytree project and keeps it silent everywhere else (ADR-0752 D3). Only that
- * section is ever written or taken out: the rest of the file is the user's. Pi shows the agent no server
- * instructions either, and reads the AGENTS.md in its agent folder in every folder (2.11), so connecting Pi
- * writes the same section there.
- */
+// Capability 2 · Connect an agent
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -21,10 +11,8 @@ A folder with a \`.storytree/project.json\` file (or, set up before that, a \`.s
 ${END}
 `;
 
-/** What writing found: the section written now, already there as it is, or no Codex home here. */
 export type CodexInstructionsWrite = "written" | "already written" | "not here";
 
-/** Write storytree's section into `codexHome`'s AGENTS.md, replacing an older one, leaving the rest as it was. */
 export function writeCodexInstructions(codexHome: string): CodexInstructionsWrite {
   if (!isFolder(codexHome)) return "not here";
   const file = path.join(codexHome, "AGENTS.md");
@@ -36,7 +24,6 @@ export function writeCodexInstructions(codexHome: string): CodexInstructionsWrit
   return "written";
 }
 
-/** Take storytree's section out of `codexHome`'s AGENTS.md; a file left with nothing else in it goes too. */
 export function removeCodexInstructions(codexHome: string): "removed" | "none" {
   const file = path.join(codexHome, "AGENTS.md");
   if (!existsSync(file)) return "none";
@@ -48,7 +35,6 @@ export function removeCodexInstructions(codexHome: string): "removed" | "none" {
   return "removed";
 }
 
-/** The text before storytree's section, the section with its line end, and the text after it. */
 function split(text: string): { before: string; section?: string; after: string } {
   const start = text.indexOf(BEGIN);
   const end = start < 0 ? -1 : text.indexOf(END, start);

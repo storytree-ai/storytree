@@ -1,7 +1,4 @@
-/**
- * Capability 4 · Updates, contracts 4.30 to 4.33: how an installed app follows its releases, and the version it
- * reports. The updater is a stand-in whose checks answer as each test says.
- */
+// Capability 4 · Updates
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import path from "node:path";
@@ -121,9 +118,6 @@ test("4.42 the installation a start follows is the AppImage's folder on Linux, t
   assert.equal(installationFolder({ platform: "win32", execPath: path.join("C:", "Programs", "storytree-0.3", "storytree-0.3.exe"), appImage: undefined }), path.join("C:", "Programs", "storytree-0.3"));
 });
 
-// Injects a host's path module: a module loaded with `?host=win32` or `?host=posix` gets that platform's `node:path`,
-// so code that computes a fixed platform's path with the host's bare `path` fails here on any host, not only on CI's
-// other runner (escape_82042510e491).
 registerHooks({
   resolve(specifier, context, next) {
     const host = /[?&]host=(win32|posix)\b/.exec(context.parentURL ?? "")?.[1];

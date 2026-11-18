@@ -1,4 +1,3 @@
-/** The command line 15.1–15.4: a reading printed for a person, and the same readings for a script. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -22,7 +21,6 @@ const lines = [
 const week = countDoors(lines.slice(1), declared, new Map(), { since: "2026-10-01T00:00:00.000Z", until: "2026-10-08T00:00:00.000Z" });
 const month = countDoors(lines, declared, new Map(), { since: "2026-09-10T00:00:00.000Z", until: "2026-10-08T00:00:00.000Z" });
 
-/** The table's row for `name`, its words split on runs of spaces. */
 function row(table: string, name: string): string[] | undefined {
   return table.split("\n").map((text) => text.trim().split(/\s{2,}/)).find((cells) => cells[0] === name);
 }

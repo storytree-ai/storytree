@@ -8,8 +8,6 @@ import type { BoardReads } from "../board/reads.js";
 import { record } from "../testing/records.js";
 import { mountArcSurface } from "./index.js";
 
-// happy-dom proves the mounted controls and focus calls; browser captures prove geometry
-// and native keyboard activation.
 test("3.1 · the arcs fill the rail's tab and keep reading; an arc's row click selects it and opens its expansion under the row, the selected row's click closes it, and nothing opens over the map", async (t) => {
   const page = new Window({ url: "https://storytree.test" });
   const document = page.document as unknown as Document;
@@ -69,7 +67,6 @@ test("3.1 · the arcs fill the rail's tab and keep reading; an arc's row click s
   assert.ok(under("arc_2") === null, "and closes what is under it");
   assert.ok(document.querySelector('.arc-card, aside, [data-surface-layer="overlay"]') === null, "nothing is drawn over the map");
 
-  // An arc changed, so the board is read again, and that read fails.
   reads.boardArcs = async () => { throw new Error("Library unavailable"); };
   reads.changesSince = async () => ({ changes: [{ seq: 1, recordId: "arc_1", type: "arc", action: "updated" as const, record: arc }], cursor: 1 });
   for (const tick of [...ticks.values()]) tick();
@@ -601,7 +598,6 @@ test("3.39 · an increment opened from outside names its arc in its row, and is 
     }
     await page.happyDOM.abort();
   });
-  // The lanes show 300 px from 100 px down the page; the queued arc's chip sits 400 px into them, its increment's row below it.
   let rowAt = { top: 600, bottom: 640 };
   const scrolled: unknown[] = [];
   const prototype = page.HTMLElement.prototype as unknown as HTMLElement;

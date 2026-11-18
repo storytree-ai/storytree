@@ -1,14 +1,3 @@
-// coast-clip.test.ts — the claims the SHIPPED map's coastline rests on.
-//
-// ⚠⚠ THE TEST THIS FILE EXISTS FOR IS {@link the area conservation one}. The first working version
-// of `coastArcs` matched the rim to the curve with a nearest-point SEARCH, which is the obvious
-// answer and is wrong: on the shipped fixture it lands 2 of 52 rim vertices one segment BEHIND
-// their predecessor, so the arc between them runs 207 segments the long way instead of 1 and two
-// boundary parcels swallow the whole coastline. The island still had the right BOUNDS and the right
-// parcel COUNT and its picture would have been recognisably an island — the summed parcel area was
-// 3.0x its true value and nothing else said so. So the area assertion below is the one that would
-// have caught it, and the fixed correspondence is asserted directly beside it.
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -34,10 +23,6 @@ import {
 } from './coast-clip.js';
 import type { InstanceDescriptor } from './descriptors.js';
 
-/** A 2x2 block of unit-ish square parcels: four rings sharing one centre vertex, so the block has
- *  8 boundary edges, 4 interior ones and exactly one rim loop. Small enough to reason about by
- *  hand, and it is NOT convex-per-parcel by accident — every parcel is a square, which is what
- *  makes the shared-vertex claim checkable without a mesh generator. */
 const BLOCK: CoastPoint[][] = [
   [{ x: 0, z: 0 }, { x: 10, z: 0 }, { x: 10, z: 10 }, { x: 0, z: 10 }],
   [{ x: 10, z: 0 }, { x: 20, z: 0 }, { x: 20, z: 10 }, { x: 10, z: 10 }],
@@ -45,10 +30,6 @@ const BLOCK: CoastPoint[][] = [
   [{ x: 10, z: 10 }, { x: 20, z: 10 }, { x: 20, z: 20 }, { x: 10, z: 20 }],
 ];
 
-/** The block as `cell-ground` descriptors on one island. `null` means the mapper could not name
- *  one — spelled `null` rather than `undefined` because passing `undefined` to a parameter with a
- *  default takes the DEFAULT, which is how the unhomed test below first passed a homed island and
- *  reported the module broken. */
 function blockCells(island: string | null = 'story-a'): InstanceDescriptor[] {
   return BLOCK.map((ring, i) => {
     const d: InstanceDescriptor = {
@@ -64,8 +45,6 @@ function blockCells(island: string | null = 'story-a'): InstanceDescriptor[] {
   });
 }
 
-/** Twice the signed shoelace area of a ring — SIGNED, so a ring that folds back on itself does not
- *  get to hide behind an absolute value. */
 function signedArea2(ring: readonly CoastPoint[]): number {
   let s = 0;
   for (let i = 0; i < ring.length; i += 1) {
@@ -76,8 +55,6 @@ function signedArea2(ring: readonly CoastPoint[]): number {
   return s;
 }
 
-/** The summed |area| of every parcel in a descriptor set — the island's own area while the parcels
- *  tile it, and a number that BLOWS UP the moment a ring self-crosses. */
 function summedArea(cells: readonly InstanceDescriptor[]): number {
   return cells.reduce(
     (a, c) => a + Math.abs(signedArea2((c.points ?? []).map((p) => ({ x: p.x, z: p.z })))) / 2,
@@ -89,15 +66,10 @@ function ringsOf(cells: readonly InstanceDescriptor[]): CoastPoint[][] {
   return cells.map((c) => (c.points ?? []).map((p) => ({ x: p.x, z: p.z })));
 }
 
-// ---------------------------------------------------------------------------
-// The rim
-// ---------------------------------------------------------------------------
-
 test('rimLoops finds the one closed loop of edges used by a single parcel', () => {
   const loops = rimLoops(BLOCK);
   assert.equal(loops.length, 1);
   assert.equal(loops[0]!.length, 8);
-  // Every rim vertex is on the block's outside; the shared centre (10, 10) is on no boundary edge.
   const keys = new Set(loops[0]!.map(vertexKey));
   assert.equal(keys.has(vertexKey({ x: 10, z: 10 })), false);
   assert.equal(keys.size, 8);
@@ -123,10 +95,6 @@ test('an interior seam is one edge however its two parcels traverse it', () => {
   assert.equal(edgeKey(a, b), edgeKey(b, a));
 });
 
-// ---------------------------------------------------------------------------
-// The curve, and the correspondence that is NOT a search
-// ---------------------------------------------------------------------------
-
 test('coastCurve outsets 1:1 and Chaikin-doubles twice', () => {
   const rim = rimLoops(BLOCK)[0]!;
   const curve = coastCurve(rim, 'story-a');
@@ -143,12 +111,6 @@ test('the outset pushes every rim vertex OUTWARD, by about the authored beach', 
     const after = Math.hypot(curve.outset[i]!.x - centre.x, curve.outset[i]!.z - centre.z);
     assert.ok(after > before, `vertex ${i} did not move outward`);
   }
-  // `jitteredOutset` modulates COAST_OUTSET by ±(0.7 wave + wobble) * 0.5, so the widest it can
-  // ever reach is COAST_OUTSET * 1.5 — the cap the 2D map's own comment relies on to keep a coast
-  // inside the inter-island gap — and the narrowest is COAST_OUTSET * 0.5.
-  // × LAND_SCALE (`land-per-capability.ts`): the GROUND outsets by the 2D outset scaled, so the
-  // whole envelope is [0.5, 1.5] × GROUND_COAST_OUTSET. BOTH bounds bind: an UNSCALED outset
-  // (max ≈ 10.2 on this rim) breaks the upper one, a twice-scaled outset breaks the lower one.
   const widths = curve.outset.map((p, i) =>
     Math.hypot(p.x - rim[i]!.x, p.z - rim[i]!.z),
   );
@@ -157,7 +119,6 @@ test('the outset pushes every rim vertex OUTWARD, by about the authored beach', 
     assert.ok(w > 0 && w <= GROUND_COAST_OUTSET * 1.5, `beach ${w} out of range`);
     assert.ok(w >= GROUND_COAST_OUTSET * 0.5, `beach ${w} under the jitter's floor`);
   }
-  // And the jitter really modulates about the ground outset — some vertex wider, some narrower.
   assert.ok(Math.max(...widths) > GROUND_COAST_OUTSET, 'no vertex reached past the nominal beach');
   assert.ok(Math.min(...widths) < GROUND_COAST_OUTSET, 'no vertex fell short of the nominal beach');
 });
@@ -190,8 +151,6 @@ test('each arc is the curve run FORWARD from its own landing — never the long 
 test('coastArcs REFUSES a curve that is not the outset loop doubled twice', () => {
   const rim = rimLoops(BLOCK)[0]!;
   const curve = coastCurve(rim, 'story-a');
-  // The WHOLE message, not its opening: a reader who hits this has to be told what the curve
-  // actually was, and half a message is a mutant no partial match can catch.
   assert.throws(
     () => coastArcs({ outset: curve.outset, smooth: curve.smooth.slice(0, -1) }),
     /coastArcs: expected 32 curve points for 8 outset points at 2 Chaikin passes, got 31/,
@@ -207,10 +166,6 @@ test('nearestOnSegment returns a point ON the segment, both ends included', () =
   assert.deepEqual(nearestOnSegment({ x: 3, z: 3 }, a, a), { x: 0, z: 0 });
 });
 
-// ---------------------------------------------------------------------------
-// The displacement, and what it does to a parcel
-// ---------------------------------------------------------------------------
-
 test('the interior vertex never moves, under any mode', () => {
   for (const mode of COAST_MODES) {
     const d = coastDisplacement(BLOCK, 'story-a', mode);
@@ -222,15 +177,12 @@ test('a shared rim vertex moves ONCE, so the two parcels holding it stay waterti
   for (const mode of COAST_MODES.filter((m) => m !== 'none')) {
     const clipped = clipToCoast(blockCells(), mode);
     const rings = ringsOf(clipped);
-    // (10, 0) is the rim vertex the two top parcels share.
     const holders = rings.filter((r, i) =>
       (BLOCK[i] ?? []).some((p) => vertexKey(p) === vertexKey({ x: 10, z: 0 })),
     );
     assert.equal(holders.length, 2, mode);
     const seen = new Set<string>();
     for (const ring of holders) {
-      // The moved vertex is whichever of this ring's points is NOT one of the original interior
-      // ones; find it by asking the displacement directly.
       const d = coastDisplacement(BLOCK, 'story-a', mode);
       const target = d.moved.get(vertexKey({ x: 10, z: 0 }))!;
       assert.ok(
@@ -244,10 +196,6 @@ test('a shared rim vertex moves ONCE, so the two parcels holding it stay waterti
 });
 
 test('`none` is the identity — the SAME OBJECTS, not equal copies', () => {
-  // ⚠ IDENTITY RATHER THAN `deepEqual`, and the difference is what the assertion is for. Without
-  // the early return, `none` would run the whole path, find nothing to move, and rebuild every
-  // descriptor through `{ ...d, points }` — producing objects that are deeply EQUAL and freshly
-  // allocated. The control has to be the map itself, not a copy of it.
   const cells = blockCells();
   const out = clipToCoast(cells, 'none');
   assert.deepEqual(out, cells);
@@ -267,18 +215,10 @@ test('only `subdivide` adds ring vertices, and it adds the whole curve exactly o
   assert.equal(counts.get('none'), before);
   assert.equal(counts.get('outset'), before);
   assert.equal(counts.get('project'), before);
-  // Two Chaikin passes → 4 curve points per rim vertex, every one of them inserted once.
   assert.equal(counts.get('subdivide'), before + rimLength * 4);
 });
 
 test('THE PARCELS STILL TILE THE ISLAND — summed parcel area IS the area the rim encloses', () => {
-  // ⚠⚠ THE REGRESSION, AND IT IS AN EQUALITY RATHER THAN A BOUND. A nearest-point search matched
-  // two rim vertices out of order and two boundary parcels each swallowed the whole coastline;
-  // bounds, parcel count, ring count and winding all still looked right and the island's summed
-  // parcel area went to 3.0x. No ratio threshold is the right instrument for that — the invariant
-  // is that parcels tile their island with no gap and no overlap, so their summed area IS the area
-  // enclosed by the rim they collectively bound. A folded ring breaks it in one direction and a
-  // gap breaks it in the other, and neither needs a magic number to notice.
   for (const mode of COAST_MODES) {
     const clipped = clipToCoast(blockCells(), mode);
     const loops = rimLoops(ringsOf(clipped));
@@ -328,8 +268,6 @@ test('the clip carries every parcel identity through untouched', () => {
 });
 
 test('a parcel the mapper could not attribute to an island is LEFT ALONE', () => {
-  // No island id means no story seed, so there is no coast to draw — and pooling unhomed parcels
-  // would compute a rim across the sea between two unrelated ones.
   const cells = blockCells(null);
   const out = clipToCoast(cells, 'subdivide');
   assert.deepEqual(out, cells);
@@ -347,7 +285,6 @@ test('two islands get two coasts, and neither reaches into the other', () => {
   const far = xs.filter((x) => x >= 100);
   assert.equal(near.length, far.length);
   assert.ok(Math.max(...near) < Math.min(...far), 'the two islands overlap after clipping');
-  // Different story ids seed different waves, so the two coasts are not translations of each other.
   const shifted = far.map((x) => x - 200);
   assert.notDeepEqual(near, shifted);
 });
@@ -391,12 +328,6 @@ test('the coast is DETERMINISTIC and story-seeded', () => {
   );
 });
 
-// ---------------------------------------------------------------------------
-// What belongs to no coast — one predicate, three ways to fail it
-// ---------------------------------------------------------------------------
-
-/** Ground, on the island, with no ring at all. It bounds nothing, so it contributes no shore edge
- *  and has nothing to rewrite. */
 const GROUND_WITHOUT_A_RING: InstanceDescriptor = {
   kind: 'cell-ground',
   transform: { x: 0, y: 0, z: 0 },
@@ -421,22 +352,7 @@ test('an UNHOMED ground parcel never joins a named island\'s rim', () => {
   assert.deepEqual(out.slice(0, 4), clipToCoast(blockCells(), 'subdivide'));
 });
 
-// ---------------------------------------------------------------------------
-// The rim's own guard, and the fold cap's own loop
-// ---------------------------------------------------------------------------
-
 test('a DEGENERATE rim loop is skipped, and the island still gets its coast', () => {
-  // A one-point ring forges a ONE-VERTEX rim loop (see the test below). Handed to the coast
-  // machinery that loop outsets to itself and Chaikin-rounds to itself, so the curve comes back the
-  // same length as the rim and `coastArcs` REFUSES it. The guard is what stops a stray descriptor
-  // from taking the whole island's coast down with it.
-  // ⚠ THE FIXTURE IS A RING WITH A REPEATED VERTEX, not a one-point ring, and the difference is
-  // what makes this test reach the guard at all. `rimLoops` refuses a ring of fewer than three
-  // points on its own, so a one-point sliver never gets as far as a rim loop. A THREE-point ring
-  // whose first two vertices coincide does: its self-edge is used once, so it chains into a
-  // one-vertex "loop", and that loop outsets and Chaikin-rounds to itself — leaving a curve the
-  // same length as the rim, which `coastArcs` refuses. One malformed parcel would take the whole
-  // island's coast down with it.
   const withSpur: CoastPoint[][] = [
     ...BLOCK,
     [
@@ -454,15 +370,11 @@ test('a DEGENERATE rim loop is skipped, and the island still gets its coast', ()
 });
 
 test('a ring of ONE point contributes no shore — it would otherwise forge a rim loop', () => {
-  // A single-point ring emits the self-edge (p, p), which is used ONCE and therefore looks exactly
-  // like a boundary edge. Chained, it becomes a one-vertex "loop" the coast machinery would then be
-  // asked to outset. The guard is what stops that, and this is the fixture that reaches it.
   const loops = rimLoops([...BLOCK, [{ x: 50, z: 50 }]]);
   assert.deepEqual(loops, rimLoops(BLOCK));
 });
 
 test('a THREE-point parcel is a real parcel — its edges are shore', () => {
-  // The guard is `< 3`, not `<= 3`: a triangle bounds area and its outer edges are coastline.
   const triangle: CoastPoint[] = [
     { x: 20, z: 0 },
     { x: 30, z: 10 },
@@ -477,8 +389,6 @@ test('a THREE-point parcel is a real parcel — its edges are shore', () => {
 });
 
 test('a THREE-vertex island still gets a coast', () => {
-  // `coastDisplacement` skips a rim loop of fewer than three vertices; a triangle is exactly three,
-  // and the boundary of a triangle IS an island's shore.
   const triangle: InstanceDescriptor = {
     kind: 'cell-ground',
     transform: { x: 0, y: 0, z: 0 },
@@ -497,13 +407,6 @@ test('a THREE-vertex island still gets a coast', () => {
 });
 
 test('the cap leaves a HONEST coast alone, and every scale it reports is a rung', () => {
-  // ⚠ THE BLOCK DOES NOT FOLD, AND THAT IS THE ASSERTION RATHER THAN A LIMITATION OF THE FIXTURE.
-  // Its parcels are 10 units across against a beach of at most 10.5 in TUNED units (× LAND_SCALE
-  // on the ground: at most ~3.96, against the same 10 — a convex coast folds at NO beach), and a convex island offset
-  // along its own vertex bisectors stays simple however wide the beach is — a fold needs a rim that
-  // TURNS sharply beside a parcel too shallow to absorb the turn. So the cap must bind NOWHERE
-  // here: a cap that fired on an honest coast would be spending beach nothing asked it to spend.
-  // The seven-parcel cross below exercises a coast that does fold.
   for (const mode of COAST_MODES.filter((m) => m !== 'none')) {
     const d = coastDisplacement(BLOCK, 'story-a', mode);
     assert.equal(d.scales.size, 8, `${mode}: every rim vertex should report a scale`);
@@ -518,19 +421,6 @@ test('the cap leaves a HONEST coast alone, and every scale it reports is a rung'
   assert.equal(coastDisplacement(BLOCK, 'story-a', 'none').scales.size, 0, 'the control caps nothing');
 });
 
-/**
- * AN ISLAND WHOSE COAST GENUINELY FOLDS — seven 24 x 4 parcels in a cross.
- *
- * ⚠⚠ IT IS SEARCHED FOR RATHER THAN GUESSED, and the first three fixtures tried did not fold. A
- * convex island offset along its own vertex bisectors stays simple however wide the beach is; a
- * fold needs a rim that TURNS sharply beside a parcel too SHALLOW to absorb the turn. Long thin
- * parcels arranged in a cross give both — the arms are 4 units deep against a beach reaching 10.5,
- * and the rim turns twice at every armpit.
- *
- * × LAND_SCALE (`land-per-capability.ts`): those are TUNED-island units. The ground's beach is the
- * 2D outset × LAND_SCALE, so the fixture is scaled with it — the same cross against the same
- * beach, in ground units — and the fold it was searched for is the same fold.
- */
 const FOLDING: CoastPoint[][] = [
   [1, 0],
   [1, 1],
@@ -567,9 +457,6 @@ test('⚠⚠ THE FOLD CAP RUNS — it binds, it binds ONLY where it must, and no
 });
 
 test('the fold cap is the ONLY reason a vertex keeps less than its whole beach', () => {
-  // Uncapped, this island folds. So the capped result must differ from the uncapped targets at
-  // exactly the bound vertices and nowhere else — which is what says the ladder is being walked
-  // rather than applied wholesale.
   const d = coastDisplacement(FOLDING, 'story-c', 'outset');
   const rim = rimLoops(FOLDING)[0]!;
   const curve = coastCurve(rim, 'story-c');
@@ -585,9 +472,6 @@ test('the fold cap is the ONLY reason a vertex keeps less than its whole beach',
 });
 
 test('isSimpleRing counts CROSSINGS, never touches', () => {
-  // A ring whose vertex lies exactly ON a non-adjacent edge bounds the same ground it did and
-  // triangulates to zero-area triangles rather than to overlapping ones. Widening the test from
-  // strict to inclusive would cap coasts that are perfectly honest.
   const touching: CoastPoint[] = [
     { x: 0, z: 0 },
     { x: 10, z: 0 },
@@ -596,9 +480,6 @@ test('isSimpleRing counts CROSSINGS, never touches', () => {
     { x: 0, z: 10 },
   ];
   assert.equal(isSimpleRing(touching), true, 'a touch was read as a crossing');
-  // ⚠ AND THE SAME RING REVERSED. Reversing a ring flips the SIGN of every side test, so the zero
-  // that proves the touch moves from one half of the straddle test to the other. One winding alone
-  // leaves the other half's comparison untested.
   assert.equal(isSimpleRing([...touching].reverse()), true, 'a touch read as a crossing, reversed');
   const crossing: CoastPoint[] = [
     { x: 0, z: 0 },
@@ -608,10 +489,6 @@ test('isSimpleRing counts CROSSINGS, never touches', () => {
   ];
   assert.equal(isSimpleRing(crossing), false, 'a bowtie was read as simple');
   assert.equal(isSimpleRing([...crossing].reverse()), false, 'a bowtie read as simple, reversed');
-  // ⚠ A BOWTIE WHOSE ONLY CROSSING INVOLVES THE **LAST** EDGE. The same four points rotated, so the
-  // crossing pair is (1, 3) rather than (0, 2). A comparison loop that walks the wrong window of
-  // pairs still finds a crossing in the middle of a ring and silently never looks at the last edge
-  // — this is the ring that separates the two.
   const crossingAtTheEnd: CoastPoint[] = [
     { x: 10, z: 10 },
     { x: 10, z: 0 },
@@ -623,9 +500,6 @@ test('isSimpleRing counts CROSSINGS, never touches', () => {
 });
 
 test('THE SHIPPED MAP WEARS `subdivide`', () => {
-  // An art decision, pinned the way this package pins its other art constants: not because the
-  // choice is provably right, but because CHANGING WHAT THE MAP LOOKS LIKE has to be a deliberate
-  // act rather than something that falls out of an edit elsewhere.
   assert.equal(SHIPPED_COAST, 'subdivide');
   assert.ok(COAST_MODES.includes(SHIPPED_COAST));
   assert.notEqual(SHIPPED_COAST, 'none', 'the shipped map would draw no coast at all');

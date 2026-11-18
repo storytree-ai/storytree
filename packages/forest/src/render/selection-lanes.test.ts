@@ -1,4 +1,3 @@
-/** Story node render 3.26: a selected story's links to other stories light as lanes, by direction. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { workStates } from '@storytree/arc-surface';
@@ -10,7 +9,6 @@ const island = (story: string, capabilities: string[]): Island => ({
   story, title: story, x: 0, z: 0, key: story,
   trees: capabilities.map(capability => ({ capability, form: 'green', contracts: 0, x: 0, z: 0, scale: 1, turn: 0 })),
 });
-// b builds on a; c builds on b; a2 builds on a1 within a; c also builds on a.
 const scene: ForestScene = {
   islands: [island('a', ['a1', 'a2']), island('b', ['b1']), island('c', ['c1'])],
   links: [{ from: 'a2', to: 'a1' }, { from: 'b1', to: 'a1' }, { from: 'c1', to: 'b1' }, { from: 'c1', to: 'a2' }],
@@ -33,7 +31,6 @@ test('3.26 a link the code derives lights like a recorded one, and a story edge 
   const NO_HEALTH = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
   const capability = (id: string, dependsOn: string[] = []): AnnotatedCapability => ({ id, title: id, dependsOn, proposed: true, status: 'proposed' as const, contracts: [], health: NO_HEALTH });
   const story = (id: string, ...capabilities: AnnotatedCapability[]): AnnotatedStory => ({ id, title: id, capabilities, health: NO_HEALTH });
-  // The website's code takes the world's types and imports a forest file no capability owns; the plan records website on forest.
   const tree = { arcs: [], stories: [story('world', capability('w1')), story('forest', capability('f1')), story('website', capability('s1', ['f1']))] };
   const code = { website: { files: [], imports: [], edges: [
     { story: 'world', from: 's1', to: 'w1', typeOnly: true, files: [] },

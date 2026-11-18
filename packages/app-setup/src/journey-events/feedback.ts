@@ -1,8 +1,7 @@
-/** Capability 5 · Send feedback: the draft and the text it opens; the composer and optional sign-in are the Help panel's (view/mount.ts). */
+// Capability 5 · Send feedback.
 export interface FeedbackDraft { readonly title: string; readonly body: string }
 export type DraftResult = { status: "opened" } | { status: "failed"; error: string };
 
-/** The main-process boundary accepts only user-authored title/body, never context or attachments. */
 function reviewedDraft(value: unknown): FeedbackDraft {
   if (typeof value !== "object" || value === null || !("title" in value) || !("body" in value)
     || typeof value.title !== "string" || typeof value.body !== "string"
@@ -14,7 +13,6 @@ function reviewedDraft(value: unknown): FeedbackDraft {
 
 export function feedbackText(draft: FeedbackDraft): string { return `${draft.title}\n\n${draft.body}`; }
 
-/** A successful OS handoff proves only that we opened a draft, never that GitHub received feedback. */
 export async function openFeedbackDraft(value: unknown, openExternal: (url: string) => Promise<void>): Promise<DraftResult> {
   const draft = reviewedDraft(value);
   const url = new URL("https://github.com/storytree-ai/storytree/issues/new");
@@ -28,7 +26,6 @@ export async function openFeedbackDraft(value: unknown, openExternal: (url: stri
   }
 }
 
-/** What the app says once the handoff is done: a draft was opened, never that feedback was received. */
 export function draftSaid(result: DraftResult): string {
   return result.status === "opened" ? "Opened a draft in your browser. Review it on GitHub and submit it yourself." : result.error;
 }

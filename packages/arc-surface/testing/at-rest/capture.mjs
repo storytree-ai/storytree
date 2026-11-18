@@ -1,11 +1,3 @@
-// The Arcs tab at rest (contract 3.41, ADR-1309 D4): the real desktop page on storytree's own live library, read with the app's
-// own reads (the capture kit's liveAnswers), so its lanes are the library's waiting, queued and in-progress arcs as they stand. The
-// live library need not hold a ranked arc or a ready one, so the seed ranks three of its live arcs (P1 the newest, P2 the two
-// oldest, so priority's order is seen to cut across the state order) and adds one ranked arc with one increment ready to take. The rail's
-// Arcs tab is put on show and nothing else is touched: the Active scope, no arc selected, no expansion open. A reader judges the
-// pictures against 3.41's declared ask; the measurements say what the page drew, in the order it drew it, for the reader to check
-// the pictures against. `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/arcs-at-rest). Reads
-// only: every write the page could ask keeps the stand-in's quiet answer.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -41,7 +33,6 @@ const seeded = {
   },
 };
 
-/** What the tab draws at rest, top to bottom: its scopes, then each lane's first line and its ovals' accessible label. */
 const atRest = page => page.evaluate(() => {
   const text = el => el?.textContent.replace(/\s+/g, ' ').trim();
   return {
@@ -83,7 +74,6 @@ try {
         await page.locator('.arc-scopes').locator('xpath=ancestor::*[.//*[contains(@class,"arc-lanes")]][1]').screenshot({ path: path.join(out, 'arcs-at-rest-rail.png') });
         return (results.atRest = await atRest(page));
       },
-      // At rest as 3.41 has it: the Arcs tab on show, the Active scope pressed, no arc selected, no expansion or fold open.
       expect: found => assert.deepEqual({ tab: found.tab, pressed: found.scopes.filter(s => s.pressed).map(s => s.scope), selected: found.selected, expanded: found.expanded, openFolds: found.openFolds },
         { tab: 'arcs', pressed: ['Active'], selected: [], expanded: 0, openFolds: 0 }),
     }],

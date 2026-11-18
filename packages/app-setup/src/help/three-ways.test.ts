@@ -28,7 +28,6 @@ test("3.3 a project added from the app and one set up in its folder (by the term
   const actions = setupHelpActions({ licenseFile: "", storytreeHome: home, chooseFolder: async () => picked, openExternal: async () => {}, copyText: async () => {}, library: () => library });
 
   assert.equal((await actions.addProject())?.project, fromApp);
-  // `storytree doctor --set-up <name>` and the agent's set_up_project both set the folder up this way.
   const folder = path.join(dir, "elsewhere");
   mkdirSync(folder);
   await setUpProject({ folder, project: inFolder, storytree: library, storytreeHome: home });

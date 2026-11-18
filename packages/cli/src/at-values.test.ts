@@ -1,4 +1,4 @@
-/** Capability 1 · Front door, contract 1.14: a value opening with @ is a file only when it names one. */
+// Capability 1 · Front door
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

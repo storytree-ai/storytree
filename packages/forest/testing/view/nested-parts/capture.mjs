@@ -1,12 +1,3 @@
-// Zooming into a capability draws its code's nested parts as territories with their own gates and roads (3.112-3.115,
-// increment_4f63b96696c7; Mick, 2026-11-15: "suddenly that node would disappear, and instead you would get multiple smaller
-// territories inside that capability as you zoom in"): The library's island alone, from a fresh seed and code survey built
-// from the library and this checkout (the committed snapshot predates the survey's parts), as the app opens it. The library near,
-// closed, then each of its capabilities `--capabilities <n>` (the largest with parts, 3 by default) faced and zoomed to the
-// parts level. `node --import tsx capture.mjs <name>` (append --retake to write into src/view/evidence/nested-parts).
-// Counts, from the scene and the page, each opened capability's parts, part roads, gates, draws and part names. With
-// --clashes, the capabilities opened are those with a road an import reaching round a part's front door rides on (3.120,
-// increment_7559a7ecafad), most such roads first, and each one's tinted gate posts and road names are counted too.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,11 +11,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const pictures = path.join(here, '../../../src/view/evidence', 'nested-parts');
 const arg = name => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : undefined);
 const name = process.argv.slice(2).find(a => !a.startsWith('--') && a !== arg('--capabilities')) ?? 'after';
-// Always fresh: the committed pair holds no parts.
 const fresh = await seedHolding(['The library'], { committed: () => ({ seed: { tree: { stories: [] } }, survey: {} }) });
 const library = fresh.seed.tree.stories.find(story => story.title === 'The library');
-// The library alone: every island laid out from nothing takes the box tens of minutes, and its parts' roads in from other
-// islands are drawn as its roads within it are.
 const seed = { ...fresh.seed, tree: { ...fresh.seed.tree, stories: [library] } }, survey = { [library.id]: fresh.survey[library.id] };
 const titles = new Map(library.capabilities.map(c => [c.id, c.title]));
 const clashing = process.argv.includes('--clashes'), clashes = p => Object.keys(p.clashes ?? {}).length;
@@ -47,7 +35,6 @@ const zoomTo = async (page, settle, zoom) => {
   }, { zoom, ...eye });
   await settle(page, 12);
 };
-/** What the island shows: the opened capability's marks and draws, its junction, and the part names on the page. */
 const measure = (page, story) => page.evaluate(story => {
   const island = window.__globe.scene.getObjectByName(`planet:${story}`), found = { opened: [], territoryJunctions: 0, rolledUp: 0 };
   const shown = object => { for (let o = object; o; o = o.parent) if (!o.visible) return false; return true; };
@@ -55,7 +42,6 @@ const measure = (page, story) => page.evaluate(story => {
     if (o.name.startsWith('opened-capability:') && shown(o)) {
       const count = name => o.getObjectByName(name)?.geometry.getAttribute('position').count ?? 0;
       let draws = 0; o.traverse(m => { if (m.isMesh || m.isLineSegments) draws++; });
-      // A post in the clash tint (CLASH, #e8873a) is one a clash's road enters its part by.
       const colours = o.getObjectByName('part-gates')?.geometry.getAttribute('color');
       let tinted = 0; for (let k = 0; colours && k < colours.count; k += 36) if (Math.abs(colours.getX(k) - 0xe8 / 255) < 0.02 && Math.abs(colours.getY(k) - 0x87 / 255) < 0.02) tinted++;
       found.opened.push({ capability: o.userData.capability, parts: o.userData.parts, draws, borderPoints: count('part-borders'), roadVertices: count('part-roads'), gatePosts: count('part-gates') / 36, clashPosts: tinted, clashRoads: o.userData.clashRoads });
@@ -99,7 +85,6 @@ const views = [
 ];
 
 await runCapture({
-  // The committed seed's kept layouts open the islands whose structure is unchanged laid out; the rest are searched.
   folder: pictures, dist, seed, survey, name, layouts: captureSeed('code-rows').layouts,
   prepare: async ({ page }) => {
     await until(page, 'the ready map', () => document.body.dataset.state === 'ready');

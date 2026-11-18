@@ -1,8 +1,7 @@
-/** Capability 16 · Requested event deletion. */
+// Capability 16 · Requested event deletion.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const unavailable = () => new Error("Journey event deletion unavailable");
 
-/** Administrator-only. A successful response acknowledges a request, not completed erasure. */
 export async function deleteJourneyEvents(options: {
   projectId: string;
   personalKey: string;
@@ -26,7 +25,6 @@ export async function deleteJourneyEvents(options: {
     const person: unknown = data.results[0];
     if (!isObject(person) || typeof person.uuid !== "string" || !UUID.test(person.uuid)
       || !Array.isArray(person.distinct_ids) || !person.distinct_ids.includes(options.distinctId)) throw unavailable();
-    // PostHog's documented bulk endpoint accepts the person's UUID (not its numeric database id).
     const deletion = await fetch(`${base}bulk_delete/`, {
       method: "POST", headers, redirect: "error", signal: AbortSignal.timeout(5_000),
       body: JSON.stringify({ ids: [person.uuid], delete_events: true }),

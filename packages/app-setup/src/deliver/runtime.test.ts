@@ -26,7 +26,6 @@ test("1.1 / 1.4: runtime acquisition verifies bytes before replacing a payload",
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-/** A Node release archive as nodejs.org publishes it: `<root>/bin/node` inside a gzipped tar. */
 function nodeArchive(dir: string, executable: Buffer): { bytes: Uint8Array<ArrayBuffer>; sha256: string } {
   const root = path.join(dir, "archive");
   mkdirSync(path.join(root, "node-fixture", "bin"), { recursive: true });
@@ -88,7 +87,6 @@ test("1.11: a Linux runtime is pinned to Node's linux-x64 archive and its execut
   const pinned = linuxRuntime("x64");
   assert.equal(pinned.url, "https://nodejs.org/dist/v24.22.3/node-v24.22.3-linux-x64.tar.gz");
   assert.equal(pinned.entry, "node-v24.22.3-linux-x64/bin/node");
-  // Node's published SHASUMS256.txt for the archive; the archive's bin/node measured from it.
   assert.equal(pinned.sha256, "061ec3e3062115705b56b51fa9cc330ab50d34b6969387d4e4b1a50c6809acc2");
   assert.equal(pinned.executableSha256, "a7ec1b37e6ff9d187e4198c5b6df9a4eb1c74dd31804fb3bac55cc4ceca1ac01");
   assert.throws(() => linuxRuntime("arm64" as "x64"), /x64/);

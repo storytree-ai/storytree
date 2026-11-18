@@ -1,4 +1,3 @@
-/** The page's planet joins: permanent places, mesh picking, and failure markers after orbiting. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Color, DoubleSide, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, SRGBColorSpace, Vector2, Vector3 } from "three";
@@ -90,7 +89,6 @@ test("3.11 the edge marker reads storytree's verified word, never the agent's re
   ] };
   const scene = forestScene(tree, [], workStates([]));
   const layout = sheetLayout(scene, new Map([["verified", 1], ["reported", 2]]));
-  // Both islands drawn past the window's right edge.
   const pastTheEdge = () => ({ left: 2000, top: 400 });
   assert.deepEqual(sheetMarkers(layout.islands, pastTheEdge, { width: 1440, height: 900 }).map(m => m.story), ["verified"]);
 });
@@ -171,7 +169,6 @@ test("3.14 a territory's land and borders stop at its island's coast", () => {
     ],
     borders: [{ from: { x: 0, z: -2 }, to: { x: 0, z: 2 } }],
   };
-  // A diamond coast inside the square cells, reaching 1 from the middle.
   const coast = [[{ x: 1, z: 0 }, { x: 0, z: 1 }, { x: -1, z: 0 }, { x: 0, z: -1 }]];
   const drawn = territoryLand(land, (p) => new Vector3(p.x, 0, p.z), coast);
   const onLand = (x: number, z: number) => Math.abs(x) + Math.abs(z) <= 1 + 1e-6;
@@ -181,7 +178,6 @@ test("3.14 a territory's land and borders stop at its island's coast", () => {
   });
   const area = (mesh: Mesh) => { const p = mesh.geometry.getAttribute("position"); let sum = 0; for (let at = 0; at < p.count; at += 3) sum += Math.abs((p.getX(at + 1) - p.getX(at)) * (p.getZ(at + 2) - p.getZ(at)) - (p.getX(at + 2) - p.getX(at)) * (p.getZ(at + 1) - p.getZ(at))) / 2; return sum; };
   assert.ok(Math.abs(area(drawn.getObjectByName("territory:cap-a") as Mesh) - 1) < 1e-6, "the half of the diamond west of the border");
-  // A bay cut into the land: a concave coast is followed too.
   const bay = [[{ x: -2, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: -2, z: 2 }, { x: -2, z: 1 }, { x: 1, z: 1 }, { x: 1, z: -1 }, { x: -2, z: -1 }]];
   const inBay = (x: number, z: number) => x < 1 - 1e-6 && z > -1 + 1e-6 && z < 1 - 1e-6;
   const cut = territoryLand(land, (p) => new Vector3(p.x, 0, p.z), bay);
@@ -280,7 +276,6 @@ test("3.20 each territory is filled by its capability's word, green, red or yell
     assert.equal(`#${fill(drawn, `territory:cap-${word}`).color.getHexString()}`, expected[word], `${word} fills its territory`);
     assert.equal(drawn.getObjectByName(`territory:cap-${word}`)!.userData.word, word);
   }
-  // ADR-0992 D4: parked is mid slate grey, at the other fills' opacity, and keeps its word.
   const parked = fill(drawn, "territory:cap-parked");
   assert.equal(`#${parked.color.getHexString()}`, "#86939d", "a parked capability is filled slate grey, not yellow");
   assert.equal(parked.opacity, fill(drawn, "territory:cap-proposed").opacity);
@@ -295,7 +290,6 @@ test("3.20 each territory is filled by its capability's word, green, red or yell
     const hsl = material.color.getHSL({ h: 0, s: 0, l: 0 });
     assert.ok(hsl.s > 0.3, `${object.name} is drawn in a colour, not grey`);
   });
-  // Unclaimed code is uncharted land: a night-dark fill that hides the grey ground, hatched, never a hue (no-data convention).
   const uncharted = fill(drawn, "territory:unclaimed");
   const unchartedHsl = uncharted.color.getHSL({ h: 0, s: 0, l: 0 });
   assert.ok(uncharted.opacity > 0.5, "Unclaimed code's land is drawn, so the island's grey ground does not show through");
@@ -334,7 +328,6 @@ test("3.39 an imported story is one brown island, whole: no territories, file ci
   assert.ok(MAPPED_ISLAND_CAP < 300_000, "below the 300,000 ground units² 200,000 lines would have uncapped");
   assert.equal(huge[1]!.area, scene(2_000).islands[1]!.area, "and its built neighbour keeps its own land");
   assert.notEqual(huge[0]!.key, cart.key, "an imported island redraws when its code grows");
-  // A project whose only stories are mapped, before any survey or verification, opens on brown land.
   const unsurveyed = scene(undefined, { ...tree, unverified: true }).islands[0]!;
   assert.deepEqual(unsurveyed.land, { territories: [{ mapped: true, lines: 1 }], files: [] });
   assert.equal(unsurveyed.area, MIN_ISLAND_AREA);
@@ -394,10 +387,6 @@ test("3.50 an imported island draws each explored capability as a territory of i
   assert.equal(drawn.getObjectByName("territory-hatch:unclaimed"), undefined, "never hatched");
 });
 
-/**
- * Three draws a see-through, double-sided material in two passes, back faces then front, re-versioning it
- * before each (WebGLRenderer's renderObject), so every frame re-derives its shader program twice (ADR-0836 D1).
- */
 const programsEveryFrame = (root: Group): string[] => {
   const found: string[] = [];
   root.traverse(object => {

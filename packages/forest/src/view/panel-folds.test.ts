@@ -1,8 +1,4 @@
-/**
- * Capability 4 · Drill-down: the panel's folds as the user works them (ADR-1287, narrowing ADR-1284 D1). A single click on
- * a handle opens its fold and another closes it; the keyboard opens, moves and closes; the kinds the user opened
- * stay open on later picks until Escape with no fold focused. Read in happy-dom, as the page would draw it.
- */
+// Capability 4 · Drill-down
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
@@ -29,7 +25,6 @@ function page() {
   const host = window.document.createElement("aside") as unknown as HTMLElement;
   window.document.body.appendChild(host as never);
   const folds = panelFolds();
-  /** Draw the panel for `selected` as the page does: its HTML, then its folds. */
   const draw = (selected: string): void => {
     host.innerHTML = renderStoryPanel(story, selected);
     folds.draw(host);

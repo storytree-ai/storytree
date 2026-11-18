@@ -1,8 +1,3 @@
-// The gear's Updates section at rest (4.48, contract_78913488b399), as an installed user sees it: the real desktop page on the
-// eight-story forest snapshot, its stand-in bridge answering as an installed copy (the capture kit's installedUpdates, 2.60),
-// once with the updater idle and once with a build waiting to install. Each run opens the gear, picks Updates and presses
-// nothing else; the waiting run also pictures the gear's dot before the menu opens. `node --import tsx capture.mjs` (append
-// --retake to write into src/view/evidence/updates-at-rest). Measures what the section shows, in order, and what it hides.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,7 +9,6 @@ const folder = captureOutput(evidence);
 const dist = buildFolder(here);
 await buildCapture({ dist });
 
-/** What the Updates section shows, top to bottom, with each hidden part left out; and the gear's dot and its first row. */
 const section = page => page.evaluate(() => {
   const shown = element => element !== null && !element.hidden && element.closest('[hidden]') === null && getComputedStyle(element).display !== 'none';
   const updates = document.querySelector('#app-updates');
@@ -29,7 +23,6 @@ const section = page => page.evaluate(() => {
     gearTitle: gear.title,
     firstRow: shown(ready) ? ready.textContent : undefined,
     installNext: [...updates.querySelectorAll('[data-app-install-next]')].filter(shown).map(line => line.textContent),
-    // Each section row's fill, the pointer left where the click that picked Updates put it: only the open one may look selected.
     rows: [...document.querySelectorAll('[data-app-section]')].filter(shown).map(row => {
       const style = getComputedStyle(row);
       return { name: row.textContent.trim(), pressed: row.getAttribute('aria-pressed') === 'true', hovered: row.matches(':hover'), look: `${style.backgroundColor} ${style.boxShadow}` };

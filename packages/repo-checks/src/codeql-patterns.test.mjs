@@ -221,3 +221,33 @@ test("8.18 · pnpm lint refuses a regex whose repeated parts overlap so it can b
   const clean = [];
   assert.equal(await lint({ root, rules: RULES.filter(({ name }) => name === "codeql-patterns"), log: (line) => clean.push(line) }), 0, clean.join("\n"));
 });
+
+// The narrowing of 8.18: CodeQL's rule fires only on a regex run over outside input, which a test's assertion and a
+// vendored bundle never are, and a regex no input can make fail, or one holding a negative lookaround, is not refused.
+const BRACES = String.raw`export const braced = (text: string) => /^(.*)\{(.*)\}$/.exec(text);` + "\n";
+
+const UNFAILING = [
+  String.raw`export const bullet = (text: string) => text.replace(/^\s*·?\s*/, "");`,
+  String.raw`export const unless = (text: string) => /^(?!x)(.*)\{(.*)\}$/.exec(text);`,
+].join("\n");
+
+test("8.18 · pnpm lint does not read test files (*.test.*, *.spec.*) or minified bundles (*.min.js) for an overlapping regex, while the same regex in a source file is refused; a regex no input can make fail (/^\\s*·?\\s*/) and one holding a negative lookaround pass", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "codeql-patterns-"));
+  t.after(() => removeTemp(root));
+  const src = path.join(root, "packages", "measures", "src");
+  mkdirSync(src, { recursive: true });
+  writeFileSync(path.join(src, "braces.ts"), BRACES);
+  writeFileSync(path.join(src, "braces.test.ts"), BRACES);
+  writeFileSync(path.join(src, "braces.spec.ts"), BRACES);
+  writeFileSync(path.join(src, "braces.test.mjs"), String.raw`export const braced = (text) => /^(.*)\{(.*)\}$/.exec(text);` + "\n");
+  writeFileSync(path.join(src, "unfailing.ts"), UNFAILING);
+  mkdirSync(path.join(root, "packages", "sketches", "vendor"), { recursive: true });
+  writeFileSync(path.join(root, "packages", "sketches", "vendor", "sketch.min.js"), String.raw`var b=function(t){return/^(.*)\{(.*)\}$/.exec(t)};export{b};` + "\n");
+
+  const lines = [];
+  const exit = await lint({ root, rules: RULES.filter(({ name }) => name === "codeql-patterns"), log: (line) => lines.push(line) });
+  assert.equal(exit, 1, lines.join("\n"));
+  const refused = lines.filter((line) => line.startsWith("codeql-patterns: "));
+  assert.deepEqual(refused.map((line) => /^codeql-patterns: (\S+:\d+) /.exec(line)?.[1]), ["packages/measures/src/braces.ts:1"], lines.join("\n"));
+  assert.match(refused[0], /js\/polynomial-redos/);
+});

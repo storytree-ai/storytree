@@ -1,4 +1,3 @@
-/** Story node render 3.8 (ADR-0804 D1): an island is one flat, pale, see-through surface with a coast line. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DoubleSide, Mesh, MeshBasicMaterial, Vector3, type Object3D } from 'three';
@@ -31,7 +30,6 @@ test('3.8 an island is drawn as one ground surface and its coast, with no pines,
     const surface = islandSurface(plate.coast, SHEET_RADIUS, story);
     assert.equal(surface.name, `island-surface:${story}`);
     const kinds = all(surface).map(object => object.name.split(':')[0]);
-    // The depth under the ground draws no colour: it only hides what lies behind the island (ADR-0919 D2).
     assert.deepEqual([...new Set(kinds)].sort(), ['island-coast', 'island-depth', 'island-ground']);
     assert.equal(all(surface).filter(object => object.name === 'island-ground').length, plate.coast.length > 0 ? 1 : 0);
     assert.ok(all(surface).every(object => object instanceof Mesh), 'nothing else is mounted');
@@ -43,12 +41,10 @@ test('3.8 the ground is one pale see-through surface conformed to the globe, cov
   const surface = islandSurface(plate.coast, SHEET_RADIUS, 'a');
   const ground = all(surface).find(object => object.name === 'island-ground') as Mesh;
   const material = ground.material as MeshBasicMaterial;
-  // Meaning outranks appearance: a line diving through into the core must stay visible through it.
   assert.ok(material.transparent && material.opacity > 0 && material.opacity <= 0.5);
   assert.equal(material.depthWrite, false);
   assert.equal(material.vertexColors, false, 'no banded land colouring: one colour');
   assert.equal(Object.keys(ground.geometry.attributes).sort().join(), 'normal,position');
-  // Every vertex lies on the sphere the plate rests on (local frame: origin at S above the centre).
   const centre = new Vector3(0, -S, 0), at = ground.geometry.attributes.position!;
   let area = 0;
   for (let i = 0; i < at.count; i++) {
@@ -85,8 +81,6 @@ test('3.8 the coast is a thin band centred on every point of the island rim, on 
   });
 });
 
-// Three draws a see-through, double-sided material in two passes, re-versioning it before each, so every frame
-// would re-derive its shader program twice (WebGLRenderer's renderObject; ADR-0836 D1).
 test('5.4 an animating globe redraws every island\'s ground and coast without re-deriving a shader program', () => {
   for (const [story, plate] of plates) {
     const materials = all(islandSurface(plate.coast, SHEET_RADIUS, story)).map(object => (object as Mesh).material as MeshBasicMaterial);

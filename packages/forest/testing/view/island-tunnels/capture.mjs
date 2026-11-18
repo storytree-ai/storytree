@@ -1,8 +1,3 @@
-// One gate per linked pair, and tunnels under a third territory (ADR-1253 D3): storytree's own map (the code-rows snapshot and
-// its survey) as the app opens it, then The library close up, where its roads crossed third territories. Counts, from the
-// scene, The library's gates and tunnel portals, and times each island's road routing in its worker, from the island's ask
-// posted to its roads answered. `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/island-tunnels).
-// Run on a checkout of main as well, for the pictures before.
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,9 +30,6 @@ const closeUp = async (page, settle, times) => {
   await until(page, 'the globe still', () => window.storytreeGlobe.still());
   await zoomTo(page, settle, DETAIL_ZOOM.near * times);
 };
-/** A picture round the `nth` tunnel portal on The library at `times` the near zoom: the globe turns to face The library, then
- * the portal, read where it stands as The library faces the viewer (a face turns the globe, so a point read before is stale),
- * so the eye the globe's controls own looks straight at it. */
 const around = async (page, settle, name, nth, times) => {
   await closeUp(page, settle, 1);
   const at = before === undefined ? (await portalsAt(page))[nth] : before[nth];
@@ -46,7 +38,6 @@ const around = async (page, settle, name, nth, times) => {
   await zoomTo(page, settle, DETAIL_ZOOM.near * times);
   await page.screenshot({ path: path.join(captureOutput(pictures), `${name}.png`), timeout: 180_000 });
 };
-/** Where in the scene each tunnel portal on The library stands. */
 const portalsAt = page => page.evaluate(story => {
   const { scene, camera } = window.__globe, found = [];
   scene.getObjectByName(`planet:${story}`)?.traverse(o => {
@@ -56,7 +47,6 @@ const portalsAt = page => page.evaluate(story => {
   });
   return found;
 }, library.id);
-/** The library's road marks, counted from the scene: gates (a post either side), tunnel portals and road ribbons. */
 const measure = page => page.evaluate(story => {
   const island = window.__globe.scene.getObjectByName(`planet:${story}`), found = { gates: 0, portals: 0, roads: 0 };
   island?.traverse(o => {
@@ -67,13 +57,11 @@ const measure = page => page.evaluate(story => {
   return found;
 }, library.id);
 const results = {};
-// Main draws no tunnel: there the close-ups stand where this branch's portals do, read from its measurements (--at <file>).
 const before = process.argv.includes('--at') ? JSON.parse(readFileSync(process.argv[process.argv.indexOf('--at') + 1], 'utf8')).portalsAt : undefined;
 
 await runCapture({
   folder: pictures, dist, seed, survey,
   prepare: async ({ page, settle, bridge }) => {
-    // Every island's ask to the territory worker, timed until its answer, from a fresh load.
     await page.addInitScript(() => {
       const Original = window.Worker;
       window.__routings = [];
@@ -109,7 +97,6 @@ await runCapture({
   }, {
     name: 'the-library-tunnels',
     picture: false,
-    // Round each tunnel's first portal; on main, which draws none, round where this branch's stand (--at <its measurements.json>).
     prepare: async ({ page, settle }) => {
       results.portalsAt = before === undefined ? await portalsAt(page) : before;
       for (const [k, nth] of [0, 2].entries()) if (results.portalsAt[nth] !== undefined) await around(page, settle, `the-library-tunnel-${k + 1}`, nth, 10);

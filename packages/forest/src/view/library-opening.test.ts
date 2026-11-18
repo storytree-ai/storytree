@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Story node render: the loading bar a slow press of Library shows (3.116, ADR-1344). The opening's clock is
- * node's mock timers; the bar is read as the page draws it. Its wiring to the notes hung is pressed in Chrome (forest-view-painted.test.ts).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createElement } from "react";

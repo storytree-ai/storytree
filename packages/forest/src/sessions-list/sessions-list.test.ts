@@ -1,4 +1,3 @@
-/** Running sessions: the forest's session-to-island reading. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AnnotatedTree, ArcView, Line, NewLine } from "@storytree/library";
@@ -13,10 +12,6 @@ const tree: AnnotatedTree = { stories: ["one", "two"].map(id => ({ id, title: id
 function log(...events: (Partial<Line> & NewLine)[]): Line[] {
   return events.map((event, index) => ({ project: "demo", seq: index + 1, at: now.toISOString(), ...event }));
 }
-/**
- * What the page hands the list: its held reading of the lines, which keeps only the lines a surface reads one by one
- * (arc surface 3.30), so a row that reads a line kind the page folds away goes red here, not only on the page.
- */
 const sessionRows = (tree: AnnotatedTree, lines: readonly Line[], ...rest: Parameters<typeof rowsOf> extends [unknown, unknown, ...infer R] ? R : never) =>
   rowsOf(tree, heldReading({ changes: [], lines: [...lines] }), ...rest);
 const parent = { session: "parent", harness: "claude-code", source: "tool" } as const;

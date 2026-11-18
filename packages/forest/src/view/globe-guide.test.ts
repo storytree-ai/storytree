@@ -48,7 +48,6 @@ test("3.21 camera stops face the actual story and capability, interpolate framin
 
 test("3.23 screen positions follow actual transforms, zoom, viewport and camera offset; missing and hidden targets are honest", () => {
   const f = fixture(), target = { kind: "note", note: "pay" } as const;
-  // A point standing off the island's middle, to read screen positions by.
   const point = new Group(); point.name = "knowledge-point:pay"; point.position.set(1, 2, 3); f.story.add(point);
   const at = (actual: ScreenPosition | undefined, x: number, y: number) => {
     assert.ok(actual?.visible); assert.ok(Math.abs(actual.x - x) < 1e-8); assert.ok(Math.abs(actual.y - y) < 1e-8);
@@ -60,7 +59,6 @@ test("3.23 screen positions follow actual transforms, zoom, viewport and camera 
   at(f.guide.position(target), 520, 260);
   f.globe.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI);
   assert.equal(f.guide.position(target)?.visible, false, "far side");
-  // On the glass sheet nothing is round the back: the same point, tilted past level, is on show.
   const glass = new Group(); glass.name = "sheet:glass"; f.world.add(glass);
   assert.equal(f.guide.position(target)?.visible, true, "no far side on the sheet");
   f.world.remove(glass);
@@ -89,7 +87,6 @@ test("3.37 home eases the view back to the turn and zoom it opened on, the short
   const f = fixture();
   const home: GlobePose = { turn: { yaw: 0.4, pitch: 0 }, framing: 1.18, sideOffset: 0 };
   f.guide.stop({ target: { kind: "story", story: "shop" }, framing: 5, sideOffset: 40, duration: 0 });
-  // Spun more than once round and tilted: home is the opening view, not a rewind of every turn.
   const wound = { ...f.pose(), turn: { yaw: 0.4 + 4 * Math.PI + 0.3, pitch: 0.6 } };
   Object.assign(f.pose(), wound);
   assert.equal(f.guide.home(home, 1000), true);
@@ -122,10 +119,8 @@ test("3.40 a slide eases the zoom and side offset only, never the turn; a drag o
 
 test("3.40 the panel closed while its slide still glides sends the sheet home, never further: the next slide starts from where the guide is heading", () => {
   const f = fixture();
-  // The desktop's map at 1440x960, the Library's note card covering the canvas's right 492 px, as the forest's panel effect places it.
   const canvas = { width: 1008, height: 912 }, aside = createGlobeAside(() => ({ framing: 3, sideOffset: 0 }), { fit: false });
   const follow = (panel: number) => { const moved = aside.place(canvas, panel, f.guide.heading()); if (moved !== undefined) f.guide.slide(moved.to, 600); };
-  // A note opened and closed again before its card's slide has gone far, three times over.
   for (let round = 0; round < 3; round++) { follow(492); f.guide.frame(50); follow(0); f.guide.frame(600); }
   assert.equal(f.pose().sideOffset, 0, "home, where it opened");
 });
@@ -143,7 +138,6 @@ test("3.41 the page's locator gives each drawn island's capability count and cli
   assert.equal(locator.face({ kind: "story", story: "shop" }), false);
   controls = { ...f.guide, aside: () => 0 };
   const shop = f.guide.position({ kind: "story", story: "shop" })!;
-  // An island the world has not drawn is left out, and a story's one seedling is no capability.
   assert.deepEqual(locator.islands(), [{ story: "shop", title: "shop", capabilities: 2, x: shop.x + 100, y: shop.y + 50, visible: shop.visible }]);
   const dot = f.guide.position({ kind: "note", note: "note_1" })!;
   assert.deepEqual(locator.notes(), [{ note: "note_1", x: dot.x + 100, y: dot.y + 50, visible: dot.visible }]);
@@ -158,7 +152,6 @@ test("3.41 the page's locator gives each drawn island's capability count and cli
   const faced = locator.islands()[0]!;
   assert.ok(faced.visible && Math.abs(faced.x - 500) < 1e-6 && Math.abs(faced.y - 350) < 1e-6, "the island faces the viewer, mid-canvas");
   assert.equal(locator.face({ kind: "story", story: "missing" }), false);
-  // A point of the scene off the faced island: facing it turns the globe so the point, not the island, is mid-canvas.
   const off = new Group(); off.position.set(8, 6, 0); f.globe.add(off); f.world.updateMatrixWorld(true);
   assert.equal(locator.face({ kind: "point", at: off.getWorldPosition(new Vector3()).toArray() }), true);
   assert.equal(locator.still(), true, "facing a point turns at once too");
@@ -174,7 +167,6 @@ test("3.41 the page's locator gives each drawn island's ground box in client pix
   const ground = new Mesh(new BoxGeometry(4, 2, .2), new MeshBasicMaterial()); ground.name = "island-ground"; f.story.add(ground);
   const scene = { islands: [{ story: "shop", title: "shop", x: 0, z: 0, key: "shop", trees: [] }] };
   const locator = globeLocator({ controls: () => ({ ...f.guide, aside: () => 0 }), scene: () => scene, box: () => ({ left: 100, top: 50 }), aside: () => 0 });
-  // The ground's canvas box (480, 290, 40 by 20, as 3.51 measures it), moved by the canvas's place on the page.
   const box = locator.islands()[0]!.box!;
   for (const [side, want] of Object.entries({ left: 580, top: 340, right: 620, bottom: 360 })) assert.ok(Math.abs(box[side as keyof typeof box] - want) < 1e-6, `${side} ${box[side as keyof typeof box]} is ${want}`);
 });
@@ -209,7 +201,6 @@ test("3.41 the locator's point for an island is one a click there picks it by: u
   const own: DrawnName = { story: "shop", box: around(middle.x, middle.y + 30) };
   names = [own];
   assert.deepEqual([locator.islands()[0]!.x, locator.islands()[0]!.y], [middle.x, middle.y], "no other name over its middle: the middle");
-  // On a crowded map a neighbour's name lies over the island's middle, and a click on a name picks that name's story (3.104).
   names = [{ story: "cart", box: around(middle.x, middle.y) }, own];
   assert.deepEqual([locator.islands()[0]!.x, locator.islands()[0]!.y], [middle.x, middle.y + 30], "its own name instead");
   names = [{ story: "shop", capability: "checkout", box: around(middle.x, middle.y) }, own];
@@ -222,7 +213,6 @@ test("3.45 the locator reads still only once the globe has placed itself beside 
   const controls = { ...f.guide, aside: () => placed };
   const locator = globeLocator({ controls: () => controls, scene: () => ({ islands: [] }), box: () => ({ left: 0, top: 0 }), aside: () => measured });
   assert.equal(locator.still(), true);
-  // The panel closes: the page measures its new width before the globe's slide back has begun.
   measured = 0; placed = 380;
   assert.equal(locator.still(), false, "the slide has not started");
   placed = 0; f.guide.slide({ framing: 1, sideOffset: 0 }, 600);
@@ -232,7 +222,6 @@ test("3.45 the locator reads still only once the globe has placed itself beside 
 });
 
 test("3.44 a pose written but not yet drawn still counts: the guide reads moving until the host draws it, and a stop starts from it", () => {
-  // The page draws a written pose on its next render, so the camera trails the guide's writes.
   const world = new Group(), globe = new Group(), story = new Group();
   globe.name = "globe"; story.name = "planet:shop"; story.position.set(0, 0, 10); globe.add(story); world.add(globe);
   const camera = new OrthographicCamera(-400, 400, 300, -300, 0.1, 1000);
@@ -264,7 +253,6 @@ test("3.51 each drawn island's screen box follows actual transforms and zoom; is
   near(f.guide.islands(), 360, 280, 80, 40);
   f.globe.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI);
   assert.deepEqual(f.guide.islands(), [], "far side");
-  // On the glass sheet no island is round the back, whatever the tilt: the same turn still boxes it.
   const glass = new Group(); glass.name = "sheet:glass"; f.world.add(glass);
   assert.equal(f.guide.islands().length, 1, "no far side on the sheet");
   f.world.remove(glass);

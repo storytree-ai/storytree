@@ -1,4 +1,4 @@
-// Capability 1 · Story nodes. The desktop's answer to the page's code survey, run on the map's own survey worker.
+// Capability 1 · Story nodes
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";

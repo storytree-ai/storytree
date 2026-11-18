@@ -1,8 +1,3 @@
-/**
- * The forest's reading: the live reading's news, with the project's tree read again when the library
- * changed. A first read that fails, as a slow or cloud library's connection timeout can, is retried
- * until it lands, so the forest is drawn once the library answers. The reads and timers are stand-ins.
- */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -13,7 +8,6 @@ import { forestReading, treeAfter, type ForestReads } from "./forest-reading.js"
 
 const tree: AnnotatedTree = { arcs: [], stories: [] } as unknown as AnnotatedTree;
 
-/** Timers that fire only when the test ticks them. */
 function handTimers(): Timers & { tick(): Promise<void> } {
   const runs: (() => void)[] = [];
   return {
@@ -57,7 +51,6 @@ test("a first read of the tree that fails is retried, and the forest is drawn on
   reading.stop();
 });
 
-/** Timers whose clock the test sets, firing every 2-second ask when ticked. */
 function clockTimers(): Timers & { at: number; tick(): Promise<void> } {
   const runs: (() => void)[] = [];
   return {
@@ -113,7 +106,6 @@ test("7.25 landing news refreshes the survey from the existing tree, coalesces w
   await settle();
   assert.deepEqual({ trees, surveys }, { trees: 1, surveys: 2 }, "the start's survey, and the one more it asks for at once (7.32)");
 
-  // Each landing signal works alone, without a plan change or a restart.
   for (const landing of [{ changes: [], lines: [merged] }, { changes: [], lines: [closed] }, { changes: [increment], lines: [] }]) {
     current = { "story-shop": { files: [{ path: "src/claim.ts", lines: surveys + 1 }], imports: [] } };
     news = landing;
@@ -179,7 +171,6 @@ test("7.25 landing news during a survey converges one read at a time, retries fa
   t.after(() => reading.stop());
   await settle();
   assert.deepEqual(drawn, [{}], "the tree never waits for a survey");
-  // The start's survey and the one more it asks for at once (7.32).
   land(survey);
   await settle();
   land(survey);
@@ -341,10 +332,8 @@ test("7.27 a health change re-recording the state the tree already shows draws f
 test("7.24 the sessions list and the forest re-read the plan only when their news holds a change to a story, capability, contract, arc or health record, or to an increment that names a capability, links a record or that the tree's open work lists; other news draws from the tree they have, and their first news always reads", async () => {
   let asked = 0;
   const counted = { projectTree: async () => { asked++; return tree; } };
-  // A health change as the page passes one on: a contract's reported state moving.
   const fieldsOf = (type: string) => (type === "health" ? { node: "contract_1", column: "reported", state: "passing" } : {});
   const news = (...types: string[]) => ({ lines: [], changes: types.map((type, n) => ({ seq: n + 1, recordId: `${type}_1`, type, action: "updated" as const, record: { fields: fieldsOf(type) } as never })) });
-  // The rule both surfaces read the tree by.
   assert.equal(await treeAfter(counted, "shop", news(), undefined), tree);
   assert.equal(asked, 1, "the first news reads the tree");
   assert.equal(await treeAfter(counted, "shop", news("decision", "friction", "increment", "question"), tree), tree);
@@ -352,8 +341,6 @@ test("7.24 the sessions list and the forest re-read the plan only when their new
   for (const type of ["story", "capability", "contract", "arc", "health"]) await treeAfter(counted, "shop", news(type), tree);
   assert.equal(asked, 6, "each change to the tree's own records reads it again");
 
-  // An increment's change reads the tree when the open work a panel lists could move by it: it names a capability, or the tree
-  // already lists it (retitled, or its capabilities taken away).
   const increment = (recordId: string, fields: object) => ({ lines: [], changes: [{ seq: 1, recordId, type: "increment", action: "updated" as const, record: { fields } as never }] });
   const listing = { arcs: [], stories: [{ id: "story_1", capabilities: [{ id: "capability_1", contracts: [], openWork: [{ increment: "increment_1", title: "Isolate packets" }] }] }] } as unknown as AnnotatedTree;
   assert.equal(await treeAfter(counted, "shop", increment("increment_2", { title: "Task 2", capabilities: ["capability_1"] }), listing), tree);
@@ -365,7 +352,6 @@ test("7.24 the sessions list and the forest re-read the plan only when their new
   assert.equal(await treeAfter(counted, "shop", increment("increment_3", { title: "Unplanned" }), listing), listing);
   assert.equal(asked, 9, "an increment naming no capability, which no open work lists, leaves the tree as it was");
 
-  // The forest hears its news so: a decision's change draws the tree it has, a health change reads it.
   const asks = [[], ["decision"], ["health"]];
   let ask = -1;
   let reads = 0;
@@ -377,7 +363,6 @@ test("7.24 the sessions list and the forest re-read the plan only when their new
   const timers = handTimers();
   let drawn = 0;
   const reading = forestReading({ project: "shop", reads: forestReads, timers, onTree: () => { drawn++; }, onError: (error) => { throw error; } });
-  // Each ask is let finish before the next, as two seconds between them would.
   const answered = async (tick?: () => Promise<void>) => { await tick?.(); await new Promise((resolve) => setImmediate(resolve)); };
   await answered();
   assert.deepEqual({ reads, drawn }, { reads: 1, drawn: 1 });

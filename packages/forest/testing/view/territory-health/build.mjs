@@ -1,5 +1,3 @@
-// Bundles the actual desktop page for the capture, adding only observation hooks (R3F state, the
-// navigation rotation). Output goes to the checkout's ignored .evidence-builds/ (buildFolder), its smoke/ for `node build.mjs smoke`. See the evidence set's README.md (src/view/evidence/territory-health).
 import { mkdirSync, copyFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';

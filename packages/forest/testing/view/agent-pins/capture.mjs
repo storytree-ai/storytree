@@ -1,11 +1,3 @@
-// Agents' pins drawn on the map, near and far (3.119, increment_9f3727958f79; Mick, by voice 2026-11-15: "when you zoom out,
-// you can still see that inside that package there is a caching layer. It's just pinned."): The library's island alone, from a
-// fresh seed and code survey built from the library and this checkout (as nested-parts' capture, whose committed pair holds no
-// parts), with a shared store beside it. Four pins on the capability with the most parts (a cache on its first part, a setting
-// on the capability itself, a job on a part gone from the code, read stale), an api on another capability, and one on the
-// store's table. Zoomed out, near, and with the capability opened into its parts.
-// `node --import tsx capture.mjs <name>` (append --retake to write into src/view/evidence/agent-pins).
-// Counts, from the page, every pin mark shown: its place, its level, its icons and count, and each row's label and staleness.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -29,7 +21,6 @@ const other = library.capabilities.find(c => c.id !== capability).id;
 const gone = `${part.slice(0, part.lastIndexOf('/'))}/gone-from-the-code`;
 console.error(`pinning ${titles.get(capability)} (part ${part}) and ${titles.get(other)}`);
 const STORE = 'postgres://db/library';
-// The shared store is drawn from a store link on a capability (ADR-1347 D3).
 library.capabilities.find(c => c.id === other).storeLinks = [{ store: STORE, table: 'records', direction: 'read', cites: ['src/records.ts:1'] }];
 const at = '2026-11-16T00:00:00.000Z';
 const pin = (n, anchor, icon, label, stale) => ({ pin: { id: `pin_${String(n).padStart(12, '0')}`, type: 'pin', version: 1, createdAt: at, updatedAt: at,
@@ -60,7 +51,6 @@ const face = async (page, target) => {
   if (!await page.evaluate(target => window.storytreeGlobe.face(target), target)) throw new Error(`no camera stop for ${JSON.stringify(target)}`);
   await until(page, 'the globe still', () => window.storytreeGlobe.still());
 };
-/** Every pin mark on the page, by its place: its level, icons, count, and each row's label and staleness. */
 const measure = page => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('.planet-pin')].filter(mark => mark.checkVisibility()).map(mark => [mark.dataset.pinPlace, {
   level: mark.dataset.pinLevel, count: Number(mark.dataset.pinCount), icons: mark.dataset.pinIcons, stale: Number(mark.dataset.pinStale),
   rows: [...mark.querySelectorAll('[data-pin-id]')].map(row => `${row.querySelector('[data-icon]').dataset.icon} ${row.querySelector('.planet-pin-label').textContent}${row.dataset.stale === undefined ? '' : ' (stale)'}`),

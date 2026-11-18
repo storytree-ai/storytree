@@ -6,6 +6,7 @@
   "description": "Code measures (story_ed509b2d94fc, ADR-1365): each story's base code-structure measures read from a checkout's source, report-only, never a gate (ADR-1354, ADR-1238).",
   "exports": {
     ".": "./src/index.ts",
+    "./measures": "./src/measures.ts",
     "./verbs": "./src/verbs.ts"
   },
   "scripts": {
@@ -27,6 +28,12 @@
       {
         "from": "./verbs",
         "export": "CODE_MEASURES_FAMILIES"
+      }
+    ],
+    "measures": [
+      {
+        "from": "./measures",
+        "export": "BASE_MEASURE_READERS"
       }
     ]
   }

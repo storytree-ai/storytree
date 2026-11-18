@@ -1,5 +1,3 @@
-// Real desktop rendering with the committed code-rows snapshot and survey. The render wrapper
-// records submitted geometry; it never supplies geometry, changes time, or requests a frame.
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -8,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 import { buildFolder, fakeBridge, withCapture } from '../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-// Pictures and measurements go to the package's evidence set of this name (a scratch folder unless --retake); nothing here reads them.
 const evidence = path.join(here, '../../../src/view/evidence', 'pathway-repair');
 const label = process.argv[2] ?? 'after';
 const dist = path.resolve(process.env.PATHWAY_CAPTURE_DIST ?? buildFolder(here, label));
@@ -33,7 +30,6 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
     frontCovers: async (_, id) => seed.covers[id] ?? [], codeSurvey: async () => survey,
   });
   await bridge.install(page);
-  // Let the desktop's normal two-second poll deliver a genuine scene change later.
   await page.addInitScript(data => {
     window.captureSeed = structuredClone(data);
     window.captureTreeReads = 0;
@@ -74,7 +70,6 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
           item.reveal = geometry.userData.pathwayReveal ? { ...geometry.userData.pathwayReveal } : undefined;
           if (item.reveal) item.physicalFraction = item.reveal.drawnLength / item.reveal.totalLength;
           else {
-            // Old bundles expose only a rounded quad count. Measure its actual centreline distance.
             if (!distances.has(geometry.uuid)) {
               const position = geometry.attributes.position, along = [0];
               let previous;
@@ -127,7 +122,6 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
   await page.mouse.move(2, 2);
   await page.screenshot({ path: path.join(out, 'unselected.png'), timeout: 180000 });
 
-  // Passive CDP screencast captures compositor frames without advancing or requesting the product's clock.
   const cdp = await page.context().newCDPSession(page);
   const framesDir = path.join(out, 'normal-frames'); mkdirSync(framesDir, { recursive: true });
   const screencast = [];
@@ -147,7 +141,6 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
   await page.screenshot({ path: path.join(out, 'selected.png'), timeout: 180000 });
   console.log(`${label}: normal motion recorded (${screencast.length} compositor frames)`);
 
-  // A viewport/rotation update that leaves all links unchanged must not reset the draw-on.
   await phase('irrelevant-update');
   await page.setViewportSize({ width: 1441, height: 960 });
   await page.evaluate(() => window.__nav.onRotate(window.__nav.rotation.clone()));
@@ -155,7 +148,6 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.waitForTimeout(300);
 
-  // A real scene re-read must preserve completed links, unlike a superficial camera-only update.
   const beforeUpdate = await page.evaluate(() => ({ reads: window.captureTreeReads, ...window.__readPathways() }));
   const involved = new Set(relevant.flatMap(link => [owners[link.from], owners[link.to]]));
   const unrelatedStory = seed.tree.stories.find(story => !involved.has(story.id) && survey[story.id]?.files.some(file => file.capability));
@@ -177,7 +169,6 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
   await page.waitForTimeout(3500);
   const afterUpdate = await page.evaluate(() => ({ reads: window.captureTreeReads, ...window.__readPathways() }));
 
-  // Inspect the real completed mesh centres on shared cross-island road sections.
   const geometryReading = await page.evaluate(owners => {
     const { scene } = window.__globe;
     scene.updateMatrixWorld(true);
@@ -225,7 +216,6 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
   await deselect();
   await page.screenshot({ path: path.join(out, 'deselected.png'), timeout: 180000 });
 
-  // Detail views retain the same real meshes and merely change the camera zoom.
   await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom *= 2.1; camera.updateProjectionMatrix(); invalidate(); });
   await settle(page, 4);
   await page.screenshot({ path: path.join(out, 'unselected-detail.png'), timeout: 180000 });
@@ -263,7 +253,6 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
   };
   writeFileSync(path.join(out, 'measurements.json'), JSON.stringify({ label, dist, browser: await browser.version(), selected, expectedLinks: relevant, errors,
     warnings: [...new Set(warnings)], bridgeDefaulted: bridge.defaulted, summary, mutation, beforeUpdate, afterUpdate, geometryReading, screencast, ...observation }, null, 2) + '\n');
-  // ffmpeg concat durations preserve the observed compositor timing, rather than inventing a frame rate.
   const concat = screencast.flatMap((frame, i) => [`file '${frame.name}'`, `duration ${Math.max(0.001, (screencast[i + 1]?.timestamp ?? frame.timestamp + 0.4) - frame.timestamp).toFixed(6)}`]);
   if (screencast.length) concat.push(`file '${screencast.at(-1).name}'`);
   writeFileSync(path.join(framesDir, 'frames.ffconcat'), `ffconcat version 1.0\n${concat.join('\n')}\n`);

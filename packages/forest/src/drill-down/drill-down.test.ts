@@ -1,9 +1,4 @@
-/**
- * Capability 4 · Drill-down (the forest story): what the panel a click opens says about a story,
- * and which of its capabilities it shows below the diagram (ADR-0659).
- * The library's tree and history are written out here as the app hands
- * them to the page, so no database is needed.
- */
+// Capability 4 · Drill-down
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -18,7 +13,6 @@ function contract(id: string, reported: HealthState, verified?: HealthState): An
   return { id, title: `${id} works`, health: { reported: column(reported, reported !== "not-checked"), verified: column(verified ?? "not-checked", verified !== undefined) } };
 }
 
-/** A capability as the library hands it over: its health rolled up from its contracts (all passing is passing, any failing is failing). `null` for no description. */
 function capability(id: string, dependsOn: string[], contracts: AnnotatedContract[] = [], description: string | null = `What ${id} does. Why it matters.`, status: AnnotatedCapability["status"] = "proposed"): AnnotatedCapability {
   const rollUp = (states: HealthState[]): HealthColumn => ({
     state: states.includes("failing") ? "failing" : states.length > 0 && states.every((state) => state === "passing") ? "passing" : "not-checked",
@@ -34,7 +28,6 @@ function story(id: string, ...capabilities: AnnotatedCapability[]): AnnotatedSto
   return { id, title: `Story ${id}`, description: `What ${id} is. Why.`, capabilities, health: { reported: { state: "not-checked" }, verified: { state: "not-checked" } } };
 }
 
-/** The history's health saves for `contract`'s reported column, oldest first. */
 function reports(contractId: string, ...states: HealthState[]): Change[] {
   return states.map((state, index) => {
     const at = new Date(Date.UTC(2026, 8, 27, 12, 0, index)).toISOString();

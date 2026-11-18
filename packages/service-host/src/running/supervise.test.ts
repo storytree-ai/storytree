@@ -1,11 +1,10 @@
-/** Capability 1 · Running services, contracts 1.2 to 1.4: the supervisor's timing rules, on a hand-turned clock with stand-in children. */
+// Capability 1 · Running services
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { handClock } from "../testing/clock.js";
 import { Supervisor, type Child, type Clock, type Ended } from "./supervise.js";
 
-/** Stand-in children: each start is recorded, and the test ends one with an exit code, or it ends when signalled if told to. */
 function children() {
   const started: { id: string; at: number; signals: string[]; end(code: number | null, signal?: string): void; child: Child }[] = [];
   let endOnTerm = true;
@@ -58,7 +57,6 @@ test("1.2 · an always service that ends is started again after 10 seconds, the 
   await clock.move(3_600_000);
   assert.equal(kids.started.length, 5, "a failed service is not started again");
 
-  // Spread out, its ends never reach five in 10 minutes, and the wait stops doubling at 5 minutes.
   const slow = handClock();
   const slowKids = children();
   const steady = new Supervisor({ clock: slow, start: slowKids.start(slow), log: () => {} });

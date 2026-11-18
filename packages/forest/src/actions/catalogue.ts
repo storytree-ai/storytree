@@ -1,30 +1,13 @@
-/**
- * Capability 3 · Story node render. The lag catalogue (ADR-1001 D1, D2): the actions a user takes on the forest's page, each named,
- * with how it is performed (by name, never a point on the screen), what settled looks like and its budget. It is data and two
- * small readings of it, so the lab run (`pnpm lag:desktop`, which performs each with a real mouse) and the app's own recorder
- * read the same catalogue. Measuring a new action is adding an entry.
- */
+// Capability 3 · Story node render
 import { KEPT_DRAWING_KEY, KEPT_TREE_KEY } from "../render/kept-keys.js";
 
 export { sheetDrag } from "../view/sheet-drag.js";
 
-/** ADR-1001 D2: an answer on screen within `responseMs`, no frame over `frameMs` until settled, and settled within `settledMs`
- * unless progress is on show within the response budget and stays until settled. Tuned here; an entry may carry its own. */
 export type Budget = { responseMs: number; frameMs: number; settledMs: number };
 export const DEFAULT_BUDGET: Budget = { responseMs: 100, frameMs: 50, settledMs: 1000 };
 
-/** An island by its capability count (the fewest or the most) or by its story's id or title. */
 export type IslandChoice = "fewest" | "most" | { story: string };
 
-/**
- * One step of an action, performed through the page's real input:
- * `island`, turn the chosen island to face (unmeasured) and click its middle; `part`, turn the chosen island to face and wheel in
- * over it until a part's name shows on its land (unmeasured), then click the middle of that name (3.104); `note`, click a Library note in view;
- * `click`, click an element's middle (`optional` skips it when the page has none); `key`, press a key; `hover-sweep`,
- * move the mouse across the globe; `turn`, hold Ctrl and drag the map from an uncovered point of its canvas, sideways with a tilt
- * wave, so it ends turned; `idle`, touch nothing for `ms`; `wait`, until the page shows `until`; `start`, open the page
- * again from the start, as opening the app does, having first forgotten the page's kept keys that begin with any of `forget`.
- */
 export type Step =
   | { kind: "island"; island: IslandChoice }
   | { kind: "part"; island: IslandChoice }
@@ -37,100 +20,61 @@ export type Step =
   | { kind: "wait"; until: Settled }
   | { kind: "start"; forget: readonly string[] };
 
-/** What settled looks like; every field given must hold. `selected: "island"` is the island the action clicked, or whose part it picked. */
 export type Settled = {
   selected?: "island" | "none";
   panel?: "open" | "closed";
   note?: "any";
   mode?: "forest" | "library";
   session?: "selected";
-  /** No camera glide under way. */
   still?: true;
-  /** The start is settled: the fresh tree and the start's first code survey drawn (7.31). */
   start?: "settled";
-  /** A fold of this kind (its `data-fold`) is shown open in the story panel. */
   fold?: string;
 };
 
-/** What the page shows, as the lag run reads it each frame. */
 export type PageState = {
-  /** The story selected (`document.body.dataset.selected`), and the Library note (`dataset.note`). */
   selected: string | undefined;
   note: string | undefined;
-  /** The story panel's slot (`.story-panel`), which the Library card shares, is on show. */
   panelOpen: boolean;
   mode: string | undefined;
   sessionSelected: boolean;
   still: boolean;
-  /** A loading bar or circle is on show. */
   progress: boolean;
-  /** The page's start is settled (`document.body.dataset.start` is "settled"). */
   startSettled: boolean;
-  /** The kinds of the story panel's folds shown open (a `.panel-handle` with aria-expanded=true); read by the lab run only. */
   folds?: readonly string[];
 };
 
 export interface LagAction {
   name: string;
-  /** Puts the page where the action starts; not measured. */
   setup: Step[];
   perform: Step[];
   settled: Settled;
   budget: Budget;
-  /** How long to wait for settled before the round reads NOT RUN. */
   limitMs: number;
-  /**
-   * The name the app's own recorder (Lag in real use) files this action under when its user takes it, or none when the field cannot
-   * tell it from what the page shows. The lab's sizes of one action share it: the field records the size beside it.
-   */
   field?: string;
-  /**
-   * The capability that owns the action and the contract on it that states its budget in the user's terms (ADR-1001 D5). The Mint
-   * box's lag run writes that contract's verified verdict, so a slowdown that reproduced makes the capability read not healthy.
-   */
   owner: Owner;
-  /**
-   * The view a turn of the map is measured in. A turn has nothing to answer or settle: it is read by its frames (`turnFrames`), and
-   * the field recorder knows one by the drag itself, never by what the page settles on.
-   */
   turns?: "forest" | "library";
-  /** Under news (ADR-1001 D3's note), the settled state must still show once news has arrived after it settled, or the round reads lost. */
   keptThroughNews?: true;
 }
 
-/** A capability and its budget contract, by their ids in the library. */
 export type Owner = { capability: string; contract: string };
 
-/** 4 · Drill-down, 4.16: opening an island, closing its panel, and clicking a fold's handle on it. */
 const DRILL_DOWN: Owner = { capability: "capability_f0ffead428df", contract: "contract_f93fcab7b3c3" };
-/** 4 · Drill-down, 4.44: opening a fold in the panel, and a contract opened kept open through news. */
 const PANEL_FOLDS: Owner = { capability: "capability_f0ffead428df", contract: "contract_e2f4b79c7350" };
-/** 3 · Story node render, 3.47: the Library and back, and a sweep across the globe. */
 const STORY_NODE_RENDER: Owner = { capability: "capability_8ffc78a4bad2", contract: "contract_c1a39674d85d" };
-/** The knowledge core's 4 · Look inside and inspect an artifact, 4.22: opening a Library note. */
 const INSPECT_ARTIFACT: Owner = { capability: "capability_062b84e5c6b0", contract: "contract_7c6061e3f4cf" };
-/** 7 · Running sessions, 7.29: opening a session's row. */
 const RUNNING_SESSIONS: Owner = { capability: "capability_6133809a4139", contract: "contract_b36003348949" };
-/** 3 · Story node render, 3.49: opening the app, with a kept forest and without one. */
 const OPENING_THE_APP: Owner = { capability: "capability_8ffc78a4bad2", contract: "contract_67d023b8c77f" };
-/** 3 · Story node render, 3.74: turning the map, in the forest and the Library. */
 const TURNING_THE_MAP: Owner = { capability: "capability_8ffc78a4bad2", contract: "contract_42255f86bb07" };
-/** The world's 5 · The canvas, 5.8: a globe left alone. */
 const THE_CANVAS: Owner = { capability: "capability_cd7ea3b6ca01", contract: "contract_c58268454e54" };
 
-/** Nothing selected, the panel closed and the glass sheet on its Stories face (the islands on show), still. */
 const RESET: Step[] = [{ kind: "key", key: "Escape" }, { kind: "click", selector: "[data-globe-switch=stories][aria-pressed=false]", optional: true },
   { kind: "wait", until: { mode: "forest", panel: "closed", still: true } }];
 const openIsland = (name: string, island: IslandChoice): LagAction => ({ name, setup: RESET, perform: [{ kind: "island", island }],
   settled: { selected: "island", panel: "open", still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "open-island", owner: DRILL_DOWN });
 
-/** The library's island is the owner's case (ADR-1001's context); `lag:desktop --story` names another. */
 export const NAMED_STORY = "The library";
 
-/** The library's island selected and its panel open, still. */
 const NAMED_OPEN: Step[] = [{ kind: "island", island: { story: NAMED_STORY } }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }];
-/** The library's first capability picked by its name on the story's panel (ADR-1297), drawn afresh with every fold shut: its contracts listed.
- * The island's land picks its territory's capability (3.15), whose panel lists no capabilities, so the story's name above it opens the story alone first. */
 const NAMED_CAPABILITY: Step[] = [...NAMED_OPEN, { kind: "click", selector: ".story-panel .panel-story-name", optional: true },
   { kind: "wait", until: { selected: "island", panel: "open", still: true } }, { kind: "click", selector: ".story-panel .panel-pick" },
   { kind: "wait", until: { selected: "island", panel: "open", still: true } }];
@@ -140,34 +84,23 @@ export const CATALOGUE: readonly LagAction[] = [
   openIsland("open-fewest-island", "fewest"),
   openIsland("open-most-island", "most"),
   openIsland("open-named-island", { story: NAMED_STORY }),
-  // The first pick right after an arc is selected (3.102), where the guided runs on Windows caught a slow answer and frame: on the Arcs
-  // tab, any arc selected is let go, then the first is selected, its rings drawn on the islands its increments name, before the pick.
-  // Selecting an arc closes the story panel and lets go a click on bare land (3.105), so the pick is the field's: a part's name on the map.
   { ...openIsland("open-part-after-arc", { story: NAMED_STORY }), perform: [{ kind: "part", island: { story: NAMED_STORY } }],
     setup: [...RESET, { kind: "click", selector: "[data-rail-tab=arcs][aria-selected=false]", optional: true },
       { kind: "click", selector: ".arc-lane[aria-pressed=true]", optional: true }, { kind: "idle", ms: 500 },
       { kind: "click", selector: ".arc-lane[aria-pressed=false]" }, { kind: "idle", ms: 300 }] },
-  // Opening the app is a real start of the page: the kept forest the last start left, or none, until the globe is settled. A start
-  // has no input, so the field recorder cannot tell one from what the page shows, and files none.
   { name: "open-app-kept", setup: [], perform: [{ kind: "start", forget: [] }], settled: { start: "settled" }, budget: DEFAULT_BUDGET, limitMs: 60_000, owner: OPENING_THE_APP },
   { name: "open-app-fresh", setup: [], perform: [{ kind: "start", forget: [KEPT_TREE_KEY, KEPT_DRAWING_KEY] }], settled: { start: "settled" }, budget: DEFAULT_BUDGET,
     limitMs: 60_000, owner: OPENING_THE_APP },
   { name: "close-panel", setup: [...RESET, { kind: "island", island: "most" }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }],
     perform: [{ kind: "click", selector: ".story-panel .panel-close" }], settled: { selected: "none", panel: "closed" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "close-panel", owner: DRILL_DOWN },
-  // One click on the first fold's handle of the library's first capability's panel opens or closes it (ADR-1287), as the user's kept
-  // folds leave it. The page shows no fold's state to settle on, so the click's answer and frames are read, and the field recorder files none.
   { name: "click-fold", setup: [...RESET, ...NAMED_CAPABILITY],
     perform: [{ kind: "click", selector: ".story-panel [data-fold] > .panel-handle" }], settled: { panel: "open" }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: DRILL_DOWN },
-  // A capability chosen in the library's story microscope (ADR-1350 D2) re-roots the panel on it, its parts laid out in the microscope.
-  // The story's microscope is laid out after its panel paints, so the setup leaves it a few seconds before the click.
   { name: "drill-microscope", setup: [...RESET, ...NAMED_OPEN, { kind: "click", selector: ".story-panel .panel-story-name", optional: true },
     { kind: "wait", until: { selected: "island", panel: "open", still: true } }, { kind: "idle", ms: 5000 }],
     perform: [{ kind: "click", selector: ".story-panel .panel-microscope [data-pick-capability]" }], settled: { panel: "open", still: true },
     budget: DEFAULT_BUDGET, limitMs: 10_000, owner: DRILL_DOWN },
-  // Opening a contract on the library's first capability's panel. A contract's fold is never kept, so the panel drawn afresh has it shut.
   { name: "open-fold", setup: [...RESET, ...NAMED_CAPABILITY],
     perform: [{ kind: "click", selector: CONTRACT }], settled: { fold: "contract" }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: PANEL_FOLDS },
-  // The same contract opened, which must still be open once library news has arrived: a panel drawn again on news loses it.
   { name: "open-contract", setup: [...RESET, ...NAMED_CAPABILITY],
     perform: [{ kind: "click", selector: CONTRACT }], settled: { fold: "contract" }, budget: DEFAULT_BUDGET,
     limitMs: 10_000, keptThroughNews: true, owner: PANEL_FOLDS },
@@ -184,20 +117,17 @@ export const CATALOGUE: readonly LagAction[] = [
     owner: TURNING_THE_MAP },
   { name: "turn-library", setup: [...RESET, { kind: "click", selector: "[data-globe-switch=library]" }, { kind: "wait", until: { mode: "library", still: true } }],
     perform: [{ kind: "turn" }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "turn-library", turns: "library", owner: TURNING_THE_MAP },
-  // 3.106: an arrow key pans the view off its opening, so the Whole map button shows; its click eases the view home.
   { name: "whole-map", setup: [...RESET, { kind: "key", key: "ArrowRight" }, { kind: "wait", until: { still: true } }],
     perform: [{ kind: "click", selector: "button.whole-map" }], settled: { still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: TURNING_THE_MAP },
   { name: "idle", setup: RESET, perform: [{ kind: "idle", ms: 10_000 }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: THE_CANVAS },
 ];
 
-/** The story whose island `choice` names among those drawn, or undefined when none is. Ties go to the first drawn. */
 export function chooseIsland(choice: IslandChoice, islands: readonly { story: string; title?: string; capabilities: number }[]): string | undefined {
   if (typeof choice === "object") return islands.find(island => island.story === choice.story || island.title === choice.story)?.story;
   const better = (a: number, b: number) => choice === "fewest" ? a < b : a > b;
   return islands.reduce<(typeof islands)[number] | undefined>((best, island) => best === undefined || better(island.capabilities, best.capabilities) ? island : best, undefined)?.story;
 }
 
-/** Whether `page` shows what `want` says settled looks like; `island` is the story the action clicked. */
 export function isSettled(want: Settled, page: PageState, island?: string): boolean {
   if (want.selected === "island" && (island === undefined || page.selected !== island)) return false;
   if (want.selected === "none" && page.selected !== undefined) return false;
@@ -210,8 +140,6 @@ export function isSettled(want: Settled, page: PageState, island?: string): bool
   return !want.still || page.still;
 }
 
-/** A turn's frames: the intervals between its successive frame times (`frameTimes`, oldest first), their median, 95th percentile
- * (nearest rank) and longest, and how many ran over `frameMs`. All 0 for fewer than two frames. */
 export function turnFrames(frameTimes: readonly number[], frameMs: number): { p50: number; p95: number; max: number; over: number } {
   const intervals = frameTimes.slice(1).map((at, n) => at - frameTimes[n]!).sort((a, b) => a - b);
   if (intervals.length === 0) return { p50: 0, p95: 0, max: 0, over: 0 };

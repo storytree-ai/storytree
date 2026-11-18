@@ -1,4 +1,4 @@
-/** Capability 2 · Settings, contract 2.18: the system switched off and on by name, and what `settings show` says of it. */
+// Capability 2 · Settings
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";

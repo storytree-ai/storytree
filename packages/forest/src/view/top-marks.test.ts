@@ -1,8 +1,4 @@
-/**
- * Capability 3 · Story node render (the forest story): on an imported island drawn top-down, a capability inside a closed
- * top part has no territory of its own, so the marks keyed to it (a session's claim flag, the selected arc's ring, the
- * selected capability's gold ring) are drawn on the top part holding it (arc_0c4277f81731).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Quaternion, Vector3, type Mesh } from "three";
@@ -20,7 +16,6 @@ import { besideOpen, memberTops, OpenedTopMarks, pickedOnTops, rolledToTops } fr
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const explored = (id: string, covers: string) => ({ id, title: covers, dependsOn: [], proposed: false, status: "healthy" as const, contracts: [], health, covers: [covers] });
-// An imported app: src/ui holds button and form, src/data holds store and cache, src/main.ts is alone at the top.
 const tree: AnnotatedTree = { arcs: [], stories: [{ id: "app", title: "app", health, mapped: { from: "/code/app", package: ".", folders: ["."] }, capabilities: [
   explored("button", "src/ui/button"), explored("form", "src/ui/form"), explored("store", "src/data/store"), explored("cache", "src/data/cache"), explored("main", "src/main.ts"),
 ] }] };
@@ -38,7 +33,6 @@ test("3.121 · a closed top part carries the claim flag, the open-work ring and 
   const tops = memberTops(scene.parts ?? []);
   assert.deepEqual([...tops].sort(), [["button", "top:app:ui"], ["cache", "top:app:data"], ["form", "top:app:ui"], ["store", "top:app:data"]]);
 
-  // A session claims form, inside ui; the selected arc's open work names store, inside data; cache is the selected capability.
   const claimed = rolledToTops(claimTints([{ session: "s", story: "app", colour: "#56b4e9", faded: false, capabilities: ["form", "main"] }]), tops);
   const marks = new ClaimMarks();
   marks.setLand(map, (p) => new Vector3(p.x, 0, p.z), () => new Vector3(0, 1, 0), false);
@@ -65,18 +59,15 @@ test("3.122 · once a top part opens, the claim flag, open-work ring and gold pi
   const eye = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
   const flat = (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z), up = () => new Vector3(0, 1, 0);
 
-  // A session claims form, inside ui; the selected arc's open work names button, inside ui, which is also the selected capability.
   const claimed = rolledToTops(claimTints([{ session: "s", story: "app", colour: "#56b4e9", faded: false, capabilities: ["form", "main"] }]), tops);
   const circled = rolledToTops(ringedCapabilities(["button"], undefined, scene.contracts ?? []), tops);
   const picked = "button";
 
-  // ui's opened land: form's flag on form's territory, button's ring and gold pick round button, placed about the layout's centre.
   const inside = new OpenedTopMarks();
   inside.setLand("top:app:ui", layout, flat, flat, up);
   inside.claims(claimed, 0, { standing: true, reduced: true });
   inside.rings(circled, undefined, picked, 2);
   inside.frame(0, { zoom: 2, eye, reduced: true });
-  // Each mark stands where form's or button's own territory is in ui's layout, shifted onto the island by the layout's centre.
   const near = (p: Vector3, q: { x: number; z: number }) => Math.hypot(p.x - q.x - layout.centre.x, p.z - q.z - layout.centre.z) < 1e-6;
   const at = (capability: string) => layout.map.territories.findIndex((territory) => territory.capability === capability);
   const flag = inside.root.getObjectByName("territory-claim:form")?.getObjectByName("claim-flag");
@@ -90,7 +81,6 @@ test("3.122 · once a top part opens, the claim flag, open-work ring and gold pi
   assert.ok(near(centreOf("picked-ring:button"), button), "the selected button's gold ring is drawn round button");
   inside.dispose();
 
-  // The island beside the opened ui: ui carries no flag, ring or pick of its own while it is open; main keeps its flag.
   const outside = new ClaimMarks();
   outside.setLand(map, flat, up, false);
   outside.claims(besideOpen(claimed, "top:app:ui"), 0, { standing: true, reduced: true });
@@ -101,7 +91,6 @@ test("3.122 · once a top part opens, the claim flag, open-work ring and gold pi
   assert.deepEqual(outsideWork.rings, [], "the opened ui carries no ring");
   assert.equal(outsideWork.picked, undefined, "nor the gold pick");
 
-  // A capability opened into its code parts is no top part: its own marks stay on it, and its land draws none of these.
   assert.ok(besideOpen(claimed, "main").has("main"), "an opened capability keeps its own flag");
   assert.equal(besideOpen("main", "main"), "main", "and its own gold pick");
   assert.equal(besideOpen(undefined, "top:app:ui"), undefined, "no arc selected rings nothing");

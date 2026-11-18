@@ -1,10 +1,3 @@
-// Refreshes a shared capture seed's layouts.json.gz: opens the seeded desktop page with nothing kept, lets every island's
-// territory search and roads run until the map says it has settled (3.98), and writes the island layouts and roads the
-// page kept (its localStorage `storytree.territories.*` and `storytree.roads.*` entries) beside that seed. A capture on
-// the seed then opens with them kept and searches nothing it holds. On the Mint box the forest seed takes about ten
-// minutes, code-rows longer: the searches run one at a time.
-// Run: node --import tsx layouts.mts <code-rows|forest>. Rerun after a seed's own refresh, or a change to the search's
-// score, which leaves every kept arrangement searched again.
 import { writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import path from 'node:path';

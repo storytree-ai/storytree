@@ -1,4 +1,3 @@
-/** Forest capability 3 · a shared store on the map: picked by a click on its slab, and its panel (ADR-1332 D1, ADR-1347 D3). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, OrthographicCamera } from "three";

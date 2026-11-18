@@ -1,9 +1,3 @@
-// Sea lanes routed on their own (ADR-1261 D1-D4, 4.8, 4.41, 4.42): storytree's own map (the code-rows snapshot and its
-// survey) as the app opens it, first at rest, its sea carrying no line between islands, then with The library's island
-// clicked so every lane of its capability links is lit, drawn on and settled. storytree's own map declares no plumbing call,
-// so a second run draws it from a fixture survey (ADR-1277 D1): The library given a build step to The command line and a
-// cleanup to The app, at rest (no line) and with The library selected (each one more lane, drawn as any other, unlabelled). `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/sea-lanes). Measures, from
-// the scene, the lanes lit and how long they run, so the before and after pictures can be compared by numbers too.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,14 +14,11 @@ const started = performance.now();
 const phase = message => console.error(`[sea lanes +${Math.round(performance.now() - started)}ms] ${message}`);
 const until = async (page, what, predicate, arg, timeout = 180_000) => { phase(`wait for ${what}`); await page.waitForFunction(predicate, arg, { timeout, polling: 200 }); };
 const library = seed.tree.stories.find(story => story.title === 'The library').id;
-/** The lit lanes as the scene draws them: how many, and their lengths. */
 const measure = page => page.evaluate(() => {
   const lanes = window.__globe.scene.getObjectByName('pathways:selection-lanes')?.userData.lanes ?? [];
   const lengths = lanes.map(lane => lane.length);
   return { lanes: lanes.length, longest: Math.round(Math.max(0, ...lengths)), total: Math.round(lengths.reduce((a, b) => a + b, 0)) };
 });
-/** What the sea carries at rest: lanes lit, and any mesh drawn between islands that is neither a lane nor the dots every
- * lane shows at rest (ADR-1278 D1, the chart-lanes capture). */
 const atRest = page => page.evaluate(() => {
   const group = window.__globe.scene.getObjectByName('globe-lanes');
   let meshes = 0;
@@ -38,7 +29,6 @@ const atRest = page => page.evaluate(() => {
 });
 const results = {};
 
-/** Selects The library and waits for its lanes to settle, the panels over the sea hidden for the picture. */
 const selectLibrary = async ({ page, settle }) => {
   const island = await page.evaluate(story => window.storytreeGlobe.islands().find(i => i.story === story), library);
   await page.mouse.click(island.x, island.y);
@@ -73,12 +63,10 @@ await runCapture({
   }],
 });
 
-// The fixture: two plumbing calls from The library, each a story edge with no capability end.
 const story = title => seed.tree.stories.find(one => one.title === title).id;
 const plumbed = { ...survey, [library]: { ...survey[library], edges: [...survey[library].edges ?? [],
   { story: story('The command line'), typeOnly: false, files: [{ from: 'src/build-step.ts', typeOnly: false, plumbing: 'build step' }] },
   { story: story('The app'), typeOnly: false, files: [{ from: 'src/cleanup.ts', typeOnly: false, plumbing: 'cleanup' }] }] } };
-/** The plumbing calls' lanes among those lit, any mesh at sea that is not a lane, and the lane colours drawn. */
 const plumbing = (page, ends) => page.evaluate(ends => {
   const group = window.__globe.scene.getObjectByName('pathways:selection-lanes');
   const lit = (group?.userData.lanes ?? []).map(lane => `${lane.from}->${lane.to}`);

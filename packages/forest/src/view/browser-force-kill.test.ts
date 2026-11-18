@@ -1,8 +1,4 @@
-/**
- * Capability 3 · Story node render: ending a real browser never force-kills by a pid once that browser's process has exited
- * (3.123). Playwright's launcher, as storytree installs it, is driven with a stand-in browser whose helper outlives it holding
- * its pipes, as a Chrome helper does on a loaded Windows runner, and its force kill is read on the Windows path.
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import childProcess, { type ChildProcess } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
@@ -12,7 +8,6 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 
-/** The part of Playwright's launcher the test drives: `utils.launchProcess`, which every browser launch goes through. */
 type Launched = { launchedProcess: ChildProcess; kill(): Promise<void> };
 type LaunchProcess = (options: {
   command: string; args: string[]; stdio: "pipe"; env: NodeJS.ProcessEnv; tempDirectories: string[];
@@ -20,7 +15,6 @@ type LaunchProcess = (options: {
 }) => Promise<Launched>;
 const { utils } = createRequire(import.meta.url)("playwright-core/lib/coreBundle") as { utils: { launchProcess: LaunchProcess } };
 
-/** Launch a stand-in browser running `script` the way Playwright launches Chrome, watching its 'exit' and its 'close'. */
 async function launch(script: string) {
   const launched = await utils.launchProcess({
     command: process.execPath, args: ["-e", script], stdio: "pipe", env: process.env, tempDirectories: [],
@@ -33,7 +27,6 @@ async function launch(script: string) {
   return { ...launched, seen };
 }
 
-/** Call `kill` with the platform read as Windows and `spawnSync` caught, and return each command it asked to run. */
 function killOnWindows(t: TestContext, kill: () => Promise<void>): { asked: string[]; ended: Promise<void> } {
   const asked: string[] = [];
   const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
@@ -54,7 +47,6 @@ test("3.123 · Playwright's kill asks taskkill for a live browser's pid, and ask
   const folder = await mkdtemp(path.join(tmpdir(), "forest-force-kill-"));
   t.after(() => removeTemp(folder));
 
-  // The control: a browser still running is force-killed by its pid.
   const live = await launch("setInterval(() => {}, 1000)");
   const livePid = live.launchedProcess.pid;
   const onLive = killOnWindows(t, live.kill);
@@ -62,8 +54,6 @@ test("3.123 · Playwright's kill asks taskkill for a live browser's pid, and ask
   await onLive.ended;
   assert.deepEqual(onLive.asked, [`taskkill /pid ${livePid} /T /F`], "the live browser's kill asks taskkill for its pid");
 
-  // A helper the browser leaves behind on its stdout and stderr, which ends once the test removes its marker (or after two minutes).
-  // The browser then ends by itself, by exiting or by a signal (on Windows a self-kill reads as exit code 1).
   for (const [ending, end] of [["exits", ""], ["is killed by a signal", `process.kill(process.pid, "SIGKILL");`]] as const) {
     const marker = path.join(folder, `helper-may-live-${end === "" ? "exit" : "signal"}`);
     await writeFile(marker, "");

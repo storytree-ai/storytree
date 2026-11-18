@@ -1,12 +1,3 @@
-/**
- * local-postgres: one local Postgres server on a data directory, from the @embedded-postgres
- * binaries. These tests run real servers, each on a data directory of its own under the OS temp
- * directory, and stop every server they start, pass or fail.
- *
- * "A live process holds the data directory" is played by a real second process
- * (testing/holder.ts): started, it runs the server and holds it; killed, it leaves the server
- * running with no live owner, which is the stale case start() recovers from.
- */
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { appendFileSync, chmodSync, chownSync, cpSync, existsSync, lchownSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -30,29 +21,20 @@ const packageDir = fileURLToPath(new URL("..", import.meta.url));
 const holderScript = fileURLToPath(new URL("./testing/holder.ts", import.meta.url));
 const root = mkdtempSync(path.join(tmpdir(), "storytree-local-postgres-"));
 const exe = (tool: string): string => (process.platform === "win32" ? `${tool}.exe` : tool);
-/** Run as root (a cloud container), the account the tools run as; the tests' own tool runs take it too. */
 const toolAccount = serverAccount();
 
-/** Every server and holder a test started, stopped at the end whatever happened. */
 const servers = new Set<LocalPostgres>();
 const holders = new Set<ChildProcess>();
 
-// A test here may start with minutes of synchronous work on Windows (initdb, pg_ctl, PowerShell making
-// a sign-in private), which holds back the runner's word that it started: the harness then reads the
-// file as ended and idle and kills it (CI, PRs #694 and #712). One turn of the event loop first sends it.
 beforeEach(() => nextTurn());
 
 after(async () => {
   for (const holder of holders) holder.kill();
   for (const server of servers) await server.stop().catch(() => {});
-  // A killed holder's server outlives it; stop whatever is still running on any data directory.
   for (const entry of readdirSync(root)) {
     const dataDir = path.join(root, entry);
     if (existsSync(path.join(dataDir, "PG_VERSION")) && serverRunning(dataDir)) pgCtl(["-D", dataDir, "-m", "immediate", "-w", "stop"]);
   }
-  // Briefly: the harness gives a file's end 20 s, and Windows can hold a just-stopped server's files
-  // for 40 s (the hang after the last test, PR #802); under the harness, the unit's temp folder, root's
-  // parent, is removed after the unit ends.
   await removeTemp(root, 2_000);
 });
 
@@ -70,10 +52,8 @@ test("1.1, 1.2 the binaries come from this machine's @embedded-postgres package,
     assert.match(bin, /windows-x64/, "there is no windows-arm64 build, so the x64 one is used");
   }
 
-  // With no package for the machine, the error names every package it looked for.
   assert.throws(() => findBinaries({ platform: "aix", arch: "ppc64" }), /@embedded-postgres\/aix-ppc64/);
 
-  // A packaged app hands over the directory it ships the binaries in. One without them is refused, naming it.
   assert.equal(findBinaries({ dir: bin }), bin);
   const empty = path.join(root, "no-binaries");
   mkdirSync(empty);
@@ -92,7 +72,6 @@ test("2.1 ensureCluster makes a cluster only when there is none: asking every co
   assert.ok(existsSync(path.join(`${dataDir}.auth`, "installation.json")), "the password is kept beside it, privately");
   assert.equal(await ensureCluster(dataDir), false, "left as it is the second time");
 
-  // A directory holding something that is not a cluster is never initialised over.
   const other = path.join(root, "not-a-cluster");
   mkdirSync(other);
   writeFileSync(path.join(other, "notes.txt"), "mine");
@@ -115,9 +94,8 @@ test("2.2 start runs the server on the data directory, it answers SELECT 1 at th
   await stopped(server);
   assert.equal(serverRunning(dataDir), false, "the server is stopped");
   await assert.rejects(query(server.url, "SELECT 1"), { code: "ECONNREFUSED" });
-  await server.stop(); // a second stop is harmless
+  await server.stop();
 
-  // A port can be asked for, and a stopped data directory started again.
   const port = await freePort();
   const again = await started({ dataDir, port });
   assert.equal(again.port, port);
@@ -137,7 +115,6 @@ test("2.5 start can run the server with settings, as a throwaway test server run
   assert.deepEqual(await query(throwaway.url, "SHOW full_page_writes"), [{ full_page_writes: "off" }]);
   await stopped(throwaway);
 
-  // A setting the server's command line cannot carry as one word is refused before anything starts.
   await assert.rejects(start({ dataDir, settings: { fsync: "off -c port=1" } }), /fsync/);
   assert.equal(serverRunning(dataDir), false);
 });
@@ -160,7 +137,6 @@ test("2.3 a second start on a data directory a live process holds is refused, na
   assert.match(refusal.message, new RegExp(`\\b${holder.pid}\\b`), "the message names the process");
   assert.deepEqual(await query(holder.url, "SELECT 1 AS one"), [{ one: 1 }], "the holder's server is untouched");
 
-  // Released, it can be started here; and while this process holds it, a second start here is refused too.
   await holder.release();
   const mine = await started({ dataDir });
   await assert.rejects(start({ dataDir }), (error: unknown) => error instanceof DataDirInUseError && error.pid === process.pid);
@@ -171,7 +147,7 @@ test("2.3 a second start on a data directory a live process holds is refused, na
 test("2.4 a server left running by a process that died is stopped and replaced, and a dead owner's record alone is cleared", async () => {
   const dataDir = await freshCluster("stale");
   const holder = await hold(dataDir);
-  await holder.kill(); // it cannot stop its server
+  await holder.kill();
   assert.deepEqual(await query(holder.url, "SELECT 1 AS one"), [{ one: 1 }], "its server outlived it");
 
   const server = await started({ dataDir, port: await freePort() });
@@ -180,7 +156,6 @@ test("2.4 a server left running by a process that died is stopped and replaced, 
   await assert.rejects(query(holder.url, "SELECT 1"), { code: "ECONNREFUSED" }, "the orphaned server was stopped");
   await stopped(server);
 
-  // A holder that dies after its server has stopped leaves only its record behind.
   const second = await hold(dataDir);
   await second.kill();
   pgCtl(["-D", dataDir, "-m", "fast", "-w", "stop"]);
@@ -197,14 +172,12 @@ test("2.6 the server lets in only a client with the installation's password, whi
   assert.ok(password.length >= 32, "a generated secret");
   assert.deepEqual(await query(server.url, "SELECT 1 AS one"), [{ one: 1 }], "the url handed back signs in");
 
-  // Without a password nobody gets in, postgres included: the server asks for one (SASL, code 10) and never says ok (0).
   for (const user of ["postgres", "storytree", "someone_else"]) assert.equal(await firstAuthentication(server.port, user), 10, user);
   const wrong = new URL(server.url);
   wrong.password = "x".repeat(43);
   await assert.rejects(query(wrong.href, "SELECT 1"), { code: "28P01" }, "a wrong password is refused");
   assert.doesNotMatch(readFileSync(path.join(dataDir, "pg_hba.conf"), "utf8"), /trust/);
 
-  // The owner record says a handoff is due and carries no secret; the handoff names this very launch.
   const ownerText = readFileSync(`${dataDir}.owner.json`, "utf8");
   assert.equal(ownerText.includes(password), false);
   const owner = JSON.parse(ownerText) as { token: string; port: number; auth: { version: number; method: string; installationId: string } };
@@ -219,7 +192,6 @@ test("2.6 the server lets in only a client with the installation's password, whi
     assert.equal(lstatSync(handoff).mode & 0o777, 0o600, "only this user may read the handoff");
   }
 
-  // Stopped, the handoff is withdrawn and the sign-in kept: started again, it is the same password on the new port.
   await stopped(server);
   assert.equal(existsSync(handoff), false);
   const again = await started({ dataDir, port: await freePort() });
@@ -238,7 +210,6 @@ test("2.7 a cluster made when local connections were trusted is given the passwo
   await query(passwordless, "CREATE TABLE kept (note text); INSERT INTO kept VALUES ('from before passwords')");
   assert.equal(pgCtl(["-D", dataDir, "-m", "fast", "-w", "stop"]), 0);
 
-  // A start that fails after the change (its port is taken) leaves the cluster asking for the password, and the sign-in in place.
   const taken = await occupy();
   const failed: unknown = await start({ dataDir, port: (taken.address() as { port: number }).port }).then(
     (server) => (servers.add(server), undefined),
@@ -250,7 +221,6 @@ test("2.7 a cluster made when local connections were trusted is given the passwo
   assert.equal(existsSync(`${dataDir}.owner.json`), false);
   assert.ok(existsSync(path.join(`${dataDir}.auth`, "installation.json")), "the sign-in is kept for the retry");
 
-  // The retry starts it, the data is there, and only the password lets anyone in.
   const server = await started({ dataDir });
   assert.deepEqual(await query(server.url, "SELECT note FROM kept"), [{ note: "from before passwords" }]);
   assert.equal(await firstAuthentication(server.port, "postgres"), 10);
@@ -259,7 +229,6 @@ test("2.7 a cluster made when local connections were trusted is given the passwo
   await assert.rejects(query(wrong.href, "SELECT 1"), { code: "28P01" });
   await stopped(server);
 
-  // A trust line added since is taken away again at the next start; the password stays the same.
   appendFileSync(path.join(dataDir, "pg_hba.conf"), "host all all 127.0.0.1/32 trust\n");
   const again = await started({ dataDir });
   assert.equal(again.url.replace(/:\d+\//, "/"), server.url.replace(/:\d+\//, "/"));
@@ -269,7 +238,6 @@ test("2.7 a cluster made when local connections were trusted is given the passwo
 
 test("2.8 clients sign in as an ordinary role that owns storytree's databases, never as the superuser, and a cluster's earlier databases are handed to it", async () => {
   const dataDir = await freshCluster("client-role");
-  // Before: the superuser made a database with a table, a sequence of its own and a view, as a cluster from before this did.
   const before = await started({ dataDir, signIn: "superuser" });
   assert.equal(new URL(before.url).username, "postgres", "a throwaway test server may be asked for the superuser");
   assert.deepEqual(await query(before.url, "SELECT rolsuper FROM pg_roles WHERE rolname = current_user"), [{ rolsuper: true }]);
@@ -289,13 +257,11 @@ test("2.8 clients sign in as an ordinary role that owns storytree's databases, n
   await assert.rejects(query(server.url, "CREATE ROLE t_intruder SUPERUSER"), { code: "42501" }, "it makes no roles");
   await assert.rejects(query(server.url, "SELECT pg_read_file('postgresql.conf')"), { code: "42501" }, "it reads no server files");
 
-  // Its password is not the superuser's, and the superuser's never reaches a client.
   const asSuperuser = new URL(server.url);
   asSuperuser.username = "postgres";
   await assert.rejects(query(asSuperuser.href, "SELECT 1"), { code: "28P01" });
   assert.equal(readFileSync(path.join(`${dataDir}.auth`, "connection.json"), "utf8").includes(decodeURIComponent(new URL(before.url).password)), false);
 
-  // Every database is its own, with what the superuser made in it, and it carries on writing there.
   assert.deepEqual(await query(server.url, "SELECT datname, pg_get_userbyid(datdba) AS owner FROM pg_database WHERE NOT datistemplate ORDER BY datname"),
     [{ datname: "earlier", owner: "storytree" }, { datname: "postgres", owner: "storytree" }]);
   const mine = new URL(server.url);
@@ -305,7 +271,6 @@ test("2.8 clients sign in as an ordinary role that owns storytree's databases, n
   assert.deepEqual(await query(mine.href, "SELECT count(*)::int AS left FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname IN ('public', 'notes') AND pg_get_userbyid(c.relowner) <> 'storytree'"),
     [{ left: 0 }], "nothing there is the superuser's any more");
 
-  // It makes databases of its own, as a new project needs.
   await query(server.url, "CREATE DATABASE t_project");
   const project = new URL(server.url);
   project.pathname = "/t_project";
@@ -315,7 +280,6 @@ test("2.8 clients sign in as an ordinary role that owns storytree's databases, n
 });
 
 test("2.10 on Windows the sign-in is kept private beside a data directory whose folder lets this user change files but not take ownership, as a checkout under C:\\code does", { skip: process.platform !== "win32" && "platform:win32: a Windows access list" }, () => {
-  // A folder granting this user Modify alone, inherited, as C:\code grants Authenticated Users: no right to change an owner.
   const parent = path.join(root, "modify-only");
   mkdirSync(parent);
   const user = `${process.env["USERDOMAIN"]}\\${process.env["USERNAME"]}`;
@@ -334,7 +298,6 @@ test("2.10 on Windows the sign-in is kept private beside a data directory whose 
 });
 
 test("2.11 on Windows a sign-in folder a failed first run left behind is made private before any sign-in goes into it", { skip: process.platform !== "win32" && "platform:win32: a Windows access list" }, () => {
-  // A first run that made <dataDir>.auth but failed to protect it leaves the folder open to what its parent grants.
   const dataDir = path.join(root, "left-open", "data");
   mkdirSync(`${dataDir}.auth`, { recursive: true });
 
@@ -368,7 +331,6 @@ test("2.14 run as root (a cloud container), the Postgres tools and the server ru
   assert.equal(serverAccount(1000, passwd), undefined, "anyone else runs them as themselves");
   assert.throws(() => serverAccount(0, "root:x:0:0:root:/root:/bin/bash\n"), /nobody/, "root with no account to hand them to is refused, naming the one it looked for");
 
-  // The folders above what the account uses are let through (searched, not read) when they shut it out.
   const nobody: Account = { name: "nobody", uid: 65534, gid: 65534 };
   const outer = path.join(root, "shut");
   const inner = path.join(outer, "inner");
@@ -382,7 +344,6 @@ test("2.14 run as root (a cloud container), the Postgres tools and the server ru
   assert.equal(lstatSync(inner).mode & 0o777, 0o751);
   assert.equal(lstatSync(open).mode & 0o777, 0o755, "a folder that already lets it through is left as it was");
 
-  // A start through an account runs whole: here this user itself, the only one a test not run as root can become.
   const account = serverAccount() ?? { name: "self", uid: process.getuid!(), gid: process.getgid!() };
   const dataDir = path.join(root, "through-account");
   const server = await started({ dataDir, account });
@@ -397,7 +358,7 @@ test("2.14 a caller's pg_ctl on a data directory runs as the server does, let th
   mkdirSync(above);
   const dataDir = path.join(above, "data");
   const server = await started({ dataDir });
-  chmodSync(above, 0o700); // shut again after the start, as a caller making its folder private does
+  chmodSync(above, 0o700);
   assert.equal(await pgCtlAsServer(dataDir, ["status"]), 0, "it reads the server running");
   assert.equal(await pgCtlAsServer(dataDir, ["-m", "fast", "-w", "stop"], { timeoutMs: 60_000 }), 0, "and stops it");
   assert.equal(await pgCtlAsServer(dataDir, ["status"]), 3, "then reads it stopped");
@@ -411,7 +372,6 @@ test("2.15 a database an interrupted run left invalid is dropped when the server
   await query(before.url, "CREATE DATABASE \"storytree_t-broken\"");
   await query(before.url, "CREATE DATABASE t_kept");
   assert.ok(before.superuserUrl);
-  // What a DROP DATABASE killed part way through leaves in Postgres 16.
   await query(before.superuserUrl, "UPDATE pg_database SET datconnlimit = -2 WHERE datname = 'storytree_t-broken'");
   const broken = new URL(before.url);
   broken.pathname = "/storytree_t-broken";
@@ -430,16 +390,6 @@ test("2.15 a database an interrupted run left invalid is dropped when the server
   await stopped(server);
 });
 
-// --- helpers ---------------------------------------------------------------------------------
-
-/**
- * A cluster of its own for one test, copied from one made once by ensureCluster, with its sign-in
- * beside it (so the copy holds the password it is started with). cpSync makes the directories it
- * copies with the default mode (0755 under the usual umask), not the source's, and outside Windows
- * Postgres will not start on a data directory other users can read, so the copy is given back
- * initdb's 0700, and the sign-in its 0700 and 0600. cpSync also makes the copy this process's,
- * and run as root the template is the tools' account's, so the copy is given back its owner too.
- */
 async function freshCluster(name: string): Promise<string> {
   const template = path.join(root, "template");
   await ensureCluster(template);
@@ -468,13 +418,10 @@ interface Holder {
   pid: number;
   url: string;
   port: number;
-  /** Ask it to stop its server and exit, and wait until it has. */
   release(): Promise<void>;
-  /** Kill it outright, so it cannot stop its server, and wait until it is gone. */
   kill(): Promise<void>;
 }
 
-/** A second process that starts the server on `dataDir` and holds it. */
 async function hold(dataDir: string): Promise<Holder> {
   const child = spawn(process.execPath, ["--import", "tsx", holderScript, dataDir], {
     cwd: packageDir,
@@ -521,12 +468,10 @@ async function query(url: string, sql: string): Promise<unknown[]> {
   }
 }
 
-/** Run pg_ctl directly: the tests' own view of the server, independent of the code under test. */
 function pgCtl(args: string[]): number {
   return tool("pg_ctl", args);
 }
 
-/** Postgres will not run as root, so run as root a tool runs as the tools' account, as the code under test runs it. */
 function tool(name: string, args: string[]): number {
   const result = spawnSync(path.join(findBinaries(), exe(name)), args, {
     stdio: "ignore",
@@ -535,7 +480,6 @@ function tool(name: string, args: string[]): number {
   return result.status ?? 1;
 }
 
-/** A folder under the tests' root that the tools' account may make things in, for the tests' own tool runs. */
 function toolsFolder(name: string): string {
   const dir = path.join(root, name);
   mkdirSync(dir);
@@ -546,7 +490,6 @@ function toolsFolder(name: string): string {
   return dir;
 }
 
-/** Give everything copied from `from` to `to` its source's owner, as `cp -a` does (outside Windows). */
 function keepOwner(from: string, to: string): void {
   if (process.platform === "win32") return;
   const source = lstatSync(from);
@@ -555,17 +498,13 @@ function keepOwner(from: string, to: string): void {
   if (source.isDirectory()) for (const entry of readdirSync(from)) keepOwner(path.join(from, entry), path.join(to, entry));
 }
 
-/**
- * The server's first answer to a client that brings no password: the authentication request code
- * of its first message (0 is "come in", 10 is "sign in with SASL"), or -1 for an error.
- */
 function firstAuthentication(port: number, user: string): Promise<number> {
   return new Promise((resolve, reject) => {
     const socket = connect(port, "127.0.0.1");
     const parameters = Buffer.from(`user\0${user}\0database\0postgres\0\0`);
     const header = Buffer.alloc(8);
     header.writeInt32BE(8 + parameters.length, 0);
-    header.writeInt32BE(196608, 4); // protocol 3.0
+    header.writeInt32BE(196608, 4);
     let received = Buffer.alloc(0);
     socket.on("connect", () => socket.write(Buffer.concat([header, parameters])));
     socket.on("data", (chunk) => {
@@ -578,7 +517,6 @@ function firstAuthentication(port: number, user: string): Promise<number> {
   });
 }
 
-/** A port held by something else, so a server cannot listen there. */
 function occupy(): Promise<Server> {
   return new Promise((resolve, reject) => {
     const server = createServer();

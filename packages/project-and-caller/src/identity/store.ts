@@ -1,4 +1,4 @@
-/** Capability 5 · Portable user identity. */
+// Capability 5 · Portable user identity
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 
@@ -16,7 +16,6 @@ export class IdentityConflictError extends Error {
   constructor() { super("Identity conflict: these accounts cannot be joined automatically. Contact Storytree support."); }
 }
 
-/** Called explicitly at server startup, using the server's own database role. */
 export async function initialize(pool: Pool): Promise<void> {
   const client = await pool.connect();
   try {
@@ -41,15 +40,12 @@ export async function initialize(pool: Pool): Promise<void> {
   } finally { client.release(); }
 }
 
-/** Internal: accepts only the evidence the public token-verifying boundary has established. */
 export async function remember(pool: Pool, evidence: {
   workosUserId: string; email: string; identities: readonly ProviderIdentity[];
 }): Promise<StorytreeUser> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    // The first cohort's tiny mapping transaction is serialized across server processes.
-    // The unique pair remains a database invariant; an overlapping first sign-in never forks a user.
     await client.query("SELECT pg_advisory_xact_lock(874, 2)");
     const pairs = evidence.identities.map(({ provider, subject }) => ({ provider, subject }));
     const existing = await client.query<{ user_id: string }>(`
@@ -64,7 +60,6 @@ export async function remember(pool: Pool, evidence: {
     } else {
       await client.query("UPDATE storytree_users SET workos_user_id = $2 WHERE id = $1", [id, evidence.workosUserId]);
     }
-    // Retain all previously proved identities so changing broker/email never loses a durable key.
     await client.query(`INSERT INTO storytree_user_identities (provider, subject, user_id)
       SELECT provider, subject, $2::uuid FROM jsonb_to_recordset($1::jsonb) AS incoming(provider text, subject text)
       ON CONFLICT (provider, subject) DO NOTHING`, [JSON.stringify(pairs), id]);

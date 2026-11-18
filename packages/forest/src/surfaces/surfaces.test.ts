@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Story node render. The forest's surfaces as the Surfaces menu reads them (ADR-0750): the story panel's
- * capability details have a switch of their own, now that no capability tree holds them (ADR-1285).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

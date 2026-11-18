@@ -1,22 +1,10 @@
-/**
- * Capability 3 · Story node render (the forest story): the islands' heavy builds take turns, a few to a task (3.87).
- */
+// Capability 3 · Story node render
 import { useEffect, useState, type DependencyList } from "react";
 
-/** Hands `run` to the page's next task. */
 export type NextTask = (run: () => void) => void;
 
-/** One build, or one step of a build that hands back its next step. */
 export type Turn = () => Turn | void;
 
-/**
- * 3.87: the islands' heavy builds (a layout settled, a land's meshes built) take turns in the order asked, so
- * opening the map, with every island laid out and its roads arriving, never runs several islands' builds in one long task. A
- * task runs the next build only while its builds so far, and the longest of them again, fit in `budgetMs`: every task that
- * builds is a frame the map draws, which a computer drawing without a graphics card pays most for (PR #495 on macOS).
- * A build in steps hands back its next step, which waits ahead of the builds asked after it, so an island's build is finished
- * first. A build overtaken while it waits (`signal` aborted), between steps too, is passed over without running.
- */
 export class BuildTurns {
   private readonly waiting: { build: Turn; signal: AbortSignal }[] = [];
   private scheduled = false;
@@ -56,25 +44,14 @@ export class BuildTurns {
   }
 }
 
-/** The page's one queue, which every island's builds share. */
 const pageTurns = new BuildTurns();
 
-/**
- * What `steps` built when its turns came (3.87), and undefined until the first build has: each `yield` ends a step, and the
- * next runs in a later turn. Asked again whenever `deps` change; the value built for the deps before stays meanwhile, and a
- * build overtaken between steps runs no more of them, and is returned (its `finally` blocks run) to let go of what it made.
- */
 export function useBuiltInSteps<T>(steps: () => Generator<void, T, void>, deps: DependencyList, turns: BuildTurns = pageTurns): T | undefined {
   const [built, setBuilt] = useState<{ value: T }>();
-  // The caller names what the build reads.
   useEffect(() => buildInSteps(turns, steps, (value) => setBuilt({ value })), [turns, ...deps]);
   return built?.value;
 }
 
-/**
- * Asks `turns` for `steps`, a turn for each `yield`, and hands `built` what it returns. The call it returns overtakes the
- * build: no more of its steps run, and one already begun is returned, so its `finally` blocks let go of what it made.
- */
 export function buildInSteps<T>(turns: BuildTurns, steps: () => Generator<void, T, void>, built: (value: T) => void): () => void {
   const overtaken = new AbortController();
   let running: Generator<void, T, void> | undefined;

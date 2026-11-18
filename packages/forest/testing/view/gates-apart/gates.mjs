@@ -1,8 +1,3 @@
-// Island gates stand apart where their border has room (increment_af16a373441d): every island's roads routed from the asks
-// capture.mjs --dump wrote down, at each entrance spacing given (the router's COST.entranceApart), and measured: the
-// clear ground between the nearest posts of every two gates with posts, in The library's units, and what the network
-// costs (road drawn, tunnels, links over a third territory, links no road reaches).
-// `node --import tsx gates.mjs <asks.json> <spacing> [<spacing> …]`
 import { readFileSync } from 'node:fs';
 import { answerRoads, inTunnelMouth, roadMeasures } from '../../../src/territories/island-roads.ts';
 import { RELIEF } from '../../../src/territories/island-relief.ts';
@@ -12,7 +7,6 @@ import { landArea } from '../../../src/territories/territories.ts';
 
 const [file, ...spacings] = process.argv.slice(2);
 const asks = JSON.parse(readFileSync(file, 'utf8'));
-// A gate's posts reach this far either side of it, as the view stands them: wider where a ramp climbs to it from the open land.
 const reach = (g, S) => (g.between.includes('open') ? Math.max(g.opening, RELIEF.ramp.width * S) : g.opening) / 2 + RELIEF.post.side * S;
 for (const apart of spacings.map(Number)) {
   COST.entranceApart = apart;

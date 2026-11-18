@@ -1,10 +1,3 @@
-/**
- * The one join between 0.3's forest and 0.2's drawing engine (the forest story, capability 3):
- * 0.3 places each story node on its spiral (P1) and grows its grove (G1); 0.2's engine draws the
- * ground, coast and kit trees from islands it is handed. These tests hold what the join decides:
- * where each island's ground lands, that every capability gets its own parcel of it, and which of
- * 0.2's statuses each of 0.3's four tree forms is drawn as.
- */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -18,7 +11,6 @@ import { forestScene, PLACE_WIDTH, type ForestScene } from "../index.js";
 
 const NO_HEALTH = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 
-/** A project of `sizes.length` stories, story i holding sizes[i] capabilities, as the app hands it to the page. */
 function scene(sizes: number[], lines: NewLine[] = [], contracts = 0): ForestScene {
   const stories = sizes.map((size, s): AnnotatedStory => ({
     id: `story_${s}`,
@@ -43,7 +35,6 @@ function scene(sizes: number[], lines: NewLine[] = [], contracts = 0): ForestSce
 const ground = (descriptors: Descriptor3D[], island: string): InstanceDescriptor[] =>
   descriptors.filter((d): d is InstanceDescriptor => d.kind === "cell-ground" && d.island === island);
 
-/** Each capability's parcel and the status its cells are drawn in. */
 function parcelStatuses(cells: readonly Descriptor3D[]): { capId: string | undefined; status: string }[] {
   return [...new Map(parcelCellsFrom(cells).map((cell) => [cell.parcel, cell.status])).entries()].map(([capId, status]) => ({ capId, status }));
 }

@@ -1,14 +1,4 @@
-/**
- * Capability 1 · Project routing: which project a folder belongs to, and whether this machine may reach it. Setting a
- * folder up is the app setup story's (ADR-0969 D3, its capability 6); here a project is made as setting it up leaves it
- * (markedProject), on the real Postgres `pnpm test` provides; each such project is named with uniqueProjectName() and
- * its database is dropped afterwards, pass or fail.
- *
- * "Is storytree running, and where?" is read from the owner record @storytree/local-postgres keeps
- * beside the app's data directory (`<dataDir>.owner.json`) while the app's Postgres runs. The test
- * server was started the same way, so its own record is the real thing; a crashed app's record is
- * written here in the same shape.
- */
+// Capability 1 · Project routing
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -25,11 +15,8 @@ import { dropTestProjects, markedProject, placeTestServer, testServerDataDir, te
 import { approveTrunk, forgetTrunk, importsOf, machineOf, recordImport, registerTrunk, trunkedProjects } from "./trunks.js";
 import { findProject, locateStorytree, NOT_A_PROJECT, NOT_RUNNING, PROJECT_FILE, requireApproval, ROOT_MARKER_FILE, route, type ProjectLookup } from "./index.js";
 
-/** "Well under a second", as the tests hold it. */
 const QUICK_MS = 500;
 
-/** Run `body` with a connection to the test server; afterwards close it and drop `projects`' libraries. */
-/** The project a lookup found and the folder holding its marker, leaving aside the database identity the marker records. */
 function named(lookup: ProjectLookup): { project: string; folder: string } | ProjectLookup {
   return lookup.project === undefined ? lookup : { project: lookup.project, folder: lookup.folder };
 }
@@ -47,7 +34,6 @@ async function withStorytree(projects: readonly string[], body: (storytree: Stor
   }
 }
 
-/** A folder under `dir` that is already set up as `project`: the marker, as the spec shapes it. */
 function markedFolder(dir: string, project: string): string {
   const folder = path.join(dir, project);
   mkdirSync(folder, { recursive: true });
@@ -55,14 +41,12 @@ function markedFolder(dir: string, project: string): string {
   return folder;
 }
 
-/** The owner record local-postgres keeps beside a data directory while a process holds it. */
 function writeOwnerRecord(dataDir: string, record: { pid: number; port: number }): void {
   mkdirSync(path.dirname(dataDir), { recursive: true });
   const owner = { ...record, token: "a crashed app's", owner: "the storytree 0.3 desktop app", startedAt: new Date().toISOString() };
   writeFileSync(`${dataDir}.owner.json`, JSON.stringify(owner));
 }
 
-/** `fn`'s result and how long it took, in milliseconds. */
 function timed<T>(fn: () => T): { result: T; ms: number } {
   const started = performance.now();
   const result = fn();
@@ -70,7 +54,7 @@ function timed<T>(fn: () => T): { result: T; ms: number } {
 }
 
 test('1.1 a folder whose marker names project "site" gives "site" asked from the folder, a sub-folder and a git worktree of it', async () => {
-  const project = uniqueProjectName(); // "site", unique on the shared test server
+  const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const folder = path.join(dir, "site");
     mkdirSync(path.join(folder, "src", "components"), { recursive: true });
@@ -81,8 +65,6 @@ test('1.1 a folder whose marker names project "site" gives "site" asked from the
       await markedProject(storytree, folder, project, path.join(dir, "app-home"));
     });
 
-    // A worktree of the folder, beside it. The marker was never committed, so the worktree has no
-    // copy of its own: the answer has to come from the folder it is a worktree of.
     const worktree = path.join(dir, "site-feature");
     git(folder, "worktree", "add", "-q", "-b", "feature", worktree);
     mkdirSync(path.join(worktree, "src"), { recursive: true });
@@ -95,13 +77,11 @@ test('1.1 a folder whose marker names project "site" gives "site" asked from the
 });
 
 test('1.2 a folder with no marker, in it or above it, gives "not a storytree project"', async () => {
-  // test-removed: the message's exact wording (ADR-0623): the answer is checked by its status below.
   await withTempDir((dir) => {
     const plain = path.join(dir, "plain", "src");
     mkdirSync(plain, { recursive: true });
     assert.deepEqual(findProject(plain), { project: undefined, message: NOT_A_PROJECT });
 
-    // A git repository with no marker, and a worktree of it, are no different.
     const repo = path.join(dir, "repo");
     mkdirSync(repo);
     git(repo, "init", "-q");
@@ -111,7 +91,6 @@ test('1.2 a folder with no marker, in it or above it, gives "not a storytree pro
     assert.deepEqual(findProject(repo), { project: undefined, message: NOT_A_PROJECT });
     assert.deepEqual(findProject(worktree), { project: undefined, message: NOT_A_PROJECT });
 
-    // So routing sends nothing anywhere, whatever the state of storytree.
     assert.deepEqual(route(plain, { dataDir: testServerDataDir() }), { status: "not-a-project", message: NOT_A_PROJECT });
   });
 });
@@ -127,18 +106,15 @@ test("1.21 a folder's marker is .storytree/project.json and a root .storytree.js
     mkdirSync(path.join(site, "src"), { recursive: true });
     assert.deepEqual(named(findProject(path.join(site, "src"))), { project: "site", folder: site });
 
-    // A project set up before the move, with only the root marker, still routes.
     const old = path.join(dir, "old");
     mark(old, ROOT_MARKER_FILE, "old");
     assert.deepEqual(named(findProject(old)), { project: "old", folder: old });
 
-    // A folder holding both is the new marker's project.
     const both = path.join(dir, "both");
     mark(both, ROOT_MARKER_FILE, "before");
     mark(both, PROJECT_FILE, "after");
     assert.deepEqual(named(findProject(both)), { project: "after", folder: both });
 
-    // The nearest marker wins, whichever its spelling: an old one inside a new one's folder names its own project.
     const inner = path.join(site, "inner");
     mark(inner, ROOT_MARKER_FILE, "inner");
     assert.deepEqual(named(findProject(inner)), { project: "inner", folder: inner });
@@ -146,11 +122,9 @@ test("1.21 a folder's marker is .storytree/project.json and a root .storytree.js
 });
 
 test("1.4 with the app's database stopped, asking where to send activity answers \"storytree isn't running\" in well under a second", async () => {
-  // test-removed: the message's exact wording (ADR-0623): the answer is checked by its status below.
   await withTempDir(async (dir) => {
     const folder = markedFolder(dir, "site");
 
-    // Running: the test server's own owner record says where it listens.
     const running = { dataDir: testServerDataDir() };
     const discovered = locateStorytree(running);
     assert.deepEqual(discovered, { running: true, url: testServerRecordedUrl() });
@@ -162,7 +136,6 @@ test("1.4 with the app's database stopped, asking where to send activity answers
       assert.deepEqual((await client.query("SELECT 42 AS synthetic")).rows, [{ synthetic: 42 }]);
     } finally { await client.end(); }
 
-    // Every local cluster asks for a password (ADR-0941): discovery supplies it, and none other signs in.
     assert.ok(new URL(discovered.url).password, "an authenticated launcher must supply its password through discovery");
     for (const bad of ["", "incorrect-synthetic-password"]) {
       const rejectedUrl = new URL(discovered.url);
@@ -171,7 +144,6 @@ test("1.4 with the app's database stopped, asking where to send activity answers
       try { await assert.rejects(rejected.connect()); } finally { await rejected.end(); }
     }
 
-    // Stopped: a stopped server leaves no owner record.
     const stopped = { dataDir: path.join(dir, "home", "pgdata") };
     const { result, ms } = timed(() => route(folder, stopped));
     assert.deepEqual(result, { status: "not-running", project: "site", message: NOT_RUNNING });
@@ -181,10 +153,7 @@ test("1.4 with the app's database stopped, asking where to send activity answers
 });
 
 test("1.5 a leftover address from a crashed app counts as not running: it answers in well under a second and never hangs", async () => {
-  // The pid of a process that has ended, as a crashed app leaves it in its owner record.
   const gone = spawnSync(process.execPath, ["-e", "0"]).pid;
-  // Something on the leftover port that accepts a connection and never answers: were routing to
-  // try the address, it would hang there.
   const silent = createServer(() => {});
   await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
   const { port } = silent.address() as AddressInfo;
@@ -197,7 +166,6 @@ test("1.5 a leftover address from a crashed app counts as not running: it answer
       assert.deepEqual(result, { status: "not-running", project: "site", message: NOT_RUNNING });
       assert.ok(ms < QUICK_MS, `answered in ${ms.toFixed(0)} ms`);
 
-      // A record that cannot be read counts the same.
       writeFileSync(`${dataDir}.owner.json`, "{ half a rec");
       assert.deepEqual(locateStorytree({ dataDir }), { running: false, message: NOT_RUNNING });
     });
@@ -208,7 +176,6 @@ test("1.5 a leftover address from a crashed app counts as not running: it answer
 
 test("1.6 with the library set to a Postgres address, a project routes to that address whether or not the app's database runs, and no local address is tried", async () => {
   const address = "postgres://me@db.example.com:5432/postgres?sslmode=require";
-  // A live process's record pointing at a port that accepts and never answers: trying it would hang.
   const silent = createServer(() => {});
   await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
   const { port } = silent.address() as AddressInfo;
@@ -223,7 +190,6 @@ test("1.6 with the library set to a Postgres address, a project routes to that a
       placeTestServer(dataDir, { port });
       assert.deepEqual(route(folder, { dataDir }), { status: "routed", project: "site", folder, library: { address } });
 
-      // Set back to local, routing follows the app's owner record and its handoff again.
       setLibrary(["local"], home);
       const local = route(folder, { dataDir });
       assert.equal(local.status, "routed");
@@ -264,12 +230,10 @@ test("1.7 routing reads only the library setting: damage elsewhere in settings.j
   });
 });
 
-/** Two storytree homes stand for two machines: each keeps its own machine identity. */
 function machines(dir: string): { laptop: string; box: string } {
   return { laptop: path.join(dir, "laptop-home"), box: path.join(dir, "box-home") };
 }
 
-/** A refusal of a folder by the one setup check (ADR-0757 D3), with the words it must carry. */
 function folderRefusal(...words: string[]): (error: unknown) => boolean {
   return (error: unknown) => error instanceof Error && error.name === "ProjectFolderError" && words.every((word) => error.message.includes(word));
 }
@@ -287,7 +251,6 @@ test("1.12 a marker alone reaches no project: with or without the project's iden
     git(trunk, "worktree", "add", "-q", "-b", "feature", worktree);
     await withStorytree([project, victim], async (storytree) => {
       const { identity } = await storytree.openProject(victim).then(async (library) => (await library.close(), library));
-      // A downloaded folder naming someone's existing project, by name and by its real identity.
       const [bare, known] = [markedFolder(dir, "bare"), markedFolder(dir, "known")];
       writeMarker(bare, JSON.stringify({ project: victim }));
       writeMarker(known, JSON.stringify({ project: victim, identity }));
@@ -296,17 +259,14 @@ test("1.12 a marker alone reaches no project: with or without the project's iden
         await assert.rejects(requireApproval(storytree, victim, folder, laptop), folderRefusal(victim, "not approved", "--join"));
       }
 
-      // A trunk recorded before approval existed, as Session management once recorded it on sight.
       await (await storytree.openProject(project)).close();
       const machine = machineOf(laptop);
       assert.equal(await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: trunk }), true);
       await assert.rejects(requireApproval(storytree, project, trunk, laptop), folderRefusal(project, "not approved"), "nothing is grandfathered");
       await assert.rejects(requireApproval(storytree, project, worktree, laptop), folderRefusal(project, "not approved"));
 
-      // Joining on purpose approves it in place (the app setup's 6.5).
       assert.equal(await approveTrunk(storytree, { project, machine: machine.id, folder: trunk }, "join"), true);
       await requireApproval(storytree, project, trunk, laptop);
-      // The approval is the trunk's record, not this home's memory of it: the same machine with nothing remembered finds it too.
       const fresh = path.join(dir, "laptop-home-again");
       mkdirSync(fresh);
       writeFileSync(path.join(fresh, "machine.json"), readFileSync(path.join(laptop, "machine.json")));
@@ -327,11 +287,9 @@ test("1.18 a forgotten trunk's approval is forgotten on this machine too: its fo
     await withStorytree([project], async (storytree) => {
       await markedProject(storytree, trunk, project, laptop);
       await requireApproval(storytree, project, trunk, laptop);
-      // Removed from this machine: the folder and its marker are still there, the trunk is not.
       await forgetTrunk(storytree, { project, machine: machineOf(laptop).id }, laptop);
       await assert.rejects(requireApproval(storytree, project, trunk, laptop), folderRefusal(project, "not approved"));
 
-      // The project deleted, so its trunk forgotten on every machine; the checkout deleted and cloned again at the same place.
       await markedProject(storytree, trunk, project, laptop);
       await requireApproval(storytree, project, trunk, laptop);
       const marker = readFileSync(path.join(trunk, PROJECT_FILE));
@@ -408,7 +366,6 @@ test("1.17 only a git worktree its trunk's repository registered inherits the tr
       assert.equal(named(findProject(worktree)).project, project);
       await requireApproval(storytree, project, worktree, laptop);
 
-      // A downloaded folder carrying its own git directory whose commondir leads to the trunk's repository.
       const forged = path.join(dir, "download");
       const fake = path.join(forged, "fake-gitdir");
       mkdirSync(fake, { recursive: true });
@@ -419,7 +376,6 @@ test("1.17 only a git worktree its trunk's repository registered inherits the tr
       writeMarker(forged, JSON.stringify({ project }));
       await assert.rejects(requireApproval(storytree, project, forged, laptop), folderRefusal(project, "not approved"));
 
-      // Pointing into the repository's own worktree records is no better: that record names another folder.
       writeFileSync(path.join(forged, ".git"), `gitdir: ${path.join(trunk, ".git", "worktrees", path.basename(worktree))}\n`);
       await assert.rejects(requireApproval(storytree, project, forged, laptop), folderRefusal(project, "not approved"));
     });

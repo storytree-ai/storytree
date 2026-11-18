@@ -1,4 +1,4 @@
-/** Capability 2 · Settings: every home here is thrown away after its test. */
+// Capability 2 · Settings
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -55,7 +55,6 @@ test("2.4 invalid settings are reported on read and set, and their bytes are pre
 test("2.4 an unreadable settings path is reported and a set does not replace it", async () => {
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
-    // A directory fails as a file on all supported platforms, including Windows and root-run tests.
     mkdirSync(file);
     writeFileSync(path.join(file, "kept"), "untouched");
     for (const operation of [() => agentLink.readSettings(home), () => agentLink.setSetting("context-guidance", "400000", home)]) {

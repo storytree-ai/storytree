@@ -1,30 +1,11 @@
-/**
- * Capability 4 · Drill-down. The drill-down's panel (the forest story, capability 4): @storytree/forest's drillDown, as HTML.
- * It shows exactly what is selected, each thing once (ADR-1295, ADR-1297): a story picked alone is its title, its whole
- * description and its capabilities by name, each opening that capability; a capability picked is its title, its story
- * named small above it, its whole description and its contracts, each with its own state. Its open work, a contract's
- * detail and the story's extra checks wait in a fold behind a handle saying what is inside and how much, which a single
- * click opens (ADR-1287; ./panel-folds.ts works them). The island draws the capability tree and the territories carry
- * health, so the panel draws neither (ADR-1285); under its head, its microscope shows the story or capability it is rooted
- * on, drilled as deep as the code goes (ADR-1350 D2, ./microscope.ts). Every word from the library is written as text, never as HTML.
- */
+// Capability 4 · Drill-down
 import type { AcceptanceState, CapabilityLine, CheckReading, ContractLine, EdgeLine, StoryPanel, WhyLine } from "@storytree/forest";
 import type { HealthSource, HealthState } from "@storytree/library";
 import { scopeSection } from "./microscope.js";
 
-/**
- * The panel's HTML: `selected`, the capability picked, when it is one of the story's, else the story alone; no capability
- * is ever picked for the user (ADR-1297). Every fold is drawn closed, with nothing to open them all (ADR-1292); the page's
- * folds open the kinds the user keeps open. With the capability details switched off (ADR-0750) it is the story alone,
- * without its capabilities' names. A `gate` picked on the map, the pair of capabilities it joins, shows the edges between
- * them (ADR-1282 D1), each in one state line (ADR-1284 D4); `open` holds the contracts the arc opened in the Arcs tab
- * links in its open work.
- */
-// Its head, on show exactly while the panel is, names the panel as the Story panel's canvas (Surface feedback).
 export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { details = true, gate, open }: { details?: boolean; gate?: readonly [string, string] | undefined; open?: readonly string[] | undefined } = {}): string {
   if (gate !== undefined) return `${head(panel.title)}${gateLinks(panel, gate, open)}`;
   const shown = details ? panel.capabilities.find(({ id }) => id === selected) : undefined;
-  // The microscope's land is bare in the HTML and laid out on the page (./microscope.ts), so news drawing the same panel changes nothing.
   if (shown !== undefined) return `${head(shown.title, panel.title)}${panel.microscope === undefined ? "" : scopeSection(panel.microscope, shown.id, shown.id, "bare")}${capability(shown, panel.edges ?? [])}`;
   return `${head(panel.title)}
     ${panel.microscope === undefined || !details ? "" : scopeSection(panel.microscope, panel.story, panel.story, "bare")}
@@ -35,7 +16,6 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
     ${panel.checks === undefined || panel.checks.length === 0 ? "" : extraChecks(panel.checks)}`;
 }
 
-/** The panel's head: what is selected, and for a capability its story, named small above it, which opens the story alone. */
 function head(title: string, story?: string): string {
   return `
     <header class="panel-head" data-surface-id="story-panel" data-surface-layer="panel">
@@ -44,16 +24,11 @@ function head(title: string, story?: string): string {
     </header>`;
 }
 
-/** A whole description, each paragraph its own, with no fold (ADR-1297). */
 function description(words: string, kind: string): string {
   const paragraphs = words.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter((paragraph) => paragraph !== "");
   return `<div class="${kind}">${paragraphs.map((paragraph) => `<p>${text(paragraph)}</p>`).join("")}</div>`;
 }
 
-/**
- * A story's capabilities by name, in build order, each a button that opens that capability (ADR-1297), and each the owner
- * moves marked "needs you" after its name, so the "n capabilities need you" line points at its rows; with none, nothing.
- */
 function names(capabilities: readonly CapabilityLine[]): string {
   if (capabilities.length === 0) return "";
   return `<ul class="panel-capabilities" aria-label="Capabilities">${capabilities
@@ -65,18 +40,10 @@ function names(capabilities: readonly CapabilityLine[]): string {
     .join("")}</ul>`;
 }
 
-/** One block of detail behind its handle, closed until the user opens it (ADR-1284 D1); `handle` is already text. */
 function fold(kind: string, handle: string, inside: string): string {
   return `<div class="panel-fold" data-fold="${kind}"><button type="button" class="panel-handle" aria-expanded="false">${handle}</button><div class="panel-fold-body" hidden>${inside}</div></div>`;
 }
 
-/**
- * A picked gate: the edges joining its two capabilities, whichever depends on which, each saying so, then what passes
- * between them in its own words when someone wrote them (Fable's F3.1), and then its state in one line: its own contracts behind "Contracts · n", each opening as a capability's does, never either capability's
- * (ADR-1282 D1), and "open work on this link" when the opened arc's open work links one of them, the reason the gate is
- * ringed; one with none says so, with no handle (ADR-1284 D4). After the handle, how many of them storytree last saw
- * failing, when any are.
- */
 function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string], open: readonly string[] | undefined): string {
   const links = (panel.edges ?? []).filter(({ from, to }) => (from === one && to === other) || (from === other && to === one));
   return `
@@ -92,17 +59,11 @@ function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string], o
     </section>`;
 }
 
-/** How many of a link's contracts wear a red gear, in its state line; with none, nothing. */
 function failing(contracts: readonly ContractLine[]): string {
   const count = contracts.filter(({ gear }) => gear?.state === "failing").length;
   return count === 0 ? "" : `<span class="panel-link-failing">${count} failing</span>`;
 }
 
-/**
- * What an imported story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. It is
- * assumed to be working only until storytree holds a reading on any of its parts: a gear passing or failing, or a robot
- * passed or failed (Fable's F2.7).
- */
 function mapped({ files, lines }: NonNullable<StoryPanel["mapped"]>, capabilities: readonly CapabilityLine[]): string {
   const counts = files === undefined || lines === undefined ? "" : ` ${files.toLocaleString("en-GB")} file${files === 1 ? "" : "s"}, ${lines.toLocaleString("en-GB")} line${lines === 1 ? "" : "s"}.`;
   const read = capabilities.some(({ contracts }) => contracts.some(({ gear, acceptance }) => (gear !== undefined && gear.state !== "not-checked") || (acceptance !== undefined && acceptance !== "not-run")));
@@ -113,21 +74,12 @@ type ExtraCheck = NonNullable<StoryPanel["checks"]>[number];
 
 const TRIGGER: Readonly<Record<ExtraCheck["trigger"], string>> = { change: "on every change", release: "before each formal release" };
 
-/**
- * The extra checks only this story carries, each with what sets it off; the standard tests are not listed. Its risk
- * rating is switched off (question_0de2b8280384), so the panel shows none.
- */
 function extraChecks(checks: readonly ExtraCheck[]): string {
   return fold("extra-checks", `Extra checks · ${checks.length}`, `<ul class="panel-checks">${checks
     .map(({ check, trigger, capability }) => `<li>${text(check)}${capability === undefined ? "" : ` <span class="panel-muted">(${text(capability)})</span>`}, ${TRIGGER[trigger]}</li>`)
     .join("")}</ul>`);
 }
 
-/**
- * A capability's contracts, each with its own state on show (ADR-1297); with none, it says so, and where its guarantees sit
- * when its links carry them: how many on each link, by the other part and its direction, and their states (Fable's F4.7, F5.5).
- * They stay the links' own: the capability's colour counts only its own contracts (ADR-1279 D3, question_db632f671942).
- */
 function contracts(line: CapabilityLine, edges: readonly EdgeLine[]): string {
   if (line.contracts.length > 0) return `<h3 class="panel-subhead">Contracts</h3>${contractList(line.contracts)}`;
   const links = edges.filter(({ from, to, contracts: carried }) => (from === line.id || to === line.id) && carried.length > 0);
@@ -139,12 +91,10 @@ function contracts(line: CapabilityLine, edges: readonly EdgeLine[]): string {
   return `<p class="panel-muted panel-on-links">${text(`No contracts on this part; ${listed(where)}, ${states(links.flatMap(({ contracts: carried }) => carried))}.`)}</p>`;
 }
 
-/** Words joined as the owner reads them: "a", "a and b", "a, b and c". */
 function listed(words: readonly string[]): string {
   return words.length < 2 ? (words[0] ?? "") : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
 }
 
-/** Contracts' states in one phrase: "both verified passing", or each state counted when they differ. */
 function states(contracts: readonly ContractLine[]): string {
   const counts = new Map<string, number>();
   for (const contract of contracts) counts.set(stateWords(contract), (counts.get(stateWords(contract)) ?? 0) + 1);
@@ -153,20 +103,12 @@ function states(contracts: readonly ContractLine[]): string {
   return contracts.length === 1 ? words : contracts.length === 2 ? `both ${words}` : `all ${contracts.length} ${words}`;
 }
 
-/** One contract's state in a sentence, from its checks as its icons show them; the agent's report says nothing here (ADR-0630). */
 function stateWords({ gear, acceptance }: ContractLine): string {
   if (gear !== undefined && gear.state !== "not-checked") return `verified ${gear.state}`;
   if (gear === undefined && acceptance !== undefined && acceptance !== "not-run") return `${acceptance} acceptance testing`;
   return "not run yet";
 }
 
-/**
- * Contracts, a capability's or a link's alike, each by its title and, after it, one small icon per check it has and no words
- * (question_32b645261409, Mick's answer A): a gear for storytree's run of its tests, a robot for agentic user acceptance
- * testing, each green passed, red failed or yellow not run yet. The agent's report colours nothing (ADR-0630). Each opens one
- * level deeper to every check in full words, the agent's trail said as the agent's, the tests that last judged it (Fable's
- * F2.4), and when it was last seen if not re-run since.
- */
 function contractList(contracts: readonly ContractLine[]): string {
   return `<ul class="panel-contracts">${contracts
     .map((contract) => {
@@ -188,28 +130,20 @@ function contractList(contracts: readonly ContractLine[]): string {
     .join("")}</ul>`;
 }
 
-/** The icons a contract row draws, each a shape alone, never words (the app's menu gear is larger and grey). */
 const ICONS: Readonly<Record<"gear" | "robot", string>> = {
   gear: `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M7 1h2l.4 2 1.3.6 1.7-1.2 1.4 1.4-1.2 1.7.6 1.3 2 .4v2l-2 .4-.6 1.3 1.2 1.7-1.4 1.4-1.7-1.2-1.3.6-.4 2H7l-.4-2-1.3-.6-1.7 1.2-1.4-1.4 1.2-1.7-.6-1.3-2-.4V7l2-.4.6-1.3-1.2-1.7 1.4-1.4 1.7 1.2 1.3-.6zM8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg>`,
   robot: `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M7.25 1h1.5v2H12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.25zM5.5 6.25a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm5 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM5.5 10.5v1h5v-1zM0 6h1.5v4H0zm14.5 0H16v4h-1.5z"/></svg>`,
 };
 
-/** One check's icon, coloured by its state; its words are for a screen reader alone. */
 function mark(kind: "gear" | "robot", state: HealthState, words: string): string {
   return `<span class="panel-mark mark-${kind} state-${state}" data-mark="${kind}" data-state="${state}" role="img" aria-label="${attribute(words)}">${ICONS[kind]}</span>`;
 }
 
-/** What storytree's run said, in full words: "storytree's run: fails, from CI, 11 Nov"; a run not yet made has no where or when. */
 function run({ state, source, at }: CheckReading): string {
   if (state === "not-checked") return "storytree's run: not run yet";
   return `storytree's run: ${state === "passing" ? "passes" : "fails"}${source === undefined ? "" : `, ${FROM[source]}`}${at === undefined ? "" : `, ${day(at)}`}`;
 }
 
-/**
- * A capability picked: why it is not green and who moves it, only when that needs the user; that nothing checks a
- * report-only project; where it is parked; its whole description; its open work; then its contracts. Its health is the
- * territory's to show (ADR-1295), so it has no word and no Health fold here.
- */
 function capability(line: CapabilityLine, edges: readonly EdgeLine[]): string {
   return `
     <section class="panel-detail" data-capability-id="${attribute(line.id)}">
@@ -222,27 +156,22 @@ function capability(line: CapabilityLine, edges: readonly EdgeLine[]): string {
     </section>`;
 }
 
-/** The why line matters only when it is unhealthy or untested, or the owner moves it: "not built yet" on a proposed one is no news. */
 function mattersWhy(status: CapabilityLine["status"], { mover }: WhyLine): boolean {
   return status === "unhealthy" || status === "untested" || mover === "owner";
 }
 
-/** On the story's surface, only when the owner moves one of its capabilities: how many need him (ADR-1284 D2). */
 function needsYou(capabilities: readonly CapabilityLine[]): string {
   const count = capabilities.filter(({ why: reason }) => reason?.mover === "owner").length;
   if (count === 0) return "";
   return `<p class="panel-needs-you">${count} ${count === 1 ? "capability needs" : "capabilities need"} you</p>`;
 }
 
-/** What a report-only capability says in place of a reason (ADR-0630); the library's words, kept here as the panel's. */
 const NOT_VERIFIED = "storytree does not check this project's tests yet";
 
-/** How many of a capability's contracts carry a reason: "2 of 4 contracts". */
 function counted(carrying: number, of: number): string {
   return `${carrying} of ${of} contract${of === 1 ? "" : "s"}`;
 }
 
-/** The reason in the owner's words, by how many of how many contracts carry it; none carrying it, said of the capability. */
 const REASON: Readonly<Record<WhyLine["reason"], (carrying: number, of: number) => string>> = {
   "not built": () => "it is not built yet",
   failing: (carrying, of) => (carrying === 0 ? "it is failing" : `${counted(carrying, of)} ${carrying === 1 ? "fails" : "fail"}`),
@@ -254,12 +183,6 @@ const REASON: Readonly<Record<WhyLine["reason"], (carrying: number, of: number) 
   "needs owner": (carrying, of) => `${counted(carrying, of)} ${carrying === 1 ? "needs" : "need"} something only you can give`,
 };
 
-/**
- * Under its title (4.49, ADR-0825 D1): why it is not green, in counts of its contracts, and who moves it. A contract counts as
- * failing by its gear, so a CI failure counts though a later local run passed it (question_32b645261409); any failing gear
- * on a built capability makes the reason failing, else the library's reason stands, shown only when it matters. The agent's work is named by the
- * open increment that moves it, with what it waits on; the owner's says he moves it. Everything the library says is text.
- */
 function lead(line: CapabilityLine): string {
   const failing = line.contracts.filter(({ gear }) => gear?.state === "failing");
   const reason: WhyLine | undefined = failing.length > 0 && line.status !== "proposed" && line.why?.reason !== "not built"
@@ -271,13 +194,11 @@ function lead(line: CapabilityLine): string {
   return `<p class="panel-why mover-${mover}"><strong>Why not green:</strong> ${text(sentence)}${sources === undefined ? "" : `, ${FROM[sourceKey(sources)]}`}${since === undefined || reason.reason === "not re-run" ? "" : `, since ${day(since)}`}. <span class="panel-mover">${text(mover === "owner" ? "You move this one." : moves(line.openWork))}</span></p>`;
 }
 
-/** The sources failing gears were read from, local before CI, when they say. */
 function gearSources(contracts: readonly ContractLine[]): { sources?: HealthSource[] } {
   const said = (["local", "ci"] as const).filter((source) => contracts.some(({ gear }) => gear?.source === source));
   return said.length === 0 ? {} : { sources: [...said] };
 }
 
-/** The open increment that moves it, the first in the library's order, and what holds it, else that it is under way or ready to take. */
 function moves(work: CapabilityLine["openWork"]): string {
   const next = work?.[0];
   if (next === undefined) return "No open work moves it yet.";
@@ -285,7 +206,6 @@ function moves(work: CapabilityLine["openWork"]): string {
   return `${next.title} moves it; ${next.active ? "it is under way" : "it is ready to take"}.`;
 }
 
-/** One thing holding an increment, as the lead says it. */
 function waitSaid(wait: NonNullable<NonNullable<CapabilityLine["openWork"]>[number]["waits"]>[number]): string {
   switch (wait.kind) {
     case "work": return `${wait.title}${wait.state === "active" ? ", which is under way" : wait.state === "ready" ? ", which is ready to take" : ""}`;
@@ -296,20 +216,17 @@ function waitSaid(wait: NonNullable<NonNullable<CapabilityLine["openWork"]>[numb
   }
 }
 
-/** Phrases joined as a sentence says them: "a", "a and b", "a, b and c"; with a comma inside one, the last after ", and". */
 function and(phrases: readonly string[]): string {
   if (phrases.length < 2) return phrases[0] ?? "";
   return `${phrases.slice(0, -1).join(", ")}${phrases.some((phrase) => phrase.includes(",")) ? ", and" : " and"} ${phrases.at(-1)}`;
 }
 
-/** Why a grey territory is grey (ADR-0992 D6): the arcs that park it, by title. */
 function parked(arcs: NonNullable<CapabilityLine["parkedOn"]>): string {
   const titles = arcs.map(({ title }) => title);
   const named = titles.length < 2 ? (titles[0] ?? "") : `${titles.slice(0, -1).join(", ")} and ${titles.at(-1)}`;
   return `<p class="panel-parked">Parked on ${text(named)}: shelved on purpose.</p>`;
 }
 
-/** The open work naming it, in the library's order (ADR-1253 D1): read here, not drawn on the map; each row's button opens its increment (4.48). */
 function openWork(increments: NonNullable<CapabilityLine["openWork"]>): string {
   return fold("open-work", `Open work · ${increments.length}`, `<ol class="panel-open-work">${increments
     .map(({ increment, title, active }) => `<li data-increment-id="${attribute(increment)}"${active ? ` class="active"` : ""}><button type="button" class="panel-open-increment" data-open-increment="${attribute(increment)}">${text(title)}${active ? ` <span class="panel-muted">(in progress)</span>` : ""}</button></li>`)
@@ -318,27 +235,22 @@ function openWork(increments: NonNullable<CapabilityLine["openWork"]>): string {
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** A time as the day it fell on, in UTC so every reader sees the same: "27 Sep". */
 function day(at: string): string {
   const when = new Date(at);
   return `${when.getUTCDate()} ${MONTHS[when.getUTCMonth()]}`;
 }
 
-/** How many tests the fold names before saying how many more there are. */
 const TESTS_NAMED = 3;
 
-/** The tests that last judged a contract, when its entry kept them. */
 function testedBy(tests: readonly string[]): string {
   const more = tests.length - TESTS_NAMED;
   return `<span class="panel-tests">tested by ${text(tests.slice(0, TESTS_NAMED).join("; "))}${more > 0 ? ` and ${more} more` : ""}</span>`;
 }
 
-/** The agent's trail on a contract, said as the agent's: a history of its reports, not a check (ADR-0630 D2). */
 function trail(words: string): string {
   return words === "not reported yet" ? "the agent has not reported it yet" : `the agent reported it ${words}`;
 }
 
-/** Agentic user acceptance testing's state on a contract marked for it, its robot's colour and its words, never "UAT" (ADR-1294 D1). */
 const ACCEPTANCE: Readonly<Record<AcceptanceState, { words: string; state: HealthState }>> = {
   passed: { words: "passed", state: "passing" },
   failed: { words: "failed", state: "failing" },
@@ -349,7 +261,6 @@ function accepted(state: AcceptanceState): string {
   return `agentic user acceptance testing: ${ACCEPTANCE[state].words}`;
 }
 
-/** Where storytree saw a verdict, in words (ADR-1193 D3). */
 const FROM: Readonly<Record<"local" | "ci" | "both", string>> = { local: "verified locally", ci: "from CI", both: "verified locally and from CI" };
 
 function sourceKey(sources: readonly HealthSource[]): "local" | "ci" | "both" {

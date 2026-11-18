@@ -1,10 +1,3 @@
-// Selecting an arc rings its open work (ADR-1253 D1 as corrected 2026-11-05): storytree's own map (the code-rows snapshot and
-// its survey) as the app opens it, with two active arcs in the stand-in bridge whose open increments name real capabilities of
-// the seed. No arc selected draws no open-work mark; the first arc's row clicked in the Arcs tab rings each capability it names
-// round its settlement or its nameplate, dimming nothing (ADR-1299), the same at the wheel's floor (ADR-1272 D2); then close up on The library
-// and on The arc surface, a small island. `node --import tsx capture.mjs` (append --retake to write into
-// src/view/evidence/open-work). Counts, from the scene, every ring and dim shown, so "ringed what the arc names" and "dimmed nothing"
-// are measured.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -22,8 +15,6 @@ await buildCapture({ dist });
 const at = '2026-11-05T00:00:00.000Z';
 const record = (id, type, fields) => ({ id, type, fields, version: 1, createdAt: at, updatedAt: at });
 const work = (id, arc, title, status, capabilities) => record(id, 'increment', { arc, title, objective: title, status, parked: at, capabilities });
-// The capability tree arc's open work: Story node render and Running sessions (The forest), Arc surface (The arc surface),
-// Storytree projects (The app) and Library transactions (The library); a closed increment's capabilities are not open work.
 const RINGED = ['capability_3c5ed8b3ca70', 'capability_5a80222c88c4', 'capability_6133809a4139', 'capability_8ffc78a4bad2', 'capability_d077e76e50d7'];
 const tree = record('arc_tree', 'arc', { title: 'Capability tree: a map of capabilities', intent: 'See where work lands', endState: 'The look landed' });
 const retry = record('arc_library', 'arc', { title: 'Library transactions retry', intent: 'Retry safely', endState: 'Retries land' });
@@ -41,7 +32,6 @@ const arcs = [
 const started = performance.now();
 const phase = message => console.error(`[open work +${Math.round(performance.now() - started)}ms] ${message}`);
 const until = async (page, what, predicate, arg, timeout = 180_000) => { phase(`wait for ${what}`); await page.waitForFunction(predicate, arg, { timeout, polling: 200 }); };
-/** What the map shows of the open work, counted from the scene: each ring and dim whose every ancestor is visible. */
 const measure = page => page.evaluate(() => {
   const found = { rings: [], dims: [], dimmedIslands: [] };
   const shown = object => { for (let o = object; o; o = o.parent) if (!o.visible) return false; return true; };
@@ -58,12 +48,10 @@ const results = { ringedByTheArc: RINGED };
 const storyNamed = title => seed.tree.stories.find(story => story.title === title).id;
 const library = storyNamed('The library'), arcSurface = storyNamed('The arc surface');
 const eye = { radius: SHEET_RADIUS + PLATE_CLEARANCE, fov: SHEET_FOV };
-/** The eye's zoom, CSS pixels per ground unit (`sheetEyeZoom`). */
 const eyeZoom = page => page.evaluate(({ radius, fov }) => {
   const { camera, size } = window.__globe;
   return Math.max(size.height, 1) / 2 / Math.tan(fov * Math.PI / 360) / (camera.position.length() - radius);
 }, eye);
-/** Stands the eye on its line of sight at `zoom`, as the wheel would, and lets the map draw it (the zoom-detail capture's). */
 const zoomTo = async (page, settle, zoom) => {
   await page.evaluate(({ zoom, radius, fov }) => {
     const { camera, size, invalidate } = window.__globe;
@@ -72,13 +60,11 @@ const zoomTo = async (page, settle, zoom) => {
   }, { zoom, ...eye });
   await settle(page, 12);
 };
-/** The sheet's own camera stop for `story` (the page's locator, 3.41), then the eye near, where the settlements show (3.86). */
 const closeUp = async (page, settle, story) => {
   if (!await page.evaluate(story => window.storytreeGlobe.face({ kind: 'story', story }), story)) throw new Error(`no camera stop for ${story}`);
   await until(page, 'the globe still', () => window.storytreeGlobe.still());
   await zoomTo(page, settle, DETAIL_ZOOM.near * 1.4);
 };
-/** The whole map, at `times` the zoom it opens on. */
 const whole = async (page, settle, times = 1) => {
   if (!await page.evaluate(() => window.storytreeGlobe.face({ kind: 'core' }))) throw new Error('no camera stop for the whole map');
   await until(page, 'the globe still', () => window.storytreeGlobe.still());
@@ -91,7 +77,6 @@ await runCapture({
   prepare: async ({ page, settle }) => {
     await until(page, 'the ready map', () => document.body.dataset.state === 'ready');
     for (const button of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name: button, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
-    // Each island draws once its own territory search lands, one search at a time (3.95), so every island takes minutes.
     await until(page, 'every island laid out with its roads', () => { let n = 0, laid = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('planet:') && o.name !== 'planet:shell') { n++; if (o.getObjectByName('island-roads')) laid++; } }); return n > 0 && laid === n; }, undefined, 1_800_000);
     await settle(page);
     results.opening = await eyeZoom(page);
@@ -111,7 +96,6 @@ await runCapture({
       await whole(page, settle);
       await page.locator('[data-rail-tab="arcs"]').click().catch(() => {});
       await page.locator('[data-arc-select="arc_tree"]').click();
-      // The rings follow the selected arc, so it stays selected in the picture.
       await until(page, 'the arc\'s rings', count => { let rings = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('open-work-ring:')) rings++; }); return rings >= count; }, RINGED.length);
       await settle(page, 12);
     },
@@ -119,7 +103,6 @@ await runCapture({
     expect: found => { assert.deepEqual(found.rings, RINGED); assert.deepEqual(found.dims, []); assert.deepEqual(found.dimmedIslands, []); },
   }, {
     name: 'arc-selected-floor',
-    // Half the zoom the map opens on, where the wheel stops: the territories still show, so the capabilities' rings do (3.86).
     prepare: async ({ page, settle }) => whole(page, settle, 0.5),
     measure: async ({ page }) => (results.floor = await measure(page)),
     expect: found => { assert.deepEqual(found.rings, RINGED); assert.deepEqual(found.dims, []); assert.deepEqual(found.dimmedIslands, []); },

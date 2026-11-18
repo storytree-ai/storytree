@@ -1,14 +1,7 @@
-/**
- * Capability 3 · Story node render. Which scene the globe has painted, and the waits on it (3.75): `drawn` resolves once a frame
- * showing the scene last given to `shown` has been painted, so the page can settle a start only once the globe is on screen
- * (3.49, question_f1589345683f).
- */
+// Capability 3 · Story node render
 export interface PaintedScenes<Scene> {
-  /** The scene now on show. */
   shown(scene: Scene): void;
-  /** A frame showing `scene` was painted. */
   painted(scene: Scene): void;
-  /** Resolves once a frame of the scene on show has been painted. */
   drawn(): Promise<void>;
 }
 

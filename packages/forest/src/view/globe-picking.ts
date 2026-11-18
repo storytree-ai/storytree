@@ -1,16 +1,13 @@
-/** Capability 3 · Story node render. Forest capability 3: choose an artifact using pixels, independent of WebGL. */
+// Capability 3 · Story node render
 export interface ProjectedNote {
   id: string;
   x: number;
   y: number;
-  /** Normalized clip depth. */
   z: number;
-  /** Distance along the picking ray, in the same units as the occluder. */
   distance: number;
   visible: boolean;
 }
 
-/** An eight-pixel target keeps faint dots easy to hit; land in front always wins. */
 export function pickProjectedNote(notes: readonly ProjectedNote[], cursor: { x: number; y: number }, occluderDistance = Infinity): string | undefined {
   let best: ProjectedNote | undefined, closest = Infinity;
   for (const note of notes) {

@@ -12,10 +12,8 @@ const { privateKey: strangerKey } = await generateKeyPair("RS256");
 const jwks = { keys: [{ ...(await exportJWK(publicKey)), kid: "k1", alg: "RS256", use: "sig" }] };
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
-/** A WorkOS access token as its JWT template stamps it, signed by the client's key unless told otherwise. */
 const token = (claims: Record<string, unknown> = {}, key = privateKey) => new SignJWT({ sid: "session_01", aud: "storytree-identity", ...claims })
   .setProtectedHeader({ alg: "RS256", kid: "k1" }).setSubject(user.id).setIssuedAt().setExpirationTime("5m").sign(key);
-/** WorkOS's code and refresh exchanges answer with the tokens and the user they belong to. */
 const exchange = async (change: Record<string, unknown> = {}, claims: Record<string, unknown> = {}, key = privateKey) =>
   response({ access_token: await token(claims, key), refresh_token: "refresh-private", user: account, ...change });
 

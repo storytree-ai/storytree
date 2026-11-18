@@ -56,7 +56,7 @@ async function git(folder: string, args: readonly string[]): Promise<string> {
 }
 
 /** The commit to read: `commit` when given, else origin/main as fetched, else HEAD where there is no origin. */
-async function commitOf(folder: string, commit: string | undefined): Promise<string> {
+export async function commitOf(folder: string, commit: string | undefined): Promise<string> {
   const verify = (name: string) => git(folder, ["rev-parse", "--verify", "--quiet", "--end-of-options", `${name}^{commit}`]).then((out) => out.trim());
   if (commit !== undefined) return verify(commit).catch(() => { throw new VerbRefusal(`Cannot read commit ${commit}: it is no commit in ${folder}.`); });
   const origin = await git(folder, ["config", "--get", "remote.origin.url"]).then((out) => out.trim(), () => "");

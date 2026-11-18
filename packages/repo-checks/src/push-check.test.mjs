@@ -236,3 +236,20 @@ test("1.11 · the push check refuses a push whose commits add a git call passing
   assert.match(refusal, /js\/second-order-command-line-injection/);
   assert.ok(!refusal.includes("ended.ts"), refusal);
 });
+
+test("1.12 · the push check refuses a push whose commits add a regex whose repeated parts overlap so it can backtrack super-linearly (PR #989's churn.ts regex), CodeQL's polynomial ReDoS, naming file, commit and line; the same regex with its parts made disjoint passes", (t) => {
+  const { home, root, git } = machine(t);
+  git("checkout", "-q", "-b", "renames");
+  mkdirSync(path.join(root, "src"));
+  writeFileSync(path.join(root, "src", "churn.ts"), 'export const arrow = " => ";\n' + String.raw`export const renamed = (path: string) => /^(.*)\{(.*) => (.*)\}(.*)$/.exec(path);` + "\n");
+  writeFileSync(path.join(root, "src", "disjoint.ts"), 'export const arrow = " => ";\n' + String.raw`export const renamed = (path: string) => /^([^{]*)\{([^}]*)\}$/.exec(path);` + "\n");
+  git("add", ".");
+  git("commit", "-q", "-m", "renames");
+  const head = git("rev-parse", "HEAD").trim();
+  const said = [];
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/renames ${head} refs/heads/renames ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1, said.join("\n"));
+  const refusal = said.join("\n");
+  assert.match(refusal, new RegExp(`src/churn\\.ts:2 \\(commit ${head.slice(0, 10)}\\) `));
+  assert.match(refusal, /js\/polynomial-redos/);
+  assert.ok(!refusal.includes("disjoint.ts"), refusal);
+});

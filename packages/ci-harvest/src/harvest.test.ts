@@ -371,3 +371,36 @@ test("1.4 · The harvest records each failing test of a red property-checks nigh
     { infra: 2, real: 2, flakes: 0, noTest: 0, waiting: 0, unsettled: 0 });
   assert.match(harvestText(counts), /real failures recorded: 2 caught by CI, 0 that reached main/);
 });
+
+test("1.5 · The harvest adds a run's flaky test to an earlier increment, open or landed, whose title names the test and whose body names the run, instead of parking another investigation", async () => {
+  const CAPTURE = "2.9 · capture settling awaits each requested frame after invalidating the globe";
+  const UNNUMBERED = "a test with no number";
+  // Every run fails outside what it changes (it changes nothing), so each failing test is a flake.
+  const failing: Record<number, string> = { 43052546224: CAPTURE, 43052546225: CAPTURE, 43052546226: CAPTURE, 43052546227: UNNUMBERED };
+  const runs = Object.keys(failing).map((id) => failed(Number(id), { event: "push", branch: "main" }));
+  const facts: HarvestSource["facts"] = async (run) => ({
+    jobs: [{ name: "verify on Linux", conclusion: "failure", steps: 1, log: logOf("packages/shop", [failing[run.id]!]) }], reach: new Set(), passedSameHead: false,
+  });
+  const { library, flakes, written } = libraryOf([
+    // The real incident: a landed investigation of 2.9 whose body names run 43052546224.
+    { id: "increment_372f2435eca0", fields: { arc: "arc_aaaaaaaaaaaa", status: "closed", title: "Flaky: desktop 2.9: capture settling browser launch times out", body: "Seen in CI run 43052546224, job 130633358246." } },
+    // Run 43052546225 is named, but the title names test 4.20 (2.9 only in the body), or 12.9 and 2.91, never 2.9.
+    { id: "increment_bbbbbbbbbbbb", fields: { arc: "arc_bbbbbbbbbbbb", status: "active", title: "Flaky: desktop 4.20: globe spin stalls", body: "CI run 43052546225; 2.9 failed beside it." } },
+    { id: "increment_cccccccccccc", fields: { arc: "arc_cccccccccccc", status: "active", title: "Flaky: desktop 12.9 and 2.91 time out", body: "CI run 43052546225." } },
+    // 2.9 is named, but the run named is 430525462260, not 43052546226.
+    { id: "increment_dddddddddddd", fields: { arc: "arc_dddddddddddd", status: "active", title: "Flaky: desktop 2.9 again", body: "CI run 430525462260." } },
+    // The full title of a test with no number, and the run, both in the title.
+    { id: "increment_eeeeeeeeeeee", fields: { arc: "arc_eeeeeeeeeeee", status: "active", title: `Flaky: "${UNNUMBERED}" in run 43052546227`, body: "" } },
+  ]);
+  const counts = await harvest({ library, source: { failedRuns: async () => runs, facts }, ledger: memoryLedger(), watcher: await watcherReading(), now: NOW });
+
+  assert.deepEqual(flakes.map(({ test, seen }) => ({ test, seen })), [
+    { test: CAPTURE, seen: "run 43052546225" },
+    { test: CAPTURE, seen: "run 43052546226" },
+  ], "only the runs no earlier increment names with their test are parked: a test number in the body only, 12.9, 2.91, or run 430525462260 names neither");
+  const parked = `increment_${CAPTURE.length.toString(16).padStart(12, "0")}`;
+  assert.deepEqual([...counts.investigations].sort(), ["increment_372f2435eca0", "increment_eeeeeeeeeeee", parked].sort(),
+    "the earlier increment that names the test and the run counts as that flake's investigation, landed or open");
+  assert.equal(counts.flakes, 4, "every flake is still counted");
+  assert.deepEqual(written, [], "nothing is written");
+});

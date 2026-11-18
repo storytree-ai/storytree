@@ -8,6 +8,9 @@
  *   interface), and sorted by its flake rules: a test outside what the pull request changes, one whose head later passed
  *   unchanged, or one in a merge-queue red the watcher reads as a flake (`queueOutcome`) is a flake, and goes to the one
  *   investigation of that test (CI health's `investigateFlakyTest`, ADR-1352), never a second flake record (1.2).
+ * - A flaky test an earlier increment, open or landed, already answers (its title names the test, by its full title or its
+ *   number as a whole token, and its title or body the run's id as a whole token) goes to that increment, not a new
+ *   investigation (1.5).
  * - A test that failed at a head and passed only once the pull request changed code it reaches is a real failure, and so is
  *   every increment that landed fixing an escape; each is recorded once as an escape pattern, unjudged, for the agent that
  *   runs the harvest to judge whether it generalises (1.3).
@@ -38,6 +41,13 @@ export const PROPERTY_NIGHTLY = "Property checks nightly";
 export const OWN_HEALTH = "Own health";
 /** The title the library gives the arc of a flaky test's one investigation (investigateFlake, 5.33), naming the test. */
 const INVESTIGATION = /^The flaky test "(.*)" passes reliably$/;
+/** The increment among `increments` that already answers `test`'s flake in run `run` (1.5): its title names the test, its title or body the run. */
+function answeredBy(increments: readonly { id: string; fields: { title: string; body?: string } }[], test: string, run: number): string | undefined {
+  const number = /^(\d+)\.(\d+) · /.exec(test);
+  const named = number === null ? undefined : new RegExp(`(?<![\\d.])${number[1]}\\.${number[2]}(?!\\.?\\d)`);
+  const ran = new RegExp(`(?<!\\d)${run}(?!\\d)`);
+  return increments.find(({ fields }) => (fields.title.includes(test) || named?.test(fields.title) === true) && ran.test(`${fields.title}\n${fields.body ?? ""}`))?.id;
+}
 /** Who the harvest's flakes and patterns are by. */
 const BY = "storytree harvest ci";
 
@@ -255,6 +265,8 @@ export async function harvest({ library, source, ledger, watcher, now = new Date
     for (const one of tests) {
       if (one.verdict === "undecided") continue;
       if (one.verdict === "flake") {
+        const earlier = answeredBy(increments, one.test, run.id);
+        if (earlier !== undefined) { counts.flakes++; investigations.add(earlier); continue; }
         const id = await investigateFlakyTest(library as Library, {
           test: one.test, ...(one.unit === undefined ? {} : { unit: one.unit }), seen: `run ${run.id}`, by: BY,
           evidence: `${where} (${run.event}): the harvest read it as a flake, since ${one.why}.`,

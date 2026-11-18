@@ -1,25 +1,15 @@
-/**
- * Capability 3 · Cards and journal on screen. The cards are a tour the user is offered, never imposed: until they say yes
- * to it, only the ask shows, in a corner. A fired card shows beside the thing it explains, clear of its island and as clear
- * of the other islands as it can be, and tied to it by a ring and a line wherever it sits, one at a time, and never takes focus
- * or blocks the map; any card ends the tour. Between cards, while kinds are still to come, a quiet line in a corner says the
- * tour is on. The journal lists the cards seen and shows one again.
- */
+// Capability 3 · Cards and journal on screen
 import { cardOf, KINDS, type Card, type Kind } from "../cards.js";
 import { encounters, type Encounter, type MapReading, type Target } from "../encounters.js";
 import type { Journal } from "../journal.js";
 import { decisionsDiagram } from "./diagram.js";
 
-/** Where a target is on the page, in client pixels, with its island's box when it is on one, or undefined when it is not drawn. */
 export type Locate = (target: Target) => { x: number; y: number; visible: boolean; box?: Box | undefined } | undefined;
 
-/** A rectangle on the page, in client pixels. */
 export type Box = { left: number; top: number; right: number; bottom: number };
 
-/** What the user is reading near a target (an open panel, the target's own name), in client pixels: a card covers none of it. */
 export type Reading = (target: Target) => readonly Box[];
 
-/** The boxes of the islands drawn on the page, in client pixels: a card covers as little of them as its place allows. */
 export type Islands = () => readonly Box[];
 
 const STYLES = `
@@ -67,32 +57,22 @@ const STYLES = `
 .diagram-core { fill: url(#tour-diagram-core); } .diagram-loose { fill: #e4e8ee; opacity: .75; }
 `;
 
-/** Pixels between a card and its point, and kept clear at the window's edges. */
 const GAP = 12;
-/** Pixels the ring round a card's island stands off it, and the radius of the ring at a point with no island. */
 const RING = 6, DOT = 8;
-/** Pixels between a card in a corner and the window's edges. */
 const CORNER = 16;
 
-/** The kinds only a factory's map holds, and the empty map's, which never comes again once a product's map holds anything. */
 const FACTORY_ONLY: readonly Kind[] = ["factory", "role", "note", "check"];
 
-/** How much of `boxes` a card at `card` covers, in square pixels. */
 function covered(card: Box, boxes: readonly Box[]): number {
   return boxes.reduce((sum, box) => sum + Math.max(0, Math.min(card.right, box.right) - Math.max(card.left, box.left))
     * Math.max(0, Math.min(card.bottom, box.bottom) - Math.max(card.top, box.top)), 0);
 }
 
-/** Where `from` and `to` come nearest along one axis: the middle of where they overlap, else their facing edges. */
 function facing(from: [number, number], to: [number, number]): [number, number] {
   const low = Math.max(from[0], to[0]), high = Math.min(from[1], to[1]);
   return low <= high ? [(low + high) / 2, (low + high) / 2] : from[1] < to[0] ? [from[1], to[0]] : [from[0], to[1]];
 }
 
-/**
- * Tie `card`, placed at `at`, to its thing: a ring round `box` (its island's), or a small round ring at `point` when it has none,
- * and a line from the card's nearest edge to the ring.
- */
 function tie(card: HTMLElement, at: Box, point: { x: number; y: number }, box: Box | undefined): void {
   const document = card.ownerDocument;
   const ring = document.createElement("div");
@@ -104,10 +84,8 @@ function tie(card: HTMLElement, at: Box, point: { x: number; y: number }, box: B
   Object.assign(ring.style, { left: `${around.left}px`, top: `${around.top}px`, width: `${around.right - around.left}px`, height: `${around.bottom - around.top}px` });
   let from: [number, number], to: [number, number];
   if (box === undefined) {
-    // From the card's point nearest the thing's, to the round ring's edge on the way.
     from = [Math.max(at.left, Math.min(point.x, at.right)), Math.max(at.top, Math.min(point.y, at.bottom))];
     const reach = Math.hypot(from[0] - point.x, from[1] - point.y);
-    // A card edge already inside the ring draws no line.
     const scale = DOT / Math.max(reach, DOT);
     to = [point.x + (from[0] - point.x) * scale, point.y + (from[1] - point.y) * scale];
   } else {
@@ -122,7 +100,6 @@ function tie(card: HTMLElement, at: Box, point: { x: number; y: number }, box: B
   card.append(ring, line);
 }
 
-/** The card's depth: what, why, how and its decisions, and for a decision the drawing of where it is kept, still at its last beat. */
 function depth(card: Card): string {
   const decisions = card.decisions.map(decision => `<li>Decision ${decision.number}: ${escape(decision.title)}</li>`).join("");
   return `<h4>What</h4><p>${escape(card.what)}</p><h4>Why</h4><p>${escape(card.why)}</p><h4>How</h4><p>${escape(card.how)}</p>`
@@ -134,7 +111,6 @@ function escape(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** Adopt the styles as a constructed sheet, which the app's style-src 'self' allows where a style element is refused. */
 function adoptStyles(document: Document): () => void {
   const sheet = new (document.defaultView ?? window).CSSStyleSheet();
   sheet.replaceSync(STYLES);
@@ -142,27 +118,16 @@ function adoptStyles(document: Document): () => void {
   return () => { document.adoptedStyleSheets = document.adoptedStyleSheets.filter(candidate => candidate !== sheet); };
 }
 
-/**
- * Show each kind's card in `host` the first time `take` hears it on the map, once the user has said yes to the tour (asked
- * first, in a corner), placed beside `locate`'s point and island for its target (a corner when it is not on show) where it
- * covers nothing `reading` names, and of the place clear of those, the one that covers least of `islands`; cards fired
- * together wait their turn, and one whose thing has gone or is done never shows.
- */
 export function mountTeaching(host: HTMLElement, { journal, locate, reading = () => [], islands = () => [] }: { journal: Journal; locate: Locate; reading?: Reading; islands?: Islands }): { take(reading: MapReading): void; stop(): void } {
   const unstyle = adoptStyles(host.ownerDocument);
   const view = host.ownerDocument.defaultView ?? window;
   const waiting: Encounter[] = [];
-  /** The card on show, the tour's ask, or its line saying it is on between cards. */
   let shown: { card: HTMLElement; kind: Kind | "tour" | "on"; target: Target } | undefined;
-  /** The map's last reading, to start the tour on at once when the user says yes. */
   let last: MapReading | undefined;
-  /** What the card on show was last placed from: its point, its size, the window's and what was being read. */
   let placedFrom: { card: HTMLElement; from: string } | undefined;
 
-  /** Place the card on show, unless nothing it is placed from has moved since it was last placed. */
   const place = (): void => {
     if (shown === undefined) return;
-    // The ask and the line between cards are about no one thing: they keep to a corner.
     const at = shown.kind === "tour" || shown.kind === "on" ? undefined : locate(shown.target);
     const onShow = at !== undefined && at.visible;
     shown.card.classList.toggle("teaching-card-corner", !onShow);
@@ -172,16 +137,12 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     const from = JSON.stringify([at, width, height, right, bottom, read]);
     if (placedFrom?.card === shown.card && placedFrom.from === from) return;
     placedFrom = { card: shown.card, from };
-    // Always inside the window.
     const inside = (left: number, top: number): Box => {
       const x = Math.max(GAP, Math.min(left, right - width - GAP)), y = Math.max(GAP, Math.min(top, bottom - height - GAP));
       return { left: x, top: y, right: x + width, bottom: y + height };
     };
     const corners = [inside(right - width - CORNER, bottom - height - CORNER), inside(CORNER, bottom - height - CORNER),
       inside(right - width - CORNER, CORNER), inside(CORNER, CORNER)];
-    // Beside its point, outside its island when it is on one: on the right unless the window has no room there, then the
-    // other side, below, above; then the same sides slid to either end of the island's edge; then below what is read under
-    // its point; and the corners.
     const around = onShow ? at.box ?? { left: at.x, top: at.y, right: at.x, bottom: at.y } : undefined;
     const sides = around === undefined ? []
       : around.right + GAP + width + GAP <= right ? [around.right + GAP, around.left - GAP - width] : [around.left - GAP - width, around.right + GAP];
@@ -189,11 +150,8 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
       : [...sides.map(left => inside(left, at.y - height / 2)), inside(at.x - width / 2, around.bottom + GAP), inside(at.x - width / 2, around.top - GAP - height),
         ...sides.flatMap(left => [inside(left, around.top), inside(left, around.bottom - height)]),
         ...[around.bottom + GAP, around.top - GAP - height].flatMap(top => [inside(around.left, top), inside(around.right - width, top)]),
-        // Then below its point, under each thing read there (a list beneath its tab), deepest last.
         ...read.filter(box => box.left <= at.x && at.x <= box.right && box.bottom > at.y).sort((one, two) => one.bottom - two.bottom)
           .map(box => inside(at.x - width / 2, box.bottom + GAP))];
-    // Never over its own point or island, nor over what is being read; of the places clear of those, the one that covers
-    // least of the drawn islands, the first on a tie; when every place covers some, the one that covers least of them.
     const clear = [...read, ...(onShow ? [{ left: at.x - GAP, top: at.y - GAP, right: at.x + GAP, bottom: at.y + GAP }, ...(at.box === undefined ? [] : [at.box])] : [])];
     const drawn = islands();
     const cost = (one: Box): [number, number] => [covered(one, clear), covered(one, drawn)];
@@ -201,20 +159,15 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
       .reduce((best, next) => next.cost[0] < best.cost[0] || (next.cost[0] === best.cost[0] && next.cost[1] < best.cost[1]) ? next : best).one;
     shown.card.style.left = `${chosen.left}px`;
     shown.card.style.top = `${chosen.top}px`;
-    // Wherever it sits, a corner included, a card whose thing is on show is tied to it, so which thing it explains is plain.
     for (const old of shown.card.querySelectorAll(".teaching-card-ring, .teaching-card-tie")) old.remove();
     if (onShow) tie(shown.card, chosen, at, at.box);
   };
-  // A panel opened or closed on the page, or a row drawn into one (an arc appearing in the rail's list), changes what is being
-  // read, so the card on show is placed again. Placing reads the page's layout, so the changes drawn before a frame place it
-  // once, in that frame (3.47); the ring and line a placing draws in its card move nothing it is placed from, so they stop there.
   let frame: number | undefined;
   const opened = new view.MutationObserver(() => {
     frame ??= view.requestAnimationFrame(() => { frame = undefined; place(); });
   });
   opened.observe(host, { subtree: true, attributeFilter: ["hidden"], childList: true, characterData: true });
   view.addEventListener("resize", place);
-  /** A card element, a status rather than a dialog: it is read out without moving focus or holding the page. */
   const aside = (kind: string, html: string): HTMLElement => {
     const node = host.ownerDocument.createElement("aside");
     node.className = "teaching-card";
@@ -236,7 +189,6 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     shown = { card: node, kind: "tour", target: { kind: "map" } };
     place();
   };
-  /** Between cards, with a kind still to come on this map: one quiet line that the tour is on, and what brings the next card. */
   const on = (): void => {
     const seen = journal.seen();
     const coming = KINDS.find(kind => kind !== "empty" && (last?.factory === true || !FACTORY_ONLY.includes(kind)) && !seen.some(was => was.kind === kind));
@@ -256,7 +208,6 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
       <div class="teaching-card-actions"><button type="button" data-dismiss>Next</button><button type="button" data-end>End tour</button></div>`);
     const more = node.querySelector<HTMLButtonElement>("[data-more]")!;
     const deep = node.querySelector<HTMLElement>("[data-depth]")!, text = node.querySelector<HTMLElement>(".teaching-card-text")!;
-    // While more of the text lies below than it shows, its foot fades, so a line cut at its edge reads as one that goes on.
     const below = (): void => { text.toggleAttribute("data-more-below", text.scrollHeight - text.scrollTop - text.clientHeight > 1); };
     text.addEventListener("scroll", below);
     more.addEventListener("click", () => {
@@ -264,7 +215,6 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
       deep.hidden = !open;
       more.setAttribute("aria-expanded", String(open));
       more.textContent = open ? "Less" : "More";
-      // Taller now, so placed again to stay inside the window.
       place();
       below();
     });
@@ -275,28 +225,23 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     node.querySelector("[data-end]")!.addEventListener("click", () => journal.answer("no"));
     host.append(node);
     shown = { card: node, kind: found.kind, target: found.target };
-    // Seen once shown: a card still waiting when the app closes shows next time.
     journal.mark(found.kind);
     place();
   };
   const take = (reading: MapReading): void => {
     last = reading;
     const found = encounters(reading);
-    // A card still waiting whose thing has gone from the map, or is done (the plan once it is finished), never shows.
     waiting.splice(0, waiting.length, ...waiting.filter(one => found.some(now => now.kind === one.kind)));
-    // The empty-map tip on show is wrong once the map holds an island (an import's included).
     if (shown?.kind === "empty" && !found.some(one => one.kind === "empty") && !reading.factory) hide();
     const tour = journal.tour();
     if (tour === "no") return;
     const queued = (kind: Kind) => shown?.kind === kind || waiting.some(one => one.kind === kind);
     waiting.push(...journal.unseen(found).filter(one => !queued(one.kind)));
-    // A card come to the map takes the place of the line saying the tour is on.
     if (shown?.kind === "on" && waiting.length > 0) hide();
     if (shown !== undefined) place();
     else if (tour === "yes") next();
     else if (waiting.length > 0) ask();
   };
-  // An answer given on the ask, on a card's End tour or in Help: a yes starts the tour on the map on show, a no clears it.
   const unlisten = journal.listen(tour => {
     if (tour === "no") { hide(); waiting.length = 0; return; }
     if (shown?.kind === "tour") hide();
@@ -316,10 +261,6 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
   };
 }
 
-/**
- * The journal of cards seen, in `host` (Help's page for it): each listed in order, chosen to show again with its depth, as true
- * of the map as `library` says it is now (whether the Library surface is on; on unless said).
- */
 export function mountJournal(host: HTMLElement, { journal, library }: { journal: Journal; library?: () => boolean | undefined }): { open(): void; close(): void; stop(): void } {
   const unstyle = adoptStyles(host.ownerDocument);
   const shelf = host.ownerDocument.createElement("section");
@@ -337,7 +278,6 @@ export function mountJournal(host: HTMLElement, { journal, library }: { journal:
     shelf.innerHTML = `<h3>What you've learned</h3>`
       + (seen.length === 0 ? "<p>Cards appear here as you meet each of storytree's things on your map.</p>"
         : `<ol>${seen.map(one => `<li><button type="button" data-journal-entry="${one.kind}">${escape(cardOf(one.kind).title)}</button></li>`).join("")}</ol>`)
-      // The tour, offered here to a user who has not taken it: a card explains each thing on the map as it appears.
       + (journal.tour() === "yes" ? "" : `<p><button type="button" data-tour-start>Take the tour</button></p>`)
       + `<div data-journal-card hidden></div>`;
     for (const entry of shelf.querySelectorAll<HTMLButtonElement>("[data-journal-entry]")) {

@@ -1,36 +1,22 @@
-/**
- * Capability 1 · Teaching cards. What each kind of thing on the user's map means, said once the first
- * time it appears (ADR-1048 D1): a title and a line at once, and what, why, how and the decisions behind
- * it for More (ADR-0841 D2's depth on demand). Rewritten from the website tour's concept copy
- * (packages/website/src/tour-copy.ts) so it reads true on the user's own project, not the tour's shop.
- */
+// Capability 1 · Teaching cards
 
 import { CONCEPTS } from "@storytree/shown-words";
 
-/** A capability's shown word, one and many, from the one table (ADR-1322 D1). */
 const { one: capability, many: capabilities } = CONCEPTS.capability;
 
-/**
- * The kinds a card teaches, in the order cards show when several appear at once. The factory and its parts (a role, a
- * note, a check) show only on the user's factory (ADR-1048 D3).
- */
 export const KINDS = ["empty", "factory", "role", "note", "check", "arc", "story", "capability", "claim", "health", "decision", "question"] as const;
 export type Kind = typeof KINDS[number];
 
-/** A decision behind a card, by its number in storytree's decision log and its title. */
 export interface CardDecision { number: number; title: string }
 
 export interface Card {
   kind: Kind;
   title: string;
-  /** Shown at once. */
   line: string;
-  /** Shown with More. */
   what: string;
   why: string;
   how: string;
   decisions: CardDecision[];
-  /** What brings this card to the map, for the tour's line between cards: "the next card comes when …". */
   comes: string;
 }
 
@@ -147,10 +133,8 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
   },
 };
 
-/** The decision card's line on a map whose Library surface is switched off, and with it the Library switch at the top of the map. */
 const LIBRARY_OFF = "As your agents build, they decide how things should work, and why. Storytree keeps them all in your project's library: switch Library on in the menu's Surfaces to see them through the globe, and pick one to read it.";
 
-/** Each kind's card, as true of the map on show: the decision card names the Library switch only while that surface is on. */
 export function cardOf(kind: Kind, { library = true }: { library?: boolean | undefined } = {}): Card {
   return { kind, ...CARDS[kind], ...(kind === "decision" && !library ? { line: LIBRARY_OFF } : {}) };
 }

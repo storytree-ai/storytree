@@ -1,6 +1,4 @@
-/**
- * Capability 8 · Code survey: which languages the survey reads, and which a folder's code is in (8.53).
- */
+// Capability 8 · Code survey
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
@@ -21,7 +19,6 @@ async function write(folder: string, files: Readonly<Record<string, string>>): P
   }
 }
 
-/** A file of each language, by its name. */
 const SAMPLE: Readonly<Record<string, string>> = {
   JavaScript: "a.mjs", TypeScript: "a.tsx", Python: "a.py", Go: "a.go", Rust: "a.rs", Java: "A.java", Kotlin: "a.kt", Scala: "a.scala",
   "C#": "a.cs", "F#": "a.fs", C: "a.c", "C++": "a.cpp", Swift: "a.swift", "Objective-C": "a.m", Ruby: "a.rb", PHP: "a.php",
@@ -39,15 +36,12 @@ test("8.53 · the languages named as read are exactly those whose files the surv
 
   const root = await mkdtemp(path.join(tmpdir(), "storytree-languages-"));
   try {
-    // A folder outside a checkout is walked, past node_modules and hidden folders.
     const loose = path.join(root, "loose");
     await write(loose, { "cmd/main.go": "package main", "node_modules/x/index.js": "", ".tools/run.py": "", "db/q.sql": "" });
     assert.deepEqual(await folderLanguages(loose), { read: [], unread: ["Go", "SQL"] });
-    // A walk is bounded: it stops at its limit once the folder it is reading is read, nearest folders first.
     await write(loose, { "top.rs": "" });
     assert.deepEqual(await folderLanguages(loose, { walkLimit: 1 }), { read: [], unread: ["Rust"] }, "the top's file reaches the limit before any folder is read");
 
-    // A checkout's code is its files Git lists: tracked or new, never ignored.
     const checkout = path.join(root, "checkout");
     await write(checkout, { "src/lib.rs": "", "build/gen.py": "", ".gitignore": "build/\n", "web/app.ts": "" });
     execFileSync("git", ["init", "-q", checkout]);

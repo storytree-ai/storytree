@@ -1,7 +1,4 @@
-/**
- * Capability 8 · Code survey: a Python project's pytest tests carry contract numbers the landing check credits
- * (ADR-1189). Written against small checkouts in temporary folders.
- */
+// Capability 8 · Code survey
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
@@ -36,12 +33,10 @@ test("8.36 a pytest test named test_<n>_<m>_… or whose docstring starts <n>.<m
       "src/app/intake_test.py": "async def test_2_3_in_a_suffixed_file():\n    assert True\n",
       ".venv/lib/test_vendored.py": "def test_2_4_vendored():\n    pass\n",
     });
-    // Run from a folder inside the checkout: the whole checkout is read, untracked files included.
     const tested = await testedNumbers(path.join(checkout, "src"), plan, "cap-intake");
     assert.deepEqual([...tested].sort(), ["2.1", "2.2", "2.3"]);
     assert.deepEqual(untestedContracts(plan, "cap-intake", tested), ["2.4 · ignored", "2.5 · none"]);
 
-    // A folder that is no checkout is walked, past virtualenv and hidden folders.
     await files(plain, { "test_intake.py": "def test_2_1_x():\n    pass\n", "venv/test_v.py": "def test_2_4_x():\n    pass\n", ".tox/test_t.py": "def test_2_5_x():\n    pass\n" });
     assert.deepEqual(await testedNumbers(plain, plan, "cap-intake"), ["2.1"]);
   } finally {

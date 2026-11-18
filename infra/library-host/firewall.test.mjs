@@ -6,10 +6,8 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 
 const script = new URL('./firewall.sh', import.meta.url).pathname;
-// The script runs only on the Mint box.
 const linuxOnly = { skip: process.platform !== 'linux' && 'platform:linux: firewall.sh runs only on the Mint box' };
 
-// Runs main with ufw, ip and id stubbed (each call logged) and the ufw defaults file in a throwaway folder.
 function run(args, { tailscale = true, defaults = 'IPV6=no\n', uid = '1000' } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'firewall-'));
   try {

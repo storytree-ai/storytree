@@ -1,35 +1,4 @@
-/**
- * Capability 1 · Project routing (the Project and caller story): which project a folder belongs to. Making a folder a
- * project, after the user's yes, is the app setup story's (ADR-0969 D3), and leaves a marker naming the
- * project. From then on everything an agent does anywhere in that folder is routed to that project. It never picks a project by itself, and when storytree isn't running
- * it says so at once.
- *
- * - The marker is `.storytree/project.json` in the project's folder: `{ "project": "<name>", "identity": "<its
- *   database's>" }`; one written before the identity was recorded names the project only. A root
- *   `.storytree.json`, the marker before ADR-1191, is still read, and where a folder holds both the first
- *   wins. A folder belongs to the project of the nearest marker at or above it. A git worktree kept outside its
- *   folder has no marker of its own unless the marker was committed, so a worktree is also looked
- *   up in the folder it is a worktree of.
- * - A marker is a claim, not a key (ADR-0942): a checkout reaches its project's hooks and tools only
- *   once its trunk is approved on this machine (requireApproval), checked before anything is opened,
- *   appended or read. Setting the folder up approves it, and so does joining on purpose, which is
- *   also how a trunk recorded before approval, or one that moved, is approved.
- * - Where storytree is: the running 0.3 app's Postgres, found from the owner record
- *   @storytree/local-postgres keeps beside the app's data directory (`<dataDir>.owner.json`, holding
- *   the owner's pid and the server's port) while the app holds it. Authenticated installations
- *   hand credentials over separately in a private `<dataDir>.auth/connection.json`; only old
- *   installations with no authentication metadata keep the legacy passwordless URL during staging.
- *   A record whose process has ended is a
- *   crashed app's leftover, and counts as not running: its address is never tried, so nothing
- *   waits on it.
- * - Unless the user's `library` setting (capability 2, ADR-0846) names a Postgres address: then a
- *   project routes to that address, whatever the app's local database is doing, and no local
- *   address is looked up at all. What a routed project
- *   carries is the library's own connect() options, so every caller reaches the same place.
- *
- * Discovery is synchronous and uses no network. Stale owners refuse before credentials are read;
- * authenticated Windows discovery also checks the handoff's filesystem ACLs through PowerShell.
- */
+// Capability 1 · Project routing
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -42,47 +11,25 @@ import { approvedTrunk, machineOf, ProjectFolderError, remembered, rememberAppro
 export { storytreeHome };
 import { authenticatedLocalUrl, HANDOFF_UNAVAILABLE, HandoffPrivacyError, type LocalOwner } from "./local-handoff.js";
 
-/** The marker a folder set up as a storytree project holds, in its `.storytree` folder (ADR-1191 D1). */
 export const PROJECT_FILE = ".storytree/project.json";
-/** The marker at a project's root from before ADR-1191, still read while projects move (D4). */
 export const ROOT_MARKER_FILE = ".storytree.json";
-/** What routing says of a folder nobody has set up. */
 export const NOT_A_PROJECT = "not a storytree project";
-/** What routing says while the app's database is not running. */
 export const NOT_RUNNING = "storytree isn't running";
 
-/**
- * The project a folder belongs to, and the folder holding its marker, with the identity of the
- * project's database when the marker records it; or why there is none.
- */
 export type ProjectLookup = { project: string; folder: string; identity?: string } | { project: undefined; message: string };
 
 export interface LocateOptions {
-  /**
-   * The storytree home whose settings.json says where the library lives. By default the folder
-   * holding `dataDir` when one is given, else STORYTREE_HOME, else ~/.storytree/0.3.
-   */
   readonly home?: string;
-  /**
-   * The app's Postgres data directory, beside which its owner record is kept. By default
-   * `<storytree home>/pgdata`, the home being STORYTREE_HOME when set, else ~/.storytree/0.3.
-   */
   readonly dataDir?: string;
 }
 
-/** Where the running storytree's database listens, or that it isn't running. */
 export type StorytreeAddress = { running: true; url: string } | { running: false; message: string };
 
-/** Where an agent's activity in a folder goes. */
 export type Route =
   | { status: "routed"; project: string; folder: string; identity?: string; library: ConnectOptions }
   | { status: "not-a-project"; message: string }
   | { status: "not-running"; project: string; message: string };
 
-/**
- * The project `from` belongs to: the one named by the nearest marker at or above it, or, for a git
- * worktree with none, at or above the same place in the folder it is a worktree of.
- */
 export function findProject(from: string): ProjectLookup {
   const start = path.resolve(from);
   const found = markerAbove(start);
@@ -95,19 +42,10 @@ export function findProject(from: string): ProjectLookup {
   return { project: undefined, message: NOT_A_PROJECT };
 }
 
-/**
- * Open the project a folder names, only reaching it: a project deleted from the library, perhaps
- * from another computer, is never made again by a folder that still names it (ADR-0831), and with
- * the `identity` its marker records, a new project set up since under the same name is not the
- * folder's. Refused with what to do: free the folder, or set it up again on purpose. An agent's door hands the `system`
- * switches this computer's settings name (ADR-1092 D2), which leave the roles, checks and notes they switch off out of
- * what the project lists and searches, and the `kinds` of record the factory plugins it mounts declare (ADR-1178 D3).
- */
 export async function openNamedProject(storytree: Pick<Storytree, "openProject">, project: string, identity?: string, { system, kinds }: Pick<OpenOptions, "system" | "kinds"> = {}): Promise<Library> {
   try {
     return await storytree.openProject(project, { create: false, ...(identity === undefined ? {} : { identity }), ...(system === undefined ? {} : { system }), ...(kinds === undefined ? {} : { kinds }) });
   } catch (error) {
-    // By name: the hooks load the library only when they need it.
     if (!(error instanceof Error && error.name === "ProjectGoneError")) throw error;
     throw goneProject(project);
   }
@@ -117,38 +55,20 @@ function goneProject(project: string): ProjectFolderError {
   return new ProjectFolderError(`This folder names project "${project}" in its marker, but the library has no such project: it was deleted, perhaps from another computer. Delete its ${PROJECT_FILE} (or ${ROOT_MARKER_FILE}, in a project set up before it moved there) to free the folder; to start a project here, set it up again.`);
 }
 
-/**
- * The one reading of a folder whose marker names a project this computer's library has none of: a marker committed
- * on a computer with another library (a teammate's checkout, a clone), or a project deleted from this one. The setup
- * check, the doctor, check_setup, the app's Add project and every tool's refusal say it alike.
- */
 export function missingProjectReading(project: string): string {
   return `This folder's marker names storytree project "${project}", but this computer's library has no project "${project}": it was set up against another library, or deleted from this one.`;
 }
 
-/**
- * Refuse unless `folder` (a git worktree's main checkout standing for it) is in `project`'s approved
- * trunk on this machine (ADR-0942 D1, D2): a marker, a known identity or a folder's name approves
- * nothing. Every hook and tool asks this before it opens the project, appends to its activity or
- * reads it. The refusal (a ProjectFolderError) says how to approve the folder on purpose.
- */
 export async function requireApproval(storytree: Storytree, project: string, folder: string, home: string = storytreeHome()): Promise<void> {
   const machine = machineOf(home);
   const at = checkoutOf(folder);
-  // A hook runs at every step: an approval this machine has seen is remembered, so the trunks are asked once.
   if (rememberedHere(project, at, home, machine.id)) return;
   const trunk = await approvedTrunk(storytree, project, machine.id, at);
   if (trunk !== undefined) return rememberApproval(home, machine.id, trunk);
-  // A marker set up against another library, or a project deleted from this one, has no trunks here: say that, not "approve it".
   if (!(await storytree.listProjects()).includes(project)) throw new ProjectFolderError(`${missingProjectReading(project)} To use storytree here, set this folder up as a new project, which replaces its marker (${PROJECT_FILE}, or ${ROOT_MARKER_FILE} in a project set up before it moved there); if "${project}" is in another library you can reach, point this computer's library setting at that library and join it.`);
   throw new ProjectFolderError(`${at} names storytree project "${project}", but it is not approved as "${project}"'s checkout on this machine, so storytree opens nothing and records nothing here. If this is your checkout of "${project}", approve it on purpose: \`storytree doctor --join ${project}\` in a terminal there, or ask your agent to join it.`);
 }
 
-/**
- * Whether this machine remembers `folder` (a git worktree's main checkout standing for it) as in `project`'s approved
- * trunk, read from this machine alone: what a hook asks before it runs anything in the folder, such as git (contract
- * Hooks 3.46). An approval not yet seen here reads false until requireApproval has asked the library.
- */
 export function approvedHere(project: string, folder: string, home: string = storytreeHome()): boolean {
   return rememberedHere(project, checkoutOf(folder), home, machineOf(home).id);
 }
@@ -157,22 +77,16 @@ function rememberedHere(project: string, at: string, home: string, machine: stri
   return remembered(home, machine).some((trunk) => trunk.project === project && within(at, trunk.folder));
 }
 
-/** The folder an approval is judged at: `folder`'s place in its main checkout, its links resolved. */
 function checkoutOf(folder: string): string {
   return canonical(inMainCheckout(canonical(path.resolve(folder))));
 }
 
-/**
- * Where `folder` sits in its repository's main checkout when it is in a linked git worktree (the
- * same place in the folder it is a worktree of); `folder` itself otherwise.
- */
 export function inMainCheckout(folder: string): string {
   const start = path.resolve(folder);
   const linked = linkedWorktree(start);
   return linked === undefined ? start : path.join(linked.main, path.relative(linked.root, start));
 }
 
-/** Where the running storytree's database listens, from the app's owner record, or that it isn't running. */
 export function locateStorytree(options: LocateOptions = {}): StorytreeAddress {
   const dataDir = options.dataDir ?? defaultDataDir();
   const record = ownerRecord(dataDir);
@@ -180,15 +94,10 @@ export function locateStorytree(options: LocateOptions = {}): StorytreeAddress {
   try {
     return { running: true, url: authenticatedLocalUrl(dataDir, record) };
   } catch (error) {
-    // Never forward filesystem, JSON or subprocess errors: they can carry credential contents.
     return { running: false, message: error instanceof HandoffPrivacyError ? error.message : HANDOFF_UNAVAILABLE };
   }
 }
 
-/**
- * Where the library is, as the user's `library` setting says: the Postgres address it names, or the running app's local database. The settings file is read fresh, and an invalid one is thrown
- * as it is, naming the file: it is never read as local.
- */
 export function locateLibrary(options: LocateOptions = {}): { found: true; connect: ConnectOptions } | { found: false; message: string } {
   const home = options.home ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
   const setting = readLibrary(home);
@@ -197,12 +106,6 @@ export function locateLibrary(options: LocateOptions = {}): { found: true; conne
   return local.running ? { found: true, connect: { url: local.url } } : { found: false, message: local.message };
 }
 
-/**
- * Whether the storytree app is running on this machine, whatever its library: its local database's
- * owner record names a live process, or its launch record (app.json, which the app writes at each
- * start with its own process id) does. On a Postgres-address library the app starts no local database, so
- * the launch record is the only sign of it (app lifecycle 1.11).
- */
 export function locateApp(home: string = storytreeHome()): { running: boolean } {
   const owner = ownerRecord(path.join(home, "pgdata"));
   if (owner !== undefined && isAlive(owner.pid)) return { running: true };
@@ -214,15 +117,10 @@ export function locateApp(home: string = storytreeHome()): { running: boolean } 
   }
 }
 
-/** `library` with a deadline on each new local handshake; an address keeps its own bound. */
 export function withConnectTimeout(library: ConnectOptions, connectTimeoutMs: number): ConnectOptions {
   return library.url === undefined ? library : { ...library, connectTimeoutMs };
 }
 
-/**
- * Where an agent's activity in `from` goes: the project it belongs to on the running storytree, or
- * why nowhere. A folder that is not a project is that whatever storytree's state.
- */
 export function route(from: string, options: LocateOptions = {}): Route {
   const found = findProject(from);
   if (found.project === undefined) return { status: "not-a-project", message: found.message };
@@ -235,18 +133,12 @@ function defaultDataDir(): string {
   return path.join(storytreeHome(), "pgdata");
 }
 
-/** Whether `folder` is `root` or inside it; Windows paths ignore case. */
 function within(folder: string, root: string): boolean {
   const key = (file: string) => (process.platform === "win32" ? file.toLowerCase() : file);
   const relative = path.relative(key(root), key(folder));
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
-/**
- * The nearest marker at or above `start`, `.storytree/project.json` or a root `.storytree.json`; a folder holding
- * both is the first's (ADR-1191 D4). A marker that cannot be read, or names no project, stops
- * the search: the folder claims to be a project, and a guess at another would route it wrongly.
- */
 function markerAbove(start: string): ProjectLookup | undefined {
   for (let dir = start; ; dir = path.dirname(dir)) {
     const marker = markerIn(dir);
@@ -258,10 +150,6 @@ function markerAbove(start: string): ProjectLookup | undefined {
   }
 }
 
-/**
- * The path of the marker `folder` itself holds: its `.storytree/project.json`, else a root `.storytree.json`
- * (ADR-1191 D4); undefined when it holds neither.
- */
 export function markerIn(folder: string): string | undefined {
   const file = [PROJECT_FILE, ROOT_MARKER_FILE].find((each) => isFile(path.join(folder, each)));
   return file === undefined ? undefined : path.join(folder, file);
@@ -277,27 +165,18 @@ function projectIn(marker: string): { project: string; identity?: string } | und
   }
 }
 
-/**
- * The linked git worktree `start` is in: its root, and the root of the main worktree it belongs to.
- * A linked worktree's `.git` is a file naming its own git directory, whose `commondir` leads to the
- * repository's shared `.git`, inside the main worktree. Undefined when `start` is in no linked
- * worktree (a main worktree, a submodule, or no repository at all).
- */
 function linkedWorktree(start: string): { root: string; main: string } | undefined {
   for (let dir = start; ; dir = path.dirname(dir)) {
     const dotGit = path.join(dir, ".git");
     if (existsSync(dotGit)) {
-      if (!isFile(dotGit)) return undefined; // a main worktree
+      if (!isFile(dotGit)) return undefined;
       const gitDir = /^gitdir:\s*(.+?)\s*$/m.exec(readText(dotGit))?.[1];
       if (gitDir === undefined) return undefined;
       const ownGitDir = path.resolve(dir, gitDir);
       const common = readText(path.join(ownGitDir, "commondir")).trim();
-      if (common === "") return undefined; // a submodule: its git directory has no commondir
+      if (common === "") return undefined;
       const commonDir = path.resolve(ownGitDir, common);
-      if (path.basename(commonDir) !== ".git") return undefined; // a bare repository has no main worktree
-      // Only a worktree the repository itself registered counts (ADR-0942 D2): its git directory is one
-      // of the repository's worktrees, and that one names this folder's .git back. A copied or forged
-      // .git file pointing at a trunk is no worktree of it.
+      if (path.basename(commonDir) !== ".git") return undefined;
       if (canonical(path.dirname(ownGitDir)) !== canonical(path.join(commonDir, "worktrees"))) return undefined;
       const back = readText(path.join(ownGitDir, "gitdir")).trim();
       if (back === "" || canonical(path.resolve(ownGitDir, back)) !== canonical(dotGit)) return undefined;
@@ -307,7 +186,6 @@ function linkedWorktree(start: string): { root: string; main: string } | undefin
   }
 }
 
-/** The owner record beside `dataDir`, if there is one that names a process and a port. */
 function ownerRecord(dataDir: string): LocalOwner | undefined {
   try {
     const record = JSON.parse(readFileSync(`${path.resolve(dataDir)}.owner.json`, "utf8")) as LocalOwner;
@@ -318,17 +196,15 @@ function ownerRecord(dataDir: string): LocalOwner | undefined {
   }
 }
 
-/** Whether process `pid` is running. */
 function isAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    return (error as { code?: unknown }).code === "EPERM"; // alive, but not ours to signal
+    return (error as { code?: unknown }).code === "EPERM";
   }
 }
 
-/** The path with symlinks resolved and, on Windows, short (8.3) names spelled out; as it is if it cannot be. */
 function canonical(file: string): string {
   try {
     return realpathSync.native(file);

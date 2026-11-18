@@ -1,7 +1,3 @@
-/**
- * The library story's rounds 26.3–26.4: the real shared server serves curation and gives the session
- * its next step. Kept here, beside the server, because the librarian cannot depend back on Session management.
- */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -24,7 +20,6 @@ import { createAgentTools } from "./index.js";
 
 const VERBS = ["worklist", "link", "supersede", "correct", "annotate", "retire", "park", "graduate"];
 
-/** Run `body` with a fresh project's library, dropped afterwards, pass or fail. */
 async function withLibrary(body: (library: Library) => Promise<void>): Promise<void> {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
@@ -144,7 +139,7 @@ test("library 26.3 land and worklist use the calling session's start, including 
     const story = await library.addStory({ title: "Library" });
     const capability = await library.addCapability({ story: story.id, title: "Rounds" });
     await library.recordDecision({ title: "Earlier", text: "An earlier decision", status: "accepted" });
-    await clockMovesOn(); // Order the two databases' millisecond timestamps without an ambiguous boundary.
+    await clockMovesOn();
     await log.append(library.name, { session: "curator", harness: "codex", source: "hook", kind: "session-started" });
     const quiet = await call(client, "land", { capability: capability.id });
     assert.notEqual(quiet.isError, true);
@@ -233,7 +228,6 @@ test("library 26.4 the installed server enables the librarian for storytree's ow
   }
 });
 
-/** Wait until the clock has moved past now, so what is written next has a later millisecond timestamp. */
 async function clockMovesOn(): Promise<void> {
   const now = Date.now();
   await waitUntil(() => Date.now() > now, 5_000, "the clock to move on");

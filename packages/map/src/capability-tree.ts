@@ -1,9 +1,4 @@
-/**
- * Capability 3 · Counts before detail. A story's capability tree in one read (3.11): each capability with its health
- * word and why it is not healthy, its contracts, the capabilities it depends on, and its source files with their lines
- * of code as the code survey counts them (tests left out), and the story's files no capability claims. Sizing a story's
- * territories needs no call per capability.
- */
+// Capability 3 · Counts before detail
 import type { AnnotatedTree, CapabilityStatus, CapabilityWhy } from "@storytree/library";
 import { PLACES } from "@storytree/shown-words";
 
@@ -31,13 +26,11 @@ export interface CapabilityTree {
   readonly unclaimed: readonly TreeFile[];
 }
 
-/** The story `select` names (story:<name|id>, or a bare id or title), joined to its survey; an unknown one is refused. */
 export function capabilityTreeOf(tree: AnnotatedTree, survey: ProjectSurvey, select: string): CapabilityTree {
   const wanted = select.startsWith("story:") ? select.slice(6) : select;
   const story = tree.stories.find(each => each.id === wanted || each.title.toLowerCase() === wanted.toLowerCase());
   if (story === undefined) throw new Error(`Map selection not found: ${select}`);
   const read = survey[story.id];
-  // Paths as the map's file nodes carry them: a mapped story's from its imported folder, a built story's from the repository.
   const pathname = (file: string): string => read?.mapped !== undefined
     ? `${read.mapped.folder.replaceAll("\\", "/").replace(/\/$/, "")}/${file}`
     : normalizePath(`packages/${packageOf(story)}/${file}`);
@@ -61,7 +54,6 @@ export function capabilityTreeOf(tree: AnnotatedTree, survey: ProjectSurvey, sel
   };
 }
 
-/** The tree as text: a line per capability, its files indented under it, then the files in no part, under their shown words. */
 export function formatCapabilityTree(answer: CapabilityTree): string {
   const fileLines = (files: readonly TreeFile[]): string[] => files.map(file => `    ${file.path}  ${file.lines}`);
   const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? "" : "s"}`;

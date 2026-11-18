@@ -1,4 +1,4 @@
-/** Capability 1 · Running services, contract 1.1: the host runs a fixture plugin's services as child processes, as this machine's settings turn them on. */
+// Capability 1 · Running services
 import assert from "node:assert/strict";
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -78,7 +78,6 @@ test("1.5 · the host runs the agent runner's dispatcher and watcher, each run a
   setPartOff("agent-pool", true, home);
   assert.deepEqual(ours(mountedServices(HOST_DIR, home)), []);
 
-  // A host standing on the service host (the command line does) keeps it while the agent runner is off.
   const standing = path.join(home, "standing");
   mkdirSync(path.join(standing, "node_modules", "@storytree"), { recursive: true });
   symlinkSync(HOST_DIR, path.join(standing, "node_modules", "@storytree", "service-host"), "junction");

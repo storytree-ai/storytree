@@ -14,14 +14,11 @@ import { withTempDir, writeMarker } from "../testing/folders.js";
 import { locateApp, locateLibrary, locateStorytree, NOT_RUNNING, route } from "./index.js";
 import { windowsSecurity } from "./windows-security.js";
 
-// Synthetic credentials only. Punctuation pins URL encoding through a real SCRAM handshake.
 const password = "synthetic-local-password-:@/#?% with spaces";
 
 let fixtureSid: string | undefined;
 
 function windowsAcl(file: string, action: "private" | "expose" | "deny-read"): void {
-  // Fixture setup needs no PowerShell/.NET startup. Keep the previous ten-second bound
-  // across ALL native children in this operation, with no retry or timeout extension.
   const started = performance.now();
   const run = (stage: string, command: string, args: string[]) => {
     const timeout = Math.floor(10_000 - (performance.now() - started));
@@ -41,7 +38,6 @@ function windowsAcl(file: string, action: "private" | "expose" | "deny-read"): v
     run("grant-everyone", "icacls.exe", [file, "/grant", "*S-1-1-0:RX"]);
     return;
   }
-  // Parse only the numeric SID, never localized headings or account names; once per process.
   fixtureSid ??= run("current-user", "whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
   const sid = fixtureSid;
   assert.ok(sid, "whoami did not return a current-user SID");
@@ -50,13 +46,10 @@ function windowsAcl(file: string, action: "private" | "expose" | "deny-read"): v
     return;
   }
   run("owner", "icacls.exe", [file, "/setowner", `*${sid}`]);
-  // Reset removes explicit grants AND denies left by the adversarial cases; then remove
-  // inherited entries and grant only the current user. All files contain synthetic data.
   run("reset", "icacls.exe", [file, "/reset"]);
   run("private", "icacls.exe", [file, "/inheritance:r", "/grant:r", `*${sid}:F`]);
 }
 
-/** Move a file's modification time on, as a change to it or its access list moves its change time. */
 let touches = 0;
 function touch(file: string): void {
   touches += 1;
@@ -98,8 +91,6 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
     const serverLog = path.join(home, "server.log");
     writeFileSync(pwfile, password, { mode: 0o600 });
     privatePath(pwfile);
-    // Postgres refuses root, so run as root (a cloud container) its tools run as the account
-    // local-postgres runs them as, which is given what they write and let through to it.
     const account = serverAccount();
     const asAccount = account === undefined ? {} : { uid: account.uid, gid: account.gid };
     if (account !== undefined) {
@@ -111,8 +102,6 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
     const initdb = path.join(findBinaries(), process.platform === "win32" ? "initdb.exe" : "initdb");
     execFileSync(initdb, ["-D", dataDir, "-U", "postgres", "-A", "scram-sha-256", "--pwfile", pwfile, "-E", "UTF8"], { stdio: "pipe", timeout: 60_000, ...asAccount });
     rmSync(pwfile);
-    // This consumer fixture owns its server and credentials. The production launcher's
-    // untouched handoff is exercised by project-routing 1.4, including after it adopts auth.
     const listener = createServer();
     await new Promise<void>((resolve, reject) => {
       listener.once("error", reject);
@@ -122,7 +111,6 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
     await new Promise<void>((resolve, reject) => listener.close((error) => error ? reject(error) : resolve()));
     const pgctl = path.join(findBinaries(), process.platform === "win32" ? "pg_ctl.exe" : "pg_ctl");
     try {
-      // No inherited pipes: Windows pg_ctl can leave their handles in the server's shell.
       execFileSync(pgctl, ["-D", dataDir, "-o", `-p ${port} -c listen_addresses=127.0.0.1`,
         "-l", serverLog, "-w", "start"], { stdio: "ignore", timeout: 60_000, ...asAccount });
       const f = fixture(home, port);
@@ -146,7 +134,6 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
       assert.equal(locateLibrary({ home }).found, true);
       assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
     } finally {
-      // Also stop a server whose startup timed out after creating its PID file.
       if (existsSync(path.join(dataDir, "postmaster.pid"))) {
         execFileSync(pgctl, ["-D", dataDir, "-m", "immediate", "-w", "stop"], { stdio: "ignore", timeout: 60_000, ...asAccount });
       }
@@ -154,7 +141,6 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
   });
 });
 
-// A self-relative security descriptor as Windows' GetFileSecurityW returns it.
 const me = "S-1-5-21-1111111111-2222222222-3333333333-1001";
 function sidBytes(sid: string): Buffer {
   const [, , authority, ...subs] = sid.split("-");
@@ -190,7 +176,6 @@ function descriptor({ owner = me, protect = true, aces = [{ type: 0, flags: 0, s
   return Buffer.concat([header, ownerSid, aces ? acl : Buffer.alloc(0)]);
 }
 
-/** Windows as the host, with its security reads answered: the user's SID, and each path's descriptor. */
 function mockWindows(t: TestContext, answer: { user?: () => Buffer; descriptor: (file: string) => Buffer }) {
   const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
   Object.defineProperty(process, "platform", { ...platform, value: "win32" });
@@ -229,7 +214,6 @@ test("1.16 the Windows privacy check reads owner, inheritance and grants from se
         assert.equal(result.status, "not-running", reason);
         if (result.status === "not-running") assert.match(result.message, new RegExp(`\\(${reason}\\)$`));
       }
-      // SYSTEM and Administrators may hold grants; a deny for anyone narrows access.
       [directory, file] = [descriptor(), descriptor({ aces: [{ type: 1, flags: 0, sid: "S-1-1-0" }, { type: 0, flags: 0x10, sid: me },
         { type: 0, flags: 0, sid: "S-1-5-18" }, { type: 0, flags: 0, sid: "S-1-5-32-544" }] })];
       touch(f.file);
@@ -271,9 +255,7 @@ test("1.16 Windows privacy refusals explain the failed check without the failure
 test("1.16 the Windows privacy check starts no program: with none it could start, a private handoff still routes, so a machine too loaded to start one in time cannot refuse it (regression: windows-acl-timeout on a loaded Windows CI runner, 2026-10-14)", async (t) => {
   await withTempDir((home) => {
     const f = fixture(home);
-    // On Windows the check reads the real handoff's descriptors; elsewhere they are answered for it.
     const restore = process.platform === "win32" ? () => {} : mockWindows(t, { descriptor: () => descriptor() });
-    // Windows' programs live under SystemRoot: pointed at an empty folder, none of them can start.
     const systemRoot = process.env.SystemRoot;
     process.env.SystemRoot = path.join(home, "no-windows");
     try {
@@ -300,18 +282,15 @@ test("1.16 a Windows discovery of an unchanged private handoff makes no second c
       assert.equal(route(home, { home }).status, "routed");
       assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
       assert.equal(reads(), 1, "an unchanged handoff is not checked again");
-      // Changing the access list changes the file's change time: the next discovery checks it.
       directory = descriptor({ protect: false });
       touch(f.file);
       assert.equal(route(home, { home }).status, "not-running");
       assert.equal(reads(), 2);
-      // A refusal is never remembered as a pass, nor a pass kept past one.
       assert.equal(route(home, { home }).status, "not-running");
       assert.equal(reads(), 3);
       directory = descriptor();
       assert.equal(route(home, { home }).status, "routed");
       assert.equal(reads(), 4);
-      // A replaced file is a new identity, checked again.
       writeFileSync(`${f.file}.new`, readFileSync(f.file), { mode: 0o600 });
       renameSync(`${f.file}.new`, f.file);
       assert.equal(route(home, { home }).status, "routed");
@@ -343,7 +322,7 @@ test("1.16 authenticated metadata errors refuse without secrets or a passwordles
     f.save();
     rmSync(f.file);
     refused();
-    mkdirSync(f.file); // An unreadable-as-file handoff must not become legacy discovery.
+    mkdirSync(f.file);
     refused();
     rmSync(f.file, { recursive: true });
     f.save();
@@ -351,15 +330,12 @@ test("1.16 authenticated metadata errors refuse without secrets or a passwordles
       writeFileSync(`${f.dataDir}.owner.json`, JSON.stringify({ ...f.owner, auth }));
       refused();
     }
-    // A private handoff beside a downgraded owner record is not an old installation.
     const { auth: _auth, ...legacy } = f.owner;
     writeFileSync(`${f.dataDir}.owner.json`, JSON.stringify(legacy));
     refused();
     f.save();
     rmSync(f.directory, { recursive: true });
     refused();
-    // Every local cluster asks for a password (ADR-0941, ADR-0948): a record with neither marker
-    // is a missing handoff, never a passwordless installation.
     writeFileSync(`${f.dataDir}.owner.json`, JSON.stringify(legacy));
     refused();
     assert.deepEqual(locateStorytree({ dataDir: f.dataDir }), { running: false, message: "storytree's local database credentials are unavailable or invalid; restart the storytree app to repair its connection handoff" });

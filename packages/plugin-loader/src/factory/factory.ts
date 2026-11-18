@@ -1,20 +1,4 @@
-/**
- * Capability 5 · Factory plugins (question_5867f490cdd6: run-time loading). A plugin in the user's factory folder,
- * `<factory>/plugins/<plugin>/package.json` with a `storytree` manifest of storytree's own shape, stands in for a part
- * this computer switches off: its declarations of a kind are loaded from the folder as a host starts and put in the
- * composition where the part's were, so a host mounts them only while that part is off (capability 4). The folder is
- * the one the user chose, which is the approval; nothing else a configuration names is loaded. A plugin imports nothing
- * of storytree's: it exports declarations, and the host hands their work its context (ADR-1112 D2). The modules are
- * ready-to-run JavaScript, required synchronously (an ES module without top-level await), so a host's synchronous start
- * stays as it is. A plugin that cannot be loaded leaves its part off and says why, and the host still starts. Its
- * manifest names the version of storytree's plugin interface it was written for, so an update that changes what a host
- * hands a plugin leaves an older plugin unmounted, said why, rather than broken in silence. A host that hands a plugin's
- * file on by itself (the desktop window serving a view to its page) finds it by the name the plugin exports, and only so.
- * A mounted plugin may also declare its own kinds of record, as data in its manifest's `recordKinds` (ADR-1178 D3), each
- * named under the plugin's own name; a host opens the library with them, and while the plugin is not mounted its
- * records read dormant. It may declare long-running services (ADR-1180 D1), which a service host on each machine runs.
- * It may carry its own story's plan, as a file its manifest's `plan` names (ADR-1187), imported from there.
- */
+// Capability 5 · Factory plugins
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -31,20 +15,15 @@ import { pluginAt, standInPlaces, type Composition, type PartsGraph } from "../s
 
 export type { ServiceRun };
 
-/** This computer's factory folder, when one is chosen, and the plugin named to stand in for each switched-off part. */
 export interface StandIns {
   readonly folder?: string;
-  /** Part name to the factory plugin standing in for it. */
   readonly plugins: Readonly<Record<string, string>>;
 }
 
-/** The version of storytree's plugin interface (what a host hands a plugin's declarations) this storytree honours. */
 export const PLUGIN_INTERFACE = 1;
 
-// A CommonJS bundle (the desktop's main process) has no import.meta.url, and has __filename instead.
 const load = createRequire((import.meta.url as string | undefined) ?? pathToFileURL(__filename).href);
 
-/** Plugin `plugin`'s folder in `folder` and its package.json, refused with why when there is none. */
 function pluginPackage(folder: string | undefined, plugin: string): { dir: string; pkg: { exports?: unknown; storytree?: unknown } } {
   if (folder === undefined) throw new Error("no factory folder is chosen on this computer (storytree settings set factory <folder>)");
   if (plugin === "" || plugin === "." || plugin === ".." || /[\\/]/.test(plugin)) throw new Error(`${JSON.stringify(plugin)} is not a plugin's name`);
@@ -54,7 +33,6 @@ function pluginPackage(folder: string | undefined, plugin: string): { dir: strin
   return { dir, pkg: JSON.parse(readFileSync(file, "utf8")) as { exports?: unknown; storytree?: unknown } };
 }
 
-/** The file plugin `plugin` of `folder` exports as `from`, inside its own folder; any other name or place is refused with why. */
 export function pluginExport(folder: string | undefined, plugin: string, from: string): string {
   const { dir, pkg } = pluginPackage(folder, plugin);
   return exported(dir, plugin, pkg, from);
@@ -69,7 +47,6 @@ function exported(dir: string, plugin: string, pkg: { exports?: unknown }, from:
   return file;
 }
 
-/** Plugin `plugin`'s storytree manifest, refused with why when there is none or it names an interface this storytree does not honour. */
 function pluginManifest(folder: string | undefined, plugin: string): { dir: string; pkg: { exports?: unknown }; manifest: Record<string, unknown> } {
   const { dir, pkg } = pluginPackage(folder, plugin);
   const manifest = pkg.storytree;
@@ -80,13 +57,11 @@ function pluginManifest(folder: string | undefined, plugin: string): { dir: stri
   return { dir, pkg, manifest: manifest as Record<string, unknown> };
 }
 
-/** The part plugin `plugin` of `folder` was made to stand in for, as its manifest's `for` names it (`plugin new --for`), when it names one. */
 export function pluginFor(folder: string | undefined, plugin: string): string | undefined {
   const named = pluginManifest(folder, plugin).manifest.for;
   return typeof named === "string" && named !== "" ? named : undefined;
 }
 
-/** The declarations of `kind` plugin `plugin` of `folder` adds, none for a kind it does not name; a plugin that cannot be read is refused with why. */
 export function pluginParts(folder: string | undefined, plugin: string, kind: string): unknown[] {
   const { dir, pkg, manifest } = pluginManifest(folder, plugin);
   const entries = manifest[kind];
@@ -107,21 +82,13 @@ export function pluginParts(folder: string | undefined, plugin: string, kind: st
   });
 }
 
-/** A factory plugin this computer's setting does not name, with the part `settings set module <module> plugin <plugin>` names it as. */
 export interface UnnamedPlugin {
   readonly plugin: string;
-  /** The part its manifest's `for` names, else its own name (a plugin that adds a part of its own). */
   readonly part: string;
 }
 
-// Manifest fields that say what a plugin is, not what a host mounts: a plugin declaring only these mounts nothing.
 const UNMOUNTED_FIELDS = new Set(["interface", "for", "plan"]);
 
-/**
- * Every plugin in this computer's factory folder, in name order, with a storytree manifest this storytree can read,
- * that declares something to mount (more than its interface, `for` and plan), and that no stand-in names, so a host
- * can say which plugins nothing mounts and how to name each; none without a folder.
- */
 export function unnamedPlugins(standIns: StandIns): UnnamedPlugin[] {
   const { folder } = standIns;
   if (folder === undefined) return [];
@@ -138,33 +105,21 @@ export function unnamedPlugins(standIns: StandIns): UnnamedPlugin[] {
       if (Object.keys(manifest).every((field) => UNMOUNTED_FIELDS.has(field))) return [];
       return [{ plugin, part: pluginFor(folder, plugin) ?? plugin }];
     } catch {
-      // No manifest, or one this storytree cannot read: nothing a setting could mount.
       return [];
     }
   });
 }
 
-/**
- * The plugin in this computer's factory folder that no stand-in names whose declarations of `kind` include one called
- * `name`, so a host asked for it can say which plugin holds it and how to name it; none without a folder, and a plugin
- * that cannot be loaded is passed over.
- */
 export function unnamedOwnerOf(standIns: StandIns, kind: string, name: string): UnnamedPlugin | undefined {
   return unnamedPlugins(standIns).find(({ plugin }) => {
     try {
       return pluginParts(standIns.folder, plugin, kind).some((one) => typeof one === "object" && one !== null && (one as { name?: unknown }).name === name);
     } catch {
-      // A plugin that cannot be loaded holds nothing a host could mount.
       return false;
     }
   });
 }
 
-/**
- * `composition` with each stand-in `standIns` names for one of its parts: the plugin's declarations of `kind`, placed
- * after the last of the part's (at the end when the part has none of this kind, or the host has no such part: a plugin
- * that adds one), owned by the plugin and standing in for the part. A plugin that cannot be loaded adds nothing and is named, with why, against the part it stands in for.
- */
 export function standIn<Part>(composition: Composition<Part>, kind: string, standIns: StandIns): Composition<Part> {
   const parts = [...composition.parts];
   const owners = [...composition.owners];
@@ -188,11 +143,6 @@ export function standIn<Part>(composition: Composition<Part>, kind: string, stan
   return { parts, owners, graph: composition.graph, standsIn, fromPlugin, failed };
 }
 
-/**
- * The kinds of record plugin `plugin` of `folder` declares in its manifest's `recordKinds`, none when it names none. Each
- * must be named `<plugin>.<kind>` under the plugin's own name, name who may write it, and be one the library can read;
- * a plugin with one that is not is refused with why.
- */
 export function pluginRecordKinds(folder: string | undefined, plugin: string): PluginRecordKind[] {
   const declared = pluginManifest(folder, plugin).manifest.recordKinds;
   if (declared === undefined) return [];
@@ -213,12 +163,6 @@ export function pluginRecordKinds(folder: string | undefined, plugin: string): P
   return kinds;
 }
 
-/**
- * The plan of its own story plugin `plugin` of `folder` carries (ADR-1187), from the JSON file its manifest's
- * `plan` names inside its folder: the one source of that story, its capabilities and contracts, which `plugin import-plan`
- * writes into a project's plan. None when it names none; a file outside its folder, missing, not JSON or of another
- * shape is refused with why (the library checks the rest as it imports).
- */
 export function pluginPlan(folder: string | undefined, plugin: string): PluginPlan | undefined {
   const named = planFile(folder, plugin);
   if (named === undefined) return undefined;
@@ -236,7 +180,6 @@ export function pluginPlan(folder: string | undefined, plugin: string): PluginPl
   return plan as PluginPlan;
 }
 
-/** The plan file plugin `plugin` of `folder` names, and its path inside the plugin's folder; none when it names none, refused when it names one outside. */
 function planFile(folder: string | undefined, plugin: string): { file: string; within: string } | undefined {
   const { dir, manifest } = pluginManifest(folder, plugin);
   const named = manifest.plan;
@@ -248,12 +191,6 @@ function planFile(folder: string | undefined, plugin: string): { file: string; w
   return { file, within };
 }
 
-/**
- * The capability and contract numbers plugin `plugin`'s plan file in `folder` has held in any commit of the folder's
- * history (its HEAD's), and as it stands: what an import from that folder may retire, so a folder cut before another
- * lane's landing retires none of that lane's plan; and those versions themselves, so it writes back no text that lane changed. None when the folder is not a git checkout, so an import from it
- * retires whatever its plan does not hold, as before. A version that is not JSON holds nothing.
- */
 export function pluginPlanHeld(folder: string | undefined, plugin: string): PluginPlanHeld | undefined {
   const named = planFile(folder, plugin);
   if (named === undefined) return undefined;
@@ -264,7 +201,6 @@ export function pluginPlanHeld(folder: string | undefined, plugin: string): Plug
       return undefined;
     }
   };
-  // The plan's folder relative to the checkout's top (git's own reading, so a symlinked temporary folder reads the same).
   const prefix = git(["rev-parse", "--show-prefix"])?.toString().trim();
   if (prefix === undefined) return undefined;
   const relative = `${prefix}${path.basename(named.file)}`;
@@ -274,7 +210,6 @@ export function pluginPlanHeld(folder: string | undefined, plugin: string): Plug
     try {
       versions.push(JSON.parse(text));
     } catch {
-      // A version that is not JSON holds no numbers.
     }
   };
   if (commits.length > 0) {
@@ -306,13 +241,6 @@ export function pluginPlanHeld(folder: string | undefined, plugin: string): Plug
   return { capabilities: [...capabilities], contracts: [...contracts], versions };
 }
 
-/**
- * The grant plugin `plugin` of `folder` declares for its own librarian (ADR-1178 D5, question_0700cb2e567c: option A), as
- * its manifest's `librarian`, `{ "role": "<database role>", "update"?: true }`: the role librarian-<plugin> connects as,
- * fenced to every kind the plugin declares, and whether it may change their records, not only add them. None when it
- * names none. Its role is its own, never one of its kinds' writers, so a door that adds records never gains the right to
- * change them; a librarian with no kinds to keep, or of another shape, is refused with why.
- */
 export function pluginLibrarian(folder: string | undefined, plugin: string): OutsideWriter | undefined {
   const declared = pluginManifest(folder, plugin).manifest.librarian;
   if (declared === undefined) return undefined;
@@ -326,11 +254,6 @@ export function pluginLibrarian(folder: string | undefined, plugin: string): Out
   return { role, kinds: kinds.map((kind) => kind.kind), ...(update === true ? { update } : {}) };
 }
 
-/**
- * Every grant plugin `plugin` of `folder` declares, as storytree fences them in a project's library: each role its kinds
- * name as a writer, fenced to add the kinds it writes and change none (ADR-1178 D1), then its librarian, as
- * pluginLibrarian reads it. None for a plugin that declares no kinds; one whose manifest cannot be read is refused with why.
- */
 export function pluginFences(folder: string | undefined, plugin: string): OutsideWriter[] {
   const writes = new Map<string, string[]>();
   for (const { kind, writers } of pluginRecordKinds(folder, plugin)) for (const role of writers) writes.set(role, [...(writes.get(role) ?? []), kind]);
@@ -338,12 +261,6 @@ export function pluginFences(folder: string | undefined, plugin: string): Outsid
   return [...[...writes].map(([role, kinds]) => ({ role, kinds })), ...(librarian === undefined ? [] : [librarian])];
 }
 
-/**
- * The kinds of record the factory plugins a host mounts declare: each stand-in `standIns` names whose part `off`
- * switches off, in `graph`, or names off itself though `graph` lacks it (a plugin's kinds are the library's, not one
- * host's: no host's graph holds a part that has left the base, such as voice). A plugin whose part is on declares none,
- * and one whose kinds cannot be read declares none, named, with why, against the part it stands in for.
- */
 export function recordKinds(graph: PartsGraph, standIns: StandIns, off: readonly string[]): { kinds: PluginRecordKind[]; failed: Record<string, string> } {
   const places = standInPlaces(graph, off);
   const kinds: PluginRecordKind[] = [];
@@ -359,11 +276,6 @@ export function recordKinds(graph: PartsGraph, standIns: StandIns, off: readonly
   return { kinds, failed };
 }
 
-/**
- * What a service's start is handed (ADR-1180 D1, ADR-1112 D2): its plugin's folder, this machine's settings, a logger, the
- * signal that says stop, and, when the host has a project's library open, the library and caller a verb needing a
- * project is handed. A service imports nothing of storytree's: this is all of storytree it reaches.
- */
 export interface ServiceHost {
   readonly folder: string;
   readonly settings: SettingsReading;
@@ -372,18 +284,12 @@ export interface ServiceHost {
   readonly context?: VerbContext;
 }
 
-/** A long-running service a plugin declares: its name, how it runs, and its start, which runs until the host's stop signal fires. */
 export interface PluginService {
   readonly name: string;
   readonly run: ServiceRun;
   start(host: ServiceHost): Promise<void> | void;
 }
 
-/**
- * The services plugin `plugin` of `folder` declares in its manifest's `services`, each { name, from, export, run }, none
- * when it names none. Each is named once, in lower-case letters, digits and dashes, runs "always" or { every: "<n>m" },
- * and names an exported module whose export is { start(host) }; a plugin with one that is not is refused with why.
- */
 export function pluginServices(folder: string | undefined, plugin: string): PluginService[] {
   const { dir, pkg, manifest } = pluginManifest(folder, plugin);
   const declared = manifest.services;

@@ -1,4 +1,4 @@
-/** Capability 3 · Keeping the host running, contracts 3.3 and 3.4: the laptop's storytree-host scheduled task, and `services install` / `services uninstall` registering and deleting it. */
+// Capability 3 · Keeping the host running
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -17,7 +17,6 @@ function tempDir(t: TestContext): string {
   return dir;
 }
 
-/** A stand-in node at `bin`\node.cmd that writes the folder it ran in and its arguments to `said`, ending 3 on its first run and 0 after. */
 function fakeNode(bin: string, said: string): string {
   mkdirSync(bin, { recursive: true });
   const file = path.join(bin, "node.cmd");
@@ -38,7 +37,6 @@ test("3.3 · The laptop's storytree-host task runs node itself on `storytree ser
   const checkout = path.join(dir, "storytree");
   mkdirSync(checkout);
   const system = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32");
-  // cmd runs the script by its own fixed name, in the folder it was written to.
   const run = (PATH: string) => execFileSync("cmd.exe", ["/d", "/c", ".\\storytree-host.cmd"], { cwd: dir, env: { ...process.env, PATH }, stdio: "ignore" });
 
   const said = path.join(dir, "said");

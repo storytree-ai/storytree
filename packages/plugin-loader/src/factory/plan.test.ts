@@ -1,7 +1,4 @@
-/**
- * Capability 5 · Factory plugins, contract 5.14 (ADR-1187): a plugin carries its own story's plan, its
- * capabilities and contracts, in a file its manifest names, and storytree imports it from there into the project's plan.
- */
+// Capability 5 · Factory plugins
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -136,7 +133,6 @@ test("5.23 · `plugin import-plan` from a git checkout retires only what a commi
   git(factory, "add", ".");
   git(factory, "commit", "-q", "-m", "voice's plan");
   git(factory, "worktree", "add", "-q", "-b", "lane", stale);
-  // Another lane lands 1.2 on the factory's main after this lane's worktree was cut.
   writePlan(factory, address(["1.1 · A wrong path is answered 404", "1.2 · A wrong method is answered 405"]));
   git(factory, "commit", "-q", "-am", "1.2 lands");
 
@@ -164,7 +160,6 @@ test("5.23 · `plugin import-plan` from a git checkout retires only what a commi
     assert.match((await importPlan(stale)).text, /: 0 added, 0 edited, 0 retired, 4 kept\.$/);
     assert.deepEqual(await contracts(), landed, "a re-import after the merge keeps the ids");
 
-    // The lane's own history dropping 1.2 is a removal it may make, past a committed version that was not JSON.
     writeFileSync(path.join(stale, "plugins", "voice", "plan.json"), "{ not json");
     git(stale, "commit", "-q", "-am", "a broken plan");
     writePlan(stale, address(["1.1 · A wrong path is answered 404"]));
@@ -200,7 +195,6 @@ test("5.24 · `plugin import-plan` from a git checkout edits a kept capability's
   git(factory, "add", ".");
   git(factory, "commit", "-q", "-m", "voice's plan");
   git(factory, "worktree", "add", "-q", "-b", "lane", stale);
-  // Another lane retitles 1.1 on the factory's main after this lane's worktree was cut.
   writePlan(factory, "1.1 · A wrong path is answered 404 with its reason", "Where it listens.");
   git(factory, "commit", "-q", "-am", "1.1 retitled");
 
@@ -220,7 +214,6 @@ test("5.24 · `plugin import-plan` from a git checkout edits a kept capability's
     await importPlan(factory);
     const landed = await read();
 
-    // The stale lane's own edit is the capability's description; the contract's title is the other lane's.
     writePlan(stale, "1.1 · A wrong path is answered 404", "The port and path it listens on.");
     git(stale, "commit", "-q", "-am", "a clearer description");
     const stood = await importPlan(stale);

@@ -1,7 +1,4 @@
-/**
- * Capability 8 · Code survey: a built Python story, packages/<story>/pyproject.toml with src/<module>/, surveyed
- * through the Python reader: its imports resolved through tree-sitter, its files' declarations, and its roads.
- */
+// Capability 8 · Code survey
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -27,7 +24,6 @@ async function write(folder: string, files: Readonly<Record<string, string>>): P
 const story = (id: string, title: string, capabilities: readonly string[] = ["1 · Value"]) =>
   ({ id, title, capabilities: capabilities.map((name, at) => ({ id: `${id}-cap-${at + 1}`, title: name })) });
 
-// First in its file, so the grammar has not loaded when it runs: reading an imported story's tests loads it itself.
 test("8.44, 8.50 reading an imported Python story's tests loads the Python reader's grammar before it surveys their imports", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "python-mapped-tests-"));
   try {
@@ -51,7 +47,6 @@ test("8.50 a built Python story's imports are edges in its survey: import a.b, f
       "packages/cart/src/cart/__init__.py": "from .total import total\n",
       "packages/cart/src/cart/total.py": "import os\nimport cart.tax.rates\nfrom cart import money\nfrom . import discounts\n\n\ndef total(lines):\n    return sum(lines)\n",
       "packages/cart/src/cart/money.py": "def cents(x):\n    return x\n",
-      // A namespace package: no __init__.py.
       "packages/cart/src/cart/tax/rates.py": "RATE = 1\n",
       "packages/cart/src/cart/discounts/__init__.py": "from .seasonal import season as s\n",
       "packages/cart/src/cart/discounts/seasonal.py": "from ..money import cents\n\nseason = cents\n",
@@ -75,7 +70,6 @@ test("8.50 a built Python story's imports are edges in its survey: import a.b, f
     ]);
     assert.deepEqual(edges(survey.tests?.find((one) => one.path === "tests/test_total.py")?.imports ?? []), ["tests/test_total.py -> src/cart/total.py"], "a test outside src reaches the module it imports");
 
-    // An imported island has no package to root its search: src/ first, then the top.
     const paths = new Set(["src/shop/a.py", "src/shop/b.py", "lib/c.py"]);
     await readersReady(paths);
     assert.deepEqual(pythonReader.edgesOf({ path: "src/shop/a.py", text: "import shop.b\nimport lib.c\n" }, paths, []).map((edge) => edge.to), ["src/shop/b.py", "lib/c.py"]);
@@ -132,7 +126,6 @@ test("8.52 a built Python story's pyproject.toml makes roads to the stories whos
   }
 });
 
-/** A built Cart story whose pytest tests carry numbers by their names, their docstrings and inside a Test* class. */
 const numberedCart: Readonly<Record<string, string>> = {
   "packages/cart/pyproject.toml": "[project]\nname = \"cart\"\n",
   "packages/cart/src/cart/__init__.py": "",

@@ -1,4 +1,3 @@
-/** Marketing artifacts 1.1–2.2, the mark: the master drawing in the caller's colours, its named colourways, and the fixed-colour files generated from it. */
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -7,7 +6,6 @@ import { COLOURWAYS, ICNS_TYPES, ICO_SIZES, PNG_SIZES, iconPath, markSvg, readIc
 
 const roles = { edge: "var(--o)", sheet: "var(--l)", tree: "var(--t)", leaf: "var(--f)" };
 
-/** Every element that paints, with the colour it paints in and the slant it is drawn under. */
 function painted(svg: string): { tag: string; colour: string; slant: string | undefined }[] {
   const out: { tag: string; colour: string; slant: string | undefined }[] = [];
   for (const [, tag, attrs] of svg.matchAll(/<(\w+)([^>]*?)\/?>/g)) {
@@ -30,7 +28,6 @@ test("1.1 · given four role colours, the SVG fills each role's shapes with its 
   assert.doesNotMatch(svg, /<rect/, "no tile without a canvas: the only rectangle the mark ever draws is the tile");
   assert.deepEqual(shapes.map((s) => s.colour).slice(0, 2), [roles.edge, roles.sheet], "the edge lies under the sheet, the tree on top");
 
-  // The tree is drawn on the sheet: trunk and canopy lie under the sheet's own slant, and the edge under another.
   const slant = of(roles.sheet, "path")[0]!.slant;
   assert.match(slant ?? "", /^matrix\(/, "the sheet lies at a slant");
   for (const s of [...of(roles.tree, "path"), ...of(roles.leaf, "circle")]) assert.equal(s.slant, slant, `the ${s.tag} lies on the sheet`);
@@ -72,13 +69,10 @@ test("2.1 · each committed PNG holds the mark rendered at its size in its colou
       const fresh = renderMark(name, size);
       assert.ok(Buffer.from(png.pixels).equals(Buffer.from(fresh)), `${file} is not the mark's render: run pnpm --filter @storytree/mark icons`);
     }
-    // At 16 pixels the one drawing still reads: the trunk keeps at least one pixel that is nearly the tree's colour.
     const far = (a: number[], b: number[]) => Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!);
     const tiny = renderMark(name, 16);
     const nearest = Math.min(...Array.from({ length: 256 }, (_, i) => far([...tiny.subarray(i * 4, i * 4 + 3)], hex(way.tree))));
     assert.ok(nearest <= 0.25 * far(hex(way.sheet), hex(way.tree)), `${name}: at 16 the trunk is a smudge, ${Math.round(nearest)} from the tree's colour`);
-    // What the render shows, at points of the 104 box: transparent beyond the tile's rounded corner, canvas above the sheet,
-    // and on the slanted sheet its own colour, the canopy and the trunk, with the edge showing below it.
     const big = renderMark(name, 1024);
     const at = (x: number, y: number) => {
       const [px, py] = [Math.round((x * 1024) / 104), Math.round((y * 1024) / 104)];

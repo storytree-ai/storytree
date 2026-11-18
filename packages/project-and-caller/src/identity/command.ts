@@ -1,8 +1,7 @@
-/** Capability 6 · Social sign-in and session. */
+// Capability 6 · Social sign-in and session
 import { createIdentityClient, type ClientConfiguration } from "./client.js";
 import { withSessionStore } from "./session-store.js";
 
-/** CLI-owned formatting and flow live with identity; the command-line story only parses and delegates. */
 export async function identityCommand(command: "sign-in" | "status" | "sign-out", options: Omit<ClientConfiguration, "store"> & {
   readonly directory: string;
   readonly signal?: AbortSignal;

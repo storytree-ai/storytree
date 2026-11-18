@@ -1,6 +1,3 @@
-// A factory plugin's own tests recorded as its story's verified health (plugin-run.ts), through the front door: a
-// plugin started by `plugin new` in a storytree home of its own, and the `health plugin` verb run in a throwaway
-// project of the Postgres `pnpm test` provides (STORYTREE_TEST_PG_URL), dropped afterwards.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -18,12 +15,10 @@ import { recordPluginTests } from "./plugin-run.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-/** Verb `name` of `families`' first family. */
 function verbOf(families: readonly VerbFamily[], name: string) {
   return families[0]!.verbs.find((one) => "name" in one.command && one.command.name === name)!;
 }
 
-/** A storytree home of its own, so this computer's factory is its default one, put back afterwards. */
 function home(t: TestContext): string {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-home-"));
   const before = process.env.STORYTREE_HOME;
@@ -57,7 +52,6 @@ test("4.1, 3.17 · `health plugin <plugin>`, on the command line only (no record
   const capability = await library.addCapability({ story: story.id, title: "1 · Hello" });
   const contract = await library.addContract({ capability: capability.id, title: "1.1 · my-health's hello says it is mounted" });
   const nested = await library.addContract({ capability: capability.id, title: "1.2 · my-health's hello names the folder it is called in" });
-  // A test in a folder of the plugin's own counts as one beside its verbs does; one numbered for no contract is counted apart.
   mkdirSync(path.join(factory, "plugins", "my-health", "test"));
   writeFileSync(
     path.join(factory, "plugins", "my-health", "test", "folder.test.js"),
@@ -94,7 +88,6 @@ test("4.1, 3.17 · `health plugin <plugin>`, on the command line only (no record
 });
 
 test("4.2 · a factory plugin's run that skips a test for another platform than its own leaves that contract's earlier pass standing; one that skips it for its own platform marks the pass not re-run", async (t) => {
-  // The box's `health plugin micks-agent-runner` skipped 10.1 and 10.2 (platform:win32) and wrote over the laptop's passes (increment_530c1909a93d).
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
   const storytree = await connect({ url });

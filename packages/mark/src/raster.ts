@@ -1,7 +1,4 @@
-/**
- * Capability 2 · Fixed-colour icon files: the mark rendered to pixels from the master's shapes, by supersampled coverage
- * over the canvas tile. Only + - * / and square roots, so the pixels are the same on every platform.
- */
+// Capability 2 · Fixed-colour icon files
 import { BOX, SHAPES, TILE_RADIUS, resolveColours, type MarkColours, type Shape } from "./drawing.js";
 
 type Rgb = readonly [number, number, number];
@@ -13,13 +10,11 @@ function rgb(colour: string): Rgb {
   return [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)];
 }
 
-/** Inside a rectangle with rounded corners. */
 function inRounded(x: number, y: number, left: number, top: number, right: number, bottom: number, r: number): boolean {
   const cx = Math.max(left + r, Math.min(right - r, x)), cy = Math.max(top + r, Math.min(bottom - r, y));
   return x >= left && y >= top && x <= right && y <= bottom && (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r;
 }
 
-/** One flat shape's inside test and a box that holds it [left, top, right, bottom], both before it is laid on its plane. */
 function flat(shape: Shape): { test: Test; box: readonly [number, number, number, number] } {
   switch (shape.kind) {
     case "rect": {
@@ -47,7 +42,6 @@ function flat(shape: Shape): { test: Test; box: readonly [number, number, number
   }
 }
 
-/** One shape as it lies in the box: a box that holds it there, and its inside test, which asks the flat shape about the point the plane brought here. */
 function laid(shape: Shape): { left: number; top: number; right: number; bottom: number; test: Test } {
   const { a, b, c, d, e, f } = shape.plane;
   const { test, box: [l, t, r, bt] } = flat(shape);
@@ -60,7 +54,6 @@ function laid(shape: Shape): { left: number; top: number; right: number; bottom:
   };
 }
 
-/** The mark on its tile, in a colourway (or #rrggbb colours with a canvas), as size x size straight RGBA pixels, row by row. */
 export function renderMark(colours: MarkColours | string, size: number): Uint8Array {
   const c = resolveColours(colours);
   if (c.canvas === undefined) throw new Error("A fixed-colour file needs a canvas colour.");

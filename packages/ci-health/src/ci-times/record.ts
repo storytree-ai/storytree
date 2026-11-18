@@ -1,22 +1,4 @@
-/**
- * Capability 6 · CI times. Recording a project's CI times from its GitHub Actions (stage 1 of question_177bdb4c1e2a's
- * display, research_5ab97b11f915), through the user's own `gh` sign-in, as reading its CI is (capability 3):
- *
- * - Every pull-request and merge-queue run created since the last recording (the last two weeks the first time), of every
- *   workflow, one row each: its pull request, when it was queued, started and ended, and its outcome. A run still going is
- *   recorded as going and completed by a later recording. The runs are listed a day and an event at a time, since the
- *   Actions API lists at most a thousand runs for one query.
- * - The system that bounds a passing run: the platform of its longest job, read once per run, a limited number a pass so a
- *   first recording of two weeks spreads its job reads over several passes.
- * - The per-package test times of each passing merge-queue run, from its `test-timings-*` artifacts (unit-run.mjs's
- *   rows; CI keeps them for two days): only the rows that run wrote, by their time, and never the history carried in the same
- *   file. A run is read once; one whose artifacts expired keeps none.
- * - Each merged pull request's ready (its last ready-for-review, else when it was opened) and merged times.
- * - Given the project's scope rule (CI's own, from its checkout), each open pull request's scope: the packages its checks
- *   test, from its changed files, read again only when its head moves; a pull request no longer open is dropped (stage 3).
- *
- * Every write is an upsert, so a scheduled run, the app and a person at the command line may all record.
- */
+// Capability 6 · CI times.
 import { execFile } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -26,45 +8,30 @@ import { promisify } from "node:util";
 import { ghApi, platformOfJob } from "../read-ci/read-ci.js";
 import type { CiTimesDb } from "./store.js";
 
-/** What the recorder asks of GitHub: the Actions API's JSON, a GraphQL query's answer, and a run's artifacts downloaded and unpacked into a folder. */
 export interface ActionsReader {
   json(route: string): Promise<any>;
   graphql(query: string, variables: Record<string, string>): Promise<any>;
   download(repository: string, run: number, pattern: string, into: string): Promise<void>;
 }
 
-/** What one recording wrote. */
 export interface CiTimesRecorded {
-  /** Pull-request and merge-queue runs listed and recorded. */
   readonly runs: number;
-  /** Merged pull requests recorded. */
   readonly pulls: number;
-  /** Per-package test times recorded. */
   readonly units: number;
-  /** Open pull requests whose scope was read. */
   readonly scopes: number;
 }
 
-/** What a pull request's checks test, given its changed files: every package (`full`), or the package dirs listed. */
 export type ScopeRule = (files: readonly string[]) => { readonly full: boolean; readonly dirs: readonly string[] };
 
-/** The events whose runs a pull request waits on. */
 const EVENTS = ["pull_request", "merge_group"] as const;
-/** How far back a project's first recording reaches, in days: the reading's two weeks and one more. */
 const BACKFILL_DAYS = 15;
-/** How many runs' jobs one recording reads at most. */
 const JOBS_PER_PASS = 150;
-/** The timing artifacts CI's merge-queue runs leave (ci.yml). */
 const TIMINGS = "test-timings-*";
-/** How many runs' jobs or artifacts are asked of GitHub at once. */
 const AT_ONCE = 8;
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** How close to its run's start and end a timing row must be written to be that run's. */
 const RUN_SLACK_MS = 60 * 1000;
-/** The most changed files GitHub lists for a pull request: one that lists this many may change more, so it tests everything. */
 const FILES_LISTED = 3000;
 
-/** `gh`, as the recorder uses it: the Actions API, GraphQL and `gh run download`. */
 export function ghActions(command = "gh"): ActionsReader {
   const api = ghApi(command);
   const run = promisify(execFile);
@@ -80,7 +47,6 @@ export function ghActions(command = "gh"): ActionsReader {
   };
 }
 
-/** Record `project`'s CI times from `repository` (owner/name) into `db`, as of `now`. */
 export async function recordCiTimes({ db, project, repository, actions, now = new Date(), backfillDays = BACKFILL_DAYS, jobsPerPass = JOBS_PER_PASS, scopeOf }: {
   db: CiTimesDb; project: string; repository: string; actions: ActionsReader; now?: Date; backfillDays?: number; jobsPerPass?: number; scopeOf?: ScopeRule;
 }): Promise<CiTimesRecorded> {
@@ -106,7 +72,6 @@ export async function recordCiTimes({ db, project, repository, actions, now = ne
   return { runs, pulls, units, scopes };
 }
 
-/** Where this recording starts: an hour before the last, or the oldest run it left going, never further back than the backfill. */
 async function recordFrom(db: CiTimesDb, project: string, now: Date, backfillDays: number): Promise<Date> {
   const floor = new Date(now.getTime() - backfillDays * DAY_MS);
   const { rows: [last] } = await db.query<{ read_at: Date }>("SELECT read_at FROM ci_readings WHERE project = $1", [project]);
@@ -125,7 +90,6 @@ type ListedRun = {
   run_attempt?: number; created_at: string; run_started_at?: string | null; updated_at: string; pull_requests?: { number: number }[];
 };
 
-/** Every run of `event` created on `day`, page by page. */
 async function runsOf(actions: ActionsReader, repository: string, event: string, day: string): Promise<ListedRun[]> {
   const all: ListedRun[] = [];
   for (let page = 1; ; page++) {
@@ -136,7 +100,6 @@ async function runsOf(actions: ActionsReader, repository: string, event: string,
   }
 }
 
-/** The pull request a run is for: the one GitHub names, else the one a merge-queue branch (`gh-readonly-queue/main/pr-5-…`) names. */
 function pullOf(listed: ListedRun): number | null {
   const named = listed.pull_requests?.[0]?.number;
   if (named !== undefined) return named;
@@ -144,7 +107,6 @@ function pullOf(listed: ListedRun): number | null {
   return queued === null ? null : Number(queued[1]);
 }
 
-/** Record a run as it is listed now; a new attempt of a run is read again for its bound and timings. */
 async function saveRun(db: CiTimesDb, project: string, repository: string, listed: ListedRun): Promise<void> {
   const completed = listed.status === "completed";
   await db.query(
@@ -163,7 +125,6 @@ async function saveRun(db: CiTimesDb, project: string, repository: string, liste
 
 type Job = { name?: string; labels?: string[]; started_at?: string | null; completed_at?: string | null; conclusion?: string | null };
 
-/** The system of each passing run's longest job, for runs not yet read, newest first. */
 async function readBounds(db: CiTimesDb, project: string, repository: string, actions: ActionsReader, limit: number): Promise<void> {
   const { rows } = await db.query<{ run_id: string; attempt: number }>(
     `SELECT run_id, attempt FROM ci_runs WHERE project = $1 AND repository = $2 AND conclusion = 'success' AND bound IS NULL
@@ -178,7 +139,6 @@ async function readBounds(db: CiTimesDb, project: string, repository: string, ac
   });
 }
 
-/** `act` on each of `items`, at most `limit` at once. */
 async function eachAtMost<T>(items: readonly T[], limit: number, act: (item: T) => Promise<void>): Promise<void> {
   let next = 0;
   const worker = async () => {
@@ -189,7 +149,6 @@ async function eachAtMost<T>(items: readonly T[], limit: number, act: (item: T) 
 
 type TimingRow = { at?: string; platform?: string; arch?: string; unit?: string; result?: string; ms?: number; timedOut?: boolean; jobs?: number; artifact?: string };
 
-/** The per-package test times of each passing merge-queue run not yet read. */
 async function readTimings(db: CiTimesDb, project: string, repository: string, actions: ActionsReader): Promise<number> {
   const { rows } = await db.query<{ run_id: string; head_sha: string; started_at: Date | null; created_at: Date; ended_at: Date }>(
     `SELECT run_id, head_sha, started_at, created_at, ended_at FROM ci_runs
@@ -222,7 +181,6 @@ async function readTimings(db: CiTimesDb, project: string, repository: string, a
   return units;
 }
 
-/** Every row of every `.jsonl` file under `folder`, with the artifact (the folder `gh run download` unpacked it into) it came in; a line that is not JSON passed over. */
 function timingRows(folder: string): TimingRow[] {
   return readdirSync(folder, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".jsonl")).flatMap((file) => {
     const [first, ...rest] = file.split(/[\\/]/);
@@ -246,7 +204,6 @@ const MERGED = `query($q: String!, $after: String) {
 
 type MergedPull = { number?: number; createdAt?: string; mergedAt?: string | null; timelineItems?: { nodes?: { createdAt?: string }[] } };
 
-/** Each pull request merged since `since`: when it was last made ready for review (else opened), and when it merged. */
 async function recordPulls(db: CiTimesDb, project: string, repository: string, actions: ActionsReader, since: Date): Promise<number> {
   let pulls = 0;
   let after: string | undefined;
@@ -267,7 +224,6 @@ async function recordPulls(db: CiTimesDb, project: string, repository: string, a
   return pulls;
 }
 
-/** Each open pull request's scope under `scopeOf`, its files read only when its head moved since; the scopes of those no longer open dropped. */
 async function recordScopes(db: CiTimesDb, project: string, repository: string, actions: ActionsReader, scopeOf: ScopeRule, now: Date): Promise<number> {
   const open: { number: number; head: { sha: string } }[] = [];
   for (let page = 1; ; page++) {

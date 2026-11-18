@@ -16,8 +16,6 @@ const google = (subject: string): Identity => ({ type: "OAuth", provider: "Googl
 const github = (subject: string): Identity => ({ type: "OAuth", provider: "GithubOAuth", idp_id: subject });
 const microsoft = (subject: string): Identity => ({ type: "OAuth", provider: "MicrosoftOAuth", idp_id: subject });
 
-// Real HTTP, signed tokens and an isolated real Postgres schema. The WorkOS server is a
-// local protocol stand-in; this is not evidence that the gated staging journey passed.
 async function journey() {
   const connectionString = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(connectionString, "run via pnpm run test to provision Postgres");
@@ -182,7 +180,6 @@ test("5.5 invalid WorkOS tokens or identity evidence fail closed before writes a
     await assert.rejects(j.open(unavailable).resolve(token), { message: "Storytree could not save your identity. Try again later." });
   } finally { await j.close(); }
 });
-
 
 test("5.5 the HTTP identity boundary verifies bearer sessions and returns only the portable id and verified email", async () => {
   const j = await journey();

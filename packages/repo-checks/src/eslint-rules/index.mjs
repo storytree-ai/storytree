@@ -4,7 +4,9 @@ import noComments from "./no-comments.mjs";
 import noHappyDomEqual from "./no-happy-dom-equal.mjs";
 import noOneCharacterEscape from "./no-one-character-escape.mjs";
 import noPartialEscape from "./no-partial-escape.mjs";
+import noSwallowedAssert from "./no-swallowed-assert.mjs";
 import noTagStrip from "./no-tag-strip.mjs";
+import numberedTestAsserts from "./numbered-test-asserts.mjs";
 
 export default {
   meta: { name: "storytree" },
@@ -15,5 +17,7 @@ export default {
     "no-one-character-escape": noOneCharacterEscape,
     "git-end-of-options": gitEndOfOptions,
     "no-happy-dom-equal": noHappyDomEqual,
+    "numbered-test-asserts": numberedTestAsserts,
+    "no-swallowed-assert": noSwallowedAssert,
   },
 };

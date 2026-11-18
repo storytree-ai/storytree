@@ -1,15 +1,10 @@
-/** Capability 1 · Project routing. Windows' own security calls, made in this process for the handoff's privacy check (contract 1.16). */
+// Capability 1 · Project routing
 interface Reads {
-  /** The SID this process runs as, from its own token. */
   user(): Buffer;
-  /** A file's or folder's self-relative security descriptor: owner, group and DACL. */
   descriptor(file: string): Buffer;
 }
 let native: Reads | undefined;
 
-// Koffi is resolved from where this code runs (a release bundle stages it beside itself), only
-// when a Windows check first needs it, so no other platform loads it and no bundler inlines it. Node's
-// module helper is fetched, not imported: a bundle's banner may already declare createRequire.
 function load(): Reads {
   if (native) return native;
   const require = process.getBuiltinModule("node:module").createRequire(typeof __filename === "string" ? __filename : import.meta.url);
@@ -25,17 +20,15 @@ function load(): Reads {
   native = {
     user() {
       const token: unknown[] = [null];
-      if (!openProcessToken(currentProcess(), 0x0008 /* TOKEN_QUERY */, token)) throw new Error("OpenProcessToken");
+      if (!openProcessToken(currentProcess(), 0x0008, token)) throw new Error("OpenProcessToken");
       try {
-        // TOKEN_USER points at the user's SID, which the call places later in the same buffer.
         const info = Buffer.alloc(256);
-        if (!tokenInformation(token[0], 1 /* TokenUser */, info, info.length, [0])) throw new Error("GetTokenInformation");
+        if (!tokenInformation(token[0], 1, info, info.length, [0])) throw new Error("GetTokenInformation");
         const sid = koffi.decode(info, "void *");
         return Buffer.from(new Uint8Array(koffi.view(sid, sidLength(sid))));
       } finally { closeHandle(token[0]); }
     },
     descriptor(file) {
-      // Owner, group and DACL (7). An ACL's size is a 16-bit count, so 64 KiB holds any descriptor.
       const descriptor = Buffer.alloc(65_536);
       if (!fileSecurity(file, 7, descriptor, descriptor.length, [0])) throw new Error("GetFileSecurityW");
       return descriptor;
@@ -44,7 +37,6 @@ function load(): Reads {
   return native;
 }
 
-/** The reads a check makes; tests stand in for them where Windows is not the host. */
 export const windowsSecurity: Reads = {
   user: () => load().user(),
   descriptor: (file) => load().descriptor(file),

@@ -1,6 +1,4 @@
-/**
- * Capability 8 · Code survey: each capability's nested parts and the imports reaching round a part's entry (ADR-1339 D1).
- */
+// Capability 8 · Code survey
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -17,7 +15,6 @@ test("8.67 a capability's parts are its folders with their own entry file, neste
       file("src/tax/index.ts", "cap-tax"), file("src/tax/rates.ts", "cap-tax"),
       file("src/tax/transactions/index.ts", "cap-tax"), file("src/tax/transactions/ledger.ts", "cap-tax"),
       file("src/tax/transactions/payments/index.ts", "cap-tax"), file("src/tax/transactions/payments/card.ts", "cap-tax"),
-      // No entry file: its file belongs to the part around it.
       file("src/tax/helpers/round.ts", "cap-tax"),
     ],
     imports: [],

@@ -1,14 +1,4 @@
-/**
- * Capability 10 · Work tools (the MCP server). The work tools (ADR-0643 D1, 6): park, ready, move and close increments, add to what one remedies, park and unpark arcs, set and
- * clear waits, raise, correct, settle and retire the owner's questions; marking one as being put to the owner is Session
- * management's present_question. Each is a thin wrapper over the library's own functions, so no library rule is kept here twice. Recording friction and re-steers is Friction's declared verbs (ADR-1077 D1).
- * Starting an increment is claiming it (Session management's claim tool), so a start is refused as a claim is. Asking the owner about work the
- * session holds, by a question held on it or a wait for the owner, releases its claims on it (releaseAsked, ADR-0944 D4).
- *
- * There is no hand close or re-open of an arc (ADR-0640 R1, 10-b): an arc reads closed when its
- * last increment closes, which close_increment says, and re-opens when work is parked on it, which
- * park_increment says.
- */
+// Capability 10 · Work tools
 import type { Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
@@ -22,7 +12,6 @@ const id = (what: string) => z.string().min(1).describe(`The id of the ${what}, 
 const disposition = z.enum(["landed", "failed", "withdrawn"]).describe("What the close meant: landed, failed, or withdrawn");
 const pr = z.string().min(1).optional().describe("Its pull request, such as #12");
 const note = z.string().min(1).optional().describe("Why it closed: needed when there is no pull request");
-/** Who releases a wait for something outside the plan, in words. */
 const releasedBy = (releaser: "owner" | "event"): string => (releaser === "owner" ? "the owner" : "an outside event");
 
 export function registerWorkTools(define: Define): void {
@@ -81,12 +70,11 @@ export function registerWorkTools(define: Define): void {
       if (refused !== undefined) return { text: refused, refused: true };
       const done = await call.library.closeIncrement(increment, defined({ disposition: meant, pr: pull, note: why }), call.writer);
       if (done === null) return noIncrement(increment);
-      // A close with no note leaves its arc's history no sentence of what changed, so only then is one asked for (F5.6, ADR-0786 D2).
       const correction = `storytree arc increment correct-closure ${increment} --disposition ${meant}${pull === undefined ? "" : ` --pr ${JSON.stringify(pull)}`} --note … --reason "adds its note"`;
       const ask = why === undefined ? ` ${quoted(done.fields.title)} (${increment}) closed with no note, and its note is what its arc's history shows under it: say what changed in behaviour, in a sentence, with \`${correction}\` in your shell.` : "";
       const saved = { text: `Closed ${quoted(done.fields.title)} (${increment}), ${meant}.${ask}`, data: { id: increment, disposition: meant } };
       await closed(claimContext(call), increment, meant);
-      try { call.journey?.incrementClosed?.(done.fields.outcome?.disposition); } catch { /* Observation cannot fail a completed close. */ }
+      try { call.journey?.incrementClosed?.(done.fields.outcome?.disposition); } catch {}
       return afterWrite(saved, async () => {
         const view = await call.library.arcView(done.fields.arc);
         const arc = view?.state === "closed" ? ` Its arc ${await arcName(call.library, done.fields.arc)} now reads closed: that was its last open increment.` : "";
@@ -161,7 +149,6 @@ export function registerWorkTools(define: Define): void {
         const done = await library.addWaitFor(waiter, { releaser, ...given }, writer);
         if (done === null) return { text: `There is no increment ${waiter} in this project's plan.`, refused: true };
         const said = done.fields.waitsFor?.find((one) => one.releaser === releaser)?.note ?? note;
-        // Waiting on the owner lets go of the work it holds (ADR-0944 D4); an outside event does not.
         const released = releaser === "owner" ? await releaseAsked(claimContext(call), waiter) : [];
         return { text: `${waiter} now waits for ${releasedBy(releaser)}: ${said}${check_back === undefined ? "" : ` (check back ${check_back})`}.${releasedSaid(released)}`, data: { id: waiter, released } };
       }
@@ -186,11 +173,9 @@ export function registerWorkTools(define: Define): void {
     async ({ waiter, on, for: releaser, claim, reason }, call) => {
       const { library, writer } = call;
       if ((on === undefined) === (releaser === undefined)) return { text: "Give either `on` (work it waits on) or `for` (the owner or an outside event).", refused: true };
-      // A clear says why the state changed, kept in the history (the owner, 2026-11-05).
       if (reason === undefined && claim === undefined) return { text: "Give a `reason`: why the wait is cleared, which its history keeps. Nothing was cleared.", refused: true };
       if (claim !== undefined) {
         if (releaser !== "owner") return { text: "`claim` goes with `for: owner`: claim the work another way.", refused: true };
-        // Claimed first, through the owner wait, then cleared: it never reads ready and unclaimed in between (5.57).
         const answer = await claimClearingOwnerWait(sessionClaimContext(call), waiter, claim);
         if (!answer.ok) return { text: `${await refusalText(library, waiter, answer)} Its wait for the owner stands.`, refused: true };
         return { text: `${waiter} no longer waits for the owner, and you hold it: ${claim}.`, data: { id: waiter } };
@@ -198,7 +183,6 @@ export function registerWorkTools(define: Define): void {
       const clearing = { ...writer, reason: reason! };
       const done = on !== undefined ? await library.removeWait(waiter, on, clearing) : await library.removeWaitFor(waiter, releaser!, clearing);
       if (done === null) return { text: `There is no increment or arc ${waiter} in this project's plan.`, refused: true };
-      // Nobody holds it now, so the pool may start a lane on it (5.57), unless only a cloud container takes it.
       const cloud = (done.fields as { machine?: string }).machine === CLOUD_MACHINE;
       const ready = releaser !== "owner" ? "" : cloud
         ? ` Nobody holds it, and only a cloud container takes it (its machine is ${CLOUD_MACHINE}), so the pool never starts it: start a cloud session on it.`
@@ -224,7 +208,6 @@ export function registerWorkTools(define: Define): void {
     }),
     async ({ holds, ...asked }, call) => {
       const { library, writer } = call;
-      // Check the entire request before the first write: a refusal must leave no question or hold.
       const holding = new Map<string, { heldOn: string[]; arc: string }>();
       for (const increment of holds ?? []) {
         const held = await heldOn(library, increment);
@@ -235,7 +218,6 @@ export function registerWorkTools(define: Define): void {
       const released: string[] = [];
       for (const [increment, held] of holding) {
         await library.editIncrement(increment, { heldOn: [...held.heldOn, question.id] }, writer);
-        // Asking about work this session holds lets go of it; a question about another arc releases nothing (ADR-0944 D4).
         if (held.arc === asked.arc) released.push(...(await releaseAsked(claimContext(call), increment)));
       }
       const waiting = holding.size === 0 ? "" : ` ${[...holding.keys()].join(", ")} ${holding.size === 1 ? "waits" : "wait"} on the answer.`;
@@ -317,13 +299,11 @@ export function registerWorkTools(define: Define): void {
   );
 }
 
-/** The questions increment `id` is held on now, and its arc, or undefined when it is not a live increment. */
 async function heldOn(library: Library, id: string): Promise<{ heldOn: string[]; arc: string } | undefined> {
   const increment = (await increments(library)).find((one) => one.id === id);
   return increment === undefined ? undefined : { heldOn: increment.fields.heldOn ?? [], arc: increment.fields.arc };
 }
 
-/** What asking the owner released, in a sentence, or nothing when it released nothing. */
 function releasedSaid(released: readonly string[]): string {
   return released.length === 0 ? "" : ` Released your claims on ${released.join(", ")}: the owner holds it now.`;
 }
@@ -337,12 +317,10 @@ async function arcName(library: Library, arc: string): Promise<string> {
   return view === null ? arc : `${quoted(view.arc.fields.title)} (${arc})`;
 }
 
-/** An optional arc read cannot turn a committed write into a refusal or hide its result. */
 async function afterWrite(saved: Answer, followUp: () => Promise<Answer>): Promise<Answer> {
   try {
     return await followUp();
   } catch (error) {
-    // Keep the library's recovery advice, including NewerSchemaError's update instructions.
     return { ...saved, text: `${saved.text} The follow-up arc read failed: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
@@ -351,15 +329,10 @@ function claimContext({ log, library, project, caller, folder, quietMs }: Call) 
   return { log, library, project, ...lineOf(caller), folder, quietMs };
 }
 
-/** `fields` without the ones left undefined. */
 function defined<T extends Record<string, unknown>>(fields: T): { [K in keyof T]: Exclude<T[K], undefined> } {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as { [K in keyof T]: Exclude<T[K], undefined> };
 }
 
-/**
- * An increment's machine as `name` sets it, checked by Session management's Machines (`incrementMachine`):
- * a named machine's name, or undefined for "none", which clears it; a name Machines does not know is refused.
- */
 export async function machineChecked(storytree: Storytree, name: string): Promise<{ machine: string | undefined } | { refused: Answer }> {
   try {
     return { machine: await incrementMachine(storytree, name) };
@@ -369,21 +342,14 @@ export async function machineChecked(storytree: Storytree, name: string): Promis
   }
 }
 
-/** What edit_plan is given for an increment's own fields, as the tool names them. */
 export interface IncrementChanges {
   capabilities?: string[] | undefined;
   machine?: string | undefined;
   escape?: { caused_by: string; commit?: string | undefined; story: string } | "none" | undefined;
 }
 
-/**
- * The library fields edit_plan writes for `target` increment's own `changes`, or why it refuses them: a capabilities
- * list adding one another live session's increment already names (sharedCapability), or a machine Machines does not know. "none"
- * clears its machine or escape: the library removes a field given as undefined (ADR-0963 D3).
- */
 export async function incrementFields(target: string, { capabilities, machine, escape }: IncrementChanges, call: Call): Promise<{ fields: Record<string, unknown> } | { refused: Answer }> {
   if (capabilities !== undefined) {
-    // Only what the edit adds is checked: a capability it keeps was checked when it was listed, so taking one off never refuses.
     const had = ((await call.library.get(target))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
     const shared = await sharedCapability(target, capabilities.filter((capability) => !had.includes(capability)), call);
     if (shared !== undefined) return { refused: { text: shared, refused: true } };
@@ -399,13 +365,6 @@ export async function incrementFields(target: string, { capabilities, machine, e
   };
 }
 
-/**
- * Why `capabilities`, the ones an edit adds, may not be on `target`'s list: one of them is on the list
- * of an increment another live session holds, since two sessions never plan changes to the same
- * capability (ADR-0949 D2).
- * An entry whose capability another session's live claim holds is left behind by a lane that backed
- * off from it (ADR-0944 D3), and refuses nothing.
- */
 async function sharedCapability(target: string, capabilities: readonly string[], { library, log, project, quietMs, caller }: Call): Promise<string | undefined> {
   const claims = await readClaims(log, project, { quietMs });
   const others = claims.filter((claim) => claim.session !== caller.session && claim.holder === "live" && claim.increment !== undefined && claim.increment !== target);

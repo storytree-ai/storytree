@@ -1,7 +1,4 @@
-/**
- * Capability 8 · Code survey: the map's index, which re-exports the survey and with it every language reader, bundles
- * for the browser as the desktop page bundles it (apps/desktop/src/renderer/page-build.ts), reaching no Node module.
- */
+// Capability 8 · Code survey
 import assert from "node:assert/strict";
 import { builtinModules } from "node:module";
 import path from "node:path";

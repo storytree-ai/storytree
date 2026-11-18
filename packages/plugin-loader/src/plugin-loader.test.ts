@@ -1,4 +1,3 @@
-/** The plugin loader: the manifests a host's story packages carry, and the parts composed from them into its bundle. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -14,12 +13,10 @@ import { checkPlugin } from "./factory/contract.js";
 import { pluginServices, unnamedOwnerOf, unnamedPlugins, type ServiceHost } from "./factory/factory.js";
 import { composeParts, mount, offSaid, PLUGIN_INTERFACE, pluginExport, recordKinds, standIn, storyParts, storyServices } from "./index.js";
 
-/** The loader's own entry, as a fixture host's composing module imports it (the fixture installs no loader of its own). */
 const LOADER = JSON.stringify(new URL("./index.ts", import.meta.url).href);
 
 interface Story { readonly name: string; readonly manifest?: unknown; readonly exports?: Record<string, string>; readonly files?: Record<string, string>; readonly dependencies?: readonly string[]; readonly devDependencies?: readonly string[] }
 
-/** A host folder depending on the given story packages, each installed in its node_modules. */
 function host(t: TestContext, stories: readonly Story[], dependencies = stories.map((story) => story.name)): string {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-plugin-loader-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -91,7 +88,6 @@ test("2.1 the parts-list step writes, for each #parts/<kind> the host's package.
     pages: [],
   });
   assert.deepEqual(list.graph, { arcs: ["forest"], forest: [] });
-  // Each fingerprint is checked against the file by the build that reads the list (Setup's 8.41); here, which files.
   const read = [path.join(dir, "package.json"), path.join(dir, "node_modules", "@s", "arcs", "package.json"), path.join(dir, "node_modules", "@s", "forest", "package.json")];
   assert.deepEqual(Object.keys(list.inputs), read.map((one) => realpathSync(one)));
   for (const sha of Object.values(list.inputs)) assert.match(sha, /^[0-9a-f]{64}$/);
@@ -153,7 +149,6 @@ test("4.2 a host mounts every declaration but those of a part the setting names 
   assert.deepEqual(mount(composition, []), { mounted: composition.parts, off: [] });
 });
 
-/** A factory folder holding the given plugins, each `plugins/<name>/` with its package.json and files. */
 function factory(t: TestContext, plugins: Readonly<Record<string, { manifest?: unknown; exports?: Record<string, string>; files?: Record<string, string> }>>): string {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-factory-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -209,7 +204,6 @@ test("5.21 · the factory plugin this computer's setting does not name that decl
     "micks-dev-loop": quality,
     "my-runner": { ...quality, manifest: { ...verbsPlugin.manifest, for: "agent-pool" }, files: { "verbs.js": `export const verbs = [{ name: "pool" }];\n` } },
     broken: { ...quality, manifest: { ...verbsPlugin.manifest, interface: 99 } },
-    // Read first, and its manifest is readable, but its verbs cannot be loaded.
     "a-unexported": { ...quality, exports: {} },
   });
   assert.deepEqual(unnamedOwnerOf({ folder, plugins: {} }, "verbs", "quality"), { plugin: "micks-dev-loop", part: "micks-dev-loop" });
@@ -272,7 +266,6 @@ test("5.4 a plugin's exported file is found by its export name inside the plugin
   assert.throws(() => pluginExport(undefined, "my-health", "./view"), /no factory folder is chosen/);
 });
 
-/** The plugin family's verbs, by command name, run as the command line runs them, in a storytree home of their own. */
 async function pluginVerb(t: TestContext, name: string): Promise<{ act: (input: Record<string, unknown>, context?: object) => Promise<{ text: string; next?: readonly { command?: string; tool?: string }[] }>; tool: unknown; factory: string; home: string }> {
   const home = mkdtempSync(path.join(tmpdir(), "storytree-home-"));
   const before = process.env.STORYTREE_HOME;
@@ -405,7 +398,6 @@ test("5.8 a factory plugin mounted in a switched-off part's place declares its o
 test("5.9 `plugin remove-records <plugin>` refuses a plugin switched on, removing nothing; switching it off removes none of its records; then it lists every record it would remove, by kind with how many and their ids, removing nothing, and with --yes removes exactly what it listed", async (t) => {
   const { act, tool, home } = await pluginVerb(t, "remove-records");
   const { setPartOff } = await import("@storytree/project-and-caller");
-  // The project's library, as far as this verb reaches it: the records of each plugin's kinds, and what was removed.
   const records = new Map([["voice.note_1", "voice.note"], ["voice.note_2", "voice.note"], ["voice.tag_1", "voice.tag"]]);
   const removed: { listed: PluginRecords; reason: string }[] = [];
   const pluginRecords = async (plugin: string): Promise<PluginRecords> => {

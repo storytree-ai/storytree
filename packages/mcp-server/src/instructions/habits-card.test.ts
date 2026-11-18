@@ -1,9 +1,4 @@
-/**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5, 7.8 and 7.10 to 7.22 in
- * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
- * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
- * it is the app setup's setup check.
- */
+// Capability 7 · Instructions (the habits card)
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -21,12 +16,8 @@ import { decisionRights, readStandIns } from "@storytree/project-and-caller";
 import { CONCEPTS } from "@storytree/shown-words";
 import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
-/** A client connected in memory to a fresh tool server, as a harness is at session start. */
 async function sessionStart(harness = "claude-code", off?: readonly string[]): Promise<{ client: Client; harnessTools: readonly string[]; close(): Promise<void> }> {
-  // A user's folder, not this checkout: storytree's own project also serves the librarian's tools.
   const folder = mkdtempSync(path.join(tmpdir(), "habits-card-"));
-  // The folder is its own storytree home, so no machine's settings (a module off, a plugin standing in) change the card;
-  // modules switched off are named there.
   if (off !== undefined) writeFileSync(path.join(folder, "settings.json"), JSON.stringify({ "modules-off": off }));
   const tools = createAgentTools({ folder, env: {}, setup: { storytreeHome: folder } });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
@@ -47,7 +38,6 @@ async function sessionStart(harness = "claude-code", off?: readonly string[]): P
 test("7.1 the card names every tool the server has, and no tool the server lacks", async () => {
   const session = await sessionStart();
   try {
-    // A harness's own tools are for it, not the agent, so the card leaves them off (ADR-1056 D2).
     const offered = (await session.client.listTools()).tools.map((tool) => tool.name).filter((tool) => !session.harnessTools.includes(tool)).sort();
     const taught = [...new Set([...habitsCard().matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort();
     assert.deepEqual(taught, offered);
@@ -73,8 +63,6 @@ test("7.12 with a module switched off, the card handed at session start leaves o
 });
 
 test("7.13 with code review a factory plugin's, the card storytree hands still tells the agent to record its work on the plan, and holds none of the build loop's stops", async () => {
-  // What paints the map stays in base now code review is a plugin's (ADR-1209 D2): the reported column, landed and
-  // built capabilities, closed increments and the session's close-out.
   const session = await sessionStart("claude-code");
   try {
     const card = session.client.getInstructions() ?? "";
@@ -87,7 +75,6 @@ test("7.13 with code review a factory plugin's, the card storytree hands still t
 });
 
 test("7.14 with a factory plugin standing in for a switched-off module, the card handed at session start carries the plugin's sections in the module's place, not the module's own, and does not name the module switched off; one that cannot be loaded adds nothing and the module is named off", async () => {
-  // Code review moved to a factory plugin whole, its section with it (ADR-1209 D1): the card is where a plugin's section reaches an agent.
   const folder = mkdtempSync(path.join(tmpdir(), "habits-card-factory-"));
   try {
     const plugin = path.join(folder, "factory", "plugins", "my-setup");
@@ -134,7 +121,6 @@ test("7.5 the card handed at session start says who decides what, and what no fi
       assert.ok(served.includes(line), `the served card lacks: ${line}`);
     }
     const decides = served.split("\n").find((line) => line.startsWith("- Decide yourself")) ?? "";
-    // ADR-1273 D1: alone, only a call with no trade-off that is reversible.
     for (const test of ["no trade-off", "same outputs", "no new dependency", "no contract or user-facing change", "reversible"]) {
       assert.ok(decides.includes(test), `the card's decides line names ${test}: ${decides}`);
     }
@@ -228,7 +214,6 @@ test("7.17 the card handed at session start says the packages/<story> layout is 
     for (const said of [
       "This is the layout for new stories",
       "An existing repository's code, whatever its layout, is drawn where it is once `import_project` maps it",
-      // ADR-1324 D3: storytree draws the bounds; the agent names and describes them.
       "maps it: name and describe its capabilities, never redraw them",
     ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
   } finally {

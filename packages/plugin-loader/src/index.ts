@@ -1,4 +1,4 @@
-/** Capability 1 · Manifests. The plugin loader (ADR-1021): storytree's own story packages say in a manifest what they add, and a host mounts it. */
+// Capability 1 · Manifests
 export { hostOf, isServiceRun, partsGraph, partsGraphOf, storyParts, storyServices, type FoundPackage, type PackageJson, type ServiceRun, type StoryPart, type StoryService } from "./manifests/manifests.js";
 export { composeParts } from "./runtime/compose-parts.js";
 export { PLUGIN_INTERFACE, pluginExport, pluginServices, recordKinds, standIn, type PluginService, type ServiceHost, type StandIns } from "./factory/factory.js";

@@ -1,4 +1,4 @@
-/** Capability 4 · Keeping the factory current, contract 4.4: the version of the host's own code, on a throwaway checkout. */
+// Capability 4 · Keeping the factory current
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,7 +25,6 @@ test("4.4 · the host's own code is its package and the workspace packages it st
   write("packages/unrelated/index.js", "export const two = 2;\n");
   mkdirSync(path.join(top, "packages/host/node_modules/@x"), { recursive: true });
   symlinkSync(path.join(top, "packages/dep"), path.join(top, "packages/host/node_modules/@x/dep"), "junction");
-  // A package installed from outside the checkout is not the host's code.
   const outside = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-own-code-outside-")));
   t.after(() => removeTemp(outside));
   writeFileSync(path.join(outside, "package.json"), JSON.stringify({ name: "outside" }));

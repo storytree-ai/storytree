@@ -1,4 +1,4 @@
-/** Capability 4 · Git changes joined to today's plan through the existing code survey. */
+// Capability 4 · Diff impact
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -26,7 +26,6 @@ async function git(folder: string, args: readonly string[], input?: string): Pro
 }
 const gitText = async (folder: string, args: readonly string[]) => (await git(folder, args)).toString("utf8").trim();
 
-/** A range's two refs at its first `..` or `...` with a ref on both sides, read without a backtracking regex. */
 function rangePair(range: string): { left: string; dots: ".." | "..."; right: string } | undefined {
   if (/[\n\r\u2028\u2029]/.test(range)) return undefined;
   for (let at = range.indexOf("..", 1); at > 0; at = range.indexOf("..", at + 1)) {
@@ -72,7 +71,6 @@ async function changesAt(folder: string, comparison: Pick<DiffSummary, "base" | 
   return { paths, renames };
 }
 
-/** Only regular source inputs the existing reader uses; never materialize links, assets or excluded trees. */
 function surveyInput(file: string): boolean {
   if (file.split("/").some(part => ["node_modules", "dist", "out", "evidence"].includes(part))) return false;
   if (/^(?:packages\/[^/]+|apps\/desktop)\/(?:package\.json|survey-coverage\.json)$/.test(file)) return true;
@@ -119,7 +117,6 @@ async function historicalGraph(folder: string, commit: string, tree: AnnotatedTr
   }
 }
 
-/** Today's plan is common to both readings; code edges are a conservative union, independent of evidence provenance. */
 function union(base: ProjectGraph, target: ProjectGraph): ProjectGraph {
   const nodes = new Map<string, MapNode>(base.nodes.map(node => [node.id, { ...node, snapshot: "base" }]));
   const edges = new Map<string, MapEdge>();
@@ -133,10 +130,6 @@ function union(base: ProjectGraph, target: ProjectGraph): ProjectGraph {
   return { nodes: [...nodes.values()], edges: [...edges.values()], healthSource: target.healthSource };
 }
 
-/**
- * The range read when none is given: origin/main, or in a repository with no origin/main its local default branch,
- * init.defaultBranch, else main, else master (4.4); origin/main when it has none of these, which then names what is missing.
- */
 async function defaultRange(root: string): Promise<string> {
   const exists = (ref: string) => gitText(root, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).then(() => true, () => false);
   if (await exists("refs/remotes/origin/main")) return "origin/main";
@@ -145,7 +138,6 @@ async function defaultRange(root: string): Promise<string> {
   return "origin/main";
 }
 
-/** What changed in `options.range` and what it reaches; the working tree is surveyed by `working`, a reader the caller can share. */
 export async function affectedProject(library: Pick<Library, "projectTree">, folder: string, options: AffectedOptions, working: CodeSurveyReader = codeSurveyReader({ checkout: "current" })): Promise<FocusAnswer> {
   const root = await gitText(folder, ["rev-parse", "--show-toplevel"]);
   const range = options.range || await defaultRange(root);
@@ -180,15 +172,8 @@ export async function affectedProject(library: Pick<Library, "projectTree">, fol
   ] } };
 }
 
-/** Folders outside packages/ that hold a story's code, by its package: the desktop app is the app story's other half (ADR-0649). */
 const ALSO_IN: Readonly<Record<string, readonly string[]>> = { app: ["apps/desktop/"] };
 
-/**
- * For each story one of whose packages (packages/<name>/ for each it owns, with any folder ALSO_IN names) fetched origin/main
- * changed in a commit made within `within` milliseconds before `now`, the newest such commit and when
- * it was committed, by story id; a story whose package did not change then is absent. Nothing is
- * fetched: with no origin/main there are none.
- */
 export async function changedOnMain(stories: readonly { readonly id: string; readonly title: string }[], folder: string, { within, now = new Date() }: { readonly within: number; readonly now?: Date }): Promise<Map<string, ChangedOnMain>> {
   const changed = new Map<string, ChangedOnMain>();
   let log: string;
@@ -209,12 +194,6 @@ export async function changedOnMain(stories: readonly { readonly id: string; rea
   return changed;
 }
 
-/**
- * Which of `contracts` (ids) a numbered test title in its story's packages on fetched origin/main names
- * by its number, with main's newest commit and when it was committed (friction_c7a7e6754c54). A
- * title prefixed with another package names that package's numbers. Fetches origin/main as the code
- * survey does; undefined when there is no origin/main to read.
- */
 export async function namedOnMain(tree: AnnotatedTree, folder: string, contracts: ReadonlySet<string>): Promise<NamedOnMain | undefined> {
   const stories = tree.stories.filter(story => story.mapped === undefined && story.capabilities.some(capability => capability.contracts.some(({ id }) => contracts.has(id))));
   let surveyed: Awaited<ReturnType<ReturnType<typeof codeSurveyReader>["read"]>>;

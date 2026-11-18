@@ -19,7 +19,6 @@ const snapshot: ProjectSnapshot = {
 const posix = { skip: process.platform === "win32" ? "platform:posix: POSIX modes do not prove Windows ACL privacy" : false };
 const mode = (file: string): number => fs.statSync(file).mode & 0o777;
 
-/** Only the library boundary is inert: the real deletion, claims and local removal paths run. */
 function inertLibrary(liveClaim = false) {
   const calls = { snapshots: 0, drops: 0 };
   const query = async () => ({ rows: [], rowCount: 0 });
@@ -32,7 +31,6 @@ function inertLibrary(liveClaim = false) {
     }] : [], rowCount: 0 }),
   };
   const library = {
-    // The app here shows "another", the first on its list, so the project deleted is not the one on show.
     listProjects: async () => ["another", project],
     projectIdentities: async () => ({ another: "another-database", [project]: "synthetic-database" }),
     ownDatabase: async () => pool,
@@ -127,7 +125,6 @@ test("3.6 · a linked backup folder cannot redirect the snapshot or change anoth
   }
 });
 
-// Each Windows PowerShell spawn may take up to its 120 s bound on a slow CI runner, past the 60 s default test limit.
 const windowsOnly = { skip: process.platform !== "win32" ? "platform:win32: Windows Authz effective-access proof runs on Windows CI" : false, timeout: 300_000 };
 
 for (const existing of [false, true]) {
@@ -216,11 +213,6 @@ function assertPrivate(files: string[]): void {
   }
 }
 
-/** Ask Windows' authorization engine about the actual on-disk descriptors. The unrelated user
- * is an arbitrary SID with Everyone, Authenticated Users and BUILTIN Users groups, no administrator
- * group or privileges. No account, password, logon, machine policy or service is created/changed.
- * https://learn.microsoft.com/windows/win32/api/authz/nf-authz-authzinitializecontextfromsid
- */
 function access(files: string[]): Access[] {
   return JSON.parse(powershell(`Add-Type -TypeDefinition @'
 using System;

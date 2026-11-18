@@ -1,9 +1,4 @@
-/**
- * Capability 18 · Built commands: the `storytree` command put on the user's path and taken off it (18.1), and the hooks
- * and command registered from a build of origin/main on a machine with no desktop app (18.2).
- *
- * Each test works in a throwaway home (../testing/homes.ts).
- */
+// Capability 18 · Built commands.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -42,7 +37,6 @@ test("18.1 in a throwaway home, the first start puts a storytree command on the 
     const file = path.join(bin, launcherFile());
 
     assert.equal((await start()).command, "installed");
-    // It runs as the user would run it: by its name, through their shell, found on the path.
     const ran = spawnSync("storytree", [], { shell: true, encoding: "utf8", env: { ...process.env, PATH: bin, Path: bin } });
     assert.match(`${ran.stdout}${ran.stderr}`, /storytree: read and change your project's records/, `it is storytree's command: ${ran.stdout}${ran.stderr}`);
     const first = readFileSync(file);
@@ -68,7 +62,6 @@ test("18.1 storytree's own command in a folder outside the home is never touched
     const elsewhere = path.join(dir, "elsewhere", "bin");
     for (const folder of [bin, elsewhere]) mkdirSync(folder, { recursive: true });
     const name = launcherFile();
-    // Another home's install of storytree, left by the setup check under a different HOME.
     const theirs = path.join(elsewhere, name);
     const hook: HookCommand = { node: process.execPath, script: hookScript };
     putCommandOnPath({ path: elsewhere, home: path.dirname(elsewhere) }, hook.node, path.join(path.dirname(hookScript), "an older storytree.mjs"));
@@ -91,7 +84,6 @@ test("18.1 an older storytree launcher in the home that runs another build is re
     mkdirSync(bin, { recursive: true });
     const command = { path: bin, home: dir };
     const older = path.join(dir, "an older storytree.mjs");
-    // On Windows an older install's launcher is the batch file storytree wrote before ADR-0854.
     const file = path.join(bin, process.platform === "win32" ? "storytree.cmd" : "storytree");
     if (process.platform === "win32") {
       writeFileSync(file, `@echo off\r\nrem storytree 0.3's command (put here by its setup check)\r\ngoto #_storytree_handoff_# 2>nul || "${process.execPath}" "${older}" %*\r\n`);
@@ -140,7 +132,6 @@ test("18.1 setup remove exits cleanly through the Windows launcher it removes: t
   });
 });
 
-/** A git checkout with one commit, which `origin/main` names too: a fresh worktree of main. */
 function checkoutOfMain(dir: string): { folder: string; commit: string } {
   const folder = path.join(dir, "checkout");
   mkdirSync(folder);
@@ -168,16 +159,13 @@ test("18.2 with no desktop app, a session whose tool server runs from a checkout
     await runSetupCheck({ ...ANSWERED, folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome, calling: "claude-code" });
     assert.ok(Object.keys(storytreeHooks(readJson(home.claudeSettings), hook.script, "claude-code")).length > 0, "Claude Code runs that build");
 
-    // A branch with work on it is not main: its hooks are not what every session on the machine should run.
     spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "branch work"], { cwd: folder });
     assert.equal(await builtFromMain(options), undefined, "a checkout off main registers nothing");
 
-    // Where the desktop app installed the hooks, its updater keeps them current: they stay the app's.
     spawnSync("git", ["reset", "-q", "--hard", commit], { cwd: folder });
     const app: HookCommand = { node: process.execPath, script: path.join(dir, "Programs", "storytree-0.3", "resources", "agent-tools", "storytree-hook.mjs") };
     registerHooks(home.homes, app);
     assert.equal(await builtFromMain(options), undefined, "hooks the app installed are kept");
-    // On Windows the app's hooks run its build's copy under the home (Get storytree 1.19): those stay the app's too.
     registerHooks(home.homes, { node: process.execPath, script: path.join(home.storytreeHome, "app-tools", "0123456789abcdef", "storytree-hook.mjs") });
     assert.equal(await builtFromMain(options), undefined, "hooks running the app's copy are kept");
   });
@@ -191,7 +179,6 @@ test("18.2 a checkout at origin's main registers that build even when its own or
     const { folder, commit: old } = checkoutOfMain(dir);
     const git = (...args: string[]) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: folder, encoding: "utf8" }).stdout.trim();
     git("remote", "add", "origin", origin);
-    // Main moves on after the clone was cached; the session's branch is cut from main as it is now, and only it is fetched.
     git("commit", "-q", "--allow-empty", "-m", "main, later");
     git("push", "-q", "origin", "HEAD:refs/heads/main");
     git("update-ref", "refs/remotes/origin/main", old);

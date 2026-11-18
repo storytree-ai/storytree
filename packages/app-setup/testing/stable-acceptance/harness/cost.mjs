@@ -1,5 +1,3 @@
-// One run's cost, for the routine's log and the owner's question: the user's turns and the judge, in minutes, tokens
-// and list-price dollars. Usage: node cost.mjs <evidence folder>
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 

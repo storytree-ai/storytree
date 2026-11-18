@@ -1,10 +1,4 @@
-/**
- * Capability 12 · Import an existing project: one test per contract 12.1-12.5 in the app setup story (ADR-0993 D1, D2, D6).
- *
- * The storytree project and the imported folders are throwaway directories. The project is set up on the
- * real Postgres `pnpm test` provides, named with uniqueProjectName(), and its database is dropped
- * afterwards, pass or fail.
- */
+// Capability 12 · Import an existing project.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -23,13 +17,11 @@ import { setUpProject } from "./making.js";
 interface World {
   readonly dir: string;
   readonly home: string;
-  /** The storytree project's own folder. */
   readonly trunk: string;
   readonly storytree: Storytree;
   readonly library: Library;
 }
 
-/** Run `body` with a storytree project set up in a throwaway folder; afterwards drop it. */
 async function withProject(body: (world: World) => Promise<void>): Promise<void> {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
@@ -55,7 +47,6 @@ async function withProject(body: (world: World) => Promise<void>): Promise<void>
   });
 }
 
-/** Write `files` (path relative to `root`, content) under `root`. */
 function write(root: string, files: Record<string, unknown>): void {
   for (const [file, content] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
@@ -63,7 +54,6 @@ function write(root: string, files: Record<string, unknown>): void {
   }
 }
 
-/** Every file and folder under `root` with its size and modification time: what "nothing was written" compares. */
 function snapshot(root: string): string[] {
   return readdirSync(root, { recursive: true, encoding: "utf8" }).sort().map((entry) => {
     const stat = statSync(path.join(root, entry));
@@ -71,7 +61,6 @@ function snapshot(root: string): string[] {
   });
 }
 
-/** The project's imported stories, by package. */
 async function mapped(library: Library): Promise<Record<string, SchemaRecord<"story">["fields"]>> {
   const stories = await library.list("story");
   return Object.fromEntries(stories.flatMap((story) => (story.fields.mapped === undefined ? [] : [[story.fields.mapped.package, story.fields]])));
@@ -120,7 +109,6 @@ test("12.1 importing a folder records it beside the trunk, with its repository a
     ]);
     assert.deepEqual(snapshot(shop), before, "nothing was written into the imported folder");
 
-    // A project that is one package, with no git: one story, keyed by its folder; a pnpm workspace is read too.
     const tool = path.join(dir, "tool");
     write(tool, { "package.json": { name: "tool", description: "A tool" } });
     await importProject({ folder: tool, library, storytree, storytreeHome: home });
@@ -171,8 +159,6 @@ test("12.3 a folder that does not exist, one nested inside the storytree project
     assert.deepEqual(await importsOf(storytree, library.name, machineOf(home).id), [], "no import was recorded");
     assert.equal(readFileSync(path.join(inside, "package.json"), "utf8"), JSON.stringify({ name: "lib" }));
 
-    // The trunk folder, an existing repository set up in place (ADR-1213 D1): its packages are mapped where they are,
-    // but a package of a story storytree built there is never mapped (ADR-0993 D2).
     write(trunk, { "package.json": { name: "repo", workspaces: ["packages/*"] }, "packages/cart/package.json": { name: "@repo/cart" }, "packages/basket/package.json": { name: "@repo/basket" } });
     await library.addStory({ title: "Basket" });
     const imported = await importProject({ folder: trunk, library, storytree, storytreeHome: home });
@@ -250,7 +236,6 @@ test("12.4 importing again says the commit recorded before and now and the files
     assert.equal(await library.get(menu.id), null);
     assert.deepEqual((await library.list("capability")).filter((capability) => capability.fields.story === story!.id).map(({ fields }) => fields.covers).sort(), [["src/a.ts"], ["src/c.ts"]], "the story is drawn as its code now stands");
 
-    // A recorded commit git no longer knows: the commits are still said, the files are not.
     await recordImport(storytree, { project: library.name, machine: machineOf(home).id, machineName: machineOf(home).name, folder: shop, repository: "https://github.com/shop/shop.git", commit: "0".repeat(40) });
     const unknown = await importProject({ folder: shop, library, storytree, storytreeHome: home });
     assert.deepEqual(unknown.before, { commit: "0".repeat(40) });
@@ -278,13 +263,11 @@ test("12.10 a redraw keeps what was written: an unchanged capability keeps its i
     const money = await covering("src/money");
     const tax = await covering("src/tax");
     const number = (capability: SchemaRecord<"capability">) => capability.fields.title.split(" · ")[0];
-    // What an agent wrote: names, descriptions and contracts.
     await library.editCapability(log.id, { title: `${number(log)} · Logging`, description: "Writes the log" });
     await library.editCapability(money.id, { title: `${number(money)} · Money`, description: "Adds money up" });
     const onIndex = await library.addContract({ capability: index.id, title: "Totals the basket" });
     const onMoney = await library.addContract({ capability: money.id, title: "Sums" });
     const onTax = await library.addContract({ capability: tax.id, title: "Charges tax" });
-    // A contract on a drawn edge, one on an edge the code never made, and another story's link to the index.
     const indexToMoney = (await library.list("edge")).find((edge) => edge.fields.from === index.id && edge.fields.to === money.id)!;
     const onIndexEdge = await library.addContract({ edge: indexToMoney.id, title: "Hands the sum over" });
     const handDrawn = await library.addEdge({ from: tax.id, to: money.id });
@@ -292,7 +275,6 @@ test("12.10 a redraw keeps what was written: an unchanged capability keeps its i
     const elsewhere = await library.addStory({ title: "Elsewhere" });
     const user = await library.addCapability({ story: elsewhere.id, title: "Uses the index", dependsOn: [index.id] });
 
-    // The money folder splits (two files into fx/, two new beside it); the tax folder imports the index, closing a loop.
     rmSync(path.join(shop, "src/money"), { recursive: true });
     write(shop, {
       "src/money/sum.ts": "export const sum = 1;\n",
@@ -337,7 +319,6 @@ test("12.10 a redraw keeps what was written: an unchanged capability keeps its i
       "src/index.ts + src/tax -> src/money/sum.ts",
     ], "the links are the imports as they stand");
 
-    // A story imported before storytree drew, its capability drawn by hand over the whole of src, is redrawn alike.
     const old = path.join(dir, "old");
     write(old, { "package.json": { name: "old" }, "src/main.ts": "export const main = 1;\n", "src/util/a.ts": "export const a = 1;\n", "src/util/b.ts": "export const b = 1;\n" });
     const [drawnByHand] = (await library.mapStories(realpathSync(old), [{ package: ".", title: "old", folders: ["."] }])).added;
@@ -359,7 +340,6 @@ test("12.10 a redraw keeps what was written: an unchanged capability keeps its i
   });
 });
 
-/** A capability's title, description and covers, as a redraw keeps or changes them. */
 function pick(capability: SchemaRecord<"capability"> | undefined): Record<string, unknown> {
   const { title, description, covers } = capability?.fields ?? {};
   return { title, ...(description === undefined ? {} : { description }), covers };
@@ -367,9 +347,7 @@ function pick(capability: SchemaRecord<"capability"> | undefined): Record<string
 
 test("12.5 a workspace pattern that climbs out of the folder or runs past the matching limits is refused, saying why, and nothing is written; any '*' pattern is matched in time linear in the folder name", async () => {
   await withProject(async ({ dir, home, storytree, library }) => {
-    // A name full of one letter against a pattern of many '*'s backtracks for minutes in a regular expression.
     const slow = path.join(dir, "slow");
-    // Beside it, names whose pieces would only fit overlapping each other, or overlapping the last piece, match nothing.
     const workspaces = [`packages/${"*a".repeat(12)}*b`, "packages/x*ab*b", "packages/*cc*cc*"];
     const names = ["a".repeat(40), "xab", "xabab", "ccc", "cccc"];
     write(slow, { "package.json": { name: "slow", workspaces }, ...Object.fromEntries(names.map((name) => [`packages/${name}/package.json`, { name }])) });
@@ -384,7 +362,6 @@ test("12.5 a workspace pattern that climbs out of the folder or runs past the ma
       await storytree.close();
       console.log(JSON.stringify(imported.added.map((story) => story.title)));
     `;
-    // execFile kills the import and rejects once the bound passes.
     const run = await promisify(execFile)(process.execPath, ["--import", import.meta.resolve("tsx"), "--input-type=module", "--eval", child], {
       cwd: import.meta.dirname,
       env: { ...process.env, IMPORT_CASE: JSON.stringify({ url: testServerUrl(), project: library.name, folder: slow, home }) },

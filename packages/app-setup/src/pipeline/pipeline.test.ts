@@ -1,4 +1,4 @@
-/** Capability 11 · Pipeline wiring: the workflow wire_pipeline writes, from the jobs the parts it is given contribute. */
+// Capability 11 · Pipeline wiring.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

@@ -1,8 +1,4 @@
-/**
- * Capability 18 · Built commands. The hook commands its story packages declare, as `#parts/hooks` names them run unbundled:
- * composed from the manifests of this package's dependencies by the plugin loader (ADR-1021). The built hook command
- * gets the same list from the loader's build plugin instead (bins/build.ts).
- */
+// Capability 18 · Built commands.
 import { composeParts } from "@storytree/plugin-loader";
 import type { HOOK_COMMANDS } from "@storytree/session-management/hook-command";
 

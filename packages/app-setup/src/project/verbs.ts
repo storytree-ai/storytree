@@ -1,15 +1,9 @@
-/**
- * Capability 3 · First-run guide and capability 12 · Import an existing project.
- * `storytree project remove <project>`: take a project added by mistake off this computer's list.
- * `storytree project delete <project> --confirm <project>`: delete its records (ADR-0831).
- * `storytree import <folder> --project <project>`: import an existing JavaScript, TypeScript or Python project into this one, as mapped stories (ADR-0993).
- */
+// Capability 3 · First-run guide and capability 12 · Import an existing project.
 import { verb, VerbRefusal, type Verb, type VerbInputs } from "@storytree/library/verbs";
 
 import type { ImportVerbContext, SetupVerbContext } from "../verbs.js";
 import type { ProjectRecords } from "./index.js";
 
-/** What `project delete` reads from the door besides the folder: the project records the parts it mounts contribute (ADR-1170 D2). */
 interface DeleteContext extends SetupVerbContext {
   projectRecords?(): Promise<readonly ProjectRecords[]>;
 }
@@ -79,7 +73,6 @@ export const IMPORT = verb({
     project: { kind: "text", optional: true, describe: "the project to import it into, whose library it writes to: this folder's own (ADR-1348 D3)" },
   },
   async act({ folder, project }, context: ImportVerbContext) {
-    // A write names the library it lands in (ADR-1348 D3, contract 12.11): an import goes into this folder's own project.
     const own = context.library.name;
     if (project === undefined) throw new VerbRefusal(`An import names the project it writes to (ADR-1348 D3): add --project ${own}, this folder's project.`, { misuse: true });
     if (project !== own) throw new VerbRefusal(`An import writes to this folder's own project, "${own}", not "${project}": add --project ${own}, or run it from ${project}'s folder.`, { misuse: true });

@@ -1,4 +1,3 @@
-/** The command line 14.6 and 14.9: a window read from a project's activity log, against a real Postgres. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

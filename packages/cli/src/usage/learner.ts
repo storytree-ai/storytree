@@ -1,24 +1,4 @@
-/**
- * Capability 14 · Reading the doors' use. The learner, one step of the friction drain every landing runs (ADR-1045 D7):
- * no timer and no model. It reads the 28 days of door-answered lines to the drain as the log tallies them, never every
- * line, learns from them (./learn.ts) and acts on the lesson, so a second drain duplicates nothing.
- *
- * - A pointer is written as a `door-pointer` line in the activity log, the data the command line reads (ADR-1045 D4), with
- *   the evidence that made it; a pointer that fell back is a line with no target. The latest line for a word in a place is
- *   its state, so a word already pointed, or already fallen back, is not written again.
- * - A want is filed under the learner's own branch name, so it never spends the landing session's three a day (ADR-0716),
- *   and a want past the learner's own three waits for a later drain while the rest of the step still runs.
- * - A want is filed as friction naming the arc that measures the doors (friction links only to other notes), with the reading as evidence, under one
- *   title per word and place. While that friction is open nothing more is written; once it is routed, 10 more refusals
- *   since its last filing or recurrence reinforce it, which reopens it.
- * - Each group of cut candidates is raised as an open question on "Prune the front doors" and then parked there as an
- *   increment held on it, question first, so the pool cannot take it. A group with an open question is not raised again;
- *   one whose question is answered is raised again only for verbs that question did not name.
- * - The verbs it sees mounted for the first time are written as a `door-mounted` line, so a verb is proposed for a cut only
- *   once it has been mounted for the whole window: a verb born a day ago has 27 days of silence it could not have broken.
- * - Door gaps are reported in the drain's answer, never cut.
- * - Last, the weekly doors check (./doors-check.ts, ADR-1090 D2) runs when a week has passed since the last one.
- */
+// Capability 14 · Reading the doors' use
 import type { Library, Line, NewLine, SchemaRecord, WriteOptions } from "@storytree/library";
 import { CaptureError, recordFriction, reinforceFriction } from "@storytree/session-management/friction";
 
@@ -27,24 +7,18 @@ import { BARS, evidenceOf, learnDoors, type Candidate, type CutGroup, type Fallb
 import { doorLineOf, type DoorsLog } from "./read.js";
 import type { DoorLine } from "./reading.js";
 
-/** storytree's own arcs: the one that measures the front doors, where a want is filed, and "Prune the front doors", where each cut group waits for the owner (ADR-1045 D6). */
 export const ARCS = { wants: "arc_32e1fe58d6a6", cuts: "arc_4a62104e4de4" } as const;
 
-/** The branch a want is filed on: the learner's own, not the landing session's. */
 export const LEARNER_BRANCH = "(doors learner)";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** The most door gaps the drain's answer names. */
 const GAPS_SHOWN = 5;
 
-/** What the learner reads and writes through: the project's log and library, the drain's writer and session, the doors' surfaces, and the arcs it writes on. */
 export interface LearnerWorld {
   readonly log: DoorsLog & {
     append(project: string, line: NewLine, options?: { readonly at?: string }): Promise<unknown>;
-    /** The window's door-answered lines counted on the server (Session management 2.18): its own copy of the call (ADR-1017 D2). */
     doorTally(project: string, since: string): Promise<{ readonly sessions: number; readonly first?: string; readonly calls: ReadonlyMap<string, number>; readonly steps: readonly Line[] }>;
   };
-  /** The session running the drain, which a pointer's line is written on. */
   readonly caller: { readonly session: string; readonly harness?: string };
   readonly project: string;
   readonly library: Library;
@@ -54,14 +28,9 @@ export interface LearnerWorld {
   readonly now: Date;
 }
 
-/**
- * Learn from the 28 days to `now` and act on it; the lines say what was written, and what was not and why. A project
- * without both arcs (any project but storytree's own) learns nothing and is told nothing.
- */
 export async function learnInDrain(world: LearnerWorld): Promise<string[]> {
   for (const arc of [world.arcs.wants, world.arcs.cuts]) if ((await world.library.get(arc))?.type !== "arc") return [];
   const since = new Date(world.now.getTime() - BARS.days * DAY_MS).toISOString();
-  // Counted on the server, with only the lines a refusal or a pointer is judged by sent whole: never every line of the 28 days.
   const tally = await world.log.doorTally(world.project, since);
   const lines = tally.steps.flatMap((line) => doorLineOf(line) ?? []);
   const pointers = (await world.log.lines(world.project, { kinds: ["door-pointer"], latestBy: ["where", "word"] })).flatMap((line) =>
@@ -80,10 +49,6 @@ export async function learnInDrain(world: LearnerWorld): Promise<string[]> {
   return said;
 }
 
-/**
- * When the learner first saw each verb mounted, from the `door-mounted` lines, after writing one at `now` for the verbs it
- * sees in this drain for the first time.
- */
 async function mountedAt(world: LearnerWorld): Promise<Map<string, string>> {
   const mounted = new Map<string, string>();
   for (const line of await world.log.lines(world.project, { kinds: ["door-mounted"] })) {
@@ -100,7 +65,6 @@ async function mountedAt(world: LearnerWorld): Promise<Map<string, string>> {
   return mounted;
 }
 
-/** The title a want is filed under: one per word and place. */
 function wantTitle(want: Pick<Want, "where" | "word">): string {
   return `Agents type "${want.where} ${want.word}", which no command answers`;
 }
@@ -143,7 +107,6 @@ async function fileWants(world: LearnerWorld, wants: readonly Want[], lines: rea
   return said;
 }
 
-/** Where the evidence was read: the reading of the 28 days to `now`. */
 function readingTo(now: Date): string {
   return `\`storytree doors --days ${BARS.days}\` to ${now.toISOString().slice(0, 10)}`;
 }
@@ -165,12 +128,10 @@ async function writePointers(world: LearnerWorld, pointers: readonly NewPointer[
   return said;
 }
 
-/** A candidate as its doors name it. */
 function labelOf({ command, tool }: Candidate): string {
   return [command, tool].filter((name) => name !== undefined).join(" / ");
 }
 
-/** The title a cut group's question is raised under: one per group. */
 function cutTitle(group: string): string {
   return `Cut, keep or merge the unused verbs in ${group}?`;
 }

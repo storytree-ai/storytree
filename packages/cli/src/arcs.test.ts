@@ -1,7 +1,4 @@
-/**
- * Capability 4 · Arcs and increments: one test per contract in the command line story, each running
- * the real, built `storytree` command.
- */
+// Capability 4 · Arcs and increments
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { copyFileSync, linkSync, symlinkSync, writeFileSync } from "node:fs";
@@ -394,18 +391,15 @@ test("4.29 `arc increment unwait --for event --merged <pr>` clears the event wai
   });
 });
 
-/** Today, as the library dates a check-back: YYYY-MM-DD in UTC. */
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Today as a local day (YYYY-MM-DD), the day `arc list` counts from. */
 function localToday(): string {
   const day = new Date();
   return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
 }
 
-/** An arc whose one increment landed on `date`, so the arc closed that day. */
 async function aClosedArc(world: World, date: string): Promise<string> {
   const library = await world.library();
   const arc = await anArc(world);
@@ -414,13 +408,11 @@ async function aClosedArc(world: World, date: string): Promise<string> {
   return arc;
 }
 
-/** An arc written straight into the library, for a test that is about something else. */
 async function anArc(world: World): Promise<string> {
   const arc = await (await world.library()).createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up" });
   return arc.id;
 }
 
-/** The id the command printed for what it wrote: the first `<type>_<hex>` in its answer. */
 function idIn(text: string, type: string): string {
   const id = new RegExp(`\\b${type}_[0-9a-f]+\\b`).exec(text)?.[0];
   assert.ok(id !== undefined, `no ${type} id in:\n${text}`);
@@ -471,7 +463,6 @@ test("4.1 an arc with no intent is refused", async () => {
 test("4.2 a close with no pull request needs a note", async () => {
   await inWorld(command, async (world) => {
     const arc = await anArc(world);
-    // A title that reads as a number is kept as the text given.
     const parked = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "2027", "--objective", "Build it", "--body", "The form, then its checks"]);
     assert.equal(parked.code, 0, parked.stderr);
     const increment = idIn(parked.stdout, "increment");
@@ -785,7 +776,6 @@ test("4.21 `arc increment new --waits-on --wait-reason` parks an increment born 
       { on: mailer!.id, reason: "sends through them", forGood: false },
       { on: domain!.id, reason: "sends through them", forGood: false },
     ]);
-    // Split off onto a capability another open increment lists, born waiting on that capability's claim (ADR-1228 D1).
     const story = await library.addStory({ title: "Mail" });
     const form = await library.addCapability({ story: story.id, title: "Form" });
     await library.addIncrement({ arc, title: "Email form", objective: "Build it", body: "…", capabilities: [form.id] } as never);
@@ -932,7 +922,6 @@ test("4.6 closing an increment ends its claim for any outcome, closed by its hol
         assert.equal((await readClaims(log, world.project))[0]?.increment, increment.id);
         assert.deepEqual(await logged(log, world.project), before);
 
-        // A bare pull request number, as the guidance's `--pr <n>` gives it, is kept as the text it is.
         const outcome = disposition === "landed" ? ["--pr", "132"] : ["--note", "Folded into the sign-up page"];
         const another = await world.run([...close, ...outcome], { CODEX_THREAD_ID: "closer" });
         assert.equal(another.code, 1, another.stdout);
@@ -1027,7 +1016,6 @@ test("4.20 `arc increment settle-pending` applies the leftover pending plan chan
     await library.advanceIncrement(failed.id, "active");
     await library.pendChange(landed.id, { record: form.id, fields: { description: "Where they type it" } });
     await library.pendChange(failed.id, { record: promise.id, retire: "overtaken" });
-    // Closed as a close was written before closing applied or dropped them: the pending changes stay behind.
     const url = new URL(testServerUrl());
     url.pathname = `/storytree_${world.project}`;
     const client = new pg.Client({ connectionString: url.href });
@@ -1088,9 +1076,7 @@ test("4.28 `arc increment apply-pending <increment> --pr <n>` applies an open in
     await library.advanceIncrement(increment.id, "active");
     await library.pendChange(increment.id, { record: form.id, fields: { description: "Where they type it" } });
     await library.pendChange(increment.id, { record: promise.id, fields: { title: "Accepts an email address" } });
-    // Edited since the change was pended: it is stale.
     await library.editContract(promise.id, { title: "Accepts a postal address" });
-    // The fake gh answers `gh pr view <n>`: #151 merged, #152 still open, #153 a fork's merged pull request.
     await withTempDir(async (ghFolder) => {
       fakeGh(ghFolder);
       writeFileSync(path.join(world.folder, "pr"), [
@@ -1121,7 +1107,6 @@ test("4.28 `arc increment apply-pending <increment> --pr <n>` applies an open in
   });
 });
 
-/** Put a `gh` in `folder` that is Node itself, so `gh pr view …` runs the working folder's `pr` script. */
 function fakeGh(folder: string): void {
   const gh = path.join(folder, process.platform === "win32" ? "gh.exe" : "gh");
   if (process.platform !== "win32") return symlinkSync(process.execPath, gh);
@@ -1132,7 +1117,6 @@ function fakeGh(folder: string): void {
   }
 }
 
-/** The project's log as its claims and closes wrote it: without the door's own record of each command's answer (ADR-0983 D1). */
 async function logged(log: ActivityLog, project: string): Promise<{ lines: Line[] }> {
   return { lines: (await log.since(project, 0)).lines.filter((line) => line.kind !== "door-answered") };
 }

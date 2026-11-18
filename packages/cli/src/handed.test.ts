@@ -1,7 +1,4 @@
-/**
- * Capability 16 · Build and launch, contracts 16.2 and 16.3: the command's entry refuses a word changed on its way, on
- * every platform's reading of the words it was handed (the built command reaches these refusals only on Windows).
- */
+// Capability 16 · Build and launch
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

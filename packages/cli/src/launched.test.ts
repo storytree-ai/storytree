@@ -1,10 +1,4 @@
-/**
- * Capability 16 · Build and launch, contract 16.3: the words the installed command is handed on Windows, where its
- * launcher is a program of its own that passes the caller's line on unchanged (ADR-0854). Windows PowerShell 5.1
- * hands a word holding a space and a double quote on with its inner quotes unescaped, so the command reads other
- * words than the ones written: the command refuses them before acting. The command runs as a user's does: the agent
- * link's launcher, on the path, in front of the built command.
- */
+// Capability 16 · Build and launch
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";

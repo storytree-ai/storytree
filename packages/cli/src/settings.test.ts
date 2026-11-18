@@ -1,4 +1,3 @@
-/** Settings' thin front door runs offline, outside a project, with a throwaway home. */
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -193,10 +192,6 @@ test("1.41 · with CI health switched off, `storytree` starts and lists every fa
   assert.deepEqual(await projectRecords(home), [], "still none with it off");
 });
 
-/**
- * A factory folder with one plugin, `my-health`, that declares a `health` family of its own, as ready-to-run JavaScript
- * importing nothing of storytree's: its verb's work is handed its context by the door (ADR-1112 D2).
- */
 function healthPlugin(dir: string, name = "my-health"): string {
   const folder = path.join(dir, "factory");
   const plugin = path.join(folder, "plugins", name);

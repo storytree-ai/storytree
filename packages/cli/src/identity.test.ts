@@ -1,4 +1,3 @@
-/** Identity 2.4: `storytree sign-in`, `status` and `sign-out` delegate to the identity story and stay usable unconfigured. */
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

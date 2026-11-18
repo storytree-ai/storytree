@@ -1,8 +1,4 @@
-/**
- * Capability 7 · Board, read only: one test per contract 7.1-7.4 in the command line story, each running the
- * real, built `storytree` command. Claims are made the way the agent tool makes them, through the
- * Session management's own `claim`, into its activity log on the test Postgres.
- */
+// Capability 7 · Board, read only
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
@@ -16,7 +12,6 @@ const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
 
-/** An increment to claim, and the activity log, for `body`; the log is closed afterwards. */
 async function withClaimable(world: World, body: (increment: string, log: ActivityLog) => Promise<void>): Promise<void> {
   const library = await world.library();
   const arc = await library.createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up" });
@@ -51,7 +46,6 @@ test("7.2 an idle claim reads idle", async () => {
   await inWorld(command, async (world) => {
     await withClaimable(world, async (increment, log) => {
       await claim({ log, library: await world.library(), project: world.project, session: "codex-1", harness: "codex" }, increment, "wiring the form");
-      // Time passing: the session has said nothing for two hours, well past the quiet time.
       const url = new URL(testServerUrl());
       url.pathname = `/${ACTIVITY_DATABASE}`;
       const client = new pg.Client({ connectionString: url.href });

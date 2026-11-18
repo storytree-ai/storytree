@@ -1,4 +1,3 @@
-/** Setup 15.3 (Sharing controls): persisted consent controls are reachable from the offline command line. */
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

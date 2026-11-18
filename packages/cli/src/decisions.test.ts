@@ -1,7 +1,4 @@
-/**
- * Capability 6 · Decisions: one test per contract in the command line story, each running the real, built
- * `storytree` command.
- */
+// Capability 6 · Decisions
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -53,7 +50,6 @@ test("6.5 `adr pull` names a decision by id, number, or ADR number", async () =>
   });
 });
 
-/** The number `adr new` answered with: "ADR-<n>". */
 function numberIn(text: string): number {
   const number = /\bADR-(\d+)\b/.exec(text)?.[1];
   assert.ok(number !== undefined, `no ADR number in:\n${text}`);

@@ -1,4 +1,3 @@
-/** App setup 2.1–2.6: the delivered people's command, outside a checkout or project. */
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -12,7 +11,6 @@ import { assertExitCode, BuiltCommand, storytree } from "./testing/cli.js";
 const command = new BuiltCommand();
 before(async () => {
   await command.build();
-  // The same app-setup entry point packaged as storytree-deliver.mjs by desktop delivery.
   await build({
     stdin: { contents: 'import { runDeliveryCommand } from "@storytree/app-setup/deliver"; runDeliveryCommand().catch(e => { console.error(e.message); process.exitCode = 1; });', resolveDir: fileURLToPath(new URL("../../app-setup", import.meta.url)) },
     outfile: path.join(command.dir, "storytree-deliver.mjs"), bundle: true, platform: "node", format: "esm", target: "node24",
@@ -41,7 +39,6 @@ function user(t: { after(fn: () => Promise<void>): void }) {
   const settings = path.join(claude, ".claude.json");
   writeFileSync(settings, JSON.stringify({ theme: "kept", mcpServers: { other: { command: "keep" } } }));
   writeFileSync(path.join(codex, "config.toml"), '# keep my settings\nmodel = "kept"\n');
-  // Only the external harnesses are fake. The installed helper and configuration edits are real.
   const fake = path.join(bin, "harness.mjs");
   writeFileSync(fake, `import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

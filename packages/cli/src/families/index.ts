@@ -1,11 +1,4 @@
-/**
- * Capability 1 · Front door. The families `storytree` answers, in the order `storytree` alone lists them: the capabilities of
- * the command line story, each a front door onto its owning story. A family its owning story declares in its manifest
- * (`#parts/verbs`, ADR-1033) is mounted from there, at the place it declares among those still kept here: listed by place,
- * not counted into a position, so a new family takes an unused place and no other's moves. A declared family whose part
- * this computer switches off (ADR-1095) stays in the table, so asking for it is answered with how to switch it on, unless
- * a plugin in this computer's factory folder stands in for that part: then the plugin's families are mounted in its place.
- */
+// Capability 1 · Front door
 import composed from "#parts/verbs";
 import { readPartsOff, readStandIns } from "@storytree/project-and-caller";
 import { mount, standIn, type SwitchedOff } from "@storytree/plugin-loader";
@@ -21,10 +14,6 @@ import { learning, twinsOf } from "./drain.js";
 import { plan } from "./plan.js";
 import { tree } from "./tree.js";
 
-/**
- * Words agents try for a family storytree does not have, each with the command for that job. A key of two words is the
- * word with the one after it, which names the job more exactly than the word alone and is named before it.
- */
 export const GUESSES: Readonly<Record<string, string>> = {
   claim: "workspace <increment|capability> --reason <text>",
   board: "noticeboard",
@@ -33,10 +22,6 @@ export const GUESSES: Readonly<Record<string, string>> = {
   machines: "machine list",
 };
 
-/**
- * Words agents guess for a job a command already does, keyed by the words after `storytree`, each with that command:
- * the door runs it with the words after them and says so (ADR-1090 D1, the hand-written ADR-1045 D4 pointer).
- */
 export const POINTERS: Readonly<Record<string, string>> = {
   "adr show": "adr pull",
   wait: "arc increment wait",
@@ -53,10 +38,6 @@ export const POINTERS: Readonly<Record<string, string>> = {
   "resteer list": "library list resteer",
 };
 
-/**
- * Words agents try for a job no command of its own does, keyed by the words after `storytree`, each with why and the
- * command that does the job instead: the door refuses them saying so, rather than running that command for them.
- */
 export const NO_SUCH_JOB: Readonly<Record<string, { why: string; instead: string }>> = {
   "arc close": {
     why: "an arc has no close of its own: it reads closed once none of its increments is open and none of its questions waits, so it closes when its last increment does",
@@ -68,7 +49,6 @@ export const NO_SUCH_JOB: Readonly<Record<string, { why: string; instead: string
   },
 };
 
-/** The families still kept here, each at the place it takes among the declared ones in `storytree`'s list. */
 const KEPT: readonly Placed[] = [
   { order: 6, family: doors },
   { order: 15, family: tree },
@@ -78,12 +58,6 @@ const KEPT: readonly Placed[] = [
   { order: 32, family: auth },
 ];
 
-/**
- * The declared families this command mounts on the computer whose storytree home is `home`, each with its part: those of
- * storytree's own parts, but a part a factory plugin stands in for while it is off (its families giving way to the
- * plugin's), and the stand-ins' own, a plugin that adds a part of its own among them while the setting names it. A
- * settings file that cannot be read mounts storytree's own alone, and the command that reads it next says why.
- */
 function declaredIn(home?: string) {
   let off: readonly string[];
   let standIns: ReturnType<typeof readStandIns>;
@@ -104,7 +78,6 @@ function declaredIn(home?: string) {
   return { ...loaded, parts: kept(loaded.parts), owners: kept(loaded.owners), fromPlugin: kept(from) };
 }
 
-/** The families `storytree` answers on the computer whose storytree home is `home`, in the order it lists them. */
 export function familiesIn(home?: string): readonly Family[] {
   return familiesOf(home === undefined ? declared : declaredIn(home));
 }
@@ -113,18 +86,12 @@ function familiesOf(mounting: ReturnType<typeof declaredIn>): Family[] {
   return inOrder([...KEPT, ...mounting.parts.map((family) => ({ order: family.order, family: learning(mounted(family), surfaces) }))]);
 }
 
-/** The declared families this command mounts on this computer. */
 const declared = declaredIn();
 
 export const FAMILIES: readonly Family[] = familiesOf(declared);
 
-/** The family that switches a part back on, mounted whatever is off, so the way back is never switched off with its part. */
 const WAY_BACK = "settings";
 
-/**
- * Each declared family a switched-off part declares, by name, with why, when the setting names `off` (ADR-1095); a
- * factory plugin standing in is mounted, never off, and a stand-in that could not be loaded is said with its part.
- */
 export function familiesOff(off: readonly string[]): ReadonlyMap<string, SwitchedOff> {
   const said = new Map(mount(declared, off).off.map((one) => [one.part, one]));
   return new Map(declared.parts.flatMap((family, index) => {
@@ -134,18 +101,15 @@ export function familiesOff(off: readonly string[]): ReadonlyMap<string, Switche
   }));
 }
 
-/** A family and the place it takes in `storytree`'s list: any number, so a place between two others shifts neither. */
 export interface Placed {
   readonly order: number;
   readonly family: Family;
 }
 
-/** The families in ascending order of their places, those sharing one by name. */
 export function inOrder(placed: readonly Placed[]): Family[] {
   return [...placed].sort((a, b) => a.order - b.order || a.family.name.localeCompare(b.family.name)).map(({ family }) => family);
 }
 
-/** The surfaces the doors learner judges in the friction drain: every command, every tool served in `cwd`, and the verbs both mount. */
 export async function surfaces(cwd: string) {
   const { servedTools } = await import("@storytree/mcp-server");
   const tools = (await servedTools(cwd)).map(({ name, consumers }) => ({ verb: name, consumers }));

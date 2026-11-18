@@ -3,7 +3,6 @@ import { test } from "node:test";
 
 import { assertExitCode } from "./cli.js";
 
-// App setup 2.1 / 2.2: a usage refusal must be distinguishable from a failed command load.
 test("a wrong built-command exit code reports both child streams and the command context", () => {
   const ran = { code: 1, stderr: "Cannot load installed command\n", stdout: "starting setup\n" };
   assert.throws(() => assertExitCode(ran, 2, "setup disconnect both"), (error: unknown) => {

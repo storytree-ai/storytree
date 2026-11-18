@@ -1,4 +1,3 @@
-/** The installed command: Session management builds the full CLI beside its hook and setup scripts. */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
@@ -30,7 +29,6 @@ test("8.5 setup installs the full command beside its hooks; the launcher reads t
     };
     const installed = await world.run(["setup", "install"], env);
     assert.equal(installed.code, 0, installed.stderr);
-    // On Windows the launcher is a program of its own (ADR-0854), started like any other.
     const launcher = path.join(bin, process.platform === "win32" ? "storytree.exe" : "storytree");
     assert.ok(existsSync(launcher), installed.stdout);
     const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toLowerCase() !== "path"));
@@ -41,9 +39,6 @@ test("8.5 setup installs the full command beside its hooks; the launcher reads t
     const checked = await run(["doctor"]);
     assert.match(checked.stdout, /storytree is running/);
     assert.match(checked.stdout, /Hooks for Claude Code: registered/);
-    // Use the bundled command to remove the launcher: removing it through itself, which Windows
-    // will not delete while it runs, is Session management's own contract (8.9). This contract proves
-    // its installed target is the full command line.
     const removed = await world.run(["setup", "remove"], env);
     assert.equal(removed.code, 0, removed.stderr);
     assert.match(removed.stdout, /taken off the path/);

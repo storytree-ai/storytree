@@ -1349,7 +1349,7 @@ test("4.41 · a failed code-scanning or secret check is a security red, whatever
   assert.equal(readPull(pull({ checks: [scan("Analyze the logs")] }), options).security, undefined);
 });
 
-test("4.41 · a code-scanning red starts a fix session that reads its alerts signed in, with no log or alert text in its brief or the watcher's log, and leaves the owner a retro and a question", async (t) => {
+test("4.41 · a code-scanning red starts a fix session that reads its alerts signed in, with no log or alert text in its brief or the watcher's log, and leaves the owner a retro of a friction report, a check parked on the linter arc and an FYI, with no question", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.calls.length = 0;
@@ -1361,7 +1361,9 @@ test("4.41 · a code-scanning red starts a fix session that reads its alerts sig
   assert.match(brief, /code-scanning\/alerts\?ref=refs\/pull\/41\/merge/);
   assert.match(brief, /no alert text/);
   assert.match(brief, /friction new/);
-  assert.match(brief, /open question on increment_one's arc, holding nothing/);
+  assert.match(brief, /fyi new/, "the retro is an FYI to the owner");
+  assert.match(brief, /\bpark\w*\b[^]{0,200}arc_7605fd815da9/, "the local check for the pattern is parked on the linter arc");
+  assert.doesNotMatch(brief, /open question|holding nothing/, "the retro raises no question");
   assert.doesNotMatch(brief, /--log-failed|check:secrets/);
   assert.doesNotMatch([brief, ...b.lines].join("\n"), /https?:\/\/ci/);
   assert.equal((await saved(b)).fixes[0].security, true);

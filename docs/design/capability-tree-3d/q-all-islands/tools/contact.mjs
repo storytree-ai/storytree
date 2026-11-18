@@ -1,7 +1,3 @@
-// Rollout 1's contact sheet: every island's still from islands.mjs, the map's side of each cropped, in a grid with its name
-// and its measures under it. With two tags, each island's two stills stand side by side (before, after).
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/contact.mjs <name> <tag> [tag2] [--view busy] [--retake]
-// It writes stills/<name>.png (and, past ROWS rows, stills/<name>-2.png and so on).
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,10 +8,7 @@ const argv = process.argv.slice(2), viewAt = argv.indexOf('--view'), view = view
 const [name, ...tags] = argv.filter(a => !a.startsWith('--'));
 const data = JSON.parse(readFileSync(path.join(dist, 'data.json'), 'utf8'));
 const measures = tags.map(t => JSON.parse(readFileSync(path.join(islands, `${t}.measures.json`), 'utf8')));
-// Biggest island first, as the survey sizes them.
 const survey = JSON.parse(readFileSync(path.join(dist, 'survey.json'), 'utf8'));
-// An island a tag has no still of (its rules laid out no arrangement there, or its page never drew) shows the map's own
-// still (stills/today/, from docks.mjs) with the reason.
 const shotOf = (t, id) => { const own = path.join(islands, t, `${id}-${view}.png`); return existsSync(own) ? own : view === 'rest' ? path.join(dist, 'stills', 'today', `${id}.png`) : undefined; };
 const ids = survey.sort((a, b) => b.land - a.land).map(r => r.story).filter(id => tags.some(t => existsSync(path.join(islands, t, `${id}-${view}.png`))) && tags.every(t => shotOf(t, id) && existsSync(shotOf(t, id))));
 const CELL = tags.length > 1 ? 340 : 270, PER_ROW = tags.length > 1 ? 2 : 4, ROWS = Number(process.env.ROWS ?? 8);

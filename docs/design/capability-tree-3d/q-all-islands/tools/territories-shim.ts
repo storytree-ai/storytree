@@ -1,10 +1,3 @@
-/** The link layout, handed to the real map at build time (tools/build.mjs points every import of the map's
- * territories module here). Everything is the map's own module, re-exported unchanged, except `islandTerritories`:
- * for the selected story's island it returns the map's own cutter's finer cut (layout-core.ts's CUT) with each cell given to
- * the owner tools/layout.ts chose, or left open land, so the map's drawing, names, borders and lanes all read the new
- * arrangement. Rollout 1: an arrangement cut with every capability holding land (`codeless`, layout-core.ts's
- * withCodeless) is cut from the same shares here. `?layout=<name>` picks one of the arrangements in layouts/ (layouts.ts),
- * `?layout=today` the map's own. Other islands, and an island with no arrangement yet, are untouched. */
 export * from "../../../../../packages/forest/src/territories/territories.ts";
 import { islandTerritories as mapsOwn, territories, type Coast, type TerritoryMap, type TerritoryShare } from "../../../../../packages/forest/src/territories/territories.ts";
 import snapshot from "../data.json" with { type: "json" };

@@ -1,7 +1,3 @@
-// The plain diagrams: both arrangements as boxes and arrows, in the manner of the architecture diagram Mick liked (a dashed
-// story frame, capability boxes, plain arrows), each box where the map puts that territory's name, each arrow along the way
-// tools/layout.ts measured (bent through the gate on a shared border, else straight). Arrivals from other stories are teal.
-// Run from the checkout root after layout.ts: node docs/design/capability-tree-3d/e-layout/tools/plain.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -18,7 +14,6 @@ const nameOf = (t) => t.replace(/^\d+ · /, '');
 
 function boxes(m) {
   const out = m.plates.map((p) => { const c = at(p), w = 9 + nameOf(p.title).length * 6.6; return { id: p.capability, title: nameOf(p.title), x: c.x, y: c.y, w, h: 24, ox: c.x, oy: c.y }; });
-  // Nudge overlapping boxes apart, a little at a time, keeping each near its territory's name.
   for (let k = 0; k < 300; k++) {
     let moved = false;
     for (const a of out) for (const b of out) {
@@ -31,7 +26,6 @@ function boxes(m) {
   }
   return new Map(out.map((b) => [b.id, b]));
 }
-/** Where the way from `p` toward the box's middle meets its edge. */
 function edge(b, p) {
   const dx = p.x - b.x, dy = p.y - b.y, tx = Math.abs(dx) > 1e-6 ? (b.w / 2 + 3) / Math.abs(dx) : Infinity, ty = Math.abs(dy) > 1e-6 ? (b.h / 2 + 3) / Math.abs(dy) : Infinity, t = Math.min(tx, ty, 1);
   return { x: b.x + dx * t, y: b.y + dy * t };
@@ -45,9 +39,7 @@ function svg(m, title, sub) {
   parts.push(`<path d="${d(loop.map(at))}Z" fill="none" stroke="${FRAME}" stroke-width="1.4" stroke-dasharray="7 6"/>`);
   parts.push(`<text x="${OX}" y="${OY + 118 * S + 8}" text-anchor="middle" font-size="15" fill="${FRAME}" font-weight="600">The library</text>`);
   const arrow = (pts, colour, width) => `<path d="${d(pts)}" fill="none" stroke="${colour}" stroke-width="${width}" stroke-linejoin="round" marker-end="url(#${colour === TEAL ? 'ht' : 'h'})"/>`;
-  // The sea road and where it comes ashore.
   const harbour = at(layout.harbour.sea), dock = at(layout.harbour.dock);
-  // The sea roads, run on out of the frame the way they come.
   const outer = (dockP, seaP, k) => ({ x: seaP.x + (seaP.x - dockP.x) * k, y: seaP.y + (seaP.y - dockP.y) * k });
   const far = outer(dock, harbour, 4.5);
   parts.push(`<path d="M${far.x} ${far.y}L${harbour.x} ${harbour.y}${m.name === 'links' ? '' : `L${dock.x} ${dock.y}`}" stroke="${TEAL}" stroke-width="5" stroke-linecap="round" opacity="0.9"/>`);
@@ -55,7 +47,6 @@ function svg(m, title, sub) {
   const keysDock = at(layout.keys.dock), keys = at(layout.keys.sea), keysFar = outer(keysDock, keys, 3);
   parts.push(`<path d="M${keys.x} ${keys.y}L${keysFar.x} ${keysFar.y}" stroke="${TEAL}" stroke-width="2.5" stroke-linecap="round"/><text x="${keysFar.x}" y="${keysFar.y + 18}" font-size="13" fill="${TEAL}" text-anchor="middle">to Keys</text>`);
   if (m.name === 'links') {
-    // The coast road: from the harbour along the coast, offshore, to the furthest landing each way.
     const off = (p) => { const r = Math.hypot(p.x, p.z) || 1; return { x: p.x + p.x / r * 7, z: p.z + p.z / r * 7 }; };
     const walk = []; let s = 0;
     for (let i = 0; i < loop.length; i++) { const a = loop[i], b = loop[(i + 1) % loop.length]; walk.push({ p: a, s }); s += Math.hypot(b.x - a.x, b.z - a.z); }
@@ -72,12 +63,10 @@ function svg(m, title, sub) {
   for (const p of m.paths) {
     const pts = p.points.map(at);
     const from = p.kind === 'arrival' ? null : bx.get(p.from), to = p.kind === 'out' ? null : bx.get(p.to);
-    // Ends at the boxes' edges; an arrival starts on its landing (or the dock), the way out ends on the coast.
     if (from) pts[0] = edge(from, pts[1]);
     if (to) pts[pts.length - 1] = edge(to, pts[pts.length - 2]);
     if (p.kind === 'arrival' && m.name === 'links') { const r = Math.hypot(p.points[0].x, p.points[0].z) || 1; pts.unshift(at({ x: p.points[0].x + p.points[0].x / r * 7, z: p.points[0].z + p.points[0].z / r * 7 })); }
     if (p.kind === 'out') {
-      // Offshore along the coast, the short way round, to Keys' road.
       const e = p.points.at(-1), r = Math.hypot(e.x, e.z) || 1, ks = layout.keys.dock, kr = Math.hypot(ks.x, ks.z) || 1;
       let a0 = Math.atan2(e.z, e.x), a1 = Math.atan2(ks.z, ks.x), da = a1 - a0; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
       const steps = Math.max(1, Math.round(Math.abs(da) / 0.08));

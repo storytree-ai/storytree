@@ -108,3 +108,5 @@ Run from the checkout root.
    reads fine in the second angle, but a lean chosen on the ground would hold better.
 5. **Round 13's next steps** still stand: sizes against room, a link's direction at rest, the panel's selection on the map,
    and the queue at scale.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

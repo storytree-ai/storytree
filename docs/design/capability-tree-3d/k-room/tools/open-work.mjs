@@ -1,7 +1,3 @@
-// Reads the open increments whose capabilities lists name one of The library's capabilities, with their arcs and when
-// each was parked, into open-work.json beside the page: the queue round 13 lines up on each capability. The island's own
-// snapshot stays round 11's (../h-quiet-roads/data.json), so the territories still compare with rounds 11 and 12.
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/k-room/tools/open-work.mjs
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';

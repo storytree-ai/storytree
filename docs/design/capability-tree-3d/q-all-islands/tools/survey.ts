@@ -1,7 +1,3 @@
-/** Rollout 1: every island's facts that decide how the look fits it, from the snapshot: its capabilities (and how many
- * hold lines, so have a territory), its links inside and to other islands, its size (the coast's furthest reach and its
- * land's area) and the map's cut (cells). Writes survey.json and prints a line per island.
- * Run from the checkout root: node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/survey.ts */
 import { readFileSync, writeFileSync } from "node:fs";
 import { forestScene, selectionLanes } from "../../../../../packages/forest/src/index.ts";
 import { workStates } from "../../../../../packages/arc-surface/src/index.ts";

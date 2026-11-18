@@ -118,3 +118,5 @@ milliseconds.
    exact gate (or gates) whose contracts those are, instead of the rule above.
 5. **Health on the gate.** A gate shows the called chip's contracts; colouring each pad by whether those contracts
    pass when called that way would make a red link findable at a glance.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

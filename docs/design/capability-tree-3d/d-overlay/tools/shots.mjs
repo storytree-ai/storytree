@@ -1,8 +1,3 @@
-// Takes the mock's stills from the built page (run build.mjs first) in the desktop capture kit's Chromium, at a 1440 x 900
-// window. Each click is a real click at the mark's place on the page (read from the scene), and the panel's heading it
-// opens is checked; shots.json records each click, what was laid (the layer's counts) and the page's errors.
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/d-overlay/tools/shots.mjs [--retake]
-// Without --retake the stills go to the kit's scratch folder; with it, into stills/.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -22,13 +17,11 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
     page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     await page.goto(`${origin}/index.html${query}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 }).catch(e => { console.error(errors); throw e; });
-  // The rest view frames itself on the plan as the map paints, so it is painted until it has.
   for (let k = 0; k < 200 && !query.includes('real') && await page.evaluate(() => document.body.dataset.framed) !== 'yes'; k++) await settle(page, 3);
     await settle(page, 12);
     return { page, errors };
   };
   const shot = async (page, name) => { await settle(page, 8); await page.screenshot({ path: path.join(out, `${name}.png`) }); console.error(`took ${name}.png`); };
-  /** Clicks the mark, and checks the panel's heading. */
   const click = async (page, kind, mark, heading) => {
     const at = await page.evaluate(([kind, mark]) => window.mock.layer.point(kind, mark), [kind, mark]);
     assert.ok(at, `no ${kind} ${mark} on the page`);
@@ -46,15 +39,11 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   const { page, errors } = await open('');
   report.layer = await page.evaluate(() => window.mock.layer.stats);
   const info = await page.evaluate(() => ({ links: [...window.mock.layer.links.values()], arrivals: [...window.mock.layer.arrivals.values()] }));
-  // 1. At rest: The library selected, as in Mick's screenshot.
   await shot(page, 'resting');
-  // 2. A line's contracts open, the line lit in gold: Rounds calls Lapsed questions.
   await click(page, 'link', `${id('26 · Rounds')}->${id('25 · Lapsed questions')}`, /calls 25 · Lapsed questions$/);
   await shot(page, 'line-contracts');
-  // 3. A wrench open: The library's commands, whose increment is under way.
   await click(page, 'wrench', id("17 · The library's commands"), /^Work wanting 17 · The library's commands/);
   await shot(page, 'wrench');
-  // 4. The landing: the road from other stories comes ashore on open ground and fans out, one line per capability it serves.
   const landing = info.arrivals.find(a => a.kind === 'landing');
   await click(page, 'landing', landing.key, /^The road from \d+ stories$/);
   await shot(page, 'arrival-landing');
@@ -62,30 +51,23 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await wheel(page, ashore, 7);
   await shot(page, 'arrival-landing-close');
   await wheel(page, ashore, -7);
-  // 5. One fan line off the landing: The MCP server's agent tools calling The library's commands.
   const fan = info.links.find(l => l.carries && l.to === id("17 · The library's commands"));
   await click(page, 'link', fan.key, /calls 17 · The library's commands$/);
   await shot(page, 'arrival-fan');
-  // The direct landing: the one road that serves a single capability is the road out to Keys, from Connection by address.
   const leaving = info.links.find(l => l.carries && l.toStory === 'Keys');
   await click(page, 'link', leaving.key, /calls Keys · /);
   await shot(page, 'arrival-direct');
-  // 6. Click a territory for its description and contracts.
   await click(page, 'territory', id('4 · Work model'), /^4 · Work model$/);
   await shot(page, 'territory');
-  // 7. A few entrances close up: Data schema, the most called, by the wheel over it.
   const ds = await page.evaluate(i => window.mock.layer.point('territory', i), id('3 · Data schema'));
   await wheel(page, ds, 8);
   await shot(page, 'close-up');
   await wheel(page, ds, -8);
-  // 8. The whole island among its neighbours, by the wheel.
   await wheel(page, { x: 540, y: 450 }, -6);
   await shot(page, 'whole-island');
   await page.close();
-  // 9. A second angle: turned with E and tipped nearer level with F, by the map's own keys.
   const turned = await open('');
   await turned.page.mouse.click(300, 60);
-  // Turned by a right-drag across the map (the map's own turn), then tipped nearer level with F.
   await turned.page.mouse.move(540, 600); await turned.page.mouse.down({ button: 'right' });
   await turned.page.mouse.move(380, 600, { steps: 16 }); await turned.page.mouse.up({ button: 'right' });
   await settle(turned.page, 6);
@@ -93,7 +75,6 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await shot(turned.page, 'orbited');
   report.errors = [...errors, ...turned.errors];
   await turned.page.close();
-  // 10. The map today, The library selected, and the two side by side.
   const real = await open('?real');
   await shot(real.page, 'real-today');
   report.realErrors = real.errors;

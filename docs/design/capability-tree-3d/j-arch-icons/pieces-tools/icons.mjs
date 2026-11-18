@@ -1,15 +1,3 @@
-// Round 12's icon pieces: round 11's road piece (one piece of The library's land: Library API, Graduation, The library's
-// commands, Work model, the open land at the mouth, the coast; pieces/roads-tools/roads.mjs in ../h-quiet-roads) with the
-// sandy track Mick picked and round 11's standing gate posts, and each settlement drawn as the architecture-diagram symbol
-// for its capability's kind (../kinds.mjs) in three styles, against round 11's disc:
-//   0. round 11's settlement, a paper disc ringed in ink;
-//   1. flat symbols: the symbol's outline in ink on a paper fill, laid on the ground;
-//   2. standing symbols: small solids that match the standing gate posts (a cylinder for a store, a box for a service...);
-//   3. tokens: round 11's disc inverted, ink with the symbol drawn in paper, laid on the ground.
-// At the map's resting scale and tilt (about 2.6 pixels a ground unit, the ground 0.77 as deep as it is wide), close up,
-// and the six kinds side by side. Writes pieces/icons.html (static SVG, opens from disk); --shots takes the stills (into
-// pieces/stills with --retake, else the capture kit's scratch folder).
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/j-arch-icons/pieces-tools/icons.mjs [--shots [--retake]]
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +5,6 @@ import { GLYPHS, KIND_NAMES } from '../kinds.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), pieces = path.join(path.dirname(here), 'pieces');
 
-// ── The land, in ground units (x across, z down the page): round 11's road piece ───────────────────────────────────
 const W = 124, H = 80;
 const LAND = { healthy: '#8eb35e', untested: '#d6bd6c', open: '#686d70', sea: '#18242d', side: '#374335', coastLine: '#edf1f1' };
 const V = {
@@ -45,7 +32,6 @@ const roads = [
   { id: 'work-out', links: 1, pts: [S4, [12, 74], [0, 75]] },
   { id: 'graduation-out', links: 2, pts: [S2, [86, 7], [88, 0]] },
 ];
-/** The settlements, each with its capability's kind (../kinds.mjs) and round 11's grade (1-2, 3-5, 6+ roads meeting). */
 const towns = [{ at: S1, grade: 2, kind: 'service' }, { at: S2, grade: 1, kind: 'log' }, { at: S3, grade: 0, kind: 'service' }, { at: S4, grade: 0, kind: 'store' }];
 const names = [{ text: 'Library API', at: [S1[0], S1[1] - 6.5] }, { text: 'Graduation', at: [S2[0] + 14, S2[1] - 4] }, { text: "The library's commands", at: [S3[0] - 6, S3[1] + 6.5] }, { text: 'Work model', at: [S4[0] + 4, S4[1] + 6.5] }];
 const cross = (p, q, r, s) => {
@@ -60,15 +46,11 @@ for (const road of roads) for (let i = 0; i + 1 < road.pts.length; i++) for (con
   if (x) { const l = Math.hypot(b[0] - a[0], b[1] - a[1]); gates.push({ at: x, along: [(b[0] - a[0]) / l, (b[1] - a[1]) / l], links: road.links, entrance: road.links <= 4 || road.id === 'to-api' }); }
 }
 const cls = n => n >= 8 ? 3 : n >= 4 ? 2 : n >= 2 ? 1 : 0;
-/** Round 11's pick: the sandy track, the borders white at 40%. */
 const ROAD = { colour: '#e2d3aa', alpha: 0.7, widths: [0.5, 0.7, 0.95, 1.3] };
 
-// ── The marks' sizes and colours (overlay.ts's PALETTE and RELIEF) ──────────────────────────────────────────────────
 const C = { ink: '#2a2723', paper: '#f3efe4', casing: '#141a20', post: '#1b2024', slate: '#9aa2a8' };
-/** A symbol's box across, in ground units, by grade: a step larger than round 11's disc (2.1, 2.8, 3.5 across). */
 const ICON = [3.4, 4.0, 4.7];
 const TILT = 0.77, UP = Math.sqrt(1 - TILT * TILT), PX = 2.6;
-/** Toward the light on the ground (from the upper left at rest: north-west), and a face's shade by where it faces. */
 const LH = (() => { const l = Math.hypot(0.6, 0.75); return [-0.6 / l, -0.75 / l]; })();
 const shadeOf = n => 0.56 + 0.28 * ((n[0] * LH[0] + n[1] * LH[1]) / (Math.hypot(...n) || 1) + 1) / 2;
 const hexMul = (hex, k) => '#' + [1, 3, 5].map(i => Math.round(Math.min(255, parseInt(hex.slice(i, i + 2), 16) * k)).toString(16).padStart(2, '0')).join('');
@@ -76,14 +58,10 @@ const hexMul = (hex, k) => '#' + [1, 3, 5].map(i => Math.round(Math.min(255, par
 const f2 = v => +v.toFixed(2);
 const pathOf = pts => pts.map(([x, z], i) => `${i ? 'L' : 'M'}${f2(x)} ${f2(z)}`).join('');
 
-/** A drawing context: `view` the ground window [x0, z0, x1, z1], `scale` pixels a ground unit. */
 function frame(view, scale) {
   const [x0, z0] = view;
-  /** A ground point at height `y`, on the page. */
   const scr = (x, z, y = 0) => [(x - x0) * scale, ((z - z0) * TILT - y * UP) * scale];
   const pts = list => list.map(p => p.map(f2).join(',')).join(' ');
-  /** A solid standing on the ground: `foot` its footprint (ground points, any winding), from `base` to `base + h`. Its sides
-   * that face the page are shaded by the light, its top `top` (or an ink top with a paper face, `face`), and its shadow. */
   const prism = (foot, base, h, { side = C.slate, top = C.paper, edge = C.ink, face, edgeWidth = 0.16, shadow = true } = {}) => {
     const cx = foot.reduce((s, p) => s + p[0], 0) / foot.length, cz = foot.reduce((s, p) => s + p[1], 0) / foot.length;
     const out = [];
@@ -108,38 +86,31 @@ function frame(view, scale) {
   };
   const rect = (cx, cz, w, d, rot = 0) => { const c = Math.cos(rot), s = Math.sin(rot); return [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]].map(([u, v]) => [cx + u * c - v * s, cz + u * s + v * c]); };
   const circle = (cx, cz, r, n = 28) => Array.from({ length: n }, (_, k) => [cx + r * Math.cos(2 * Math.PI * k / n), cz + r * Math.sin(2 * Math.PI * k / n)]);
-  /** A flat glyph laid on the ground at height `y`, centred at (x, z), `size` ground units across its 24-unit box. */
   const laid = (x, z, y, size) => { const k = size / 24, [ex, ey] = scr(x, z, y); return `matrix(${f2(k * scale)} 0 0 ${f2(k * scale * TILT)} ${f2(ex)} ${f2(ey)})`; };
   return { scr, prism, rect, circle, laid, scale };
 }
 
-// ── The symbols, in each style ──────────────────────────────────────────────────────────────────────────────────────
 const glyphSvg = (kind, { fill, stroke, width, casing }) => {
   const g = GLYPHS[kind], d = [...g.parts, ...g.lines];
   return (casing ? `<g fill="none" stroke="${casing}" stroke-opacity="0.55" stroke-width="${width + 2.2}" stroke-linejoin="round" stroke-linecap="round">${d.map(p => `<path d="${p}"/>`).join('')}</g>` : '')
     + g.parts.map(p => `<path d="${p}" fill="${fill}" stroke="${stroke}" stroke-width="${width}" stroke-linejoin="round"/>`).join('')
     + g.lines.map(p => `<path d="${p}" fill="none" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
 };
-/** Round 11's settlement disc, laid on the ground. */
 function disc(F, x, z, grade) {
   const r = [1.05, 1.4, 1.75][grade], [cx, cy] = F.scr(x, z), e = (rr, fill) => `<ellipse cx="${f2(cx)}" cy="${f2(cy)}" rx="${f2(rr * F.scale)}" ry="${f2(rr * F.scale * TILT)}" fill="${fill}"/>`;
   return e(r + 0.25, C.casing) + e(r, C.ink) + e(r - 0.36, C.paper) + (grade === 2 ? e(r - 0.756, C.ink) + e(r - 1.044, C.paper) : '') + (grade >= 1 ? e(0.42, C.ink) : '');
 }
-/** Style 1: the symbol's outline in ink on a paper fill, on a faint dark casing, laid on the ground. */
 const flat = (F, x, z, kind, size) => `<g transform="${F.laid(x, z, 0, size)}">${glyphSvg(kind, { fill: C.paper, stroke: C.ink, width: 2.1, casing: C.casing })}</g>`;
-/** Style 3: an ink token, the symbol drawn on it in paper. */
 function token(F, x, z, kind, size) {
   const r = size * 0.62, [cx, cy] = F.scr(x, z), e = (rr, fill) => `<ellipse cx="${f2(cx)}" cy="${f2(cy)}" rx="${f2(rr * F.scale)}" ry="${f2(rr * F.scale * TILT)}" fill="${fill}"/>`;
   return e(r + 0.25, C.casing) + e(r, C.ink) + `<g transform="${F.laid(x, z, 0, size * 0.78)}">${glyphSvg(kind, { fill: C.ink, stroke: C.paper, width: 2.0 })}</g>`;
 }
-/** Style 2: a small solid for the kind, standing on the ground, slate sides and a paper top edged in ink, like the posts. */
 function standing(F, x, z, kind, size) {
   const s = size, parts = [];
   const P = (foot, base, h, o) => parts.push(F.prism(foot, base, h, o));
   if (kind === 'store') {
     const r = s * 0.33, h = s * 0.5;
     P(F.circle(x, z, r), 0, h);
-    // The band round the cylinder's front, in ink, as a database is drawn.
     const band = Array.from({ length: 15 }, (_, k) => { const a = Math.PI * k / 14; return F.scr(x + r * Math.cos(a), z + r * Math.sin(a), h * 0.5); });
     parts.push({ svg: `<polyline points="${band.map(p => p.map(f2).join(',')).join(' ')}" fill="none" stroke="${C.ink}" stroke-opacity="0.7" stroke-width="${f2(0.14 * F.scale)}"/>`, z: z + 0.01 });
   } else if (kind === 'service') {
@@ -157,12 +128,10 @@ function standing(F, x, z, kind, size) {
   } else if (kind === 'log') {
     for (let k = 0; k < 3; k++) P(F.rect(x + (k - 1) * s * 0.05, z + (1 - k) * s * 0.05, s * 0.5, s * 0.4), k * s * 0.09, s * 0.09, { edgeWidth: 0.12, shadow: k === 0 });
   }
-  // Painted back to front (the page's depth is z), shadows first.
   const shadows = [], rest = [];
   for (const p of parts) { const m = p.svg.match(/^<polygon[^>]*fill-opacity="0.22"\/>/); if (m) { shadows.push(m[0]); rest.push({ svg: p.svg.slice(m[0].length), z: p.z }); } else rest.push(p); }
   return shadows.join('') + rest.sort((a, b) => a.z - b.z).map(p => p.svg).join('');
 }
-/** Round 11's standing gate post (RELIEF.post): ink top with a paper face, slate sides. */
 const post = (F, cx, cz, along, entrance) => {
   const side = entrance ? 1.4 : 1.2, tall = entrance ? 1.2 : 1.0, rot = Math.atan2(along[1], along[0]);
   return F.prism(F.rect(cx, cz, side, side, rot), 0, tall, { face: 0.62 });
@@ -174,7 +143,6 @@ const STYLES = [
   { key: 'token', name: 'Symbol tokens', note: "round 11's disc inverted: ink, the symbol in paper", draw: (F, t) => token(F, t.at[0], t.at[1], t.kind, ICON[t.grade]) },
 ];
 
-// ── One piece ─────────────────────────────────────────────────────────────────────────────────────────────────────
 let uid = 0;
 function piece(style, { view = [0, 0, W, H], scale = PX } = {}) {
   const id = `s${uid++}`, [x0, z0, x1, z1] = view, w = (x1 - x0) * scale, h = (z1 - z0) * scale * TILT, F = frame(view, scale);
@@ -192,7 +160,6 @@ function piece(style, { view = [0, 0, W, H], scale = PX } = {}) {
   out.push(`<g mask="url(#${id}m)">${borders.map(([a, b]) => `<path d="${pathOf([a, b])}" stroke="#f4f7f8" stroke-opacity="0.4" stroke-width="1" vector-effect="non-scaling-stroke"/>`).join('')}</g>`);
   out.push(`<g opacity="${ROAD.alpha}">${roads.map(r => `<path d="${pathOf(r.pts)}" fill="none" stroke="${ROAD.colour}" stroke-width="${ROAD.widths[cls(r.links)]}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</g>`);
   out.push(`</g>`);
-  // The posts and the settlements, back to front down the page.
   const marks = [];
   for (const g of gates) {
     const o = Math.max(3, ROAD.widths[cls(g.links)] + 2), side = g.entrance ? 1.4 : 1.2;
@@ -207,7 +174,6 @@ function piece(style, { view = [0, 0, W, H], scale = PX } = {}) {
   out.push(`</g></svg>`);
   return out.join('');
 }
-/** The six kinds side by side, on healthy land, at grade 1, in one style. */
 function kinds(style, scale) {
   const list = Object.keys(GLYPHS), gap = 11, labelled = scale > 4, w = list.length * gap * scale, h = (labelled ? 12 : 8) * scale * TILT, F = frame([0, 0], scale);
   const marks = list.map((kind, i) => style.draw(F, { at: [gap * (i + 0.5), 4.2], grade: 1, kind })).join('');

@@ -1,7 +1,3 @@
-// The library, charted: a cartographer's chart of one story, drawn from data.js (measured by tools/measure.mjs).
-// Layout: each capability is an estate whose area is its lines of code; estates sit in rows by dependency depth (the
-// called below their callers), so every road runs downhill through open land between rows, as in a layered diagram.
-// Links from other stories come ashore at a harbour per story on the north coast and split; the road out leaves south.
 (() => {
   const D = window.DATA;
   const SVG = 'http://www.w3.org/2000/svg';
@@ -13,11 +9,11 @@
     proposed: { colour: '#F2D16B', label: 'proposed' },
     parked: { colour: '#86939D', label: 'parked' },
   };
-  const AREA_PER_LINE = 15;           // square pixels of estate per line of code (tests excluded)
-  const ROW_GAP = 84;                  // open land between rows, where the roads run
-  const MIN_GAP = 34;                  // open land between neighbours in a row
-  const LANE = 16;                     // a road passing through a row takes this much width
-  const LABEL_INSIDE_R = 40;           // estates at least this big carry their name inside
+  const AREA_PER_LINE = 15;
+  const ROW_GAP = 84;
+  const MIN_GAP = 34;
+  const LANE = 16;
+  const LABEL_INSIDE_R = 40;
 
   const fill = (c) => HEALTH[c.parked ? 'parked' : c.word] ?? HEALTH.untested;
   const radiusOf = (lines) => Math.sqrt(Math.max(lines, 1) * AREA_PER_LINE / Math.PI);
@@ -33,11 +29,9 @@
     const serif = getComputedStyle(document.documentElement).getPropertyValue('--serif');
     return (text, size, italic) => { ctx.font = `${italic ? 'italic ' : ''}${size}px ${serif}`; return ctx.measureText(text).width; };
   })();
-  // A small seeded random, so the hand-drawn wobble is the same every time the page opens.
   const seeded = (s) => () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 2 ** 32; };
   const hash = (str) => [...str].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
 
-  // ---- The graph: estates, harbours, links ----
   const caps = new Map(D.capabilities.map((c) => [c.id, c]));
   const depth = new Map();
   const depthOf = (id) => {
@@ -60,7 +54,6 @@
     const labelW = inside ? 0 : Math.max(nameW, linesW) + 9;
     nodes.set(c.id, { id: c.id, kind: 'estate', cap: c, layer: depth.get(c.id), r, inside, labelW, left: r, right: r + labelW });
   }
-  // One harbour per other story that calls in, and one per other story called out to.
   const links = [];
   for (const c of D.capabilities) for (const d of c.dependsOn) {
     if (caps.has(d.id)) links.push({ id: `${c.id}>${d.id}`, kind: 'within', from: c.id, to: d.id });
@@ -80,7 +73,6 @@
     n.left = w / 2 + 4; n.right = w / 2 + 4;
   }
 
-  // Each link becomes a chain through every row it crosses, with a waypoint (a lane) in each.
   const chains = links.map((l) => {
     const chain = [l.from];
     for (let layer = nodes.get(l.from).layer - 1; layer > nodes.get(l.to).layer; layer--) {
@@ -96,10 +88,9 @@
   for (const n of nodes.keys()) { up.set(n, []); down.set(n, []); }
   for (const chain of chains) for (let i = 0; i + 1 < chain.length; i++) { down.get(chain[i]).push(chain[i + 1]); up.get(chain[i + 1]).push(chain[i]); }
 
-  // ---- Order within rows: barycentre sweeps, keeping the order with the fewest crossings ----
   const layers = new Map();
   for (const n of nodes.values()) { if (!layers.has(n.layer)) layers.set(n.layer, []); layers.get(n.layer).push(n.id); }
-  const layerKeys = [...layers.keys()].sort((a, b) => b - a); // top row first
+  const layerKeys = [...layers.keys()].sort((a, b) => b - a);
   const pos = new Map();
   const index = () => { for (const k of layerKeys) layers.get(k).forEach((id, i) => pos.set(id, i)); };
   index();
@@ -134,7 +125,6 @@
   for (const k of layerKeys) layers.set(k, best.order.get(k));
   index();
 
-  // ---- Shared roads: lanes side by side in a row that leave the same harbour or estate run as one road ----
   const sourceOf = (lane) => linkOfId.get(nodes.get(lane).link).from;
   const linkOfId = new Map(links.map((l) => [l.id, l]));
   let bundles = 0;
@@ -151,21 +141,18 @@
     let lead;
     for (const id of row) { const n = nodes.get(id); if (n.bundle === undefined) { lead = undefined; continue; } if (lead === undefined || lead.bundle !== n.bundle) lead = n; else n.x = lead.x; }
   };
-  // ---- Place along rows: pull each node toward its neighbours, never closer than the gap ----
   const gapBetween = (a, b) => (a.bundle !== undefined && a.bundle === b.bundle ? -(a.right + b.left) : a.kind === 'lane' && b.kind === 'lane' ? 0 : a.kind === 'lane' || b.kind === 'lane' ? MIN_GAP * 0.55 : MIN_GAP);
   for (const k of layerKeys) {
     let x = 0, prev;
     for (const id of layers.get(k)) { const n = nodes.get(id); x += prev ? prev.right + gapBetween(prev, n) + n.left : 0; n.x = x; prev = n; }
   }
   const settle = (row) => {
-    // Left to right, then right to left, keeping the gaps; the two results averaged keep the row centred on its wishes.
     const want = row.map((id) => nodes.get(id).want);
     const a = [], b = [];
     row.forEach((id, i) => { const n = nodes.get(id), p = nodes.get(row[i - 1]); a[i] = i === 0 ? want[i] : Math.max(want[i], a[i - 1] + p.right + gapBetween(p, n) + n.left); });
     for (let i = row.length - 1; i >= 0; i--) { const n = nodes.get(row[i]), q = nodes.get(row[i + 1]); b[i] = i === row.length - 1 ? want[i] : Math.min(want[i], b[i + 1] - q.left - gapBetween(n, q) - n.right); }
     const shiftA = want.reduce((s, w, i) => s + w - a[i], 0) / row.length, shiftB = want.reduce((s, w, i) => s + w - b[i], 0) / row.length;
     row.forEach((id, i) => { nodes.get(id).x = ((a[i] + shiftA) + (b[i] + shiftB)) / 2; });
-    // Averaging can bring two neighbours too close again; one more left-to-right pass restores every gap.
     for (let i = 1; i < row.length; i++) {
       const n = nodes.get(row[i]), p = nodes.get(row[i - 1]);
       n.x = Math.max(n.x, p.x + p.right + gapBetween(p, n) + n.left);
@@ -178,7 +165,6 @@
       for (const id of row) {
         const n = nodes.get(id);
         const ns = [...up.get(id), ...down.get(id)];
-        // A lane wants to be straight; an estate wants to sit among what it touches.
         const weight = n.kind === 'lane' ? 1 : 0.6;
         const mid = ns.length ? ns.reduce((s, x) => s + nodes.get(x).x, 0) / ns.length : n.x;
         n.want = n.x + (mid - n.x) * weight;
@@ -187,7 +173,6 @@
       pinBundles(row);
     }
   }
-  // Rows stacked top to bottom: each as tall as its biggest estate.
   const rowHeight = (k) => Math.max(26, ...layers.get(k).map((id) => { const n = nodes.get(id); return n.kind === 'estate' ? 2 * n.r : 0; }));
   let y = 0;
   const rowBand = new Map();
@@ -198,7 +183,6 @@
     y += h + ROW_GAP;
   }
 
-  // ---- Shapes: a hand-drawn estate outline around each centre ----
   const outline = (n) => {
     const rnd = seeded(hash(n.id));
     const waves = [[2, 0.05 * rnd(), rnd() * 6.3], [3, 0.06, rnd() * 6.3], [5, 0.025, rnd() * 6.3]];
@@ -209,7 +193,6 @@
     return pts;
   };
   const smooth = (pts) => {
-    // Closed Catmull-Rom through the points, as cubic Béziers.
     let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
     for (let i = 0; i < pts.length; i++) {
       const p0 = pts[(i - 1 + pts.length) % pts.length], p1 = pts[i], p2 = pts[(i + 1) % pts.length], p3 = pts[(i + 2) % pts.length];
@@ -222,7 +205,6 @@
   for (const n of estates) n.pts = outline(n);
   const pointAt = (n, t) => [n.x + n.radiusAt(t) * Math.cos(t), n.y + n.radiusAt(t) * Math.sin(t)];
 
-  // Gates on the called estate's upper rim, ports on the caller's lower rim, each spread in the order its roads come.
   const spread = (count, mid, span) => Array.from({ length: count }, (_, i) => (count === 1 ? mid : mid - span / 2 + (span * i) / (count - 1)));
   for (const n of estates) {
     const incoming = links.filter((l) => l.to === n.id);
@@ -237,7 +219,6 @@
     spread(outgoing.length, Math.PI / 2, spanOut).forEach((t, i) => { outgoing[i].portT = t; });
   }
 
-  // ---- The coast: one island round every estate, harbours on it ----
   const xs = estates.flatMap((n) => [n.x - n.r, n.x + n.r + n.labelW]);
   const minX = Math.min(...xs), maxX = Math.max(...xs);
   const firstRow = rowBand.get(layerKeys[1]), lastRow = rowBand.get(layerKeys[layerKeys.length - 2]);
@@ -252,7 +233,6 @@
     return [island.cx + (island.a * k + grow) * ex, island.cy + (island.b * k + grow) * ey];
   };
   const coastAt = (x, top) => {
-    // The coast's point above (or below) x: the nearest of a fine sampling of its upper (lower) half.
     let bestP = null;
     for (let i = 0; i <= 720; i++) {
       const t = (top ? -Math.PI : 0) + (i / 720) * Math.PI;
@@ -261,7 +241,6 @@
     }
     return bestP;
   };
-  // Harbours keep the order the layout gave them, spread so no two names touch, centred on where they wanted to be.
   for (const kind of ['harbour-in', 'harbour-out']) {
     const hs = [...nodes.values()].filter((n) => n.kind === kind).sort((a, b) => a.x - b.x);
     for (let i = 1; i < hs.length; i++) hs[i].x = Math.max(hs[i].x, hs[i - 1].x + hs[i - 1].right + hs[i].left + 18);
@@ -276,7 +255,6 @@
     if (n.kind === 'harbour-out') { [n.x, n.y] = coastAt(Math.min(Math.max(n.x, minX), maxX), false); }
   }
 
-  // ---- Roads: down through each row's lane, entering the gate square to the rim ----
   const route = (l) => {
     const from = nodes.get(l.from), to = nodes.get(l.to);
     const pts = [];
@@ -295,7 +273,7 @@
     let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
     for (let i = 0; i + 1 < pts.length; i++) {
       const [p, q] = [pts[i], pts[i + 1]];
-      const inLane = i % 2 === 1 && i + 1 < pts.length - 1; // the straight run through a row
+      const inLane = i % 2 === 1 && i + 1 < pts.length - 1;
       if (inLane) { d += `L${q[0].toFixed(1)},${q[1].toFixed(1)}`; continue; }
       const k = Math.max(24, (q[1] - p[1]) * 0.5);
       const a = i === 0 ? startDir : [0, 1], b = i + 1 === pts.length - 1 ? endDir : [0, -1];
@@ -304,7 +282,6 @@
     return d;
   };
 
-  // ---- Drawing ----
   const world = document.getElementById('world');
   const layer = (name) => el('g', { class: name }, world);
   const gSea = layer('sea'), gLand = layer('land'), gEstates = layer('estates'), gRoads = layer('roads'), gGates = layer('gates'), gNames = layer('names'), gMarks = layer('marks');
@@ -322,13 +299,11 @@
     const clipId = `clip-${c.id}`;
     el('path', { d }, el('clipPath', { id: clipId }, g));
     el('path', { class: 'estate-fill', d, fill: colour, 'fill-opacity': 0.42 }, g);
-    // A band of deeper colour just inside the bounds, as a map tints a region's edge.
     el('path', { class: 'estate-band', d, stroke: colour, 'stroke-opacity': 0.75, 'clip-path': `url(#${clipId})`, 'stroke-width': Math.min(9, 3 + n.r / 10) }, g);
     el('path', { class: 'estate-edge', d }, g);
     const hit = el('path', { class: 'estate-hit', d }, g);
     hit.addEventListener('click', () => select({ type: 'estate', id: c.id }));
     marks.estate.set(c.id, g);
-    // The name: inside a big estate, beside a small one.
     const [num, ...rest] = c.title.split(' · ');
     if (n.inside) {
       const t = el('text', { class: 'name inside', x: n.x, y: n.y - 2, 'text-anchor': 'middle' }, gNames);
@@ -353,14 +328,12 @@
     hit.addEventListener('click', () => select({ type: 'gate', id: l.id }));
     marks.road.set(l.id, road);
   }
-  // A harbour's trunk: from the pier to where its roads part.
   for (const n of nodes.values()) if (n.kind === 'harbour-in') {
     const d = `M${n.x.toFixed(1)},${n.y.toFixed(1)}L${n.split[0].toFixed(1)},${n.split[1].toFixed(1)}`;
     el('path', { class: 'road-halo', d }, gRoads);
     marks.trunk.set(n.id, el('path', { class: 'road', d, 'stroke-width': 3 }, gRoads));
   }
 
-  // Gates: the dashed bound opens where a road comes in, with a post either side; each is its link's own.
   for (const l of links) {
     const to = nodes.get(l.to);
     const g = el('g', { class: 'gate' }, gGates);
@@ -368,7 +341,6 @@
     if (to.kind === 'estate') {
       const half = 6;
       el('line', { class: 'gate-gap', x1: gx - tx * half, y1: gy - ty * half, x2: gx + tx * half, y2: gy + ty * half, stroke: fill(to.cap).colour }, g);
-      // Paper over the dash on the outside half, the estate's colour on the inside.
       el('line', { class: 'gate-gap', x1: gx - tx * half + nx * 1.2, y1: gy - ty * half + ny * 1.2, x2: gx + tx * half + nx * 1.2, y2: gy + ty * half + ny * 1.2, stroke: '#f3efe4' }, g);
       for (const s of [-1, 1]) el('line', { class: 'gate-post', x1: gx + s * tx * half - nx * 3, y1: gy + s * ty * half - ny * 3, x2: gx + s * tx * half + nx * 4.5, y2: gy + s * ty * half + ny * 4.5 }, g);
     } else {
@@ -379,7 +351,6 @@
     marks.gate.set(l.id, g);
   }
 
-  // Harbours: a pier into the sea and the story's name in italic, as a chart names a port.
   for (const n of nodes.values()) if (n.kind === 'harbour-in' || n.kind === 'harbour-out') {
     const g = el('g', { class: 'harbour' }, gMarks);
     const outward = n.kind === 'harbour-in' ? -1 : 1;
@@ -395,9 +366,6 @@
     marks.harbour.set(n.id, g);
   }
 
-  // Wrenches: one per capability that open work names, at the gate that work changes. The increments name capabilities,
-  // not links, so the chart takes the capability's busiest gate in; a capability nothing calls takes the gate of its own
-  // road out, where its work meets the land.
   const wanted = new Map();
   for (const w of D.openWork) for (const id of w.capabilities) { if (!wanted.has(id)) wanted.set(id, []); wanted.get(id).push(w); }
   for (const [id] of wanted) {
@@ -420,7 +388,6 @@
     marks.wrench.set(id, { g, via: via.id });
   }
 
-  // A scale of areas, bottom left of the island, as a chart carries its scale bar; it sits in the sea below the coast, clear of the land.
   {
     const sx = island.cx - island.a + 30, sy = island.cy + island.b + 96;
     const g = el('g', { class: 'scale' }, gMarks);
@@ -436,7 +403,6 @@
     t.textContent = 'lines of code, by area (tests excluded)';
   }
 
-  // ---- Selection: light the route and the marks; the panel says what is there ----
   const panel = document.getElementById('panel');
   const linkById = new Map(links.map((l) => [l.id, l]));
   const capTitle = (id) => caps.get(id)?.title ?? id;
@@ -451,7 +417,6 @@
     marks.gate.get(l.id).classList.add('lit');
     if (l.kind === 'arrival') { marks.trunk.get(l.from).classList.add('lit'); marks.harbour.get(l.from).classList.add('lit'); }
     if (l.kind === 'out') marks.harbour.get(l.to).classList.add('lit');
-    // A lit road is drawn last, so it reads over the roads it crosses.
     const road = marks.road.get(l.id);
     road.parentNode.appendChild(road.previousSibling.cloneNode());
     road.parentNode.appendChild(road);
@@ -549,7 +514,6 @@
     panel.append(h('p', `From the library and the code survey at ${D.measuredAt.slice(0, 16).replace('T', ' ')} UTC: health, lines (tests excluded), links (capability.dependsOn), contracts and the open increments' capabilities lists. Nothing is invented.`, 'facts'));
   };
 
-  // ---- Pan and zoom ----
   const svg = document.getElementById('chart');
   let view = { x: 0, y: 0, k: 1 };
   const apply = () => world.setAttribute('transform', `translate(${view.x.toFixed(2)},${view.y.toFixed(2)}) scale(${view.k.toFixed(4)})`);
@@ -584,7 +548,6 @@
   show(null);
   fit();
 
-  // A handle for the stills script: select by kind and id, and frame a part of the chart.
   window.chart = {
     select: (what) => show(what), fit,
     frame: (x0, y0, x1, y1) => { const r = svg.getBoundingClientRect(); const k = Math.min(r.width / (x1 - x0), r.height / (y1 - y0)); view = { k, x: (r.width - (x1 - x0) * k) / 2 - x0 * k, y: (r.height - (y1 - y0) * k) / 2 - y0 * k }; apply(); },

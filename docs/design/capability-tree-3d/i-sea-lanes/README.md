@@ -44,3 +44,5 @@ Each folder has its own `-rest`, `-mouth` and `-keys` stills (c-cable also `-mou
 - Lines at other islands stop at their coasts with no landing; the chosen landing would go there too.
 - The legend still describes purple and teal roads.
 - `a-shipping` and `b-causeway` keep their first-brief folder names; their options are the landings above.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

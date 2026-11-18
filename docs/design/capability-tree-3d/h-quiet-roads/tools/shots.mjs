@@ -1,9 +1,3 @@
-// Takes round 11's stills from the built page (run build.mjs first) in the desktop capture kit's Chromium, at a 1440 x 900
-// window, with Mick's picks (the sandy track, the relief). Each click is a real click where the mark stands on the page
-// (read from the scene), and the panel's heading it opens is checked; shots.json records each click, what was laid (the
-// layer's counts) and the page's errors.
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/h-quiet-roads/tools/shots.mjs [--retake]
-// Without --retake the stills go to the kit's scratch folder; with it, into stills/.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -26,7 +20,6 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
     return { page, errors };
   };
   const shot = async (page, name) => { await settle(page, 8); await page.screenshot({ path: path.join(out, `${name}.png`) }); console.error(`took ${name}.png`); };
-  /** Clicks the mark where it stands, and checks the panel's heading. */
   const click = async (page, kind, mark, heading) => {
     const at = await page.evaluate(([kind, mark]) => window.mock.layer.point(kind, mark), [kind, mark]);
     assert.ok(at, `no ${kind} ${mark} on the page`);
@@ -41,7 +34,6 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   const wheel = async (page, at, clicks) => { await page.mouse.move(at.x, at.y); for (let k = 0; k < Math.abs(clicks); k++) { await page.mouse.wheel(0, clicks > 0 ? -300 : 300); await settle(page, 2); } };
   const escape = s => s.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
 
-  // 1. At rest, The library selected, with the relief; and the same flat (?relief=0), to judge what the relief adds.
   const { page, errors } = await open('');
   report.layer = await page.evaluate(() => window.mock.layer.stats);
   const links = await page.evaluate(() => [...window.mock.layer.links.values()]);
@@ -50,21 +42,17 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await shot(flat.page, 'resting-flat');
   report.flatErrors = flat.errors;
   await flat.page.close();
-  // 2. The mouth close up: the sea road comes ashore on the open land, and the roads climb ramps into the territories.
   const mouth = await page.evaluate(() => window.mock.layer.point('mouth', ''));
   await page.mouse.move(mouth.x, mouth.y); await page.mouse.down(); await page.mouse.move(544, 450, { steps: 16 }); await page.mouse.up(); await settle(page, 6);
   await wheel(page, { x: 544, y: 450 }, 11);
   await shot(page, 'mouth-close');
   await page.close();
-  // 3. A gate between neighbours close up: its posts standing on the plateau, the rims broken for it.
   const lit = await open('');
   const between = links.find(l => l.fromTitle === '11 · Waits' && l.toTitle === '10 · Work in flight') ?? links.find(l => l.dir === 'inside');
   const gateAt = await click(lit.page, 'gate', between.key, new RegExp(`calls ${escape(between.toTitle)}$`));
   await wheel(lit.page, gateAt, 12);
   await shot(lit.page, 'gate-close');
   await wheel(lit.page, gateAt, -12);
-  // 4. A link lit along the shared roads: Library API's arrivals (the busiest), clicked on its own entrance gate; then the
-  // inside link sharing most of its way.
   const api = links.find(l => l.dir === 'down' && l.toTitle === '7 · Library API');
   await click(lit.page, 'gate', api.key, /calls 7 · Library API$/);
   await shot(lit.page, 'link-lit');
@@ -73,7 +61,6 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await click(lit.page, 'gate', sharing.key, new RegExp(`calls ${escape(sharing.toTitle)}$`));
   await shot(lit.page, 'link-lit-inside');
   await lit.page.close();
-  // 5. A second angle with more tilt: turned by a right-drag across the map, then tipped nearer level with F twice (round 10's once).
   const turned = await open('');
   await turned.page.mouse.move(540, 600); await turned.page.mouse.down({ button: 'right' });
   await turned.page.mouse.move(360, 600, { steps: 16 }); await turned.page.mouse.up({ button: 'right' });
@@ -84,7 +71,6 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await shot(turned.page, 'orbited-close');
   report.errors = [...errors, ...lit.errors, ...turned.errors];
   await turned.page.close();
-  // Round 10's resting still beside round 11's, flat and with the relief.
   const pair = await browser.newPage({ viewport: { width: 1440, height: 360 }, deviceScaleFactor: 1 });
   const img = file => `data:image/png;base64,${readFileSync(file).toString('base64')}`;
   await pair.setContent(`<body style="margin:0;background:#0e1418;color:#e8eef0;font:600 14px system-ui;display:flex;gap:10px;padding:10px">

@@ -23,3 +23,5 @@ absent) and changes no product code. The port's quay and piles follow the cliff,
 At 3 the sides still show at rest, so the island stays a raised slab; the relief and the port read best.
 
 Build: `node docs/design/capability-tree-3d/m-height/tools/build.mjs`; stills: `NAME=h3 node docs/design/capability-tree-3d/m-height/tools/stills.mjs "?thick=3" mouth-near mouth rest`.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

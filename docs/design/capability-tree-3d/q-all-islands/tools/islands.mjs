@@ -1,9 +1,3 @@
-// Rollout 1's check: for every story's island (each with an arrangement in layouts/), the built page at rest and a close-up
-// of its busiest part (the settlement most links meet at, `stats.hub`, centred and zoomed in), with round 13's measures at
-// rest as polish round 3's shots.mjs took them: marks overlapping and within 4 px across the island and in the busiest
-// part, gates, road drawn, inside links over a third territory, road on the coast's edge; and what the layer could not
-// place. The stills are stills/islands/<tag>/<story>-rest.png and -busy.png, the measures stills/islands/<tag>.measures.json.
-// Run from the checkout root (build.mjs first): node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/islands.mjs <tag> [query] [story ...] [--retake]
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,14 +8,12 @@ const here = path.dirname(fileURLToPath(import.meta.url)), dist = path.dirname(h
 const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const [tag = 'look', query = ''] = args, asked = args.slice(2);
 const data = JSON.parse(readFileSync(path.join(dist, 'data.json'), 'utf8'));
-// `{id}` in the query stands for each story's id (`?layout={id}.before` draws each island's before arrangement).
 const layoutOf = id => new URLSearchParams(query.replaceAll('{id}', id)).get('layout') ?? id;
 const ids = (asked.length ? asked : Object.keys(data.stories)).filter(id => existsSync(path.join(dist, 'layouts', `${layoutOf(id)}.json`)));
 const VIEW = { width: 1440, height: 900 };
 const file = path.join(dist, 'stills', 'islands', `${tag}.measures.json`);
 mkdirSync(path.dirname(file), { recursive: true });
 const rows = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
-// PAGE=<folder> serves a built page kept elsewhere (a copy of an earlier build), with this folder's data and stills.
 await withCapture({ folder: path.join(dist, 'stills', 'islands', tag), dist: process.env.PAGE ?? pageFolder() }, async ({ browser, origin, out, settle }) => {
   for (const id of ids) {
     const errors = [];
@@ -44,7 +36,6 @@ await withCapture({ folder: path.join(dist, 'stills', 'islands', tag), dist: pro
         ports: st.ports };
     });
     await page.screenshot({ path: path.join(out, `${id}-rest.png`) });
-    // The busiest part, close: its settlement dragged to the map's middle, then the wheel turned in.
     const hub = await page.evaluate(() => { const st = window.mock.layer.stats, t = st.towns.find(x => x.capability === st.hub); return t && [...window.mock.layer.links.values()].flatMap(l => [[l.from, l.fromTitle], [l.to, l.toTitle]]).find(([, x]) => x === st.hub)?.[0]; });
     if (hub) {
       const at = await page.evaluate(i => window.mock.layer.point('town', i), hub);

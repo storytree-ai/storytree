@@ -1,7 +1,3 @@
-// A quick look while drawing: one still of the built page, in the capture kit's Chromium, with optional steps.
-// node --import tsx docs/design/capability-tree-3d/j-arch-icons/tools/look.mjs <name> [query] [steps-json]
-// Steps: {key, times} presses a key; {wheel, x, y, times} turns the wheel there; {drag:[dx,dy], x, y, button} drags;
-// {click:[kind, id]} clicks a mark where it stands; {eval} prints what an expression gives. The still goes to the kit's scratch folder.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withCapture } from '../../../../../apps/desktop/src/capture/index.ts';
@@ -15,7 +11,6 @@ await withCapture({ dist, folder: process.env.LOOK_DIR ?? path.join(dist, 'still
   page.on('console', m => { if (m.type() === 'error' || m.text().startsWith('framing')) errors.push(m.text()); });
   await page.goto(`${origin}/index.html${query}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 }).catch(e => { console.error(errors); throw e; });
-  // The rest view frames itself on the plan as the map paints, so it is painted until it has.
   for (let k = 0; k < 200 && !query.includes('real') && await page.evaluate(() => document.body.dataset.framed) !== 'yes'; k++) await settle(page, 3);
   await settle(page, 12);
   for (const s of JSON.parse(steps)) {

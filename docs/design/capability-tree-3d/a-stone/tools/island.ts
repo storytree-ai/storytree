@@ -1,13 +1,3 @@
-/** Round 6A's layer on the real island, laid in the island's own plate so it turns and tilts with it. The map's island, its
- * coast, glass, camera and the roads between islands stay as the map draws them; on this island the mock hides the map's own
- * territory cut and lays its plan (flow.ts) on the same land instead, flat, in the map's colours and the claim flags' ink:
- * - open land, a pale parchment, over the whole island;
- * - each capability an organic patch in its health colour, its outline dashed;
- * - the roads, solid, through the open land, never across a patch: one way out of each caller, splitting toward its gates;
- *   the links from other islands come ashore where the map's roads land and split the same way;
- * - one gate per link, a gap in the called patch's dashed outline, a short ink tick each side, the road running through it;
- * - a wrench, a flat ink icon standing upright and constant on screen as a flag does, at the gate its work changes;
- * - each capability's name, as the map names a territory (its plate's look), at its middle. */
 import { BoxGeometry, BufferGeometry, CanvasTexture, DoubleSide, Float32BufferAttribute, Group, Matrix4, Mesh,
   MeshBasicMaterial, Object3D, Raycaster, RepeatWrapping, SRGBColorSpace, Vector2, Vector3, type Camera } from "three";
 import type { RootState } from "@react-three/fiber";
@@ -20,7 +10,6 @@ export type Picked =
   | { kind: "road"; id: string; links: string[] }
   | { kind: "gate"; id: string }
   | { kind: "wrench"; id: string; capability: string; sample: boolean };
-/** One link, as the panel tells it. */
 export type LinkInfo = { key: string; from: string; to: string; fromTitle: string; toTitle: string; fromStory: string; toStory: string; gate?: string; dock?: number };
 export type GateInfo = { key: string; town: string; links: string[] };
 export type Layer = {
@@ -28,16 +17,11 @@ export type Layer = {
   find(kind: string, id: string): Picked | undefined;
   showSample(on: boolean): void;
   highlight(picked: Picked | undefined): void;
-  /** Where a mark is on the page, in CSS pixels, for a capture to click. */
   point(kind: string, id: string): { x: number; y: number } | undefined;
   links: Map<string, LinkInfo>; gates: Map<string, GateInfo>; docks: { label: string; links: string[] }[];
-  /** Every drawn road (a run carrying the same links), by id. */
   roads: { id: string; links: string[] }[];
-  /** Each health the patches are filled with, and the map's colour for it. */
   fills: { word: string; colour: string }[];
-  /** What was laid, counted: `mock.layer.stats` in the console. */
   stats: Record<string, unknown>;
-  /** The island's box on the page, in CSS pixels: the rest view is framed on it. */
   extent(): { left: number; right: number; top: number; bottom: number };
   keepHidden(): void;
   dispose(): void;
@@ -46,8 +30,6 @@ type Capability = { id: string; title: string; lines: number; word: string; park
 type Data = { story: { id: string; title: string }; capabilities: Capability[]; openWork: { capabilities: string[] }[];
   map: { tree: { stories: { id: string; title: string; capabilities: { id: string; title: string; dependsOn?: string[] }[] }[] } } };
 
-/** The palette (README.md lists it). The fills are the map's own (packages/forest/src/view/territory-land.ts's WORD_FILL and
- * PARKED_FILL); the ink is the claim flags'. */
 export const PALETTE = {
   land: "#ddd5bd", ink: "#2b261f", road: "#7a5838", lit: "#ffc93c", litEdge: "#2b261f",
   wrench: "#1b1814", wrenchEdge: "#ece4d0", wrenchSample: "#d6bdf0", shadow: "#080b0e",
@@ -56,13 +38,11 @@ const FILL: Record<string, { colour: string; opacity: number }> = {
   healthy: { colour: "#97C459", opacity: 0.8 }, unhealthy: { colour: "#E24B4A", opacity: 0.85 }, proposed: { colour: "#F2D16B", opacity: 0.8 },
   untested: { colour: "#F2D16B", opacity: 0.8 }, parked: { colour: "#86939D", opacity: 0.8 },
 };
-/** Sizes, in plan units (about a pixel each at rest). */
 const OUTLINE = 1.6, DASH = 8, DASH_ON = 0.55, ROAD = 3.2, TICK = 8, TICK_W = 2, LIT = 4.6, LIT_EDGE = 1.4;
 
 const dist = (a: P, b: P) => Math.hypot(a.x - b.x, a.z - b.z);
 const nameOf = (title: string) => title.replace(/^\d+ · /, "");
 
-/** A dash drawn once, repeated along every outline: on for `on` of each repeat. */
 function dashTexture(colour: string, on: number): CanvasTexture {
   const canvas = document.createElement("canvas"); canvas.width = 8; canvas.height = 64;
   const ctx = canvas.getContext("2d")!;
@@ -72,7 +52,6 @@ function dashTexture(colour: string, on: number): CanvasTexture {
   return texture;
 }
 
-/** A flat ribbon `width` wide along `points` on the ground; its texture repeats every `repeat` along it. */
 function ribbon(points: P[], width: number, y: (p: P) => number, repeat: number): BufferGeometry {
   const positions: number[] = [], uvs: number[] = [], index: number[] = [];
   let run = 0;
@@ -91,17 +70,14 @@ function ribbon(points: P[], width: number, y: (p: P) => number, repeat: number)
   return geometry;
 }
 
-/** The wrench: a flat ink icon, an open-ended spanner standing upright, in the claim flag's manner. */
 function wrenchSvg(fill: string): string {
   return `<svg viewBox="-10 -36 20 38" width="18" height="34" aria-hidden="true">
     <ellipse cx="0" cy="0.5" rx="5.5" ry="2" fill="${PALETTE.shadow}" fill-opacity="0.55"/>
     <path d="${WRENCH}" fill="${fill}" stroke="${fill === PALETTE.wrench ? PALETTE.wrenchEdge : PALETTE.ink}" stroke-width="1.3" stroke-linejoin="round"/>
   </svg>`;
 }
-/** The spanner's outline: a straight handle up to a round head with an open jaw at its top. */
 export const WRENCH = "M -2 0 L -2 -17.25 A 8 8 0 0 1 -3 -32.42 L -3 -26 A 3 3 0 0 0 3 -26 L 3 -32.42 A 8 8 0 0 1 2 -17.25 L 2 0 Z";
 
-/** The land as the map cut it, each territory's triangles: where the land is, and the ground's height. */
 function landOf(land: Object3D) {
   const tris: P[][] = [], heights: [number, number][] = [];
   land.traverse(object => {
@@ -133,8 +109,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
   const own = new Set(data.capabilities.map(({ id }) => id));
   const byId = new Map(data.capabilities.map(c => [c.id, c]));
   const storyOf = new Map(data.map.tree.stories.flatMap(s => s.capabilities.map(c => [c.id, { title: c.title, story: s.title, storyId: s.id }] as const)));
-  // The map's own cut of this island (its territory fills, borders and hatching, file dots and claim flags) is pinned out of
-  // sight: the map sets each one's visibility as it presents the land, so a setter that keeps it hidden is what holds.
   const hideMap = () => {
     landMesh.traverse(mark => {
       if (mark === landMesh || !/^(territory|file|claim)/.test(mark.name) || Object.getOwnPropertyDescriptor(mark, "visible")?.get) return;
@@ -144,10 +118,7 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
   };
   hideMap();
 
-  // The plan, then fitted to the land: as large as it goes with its open margin still on land, about the land's middle.
   const { patches, layers, crossings } = layout(data.capabilities);
-  // Turned east for west, when that brings the capabilities the other islands call nearer the coast their roads land on (the
-  // map's lanes say where): the layers still run down, callers above.
   const arrivalsLand = (() => {
     const at = [...state.scene.getObjectByName("pathways:selection-lanes")?.children ?? []].length ? (() => {
       const xsOf: number[] = [];
@@ -166,7 +137,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
     for (const [a, b, c] of tris) { const s = Math.abs((b!.x - a!.x) * (c!.z - a!.z) - (c!.x - a!.x) * (b!.z - a!.z)) / 2; area += s; ax += s * (a!.x + b!.x + c!.x) / 3; az += s * (a!.z + b!.z + c!.z) / 3; }
     return { x: ax / area, z: az / area };
   })();
-  // Land kept round the plan, in plan units: room for a gate's way in on the coast side of any patch, and the road to it.
   const MARGIN = 60;
   const samples: P[] = [];
   for (const p of patches.values()) {
@@ -195,7 +165,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
   const to = (q: P): P => place(q, best);
   const back = (q: P): P => ({ x: (q.x - middle.x - best.ox) / S + cx, z: (q.z - middle.z - best.oz) / S + cz });
 
-  // The docks: where each lit lane from another island comes ashore (the map's own lanes, read before they are hidden).
   const inverse = new Matrix4().copy(root.matrixWorld).invert();
   const lanes: { from: string; to: string; dir: string; dock: P }[] = [];
   state.scene.getObjectByName("pathways:selection-lanes")?.traverse(o => {
@@ -215,7 +184,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
   const dockAt: P[] = [];
   const near = Math.max(4, reach * 0.04);
   const dockOf = (p: P) => { let i = dockAt.findIndex(d => dist(d, p) < near); if (i < 0) { i = dockAt.length; dockAt.push(p); } return i; };
-  // A story's links come ashore where the map's lanes from that story land most often; failing that, on the coast toward it.
   const dockFor = (storyId: string): number => {
     const counts = new Map<number, number>();
     for (const lane of lanes) {
@@ -230,7 +198,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
     return dockOf({ x: middle.x + toward.x / l * (r - cellSize), z: middle.z + toward.z / l * (r - cellSize) });
   };
 
-  // Every link with an end on this island: inside it, and to or from another story's capability by a dock.
   const wants: Want[] = [];
   const links = new Map<string, LinkInfo>();
   for (const c of data.capabilities) for (const d of c.dependsOn) {
@@ -259,7 +226,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
   const group = new Group(); group.name = "mock-flow"; root.add(group);
   const flat = (colour: string, offset: number, opacity = 1, map?: CanvasTexture) => new MeshBasicMaterial({ color: map ? "#ffffff" : colour, ...(map ? { map } : {}), transparent: true, opacity, fog: false, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: offset });
 
-  // Open land: the whole island, a pale parchment, as a drawn map's land is.
   {
     const pos: number[] = [];
     for (const t of tris) for (const q of t) pos.push(q.x, heightAt(q) + S * 0.02, q.z);
@@ -268,7 +234,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
     land.name = "mock-land"; land.renderOrder = 0.5; land.raycast = () => {};
     group.add(land);
   }
-  // Patches: the map's colour for the capability's health, a fan from its middle (each outline is star-shaped about it).
   const patchMeshes = new Map<string, Mesh>();
   const fills = new Map<string, { word: string; colour: string }>();
   for (const c of data.capabilities) {
@@ -281,14 +246,12 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
     const mesh = new Mesh(geometry, flat(fill.colour, -1, fill.opacity)); mesh.renderOrder = 1; mesh.name = `patch:${c.id}`;
     group.add(mesh); patchMeshes.set(c.id, mesh);
   }
-  // Outlines, dashed in ink, opened at each gate.
   const dashed = flat(PALETTE.ink, -2, 0.9, dashTexture(PALETTE.ink, DASH_ON));
   const outlineRuns = new Map<string, P[][]>();
   let gapsCut = 0;
   for (const [id, p] of patches) {
     const a = outlineArc(p.outline);
     const cuts = [...routed.gates.values()].filter(g => g.patch === id).map(g => [g.s - GAP / 2, g.s + GAP / 2] as [number, number]).sort((u, v) => u[0] - v[0]);
-    // Start the walk at a point no gap covers.
     let start = 0;
     for (let k = 0; k < 40 && cuts.some(([u0, u1]) => [start, start + a.total, start - a.total].some(s => s > u0 && s < u1)); k++) start += GAP / 2;
     const runs: P[][] = [];
@@ -304,7 +267,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
     outlineRuns.set(id, runs);
     for (const r of runs) { const mesh = new Mesh(ribbon(onGround(r), OUTLINE * S, q => ground(q, 0.04), DASH * S), dashed); mesh.renderOrder = 3; mesh.raycast = () => {}; group.add(mesh); }
   }
-  // Roads: each run of a road network, drawn once, solid.
   const roadMaterial = flat(PALETTE.road, -3);
   const roadHits: Mesh[] = [];
   const runs = routed.trees.flatMap(t => runsOf(t, routed.paths, new Map()));
@@ -316,7 +278,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
     hit.name = `road:${k}`; hit.userData = { links: r.links, pts: r.pts };
     group.add(mesh, hit); roadHits.push(hit);
   });
-  // A round end where a road starts, splits or ends, so its joins read as one line.
   const disc = (q: P, r: number, material: MeshBasicMaterial, order: number, up: number) => {
     const pts: number[] = [], c = to(q);
     for (let k = 0; k < 16; k++) { const a0 = k / 16 * Math.PI * 2, a1 = (k + 1) / 16 * Math.PI * 2; const q0 = { x: c.x + r * Math.cos(a0), z: c.z + r * Math.sin(a0) }, q1 = { x: c.x + r * Math.cos(a1), z: c.z + r * Math.sin(a1) }; pts.push(c.x, ground(c, up), c.z, q0.x, ground(q0, up), q0.z, q1.x, ground(q1, up), q1.z); }
@@ -325,8 +286,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
   };
   for (const r of runs) for (const q of [r.pts[0]!, r.pts.at(-1)!]) group.add(disc(q, ROAD * S / 2, roadMaterial, 4, 0.06));
 
-  // Gates: the gap itself, marked by a short ink tick across the outline at each end of it; an unseen box over the gap, so a
-  // click on it is easy to land.
   const gateGroups = new Map<string, Group>();
   const tickMaterial = flat(PALETTE.ink, -6);
   for (const g of routed.gates.values()) {
@@ -345,7 +304,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
     gateGroups.set(g.key, gg); group.add(gg);
   }
 
-  // The page's own marks over the canvas, constant on screen as the map's names and flags are.
   const overlay = document.createElement("div");
   overlay.className = "mock-overlay";
   host.appendChild(overlay);
@@ -359,8 +317,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
     overlay.appendChild(el);
     spots.push({ el, at: lift(patches.get(c.id)!), name: true });
   }
-  // A wrench stands just inside a gate of the capability its work names: a gate from this story first, else one from the coast,
-  // else, for a capability nothing calls, where its own road leaves it.
   const wrenches = new Map<string, Spot & { sample: boolean }>();
   const named = new Set(data.openWork.flatMap(w => w.capabilities));
   const sampleCapability = data.capabilities.find(c => c.title === SAMPLE.capability)?.id;
@@ -386,7 +342,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
   for (const capability of named) if (patches.has(capability)) wrenches.set(capability, makeWrench(capability, false));
   const sampleWrench = sampleCapability === undefined ? undefined : makeWrench(sampleCapability, true);
   if (sampleWrench) sampleWrench.el.hidden = true;
-  // Each dock: a dot where the roads come ashore, and what they carry.
   const dockInfo = dockAt.map((at, k) => {
     const carried = [...links.values()].filter(l => l.dock === k);
     const inbound = carried.filter(l => l.toStory === data.story.title), outbound = carried.filter(l => l.fromStory === data.story.title);
@@ -418,12 +373,9 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
       spot.el.style.visibility = at.front ? "" : "hidden";
       spot.y = at.y; spot.x = at.x;
     }
-    // Names never hide one another: taken from the top of the page down, a name that would meet one already placed moves down
-    // just clear of it.
     const boxes: { l: number; r: number; t: number; b: number }[] = [];
     for (const w of [...wrenches.values(), ...(sampleWrench && !sampleWrench.el.hidden ? [sampleWrench] : [])]) boxes.push({ l: w.x! - 9, r: w.x! + 9, t: w.y! - 32, b: w.y! + 3 });
     for (const spot of spots.filter(sp => sp.name).sort((a, b) => a.y! - b.y!)) {
-      // A name stands centred on its place; a road's name beside its dot, to the right.
       const w = spot.el.offsetWidth, h = spot.el.offsetHeight, beside = spot.el.classList.contains("mock-road-name");
       const box = beside ? { l: spot.x! + 6, r: spot.x! + 6 + w, t: spot.y! - h / 2, b: spot.y! + h / 2 } : { l: spot.x! - w / 2, r: spot.x! + w / 2, t: spot.y! - h / 2, b: spot.y! + h / 2 };
       let shift = 0;
@@ -440,7 +392,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
   follow();
   state.invalidate();
 
-  // Picking: a wrench by its icon on the page, then the gates and the roads in the scene, then the patch below.
   const raycaster = new Raycaster();
   const pick = (x: number, y: number): Picked | undefined => {
     for (const [capability, w] of [...wrenches, ...(sampleWrench && !sampleWrench.el.hidden ? [[sampleCapability!, sampleWrench] as const] : [])]) {
@@ -453,7 +404,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
     if (gate) { for (let o: Object3D | null = gate.object; o; o = o.parent) if (o.name.startsWith("gate:")) return { kind: "gate", id: o.name.slice(5) }; }
     const roads = raycaster.intersectObjects(roadHits, false);
     if (roads.length) {
-      // Where two roads' click strips overlap, the road whose line runs nearest the point clicked.
       const nearest = (m: (typeof roads)[number]) => {
         const pts = onGround(m.object.userData.pts as P[]), q = m.point.clone().applyMatrix4(inverse);
         let d = Infinity;
@@ -477,8 +427,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
     return undefined;
   };
 
-  // The pick lights in gold edged in ink: a patch's own dashed outline, a gate's ticks, and every road it names drawn over in
-  // one gold line. Nothing is hidden or dimmed.
   const litFill = flat(PALETTE.lit, -5), litEdge = flat(PALETTE.litEdge, -4);
   const litDashed = flat(PALETTE.lit, -5, 1, dashTexture(PALETTE.lit, DASH_ON));
   const lit: Mesh[] = [];
@@ -505,7 +453,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
     if (kind === "wrench") { const w = id.endsWith(":sample") ? sampleWrench : wrenches.get(id); if (!w) return undefined; const b = w.el.querySelector("svg")!.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height * 0.35 }; }
     if (kind === "gate") { const g = routed.gates.get(id); return g ? project(lift(g.at, 1)).page : undefined; }
     if (kind === "territory") { const p = patches.get(id); if (!p) return undefined; return project(lift({ x: p.x, z: p.z + Math.max(p.label.h / 2 + 4, p.half.h * 0.55) })).page; }
-    // A link, or a road: the point along the run that carries it with the fewest others farthest from every gate and name.
     const hits = kind === "link" ? roadHits.filter(h => (h.userData.links as string[]).includes(id)).sort((a, b) => a.userData.links.length - b.userData.links.length)
       : roadHits.filter(h => h.name === `road:${id}`);
     const pts = hits[0]?.userData.pts as P[] | undefined;
@@ -531,8 +478,6 @@ export function islandLayer(state: RootState, story: string, data: Data, host: H
   return {
     pick, find, highlight, point, fills: [...fills.values()], stats, keepHidden: hideMap, links, gates, docks: dockInfo.map(d => ({ label: d.label, links: d.links })),
     roads: roadHits.map(h => ({ id: h.name.slice(5), links: h.userData.links as string[] })),
-    // The plan itself, every name and both ends of the roads off the coast: the rest view is framed on what is drawn, not on
-    // the empty land round it.
     extent() {
       state.camera.updateMatrixWorld(); root.updateMatrixWorld(true);
       const pts = [...patches.values()].flatMap(p => p.outline.filter((_, i) => i % 6 === 0)).map(q => project(lift(q)).page);

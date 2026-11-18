@@ -1,9 +1,3 @@
-// Rollout 1: opens the built page on every story's island as the map draws it today (`?story=<id>&layout=today`), reads
-// where the map's own sea lanes come ashore there (docks.ts, `mock.docks()`), and writes them to docks.json for the layout
-// tool; with --stills, also a still of each island at rest into stills/today/<id>.png. Both go to the capture kit's scratch
-// folder (the stills' docks.json beside them) unless --retake, which writes them into this folder. With --searched, each
-// still waits for the territory search (rollout 2 step 2b) to keep its island's arrangement, a few minutes an island.
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/docks.mjs [--stills] [--searched] [--retake] [story ...]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,13 +18,11 @@ await withCapture({ dist: pageFolder(), folder: path.join(dist, 'stills', 'today
     await page.goto(`${origin}/index.html?story=${id}&layout=today&real`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 180000 }).catch(e => { console.error(errors); throw e; });
     for (let k = 0; k < 200 && await page.evaluate(() => document.body.dataset.framed) !== 'yes'; k++) await settle(page, 3);
-    // The lanes are drawn once the roads are routed; read them when two readings agree.
     let read = [], last = '';
     for (let k = 0; k < 60; k++) { await settle(page, 6); read = await page.evaluate(() => window.mock.docks()); const key = JSON.stringify(read); if (key === last && read.length) break; last = key; }
     docks[id] = read;
     console.log(`${data.stories[id].story.title}: ${read.map(d => `${d.lanes.length} (${d.lanes.filter(l => l.dir === 'down').length} in) at ${d.at.x},${d.at.z}`).join('; ')}${errors.length ? ` errors: ${errors.length}` : ''}`);
     if (searched) {
-      // The search keeps what it found in the page's storage (kept-layout.ts); the island redraws from it.
       const t0 = Date.now();
       await page.waitForFunction((story) => localStorage.getItem(`storytree.territories.${story}`) !== null, id, { timeout: 900000, polling: 2000 });
       for (let k = 0; k < 10; k++) await settle(page, 6);

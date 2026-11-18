@@ -1,4 +1,3 @@
-// Written by build.mjs: every arrangement in layouts/.
 import l0 from "../layouts/library-a.json" with { type: "json" };
 import l1 from "../layouts/library-b.json" with { type: "json" };
 import l2 from "../layouts/library-c.json" with { type: "json" };

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -557,6 +558,29 @@ test("1.22 a copy is running when a running command line names a file in it, and
   assert.equal(running("/home/u/.storytree/0.3/app-tools/bbbb"), false);
   const unread = runningFrom(() => ({ status: null, stdout: undefined }));
   assert.equal(unread("/home/u/.storytree/0.3/app-tools/bbbb"), true, "so a start that cannot tell deletes nothing");
+});
+
+// Injects a host's path module: a module loaded with `?host=win32` or `?host=posix` gets that platform's `node:path`,
+// so code that reads a POSIX `ps` listing with the host's bare `path` fails here on any host, not only on CI's
+// Windows runner (escape_6e7f172abe87).
+registerHooks({
+  resolve(specifier, context, next) {
+    const host = /[?&]host=(win32|posix)\b/.exec(context.parentURL ?? "")?.[1];
+    if (host === undefined) return next(specifier, context);
+    if (specifier === "node:path" || specifier === "path") return { url: `data:text/javascript,import p from "node:path"; export default p.${host};`, shortCircuit: true };
+    const resolved = next(specifier, context);
+    return resolved.url.startsWith("file:") && !resolved.url.includes("/node_modules/") ? { ...resolved, url: `${resolved.url}?host=${host}` } : resolved;
+  },
+});
+
+test("1.22 · a copy is found running in a POSIX process listing whichever host's path module reads it (escape_6e7f172abe87)", async () => {
+  for (const host of ["win32", "posix"] as const) {
+    const { runningFrom: from } = (await import(`./payload.js?host=${host}`)) as typeof import("./payload.js");
+    const running = from(() => ({ status: 0, stdout: "/home/u/.storytree/0.3/app-tools/aaaa/node /home/u/.storytree/0.3/app-tools/aaaa/storytree-mcp.mjs\n" }));
+    assert.equal(running("/home/u/.storytree/0.3/app-tools/aaaa"), true, `the listed copy under a ${host} host`);
+    assert.equal(running("/home/u/.storytree/0.3/app-tools/aaa"), false, `a folder whose name only begins another's is not, under a ${host} host`);
+    assert.equal(running("/home/u/.storytree/0.3/app-tools/bbbb"), false, `an unlisted copy is not, under a ${host} host`);
+  }
 });
 
 test("1.16: when the launched app cannot come up, the finish step keeps its output and names the cause", async () => {

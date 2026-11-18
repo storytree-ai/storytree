@@ -1,8 +1,4 @@
-/**
- * Capability 1 · Running services. The service host's tests' fixture: a throwaway storytree home whose factory holds a
- * plugin, my-voice, standing in for the part voice (which has left the base), declaring three services: listen, which
- * runs until its stop signal, commit, every 15 minutes, and idle, which no test turns on.
- */
+// Capability 1 · Running services
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -22,7 +18,6 @@ export const commit = { start(host) { host.log("committed"); } };
 export const idle = { start(host) { host.log("idle ran"); } };
 `;
 
-/** A storytree home whose factory holds the plugin my-voice, standing in for the part voice, which has left the base. */
 export function fixtureHome(t: TestContext): { home: string; plugin: string } {
   const home = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-service-host-")));
   t.after(() => removeTemp(home));

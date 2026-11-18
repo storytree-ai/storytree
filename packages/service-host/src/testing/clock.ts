@@ -1,10 +1,6 @@
-/**
- * Capability 1 · Running services. The service host's tests' clock: one the test turns by hand, so the supervisor's
- * seconds and minutes pass only when the test moves it, and children's ends (promises) settle between its steps.
- */
+// Capability 1 · Running services
 import type { Clock } from "../running/supervise.js";
 
-/** A clock the test turns by hand: timers fire only when it is moved past them. */
 export function handClock(): Clock & { move(ms: number): Promise<void> } {
   let now = 0;
   let timers: { at: number; fire: () => void }[] = [];

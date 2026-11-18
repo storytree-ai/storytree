@@ -35,10 +35,10 @@ async function machine(t) {
     await git(["add", "."], seed);
     await git(["commit", "-q", "-m", `${name} start`], seed);
     repos[name] = join(root, `${name}.git`);
-    await git(["clone", "-q", "--bare", seed, repos[name]], root);
+    await git(["clone", "-q", "--bare", "--", seed, repos[name]], root);
   }
   const checkout = join(root, "storytree03"), follow = join(root, "lanes", "watch", "main");
-  await git(["clone", "-q", repos.old, checkout], root);
+  await git(["clone", "-q", "--", repos.old, checkout], root);
   await git(["config", "remote.origin.pushurl", "git@github.com:someone/old.git"], checkout);
   await mkdir(join(root, "lanes", "watch"), { recursive: true });
   await git(["worktree", "add", "-q", "--lock", "--detach", follow, "origin/main"], checkout);
@@ -146,7 +146,7 @@ test("9.1 · a re-clone from GitHub pushes over SSH to the repository it cloned,
     install: async () => {}, check: async () => "",
     // Only the push URL is read from the real clone; cloning GitHub is the stand-in's.
     git: async (args, cwd) => {
-      if (args[0] === "clone") return (await run("git", ["clone", "-q", m.repos.new, args.at(-1)], { cwd })).stdout;
+      if (args[0] === "clone") return (await run("git", ["clone", "-q", "--", m.repos.new, args.at(-1)], { cwd })).stdout;
       if (args[0] === "config" && args[1] === "remote.origin.pushurl") set.push(args[2]);
       return (await run("git", args, { cwd })).stdout;
     },
@@ -165,7 +165,7 @@ test("9.1 · a re-clone from GitHub keeps the SSH host the old checkout pushed t
   const x = {
     install: async () => {}, check: async () => "",
     git: async (args, cwd) => {
-      if (args[0] === "clone") return (await run("git", ["clone", "-q", m.repos.new, args.at(-1)], { cwd })).stdout;
+      if (args[0] === "clone") return (await run("git", ["clone", "-q", "--", m.repos.new, args.at(-1)], { cwd })).stdout;
       if (args[0] === "config" && args[1] === "remote.origin.pushurl") set.push(args[2]);
       return (await run("git", args, { cwd })).stdout;
     },

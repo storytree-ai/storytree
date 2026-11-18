@@ -45,7 +45,7 @@ test("4.42 · each change to the secret-check exemptions list on main is told on
   await git(["checkout", "--quiet", "main"], repo);
   await mergePull(repo, "other", 8);
   await commitList(repo, ["packages/keys/src/stand-in.test.ts  # its comment edited"], "Reword a comment"); // the same entry: nothing to tell
-  await git(["clone", "--quiet", repo, clone], home);
+  await git(["clone", "--quiet", "--", repo, clone], home);
 
   const fyis = [];
   const look = () => watchExemptions({

@@ -78,7 +78,7 @@ test("4.10 a session whose branches merged, or exist nowhere this machine can se
       git(dir, "init", "-q", "--bare", "-b", "main", origin);
       const clone = (name: string) => {
         const repo = path.join(dir, name);
-        git(dir, "clone", "-q", origin, repo);
+        git(dir, "clone", "-q", "--", origin, repo);
         return repo;
       };
       const site = clone("site");
@@ -125,7 +125,7 @@ test("4.10 a branch another machine took for deleted while it was only on its ow
       git(dir, "init", "-q", "--bare", "-b", "main", origin);
       const clone = (name: string) => {
         const repo = path.join(dir, name);
-        git(dir, "clone", "-q", origin, repo);
+        git(dir, "clone", "-q", "--", origin, repo);
         return repo;
       };
       const site = clone("site");

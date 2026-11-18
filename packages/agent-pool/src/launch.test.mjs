@@ -84,10 +84,10 @@ test("3.5 · the prepared checkout is at origin/main, installed from its lockfil
   await git(seed, "init", "-q", "-b", "main");
   await writeFile(join(seed, "a.txt"), "one\n");
   await git(seed, "add", "a.txt"); await git(seed, "commit", "-q", "-m", "one");
-  await git(seed, "push", "-q", origin, "main");
-  await git(dir, "clone", "-q", origin, repo);
+  await git(seed, "push", "-q", "--", origin, "main");
+  await git(dir, "clone", "-q", "--", origin, repo);
   await writeFile(join(seed, "a.txt"), "two\n");
-  await git(seed, "commit", "-q", "-am", "two"); await git(seed, "push", "-q", origin, "main");
+  await git(seed, "commit", "-q", "-am", "two"); await git(seed, "push", "-q", "--", origin, "main");
   const ran = [];
   let install;
   await prepareCheckout({ repo, exec: async (command, args, options) => {

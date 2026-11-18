@@ -54,7 +54,7 @@ async function withWorld(body: (world: World) => Promise<void>): Promise<void> {
     git(seed, "commit", "-m", "first");
     git(seed, "remote", "add", "origin", origin);
     git(seed, "push", "origin", "main");
-    git(dir, "clone", origin, site);
+    git(dir, "clone", "--", origin, site);
     writeFileSync(path.join(seed, "NEWS.md"), "after the clone\n");
     git(seed, "add", ".");
     git(seed, "commit", "-m", "second");
@@ -341,7 +341,7 @@ test("5.14 Codex refuses invalid or missing returned directories and releases a 
     const subfolder = path.join(folder, "nested");
     mkdirSync(subfolder);
     const foreign = path.join(dir, "foreign");
-    git(dir, "clone", site, foreign);
+    git(dir, "clone", "--", site, foreign);
     const foreignWorktree = path.join(dir, "foreign-worktree");
     git(foreign, "worktree", "add", "--detach", foreignWorktree, prepared.ref);
     const stale = path.join(dir, "stale");

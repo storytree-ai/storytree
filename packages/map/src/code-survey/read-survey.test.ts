@@ -746,7 +746,7 @@ test("8.35 the survey's Git runs no program its repository's settings name, and 
     git(checkout, "remote", "add", "origin", origin);
     commit(checkout);
     git(checkout, "push", "--quiet", "origin", "main");
-    git(folder, "clone", "--quiet", origin, other);
+    git(folder, "clone", "--quiet", "--", origin, other);
     git(checkout, "config", "core.fsmonitor", await script("fsmonitor"));
     git(checkout, "config", "core.hooksPath", hooks.replaceAll("\\", "/"));
     await writeFile(path.join(checkout, "packages/shop/src/local.ts"), "export const local = 1;\n");
@@ -814,7 +814,7 @@ test("8.27 a start's reader answers its first ask from the main already fetched 
     commit(checkout);
     git(checkout, "push", "--quiet", "origin", "main");
     // Main moves on the origin after this checkout last fetched it.
-    git(folder, "clone", "--quiet", origin, other);
+    git(folder, "clone", "--quiet", "--", origin, other);
     await writeFile(path.join(other, "packages/shop/src/claim.ts"), "export const claim = 1;\nexport const landed = 2;\n");
     commit(other);
     git(other, "push", "--quiet", "origin", "main");

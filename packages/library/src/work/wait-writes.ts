@@ -1,28 +1,11 @@
-/**
- * Capability 10 · Work in flight (the library story): the waits and holds an arc or increment stores,
- * written as the arc and increment records are, by one capability (ADR-1242 D2): its waits on other
- * work, an increment's waits for the owner or an outside event (10.36-10.38), and the questions it is
- * held on, released when a question is settled or retired (10.39, 10.40). An arc waits on an arc or an
- * increment, and an increment on an increment, on any arc, or on a capability's claim, each with a
- * reason; a wait that would close a loop across arcs and increments is refused when it is
- * written (10.32). A wait whose blocker lands (an increment) or closes (an arc) is cleared in the same
- * step, so no stored wait is stale (10.33, ADR-0975). Whether a stored wait or hold still holds is
- * capability 11's (waits.ts), and whether a question is open capability 12's (owner-questions.ts).
- *
- * WorkInFlight serializes each write and reads the project's open work once.
- */
+// Capability 10 · Work in flight
 import { byCreation } from "../creation-order.js";
 import { checkReference, liveRecord } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf } from "../schema/index.js";
 import type { Wait, WaitFor } from "./waits.js";
 
-/**
- * A wait would close a loop: the work would wait on itself, directly or through other arcs and
- * increments. The message names the loop, from the work the loop was found at back round to it.
- */
 export class WaitLoopError extends Error {
-  /** The arc and increment ids around the loop, starting and ending with the same one. */
   readonly path: readonly string[];
 
   constructor(path: readonly string[]) {
@@ -32,26 +15,16 @@ export class WaitLoopError extends Error {
   }
 }
 
-/** What an arc may wait on (10.34): an arc, or an increment, whose landing releases it. */
 const ARC_BLOCKER = { name: "arc or increment", types: ["arc", "increment"] } as const;
 
-/** What an increment may wait on: an increment, whose landing releases it, or a capability, whose claim's release does (11.12). */
 export const INCREMENT_BLOCKER = { name: "increment or capability", types: ["increment", "capability"] } as const;
 
-/** The open work a loop is looked for in: its arcs and open increments, as one reading gives them. */
 export interface WaitGraph {
   readonly arcs: ReadonlyMap<string, { readonly fields: { readonly waits?: readonly Wait[] | undefined } }>;
   readonly increments: ReadonlyMap<string, { readonly fields: { readonly arc: string; readonly status: string; readonly waits?: readonly Wait[] | undefined } }>;
-  /** The arc's open increments, oldest first. */
   openIncrementsOf(arc: string): readonly { readonly id: string }[];
 }
 
-/**
- * Make `waiter` wait on `blocker`, with a reason: an arc on a live arc or increment (10.34), an
- * increment on a live increment, on any arc, or on a live capability's claim (11.12; MissingReferenceError otherwise). Waiting again on the same blocker replaces
- * the reason. A wait that would close a loop in the work `read` gives is refused with a WaitLoopError
- * naming it. Null, with nothing written, if `waiter` is not a live arc or increment.
- */
 export async function addWait(
   records: SchemaRecords,
   read: () => Promise<WaitGraph>,
@@ -71,10 +44,8 @@ export async function addWait(
   return (await records.edit(waiter, { waits }, options)) as SchemaRecord<"arc" | "increment"> | null;
 }
 
-/** How a wait is cleared: by whom, and why, which the record's history keeps with the clear. */
 export type ClearOptions = WriteOptions & { readonly reason?: string };
 
-/** Stop `waiter` waiting on `blocker`. Null, with nothing written, if `waiter` is not a live arc or increment. */
 export async function removeWait(records: SchemaRecords, waiter: string, blocker: string, options?: ClearOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
   const record = await liveRecord(records, waiter, ["arc", "increment"]);
   if (record === null) return null;
@@ -82,11 +53,6 @@ export async function removeWait(records: SchemaRecords, waiter: string, blocker
   return (await records.edit(waiter, { waits: waits.length === 0 ? undefined : waits }, options)) as SchemaRecord<"arc" | "increment"> | null;
 }
 
-/**
- * Clear every stored wait on `blocker`, an arc or increment as `kind` says, which has landed (an increment) or closed (an arc), so no
- * wait is ever stale (10.33): from each arc that waits on it, and, for an increment, each open increment. Each waiter's
- * history keeps the cleared wait, with `reason`. The ids of the waiters cleared.
- */
 export async function clearWaitsOn(records: SchemaRecords, kind: "arc" | "increment", blocker: string, reason: string, options?: WriteOptions): Promise<string[]> {
   const waiters = [
     ...await records.select("arc", ["waits"]),
@@ -103,20 +69,8 @@ export async function clearWaitsOn(records: SchemaRecords, kind: "arc" | "increm
   return cleared;
 }
 
-/**
- * A wait for the owner or an event as a writer gives it (10.37): the review day is the library's to
- * stamp, and re-writing an owner wait may leave out its note, why or rank to keep the stored ones.
- */
 export type WaitWrite = Omit<WaitFor, "note" | "reviewed" | "merged"> & { readonly note?: string };
 
-/**
- * Make an open increment wait for the owner or an outside event, with a note (10.36, ADR-0938 D1).
- * Waiting again for the same releaser replaces it; an owner wait written again keeps the note, why
- * and rank it is not given, and is stamped read again today (10.37). An event wait needs a check-back
- * day, not before today (UTC); an owner wait takes none and needs a why; a closed increment waits
- * for nothing: each a RangeError, with nothing written. Null, with nothing written, if `id` is not a
- * live increment.
- */
 export async function addWaitFor(records: SchemaRecords, id: string, wait: WaitWrite, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
   const increment = await liveRecord(records, id, ["increment"]);
   if (increment === null) return null;
@@ -132,11 +86,6 @@ export async function addWaitFor(records: SchemaRecords, id: string, wait: WaitW
   return (await records.edit(id, { waitsFor }, options)) as SchemaRecord<"increment"> | null;
 }
 
-/**
- * A wait for the owner or an event as it may be written (RangeError otherwise): an event's with a
- * check-back day not before today and no why or rank, an owner's with no day, a why (what it
- * protects or unblocks) and any rank a whole number from 1, stamped read again today (10.37).
- */
 export function checkedWaitFor({ releaser, note, checkBack, why, rank }: WaitWrite & { readonly note: string }): WaitFor {
   const today = new Date().toISOString().slice(0, 10);
   if (releaser === "event" && checkBack === undefined) throw new RangeError("an event wait needs a check-back day (YYYY-MM-DD)");
@@ -151,11 +100,6 @@ export function checkedWaitFor({ releaser, note, checkBack, why, rank }: WaitWri
   return { releaser, note, why, ...(rank === undefined ? {} : { rank }), reviewed: today };
 }
 
-/**
- * Stop an increment waiting for `releaser`. Given `merged`, the pull request it was handed over with that has merged,
- * its owner wait, if it has one, carries that pull request from the same write, so the audit asks for it to be read
- * again; writing the owner wait again drops it (10.38). Null, with nothing written, if `id` is not a live increment.
- */
 export async function removeWaitFor(records: SchemaRecords, id: string, releaser: WaitFor["releaser"], options?: ClearOptions, { merged }: { readonly merged?: number } = {}): Promise<SchemaRecord<"increment"> | null> {
   const increment = await liveRecord(records, id, ["increment"]);
   if (increment === null) return null;
@@ -165,13 +109,6 @@ export async function removeWaitFor(records: SchemaRecords, id: string, releaser
   return (await records.edit(id, { waitsFor: waitsFor.length === 0 ? undefined : waitsFor }, options)) as SchemaRecord<"increment"> | null;
 }
 
-/**
- * Release each open increment whose event wait is about contract `contract` (10.44): one that links it or lists its
- * `capability`. Its event wait is cleared and `verdict` written at the top of its body, in one write whose history keeps
- * `verdict` as the reason; its other waits stay. Given `asOf`, the history place of a verdict told after it was written,
- * only an increment whose event wait stood unchanged from that place to now is released: one made to wait after the
- * verdict waits for a later run (10.45). The ids of the increments released, oldest first.
- */
 export async function releaseOnVerdict(records: SchemaRecords, contract: string, capability: string | undefined, verdict: string, options?: WriteOptions, asOf?: number): Promise<string[]> {
   const open = await records.select("increment", ["body", "links", "capabilities", "waitsFor"], { not: { status: "closed" } });
   const waiting = open
@@ -189,23 +126,17 @@ export async function releaseOnVerdict(records: SchemaRecords, contract: string,
   return about.map(({ id }) => id);
 }
 
-/** An increment's event wait as one comparable word, or undefined when it has none. */
 function eventWaitOf(waitsFor: readonly WaitFor[] | undefined): string | undefined {
   const event = waitsFor?.find((wait) => wait.releaser === "event");
   return event === undefined ? undefined : `${event.note}\n${event.checkBack}`;
 }
 
-/** Whether increment `id` held event wait `event` at history place `asOf` and in every change of it since. */
 async function stoodSince(records: SchemaRecords, id: string, event: string | undefined, asOf: number): Promise<boolean> {
   const [[then], since] = await Promise.all([records.history({ id, upTo: asOf, newest: 1 }), records.history({ id, since: asOf })]);
   if (then === undefined) return false;
   return [then, ...since].every((change) => eventWaitOf((records.current(change.record).fields as FieldsOf<"increment">).waitsFor) === event);
 }
 
-/**
- * Take question `id` off the heldOn of every increment that names it, open or closed, keeping their
- * other holds, as the question is settled (10.39) or retired (10.40); the increments released, oldest first.
- */
 export async function releaseHolders(records: SchemaRecords, id: string, options?: WriteOptions): Promise<SchemaRecord<"increment">[]> {
   const heldBy = (await records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true).sort(byCreation);
   for (const increment of heldBy) {
@@ -215,14 +146,6 @@ export async function releaseHolders(records: SchemaRecords, id: string, options
   return heldBy;
 }
 
-/**
- * Throw a WaitLoopError if `waiter` waiting on `waits` would close a loop. The graph is arc and
- * increment waits as one: an arc waits on the arcs it names, and cannot close until each
- * of its open increments has; an open increment waits on the increments it names, and on the
- * arcs its arc waits on. A closed increment waits on nothing and holds up nothing, and it never
- * reopens, so it can be in no loop. The loop is looked for from the waiter, and, for an arc, from
- * each of its open increments, oldest first, since their waits change with it.
- */
 function refuseLoop(work: WaitGraph, waiter: string, waits: readonly Wait[]): void {
   const waitsOf = (id: string): readonly Wait[] =>
     id === waiter ? waits : (work.arcs.get(id)?.fields.waits ?? work.increments.get(id)?.fields.waits ?? []);
@@ -239,11 +162,6 @@ function refuseLoop(work: WaitGraph, waiter: string, waits: readonly Wait[]): vo
   }
 }
 
-/**
- * A path along `next`'s edges from `start` back round to `start`, or undefined if there is none.
- * Depth-first, following each node's edges in order, so the same loop is reported every time;
- * iterative, so a long chain cannot overflow the stack.
- */
 function loopThrough(start: string, next: (id: string) => readonly string[]): string[] | undefined {
   const path = [{ id: start, next: next(start).values() }];
   const reached = new Set([start]);

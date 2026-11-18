@@ -1,39 +1,16 @@
-/**
- * Capability 13 · Decision log. The `adr` verbs, declared here beside the library's own commands (ADR-0969 D2, ADR-1077
- * D2) and mounted by the command line as its `adr` family, 4th among `storytree`'s families (ADR-1033): record a new
- * decision with the next number, its status, who decided it in their own words, and what it supersedes; pull a decision
- * out as a markdown file, edit it, push it back; write its composed statement; list them.
- * None is a tool: an agent reads a decision with the MCP server's `open` and records one with its `write_note`.
- *
- * - Every rule is the library's own (decision-log.ts): numbers handed out inside the write, status,
- *   supersession and its loop check, the owner's words a stamp claiming his authority must quote, and whether a composed
- *   statement is stale. A decision that comes to supersede others while accepted goes through
- *   supersede.ts's `supersede` (its `recordDecision` and `editDecision`), which moves their shelf and load-bearing mark in one write.
- * - The file `adr pull` writes: a front matter of `key: <JSON value>` lines, then `# <title>`, a blank line, and the
- *   text. `push` hands `editDecision` only what differs from the stored decision, so a push with no edit
- *   writes nothing, and names no writer. The lines below `# read only` (its id, number, how it reads, its authority and
- *   composed statement) are shown, never pushed.
- * - A decision is named by its id or number. Listing uses list(kind), then decision(id) so the library owns
- *   supersession and the status shown or filtered.
- */
+// Capability 13 · Decision log
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import type { Library } from "../index.js";
 import type { DecisionView } from "./decision-log.js";
 import { editDecision, recordDecision } from "./supersede.js";
 
-/** The fields a pushed file may change, in the order the file shows them. */
 const EDITABLE = ["status", "decided", "loadBearing", "supersedes", "links", "frontCoverOf"] as const;
 const READ_ONLY_MARK = "# read only";
 
-/** "ADR-0007": a decision's number as people say it. */
 function adr(number: number | undefined): string {
   return number === undefined ? "an unnumbered decision" : `ADR-${String(number).padStart(4, "0")}`;
 }
 
-/**
- * A comma-separated list of ids. One holding whitespace is refused rather than split: PowerShell turns an unquoted comma
- * list into an array and joins it with spaces.
- */
 export function idList(value: string | undefined, name: string): string[] | undefined {
   if (value === undefined) return undefined;
   const ids = value.split(",").map((one) => one.trim()).filter((one) => one !== "");
@@ -55,7 +32,6 @@ async function viewOf(library: Library, name: string): Promise<DecisionView> {
   return view;
 }
 
-/** A decision as the file `adr pull` writes. */
 function fileOf(view: DecisionView): string {
   const fields = view.record.fields;
   const lines = ["---"];
@@ -73,7 +49,6 @@ function fileOf(view: DecisionView): string {
   return lines.join("\n");
 }
 
-/** What a file `adr pull` wrote says, now: its title, text and editable fields. */
 function parseFile(text: string, file: string): { title: string; text: string; fields: Record<string, unknown> } {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const close = lines.indexOf("---", 1);
@@ -98,7 +73,6 @@ function parseFile(text: string, file: string): { title: string; text: string; f
   return { title: body[heading]!.slice(2).trim(), text: rest, fields };
 }
 
-/** Reject typos instead of silently auto-numbering or rounding a supplied label. */
 function decisionNumber(value: string): number {
   const number = Number(value);
   if (!/^\d+$/.test(value) || !Number.isSafeInteger(number) || number < 1) {
@@ -107,7 +81,6 @@ function decisionNumber(value: string): number {
   return number;
 }
 
-/** The person at this computer, who scribes an authority stamp. */
 async function person(): Promise<string> {
   const { userInfo } = await import("node:os");
   try {
@@ -209,7 +182,6 @@ const push = verb({
   },
 });
 
-/** The text of `file`, relative to `folder`, without a leading byte-order mark (PowerShell 5.1's utf8 writes one). */
 async function readFile(folder: string, file: string): Promise<string> {
   const { readFileSync } = await import("node:fs");
   const path = await import("node:path");
@@ -261,7 +233,6 @@ const list = verb({
   },
 });
 
-/** The `adr` family, 4th among `storytree`'s families, with the words agents try for reading one decision. */
 export const ADR_FAMILY: VerbFamily = {
   name: "adr",
   summary: "the decision log: new, pull, push, compose, list",

@@ -1,24 +1,4 @@
-/**
- * Capability 10 · Work in flight (the library story, ADR-0640): each arc whole, with its
- * increments. It is the arc record's one writer (ADR-1242 D2): it creates and edits an arc, parks it,
- * and writes the waits an arc or increment stores on other work (wait-writes.ts). An increment moves proposal → active → closed, only ever forward (its ready step is retired, ADR-0909 D4); closed, it
- * stays as the arc's log entry, with the day it closed, its pull request, its note and whether it
- * landed, failed or was withdrawn. An arc's state is worked out from its increments on every read:
- * closed when none is open, active otherwise or while it has none, and parked, the one state that
- * is stored, while the owner has parked it (10-b). New work parked on a closed arc reopens it (R1).
- *
- * It is the increment record's one writer too: its waits for the owner or an event (10.36-10.38) and the
- * questions it is held on, released as a question is settled or retired (10.39, 10.40), are written in
- * wait-writes.ts. WorkInFlight is also the one door to the reading of waits (capability 11, waits.ts), owner questions
- * (capability 12, owner-questions.ts) and pending plan changes (capability 4's, pending-changes.ts): it queues their
- * writes behind its own, and reads the project's open work once for each.
- *
- * The increment's shape and the rules across its fields (a proposal carries when it was parked; a
- * closed increment its outcome; a close with no pull request a note) are capability 3's, checked
- * inside every write (schema/types.ts). What this layer checks before writing is what a schema
- * cannot see: that the arc, and every capability, link and friction an increment names, is live,
- * and that an increment moves only forward. A refusal throws with nothing written.
- */
+// Capability 10 · Work in flight
 import { byCreation } from "../creation-order.js";
 import { Knowledge } from "../knowledge/index.js";
 import { checkReference, checkReferences, liveRecord } from "../references.js";
@@ -34,66 +14,38 @@ import { WorkModel, type ProjectTree } from "./work-model.js";
 import { arcHold, claimHold, holdsOf, incrementHold, noteWaits, onClaim, type ClaimReading, type Hold, type Holds, type NoteWait, type Wait, type WaitFor } from "./waits.js";
 import { checkedWaitFor, INCREMENT_BLOCKER, type WaitWrite } from "./wait-writes.js";
 
-/** The owner's voice note or one of his questions, named in an increment's body or links: work that came from his answer. */
 const FROM_HIS_ANSWER = /\b(?:voice\.note|question)_[0-9a-f]{12}\b/;
-/** A question named in text. */
 const QUESTION = /\bquestion_[0-9a-f]{12}\b/g;
 
-/** Where an increment is in its lifecycle. */
 export type IncrementStatus = (typeof INCREMENT_STATUSES)[number];
-/** A settled question, with the open increments settling it released, by id and title (10.39). */
 export type SettledQuestion = SchemaRecord<"question"> & { released: { id: string; title: string }[] };
 
-/** An arc's state: worked out from its increments, except for the owner's "parked". */
 export type ArcState = "active" | "parked" | "closed";
-/** How an increment closed. */
 export type Disposition = NonNullable<FieldsOf<"increment">["outcome"]>["disposition"];
 
-/** How an increment closes: a pull request, a note, or both, and what the close meant. */
 export interface CloseInput {
   readonly pr?: string;
-  /** Why it closed. Required when there is no pull request, for an increment that was parked. */
   readonly note?: string;
   readonly disposition: Disposition;
-  /** The day it closed (YYYY-MM-DD). Today when omitted. */
   readonly date?: string;
 }
 
-/**
- * A new increment: the live arc it belongs to, what it is, the capabilities it changes (parked
- * empty by default, ADR-0949 D2), what it links to and what it remedies. With
- * `outcome` it is born closed, a log entry for work already done; without, it is a proposal.
- */
 export interface NewIncrement {
   readonly arc: string;
   readonly title: string;
   readonly objective: string;
-  /** The increment itself: its breakdown, in prose. */
   readonly body: string;
-  /** The capabilities it changes, its lock list (ADR-0949 D2): each must be a live capability. */
   readonly capabilities?: string[];
-  /** Anything else it cites, such as its stories, notes or decisions: each must be live. */
   readonly links?: string[];
-  /** The friction it remedies: each must be live. */
   readonly remedies?: string[];
-  /** The open questions it is held on (capability 12): each must be a live question. */
   readonly heldOn?: string[];
-  /** The one machine that can take it, by its short name; absent, any machine can. */
   readonly machine?: string;
-  /** The escape it fixes: the pull request (`#123`) or live increment that caused it, and the live story it hit. */
   readonly escape?: Escape;
-  /** The increments it is born waiting on, each with why (11): each must be a live increment. */
   readonly waits?: Wait[];
-  /**
-   * What it is born waiting for outside the library, the owner or an event, one note per releaser
-   * (10.36), written in the parking's own write so it is never open work without the wait (10.25);
-   * an owner's with its why (10.37).
-   */
   readonly waitsFor?: (WaitWrite & { readonly note: string })[];
   readonly outcome?: CloseInput;
 }
 
-/** An edit of what an increment is. Its arc, status and outcome move only through their own verbs. */
 export interface IncrementEdit {
   readonly title?: string;
   readonly objective?: string;
@@ -102,76 +54,54 @@ export interface IncrementEdit {
   readonly links?: string[] | undefined;
   readonly remedies?: string[] | undefined;
   readonly heldOn?: string[] | undefined;
-  /** Undefined clears it, so any machine can take it. */
   readonly machine?: string | undefined;
-  /** Undefined clears it: it fixes no escape. */
   readonly escape?: Escape | undefined;
-  /** Undefined clears it: no risk line read. Its stories must be live stories. */
   readonly risk?: RiskLine | undefined;
 }
 
-/** An increment's risk line: its tier, rating, depth, radius, flags, the stories it touches and the day read. */
 export type RiskLine = NonNullable<FieldsOf<"increment">["risk"]>;
 
-/** An escape an increment fixes: the change that caused it and the story it hit, or `none` when it fixes none. */
 export type Escape = NonNullable<FieldsOf<"increment">["escape"]>;
 
 export type { AppliedPending, Pended, PendingChange, PlanChange, SettledPending, StalePending, UnappliedPending } from "./pending-changes.js";
 
-/**
- * A new arc's fields: its intent and end state, and the stories it grows, when given, each an
- * existing story; an arc may list none. Parking is parkArc's.
- */
 export type NewArc = Omit<FieldsOf<"arc">, "parked">;
-/** An edit of an arc: some of its fields. A field set to undefined is removed. */
 export type ArcEdit = { [F in keyof NewArc]?: NewArc[F] | undefined };
 
-/** An arc that parks a capability (ADR-0992 D6): its id and title, so the capability's card can name it. */
 export interface ParkedOn {
   readonly arc: string;
   readonly title: string;
 }
 
-/** How to park an arc: a write's options, and the day it wakes (YYYY-MM-DD, UTC), if it has one. */
 export interface ParkOptions extends WriteOptions {
   readonly until?: string;
 }
 
-/** An arc whole: its record, its state, its increments and its questions, oldest first. */
 export interface ArcView {
   readonly arc: SchemaRecord<"arc">;
   readonly state: ArcState;
-  /** While it reads parked until a day, that day: the owner's (10.6), or the earliest check-back its work waits for (10.10). */
   readonly wakes?: string;
   readonly increments: SchemaRecord<"increment">[];
-  /** Its questions, open and settled. */
   readonly questions: SchemaRecord<"question">[];
 }
 
-/** The increment fields the arc board draws (10.22), its links among them for the edge contracts the map rings: never its planning body, remedies or pending changes. */
 export const BOARD_INCREMENT_FIELDS = ["arc", "title", "objective", "status", "parked", "capabilities", "links", "waits", "waitsFor", "heldOn", "outcome", "machine"] as const;
 
-/** An increment as the arc board reads it: its record with only the fields the board draws. */
 export type BoardIncrement = Omit<SchemaRecord<"increment">, "fields"> & { fields: Pick<FieldsOf<"increment">, (typeof BOARD_INCREMENT_FIELDS)[number]> };
 
-/** An arc as the arc board reads it (10.22): an ArcView with its increments' drawn fields, and, closed, its closing day. */
 export interface BoardArcView {
   readonly arc: SchemaRecord<"arc">;
   readonly state: ArcState;
   readonly wakes?: string;
-  /** Closed, the day it closed: the latest outcome day among its increments (YYYY-MM-DD). */
   readonly closed?: string;
   readonly increments: BoardIncrement[];
   readonly questions: SchemaRecord<"question">[];
 }
 
-/** The increment fields a work survey reads (10.43): what a dispatcher decides on, and the facts its holds and its arc's state are read from; never its body. */
 export const SURVEY_INCREMENT_FIELDS = ["arc", "title", "status", "parked", "capabilities", "machine", "waits", "waitsFor", "heldOn", "outcome"] as const;
 
-/** An increment as a work survey reads it: its record with only SURVEY_INCREMENT_FIELDS. */
 export type SurveyIncrement = Omit<SchemaRecord<"increment">, "fields"> & { fields: Pick<FieldsOf<"increment">, (typeof SURVEY_INCREMENT_FIELDS)[number]> };
 
-/** An arc as a work survey reads it (10.43): its state as arcView reads it, and, unless it is closed, its title and priority. */
 export interface SurveyArc {
   readonly id: string;
   readonly createdAt: string;
@@ -179,38 +109,26 @@ export interface SurveyArc {
   readonly wakes?: string;
   readonly title?: string;
   readonly priority?: number;
-  /** How many of its questions are open. */
   readonly openQuestions: number;
 }
 
-/** What a work survey reads beyond open work, and how it learns which arcs hold no increment at all. */
 export interface SurveyOptions {
-  /** Increments read even once closed, by id: work the reader follows to its close (a closed one with its outcome). */
   readonly also?: readonly string[];
-  /** Read closed arcs' titles and priorities too. */
   readonly closedTitles?: boolean;
-  /** Of the arcs given, those holding no increment, open or closed; by default one id-only read of an increment per arc. */
   readonly empty?: (arcs: readonly string[]) => Promise<ReadonlySet<string>>;
 }
 
-/** One reading of a project's open work (10.43): every live arc, oldest first, its open increments (and those in `also`) and their holds. */
 export interface WorkSurvey {
   readonly arcs: SurveyArc[];
   readonly increments: SurveyIncrement[];
-  /** The holds as holds() reads them at the survey's moment, against the capabilities `claimed` has, from the same reading. */
   holds(reading?: ClaimReading): Holds;
 }
 
-/** A window of days, YYYY-MM-DD, from `from` up to but not including `to`. */
 export interface DayWindow {
   readonly from: string;
   readonly to: string;
 }
 
-/**
- * An increment was asked to move backward, to stay where it is, or on from closed, which is final.
- * The message names the increment, where it is, and where it was asked to go.
- */
 export class LifecycleError extends Error {
   readonly id: string;
   readonly from: IncrementStatus;
@@ -231,7 +149,6 @@ export class LifecycleError extends Error {
 
 const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "capabilities", "links", "remedies", "heldOn", "machine", "escape", "risk"]);
 
-/** An open increment whose capabilities list names some of the ones asked about: which, and where it is (10.35). */
 export interface OpenListing {
   readonly increment: string;
   readonly title: string;
@@ -239,12 +156,10 @@ export interface OpenListing {
   readonly capabilities: readonly string[];
 }
 
-/** What a park refuses about `other`: the capabilities it already lists, and where it is. */
 export function listedSaid(other: OpenListing): string {
   return `${other.capabilities.join(", ")} ${isAre(other)} already on the capabilities list of ${listingOf(other)}`;
 }
 
-/** What an edit that newly lists capabilities `other` lists is told: a notice, worded apart from a park's refusal, that the edit is saved. */
 export function listedNotice(other: OpenListing): string {
   return `Note: ${other.capabilities.join(", ")} ${isAre(other)} also on the capabilities list of ${listingOf(other)}; your edit is saved`;
 }
@@ -254,11 +169,8 @@ const listingOf = (other: OpenListing): string => `open increment ${other.increm
 
 export class WorkInFlight {
   readonly #records: SchemaRecords;
-  /** The plan's editors, through which a landed increment's pending changes apply (ADR-0966 D4). */
   readonly #work: WorkModel;
-  /** The last write queued through this layer; the next one starts once it has settled. */
   #lastWrite: Promise<unknown> = Promise.resolve();
-  /** The friction record's writer, through which a close moves the reports it remedies (ADR-1242 D2). */
   readonly #knowledge: Knowledge;
 
   constructor(records: SchemaRecords, work: WorkModel = new WorkModel(records)) {
@@ -267,15 +179,6 @@ export class WorkInFlight {
     this.#knowledge = new Knowledge(records);
   }
 
-  /**
-   * Add an increment to a live arc (MissingReferenceError otherwise, as for any capability, link,
-   * remedies or increment it waits on that is not live). A wait given at birth needs no loop check,
-   * since nothing can wait on a record not yet written. It is a proposal, stamped with when it was parked, or, given an
-   * `outcome`, born closed. A proposal whose capabilities list names a capability already on another open increment's
-   * list is refused (RangeError), naming every such increment, its title and its arc, so a second drain routes to the one
-   * already parked (10.35): unless it is born waiting on that increment, as a later step of a split is, or on the claim of
-   * every capability they share, as work split off a held capability is (ADR-1228 D1).
-   */
   addIncrement(increment: NewIncrement, options?: WriteOptions): Promise<SchemaRecord<"increment">> {
     return this.#serially(async () => {
       const { outcome, ...fields } = increment;
@@ -283,11 +186,9 @@ export class WorkInFlight {
       await this.#checkNames(fields);
       for (const { on } of fields.waits ?? []) await checkReference(this.#records, "on", on, INCREMENT_BLOCKER);
       if (outcome === undefined) {
-        // Born waiting on that increment, or on the claim of every capability it shares (ADR-1228 D1), it follows that work.
         const follows = new Set((fields.waits ?? []).map(({ on }) => on));
         const shared = (await this.openListing(fields.capabilities ?? [])).filter((other) => !follows.has(other.increment) && !other.capabilities.every((capability) => follows.has(capability)));
         if (shared.length > 0) {
-          // Every overlap in the one refusal, so a wide list learns its waits from one try (friction_e8ef03cd89fa).
           const claims = shared.flatMap((other) => other.capabilities).map((capability) => `${capability}'s claim`).join(" and ");
           throw new RangeError(`${shared.map(listedSaid).join("; ")}: route this work to the increment it belongs to, or, if it follows one, park it waiting on each it follows, or, if it waits only for a capability, on ${claims}`);
         }
@@ -304,10 +205,6 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * The open increments, other than `except`, whose capabilities lists name any of `capabilities`, oldest first, each
-   * with its title, its arc and the capabilities it shares: what a park refuses and an edit of a list is told.
-   */
   async openListing(capabilities: readonly string[], except?: string): Promise<OpenListing[]> {
     if (capabilities.length === 0) return [];
     const open = await this.#records.select("increment", ["title", "arc", "capabilities"], { not: { status: "closed" } });
@@ -317,10 +214,6 @@ export class WorkInFlight {
       .filter((other) => other.capabilities.length > 0);
   }
 
-  /**
-   * Start an increment: move it on to `active`, and only forward (LifecycleError otherwise).
-   * Null, with nothing written, if `id` is not a live increment.
-   */
   advanceIncrement(id: string, to: "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
       const increment = await liveRecord(this.#records, id, ["increment"]);
@@ -331,12 +224,6 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * Return an active increment to proposal, keeping the day it was parked: the one step back, for
-   * work whose last claim ended without closing it (10.9). Whether anyone still holds it is the
-   * caller's to know. Anything but active is refused (LifecycleError). Null, with nothing written, if
-   * `id` is not a live increment.
-   */
   returnIncrement(id: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
       const increment = await liveRecord(this.#records, id, ["increment"]);
@@ -347,16 +234,6 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * Close an increment, recording the day, its pull request, its note and what the close meant. A
-   * close with no pull request needs a note (SchemaError); closing a closed one is refused
-   * (LifecycleError). Null, with nothing written, if `id` is not a live increment. In the same step
-   * the waits on it are cleared if it landed, and the waits on its arc if that now reads closed (10.33);
-   * a failed or withdrawn close leaves its waits, holding for good, since the work did not arrive.
-   * Its pending plan changes (ADR-0966) are applied first if it landed, as applyPending applies them,
-   * and dropped in the close itself otherwise, its history saying how many (D6). The friction it
-   * remedies then moves as the close says (ADR-1016 D2): resolved if it landed, back to the drain if not.
-   */
   closeIncrement(id: string, close: CloseInput, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
       let increment = await liveRecord(this.#records, id, ["increment"]);
@@ -380,13 +257,6 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * What a check run on the owner's answer found reaches him (ADR-1259, 10.42): an increment whose body or links name his
-   * voice note or a question of his, landed with a note and no pull request to show for it, records an FYI carrying that
-   * note, which `fyi list`, the shared briefing and voice offer until it is marked heard. A pull request is told as a
-   * landing already, and a close that did not land found nothing to tell. Nor does a close whose note names a question
-   * its increment did not already name (ADR-1259 D2): that result is a new question, which reaches him as that question.
-   */
   async #offerFindings({ id, fields }: SchemaRecord<"increment">, close: CloseInput, options?: WriteOptions): Promise<void> {
     if (close.disposition !== "landed" || close.pr !== undefined || close.note === undefined) return;
     const from = [fields.body, ...(fields.links ?? [])].join("\n");
@@ -396,15 +266,6 @@ export class WorkInFlight {
     await this.#records.create("fyi", fyi, options);
   }
 
-  /**
-   * Replace a closed increment's outcome, keeping the correction and its nonblank reason in
-   * history (10.2). The closure date stays unless supplied; the other outcome fields are replaced.
-   * Open work is refused (RangeError), and the usual outcome validation still applies (SchemaError).
-   * Null, with nothing written, if `id` is not a live increment. Its lifecycle never changes. A
-   * correction to landed clears the waits on it (10.33) and answers whether it fixed an escape as a
-   * landing does, a correction away from landed drops that answer (10.30), and the friction it
-   * remedies follows the corrected outcome (ADR-1016 D2).
-   */
   correctIncrementClosure(id: string, close: CloseInput, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
       const increment = await liveRecord(this.#records, id, ["increment"]);
@@ -420,13 +281,6 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * Move an increment to another arc, keeping its id, lifecycle, waits and claims; its history
-   * records the move with `reason`. The arc must be live (MissingReferenceError otherwise). Open
-   * work cannot move into a closed arc (ADR-0792 D2, RangeError), while completed history may move
-   * there during arc decomposition without reopening it; the refusal names the way back (park the arc, move, unpark). Null, with nothing written, if `id` is
-   * not a live increment. Moving the last open work off an arc closes it, clearing the waits on it (10.33).
-   */
   moveIncrement(id: string, arc: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
       const increment = await liveRecord(this.#records, id, ["increment"]);
@@ -444,10 +298,6 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * Change what an increment is: its title, objective, body, capabilities, links, remedies, held-on questions or machine, each
-   * checked as addIncrement checks it. Null, with nothing written, if `id` is not a live increment.
-   */
   editIncrement(id: string, fields: IncrementEdit, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
       const other = Object.keys(fields).find((key) => !EDITABLE.has(key));
@@ -462,25 +312,18 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * Hold `change` on active increment `id` as a pending change (capability 4's, pending-changes.ts): the live record is
-   * left as it is until the increment lands. Null if `id` is not a live increment.
-   */
   pendChange(id: string, change: PlanChange, options?: WriteOptions): Promise<Pended | null> {
     return this.#serially(() => pending.pendChange(this.#records, this.#work, id, change, options));
   }
 
-  /** `tree` with increment `id`'s pending changes laid over (capability 4). Null if `id` is not a live increment. */
   withPending(id: string, tree: ProjectTree): Promise<ProjectTree | null> {
     return pending.withPending(this.#records, id, tree);
   }
 
-  /** Increment `id`'s pending changes their record has moved since they were read (capability 4). Null if `id` is not a live increment. */
   stalePending(id: string): Promise<StalePending[] | null> {
     return pending.stalePending(this.#records, id);
   }
 
-  /** Apply increment `id`'s pending changes, marked with pull request `pr` (capability 4). Null if `id` is not a live increment. */
   applyPending(id: string, pr?: string, options?: WriteOptions): Promise<AppliedPending | null> {
     return this.#serially(async () => {
       const increment = await liveRecord(this.#records, id, ["increment"]);
@@ -488,132 +331,68 @@ export class WorkInFlight {
     });
   }
 
-  /** Drop open increment `id`'s one pending change to `record`, with a reason (capability 4). Null if `id` is not a live increment. */
   dropPending(id: string, record: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(() => pending.dropPending(this.#records, id, record, reason, options));
   }
 
-  /** Settle every closed increment's leftover pending changes (capability 4): applied if it landed, dropped if not. */
   settleClosedPending(options?: WriteOptions): Promise<SettledPending[]> {
     return this.#serially(() => pending.settleClosedPending(this.#records, this.#work, this.#retireOne, options));
   }
 
-  /**
-   * Make `waiter` wait on `blocker`, with a reason: an arc on a live arc, an increment
-   * on a live increment on any arc. A wait that would close a loop across arcs and increments is
-   * refused (WaitLoopError). Null if `waiter` is not a live arc or increment.
-   */
   addWait(waiter: string, blocker: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
     return this.#serially(() => waitWrites.addWait(this.#records, () => this.#snapshot(), waiter, blocker, reason, options));
   }
 
-  /** Stop `waiter` waiting on `blocker`. Null if `waiter` is not a live arc or increment. */
   removeWait(waiter: string, blocker: string, options?: waitWrites.ClearOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
     return this.#serially(() => waitWrites.removeWait(this.#records, waiter, blocker, options));
   }
 
-  /**
-   * Release each open increment whose event wait is about contract `contract`, on a failing verdict (10.44): one that
-   * links it or lists its `capability` has its event wait cleared and `verdict` written at the top of its body. Given
-   * `asOf`, a verdict's history place when it is told later, only a wait that stood unchanged since then (10.45). The ids released.
-   */
   releaseOnVerdict(contract: string, capability: string | undefined, verdict: string, options?: WriteOptions, asOf?: number): Promise<string[]> {
     return this.#serially(() => waitWrites.releaseOnVerdict(this.#records, contract, capability, verdict, options, asOf));
   }
 
-  /**
-   * Make an open increment wait for the owner (an action) or an outside event (with a check-back
-   * day), with a note (10.36); waiting again for the same releaser replaces it (RangeError for an event
-   * with no day or a day before today, an owner wait with a day, or a closed increment). Null if `id`
-   * is not a live increment.
-   */
   addWaitFor(id: string, wait: WaitWrite, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(() => waitWrites.addWaitFor(this.#records, id, wait, options));
   }
 
-  /** Stop an increment waiting for `releaser` (10.36), stamping `cleared.merged` on its owner wait (10.38). Null if `id` is not a live increment. */
   removeWaitFor(id: string, releaser: WaitFor["releaser"], options?: waitWrites.ClearOptions, cleared?: { readonly merged?: number }): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(() => waitWrites.removeWaitFor(this.#records, id, releaser, options, cleared));
   }
 
-  /**
-   * What an open increment waits for outside the library at `at` (now, unless given), each with
-   * whether it still holds: an event wait no longer holds from its check-back day (11.6).
-   */
   waitsFor(id: string, at: Date = new Date()): Promise<NoteWait[]> {
     return waits.waitsFor(this.#records, id, at);
   }
 
-  /**
-   * The blockers still holding `id`'s waits, in the order its waits were written, each with its
-   * reason and whether it can never release. An increment wait holds until its blocker closes as
-   * landed; an arc wait until that arc closes. An open increment is also held by its arc's waits,
-   * after its own, since its arc's work cannot start; a closed increment is held by nothing. A wait
-   * on a capability's claim holds while `claimed` has that capability (11.12). Empty
-   * when nothing holds, and for an id that is not a live arc or increment.
-   */
   async waitHolds(id: string, { claimed }: ClaimReading = {}): Promise<Hold[]> {
     const work = await this.#snapshot();
     const record = work.arcs.get(id) ?? work.increments.get(id);
     return record === undefined ? [] : work.waitHolds(record, claimed);
   }
 
-  /**
-   * Every live arc's and open increment's wait holds, and every open increment's owner holds and
-   * waits for the owner or an event (read at `at`, now unless given), from one reading of the
-   * project's work (11.5): what a surface showing all of it asks, in place of a waitHolds, a
-   * heldOnQuestion and a waitsFor per id, each of which reads the work again. A wait on a
-   * capability's claim holds while `claimed` has that capability (11.12). Closed increments have
-   * no holds and are omitted.
-   */
   async holds(at: Date = new Date(), reading: ClaimReading = {}): Promise<Holds> {
     return holdsIn(await this.#snapshot(), at, reading);
   }
 
-  /** Raise a question for the owner on a live arc that is not parked (capability 12): it is open. */
   raiseQuestion(question: NewQuestion, options?: WriteOptions): Promise<SchemaRecord<"question">> {
     return this.#serially(() => questions.raiseQuestion(this.#records, (arc) => isParked(arc), question, options));
   }
 
-  /**
-   * Question `id`'s review lease at `at` (now, unless given): fresh while it runs, lapsed once it has
-   * run out, settled once answered (12-a). Null if `id` is not a live question. It writes nothing.
-   */
   checkQuestion(id: string, at: Date = new Date()): Promise<QuestionLease | null> {
     return questions.checkQuestion(this.#records, id, at);
   }
 
-  /**
-   * Stamp open question `id` as checked to still hold, now, starting its lease again (12-a). Renewing
-   * a settled question is refused (RangeError). Null if `id` is not a live question.
-   */
   renewQuestion(id: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(() => questions.renewQuestion(this.#records, id, options));
   }
 
-  /**
-   * Correct open question `id`'s wording or links in place, only the named fields; an optional one set to
-   * undefined is removed (12.7). Anything but its wording or links, or a settled question's edit that does
-   * more than add links, is refused (RangeError) with nothing written. Null if `id` is not a live question.
-   */
   editQuestion(id: string, fields: QuestionEdit, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(() => questions.editQuestion(this.#records, id, fields, options));
   }
 
-  /**
-   * Link every live library record question `id`'s words name that it does not link yet, open or settled (12.18);
-   * nothing new writes nothing. Null if `id` is not a live question.
-   */
   linkNamedEvidence(id: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(() => questions.linkNamedEvidence(this.#records, id, options));
   }
 
-  /**
-   * Move open question `id` to another arc in place, keeping its id, wording and holders, its
-   * history recording `reason` (12.11). A parked arc takes it; a closed or missing arc, its own arc
-   * or a settled question is refused with nothing written. Moving the last open question off an arc
-   * closes it, clearing the waits on it (10.33). Null if `id` is not a live question.
-   */
   moveQuestion(id: string, arc: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(async () => {
       const question = await liveRecord(this.#records, id, ["question"]);
@@ -624,53 +403,30 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * Record the assistant pass's would-be answer to open question `id`, stamped now, replacing an earlier one (12.12);
-   * it is sealed from every read of the question (12.14). A settled question refuses one (RangeError). Null if `id`
-   * is not a live question.
-   */
   predictQuestion(id: string, answer: WouldBeAnswer, options?: WriteOptions): Promise<SchemaRecord<"prediction"> | null> {
     return this.#serially(() => questions.predictQuestion(this.#records, id, answer, options));
   }
 
-  /** Question `id`'s would-be answer, the one read that gives it (12.12, 12.14); null if it has none. */
   questionPrediction(id: string): Promise<SchemaRecord<"prediction"> | null> {
     return questions.questionPrediction(this.#records, id);
   }
 
-  /**
-   * Score settled question `id` once (12.13): a verdict for its would-be answer and for its raiser's recommendation,
-   * each where it has one, with who scored it, stamped now. An open or already scored question is refused
-   * (RangeError). Null if `id` is not a live question.
-   */
   scoreQuestion(id: string, score: Score, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(() => questions.scoreQuestion(this.#records, id, score, options));
   }
 
-  /**
-   * Mark open question `id` prepped now, with its stance on the raiser's recommendation (12.15); its wording corrected
-   * afterwards, it reads unprepared. A settled question is refused (RangeError). Null if `id` is not a live question.
-   */
   prepQuestion(id: string, prep: Prep, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(() => questions.prepQuestion(this.#records, id, prep, options));
   }
 
-  /** The questions settled at or after `since`, their scores counted per confidence band beside their raisers' recommendations (3.23). */
   questionDeviation(since: Date): Promise<QuestionDeviation> {
     return questions.questionDeviation(this.#records, since);
   }
 
-  /** The open questions whose lease has lapsed at `at` (now, unless given), longest lapsed first (12-a). */
   lapsedQuestions(at: Date = new Date()): Promise<SchemaRecord<"question">[]> {
     return questions.lapsedQuestions(this.#records, at);
   }
 
-  /**
-   * Settle a question with the owner's answer, and the live decision that carried it, if one did
-   * (capability 12), taking it off every increment's heldOn in the same step (10.39) and clearing the
-   * waits on its arc if that now reads closed (10.33), with the open increments it released, by id
-   * and title (10.39). Null if `id` is not a live question.
-   */
   settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SettledQuestion | null> {
     return this.#serially(async () => {
       const settled = await questions.settleQuestion(this.#records, id, settlement, options);
@@ -682,21 +438,14 @@ export class WorkInFlight {
     });
   }
 
-  /** The questions raised on arc `arcId`, open and settled, oldest first. */
   async questions(arcId: string): Promise<SchemaRecord<"question">[]> {
     return (await this.#records.list("question", { where: { arc: arcId } })).sort(byCreation);
   }
 
-  /** The open questions an increment is held on: the one answer to whether it waits on the owner (capability 12). */
   heldOnQuestion(incrementId: string): Promise<string[]> {
     return questions.heldOnQuestion(this.#records, incrementId);
   }
 
-  /**
-   * Retire question `id`, first taking it off the heldOn of every increment held on it, open or
-   * closed, so an owner-retired question goes in one step (10.40): the increments released, oldest
-   * first, or null, with nothing written, if it is not a live question.
-   */
   retireQuestion(id: string, reason: string, options?: WriteOptions): Promise<string[] | null> {
     return this.#serially(async () => {
       const question = await liveRecord(this.#records, id, ["question"]);
@@ -708,22 +457,16 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * Retire a record, as capability 2's retire does, except a question an increment is held on or
-   * a capability with live dependents, refused (RetireRefusedError) with nothing written.
-   */
   retire(id: string, reason: string, options?: WriteOptions): Promise<void> {
     return this.#serially(() => this.#retire(id, reason, options));
   }
 
-  /** #retire, bound, for a pending retirement applied inside the caller's turn of the queue. */
   readonly #retireOne: pending.Retire = (id, reason, options) => this.#retire(id, reason, options);
 
   async #retire(id: string, reason: string, options?: WriteOptions): Promise<void> {
     const record = await liveRecord(this.#records, id, ["question", "capability"]);
     if (record?.type === "question") await questions.refuseRetiringHeld(this.#records, id);
     if (record?.type === "capability") {
-      // A dependent links to it by its stored dependsOn, or, inside its story, by an edge (ADR-1282 D1).
       const capabilities = await this.#records.select("capability", ["dependsOn"]);
       const live = new Set(capabilities.map((capability) => capability.id));
       const byEdge = (await this.#records.list("edge")).filter((edge) => edge.fields.to === id && live.has(edge.fields.from)).map((edge) => edge.fields.from);
@@ -734,12 +477,6 @@ export class WorkInFlight {
   }
 
 
-  /**
-   * Create an arc. Every story it lists must be a live story (MissingReferenceError otherwise,
-   * naming the first one that is not); it may list none at all. Given an `id`, it is made under that id, and with
-   * `onlyIfNew` only if no record ever held it, retired ones included (RangeError otherwise): a standing arc storytree
-   * makes once per project (ADR-1266 D2).
-   */
   createArc(arc: NewArc, options?: WriteOptions & { readonly id?: string; readonly onlyIfNew?: boolean }): Promise<SchemaRecord<"arc">> {
     return this.#serially(async () => {
       await checkReferences(this.#records, "stories", arc.stories, "story");
@@ -747,10 +484,6 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * Change only the named fields of an arc, as capability 3's edit does. New stories are checked as
-   * createArc checks them. Returns null, and writes nothing, if `id` is not a live arc.
-   */
   editArc(id: string, fields: ArcEdit, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
     return this.#serially(async () => {
       if ((await liveRecord(this.#records, id, ["arc"])) === null) return null;
@@ -759,30 +492,19 @@ export class WorkInFlight {
     });
   }
 
-  /** The live arcs listing the story `storyId`, in creation order. */
   async arcsFor(storyId: string): Promise<SchemaRecord<"arc">[]> {
     const arcs = await this.#records.list("arc");
     return arcs.filter((arc) => arc.fields.stories?.includes(storyId) === true).sort(byCreation);
   }
 
-  /**
-   * Park an arc: it reads parked, whatever its work, until unparked, or, given `until` (a day,
-   * YYYY-MM-DD), until UTC midnight of that day, when it wakes by itself on read (10.6). A plain park
-   * drops a wake day. Null if `id` is not a live arc.
-   */
   parkArc(id: string, options?: ParkOptions): Promise<SchemaRecord<"arc"> | null> {
     return this.#setParked(id, true, options);
   }
 
-  /** Unpark an arc: its state is worked out from its increments again. Null if `id` is not a live arc. */
   unparkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
     return this.#setParked(id, undefined, options);
   }
 
-  /**
-   * The arc whole: its state (worked out on every read at `at`, now unless given, or parked), its
-   * increments and its questions, oldest first. Null if `id` is not a live arc.
-   */
   async arcView(id: string, at: Date = new Date()): Promise<ArcView | null> {
     const arc = await liveRecord(this.#records, id, ["arc"]);
     if (arc === null) return null;
@@ -791,7 +513,6 @@ export class WorkInFlight {
     return arcViewOf(arc, increments, questions, at);
   }
 
-  /** Every live arc's view, oldest arc first, as arcView answers each, read at `at` (now, unless given) in three lists however many arcs there are. */
   async arcViews(at: Date = new Date()): Promise<ArcView[]> {
     const [arcs, increments, questions] = await Promise.all([
       this.#records.list("arc"),
@@ -810,22 +531,12 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * One reading of the project's open work at `at` (now, unless given), for a reader that surveys it often, the pool's
-   * dispatcher (10.43): every live arc, oldest first, with its state as arcView reads it, its open-question count and,
-   * unless it is closed (or with `closedTitles`), its title and priority; every open increment, and each in `also`
-   * whatever its status, with only SURVEY_INCREMENT_FIELDS; and their holds as holds() reads them, from the same
-   * reading. No body, and nothing of a closed increment but what decides an arc's state, is read, so what it takes
-   * from the store does not grow with the increments' prose or the arcs' log of closed work.
-   */
   async workSurvey(at: Date = new Date(), { also = [], closedTitles = false, empty }: SurveyOptions = {}): Promise<WorkSurvey> {
     const work = await this.#snapshot(SURVEY_INCREMENT_FIELDS);
     const open = [...work.increments.values()] as unknown as SurveyIncrement[];
     const arcs = [...work.arcs.values()].sort(byCreation);
-    // An arc's state reads its closed work only for a landed blocker of its own and a settled question its open work is held on.
     const blockers = [...new Set(open.flatMap(({ fields }) => (fields.waits ?? []).map(({ on }) => on)))].filter((id) => !work.increments.has(id));
     const named = [...new Set(open.flatMap(({ fields }) => fields.heldOn ?? []))];
-    // An arc with no open work, no open question and no owner's park is drained (closed) or empty (active): which, only its having any increment says.
     const bare = arcs.filter((arc) => !isParked(arc, at) && work.openIncrementsOf(arc.id).length === 0 && work.questionsOf(arc.id).length === 0).map(({ id }) => id);
     const [closedBlockers, heldOnQuestions, followed, none] = await Promise.all([
       blockers.length === 0 ? [] : this.#records.select("increment", FACT_FIELDS, { ids: blockers, where: { status: "closed" } }),
@@ -853,30 +564,19 @@ export class WorkInFlight {
     };
   }
 
-  /** Of `arcs`, those holding no increment: one id-only read of at most one increment for each. */
   async #empty(arcs: readonly string[]): Promise<ReadonlySet<string>> {
     const held = await Promise.all(arcs.map(async (arc) => [arc, (await this.#records.select("increment", [], { where: { arc }, limit: 1 })).length > 0] as const));
     return new Set(held.filter(([, any]) => !any).map(([arc]) => arc));
   }
 
-  /**
-   * The arc board's reading at `at` (10.22): every live arc (active or parked), and each closed arc
-   * whose closing day falls in `closed`, oldest arc first, its increments carrying only the fields the
-   * board draws. Closed arcs outside the window are never read past the facts that decide their state.
-   */
   boardArcs(closed: DayWindow, at: Date = new Date()): Promise<BoardArcView[]> {
     return this.#boardArcs(closed, true, at);
   }
 
-  /** Only the closed arcs whose closing day falls in `window`, read as boardArcs reads them (10.22). */
   closedArcs(window: DayWindow, at: Date = new Date()): Promise<BoardArcView[]> {
     return this.#boardArcs(window, false, at);
   }
 
-  /**
-   * The closing day is worked out here, not stored or asked of SQL: a first pass selects only the
-   * fields that decide each arc's state and its increments' outcome days, then the arcs kept are read.
-   */
   async #boardArcs(window: DayWindow, live: boolean, at: Date): Promise<BoardArcView[]> {
     const [arcFacts, incrementFacts, questionFacts] = await Promise.all([
       this.#records.select("arc", ["waits", "parked", "parkedUntil"]),
@@ -919,13 +619,6 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * The capabilities parked on purpose at `at` (now, unless given; ADR-0992 D2, D3), each with the arcs
-   * that park it, in the order of the increments naming it: open increments name it, every one sits on an
-   * arc reading parked (the owner's, or asleep on a dated event, 10.10), and none waits for the owner or
-   * is held on an open question. Its arcs' states are read as arcViews reads them, from three selections
-   * of the fields that decide them, never their prose.
-   */
   async parkedCapabilities(at: Date = new Date()): Promise<Map<string, ParkedOn[]>> {
     const [arcs, increments, questions] = await Promise.all([
       this.#records.select("arc", ["title", "waits", "parked", "parkedUntil"]),
@@ -948,7 +641,6 @@ export class WorkInFlight {
     return new Map([...named].flatMap(([capability, { arcs, asks }]) => (asks ? [] : [[capability, arcs] as const])));
   }
 
-  /** Only open work and the facts needed to read its named blockers, never closed prose. */
   async #snapshot(fields: readonly IncrementField[] = FACT_FIELDS): Promise<Snapshot> {
     const [arcs, increments, questions] = await Promise.all([
       this.#records.select("arc", ["waits", "parked", "parkedUntil"]),
@@ -958,11 +650,8 @@ export class WorkInFlight {
     const hasIncrements = new Set(increments.map(({ fields }) => fields.arc));
     const arcIds = new Set(arcs.map(({ id }) => id));
     const namedArcs = new Set(arcs.flatMap(({ fields }) => (fields.waits ?? []).map(({ on }) => on)));
-    // An arc with no open work can be empty (active) or drained (closed). Read at most one
-    // increment, with no fields, only for named arc blockers whose existence matters.
     const needsExistence = [...namedArcs].filter((id) => arcIds.has(id) && !hasIncrements.has(id));
     const blockerIds = [...new Set(increments.flatMap(({ fields }) => (fields.waits ?? []).map(({ on }) => on)))];
-    // A wait on a capability's claim names the capability by its title: read only when one exists (ADR-1228 D1).
     const claimIds = blockerIds.filter((on) => onClaim({ on, reason: "" }));
     const [landed, capabilities] = await Promise.all([
       blockerIds.length === 0 ? [] : this.#records.select("increment", [], { ids: blockerIds, where: { status: "closed", "outcome.disposition": "landed" } }),
@@ -976,22 +665,10 @@ export class WorkInFlight {
   }
 
 
-  /**
-   * Once arc `id` reads closed, clear the waits on it (10.33): run after a write that can close it,
-   * its last open increment closing or its last open question going.
-   */
   async #clearIfClosed(id: string, options?: WriteOptions): Promise<void> {
     if ((await this.arcView(id))?.state === "closed") await waitWrites.clearWaitsOn(this.#records, "arc", id, `its blocker ${id} closed, so the wait on it is cleared`, options);
   }
 
-  /**
-   * Move the friction an increment remedies as its close says (ADR-1016 D2), through Knowledge
-   * artifacts' settleRemedy, the friction record's one writer (ADR-1242 D2). Landed, each report
-   * not yet resolved is resolved, stamped with the pull request, or the increment when it has none.
-   * Failed or withdrawn, each still owed its remedy goes back to the drain, open with its route
-   * cleared, unless another open increment remedies it. A closure corrected from landed does that to
-   * the reports this increment's stamp resolved; corrected to landed, it resolves them as a landing does.
-   */
   async #settleRemedies(increment: SchemaRecord<"increment">, close: CloseInput, previous: FieldsOf<"increment">["outcome"], options?: WriteOptions): Promise<void> {
     const remedies = increment.fields.remedies ?? [];
     if (remedies.length === 0) return;
@@ -1010,16 +687,10 @@ export class WorkInFlight {
     }
   }
 
-  /**
-   * Run the clearing that follows a committed write, which stands whatever the clearing meets: a
-   * record it cannot read (a newer sibling schema, 6.9) leaves the waits stored, and they hold no
-   * longer anyway, since waitHolds reads each blocker.
-   */
   async #clearAfter(clear: () => Promise<unknown>): Promise<void> {
     try {
       await clear();
     } catch {
-      // The write before it is committed; a later reader sees the blocker closed.
     }
   }
 
@@ -1031,21 +702,13 @@ export class WorkInFlight {
     });
   }
 
-  /**
-   * What an increment lists as its capabilities must be live capabilities, and nothing else
-   * (ADR-0949 D2); what it links to any live records; what it remedies live friction (10-a); and
-   * what it is held on live questions (12). An escape's story is history (10.41): `recordedStory`, the one it already
-   * names, stays acceptable after that story is retired.
-   */
   async #checkNames(fields: { readonly capabilities?: unknown; readonly links?: unknown; readonly remedies?: unknown; readonly heldOn?: unknown; readonly escape?: Escape | undefined; readonly risk?: RiskLine | undefined }, recordedStory?: string): Promise<void> {
     await checkReferences(this.#records, "capabilities", fields.capabilities, "capability");
     await checkReferences(this.#records, "links", fields.links, "record");
     await checkReferences(this.#records, "remedies", fields.remedies, "friction");
     await checkReferences(this.#records, "heldOn", fields.heldOn, "question");
-    // A cause that is neither a pull request nor an increment's id is the schema's to refuse.
     const escape = fields.escape === "none" ? undefined : fields.escape;
     if (escape?.causedBy.startsWith("increment_") === true) await checkReference(this.#records, "escape.causedBy", escape.causedBy, "increment");
-    // A pull request's number alone may name a change of either history (they restarted at #2 on 2026-10-26).
     else if (escape !== undefined && escape.commit === undefined) {
       throw new SchemaError("increment", [{ field: "escape", problem: `field "escape" names pull request ${escape.causedBy} without its merge commit: give the commit too, since pull-request numbers restarted at #2 on 2026-10-26` }]);
     }
@@ -1053,7 +716,6 @@ export class WorkInFlight {
     await checkReferences(this.#records, "risk.stories", fields.risk?.stories, "story");
   }
 
-  /** Run `write` once every write queued through this layer before it has settled, so its checks and its write happen together. */
   #serially<T>(write: () => Promise<T>): Promise<T> {
     const result = this.#lastWrite.then(() => write());
     this.#lastWrite = result.catch(() => undefined);
@@ -1062,13 +724,11 @@ export class WorkInFlight {
 }
 
 type ArcFacts = Omit<SchemaRecord<"arc">, "fields"> & { fields: Pick<FieldsOf<"arc">, "waits" | "parked" | "parkedUntil"> };
-/** The increment fields its holds and its arc's state are read from. */
 const FACT_FIELDS = ["arc", "status", "waits", "waitsFor", "heldOn", "outcome"] as const;
 type IncrementField = (typeof FACT_FIELDS)[number] | (typeof SURVEY_INCREMENT_FIELDS)[number];
 type IncrementFacts = Omit<SchemaRecord<"increment">, "fields"> & { fields: Pick<FieldsOf<"increment">, (typeof FACT_FIELDS)[number]> };
 type QuestionFacts = Omit<SchemaRecord<"question">, "fields"> & { fields: Pick<FieldsOf<"question">, "arc" | "lifecycle"> };
 
-/** The live arcs, increments and questions at one moment, and how their waits read then. */
 class Snapshot {
   readonly arcs: ReadonlyMap<string, ArcFacts>;
   readonly increments: ReadonlyMap<string, IncrementFacts>;
@@ -1082,7 +742,6 @@ class Snapshot {
     questions: readonly QuestionFacts[],
     readonly hasIncrements: ReadonlySet<string>,
     readonly landed: ReadonlySet<string>,
-    /** The titles of the capabilities its claim waits name. */
     readonly capabilityTitles: ReadonlyMap<string, string>,
   ) {
     this.arcs = new Map(arcs.map((arc) => [arc.id, arc]));
@@ -1100,11 +759,6 @@ class Snapshot {
     }
   }
 
-  /**
-   * The blockers still holding `record`'s waits: an arc's own; an open increment's own, then its
-   * arc's; a closed increment's none (11.4). An increment's wait on a capability's claim holds
-   * while `claimed` has it (11.12).
-   */
   waitHolds(record: ArcFacts | IncrementFacts, claimed?: ReadonlySet<string>): Hold[] {
     if (record.type === "arc") return holdsOf(record.fields.waits, (wait) => this.arcWaitHold(wait));
     const increment = record as IncrementFacts;
@@ -1115,22 +769,18 @@ class Snapshot {
     ];
   }
 
-  /** The arc's open questions. */
   questionsOf(arc: string): QuestionFacts[] {
     return this.#questionsByArc.get(arc) ?? [];
   }
 
-  /** The open questions an increment is held on; none once it is closed (12.3). */
   heldOn(increment: IncrementFacts): string[] {
     return increment.fields.status === "closed" ? [] : heldOnOpen(increment, this.#questions);
   }
 
-  /** The arc's open increments, oldest first. */
   openIncrementsOf(arc: string): IncrementFacts[] {
     return (this.#byArc.get(arc) ?? []).filter((increment) => increment.fields.status !== "closed");
   }
 
-  /** Whether an arc wait holds, as capability 11 reads the arc's state now. */
   arcHold(wait: Wait): Hold | undefined {
     const arc = this.arcs.get(wait.on);
     const closed = arc === undefined
@@ -1139,24 +789,15 @@ class Snapshot {
     return arcHold(wait, closed);
   }
 
-  /** Whether an arc's wait holds: on an arc, as arcHold reads it; on an increment, as incrementHold does (10.34). */
   arcWaitHold(wait: Wait): Hold | undefined {
     return this.arcs.has(wait.on) ? this.arcHold(wait) : this.incrementHold(wait);
   }
 
-  /** Whether an increment wait holds, as capability 11 reads its blocker. */
   incrementHold(wait: Wait): Hold | undefined {
     return incrementHold(wait, this.landed.has(wait.on), this.increments.has(wait.on));
   }
 }
 
-/**
- * An arc's state (10.3): parked while the owner has parked it, and, parked until a day, only before
- * UTC midnight of that day at `at` (10.6); otherwise closed exactly when it has
- * increments, none of them is open and none of its questions waits on the owner, and active while
- * any does, or while it has no increments yet. (A drained arc still waiting on an answer stays
- * active, as 0.2's ADR-0526 settled: closed, it would leave every worklist with the question open.)
- */
 function arcState(
   arc: ArcFacts,
   increments: readonly IncrementFacts[],
@@ -1170,7 +811,6 @@ function arcState(
   return questions.some((question) => question.fields.lifecycle === "open") ? "active" : "closed";
 }
 
-/** Every live arc's and open increment's holds in one reading of the work, as holds() gives them. */
 function holdsIn(work: Snapshot, at: Date, { claimed }: ClaimReading): Holds {
   const live = [...work.arcs.values(), ...work.increments.values()];
   const open = [...work.increments.values()];
@@ -1181,21 +821,12 @@ function holdsIn(work: Snapshot, at: Date, { claimed }: ClaimReading): Holds {
   };
 }
 
-/** An arc's view at `at`: its state, and the day a dated park ends while one holds. */
 function arcViewOf(arc: SchemaRecord<"arc">, increments: SchemaRecord<"increment">[], questions: SchemaRecord<"question">[], at: Date): ArcView {
   const state = arcState(arc, increments, questions, at);
   const wakes = state !== "parked" ? undefined : isParked(arc, at) ? arc.fields.parkedUntil : asleepUntil(arc, increments, questions, at);
   return { arc, state, ...(wakes === undefined ? {} : { wakes }), increments, questions };
 }
 
-/**
- * The day an arc's open work sleeps until (10.10, ADR-0938 narrowed by the owner, 2026-10-09), or
- * undefined if any of it can move before then. It sleeps when it has open work, waits on no arc and
- * has no open question, and every open increment is a proposal with no owner wait and no open held-on
- * question, held by an event wait before its check-back day, or by waits only on its own arc's work
- * that sleeps, or has landed. It sleeps until the earliest of those days. A wait on any other work
- * keeps it awake, so it folds under that work instead (ADR-0760 D1).
- */
 function asleepUntil(arc: ArcFacts, increments: readonly IncrementFacts[], questions: readonly QuestionFacts[], at: Date): string | undefined {
   if ((arc.fields.waits ?? []).length > 0 || questions.some((question) => question.fields.lifecycle === "open")) return undefined;
   const settled = new Set(questions.filter((question) => question.fields.lifecycle !== "open").map(({ id }) => id));
@@ -1203,7 +834,7 @@ function asleepUntil(arc: ArcFacts, increments: readonly IncrementFacts[], quest
   const days = new Map<string, string | undefined>();
   const until = (increment: IncrementFacts): string | undefined => {
     if (days.has(increment.id)) return days.get(increment.id);
-    days.set(increment.id, undefined); // a loop never sleeps (and capability 11 refuses one)
+    days.set(increment.id, undefined);
     const { status, waitsFor, waits, heldOn } = increment.fields;
     const notes = noteWaits(waitsFor, at).filter(({ holds }) => holds);
     if (status !== "proposal" || notes.some(({ releaser }) => releaser === "owner") || (heldOn ?? []).some((id) => !settled.has(id))) return undefined;
@@ -1224,29 +855,24 @@ function asleepUntil(arc: ArcFacts, increments: readonly IncrementFacts[], quest
   return each.some((day) => day === undefined) ? undefined : (each as string[]).sort()[0];
 }
 
-/** Whether the owner has `arc` parked at `at`: parked, and, parked until a day, only before UTC midnight of that day (10.6). */
 function isParked(arc: ArcFacts, at: Date = new Date()): boolean {
   const { parked, parkedUntil } = arc.fields;
   return parked === true && (parkedUntil === undefined || at.getTime() < Date.parse(`${parkedUntil}T00:00:00Z`));
 }
 
-/** Where `status` sits in the lifecycle. */
 function rank(status: string): number {
   return (INCREMENT_STATUSES as readonly string[]).indexOf(status);
 }
 
-/** The delivery stamp a landing leaves on the friction it remedies: its pull request as `#n`, or the increment itself when it has none. */
 function stampOf(increment: string, pr: string | undefined): string {
   if (pr === undefined) return increment;
   return /^\d+$/.test(pr) ? `#${pr}` : pr;
 }
 
-/** A landing says whether it fixed an escape (research_4bbec1b12097 4.1): one naming none fixes none. */
 function escapeAnswer(escape: Escape | undefined, close: CloseInput): { escape?: Escape } {
   return close.disposition === "landed" && escape === undefined ? { escape: "none" } : {};
 }
 
-/** The outcome a close stores: today unless a day is given, and only the parts given. */
 function outcomeOf(close: CloseInput): NonNullable<FieldsOf<"increment">["outcome"]> {
   return {
     date: close.date ?? new Date().toISOString().slice(0, 10),

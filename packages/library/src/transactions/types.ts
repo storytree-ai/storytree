@@ -1,160 +1,90 @@
-/**
- * Capability 2 · Library transactions (the library story): the only data actions the library
- * allows. A record is saved, fetched, listed by type, edited field by field, or retired with a
- * reason. Every change is all-or-nothing and is written first to an append-only history, so
- * nothing is ever truly erased.
- */
+// Capability 2 · Library transactions
 
-/** A stored record: its fields, and the envelope the library keeps around them. */
 export interface RecordEnvelope {
   id: string;
   type: string;
-  /** The schema version the record was written on: 1 unless the writer said otherwise. Stored as given, never interpreted here. */
   version: number;
   fields: Record<string, unknown>;
-  /** When the record was first saved, as an ISO 8601 timestamp. */
   createdAt: string;
-  /** When it last changed, as an ISO 8601 timestamp. */
   updatedAt: string;
 }
 
-/** One change, as the history keeps it. */
 export interface HistoryEntry {
-  /** Where the change sits in the project's history: strictly increasing, not necessarily contiguous. */
   seq: number;
   recordId: string;
   type: string;
   action: "created" | "updated" | "retired";
-  /** The record after the change; for `retired`, its last state. */
   record: RecordEnvelope;
-  /** Why the record was retired, or, when its writer said, why it changed. */
   reason?: string;
-  /** Who made the change, when the writer said. */
   actor?: string;
-  /**
-   * The outside text (an issue, a pull request, an email, a fetched page) its writer had read before making it, as the
-   * writer's OutsideRead named it for this record's type: a mark that observes, never refuses. Absent when it named none.
-   */
   outsideRead?: string[];
-  /** When the change was written, as an ISO 8601 timestamp. */
   at: string;
-  /**
-   * The account the server saw write it (contract 1.22), set by the server whatever the writer sends: how a reader tells
-   * which door a record came through. Absent for an entry written before the history kept it, and in a store with no server.
-   */
   recordedBy?: string;
 }
 
-/**
- * What outside text the writer had read, for a write of a record of `type`, run inside the write on the record's own type
- * (an edit or a retirement learns it only there): undefined or empty leaves the history entry unmarked.
- */
 export type OutsideRead = (type: string) => readonly string[] | undefined;
 
-/**
- * Runs on the would-be record inside the write, after any merge. If it throws, the write aborts,
- * rejects with that error, and writes nothing: no record change and no history entry.
- */
 export type Validate = (candidate: RecordEnvelope) => void;
 
 export interface SaveInput {
-  /** Abort before the write starts; ignored after it takes the write lock. */
   readonly signal?: AbortSignal;
   readonly id: string;
   readonly type: string;
   readonly fields: Record<string, unknown>;
-  /** Defaults to 1. */
   readonly version?: number;
   readonly actor?: string;
-  /** Marks the history entry with the outside text the writer had read (HistoryEntry.outsideRead). */
   readonly outsideRead?: OutsideRead;
   readonly validate?: Validate;
-  /**
-   * A field holding the record's number within its type (capability 13's decision numbers). When
-   * the fields leave it out, the save stamps it with one more than the highest number any record
-   * of the type has ever held, retired ones included; when they give one, no other record of the
-   * type may ever have held it (NumberTakenError). Worked out inside the write, so writers at the
-   * same time, on any connection, never get the same number.
-   */
   readonly sequence?: string;
-  /** Minimum for automatic allocation; explicit numbers are still checked only for collisions. */
   readonly sequenceFloor?: number;
-  /** Refuse an id ever written, including retired records, under the project write lock. Health history does not count. */
   readonly onlyIfNew?: boolean;
-  /** N1 repair: reserve all non-health history, including this record's and legacy types'. */
   readonly sequenceNeverHeld?: boolean;
 }
 
 export interface EditInput {
-  /** Abort before the write starts; ignored after it takes the write lock. */
   readonly signal?: AbortSignal;
-  /** Check the merged record's number against history inside the write, as save does. */
   readonly sequence?: string;
-  /** N1 repair: check all non-health history, including this record's, under the write lock. */
   readonly sequenceNeverHeld?: boolean;
   readonly id: string;
-  /** Merged shallowly onto the stored fields; a key whose value is `undefined` is removed. */
   readonly fields: Record<string, unknown>;
   readonly actor?: string;
-  /** Marks the history entry with the outside text the writer had read (HistoryEntry.outsideRead). */
   readonly outsideRead?: OutsideRead;
-  /** Why the record changed, kept in its history entry, when the writer says. */
   readonly reason?: string;
-  /**
-   * Runs on the stored record inside the write, before the merge, and returns the record to merge
-   * onto: how a record written on an older schema version is upgraded in place. If it throws, the
-   * write aborts and writes nothing, as for `validate`.
-   */
   readonly upgrade?: Upgrade;
   readonly validate?: Validate;
 }
 
-/** The record to merge an edit onto, given the record stored now. */
 export type Upgrade = (current: RecordEnvelope) => RecordEnvelope;
 
 export interface RetireInput {
-  /** Abort before the write starts; ignored after it takes the write lock. */
   readonly signal?: AbortSignal;
   readonly id: string;
   readonly reason: string;
   readonly actor?: string;
-  /** Marks the history entry with the outside text the writer had read (HistoryEntry.outsideRead). */
   readonly outsideRead?: OutsideRead;
 }
 
 export interface RevertInput {
-  /** Abort before the write starts; ignored after it takes the write lock. */
   readonly signal?: AbortSignal;
   readonly id: string;
-  /** The seq of one of the record's own history entries, not a retirement: the state it goes back to. */
   readonly to: number;
-  /** The seq of the record's newest history entry when the writer read it. Anything written to it since refuses the revert. */
   readonly read: number;
   readonly actor?: string;
-  /** Marks the history entry with the outside text the writer had read (HistoryEntry.outsideRead). */
   readonly outsideRead?: OutsideRead;
-  /** Why, kept after the entry it reverts to in the history entry's reason. */
   readonly reason?: string;
-  /** As edit's: the entry's stored record, given, returns the record to write back (an older schema version upgraded). */
   readonly upgrade?: Upgrade;
   readonly validate?: Validate;
 }
 
 export interface RevertWritesInput {
-  /** Abort before the write starts; ignored after it takes the write lock. */
   readonly signal?: AbortSignal;
-  /** The writer whose writes are reverted, as their entries name them (`actor`). */
   readonly of: string;
-  /** Who reverts them. */
   readonly actor?: string;
-  /** Why, kept after what each entry reverts in its reason. */
   readonly reason?: string;
-  /** As revert's, for each record written back. */
   readonly upgrade?: Upgrade;
   readonly validate?: Validate;
 }
 
-/** One record a revert of a writer's writes changed: written back to entry `to`, or retired because the writer made it. */
 export interface RevertedWrite {
   readonly id: string;
   readonly action: "updated" | "retired";
@@ -162,48 +92,26 @@ export interface RevertedWrite {
 }
 
 export interface HistoryFilter {
-  /** Only this record's changes. */
   readonly id?: string;
-  /** Only changes with a sequence number greater than this. */
   readonly since?: number;
-  /** Only changes this writer made, as they named themselves (`actor`). */
   readonly actor?: string;
-  /** Only changes made at or after this time (an ISO 8601 time, in any zone), to the millisecond. */
   readonly from?: string;
-  /** Only changes to records of these types; none for an empty list. */
   readonly types?: readonly string[];
-  /** Only changes of these actions; none for an empty list. */
   readonly actions?: readonly HistoryEntry["action"][];
-  /** Only the first this many changes the rest of the filter keeps. Not with `newest`. */
   readonly oldest?: number;
-  /** Only the last this many changes the rest of the filter keeps, still oldest first. Not with `oldest`. */
   readonly newest?: number;
-  /** Only changes with a sequence number up to this one. */
   readonly upTo?: number;
-  /** Of health records, only the changes to these columns (a health record's `column` field); other types are kept. */
   readonly healthColumns?: readonly string[];
-  /** Keep only these top-level fields of each change's record: the rest never leave the store. */
   readonly fields?: readonly string[];
 }
 
-/** Narrow current records before they leave the store. Predicates read STORED fields, before upgrades. */
 export interface ListFilter {
-  /** Only ids after this one, in the same byte order as the returned records. */
   readonly after?: string;
-  /** Exact, case-sensitive substring in any selected stored top-level string field; omitted fields means all. */
   readonly phrase?: { readonly text: string; readonly fields?: readonly string[] };
-  /** Only these ids; an empty list keeps none. */
   readonly ids?: readonly string[];
-  /** Each dot-separated field path must equal the given JSON scalar; missing is different from null. */
   readonly where?: Readonly<Record<string, string | number | boolean | null>>;
-  /** Each path must differ from the scalar; a missing path differs from every scalar. */
   readonly not?: Readonly<Record<string, string | number | boolean | null>>;
-  /** Keep the first this many matches, in id order. */
   readonly limit?: number;
-  /**
-   * Keep only these top-level fields on this version, and on each version `older` names, its own
-   * fields. Other versions stay whole for upgrade or refusal.
-   */
   readonly projection?: {
     readonly version: number;
     readonly fields: readonly string[];
@@ -211,51 +119,15 @@ export interface ListFilter {
   };
 }
 
-/** A project's records. These ten verbs are the only data actions the library allows. */
 export interface Transactions {
-  /** Create the record, or replace it whole if the id exists. Appends one history entry. */
   save(input: SaveInput): Promise<RecordEnvelope>;
-  /**
-   * Save every record of `inputs` as `save` would, in one write: each appends its history entry, in the order given, and
-   * all are written or none is. Refused, writing nothing, when a check throws, two inputs name one id, or an input is
-   * numbered (`sequence`) or written only if new (`onlyIfNew`), which a batch does not take (RangeError). A batch costs
-   * the same few round trips to the server however many records it holds (2.25): how a run's health reaches a library far away.
-   */
   saveAll(inputs: readonly SaveInput[], signal?: AbortSignal): Promise<RecordEnvelope[]>;
-  /** The current record, or `null` if it is missing or retired. */
   get(id: string): Promise<RecordEnvelope | null>;
-  /** The current (not retired) records of one type, ordered by id. */
   list(type: string | readonly string[], filter?: ListFilter): Promise<RecordEnvelope[]>;
-  /**
-   * Change only the named fields, merged onto what is stored now. Returns `null`, and writes
-   * nothing, if the record is missing or retired.
-   */
   edit(input: EditInput): Promise<RecordEnvelope | null>;
-  /** Retire the record: gone from `get` and `list`, kept in history. A no-op if it is missing or already retired. */
   retire(input: RetireInput): Promise<void>;
-  /**
-   * Write the record back to the state one of its own history entries kept, whole, under its id: a field added
-   * since is gone. A retired record comes back live, created when it first was. The write is one more `updated`
-   * entry, whose reason names the entry (`reverted to <seq>`), so nothing in history is rewritten. Refused, writing
-   * nothing: an entry that is not the record's or is a retirement (RangeError), and a record written to since `read`
-   * (StaleRevertError).
-   */
   revert(input: RevertInput): Promise<RecordEnvelope>;
-  /**
-   * Write every record `of` wrote (health left out) back, in one write, to its state before `of`'s first write to it:
-   * to its entry before that, or retired when `of` made it. Each is one more entry naming the writer reverted and, for
-   * an update, the entry it goes back to. A record already as it was (made and retired by `of`) is left alone. Refused,
-   * writing nothing, when another writer wrote to any of them after `of`'s first write to it (LaterWriterError, naming
-   * each such record), or when a check throws. Returns what it changed, by id.
-   */
   revertWrites(input: RevertWritesInput): Promise<RevertedWrite[]>;
-  /** The history, oldest first. */
   history(filter?: HistoryFilter): Promise<HistoryEntry[]>;
-  /**
-   * Run `work` as one write: every write it makes on this store, until it settles, commits together, or none of them
-   * does when it throws, and the throw comes back. Its reads see its own writes, and other writers wait for it. A call
-   * inside another joins that one. What joins is decided by async context: anything `work` starts, even unawaited,
-   * writes inside it, so `work` awaits all it starts.
-   */
   inOneWrite<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T>;
 }

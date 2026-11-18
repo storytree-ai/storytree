@@ -1,19 +1,4 @@
-/**
- * Capability 3 · Data schema. SchemaRecords: capability 3's typed layer over any Transactions (capability 2), so it runs
- * unchanged on the in-memory twin and on Postgres.
- *
- * - Every write is checked INSIDE the write, as the transactions' validate hook, on the record the
- *   write would leave (for an edit, the merged fields). A refused write writes nothing.
- * - A record written on an older schema version of its type is read upgraded: the schema's upgrade
- *   steps are applied in order, up to the current version. An edit of one merges onto the upgraded
- *   fields and stores it on the current version, in place, in the same all-or-nothing write.
- * - A record this code cannot interpret is refused, never guessed at: one whose type it does not
- *   know, whose schema version is newer than it knows for that type, or whose older version no
- *   upgrade step leads on from.
- * - What comes back is capability 2's envelope, with its version and fields as upgraded.
- * - A plugin's kind (`<plugin>.<kind>`, plugin-kinds.ts) that no loaded plugin declares is dormant (ADR-1178 D3): read
- *   by its id, it comes back as stored, marked dormant; it is in no list; a write of it is refused.
- */
+// Capability 3 · Data schema
 import { randomUUID } from "node:crypto";
 
 import type { z } from "zod";
@@ -24,20 +9,16 @@ import type { FieldsOf, LibrarySchema, RecordType } from "./types.js";
 import { isPluginKind } from "./plugin-kinds.js";
 import { LIBRARY_SCHEMA } from "./upgrades.js";
 
-/** A stored record of type `T`: capability 2's envelope, unchanged, with its type and fields typed. */
 export type SchemaRecord<T extends RecordType = RecordType> = {
   [K in T]: Omit<RecordEnvelope, "type" | "fields"> & { type: K; fields: FieldsOf<K>; dormant?: true };
 }[T];
 
-/** An edit: some of one type's fields. A field set to undefined is removed. */
 export type FieldEdit = {
   [K in RecordType]: { [F in keyof FieldsOf<K>]?: FieldsOf<K>[F] | undefined };
 }[RecordType];
 
 export interface CreateOptions extends WriteOptions {
-  /** The new record's id. When omitted, one is generated: `<type>_<12 lowercase hex digits>`. */
   readonly id?: string;
-  /** A field the record is numbered in, within its type: capability 2's save `sequence`. */
   readonly sequence?: string;
   readonly sequenceFloor?: number;
   readonly sequenceNeverHeld?: boolean;
@@ -45,34 +26,20 @@ export interface CreateOptions extends WriteOptions {
 }
 
 export interface WriteOptions {
-  /** Who is writing, kept in the history. */
   readonly actor?: string;
-  /** Abort a write still waiting to start; once it has the write lock, it completes normally. */
   readonly signal?: AbortSignal;
-  /**
-   * The outside text the writer's session has read since it started (an issue, a pull request, an email, a fetched
-   * page), asked for only when the write is to a record of a kind MARKED_BY_OUTSIDE_READ names, and kept on that write's
-   * history entry: a mark that observes, never refuses (increment_572ffca14851).
-   */
   readonly outsideRead?: () => Promise<readonly string[]>;
 }
 
-/** The knowledge kinds whose writes carry the mark of the outside text their session had read: what shapes how agents work. */
 export const MARKED_BY_OUTSIDE_READ: readonly string[] = ["principle", "guardrail", "pattern", "process", "agent", "decision"];
 
-/** One record a writer wrote, as SchemaRecords.writtenBy reads it. */
 export interface WriterChange {
   readonly id: string;
   readonly type: string;
-  /** How many of its history entries the writer made. */
   readonly writes: number;
-  /** Before the writer's first write: null when the writer made it (or brought it back). */
   readonly before: SchemaRecord | null;
-  /** After the writer's last write: null when the writer retired it. */
   readonly after: SchemaRecord | null;
-  /** The reason the writer gave for retiring it. */
   readonly retired?: string;
-  /** The first entry another writer made to it after the writer's first. */
   readonly later?: { readonly seq: number; readonly actor?: string };
 }
 
@@ -80,18 +47,11 @@ export class SchemaRecords {
   readonly #transactions: Transactions;
   readonly #schema: LibrarySchema;
 
-  /** `schema` is the library's own, unless a test gives a later one. */
   constructor(transactions: Transactions, schema: LibrarySchema = LIBRARY_SCHEMA) {
     this.#transactions = transactions;
     this.#schema = schema;
   }
 
-  /**
-   * Save a new record of `type`, stamped with the type's schema version, under `options.id` or a
-   * generated id. (An existing record with that id is replaced whole, as capability 2's save does.)
-   * An unknown type is refused (UnknownTypeError), and so are fields that do not fit the type
-   * (SchemaError); either way nothing is written.
-   */
   async create<T extends RecordType>(type: T, fields: FieldsOf<T>, options: CreateOptions = {}): Promise<SchemaRecord<T>> {
     if (!this.#isRecordType(type)) throw new UnknownTypeError(type);
     const record = await this.#transactions.save({
@@ -110,11 +70,6 @@ export class SchemaRecords {
     return record as SchemaRecord<T>;
   }
 
-  /**
-   * Save every new record of `records` in one write, as create saves each: capability 2's saveAll, each checked inside
-   * the write, so one that does not fit its type refuses them all and writes nothing. Under the options' id each, or a
-   * generated one; none numbered or only-if-new (refused, RangeError). Returned in the order given.
-   */
   async createAll<T extends RecordType>(records: readonly { type: T; fields: FieldsOf<T>; options?: Omit<CreateOptions, "sequence" | "sequenceFloor" | "sequenceNeverHeld" | "onlyIfNew" | "signal"> }[], signal?: AbortSignal): Promise<SchemaRecord<T>[]> {
     const inputs = [];
     for (const { type, fields, options = {} } of records) {
@@ -124,16 +79,11 @@ export class SchemaRecords {
     return (await this.#transactions.saveAll(inputs, signal)) as SchemaRecord<T>[];
   }
 
-  /** The record, upgraded, or null if it is missing or retired. One this code cannot interpret is refused. */
   async get(id: string): Promise<SchemaRecord | null> {
     const record = await this.#transactions.get(id);
     return record === null ? null : this.current(record);
   }
 
-  /**
-   * The current records of `type`, upgraded, ordered by id. An unknown type is refused, and so is
-   * the whole list if any record in it cannot be interpreted. A dormant plugin kind lists nothing.
-   */
   async list<T extends RecordType>(type: T | readonly T[], filter?: Omit<ListFilter, "projection">): Promise<SchemaRecord<T>[]> {
     const kinds = (typeof type === "string" ? [type] : type).filter((kind) => !this.isDormant(kind));
     for (const kind of kinds) {
@@ -144,13 +94,6 @@ export class SchemaRecords {
     return records.map((record) => this.current(record) as SchemaRecord<T>);
   }
 
-  /**
-   * A field selection, never a whole SchemaRecord. Rows project on the server: a current-version
-   * row keeps the fields asked for, and an older one those beside every field its upgrade steps
-   * read, then upgrades and projects here, so no upgrade loses an input it needs. An older row
-   * whose steps do not all name what they read arrives whole. Filters, like list's, compare stored
-   * fields, before any upgrade.
-   */
   async select<T extends RecordType, K extends keyof FieldsOf<T> & string>(
     type: T, fields: readonly K[], filter: Omit<ListFilter, "projection"> = {},
   ): Promise<(Omit<SchemaRecord<T>, "fields"> & { fields: Pick<FieldsOf<T>, K> })[]> {
@@ -163,13 +106,6 @@ export class SchemaRecords {
     });
   }
 
-  /**
-   * Change only the named fields, merged onto what is stored now (capability 2's edit), upgraded
-   * first if it was written on an older version, so the record is stored on the current one. The
-   * merged record is checked inside the write, so an edit that would leave it invalid, or that
-   * touches a record this code cannot interpret, is refused and writes nothing. Null if the record
-   * is missing or retired.
-   */
   async edit(id: string, fields: FieldEdit, options: WriteOptions & { sequence?: string; sequenceNeverHeld?: boolean; reason?: string; checkCurrent?: (record: SchemaRecord) => void } = {}): Promise<SchemaRecord | null> {
     const record = await this.#transactions.edit({
       id,
@@ -189,23 +125,14 @@ export class SchemaRecords {
     return record as SchemaRecord | null;
   }
 
-  /** Check `fields` as a write of a `type` record would, refusing them (SchemaError) with nothing written. */
   check(type: RecordType, fields: Record<string, unknown>): void {
     this.#check({ id: "", type, version: this.#version(type), fields, createdAt: "", updatedAt: "" });
   }
 
-  /** Retire the record, keeping the reason in its history: capability 2's retire, unchanged. */
   async retire(id: string, reason: string, options: WriteOptions = {}): Promise<void> {
     await this.#transactions.retire({ id, reason, ...writeOptionsOf(options), ...(await outsideReadFor(options)) });
   }
 
-  /**
-   * Write the record back to the state its history entry `to` kept, whole and under its id, bringing a retired record
-   * back: capability 2's revert, the entry's record read upgraded, as `current` reads it, and checked as every write
-   * is, so it is stored on its type's current version. `read` is the seq of its newest entry when the writer read it;
-   * a later write refuses the revert (StaleRevertError), and so does an entry not its own or a retirement
-   * (RangeError), writing nothing.
-   */
   async revert(id: string, to: number, read: number, options: WriteOptions & { reason?: string } = {}): Promise<SchemaRecord> {
     const record = await this.#transactions.revert({
       id,
@@ -220,11 +147,6 @@ export class SchemaRecords {
     return record as SchemaRecord;
   }
 
-  /**
-   * Write every record `of` wrote back to its state before `of`'s first write to it, in one write: capability 2's
-   * revertWrites, each record upgraded and checked as revert's is. Refused, writing nothing, where another writer wrote
-   * to one since (LaterWriterError names each).
-   */
   async revertWrites(of: string, options: WriteOptions & { reason?: string } = {}): Promise<RevertedWrite[]> {
     return this.#transactions.revertWrites({
       of,
@@ -235,12 +157,6 @@ export class SchemaRecords {
     });
   }
 
-  /**
-   * Every record `of` wrote, health left out, by id, as one diff: its state before `of`'s first write to it and after
-   * `of`'s last (null where there was none: `of` made it, or retired it), read as `current` reads them, how many
-   * writes `of` made to it, and the first entry another writer made to it since, if any: what revertWrites would undo,
-   * or where it would refuse.
-   */
   async writtenBy(of: string): Promise<WriterChange[]> {
     const ids = [...new Set((await this.#transactions.history({ actor: of })).filter((entry) => entry.type !== "health").map((entry) => entry.recordId))];
     const entries = (await Promise.all(ids.map((id) => this.#transactions.history({ id })))).flat();
@@ -256,23 +172,10 @@ export class SchemaRecords {
     }));
   }
 
-  /**
-   * Every original write, oldest first, including retired records, with its optional actor and
-   * retirement reason: capability 2's history, unchanged. Filter by record id and/or entries after a
-   * sequence number. Records stay as written, on their original schema versions; reading history
-   * never upgrades or rewrites them.
-   */
   async history(filter?: HistoryFilter): Promise<HistoryEntry[]> {
     return this.#transactions.history(filter);
   }
 
-  /**
-   * `record` as this code reads it: upgraded one step at a time, from the version it was written on
-   * to the current version of its type. A record whose type is not declared, whose version is newer
-   * than the current one, or whose older version no step leads on from, is refused. (A reader of
-   * the history, which keeps each record as it was written, reads its records through this.) A record of a dormant
-   * plugin kind comes back as stored, marked dormant.
-   */
   readonly current = (record: RecordEnvelope): SchemaRecord => {
     const { id, type } = record;
     if (this.isDormant(type)) return { ...record, dormant: true } as SchemaRecord;
@@ -290,11 +193,6 @@ export class SchemaRecords {
     return (version === record.version ? record : { ...record, version, fields }) as SchemaRecord;
   };
 
-  /**
-   * The validate hook of every write. The record the write would leave, after any upgrade and
-   * merge, must be one this code can interpret, and its fields must fit its type. A throw aborts
-   * the write.
-   */
   readonly #check = (candidate: RecordEnvelope): void => {
     if (this.isDormant(candidate.type)) throw new UnknownTypeError(candidate.type, candidate.id || undefined);
     const { type, fields } = this.current(candidate);
@@ -302,16 +200,11 @@ export class SchemaRecords {
     if (problems.length > 0) throw new SchemaError(type, problems);
   };
 
-  /** How the fields break their type's schema, each problem naming its field. */
   #shapeProblems(type: RecordType, fields: unknown): FieldProblem[] {
     const result = this.#schema.schemas[type]!.safeParse(fields);
     return result.success ? [] : result.error.issues.flatMap((issue) => describeIssue(issue, fields));
   }
 
-  /**
-   * For each older version of `type` whose steps up to the current one all name what they read,
-   * the stored fields a selection of `fields` needs of a record on it: those, and every one read.
-   */
   #olderProjections(type: RecordType, fields: readonly string[]): { version: number; fields: string[] }[] {
     const older: { version: number; fields: string[] }[] = [];
     const needed = new Set(fields);
@@ -324,39 +217,29 @@ export class SchemaRecords {
     return older;
   }
 
-  /** Whether `type` is a declared record type. Only the schema's own keys count, never inherited names. */
   #isRecordType(type: string): type is RecordType {
     return Object.hasOwn(this.#schema.versions, type);
   }
 
-  /** Whether `type` is a plugin's kind that no loaded plugin declares: its records read dormant. */
   isDormant(type: string): boolean {
     return isPluginKind(type) && !this.#isRecordType(type);
   }
 
-  /** The current version of a declared type. */
   #version(type: RecordType): number {
     return this.#schema.versions[type]!;
   }
 }
 
-/** A new id for a record of `type`: `<type>_` and 12 lowercase hex digits, all of them random. */
 function newId(type: RecordType): string {
   return `${type}_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
 }
 
-/**
- * The mark capability 2 keeps for a write, when the writer can say what outside text it read: asked for once, before the
- * write, and only when the record may be of a marked kind (`type`, when the writer knows it; an edit's learns it only in
- * the write, where the mark is kept only for a marked kind).
- */
 async function outsideReadFor(options: WriteOptions, type?: string): Promise<{ outsideRead?: OutsideRead }> {
   if (options.outsideRead === undefined || (type !== undefined && !MARKED_BY_OUTSIDE_READ.includes(type))) return {};
   const read = await options.outsideRead();
   return read.length === 0 ? {} : { outsideRead: (stored) => (MARKED_BY_OUTSIDE_READ.includes(stored) ? read : undefined) };
 }
 
-/** Carry attribution and cancellation to capability 2 without passing other caller options. */
 function writeOptionsOf(options: WriteOptions): Omit<WriteOptions, "outsideRead"> {
   return {
     ...(options.actor === undefined ? {} : { actor: options.actor }),
@@ -374,8 +257,6 @@ function describeIssue(issue: z.core.$ZodIssue, fields: unknown): FieldProblem[]
   }
   const field = String(head);
   const where = [`field ${quote(field)}`, ...rest.map((key) => `item ${String(key)}`)].join(" ");
-  // A rule across fields (a re-steer's "a defect needs a mode") says in its own words what is wrong; one
-  // inside a field (a risk reading's day) says where.
   if (issue.code === "custom") return [{ field, problem: rest.length === 0 ? issue.message : `${where}: ${issue.message}` }];
   if (rest.length === 0 && !hasOwnField(fields, field)) {
     return [{ field, problem: `missing required field ${quote(field)}` }];
@@ -395,11 +276,6 @@ function describeIssue(issue: z.core.$ZodIssue, fields: unknown): FieldProblem[]
   return [{ field, problem: `${where} is not valid: ${issue.message}` }];
 }
 
-/**
- * Text Postgres cannot store, anywhere in the fields' values, lists included: a NUL character, or a
- * lone UTF-16 surrogate. The in-memory twin could store both, so refusing them here, before either
- * backend sees them, keeps the two alike.
- */
 function unstorableText(fields: unknown): FieldProblem[] {
   if (fields === null || typeof fields !== "object" || Array.isArray(fields)) return [];
   return Object.entries(fields).flatMap(([field, value]) =>
@@ -410,7 +286,6 @@ function unstorableText(fields: unknown): FieldProblem[] {
   );
 }
 
-/** Every string in `value` (itself, or anywhere inside its lists and objects), with where it sits. */
 function textsIn(value: unknown, where: string): [where: string, text: string][] {
   if (typeof value === "string") return [[where, value]];
   if (Array.isArray(value)) return value.flatMap((item, index) => textsIn(item, `${where} item ${index}`));
@@ -420,10 +295,8 @@ function textsIn(value: unknown, where: string): [where: string, text: string][]
   return [];
 }
 
-/** A high surrogate with no low one after it, or a low surrogate with no high one before it. */
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 
-/** What in `text` cannot be stored, or undefined if it all can. (Capabilities 4 and 6 reuse it for ids.) */
 export function unstorable(text: string): string | undefined {
   if (text.includes("\u0000")) return "a NUL character (U+0000)";
   const lone = LONE_SURROGATE.exec(text)?.[0];
@@ -443,14 +316,12 @@ function valueAt(value: unknown, path: readonly PropertyKey[]): unknown {
   return current;
 }
 
-/** What a zod `expected` kind is called in a message. */
 function kindName(expected: string): string {
   if (expected === "array") return "a list";
   if (expected === "object") return "an object";
   return `a ${expected}`;
 }
 
-/** What kind of value `value` is, as a message says it. */
 function kindOf(value: unknown): string {
   if (value === null) return "null";
   if (value === undefined) return "nothing";

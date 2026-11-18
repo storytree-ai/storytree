@@ -1,7 +1,4 @@
-/**
- * Capability 2 · Library transactions. PgTransactions: a project's records in its own Postgres database (capability 1), in the tables
- * `record` (each record as it is now) and `record_event` (the append-only history).
- */
+// Capability 2 · Library transactions
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { Pool, PoolClient } from "pg";
@@ -25,18 +22,8 @@ import type {
 
 const RECORD_COLUMNS = "id, type, version, fields, created_at, updated_at";
 
-/**
- * The project's write lock, held until the transaction ends. Advisory locks belong to one
- * database, so this is per project: writes to one project take turns, writes to two do not.
- */
 export const WRITE_LOCK = "SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))";
 
-/**
- * Take the project's write lock in `client`'s open transaction. When another session holds it, the
- * caller hears so once, and waits for it at most `pool`'s wait bound: past that, the write fails
- * with the server's reason, writing nothing (seen 2026-10-07: a close waited 13 minutes, silent,
- * on one connection to a full storytree-pg). The bound holds for every lock the transaction meets.
- */
 export async function takeWriteLock(client: PoolClient, pool: Pool): Promise<void> {
   const { rows } = await client.query<{ taken: boolean }>("SELECT pg_try_advisory_xact_lock(hashtext('storytree.record-writes')) AS taken");
   if (rows[0]?.taken === true) return;
@@ -46,17 +33,11 @@ export async function takeWriteLock(client: PoolClient, pool: Pool): Promise<voi
   try {
     await client.query(WRITE_LOCK);
   } catch (error) {
-    // SQLSTATE 55P03, lock_not_available: the lock_timeout above ran out.
     if ((error as { code?: unknown } | null)?.code !== "55P03") throw error;
     throw new Error(`Another session kept writing to this project for ${seconds(waitMs)}, so nothing was written: ${(error as Error).message}. Try again.`, { cause: error });
   }
 }
 
-/**
- * Whether the project's history has its column for the outside-text mark (2.20). A shared library takes schema changes
- * only from merged code opened with its owner's rights, so code that knows the mark can meet a history without it: there
- * it writes and reads as before, the mark left off (2.21).
- */
 export async function marksOutsideRead(on: Pool | PoolClient): Promise<boolean> {
   const { rows } = await on.query<{ marks: boolean }>(
     `SELECT EXISTS (SELECT 1 FROM information_schema.columns
@@ -65,7 +46,6 @@ export async function marksOutsideRead(on: Pool | PoolClient): Promise<boolean> 
   return rows[0]?.marks === true;
 }
 
-/** The history's columns, as `marks` says it has the mark's or not. */
 function eventColumns(marks: boolean): string {
   return `seq, record_id, type, action, record, reason, actor, ${marks ? "outside_read" : "NULL::jsonb AS outside_read"}, at, recorded_by`;
 }
@@ -80,7 +60,7 @@ interface RecordRow {
 }
 
 interface EventRow {
-  seq: string; // bigint: pg hands it over as a string
+  seq: string;
   record_id: string;
   type: string;
   action: HistoryEntry["action"];
@@ -94,9 +74,7 @@ interface EventRow {
 
 export class PgTransactions implements Transactions {
   readonly #pool: Pool;
-  /** The connection an inOneWrite's work writes and reads on, inside that work. */
   readonly #open = new AsyncLocalStorage<PoolClient>();
-  /** Whether the history has the mark's column: looked up once, at the first write or history read. */
   #marks: Promise<boolean> | undefined;
 
   constructor(pool: Pool) {
@@ -131,7 +109,6 @@ export class PgTransactions implements Transactions {
         check(record, input.validate);
         writes.push({ action: current.has(input.id) ? "updated" : "created", record, actor: input.actor, mark: await this.#mark(input.outsideRead, record.type) });
       }
-      // In chunks, so no statement passes Postgres's limit of bound parameters; each chunk's rows go in in the order given.
       for (let start = 0; start < writes.length; start += SAVE_CHUNK) {
         const chunk = writes.slice(start, start + SAVE_CHUNK);
         await appendEvents(client, chunk, chunk.some(({ mark }) => mark !== undefined));
@@ -172,7 +149,6 @@ export class PgTransactions implements Transactions {
       columns = `id, type, version, CASE ${kept.join(" ")} ELSE fields END AS fields, created_at, updated_at`;
     }
     const limit = filter.limit === undefined ? "" : ` LIMIT ${bind(filter.limit)}`;
-    // Every path, field name and value is bound; caller text never becomes SQL.
     const { rows } = await this.#reader().query<RecordRow>(
       `SELECT ${columns} FROM record WHERE ${clauses.join(" AND ")} ORDER BY id COLLATE "C"${limit}`, params,
     );
@@ -265,10 +241,8 @@ export class PgTransactions implements Transactions {
     let columns = eventColumns(await this.#marksIt());
     if (filter.fields !== undefined) {
       params.push(filter.fields);
-      // Only the fields asked leave the server: the record is sent with its fields narrowed.
       columns = columns.replace(", record,", `, jsonb_set(record, '{fields}', coalesce((SELECT jsonb_object_agg(key, value) FROM jsonb_each(record->'fields') WHERE key = ANY($${params.length}::text[])), '{}'::jsonb)) AS record,`);
     }
-    // Only the changes kept leave the server: a limit is applied there, the newest read backwards and turned round.
     if (filter.oldest !== undefined) params.push(filter.oldest);
     if (filter.newest !== undefined) params.push(filter.newest);
     const query =
@@ -284,12 +258,10 @@ export class PgTransactions implements Transactions {
     return this.#write((client) => this.#open.run(client, work), signal);
   }
 
-  /** Where a read goes: the open inOneWrite's connection inside its work, so it sees that work's writes; else the pool. */
   #reader(): Pool | PoolClient {
     return this.#open.getStore() ?? this.#pool;
   }
 
-  /** Whether the history has the mark's column, looked up once. */
   #marksIt(): Promise<boolean> {
     return (this.#marks ??= marksOutsideRead(this.#reader()).catch((error: unknown) => {
       this.#marks = undefined;
@@ -297,28 +269,11 @@ export class PgTransactions implements Transactions {
     }));
   }
 
-  /** The mark a write's entry keeps: none where the history has no place for it yet (2.21). */
   async #mark(outsideRead: OutsideRead | undefined, type: string): Promise<string[] | undefined> {
     const mark = outsideReadOf(outsideRead, type);
     return mark === undefined || !(await this.#marksIt()) ? undefined : mark;
   }
 
-  /**
-   * Run one write as ONE SQL transaction on one connection. Any throw, from validate or from
-   * Postgres, rolls the whole of it back, so a failed write leaves nothing behind. A connection
-   * whose rollback fails is discarded rather than handed back to the pool.
-   *
-   * Every write first takes the project's write lock, so a project's writes happen one at a time,
-   * as they do in the in-memory twin. The row lock alone (SELECT ... FOR UPDATE) is not enough:
-   * - it cannot lock a record that does not exist yet, so two racing first saves of one id would
-   *   both record "created" (contract 2.1);
-   * - a history number is handed out when the entry is inserted, not when it commits. Two writes
-   *   to different records could commit out of order, and a reader following along with `since`
-   *   would miss the entry that committed late (2.8). One writer at a time makes seq order commit
-   *   order.
-   *
-   * Inside an inOneWrite's work, a write runs on that work's connection, in its transaction.
-   */
   async #write<T>(work: (client: PoolClient) => Promise<T>, signal?: AbortSignal): Promise<T> {
     const open = this.#open.getStore();
     if (open !== undefined) return work(open);
@@ -328,8 +283,6 @@ export class PgTransactions implements Transactions {
     try {
       await client.query("BEGIN");
       await takeWriteLock(client, this.#pool);
-      // Cancellation while queued writes nothing. Once admitted, finish the transaction and
-      // its history normally: cancellation cannot undo a write that has already started.
       signal?.throwIfAborted();
       const result = await work(client);
       await client.query("COMMIT");
@@ -345,27 +298,15 @@ export class PgTransactions implements Transactions {
   }
 }
 
-/**
- * The record stored now, or undefined if there is none. Its row stays locked until the transaction
- * ends: the write lock already orders writes made through PgTransactions, and the row lock also
- * holds off any other writer of that row.
- */
 async function lockCurrent(client: PoolClient, id: string): Promise<RecordEnvelope | undefined> {
   const { rows } = await client.query<RecordRow>(`SELECT ${RECORD_COLUMNS} FROM record WHERE id = $1 FOR UPDATE`, [id]);
   const row = rows[0];
   return row === undefined ? undefined : recordOf(row);
 }
 
-/**
- * `input` numbered from every number its type's records have held, as the history keeps them. It
- * runs under the project's write lock, so no other write can take a number between this read and
- * the save's own write.
- */
 async function numberedIn(client: PoolClient, input: SaveInput): Promise<SaveInput> {
   const field = input.sequence;
   if (field === undefined) return input;
-  // Keep every non-health legacy reservation. RLS constrains the event type for health-only
-  // writers, but permits arbitrary JSON fields, which cannot grant numbering authority.
   const { rows } = await client.query<{ highest: string }>(
     `SELECT COALESCE(MAX((record->'fields'->>$2::text)::numeric), 0) AS highest FROM record_event
      WHERE (CASE WHEN $3::boolean THEN type <> 'health' ELSE type = $1 END)
@@ -386,7 +327,6 @@ async function numberedIn(client: PoolClient, input: SaveInput): Promise<SaveInp
   return numbered(input, Number(rows[0]?.highest ?? 0), () => taken);
 }
 
-/** Write one change to the history: always first, before the record itself changes. */
 async function appendEvent(
   client: PoolClient,
   action: HistoryEntry["action"],
@@ -396,7 +336,6 @@ async function appendEvent(
   reason?: string,
   outsideRead?: string[],
 ): Promise<void> {
-  // The mark's column is named only for a marked write, which the caller makes only where the history has it (2.21).
   const marked = outsideRead === undefined ? [] : [JSON.stringify(outsideRead)];
   await client.query(
     `INSERT INTO record_event (record_id, type, action, record, reason, actor, at${marked.length === 0 ? "" : ", outside_read"})
@@ -405,10 +344,8 @@ async function appendEvent(
   );
 }
 
-/** How many records saveAll writes in one statement: 8 bound parameters each, well inside Postgres's 65535. */
 const SAVE_CHUNK = 1000;
 
-/** Write saveAll's changes to the history, first, in one statement whose rows go in, and are numbered, in the order given. */
 async function appendEvents(client: PoolClient, writes: readonly { action: HistoryEntry["action"]; record: RecordEnvelope; actor: string | undefined; mark: string[] | undefined }[], marked: boolean): Promise<void> {
   const params: unknown[] = [];
   const rows = writes.map(({ action, record, actor, mark }) => {
@@ -420,7 +357,6 @@ async function appendEvents(client: PoolClient, writes: readonly { action: Histo
   await client.query(`INSERT INTO record_event (record_id, type, action, record, actor, at${marked ? ", outside_read" : ""}) VALUES ${rows.join(", ")}`, params);
 }
 
-/** Store saveAll's records as they are now, in one statement, replacing whatever rows they had. */
 async function putRecords(client: PoolClient, records: readonly RecordEnvelope[]): Promise<void> {
   const params: unknown[] = [];
   const rows = records.map((record) => {
@@ -436,7 +372,6 @@ async function putRecords(client: PoolClient, records: readonly RecordEnvelope[]
   );
 }
 
-/** Store the record as it is now, replacing whatever row it had. */
 async function putRecord(client: PoolClient, record: RecordEnvelope): Promise<void> {
   await client.query(
     `INSERT INTO record (${RECORD_COLUMNS}) VALUES ($1, $2, $3, $4::jsonb, $5, $6)

@@ -1,13 +1,9 @@
-/**
- * Capability 1 · Project libraries. A project's snapshot (capability 1, contracts 1.6 to 1.8; ADR-0641 D2 step 4, choice B1): its
- * tables as plain data, the backup of a library that is the only copy of its plan.
- */
+// Capability 1 · Project libraries
 import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 
 import { marksOutsideRead, takeWriteLock } from "../transactions/index.js";
 
-/** A record as it is now: a row of the project's `record` table. */
 export interface SnapshotRecord {
   id: string;
   type: string;
@@ -17,7 +13,6 @@ export interface SnapshotRecord {
   updatedAt: string;
 }
 
-/** One entry of the project's append-only history: a row of its `record_event` table. */
 export interface SnapshotEvent {
   seq: number;
   recordId: string;
@@ -26,12 +21,10 @@ export interface SnapshotEvent {
   record: unknown;
   reason?: string;
   actor?: string;
-  /** The outside text its writer had read (capability 2's HistoryEntry.outsideRead); absent when unmarked. */
   outsideRead?: string[];
   at: string;
 }
 
-/** A file kept beside a record (the project's `media` table, 1.30), its bytes as base64. */
 export interface SnapshotMedia {
   recordId: string;
   name: string;
@@ -43,10 +36,6 @@ export interface SnapshotMedia {
   bytes: string;
 }
 
-/**
- * Every record of a project and its whole history, as they stood at one moment, with the media kept beside them when
- * there is any (absent in a snapshot of a project holding none, and in one from before media). Plain data.
- */
 export interface ProjectSnapshot {
   format: "storytree-project-snapshot";
   version: 1;
@@ -57,7 +46,6 @@ export interface ProjectSnapshot {
   media?: SnapshotMedia[];
 }
 
-/** A restore into a project that already holds records or history, refused so that no live edit is overwritten. */
 export class RestoreRefusedError extends Error {
   readonly project: string;
 
@@ -81,7 +69,7 @@ interface RecordRow {
 }
 
 interface EventRow {
-  seq: string; // bigint: pg hands it over as a string
+  seq: string;
   record_id: string;
   type: string;
   action: SnapshotEvent["action"];
@@ -103,11 +91,6 @@ interface MediaRow {
   bytes: string;
 }
 
-/**
- * Read `pool`'s project as a snapshot, in one read-only transaction that sees a single moment, so a
- * write landing meanwhile is either wholly in it or wholly out. Times are read as Postgres writes
- * them, to the microsecond, so a restore gives them back exactly.
- */
 export async function readSnapshot(pool: Pool, project: string): Promise<ProjectSnapshot> {
   const client = await pool.connect();
   try {
@@ -118,13 +101,11 @@ export async function readSnapshot(pool: Pool, project: string): Promise<Project
                 to_json(created_at) #>> '{}' AS created_at, to_json(updated_at) #>> '{}' AS updated_at
            FROM record ORDER BY id COLLATE "C"`,
       );
-      // A history from before the outside-text mark has no column for it (2.21).
       const outsideRead = (await marksOutsideRead(client)) ? "outside_read" : "NULL::jsonb AS outside_read";
       const events = await client.query<EventRow>(
         `SELECT seq, record_id, type, action, record, reason, actor, ${outsideRead}, to_json(at) #>> '{}' AS at
            FROM record_event ORDER BY seq`,
       );
-      // A library from before media has no table for it.
       const media = (await client.query<{ held: boolean }>("SELECT to_regclass('media') IS NOT NULL AS held")).rows[0]?.held === true
         ? (await client.query<MediaRow>(
           `SELECT record_id, name, type, size, sha256, to_json(added_at) #>> '{}' AS added_at, added_by, encode(bytes, 'base64') AS bytes
@@ -159,7 +140,6 @@ export async function readSnapshot(pool: Pool, project: string): Promise<Project
           media: media.map((row) => ({
             recordId: row.record_id, name: row.name, type: row.type, size: row.size, sha256: row.sha256, addedAt: row.added_at,
             ...(row.added_by === null ? {} : { addedBy: row.added_by }),
-            // Postgres's base64 breaks a line every 76 characters; a snapshot holds it unbroken.
             bytes: row.bytes.replaceAll("\n", ""),
           })),
         }),
@@ -172,12 +152,6 @@ export async function readSnapshot(pool: Pool, project: string): Promise<Project
   }
 }
 
-/**
- * Write `snapshot` into `pool`'s project, which must hold no record and no history. Under the
- * project's write lock it checks, then writes every record and history entry as they were (the
- * history keeping its sequence numbers), and moves the history's numbering past the last one, all
- * in one transaction. A project that is not empty is refused (RestoreRefusedError), writing nothing.
- */
 export async function writeSnapshot(pool: Pool, project: string, snapshot: ProjectSnapshot): Promise<void> {
   if (snapshot?.format !== "storytree-project-snapshot" || snapshot.version !== 1) {
     throw new Error("This is not a storytree project snapshot this library can restore (storytree-project-snapshot, version 1).");
@@ -191,8 +165,6 @@ export async function writeSnapshot(pool: Pool, project: string, snapshot: Proje
       "SELECT EXISTS (SELECT 1 FROM record) OR EXISTS (SELECT 1 FROM record_event) OR EXISTS (SELECT 1 FROM media) AS held",
     );
     if (held.rows[0]?.held === true) throw new RestoreRefusedError(project);
-    // In batches, not a statement per row: across a network each statement is a round trip, and a
-    // project of 18,000 history entries restored row by row into Cloud SQL took 11 minutes.
     for (const batch of batches(snapshot.records)) {
       await client.query(
         `INSERT INTO record (id, type, version, fields, created_at, updated_at)
@@ -216,7 +188,6 @@ export async function writeSnapshot(pool: Pool, project: string, snapshot: Proje
         })))],
       );
     }
-    // A file at a time, each up to 10 MB: its bytes checked against its hash first, so a damaged one restores nothing.
     for (const file of snapshot.media ?? []) {
       const bytes = Buffer.from(file.bytes, "base64");
       if (bytes.length !== file.size || createHash("sha256").update(bytes).digest("hex") !== file.sha256) {
@@ -240,7 +211,6 @@ export async function writeSnapshot(pool: Pool, project: string, snapshot: Proje
   }
 }
 
-/** How many rows a restore sends in one statement: a few hundred kilobytes of JSON at most. */
 const RESTORE_BATCH = 500;
 
 function* batches<T>(rows: readonly T[]): Generator<readonly T[]> {

@@ -1,18 +1,9 @@
-/**
- * Capability 17 · The library's commands: a whole-field edit built on a stale read (friction_90ff039d8cce): the writer would put back a field as it read it,
- * and a change another writer made since would vanish with no conflict raised.
- */
+// Capability 17 · The library's commands
 import type { Library, WriteOptions } from "../index.js";
 import { VerbRefusal } from "../verbs/verb.js";
 
-/** How long another writer's change stands as one the writer may not have read, when the writer names no read. */
 export const RECENT_MS = 15 * 60 * 1000;
 
-/**
- * Refuse, with nothing written, an edit of `id` by `writer` built on a stale read: given `read`, the seq of the newest
- * history entry the writer read, any other newest entry; given none, a newest entry another writer made within
- * RECENT_MS of `now`. The refusal names the newer change, so the writer reads the record again and re-applies the edit.
- */
 export async function refuseStaleEdit(library: Pick<Library, "history">, id: string, writer: WriteOptions, read: string | undefined, now = Date.now()): Promise<void> {
   const seen = read === undefined ? undefined : Number(read);
   if (seen !== undefined && !(Number.isSafeInteger(seen) && seen > 0)) throw new VerbRefusal(`--read is a history entry's seq, a whole number above 0, not ${JSON.stringify(read)}`, { misuse: true });

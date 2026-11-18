@@ -1,14 +1,4 @@
-/**
- * Capability 13 · Decision log (the library story): decisions are numbered inside the write, one past
- * the highest number any decision has ever held, so a retired decision's number is never reused; a
- * decision is read whole, with its status worked out (superseded exactly when an accepted decision
- * names it) and its composed statement, marked stale once its text has changed since. Storytree's own
- * project numbers only after its one-time floor is set (ADR-0662), and its imported decisions are
- * renumbered once, from their own Full record line or, with none, in founding order.
- *
- * Knowledge (capability 6) is the one door to it: it hands each decision verb here, and checks a front cover it
- * writes with checkFrontCover.
- */
+// Capability 13 · Decision log
 import { createHash } from "node:crypto";
 
 import { byCreation } from "../creation-order.js";
@@ -16,34 +6,21 @@ import { checkReference, checkReferences, liveRecord, type Expected } from "../r
 import type { FieldsOf, SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import { NumberTakenError, type HistoryEntry } from "../transactions/index.js";
 
-/** What a decision may be the front cover of. */
 const COVERABLE: Expected = { name: "story or capability", types: ["story", "capability"] };
 
-/** A decision may be the front cover of a live story or capability, and of nothing else (capability 9). */
 export function checkFrontCover(records: SchemaRecords, frontCoverOf: unknown): Promise<void> {
   return checkReference(records, "frontCoverOf", frontCoverOf, COVERABLE);
 }
 
-/**
- * A new decision's fields. Every link must name a live artifact, `frontCoverOf` a live story or
- * capability, and each decision it supersedes a live decision. Its number is handed out when it is
- * recorded, unless it is brought in under its own (N1); its composed statement is composeStatement's.
- */
 export type NewDecision = Omit<FieldsOf<"decision">, "composed">;
-/** A decision's status as a read works it out: its own, or superseded once an accepted decision names it. */
 export type DecisionStatus = FieldsOf<"decision">["status"] | "superseded";
-/** A decision as the decision log reads it (capability 13). */
 export interface DecisionView {
-  /** The decision, its full text included, whatever its status. */
   readonly record: SchemaRecord<"decision">;
   readonly status: DecisionStatus;
-  /** The accepted decisions that name it in `supersedes`, oldest first. */
   readonly supersededBy: string[];
-  /** Its composed statement, marked stale once its text has changed since; absent until one is composed. */
   readonly composed?: { readonly statement: string; readonly composedAt: string; readonly stale: boolean };
 }
 
-/** A read-only proposal from a decision's own Full record line; refusals are never hidden. */
 export interface DecisionNumberPlan {
   readonly id: string;
   readonly oldNumber: number | undefined;
@@ -55,11 +32,9 @@ const NUMBER_FLOOR_ID = "project-decision-number-floor";
 
 type NumberingMove = "full-record" | "founding-books";
 
-/** The decision log of one project's library, over capability 3's SchemaRecords. */
 export class DecisionLog {
   readonly #records: SchemaRecords;
   readonly #project: string | undefined;
-  /** What a decision's links may name: an artifact (capability 9). */
   readonly #links: Expected;
 
   constructor(records: SchemaRecords, project: string | undefined, links: Expected) {
@@ -68,14 +43,6 @@ export class DecisionLog {
     this.#links = links;
   }
 
-  /**
-   * Record a decision. Its links are checked against live artifacts, its `frontCoverOf`, if it
-   * has one, must name a live story or capability, and each decision it supersedes must be live.
-   * It is numbered inside the write: one past the highest number any decision has ever held, so
-   * writers at the same time never share one and a retired decision's is never reused. A decision
-   * brought in with its own number keeps it, unless another has held it (NumberTakenError).
-   * Storytree auto-numbers only after its one-time floor is set (ADR-0662).
-   */
   async recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
     const own = this.#project === "storytree";
     const floor = own && decision.number === undefined ? this.#numberFloor(await this.#records.history({ id: NUMBER_FLOOR_ID })).floor : undefined;
@@ -90,7 +57,6 @@ export class DecisionLog {
     });
   }
 
-  /** Preview the explicit ADR-0662 switch; only apply stores it, once, under the project lock. */
   async setDecisionNumberFloor(floor: number, options: WriteOptions & { readonly apply?: boolean } = {}): Promise<number> {
     this.#requireStorytree();
     if (!Number.isSafeInteger(floor) || floor < 1) throw new RangeError("decision number floor must be a positive safe integer");
@@ -102,7 +68,6 @@ export class DecisionLog {
     return floor;
   }
 
-  /** Only a decisionNumbering entry is the floor: health history at its id is neither floor nor block. */
   #numberFloor(history: HistoryEntry[]): { floor: number; seq: number } {
     const entry = history.find((entry) => entry.recordId === NUMBER_FLOOR_ID && entry.type === "decisionNumbering");
     const floor = entry?.record.fields.floor;
@@ -112,10 +77,6 @@ export class DecisionLog {
     return { floor, seq: entry.seq };
   }
 
-  /**
-   * Repair an imported storytree decision once. The record stays live and keeps its identity,
-   * fields and old number in history. The sequence check runs under the same lock as new decisions.
-   */
   async numberDecision(id: string, number: number, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
     return this.#numberDecision(id, number, "full-record", options);
   }
@@ -139,7 +100,6 @@ export class DecisionLog {
     return updated as SchemaRecord<"decision">;
   }
 
-  /** Propose every Full record repair without writing. No Full record line means no proposal. */
   async decisionNumberPlan(): Promise<DecisionNumberPlan[]> {
     this.#requireStorytree();
     const records = await this.#records.list("decision");
@@ -162,11 +122,6 @@ export class DecisionLog {
       : row);
   }
 
-  /**
-   * The one-time N1 move, previewed unless apply is explicit. Every write rechecks the live
-   * decision and history. Refused rows stay in the result; independent repairs can still succeed.
-   * No Full record line, or a number already matching it, means no proposal and no write.
-   */
   async numberDecisionsFromFullRecord(options: WriteOptions & { readonly apply?: boolean } = {}): Promise<DecisionNumberPlan[]> {
     return this.#applyNumberPlan(await this.decisionNumberPlan(), "full-record", options);
   }
@@ -190,11 +145,6 @@ export class DecisionLog {
     return result;
   }
 
-  /**
-   * ADR-0662's one-time move: live decisions present at switch-on, with no Full record line.
-   * Creation history orders them even when timestamps tie. Decisions created after switch-on
-   * already use the new sequence; completed moves are omitted so retries can finish a partial run.
-   */
   async numberFoundingDecisions(options: WriteOptions & { readonly apply?: boolean } = {}): Promise<DecisionNumberPlan[]> {
     this.#requireStorytree();
     const records = await this.#records.list("decision");
@@ -220,7 +170,6 @@ export class DecisionLog {
     return this.#applyNumberPlan(plan, "founding-books", options);
   }
 
-  /** Match the write-time allocator: retain legacy reservations, exclude health-only input. */
   async #numberHistory(): Promise<HistoryEntry[]> {
     return (await this.#records.history()).filter((entry) => entry.type !== "health");
   }
@@ -257,33 +206,17 @@ export class DecisionLog {
     }
   }
 
-  /**
-   * A decision as the decision log reads it: its record, full text included; its status, which is
-   * superseded exactly when an accepted decision names it in `supersedes`; those decisions; and its
-   * composed statement, stale once its text has changed since it was composed. Null if `id` is not
-   * a live decision.
-   */
   async decision(id: string): Promise<DecisionView | null> {
     const record = await liveRecord(this.#records, id, ["decision"]);
     if (record === null) return null;
     return decisionView(record, await this.#records.list("decision"));
   }
 
-  /**
-   * Every live decision as decision() reads it, oldest first, from one reading of the decisions
-   * (13.9): what the decision log's listing asks, in place of a decision() per id, each of which
-   * reads every decision again.
-   */
   async decisions(): Promise<DecisionView[]> {
     const all = await this.#records.list("decision");
     return [...all].sort(byCreation).map((record) => decisionView(record, all));
   }
 
-  /**
-   * Compose a decision's one statement (C2): a maintained paragraph beside its text, never in its
-   * place, replacing any statement before it. It remembers the text it was composed against. Null,
-   * with nothing written, if `id` is not a live decision.
-   */
   async composeStatement(id: string, statement: string, options?: WriteOptions): Promise<SchemaRecord<"decision"> | null> {
     const record = await liveRecord(this.#records, id, ["decision"]);
     if (record === null) return null;
@@ -291,23 +224,19 @@ export class DecisionLog {
     return (await this.#records.edit(id, { composed }, options)) as SchemaRecord<"decision"> | null;
   }
 
-  /** A decision may link to a live artifact, and to nothing else. */
   #checkLinks(links: unknown): Promise<void> {
     return checkReferences(this.#records, "links", links, this.#links);
   }
 
-  /** A decision may be the front cover of a live story or capability, and of nothing else. */
   #checkFrontCover(frontCoverOf: unknown): Promise<void> {
     return checkFrontCover(this.#records, frontCoverOf);
   }
 }
 
-/** A fingerprint of a decision's text: what a composed statement remembers, to tell when it changed. */
 function fingerprintOf(text: string): string {
   return createHash("sha256").update(text).digest("hex").slice(0, 16);
 }
 
-/** Only an explicit line in the decision itself authorizes the repair, never an incidental mention. */
 function fullRecordLines(text: string): string[] {
   return text.split(/\r?\n/).filter((line) => /^[ \t]*Full record:/.test(line));
 }
@@ -319,7 +248,6 @@ function fullRecordNumber(text: string): number | undefined {
   return digits === undefined ? undefined : Number(digits);
 }
 
-/** `record` as the decision log reads it, superseded by the accepted decisions among `all` that name it. */
 function decisionView(record: SchemaRecord<"decision">, all: readonly SchemaRecord<"decision">[]): DecisionView {
   const supersededBy = all
     .filter((other) => other.fields.status === "accepted" && other.fields.supersedes?.includes(record.id) === true)

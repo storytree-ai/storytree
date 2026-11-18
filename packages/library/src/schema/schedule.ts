@@ -1,46 +1,21 @@
-/**
- * Capability 3 · Data schema: a process's schedule (ADR-1105), when it should run, in the words a person writes. The
- * record stores the words; this reads them into a rule, so the words stay the one source and a reader that works out
- * what is due (`process due`) reads them the same way the library validated them.
- *
- * The words it takes, case and spacing aside:
- * - `every run`: whenever the runner runs;
- * - `every hour`, `every day`, `every N minutes`, `every N hours`, `every N days`: at most that often;
- * - `daily at 09:15`, `daily at 09:15 and 21:15` (more times joined by commas or `and`): at those times of day.
- *
- * A daily schedule may end with a grace, `daily at 09:15, grace 2 hours` (`grace N minutes|hours|days`): a time missed by
- * more than that (the runner's machine asleep) is recorded missed instead of run late. No other schedule takes one: an
- * interval runs whenever it is next reached, and `every run` has no time to be late for.
- *
- * A schedule's times are in its record's `timeZone`, an IANA name, or the owner's, OWNER_TIME_ZONE, when it has none.
- */
+// Capability 3 · Data schema
 
-/** A schedule read into a rule: every run, at most every so many minutes, or at the given times of day (HH:MM, in order) and its grace, if any. */
 export type ScheduleRule =
   | { readonly kind: "every-run" }
   | { readonly kind: "interval"; readonly minutes: number }
   | { readonly kind: "daily"; readonly times: readonly string[]; readonly graceMinutes?: number };
 
-/**
- * The cheap checks a process's `precheck` may name, which its runner makes before starting a subagent for it (no shell
- * string, because voice sessions edit process records): `feedback-waiting` asks whether a feedback note waits to be routed;
- * `questions-to-prep` whether an owner question waits for the assistant pass's prep or score (ADR-1231).
- */
 export const PRECHECKS = ["feedback-waiting", "questions-to-prep"] as const;
-/** One of the checks a process's precheck may name. */
 export type Precheck = (typeof PRECHECKS)[number];
 
-/** The time zone a schedule's times are in when its record names none: the owner's. */
 export const OWNER_TIME_ZONE = "Australia/Sydney";
 
 const UNIT_MINUTES: Readonly<Record<string, number>> = { minute: 1, hour: 60, day: 24 * 60 };
 
 const SAID = 'a schedule is "every run", "every N minutes", "every N hours", "every N days" or "daily at HH:MM", such as "daily at 09:15 and 21:15"';
 
-/** The rule the words say, or the reason they say none. */
 export function parseSchedule(text: string): { readonly rule: ScheduleRule } | { readonly refused: string } {
   const said = text.trim().toLowerCase().replace(/\s+/g, " ");
-  // The words before the first " grace " (less one comma) and the grace after it; said is trimmed, so the grace is never empty.
   const at = said.indexOf(" grace ");
   if (at < 1) return parseRule(said);
   const words = said.endsWith(",", at) && at > 1 ? said.slice(0, at - 1) : said.slice(0, at);
@@ -54,7 +29,6 @@ export function parseSchedule(text: string): { readonly rule: ScheduleRule } | {
   return { rule: { ...read.rule, graceMinutes } };
 }
 
-/** The rule the words say, before any grace. */
 function parseRule(words: string): { readonly rule: ScheduleRule } | { readonly refused: string } {
   if (words === "every run") return { rule: { kind: "every-run" } };
   const every = /^every (?:(\d+) )?(minute|hour|day)(s?)$/.exec(words);
@@ -75,7 +49,6 @@ function parseRule(words: string): { readonly rule: ScheduleRule } | { readonly 
   return { refused: SAID };
 }
 
-/** Whether the name is a time zone this machine knows (an IANA name, such as Australia/Sydney). */
 export function isTimeZone(name: string): boolean {
   try {
     new Intl.DateTimeFormat("en", { timeZone: name });

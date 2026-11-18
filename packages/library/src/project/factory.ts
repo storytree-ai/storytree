@@ -1,29 +1,16 @@
-/**
- * Capability 29 · Factory and product. A project's factory (ADR-1040): the user's factory is a project of its own holding
- * the system their product projects build with, and each product project names it. Both facts are the library's own,
- * kept in library_meta beside the project's name: `kind` is `factory` or `product`, and a product's `factory` is the
- * name of the project it builds with. A project that says neither (one made before factories, or by a join) has none.
- *
- * A product reads its system from its factory (InheritedRecords): its roles, notes and checks are the factory's, except
- * where it holds its own record of the same kind and title, which wins, or retired the factory's. Its memory, and
- * everything it writes, stay its own: an edit of an inherited record writes the product's own copy of it. Only its
- * friction is filed into its factory's library, marked with the project (Friction's capture, ADR-1331 D5).
- */
+// Capability 29 · Factory and product
 import type { Pool } from "pg";
 
 import { SchemaRecords, type FieldEdit, type LibrarySchema, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
 import type { ListFilter, Transactions } from "../transactions/index.js";
 import { assertProjectName } from "./names.js";
 
-/** The kinds that are a project's system, which a product reads from its factory; never memory (ADR-1040 D3). */
 export const SYSTEM_KINDS: readonly RecordType[] = ["agent", "check", "principle", "guardrail", "pattern", "process"];
 
 const isSystem = (kind: RecordType): boolean => SYSTEM_KINDS.includes(kind);
 
-/** What a project is to factories: the user's factory, a product project naming its factory, or neither. */
 export type FactoryLink = { readonly kind: "factory" } | { readonly kind: "product"; readonly factory: string } | { readonly kind: "none" };
 
-/** A project's factory link, read and written in its library_meta. */
 export class ProjectLineage {
   readonly #pool: Pool;
   readonly #name: string;
@@ -33,7 +20,6 @@ export class ProjectLineage {
     this.#name = name;
   }
 
-  /** Whether this project is a factory, a product naming its factory, or neither. */
   async factory(): Promise<FactoryLink> {
     const { rows } = await this.#pool.query<{ key: string; value: string }>("SELECT key, value FROM library_meta WHERE key IN ('kind', 'factory')");
     const meta = Object.fromEntries(rows.map((row) => [row.key, row.value]));
@@ -42,10 +28,6 @@ export class ProjectLineage {
     return { kind: "none" };
   }
 
-  /**
-   * Make this project a factory. True when this call made it one, false when it was one already, so of two setups
-   * racing to make the same factory only one seeds it. A product project is refused: it builds with a factory.
-   */
   async markFactory(): Promise<boolean> {
     const made = await this.#pool.query("INSERT INTO library_meta (key, value) VALUES ('kind', 'factory') ON CONFLICT (key) DO NOTHING");
     if (made.rowCount === 1) return true;
@@ -54,10 +36,6 @@ export class ProjectLineage {
     throw new Error(`Project "${this.#name}" is a product project${link.kind === "product" ? ` built with factory "${link.factory}"` : ""}, so it cannot be made a factory.`);
   }
 
-  /**
-   * Record that this project is a product built with factory `name`, replacing any factory it named before. A
-   * factory is refused, and so is a project naming itself.
-   */
   async recordFactory(name: string): Promise<void> {
     assertProjectName(name);
     if (name === this.#name) throw new RangeError(`Project "${name}" cannot be its own factory.`);
@@ -82,16 +60,6 @@ export class ProjectLineage {
   }
 }
 
-/**
- * A product project's records, reading its system from its factory's (ADR-1040 D4). For the system kinds, `list` and
- * `select` give the product's own records and the factory's whose kind and title the product holds none of, in id
- * order, and `get` of a factory record's id gives the product's own record of that kind and title when it holds one,
- * so a role's links, written as the factory's ids, read the product's edits; `get` of a system record the product
- * retired gives its own live record of that kind and title, else the factory's, so links to a copy it dropped still
- * read (29.3). An edit of a factory record the product holds no copy of writes its own copy under the factory's id,
- * which then wins, and retiring one retires that copy, which hides the factory's from the product (29.4). Every other
- * kind, every write and the history are the product's own.
- */
 export class InheritedRecords extends SchemaRecords {
   readonly #factory: SchemaRecords;
 
@@ -110,7 +78,6 @@ export class InheritedRecords extends SchemaRecords {
       if (shadow !== undefined) return shadow;
       return (await this.#retiredHere(id)) ? null : inherited;
     }
-    // A system record the product retired (moving onto its factory drops an unedited copy) reads as its kind and title.
     const last = (await super.history({ id })).at(-1);
     if (last?.action !== "retired") return null;
     const retired = this.current(last.record);
@@ -122,10 +89,6 @@ export class InheritedRecords extends SchemaRecords {
     return theirs === undefined || (await this.#retiredHere(theirs.id)) ? null : theirs;
   }
 
-  /**
-   * Edit what `id` reads as. A factory record the product holds no copy of is copied into the product under its id,
-   * with the edit applied, and the factory's is left as it was.
-   */
   override async edit(id: string, fields: FieldEdit, options: Parameters<SchemaRecords["edit"]>[2] = {}): Promise<SchemaRecord | null> {
     if ((await super.get(id)) !== null) return super.edit(id, fields, options);
     const target = await this.get(id);
@@ -135,16 +98,11 @@ export class InheritedRecords extends SchemaRecords {
     try {
       return await this.create(target.type, copy as never, { id: target.id, onlyIfNew: true, ...writerOf(options) });
     } catch (error) {
-      // A racing write made the copy first: edit that.
       if ((await super.get(target.id)) === null) throw error;
       return super.edit(target.id, fields, options);
     }
   }
 
-  /**
-   * Retire what `id` reads as. Retiring a factory record retires the product's own record of its kind and title, if it
-   * holds one, and a copy of the factory's under its id, so the product reads it no more; the factory's is unchanged.
-   */
   override async retire(id: string, reason: string, options: WriteOptions = {}): Promise<void> {
     const inherited = (await super.get(id)) === null && (await super.history({ id })).length === 0 ? await this.#factory.get(id) : null;
     if (inherited === null || !isSystem(inherited.type)) return super.retire(id, reason, options);
@@ -158,7 +116,6 @@ export class InheritedRecords extends SchemaRecords {
     await super.retire(id, reason, options);
   }
 
-  /** Whether the product retired its copy of the record `id`, which hides the factory's of that id. */
   async #retiredHere(id: string): Promise<boolean> {
     return (await super.history({ id })).at(-1)?.action === "retired";
   }
@@ -173,10 +130,6 @@ export class InheritedRecords extends SchemaRecords {
     return this.#merged(type, filter, (kinds, from) => from.select(kinds[0]!, fields, filter), (kinds) => super.select(kinds[0]!, fields, filter));
   }
 
-  /**
-   * The product's own records of `type` read by `own`, and the factory's read by `read` whose kind and title the
-   * product holds none of, whether or not its own match `filter`; kept to `filter.limit` in id order.
-   */
   async #merged<T extends RecordType, R extends { readonly id: string; readonly type: RecordType; readonly fields: object }>(
     type: T | readonly T[],
     filter: Omit<ListFilter, "projection"> | undefined,
@@ -191,16 +144,10 @@ export class InheritedRecords extends SchemaRecords {
     return filter?.limit === undefined ? merged : merged.slice(0, filter.limit);
   }
 
-  /**
-   * The factory's system records the product reads as its own (29.5): those whose kind and title it holds no record of,
-   * and whose id it never retired a copy under, in id order. Its own copies and shadows are its own records, not these;
-   * a product's globe draws these beside its history.
-   */
   async inherited(): Promise<SchemaRecord[]> {
     return (await this.#shown(SYSTEM_KINDS, (kinds, from) => from.list(kinds))).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
-  /** The factory's records of the system kinds `inheritable` read by `read` that the product holds no record of that kind and title for, nor retired. */
   async #shown<T extends RecordType, R extends { readonly id: string; readonly type: RecordType; readonly fields: object }>(
     inheritable: readonly T[],
     read: (kinds: readonly T[], from: SchemaRecords) => Promise<R[]>,
@@ -216,7 +163,6 @@ export class InheritedRecords extends SchemaRecords {
   }
 }
 
-/** Who is writing, the abort signal and what outside text it read, from an edit's options, for a write that is not an edit. */
 function writerOf(options: WriteOptions): WriteOptions {
   return {
     ...(options.actor === undefined ? {} : { actor: options.actor }),
@@ -225,10 +171,8 @@ function writerOf(options: WriteOptions): WriteOptions {
   };
 }
 
-/** A project of a factory's circle: opened, or named with why it could not be (ADR-1348 D2). */
 export type Reached<P> = { readonly project: string; readonly opened: P; readonly unopened?: undefined } | { readonly project: string; readonly opened?: undefined; readonly unopened: string };
 
-/** A project asked for that is not of the asking project's factory's circle, or an asking project in none. */
 export class OutsideCircleError extends Error {
   constructor(message: string) {
     super(message);
@@ -236,36 +180,24 @@ export class OutsideCircleError extends Error {
   }
 }
 
-/** What the circle needs of a project: its name, its factory link and a way to close it. */
 interface CircleMember {
   readonly name: string;
   readonly lineage: Pick<ProjectLineage, "factory">;
   close(): Promise<void>;
 }
 
-/**
- * A factory's circle as one project of it reads it (ADR-1348 D2): the factory and every product naming it, reached from
- * the factory or from any of those products alike, whichever folder a session started in. A project naming no factory
- * is in no circle and reaches only itself. Each project it opens is opened once, as the project reading it was (its
- * switches and kinds), and closed with it; a product's factory too, apart from the one it inherits from.
- */
 export class FactoryCircle<P extends CircleMember> {
   readonly #self: P;
   readonly #open: (name: string) => Promise<P>;
   readonly #list: () => Promise<string[]>;
   readonly #opened = new Map<string, Promise<P>>();
 
-  /** `open` opens another project as `self` was opened, and `list` names every project on the server. */
   constructor(self: P, open: (name: string) => Promise<P>, list: () => Promise<string[]>) {
     this.#self = self;
     this.#open = open;
     this.#list = list;
   }
 
-  /**
-   * The project called `name`, read from this one: this one itself, its factory, or a product naming that factory. One
-   * outside the circle is refused with an OutsideCircleError, and one not on the server with a ProjectGoneError.
-   */
   async reach(name: string): Promise<P> {
     if (name === this.#self.name) return this.#self;
     const home = await this.#home();
@@ -279,10 +211,6 @@ export class FactoryCircle<P extends CircleMember> {
     return opening;
   }
 
-  /**
-   * Every other project of the circle, in name order: each opened, or, when it could not be opened, named with why, so
-   * none is skipped in silence. A project that cannot be opened cannot say whether it names the factory, so it is named.
-   */
   async reachAll(): Promise<Reached<P>[]> {
     if ((await this.#home()) === undefined) return [];
     const reached: Reached<P>[] = [];
@@ -297,21 +225,18 @@ export class FactoryCircle<P extends CircleMember> {
     return reached;
   }
 
-  /** Close every project this circle opened. */
   async close(): Promise<void> {
     const opened = [...this.#opened.values()];
     this.#opened.clear();
     await Promise.all(opened.map((opening) => opening.then((project) => project.close(), () => undefined)));
   }
 
-  /** The circle's factory: this project when it is one, the factory it names when a product, else none. */
   async #home(): Promise<string | undefined> {
     const link = await this.#self.lineage.factory();
     if (link.kind === "factory") return this.#self.name;
     return link.kind === "product" ? link.factory : undefined;
   }
 
-  /** Open `name`, keeping it only when it is the factory `home` itself or a product naming it. */
   async #member(name: string, home: string): Promise<P> {
     const project = await this.#open(name);
     const link = await project.lineage.factory().catch(async (error: unknown) => {

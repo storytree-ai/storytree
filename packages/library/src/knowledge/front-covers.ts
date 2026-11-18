@@ -1,20 +1,9 @@
-/**
- * Capability 9 · Knowledge entrances (the library story): every story and capability has its own shelf
- * of front-cover decisions, and a decision can be a front cover of one of them at most. Artifacts link
- * only to other artifacts, so the only way from the work into the knowledge is through a front cover.
- * A decision names the node it is a cover of in its one `frontCoverOf` field, so no decision can be
- * the cover of two, and nothing has to check for it.
- *
- * Knowledge (capability 6) and the decision log (capability 13) check every link and front cover
- * they write before the write, the front cover with the decision log's checkFrontCover (decisions/); a broken one
- * throws with nothing written.
- */
+// Capability 9 · Knowledge entrances
 import { byCreation } from "../creation-order.js";
 import type { Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords } from "../schema/index.js";
 import type { RecordType } from "../schema/index.js";
 
-/** What an artifact may link to: another artifact of `types`, never the work. */
 export function artifactsOnly(types: readonly RecordType[]): Expected {
   return {
     name: "artifact",
@@ -23,11 +12,6 @@ export function artifactsOnly(types: readonly RecordType[]): Expected {
   };
 }
 
-/**
- * A story's or capability's shelf: the live decisions whose `frontCoverOf` is `nodeId`, founding
- * (oldest) first, except a superseded one, which leaves its shelf for its successor (13-b) and is
- * still read with decision(). Empty for any other id.
- */
 export async function frontCovers(records: SchemaRecords, nodeId: string): Promise<SchemaRecord<"decision">[]> {
   const decisions = await records.list("decision");
   const superseded = new Set(decisions.filter((decision) => decision.fields.status === "accepted").flatMap((decision) => decision.fields.supersedes ?? []));

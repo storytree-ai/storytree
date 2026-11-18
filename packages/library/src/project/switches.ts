@@ -1,23 +1,13 @@
-/**
- * Capability 29 · Factory and product, contract 29.6: the system switches (ADR-1092 D2). A project opened with them leaves
- * each switched-off role, check and note out of what it lists and selects, and so out of every search, which reads
- * through its lists. Reading one by its id still finds it, as following a link does, and writes are unchanged.
- */
+// Capability 29 · Factory and product
 import { SchemaRecords, type CreateOptions, type FieldsOf, type LibrarySchema, type RecordType, type SchemaRecord } from "../schema/index.js";
 import type { HistoryEntry, HistoryFilter, ListFilter, Transactions } from "../transactions/index.js";
 import { SYSTEM_KINDS } from "./factory.js";
 
-/**
- * Which parts of the system are switched off and which on, each a list of names: `all`, a group (`roles`, `checks` or
- * `notes`), or one record's title or id. A record's most specific mention decides: its own title or id beats its
- * group, which beats `all`. A system record no name mentions is shown.
- */
 export interface SystemSwitches {
   readonly off: readonly string[];
   readonly on: readonly string[];
 }
 
-/** Each system kind's group, as a switch names it. */
 const GROUPS: Readonly<Record<string, string>> = {
   agent: "roles",
   check: "checks",
@@ -27,7 +17,6 @@ const GROUPS: Readonly<Record<string, string>> = {
   process: "notes",
 };
 
-/** Whether `switches` switch off the system record of `type`, `id` and `title`. */
 function switchedOff(switches: SystemSwitches, type: RecordType, id: string, title: string | undefined): boolean {
   const group = GROUPS[type];
   if (group === undefined) return false;
@@ -38,11 +27,6 @@ function switchedOff(switches: SystemSwitches, type: RecordType, id: string, tit
   return false;
 }
 
-/**
- * A project's records with the system switches applied to the merged result, a product's and its factory's together, so
- * a product's own record switched off never lets its factory's of the same title show. Every other read and every write
- * goes to the records it wraps.
- */
 export class SwitchedRecords extends SchemaRecords {
   readonly #records: SchemaRecords;
   readonly #switches: SystemSwitches;
@@ -85,7 +69,6 @@ export class SwitchedRecords extends SchemaRecords {
   ): Promise<(Omit<SchemaRecord<T>, "fields"> & { fields: Pick<SchemaRecord<T>["fields"], K> })[]> {
     if (!this.#touches(type)) return this.#records.select(type, fields, filter);
     const { limit, ...rest } = filter;
-    // A record's title decides it, so it is read beside the fields asked for and dropped again unless asked for.
     const read = await this.#records.select(type, [...new Set([...fields, "title" as K])], rest);
     const shown = read.filter((record) => this.#shown(record)).map((record) => ({
       ...record,
@@ -94,7 +77,6 @@ export class SwitchedRecords extends SchemaRecords {
     return limit === undefined ? shown : shown.slice(0, limit);
   }
 
-  /** Whether reading `type` can meet a record the switches decide. */
   #touches(type: RecordType | readonly RecordType[]): boolean {
     return (typeof type === "string" ? [type] : type).some((kind) => SYSTEM_KINDS.includes(kind));
   }

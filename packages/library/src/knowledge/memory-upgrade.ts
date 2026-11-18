@@ -1,4 +1,4 @@
-/** Capability 6 · Knowledge artifacts. ADR-0650's one-time conversion. Called under the schema and writer locks on project open. */
+// Capability 6 · Knowledge artifacts
 import type { PoolClient } from "pg";
 
 import { RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../schema/index.js";
@@ -8,7 +8,6 @@ import type { RecordEnvelope } from "../transactions/index.js";
 
 const KINDS: readonly string[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
 
-/** Unclassified records stay intact, and are reported on every open until resolved. */
 export async function upgradeMemories(client: PoolClient, project: string): Promise<string[]> {
   const { convertible, warnings } = await pendingMemories(client, project, true);
   for (const { record, converted } of convertible) {
@@ -25,14 +24,8 @@ export async function upgradeMemories(client: PoolClient, project: string): Prom
   return warnings;
 }
 
-/** A memory whose text says which artifact it is, and that artifact. */
 type Convertible = { record: RecordEnvelope; converted: Pick<RecordEnvelope, "type" | "version" | "fields"> };
 
-/**
- * The memories still to convert, and a warning for each that cannot be, read without writing: an
- * open that finds none to convert needs no write, and so no owner's rights (contract 1.10). With
- * `lock`, the rows stay locked for the conversion that follows.
- */
 export async function pendingMemories(
   client: PoolClient,
   project: string,
@@ -57,7 +50,6 @@ export async function pendingMemories(
   return { convertible, warnings };
 }
 
-/** Only explicit labels or a fully specified JSON artifact are evidence of kind; never guess from prose. */
 function classify(record: RecordEnvelope): Pick<RecordEnvelope, "type" | "version" | "fields"> | undefined {
   if (record.version !== 1 || typeof record.fields.text !== "string" || Object.keys(record.fields).some((key) => key !== "text" && key !== "links")) return undefined;
   const text = record.fields.text.trim();
@@ -80,12 +72,10 @@ function classify(record: RecordEnvelope): Pick<RecordEnvelope, "type" | "versio
     }
   }
   if (!KINDS.includes(kind)) return undefined;
-  // Preserve the original links, never replace them with a second interpretation of the text.
   if (record.fields.links !== undefined) {
     if (fields.links !== undefined && JSON.stringify(fields.links) !== JSON.stringify(record.fields.links)) return undefined;
     fields.links = record.fields.links;
   }
-  // Classification cannot invent a front cover, a number or further references and graph edges.
   if (["frontCoverOf", "number", ...REFERENCE_FIELD_NAMES.filter((key) => key !== "links")].some((key) => key in fields)) return undefined;
   if (fields.links !== undefined && JSON.stringify(fields.links) !== JSON.stringify(record.fields.links)) return undefined;
   const type = kind as NoteType;

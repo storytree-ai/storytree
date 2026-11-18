@@ -1,21 +1,10 @@
-/**
- * Capability 21 · Links (The library story, its librarian package): a note links to another only where it rests on it.
- * A link means "rests on" and nothing weaker; a definition rests only on the decision that created
- * its term; friction and re-steers carry no links. Neighbours nobody linked are found with the
- * library's related-but-unlinked search (ADR-0654), alongside plain search when the agent needs it.
- */
+// Capability 21 · Links
 import type { Library, Note, Related, SchemaRecord, WriteOptions } from "../../index.js";
 
 import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference } from "../notes.js";
 
-/** The kinds that carry no links: signals to act on, not notes anyone reasons from. */
 const UNLINKED = { friction: "friction", resteer: "a re-steer" } as const;
 
-/**
- * Make note `from` rest on note `to`, keeping its other links. A link it already has writes nothing.
- * Refused, with nothing written, when either is not a live note or the link breaks a rule above.
- * A question, open or settled, links the evidence it cites the same way, through its own editor (12.17).
- */
 export async function link(library: Library, from: string, to: string, writer?: WriteOptions): Promise<Note | SchemaRecord<"question">> {
   const question = await library.get(from);
   if (question?.type === "question") {
@@ -40,11 +29,6 @@ export async function link(library: Library, from: string, to: string, writer?: 
   return linked;
 }
 
-/**
- * The worklist's links: each accepted decision on no shelf that no note rests on, in creation
- * order. These are the decisions about the whole project that are found only by search until the
- * covers that rest on them link to them (ADR-0631 D2).
- */
 export async function unrestedDecisions(library: Library, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<SchemaRecord<"decision">[]> {
   const notes = await read;
   const restedOn = new Set(notes.flatMap((note) => note.fields.links ?? []));
@@ -53,18 +37,14 @@ export async function unrestedDecisions(library: Library, read: Promise<readonly
     note.type === "decision" && note.fields.frontCoverOf === undefined && !restedOn.has(note.id) && accepted.has(note.id));
 }
 
-/** Related but unlinked neighbours for each live note written since `cursor`, including edits. */
 export async function relatedUnlinked(library: Library, cursor: number, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<Related[]> {
   const notes = await read;
   const written = new Set((await library.history({ since: cursor, types: typesOf(notes) })).map((change) => change.recordId));
-  // One reading of the notes for every note written, never one each (6.7).
   return library.relatedEach(notes.filter((note) => written.has(note.id)).map((note) => note.id), { unlinked: true });
 }
 
-/** An edge the health report found pointing at a record no longer live. */
 export type BrokenEdge = Reference;
 
-/** The health report: each note's link, supersession or other reference naming a record no longer live, in creation order. */
 export async function brokenEdges(library: Library, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<BrokenEdge[]> {
   const notes = await read;
   const live = new Set(notes.map((note) => note.id));

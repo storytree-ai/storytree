@@ -224,7 +224,7 @@ test("8.20 · where merge-base(origin/main, HEAD) cannot be read, with no origin
   assert.deepEqual(refusedAt(await eslintProblems(uncommitted)), ["packages/a/src/a.mjs:2"]);
 });
 
-test("8.20 · on added lines the kept set passes: a file's opening Capability N · declaration (after a #! line), posix-only: <reason>, a pause marker saying the wait is the behaviour under test, ESLint directives, @ts-expect-error, @ts-ignore and /// <reference/>; a Capability comment after code, or after the file's first comment, is refused", async (t) => {
+test("8.20 · on added lines the kept set passes: a file's opening Capability N · declaration (after a #! line), posix-only: <reason>, a pause marker beginning by naming the wait and saying it is the behaviour under test, ESLint directives, @ts-expect-error, @ts-ignore and /// <reference/>; a Capability comment after code, or after the file's first comment, and a comment merely mentioning under test are refused", async (t) => {
   const root = checkout(t, {
     "packages/a/src/script.mjs": lines(
       "#!/usr/bin/env node",
@@ -244,6 +244,10 @@ test("8.20 · on added lines the kept set passes: a file's opening Capability N 
       "  // the wait is the behaviour under test",
       "  await new Promise((resolve) => setTimeout(resolve, 5));",
       "});",
+      "test(\"y\", async () => {",
+      "  // the delay is the behaviour under test",
+      "  await new Promise((resolve) => setTimeout(resolve, 5));",
+      "});",
     ),
     "packages/b/src/ref.ts": lines("/// <reference types=\"node\" />", "export const ref = 1;"),
     "packages/b/src/typed.ts": lines(
@@ -256,9 +260,16 @@ test("8.20 · on added lines the kept set passes: a file's opening Capability N 
     "packages/b/src/late.mjs": lines("export const a = 1;", "// Capability 5 · After code."),
     "packages/b/src/second.mjs": lines("// Capability 6 · First.", "// Capability 6 · Second.", "export const b = 1;"),
     "packages/b/src/continued.mjs": lines("// Capability 7 · Continued.", "// and a second line of it", "export const c = 1;"),
+    "packages/a/src/helper.test.mjs": lines(
+      "// Capability 3 · Helpers.",
+      "import { test } from \"node:test\";",
+      "// the helper under test returns its input",
+      "test(\"x\", () => {});",
+    ),
   });
 
   assert.deepEqual(refusedAt(await eslintProblems(root)), [
+    "packages/a/src/helper.test.mjs:3",
     "packages/b/src/continued.mjs:2",
     "packages/b/src/late.mjs:2",
     "packages/b/src/second.mjs:2",

@@ -1,7 +1,13 @@
 // Capability 8 · Storytree's own test and gate entries.
 import assert from "node:assert/strict";
+import { mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
+import { removeTemp } from "@storytree/test-waits";
+
+import * as hatchesScript from "./comment-hatches.mjs";
 import { tellHatches } from "./comment-hatches.mjs";
 import { gateSteps } from "./gate-steps.mjs";
 
@@ -76,4 +82,19 @@ test("8.22 · a library the step cannot reach fails it, 1, with a line saying wh
   };
   assert.equal(await tellHatches({ root: "/checkout", project: "storytree", hatches: [NEW], storytree, log: (line) => log.push(line) }), 1);
   assert.ok(log.some((line) => line.includes("connect ECONNREFUSED 100.64.0.7:5432")), log.join("\n"));
+});
+
+test("8.22 · the step's storytree runner, cliRunner({ root, command }), runs command in root with no shell, so an argument holding spaces, double quotes and shell characters reaches it unchanged and its stdout comes back; a command that fails rejects", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "comment-hatches-"));
+  t.after(() => removeTemp(root));
+  writeFileSync(path.join(root, "argv.mjs"), "process.stdout.write(JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2) }));\n");
+  writeFileSync(path.join(root, "fails.mjs"), "process.stderr.write(\"library unreached\");\nprocess.exit(3);\n");
+
+  const what = "packages/a/src/old.mjs:5 keeps the comment \"matches the tail first\", disabling storytree/no-comments because: $HOME & `id`; it's 'quoted' | *";
+  const args = ["fyi", "new", "--title", "A comment kept by the escape hatch: packages/a/src/old.mjs:5", "--what", what, "--about", "packages/a/src/old.mjs", ""];
+  const run = hatchesScript.cliRunner({ root, command: [process.execPath, path.join(root, "argv.mjs")] });
+  assert.deepEqual(JSON.parse(await run(args)), { cwd: realpathSync(root), args });
+
+  const failing = hatchesScript.cliRunner({ root, command: [process.execPath, path.join(root, "fails.mjs")] });
+  await assert.rejects(failing(["library", "list", "fyi"]));
 });

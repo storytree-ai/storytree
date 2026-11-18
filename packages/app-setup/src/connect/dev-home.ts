@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 
 import { buildBins } from "../bins/build.js";
 import { pgCtl } from "@storytree/local-postgres";
+import { probeProcess, type ProcessIdentity } from "@storytree/session-management/processes";
 import { installCommand } from "../deliver/command.js";
 import { connectAgents, installedToolServerCommand, type ConnectionResult, type Harness, type RunHarness } from "./index.js";
 
@@ -141,12 +142,22 @@ export async function removeDevHome(dir: string): Promise<void> {
   if (record !== undefined) {
     const { pid } = JSON.parse(record) as { pid: number };
     if (!Number.isInteger(pid) || pid <= 0) throw new Error(`Invalid database owner ${pid}; keeping ${dir}.`);
-    try { process.kill(pid, "SIGTERM"); } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+    // Signal only the owner's own lifetime: a freed pid (soon reused on Windows) is another process's,
+    // and process.kill would end it with exit 1 and no output.
+    const identityFile = path.join(dir, "home", ".storytree", "0.3", "dev-database.json");
+    const identity = existsSync(identityFile) ? JSON.parse(readFileSync(identityFile, "utf8")) as ProcessIdentity : undefined;
+    const reading = identity?.pid === pid ? await probeProcess(identity) : undefined;
+    if (identity !== undefined && reading?.state === "live") {
+      try { process.kill(pid, "SIGTERM"); } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+      }
+      // Windows kill terminates Node without running its cleanup handler. Wait for the process,
+      // not its owner file: that file remains when the handler never ran (also after a crash).
+      for (let waited = 0; (await probeProcess(identity)).state === "live" && waited < 20_000; waited += 250) await sleep(250);
+      if ((await probeProcess(identity)).state === "live") throw new Error(`The database process ${pid} has not stopped; keeping ${dir}.`);
+    } else if (reading?.state !== "gone" && processAlive(pid)) {
+      throw new Error(`Could not confirm the database owner ${pid} is this home's; keeping ${dir}.`);
     }
-    // Windows kill terminates Node without running its cleanup handler. Wait for the process,
-    // not its owner file: that file remains when the handler never ran (also after a crash).
-    await waitForExit(pid, dir);
   }
   if (existsSync(path.join(dataDir, "PG_VERSION"))) {
     // Run as the server runs (as root, the tools' account): Postgres refuses root, which reads as neither running nor stopped.

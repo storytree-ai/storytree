@@ -1,8 +1,4 @@
-/**
- * The frame's canvases, named (capability 3 · Surfaces, with Surface feedback): the real renderer, on a stand-in bridge,
- * opens each canvas, gear menu tab and dialog the app has, and the feedback corner, pointed at a control on it, names a
- * surface the stories declare (its own, or the one in front). A canvas with no declared id leaves the corner's surface unchosen, and fails here.
- */
+// Capability 3 · Surfaces
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,7 +18,6 @@ import { declaredSurfaces } from "../page-operations.js";
 const declared = declaredSurfaces([surfaces, namedSurfaces]);
 const ids = new Set(declared.map(({ id }) => id));
 
-/** The renderer at `origin` on a stand-in bridge with `answers`, the corner offered over every declared surface. */
 async function opened(browser: Browser, origin: string, answers: Partial<StorytreeBridge>, ready: (page: Page) => Promise<unknown>): Promise<Page> {
   const bridge = fakeBridge({
     feedbackSetup: async () => ({ offered: true, surfaces: declared }),
@@ -37,10 +32,6 @@ async function opened(browser: Browser, origin: string, answers: Partial<Storytr
   return page;
 }
 
-/**
- * The surface the corner names for the element at `pick` (a control the owner would point at on what is on show now);
- * every surface marked on the page is a declared one.
- */
 async function named(page: Page, pick: string): Promise<string> {
   const marked = await page.evaluate("[...document.querySelectorAll('[data-surface-id]')].map(node => node.dataset.surfaceId)") as string[];
   assert.deepEqual(marked.filter((id) => !ids.has(id)), [], "every surface marked on the page is declared");
@@ -55,11 +46,6 @@ async function named(page: Page, pick: string): Promise<string> {
   return surface;
 }
 
-/**
- * The first library note in the middle of the globe once it holds its place for two reads running. Library lays its notes
- * out a few steps to a task once pressed and tilts the sheet over, which one settle's frames on a loaded runner do not see
- * out (own health's Linux run at 7c3cfb88 found no dot yet).
- */
 async function restingDot(page: Page, settle: (page: Page) => Promise<void>): Promise<{ id: string; x: number; y: number }> {
   let last: { id: string; x: number; y: number } | undefined;
   return waitUntil(async () => {
@@ -88,19 +74,14 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     boardArcs: async () => [{ arc: { id: "arc_named", type: "arc", fields: { title: "Name every surface", intent: "Point at anything", endState: "Named" }, version: 1, createdAt: "2026-11-03T00:00:00Z", updatedAt: "2026-11-03T00:00:00Z" }, increments: [], questions: [], state: "active" }] as never,
   };
   const ready = (page: Page) => page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: 180_000 });
-  // The runner images carry Chrome, not the Chromium Playwright downloads for itself.
   process.env.CAPTURE_CHANNEL ??= "chrome";
 
   await withCapture({ folder: dist, dist }, async ({ browser, origin, settle }) => {
     const page = await opened(browser, origin!, seeded, ready);
     await settle(page);
-    // The globe marks its canvas once it has measured a size to draw at, which a loaded Windows runner had not by the
-    // page's ready (run 41206023912): the corner names what is marked, so it is asked once the globe is.
     await page.locator("[data-surface-id=globe]").waitFor();
-    // A control on no surface names the map, with the rail's Arcs tab on show (a project opens on it) as with its Sessions tab.
     assert.equal(await named(page, ".app-gear"), "globe");
 
-    // The left rail's two tabs, each the surface it shows; what an arc's row opens under it is the arcs' too.
     await page.click('[data-rail-tab="sessions"]');
     await page.locator("#rail-sessions:not([hidden])").waitFor();
     assert.equal(await named(page, '[data-rail-tab="sessions"]'), "sessions");

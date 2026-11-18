@@ -1,8 +1,3 @@
-/**
- * The capture kit's promises to a renderer evidence capture: a fake bridge that fails naming the
- * method it cannot answer, a launch that finds Playwright on any machine, and seeded work states
- * the arc surface and the forest read.
- */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -26,7 +21,6 @@ test("2.66 · a capture finds front-facing dots and islands in canvas coordinate
   const scene = new Scene(), globe = new Group();
   globe.name = "globe";
   scene.add(globe);
-  // A 90° lens on a 600-pixel-high canvas has a 300-pixel focal length, so the eye 20 units from the middle of the view shows 15.
   const camera = new PerspectiveCamera(90, 4 / 3, 0.1, 100);
   camera.position.z = 20;
   camera.updateMatrixWorld();
@@ -65,7 +59,6 @@ test("2.66 · a capture finds front-facing dots and islands in canvas coordinate
 });
 
 test("2.66 · a capture wheels the perspective eye to a target zoom and back, and refuses an unreachable zoom", async () => {
-  // As the map's controls dolly it: the eye moves along its line of sight toward the middle of the view, 5% a notch.
   const camera = { isPerspectiveCamera: true, fov: 90, zoom: 1, position: { x: 0, y: 0, z: 3 + 150 } };
   const state = { camera, controls: { target: { x: 0, y: 0, z: 3 }, minDistance: 10, maxDistance: 3000 }, size: { width: 800, height: 600 },
     gl: { domElement: { getBoundingClientRect: () => ({ left: 100, top: 50, width: 800, height: 600 }) } } };
@@ -164,7 +157,6 @@ test("2.31 · when the Chromium Playwright pins is missing, a capture launches t
   };
   const pinned = path.join(browsers, "chromium-1223", "chrome-linux64", "chrome");
   const plain = launchPlan({ env: {}, platform: "linux" }).options;
-  // CI's runners hold no browsers folder at all: nothing to launch in the pinned one's place.
   assert.equal(fallbackChromium(plain, path.join(browsers, "absent", "chromium-1223", "chrome-linux64", "chrome")), undefined);
   install("chromium-1194/chrome-linux64/chrome");
   install("chromium-1243/chrome-linux64/chrome");
@@ -191,7 +183,6 @@ test("2.36 · a launch that finds no Chromium in the pinned one's place fails na
   assert.match(message(failure), /which holds chromium-1243, firefox-1490.*CAPTURE_CHROMIUM.*Executable doesn't exist/s);
   assert.equal((failure as Error).cause, playwrights);
   assert.equal(launchFailure(playwrights, launchPlan({ env: { CAPTURE_CHROMIUM: "/opt/chromium" }, platform: "linux" }).options, pinned), playwrights);
-  // launch() itself, through a stand-in Playwright whose pinned Chromium is missing.
   const stand = path.join(browsers, "playwright.mjs");
   writeFileSync(path.join(browsers, "pinned.txt"), pinned);
   writeFileSync(stand, `import { readFileSync } from "node:fs";\nconst pinned = readFileSync(new URL("./pinned.txt", import.meta.url), "utf8");\nexport const chromium = { executablePath: () => pinned, launch: async () => { throw new Error("Executable doesn't exist"); } };`);
@@ -200,8 +191,6 @@ test("2.36 · a launch that finds no Chromium in the pinned one's place fails na
   assert.equal(launchFailure(playwrights, plain, pinned), playwrights);
 });
 
-// Under 3-CPU contention like macOS CI's, a separate GPU process stretched live-road frame gaps to 10 s;
-// in the browser process they stayed under 0.6 s (increment_65eec6275207).
 test("a software-GL capture keeps GPU work in the browser process, and a hardware capture leaves it to Chromium", () => {
   assert.ok(launchPlan({ env: {}, platform: "darwin" }).options.args?.includes("--in-process-gpu"));
   assert.ok(!launchPlan({ env: {}, platform: "darwin" }, { softwareGL: false }).options.args?.includes("--in-process-gpu"));
@@ -309,7 +298,6 @@ test("2.21 · the capture kit's page runs React's production build, as the shipp
   const dist = mkdtempSync(path.join(tmpdir(), "storytree-capture-build-"));
   t.after(() => removeTemp(dist));
   await buildCapture({ dist });
-  // esbuild names each bundled module in a comment, so the build React's entry chose is named in the bundle.
   const bundle = readFileSync(path.join(dist, "renderer.js"), "utf8");
   assert.ok(bundle.includes("react-dom.production"), "the capture's page carries React DOM's production build");
   assert.ok(!bundle.includes("react-dom.development"), "and not its development build");

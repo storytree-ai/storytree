@@ -1,17 +1,8 @@
-/**
- * Capability 8 · Page bridge. The page's answers that wait on the library: the page asks before it opens, and again after
- * it reopens, so each answer reaches for the library open at the time it is asked (contract 8.5), and each counts what it
- * reads against its own operation (contract 8.11).
- */
+// Capability 8 · Page bridge
 import { asReader } from "@storytree/library/reads";
 
 import type { PageHandlers } from "../page-operations.js";
 
-/**
- * `handlers`, but each channel's answer reads the library as the reader "app <channel>" (its "storytree:" left off), so the
- * per-reader report splits the app's bytes by the operation that asked. Main-side only: the sandboxed preload bundles
- * page-operations.ts, which cannot load node:async_hooks.
- */
 export function readerPerChannel(handlers: PageHandlers): PageHandlers {
   return {
     handle(channel, listener) {
@@ -21,7 +12,6 @@ export function readerPerChannel(handlers: PageHandlers): PageHandlers {
   };
 }
 
-/** Each of `methods` answered by the reads `open` gives when asked, which throws while the library is not open. */
 export function lateReads<Reads extends object>(methods: readonly (keyof Reads & string)[], open: () => Reads): Reads {
   return Object.fromEntries(methods.map((method) => [method, (...asked: unknown[]) => {
     const now = open();
@@ -29,7 +19,6 @@ export function lateReads<Reads extends object>(methods: readonly (keyof Reads &
   }])) as Reads;
 }
 
-/** The project choice the page reads and makes: none to choose from before the library opens, and no choosing then. */
 export function projectAnswers<Project, Selection>({ reads, projects }: {
   reads(): { listProjects(): Project[] | Promise<Project[]> } | undefined;
   projects(): { read(): Selection; choose(name: unknown): unknown } | undefined;

@@ -16,9 +16,6 @@ import { removeTemp } from "@storytree/test-waits";
 import { browserProcess, captureSeed, closeBrowser, fakeBridge, outputFolder, pageStorage, runCapture, settle, settledMap, withCapture } from "./index.js";
 import { liveAnswers } from "./live.js";
 
-// Chrome is installed on the three CI runner images; no browser download during tests. On a starved Windows runner a
-// Chrome now and then starts and never answers on its pipe (PR #758's run waited out Playwright's whole 180 s while the
-// next launch took 41 s): a launch gets a minute, then a fresh Chrome is started in its place, at most three in all.
 async function launchChrome(): Promise<Browser> {
   for (let attempt = 1; ; attempt++) {
     try {
@@ -95,8 +92,6 @@ test("2.56 · a capture opens its seed's map with the layouts the seed kept alre
   const browser = await launchChrome();
   t.after(() => browser.close());
   const page = await browser.newPage();
-  // The map's settled mark comes, goes again two frames later, then stays from the twentieth: a stand-in frame clock, as in
-  // 2.9, that lays the marks out by frame, not by time.
   await page.route("http://capture.test/**", route => route.fulfill({ contentType: "text/html", body: `<body><script>
     const mark = on => { document.querySelector("[data-layout]")?.remove(); const m = document.createElement("div"); m.dataset.layout = on ? "settled" : "laying-out"; document.body.append(m); };
     mark(false);
@@ -130,7 +125,6 @@ test("2.63 · a capture's settling, while the map says it is laying out its isla
   const browser = await launchChrome();
   t.after(() => browser.close());
   const page = await browser.newPage();
-  // The map's mark reads laying out until the thirtieth frame of a stand-in frame clock, as in 2.56.
   await page.route("http://capture.test/**", route => route.fulfill({ contentType: "text/html", body: `<body><script>
     const mark = on => { document.querySelector("[data-layout]")?.remove(); const m = document.createElement("div"); m.dataset.layout = on ? "settled" : "laying-out"; document.body.append(m); };
     mark(false);
@@ -158,7 +152,6 @@ test("2.64 · a capture's stand-in bridge opens the page with the kept layouts o
     return storage;
   };
   const guide = { "storytree:setup:guide-seen:v1": "yes" };
-  // The two seeds lay out stories they share differently, and a story keeps one arrangement: a merge of both would fit neither.
   for (const name of ["forest", "code-rows"] as const) {
     const { layouts } = captureSeed(name);
     assert.deepEqual(await kept(), { ...layouts, ...guide }, `a capture that read the ${name} seed and names no layouts opens with that seed's islands laid out`);
@@ -166,8 +159,6 @@ test("2.64 · a capture's stand-in bridge opens the page with the kept layouts o
   assert.deepEqual(await kept({ layouts: {} }), guide, "one handed its own layouts opens with those alone");
 });
 
-// Each probe owns its socket and finishes only after it closes. Global fetch leaves
-// connection cleanup running, which can abort native Windows Node at test-force-exit.
 function readPage(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -216,7 +207,6 @@ test("a seed-and-views capture uses workspace Playwright and quiet bridge reads,
     async close() {},
   } as unknown as Page;
   const browser = Object.assign(new EventEmitter(), { isConnected: () => true, async newPage() { return page; }, async close() { closed++; } }) as unknown as Browser;
-  // This is the workspace package. A runner importing a machine-specific copy would miss this mock.
   const launch = t.mock.method(chromium, "launch", async () => browser);
   const seed = { projects: ["sample"], tree: { stories: [], arcs: [] }, changes: { changes: [], cursor: 0 }, lines: { lines: [], cursor: 0 }, covers: {} };
   await runCapture({ folder, dist: folder, seed, views: [{ name: "quiet", picture: false,
@@ -278,7 +268,6 @@ test("2.38 · a capture on a live library answers the page with the app's own re
     await removeTemp(outputFolder(folder));
   });
   writeFileSync(path.join(folder, "index.html"), "<body>capture fixture</body>");
-  // A busy library, small: eight lines where the capture's bound is three, and a story edited twice.
   const library = await storytree.openProject(project);
   const story = await library.addStory({ title: "Visitor can sign up", text: "Prose no surface reads" });
   await library.editStory(story.id, { title: "Visitor can join" });
@@ -336,7 +325,6 @@ test("2.38 · a capture on a live library answers the page with the app's own re
   await assert.rejects(liveAnswers({ storytree, project: "t-absent" }), /no project called "t-absent"/, "a project the library lacks is refused, naming it");
 });
 
-// PR #1279's macOS run: the browser disconnected, then browser.close() never returned and 3.35 hit its timeout.
 test("2.13 · a capture whose browser disconnects but whose close never returns still ends, its server closed", { timeout: 10_000 }, async t => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-hung-close-"));
   t.after(async () => { await removeTemp(folder); await removeTemp(outputFolder(folder)); });
@@ -348,7 +336,6 @@ test("2.13 · a capture whose browser disconnects but whose close never returns 
   }) as unknown as Browser;
   t.mock.method(chromium, "launch", async () => browser);
   let origin = "";
-  // Without the bound this await never settles, and the test's timeout fails it.
   assert.equal(await withCapture({ folder, dist: folder, closeGraceMs: 0 }, async context => { origin = context.origin!; return "captured"; }), "captured");
   await assert.rejects(readPage(origin), "the capture's server is closed too");
 });
@@ -358,7 +345,6 @@ test("2.14 · a real capture browser whose close hangs after disconnect is kille
   const child = browserProcess(browser);
   assert.ok(child?.pid, "the kit finds the process Playwright launched");
   const close = browser.close.bind(browser);
-  // The real shutdown runs, but its promise is never seen to settle, as on the loaded macOS runner.
   browser.close = () => { void close().catch(() => {}); return new Promise<void>(() => {}); };
   assert.equal(await closeBrowser(browser, { afterDisconnectMs: 0 }), "killed");
   assert.ok(child.stdio.every(stream => stream == null || stream.destroyed), "the browser's pipes are let go");

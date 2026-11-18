@@ -1,8 +1,4 @@
-/**
- * A factory plugin standing in for a switched-off part, in the window (capability 1 · Lifecycle; plugin loader capability 5):
- * the main process composes the factory's stand-ins into its page answers, page channels and surfaces, offers the page
- * the stand-in's channels and views, and serves a view only from a mounted stand-in's exported files.
- */
+// Capability 8 · Page bridge
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,11 +12,9 @@ import { pluginResponse, windowKinds, windowStandIns, type WindowParts } from ".
 import { answerPageParts, type PageFrame } from "./page-operations.js";
 import pageChannels from "./parts/page-channels.js";
 
-/** The channel the page's bridge sends a lag reading on, which a stand-in for the part reuses. */
 const LAG = pageChannels.parts.find((channels) => "recordLag" in channels)!.recordLag!;
 const VIEW = "export function mount(host, context) { host.drawn = context.project; }\n";
 
-/** A factory folder holding plugin `my-lag`, which stands in for the part `lag` with a page operation and a surface with a view. */
 function factory(t: TestContext): string {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-window-factory-"));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
@@ -51,7 +45,6 @@ const builtIn: WindowParts = {
 };
 const frame = { home: "the-home" } as PageFrame;
 
-/** The page's bridge over the main process's handlers, as answered with `off` switched off; a channel answered twice throws, as Electron's does. */
 function window(composed: ReturnType<typeof windowStandIns>, off: readonly string[]) {
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
   answerPageParts({

@@ -1,5 +1,3 @@
-// Packaging adapter: reuse the app setup's build, then stage the host platform's native runtimes:
-// both Windows architectures on Windows, Apple Silicon on macOS, x64 on Linux.
 import { buildBins, buildLauncher, ENTRY_BANNER, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/app-setup/bins";
 import { linuxRuntime, macRuntime, NODE_VERSION, stageRuntime, windowsRuntime, writePayloadManifest } from "@storytree/app-setup/deliver";
 import { build } from "esbuild";
@@ -11,8 +9,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-// Each step's time, for the Windows delivery proof's slow-step diagnosis. Written straight to stdout,
-// so a step still running when a deadline kills the process shows as started and not finished.
 function timed(name, run) {
   const started = performance.now();
   observe(`${name} START`);
@@ -28,7 +24,6 @@ function observe(message) {
 
 export async function buildToolBundle(outdir, { platform = process.platform, arch = process.arch, release } = {}) {
   mkdirSync(outdir, { recursive: true });
-  // stageTools builds each payload's own `storytree` launcher; the host's here would only be overwritten.
   await timed("storytree commands (buildBins)", () => buildBins(outdir, { release, launcher: false }));
   await timed("delivery helper bundle", () => build({
     stdin: {
@@ -44,17 +39,11 @@ export async function buildToolBundle(outdir, { platform = process.platform, arc
   timed(`embedding runtime ${platform}/${arch}`, () => stageEmbeddingRuntime(outdir, platform, arch));
 }
 
-/** Copy the locked Node runtime, never model weights or another target's native libraries.
- * Transformers' Node distribution already bundles its tokenizer and browser JS dependencies.
- * Sharp is still a mandatory import, even for a text-only pipeline, so its target must ship too.
- */
 export function stageEmbeddingRuntime(outdir, platform = process.platform, arch = process.arch) {
   const modules = path.join(outdir, "node_modules");
-  // A Windows payload may be restaged from the host's bundle; discard the previous sharp target.
   rmSync(path.join(modules, "@img"), { recursive: true, force: true });
   const staged = new Map();
   const packageRoot = (name, require) => {
-    // Some native packages export only their binding, and hide even package.json.
     for (const modules of require.resolve.paths(name) ?? []) {
       const dir = path.join(modules, name);
       if (existsSync(path.join(dir, "package.json"))) return realpathSync(dir);
@@ -93,14 +82,13 @@ export function stageEmbeddingRuntime(outdir, platform = process.platform, arch 
       for (const entry of ["onnxruntime_binding.node", library]) copy(`${native}/${entry}`);
     }
     if (name.startsWith("onnxruntime-")) {
-      // These npm distributions omit the upstream license. Keep it with the shipped runtime.
       cpSync(path.join(here, "licenses", "onnxruntime-LICENSE"), path.join(dest, "LICENSE"));
       cpSync(path.join(here, "licenses", "onnxruntime-ThirdPartyNotices.txt"), path.join(dest, "ThirdPartyNotices.txt"));
     }
     staged.set(name, { version: manifest.version, bytes: directoryBytes(dest) });
     observe(`copy ${name} done (${Math.round(performance.now() - started)} ms, ${staged.get(name).bytes} bytes)`);
     const dependencies = name === "@huggingface/transformers" ? ["onnxruntime-node", "onnxruntime-common", "sharp"]
-      : name === "onnxruntime-node" ? ["onnxruntime-common"] // downloader dependencies are install-time only
+      : name === "onnxruntime-node" ? ["onnxruntime-common"]
       : Object.keys(manifest.dependencies ?? {});
     if (name === "sharp") {
       const target = `${platform}-${arch}`;
@@ -128,11 +116,8 @@ export async function stageTools(platform = process.platform) {
   const root = path.join(here, "dist", "agent-tools");
   const common = path.join(root, "common");
   rmSync(root, { recursive: true, force: true });
-  // A release's packaging (dist.mjs, with STORYTREE_RELEASE_VERSION) stamps its 0.3.<n> into the installed command.
   const version = process.env.STORYTREE_RELEASE_VERSION;
   const release = version === undefined ? undefined : { version, commit: execFileSync("git", ["-C", here, "rev-parse", "HEAD"], { encoding: "utf8" }).trim() };
-  // Apple Silicon only (decision_dfb6e40aa9f7); sharp's darwin binaries install only on a Mac, so a Mac payload is staged there.
-  // Linux is x64 only (arc_38613dac8d7c), staged on a Linux host for the same reason.
   const archs = { win32: ["x64", "arm64"], darwin: ["arm64"], linux: ["x64"] }[platform];
   if (!archs) throw new Error(`No desktop tool payload for ${platform}`);
   await buildToolBundle(common, { platform, arch: archs[0], release });
@@ -142,7 +127,6 @@ export async function stageTools(platform = process.platform) {
     if (arch !== archs[0]) stageEmbeddingRuntime(dir, platform, arch);
     await stageNativeProbes(dir, platform, arch);
     if (platform === "win32") {
-      // The `storytree` command for this architecture: a program of its own (ADR-0854).
       buildLauncher(path.join(dir, LAUNCHER_PROGRAM), arch);
       await stageRuntime(path.join(dir, "node.exe"), windowsRuntime(arch));
     } else await stageRuntime(path.join(dir, "node"), platform === "darwin" ? macRuntime(arch) : linuxRuntime(arch));
@@ -156,12 +140,6 @@ export async function stageTools(platform = process.platform) {
   rmSync(common, { recursive: true, force: true });
 }
 
-/**
- * Sign every Mach-O file in a Mac payload here, before its manifest records their digests: signing
- * rewrites a binary, so electron-builder leaves agent-tools alone (package.json's mac.signIgnore).
- * Hardened runtime with the app's entitlements, as notarisation requires of every binary. Ad-hoc ("-") here:
- * a release's signing job re-signs them with the Developer ID and rewrites their digests (mac-signing.mjs sign).
- */
 export function signMachO(dir, identity = "-") {
   const entitlements = path.join(here, "entitlements.mac.plist");
   const visit = (folder) => {
@@ -180,7 +158,6 @@ function isMachO(file) {
   const header = Buffer.alloc(4);
   const fd = openSync(file, "r");
   try { if (readSync(fd, header, 0, 4, 0) < 4) return false; } finally { closeSync(fd); }
-  // 64-bit Mach-O in either byte order, or a universal (fat) binary.
   return [0xfeedfacf, 0xcffaedfe, 0xcafebabe, 0xbebafeca].includes(header.readUInt32BE(0));
 }
 

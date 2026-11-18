@@ -1,9 +1,4 @@
-/**
- * The page's frame under the app bar (capability 2 · Storytree projects, contract 2.8): the real renderer, on a stand-in bridge,
- * measured in a browser at a wide and a narrow window. The left rail and the forest beside it start directly below the 48 px app
- * bar, the rail runs to the window's bottom, and the forest takes the rest of the width, never under the rail; resized, collapsed and
- * shown again (2.46), the forest and its drawing follow it. `RAIL_PICTURES=<folder>` keeps a picture of each of those states.
- */
+// Capability 2 · Storytree projects
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -17,8 +12,6 @@ import { buildCapture, captureSeed, fakeBridge, withCapture, type CaptureContext
 type Box = { left: number; top: number; right: number; bottom: number };
 
 type Served = { browser: CaptureContext["browser"]; origin: string; bridge: FakeBridge };
-/** The renderer built once for the file, on a stand-in bridge serving the forest capture's seed, with one browser and server
- * kept open for its tests to open pages on until they end: the file pays one build and one launch, not one a test. */
 let served: Promise<Served> | undefined;
 let closed: Promise<void> | undefined;
 let finish: () => void = () => {};
@@ -37,7 +30,6 @@ function onRenderer(): Promise<Served> {
       linesSince: async (_, cursor) => cursor === 0 ? seed.lines : { lines: [], cursor: seed.lines.cursor },
       frontCovers: async (_, id) => seed.covers[id] ?? [],
     });
-    // The runner images carry Chrome, not the Chromium Playwright downloads for itself.
     process.env.CAPTURE_CHANNEL ??= "chrome";
     return await new Promise<Served>((resolve, reject) => {
       closed = withCapture({ folder: dist, dist }, async ({ browser, origin }) => { resolve({ browser, origin: origin!, bridge }); await finished; })
@@ -53,8 +45,6 @@ test("2.8 · the left rail and the forest beside it start directly below the 48 
     const page = await browser.newPage({ viewport, deviceScaleFactor: 1, colorScheme: "dark" });
     await bridge.install(page);
     await page.goto(`${origin}/index.html`, { waitUntil: "domcontentloaded", timeout: 180_000 });
-    // The rail is mounted before the page says it is ready, so it is measured at once: a locator's wait for it, with the rail
-    // already there, ran past its 30 s on a loaded Windows runner.
     await page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: 180_000 });
     const boxes = await page.evaluate(() => Object.fromEntries([".app-bar", ".side-rail", "main > .forest"].map((selector) => {
       const { left, top, right, bottom } = document.querySelector(selector)!.getBoundingClientRect();
@@ -78,18 +68,14 @@ test("2.46 · while the left rail is resized, collapsed or shown again, the map 
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1, colorScheme: "dark" });
   await bridge.install(page);
   await page.goto(`${origin}/index.html`, { waitUntil: "domcontentloaded", timeout: 180_000 });
-  // Ready means the rail is mounted (as in 2.8), so nothing waits for it.
   await page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: 180_000 });
-  /** The rail's right edge (0 when it is collapsed), and the forest's and its drawing's boxes, once the drawing has followed. */
   const beside = async (state: string) => {
     await page.waitForFunction(() => {
-      // The drawing's own pixels (one per CSS pixel here) follow the forest's width: the map redrew, not only stretched.
       const forest = document.querySelector<HTMLElement>("main > .forest")!;
       const canvas = forest.querySelector("canvas");
       return canvas !== null && canvas.width === forest.clientWidth && canvas.getBoundingClientRect().left === forest.getBoundingClientRect().left;
     }, undefined, { timeout: 30_000 });
     if (pictures) await page.screenshot({ path: path.join(pictures, `rail-${state}.png`) });
-    // No function is named inside: the test's loader would name it with a helper the page does not have.
     return page.evaluate(() => {
       const rail = document.querySelector<HTMLElement>(".side-rail")!;
       const [forest, canvas] = ["main > .forest", "main > .forest canvas"].map((selector) => document.querySelector(selector)!.getBoundingClientRect());

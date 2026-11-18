@@ -1,4 +1,4 @@
-/** Capability 4 · Updates. Installed-app updates; a development copy does not update itself. */
+// Capability 4 · Updates
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -10,7 +10,6 @@ import { followBuildTools, refreshTools } from "@storytree/app-setup/deliver";
 import { appHome } from "../home.js";
 import { releasesLog, waitingLine } from "./releases-log.js";
 
-/** This app's installation (updates 4.21): whether it is installed, and whether it follows releases. */
 function thisInstallation(): Installation {
   return installation({
     platform: process.platform, packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath(),
@@ -18,37 +17,27 @@ function thisInstallation(): Installation {
   });
 }
 
-/** Whether this is the app the installer put here (the Windows installer's marker, or a delivery record naming this Mac bundle or Linux AppImage). */
 export function installedApp(): boolean {
   return thisInstallation().installed;
 }
 
-/** Whether a downloaded release can install itself here, which the gear's install choice is about. */
 export function releasesInstall(): boolean {
   return thisInstallation().followsReleases;
 }
 
-/** The installer's marker text, which decides an installation's first channel; none on a Mac or a Linux AppImage. */
 function markerText(markerFile: string | undefined): string {
   return markerFile === undefined ? "" : readFileSync(markerFile, "utf8");
 }
 
-/**
- * The gear's update channel (updates 4.24), offered where releases install (4.32), with stable's build and its day (4.34);
- * the updater reads it again on its next check.
- */
 export function channelChoice(home: string, smoke: boolean) {
   const { followsReleases, markerFile } = thisInstallation();
   const choice = releaseChannelChoice({ available: channelOffered({ smoke, followsReleases }), home, marker: () => markerText(markerFile), stable: () => stableBuild() });
   return { read: () => choice.describe(), set: choice.set };
 }
 
-/** The updater, for the gear's Updates panel; undefined where the app does not update from releases (an ad-hoc signed Mac build among them). */
 export function followReleases(options: ReleaseOptions, home: string, choice: () => InstallChoice): ReleaseUpdater | undefined {
   const { followsReleases, markerFile } = thisInstallation();
   if (!followsReleases) return undefined;
-  // An installed Linux AppImage puts its own agent tools beside it (Get storytree 1.5; updates 4.31); then every installed app
-  // points the agents at its build's copy under the home, out of the installation the next update replaces (1.20, 1.22; updates 4.42).
   const installDir = installationFolder({ platform: process.platform, execPath: process.execPath, appImage: process.env.APPIMAGE });
   void refreshAgentTools({
     platform: process.platform,
@@ -61,7 +50,6 @@ export function followReleases(options: ReleaseOptions, home: string, choice: ()
   const updater = new ReleaseUpdater({ ...options, home, sandboxOff: app.commandLine.hasSwitch("no-sandbox"), releaseChannel: () => releaseChannel(home, markerText(markerFile)) });
   const log = releasesLog(path.join(home, "releases.log"));
   updater.logger = log;
-  // It checks now and every three minutes until the app quits (updates 4.30).
   const checking = keepCheckingReleases({ updater, log, waiting: () => waitingLine(choice()) });
   app.once("before-quit", checking.stop);
   return updater;

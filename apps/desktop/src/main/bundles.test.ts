@@ -14,7 +14,6 @@ import { buildCommit, mainBuild, preloadBuild } from "./bundles.js";
 
 const dist = path.join(tmpdir(), "storytree-bundles");
 
-/** One bundle built in memory, with the modules it leaves outside it. */
 async function bundled(options: BuildOptions): Promise<{ text: string; outside: Set<string> }> {
   const result = await build({ ...options, write: false, metafile: true, logLevel: "silent" });
   const output = result.outputFiles.find((file) => file.path.endsWith(".cjs"))!;
@@ -22,7 +21,6 @@ async function bundled(options: BuildOptions): Promise<{ text: string; outside: 
   return { text: output.text, outside };
 }
 
-/** Run a CommonJS bundle as Electron would, with `electron` answered by a stand-in. */
 function run(text: string, electron: object): Record<string, unknown> {
   const real = createRequire(import.meta.url);
   const module = { exports: {} as Record<string, unknown> };
@@ -32,14 +30,12 @@ function run(text: string, electron: object): Record<string, unknown> {
 
 const isNodes = (name: string) => name.startsWith("node:") || builtinModules.includes(name);
 
-/** All a sandboxed preload's `require` answers in Electron 44 (its sandboxed renderer's loadable modules); Buffer and process are globals there, not modules. */
 const SANDBOX_LOADABLE = ["electron", "electron/common", "electron/renderer", "events", "node:events", "timers", "node:timers", "url", "node:url"];
 
 test("4.37 · the main process bundles whole into main.cjs: it loads nothing from outside it but Node's own modules, Electron and the optional modules it never loads or loads lazily, so a packaged app needs no node_modules", { timeout: 120_000 }, async () => {
   const { outside } = await bundled({ ...mainBuild(dist), entryPoints: [fileURLToPath(new URL("./main.ts", import.meta.url))] });
   const optional = [
     "electron", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@huggingface/transformers",
-    // Native helpers ws tries to load and the proxy agent loads lazily, each done without when it is not there.
     "bufferutil", "utf-8-validate", "kerberos",
   ];
   assert.deepEqual([...outside].filter((name) => !isNodes(name) && !optional.includes(name)), []);

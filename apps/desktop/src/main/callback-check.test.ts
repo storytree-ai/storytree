@@ -12,13 +12,10 @@ test("1.15 under --callback-check, each sign-in callback handed to the app is re
   const lines: string[] = [];
   const report = (line: string) => lines.push(line);
 
-  // A build with no sign-in (CI's) says the callback arrived and that no session takes it.
   assert.equal(routeCallback(url, { offered: false, session: undefined, early: [], report }), "dropped");
-  // Before the session is made, the callback is kept for it.
   const early: string[] = [];
   assert.equal(routeCallback(url, { offered: true, session: undefined, early, report }), "kept");
   assert.deepEqual(early, [url]);
-  // Once it is made, the session gets the callback; its failed exchange is the session's to say, not the route's.
   const handed: string[] = [];
   const session = { callback: async (link: string) => { handed.push(link); throw new Error("invalid code"); } };
   assert.equal(routeCallback(url, { offered: true, session, early: [], report }), "delivered");
@@ -34,17 +31,14 @@ test("1.15 under --callback-check, each sign-in callback handed to the app is re
   assert.match(lines[1]!, /kept until the sign-in session/);
   assert.match(lines[2]!, /reached the sign-in session/);
 
-  // Without the check, nothing is reported.
   assert.equal(routeCallback(url, { offered: false, session: undefined, early: [] }), "dropped");
   assert.equal(lines.length, 3);
 });
 
 test("1.15 a --callback-check start registers the sign-in scheme as a normal start does, so the OS can open a callback in it", () => {
   const start = (argv: string[]) => parseArgs(argv);
-  // With sign-in offered, a normal start and a --callback-check start both claim the scheme from the OS.
   assert.equal(registersSignInScheme(start([]), true), true);
   assert.equal(registersSignInScheme(start(["--callback-check"]), true), true);
-  // The smoke check and the updater's start check never do, and a build with no sign-in has no scheme to claim.
   assert.equal(registersSignInScheme(start(["--smoke"]), true), false);
   assert.equal(registersSignInScheme(start(["--start-check"]), true), false);
   assert.equal(registersSignInScheme(start(["--callback-check"]), false), false);

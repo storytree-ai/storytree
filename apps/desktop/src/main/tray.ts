@@ -1,10 +1,6 @@
-/**
- * Capability 1 · Lifecycle. The tray icon, whose click and Open bring the window back and whose Quit quits the app
- * (contracts 1.7, 1.27), worn with the windows in the taskbar's colourway as it changes (contract 1.17).
- */
+// Capability 1 · Lifecycle
 import { followTaskbar, type IconColourway, type TaskbarTheme } from "./app-icon.js";
 
-/** The part of Electron's Tray this keeps, with its image and menu types left to the caller. */
 export interface AppTray<Image, Menu> {
   isDestroyed(): boolean;
   setImage(image: Image): void;
@@ -13,13 +9,11 @@ export interface AppTray<Image, Menu> {
   on(event: "click", listener: () => void): unknown;
 }
 
-/** A window that wears the icon. */
 export interface IconWindow<Image> {
   isDestroyed(): boolean;
   setIcon(image: Image): void;
 }
 
-/** Make the tray in the taskbar's colourway, wear each change on it and the live windows, and answer its click and menu. */
 export function keepTray<Image, Menu, Made extends AppTray<Image, Menu>>({ theme, items, build, makeTray, trayIcon, windowIcon, windows, buildMenu, show, quit }: {
   theme: TaskbarTheme;
   items: readonly { id: "show" | "quit"; label: string }[];
@@ -34,7 +28,6 @@ export function keepTray<Image, Menu, Made extends AppTray<Image, Menu>>({ theme
 }): Made {
   let tray: Made | undefined;
   followTaskbar(theme, (colourway) => {
-    // A taskbar change can arrive while the app quits, after Electron has destroyed what wears the icon.
     if (tray === undefined) tray = makeTray(trayIcon(colourway));
     else if (!tray.isDestroyed()) tray.setImage(trayIcon(colourway));
     for (const window of windows()) if (!window.isDestroyed()) window.setIcon(windowIcon(colourway));

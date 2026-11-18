@@ -9,7 +9,6 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { captureSequence } from "./index.js";
 
-// Chrome is installed on the three CI runner images, as runner.test.ts's launch says; a launch that never answers is retried.
 async function launchChrome(): Promise<Browser> {
   for (let attempt = 1; ; attempt++) {
     try {
@@ -20,11 +19,6 @@ async function launchChrome(): Promise<Browser> {
   }
 }
 
-/**
- * A stand-in map posed as the app's is: a still eye on the z axis looking at the origin, and a sheet group spun and tipped about the
- * middle of the view, opening turned 10° and tilted 40°. Each redraw paints the page in a colour of the pose it draws, read from
- * the group's rotation matrix and the eye's distance, so each frame's picture says which pose it was taken at.
- */
 async function standInMap(page: Page): Promise<void> {
   await page.setViewportSize({ width: 480, height: 320 });
   await page.setContent("<body style='margin:0;width:100vw;height:100vh'></body>");
@@ -56,10 +50,8 @@ async function standInMap(page: Page): Promise<void> {
   })()`);
 }
 
-/** The colour the stand-in paints for a pose. */
 const painted = ({ turn, tilt, zoom }: { turn: number; tilt: number; zoom: number }) => [Math.round(turn) + 100, Math.round(tilt) + 20, Math.round(zoom * 40)];
 
-/** The colour at each point of a PNG file, read through a canvas in `page`. */
 async function colours(page: Page, file: string, points: { x: number; y: number }[]): Promise<number[][]> {
   return page.evaluate(`(async ({ src, points }) => {
     const image = new Image();
@@ -83,7 +75,6 @@ test("2.65 · a capture's frame sequence sets the map's turn, tilt or zoom by th
   const opening = await page.evaluate(`({ ...globalThis.__globe.scene.getObjectByName('globe').quaternion, eye: globalThis.__globe.camera.position.z })`);
   const reader = await browser.newPage();
   const centre = { x: 240, y: 160 };
-  /** The asked values, read back, and each frame's picture and sheet cell painted in the pose asked, in order. */
   const taken = async (sequence: Awaited<ReturnType<typeof captureSequence>>, kind: "turn" | "tilt" | "zoom", asked: number[]) => {
     const rest = { turn: 10, tilt: 40, zoom: 2 };
     assert.deepEqual(sequence.frames.map(frame => Math.round(frame.pose[kind] * 1e6) / 1e6), asked, `each frame's ${kind} is the asked step`);

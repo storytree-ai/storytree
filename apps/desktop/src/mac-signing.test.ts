@@ -6,8 +6,6 @@ import path from "node:path";
 import { test } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
-// The release's macOS signing mode, chosen from the repository's signing secrets (apps/desktop's
-// mac-signing.mjs): the release workflow and dist.mjs both follow it.
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
 import { builderEnv, gatekeeperSkip, historyLines, identityFrom, macReleaseNote, macSigning, notarise, packagedSigning, pendingLine, signApp, signingOrder, signRelease, staplerSkip, unsignedEnv, withMacNote, withZipDigest } from "../mac-signing.mjs";
 
@@ -20,12 +18,10 @@ const listed = [
 
 test("4.20 with no signing certificate the Mac build stays ad-hoc, asks for no keychain and is not notarised", () => {
   assert.deepEqual(macSigning({}), { mode: "ad-hoc", identity: "-", keychain: false, notarize: false });
-  // An absent repository secret reaches the job as an empty string.
   assert.deepEqual(macSigning({ CSC_LINK: "", ...apple }), { mode: "ad-hoc", identity: "-", keychain: false, notarize: false });
 });
 
 test("4.20 an ad-hoc Mac build hands electron-builder no CSC_LINK or CSC_KEY_PASSWORD, so an empty secret is not read as a certificate path", () => {
-  // The release passes absent secrets as empty strings; electron-builder resolved CSC_LINK="" to apps/desktop and failed.
   const adHoc = builderEnv({ CSC_LINK: "", CSC_KEY_PASSWORD: "", PATH: "/usr/bin" });
   assert.equal("CSC_LINK" in adHoc, false);
   assert.equal("CSC_KEY_PASSWORD" in adHoc, false);
@@ -39,7 +35,6 @@ test("4.20 an unsigned build hands electron-builder no certificate variable at a
 });
 
 test("4.20 electron-builder builds the Mac app ad-hoc even when the Developer ID secrets are in its environment: the signing job alone signs with them", () => {
-  // A same-repository pull request's build is signed too (electron-builder skips that by default), and Apple Silicon runs no unsigned code.
   const built = builderEnv({ CSC_LINK: "base64p12", CSC_KEY_PASSWORD: "pw", CSC_NAME: "FEDCBA98", ...apple, PATH: "/usr/bin" });
   assert.deepEqual(Object.keys(built).filter((name) => /CSC_/.test(name)), ["CSC_FOR_PULL_REQUEST"]);
   assert.equal(built.CSC_FOR_PULL_REQUEST, "true");
@@ -49,12 +44,9 @@ test("4.20 the packaged app records the mode the signing job will sign it in, si
   assert.equal(packagedSigning(undefined), "ad-hoc");
   assert.equal(packagedSigning("ad-hoc"), "ad-hoc");
   assert.equal(packagedSigning("developer-id"), "developer-id");
-  // The release passes "missing" when the job that reads the secrets gave no mode.
   for (const value of ["", "missing", "Developer ID"]) assert.throws(() => packagedSigning(value), /STORYTREE_MAC_SIGNING/);
 });
 
-// A macOS bundle holds relative symbolic links, which Linux and macOS always allow but Windows
-// lets an account make only with Developer Mode or admin rights: ask once whether this one can.
 const linksAllowed = (() => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-link-"));
   try {
@@ -69,7 +61,6 @@ const linksAllowed = (() => {
 const bundleLinks = { skip: linksAllowed ? false : "platform:posix: this account may not make symbolic links, which a macOS bundle holds and Linux and macOS always allow" };
 
 const machO = Buffer.from([0xcf, 0xfa, 0xed, 0xfe, 0, 0, 0, 0]);
-/** A small .app laid out as electron-builder's is: a framework with its version links, a helper app, libraries and a tool payload. */
 function fakeApp() {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-sign-"));
   const app = path.join(root, "mac-arm64", "storytree-0.3.app");
@@ -128,7 +119,6 @@ test("4.20 each item is signed with the hardened runtime and the app's entitleme
   const { root, app, digest } = fakeApp();
   try {
     const calls: string[][] = [];
-    // codesign rewrites each binary it signs; the fake appends a byte, as a new signature would change it.
     const codesign = (args: string[]) => {
       calls.push(args);
       const target = args.at(-1)!;
@@ -191,7 +181,6 @@ test("4.20 the release notes' Mac sentence says what the build is: ad-hoc, notar
   assert.doesNotMatch(macReleaseNote("notarised"), /not yet notarised|ad-hoc/);
   assert.match(macReleaseNote("notarised"), /Developer ID.*notarised by Apple/);
   assert.match(macReleaseNote("pending"), /Developer ID.*not yet notarised/);
-  // The draft is written before the Mac build; its upload puts in what Apple actually answered.
   const body = ["## Install", "", macReleaseNote("pending"), "", "Alpha installations follow every published build."].join("\n");
   assert.equal(withMacNote(body, "notarised"), [
     "## Install",
@@ -218,7 +207,6 @@ test("4.20 Apple's answer is waited for only until the bound: accepted is notari
   assert.deepEqual(await notarise(accepted.run), { id: "sub-1", status: "Accepted", notarised: true, stapled: true });
   assert.deepEqual(accepted.asked, ["sub-1", "sub-1", "sub-1"]);
   assert.equal(accepted.stapled.length, 1);
-  // Apple accepted but the ticket would not staple: still notarised (Gatekeeper asks Apple online), recorded unstapled.
   assert.deepEqual(await notarise(answering(["Accepted"], 60_000, false).run), { id: "sub-1", status: "Accepted", notarised: true, stapled: false });
   const waiting = answering([]);
   assert.deepEqual(await notarise(waiting.run), { id: "sub-1", status: "In Progress", notarised: false, stapled: false });

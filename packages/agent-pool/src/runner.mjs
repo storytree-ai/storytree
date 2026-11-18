@@ -1,5 +1,4 @@
-// Capability 1 · A lane runs on the engine its allowance allows. node packages/agent-pool/src/runner.mjs run <brief-file> <log> <err> [add-dir ...]
-// node packages/agent-pool/src/runner.mjs status
+// Capability 1 · A lane runs on the engine its allowance allows.
 import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants, homedir, hostname } from "node:os";
@@ -15,8 +14,6 @@ import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pic
 import { laneMemoryMax, poolConfig, readCap } from "./pool-config.mjs";
 import { countEngines, ENGINE_SLOTS, processTable, reserveSlot, WINDOWS_PROCESSES } from "./queue.mjs";
 
-/** Who a lane's commits are by: the owner, as main's commits are authored. */
-
 async function loginEnvironment(home, env, identity) {
   const login = { ...env };
   const names = ["CLAUDE_CODE_OAUTH_TOKEN"];
@@ -28,32 +25,21 @@ async function loginEnvironment(home, env, identity) {
     for (const name of names) if (!login[name]) login[name] = secrets[name] ?? "";
   }
   for (const name of ["OPENAI_API_KEY", "CODEX_API_KEY", "CODEX_ACCESS_TOKEN", "ANTHROPIC_API_KEY"]) delete login[name];
-  // A lane runs only on the lane token, never the box's stored claude.ai login, and loads no claude.ai tool servers;
-  // both engines carry that, so a claude nested in a Codex lane does too (ADR-1175 D1).
   if (!login.CLAUDE_CODE_OAUTH_TOKEN.trim()) throw Object.assign(new Error("no lane token (CLAUDE_CODE_OAUTH_TOKEN, in the environment or ~/.storytree/secrets.json): the lane does not start"), { code: "lane-token" });
   login.ENABLE_CLAUDEAI_MCP_SERVERS = "false";
-  // A pool's checkout may have no git identity, and a re-clone would lose one set there: a lane commits as the identity
-  // the machine's pool configuration names, unless the runner's environment names someone else (1.21).
   if (identity) for (const [name, value] of Object.entries({ GIT_AUTHOR_NAME: identity.name, GIT_AUTHOR_EMAIL: identity.email,
     GIT_COMMITTER_NAME: identity.name, GIT_COMMITTER_EMAIL: identity.email })) login[name] ||= value;
   return login;
 }
 
-/** The file in the lanes folder naming the question that asks the owner for a new lane token, empty while one runner asks it. */
 const TOKEN_QUESTION = "lane-token.question";
-/** Where the question goes for a run with no increment (a watcher's fix session): the arc that built the rule. */
 const TOKEN_ARC = "arc_cae8dffd9fe7";
 
-/**
- * A lane refused for want of its token asks the owner to make a new one (ADR-1175 D2): once, on its increment's arc,
- * while that question stands open, however often the pool retries; once it is settled, a token still missing asks again.
- */
 async function askForToken({ lanesDir, increment, storytree, dated }) {
   const file = join(lanesDir, TOKEN_QUESTION);
   const asked = await readFile(file, "utf8").catch(() => null);
   if (asked !== null) {
     const id = asked.trim();
-    // Another runner is asking; an empty file left by one that died while asking is set aside after ten minutes.
     if (!id && await stat(file).then((found) => Date.now() - found.mtimeMs < 10 * 60_000, () => true)) return;
     const open = id && await storytree(["question", "show", id]).then((text) => !/, (settled|retired)\b/.test(text.split("\n")[1] ?? ""), () => true);
     if (open) { dated(`no lane token: the owner was asked in ${id}`); return; }
@@ -80,25 +66,16 @@ async function askForToken({ lanesDir, increment, storytree, dated }) {
 
 const run = promisify(execFile);
 
-/**
- * A Claude lane loads storytree's Claude Code mod from the checkout (ADR-1056 D3), its hooks module switched on while that is early access,
- * and is told the file beside its log where the mod writes the session's id at start. A Codex lane is given none of the mod's
- * variables, even when the runner itself was started from a Claude Code session that carries them.
- */
 const MOD = ["--plugin-dir", PLUGIN_FOLDER];
 const MOD_VARIABLES = [...Object.keys(FUNCTION_HOOKS), "CLAUDE_CODE_PLUGIN_DIRS", SESSION_FILE];
-/** Record `line`, the turn-ended line that leaves a lane's session reading exited (1.29), in the shared library where this computer's `library` setting says it is. */
 async function recordLaneExit(line, project) {
   const { openActivityLog } = await import("@storytree/session-management");
   return withLibrary(project, async (_library, storytree) => (await openActivityLog(storytree)).append(project, line));
 }
 
-/** The harness each engine's session lines are written under. */
 const HARNESSES = { claude: "claude-code", codex: "codex" };
 const sessionFile = (log) => `${log.replace(/\.log$/, "")}.session`;
 function engineEnvironment(engine, login, log) {
-  // The pool configuration a dispatcher was started with (the laptop's, ADR-1179) is the runner's: the engine's own tools
-  // (its hand-over to the pool's watcher) read the machine's own.
   const { AGENT_POOL_CONFIG: _config, ...lane } = login;
   if (engine === "claude") return { ...lane, ...FUNCTION_HOOKS, [SESSION_FILE]: sessionFile(log) };
   const codex = { ...lane };
@@ -117,51 +94,33 @@ function argumentsFor(engine, brief, addDirs, resume, model) {
     : ["-p", brief, ...models, "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"];
 }
 
-/** A lane stopped by a signal to its runner: its queue keeps it and the dispatcher offers it again; 75 stays "an engine failing at once". */
 export const SIGNALED = 76;
 
-/** A lane whose engine's scope was killed out of memory (1.27): recorded failed, never requeued as signalled (76) nor read as an engine failing at once (75). */
 export const OUT_OF_MEMORY = 77;
 
-/**
- * The command that runs a lane's engine in a scope of its own (1.27): under systemd on Linux (the runner's environment
- * carries INVOCATION_ID, as a service's process does), a transient user scope named `unit`, limited to `memoryMax`, which an
- * out-of-memory kill stops alone, not the dispatcher's scope its runner is in; elsewhere, or with no limit, the command as it is.
- * systemd-run execs the command, so the engine keeps the pid the runner spawned.
- */
 export function laneScope(command, { unit, memoryMax, env = process.env, platform = process.platform }) {
   if (platform !== "linux" || !env.INVOCATION_ID || !memoryMax) return { command };
   return { unit, command: ["systemd-run", "--user", "--scope", "--quiet", `--unit=${unit}`, "-p", `MemoryMax=${memoryMax}`, "-p", "OOMPolicy=stop", ...command] };
 }
 
-/** Whether a lane's ended scope was killed out of memory; its record is cleared either way (it is kept, unloaded only once reset, so its result can be read). */
 async function killedOutOfMemory(unit, env) {
   const result = await run("systemctl", ["--user", "show", "-p", "Result", "--value", unit], { env }).then(({ stdout }) => stdout.trim(), () => "");
   await run("systemctl", ["--user", "reset-failed", unit], { env }).catch(() => {});
   return result === "oom-kill";
 }
 
-/** How many of a scope's processes a reading keeps, and how often it is read (1.31). */
 const HOLDERS = 5, HOLDERS_EVERY_MS = 5_000;
 
-/** The cgroup folder process `pid` is in, once it is the scope `unit`; undefined before systemd has moved it there. */
 async function scopeFolder(pid, unit) {
   const path = (await readFile(`/proc/${pid}/cgroup`, "utf8").catch(() => "")).trim().split("\n").find((line) => line.startsWith("0::"))?.slice(3);
   return path?.endsWith(`/${unit}`) ? `/sys/fs/cgroup${path}` : undefined;
 }
 
-/** The scope's out-of-memory kills so far, from its memory.events (null when it cannot be read). */
 async function oomKills(folder) {
   const events = await readFile(join(folder, "memory.events"), "utf8").catch(() => null);
   return events === null ? null : Number(/^oom_kill (\d+)$/m.exec(events)?.[1] ?? 0);
 }
 
-/**
- * The scope's largest processes by memory (1.31): pid, command line, resident and swapped bytes (near the limit the kernel
- * swaps a grower's pages out, so its resident memory alone understates it), largest sum first; undefined when an
- * out-of-memory kill came before or during the reading, which would no longer show what held the memory. `proc` is where
- * each process's status and command line are read.
- */
 export async function readHolders(folder, proc = "/proc") {
   if (await oomKills(folder) !== 0) return undefined;
   const pids = (await readFile(join(folder, "cgroup.procs"), "utf8").catch(() => "")).split("\n").filter(Boolean);
@@ -178,17 +137,14 @@ export async function readHolders(folder, proc = "/proc") {
   return found.sort((a, b) => b.rss + b.swap - a.rss - a.swap).slice(0, HOLDERS);
 }
 
-/** The variable every process an engine starts inherits, so the runner finds them after it exits; the watcher's `free` drops it. */
 export const LANE_RUN = "STORYTREE_LANE_RUN";
 const REAP = { settleMs: 60_000, graceMs: 10_000, everyMs: 1_000 };
 
-/** Linux: the live processes in the engine's group or carrying its run's marker, never the runner itself. */
 async function leftBehind({ group, mark }) {
   const found = [];
   for (const name of await readdir("/proc").catch(() => [])) {
     if (!/^\d+$/.test(name) || Number(name) === process.pid) continue;
     const status = await readFile(`/proc/${name}/stat`, "utf8").catch(() => "");
-    // After the command's closing parenthesis: state, parent, group.
     const [state, , pgrp] = status.slice(status.lastIndexOf(")") + 2).split(" ");
     if (!status || state === "Z") continue;
     const environ = await readFile(`/proc/${name}/environ`, "utf8").catch(() => "");
@@ -199,11 +155,6 @@ async function leftBehind({ group, mark }) {
   return found;
 }
 
-/**
- * What an exited engine left running (1.23): given settleMs to end on its own (a hook's hand-off), then SIGTERM, then SIGKILL
- * after graceMs, each named with its command line; a killed one is waited for (up to graceMs again) so it is gone, or a zombie, on
- * return. Linux only; elsewhere nothing is looked for.
- */
 async function reapLeftovers({ group, mark, dated, reap = REAP }) {
   if (process.platform !== "linux") return;
   const { settleMs, graceMs, everyMs } = { ...REAP, ...reap };
@@ -214,7 +165,7 @@ async function reapLeftovers({ group, mark, dated, reap = REAP }) {
     while (left.length && performance.now() < end) { await pause(); left = await leftBehind({ group, mark }); }
     return left;
   };
-  const signal = (pids, name) => { for (const pid of pids) try { process.kill(pid, name); } catch { /* already gone */ } };
+  const signal = (pids, name) => { for (const pid of pids) try { process.kill(pid, name); } catch {} };
   const survivors = await until(settleMs);
   if (!survivors.length) return;
   signal(survivors.map((one) => one.pid), "SIGTERM");
@@ -227,11 +178,6 @@ async function reapLeftovers({ group, mark, dated, reap = REAP }) {
   }
 }
 
-/**
- * Await the child and its output files; no shell, background launch or real engine in tests. Given a watch, an engine whose log
- * has not grown for quietMs while `online` says the library and GitHub do not answer is stopped as stalled (1.20). On Linux the
- * engine leads its own process group, and what it leaves running is stopped before the result is returned (1.23).
- */
 async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated = () => {}, reap, onSpawn, memoryMax, holdersEveryMs = HOLDERS_EVERY_MS }) {
   const output = await open(log, "w");
   let errors;
@@ -248,8 +194,6 @@ async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated =
       const interrupt = () => forward("SIGINT"), terminate = () => forward("SIGTERM");
       process.on("SIGINT", interrupt); process.on("SIGTERM", terminate);
       let failure, stalled = false, closed = false, timer;
-      // While the engine runs in its scope, its largest processes are read every holdersEveryMs; the last reading before an
-      // out-of-memory kill is kept, since the scope's processes are gone once systemd stops it (1.31).
       let holders, reading, folder;
       const readScope = async () => {
         folder ??= await scopeFolder(child.pid, scope.unit);
@@ -259,7 +203,6 @@ async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated =
       };
       if (scope.unit && child.pid) reading = setTimeout(readScope, 0);
       if (watch) {
-        // One look at a time: the next is scheduled only once this one (and its reachability probe) is done.
         let size = -1, quietSince = watch.clock();
         const look = async () => {
           const grown = await stat(log).then((found) => found.size, () => 0);
@@ -296,7 +239,6 @@ async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated =
 
 const PROBE = "Reply with the single word OK. Do not run any command or read any file.";
 
-/** One tiny Codex turn, so Codex writes a fresh allowance reading into its session files. */
 async function probeCodex(command, { cwd, env, log, model, timeoutMs = 180_000 }) {
   const output = await open(log, "w");
   try {
@@ -309,7 +251,6 @@ async function probeCodex(command, { cwd, env, log, model, timeoutMs = 180_000 }
   } finally { await output.close(); }
 }
 
-/** How a lane carrying another's work on finds what that one left, and takes over its claims. */
 const CARRY_ON = `Before anything else, find what it left: its worktree and branch for this increment (\`git worktree list\`),
 commits and any pull request on that branch whose head is on this repository (\`gh pr list --head <branch> --state all --json number,state,isCrossRepository\`,
 keeping only those with isCrossRepository false: a fork's pull request on a branch of the same name is never this lane's), and the last lines of its log.
@@ -340,7 +281,6 @@ ${original}`;
 const CONTINUE = "You ended your turn while your work was unfinished: continue. You left no report and pushed no branch for your increment."
   + " Pick up where you stopped, carry the brief you were given through to its end (a handed-over pull request and your report, or residue and a report), and never end a turn to wait for something you started.";
 
-/** The remote branches named for an increment (`…increment-<hex>-…`), by name, with their commits. */
 async function remoteHeads(increment, cwd) {
   const { stdout } = await run("git", ["ls-remote", "--heads", "origin"], { cwd, maxBuffer: 64 * 1024 * 1024 });
   const mark = `increment-${increment.replace(/^increment_/, "")}`;
@@ -352,28 +292,21 @@ async function remoteHeads(increment, cwd) {
   return heads;
 }
 
-/** What a lane's increment has before and after a run: its report's mtime and the remote branches named for it (null when unreadable). */
 async function traces({ increment, lanesDir, heads }) {
   const report = await stat(join(lanesDir, `pool-${increment}.report.md`)).then((found) => found.mtimeMs, () => null);
   return { report, heads: await heads(increment).catch(() => null) };
 }
 
-/** Whether the run between two readings left anything: a report written, or a branch pushed or moved. An unreadable remote counts as left. */
 function leftSomething(before, after) {
   if (after.report !== null && after.report !== before.report) return true;
   if (!before.heads || !after.heads) return true;
   return Object.entries(after.heads).some(([name, sha]) => before.heads[name] !== sha);
 }
 
-/** The engine's session id: as the mod wrote it beside the log, or else from the log's first event that names one (Claude's session_id, Codex's thread_id). */
 async function sessionOf(log) {
   return (await readOptional(sessionFile(log)))?.trim() || /"(?:session_id|thread_id)":"([^"]+)"/.exec(await readOptional(log) ?? "")?.[1];
 }
 
-/**
- * Release every claim a lane's session still holds (its noticeboard lines, by their holder field), giving the ids released; a
- * claim a hand-over moved to its pull request's holder is that holder's, so it stands. A refusal is said, never thrown.
- */
 async function releaseClaims({ session, reason, storytree, dated }) {
   const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${String(error.message).split("\n")[0]}`); return ""; });
   const released = [];
@@ -388,7 +321,6 @@ async function releaseClaims({ session, reason, storytree, dated }) {
   return released;
 }
 
-/** The lane left nothing twice: release what its session holds, and write residue on its increment for the next lane. */
 async function leaveResidue({ increment, session, logs, storytree, day, dated }) {
   const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${String(error.message).split("\n")[0]}`); return ""; });
   const released = await releaseClaims({ session, reason: "the lane ended twice having left nothing; released by the lane runner", storytree, dated });
@@ -400,11 +332,6 @@ async function leaveResidue({ increment, session, logs, storytree, day, dated })
   dated(`residue written on ${increment}${released.length ? `; released ${released.join(", ")}` : ""}`);
 }
 
-/**
- * A lane that failed (1.17): recorded by `failed`, which gives back the increment's failures so far, or null for a lane refused a claim,
- * which is no failure. Either way its dead session's claims are released (1.28), unless the caller has released them already.
- * At the LANE_FAILURES-th, residue on the increment names each, since the pool offers it no more (2.27).
- */
 async function laneFailed({ increment, project, why, logs, lane, started, failed, storytree, day, dated, release = true }) {
   const failures = await Promise.resolve().then(() => failed({ increment, why, logs, ...(lane ? { lane } : {}), started }, project))
     .catch((error) => { dated(`failed lane on ${increment} not recorded: ${String(error.message).split("\n")[0]}`); return null; });
@@ -422,10 +349,8 @@ async function laneFailed({ increment, project, why, logs, lane, started, failed
   dated(`residue written on ${increment}: the pool offers it no more`);
 }
 
-/** Claude's and Codex's own words for requests that never reached their server (read from each engine's build, 2026-10-27). */
 const CUT_OFF = /^API Error: (?:Unable to connect to API|Connection dropped|Connection refused|Can't reach the API server|No internet route|Request timed out)|stream disconnected before completion|error sending request for url/;
 
-/** Whether a failing engine was cut off by a lost connection: its log's last error event, or its err, says so in its own words. */
 async function lostConnection({ log, err }) {
   const said = [];
   for (const line of (await readOptional(log)).trimEnd().split("\n").slice(-20)) {
@@ -439,12 +364,6 @@ async function lostConnection({ log, err }) {
   return said.some((text) => CUT_OFF.test(text.trim()));
 }
 
-/**
- * The command that runs storytree's `args` from the repository's root. pnpm is a .cmd on Windows, which execFile cannot start
- * without a shell that would mangle the arguments (a residue's text), so there it runs storytree's command line through node.
- * Another project's repository has neither: its lane runs the `installed` storytree command, which reads the project from
- * the checkout it runs in and is a program of its own on Windows too (ADR-0854).
- */
 export function storytreeCommand(args, platform = process.platform, project = "storytree", installed = ["storytree"]) {
   if (project !== "storytree") return [installed[0], [...installed.slice(1), ...args]];
   return platform === "win32"
@@ -452,11 +371,6 @@ export function storytreeCommand(args, platform = process.platform, project = "s
     : ["pnpm", ["-s", "storytree", ...args]];
 }
 
-/**
- * Which of the library and GitHub do not answer: a library read (any record proves it; another project's library holds none
- * of storytree's, so there its arc list) and a GitHub API call, each within a
- * minute. Each refusal is named with the first line it said (its error output, else its error), as "the library (…): …".
- */
 export async function refusals({ cwd, env, platform = process.platform, project = "storytree", installed,
   probe = (file, args) => run(file, args, { cwd, env, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 }) }) {
   const firstLine = (text) => String(text ?? "").split("\n").map((line) => line.trim()).find(Boolean);
@@ -468,25 +382,18 @@ export async function refusals({ cwd, env, platform = process.platform, project 
   return said.filter(Boolean);
 }
 
-/** Whether both the library and GitHub answer (refusals finds none). */
 export async function bothAnswer(options) {
   return (await refusals(options)).length === 0;
 }
 
-/**
- * How long a lane is held for the network, how often it looks, how long a quiet log means a stall while offline, and the clock that
- * quiet time is read on (a monotonic one; a test gives its own, so a loaded runner's pauses are not read as quiet).
- */
 const OFFLINE = { ceilingMs: 12 * 3_600_000, pollMs: 60_000, quietMs: 15 * 60_000, everyMs: 60_000, clock: () => performance.now() };
 
-/** Append residue to an increment's body; a refusal is said, never thrown. */
 async function appendResidue({ increment, residue, storytree, dated }) {
   const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${String(error.message).split("\n")[0]}`); return ""; });
   const body = (await tell(["library", "read", increment, "--field", "body"])).trimEnd();
   await tell(["arc", "increment", "edit", increment, "--body", body ? `${body}\n\n${residue}` : residue]);
 }
 
-/** Poll until the library and GitHub answer, or the ceiling passes (false); a signal to the runner ends the hold too ("interrupted"). */
 async function holdForNetwork({ reachable, sleep, now, offline }) {
   const began = now();
   let interrupted = false;
@@ -511,9 +418,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   if (!original.trim()) throw new Error(`brief ${brief} is empty`);
   const settings = laneSettings({ home, env });
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
-  // Every way a signal to the runner ends a lane: its own code, so the dispatcher requeues it (75 means an engine failing at once).
   const signaled = () => { dated(`lane runner stopped by a signal: exit ${SIGNALED} so the runner keeps this lane queued`); return SIGNALED; };
-  // An engine whose scope ran out of memory is a failed lane (1.27), so the pool stops offering a runaway after LANE_FAILURES.
   const outOfMemory = async (logs) => {
     dated(`lane killed out of memory (its scope's limit, ${memoryMax} bytes): exit ${OUT_OF_MEMORY}, recorded failed`);
     const { holders } = result;
@@ -525,8 +430,6 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     if (increment) await laneFailed({ increment, project, why: `killed out of memory (its scope's limit, ${memoryMax} bytes)`, logs, lane: await sessionOf(logs.at(-1)), started: began, failed, storytree, day, dated });
     return OUT_OF_MEMORY;
   };
-  // A lane that ends for good, not requeued and not recorded failed, releases what its session still holds, so its increment
-  // is offered at once; a signal's kill is a requeue and releases nothing (1.30).
   const ended = async (code, from) => {
     if (result.signaled) return code;
     const lane = await sessionOf(from);
@@ -534,9 +437,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     if (released.length) dated(`released ${lane}'s claims at the lane's end: ${released.join(", ")}`);
     return code;
   };
-  // The first engine's start frees the slot its starter reserved (3.32): from then on the process table counts it.
   const memoryMax = await laneMemoryMax(settings);
-  // Every engine run, however it ended (a signal or out of memory included), leaves its session reading exited (1.29).
   const runEngine = async (engine, args, options) => {
     const result = await runEngineOnce(commands[engine], args, { ...options, dated, reap, holdersEveryMs, onSpawn, memoryMax });
     const session = await sessionOf(options.log);
@@ -560,7 +461,6 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   let started = now();
   let result = await runEngine(picked.engine, argumentsFor(picked.engine, original, addDirs, undefined, settings.models[picked.engine]), { cwd, env: engineEnvironment(picked.engine, login, log), log, err, watch });
   dated(`engine ${picked.engine} exit ${result.code}`);
-  // Read again: the just-finished Codex run can have spent the allowance since we picked it.
   if (picked.engine === "codex" && !result.interrupted && await detectLimitHit({ ...settings, log, err,
     reading: await readLatestAllowance(settings.sessionsDir), now: now() / 1000 })) {
     const base = log.replace(/\.log$/, "");
@@ -574,7 +474,6 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   }
   if (result.interrupted) return signaled();
   if (result.oom) return outOfMemory([last.log]);
-  // A lane cut off by a lost connection is held, not failed: resumed in its own session once the network is back, else a fresh lane (1.20).
   if (result.stalled || (result.code !== 0 && !result.signaled && await lostConnection(last))) {
     const session = await sessionOf(last.log);
     const base = last.log.replace(/\.log$/, "");
@@ -607,7 +506,6 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
       if (result.code === 0 && (!before || leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads })))) return ended(0, resumed.log);
       break;
     }
-    // The resume failed or left the work unfinished (or there was no session to resume): residue, and a fresh lane that starts from what it left.
     if (increment) await appendResidue({ increment, storytree, dated, residue: `Residue (lane runner, ${new Date(now()).toISOString().slice(0, 10)}): a pool lane lost its connection; ${session ? `its session ${session} was resumed once the library and GitHub answered and ended with the work unfinished` : "its session id was not in its log, so it could not be resumed"}, so a fresh lane carries it on from its worktree, branch, pull request and logs (${logs.join(", ")}).` });
     const fresh = { engine: last.engine, log: `${base}.fresh.log`, err: `${base}.fresh.err` };
     const brief = reconnectBrief(logs, original);
@@ -620,7 +518,6 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     if (result.interrupted) return signaled();
     if (result.oom) return outOfMemory([...logs, fresh.log]);
   }
-  // An engine that exits 0 having left nothing ended its turn mid-work: resume its session once, then leave residue.
   if (before && result.code === 0 && !leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads }))) {
     const session = await sessionOf(last.log);
     const base = last.log.replace(/\.log$/, "");
@@ -632,7 +529,6 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     if (result.oom) return outOfMemory([last.log, resumed.log]);
     if (!leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads }))) {
       await leaveResidue({ increment, session, logs: [last.log, resumed.log], storytree, day, dated });
-      // A resume an operator stopped (a signal) is no failure of the lane's.
       if (!result.signaled) await laneFailed({ increment, project, why: `exit 0 with no report and no push, twice (started, then resumed once; the resume exited ${result.code})`, logs: [last.log, resumed.log],
         lane: session, started: began, failed, storytree, day, dated, release: false });
       return 1;
@@ -644,7 +540,6 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     dated(`engine failed within ${fastFail}s: exit 75 so the runner keeps this lane queued`);
     return 75;
   }
-  // A slow failing exit of the engine's own (not a signal: an operator's stop) that left nothing is a failed lane.
   if (before && result.code !== 0 && !result.signaled && !leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads }))) {
     await laneFailed({ increment, project, why: `exit ${result.code} with no report and no push`, logs: [last.log], lane: await sessionOf(last.log), started: began, failed, storytree, day, dated });
     return result.code;
@@ -673,17 +568,11 @@ async function showStatus({ home, env, now = Date.now, say = console.log }) {
   say(`next lane: ${picked.engine} (${picked.reason}); switch at ${settings.stopAt}%${stale ? "; the reading is over an hour old, so the next lane takes a fresh one first" : ""}`);
 }
 
-/** The engines running on this machine, from its process table (queue.mjs's countEngines). */
 async function enginesRunning() {
   if (process.platform === "win32") return countEngines(processTable((await run(...WINDOWS_PROCESSES, { maxBuffer: 64 * 1024 * 1024 })).stdout));
   return countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout);
 }
 
-/**
- * Reserve a slot under the box's cap (queue.mjs reserveSlot, 3.32) before a lane started from the command line (the watcher's
- * fix and review sessions, the session manager's run-lane.sh) picks its engine, since a Codex probe is an engine too; the
- * dispatcher calls runLane after its own reservation. The slot is released once the engine is up.
- */
 async function reserveCap({ home = homedir(), env = process.env, now = Date.now, say = console.log, count = enginesRunning,
   sleep = (ms) => new Promise((done) => setTimeout(done, ms)) }) {
   const config = poolConfig({ home, env });
@@ -691,10 +580,6 @@ async function reserveCap({ home = homedir(), env = process.env, now = Date.now,
   return reserveSlot({ dir: join(config.lanesDir, ENGINE_SLOTS), max, count, sleep, onWait: (running) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} waiting for a slot (${running} engines running) before starting an engine`) });
 }
 
-/**
- * The project the nearest `.storytree/project.json` at or above `folder` names, else storytree: a lane the command line
- * starts in another project's checkout (the watcher's fix and review sessions) runs as that project's lane (1.26).
- */
 export async function checkoutProject(folder) {
   for (let at = resolve(folder); ; at = dirname(at)) {
     const text = await readFile(join(at, ".storytree", "project.json"), "utf8").catch(() => undefined);
@@ -716,7 +601,6 @@ export async function main(args, options = {}) {
     try { return await runLane({ ...options, project, brief: args[1], log: args[2], err: args[3], addDirs: args.slice(4), onSpawn: slot.release }); }
     finally { await slot.release(); }
   } catch (error) {
-    // A lane that could not start (an empty brief, unreadable login settings, no lane token) stays queued: 75 stops its runner.
     complain(`lane runner: ${error.message}; exit 75 so the runner keeps this lane queued`);
     return 75;
   }

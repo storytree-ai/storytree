@@ -1,30 +1,15 @@
-// Capability 3 · The pool's dispatcher overflows into Claude Code cloud sessions while the box is saturated (ADR-1264), a
-// trial behind the machine file's `cloud` switch (pool-config.mjs), off by default. While ADR-1139 D2's saturation hold keeps
-// ready work waiting, it fires the cloud task's API trigger for an eligible increment, up to the switch's cap; the cloud lane
-// claims, builds and hands over through the library like any lane (4.30), and the dispatcher never claims for it. The fire's
-// token is CLOUD_TRIGGER_TOKEN in ~/.storytree/secrets.json (the trigger may be CLOUD_TRIGGER_ID there instead of in the switch).
-// Every fired lane is kept in the lanes folder's pool-cloud.json, so the trial's counts outlast the dispatcher.
+// Capability 3 · The pool's dispatcher overflows into Claude Code cloud sessions while the box is saturated (ADR-1264).
 import { readFile, writeFile } from "node:fs/promises";
 
 import { blind, HANDED, pickPool, readOnly } from "./feed.mjs";
 
-/** The cloud task's fire endpoint (platform.claude.com/docs/en/api/claude-code/routines-fire). */
 export const fireUrl = (trigger) => `https://api.anthropic.com/v1/claude_code/routines/${encodeURIComponent(trigger)}/fire`;
-/** A fired lane that has claimed its increment by now never will: it failed. */
 export const CLAIM_GRACE_MS = 30 * 60_000;
-/** After a fire error with no Retry-After, nothing is fired for this long: 100 fires an hour per account, and no retry storm. */
 export const FIRE_BACKOFF_MS = 30 * 60_000;
 
-/** Wording that names a need only the box, the laptop, a GPU or a desktop has, or the dispatcher's and watcher's own live behaviour. */
 const BOX_ONLY = /\binfra\/|\bsystemd\b|\bssh mint\b|\bmint box\b|\bthe box\b|\bwatcher\b|\bdispatcher\b|\blag runs?\b|\bgpu\b|\bdesktop app\b|\bapps\/desktop\b|\blaptop\b|\bwindows\b|\bmacos\b|\bfactory\b/i;
-/** Wording that names an edit to agent roles or the notes they stand on: a cloud container cannot run the guidance build (friction_8a0e4e03fbd3). */
 const ROLES = /\bagent roles?\b|\.claude\/agents\b|\bguidance\b|\bhabits card\b/i;
 
-/**
- * Why `one` (a pick, or a planning lane) may not go to a cloud session, else undefined: planning, another project's work, a
- * machine named, read-only or blind work (the cloud task briefs builds only), or wording that names a box-only need or an
- * edit to agent roles. Its body is read here because a wrong yes sends box work away, and a wrong no only keeps it home.
- */
 export function whyNotCloud(one) {
   if (one.plan) return "a planning lane";
   if (one.project && one.project !== "storytree") return `${one.project}'s work: the cloud task is storytree's`;
@@ -38,12 +23,10 @@ export function whyNotCloud(one) {
   return undefined;
 }
 
-/** Why a switched-on overflow fires nothing because a cloud lane cannot review, else undefined (ADR-0956 D1: no lane lands unreviewed). */
 export const whyRefused = (config) => (config.enabled === true && config.reviews !== true
   ? "a cloud lane cannot run the change-reviewer (the cloud switch's reviews is not true: the cloud environment does not load the plugin that provides storytree quality)"
   : undefined);
 
-/** Fire the cloud task once for `text` (the increment's id): its session and its link, or an error carrying the status and Retry-After seconds. */
 export async function fireCloud({ trigger, token, text, fetch = globalThis.fetch }) {
   const response = await fetch(fireUrl(trigger), {
     method: "POST", body: JSON.stringify({ text }), signal: AbortSignal.timeout(30_000),
@@ -58,11 +41,6 @@ export async function fireCloud({ trigger, token, text, fetch = globalThis.fetch
   return { session: body.claude_code_session_id, url: body.claude_code_session_url };
 }
 
-/**
- * Each fired lane judged against a fresh survey. A lane is `live` from its fire until its increment's claim (one made after
- * the fire) is released, its holder reads idle, or CLAIM_GRACE_MS pass with no claim, each of which fails it; `handed` once
- * its pull request is with the watcher; and `landed` or `failed` once its increment closes, by how it closed.
- */
 export function judgeLanes(lanes, found, now) {
   const byId = new Map(found.increments.map((one) => [one.id, one]));
   return lanes.map((lane) => {
@@ -81,13 +59,11 @@ export function judgeLanes(lanes, found, now) {
   });
 }
 
-/** The trial's readout: lanes fired, and how many landed, failed, are live or are with the watcher, and the fires that failed. */
 export function cloudCounts({ lanes = [], fireErrors = 0 }) {
   const count = (state) => lanes.filter((lane) => lane.state === state).length;
   return `cloud lanes: ${lanes.length} fired, ${count("landed")} landed, ${count("failed")} failed, ${count("live")} live, ${count("handed")} with the watcher; ${fireErrors} fire error${fireErrors === 1 ? "" : "s"}`;
 }
 
-/** The token (and the trigger, when the switch names none) from ~/.storytree/secrets.json's CLOUD_TRIGGER_TOKEN and CLOUD_TRIGGER_ID; none when it is unreadable. */
 export async function cloudSecrets(file, read = (path) => readFile(path, "utf8")) {
   try {
     const secrets = JSON.parse(await read(file));
@@ -95,16 +71,6 @@ export async function cloudSecrets(file, read = (path) => readFile(path, "utf8")
   } catch { return {}; }
 }
 
-/**
- * The dispatcher's overflow: `config` is the switch ({ enabled, cap, trigger, reviews }), which fires only with `reviews` true, `secrets` reads the token, `file` keeps the
- * fired lanes. `live(found)` judges them against a survey and names the live ones' increments, which the box never starts
- * meanwhile; `wants()` says whether a fire could happen now (switched on, under the cap, past any back-off), so a saturated
- * box surveys for it only then; `overflow(found, …)` fires for the pool's eligible picks up to the cap, each fire at most once
- * per increment (a cloud lane that failed leaves its increment to the box), each pick's body read by `body` only once it is
- * a candidate (the survey carries none, 2.32). A fire error leaves the increment ready, is said
- * once until a fire succeeds, and holds every fire until its Retry-After or FIRE_BACKOFF_MS. `watching()` names the increments
- * of the lanes not yet landed or failed, which a survey reads whatever their status, so each lane is judged by how it closed.
- */
 export function cloudOverflow({ config, secrets, file, fire = fireCloud, now = Date.now, say, body = async (one) => one.body ?? "",
   read = (path) => readFile(path, "utf8"), write = (path, text) => writeFile(path, text) }) {
   const at = (ms) => new Date(ms).toISOString();

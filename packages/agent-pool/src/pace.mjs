@@ -1,5 +1,4 @@
-// Capability 3 · The dispatcher's pace (ADR-1139, which replaces ADR-1056 D3's rate-limit pacing): a new lane is held back only
-// while the box itself is saturated, so one more lane would slow every lane. Claude's and Codex's usage never hold it back.
+// Capability 3 · The dispatcher's pace (ADR-1139, which replaces ADR-1056 D3's rate-limit pacing).
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
@@ -7,13 +6,8 @@ import { promisify } from "node:util";
 
 const run = promisify(execFile);
 
-/** Really maxed, not merely busy: a run queue half again the cores, 5% of memory or less free, a GPU 95% busy or full. */
 export const SATURATED = { loadPerCore: 1.5, memoryFree: 0.05, gpu: 0.95 };
 
-/**
- * The hold a box reading calls for: a pause naming each saturated part with its reading, else undefined. A part not read
- * (no /proc, no working nvidia-smi) holds nothing back. `reading`: { cores, load5, memTotal, memAvailable, gpus: [{ util, memUsed, memTotal }] }.
- */
 export function saturationOf(reading, limits = SATURATED) {
   const full = [];
   const { cores, load5, memTotal, memAvailable, gpus = [] } = reading;
@@ -32,7 +26,6 @@ export function saturationOf(reading, limits = SATURATED) {
 
 const nvidiaSmi = async () => (await run("nvidia-smi", ["--query-gpu=utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"], { timeout: 10_000 })).stdout;
 
-/** The box's saturation now, read from /proc/loadavg, /proc/meminfo and nvidia-smi; each source that fails is left unread. */
 export async function readBoxPace({ cores = availableParallelism(), readText = (path) => readFile(path, "utf8"), nvidia = nvidiaSmi } = {}) {
   const [load, memory, gpu] = await Promise.all([readText("/proc/loadavg"), readText("/proc/meminfo"), nvidia()].map((p) => p.catch(() => "")));
   const kB = (name) => Number(memory.match(new RegExp(`^${name}:\\s+(\\d+)`, "m"))?.[1]);

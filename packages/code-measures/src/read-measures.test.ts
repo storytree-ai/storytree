@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import type { DoorWords, VerbContext } from "@storytree/library/verbs";
+import { withLibrary } from "@storytree/library/testing/pg";
 import { removeTemp } from "@storytree/test-waits";
 
 import { readStoryMeasures } from "./index.js";
@@ -56,7 +57,7 @@ async function repository(t: TestContext): Promise<Repository> {
   const c2 = commit("2026-05-01T12:00:00Z", "alpha edited"); // one line added, one deleted
   write("packages/alpha-tools/src/a.ts", "export function a(x: number): number {\n  if (x > 0) return x;\n  return 0;\n}\nexport const extra = 1;\nexport const more = 2;\n");
   write("packages/beta-kit/package.json", '{ "name": "@ws/beta-kit", "exports": { ".": "./src/b.ts" } }\n');
-  write("packages/beta-kit/src/b.ts", "export const b = 1;\n");
+  write("packages/beta-kit/src/b.ts", 'import { a } from "@ws/alpha-tools";\nexport const b = a(1);\n');
   const c3 = commit("2026-05-10T12:00:00Z", "alpha grown, beta added");
   write("packages/alpha-tools/src/a.ts", `${readFileSync(path.join(folder, "packages/alpha-tools/src/a.ts"), "utf8")}export const dirty = 3;\n`);
   write("packages/alpha-tools/src/new.ts", "export const untracked = 4;\n");
@@ -109,7 +110,7 @@ test("1.7 · stories are read at the commit given, not the working tree, one sto
 
   const atC3 = await readStoryMeasures({ folder: repo.folder, commit: c3, stories: STORIES });
   assert.deepEqual(atC3.stories[0]!.size, { files: 1, sourceLines: 6, testLines: 0, commentLines: 0, commentShare: 0 }, "c3's a.ts, not the edited working copy nor the untracked file");
-  assert.deepEqual(atC3.stories[1]!.size, { files: 1, sourceLines: 1, testLines: 0, commentLines: 0, commentShare: 0 });
+  assert.deepEqual(atC3.stories[1]!.size, { files: 1, sourceLines: 2, testLines: 0, commentLines: 0, commentShare: 0 });
 
   const byTitle = await readStoryMeasures({ folder: repo.folder, commit: c3, stories: STORIES, story: "Beta kit" });
   assert.deepEqual(byTitle.stories.map((story) => story.id), [BETA.id]);
@@ -128,37 +129,44 @@ test("1.7 · an unknown story or an unreadable commit is refused, naming it", as
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
+test("1.4 · coupling is read across the workspace at the commit measured, each package known by its manifest's name: Beta kit imports Alpha tools as @ws/alpha-tools", async (t) => {
+  const repo = await repository(t);
+  const [, , c3] = repo.commits;
+  const read = await readStoryMeasures({ folder: repo.folder, commit: c3, stories: STORIES });
+  const [alpha, beta] = read.stories;
+  assert.deepEqual(alpha!.coupling, { dependencies: [], dependents: ["beta-kit"], instability: 0 });
+  assert.deepEqual(beta!.coupling, { dependencies: ["alpha-tools"], dependents: [], instability: 1 });
+});
+
 test("1.7 · the code-measures family's bare verb prints the readings, as data with --json, with no verdict, writing nothing to the library, and answers for a story it cannot measure", async (t) => {
   const repo = await repository(t);
   const [, c2] = repo.commits;
-  const read: string[] = [];
-  const library = new Proxy({}, {
-    get(_target, name) {
-      if (name === "then" || typeof name === "symbol") return undefined;
-      if (name === "list") {
-        return async (kind: string) => {
-          read.push(kind);
-          return kind === "story" ? STORIES.map(({ id, title }) => ({ id, type: "story", fields: { title } })) : [];
-        };
-      }
-      throw new Error(`the verb reached the library's ${String(name)}: it may only list stories`);
-    },
-  });
-  const context = { folder: repo.folder, project: "fixture", session: "s", library } as unknown as VerbContext;
-
   const family = CODE_MEASURES_FAMILIES.find((one) => one.name === "code-measures");
   assert.ok(family?.bare !== undefined, "the family is code-measures, its readings its bare verb");
   assert.equal(family.bare.writes, undefined, "it declares no write");
-  const inputs = { story: undefined, commit: c2, since: undefined };
 
-  const data = await family.bare.act({ ...inputs, json: true }, context, WORDS);
-  assert.equal(data.raw, true);
-  const expected = await readStoryMeasures({ folder: repo.folder, commit: c2, stories: STORIES });
-  assert.deepEqual(JSON.parse(data.text), JSON.parse(JSON.stringify(expected)), "--json prints the readings as data");
+  await withLibrary(async (library) => {
+    const alpha = await library.addStory({ title: ALPHA.title });
+    await library.addStory({ title: BETA.title });
+    const before = { changes: await library.latestChanges(), stories: await library.list("story") };
+    const context: VerbContext = { folder: repo.folder, project: library.name, session: "s", library };
+    const inputs = { story: undefined, commit: c2, since: undefined };
 
-  const text = await family.bare.act({ ...inputs, json: false }, context, WORDS);
-  assert.match(text.text, /Alpha tools/);
-  assert.match(text.text, /Beta kit/, "the story it cannot measure is listed, and the verb still answers");
-  assert.doesNotMatch(text.text, /\b(threshold|pass(ed)?|fail(ed|s)?|verdict)\b/i, "report only: no verdict");
-  assert.ok(read.every((kind) => kind === "story"), `it listed only stories: ${read.join(", ")}`);
+    const data = await family.bare!.act({ ...inputs, json: true }, context, WORDS);
+    assert.equal(data.raw, true);
+    const parsed = JSON.parse(data.text) as { stories: { id: string; title: string; size?: unknown; missing?: string; churn?: { added: number; deleted: number } }[] };
+    assert.deepEqual(parsed.stories.map(({ title }) => title), ["Alpha tools", "Beta kit"], "every story in the library, read from the library");
+    assert.equal(parsed.stories[0]!.id, alpha.id);
+    assert.deepEqual(parsed.stories[0]!.size, { files: 1, sourceLines: 4, testLines: 0, commentLines: 0, commentShare: 0 }, "c2's a.ts, as data");
+    assert.deepEqual([parsed.stories[0]!.churn?.added, parsed.stories[0]!.churn?.deleted], [1, 1]);
+    assert.match(parsed.stories[1]!.missing ?? "", /beta-kit/);
+    assert.equal(parsed.stories[1]!.size, undefined);
+
+    const text = await family.bare!.act({ ...inputs, json: false }, context, WORDS);
+    assert.match(text.text, /Alpha tools/);
+    assert.match(text.text, /Beta kit/, "the story it cannot measure is listed, and the verb still answers");
+    assert.doesNotMatch(text.text, /\b(threshold|pass(ed)?|fail(ed|s)?|verdict)\b/i, "report only: no verdict");
+
+    assert.deepEqual({ changes: await library.latestChanges(), stories: await library.list("story") }, before, "nothing written to the library");
+  });
 });

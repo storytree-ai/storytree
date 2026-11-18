@@ -165,6 +165,22 @@ test("1.2 · a story reads its functions' complexity p90, max and total per 1,00
   assert.deepEqual(read.longestFile, { path: "packages/p/src/many.ts", lines: 72 });
 });
 
+test("1.2 · a function nested in another, a callback, is scored on its own from nesting 0, and the function around it counts none of its structures; a logical sequence in a ternary's test counts", () => {
+  const nested = file("packages/p/src/nested.ts", [
+    "export function total(rows: number[], strict: boolean): number {", // 1: 1, 9 lines
+    "  if (strict) return 0;", //                                        +1
+    "  return rows.map((row) => {", //                                    3: the callback, 3, 6 lines
+    "    if (row > 0) {", //                                              +1 (nesting 0 in the callback)
+    "      return row;", //
+    "    }", //
+    "    return row < -10 && strict ? -row : 0;", //                      +1 ternary, +1 && sequence
+    "  }).length;", //
+    "}", //
+  ]);
+  const found = [...functionsOf(nested)].sort((a, b) => a.line - b.line);
+  assert.deepEqual(found.map(({ line, complexity, length }) => [line, complexity, length]), [[1, 1, 9], [3, 3, 6]]);
+});
+
 /** Fifteen distinct four-token assignments: a 60-token run with no repeat inside it (no declarations, so a file may hold it twice). */
 const RUN_60 = "a = 1; b = 2; c = 3; d = 4; e = 5; f = 6; g = 7; h = 8; i = 9; j = 10; k = 11; l = 12; m = 13; n = 14; o = 15;";
 /** Eleven such assignments and a five-token one: 49 tokens. */
@@ -191,6 +207,10 @@ test("1.3 · duplication is the share of source tokens in identical runs of 50 o
     file("packages/p/src/b.ts", ["function f() {}", RUN_49, "function g() {}"]), // 6 + 49 + 6
   ];
   assert.deepEqual(duplicationOf(short), { tokens: 121, cloned: 0, share: 0 });
+
+  // In JSX, the whitespace between elements is no token; text and an empty string are.
+  const jsx = [file("packages/p/src/view.tsx", ['const v = <div>', "  <b>x</b>", '</div>;', 'const e = "";'])]; // 19 + 5 tokens
+  assert.deepEqual(duplicationOf(jsx), { tokens: 24, cloned: 0, share: 0 });
 });
 
 /** A workspace package as the readings take it: its folder under packages/, its npm name, its manifest and its files. */

@@ -1,9 +1,4 @@
-/**
- * Code measures, capability 1 · Base structure measures, read from a git checkout at a commit: contracts 1.1 (a story whose
- * packages are not in the checkout), 1.6 (the churn window ends at the commit measured) and 1.7 (the code-measures verb
- * family reads at a commit without changing the checkout, one story or every one, refuses what it cannot read, writes
- * nothing). Each test makes a small git repository with scripted, dated commits.
- */
+// Capability 1 · Base structure measures
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -17,21 +12,16 @@ import { removeTemp } from "@storytree/test-waits";
 import { readStoryMeasures } from "./index.js";
 import { CODE_MEASURES_FAMILIES } from "./verbs.js";
 
-const ALPHA = { id: "story_a1a1a1a1a1a1", title: "Alpha tools" }; // packages/alpha-tools
-const BETA = { id: "story_b2b2b2b2b2b2", title: "Beta kit" }; // packages/beta-kit, added only at the last commit
+const ALPHA = { id: "story_a1a1a1a1a1a1", title: "Alpha tools" };
+const BETA = { id: "story_b2b2b2b2b2b2", title: "Beta kit" };
 const STORIES = [ALPHA, BETA];
 
 interface Repository {
   readonly folder: string;
-  /** The commits, oldest first: c1 120 days before c2, c3 nine days after it. */
   readonly commits: readonly [string, string, string];
   git(...args: string[]): string;
 }
 
-/**
- * Three dated commits of packages/alpha-tools/src/a.ts (4 source lines at c1 and c2, 6 at c3), packages/beta-kit added
- * at c3, and a working tree that differs from every commit: a.ts edited and a new file not yet added.
- */
 async function repository(t: TestContext): Promise<Repository> {
   const folder = mkdtempSync(path.join(tmpdir(), "code-measures-"));
   t.after(() => removeTemp(folder));
@@ -54,7 +44,7 @@ async function repository(t: TestContext): Promise<Repository> {
   write("packages/alpha-tools/src/a.ts", "export function a(x: number): number {\n  if (x > 0) return x;\n  return -x;\n}\n");
   const c1 = commit("2026-01-01T12:00:00Z", "alpha");
   write("packages/alpha-tools/src/a.ts", "export function a(x: number): number {\n  if (x > 0) return x;\n  return 0;\n}\n");
-  const c2 = commit("2026-05-01T12:00:00Z", "alpha edited"); // one line added, one deleted
+  const c2 = commit("2026-05-01T12:00:00Z", "alpha edited");
   write("packages/alpha-tools/src/a.ts", "export function a(x: number): number {\n  if (x > 0) return x;\n  return 0;\n}\nexport const extra = 1;\nexport const more = 2;\n");
   write("packages/beta-kit/package.json", '{ "name": "@ws/beta-kit", "exports": { ".": "./src/b.ts" } }\n');
   write("packages/beta-kit/src/b.ts", 'import { a } from "@ws/alpha-tools";\nexport const b = a(1);\n');
@@ -64,7 +54,6 @@ async function repository(t: TestContext): Promise<Repository> {
   return { folder, commits: [c1, c2, c3], git };
 }
 
-/** Everything a reading could change: HEAD, the refs, the index and working tree's status, and every file outside .git with its text. */
 function checkoutState(repo: Repository): unknown {
   const files: Record<string, string> = {};
   const walk = (dir: string) => {

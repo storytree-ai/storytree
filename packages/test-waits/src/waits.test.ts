@@ -1,4 +1,3 @@
-/** Test waits 1.1, 2.1–2.3 and 3.1–3.2: the environment's factor, waiting for a check, and removing a test's folders (ADR-1156). */
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,7 +6,6 @@ import { test } from "node:test";
 
 import { factor, quietFor, removeTemp, scaled, waitUntil, type Clock } from "./index.js";
 
-/** A clock that moves only when the helper pauses, recording each pause. */
 function fakeClock(): Clock & { pauses: number[] } {
   let at = 0;
   const pauses: number[] = [];
@@ -73,7 +71,6 @@ test("2.3 · a quiet check fails, naming what happened, the moment it does", asy
   assert.equal(calls, 3, "it stopped looking once it happened");
 });
 
-/** An rm that refuses with `code` for its first `times` calls, then does nothing. */
 function heldRm(times: number, code: string) {
   const calls: string[] = [];
   return {

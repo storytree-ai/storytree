@@ -1,25 +1,15 @@
-/**
- * Capability 5 · Recorder. The recorder mounted on the page: it hears trusted inputs, reads what the page shows each frame while an
- * action is under way (the same reading the lab instrument takes, src/desktop-lag.mjs in Mick's factory plugin micks-dev-loop), times each frame of a drag
- * that turns the map, and hands the browser's
- * Event Timing and Long Animation Frame entries to the core. Nothing runs on the input path but one read of the page; readings
- * reach the app every half minute, or as the page hides, and only when no action is under way (ADR-0836 D1). The lab switches it
- * off with `?lag-recorder=off`, so the catalogue can be measured with it and without.
- */
+// Capability 5 · Recorder
 import { CATALOGUE, sheetDrag, type PageState } from "@storytree/forest/actions";
 import type { LagBridge } from "./bridge.js";
 import { createRecorder, type Entry } from "./recorder.js";
 
 const FLUSH_EVERY_MS = 30_000;
 
-/** The parts of the page's window the recorder uses. */
 export type RecorderWindow = Pick<Window, "addEventListener" | "removeEventListener" | "requestAnimationFrame" | "setTimeout" | "setInterval" | "clearInterval" | "location" | "document" | "performance">
   & { PerformanceObserver?: typeof PerformanceObserver; storytreeGlobe?: GlobeSeam };
 
-/** What the recorder reads of the forest's globe locator (`window.storytreeGlobe`, forest 3.41): the islands' sizes and stillness. */
 type GlobeSeam = { islands(): { story: string; capabilities: number }[]; still(): boolean };
 
-/** What the page shows, as the catalogue's settled reads it; whether progress is on show only when asked, since it measures layout. */
 function readPage(win: RecorderWindow, withProgress: boolean): PageState {
   const document = win.document;
   const panel = document.querySelector<HTMLElement>(".story-panel");
@@ -33,7 +23,6 @@ function readPage(win: RecorderWindow, withProgress: boolean): PageState {
   };
 }
 
-/** Start recording on `win`, handing readings to `bridge`; undefined when the page was opened with the recorder off. */
 export function mountLagRecorder(bridge: LagBridge, win: RecorderWindow = window): { stop(): void } | undefined {
   if (new URLSearchParams(win.location.search).get("lag-recorder") === "off") return undefined;
   const recorder = createRecorder({
@@ -41,8 +30,6 @@ export function mountLagRecorder(bridge: LagBridge, win: RecorderWindow = window
     send: (readings) => bridge.recordLag(readings),
     size: (story) => win.storytreeGlobe?.islands().find((island) => island.story === story)?.capabilities,
   });
-  // Every frame is watched while an action is under way, and each frame's page is read once the frame's own callbacks have run
-  // (the globe's glide among them), not before them: read first, a frame's stillness would be seen one frame late.
   let watching = false;
   const watch = () => {
     watching = true;
@@ -55,14 +42,12 @@ export function mountLagRecorder(bridge: LagBridge, win: RecorderWindow = window
   };
   const onInput = (event: Event) => {
     if (!event.isTrusted) return recorder.scripted();
-    // A press on the map's canvas that spins and tilts it is a turn of the view on show, timed by its frames; no click action.
     const mode = event.type === "pointerdown" && (event.target as Element | null)?.tagName === "CANVAS" && sheetDrag(event as PointerEvent) === "spin"
       ? readPage(win, false).mode : undefined;
     if (mode === "forest" || mode === "library") recorder.turnStart(event.timeStamp, mode);
     else recorder.input(event.timeStamp, readPage(win, false));
     if (!watching) watch();
   };
-  // A script's click (an element's click()) comes with no pointerdown; the user's own click was heard at its pointerdown.
   const onClick = (event: Event) => { if (!event.isTrusted) recorder.scripted(); };
   const onMove = (event: Event) => { if (event.isTrusted) recorder.turnMove(); };
   const onLetGo = (event: Event) => { if (event.isTrusted) recorder.turnEnd(event.timeStamp); };

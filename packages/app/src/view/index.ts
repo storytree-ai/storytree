@@ -1,4 +1,4 @@
-/** Capability 2 · Storytree projects: the gear menu and its overlay. */
+// Capability 2 · Storytree projects
 import { mountDecisionRights, mountSettings, type SettingsBridge } from "@storytree/project-and-caller/view";
 import type { ProjectSelection } from "../projects/selection.js";
 import type { SurfacesBridge } from "../surfaces/bridge.js";
@@ -11,7 +11,6 @@ import type { UpdatesBridge } from "../updates/bridge.js";
 
 export { renderNoProjects } from "./render.js";
 
-/** The app owns the bars' top edge and overlay frame; each story mounts its own content. */
 export function mountAppMenu(host: HTMLElement, options: {
   background: HTMLElement;
   chooseProject(name: string): Promise<void>;
@@ -19,25 +18,15 @@ export function mountAppMenu(host: HTMLElement, options: {
   onError(error: unknown): void;
   mountHelp(host: HTMLElement, returnFocus: HTMLElement, onOpen: () => void): { open(): void; close(): void; stop(): void };
   checkForUpdates: UpdatesBridge["checkForUpdates"];
-  /** Opening at sign-in, where the frame can offer it (lifecycle 1.12). */
   signIn?: SignInBridge;
-  /** When a downloaded release may install itself, where the app installs releases (updates 4.13). */
   installChoice?: InstallChoiceBridge;
-  /** Which release channel the app follows, where it installs releases (updates 4.24). */
   releaseChannel?: ReleaseChannelBridge;
-  /** The app setup's Add project control; it reports the project added, which is then shown. `add` starts it from the bar's "Add a project…". */
   mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void; add(): void };
-  /** The app setup's project sentence for the project on show: what it is and who it is for, edited in place (ADR-1085 D1 as narrowed). */
   mountProjectSentence?(host: HTMLElement, current: () => string | undefined): { stop(): void; refresh(): void };
-  /** The app setup's Your factory: the factory folder in use, imported or switched with no approval (question_0b0b82eb8fbc). */
   mountFactory?(host: HTMLElement): { stop(): void };
-  /** The app setup's Remove project control: offers the project on show; once removed, the frame refreshes the list. */
   mountRemoveProject?(host: HTMLElement, current: () => string | undefined, onRemoved: (project: string) => Promise<void>): { stop(): void; refresh(): void };
-  /** The app setup's Delete a project control: offers every project but the one on show; once deleted, the frame refreshes the list. */
   mountDeleteProject?(host: HTMLElement, onDeleted: (project: string) => Promise<void>): { stop(): void; refresh(): void };
-  /** A story-owned sharing settings surface; the frame only gives it a section. */
   mountJourney?(host: HTMLElement): { open(): void; close(): void; stop(): void };
-  /** Hears a surface switched or set in the Surfaces menu, saved already, for the frame to apply. */
   onSurfacesChanged(): void;
 }) {
   const sheet = new CSSStyleSheet();
@@ -55,9 +44,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     readSettings: () => desktop!.storytree.readSettings(),
     saveSetting: (name, values) => desktop!.storytree.saveSetting(name, values),
   };
-  // Session management offers its settings by group; each group is its own tab.
   const sessionSettings = mountSettings(menu.querySelector<HTMLElement>('[data-app-settings="sessions"]')!, bridge, { returnFocus: gear, embedded: true, group: "sessions" });
-  // Below them, who decides what (Session management 7.6), with the standing delegations of the project on show.
   const decisionRights = mountDecisionRights(menu.querySelector<HTMLElement>("[data-app-decision-rights]")!,
     async () => shown === undefined ? undefined : desktop!.storytree.standingDelegations(shown));
   const sessions = {
@@ -88,8 +75,6 @@ export function mountAppMenu(host: HTMLElement, options: {
   const deleteProject = options.mountDeleteProject?.(menu.querySelector<HTMLElement>("[data-app-delete-project]")!, async () => { await options.onChosen(); });
   const factory = options.mountFactory?.(menu.querySelector<HTMLElement>("[data-app-factory]")!);
   const installChoice = mountInstallChoice(menu, options.installChoice, undefined, () => updates.refresh());
-  // The gear's dot names the build waiting, on its hover and as the menu's first row, which opens Updates (4.47); with
-  // Updates on show the row steps aside, since the section's status line names the build there.
   const updateReady = menu.querySelector<HTMLButtonElement>("[data-app-update-ready]")!;
   updateReady.addEventListener("click", () => selectSection("updates"));
   let waiting: string | undefined;
@@ -102,7 +87,6 @@ export function mountAppMenu(host: HTMLElement, options: {
     showReady();
     installChoice.waiting(ready !== undefined);
   }, installChoice.choice, () => releaseChannel.channel());
-  // A switch redraws the last check's line, which no longer says what the new channel offers.
   const releaseChannel = mountReleaseChannel(menu, options.releaseChannel, () => updates.refresh());
   const signIn = mountSignIn(menu, options.signIn);
   let section = "projects";
@@ -135,12 +119,11 @@ export function mountAppMenu(host: HTMLElement, options: {
   for (const button of menu.querySelectorAll<HTMLButtonElement>("[data-app-section]")) {
     button.addEventListener("click", () => selectSection(button.dataset.appSection!));
   }
-  // Keep the always-visible gear in the focus loop. Escape must not also close the arc drawer.
   const key = (event: KeyboardEvent) => {
     if (!menu.matches(":popover-open")) return;
     if (event.key === "Escape") {
       event.stopImmediatePropagation();
-      if (menu.querySelector("select:open")) return; // Let the native picker consume its own Escape.
+      if (menu.querySelector("select:open")) return;
       event.preventDefault(); close();
     }
     if (event.key !== "Tab") return;
@@ -155,7 +138,6 @@ export function mountAppMenu(host: HTMLElement, options: {
   document.addEventListener("keydown", key, true);
 
   return {
-    /** Open the menu on Help, as the empty map's First-run guide button asks (2.58); an open menu stays as it is. */
     openHelp(): void {
       if (menu.matches(":popover-open")) return;
       selectSection("help");
@@ -166,8 +148,6 @@ export function mountAppMenu(host: HTMLElement, options: {
       projectSentence?.refresh();
       removeProject?.refresh();
       deleteProject?.refresh();
-      // The bar's tabs: the factory's icon switches straight to it, and Projects lists the products, "Add a project…" opening
-      // the gear's Projects to add one. Drawn again only when they change, so a poll does not close a picker the user has open.
       const factoryName = factoryOf(place, shown);
       const drawn = renderProjectPicker(projects, shown, factoryName);
       if (switcherDrawn === drawn) return;
@@ -180,7 +160,6 @@ export function mountAppMenu(host: HTMLElement, options: {
       factoryTab.addEventListener("click", () => {
         if (factoryName !== undefined && factoryName !== shown) show(factoryName);
       });
-      // The product on show's name goes to the clipboard as plain text, acknowledged on its button.
       const copy = switcher.querySelector<HTMLButtonElement>("[data-app-copy-project]");
       const named = shown;
       copy?.addEventListener("click", () => {

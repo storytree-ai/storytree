@@ -27,16 +27,8 @@ import { pinStable } from "./stable-pin.js";
 
 type Platform = "win32" | "darwin" | "linux";
 const PLATFORMS: readonly Platform[] = ["win32", "darwin", "linux"];
-/**
- * AppImageUpdater replaces the AppImage with a POSIX `mv`, which a Windows host lacks; Linux and macOS hosts run these.
- * The skip names the platform the test needs (posix), so CI credits the Windows job's skip with the Linux and macOS passes.
- */
 const hostRuns = (platform: Platform) => ({ skip: platform === "linux" && process.platform === "win32" ? "platform:posix: the AppImage install needs a POSIX mv, which Windows lacks" : false });
 
-/**
- * Electron's Squirrel.Mac autoUpdater, which MacUpdater takes from require("electron"): it fetches
- * what MacUpdater's local server offers, as Squirrel does, and has no quit of its own to call.
- */
 class Squirrel extends EventEmitter {
   staged: Buffer | undefined;
   private feed: { url: string; headers?: Record<string, string> } | undefined;
@@ -96,7 +88,6 @@ test("4.16 after stable moves back, an install on the bad build sees no update a
   assert.equal(installed, 1);
 });
 
-/** The stable branch exactly as a pin of `version` writes it, every file pointing at that release's own assets. */
 async function pinnedBranch(installer: Buffer, version: string): Promise<Map<string, string>> {
   const at = (name: string) => `https://github.com/storytree-ai/storytree/releases/download/v${version}/storytree-0.3-${version}-${name}`;
   const digest = { sha512: createHash("sha512").update(installer).digest("base64"), size: installer.length };
@@ -107,7 +98,6 @@ async function pinnedBranch(installer: Buffer, version: string): Promise<Map<str
     macos: async () => ({ tested: true, evidence: "macOS nightly run 1 tested this build" }),
     candidate: async () => ({ version, commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false,
       installers: ["x64", "arm64"].map(arch => ({ url: at(`windows-${arch}-setup.exe`), sha256: "a".repeat(64), ...digest })), bootstrap: { ps1: "bootstrap" },
-      // An arch-neutral name: MacUpdater drops arm64 files on an Intel host, which this test may run on.
       feeds: { mac: { version, files: [{ url: at("mac.zip"), ...digest }] }, linux: { version, files: [{ url: at("linux-x86_64.AppImage"), ...digest }] } } }),
     pullRequests: async () => new Set(), increments: async () => [], publish: async () => {}, now: () => "2026-10-16T00:00:00.000Z",
   }, true);
@@ -173,8 +163,6 @@ for (const platform of PLATFORMS) {
     assert.deepEqual(events, []);
     writing = false;
     const applying = updater.check();
-    // Squirrel.Mac first fetches the download from MacUpdater; then the database stops, before anything else.
-    // A check that settles first (Squirrel could not stage) fails here rather than spinning the run forever.
     let settled = false;
     applying.then(() => { settled = true; }, () => { settled = true; });
     while (events.length === 0 && !settled) await new Promise((resolve) => setImmediate(resolve));
@@ -186,11 +174,9 @@ for (const platform of PLATFORMS) {
     if (platform === "win32") {
       assert.deepEqual(await readFile(target!.execPath), feed.installer);
     } else if (platform === "linux") {
-      // The AppImage file was replaced in place, and the restart starts it; nothing ran it before the database stopped.
       assert.deepEqual(target, { execPath: feed.appImage, args: [] });
       assert.deepEqual(await readFile(feed.appImage), feed.installer);
     } else {
-      // Squirrel.Mac staged the verified download; the relaunch opens the app once ShipIt has swapped it.
       assert.deepEqual(feed.squirrel?.staged, feed.installer);
       assert.equal(target?.execPath, "/bin/sh");
       assert.deepEqual(target?.args.slice(2), ["storytree-update", "/Applications/storytree 0.3.app"]);
@@ -234,7 +220,7 @@ for (const platform of PLATFORMS) {
         relaunch: () => { restarts++; }, exit: () => {},
       });
       const updater = feed.updater(lifecycle.restart, async () => backups?.canRestart() ?? true, async () => {
-        startBackup(); // A daily snapshot can start during the asynchronous quiet-moment read.
+        startBackup();
         await new Promise(resolve => setImmediate(resolve));
         return true;
       });
@@ -243,7 +229,6 @@ for (const platform of PLATFORMS) {
       const result = await updater.check();
       assert.equal(windowOpen, true, "a snapshot never strands the user in shutdown");
       assert.equal(result, "waiting");
-      // The user's asked restart reads as waiting for the write, never as offered again.
       assert.equal(updater.request("status").phase, entry === "menu" ? "ready" : "pending");
       assert.match(updater.request("status").reason ?? "", /library.*writing/i);
       finishSnapshot();
@@ -263,7 +248,6 @@ test("4.40 win32: a release installs through its installer's own progress window
   const lifecycle = background({ stopDatabase: async () => {}, relaunch: (next) => { target = next; }, exit: () => {} });
   feed.version = "0.3.2";
   assert.equal(await feed.updater(lifecycle.restart, async () => true).check(), "restarting");
-  // Without /S the one-click installer shows its progress; --updated skips its "app is running" question, --force-run starts the new build.
   assert.deepEqual(target?.args, ["--updated", "--force-run"]);
 });
 
@@ -311,7 +295,6 @@ test("4.7 Check for updates checks the release feed now, shares a check already 
   assert.equal(updater.request("status").phase, "up-to-date");
 });
 
-// Its title names no contract: its skip outside the child run would otherwise leave 4.7 not checked on every run.
 const DELIBERATE = "STORYTREE_RELEASES_DELIBERATE_FAILURE";
 test("deliberately failing while an automatic check runs", { skip: process.env[DELIBERATE] ? false : "other: fails on purpose, so it runs only in the child run of 4.7's test below" }, async (t) => {
   const feed = await fixture(t);
@@ -391,7 +374,6 @@ test("4.4 a restart the user asked for while a seed was writing says it waits, a
   t.after(() => updater.stop());
   assert.equal(await updater.check(), "waiting");
   assert.equal(updater.request("status").phase, "pending");
-  // Downloaded: from here the updater's own clock is the test's.
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const settle = async () => { for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve)); };
   writing = true;
@@ -480,7 +462,6 @@ test("4.24 a channel switch takes effect on the next check: the other channel's 
 test("4.27 a Windows update downloads only its changed blocks and verifies, even after an earlier downloaded update was never installed", async (t) => {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-differential-"));
   t.after(() => removeTemp(dir));
-  // Three builds of 64 blocks; each changes a few blocks of the one before. 0.3.1 is installed.
   const block = 1024;
   const builds = new Map<string, Buffer>();
   let bytes = Buffer.alloc(64 * block);
@@ -490,7 +471,6 @@ test("4.27 a Windows update downloads only its changed blocks and verifies, even
     for (const at of changed) bytes.fill(Number(version.at(-1)), at * block, (at + 1) * block);
     builds.set(version, bytes);
   }
-  // electron-updater only compares a blockmap's checksums with another's, so any digest of each block serves.
   const blockmap = (file: Buffer) => {
     const blocks = Array.from({ length: file.length / block }, (_, i) => file.subarray(i * block, (i + 1) * block));
     return gzipSync(JSON.stringify({ version: "2", files: [{ name: "file", offset: 0, checksums: blocks.map(b => createHash("sha256").update(b).digest("base64")), sizes: blocks.map(b => b.length) }] }));
@@ -518,21 +498,17 @@ test("4.27 a Windows update downloads only its changed blocks and verifies, even
   const port = (server.address() as { port: number }).port;
   const config = path.join(dir, "app-update.yml");
   await writeFile(config, JSON.stringify({ provider: "generic", url: `http://127.0.0.1:${port}`, updaterCacheDirName: "updates", useMultipleRangeRequest: false }));
-  // A release's files, at github.com/<repo>/releases/download/v<version>/<name>, are served by name from the local server.
   const transport = new NodeHttpExecutor();
   const createRequest = (options: Parameters<typeof transport.createRequest>[0], callback: Parameters<typeof transport.createRequest>[1]) =>
     transport.createRequest(options.hostname === "github.com" ? { ...options, protocol: "http:", hostname: "127.0.0.1", port, path: `/${String(options.path).split("/").at(-1)}` } : options, callback);
-  // NSIS keeps the installer that installed the running build in the updater's cache, as the old file of the next update.
   await mkdir(path.join(dir, "updates"), { recursive: true });
   await writeFile(path.join(dir, "updates", "installer.exe"), builds.get("0.3.1")!);
-  // Each start of the app runs a fresh updater on 0.3.1, which never installs (no quiet moment).
   const session = () => {
     const updater = new ReleaseUpdater({ restart: async () => assert.fail("no quiet moment, so no restart"), canRestart: async () => true, quiet: async () => false, home: dir }, {
       version: "0.3.1", name: "storytree-test", isPackaged: true, appUpdateConfigPath: config, userDataPath: dir, baseCachePath: dir,
       whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"), quit: () => assert.fail("separate quit"), onQuit: () => {},
     }, "win32");
     t.after(() => updater.stop());
-    // Electron's network transport is replaced by Node's; a failed differential download throws in test mode rather than falling back.
     Object.assign(updater.base, { httpExecutor: Object.assign(new ElectronHttpExecutor(), { createRequest }), _testOnlyOptions: { platform: "win32", isUseDifferentialDownload: true } });
     updater.logger = null;
     return updater;
@@ -540,7 +516,6 @@ test("4.27 a Windows update downloads only its changed blocks and verifies, even
   assert.equal(await session().check(), "waiting");
   assert.equal(pendingInstaller(dir, "0.3.2"), true);
   assert.deepEqual([feed.whole, feed.ranges > 0], [0, true], "0.3.2 came in blocks");
-  // 0.3.2 was downloaded, never installed; 0.3.3 is published and the app starts again on 0.3.1.
   feed.version = "0.3.3";
   feed.ranges = 0;
   assert.equal(await session().check(), "waiting");
@@ -548,17 +523,12 @@ test("4.27 a Windows update downloads only its changed blocks and verifies, even
   assert.deepEqual([feed.whole, feed.ranges > 0], [0, true], "0.3.3 came in blocks, rebuilt from the installed 0.3.1, and verified");
 });
 
-/** Whether the updater's pending download is this build's installer. */
 function pendingInstaller(dir: string, version: string): boolean {
   return existsSync(path.join(dir, "updates", "pending", `storytree-${version}-setup.exe`));
 }
 
-/** A real local feed and electron-updater's real download/checksum path; no installer is executed. */
 async function fixture(t: test.TestContext, platform: Platform = "win32") {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-release-"));
-  // Every step runs, last added first, even when one fails: node:test skips the hooks after a failed
-  // one, and a check still writing into dir when an assertion throws would leave the feed server
-  // holding the run open, with no failure reported.
   const teardown: (() => unknown)[] = [() => removeTemp(dir)];
   t.after(async () => {
     const errors: unknown[] = [];
@@ -567,7 +537,6 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   });
   const installer = Buffer.from("fixture release payload — never executed");
   const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, checks: 0, downloads: 0, installer, squirrel: undefined as Squirrel | undefined, sandboxOff: false, recheck: undefined as number | undefined, elsewhere: undefined as string | undefined };
-  // Each feed names its files in that version's own release, as a published one does, unless the test puts them elsewhere.
   const files = (version: string) => ["setup.exe", "storytree-mac.zip", "storytree-linux.AppImage"].map(url => ({ url: `${state.elsewhere ?? `https://github.com/storytree-ai/storytree/releases/download/v${version}/`}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
   const server = createServer((request, response) => {
     if (state.offline) { response.writeHead(404).end(); return; }
@@ -594,7 +563,6 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   teardown.push(() => new Promise<void>((resolve, reject) => { server.close((error) => error ? reject(error) : resolve()); server.closeAllConnections(); }));
   const address = server.address();
   assert.ok(address !== null && typeof address === "object");
-  // A Linux app runs from its AppImage, which the AppImage runtime names in APPIMAGE and the install replaces.
   const appImage = path.join(dir, "storytree-0.3");
   if (platform === "linux") {
     await writeFile(appImage, "the running build");
@@ -604,7 +572,6 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   }
   const config = path.join(dir, "app-update.yml");
   await writeFile(config, JSON.stringify({ provider: "generic", url: `http://127.0.0.1:${address.port}`, updaterCacheDirName: "updates" }));
-  // Replace only Electron's network transport, retaining its file download and digest checks.
   const executor = () => {
     const transport = new NodeHttpExecutor();
     return Object.assign(new ElectronHttpExecutor(), { createRequest(options: Parameters<typeof transport.createRequest>[0], callback: Parameters<typeof transport.createRequest>[1]) {
@@ -628,7 +595,6 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
         whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),
         quit: () => assert.fail("separate quit"), onQuit: () => assert.fail("install-on-quit bypasses lifecycle"),
       }, platform);
-      // MacUpdater serves the download to Squirrel.Mac from its own local server.
       teardown.push(() => { updater.stop(); const proxy = (updater.base as unknown as { server?: Server }).server; proxy?.closeAllConnections(); proxy?.close(); });
       Object.assign(updater.base, { httpExecutor: executor(), _testOnlyOptions: { platform } });
       updater.logger = null;

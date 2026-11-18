@@ -1,26 +1,14 @@
-/**
- * Capability 4 · Updates: the app stops restarting itself after five restarts in a row, on every channel, so a user is
- * never stuck in a restart loop (contract 4.35; the owner's voice note of 2026-10-23, after 1,135 unnoticed restarts).
- * Each restart is a new process, so the count is kept in a file in the app's home. A start that stays up for
- * STABLE_AFTER_MS is a stable one: the restarts before it are no longer in a row, so the count goes back to nought.
- */
+// Capability 4 · Updates
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-/** How many restarts in a row the app makes before it stops restarting itself. */
 export const RESTARTS_IN_A_ROW = 5;
-/** How long a start stays up before it counts as stable: three times an update's ten-minute settle after launch. */
 export const STABLE_AFTER_MS = 30 * 60_000;
 
 export interface RestartLimit {
-  /** One more restart: counted and true while fewer than the limit have run in a row; false, uncounted, after that. */
   mayRestart(): boolean;
 }
 
-/**
- * The restarts in a row kept in `file`, gone back to nought once this start has stayed up `stableAfterMs`. Each refused
- * restart is told to `stopped`, with what to record.
- */
 export function restartLimit({ file, limit = RESTARTS_IN_A_ROW, stableAfterMs = STABLE_AFTER_MS, stopped }: {
   file: string;
   limit?: number;
@@ -41,7 +29,6 @@ export function restartLimit({ file, limit = RESTARTS_IN_A_ROW, stableAfterMs = 
   };
 }
 
-/** What a refused restart rejects with: the app keeps running the build it has. */
 export class RestartsStopped extends Error {
   constructor(limit = RESTARTS_IN_A_ROW) {
     super(`storytree stopped restarting itself after ${limit} restarts in a row; it keeps running this build, and restarts again once it has stayed up for ${STABLE_AFTER_MS / 60_000} minutes`);
@@ -63,6 +50,5 @@ function write(file: string, inARow: number): void {
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, `${JSON.stringify({ inARow })}\n`);
   } catch {
-    // A count that cannot be kept never holds a restart back.
   }
 }

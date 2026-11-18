@@ -1,16 +1,11 @@
-/**
- * Capability 7 · Lag report. `storytree lag`: the field's readings over the last seven days, per action, against the catalogue's
- * budgets (ADR-1001 D2, D4), the action furthest over its budget first, then a line per view the map was turned in, read by its frames. A report, not a verdict (ADR-1001 D5).
- */
+// Capability 7 · Lag report
 import type { Budget, LagAction } from "@storytree/forest/actions";
 
 import type { KeptReading } from "./readings.js";
 
 const WINDOW_DAYS = 7;
-/** Fewer readings than this are too few to judge. */
 const ENOUGH = 10;
 
-/** The nearest-rank percentile `p` (0 to 1) of `values`, which are not empty. */
 function percentile(values: readonly number[], p: number): number {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)]!;
@@ -20,7 +15,6 @@ type Row = { name: string; readings: KeptReading[]; budget: Budget | undefined; 
 
 function row(name: string, readings: KeptReading[], budget: Budget | undefined): Row {
   if (budget === undefined) return { name, readings, budget, over: [], score: -1 };
-  // A settle past its budget counts only when no progress was on show (ADR-1001 D2).
   const settledMiss = Math.max(0, ...readings.filter((r) => !r.progress).map((r) => r.settled));
   const ratios = {
     response: Math.max(...readings.map((r) => r.response)) / budget.responseMs,
@@ -30,13 +24,11 @@ function row(name: string, readings: KeptReading[], budget: Budget | undefined):
   return { name, readings, budget, over: Object.entries(ratios).filter(([, ratio]) => ratio > 1).map(([what]) => what), score: Math.max(...Object.values(ratios)) };
 }
 
-/** p50 / p75 / worst of `values`, a value under the browser's threshold shown as under it. */
 function spread(values: number[], under?: number): string {
   const ms = (n: number) => (under !== undefined && n < under ? `<${under}` : n.toFixed(0));
   return `${ms(percentile(values, 0.5))} / ${ms(percentile(values, 0.75))} / ${ms(Math.max(...values))}`;
 }
 
-/** The report over `readings` as of `now`: the budgets are the catalogue's, by each entry's field name; `file` is where they were read. */
 export function lagReport(readings: readonly KeptReading[], options: { now: number; catalogue: readonly LagAction[]; file: string }): string {
   const since = options.now - WINDOW_DAYS * 86_400_000;
   const recent = readings.filter((r) => Date.parse(r.at) >= since);

@@ -5,7 +5,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-// Build the app's evidence captures against this branch: no browser, no pictures retaken.
 const pkg = fileURLToPath(new URL("../..", import.meta.url));
 const checkout = path.resolve(pkg, "../..");
 const run = promisify(execFile);

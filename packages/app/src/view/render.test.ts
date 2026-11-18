@@ -21,7 +21,6 @@ test("2.11 · the empty page shows storytree's mark in the page theme's colours,
   assert.doesNotMatch(mark, /<rect/, "the page is the canvas");
 });
 
-// App capability 2: the gear and project switcher.
 test("2.6–2.8 the app bar holds the gear, with the project dropdown's place at its left, and opens a sectioned overlay", () => {
   const html = renderAppMenu();
   const bar = html.match(/<header class="app-bar">([\s\S]*?)<\/header>/)?.[1];
@@ -33,7 +32,6 @@ test("2.6–2.8 the app bar holds the gear, with the project dropdown's place at
   assert.match(bar, /aria-label="App menu"[^>]*popovertarget="app-menu"/);
   assert.match(html, /id="app-menu"[^>]*popover="auto"/);
   assert.match(html, /role="dialog"[^>]*aria-modal="true"/);
-  // Close ends the tab row; no strip of its own above the tabs.
   assert.match(html, /<nav class="app-menu-sections"[\s\S]*data-app-section="help"[\s\S]*aria-label="Close app menu"[\s\S]*<\/nav>/);
   assert.doesNotMatch(html, /app-menu-header/);
   const sections = [...html.matchAll(/data-app-section="([^"]+)"/g)].map((match) => match[1]);

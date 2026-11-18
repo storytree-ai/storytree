@@ -1,4 +1,4 @@
-/** Capability 2 · Storytree projects. Browser-safe project-list refresh; the forest's own live reading is independent. */
+// Capability 2 · Storytree projects
 import type { ProjectsBridge } from "./bridge.js";
 import type { ProjectSelection } from "./selection.js";
 

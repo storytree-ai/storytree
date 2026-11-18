@@ -33,7 +33,6 @@ test("2.3, 2.4 the last setup yes wins across a batch or closed window; a later 
   const file = path.join(dir, "project-choice.json");
   let projects = ["a-existing", "old-site"];
   const options = { file, listProjects: async () => [...projects] };
-  // Preferences written by the previous app version still work.
   writeFileSync(file, JSON.stringify({ projects, current: "old-site" }));
   const app = projectSelection(options);
   assert.equal((await app.read()).current, "old-site");
@@ -117,7 +116,6 @@ test("2.15 the selection says where the project on show sits among factories: a 
       if (name === "broken") throw new Error("the library is not reachable");
       return links[name]!;
     },
-    // A factory with a folder of its own builds itself (ADR-1086 D3).
     buildsItself: async (name) => name === "own-factory",
   });
   assert.deepEqual((await app.choose("b-site")).factory, { place: "product", factory: "my-factory" });
@@ -128,7 +126,6 @@ test("2.15 the selection says where the project on show sits among factories: a 
   assert.deepEqual((await app.choose("lone-factory")).factory, { place: "factory", product: undefined }, "a library-only factory no product builds with yet");
   assert.deepEqual((await app.choose("loose")).factory, { place: "none" });
   assert.deepEqual((await app.choose("orphan")).factory, { place: "none" }, "a factory that is not here is no factory yet");
-  // A lineage that cannot be read is no factory, never a broken selection.
   links["broken"] = { kind: "none" };
   assert.deepEqual((await app.choose("broken")).factory, { place: "none" });
 });

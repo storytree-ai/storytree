@@ -27,7 +27,9 @@
 //   first reaching the second, can both repeat one string (Weideman et al.'s IDA). Parts kept apart by a character
 //   neither matches (`/^([^{]*)\{([^}]*)\}$/`), alternatives (`/^\s+|\s+$/`) and bounded repeats pass, as does a regex
 //   too big or too unusual to read (a negative lookaround, which often keeps parts apart; a lookahead or lookbehind
-//   otherwise reads as empty, a backreference as nothing). A file named minified is not read, as CodeQL's is not.
+//   otherwise reads as empty, a backreference as nothing). A test file (`*.test.*`, `*.spec.*`) and a file named minified
+//   are not read for it: CodeQL's rule fires only on a regex run over outside input, which a test's assertion and a
+//   vendored bundle never are.
 //
 // It reads the code alone (Babel's parser), so a pattern inside a string or comment is never refused. A fix session
 // that meets a new pattern adds it here, beside this one, with its numbered test.
@@ -43,14 +45,16 @@ export const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const SKIP_DIRS = new Set(["node_modules", "dist", "out", "build", "coverage"]);
 const SKIP_KEYS = new Set(["loc", "start", "end", "extra", "range", "leadingComments", "trailingComments", "innerComments", "comments", "tokens"]);
 const FUNCTIONS = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression", "ObjectMethod", "ClassMethod", "ClassPrivateMethod"]);
+/** A test file, whose regexes run only over the test's own strings, never outside input, so CodeQL's ReDoS rule never
+ * fires there. */
+const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 const LOOPS = new Set(["WhileStatement", "DoWhileStatement", "ForStatement", "ForOfStatement", "ForInStatement"]);
 
 /** Each tag-removing global replace, each partial backslash escape, each git call with an unended remote argument and
  * each regex whose repeated parts overlap in `text`, the code of `file`: its line, its regex or git subcommand, and
- * which of the four it is. Any file may hold a regex, so every one is parsed, but for a file named minified, which
- * CodeQL's extractor skips (sketch-bundles.mjs). */
+ * which of the four it is. Any file may hold a regex, so every one is parsed; a test file and a file named minified
+ * (sketch-bundles.mjs) are not read for an overlapping regex. */
 export function sanitizationHits(file, text) {
-  if (MINIFIED_NAME.test(file)) return [];
   let ast;
   try {
     ast = parse(text, {
@@ -61,6 +65,7 @@ export function sanitizationHits(file, text) {
     return [];
   }
   const hits = [];
+  const readsRegexes = !TEST_FILE.test(file) && !MINIFIED_NAME.test(file);
   const visit = (node, inLoop) => {
     if (node.type === "CallExpression" || node.type === "OptionalCallExpression") {
       const stripped = stripping(node);
@@ -69,7 +74,7 @@ export function sanitizationHits(file, text) {
       if (escaped !== undefined) hits.push({ line: node.loc.start.line, regex: escaped, kind: "escape" });
       for (const subcommand of unendedGitArguments(node)) hits.push({ line: node.loc.start.line, subcommand, kind: "unended" });
     }
-    const regex = node.type === "RegExpLiteral" || (node.type === "NewExpression" || node.type === "CallExpression") && literal(node.arguments[0]) !== undefined ? regexOf(node) : undefined;
+    const regex = !readsRegexes ? undefined : node.type === "RegExpLiteral" || (node.type === "NewExpression" || node.type === "CallExpression") && literal(node.arguments[0]) !== undefined ? regexOf(node) : undefined;
     const pump = regex === undefined ? undefined : overlapping(regex);
     if (pump !== undefined) hits.push({ line: node.loc.start.line, regex: `/${regex.source}/${regex.flags}`, pump, kind: "redos" });
     const loop = FUNCTIONS.has(node.type) ? false : inLoop || LOOPS.has(node.type);

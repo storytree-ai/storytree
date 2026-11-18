@@ -1,11 +1,4 @@
-/**
- * Capability 1 · Base structure measures, read from a checkout at a commit (contracts 1.1, 1.6 and 1.7). Every file is
- * read from Git's objects (`ls-tree`, `cat-file --batch`), never checked out, so the working tree, the index, HEAD and the
- * refs are left as they were. The commit is the one given, else origin/main as last fetched (nothing is fetched: a read
- * writes nothing), else HEAD in a checkout with no origin. A story's packages are those packagesOf maps it to; a story
- * none of whose packages is in the checkout at that commit is listed with that reason, never as zeros. Churn is read
- * over the window ending at the commit's date, 90 days unless another is given.
- */
+// Capability 1 · Base structure measures
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { packagesOf, type StoryNamed } from "@storytree/map/package-of";
@@ -18,31 +11,24 @@ import { duplicationOf, type DuplicationReading } from "./duplication.js";
 import { loosenessOf, type LoosenessReading } from "./looseness.js";
 import { sizeOf, type Size, type SourceText } from "./source.js";
 
-/** The churn window's length when none is given. */
 export const DEFAULT_DAYS = 90;
 
-/** One story's base measures, or why it has none. */
 export interface StoryMeasures {
   readonly id: string;
   readonly title: string;
-  /** Its packages' folders under packages/, as packagesOf gives them. */
   readonly packages: readonly string[];
-  /** Why it is not measured: none of its packages is in the checkout at the commit. */
   readonly missing?: string;
   readonly size?: Size;
   readonly complexity?: ComplexityReading;
   readonly duplication?: DuplicationReading;
   readonly coupling?: CouplingReading;
-  /** Distinct names exported from its packages' exports maps. */
   readonly surface?: number;
   readonly looseness?: LoosenessReading;
   readonly churn?: ChurnReading;
 }
 
-/** Every story's measures at one commit, with the churn window read. */
 export interface MeasuresReading {
   readonly commit: string;
-  /** The commit's date (its committer's), which ends the window. */
   readonly committed: string;
   readonly window: { readonly days: number; readonly from: string; readonly to: string };
   readonly stories: readonly StoryMeasures[];
@@ -55,7 +41,6 @@ async function git(folder: string, args: readonly string[]): Promise<string> {
   return (await run("git", [...args], { cwd: folder, encoding: "utf8", maxBuffer: 1 << 30 })).stdout;
 }
 
-/** The commit to read: `commit` when given, else origin/main as fetched, else HEAD where there is no origin. */
 export async function commitOf(folder: string, commit: string | undefined): Promise<string> {
   const verify = (name: string) => git(folder, ["rev-parse", "--verify", "--quiet", "--end-of-options", `${name}^{commit}`]).then((out) => out.trim());
   if (commit !== undefined) return verify(commit).catch(() => { throw new VerbRefusal(`Cannot read commit ${commit}: it is no commit in ${folder}.`); });
@@ -64,7 +49,6 @@ export async function commitOf(folder: string, commit: string | undefined): Prom
   return verify("refs/remotes/origin/main").catch(() => { throw new VerbRefusal(`Cannot read origin/main in ${folder}: it has not been fetched. Fetch it, or give --commit.`); });
 }
 
-/** The window `since` gives in days: a whole number of days (`90`, `90d`) or weeks (`12w`). */
 function daysOf(since: string | undefined): number {
   if (since === undefined) return DEFAULT_DAYS;
   const match = /^(\d+)\s*([dw]?)$/i.exec(since.trim());
@@ -73,7 +57,6 @@ function daysOf(since: string | undefined): number {
   return days;
 }
 
-/** The texts of `oids`, read in one `git cat-file --batch`. */
 function blobs(folder: string, oids: readonly string[]): Promise<Map<string, string>> {
   return new Promise((resolve, reject) => {
     const child = spawn("git", ["cat-file", "--batch"], { cwd: folder, stdio: ["pipe", "pipe", "pipe"] });
@@ -101,7 +84,6 @@ function blobs(folder: string, oids: readonly string[]): Promise<Map<string, str
   });
 }
 
-/** The workspace's packages at `commit`: every packages/<folder> with a package.json, with its code files. */
 async function workspaceAt(folder: string, commit: string): Promise<WorkspacePackage[]> {
   const entries = (await git(folder, ["ls-tree", "-r", "-z", "--full-tree", commit, "--", "packages"])).split("\0").flatMap((entry) => {
     const tab = entry.indexOf("\t");
@@ -126,16 +108,11 @@ async function workspaceAt(folder: string, commit: string): Promise<WorkspacePac
     try {
       manifest = JSON.parse(texts.get(oid) ?? "{}") as Record<string, unknown>;
     } catch {
-      // An unreadable manifest names nothing; its package is still read.
     }
     return { folder: own, name: typeof manifest.name === "string" ? manifest.name : own, manifest, files: files.get(own) ?? [] };
   });
 }
 
-/**
- * The base measures of `stories` (or of the one `story` names, by id or title) in the checkout at `folder`, read at
- * `commit`, churn over the `since` window ending there. An unknown story or an unreadable commit is refused, naming it.
- */
 export async function readStoryMeasures({ folder, commit, since, stories, story }: {
   readonly folder: string;
   readonly commit?: string;

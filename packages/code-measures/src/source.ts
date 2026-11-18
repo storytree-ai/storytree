@@ -1,32 +1,18 @@
-/**
- * Capability 1 · Base structure measures. A source file as the readings take it (its repo-relative posix path and its
- * text), what kind of file it is, its syntax, and its size (contract 1.1, B1 and B10). A file's kind follows the code
- * survey: a test file is a `.test.` or `.spec.` file or a helper under a testing/ folder; a generated file (a `.gen.` name,
- * or a leading comment marking it generated or not to be edited) and a declaration file are in neither source nor tests.
- * Every reading parses with @babel/parser (its TypeScript plugin, JSX as the extension allows), once per file.
- */
+// Capability 1 · Base structure measures
 import { parse } from "@babel/parser";
 
-/** A file as the readings take it: its repo-relative posix path and its text. */
 export interface SourceText {
   readonly path: string;
   readonly text: string;
 }
 
-/** Source, a test (counted apart), or out of both (generated, a declaration file, or no code). */
 export type FileKind = "source" | "test" | "out";
 
-/** A file's size in lines: B1 and B10. */
 export interface Size {
-  /** Source files. */
   readonly files: number;
-  /** Non-blank, non-comment lines of source files. */
   readonly sourceLines: number;
-  /** Non-blank, non-comment lines of test files. */
   readonly testLines: number;
-  /** Lines of source files holding only comment. */
   readonly commentLines: number;
-  /** Comment lines over source lines, as context. */
   readonly commentShare: number;
 }
 
@@ -35,7 +21,6 @@ const DECLARATION = /\.d\.[cm]?ts$/;
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 const TEST_SUPPORT = /(?:^|\/)testing\//;
 const GENERATED_NAME = /\.gen\.[cm]?[jt]sx?$/;
-/** The comments a file opens with, before its first code: after a `#!` line, each `//` line or closed block comment, read in one pass. */
 function leadingComments(text: string): string | undefined {
   let at = text.startsWith("#!") ? (text.indexOf("\n") + 1 || text.length) : 0;
   let end = -1;
@@ -56,7 +41,6 @@ function leadingComments(text: string): string | undefined {
 }
 const GENERATED_MARK = /@generated\b|\bdo not edit\b|\b(?:code|file|is) (?:auto-?)?generated\b|\bauto-?generated\b/i;
 
-/** What kind of file `file` is: source, a test, or out of both. */
 export function kindOf(file: SourceText): FileKind {
   if (!CODE_FILE.test(file.path) || DECLARATION.test(file.path) || GENERATED_NAME.test(file.path)) return "out";
   if (TEST_FILE.test(file.path) || TEST_SUPPORT.test(file.path)) return "test";
@@ -64,28 +48,23 @@ export function kindOf(file: SourceText): FileKind {
   return leading !== undefined && GENERATED_MARK.test(leading) ? "out" : "source";
 }
 
-/** A token as @babel/parser gives it with `tokens: true`. */
 export interface Token {
   readonly type: string | { readonly label: string };
   readonly value?: unknown;
   readonly loc: { readonly start: { readonly line: number }; readonly end: { readonly line: number } };
 }
 
-/** A syntax node, read generically. */
 export interface Node {
   readonly type: string;
   readonly loc?: { readonly start: { readonly line: number }; readonly end: { readonly line: number } };
   readonly [key: string]: unknown;
 }
 
-/** A file's syntax: its program, its code tokens (comments apart), its comments, and which lines hold code and which only comment. */
 export interface Parsed {
   readonly program: Node | undefined;
   readonly tokens: readonly Token[];
   readonly comments: readonly { readonly value: string; readonly loc: Token["loc"] }[];
-  /** Line numbers (from 1) holding code. */
   readonly codeLines: ReadonlySet<number>;
-  /** Line numbers holding comment and no code. */
   readonly commentLines: ReadonlySet<number>;
 }
 
@@ -93,10 +72,8 @@ const PARSED = new WeakMap<SourceText, Parsed>();
 
 const isComment = (token: Token): boolean => token.type === "CommentLine" || token.type === "CommentBlock";
 
-/** The label of `token`'s type. */
 export const labelOf = (token: Token): string => (typeof token.type === "string" ? token.type : token.type.label);
 
-/** `file` parsed, once: a file the parser cannot read is read as no syntax, its non-blank lines its code lines. */
 export function parsed(file: SourceText): Parsed {
   const kept = PARSED.get(file);
   if (kept !== undefined) return kept;
@@ -138,13 +115,10 @@ export function parsed(file: SourceText): Parsed {
   return reading;
 }
 
-/** The files of `files` that are source. */
 export const sourcesOf = (files: readonly SourceText[]): SourceText[] => files.filter((file) => kindOf(file) === "source");
 
-/** Non-blank, non-comment lines of `file`. */
 export const linesOf = (file: SourceText): number => parsed(file).codeLines.size;
 
-/** The size of `files`: source files and lines, test lines beside them, and comment lines and share as context (B1, B10). */
 export function sizeOf(files: readonly SourceText[]): Size {
   let count = 0;
   let sourceLines = 0;
@@ -161,7 +135,6 @@ export function sizeOf(files: readonly SourceText[]): Size {
   return { files: count, sourceLines, testLines, commentLines, commentShare: sourceLines === 0 ? 0 : commentLines / sourceLines };
 }
 
-/** Each syntax node directly under `node`, in source order. */
 export function* childrenOf(node: Node): Generator<Node> {
   for (const key of Object.keys(node)) {
     if (key === "loc" || key === "leadingComments" || key === "trailingComments" || key === "innerComments" || key === "extra") continue;
@@ -174,7 +147,6 @@ export function* childrenOf(node: Node): Generator<Node> {
 
 const isNode = (value: unknown): value is Node => typeof value === "object" && value !== null && typeof (value as { type?: unknown }).type === "string";
 
-/** Every node under `node`, itself included, depth first. */
 export function* walk(node: Node): Generator<Node> {
   yield node;
   for (const child of childrenOf(node)) yield* walk(child);

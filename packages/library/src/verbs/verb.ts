@@ -13,6 +13,7 @@
  */
 import type { Library, Storytree } from "../index.js";
 import type { WriteOptions } from "../schema/index.js";
+import { sqlState } from "../project/connection-error.js";
 
 /**
  * One input. `text` is a non-empty string, a command's word at `word` when given, else its `--flag <value>`, and
@@ -237,9 +238,10 @@ export function whereOf(given: Readonly<Record<string, unknown>>): WhereNamed {
  * The library a write naming `named` lands in, read from `library`, the folder's own (ADR-1348 D3): the library of the
  * project it names, which must be this one, its factory or a project that factory builds, and the library holding the
  * arc or increment it names, looked for in that project's alone when one is named, else in this one's and then in the
- * rest of its factory's circle. A write naming none is refused as a misuse, saying what to pass; so is a project
- * outside the circle, an arc or increment no library this folder reads holds, and one another project holds than the
- * one named or the one its arc or increment is in.
+ * rest of its factory's circle, where a member whose database is dropped while it is searched holds nothing. A write
+ * naming none is refused as a misuse, saying what to pass; so is a project outside the circle, an arc or increment no
+ * library this folder reads holds, and one another project holds than the one named or the one its arc or increment is
+ * in. Any other failure reading a member of the circle is no refusal: it is thrown as it is.
  */
 export async function writtenLibrary(library: Library, named: WhereNamed): Promise<Library> {
   const { project, arc, increment } = named;
@@ -269,7 +271,9 @@ async function projectLibrary(library: Library, project: string): Promise<Librar
 
 /**
  * The library holding the `kind` called `id`: `within` when a project or another place is already named, which must
- * hold it, else this folder's own or, failing that, the first of its factory's circle that does.
+ * hold it, else this folder's own or, failing that, the first of its factory's circle that does. A member of the circle
+ * whose database is gone (SQLSTATE 3D000) holds nothing, and so does one whose connection a forced drop ends (57P01) when
+ * reading it once more finds its database gone; any other failure reading a member is no refusal, and is thrown as it is.
  */
 async function holding(library: Library, within: Library | undefined, kind: "arc" | "increment", id: string): Promise<Library> {
   const holds = async (each: Library): Promise<boolean> => (await each.get(id))?.type === kind;
@@ -278,6 +282,20 @@ async function holding(library: Library, within: Library | undefined, kind: "arc
     throw new VerbRefusal(`Project "${within.name}" holds no ${kind} ${id}: name the project, arc and increment of one place.`, { misuse: true });
   }
   if (await holds(library)) return library;
-  for (const each of await library.reachAll()) if (each.opened !== undefined && (await holds(each.opened))) return each.opened;
+  const memberHolds = async (each: Library): Promise<boolean> => {
+    try {
+      return await holds(each);
+    } catch (error) {
+      if (sqlState(error) === "3D000") return false;
+      if (sqlState(error) !== "57P01") throw error;
+    }
+    try {
+      return await holds(each);
+    } catch (error) {
+      if (sqlState(error) === "3D000") return false;
+      throw error;
+    }
+  };
+  for (const each of await library.reachAll()) if (each.opened !== undefined && (await memberHolds(each.opened))) return each.opened;
   throw new VerbRefusal(`No library this folder reads holds ${kind} ${id}: check its id, or name the project it is about instead.`, { misuse: true });
 }

@@ -120,3 +120,11 @@ test("8.16 · a POSIX-only command under a platform test (ternary, if, else if, 
 
   assert.deepEqual(posixCommandProblems(root), []);
 });
+
+test("8.16 · in a checkout with no apps folder, pnpm lint still refuses an unbranched ps in a package's source, rather than throwing", (t) => {
+  const root = checkout(t, {
+    "packages/procs/src/scan.mjs": [...HEADER, `export const scan = () => run("ps", ["-A"]);`, ""],
+  });
+
+  assert.deepEqual(where(posixCommandProblems(root)), ["packages/procs/src/scan.mjs:4 ps"]);
+});

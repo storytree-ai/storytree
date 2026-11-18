@@ -1,14 +1,6 @@
-/**
- * Capability 6 · Tool server (ADR-1035 D2): the MCP server's own mounting code, reading a tool's arguments into a declared
- * verb's input. The schema it reads is the library's; the command line reads a command's words to the same input.
- */
+// Capability 6 · Tool server (the MCP server)
 import { VerbRefusal, type InputOf, type VerbInput, type VerbInputs, type Verb, type VerbValue } from "@storytree/library/verbs";
 
-/**
- * A tool's arguments, as its schema checked them, read as the verb's input: a switch not given is false, a `many`
- * input is a list, a count the whole number given, and `fields` an object of strings, or of its values as given when
- * marked json.
- */
 export function toolInput(declared: Verb<VerbInputs, never>, args: Readonly<Record<string, unknown>>): InputOf<VerbInputs> {
   const input: Record<string, VerbValue> = {};
   for (const [name, one] of Object.entries(declared.inputs)) {
@@ -27,10 +19,6 @@ export function toolInput(declared: Verb<VerbInputs, never>, args: Readonly<Reco
   return input;
 }
 
-/**
- * A text input, trimmed unless it is marked verbatim: one that says nothing is refused, unless it is marked blank, as
- * the command line refuses it.
- */
 function said(name: string, input: VerbInput, value: string): string {
   const text = value.trim();
   if (text === "" && !(input.kind === "text" && input.blank)) throw new VerbRefusal(`${name} is empty: ${input.describe}`, { misuse: true });

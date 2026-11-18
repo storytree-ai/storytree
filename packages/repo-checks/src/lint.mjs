@@ -5,7 +5,6 @@ import { allocationProblems } from "./allocation.mjs";
 import { codeqlPatternProblems } from "./codeql-patterns.mjs";
 import { eslintProblems } from "./eslint.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
-import { posixCommandProblems } from "./posix-commands.mjs";
 import { sketchBundleProblems } from "./sketch-bundles.mjs";
 import { typeImportProblems } from "./type-imports.mjs";
 
@@ -16,7 +15,6 @@ export const RULES = [
   { name: "allocation", problems: allocationProblems },
   { name: "codeql-patterns", problems: codeqlPatternProblems },
   { name: "sketch-bundle-names", problems: sketchBundleProblems },
-  { name: "posix-commands", problems: posixCommandProblems },
   { name: "eslint", problems: eslintProblems },
 ];
 

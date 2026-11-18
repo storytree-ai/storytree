@@ -224,14 +224,14 @@ test("8.20 · where merge-base(origin/main, HEAD) cannot be read, with no origin
   assert.deepEqual(refusedAt(await eslintProblems(uncommitted)), ["packages/a/src/a.mjs:2"]);
 });
 
-test("8.20 · on added lines the kept set passes: a file's opening Capability N · declaration (after a #! line), posix-only: <reason>, a pause marker beginning by naming the wait and saying it is the behaviour under test, ESLint directives, @ts-expect-error, @ts-ignore and /// <reference/>; a Capability comment after code, or after the file's first comment, and a comment merely mentioning under test are refused", async (t) => {
+test("8.20 · on added lines the kept set passes: a file's opening Capability N · declaration (after a #! line), a pause marker beginning by naming the wait and saying it is the behaviour under test, ESLint directives, @ts-expect-error, @ts-ignore and /// <reference/>; a Capability comment after code, or after the file's first comment, a posix-only: <reason> marker and a comment merely mentioning under test are refused", async (t) => {
   const root = checkout(t, {
     "packages/a/src/script.mjs": lines(
       "#!/usr/bin/env node",
       "// Capability 3 · A script.",
-      "import { execFileSync } from \"node:child_process\";",
+      "export const p = 1;",
       "// posix-only: ps has no Windows twin here",
-      "execFileSync(\"ps\", [\"-A\"]);",
+      "export const q = 2;",
       "// eslint-disable-next-line no-console -- prints the list",
       "console.log(\"x\");",
       "/* global window */",
@@ -270,6 +270,7 @@ test("8.20 · on added lines the kept set passes: a file's opening Capability N 
 
   assert.deepEqual(refusedAt(await eslintProblems(root)), [
     "packages/a/src/helper.test.mjs:3",
+    "packages/a/src/script.mjs:4",
     "packages/b/src/continued.mjs:2",
     "packages/b/src/late.mjs:2",
     "packages/b/src/second.mjs:2",

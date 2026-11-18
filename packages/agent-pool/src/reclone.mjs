@@ -145,7 +145,7 @@ export async function main(args, box = {}) {
     return 2;
   }
   if (lanes && apply) {
-    // posix-only: lanes is set only on the Mint box, where the lanes folder holds the watcher's hand-offs; the laptop has none.
+    // eslint-disable-next-line storytree/posix-commands -- lanes is set only on the Mint box, where the lanes folder holds the watcher's hand-offs; the laptop has none.
     const beside = await (box.lanesBeside ?? (async () => lanesBeside((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout)))();
     if (!existsSync(join(lanes, "pool-stop")) || beside.length) {
       say(`refused: pause the pool first (node --import tsx packages/agent-pool/src/pause.mjs pause): ${existsSync(join(lanes, "pool-stop")) ? `${beside.length} other lane${beside.length === 1 ? " is" : "s are"} still running` : `no stop file in ${lanes}`}`);

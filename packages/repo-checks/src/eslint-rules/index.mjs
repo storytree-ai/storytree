@@ -7,6 +7,7 @@ import noPartialEscape from "./no-partial-escape.mjs";
 import noSwallowedAssert from "./no-swallowed-assert.mjs";
 import noTagStrip from "./no-tag-strip.mjs";
 import numberedTestAsserts from "./numbered-test-asserts.mjs";
+import posixCommands from "./posix-commands.mjs";
 
 export default {
   meta: { name: "storytree" },
@@ -19,5 +20,6 @@ export default {
     "no-happy-dom-equal": noHappyDomEqual,
     "numbered-test-asserts": numberedTestAsserts,
     "no-swallowed-assert": noSwallowedAssert,
+    "posix-commands": posixCommands,
   },
 };

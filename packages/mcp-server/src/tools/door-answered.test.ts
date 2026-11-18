@@ -1,8 +1,4 @@
-/**
- * Capability 6 · Tool server (the MCP server). Every tool call's answer is recorded on the calling session as a
- * `door-answered` line (ADR-0983 D1, in force through ADR-0998), and recording it never changes the answer.
- * The tools are fixtures served through the real server, its routing and its activity log.
- */
+// Capability 6 · Tool server (the MCP server)
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -70,7 +66,6 @@ test("6.60 every tool call's answer is recorded on the calling session as a door
 test("6.90 a tool the lane's experiment arm denies does nothing else: it answers refused, naming the experiment and arm, and is recorded as a door-answered line, denied-by-arm, carrying both", async () => {
   await withProject(async ({ folder, project, log }) => {
     await withTempDir(async (home) => {
-      // The lane's own storytree home, which names its arm, and where its checkout is approved.
       writeFileSync(path.join(home, "settings.json"), JSON.stringify({ ...armPlugin(home), experiment: { name: "twin-build", arm: "map-reads-off", denies: { tools: ["focus"], commands: ["storytree map"] } } }));
       await approveCheckout(folder, project, home);
       await withAgent(folder, claudeCode("arm-tool-1", { extensions: [fixtures], setup: { storytreeHome: home } }), async (agent) => {
@@ -98,7 +93,6 @@ test("6.104 the tool server asks the arm checks its parts contribute: its own pa
   assert.deepEqual(armCheckParts.parts, [], "no story package the server mounts contributes an arm check");
   await withProject(async ({ folder, project }) => {
     await withTempDir(async (home) => {
-      // The lane's own storytree home, which names an arm denying show_thing and a plugin's arm check whose part is on.
       writeFileSync(path.join(home, "settings.json"), JSON.stringify({ ...armPlugin(home), "parts-off": [], experiment: { name: "twin-build", arm: "things-off", denies: { tools: ["show_thing"], commands: [] } } }));
       await approveCheckout(folder, project, home);
       await withAgent(folder, claudeCode("arm-tool-off", { extensions: [fixtures], setup: { storytreeHome: home } }), async (agent) => {
@@ -110,10 +104,6 @@ test("6.104 the tool server asks the arm checks its parts contribute: its own pa
   });
 });
 
-/**
- * Writes into `home`'s factory a plugin contributing an arm check, which denies what the home's experiment setting says
- * its arm denies, and returns the settings that mount it in the place of experiments, a part the host does not have.
- */
 function armPlugin(home: string): Record<string, unknown> {
   const plugin = path.join(home, "factory", "plugins", "my-arms");
   mkdirSync(plugin, { recursive: true });
@@ -143,11 +133,9 @@ test("6.61 a tool whose door-answered line cannot be written still gives its ans
 
 test("6.63 the tool server names every tool it would serve in a folder, the same names its client lists, with who calls each, without a call", async () => {
   await withProject(async ({ folder }) => {
-    // The test home the agent's server reads, not this computer's, whose factory may mount more tools.
     const served = await servedTools(folder, { dataDir: testServerDataDir(), extensions: [fixtures] });
     const named = served.map(({ name }) => name);
     await withAgent(folder, claudeCode("tool-door-names", { extensions: [fixtures] }), async (agent) => {
-      // Less a harness's own tools, which no agent or person calls (ADR-1056 D2).
       assert.deepEqual([...named].sort(), (await agent.tools()).filter((tool) => tool !== "hook_event" && tool !== "heartbeat" && tool !== "lane_messages"));
     });
     assert.ok(named.includes("check_setup") && named.includes("show_thing"), "the setup check's tools and an extension's are named too");

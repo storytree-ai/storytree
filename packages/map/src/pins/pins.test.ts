@@ -8,7 +8,6 @@ import { parseAnchor, pinWorldOf, placePins, readPins, retirePin, writePin, type
 const CACHE = "capability_00000000000a";
 const WEB = "capability_00000000000b";
 
-/** A pin shelf kept in memory, as the library keeps pin records, with what was retired and why. */
 function shelf(): PinShelf & { retired: Map<string, string> } {
   const pins = new Map<string, Pin>();
   const retired = new Map<string, string>();
@@ -32,7 +31,6 @@ function shelf(): PinShelf & { retired: Map<string, string> } {
 const part = (folder: string, files: string[], parts: SurveyedPart[] = []): SurveyedPart => ({ folder, entry: `${folder}/index.ts`, files, parts });
 const store = (address: string, tables: string[] = []): SharedStore => ({ address, medium: "postgres", tables: tables.map((name) => ({ name })) });
 
-/** A checkout: the cache capability's files, one part nested inside another, the text of each file, and the shared stores. */
 function world(texts: Record<string, string>, stores: SharedStore[] = [store("postgres://db/app", ["users"])]): PinWorld {
   const nested = part("pkg/src/infra/cache", ["pkg/src/infra/cache/index.ts", "pkg/src/infra/cache/lru.ts"]);
   const infra = part("pkg/src/infra", ["pkg/src/infra/index.ts"], [nested]);

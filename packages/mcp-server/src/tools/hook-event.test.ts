@@ -1,8 +1,4 @@
-/**
- * Capability 6 · Tool server (the MCP server). A harness hands the tool server a hook event (ADR-1056 D2): its tool is
- * mounted from Session management's manifest and records the event through the server's own connection, as a
- * harness's call rather than an agent's.
- */
+// Capability 6 · Tool server (the MCP server)
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

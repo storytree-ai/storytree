@@ -1,16 +1,9 @@
-/**
- * Capability 5 · Factory plugins. What a plugin must contain, said by the storytree that loads it, so an agent with only
- * the installed app makes one of the right shape (friction_97e888ba1a89): the contract in words, a plugin started from a
- * skeleton this storytree loads, and a check that says whether this storytree would load a plugin, and why not, without
- * switching anything. The check loads a plugin as a host loads a stand-in, then reads the verb families it adds for
- * what a door mounts.
- */
+// Capability 5 · Factory plugins
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { PLUGIN_INTERFACE, pluginLibrarian, pluginParts, pluginPlan, pluginRecordKinds, pluginServices } from "./factory.js";
 
-/** Each kind a factory plugin may stand in for a part with: the hosts that mount it, and what one declaration is. */
 export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; readonly shape: string }>> = {
   verbs: {
     hosts: "the command line and the MCP server",
@@ -33,7 +26,6 @@ export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; r
   services: { hosts: "the service host of each machine whose settings turn the service on", shape: "{ start(host) }, running until host.stopping fires, named by an entry { name, from, export, run } rather than a list" },
 };
 
-/** The verbs module a new plugin starts with: one family, with one verb that needs no project and answers with text. */
 function verbsModule(name: string): string {
   return `// The verbs this plugin adds: plain command families, as storytree's own modules declare them. Nothing of storytree's
 // is imported; a host hands each verb's act its input and its place. The whole contract: storytree plugin contract
@@ -59,11 +51,6 @@ export const PLUGIN_FAMILIES = [
 `;
 }
 
-/**
- * The test a new plugin starts with: numbered 1.1, so once a story is titled after the plugin, with a contract 1.1,
- * `storytree health plugin <name>` records it there. It imports only the plugin's own module, as the plugin does nothing
- * of storytree's (ADR-1112).
- */
 function testModule(name: string): string {
   return `// The plugin's own tests, run by its package's test command (node --test). A test titled with a contract's number
 // ("1.1 · …") proves that contract of the story titled after this plugin: storytree health plugin ${name} records it.
@@ -80,11 +67,6 @@ test(${JSON.stringify(`1.1 · ${name}'s hello says it is mounted`)}, async () =>
 `;
 }
 
-/**
- * Plugin `name` started in factory folder `folder`: a package.json naming the plugin interface this storytree honours,
- * the part it stands in for when one is given, and its test command, a verbs module this storytree loads, and one numbered test of it. A name taken, or one that is
- * not one folder's, is refused, writing nothing.
- */
 export function newPlugin(folder: string, name: string, part?: string): { readonly dir: string; readonly files: readonly string[] } {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) throw new Error(`${JSON.stringify(name)} is not a plugin's name: use lower-case letters, digits and dashes`);
   const dir = path.join(folder, "plugins", name);
@@ -107,7 +89,6 @@ export function newPlugin(folder: string, name: string, part?: string): { readon
 const said = (value: unknown): boolean => typeof value === "string" && value !== "";
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** What a door would refuse in verb `at` of family `family`, each said; none when it mounts. */
 function verbProblems(family: string, verb: unknown, at: number): string[] {
   const where = `family ${family}'s verb ${at + 1}`;
   if (!isObject(verb)) return [`${where} is not an object`];
@@ -122,7 +103,6 @@ function verbProblems(family: string, verb: unknown, at: number): string[] {
   return problems;
 }
 
-/** What a door would refuse in declared verb family `at`, each said; none when it mounts. */
 function familyProblems(family: unknown, at: number): string[] {
   if (!isObject(family)) return [`verbs declaration ${at + 1} is ${typeof family === "function" ? "a function" : "not an object"}, not a command family { name, summary, order, verbs }`];
   const name = said(family.name) ? String(family.name) : `${at + 1}`;
@@ -135,7 +115,6 @@ function familyProblems(family: unknown, at: number): string[] {
   return problems;
 }
 
-/** What the gate would refuse in declared gate step `at`, each said; none when it runs. */
 function gateStepProblems(step: unknown, at: number): string[] {
   if (!isObject(step)) return [`gate step ${at + 1} is not an object { name, when?, command }`];
   const name = said(step.name) ? String(step.name) : `${at + 1}`;
@@ -150,14 +129,12 @@ function sectionProblems(section: unknown, at: number): string[] {
   return typeof section === "string" && section.trim() !== "" ? [] : [`guidance section ${at + 1} is not a paragraph of text`];
 }
 
-/** Whether this storytree would load a plugin: what it adds, by kind, and each problem when it would not. */
 export interface PluginCheck {
   readonly loads: boolean;
   readonly adds: Readonly<Record<string, number>>;
   readonly problems: readonly string[];
 }
 
-/** Plugin `plugin` of factory folder `folder` loaded as a host loads a stand-in, of every kind, its verb families read as a door mounts them. */
 export function checkPlugin(folder: string | undefined, plugin: string): PluginCheck {
   const adds: Record<string, number> = {};
   const problems: string[] = [];
@@ -169,7 +146,6 @@ export function checkPlugin(folder: string | undefined, plugin: string): PluginC
     } catch (error) {
       const message = (error as Error).message;
       problems.push(message);
-      // A kind's own module is said for that kind; a plugin, package or manifest that cannot be read, once.
       if (/manifest names|exports no list/.test(message)) continue;
       break;
     }
@@ -182,7 +158,6 @@ export function checkPlugin(folder: string | undefined, plugin: string): PluginC
     const kinds = pluginRecordKinds(folder, plugin);
     if (kinds.length > 0) adds.recordKinds = kinds.length;
   } catch (error) {
-    // A plugin, package or manifest that cannot be read is said once, above.
     const message = (error as Error).message;
     if (!problems.includes(message)) problems.push(message);
   }
@@ -210,7 +185,6 @@ export function checkPlugin(folder: string | undefined, plugin: string): PluginC
   return { loads: problems.length === 0, adds, problems };
 }
 
-/** The contract, in words: what a plugin must contain for this storytree to load it in a part's place. */
 export function contractSaid(): string {
   const kinds = Object.entries(STAND_IN_KINDS).map(([kind, { hosts, shape }]) => `  ${kind} (mounted by ${hosts}): ${shape}`);
   return [

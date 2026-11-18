@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Counts before detail: what crosses a line drawn round files of an imported island (ADR-0993 D6,
- * D10). Written against a small import and a small checkout in temporary folders.
- */
+// Capability 3 · Counts before detail
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -33,7 +30,6 @@ async function write(root: string, files: Record<string, string>): Promise<void>
   }
 }
 
-/** An imported shop whose cart has a ui folder, reached by a relative path, a path alias and a package name. */
 const SHOP = {
   "package.json": JSON.stringify({ name: "shop", workspaces: ["packages/*"] }),
   "tsconfig.json": "{\n  // the cart's alias\n  \"compilerOptions\": { \"baseUrl\": \".\", \"paths\": { \"@/*\": [\"packages/cart/src/*\"], }, },\n}\n",
@@ -195,7 +191,6 @@ test("3.9 an imported Python island's imports cross a line too: a src.-prefixed 
     const src = await crossingsOf(python, survey, trunk, { patterns: ["src"] });
     assert.deepEqual(src.in.island, { files: 1, imports: 1 }, "the test outside src imports retrieve.py");
 
-    // A package mapped in a subfolder of its import resolves from that folder, not the import's top.
     await write(checkbox, { "services/api/src/__init__.py": "", "services/api/src/store.py": "X = 1\n", "services/api/src/app.py": "from src.store import X\n" });
     const nested = { arcs: [], stories: [{ id: "story-api", title: "api", capabilities: [], mapped: { from: checkbox, package: "services/api", folders: ["services/api"] } }] } as unknown as AnnotatedTree;
     const store = await crossingsOf(nested, await codeSurveyReader({ checkout: "current" }).read(trunk, nested, [{ folder: checkbox }]), trunk, { patterns: ["services/api/src/store.py"], mode: "show" });

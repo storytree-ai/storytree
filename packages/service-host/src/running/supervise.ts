@@ -1,20 +1,11 @@
-/**
- * Capability 1 · Running services, contracts 1.2 to 1.4 (ADR-1180 D4). The supervisor keeps each service the host runs
- * going by its rules: an always service that ends is started again after 10 seconds, the wait doubling with each end up
- * to 5 minutes (back to 10 seconds once a run outlasts 10 minutes); five ends within 10 minutes mark it failed, and it is
- * not started again until it is restarted, by name or because its code moved (the factory pull's, capability 4). An every service is started on its cadence, never while its last run
- * still goes. Stopping sends each child the stop signal, then kills one still running 30 seconds later. Its clock and
- * how it starts a child are handed in, so its timing is the same on a test's hand-turned clock as on the real one.
- */
+// Capability 1 · Running services
 import type { ServiceRun } from "@storytree/plugin-loader";
 
-/** Where the supervisor reads the time and sets a timer; `after` returns what cancels it. */
 export interface Clock {
   now(): number;
   after(ms: number, fire: () => void): () => void;
 }
 
-/** The real clock. */
 export const realClock: Clock = {
   now: () => Date.now(),
   after(ms, fire) {
@@ -23,28 +14,23 @@ export const realClock: Clock = {
   },
 };
 
-/** How a child ended: its exit code, or the signal that ended it. */
 export interface Ended {
   readonly code: number | null;
   readonly signal: string | null;
 }
 
-/** One running service's child process, as the supervisor sees it. */
 export interface Child {
   readonly pid?: number;
   readonly ended: Promise<Ended>;
   signal(name: "SIGTERM" | "SIGKILL"): void;
-  /** The last lines it printed. */
   lastLines(): readonly string[];
 }
 
-/** A service to run: `<part>/<service>`, and how it runs. */
 export interface Service {
   readonly id: string;
   readonly run: ServiceRun;
 }
 
-/** How one service stands: running, waiting to start (`nextAt`), or failed, with how its last run ended and its last lines (a running one's so far). */
 export interface ServiceState {
   readonly id: string;
   readonly run: ServiceRun;
@@ -62,7 +48,6 @@ export const FAIL_WINDOW_MS = 10 * 60_000;
 export const FAIL_ENDS = 5;
 export const KILL_AFTER_MS = 30_000;
 
-/** The minutes of an every service's cadence, in milliseconds. */
 const cadence = (run: ServiceRun): number => (run === "always" ? 0 : Number.parseInt(run.every, 10) * 60_000);
 
 interface Entry {
@@ -77,7 +62,6 @@ interface Entry {
   nextAt: number | undefined;
   lastExit?: Ended;
   lastLines: readonly string[];
-  /** Start it again as soon as its child ends: a restart by name of a running service. */
   relaunch?: boolean;
   removed?: boolean;
 }
@@ -86,7 +70,6 @@ export interface SupervisorOptions {
   readonly clock?: Clock;
   readonly start: (service: Service) => Child;
   readonly log: (line: string) => void;
-  /** Called after every change in how a service stands. */
   readonly changed?: () => void;
 }
 
@@ -105,7 +88,6 @@ export class Supervisor {
     this.#changed = changed;
   }
 
-  /** Run exactly `services`: start each new one, and stop each no longer named. A service already run keeps its state. */
   set(services: readonly Service[]): void {
     if (this.#stopped) return;
     const named = new Set(services.map((service) => service.id));
@@ -128,10 +110,6 @@ export class Supervisor {
     this.#changed();
   }
 
-  /**
-   * Start `id` again, its ends and wait cleared: at once when it is not running, or once its stopped child ends; `run`,
-   * when given, is how it runs from now on, and `because` is said in the log. False when no service is called that.
-   */
   restart(id: string, { run, because = "restarted by name" }: { readonly run?: ServiceRun; readonly because?: string } = {}): boolean {
     const entry = this.#entries.get(id);
     if (entry === undefined || this.#stopped) return false;
@@ -152,7 +130,6 @@ export class Supervisor {
     return true;
   }
 
-  /** How each service stands, by name. */
   states(): ServiceState[] {
     return [...this.#entries.values()].sort((a, b) => a.service.id.localeCompare(b.service.id)).map((entry) => ({
       id: entry.service.id,
@@ -166,7 +143,6 @@ export class Supervisor {
     }));
   }
 
-  /** Stop every service and start none again: each child is sent the stop signal, and killed if it still runs 30 seconds later. */
   async stop(): Promise<void> {
     this.#stopped = true;
     const running: Promise<unknown>[] = [];
@@ -180,7 +156,6 @@ export class Supervisor {
     this.#changed();
   }
 
-  /** Send `child` the stop signal, then kill it if it has not ended 30 seconds later; resolves when it has ended. */
   #halt(child: Child): Promise<Ended> {
     child.signal("SIGTERM");
     let ended = false;

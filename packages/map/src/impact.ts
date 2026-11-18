@@ -1,4 +1,4 @@
-/** Capability 4 · A change reaches its owners and their dependents without crossing story containers. */
+// Capability 4 · Diff impact
 import { focusRows, mapDepth, type FocusAnswer, type FocusOptions, type FocusRow } from "./focus.js";
 import type { MapEdge, ProjectGraph } from "./graph.js";
 

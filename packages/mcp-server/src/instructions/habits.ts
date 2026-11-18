@@ -1,68 +1,27 @@
-/**
- * Capability 7 · Instructions, the habits card (the MCP server story, ADR-0969 D1): one short text, a
- * screen or less, that teaches the agent storytree's habits. The tool server hands it to the agent at
- * the start of every session, as its instructions, which Claude Code reads. Codex never shows a tool
- * server's instructions: its sessions get a short section in Codex's AGENTS.md instead, which the
- * app setup writes when it connects Codex. The starter roles are named by check_setup, not here:
- * both harnesses' first sessions opened them from that alone (increment_a3786e385e28).
- *
- * Each story's package declares its own section in its manifest (the guidance kind, ADR-1021), and the card is
- * composed from the packages the server mounts, in their manifests' order (contract 7.10). Only the opening, the
- * setup check's paragraph, where a write goes and the closing are the server's own: what storytree is, how a session starts and what to
- * do when it is not running speak of storytree as a whole, and belong to no one story.
- *
- * A part this computer switches off (ADR-1095) takes its section with it, and the card names it switched off instead,
- * unless a factory plugin stands in for it: then the plugin's sections are in the part's place (contract 7.14).
- *
- * The card names each tool in backticks, and uses backticks for nothing else: its tests hold it to
- * naming exactly the tools the server has, within its word budget.
- */
+// Capability 7 · Instructions (the habits card)
 import { CONTRACT_DEFINITION } from "@storytree/library";
 import { mount, standIn, type StandIns } from "@storytree/plugin-loader";
 import { CONCEPTS } from "@storytree/shown-words";
 import GUIDANCE from "#parts/guidance";
 
-/** What one contract is (contract 7.8): the library owns the definition, and plan_contract quotes it when a title runs long (9.10). */
 export { CONTRACT_DEFINITION };
 
-/**
- * The card's budget (ADR-1113 D1): the words of the whole card, so a short section costs what it says. It replaces
- * a 60-line limit that charged every section two lines whatever its length.
- */
 export const CARD_WORD_BUDGET = 2_500;
 
-/** How many words `card` has, as the budget counts them: runs of non-space text. */
 export function cardWords(card: string): number {
   return card.split(/\s+/).filter(Boolean).length;
 }
 
 const OPENING = "storytree keeps this project's plan and records what you do, so the user can watch it grow.";
 
-/**
- * The setup check and making a project are the server's own tools, served in any folder whatever is switched off
- * (ADR-1099 D2), so the card teaches them itself: check_setup's answer is where the whole card reaches an agent.
- */
 const SETUP = "Start every session with `check_setup`, and do what it says. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call `set_up_project` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only to add this computer's copy of a project they have elsewhere.";
 
-/**
- * The tools keep the library's words, and people see one fixed set of shown words (ADR-1318): the card reads them from
- * the one table, so it and the app cannot drift. The card was full (ADR-1113 D1), so the claim section gave up what the
- * claim tool's own reason already says.
- */
 const WORDS = `The tools name things in the library's words; to the user, say ${(["capability", "arc", "increment"] as const).map((concept) => `"${CONCEPTS[concept].one}" for ${concept}`).join(", ")}.`;
 
-/**
- * Where a write goes is named, never read from the folder (ADR-1348 D3): every tool that writes takes it, so the card says
- * it once for them all, as the tool server's own.
- */
 const PLACE = "A tool that writes the library names where the write goes: give project (this folder's own, its factory, or a project that factory builds), or the arc or increment the write is about; a write naming none is refused.";
 
 const CLOSING = "If storytree says it isn't running, carry on without it.";
 
-/**
- * The habits card, as the tool server hands it to the agent, without the sections of the modules `off` switches off, and
- * with those of each factory plugin `standIns` names in its module's place.
- */
 export function habitsCard(off: readonly string[] = [], standIns: StandIns = { plugins: {} }): string {
   const composed = standIn(GUIDANCE, "guidance", standIns);
   const { mounted, off: switched } = mount(composed, off);

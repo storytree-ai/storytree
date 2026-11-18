@@ -1,21 +1,4 @@
-/**
- * Capability 3 · Reading the project's CI. The `health` verbs, declared here (ADR-0969 D2) and named under `verbs` in the
- * package's manifest (ADR-1033), so the command line mounts them as its `health` family: `health ci` reads the project's
- * CI test results into its verified health (ADR-0902), and `health worklist` prints the oldest three capabilities on the
- * map's health worklist (ADR-0825 D4), for the librarian pass to route, and how many a test run in progress holds back.
- * Neither is a tool: the MCP server's own `health_worklist` gives the worklist, and reading CI is a terminal step.
- * `health plugin <plugin>` (capability 4) runs a factory plugin's own tests into the verified health of its story's
- * promises, on the command line only (ADR-1186 D1): it runs the user's own test command, so it goes through the agent's
- * shell, where its permission prompt applies (ADR-0630), and there is no `record_plugin_health` tool. `health local`
- * (capability 5) runs the project's own tests the same way into its verified health, as a local test run, with no
- * repository needed (ADR-1193 D1, D2, as narrowed by ADR-1335), on the command line only for the same reason.
- * `health times` (capability 6) records the project's CI times from its GitHub Actions beside the library and prints the
- * averages the map's bottom-left strip shows; the Mint box runs it on a schedule, and the app while it shows the strip.
- * `health tell` (capability 3, 3.21) tells the owner each verdict turn CI's role could not (it writes only health, 3.20):
- * the Mint box's factory-health tick runs it as the library's owner (question_67e971f31102's answer, option A).
- * `health investigate` (capability 3, 3.24) parks, or adds a flake to, the one investigation of a flaky test the watcher
- * found on a pull request's run, as own health's flakes do (ADR-1352 D1).
- */
+// Capability 3 · Reading the project's CI.
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
 
 const worklist = verb({
@@ -101,7 +84,6 @@ const local = verb({
   async act(_input, { library, folder }) {
     const { localReadingText, recordLocalTests } = await import("./local-run/local-run.js");
     const read = await recordLocalTests({ library, folder });
-    // A run that reported nothing storytree reads verified nothing, so the command fails.
     if (!read.written && read.unread) throw new VerbRefusal(read.why);
     if (!read.written) return { text: read.why };
     return {
@@ -143,7 +125,6 @@ const investigate = verb({
   },
 });
 
-/** The command line's `health` family, 18th among `storytree`'s families. */
 export const HEALTH_FAMILIES: readonly VerbFamily[] = [
   { name: "health", summary: "the health worklist, and reading a project's CI, a local run of its own tests, or a factory plugin's own tests, into its verified health; recording its CI times", order: 18, verbs: [worklist, ci, times, local, plugin, tell, investigate] },
 ];

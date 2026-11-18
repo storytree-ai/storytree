@@ -23,6 +23,7 @@ import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
 import { judgedState, SchemaError, unstorable, type FieldsOf, type KnowledgeKind, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import { defaultEmbedder } from "./embedding-model.js";
+import { ARTIFACT_KINDS } from "./kinds.js";
 import { checkFrontCover, DecisionLog, type DecisionNumberPlan, type DecisionView, type NewDecision } from "../decisions/index.js";
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
 import { artifactsOnly, frontCovers } from "./front-covers.js";
@@ -110,22 +111,7 @@ export type NoteEdit = {
 }[NoteType];
 
 /** The kinds writeKnowledge writes. */
-export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
-  "principle",
-  "guardrail",
-  "pattern",
-  "process",
-  "agent",
-  "friction",
-  "resteer",
-  "techstack",
-  "check",
-  "research",
-  "experiment",
-  "escape",
-  "drill",
-  "measure",
-];
+export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = Object.keys(ARTIFACT_KINDS) as KnowledgeKind[];
 
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
 const PLAN_KINDS: readonly PlanKind[] = ["story", "capability", "contract"];

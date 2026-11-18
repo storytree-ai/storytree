@@ -6,7 +6,6 @@ import { waitUntil } from "@storytree/test-waits";
 import { journal } from "../journal.js";
 import { mountJournal, mountTeaching } from "./index.js";
 
-/** A page whose user has said yes to the tour, unless they have not answered it yet. */
 function page({ unanswered = false } = {}) {
   const dom = new Window();
   const document = dom.document as unknown as Document;
@@ -17,7 +16,6 @@ function page({ unanswered = false } = {}) {
   return { document, host, store };
 }
 
-/** A card on show, not the tour's line saying it is on between cards (3.9). */
 const CARD = '.teaching-card:not([data-kind="on"])';
 
 const oneStory = { tree: { stories: [{ id: "story_a", capabilities: [] }], arcs: [] }, changes: [], lines: [] };
@@ -47,7 +45,6 @@ test("3.1 · a fired card shows beside its thing, takes no focus and blocks noth
   assert.match(depth.textContent ?? "", /Decision 819: A package for each story/, "More names the decisions behind it");
   card.querySelector<HTMLButtonElement>("[data-dismiss]")!.click();
   assert.ok(host.querySelector(CARD) === null);
-  // Seen once, it does not come back for the same reading.
   teaching.take(oneStory);
   assert.ok(host.querySelector(CARD) === null);
   teaching.stop();
@@ -83,7 +80,6 @@ test("1.2 · a decision card reopened from Help's journal while the Library is s
   library = true;
   assert.match(reopened(), /press Library at the top of the map/, "read again each time it is shown");
   shelf.stop();
-  // A journal told nothing of the Library shows it on.
   const told = mountJournal(host, { journal: kept });
   told.open();
   host.querySelector<HTMLButtonElement>('[data-journal-entry="decision"]')!.click();
@@ -119,7 +115,6 @@ test("3.1 · a target off screen puts its card in the corner, and the next card 
   assert.equal(card.dataset.kind, "story");
   assert.ok(card.classList.contains("teaching-card-corner"));
   assert.equal(host.querySelectorAll(".teaching-card").length, 1);
-  // The card still waiting is not yet seen, and the same reading again does not queue it twice.
   assert.deepEqual(kept.seen().map(one => one.kind), ["story"]);
   teaching.take({ tree: { stories: [{ id: "story_a", capabilities: [{ id: "cap_a", proposed: true }] }], arcs: [] }, changes: [], lines: [] });
   card.querySelector<HTMLButtonElement>("[data-dismiss]")!.click();
@@ -155,7 +150,6 @@ test("3.7 · until the user says yes to the tour, only the ask shows, in a corne
     assert.ok(ask.classList.contains("teaching-card-corner"), "in a corner, not beside the island");
     assert.equal(ask.getAttribute("role"), "status");
     assert.equal(host.querySelectorAll(".teaching-card").length, 1);
-    // Ignored, the ask stays the only thing shown, and nothing is marked seen.
     teaching.take(oneStory);
     assert.equal(host.querySelectorAll(".teaching-card").length, 1);
     assert.deepEqual(kept.seen(), []);
@@ -202,7 +196,6 @@ test("3.8 · a card still waiting whose thing is gone from the map, or done, nev
   teaching.take(oneStory);
   const planned = (status: string) => ({ tree: { stories: [{ id: "story_a", capabilities: [] }], arcs: [{ id: "arc_1" }] }, lines: [],
     changes: [{ type: "increment", recordId: "increment_1", action: "created", record: { fields: { arc: "arc_1", status } } }] });
-  // The plan's card waits behind the story's while the agent works the plan.
   teaching.take(planned("proposal"));
   teaching.take(planned("closed"));
   host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
@@ -223,7 +216,6 @@ test("3.2 · the journal lists every card seen, in order, and choosing one shows
   const shown = host.querySelector<HTMLElement>("[data-journal-card]")!;
   assert.equal(shown.dataset.kind, "story");
   assert.match(shown.textContent ?? "", /Why/);
-  // Cards seen since it was last opened are listed when it opens again.
   kept.mark("arc");
   shelf.close(); shelf.open();
   assert.equal(host.querySelectorAll("[data-journal-entry]").length, 3);
@@ -255,7 +247,6 @@ test("3.3 · the decision card's depth draws a decision glued beneath its island
   shelf.stop();
 });
 
-/** A 1000 × 600 window whose cards measure 300 × 100, the rectangles `reading` says are being read, and the drawn islands' boxes. */
 function sized(reading: { left: number; top: number; right: number; bottom: number }[], locate: Parameters<typeof mountTeaching>[1]["locate"], islands: { left: number; top: number; right: number; bottom: number }[] = []) {
   const { document, host, store } = page();
   const view = document.defaultView as unknown as { innerWidth: number; innerHeight: number };
@@ -297,15 +288,12 @@ test("3.5 · with no room right of its island, a card sits left of the island; w
   const { teaching: under, at: underAt } = sized([{ left: 0, top: 200, right: 1000, bottom: 360 }], () => ({ x: 400, y: 300, visible: true, box: island }));
   assert.deepEqual(underAt(), { left: "250px", top: "362px" }, "12px below the island");
   under.stop();
-  // Read right of the island, the left place pressed against the window's edge still overlaps the island, and below it the
-  // middle is read: below it still, slid to end at the island's right edge.
   const { teaching: slid, at: slidAt } = sized([{ left: 505, top: 0, right: 1000, bottom: 600 }], () => ({ x: 400, y: 300, visible: true, box: island }));
   assert.deepEqual(slidAt(), { left: "200px", top: "362px" });
   slid.stop();
 });
 
 test("3.5 · a card with room right of its island only by pressing against it sits left of the island instead", () => {
-  // 680 + 12 + 300 + 12 = 1004 > 1000: kept inside the window, the right place would sit 8px off the island, not 12.
   const { teaching, at } = sized([], () => ({ x: 580, y: 300, visible: true, box: { left: 480, top: 250, right: 680, bottom: 350 } }));
   assert.deepEqual(at(), { left: "168px", top: "250px" }, "12px left of the island");
   teaching.stop();
@@ -388,13 +376,11 @@ test("3.5 · a window resized under the card places it again, clear of what is b
 });
 
 test("3.5 · when every place covers something being read, the card takes the place that covers least", () => {
-  // The whole window is being read, and the right of the point twice over.
   const { teaching, at } = sized([{ left: 0, top: 0, right: 1000, bottom: 600 }, { left: 412, top: 250, right: 712, bottom: 350 }], () => ({ x: 400, y: 300, visible: true }));
   assert.deepEqual(at(), { left: "88px", top: "250px" }, "the left of its point, not the right it would take first");
   teaching.stop();
 });
 
-/** A tall island in the middle of the window, and a neighbour over each of the four places beside it. */
 const tall = { left: 400, top: 200, right: 600, bottom: 400 };
 const neighbours = [{ left: 650, top: 150, right: 900, bottom: 290 }, { left: 100, top: 260, right: 300, bottom: 340 },
   { left: 450, top: 420, right: 550, bottom: 500 }, { left: 450, top: 100, right: 550, bottom: 180 }];
@@ -430,7 +416,6 @@ test("3.6 · the empty-map card on show is taken away once the map holds an isla
   const teaching = mountTeaching(host, { journal: journal(store), locate: () => undefined });
   teaching.take({ tree: { stories: [], arcs: [] }, changes: [], lines: [] });
   assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "empty");
-  // An import draws its island with no click on Next.
   teaching.take(oneStory);
   const cards = [...host.querySelectorAll<HTMLElement>(".teaching-card")];
   assert.deepEqual(cards.map(card => card.dataset.kind), ["story"]);
@@ -441,7 +426,6 @@ test("3.6 · an empty-map card still waiting when the map gains an island never 
   const { host, store } = page();
   const kept = journal(store);
   const teaching = mountTeaching(host, { journal: kept, locate: () => undefined });
-  // The factory's card is on show while the user's own empty map queues its tip behind it.
   teaching.take({ tree: { stories: [], arcs: [] }, changes: [], lines: [], factory: true });
   teaching.take({ tree: { stories: [], arcs: [] }, changes: [], lines: [] });
   teaching.take(oneStory);
@@ -452,7 +436,6 @@ test("3.6 · an empty-map card still waiting when the map gains an island never 
   teaching.stop();
 });
 
-/** The tour's quiet line, when it is on show. */
 const tourOn = (host: HTMLElement) => host.querySelector<HTMLElement>('.teaching-card[data-kind="on"]');
 
 test("3.9 · after Next with cards still to come, one quiet line says the tour is on and what brings the next card; that card takes its place", () => {
@@ -470,12 +453,10 @@ test("3.9 · after Next with cards still to come, one quiet line says the tour i
   assert.ok(line.classList.contains("teaching-card-corner"), "in a corner");
   assert.match(line.textContent ?? "", /Tour on: the next card comes when your agent plans\./, "the first kind still to come is the plan");
   assert.deepEqual(kept.seen().map(one => one.kind), ["story"], "the line marks nothing seen");
-  // The plan appears: its card takes the line's place.
   teaching.take({ ...oneStory, tree: { ...oneStory.tree, arcs: [{ id: "arc_1" }] } });
   assert.deepEqual([...host.querySelectorAll<HTMLElement>(".teaching-card")].map(one => one.dataset.kind), ["arc"]);
   host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
   assert.match(tourOn(host)!.textContent ?? "", /comes when a story's capabilities appear\./, "then the next kind still to come");
-  // End tour on the line ends the tour and clears the map.
   tourOn(host)!.querySelector<HTMLButtonElement>("[data-end]")!.click();
   assert.equal(kept.tour(), "no");
   assert.ok(host.querySelector(".teaching-card") === null);
@@ -508,7 +489,6 @@ test("3.9 · on the factory's map the quiet line names the factory's parts still
   teaching.stop();
 });
 
-/** Where a tie's line starts and ends, read from its place, length and turn. */
 function ends(line: HTMLElement): { from: [number, number]; to: [number, number] } {
   const x = parseFloat(line.style.left), y = parseFloat(line.style.top), length = parseFloat(line.style.width);
   const turn = parseFloat(/rotate\((-?[\d.e-]+)rad\)/.exec(line.style.transform)![1]!);
@@ -521,7 +501,6 @@ const near = (actual: [number, number], expected: [number, number], message: str
 test("3.10 · a card beside its island draws a ring round the island and a line from its nearest edge to the ring", () => {
   const island = { left: 300, top: 250, right: 500, bottom: 350 };
   const { teaching, card } = sized([], () => ({ x: 400, y: 300, visible: true, box: island }));
-  // Right of the island: the card is at 512, 250, 300 × 100.
   const ring = card.querySelector<HTMLElement>(".teaching-card-ring")!;
   assert.ok(ring, "a ring round its island");
   assert.deepEqual([ring.style.left, ring.style.top, ring.style.width, ring.style.height], ["294px", "244px", "212px", "112px"], "round the island's box, just outside it");
@@ -533,13 +512,11 @@ test("3.10 · a card beside its island draws a ring round the island and a line 
 });
 
 test("3.10 · a card left of its island, or below it, draws its line from the edge facing the island to the ring", () => {
-  // No room on the island's right in a 1000 px window: the card sits on its left, at 288, 250.
   const left = sized([], () => ({ x: 700, y: 300, visible: true, box: { left: 600, top: 250, right: 800, bottom: 350 } }));
   const beside = ends(left.card.querySelector<HTMLElement>(".teaching-card-tie")!);
   near(beside.from, [588, 300], "from the card's right edge");
   near(beside.to, [594, 300], "to the ring's left side");
   left.teaching.stop();
-  // An island too wide for a card on either side: the card sits below it, at 350, 212.
   const under = sized([], () => ({ x: 500, y: 150, visible: true, box: { left: 100, top: 100, right: 900, bottom: 200 } }));
   const below = ends(under.card.querySelector<HTMLElement>(".teaching-card-tie")!);
   near(below.from, [500, 212], "from the card's top edge");
@@ -549,7 +526,6 @@ test("3.10 · a card left of its island, or below it, draws its line from the ed
 
 test("3.10 · a card taken to a corner while its thing is on show is still tied to it; a ring marks a point with no island", () => {
   const { teaching, card } = sized([], () => ({ x: 500, y: 300, visible: true }), [{ left: 150, top: 120, right: 850, bottom: 480 }]);
-  // The bottom-right corner, 684, 484.
   const ring = card.querySelector<HTMLElement>(".teaching-card-ring")!;
   assert.deepEqual([ring.style.left, ring.style.top, ring.style.width, ring.style.height], ["492px", "292px", "16px", "16px"], "a small ring at its point");
   const { from, to } = ends(card.querySelector<HTMLElement>(".teaching-card-tie")!);

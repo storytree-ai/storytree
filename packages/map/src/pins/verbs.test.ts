@@ -24,7 +24,6 @@ test("9.1 · the pin family's new verb, its pin tool, refuses an anchor or icon 
 const CAPABILITY = "capability_00000000000a";
 const live: PinWorld = { capability: (id) => (id === CAPABILITY ? { files: [], parts: [], root: "/checkout" } : undefined), stores: [], readText: async () => undefined };
 
-/** A library holding pins in memory, recording each write's writer and each retirement's reason. */
 function pinLibrary() {
   const pins = new Map<string, SchemaRecord<"pin">>();
   const writes: unknown[] = [];
@@ -73,7 +72,6 @@ test("9.1 · pin new records the checkout's HEAD as the commit it was checked at
 test("9.2 · pin list prints each pin's icon, label, anchor, commit and evidence, stale with why, and --stale keeps only those", async () => {
   const { library } = pinLibrary();
   const writer = { actor: "session:s" };
-  // memo is exported when the pins are written, and gone when they are listed.
   let now: PinWorld = { capability: (id) => (id === CAPABILITY ? { files: ["lru.ts"], parts: [], root: "/checkout" } : undefined), stores: [], readText: async () => "export function memo() {}" };
   const pinContext = { ...context, library, writer, pinWorld: async () => now } as unknown as PinVerbContext;
   for (const on of [CAPABILITY, `${CAPABILITY}#memo`]) await verbNamed("new").act({ on, icon: "cache", label: "LRU cache", evidence: "lru.ts:1 memoises", commit: "0123abcdef0123abcdef" }, pinContext, WORDS);

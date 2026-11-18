@@ -41,6 +41,7 @@ import { FYI_FAMILY } from "./fyi.js";
 import { MEDIA_FAMILY } from "./media.js";
 export { mediaGuidance } from "./media.js";
 import { ADR_FAMILY, editDecision, recordDecision } from "../decisions/index.js";
+import { ARTIFACT_KINDS, WRITTEN_KINDS } from "../knowledge/index.js";
 import { partsBeside } from "./notes.js";
 import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
@@ -153,7 +154,7 @@ const WRITERS: Readonly<Record<string, Writer>> = {
   decision: (library, fields, options) => recordDecision(library, fields as never, options),
   definition: (library, fields, options) => library.defineTerm(fields as never, options),
   ...Object.fromEntries(
-    (["principle", "guardrail", "pattern", "process", "agent", "techstack", "check", "research", "experiment", "escape", "drill", "measure"] as const satisfies readonly KnowledgeKind[]).map((kind) => [
+    WRITTEN_KINDS.map((kind) => [
       kind,
       ((library, fields, options) => library.writeKnowledge(kind, fields as never, options)) satisfies Writer,
     ]),
@@ -161,10 +162,9 @@ const WRITERS: Readonly<Record<string, Writer>> = {
 };
 
 /** Kinds written through another family, which keeps a rule `new` must not skip. */
-const ELSEWHERE: Readonly<Record<string, string>> = {
-  friction: "storytree friction new",
-  resteer: "storytree resteer new",
-};
+const ELSEWHERE: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(ARTIFACT_KINDS).flatMap(([kind, { captured }]) => (captured === undefined ? [] : [[kind, captured.command]])),
+);
 
 /**
  * A line for each plugin kind among `kinds` (every one, when not given) whose records the library holds but read dormant

@@ -101,7 +101,6 @@ for (const installed of [false, true]) test(`session-management 14.4/14.6/15.1/1
   assert.deepEqual(closing.inventory.rows.map(row => row.run.id), [runs[1]!.id]);
 });
 
-// A Claude MCP server is shared with subagents; its startup environment cannot identify a call.
 test('session-management 14.6: own tools, offline Claude MCP refuses self authority from a stale server environment', async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-claude-'));
   const tools = createAgentTools({ folder: home, dataDir: path.join(home, 'pgdata'), env: { CLAUDE_CODE_SESSION_ID: 'stale' } });
@@ -120,7 +119,6 @@ test('session-management 14.6: own tools, offline Claude MCP refuses self author
   }
 });
 
-// The caller lookup falls back when the library is down, whichever way it is down.
 test('session-management 14.6: own tools fall back on an unreachable or timed-out library', () => {
   assert.equal(libraryDown(new ConnectionError('unreachable', 'The library at db.example.com:5432 cannot be reached.')), true);
   assert.equal(libraryDown(new ConnectionError('timeout', 'did not answer within 3 seconds')), true);
@@ -149,7 +147,7 @@ test('session-management 14.6/15.1: own tools online, Claude hook identity selec
   await approveCheckout(home, project, home);
   placeTestServer(path.join(home, 'pgdata'));
   const server = await connect({ url: testServerUrl() });
-  await (await server.openProject(project)).close().finally(() => server.close()); // set up, as a marked folder's project is
+  await (await server.openProject(project)).close().finally(() => server.close());
   log = await openActivityLog(testServerUrl());
   await log.append(project, { session: 'reset-session', harness: 'claude-code', source: 'hook', folder: home,
     kind: 'tool-requested', tool: 'list_own_runs', call: 'hook-call', agent: { subagent: 'builder' } });

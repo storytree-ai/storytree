@@ -10,6 +10,8 @@ import { verb, VerbRefusal, type Verb, type VerbContext, type VerbFamily, type V
 
 import { DEFAULT_DAYS } from "./read.js";
 
+const OVER_TIME_DAYS = 30;
+
 async function storiesOf(library: Library): Promise<{ id: string; title: string; plugin?: string }[]> {
   return (await library.list("story"))
     .map((record) => {
@@ -91,6 +93,34 @@ const RECORD = verb({
   },
 });
 
+const STORY = verb({
+  command: {
+    family: "code-measures",
+    name: "story",
+    summary: "each story's base and dedicated measures over a window of committed days, each latest reading against the natural process limits of the earlier ones, with the story's lane cost beside them (report only)",
+    usage: "code-measures story [<story>] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--json]",
+  },
+  tool: { absent: "a report read at the command line over the readings kept beside the library" },
+  inputs: {
+    story: { kind: "text", word: 0, optional: true, describe: "one story to read, by id or title; every story unless given" },
+    from: { kind: "text", optional: true, describe: `the first committed day counted (UTC); ${OVER_TIME_DAYS} days before the last unless given` },
+    to: { kind: "text", optional: true, describe: "the last committed day counted (UTC); today unless given" },
+    json: { kind: "switch", describe: "the window and each story's measures and lane cost, as JSON" },
+  },
+  async act({ story, from, to, json }, context: VerbContext) {
+    if (context.server === undefined) throw new VerbRefusal("Measure readings are kept beside the library, and this door has no library server open.");
+    const [{ windowOf, storyLaneMeasures }, { measureReadingsPool }, { seriesIn, storiesOverTime, overTimeText }] = await Promise.all([import("@storytree/session-management/measures/verbs"), import("./readings.js"), import("./over-time.js")]);
+    const window = windowOf(from, to, OVER_TIME_DAYS);
+    const stories = (await storiesOf(context.library)).filter(({ id, title }) => story === undefined || story === id || story === title);
+    if (stories.length === 0) throw new VerbRefusal(`No story in the plan is "${story}": name one by its id or title.`, { misuse: true });
+    const db = await measureReadingsPool(context.server);
+    const [records, series, lanes] = await Promise.all([context.library.measures(), seriesIn(db, { project: context.project, ...window }), storyLaneMeasures(context as Parameters<typeof storyLaneMeasures>[0], window)]);
+    const report = storiesOverTime({ stories, records: records.map(({ id, fields }) => ({ id, fields: fields as Record<string, unknown> })), series, lanes });
+    if (json) return { text: JSON.stringify({ window, stories: report }, null, 2), raw: true };
+    return { text: overTimeText(window, report) };
+  },
+});
+
 export const CODE_MEASURES_FAMILIES: readonly VerbFamily[] = [
-  { name: "code-measures", summary: "each story's base code-structure measures at a commit (report only; Code measures')", order: 37.5, verbs: [PAIR as Verb<VerbInputs, VerbContext>, RECORD as Verb<VerbInputs, VerbContext>], bare: CODE_MEASURES as Verb<VerbInputs, VerbContext> },
+  { name: "code-measures", summary: "each story's base code-structure measures at a commit (report only; Code measures')", order: 37.5, verbs: [PAIR as Verb<VerbInputs, VerbContext>, RECORD as Verb<VerbInputs, VerbContext>, STORY as Verb<VerbInputs, VerbContext>], bare: CODE_MEASURES as Verb<VerbInputs, VerbContext> },
 ];

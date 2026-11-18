@@ -1,8 +1,4 @@
-/**
- * Capability 6 · Tool server (the MCP server). A verb mounted as a tool answers with the steps it offers next,
- * named as tools, in its text and its data (ADR-0786 D2, question_c7a7d394adf9). The verb is a fixture: no
- * library or log is reached, since the mount only words the verb's answer.
- */
+// Capability 6 · Tool server (the MCP server)
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

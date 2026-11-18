@@ -11,7 +11,6 @@ import { removeTemp } from "@storytree/test-waits";
 import { connect, type Library } from "@storytree/library";
 import { ghApi, gitIn, readProjectCi, VERIFIED_BY_PROJECT_CI, type Git, type GitHub } from "../index.js";
 
-/** A project in the test Postgres `pnpm test` starts, dropped afterwards: one story, its agent reporting every contract passing. */
 async function shopLibrary(t: { after(fn: () => Promise<void>): void }): Promise<{ library: Library; capability: string; contracts: string[] }> {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
@@ -36,7 +35,6 @@ async function shopLibrary(t: { after(fn: () => Promise<void>): void }): Promise
   return { library, capability: capability.id, contracts };
 }
 
-/** The project's folder: a git repository whose one commit holds the story's tests (in its package's `tests`, `src` by default), with a GitHub origin unless told otherwise. */
 function projectFolder(t: { after(fn: () => void): void }, origin: string | null = "https://github.com/acme/shop.git", tests = "src"): { folder: string; commit: string } {
   const folder = mkdtempSync(path.join(tmpdir(), "ci-health-"));
   t.after(() => removeTemp(folder));
@@ -54,7 +52,6 @@ function projectFolder(t: { after(fn: () => void): void }, origin: string | null
   return { folder, commit: git("rev-parse", "HEAD") };
 }
 
-/** GitHub as the Actions API answers: the repository, its runs for the query asked, a run's jobs and their logs. */
 function github(runs: (query: URLSearchParams) => object[], log: string, jobs: { id: number; conclusion: string; name?: string; labels?: string[] }[] = [{ id: 70, conclusion: "success" }, { id: 71, conclusion: "skipped" }]): GitHub & { asked: string[] } {
   const asked: string[] = [];
   return {
@@ -70,7 +67,6 @@ function github(runs: (query: URLSearchParams) => object[], log: string, jobs: {
     async text(route) {
       asked.push(route);
       if (route === "repos/acme/shop/actions/jobs/70/logs") return log;
-      // A skipped job ran nothing, so it has no log (storytree's own automerge job, 2026-10-04).
       if (route === "repos/acme/shop/actions/jobs/71/logs") throw new Error(`gh api ${route}: HTTP 404`);
       throw new Error(`no such route: ${route}`);
     },
@@ -83,7 +79,6 @@ const tap = (second: "ok" | "not ok") => [
   `2026-10-03T20:20:26.1700000Z ${second} 2 - 1.2 missing details show the error`,
 ].join("\n");
 
-/** Only a finished push run on the default branch answers; any other query finds nothing. */
 const pushRunsOnTrunk = (commit: string) => (query: URLSearchParams) =>
   query.get("branch") === "trunk" && query.get("event") === "push" && query.get("status") === "completed"
     ? [{ id: 7, head_sha: commit, html_url: "https://github.com/acme/shop/actions/runs/7" }]
@@ -114,14 +109,12 @@ test("3.1, 3.17 reading a project's CI writes each contract's verified column fr
 test("3.1 · a run whose commit this clone lacks is read all the same: the commit is fetched from origin, with -- before it, and its files then read", async (t) => {
   const { library, contracts } = await shopLibrary(t);
   const { folder: origin, commit } = projectFolder(t, null);
-  // A clone made before the run's commit: its origin holds the commit, the clone does not.
   const clone = mkdtempSync(path.join(tmpdir(), "ci-health-clone-"));
   t.after(() => removeTemp(clone));
   execFileSync("git", ["init", "-q", clone]);
   execFileSync("git", ["-C", clone, "remote", "add", "origin", origin]);
   const real = gitIn(clone);
   const ran: string[][] = [];
-  // The clone's origin is a local folder; GitHub's address is what the reading names it by.
   const git: Git = async (args) => {
     ran.push(args);
     return args[0] === "remote" && args[1] === "get-url" ? "https://github.com/acme/shop.git\n" : real(args);
@@ -162,10 +155,8 @@ test("3.3 a job log holding terminal escape sequences is read all the same, from
   const folder = mkdtempSync(path.join(tmpdir(), "ci-health-gh-"));
   t.after(() => removeTemp(folder));
   const log = "test\tRun npm test\t\u001b[32mok 1 - 1.1 · Your information page shows the form\u001b[0m\n";
-  // Like gh 2.102: it refuses a response holding escape sequences until --allow-escape-sequences is passed.
   const strict = path.join(folder, "gh-strict.mjs");
   writeFileSync(strict, `if (!process.argv.includes("--allow-escape-sequences")) { process.stderr.write("the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway\\n"); process.exit(1); }\nprocess.stdout.write(${JSON.stringify(log)});\n`);
-  // Like gh 2.75: it prints the log as it is, and knows no such flag.
   const plain = path.join(folder, "gh-plain.mjs");
   writeFileSync(plain, `if (process.argv.includes("--allow-escape-sequences")) { process.stderr.write("unknown flag: --allow-escape-sequences\\n"); process.exit(1); }\nprocess.stdout.write(${JSON.stringify(log)});\n`);
   for (const gh of [strict, plain]) assert.equal(await ghApi(process.execPath, [gh]).text("repos/acme/shop/actions/jobs/1/logs"), log, path.basename(gh));
@@ -213,7 +204,6 @@ test("3.19 · on an imported repository, reading its CI writes each explored cap
   const git = (...args: string[]) => execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
   git("init", "-q");
   mkdirSync(path.join(folder, "shop/src"), { recursive: true });
-  // Outside every folder a story was mapped from, so not read: its title would make "sums the cart" two files'.
   mkdirSync(path.join(folder, "tools"));
   writeFileSync(path.join(folder, "tools/total.test.js"), `import { test } from "node:test";\ntest("sums the cart", () => {});\n`);
   writeFileSync(path.join(folder, "shop/src/total.js"), "export const total = () => 0;\n");
@@ -329,7 +319,6 @@ test("3.7 each job's results are read as its platform's: a test skipped on Windo
 });
 
 test("3.16 · a reading whose run had no macOS job leaves a contract's earlier macOS pass standing against its platform:darwin skip, and one whose macOS job skipped it takes the pass away", async (t) => {
-  // Main's push runs test Linux and Windows only, macOS nightly (ADR-1303): one wrote over Get storytree 1.11's macOS pass.
   const { library, contracts } = await shopLibrary(t);
   const { folder, commit } = projectFolder(t);
   const darwinSkip = "ok 1 - 1.1 your information page shows the form # SKIP platform:darwin-arm64: only an Apple Silicon Mac can run it";
@@ -373,7 +362,6 @@ test("3.8 a cancelled push run, superseded before its slowest job finished, is p
 test("3.8 a push run that concludes failure only because a newer push cancelled the jobs that ran its tests is passed over like a cancelled run: the next run back is read, while a run with one whole test job beside a cancelled one is read", async (t) => {
   const { library, contracts } = await shopLibrary(t);
   const { folder, commit } = projectFolder(t);
-  // storytree's own CI (run 37794283051): every platform job cancelled mid-tests, the aggregate verify job failed on that.
   const jobsOf: Record<number, { id: number; conclusion: string; name: string }[]> = {
     91: [{ id: 80, conclusion: "cancelled", name: "verify on Linux" }, { id: 81, conclusion: "cancelled", name: "verify on Windows" }, { id: 82, conclusion: "failure", name: "verify" }],
     7: [{ id: 70, conclusion: "success", name: "verify on Linux" }, { id: 72, conclusion: "success", name: "verify" }],
@@ -396,7 +384,6 @@ test("3.8 a push run that concludes failure only because a newer push cancelled 
   assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the run whose test jobs were cancelled is passed over");
   for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
 
-  // One platform's job ran whole beside a cancelled one: that run is read.
   jobsOf[92] = [{ id: 70, conclusion: "success", name: "verify on Linux" }, { id: 81, conclusion: "cancelled", name: "verify on Windows" }, { id: 82, conclusion: "failure", name: "verify" }];
   const partly = await readProjectCi({ library, git: gitIn(folder), github: fake([run(92, "failure"), run(7, "success")]) });
   assert.equal(partly.written && partly.run, "https://github.com/acme/shop/actions/runs/92");
@@ -447,7 +434,6 @@ test("3.11 of the merge queue's runs of a commit, only the one of the push run's
 test("3.15 a push run that ran no tests, because it stands on the merge queue's run of its commit, is passed over: the queue's run is read and judges every story, rather than the empty push run ending the looking", async (t) => {
   const { library, contracts } = await shopLibrary(t);
   const { folder, commit } = projectFolder(t);
-  // storytree's own CI (push run 40058943919, 2026-10-24): main's push run skips its test jobs and stands on queue run 40057942541.
   const run = (id: number, extra: object = {}) => ({ id, workflow_id: 1, conclusion: "success", head_sha: commit, html_url: `https://github.com/acme/shop/actions/runs/${id}`, ...extra });
   const logs: Record<number, string> = { 80: "The merge queue's run passed verify on this commit; this push stands on it.", 70: tap("ok") };
   const asked = github((query) => {
@@ -474,8 +460,6 @@ test("3.13 each run is scoped by the 'scope:' line its log opens with: a contrac
   const { folder, commit } = projectFolder(t);
   const at = "2026-10-10T08:35:05.2765737Z";
   const affected = (...dirs: string[]) => `${at} scope: affected — ${dirs.join(", ") || "nothing"} — changed: ${dirs[0] ?? "nothing"}`;
-  // storytree's own CI (merge_group run 38038330733): the newest run scoped in packages/arc-surface alone, so the
-  // check-out package's tests, which merged a run earlier, did not run in it.
   const logs: Record<number, string> = {
     70: affected("packages/arc-surface"),
     60: [affected("packages/check-out", "packages/web"), tap("ok")].join("\n"),
@@ -504,7 +488,6 @@ test("3.13 each run is scoped by the 'scope:' line its log opens with: a contrac
   }
   assert.equal(asked.asked.some((route) => route.includes("runs/5/")), false, "once every package is scoped in, no older run is read");
 
-  // The newest run scoped everything in: it alone is read, as a run whose log names no scope is.
   const whole = fake([run(5), run(6)]);
   await readProjectCi({ library, git: gitIn(folder), github: whole });
   assert.equal((await library.health(contracts[1]!)).verified.state, "failing");

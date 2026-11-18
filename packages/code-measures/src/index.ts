@@ -11,3 +11,4 @@ export { measureReadersOf, pairMeasures, pairingText, type MeasureReader, type M
 export { BASE_MEASURE_READERS, type BaseMeasureReader } from "./measures.js";
 export { MEASURE_READINGS_DATABASE, MEASURE_READINGS_SCHEMA, measureReadingsPool, measureSeries, writeReadings, type MeasureReadingRow, type MeasureReadingsDb } from "./readings.js";
 export { recordMeasures } from "./record.js";
+export { overTimeText, seriesIn, storiesOverTime, xmr, type Limits, type MeasureSeries, type Reads, type SeriesReading, type StoryMeasure, type StoryOverTime, type Xmr } from "./over-time.js";

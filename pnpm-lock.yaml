@@ -493,6 +493,9 @@ importers:
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
+      '@storytree/session-management':
+        specifier: workspace:*
+        version: link:../session-management
     devDependencies:
       '@storytree/test-waits':
         specifier: workspace:*

@@ -1,7 +1,4 @@
-/**
- * Capability 8 · Code survey: a project's shared stores, drawn only from the store links the mapping agent records on its
- * capabilities (ADR-1347 D3), never from compose files, connection settings or migrations.
- */
+// Capability 8 · Code survey
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

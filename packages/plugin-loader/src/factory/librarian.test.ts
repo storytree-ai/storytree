@@ -1,9 +1,4 @@
-/**
- * Capability 5 · Factory plugins, contracts 5.10 and 5.11 (ADR-1178 D5, question_0700cb2e567c: option A): a plugin's manifest
- * names its own librarian's database role and update right, storytree fences that role from it to the plugin's kinds,
- * and the database refuses that librarian a core kind. Run as 1.24 runs: a role that owns the project's database, the
- * owner's account fencing the writer the manifest gives, and the librarian's own account writing as storytree writes.
- */
+// Capability 5 · Factory plugins
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -24,7 +19,6 @@ const note = (writers: readonly string[]) => ({
   fields: { type: "object", properties: { text: { type: "string" } }, additionalProperties: false },
 });
 
-/** A factory folder holding one plugin per entry, each with a storytree manifest of the given extra fields. */
 function factory(t: TestContext, plugins: Readonly<Record<string, Record<string, unknown>>>): string {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-factory-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -35,7 +29,6 @@ function factory(t: TestContext, plugins: Readonly<Record<string, Record<string,
   return root;
 }
 
-/** Write one record as storytree does, as `client`: its history entry first, then the record, in one transaction. */
 async function put(client: { query(sql: string, params?: unknown[]): Promise<unknown> }, id: string, type: string, action: "created" | "updated" = "created"): Promise<void> {
   const record = { id, type, version: 1, fields: { text: id }, createdAt: "2026-10-27T00:00:00Z", updatedAt: "2026-10-27T00:00:00Z" };
   await client.query("BEGIN");

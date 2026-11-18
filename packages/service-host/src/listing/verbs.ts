@@ -1,19 +1,10 @@
-/**
- * Capability 2 · Listing and restarting services (ADR-1180 D4). The `services` verbs, declared here (ADR-0969 D2) and
- * named under `verbs` in the package's manifest (ADR-1033), so the command line mounts them as its `services` family:
- * `storytree services` lists every service the parts mounted here declare, on or off, and how each the host runs
- * stands, with the factory commit it last ran, and says when a part switch has not taken in the running host; `services restart <part>/<service>` asks the host to start one again;
- * `services run` runs the host in the foreground until it is stopped; `services install` and `services uninstall` write and
- * remove the entry point that keeps it running: a systemd user unit on Linux, a scheduled task on Windows (capability 3, ADR-1180 D5). Each is callerless: none needs a project. None
- * is a tool: they are this machine's, read and run from its terminal.
- */
+// Capability 2 · Listing and restarting services
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
 import type { Service } from "../running/supervise.js";
 
 import type { Mounted } from "../running/declared.js";
 import type { Status } from "./status.js";
 
-/** The host folder `hostFolder` finds for `home`, its refusal said as the verb's. */
 function hostOf(hostFolder: (home: string) => string, home: string): string {
   try {
     return hostFolder(home);
@@ -24,13 +15,8 @@ function hostOf(hostFolder: (home: string) => string, home: string): string {
 
 const runSaid = (run: Service["run"]): string => (run === "always" ? "always" : `every ${run.every}`);
 
-/** How a part switch the running host has not taken is taken: it mounts the parts' services only as it starts (contract 1.1). */
 const RESTART_HOST = "restart the service host: `systemctl --user restart storytree-host` where `storytree services install` keeps it, or stop `storytree services run` and run it again";
 
-/**
- * Every service `mounted` declares, as the status `status` the host last wrote says it stands: off, on and running, waiting
- * or failed with its last lines, or on with no host running; and the factory commit the host last ran.
- */
 export function servicesSaid(mounted: Mounted, status: Status | undefined, alive: (pid: number) => boolean): string {
   const running = status !== undefined && status.stopped !== true && alive(status.pid) ? status : undefined;
   const head = "Services on this computer (turn one on or off with `storytree settings set service <part>/<service> on|off`):";
@@ -118,7 +104,6 @@ const run = verb({
     await new Promise<void>((stopped) => {
       process.once("SIGTERM", () => stopped());
       process.once("SIGINT", () => stopped());
-      // On Windows no stop signal reaches the host heard: `services uninstall` and `services install` ask by file (contract 3.4).
       asked = setInterval(() => { if (takeStop(home)) stopped(); }, 1_000);
     });
     clearInterval(asked);
@@ -127,7 +112,6 @@ const run = verb({
   },
 });
 
-/** What keeps the host running here: the systemd user unit on Linux (contracts 3.1, 3.2), the scheduled task on Windows (3.3, 3.4). */
 async function entryPoint(): Promise<{ install: (checkout: string) => Promise<string>; uninstall: () => Promise<string> }> {
   if (process.platform === "linux") {
     const { installHost, uninstallHost, userSystemd } = await import("../installing/systemd.js");
@@ -183,7 +167,6 @@ const uninstall = verb({
   },
 });
 
-/** The command line's `services` family, beside `processes` among `storytree`'s families. */
 export const SERVICES_FAMILIES: readonly VerbFamily[] = [
   { name: "services", summary: "the services the mounted parts declare: list them, restart one, run the host, or install what keeps it running", order: 24.2, bare: list, verbs: [restart, run, install, uninstall] },
 ];

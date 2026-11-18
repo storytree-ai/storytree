@@ -1,4 +1,3 @@
-/** The MCP server 6.96: friction_drain runs the drain step its mounter injects, the doors learner the command line runs on its own drain. */
 import assert from "node:assert/strict";
 import { realpathSync } from "node:fs";
 import { test } from "node:test";

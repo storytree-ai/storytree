@@ -1,4 +1,4 @@
-/** Capability 6 · Tool server: the built tool server, started the way Claude Code and Codex start it. */
+// Capability 6 · Tool server (the MCP server)
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -21,7 +21,6 @@ test("6.33 the built storytree-mcp, started as a harness starts it, serves the t
   });
   let bins!: Record<string, string>;
   await t.test("build command scripts and native probes", async () => {
-    // Harnesses start the script with Node; this proof never runs the Windows command launcher.
     bins = await buildBins(path.join(home, "bin"), { launcher: false });
   });
   const transport = new StdioClientTransport({

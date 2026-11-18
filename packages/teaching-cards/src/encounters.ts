@@ -1,14 +1,8 @@
-/**
- * Capability 2 · First encounters. Which kinds are on the user's map now, each with the first thing of
- * its kind to anchor its card to, read from the page's own reading: the tree, its history and the agent
- * log. Whether a kind has been seen before is the journal's (journal.ts).
- */
+// Capability 2 · First encounters
 import { KINDS, type Kind } from "./cards.js";
 
-/** What a card points at: the map itself, or a thing on it the frame can locate. */
 export type Target =
   | { kind: "map" }
-  /** The top bar's switch to the factory and back. */
   | { kind: "switch" }
   | { kind: "arc"; arc: string }
   | { kind: "story"; story: string }
@@ -18,41 +12,29 @@ export type Target =
 
 export interface Encounter { kind: Kind; target: Target }
 
-/** The little of the page's reading it reads (the library's AnnotatedTree, Change and Line fit it). */
 export interface MapReading {
   tree: { stories: readonly { id: string; capabilities: readonly { id: string; proposed: boolean }[] }[]; arcs: readonly { id: string }[] };
-  /** The project's history, oldest first, as the page holds it: only the fields the arc surface's held reading keeps. */
   changes: readonly { type: string; recordId: string; action: string; record: { fields: Record<string, unknown> } }[];
-  /** The agent log's lines, oldest first. */
   lines: readonly { kind: string; capability?: string | undefined; increment?: string | undefined }[];
-  /** Whether the project on show is the user's factory (ADR-1048 D3). */
   factory?: boolean;
-  /** Whether the Library surface is switched on, and with it the Library switch at the top of the map; on unless said. */
   library?: boolean;
 }
 
-/** The factory's parts, by the kinds of record they are in its library (library's SYSTEM_KINDS). */
 const PARTS: readonly { kind: Kind; types: readonly string[] }[] = [
   { kind: "role", types: ["agent"] },
   { kind: "note", types: ["principle", "pattern", "process", "guardrail"] },
   { kind: "check", types: ["check"] },
 ];
 
-/**
- * Every kind on the map, in KINDS' order, with the first of it (the first plan not yet finished); an empty product's map is
- * the one kind "empty". On a factory, the factory itself, at the switch that brought the user there, and its parts.
- */
 export function encounters({ tree, changes, lines, factory = false }: MapReading): Encounter[] {
   if (!factory && tree.stories.length === 0 && tree.arcs.length === 0) return [{ kind: "empty", target: { kind: "map" } }];
   const found = new Map<Kind, Target>();
   if (factory) found.set("factory", { kind: "switch" });
   const parts = tree.stories.flatMap(story => story.capabilities.map(capability => ({ story: story.id, capability })));
   const part = (one: (typeof parts)[number]): Target => ({ kind: "capability", story: one.story, capability: one.capability.id });
-  // Each record as the history last left it: a retired one is gone from the map.
   const last = new Map<string, (typeof changes)[number]>();
   for (const change of changes) last.set(change.recordId, change);
   const live = [...last.values()].filter(change => change.action !== "retired");
-  // A plan is done once it has work and all of it is closed, with no question of its own still open: its card would come too late.
   const of = (arc: string, type: string) => live.filter(change => change.type === type && change.record.fields.arc === arc);
   const finished = (arc: string) => of(arc, "increment").length > 0 && of(arc, "increment").every(change => change.record.fields.status === "closed")
     && !of(arc, "question").some(change => change.record.fields.lifecycle === "open");

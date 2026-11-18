@@ -1,4 +1,4 @@
-/** Capability 8 · Files from disk or an immutable merged Git tree; never check out over local work. */
+// Capability 8 · Code survey
 import { type ChildProcess, execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { lstat, readdir, realpath, stat } from "node:fs/promises";
@@ -8,16 +8,10 @@ import { promisify } from "node:util";
 
 import type { SurveyPackage } from "./code-survey.js";
 
-/** The folders a survey never reads into. */
 export const SKIPPED = new Set(["node_modules", "dist", "out", "evidence", "__pycache__", ".venv", "venv"]);
 
-/** The dependency fields of a package.json, in the order their names are listed. */
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
 
-/**
- * A package.json's name, the packages it depends on through any field, and the parts its storytree manifest declares
- * by kind (each entry's module subpath and export name); undefined when it cannot be read.
- */
 export function manifestFrom(text: string): { name: string; deps: string[]; exports: SurveyPackage["exports"]; imports: NonNullable<SurveyPackage["imports"]>; parts: NonNullable<SurveyPackage["parts"]> } | undefined {
   try {
     const parsed = JSON.parse(text) as Record<string, unknown>;
@@ -31,7 +25,6 @@ export function manifestFrom(text: string): { name: string; deps: string[]; expo
       (key === "." || key.startsWith("./")) && !key.includes("*") && typeof target === "string" && target.startsWith("./")
       && !target.includes("*") && !target.split("/").slice(1).some(part => part === ".." || part === "node_modules"),
     ) as [string, string][] : [];
-    // Its own '#' imports, read the same way: a literal key mapped to a literal file inside the package.
     const own = typeof parsed.imports === "object" && parsed.imports !== null ? Object.entries(parsed.imports).filter(([key, target]) =>
       key.startsWith("#") && !key.includes("*") && typeof target === "string" && target.startsWith("./")
       && !target.includes("*") && !target.split("/").slice(1).some(part => part === ".." || part === "node_modules"),
@@ -48,7 +41,6 @@ export function manifestFrom(text: string): { name: string; deps: string[]; expo
 type Entry = { name: string; directory: boolean; file: boolean };
 export interface SurveySource {
   readonly root: string;
-  /** The commit an immutable snapshot reads; none for a folder read from disk. */
   readonly commit?: string;
   entries(directory: string): Promise<readonly Entry[]>;
   file(full: string): Promise<{ version: string; read(): Promise<string> } | undefined>;
@@ -56,11 +48,8 @@ export interface SurveySource {
 
 const execute = promisify(execFile);
 const MAX_BYTES = 64 * 1024 * 1024;
-/** No program a repository's own settings name runs: no file monitor, no hook (from a folder that never exists), no command transport. */
 const NEUTRAL = ["-c", "core.fsmonitor=false", "-c", `core.hooksPath=${path.join(tmpdir(), `storytree-no-hooks-${randomUUID()}`)}`, "-c", "protocol.ext.allow=never"];
-/** The fetch of main speaks only transports that run nothing named in the repository's settings. */
 const FETCH_PROTOCOLS = ["-c", "protocol.allow=never", ...["https", "ssh", "file", "git"].flatMap(name => ["-c", `protocol.${name}.allow=always`])];
-/** Repository settings that name a program a fetch would run; any one of them skips the fetch. */
 const FETCH_PROGRAMS = "^(remote\\.origin\\.uploadpack|core\\.sshcommand|credential\\..*helper)$";
 
 async function git(folder: string, args: string[], input?: string): Promise<Buffer> {
@@ -68,10 +57,9 @@ async function git(folder: string, args: string[], input?: string): Promise<Buff
     cwd: folder, encoding: "buffer", maxBuffer: MAX_BYTES, windowsHide: true,
     env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "Never" },
   });
-  // No interactive credentials, and no process kept between readings.
   let ended: Promise<void> | undefined;
   const deadline = setTimeout(() => { ended = endTree(run.child); }, 5_000);
-  run.child.stdin?.on("error", () => {}); // An early Git exit is reported by the promise.
+  run.child.stdin?.on("error", () => {});
   run.child.stdin?.end(input);
   try {
     return (await run).stdout;
@@ -81,10 +69,6 @@ async function git(folder: string, args: string[], input?: string): Promise<Buff
   }
 }
 
-/**
- * End a Git that ran past its deadline, with every process it started. On Windows `git` is often
- * Git for Windows' launcher, and killing it leaves its real git.exe running with the repository open.
- */
 function endTree(child: ChildProcess): Promise<void> {
   if (process.platform !== "win32" || child.pid === undefined) {
     child.kill();
@@ -109,10 +93,8 @@ function disk(root: string, read: (file: string) => Promise<string>): SurveySour
   };
 }
 
-/** All worktrees and readers share one fetch and one immutable directory reading per repository. */
 type Repository = {
   reading?: Promise<SurveySource | undefined>; commit?: string; source?: SurveySource;
-  /** A start's fetch that its first answer did not wait on, and how it ended: the next ask waits on it instead of fetching again. */
   fetching?: Promise<unknown>;
 };
 const repositories = new Map<string, Repository>();
@@ -124,21 +106,16 @@ async function merged(common: string, root: string, startFromFetched: boolean): 
     repositories.set(common, kept);
   }
   const repository = kept;
-  // The forest paces requests. Share overlapping asks here, but never answer a later landing's
-  // request from a cooldown cache: it might be the only ask that landing produces.
   repository.reading ??= refresh(common, root, repository, startFromFetched).finally(() => { delete repository.reading; });
   return repository.reading;
 }
 
-/** The words a survey of main is refused with when origin/main cannot be fetched and none was fetched before (8.11). */
 const NO_MERGED_MAIN = "Cannot survey merged code: origin/main is unavailable and no fetched main is kept.";
 
-/** Whether `error` is that refusal, told by its message alone, since only the message crosses from a survey's worker thread. */
 export function noMergedMain(error: unknown): boolean {
   return error instanceof Error && error.message.startsWith(NO_MERGED_MAIN);
 }
 
-/** Why main was not fetched: Git's first line (its later ones are boilerplate), or the skip's reason. */
 function whyNotFetched(error: unknown): string {
   const said = (error as { stderr?: Buffer | string } | undefined)?.stderr?.toString().trim().split("\n")[0];
   if (said) return said;
@@ -151,9 +128,8 @@ async function refresh(common: string, root: string, kept: Repository, startFrom
     if (error.code === 1) return "";
     throw error;
   });
-  if (!origin) return undefined; // A local-only project keeps its primary-folder reading.
+  if (!origin) return undefined;
   const fetchedMain = () => gitText(common, [...args, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}"]);
-  // Read before the fetch is started, so a start's fetch is already under way when its first answer lands (8.27).
   const blocked = async () => {
     const programs = await gitText(common, [...args, "config", "--local", "--includes", "--name-only", "--get-regexp", FETCH_PROGRAMS]).catch((error: { code?: number }) => {
       if (error.code === 1) return "";
@@ -167,7 +143,6 @@ async function refresh(common: string, root: string, kept: Repository, startFrom
     : git(common, [...FETCH_PROTOCOLS, ...args, "fetch", "--quiet", "--no-tags", "--no-auto-maintenance", "--no-recurse-submodules", "--no-write-fetch-head",
       "origin", "+refs/heads/main:refs/remotes/origin/main"]).then(() => undefined, (error: unknown) => error ?? new Error("Git fetch failed."));
   let fetchError: unknown;
-  // A start answers its first ask from the main already fetched and fetches meanwhile (8.27).
   const already = startFromFetched && kept.commit === undefined && kept.fetching === undefined ? await fetchedMain().catch(() => undefined) : undefined;
   if (already !== undefined) {
     kept.fetching = fetch(await blocked());
@@ -187,10 +162,6 @@ async function refresh(common: string, root: string, kept: Repository, startFrom
   return source;
 }
 
-/**
- * Tree entries and blob identities are immutable. Text is batched only when the survey asks for it, and kept
- * for a later ask unless `forget` says the asker keeps what it needs of it.
- */
 async function snapshot(common: string, root: string, commit: string, forget = false): Promise<SurveySource> {
   const args = ["--git-dir", common];
   const files = new Map<string, string>();
@@ -219,7 +190,6 @@ async function snapshot(common: string, root: string, commit: string, forget = f
   const texts = new Map<string, Promise<string>>();
   let pending = new Map<string, { resolve(text: string): void; reject(error: unknown): void }>();
   let scheduled = false;
-  // At most one bounded batch runs at once, even when several readers need different stories.
   let running = Promise.resolve();
   const read = (sha: string): Promise<string> => {
     let text = texts.get(sha);
@@ -270,17 +240,8 @@ async function snapshot(common: string, root: string, commit: string, forget = f
   };
 }
 
-/** An imported checkout's last snapshot, by its Git directory: kept while its commit stands. */
 const imported = new Map<string, { commit: string; source: Promise<SurveySource> }>();
 
-/**
- * The files of an imported folder (ADR-0993 D2): those Git tracks at its checkout's commit, read from that
- * commit's immutable tree with one Git call per ask while the commit stands, and `commit` naming it; a folder
- * that is no checkout with a commit is read from disk, with no commit. `folder` is the folder as the source spells it.
- * Work done there and not committed (a changed, new or deleted file Git does not ignore) stands over the commit's
- * tree, read from disk, and `local` names it (each such file with its size and modified time) so a survey of it
- * is kept only while it is unchanged.
- */
 export async function importedSource(folder: string, readText: (file: string) => Promise<string>): Promise<{ source: SurveySource; folder: string; commit?: string; local?: string }> {
   const found = await gitText(folder, ["rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir", "HEAD", "--show-prefix"]).catch(() => undefined);
   const [top, common, commit, prefix = ""] = found?.split("\n") ?? [];
@@ -299,11 +260,6 @@ export async function importedSource(folder: string, readText: (file: string) =>
   return { source: overlaid(await kept.source, local, readText), ...at, local: JSON.stringify([...local].sort(([a], [b]) => (a < b ? -1 : 1))) };
 }
 
-/**
- * Each file the checkout at `root` changed, added or deleted since its commit, Git's ignored files left out, by full
- * path: its version on disk (size and modified time), or undefined when it is not there. Nothing is written into the
- * checkout: Git is told not to take its optional index lock.
- */
 async function localWork(root: string): Promise<Map<string, string | undefined>> {
   const listed = (await git(root, ["--no-optional-locks", "status", "--porcelain", "-z", "--untracked-files=all", "--no-renames"])).toString("utf8");
   const local = new Map<string, string | undefined>();
@@ -317,7 +273,6 @@ async function localWork(root: string): Promise<Map<string, string | undefined>>
   return local;
 }
 
-/** `base` with `local`'s files standing over it: each read from disk, or gone when it is not there. */
 function overlaid(base: SurveySource, local: ReadonlyMap<string, string | undefined>, read: (file: string) => Promise<string>): SurveySource {
   const added = new Map<string, Map<string, Entry>>();
   const gone = new Map<string, Set<string>>();
@@ -353,7 +308,6 @@ function overlaid(base: SurveySource, local: ReadonlyMap<string, string | undefi
   };
 }
 
-/** With `startFromFetched`, a repository's first ask is answered from the main already fetched while it fetches (8.27). */
 export function surveySourceReader(scope: "main" | "current", readText: (file: string) => Promise<string>, startFromFetched = false) {
   const folders = new Map<string, Promise<{ root: string; common?: string }>>();
   return async (folder: string): Promise<SurveySource> => {

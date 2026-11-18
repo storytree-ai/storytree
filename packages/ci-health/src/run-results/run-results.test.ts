@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { commitOfLog, parseTestLog } from "./run-results.js";
 
-/** A job log as the Actions API gives it: every line timestamped, the BOM on the first. */
 const API_LOG = [
   "﻿2026-10-03T20:20:23.0090422Z Current runner version: '2.337.0'",
   "2026-10-03T20:20:26.1000000Z > node --test",
@@ -26,7 +25,6 @@ const API_LOG = [
   "2026-10-03T20:20:26.2800000Z # pass 3",
 ].join("\n");
 
-/** The same kind of log as `gh run view --log` saves it: job and step columns first. */
 const SAVED_LOG = [
   "test\tRun actions/checkout@v4\t2026-10-03T20:20:24.4233216Z [command]/usr/bin/git log -1 --format=%H",
   "test\tRun actions/checkout@v4\t2026-10-03T20:20:24.4262519Z 7f745ec5218a72a19aef3953e4b7b91aca6a8e76",
@@ -51,7 +49,6 @@ test("1.1 a job log's TAP reads as one result per test: ok passed, not ok failed
   assert.deepEqual(parseTestLog("no tests ran here\nok computer"), []);
 });
 
-/** The same tests as Node 24 prints them in CI by default (its spec format), as `gh run view --log` saves them. */
 const SPEC_LOG = [
   "test\tRun npm test\t2026-10-05T03:45:36.9893035Z > node --test",
   "test\tRun npm test\t2026-10-05T03:45:37.1000000Z ✔ 3.1 pages show a cart button per product (185.84ms)",
@@ -88,7 +85,6 @@ test("1.2 the commit a run tested is read from its log's checkout, and a log tha
   assert.equal(commitOfLog(API_LOG), undefined);
 });
 
-/** A job log holding pytest's short test summary, as `pytest -rA` prints it. */
 const PYTEST_LOG = [
   "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.0000000Z ============================= test session starts ==============================",
   "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.1000000Z tests/test_total.py ..F.sx                                                  [100%]",

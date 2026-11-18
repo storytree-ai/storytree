@@ -254,7 +254,6 @@ test("1.5 a contract on an edge joins the graph with its own health, on the edge
   assert.doesNotMatch(fromTarget, /belongs-to/);
 });
 
-/** One story of four parts as a guided run planned it: Packet API holds most contracts, and two links hold their own. */
 function packets() {
   const contract = (id: string, title: string) => ({ id, title, health });
   const part = (id: string, title: string, dependsOn: string[], contracts: ReturnType<typeof contract>[]) => ({ id, title, proposed: false, status: "healthy", health, dependsOn, contracts });

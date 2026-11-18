@@ -1,7 +1,4 @@
-/**
- * Capability 8 · Code survey, read from disk: surveying the checkout again reads only the files that
- * changed since the last survey (ADR-0836 D2). Written against a small package in a temporary folder.
- */
+// Capability 8 · Code survey
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { realpathSync } from "node:fs";
@@ -19,7 +16,6 @@ import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 import { capabilitiesOfFiles, codeSurveyReader, drawsItself, placeFiles, noMergedMain, offThreadSurveyReader, readCodeSurvey, storyTests, surveyCodeName, testedNumbers, untestedContracts } from "./read-survey.js";
 import { focusProject } from "../read.js";
 import { importedSource } from "./survey-source.js";
-// 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
 import "./survey-worker.js";
 
 const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }] }] } as unknown as AnnotatedTree;
@@ -27,13 +23,10 @@ const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabiliti
 test("8.1, 8.5 Constructor stories survey alongside ordinary stories and storytree's package aliases, which a user's story of the same title does not take, and a factory plugin's story is surveyed from its plugin's package whatever its title", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-titles-"));
   const fixtures = [["story-shop", "Shop", "shop"], ["story_f9fb5136c28f", "The command line", "cli"],
-    // ADR-1066 D4's developer-first names, whose packages kept their names: storytree's own stories, by id.
     ["story_6def59292b78", "Context", "project-and-caller"],
     ["story_73dad81ba7a7", "Code map", "map"], ["story_deee4230348c", "Map view", "forest"], ["story_d754d997f22a", "Knowledge graph", "knowledge-core"],
     ["story_7722ddb5461e", "Work board", "arc-surface"], ["story_a93c6fb1a257", "Desktop app", "app"], ["story_b91056a06337", "Setup", "app-setup"],
-    // A user's stories of the same titles keep the title rule.
     ["story-user-setup", "Setup", "setup"], ["story-user-context", "Context", "context"], ["story-user-command-line", "The command line", "command-line"],
-    // A factory plugin's story, titled for what it does: its package is the plugin's.
     ["story-voice", "Talk to storytree by voice", "voice"],
     ["story-website", "Website", "website"], ["story-constructor", "Constructor", "constructor"]] as const;
   const stories = fixtures.map(([id, title, name]) => ({ id, title, ...(id === "story-voice" ? { plugin: "voice" } : {}), capabilities: [{ id: `cap-${name}`, title: "1 · Value" }] }));
@@ -306,7 +299,6 @@ test("8.8 the app unions its package and desktop dependencies and refreshes only
   }
 });
 
-/** Write each package's files under `folder`, keyed by their path from the package. */
 async function writePackages(folder: string, packages: Readonly<Record<string, Readonly<Record<string, string>>>>): Promise<void> {
   for (const [name, files] of Object.entries(packages)) {
     for (const [file, text] of Object.entries(files)) {
@@ -316,7 +308,6 @@ async function writePackages(folder: string, packages: Readonly<Record<string, R
   }
 }
 
-/** Two stories: the till's names, defined across its files and offered through its exports and re-exports, and a bank whose code no numbered test reaches. */
 const tillAndBank = {
   till: {
     "package.json": JSON.stringify({ name: "@x/till", exports: { ".": "./src/index.ts", "./receipts": "./src/receipts.ts" } }),
@@ -337,7 +328,6 @@ const tillAndBankStories = [
   { id: "story-bank", title: "Bank", capabilities: [{ id: "cap-vault", title: "1 · Vault" }] },
 ];
 
-/** A story's derived edges, one line each: from capability, story, to capability, by value or types. */
 const edgeLines = (survey: StorySurvey | undefined): string[] =>
   (survey?.edges ?? []).map((edge) => `${edge.from ?? "-"} > ${edge.story}:${edge.to ?? "-"} ${edge.typeOnly ? "types" : "value"}`).sort();
 
@@ -349,9 +339,7 @@ test("8.18 an import of another story's name is an edge from its file's capabili
       ...tillAndBank,
       shop: {
         "package.json": JSON.stringify({ name: "@x/shop" }),
-        // A value and a type import of one capability's file make a value edge; a renamed re-export leads to its own file.
         "src/cart.ts": 'import { price, makeReceipt } from "@x/till";\nimport type { Money } from "@x/till";\nexport const cart: Money = price + makeReceipt();\n',
-        // Types alone make a type-only edge, even inline; a subpath export and a literal dynamic import lead to the file they name.
         "src/pay.ts": 'import { type Money } from "@x/till";\nexport const pay = (): Promise<Money> => import("@x/till/receipts").then(({ receipt }) => receipt());\n',
         "src/cart.test.ts": 'import { cart } from "./cart.js";\nimport { vault } from "@x/bank";\ntest("1.1 cart", () => cart + vault);\n',
         "src/pay.test.ts": 'import { pay } from "./pay.js";\ntest("2.1 pay", () => pay);\n',
@@ -403,7 +391,6 @@ test("8.31 an edge file whose source declares nothing of its own, imports nothin
       shop: {
         "package.json": JSON.stringify({ name: "@x/shop" }),
         "src/forward.ts": 'import { price } from "@x/till";\nexport { price };\nexport type { Money } from "@x/till";\n',
-        // Each of these does something of its own: a declaration, an own-package import, a second story.
         "src/declares.ts": 'export { price } from "@x/till";\nexport const tax = 1;\n',
         "src/own.ts": 'export { price } from "@x/till";\nexport { tax } from "./declares.js";\n',
         "src/two.ts": 'export { price } from "@x/till";\nexport { vault } from "@x/bank";\n',
@@ -431,7 +418,6 @@ test("8.33 an edge file the checkout's storytree.check.json declares as a build 
       },
     });
     await writeFile(path.join(folder, "storytree.check.json"), JSON.stringify({ placement: { plumbing: [
-      // Declared by the file and the package it reaches, so build.ts's import of the bank stays unmarked.
       { from: "packages/shop/src/build.ts", to: "till", kind: "build step", said: "test", on: "2026-10-22" },
       { from: "packages/shop/src/remove.ts", to: "bank", kind: "cleanup", said: "test", on: "2026-10-22" },
     ] } }));
@@ -450,12 +436,10 @@ test("8.45 an import between two capabilities' source files in one story is an e
     await writePackages(folder, {
       shop: {
         "package.json": JSON.stringify({ name: "@x/shop", exports: { "./pay": "./src/pay.ts" } }),
-        // Through its own barrel, by relative path, to the file defining what it takes; and by its own package's name.
         "src/cart.ts": 'import { rate } from "./tax/index.js";\nimport { pay } from "@x/shop/pay";\nimport { line } from "./line.js";\nexport const cart = rate + pay() + line;\n',
         "src/line.ts": "export const line = 1;\n",
         "src/tax/index.ts": 'export { rate } from "./rate.js";\n',
         "src/tax/rate.ts": "export const rate = 1;\n",
-        // Types alone make a type-only edge.
         "src/pay.ts": 'import type { Rate } from "./tax/types.js";\nexport const pay = (): Rate => 1;\n',
         "src/tax/types.ts": "/** Capability 3 · Tax. */\nexport type Rate = number;\n",
         "src/cart.test.ts": 'import { cart } from "./cart.js";\nimport { line } from "./line.js";\ntest("1.1 cart", () => cart + line);\n',
@@ -498,7 +482,6 @@ test("8.46 a source file calling composeParts with a literal kind is an edge fro
         "src/rounds.test.ts": 'import { toolParts } from "./tools/rounds.js";\ntest("1.1 rounds", () => toolParts);\n',
         "src/guide.test.ts": 'import { guide } from "./guide.js";\ntest("2.1 guide", () => guide);\n',
       },
-      // Declares tools too, but the host's package does not depend on it.
       other: {
         "package.json": JSON.stringify({ name: "@x/other", exports: { "./tools": "./src/tools.ts" }, storytree: { tools: [{ from: "./tools", export: "toolParts" }] } }),
         "src/tools.ts": "export const toolParts = [];\n",
@@ -584,7 +567,6 @@ test("8.11 8.5 merged surveys follow two workspace landings without touching loc
     const reader = codeSurveyReader();
     const first = await reader.read(workspace, stories);
     assert.deepEqual(first["story-shop"]?.files, [{ path: "src/kept.ts", lines: 1 }]);
-    // These collide with the incoming landing. Neither may be used or overwritten by main's survey.
     await writeFile(path.join(main, "packages/shop/src/kept.ts"), "export const dirty = 2;\nexport const local = 3;\n");
     await writeFile(path.join(main, "packages/shop/src/claim.ts"), "export const untracked = 9;\n");
     const status = git(main, "status", "--porcelain");
@@ -607,7 +589,6 @@ test("8.11 8.5 merged surveys follow two workspace landings without touching loc
     assert.equal(await readFile(path.join(main, "packages/shop/src/kept.ts"), "utf8"), "export const dirty = 2;\nexport const local = 3;\n");
     const current = await codeSurveyReader({ checkout: "current" }).read(main, tree);
     assert.equal(current["story-shop"]?.files.find(file => file.path === "src/kept.ts")?.lines, 2);
-    // Snapshots retain manifests and numbered tests outside src, including UTF-8 and quoted paths.
     await mkdir(path.join(workspace, "packages/shop/test"), { recursive: true });
     await writeFile(path.join(workspace, "packages/shop/package.json"), JSON.stringify({ name: "@x/shop", exports: { "./claim": "./src/claim.ts" } }));
     await writeFile(path.join(workspace, "packages/shop/test/helper.ts"), 'export { claim } from "@x/shop/claim";\n');
@@ -634,7 +615,7 @@ test("8.11 a stalled origin is bounded, shared across worktrees and readers, and
     connections++;
     sockets.add(socket);
     socket.on("error", () => {});
-    socket.resume(); // Read what Git sends, answering nothing, so its end is seen and the connection closes.
+    socket.resume();
     socket.on("close", () => sockets.delete(socket));
   });
   try {
@@ -654,8 +635,6 @@ test("8.11 a stalled origin is bounded, shared across worktrees and readers, and
     assert.ok(results.every(result => result.status === "rejected"));
     assert.equal(connections, 1, "the two readers share the same pending fetch");
     assert.ok(Date.now() - started < 15_000, "Git's timeout bounds a nonresponsive origin");
-    // The fetch's own connection closing is its git ending: on Windows, Git for Windows' launcher's real git.exe holds it.
-    // A scan of the process table could not see it (its command line names no folder) and held the event loop on Windows.
     await waitUntil(() => sockets.size === 0, 5_000, "the stalled fetch's connection to close: no git process the reading started outlives it");
   } finally {
     for (const socket of sockets) socket.destroy();
@@ -690,7 +669,6 @@ test("8.11 an origin with no fetchable main is refused in words naming why, whet
     const refused = async (why: RegExp) => {
       const error = await codeSurveyReader().read(checkout, tree).then(() => undefined, (failed: Error) => failed);
       assert.ok(error instanceof Error, "the survey is refused, not read from the workspace");
-      // Only its message crosses from the survey's worker thread, so the message alone tells the refusal apart.
       assert.equal(noMergedMain(new Error(error.message)), true);
       assert.match(error.message, why);
     };
@@ -721,12 +699,9 @@ test("8.35 the survey's Git runs no program its repository's settings name, and 
   };
   const ran = () => readFile(marker, "utf8").catch(() => "");
   const claimLines = async (reading: Promise<Record<string, StorySurvey>>) => (await reading)["story-shop"]?.files[0]?.lines;
-  // A fetch that runs past Git's deadline (as one can on a loaded Windows runner) leaves the main already fetched, so a
-  // fetch expected to land is waited for, each ask fetching again, rather than read once.
   const fetched = (reader: ReturnType<typeof codeSurveyReader>, lines: number, what: string) =>
     waitUntil(async () => await claimLines(reader.read(checkout, tree)) === lines, 15_000, what);
   try {
-    // Each program the checkout's settings could start writes its name to the marker.
     const script = async (name: string, tail = "") => {
       const file = path.join(folder, `${name}.sh`);
       await writeFile(file, `#!/bin/sh\necho ${name} >> "${marker}"\n${tail}`);
@@ -765,7 +740,6 @@ test("8.35 the survey's Git runs no program its repository's settings name, and 
       assert.equal(await claimLines(reader.read(checkout, tree)), 2, `${key} skips the fetch and the survey stays on the main already fetched`);
       git(checkout, "config", "--unset", key);
     }
-    // A command-running transport the checkout allows for itself is still refused.
     git(checkout, "config", "protocol.ext.allow", "always");
     git(checkout, "remote", "set-url", "origin", `ext::${(await script("ext")).replaceAll(" ", "% ")}`);
     assert.equal(await claimLines(reader.read(checkout, tree)), 2);
@@ -773,9 +747,8 @@ test("8.35 the survey's Git runs no program its repository's settings name, and 
 
     git(checkout, "remote", "set-url", "origin", origin);
     await fetched(reader, lines, "the fetch resumed with the settings gone");
-    // With no main fetched before, the refusal says why the fetch was skipped.
     git(checkout, "update-ref", "-d", "refs/remotes/origin/main");
-    await rm(marker); // This test's own update ran the checkout's hooks.
+    await rm(marker);
     git(checkout, "config", "core.sshCommand", await script("ssh"));
     await assert.rejects(codeSurveyReader().read(checkout, tree), (error: Error) =>
       /origin\/main/.test(error.message) && /core\.sshcommand/i.test(String((error.cause as Error | undefined)?.message)));
@@ -796,7 +769,7 @@ test("8.27 a start's reader answers its first ask from the main already fetched 
     connections++;
     sockets.add(socket);
     socket.on("error", () => {});
-    socket.resume(); // Read what Git sends, answering nothing, so its end is seen and the connection closes.
+    socket.resume();
     socket.on("close", () => sockets.delete(socket));
   });
   const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: "pipe", windowsHide: true }).trim();
@@ -813,7 +786,6 @@ test("8.27 a start's reader answers its first ask from the main already fetched 
     git(checkout, "remote", "add", "origin", origin);
     commit(checkout);
     git(checkout, "push", "--quiet", "origin", "main");
-    // Main moves on the origin after this checkout last fetched it.
     git(folder, "clone", "--quiet", "--", origin, other);
     await writeFile(path.join(other, "packages/shop/src/claim.ts"), "export const claim = 1;\nexport const landed = 2;\n");
     commit(other);
@@ -823,7 +795,6 @@ test("8.27 a start's reader answers its first ask from the main already fetched 
     assert.equal(await claimLines(start.read(checkout, tree)), 1, "the first ask answers from the main already fetched");
     assert.equal(await claimLines(start.read(checkout, tree)), 2, "the next ask surveys the newer main that fetch brought");
 
-    // A stalling origin: the first answer lands while the start's fetch is still open, and the next ask waits on it.
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     const address = server.address() as import("node:net").AddressInfo;
     git(other, "worktree", "add", "--quiet", "--detach", path.join(folder, "stalled"), "HEAD");
@@ -851,14 +822,11 @@ test("8.16 a survey read on a worker thread answers what one read in place does,
     const root = path.join(folder, "packages", "shop");
     await mkdir(path.join(root, "src"), { recursive: true });
     await writeFile(path.join(root, "package.json"), JSON.stringify({ name: "@x/shop" }));
-    // Enough source that parsing it holds the asking thread for hundreds of milliseconds when read in place.
     const body = Array.from({ length: 120 }, (_, n) => `export function step${n}(a: number): number { return a * ${n} + [${n}, ${n + 1}].reduce((x, y) => x + y, 0); }`).join("\n");
     for (let n = 0; n < 300; n++) {
       await writeFile(path.join(root, `src/part${n}.ts`), `${body}\n`);
       await writeFile(path.join(root, `src/part${n}.test.ts`), `import { step0 } from "./part${n}.js";\ntest("3.${n + 1} part ${n} steps", () => step0(1));\n`);
     }
-    // How busy this thread's event loop was, rather than how long its timers waited: a loaded machine
-    // delays timers either way, but only a read in place keeps the loop itself busy.
     const busy = async <T>(read: () => Promise<T>) => {
       const start = performance.eventLoopUtilization();
       const result = await read();
@@ -882,7 +850,6 @@ test("8.16 a process holding an open off-thread reader that answered once exits 
     const src = path.join(folder, "packages", "shop", "src");
     await mkdir(src, { recursive: true });
     await writeFile(path.join(src, "value.ts"), "export const value = 1;\n");
-    // The child answers one survey and never closes its reader: only an unref'd worker lets it end.
     const script = `import { offThreadSurveyReader } from ${JSON.stringify(new URL("./read-survey.ts", import.meta.url).href)};
 const reader = offThreadSurveyReader(new URL(${JSON.stringify(new URL("./survey-worker.ts", import.meta.url).href)}), { execArgv: ["--import", "tsx"] });
 const survey = await reader.read(${JSON.stringify(folder)}, ${JSON.stringify(tree)});
@@ -907,7 +874,6 @@ test("8.25 a start whose fetched main is the commit last surveyed, with the same
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-kept-"));
   const checkout = path.join(folder, "checkout");
   const kept = path.join(folder, "kept");
-  // The survey's own code, copied so a test can change it, reaching the package's modules through a link.
   const code = path.join(folder, "code");
   const here = path.dirname(fileURLToPath(import.meta.url));
   await mkdir(path.join(code, "src"), { recursive: true });
@@ -916,11 +882,9 @@ test("8.25 a start whose fetched main is the commit last surveyed, with the same
   const git = (...args: string[]) => execFileSync("git", args, { cwd: checkout, encoding: "utf8", stdio: "pipe", windowsHide: true }).trim();
   const commit = () => {
     git("add", ".");
-    // Quiet: a commit's summary would read the contents a test has removed.
     git("-c", "user.name=Survey test", "-c", "user.email=survey@example.test", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "fixture");
     git("push", "--quiet", "origin", "main");
   };
-  // Each start is a fresh worker thread: nothing of an earlier start's reading is in memory.
   const start = () => offThreadSurveyReader(path.join(code, "src", "survey-worker.ts"), { execArgv: ["--import", "tsx"], keptIn: kept });
   const surveyed = async (plan: AnnotatedTree) => {
     const reader = start();
@@ -930,7 +894,6 @@ test("8.25 a start whose fetched main is the commit last surveyed, with the same
       await reader.close();
     }
   };
-  // Removes the package's file contents from the checkout's Git: a start that reads any file fails.
   const forgetContents = async () => {
     for (const line of git("ls-tree", "-r", "HEAD", "packages/shop").split("\n")) {
       const sha = line.split(/\s+/)[2]!;
@@ -971,11 +934,9 @@ test("8.25 a start whose fetched main is the commit last surveyed, with the same
 });
 
 test("8.42 a current-checkout reader given its code's name answers a fresh start on an unchanged checkout from the survey kept in its Git directory, reading no file", async () => {
-  // By its real path, as Git names the checkout.
   const folder = realpathSync.native(await mkdtemp(path.join(tmpdir(), "code-survey-kept-current-")));
   const src = path.join(folder, "packages/shop/src");
   const read: string[] = [];
-  // Each start is a new reader: nothing of an earlier one's reading is in memory.
   const surveyed = (code: string | undefined = "code-a") => codeSurveyReader({ checkout: "current", codeName: () => code, readFile: (file) => (read.push(file), readFile(file, "utf8")) }).read(folder, tree);
   const reads = async (code?: string) => {
     read.length = 0;
@@ -1033,7 +994,6 @@ test("8.43 the survey code's name changes when any of the survey's own source fi
     const changed = surveyCodeName(at);
     assert.notEqual(changed, name, "a change to any of its source files changes it, not only the file asking");
 
-    // A bundle is one file standing for all of them.
     const bundle = path.join(folder, "out");
     await mkdir(bundle);
     await writeFile(path.join(bundle, "main.js"), "var survey = 1;\n");

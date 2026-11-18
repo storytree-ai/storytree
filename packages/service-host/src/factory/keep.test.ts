@@ -1,4 +1,4 @@
-/** Capability 4 · Keeping the factory current, contracts 4.1, 4.3 and 4.4: the host pulling a throwaway factory repository on its cadence, with real children. */
+// Capability 4 · Keeping the factory current
 import assert from "node:assert/strict";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,7 +14,6 @@ import { handClock } from "../testing/clock.js";
 import { fixtureHome } from "../testing/fixture.js";
 import { factoryRepo } from "../testing/factory-repo.js";
 
-/** A plugin standing in for a part, declaring one always service, `listen`, at the export `exported` of services.js. */
 const plugin = (name: string, exported: string, body: string): Record<string, string> => ({
   [`plugins/${name}/package.json`]: JSON.stringify({
     name, type: "module", exports: { "./services": "./services.js" },
@@ -44,14 +43,12 @@ test("4.3 · after the factory moves, the host restarts only the services whose 
   try {
     await waitUntil(() => lines.some((line) => line.startsWith("echo/listen: echo listening")), 20_000, "the echo listener's first line");
     const echo = state("echo/listen").pid;
-    // voice/listen throws as it starts: five ends within 10 minutes mark it failed.
     for (;;) {
       const now = await waitUntil(() => { const one = state("voice/listen"); return one.state === "running" ? undefined : one; }, 20_000, "voice/listen to end");
       if (now.state === "failed") break;
       await clock.move(now.nextAt! - clock.now());
     }
 
-    // The fix renames its export, so a declaration read from the cached module would find no service there.
     repo.push(plugin("my-voice", "listen2", listening("voice listening")), "voice is built");
     await clock.move(PULL_MS);
     const first = await waitUntil(() => lines.find((line) => line.startsWith("voice/listen: voice listening")), 20_000, "voice/listen on its new code");

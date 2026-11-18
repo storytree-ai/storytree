@@ -108,7 +108,7 @@ test("1.6 · a git push through the installed hook is refused when it adds a mac
   assert.equal(passed.status, 0, passed.stderr);
 });
 
-test("1.8 · the push check refuses a push whose commits add a tag-removing global replace to a code file, CodeQL's incomplete multi-character sanitization, naming file, commit and line, with no credential on the machine; a file whose count does not rise passes", (t) => {
+test("1.8 · the push check refuses a push whose commits add a tag-removing global replace to a code file, by storytree/no-tag-strip (CodeQL's incomplete multi-character sanitization), naming file, line, commit and rule, with no credential on the machine; a file whose count does not rise passes", (t) => {
   const { home, root, git } = machine(t);
   git("checkout", "-q", "-b", "strips");
   mkdirSync(path.join(root, "src"));
@@ -120,7 +120,7 @@ test("1.8 · the push check refuses a push whose commits add a tag-removing glob
   const said = [];
   assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/strips ${head} refs/heads/strips ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
   const refusal = said.join("\n");
-  assert.match(refusal, /src\/view\.ts:1 \(commit \w+\) removes \/<\[\^>\]\+>\/g by one global replace/);
+  assert.match(refusal, new RegExp(`src/view\\.ts:1 \\(commit ${head.slice(0, 10)}\\) storytree/no-tag-strip: `));
   assert.match(refusal, /incomplete-multi-character-sanitization/);
   assert.match(refusal, /\bfold\b[^\n]*\bunpushed commits\b[^\n]*\binto one\b/i, "each unpushed commit is charged for its own text, so the refusal says to fold them into one");
   assert.match(refusal, /git reset --soft/, "the refusal names how to fold them");
@@ -134,7 +134,7 @@ test("1.8 · the push check refuses a push whose commits add a tag-removing glob
   assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/strips ${next} refs/heads/strips ${head}\n`, home, sources: [], error: (line) => said.push(line) }), 0, "the replace was already pushed");
 });
 
-test("1.9 · the push check refuses a push whose commits add a partial backslash escape to a code file (PR #724's /\\./g), CodeQL's incomplete sanitization, naming file, commit and line; the full escape passes", (t) => {
+test("1.9 · the push check refuses a push whose commits add a partial backslash escape to a code file (PR #724's /\\./g), by storytree/no-partial-escape (CodeQL's incomplete sanitization), naming file, line, commit and rule; the full escape passes", (t) => {
   const { home, root, git } = machine(t);
   git("checkout", "-q", "-b", "escapes");
   mkdirSync(path.join(root, "src"));
@@ -146,12 +146,12 @@ test("1.9 · the push check refuses a push whose commits add a partial backslash
   const said = [];
   assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/escapes ${head} refs/heads/escapes ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
   const refusal = said.join("\n");
-  assert.match(refusal, /src\/at\.test\.ts:1 \(commit \w+\) escapes /);
+  assert.match(refusal, new RegExp(`src/at\\.test\\.ts:1 \\(commit ${head.slice(0, 10)}\\) storytree/no-partial-escape: `));
   assert.match(refusal, /js\/incomplete-sanitization/);
   assert.ok(!refusal.includes("full.ts"), refusal);
 });
 
-test("1.10 · the push check refuses a push whose commits add a one-character string pattern replaced by a backslash-led string (replaceAll(\".\", \"\\\\.\")), CodeQL's incomplete sanitization, naming file, commit and line; the full escape passes", (t) => {
+test("1.10 · the push check refuses a push whose commits add a one-character string pattern replaced by a backslash-led string (replaceAll(\".\", \"\\\\.\")), by storytree/no-one-character-escape (CodeQL's incomplete sanitization), naming file, line, commit and rule; the full escape passes", (t) => {
   const { home, root, git } = machine(t);
   git("checkout", "-q", "-b", "escapes");
   mkdirSync(path.join(root, "src"));
@@ -163,12 +163,12 @@ test("1.10 · the push check refuses a push whose commits add a one-character st
   const said = [];
   assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/escapes ${head} refs/heads/escapes ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
   const refusal = said.join("\n");
-  assert.match(refusal, /src\/at\.test\.ts:1 \(commit \w+\) escapes /);
+  assert.match(refusal, new RegExp(`src/at\\.test\\.ts:1 \\(commit ${head.slice(0, 10)}\\) storytree/no-one-character-escape: `));
   assert.match(refusal, /js\/incomplete-sanitization/);
   assert.ok(!refusal.includes("full.ts"), refusal);
 });
 
-test("1.8 · a push that names the remote by its URL is checked over the branch's own commits, as a push to origin is: a replace already on a remote-tracking ref passes, one the branch adds is refused", (t) => {
+test("1.8 · a push that names the remote by its URL is checked over the branch's own commits, as a push to origin is: a replace already on a remote-tracking ref passes, one the branch adds is refused by storytree/no-tag-strip", (t) => {
   const { dir, home, root, git } = machine(t);
   const url = path.join(dir, "remote.git");
   mkdirSync(path.join(root, "src"));
@@ -188,11 +188,11 @@ test("1.8 · a push that names the remote by its URL is checked over the branch'
   git("commit", "-q", "-m", "a new replace");
   const added = git("rev-parse", "HEAD").trim();
   assert.equal(checkPush({ root, remote: url, stdin: `refs/heads/fix ${added} refs/heads/fix ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
-  assert.match(said.join("\n"), /src\/edit\.ts:1/);
+  assert.match(said.join("\n"), new RegExp(`src/edit\\.ts:1 \\(commit ${added.slice(0, 10)}\\) storytree/no-tag-strip: `));
   assert.ok(!said.join("\n").includes("src/view.ts"), "the replace already on main is not the branch's");
 });
 
-test("1.8 · a branch already on origin that merges main is checked over its own commits: a replace main added passes, through main's commits and the merge, and one the branch adds is refused", (t) => {
+test("1.8 · a branch already on origin that merges main is checked over its own commits: a replace main added passes, through main's commits and the merge, and one the branch adds is refused by storytree/no-tag-strip", (t) => {
   const { home, root, git } = machine(t);
   git("checkout", "-q", "-b", "lane");
   writeFileSync(path.join(root, "readme.md"), "a project, by a lane\n");
@@ -216,11 +216,11 @@ test("1.8 · a branch already on origin that merges main is checked over its own
   git("commit", "-q", "-m", "the lane's replace");
   const added = git("rev-parse", "HEAD").trim();
   assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/lane ${added} refs/heads/lane ${pushed}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
-  assert.match(said.join("\n"), /src\/edit\.ts:1/);
+  assert.match(said.join("\n"), new RegExp(`src/edit\\.ts:1 \\(commit ${added.slice(0, 10)}\\) storytree/no-tag-strip: `));
   assert.ok(!said.join("\n").includes("src/view.ts"), said.join("\n"));
 });
 
-test("1.11 · the push check refuses a push whose commits add a git call passing an input-built argument after a remote subcommand with no -- before it (PR #988's clone), CodeQL's second-order command-line injection, naming file, commit and line; the call with -- passes", (t) => {
+test("1.11 · the push check refuses a push whose commits add a git call passing an input-built argument after a remote subcommand with no -- before it (PR #988's clone), by storytree/git-end-of-options (CodeQL's second-order command-line injection), naming file, line, commit and rule; the call with -- passes", (t) => {
   const { home, root, git } = machine(t);
   git("checkout", "-q", "-b", "clones");
   mkdirSync(path.join(root, "src"));
@@ -232,7 +232,7 @@ test("1.11 · the push check refuses a push whose commits add a git call passing
   const said = [];
   assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/clones ${head} refs/heads/clones ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
   const refusal = said.join("\n");
-  assert.match(refusal, new RegExp(`src/clone\\.ts:2 \\(commit ${head.slice(0, 10)}\\) `));
+  assert.match(refusal, new RegExp(`src/clone\\.ts:2 \\(commit ${head.slice(0, 10)}\\) storytree/git-end-of-options: `));
   assert.match(refusal, /js\/second-order-command-line-injection/);
   assert.ok(!refusal.includes("ended.ts"), refusal);
 });

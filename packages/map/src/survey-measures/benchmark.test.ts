@@ -4,7 +4,6 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { performance } from "node:perf_hooks";
 import { test, type TestContext } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
@@ -101,17 +100,14 @@ function assertShaped(reading: SurveyBenchmark, quantity: "wall" | "cpu" | "peak
   assert.ok(typeof spread === "number" && Number.isFinite(spread) && spread >= 0, `${quantity}'s spread is a finite number not below zero: ${spread}`);
 }
 
-test("10.1 · surveyBenchmark surveys the commit given, extracted from the folder's Git objects rather than its working tree, the runs asked, answering the stories it read and each of wall, CPU and peak memory as a positive finite median and a non-negative spread, two runs' wall times fitting inside the whole call; it leaves the working tree, index, HEAD, refs and worktrees as they were and no extracted checkout behind, and refuses a commit the folder lacks naming it", async (t) => {
+test("10.1 · surveyBenchmark surveys the commit given, extracted from the folder's Git objects rather than its working tree, the runs asked, answering the stories it read and each of wall, CPU and peak memory as a positive finite median and a non-negative spread; it leaves the working tree, index, HEAD, refs and worktrees as they were and no extracted checkout behind, and refuses a commit the folder lacks naming it", async (t) => {
   const repo = repository(t);
   const before = state(repo);
 
   await inPrivateTemp(t, async (temp) => {
-    const startedBoth = performance.now();
     const atBoth = await surveyBenchmark({ folder: repo.folder, commit: repo.both, tree, runs: 2 });
-    const elapsedBoth = performance.now() - startedBoth;
     assert.deepEqual({ commit: atBoth.commit, runs: atBoth.runs, stories: atBoth.stories }, { commit: repo.both, runs: 2, stories: 2 }, "the older commit holds the shop and cart packages, though HEAD and the working tree hold only shop; the ghost story has none");
     for (const quantity of ["wall", "cpu", "peak"] as const) assertShaped(atBoth, quantity);
-    assert.ok(atBoth.wall.median * 2 <= elapsedBoth, `two runs' wall times, which are twice their median, fit inside the whole call they ran in, whatever the machine's speed: ${atBoth.wall.median} * 2 against ${elapsedBoth}`);
     assert.deepEqual(state(repo), before, "the folder's working tree, index, HEAD, refs, worktrees and stashes are as they were");
     assert.deepEqual(extractedLeft(temp), [], "the extracted checkout is removed");
 

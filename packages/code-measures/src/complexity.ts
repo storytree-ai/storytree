@@ -5,9 +5,9 @@
  * - +1 for each if, else if, else, conditional, switch, loop (for, for-in, for-of, while, do), catch, labelled break or
  *   continue, each sequence of like logical operators, and each direct recursive call.
  * - If, conditional, switch, loops and catch add one more per level of nesting; else, else if and logical sequences
- *   take none. Nesting rises inside those structures' bodies and inside a function nested in a function.
- * - A function nested inside a function (a callback, an inner arrow) is not listed on its own: its structures count
- *   toward the enclosing function, one level deeper. Top-level functions, arrows and class methods are listed.
+ *   take none. Nesting rises inside those structures' bodies.
+ * - Every function is listed and scored on its own from nesting 0, a nested one (a callback, an inner arrow) included,
+ *   as eslint-plugin-sonarjs scores them: the function enclosing it counts none of its structures.
  */
 import { childrenOf, linesOf, parsed, sourcesOf, type Node, type SourceText } from "./source.js";
 
@@ -57,7 +57,12 @@ function nameOf(fn: Node, parent: Node | undefined, className: string | undefine
   const own = (fn.id as Node | null | undefined)?.name as string | undefined;
   if (own !== undefined) return own;
   if (parent?.type === "VariableDeclarator") return keyName(parent.id) ?? "<anonymous>";
-  if (parent?.type === "AssignmentExpression") return keyName(parent.left) ?? "<anonymous>";
+  if (parent?.type === "AssignmentExpression") return keyName(parent.left) ?? keyName((parent.left as Node).property) ?? "<anonymous>";
+  if (parent?.type === "CallExpression" || parent?.type === "NewExpression") {
+    const callee = parent.callee as Node;
+    const called = keyName(callee) ?? keyName(callee.property);
+    return called === undefined ? "<anonymous>" : `<callback of ${called}>`;
+  }
   if (parent?.type === "ObjectProperty" || parent?.type === "ClassProperty" || parent?.type === "ClassPrivateProperty") {
     const key = keyName(parent.key) ?? "<computed>";
     return parent.type === "ObjectProperty" || className === undefined ? key : `${className}.${key}`;
@@ -105,10 +110,7 @@ class Scorer {
       for (const child of childrenOf(node)) this.node(child, child === node.body ? nesting + 1 : nesting);
       return;
     }
-    if (isFunction(node)) {
-      for (const child of childrenOf(node)) this.node(child, nesting + 1);
-      return;
-    }
+    if (isFunction(node)) return; // scored on its own
     for (const child of childrenOf(node)) this.node(child, nesting);
   }
 
@@ -126,6 +128,10 @@ class Scorer {
 
   /** A run of logical operators read left to right: +1 for its first operator and for each change of operator. */
   private logical(node: Node, nesting: number): void {
+    if (!LOGICAL.has(node.operator as string)) {
+      for (const child of childrenOf(node)) this.node(child, nesting);
+      return;
+    }
     const operators: string[] = [];
     const operands: Node[] = [];
     const flatten = (part: Node): void => {
@@ -141,7 +147,7 @@ class Scorer {
   }
 }
 
-/** Each listed function in `file`, with its line, its cognitive complexity and its length. */
+/** Every function in `file`, nested ones included, with its line, its cognitive complexity and its length. */
 export function functionsOf(file: SourceText): FunctionReading[] {
   const { program, codeLines } = parsed(file);
   const found: FunctionReading[] = [];
@@ -155,6 +161,7 @@ export function functionsOf(file: SourceText): FunctionReading[] {
       let length = 0;
       for (let line = start; line <= end; line++) if (codeLines.has(line)) length++;
       found.push({ name, line: start, complexity: scorer.total, length });
+      for (const child of childrenOf(node)) visit(child, node, className);
       return;
     }
     const inClass = node.type === "ClassDeclaration" || node.type === "ClassExpression" ? keyName(node.id) : className;

@@ -1,13 +1,7 @@
-/**
- * Capability 8 · Code survey: a tsconfig.json's path aliases, read alike by the drawing (8.62) and the crossing (3.9).
- * A tsconfig is JSON with comments and trailing commas; its `compilerOptions.paths` are taken from its baseUrl, else its
- * folder; `extends` is not followed. It reaches no Node module, so the survey bundles for the browser (8.56).
- */
+// Capability 8 · Code survey
 
-/** A tsconfig's path aliases: each key's text before and after its `*`, and its targets as paths, `*` kept; the longest key first. */
 export type PathAliases = readonly { readonly before: string; readonly after?: string; readonly targets: readonly string[] }[];
 
-/** JSON with comments and trailing commas, as tsconfig.json is written; undefined when it cannot be read. */
 export function jsonc(text: string): unknown {
   let plain = "";
   for (let at = 0; at < text.length; at++) {
@@ -31,7 +25,6 @@ export function jsonc(text: string): unknown {
   }
 }
 
-/** The path aliases of the tsconfig.json in `dir` whose text is `text`: none when it declares none or cannot be read. */
 export function aliasesOf(dir: string, text: string): PathAliases {
   const options = (jsonc(text) as { compilerOptions?: { baseUrl?: unknown; paths?: unknown } } | undefined)?.compilerOptions;
   const base = typeof options?.baseUrl === "string" ? joinPath(dir, options.baseUrl) : dir;
@@ -43,7 +36,6 @@ export function aliasesOf(dir: string, text: string): PathAliases {
   }).sort((a, b) => b.before.length - a.before.length);
 }
 
-/** The paths `specifier` names through `aliases`, in the order they are tried (each matching alias, the longest key first); none when no alias matches it. */
 export function aliasTargets(specifier: string, aliases: PathAliases): string[] {
   return aliases.flatMap((alias) => {
     const star = alias.after === undefined ? undefined : specifier.startsWith(alias.before) && specifier.endsWith(alias.after) && specifier.length >= alias.before.length + alias.after.length
@@ -56,7 +48,6 @@ export function aliasTargets(specifier: string, aliases: PathAliases): string[] 
   });
 }
 
-/** `relative` from the folder `dir`, with `.` and `..` worked out, as POSIX paths join; "." for the folder itself. */
 export function joinPath(dir: string, relative: string): string {
   const parts: string[] = [];
   for (const part of `${dir}/${relative}`.split("/")) {

@@ -1,4 +1,4 @@
-/** Capability 3 · Counts before detail. The map's Node entry point: a live library reading joined to the caller's checkout. */
+// Capability 3 · Counts before detail
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -15,50 +15,33 @@ import { capabilityTreeOf, formatCapabilityTree, type CapabilityTree } from "./c
 
 type PlanReader = Pick<Library, "projectTree">;
 
-/**
- * The one reader of current checkouts the map's entry points, diff focus's working tree among them, share for the life
- * of the process, so a repeat ask of an unchanged checkout reads and parses no file (3.12, ADR-0836 D2): a fresh reader
- * per ask kept nothing. It keeps a Git checkout's survey in its Git directory, so a new process's first ask parses none either (3.13).
- */
 const current = codeSurveyReader({ checkout: "current", codeName: () => surveyCodeName() });
 
-/**
- * The increment a branch's name carries (a workspace's branch is claude/increment-<id>-<suffix>), as its
- * library id; undefined when it names none. The gate reads names the same way (packages/repo-checks/src/capability-list.mjs).
- */
 export function incrementOfBranch(branch: string | undefined): string | undefined {
   const named = /(?:^|[/_-])increment[-_]([0-9a-f]{12})(?![0-9a-f])/i.exec(branch ?? "");
   return named === null ? undefined : `increment_${named[1]!.toLowerCase()}`;
 }
 
-/** The branch the checkout at `folder` is on, or undefined when Git cannot say. */
 function branchAt(folder: string): Promise<string | undefined> {
   return new Promise(resolve => {
     execFile("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: folder }, (error, stdout) => resolve(error ? undefined : stdout.trim()));
   });
 }
 
-/** The top of the checkout `folder` is in, where built stories' packages are; `folder` itself when Git cannot say. */
 function topOf(folder: string): Promise<string> {
   return new Promise(resolve => {
     execFile("git", ["rev-parse", "--show-toplevel"], { cwd: folder }, (error, stdout) => resolve(error ? folder : stdout.trim()));
   });
 }
 
-/**
- * The plan the checkout at `folder` reads (ADR-0966 D3): the live plan with the pending changes of the
- * increment its branch names laid over, or the live plan when it names none.
- */
 export async function branchPlan(library: PlanReader, folder: string): Promise<AnnotatedTree> {
   return library.projectTree({ pendingOf: incrementOfBranch(await branchAt(folder)) });
 }
 
-/** `library` as the checkout at `folder` reads it: every plan it gives is that branch's. */
 function onBranch(library: PlanReader, folder: string): PlanReader {
   return { projectTree: () => branchPlan(library, folder) };
 }
 
-/** The map of the checkout at `folder`, with each mapped story `imports` holds, the folders this machine imports (ADR-0993 D2). */
 export async function readMap(library: PlanReader, folder: string, imports: readonly ImportedFolder[] = []): Promise<ProjectGraph> {
   const tree = await branchPlan(library, folder);
   const survey = await current.read(folder, tree, imports);
@@ -76,10 +59,6 @@ export async function mapCommand(library: PlanReader, folder: string, options: F
   return json ? JSON.stringify(answer) : formatFocus(answer);
 }
 
-/**
- * What crosses a line drawn round files of a mapped island of the checkout at `folder` (ADR-0993 D6, D10): the
- * island's files are read for their imports only when this is asked.
- */
 export async function crossingProject(library: PlanReader, folder: string, options: CrossingOptions, imports: readonly ImportedFolder[] = []): Promise<CrossingAnswer> {
   const tree = await branchPlan(library, folder);
   const survey = await current.read(folder, tree, imports);
@@ -91,7 +70,6 @@ export async function crossingCommand(library: PlanReader, folder: string, optio
   return json ? JSON.stringify(answer) : formatCrossing(answer);
 }
 
-/** The story `select` names, its capabilities with their contracts, links, files and lines, read in one survey of the checkout at `folder` (3.11). */
 export async function capabilityTreeProject(library: PlanReader, folder: string, select: string, imports: readonly ImportedFolder[] = []): Promise<CapabilityTree> {
   const tree = await branchPlan(library, folder);
   return capabilityTreeOf(tree, await current.read(folder, tree, imports), select);
@@ -102,7 +80,6 @@ export async function capabilitiesCommand(library: PlanReader, folder: string, s
   return json ? JSON.stringify(answer) : formatCapabilityTree(answer);
 }
 
-/** The links of the mapped story `select` names checked against its code's imports, read only when this is asked (3.15). */
 export async function linksProject(library: PlanReader, folder: string, select: string, imports: readonly ImportedFolder[] = []): Promise<LinksAnswer> {
   const tree = await branchPlan(library, folder);
   return linksOf(tree, await current.read(folder, tree, imports), await topOf(folder), select);
@@ -113,16 +90,11 @@ export async function linksCommand(library: PlanReader, folder: string, select: 
   return json ? JSON.stringify(answer) : formatLinks(answer);
 }
 
-/** The affected front door and diff focus share one map implementation and renderer. */
 export async function affectedCommand(library: PlanReader, folder: string, options: AffectedOptions, json = false): Promise<string> {
   const answer = await affectedProject(onBranch(library, folder), folder, options, current);
   return json ? JSON.stringify(answer) : formatFocus(answer);
 }
 
-/**
- * What agents' pins at the checkout at `folder` are read against (Code map 9): the branch's plan, the current survey
- * through the one reader, and the shared stores the plan's capabilities link.
- */
 export async function pinWorldAt(library: PlanReader, folder: string, imports: readonly ImportedFolder[] = []): Promise<PinWorld> {
   const tree = await branchPlan(library, folder);
   const [survey, top] = await Promise.all([current.read(folder, tree, imports), topOf(folder)]);
@@ -133,15 +105,8 @@ export { changedOnMain };
 export { formatCrossing };
 export type { CrossingAnswer, CrossingOptions, ImportedFolder, LinksAnswer };
 
-/** How far back main's commits are read for the health worklist: longer than any merge's own-health run takes, so the library's bound decides. */
 const MAIN_READ_BACK = 24 * 60 * 60 * 1000;
 
-/**
- * The health worklist as the checkout at `folder` sees main: a capability whose story's code changed
- * on its fetched origin/main since its contracts were last verified waits on that commit's own-health run,
- * and one offered as "no test names it" whose every such contract a test on main names waits on a run
- * to record it. Main's tests are read only when the worklist offers one so.
- */
 export async function healthWorklistAt(library: Pick<Library, "projectTree" | "healthWorklist">, folder: string): Promise<HealthWorkItem[]> {
   const tree = await library.projectTree();
   const changed = await changedOnMain(tree.stories, folder, { within: MAIN_READ_BACK });

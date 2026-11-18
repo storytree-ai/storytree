@@ -1,4 +1,4 @@
-/** Capability 2 · Focus selection. Capabilities 2 and 3 · Focus selection and counts before detail. */
+// Capability 2 · Focus selection
 import { elsewhereSaid, normalizePath, type ChangeLabel, type MapEdge, type MapHealth, type MapNode, type NodeKind, type ProjectGraph } from "./graph.js";
 
 export type FocusMode = "counts" | "dry_run" | "show";
@@ -34,42 +34,28 @@ export interface FocusAnswer {
     readonly byDepth: Record<number, Partial<Record<NodeKind, number>>>;
     readonly byKind: Partial<Record<NodeKind, number>>;
     readonly health: Record<MapHealth, number>;
-    /** Rows of mapped stories and their files, which carry no health (ADR-0993 D3). */
     readonly mapped: number;
   };
   readonly refused: boolean;
   readonly ceiling: number;
   readonly hints: readonly string[];
-  /** Each loop of roads among the mapped stories shown, the titles round it; reported, refusing nothing. */
   readonly loops?: readonly (readonly string[])[];
   readonly rows?: readonly FocusRow[];
   readonly diff?: DiffSummary;
-  /**
-   * A focus on a capability counts, not lists, the contracts of another capability and of a link it is not on, unless
-   * contract is a kind asked for (contract 2.9): each owner, a capability or a link, with how many it holds.
-   */
   readonly folded?: readonly { readonly id: string; readonly kind: "capability" | "link"; readonly title: string; readonly contracts: number }[];
-  /** A mapped island's file: its imports are read only by a crossing, which this names (contract 3.14, ADR-0993 D6). */
   readonly blackBox?: { readonly path: string; readonly crossing: readonly string[]; readonly mode: "show" };
 }
 
 export const SHOW_CEILING = 200;
 const KINDS: readonly NodeKind[] = ["story", "capability", "contract", "file", "test"];
 
-/** The library's own record names, which agents select by, and the prefix each is read as (contract 2.6). */
 const SPELLINGS = new Map([["capability", "cap"], ["promise", "contract"]]);
 const RECORDS: readonly NodeKind[] = ["story", "capability", "contract"];
 
-/** Whether a repository path is on disk in the checkout the map was read from; the map's graph cannot say. */
 export type OnDisk = (path: string) => boolean;
 
-/**
- * Why a file the map has no node for is refused, and what to select instead. Such a file is refused, not answered
- * as its story's node: an agent asking about one file would otherwise get its whole story's neighbourhood unasked.
- */
 function unmappedFile(graph: ProjectGraph, select: string, wanted: string, exists: OnDisk | undefined): string {
   const files = graph.nodes.filter(node => node.kind === "file" || node.kind === "test");
-  // A file or test node's id is its full repository path after a five-character "file:" or "test:".
   const full = (node: MapNode): string => normalizePath(node.id.slice(5));
   const head = `Map selection not found: ${select}`;
   if (exists?.(wanted) === false) {
@@ -84,7 +70,6 @@ function unmappedFile(graph: ProjectGraph, select: string, wanted: string, exist
     while (at < folders.length && at < parts.length - 1 && parts[at] === folders[at]) at++;
     return at;
   };
-  // A story holds the file when its own files share at least the file's package folder (packages/<name>, apps/<name>).
   const best = Math.max(2, ...files.map(shared));
   const owners = [...new Set(files.filter(node => shared(node) === best).map(node => node.story))]
     .flatMap(id => graph.nodes.filter(node => node.kind === "story" && node.id === id));
@@ -92,17 +77,14 @@ function unmappedFile(graph: ProjectGraph, select: string, wanted: string, exist
   return `${head}: ${why}. ${owners.length === 0 ? "No story's package holds it." : `It is in the package of ${owners.map(story => `story:${story.id} (${story.title})`).join(", ")}: select that instead.`}`;
 }
 
-/** An ambiguous number is refused rather than choosing one story's identically numbered capability. */
 export function selectNode(graph: ProjectGraph, select: string, exists?: OnDisk): MapNode {
   const at = select.indexOf(":");
-  // A bare record id, as the library prints it, names its story, capability or contract (contract 2.6).
   const bare = at < 0 ? graph.nodes.find(node => node.id === select && RECORDS.includes(node.kind)) : undefined;
   if (bare) return bare;
   const prefix = SPELLINGS.get(select.slice(0, at)) ?? select.slice(0, at);
   const wanted = select.slice(at + 1);
   if (at < 0 || !wanted || !["file", "cap", "contract", "story"].includes(prefix)) throw new Error("Select file:<path>, cap:<id|number>, contract:<id|number>, or story:<name>.");
   const found = graph.nodes.filter(node => {
-    // A mapped file is also selected by its full path, which its id carries.
     if (prefix === "file") return (node.kind === "file" || node.kind === "test") && (node.path === normalizePath(wanted) || (node.health === "mapped" && normalizePath(node.id.slice(5)) === normalizePath(wanted)));
     if (prefix === "cap") return node.kind === "capability" && (node.id === wanted || node.number === wanted);
     if (prefix === "contract") return node.kind === "contract" && (node.id === wanted || node.number === wanted);
@@ -122,7 +104,6 @@ export function mapDepth(value: number | undefined, fallback: number): number {
 export function focus(graph: ProjectGraph, options: FocusOptions, limits: { ceiling?: number; exists?: OnDisk } = {}): FocusAnswer {
   const node = selectNode(graph, options.select, limits.exists);
   const answer = focusNodes(graph, [node.id], options, { ...limits, ...(node.kind === "capability" && !options.kind?.includes("contract") ? { fold: neighbourOf(graph, node.id) } : {}) });
-  // A mapped story's survey carries no imports, so its file's 0 importers would read as a missing edge.
   if (node.health !== "mapped" || (node.kind !== "file" && node.kind !== "test") || node.path === undefined) return answer;
   return { ...answer, blackBox: { path: node.path, crossing: [node.path], mode: "show" } };
 }
@@ -130,7 +111,6 @@ export function focus(graph: ProjectGraph, options: FocusOptions, limits: { ceil
 type Folded = NonNullable<FocusAnswer["folded"]>[number];
 type Fold = (row: FocusRow) => Omit<Folded, "contracts"> | undefined;
 
-/** Who holds a contract a focus on this capability reaches, when that is another capability or a link it is not on. */
 function neighbourOf(graph: ProjectGraph, capability: string): Fold {
   const byId = new Map(graph.nodes.map(node => [node.id, node]));
   const owner = new Map(graph.edges.filter(edge => edge.kind === "belongs-to" && byId.get(edge.from)?.kind === "contract").map(edge => [edge.from, edge.to]));
@@ -143,7 +123,6 @@ function neighbourOf(graph: ProjectGraph, capability: string): Fold {
   };
 }
 
-/** Shared traversal for one focused node or the changed nodes of a diff. Filters never block traversal. */
 export function focusNodes(graph: ProjectGraph, selected: readonly string[], options: Omit<FocusOptions, "select">, limits: { ceiling?: number; fold?: Fold } = {}): FocusAnswer {
   const bothDefault = options.up === undefined && options.down === undefined;
   const up = mapDepth(options.up, bothDefault ? 1 : 0);
@@ -179,7 +158,6 @@ export function focusNodes(graph: ProjectGraph, selected: readonly string[], opt
   return focusRows(graph, selected, [...rows.values()].map(({ node, depth, edge }) => ({ ...node, depth, edge })), options, limits);
 }
 
-/** One aggregation and ceiling for normal focus and diff impact. Filtering follows every walk. */
 export function focusRows(graph: ProjectGraph, selected: readonly string[], rows: readonly FocusRow[], options: Omit<FocusOptions, "select">, limits: { ceiling?: number; fold?: Fold } = {}): FocusAnswer {
   const mode = options.mode ?? "counts";
   if (!["counts", "dry_run", "show"].includes(mode)) throw new Error("Map mode must be counts, dry_run or show.");
@@ -191,7 +169,6 @@ export function focusRows(graph: ProjectGraph, selected: readonly string[], rows
     if (owner) folded.set(owner.id, { ...owner, contracts: (folded.get(owner.id)?.contracts ?? 0) + 1 });
     return !owner;
   })
-    // A link's contracts follow a capability's own at their depth, so they never read as its own (contract 2.10).
     .sort((a, b) => a.depth - b.depth || a.kind.localeCompare(b.kind) || Number(!!a.onEdge) - Number(!!b.onEdge) || a.id.localeCompare(b.id));
   const byDepth = new Map<number, Map<NodeKind, number>>();
   const byKind = new Map<NodeKind, number>();
@@ -216,9 +193,7 @@ export function focusRows(graph: ProjectGraph, selected: readonly string[], rows
   };
 }
 
-/** The CLI and tool share the same readable answer as well as the same JSON data. */
 export function formatFocus(answer: FocusAnswer): string {
-  // An answer of mapped rows alone says no health word: mapped code carries none (ADR-0993 D3).
   const health = answer.rowCount === 0 || answer.counts.mapped < answer.rowCount;
   const lines = [`${answer.rowCount} rows; approximately ${answer.estimatedTokens} tokens.${health ? ` Health: ${answer.healthSource}.` : ""}`];
   if (answer.diff) {

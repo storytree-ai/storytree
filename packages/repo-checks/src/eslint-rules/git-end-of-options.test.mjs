@@ -12,7 +12,7 @@ const code = (line) => line.replaceAll("#", "$").replaceAll("'", "`");
 const IMPORT = `import { execFile, execFileSync, spawn, spawnSync } from "node:child_process";\n`;
 const refused = (line, count = 1) => ({ code: IMPORT + code(line), errors: Array.from({ length: count }, () => ({ messageId: "unended", line: 2 })) });
 
-test("8.17 · storytree/git-end-of-options refuses a git call passing an input-built argument after clone, fetch, pull, ls-remote or push with no -- before it (execFileSync, spawn, execFile, spawnSync with \"git\", a git(...) wrapper's ternary branches each, runGit(root, ...)), its message naming js/second-order-command-line-injection and to put \"--\" before the argument; -- or --end-of-options first, literals, a refspec or file:// template, an option's value, a spread or ternary of literal lists, a list with no remote subcommand, another tool's pull and a string pass", () => {
+test("8.17 · storytree/git-end-of-options refuses a git call passing an input-built argument after clone, fetch, pull, ls-remote or push with no -- before it (execFileSync, spawn, execFile, spawnSync with \"git\", a git(...) wrapper's ternary branches each, runGit(root, ...), a member callee ops.git([...]) or this.runGit(root, ...)), its message naming js/second-order-command-line-injection and to put \"--\" before the argument; -- or --end-of-options first, literals, a refspec or file:// template, an option's value, a spread or ternary of literal lists, a list with no remote subcommand, another tool's pull, a member callee whose name holds no git (ops.list) and a string pass", () => {
   assert.match(rule?.meta?.messages?.unended ?? "", /js\/second-order-command-line-injection/);
   assert.match(rule.meta.messages.unended, /put ["'`]?--["'`]? before/, "names the fix: put -- before the argument");
 
@@ -33,6 +33,7 @@ test("8.17 · storytree/git-end-of-options refuses a git call passing an input-b
       String.raw`export const parsed = (git: (args: string[]) => string, ref: string) => git(["rev-parse", ref]);`,
       String.raw`export const adr = (storytree: (args: string[]) => string, id: string) => storytree(["adr", "pull", id]);`,
       String.raw`export const fixture = 'execFileSync("git", ["clone", url, dir])';`,
+      String.raw`export const listed = (ops: { list: (args: string[]) => string }, url: string) => ops.list(["clone", url]);`,
     ].map((line) => IMPORT + code(line)),
     invalid: [
       refused(String.raw`export const cloned = (url: string, dir: string) => execFileSync("git", ["clone", "--depth", "1", url, dir]);`),
@@ -41,6 +42,8 @@ test("8.17 · storytree/git-end-of-options refuses a git call passing an input-b
       refused(String.raw`export const heads = (runGit: (...args: string[]) => string, root: string, origin: string) => runGit(root, "ls-remote", origin);`),
       refused(String.raw`export const pushed = (args: string[]) => execFile("git", ["push", ...args]);`),
       refused(String.raw`export const pulled = (remote: string) => spawnSync("git", ["pull", '#{remote}', "main"]);`),
+      refused(String.raw`export const viaOps = (ops: { git: (args: string[]) => string }, url: string) => ops.git(["clone", url]);`),
+      refused(String.raw`export class Repo { runGit(...args: string[]) { return args; } sync(root: string, remote: string) { return this.runGit(root, "fetch", remote); } }`),
     ],
   });
 

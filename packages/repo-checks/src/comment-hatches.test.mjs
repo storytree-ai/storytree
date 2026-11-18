@@ -78,10 +78,10 @@ test("8.22 · a branch adding no hatch records nothing, calls no storytree comma
 test("8.22 · a library the step cannot reach fails it, 1, with a line saying why", async () => {
   const log = [];
   const storytree = async () => {
-    throw new Error("connect ECONNREFUSED 100.64.0.7:5432");
+    throw new Error("connect ECONNREFUSED 127.0.0.1:5432");
   };
   assert.equal(await tellHatches({ root: "/checkout", project: "storytree", hatches: [NEW], storytree, log: (line) => log.push(line) }), 1);
-  assert.ok(log.some((line) => line.includes("connect ECONNREFUSED 100.64.0.7:5432")), log.join("\n"));
+  assert.ok(log.some((line) => line.includes("connect ECONNREFUSED 127.0.0.1:5432")), log.join("\n"));
 });
 
 test("8.22 · the step's storytree runner, cliRunner({ root, command }), runs command in root with no shell, so an argument holding spaces, double quotes and shell characters reaches it unchanged and its stdout comes back; a command that fails rejects", async (t) => {

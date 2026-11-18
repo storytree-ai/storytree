@@ -10,7 +10,6 @@ import { verb, VerbRefusal, type Verb, type VerbContext, type VerbFamily, type V
 
 import { DEFAULT_DAYS } from "./read.js";
 
-/** The project's stories as the readings name them, by title: each one's id, title and plugin, if any. */
 async function storiesOf(library: Library): Promise<{ id: string; title: string; plugin?: string }[]> {
   return (await library.list("story"))
     .map((record) => {
@@ -71,12 +70,6 @@ const PAIR = verb({
   },
 });
 
-/**
- * Capability 3 · Measure readings recorded on the box, its verb: `storytree code-measures record --machine <name>`
- * (contract 3.2). Refused unless every live measure pairs; then it records, at origin/main as last fetched, every story's
- * value of each live base measure read on the machine named, in the readings' own database beside the library, once a
- * head and at most once a day, and says how many readings it recorded at which commit, or why it recorded none.
- */
 const RECORD = verb({
   command: {
     family: "code-measures",
@@ -98,7 +91,6 @@ const RECORD = verb({
   },
 });
 
-/** The command line's `code-measures` family: its readings are its bare verb; pair and record its named verbs. */
 export const CODE_MEASURES_FAMILIES: readonly VerbFamily[] = [
   { name: "code-measures", summary: "each story's base code-structure measures at a commit (report only; Code measures')", order: 37.5, verbs: [PAIR as Verb<VerbInputs, VerbContext>, RECORD as Verb<VerbInputs, VerbContext>], bare: CODE_MEASURES as Verb<VerbInputs, VerbContext> },
 ];

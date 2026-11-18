@@ -1,10 +1,4 @@
-/**
- * Capability 2 · Measures paired with their readers (contract 2.1, ADR-1354). A package declares its readers in its
- * package.json, under `storytree.measures`: each entry a module, by the package's export path (`from`), and the export
- * holding an array of readers, each naming the measure record's id and the version it reads. Pairing reads the live
- * measure records and every workspace package's readers and names, per story, each measure that does not pair, with why.
- * It reads no value: a reader's `read` is carried for recording (contract 3.2), never called here.
- */
+// Capability 2 · Measures paired with their readers
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -19,7 +13,6 @@ export interface MeasureReader {
   readonly story: string | undefined;
   readonly measure: string;
   readonly version: number;
-  /** Its read, as declared: the value it gives from one story's measures (contract 2.3); none when it declares none. */
   readonly read?: (story: StoryMeasures) => unknown;
 }
 

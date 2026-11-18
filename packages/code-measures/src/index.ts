@@ -1,9 +1,4 @@
-/**
- * Capability 1 · Base structure measures (story Code measures, ADR-1365): each story's base code-structure measures,
- * read from a checkout's source at a commit, report-only, never a gate (ADR-1354, ADR-1238). The readings over files,
- * and the reading of every story at a commit; capability 2 · Measures paired with their readers (pair.ts, measures.ts); and
- * capability 3 · Measure readings recorded on the box (readings.ts, record.ts).
- */
+// Capability 1 · Base structure measures
 export { churnOf, TOP_FILES, type ChurnFile, type ChurnReading } from "./churn.js";
 export { complexityOf, functionsOf, p90, type ComplexityReading, type FunctionReading } from "./complexity.js";
 export { couplingOf, publicSurfaceOf, specifiersOf, type CouplingReading, type WorkspacePackage } from "./coupling.js";

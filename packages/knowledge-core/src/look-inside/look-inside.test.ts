@@ -1,4 +1,4 @@
-/** Capability 4 · Look inside and inspect a note (the knowledge core story): the card, and how the sessions' reads light and cross the globe. */
+// Capability 4 · Look inside and inspect an artifact
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -21,7 +21,6 @@ function input(history: History, lines: Line[] = []): { reads: ReadRecord; knowl
   return { knowledge: knowledge(history.changes), reads };
 }
 
-/** Two stories: s with a capability whose cover chains to a deep note, t with an old decision replaced. */
 function project(): History {
   return new History()
     .story("s").capability("cap", "s").story("t")
@@ -144,7 +143,6 @@ test("4.10 a reading path's step is a curve bowed away from the centre, from its
 
 test("4.12 a selected session replays as one head walking every agent's steps in recorded order, building the picture, then rests and starts again", () => {
   const step = (from: string, to: string, seq: number, mover: string) => ({ from, to, seq, mover, colour: mover });
-  // Two agents, interleaved as the transcript was: the head follows seq across them, not each agent on its own.
   const steps = [step("a", "b", 1, "orchestrator"), step("b", "c", 4, "orchestrator"), step("x", "y", 2, "explorer"), step("y", "z", 3, "explorer")];
   const timing = { step: 1000, rest: 2000 };
   const at = (elapsed: number) => {
@@ -157,7 +155,6 @@ test("4.12 a selected session replays as one head walking every agent's steps in
   assert.deepEqual(at(3250), { drawn: ["a>b", "x>y", "y>z"], head: "b>c 0.25", lit: ["a", "b", "x", "y", "z"], over: false });
   assert.deepEqual(at(5000), { drawn: ["a>b", "x>y", "y>z", "b>c"], head: undefined, lit: ["a", "b", "c", "x", "y", "z"], over: false }, "the finished picture holds");
   assert.equal(replayAt(steps, 6000, timing).over, true, "after its rest the replay is over, to start again from nothing");
-  // A live read arriving mid-replay joins the end of the sequence, never growing on its own clock.
   const joined = replayAt([...steps, step("z", "q", 9, "explorer")], 4500, timing);
   assert.equal(`${joined.head?.step.from}>${joined.head?.step.to}`, "z>q");
   assert.equal(joined.drawn.length, 4);
@@ -192,10 +189,8 @@ test("4.16 a selected session's window draws one step per move in reading order,
   const view = windowView({
     glimpses: ["hit", "gone-from-the-library"],
     opens: [
-      // Opened before the compaction: its read left the window.
       open("old", false),
       open("linked"),
-      // A file read between two notes does not break the chain; files are not drawn on the globe.
       open("src/claims/merges.ts", true, "file"),
       open("deep"),
       open("gone-from-the-library"),
@@ -220,12 +215,10 @@ test("4.16 a selected session's window draws one step per move in reading order,
   const none = windowView({ absent: "no hook has named this session's transcript" }, new Set(), joined);
   assert.deepEqual(none, { notes: new Set(), faded: new Set(), glimpsed: new Set(), files: [], steps: [], code: { capabilities: new Map() }, status: "No window: no hook has named this session's transcript" });
 
-  // Direction: a faint fill runs along each step from its earlier note to its later one, rests, then runs again.
   const timing = { run: 1000, pause: 500 };
   assert.deepEqual([0, 250, 999, 1200, 1750].map((ms) => fillAt(ms, timing)), [0, 0.25, 0.999, undefined, 0.25]);
 });
 
-/** A capability with land. */
 const places: CodePlaces = { capabilities: new Set(["cap-land"]) };
 const opened = (id: string, resident = true, kind: "note" | "file" = "note") => ({ kind, id, call: `open ${id}`, tool: "Read", resident });
 const windowOf = (opens: ReturnType<typeof opened>[]) => ({ session: "S", at: "-", compactions: 0, inView: [], glimpses: [], opens });

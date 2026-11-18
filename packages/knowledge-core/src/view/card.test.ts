@@ -1,4 +1,3 @@
-/** Capability 4: the pinned artifact shows its summary and can be dismissed. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Children, isValidElement, type ReactNode } from "react";
@@ -77,7 +76,6 @@ test("4.23 a product's globe draws the system notes it reads from its factory be
     const words = descendants(drawing.NoteCard({ card: card("principle_inherited")!, onClose: () => {} })).filter((node): node is string => typeof node === "string").join(" ");
     assert.match(words, /factory/);
 
-    // The product edits one (its own copy, under the factory's id) and the factory's list moves on: a longer history reads it again.
     own.create("principle_copied", "principle", { title: "Test first", description: "The product's own." });
     factory = [record("principle_inherited", "Keep it small")];
     core.take(own.changes, []);
@@ -86,7 +84,6 @@ test("4.23 a product's globe draws the system notes it reads from its factory be
     assert.equal(card("principle_copied")?.summary, "The product's own.");
     assert.ok(asked.length >= 2 && asked.every((project) => project === "site"));
 
-    // Closed, a longer history reads nothing; drawn again, the factory is read once more.
     close();
     const before = asked.length;
     own.create("principle_later", "principle", { title: "Later", description: "Later." });

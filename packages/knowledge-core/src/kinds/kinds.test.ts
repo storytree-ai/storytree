@@ -1,4 +1,4 @@
-/** Capability 5 · Show and filter by artifact kind. */
+// Capability 5 · Show and filter by artifact kind
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

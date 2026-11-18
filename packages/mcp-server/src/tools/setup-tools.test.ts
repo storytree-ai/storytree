@@ -1,12 +1,4 @@
-/**
- * Capability 12 · Setup tools: the setup check's two tools, check_setup and set_up_project, as an agent calls them through the MCP
- * server: the setup contracts 8.4-8.24, numbered as the agent link had them, that only a call through the server shows, and 7.7 and 7.9,
- * the habits card in their answers and how to build beside imported code after it. The setup work itself is the app setup's, and its own tests stay there.
- *
- * Each test works in a throwaway home: its own Claude Code config folder and Codex home, holding
- * settings of the user's own that the setup check must leave alone, and a storytree home that says
- * where storytree listens (a copy of the test Postgres's owner record) or how to open it.
- */
+// Capability 12 · Setup tools
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -28,10 +20,8 @@ import { MAPPED_CODE_GUIDANCE } from "@storytree/map";
 import { habitsCard } from "../instructions/habits.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 
-/** The hook fixtures Session management's own hook tests run on: a harness's input, as it sends it. */
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.resolve("@storytree/session-management"))), "hooks", "fixtures");
 
-/** A hook command as the setup check registers it: registering never runs it. */
 const HOOK: HookCommand = { node: process.execPath, script: path.join(tmpdir(), "storytree", "dist", "storytree-hook.mjs") };
 
 let bins: string;
@@ -46,11 +36,6 @@ after(() => {
   rmSync(bins, { recursive: true, force: true });
 });
 
-/**
- * Make `name` this test's own factory, marked and seeded with the bare bones as setup makes one, before a project is
- * set up with it: found by its name first, so setup never falls back on a factory another test or a killed run left
- * in the test Postgres with a folder of its own (ADR-1352 D1).
- */
 async function ownFactory(name: string): Promise<void> {
   const storytree = await connect({ url: testServerUrl() });
   try {
@@ -66,16 +51,11 @@ async function ownFactory(name: string): Promise<void> {
   }
 }
 
-/**
- * What gh and the machine answer, for tests about something else: asking this machine's own gh,
- * Claude Code and Codex is slow, differs between machines, and once hung the suite (2026-09-28).
- */
 const ANSWERED = {
   gh: async () => "signed in" as const,
   machine: async () => ({ claude: "signed in", codex: "signed in", git: "present", node: { state: "ok", version: "v24.1.0" }, waitMs: 5_000 }) as const,
 };
 
-/** The user's own settings, which the setup check must leave as they are. */
 const CLAUDE_SETTINGS = {
   permissions: { allow: ["Bash(npm test:*)"] },
   model: "opus",
@@ -88,11 +68,9 @@ interface Home {
   claudeSettings: string;
   codexConfig: string;
   codexHooks: string;
-  /** A storytree home whose owner record says storytree listens where the test Postgres does. */
   storytreeHome: string;
 }
 
-/** A throwaway home with only the storytree tool server installed, and storytree running. */
 function throwawayHome(dir: string): Home {
   const claude = path.join(dir, ".claude");
   const codexHome = path.join(dir, ".codex");
@@ -138,7 +116,7 @@ test("app-setup 8.4 setup records the chosen project only after a successful yes
         assert.equal(refused.isError, true);
         assert.equal(existsSync(choice), false, "a refused setup records no choice");
 
-        mkdirSync(choice); // an unwritable choice destination, on every supported OS
+        mkdirSync(choice);
         const unsaved = await agent.call("set_up_project", { name });
         assert.equal(unsaved.isError, true, "setup cannot report success without saving the choice");
         assert.equal(existsSync(path.join(folder, PROJECT_FILE)), false, "a failed choice write leaves setup retryable");
@@ -179,7 +157,7 @@ test("app-setup 8.5 the agent fires a test of each hook, and the connection show
     };
     try {
       const server = await connect({ url: testServerUrl() });
-      await (await server.openProject(project)).close().finally(() => server.close()); // set up, as a marked folder's project is
+      await (await server.openProject(project)).close().finally(() => server.close());
       await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
         const check = async () => {
           const { verified, missing, fixes } = (await agent.call("check_setup")).data as { verified: boolean; missing: string[]; fixes: string[] };
@@ -191,10 +169,8 @@ test("app-setup 8.5 the agent fires a test of each hook, and the connection show
           fixes: ["new-session", "edit-check-file", "run-check-command"],
         });
 
-        // The hooks fire, as Claude Code runs them for this session in this folder.
         await fireHook(home.storytreeHome, "claude-code", "session-start-startup", folder, "claude-1");
         assert.deepEqual((await check()).missing, ["storytree tool call", "file edit", "command"]);
-        // The hook before each storytree tool call: calling check_setup fires it.
         await fireHook(home.storytreeHome, "claude-code", "pre-tool-use-storytree", folder, "claude-1");
         assert.deepEqual((await check()).missing, ["file edit", "command"]);
         await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", folder, "claude-1");
@@ -203,8 +179,6 @@ test("app-setup 8.5 the agent fires a test of each hook, and the connection show
         assert.deepEqual(await check(), { verified: true, missing: [], fixes: [] });
       });
 
-      // A Codex session whose hooks have not run is told only the fix that is Codex's own, its one-time
-      // approval: an edit or a command could not reach storytree before it, and would leave a check file behind.
       await withAgent(folder, codex("codex-1", setup), async (agent) => {
         const answer = await agent.call("check_setup");
         const { verified, missing, fixes } = answer.data as { verified: boolean; missing: string[]; fixes: string[] };
@@ -242,10 +216,8 @@ test("12.2 check_setup from an MCP client storytree has no hooks for passes as c
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeMarker(folder, `${JSON.stringify({ project })}\n`);
-    // A repository with its origin, so the check has nothing to say of it (8.31).
     for (const args of [["init", "-q"], ["remote", "add", "origin", "https://github.com/someone/site.git"]]) execFileSync("git", args, { cwd: folder, stdio: "ignore" });
     await approveCheckout(folder, project, home.storytreeHome);
-    // Neither watched harness is on this machine: the session is connected through another client.
     const missing = async () => ({ claude: "missing", codex: "missing", git: "present", node: { state: "ok", version: "v24.1.0" }, waitMs: 5_000 }) as const;
     const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, machine: missing, homes: home.homes, storytreeHome: home.storytreeHome } };
     try {
@@ -301,7 +273,6 @@ test("app-setup 13.5: the hooks-verified milestone is reported only once check_s
         await agent.call("check_setup");
         assert.equal(milestones, 1);
       });
-      // Another session in the same folder: claude-1's hooks are not its evidence.
       await withAgent(folder, claudeCode("claude-2", setup), async (agent) => {
         assert.equal(((await agent.call("check_setup")).data as { verified: boolean }).verified, false);
         assert.equal(milestones, 1, "another session's evidence reports nothing");
@@ -324,10 +295,8 @@ test("app-setup 8.21 a Codex session that set its project up during the session,
     try {
       const server = await connect({ url: testServerUrl() });
       await (await server.openProject(project)).close().finally(() => server.close());
-      // storytree's hooks are registered for Codex and one of them has run on this machine: Codex trusts them.
       registerHooks(home.homes, HOOK);
       noteCodexHookRan({ storytreeHome: home.storytreeHome, codexHome: home.homes.codex });
-      // This session started before its folder was a project, so storytree heard none of its hooks.
       await withAgent(folder, codex("codex-1", setup), async (agent) => {
         const answer = await agent.call("check_setup");
         assert.deepEqual((answer.data as { fixes: string[] }).fixes, ["new-session", "edit-check-file", "run-check-command"]);
@@ -376,7 +345,6 @@ test("app-setup 8.22 a session that sets its project up finishes the setup in th
     try {
       await ownFactory(factory);
       registerHooks(home.homes, HOOK);
-      // Codex has storytree's hooks but none has run: the user has not trusted them yet.
       const untrusted = await setUp(waiting, codex);
       assert.equal(untrusted.isError, false, untrusted.text);
       assert.deepEqual(untrusted.data.fixes, ["codex-approval"]);
@@ -398,7 +366,6 @@ test("app-setup 8.22 a session that sets its project up finishes the setup in th
 });
 
 
-/** Run the built hook as `harness` runs it, with a recorded input moved to `folder` and `session`. */
 function fireHook(storytreeHome: string, harness: string, fixture: string, folder: string, session: string, changed: Record<string, unknown> = {}): Promise<void> {
   const input = { ...(readJson(path.join(FIXTURES, harness, `${fixture}.json`)) as object), cwd: folder, session_id: session, ...changed };
   return new Promise((resolve, reject) => {
@@ -417,12 +384,10 @@ test("app-setup 8.8 with gh missing, signed out or signed in, the agent is never
       const setup = { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => gh };
       await withAgent(dir, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup }), async (agent) => {
         const checked = await agent.call("check_setup");
-        // The data too: an agent reads it as closely as the text (Claude Code repeated a note from it, PR #263).
         text = `${checked.text} ${JSON.stringify(checked.data)}`;
       });
       return text;
     };
-    // Owner, 2026-09-29 (question_bb3efa1e3191): "dont list them as fixes".
     for (const gh of ["missing", "signed out", "signed in"] as const) {
       const text = await said(gh);
       assert.doesNotMatch(text, /\bgh\b/, `${gh}: ${text}`);
@@ -490,19 +455,16 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
       await withAgent(newFolder, agentIn(newFolder), async (agent) => {
         assert.equal((await agent.call("set_up_project", { name: seeded })).isError, false);
         assert.deepEqual((await agent.call("check_setup")).data.starterRoles, [], "the bare bones hold no role");
-        // The user asks for three roles back (ADR-1094 D2), taken into this test's own factory.
         const took = await agent.call("take_starter_pack", { include: ["change-reviewer", "orchestrator", "librarian"] });
         assert.equal(took.isError, false, took.text);
         const checked = await agent.call("check_setup");
         assert.deepEqual(checked.data.starterRoles, ["orchestrator", "librarian", "change-reviewer"]);
-        // Set up with a factory, the project is its product: the orchestrator is handed whole, the others named as its agents (8.48).
         assert.equal(checked.data.sessionRole, "orchestrator");
         assert.match(checked.text, /Its agents are the change-reviewer and librarian roles/);
         const refused = await agent.call("take_starter_pack", { include: ["tester"] });
         assert.equal(refused.isError, true);
         assert.match(refused.text, /"tester" is no part of the starter pack/);
       });
-      // A project naming no factory that holds a starter role is told of it by name, to open (and handed no session role, 8.48).
       const holding = `${seeded}-own`;
       const own = await storytree.openProject(holding);
       const reading = await own.writeKnowledge("principle", { title: "Read first", description: "Read first.", statement: "Read before you act.", why: "Less to undo.", howToApply: "Open it." });
@@ -518,7 +480,6 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
         assert.equal(checked.data.sessionRole, null);
         assert.match(checked.text, /Its library holds the orchestrator roles, which say how to work in this project: find each with search_notes/);
       });
-      // A project set up before the starter pack: its library has no roles to name.
       const oldFolder = path.join(dir, older);
       mkdirSync(oldFolder);
       await (await storytree.openProject(older)).close();
@@ -560,7 +521,6 @@ test("7.9 how to build beside imported code is handed on demand, never on the ca
         const after = await agent.call("check_setup");
         assert.ok(after.text.indexOf(MAPPED_CODE_GUIDANCE) > after.text.indexOf(habitsCard()), "check_setup in a project with imported stories lacks the section after the card");
         for (const answer of [imported.text, after.text]) {
-          // One phrase for each thing ADR-0993 D4 and D8 to D11, as ADR-1015 and ADR-1020 narrow them, has the agent do beside imported code.
           for (const said of [
             "Before changing or deleting anything in the imported project, stop and ask the user",
             "change it there, bring that part into this project, retire it, or leave it and build on top",
@@ -578,7 +538,6 @@ test("7.9 how to build beside imported code is handed on demand, never on the ca
           ]) assert.ok(answer.includes(said), `the answer lacks: ${said}`);
         }
       });
-      // A client storytree has no hooks for is handed it too.
       await withAgent(folder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-1" }, ...setup }, async (agent) => {
         const checked = await agent.call("check_setup");
         assert.equal(checked.data.tier, "connected");
@@ -604,7 +563,6 @@ test("12.8 · check_setup in a project whose folder declares packages no story s
       await approveCheckout(folder, name, home.storytreeHome);
       writeFileSync(path.join(folder, "pyproject.toml"), "[project]\nname = \"checkbox\"\nversion = \"0.1.0\"\n");
       const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
-      // A client storytree has no hooks for is told it too.
       await withAgent(folder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-1" }, ...setup }, async (agent) => {
         const checked = await agent.call("check_setup");
         assert.equal(checked.data.tier, "connected");
@@ -638,7 +596,6 @@ test("12.9 · check_setup names the project's small-fixes arc for a fix that add
     try {
       const [olderFolder, freshFolder] = [path.join(dir, older), path.join(dir, fresh)];
       for (const folder of [olderFolder, freshFolder]) mkdirSync(folder);
-      // A project set up before storytree made the arc: its library holds none.
       await (await storytree.openProject(older)).close();
       writeMarker(olderFolder, `${JSON.stringify({ project: older })}\n`);
       await approveCheckout(olderFolder, older, home.storytreeHome);
@@ -682,15 +639,12 @@ test("app-setup 8.26 in a project an earlier starter pack seeded, or a product p
         await approveCheckout(folder, project, home.storytreeHome);
         return folder;
       };
-      // The check's own answer, before the habits card that follows it and names every tool.
       const answered = (text: string) => text.split("\n\nHow to work with storytree")[0]!;
-      // Version 1 of the pack seeded this one: a principle whose statement the pack has since changed.
       const library = await storytree.openProject(earlier);
       const v1 = { title: "Minimum to green", description: "Build only what the next failing test needs.", statement: "Write the least code that passes.", why: "Less to fix.", howToApply: "Name the behaviour first." };
       await library.writeKnowledge("principle", v1, { actor: "storytree setup (starter pack v1)" });
       await library.close();
       await (await storytree.openProject(never)).close();
-      // A product holding no copy, reading its pack from a factory version 1 seeded.
       const made = await storytree.openProject(factory);
       await made.markFactory();
       await made.writeKnowledge("principle", v1, { actor: "storytree setup (starter pack v1)" });
@@ -700,7 +654,6 @@ test("app-setup 8.26 in a project an earlier starter pack seeded, or a product p
       await built.close();
 
       const earlierFolder = await projectFolder(earlier);
-      // With App setup switched off take_starter_pack is not served, so the check offers it not (ADR-1095).
       writeFileSync(path.join(home.storytreeHome, "settings.json"), JSON.stringify({ "parts-off": ["app-setup"] }));
       await withAgent(earlierFolder, agentIn(path.join(dir, earlier)), async (agent) => {
         const checked = await agent.call("check_setup");
@@ -760,7 +713,6 @@ test("app-setup 8.48 in a product project whose factory is a factory, the check 
       };
       const answered = (text: string) => text.split("\n\nHow to work with storytree")[0]!;
       const role = (title: string, said: string) => ({ title, description: `The ${title}.`, oneLine: `Works as the ${title}.`, role: `${said} role.`, outcome: `${said} outcome.`, tools: "Everything.", workflow: `${said} workflow.`, escalation: `${said} escalation.` });
-      // The owner's factory, holding its session role and two agents; a plain project holding the same roles as its own.
       const made = await storytree.openProject(factory);
       await made.markFactory();
       const reading = await made.writeKnowledge("principle", { title: "Read first", description: "Read first.", statement: "Read before you act.", why: "Less to undo.", howToApply: "Open it." });
@@ -789,7 +741,6 @@ test("app-setup 8.48 in a product project whose factory is a factory, the check 
         assert.match(text, /change-reviewer and explorer/);
         assert.ok(!text.includes("Factory's review role."), "an agent is named, not handed whole");
       });
-      // The product's own session role, edited from the factory's, is the one handed (contract 29.2).
       const edited = await storytree.openProject(product);
       const inherited = (await edited.list("agent")).find((agent) => agent.fields.title === "session-orchestrator")!;
       await edited.editNote(inherited.id, { role: "Product's own session role." });
@@ -799,7 +750,6 @@ test("app-setup 8.48 in a product project whose factory is a factory, the check 
         assert.ok(text.includes("Product's own session role."), text);
         assert.ok(!text.includes("Factory's session role."), text);
       });
-      // Through an MCP client storytree has no hooks for, the same is handed (12.2's connected answer).
       await withAgent(productFolder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-1" }, dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } }, async (agent) => {
         const checked = await agent.call("check_setup");
         assert.equal(checked.data.tier, "connected");
@@ -814,13 +764,11 @@ test("app-setup 8.48 in a product project whose factory is a factory, the check 
         assert.deepEqual(checked.data.agents, []);
         assert.ok(!checked.text.includes("Plain session role."), "a project with no factory is handed no session role");
       });
-      // A factory holding agents but no session role: its product works its way and is named its agents, with no role handed.
       const bare = await storytree.openProject(roleless);
       await bare.markFactory();
       const bareReading = await bare.writeKnowledge("principle", { title: "Read first", description: "Read first.", statement: "Read before you act.", why: "Less to undo.", howToApply: "Open it." });
       await bare.writeKnowledge("agent", { ...role("explorer", "Bare search"), context: [bareReading.id] });
       await bare.close();
-      // A product whose factory is gone, and one whose named project is no factory: each reads only its own, so is handed neither.
       await (await storytree.openProject(gone)).close();
       const plainOne = await storytree.openProject(notFactory);
       const plainReading = await plainOne.writeKnowledge("principle", { title: "Read first", description: "Read first.", statement: "Read before you act.", why: "Less to undo.", howToApply: "Open it." });
@@ -871,7 +819,6 @@ test("app-setup 6.12 move_onto_factory, on the user's yes, drops the project's u
       const theirs = await made.writeKnowledge("principle", principle("Minimum to green", "The factory's statement."), { actor: "storytree setup (starter pack v5)" });
       await made.writeKnowledge("principle", principle("Edit before adding", "The factory's statement."), { actor: "storytree setup (starter pack v5)" });
       await made.close();
-      // A product made before it stopped holding copies: one copy unedited, one its user edited.
       const library = await storytree.openProject(project);
       await library.recordFactory(factory);
       const copy = await library.writeKnowledge("principle", principle("Minimum to green", "The copy's statement."), { actor: "storytree setup (starter pack v5)" });
@@ -916,7 +863,6 @@ test("app-setup 8.20 once storytree has received the session's edit of the check
     try {
       const server = await connect({ url: testServerUrl() });
       await (await server.openProject(project)).close().finally(() => server.close());
-      // The agent writes the check file with its own edit tool from its worktree, and the edit hook reports it.
       const checkFile = path.join(worktree, "storytree-check-claude-1");
       writeFileSync(checkFile, "check");
       await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", worktree, "claude-1", { tool_input: { file_path: checkFile, content: "check" } });
@@ -952,7 +898,6 @@ test("app-setup 8.39 check_setup asks for the check file outside the project's f
         assert.doesNotMatch(asked.text, /\.storytree-check in this folder/);
         writeFileSync(checkFile, "check");
         await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", folder, "claude-1", { tool_input: { file_path: checkFile, content: "check" } });
-        // The user's own file the session edited too is never the check's to delete.
         const theirs = path.join(folder, "notes.md");
         writeFileSync(theirs, "the user's");
         await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", folder, "claude-1", { tool_input: { file_path: theirs, content: "the user's" } });
@@ -1002,7 +947,6 @@ test("app-setup 8.24 the check tells a session the hook failures this machine tr
 
 test("12.3 set_up_project in a folder in no git repository makes one whose first commit holds the .storytree folder, and says so, or with no git identity makes it with that folder staged and asks the user for a name and email; a folder already in one is left as it is, and joining makes none", async () => {
   const [fresh, inRepo, nameless, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
-  // The identity a user's git would have; CI's runners have none of their own.
   const identity = { GIT_AUTHOR_NAME: "A User", GIT_AUTHOR_EMAIL: "user@example.invalid", GIT_COMMITTER_NAME: "A User", GIT_COMMITTER_EMAIL: "user@example.invalid" };
   const before = Object.fromEntries([...Object.keys(identity), "GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM"].map((key) => [key, process.env[key]]));
   Object.assign(process.env, identity);
@@ -1037,7 +981,6 @@ test("12.3 set_up_project in a folder in no git repository makes one whose first
       assert.equal(existsSync(path.join(inside, ".git")), false);
       assert.equal(git(repo, "rev-list", "--all", "--count"), "0", "storytree commits nothing in the user's own repository");
 
-      // Joining from the folder its marker names, after the repository is gone: no repository is made for a join.
       rmSync(path.join(empty, ".git"), { recursive: true, force: true });
       await withAgent(empty, claudeCode(`claude-${fresh}-join`, setup), async (agent) => {
         const joined = await agent.call("set_up_project", { name: fresh, join: true });
@@ -1046,7 +989,6 @@ test("12.3 set_up_project in a folder in no git repository makes one whose first
       });
       assert.equal(existsSync(path.join(empty, ".git")), false, "joining makes no repository");
 
-      // With no git identity, the repository is made with its marker staged, and the user is asked for a name and email.
       for (const key of Object.keys(identity)) delete process.env[key];
       const noConfig = path.join(dir, "no-gitconfig");
       writeFileSync(noConfig, "");
@@ -1171,7 +1113,6 @@ test("12.6 check_setup reads a marker naming a project this computer's library l
     const [name, factory] = [uniqueProjectName(), uniqueProjectName()];
     const folder = path.join(dir, "checkout");
     mkdirSync(folder);
-    // A marker committed on another computer, against another library: this one never had the project.
     writeFileSync(path.join(folder, ROOT_MARKER_FILE), `${JSON.stringify({ project: name, identity: "19697429" })}\n`);
     const storytree = await connect({ url: testServerUrl() });
     try {

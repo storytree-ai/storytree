@@ -1,4 +1,4 @@
-/** Capability 6 · Tool server: the other stories' tools the server mounts, read from their packages' manifests (ADR-1021). */
+// Capability 6 · Tool server (the MCP server)
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,7 +19,6 @@ import { withAgent } from "../testing/agent.js";
 import { withProject } from "../testing/tool-world.js";
 import { createAgentTools, type ToolPart } from "./server.js";
 
-// The stories restate the server's extension point rather than import it (ADR-1017 D2); this is where the two are checked to fit.
 const declared: readonly ToolPart[] = [...librarianToolParts, ...hookToolParts, ...sessionToolParts, ...mapToolParts, ...setupToolParts];
 
 test("6.75 the tool server mounts the tool parts its story packages' manifests name: the librarian's, then Session management's hook event tool and its claim, landing, context and runs tools, then the map's, then App setup's, each given the project served and the server's tool names", () => {

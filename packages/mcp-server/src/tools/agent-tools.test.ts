@@ -1,15 +1,4 @@
-/**
- * Capabilities 6 · Tool server, 9 · Plan tools and 11 · Session tools, in the MCP server story: listing the tools, planning, claiming and reporting through them, cancelling a call, landing, and wiring a pipeline. One of three files
- * (agent-tools, agent-tools-reads, agent-tools-writes) split so a test unit runs them side by side.
- * A test client talks to the server inside the test itself, over an
- * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
- * Code's session id reaches the server in its environment, Codex's on each call's `_meta`, and each
- * call's `_meta` carries its id as that harness sends it.
- *
- * The server works in a throwaway folder set up as a project (named with uniqueProjectName(), its
- * library dropped afterwards), and finds storytree from the test Postgres's own owner record.
- * What the tests check is read back through the library and the activity log themselves.
- */
+// Capability 6 · Tool server (the MCP server)
 import assert from "node:assert/strict";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
@@ -112,7 +101,6 @@ test("6.41 a tool reports each phase as progress the client receives before the 
       events.push("answer");
       assert.notEqual(answer.isError, true, JSON.stringify(answer.content));
       assert.deepEqual(events, ["progress: graduation", "progress: friction", "progress: catalogue", "answer"]);
-      // A client that asked for no progress gets the answer alone.
       const quiet = await client.callTool({ name: "phased", arguments: {} });
       assert.notEqual(quiet.isError, true, JSON.stringify(quiet.content));
 
@@ -124,7 +112,7 @@ test("6.41 a tool reports each phase as progress the client receives before the 
       await atGate;
       abort.abort(new Error("cancel the phased call"));
       await cancelled;
-      await client.ping(); // The server has processed the cancellation notice.
+      await client.ping();
       release();
       assert.equal(await outcome, "stopped");
       assert.deepEqual(started, ["graduation"], "no phase starts once the call is cancelled");
@@ -162,23 +150,21 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
         receive(message, extra);
       };
       await client.connect(clientSide);
-      await client.callTool({ name: "show_plan", arguments: {} }); // Connect before blocking writes.
+      await client.callTool({ name: "show_plan", arguments: {} });
       await blocker.query("BEGIN");
       await blocker.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
       const abort = new AbortController();
       const pending = client.callTool({ name: "edit_plan", arguments: { id: story.id, title: "Cancelled edit", project } }, { signal: abort.signal });
       const cancelled = assert.rejects(pending, /cancel/i);
-      cancelled.catch(() => {}); // A deadline failure reports itself, not the close that rejects this.
-      // Observe a real queued writer, not a sleep that guesses when it reached the lock.
+      cancelled.catch(() => {});
       await waitUntil(async () => (await observer.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = 'advisory'")).rowCount,
         45_000, "the MCP edit to reach the project's write lock");
       assert.deepEqual(await library.get(story.id), story);
       abort.abort(new Error("cancel queued edit"));
       await cancelled;
-      await client.ping(); // The server has processed the preceding cancellation notice.
+      await client.ping();
       assert.equal(cancellationReceived, true);
       await blocker.query("COMMIT");
-      // This write takes its turn after the queued edit, so the assertion cannot race it.
       await library.addStory({ title: "Following write" });
       assert.deepEqual(await library.get(story.id), story);
       assert.deepEqual(await library.history({ id: story.id }), before);
@@ -188,8 +174,6 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
       assert.deepEqual((await library.get(story.id))?.fields, { title: "Wanted edit" });
       assert.equal((await library.history({ id: story.id })).at(-1)?.actor, "session:cancelled-writer");
     } finally {
-      // Client.end waits for the socket to close (and releases any held lock). Pool.end
-      // returns before idle sockets close, so DROP DATABASE ... FORCE could overtake them.
       await Promise.all([blocker.end(), observer.end()]);
       await client.close();
       await tools.close();
@@ -198,7 +182,6 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
   });
 });
 
-// 5.15 / 6.21: exercise library admission through real MCP calls.
 for (const scenario of [
   { tool: "claim", boundary: "library" },
   { tool: "make_workspace", boundary: "library" },
@@ -258,7 +241,6 @@ for (const scenario of [
         if (boundary === "library") {
           await blocker.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
         } else {
-          // A row lock blocks activation AFTER the library admits it through the advisory lock.
           await blocker.query("SELECT id FROM record WHERE id = $1 FOR UPDATE", [id]);
         }
         const abort = new AbortController();
@@ -271,7 +253,7 @@ for (const scenario of [
           _meta: meta,
         }, { signal: abort.signal });
         const cancelled = assert.rejects(pending, /cancel/i);
-        cancelled.catch(() => {}); // A deadline failure reports itself, not the close that rejects this.
+        cancelled.catch(() => {});
         await waitUntil(async () => (await observer.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = $1", [boundary === "admitted" ? "transactionid" : "advisory"])).rowCount,
           45_000, `${tool} to reach the ${boundary} lock`);
         abort.abort(new Error("cancel claim"));
@@ -279,7 +261,6 @@ for (const scenario of [
         await client.ping();
         assert.equal(cancellationReceived, true);
         await blocker.query("COMMIT");
-        // Drain the library writer, then the claim's log transaction, before observing effects.
         await library.addStory({ title: "Following write" });
         await log.locked(project, async () => {});
         await client.callTool({ name: "show_plan", arguments: {}, _meta: meta });
@@ -310,8 +291,6 @@ for (const scenario of [
           }
         }
       } finally {
-        // Client.end waits for the socket to close (and releases any held lock). Pool.end
-        // returns before idle sockets close, so DROP DATABASE ... FORCE could overtake them.
         await Promise.all([blocker.end(), observer.end()]);
         await client.close();
         await tools.close();
@@ -336,7 +315,6 @@ test("9.1 a test client lists the tools, then plans an arc, a story, a capabilit
       assert.deepEqual(planned.stories[0]?.capabilities.map((node) => [node.id, node.title]), [[capability, "1 · Email form"]]);
       assert.deepEqual(planned.stories[0]?.capabilities[0]?.contracts.map((node) => [node.id, node.title]), [[contract, "1.1 · Rejects a bad email"]], "the first contract of a capability planned moments before is numbered");
       assert.deepEqual(planned.arcs.map((node) => [node.id, node.title, node.stories]), [[arc, "Launch v1", [story]]]);
-      // Each story and capability is born with its founding decision, the first book on its shelf.
       const spines = async (node: string) => (await library.frontCovers(node)).map((cover) => [cover.fields.title, cover.fields.text]);
       assert.deepEqual(await spines(story), [["Email only, no social login", "The smallest signup that works"]]);
       assert.deepEqual(await spines(capability), [["Validate on the client first", "Before any request is sent"]]);
@@ -449,10 +427,6 @@ test("11.1 it claims the capability, sees who is on what, reports the contract r
   });
 });
 
-/**
- * A factory folder in `home` with one plugin, `my-checks`, added on this computer as a part of its own, contributing a
- * claim check that holds every landing and a pipeline job, as ready-to-run JavaScript importing nothing of storytree's.
- */
 function checksPlugin(home: string, named = true): void {
   const plugin = path.join(home, "factory", "plugins", "my-checks");
   mkdirSync(plugin, { recursive: true });
@@ -466,7 +440,6 @@ export const pipelineJobs = [{ name: "my check", commands: (ref, workspace) => [
 test("6.102 land runs every claim check the parts it mounts contribute and is held while one names a problem; with the contributing part not named, the claim and its landing still work and the check is not run (ADR-1170 D2)", async () => {
   await withProject(async ({ folder, project, log }) => {
     await withTempDir(async (home) => {
-      // This computer's storytree home, which names the plugin, and where the checkout is approved.
       checksPlugin(home);
       await approveCheckout(folder, project, home);
       let capability = "";
@@ -755,7 +728,6 @@ test("app-setup 11.3 wire_pipeline proposes branch protection as a command for t
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "git@github.com:someone/shop.git");
-    // A gh that answers the protection read as GitHub does for a repository that can have protection and has none.
     const gh = path.join(folder, "gh.mjs");
     writeFileSync(gh, `console.log(${JSON.stringify(JSON.stringify({ message: "Branch not protected", status: "404" }))});\nprocess.exit(1);\n`);
     await withAgent(folder, claudeCode("claude-1", { protection: protectionThrough(process.execPath, [gh]) }), async (agent) => {
@@ -772,7 +744,6 @@ test("app-setup 11.5 when GitHub refuses protection on the repository's plan (a 
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
-    // A gh that answers the protection read as GitHub answered shop3 (2026-10-05), noting every call it is asked.
     const gh = path.join(folder, "gh.mjs");
     const calls = path.join(folder, "gh-calls.txt");
     const refused = { message: "Upgrade to GitHub Pro or make this repository public to enable this feature.", status: "403" };
@@ -795,10 +766,8 @@ test("app-setup 11.9 wire_pipeline writes, lists and proposes as status checks t
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
     await withTempDir(async (home) => {
-      // This computer's storytree home, which names the plugin, and where the checkout is approved.
       checksPlugin(home);
       await approveCheckout(folder, project, home);
-      // A gh that answers the protection read as GitHub does for a repository that can have protection and has none.
       const gh = path.join(home, "gh.mjs");
       writeFileSync(gh, `console.log(${JSON.stringify(JSON.stringify({ message: "Branch not protected", status: "404" }))});\nprocess.exit(1);\n`);
       const wire = async () => {
@@ -825,7 +794,6 @@ test("app-setup 11.9 wire_pipeline writes, lists and proposes as status checks t
   });
 });
 
-/** The commands of the workflow's test job, in the order it runs them. */
 function testJobRuns(workflow: string): string[] {
   const job = workflow.slice(workflow.indexOf("\n  test:"));
   return [...job.matchAll(/^ {6}- run: (".*")$/gm)].map((match) => JSON.parse(match[1]!) as string);
@@ -861,14 +829,12 @@ test("app-setup 11.6 in a project that imports a folder recorded by repository a
       assert.ok(fetches.some((command) => /^npm ci\b.*"\.\.\/viewer"/.test(command)), `the viewer's own dependencies are installed by its lockfile: ${fetches.join("\n")}`);
       assert.match(wired.text, new RegExp(first.slice(0, 7)));
 
-      // CI's checkout, with nothing beside it: the fetch commands put the viewer where its folder sits, at the commit.
       const ci = path.join(around, "ci");
       mkdirSync(path.join(ci, "work"), { recursive: true });
       for (const command of fetches.filter((line) => line.startsWith("git "))) execSync(command, { cwd: path.join(ci, "work"), stdio: "pipe" });
       assert.equal(git(path.join(ci, "viewer"), "rev-parse", "HEAD").trim(), first);
       assert.ok(existsSync(path.join(ci, "viewer", "package.json")));
 
-      // A new commit in the viewer moves nothing until the folder is imported again and the pipeline wired again.
       writeFileSync(path.join(viewer, "index.js"), "export const viewer = 2;\n");
       git(viewer, "add", ".");
       git(viewer, "commit", "-q", "-m", "second");
@@ -908,7 +874,6 @@ test("app-setup 11.11 in a Python project, or one importing a Python folder, wir
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
     const around = path.dirname(folder);
-    // Python projects beside it, each recorded by repository and commit when it is imported: one locked by uv, one locked by nothing.
     const pushed = (name: string, files: Record<string, string>): void => {
       const origin = path.join(around, `${name}-origin.git`);
       git(around, "init", "-q", "--bare", origin);
@@ -925,7 +890,6 @@ test("app-setup 11.11 in a Python project, or one importing a Python folder, wir
     pushed("billing", { "setup.py": "from setuptools import setup\nsetup(name='billing')\n" });
 
     await withAgent(folder, claudeCode("claude-1", { protection: async () => "allowed" }), async (agent) => {
-      // A JavaScript project importing it: Python and uv are set up for the import, which installs by its uv.lock.
       assert.equal((await agent.call("import_project", { folder: "../orders" })).isError, false);
       assert.equal((await agent.call("import_project", { folder: "../billing" })).isError, false);
       assert.equal((await agent.call("wire_pipeline", { install: "npm ci", test: "npm test" })).isError, false);
@@ -940,14 +904,12 @@ test("app-setup 11.11 in a Python project, or one importing a Python folder, wir
       assert.ok(fetched.includes('python -m pip install "../billing"'), `a Python folder with no lockfile is installed by pip: ${runs.join("\n")}`);
       assert.doesNotMatch(importing, /poetry/, "no poetry.lock, no Poetry");
 
-      // The project itself becomes a Poetry project: Poetry is set up too, before its install.
       writeFileSync(path.join(folder, "pyproject.toml"), '[tool.poetry]\nname = "shop"\n');
       writeFileSync(path.join(folder, "poetry.lock"), "");
       assert.equal((await agent.call("wire_pipeline", { install: "poetry install", test: "poetry run pytest -rA" })).isError, false);
       const poetry = testJobRuns(readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8"));
       assert.ok(poetry.indexOf("pipx install poetry") >= 0 && poetry.indexOf("pipx install poetry") < poetry.indexOf("poetry install"), poetry.join("\n"));
 
-      // Not on GitHub, the commands to add start by installing Poetry, and say the tests need Python and uv.
       git(folder, "remote", "set-url", "origin", "https://gitlab.com/someone/shop.git");
       const elsewhere = await agent.call("wire_pipeline", { install: "poetry install", test: "poetry run pytest -rA" });
       assert.equal(elsewhere.isError, false, elsewhere.text);

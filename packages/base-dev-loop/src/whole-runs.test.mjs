@@ -31,7 +31,11 @@ function git(root, ...args) {
   return execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: root, encoding: "utf8" });
 }
 
-function project(t, packages) {
+const CLOCK_START = Date.parse("2026-11-19T12:00:00.000Z");
+const HOLD_WAIT_MS = 60_000;
+const AFTER_TABLE_MS = 7_000;
+
+function project(t, packages, { clocked = false } = {}) {
   const root = temp(t, "wr-root-");
   write(root, "package.json", JSON.stringify({ name: "root", private: true }));
   write(root, ".gitignore", ".pgtest/\n");
@@ -39,7 +43,10 @@ function project(t, packages) {
     write(root, `packages/${name}/package.json`, JSON.stringify({ name: `@w/${name}` }));
     for (const [file, text] of Object.entries(files)) write(root, `packages/${name}/${file}`, text);
   }
-  write(root, "run.mjs", `import { testCommand } from ${JSON.stringify(runner)};\ntestCommand({ root: ${JSON.stringify(root)}, hold: async () => () => {} });\n`);
+  const options = clocked
+    ? `let clock = ${CLOCK_START};\ntestCommand({ root: ${JSON.stringify(root)}, now: () => clock, hold: async () => { clock += ${HOLD_WAIT_MS}; return () => { clock += ${AFTER_TABLE_MS}; }; } });`
+    : `testCommand({ root: ${JSON.stringify(root)}, hold: async () => () => {} });`;
+  write(root, "run.mjs", `import { testCommand } from ${JSON.stringify(runner)};\n${options}\n`);
   return root;
 }
 
@@ -82,12 +89,10 @@ function assertMachine(row) {
   assert.equal(new Date(row.at).toISOString(), row.at, `at ${row.at} is an ISO time`);
 }
 
-test("7.1 · a full pnpm test run appends one row to whole-runs.jsonl in STORYTREE_HOME: kind test, scope full, its units, pass, this machine, its load, cpus, jobs, platform and arch, ended inside the run", { timeout: 180_000 }, (t) => {
+test("7.1 · a full pnpm test run appends one row to whole-runs.jsonl in STORYTREE_HOME: kind test, scope full, its units, pass, this machine, its load, cpus, jobs, platform and arch, timed by its clock from the hold taken to its table", { timeout: 180_000 }, (t) => {
   const home = temp(t, "wr-home-");
-  const root = project(t, { a: { "src/a.test.mjs": PASSES } });
-  const before = Date.now();
+  const root = project(t, { a: { "src/a.test.mjs": PASSES } }, { clocked: true });
   const run = runTests(root, home, ["--jobs=1"]);
-  const after = Date.now();
   assert.equal(run.status, 0, run.output);
 
   const kept = rows(home);
@@ -99,8 +104,8 @@ test("7.1 · a full pnpm test run appends one row to whole-runs.jsonl in STORYTR
   assert.equal(row.result, "pass");
   assert.equal(row.jobs, 1);
   assertMachine(row);
-  const ended = Date.parse(row.at);
-  assert.ok(ended >= before && ended <= after, `at ${row.at} falls inside the run`);
+  assert.equal(row.ms, 0, `the injected clock moved ${HOLD_WAIT_MS} ms while the hold was being taken and ${AFTER_TABLE_MS} ms when it was released after the table, and neither is the run's time`);
+  assert.equal(row.at, new Date(CLOCK_START + HOLD_WAIT_MS).toISOString(), "at is the injected clock's reading at the table");
 });
 
 test("7.1 · a scoped pnpm test run whose unit fails appends a row with scope scoped, the units it ran, its jobs and result fail", { timeout: 180_000 }, (t) => {

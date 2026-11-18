@@ -192,6 +192,19 @@ test("17.2 · The library declares search_notes, find_text, open, write_note and
   const drills = await toolOf("search_notes").act({ query: "retry tallied", limit: undefined, history: false, kinds: ["drill"], projects: undefined }, context, WORDS);
   assert.match(drills.text, /Drill: a retry tallied twice/, "a red-team drill is written through the door, and a search narrows to drills");
   assert.doesNotMatch(drills.text, /A retry counted as a pass/, "and finds no escape pattern there");
+  const measure = { title: "Sign-up form submit time", description: "How long the form takes to answer a submit", story: story.id, reads: "the milliseconds from submit to the answer shown", unit: "ms", better: "lower", howRead: "submit the form ten times and take the median", machine: "the Mint box", runs: 10, version: 1 };
+  const measured = await toolOf("write_note").act({ kind: "measure", fields: measure, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS);
+  const measuredId = (measured.data as { id: string }).id;
+  assert.deepEqual(await library.get(measuredId).then((record) => [record?.type, record?.fields]), ["measure", { ...measure, links: [] }], "a measure is written through the door, with the links it was given");
+  const madeMeasure = await create.act({ "<kind>": "measure", "<fields>": { ...measure, title: "Sign-up form field count", reads: "the fields the form shows", unit: "fields", better: "neither", runs: "1", version: "2" } }, { ...context, testedNumbers: async () => ({ tested: [], untested: [] }) }, WORDS);
+  assert.match(madeMeasure.text, /^Wrote measure measure_[0-9a-f]{12}\./, "and through library new, its runs and version given as words");
+  const madeId = /measure_[0-9a-f]{12}/.exec(madeMeasure.text)![0];
+  const madeFields = (await library.get(madeId))?.fields as { runs?: unknown; version?: unknown } | undefined;
+  assert.deepEqual([madeFields?.runs, madeFields?.version], [1, 2], "read as whole numbers");
+  const measures = await toolOf("search_notes").act({ query: "sign-up form", limit: undefined, history: false, kinds: ["measure"], projects: undefined }, context, WORDS);
+  assert.match(measures.text, /Sign-up form submit time/, "a search narrows to measures");
+  assert.doesNotMatch(measures.text, /Drill: a retry tallied twice|A retry counted as a pass/, "and finds no other kind there");
+  assert.deepEqual((await library.measures(story.id)).map(({ id }) => id), [measuredId, madeId], "the library lists the story's measures, oldest first");
 });
 
 test("17.26 · write_note files a decision on no guessed part: a part in links is refused naming front_cover_of, and two held parts with none named is refused asking which", async (t) => {

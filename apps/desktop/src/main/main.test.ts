@@ -1,4 +1,4 @@
-/** Capability 1 · Lifecycle: the main process as the app bundles it, started beside an app that is already open. */
+// Capability 1 · Lifecycle
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -12,10 +12,6 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { mainBuild } from "./bundles.js";
 
-/**
- * A stand-in for Electron that records what the main process asks of it, and prints the record as it exits: the
- * single-instance lock is already held, as when the app is open, and the app is never ready.
- */
 const STAND_IN = `
 const Module = require("node:module");
 const asked = [];

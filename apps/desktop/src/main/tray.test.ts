@@ -6,12 +6,10 @@ import { TRAY_MENU } from "@storytree/app";
 
 import { keepTray, type AppTray, type IconWindow } from "./tray.js";
 
-/** A stand-in for Electron's nativeTheme on a taskbar that is dark or light. */
 function theme(dark: boolean) {
   return Object.assign(new EventEmitter(), { shouldUseDarkColors: dark, shouldUseDarkColorsForSystemIntegratedUI: dark });
 }
 
-/** A stand-in for Electron's tray or window: what it wears, and every call throws once it is destroyed, as theirs do. */
 function worn() {
   let destroyed = false;
   const images: string[] = [];
@@ -38,7 +36,6 @@ function fakeWindow(): ReturnType<typeof worn> & { window: IconWindow<string> } 
   return { ...state, window: { isDestroyed: state.isDestroyed, setIcon: (image) => { state.guard(); state.images.push(image); } } };
 }
 
-/** The tray kept with these stand-ins: what it wears, the windows', and what its clicks asked for. */
 function kept(taskbar: ReturnType<typeof theme>, windows: ReturnType<typeof fakeWindow>[]) {
   const made = fakeTray();
   const asked: string[] = [];

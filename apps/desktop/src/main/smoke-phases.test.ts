@@ -20,7 +20,7 @@ test("1.36 · a smoke check prints a smoke: line as each phase starts, and its g
   assert.equal(smokePhases({ log: () => {}, now: () => 0 }).gaveUp(5_000), "smoke: gave up after 5 s, before its first phase");
 });
 
-test("1.36 · a smoke check keeps Electron's files in a scratch folder apart from the app's own, removes it, and sweeps a long-finished run's", async () => {
+test("1.36 · a smoke check keeps Electron's files in a scratch folder apart from the app's own, removes it (a second removal is harmless), and sweeps a long-finished run's", async () => {
   const tmp = mkdtempSync(path.join(tmpdir(), "smoke-phases-test-"));
   try {
     const finished = path.join(tmp, "storytree-smoke-finished");
@@ -38,7 +38,7 @@ test("1.36 · a smoke check keeps Electron's files in a scratch folder apart fro
     assert.ok(files.line.includes(files.dir) && files.line.includes(shared), files.line);
     files.remove();
     assert.equal(existsSync(files.dir), false);
-    files.remove(); // removing twice is harmless
+    files.remove();
   } finally {
     await removeTemp(tmp);
   }

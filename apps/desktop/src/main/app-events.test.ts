@@ -4,12 +4,10 @@ import { test } from "node:test";
 
 import { answerAppEvents, answerCallbackCheckEvents } from "./app-events.js";
 
-/** A stand-in for an event Electron hands a listener, which records whether its default was prevented. */
 function event() {
   return { prevented: false, preventDefault() { this.prevented = true; } };
 }
 
-/** A stand-in for the app's lifecycle (@storytree/app's background): each answer it gave, and what it was asked. */
 function lifecycle(secondStart: "show" | "reopen" | "quit" = "show") {
   const asked: string[] = [];
   return {

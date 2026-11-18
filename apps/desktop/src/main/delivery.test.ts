@@ -9,15 +9,12 @@ import { promisify } from "node:util";
 
 import { removeTemp, scaled } from "@storytree/test-waits";
 
-// The child's budget is scaled by the environment's factor (ADR-1156 D2): on Windows CI run 43052546224 a
-// fixed 60 s killed it mid-staging; the test's own limit sits above it plus cleanup's removeTemp budget.
 const CHILD_BUDGET_MS = scaled(60_000);
 test("app setup 1.1 / library 14.5: delivered tools run outside a checkout, including native embedding inference without a model download", { timeout: CHILD_BUDGET_MS + 30_000 }, async (t) => {
   const temp = mkdtempSync(path.join(tmpdir(), "storytree delivered tools "));
   const cwd = fileURLToPath(new URL("../../../../", import.meta.url));
   const started = performance.now();
   const observe = (message: string) => console.log(`delivery +${Math.round(performance.now() - started)} ms: ${message}`);
-  // A test timeout does not await its body's finally block; an after hook still gets to finish.
   t.after(async () => {
     observe('cleanup START');
     await removeTemp(temp);
@@ -51,8 +48,6 @@ test("app setup 1.1 / library 14.5: delivered tools run outside a checkout, incl
       await phase('check native inference, commands and MCP', () => checkTools(process.execPath, dir, path.join(temp, 'fresh user')));
       console.log('standalone tools PASS');
     `], { cwd, env: { ...process.env, STORYTREE_DELIVERY_TEST_DIR: temp }, encoding: "utf8", timeout: CHILD_BUDGET_MS, signal: t.signal });
-    // Keep observations even when the child stalls: the old synchronous call printed only on
-    // success, and blocked the test runner's own timeout until it returned.
     pending.child.stdout!.pipe(process.stdout, { end: false });
     pending.child.stderr!.pipe(process.stderr, { end: false });
     const result = await pending;

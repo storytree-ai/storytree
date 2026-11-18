@@ -8,7 +8,6 @@ import { iconPath, readPng, renderMark } from "@storytree/mark";
 
 import { followTaskbar, iconColourway, markIcon } from "./app-icon.js";
 
-/** A stand-in for Electron's nativeTheme: its two readings, and its "updated" event. */
 function theme(systemDark: boolean | undefined, appDark: boolean) {
   return Object.assign(new EventEmitter(), { shouldUseDarkColorsForSystemIntegratedUI: systemDark, shouldUseDarkColors: appDark });
 }
@@ -16,7 +15,6 @@ function theme(systemDark: boolean | undefined, appDark: boolean) {
 test("1.17 · the tray and window take the night colourway on a dark taskbar and the day colourway otherwise", () => {
   assert.equal(iconColourway(theme(true, false)), "night", "the taskbar's own setting wins over the apps' one");
   assert.equal(iconColourway(theme(false, true)), "day");
-  // Where Electron reports no taskbar setting (Linux), the apps' one is read.
   assert.equal(iconColourway(theme(undefined, true)), "night");
   assert.equal(iconColourway(theme(undefined, false)), "day");
 });

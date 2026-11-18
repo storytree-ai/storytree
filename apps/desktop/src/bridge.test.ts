@@ -20,7 +20,6 @@ test("app-setup 5.6 · without sign-in configured the page's bridge has no feedb
 });
 
 test("8.7 a main-side failure reaches the page in its own words: a call whose main-process handler throws rejects with that error's message and name, without Electron's wrapper", async () => {
-  // Electron's ipcRenderer.invoke rejects this way when the main side's handler throws.
   const invoke = async (channel: string) => {
     if (channel === "storytree:start-mark") throw new Error(`Error invoking remote method '${channel}': ${String(new TypeError("Bad mark."))}`);
     throw new Error(`Error invoking remote method '${channel}': ${String(new Error("Only the installed app can open at sign-in."))}`);

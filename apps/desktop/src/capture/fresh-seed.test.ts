@@ -25,10 +25,8 @@ test("2.52 · a capture naming islands the shared code-rows seed lacks builds a 
     await dropTestDatabases([`storytree_${project}`]);
     for (const folder of [checkout, ...made]) await removeTemp(folder);
   });
-  // This checkout's code: the newer island's package holds one file.
   mkdirSync(path.join(checkout, "packages/code-map/src"), { recursive: true });
   writeFileSync(path.join(checkout, "packages/code-map/src/rows.ts"), "export const rows = 1;\n");
-  // The library has moved on from the committed snapshot: a newer island, and an older one renamed twice.
   const library = await storytree.openProject(project);
   const library0 = await library.addStory({ title: "The library" });
   const codeMap = await library.addStory({ title: "Code map" });

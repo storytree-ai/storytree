@@ -9,7 +9,6 @@ import { createBridge } from "../bridge.js";
 import { answerPage } from "../page-operations.js";
 import { lateReads, projectAnswers, readerPerChannel } from "./late-reads.js";
 
-/** A stand-in for the page reads of one opened library, named so a test can tell which library answered. */
 function library(name: string) {
   return {
     listProjects: () => [`${name}'s project`],

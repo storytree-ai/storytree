@@ -7,7 +7,6 @@ import { test } from "node:test";
 import { appLog } from "./app-log.js";
 import { logPageErrors, type PageContents } from "./page-errors.js";
 
-/** app.log's entries, split at each one's timestamp, since a stack runs over several lines. */
 function entries(file: string): string[] {
   return readFileSync(file, "utf8").split(/^\d{4}-\d\d-\d\dT\S+Z /m).slice(1).map(entry => entry.replace(/\n$/, ""));
 }

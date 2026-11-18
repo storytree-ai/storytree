@@ -3,7 +3,6 @@ import { test } from "node:test";
 
 import { bringWindowForward, showPageQuery, type ShownWindow } from "./window-shown.js";
 
-/** A stand-in for Electron's window: each call it took, and every call throws once it is destroyed, as BrowserWindow's do. */
 function fakeWindow(name: string, { minimized = false, destroyed = false } = {}) {
   const calls: string[] = [];
   const act = (call: string) => () => {

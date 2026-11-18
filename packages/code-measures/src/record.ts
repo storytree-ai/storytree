@@ -5,19 +5,21 @@
  * value it gives is kept (none keeps no row). A machine records a head once, and at most once a day. Report only: no
  * threshold and no verdict.
  */
-import type { StoryNamed } from "@storytree/map/package-of";
 import { VerbRefusal } from "@storytree/library/verbs";
 
 import { pairMeasures, pairingText, type MeasureReader, type MeasureRecord } from "./pair.js";
 import { commitOf, readStoryMeasures } from "./read.js";
 import { writeReadings, type MeasureReadingRow, type MeasureReadingsDb } from "./readings.js";
 
+/** The stories recorded, as the reading of every story at a commit takes them. */
+type Stories = Parameters<typeof readStoryMeasures>[0]["stories"];
+
 /** Record `machine`'s base measures of `project` at the checkout's origin/main, and say what was recorded, or why not. */
 export async function recordMeasures({ folder, project, machine, stories, records, readers, db }: {
   readonly folder: string;
   readonly project: string;
   readonly machine: string;
-  readonly stories: readonly StoryNamed[];
+  readonly stories: Stories;
   readonly records: readonly MeasureRecord[];
   readonly readers: readonly MeasureReader[];
   readonly db: MeasureReadingsDb;

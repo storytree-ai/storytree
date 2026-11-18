@@ -9,7 +9,7 @@ import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { sanitizationHits } from "./codeql-patterns.mjs";
+import { describe, sanitizationHits } from "./codeql-patterns.mjs";
 import { RULES, lint } from "./lint.mjs";
 
 const STRIPS = `export const plain = (html: string): string => html.replace(/<[^>]+>/g, "");
@@ -250,4 +250,26 @@ test("8.18 · pnpm lint does not read test files (*.test.*, *.spec.*) or minifie
   const refused = lines.filter((line) => line.startsWith("codeql-patterns: "));
   assert.deepEqual(refused.map((line) => /^codeql-patterns: (\S+:\d+) /.exec(line)?.[1]), ["packages/measures/src/braces.ts:1"], lines.join("\n"));
   assert.match(refused[0], /js\/polynomial-redos/);
+});
+
+// Each refused regex below backtracks super-linearly on a long run of its string followed by a character that ends
+// the match: the em dash is outside ASCII; each backreference can match empty, so the \w parts either side of it meet;
+// -* can match empty, so the two \s* meet. The last can never fail: [\s\S]* takes the whole input and $ holds there.
+const REACHED = [
+  String.raw`export const rule = (text: string) => /^(—+)\s*(—*)$/.exec(text);`,
+  String.raw`export const twice = (text: string) => /^(\w*)\1\w*$/.exec(text);`,
+  String.raw`export const named = (text: string) => /^(?<word>\w*)\k<word>\w*$/.exec(text);`,
+  String.raw`export const item = (text: string) => /^\s*-*\s*(\w+)$/.exec(text);`,
+  String.raw`export const whole = (text: string) => /^([\s\S]*)\s*$/.exec(text);`,
+].join("\n");
+
+test("8.18 · an overlapping regex's hit names the string both parts repeat: — for /^(—+)\\s*(—*)$/ (a character outside ASCII), a for a numbered (\\1) and a named (\\k<word>) backreference between two \\w*, a space for two \\s* with only -* between them, and its refusal says a run of that string; /^([\\s\\S]*)\\s*$/, whose match no input can make fail, passes", () => {
+  const hits = sanitizationHits("packages/measures/src/reached.ts", REACHED);
+  assert.deepEqual(hits.map(({ line, kind, regex, pump }) => ({ line, kind, regex, pump })), [
+    { line: 1, kind: "redos", regex: "/^(—+)\\s*(—*)$/", pump: "—" },
+    { line: 2, kind: "redos", regex: "/^(\\w*)\\1\\w*$/", pump: "a" },
+    { line: 3, kind: "redos", regex: "/^(?<word>\\w*)\\k<word>\\w*$/", pump: "a" },
+    { line: 4, kind: "redos", regex: "/^\\s*-*\\s*(\\w+)$/", pump: " " },
+  ]);
+  assert.deepEqual(hits.map((hit) => /a run of (".*?") can be split/.exec(describe(hit))?.[1]), ['"—"', '"a"', '"a"', '" "']);
 });

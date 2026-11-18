@@ -1,10 +1,3 @@
-/**
- * An agent for the MCP server's tests: a tool server (capability 6) and an MCP client connected to
- * it in memory, as Claude Code or Codex would be, with no real agent and no network. Claude Code's
- * session id reaches the server in its environment; Codex's on each call's `_meta`. Like an agent following the habits
- * card, it names the project of the folder it works in on a call to a tool that writes a library and names no place
- * itself (ADR-1348 D3); `callExactly` sends a call as given.
- */
 import assert from "node:assert/strict";
 
 import { Client } from "@modelcontextprotocol/client";
@@ -18,33 +11,25 @@ import { testServerDataDir } from "@storytree/project-and-caller/testing/pg";
 export interface Answer {
   text: string;
   isError: boolean;
-  /** What the tool handed back as data, beside its sentence. */
   data: Record<string, unknown>;
 }
 
 export interface Agent {
-  /** Call a tool; one that writes a library, given no project, arc or increment, is given the folder's project. */
   call(tool: string, args?: Record<string, unknown>, meta?: Record<string, unknown>): Promise<Answer>;
-  /** Call a tool with exactly `args`. */
   callExactly(tool: string, args?: Record<string, unknown>, meta?: Record<string, unknown>): Promise<Answer>;
   tools(): Promise<string[]>;
-  /** A tool's input schema, as tools/list publishes it to the agent. */
   inputSchema(tool: string): Promise<Record<string, unknown>>;
   instructions(): string | undefined;
   close(): Promise<void>;
 }
 
 export interface AgentOptions extends Partial<Omit<AgentToolOptions, "folder">> {
-  /** The client's name: `claude-code` (the default) or `codex-mcp-client`, as each harness calls itself. */
   readonly client?: string;
-  /** Sent on every call, as Codex sends its session id. */
   readonly meta?: Record<string, unknown>;
 }
 
-/** The inputs naming where a write goes. */
 const PLACE = ["project", "arc", "increment"] as const;
 
-/** A tool server for `folder`, and a client connected to it in memory, as a harness would be. */
 export async function agentIn(folder: string, options: AgentOptions = {}): Promise<Agent> {
   const { client: clientName, meta, ...serverOptions } = options;
   const tools = createAgentTools({ dataDir: testServerDataDir(), env: {}, ...serverOptions, folder });
@@ -52,7 +37,6 @@ export async function agentIn(folder: string, options: AgentOptions = {}): Promi
   await tools.server.connect(serverSide);
   const client = new Client({ name: clientName ?? "claude-code", version: "test" });
   await client.connect(clientSide);
-  // A tool that writes a library takes all three of the inputs naming where it goes (ADR-1348 D3); a read takes no more than project.
   let writes: Set<string> | undefined;
   const writing = async (tool: string): Promise<boolean> => {
     writes ??= new Set((await client.listTools()).tools.filter(({ inputSchema }) => PLACE.every((key) => key in (inputSchema.properties ?? {}))).map(({ name }) => name));
@@ -93,7 +77,6 @@ export async function agentIn(folder: string, options: AgentOptions = {}): Promi
   };
 }
 
-/** Run `body` with an agent, and close it afterwards. */
 export async function withAgent(folder: string, options: AgentOptions, body: (agent: Agent) => Promise<void>): Promise<void> {
   const agent = await agentIn(folder, options);
   try {
@@ -103,17 +86,14 @@ export async function withAgent(folder: string, options: AgentOptions, body: (ag
   }
 }
 
-/** Claude Code, session `session`: its id in the server's environment. */
 export function claudeCode(session: string, extra: AgentOptions = {}): AgentOptions {
   return { client: "claude-code", ...extra, env: { CLAUDE_CODE_SESSION_ID: session, ...extra.env } };
 }
 
-/** Codex, session `session`: its id on every call, as Codex 0.155 sends it. */
 export function codex(session: string, extra: AgentOptions = {}): AgentOptions {
   return { client: "codex-mcp-client", meta: { threadId: session, sessionId: session }, ...extra };
 }
 
-/** The id a planning or writing tool handed back. */
 export function idOf(answer: Answer): string {
   assert.equal(answer.isError, false, answer.text);
   const { id } = answer.data;

@@ -831,13 +831,13 @@ function assertTokenKeptOut({ steps, lines }, result) {
   assert.equal(seen.includes(FACTORY_TOKEN_BASE64), false, "the token's base64 is in an argument, a log line or the message");
 }
 
-test("3.12 a cloud container clones the factory its hook names into the home's factory folder, links the checkout as storytree, installs it, then names its plugin", (t) => {
+test("3.12 a cloud container clones the factory its hook names into the home's factory folder, the address and folder after -- so git never reads them as options, links the checkout as storytree, installs it, then names its plugin", (t) => {
   const f = factory(t);
   const result = cloudFactory(f.options);
   assert.equal(result.ok, true);
   assert.equal(result.done, true);
   assert.deepEqual(f.steps.map((s) => s.step), ["git", "install", "run"]);
-  assert.deepEqual(f.steps[0].args, ["clone", "--depth", "1", FACTORY_URL, f.folder], "a home at .storytree/0.3 has its factory at .storytree/your-factory");
+  assert.deepEqual(f.steps[0].args, ["clone", "--depth", "1", "--", FACTORY_URL, f.folder], "a home at .storytree/0.3 has its factory at .storytree/your-factory, the address and folder after -- so git never reads them as options");
   assert.deepEqual(f.steps[1].args, [f.folder]);
   assert.equal(f.steps[1].linked, realpathSync(f.root), "the checkout is linked into the factory before it is installed");
   assert.deepEqual(f.steps[2].args, PLUGIN_NAMED);
@@ -860,7 +860,7 @@ test("3.12 the token reaches git only as an Authorization header in git's enviro
   assertTokenKeptOut(failing, failed);
 });
 
-test("3.12 an already-cloned factory is fast-forwarded from the named repository's main, and an existing storytree link is replaced by one to this checkout", (t) => {
+test("3.12 an already-cloned factory is fast-forwarded from the named repository's main, the address after -- so git never reads it as an option, and an existing storytree link is replaced by one to this checkout", (t) => {
   const f = factory(t);
   mkdirSync(path.join(f.folder, ".git"), { recursive: true });
   const old = path.join(f.base, "old-checkout");
@@ -870,7 +870,7 @@ test("3.12 an already-cloned factory is fast-forwarded from the named repository
   assert.equal(result.ok, true);
   assert.equal(result.done, true);
   assert.deepEqual(f.steps.map((s) => s.step), ["git", "install", "run"]);
-  assert.deepEqual(f.steps[0].args, ["-C", f.folder, "pull", "--ff-only", FACTORY_URL, "main"]);
+  assert.deepEqual(f.steps[0].args, ["-C", f.folder, "pull", "--ff-only", "--", FACTORY_URL, "main"], "the address follows -- so git never reads it as an option");
   assert.equal(f.steps[0].env.GIT_CONFIG_VALUE_0, `Authorization: Basic ${FACTORY_TOKEN_BASE64}`);
   assert.equal(linkTarget(path.join(f.folder, "storytree")), realpathSync(f.root));
   assert.equal(existsSync(old), true, "the old link's target is left alone");
@@ -881,7 +881,7 @@ test("3.12 the factory folder is STORYTREE_FACTORY when set, else your-factory i
   const named = factory(t);
   const elsewhere = path.join(named.base, "elsewhere-factory");
   cloudFactory({ ...named.options, env: { ...named.options.env, STORYTREE_FACTORY: elsewhere } });
-  assert.deepEqual(named.steps[0].args, ["clone", "--depth", "1", FACTORY_URL, elsewhere]);
+  assert.deepEqual(named.steps[0].args, ["clone", "--depth", "1", "--", FACTORY_URL, elsewhere]);
   assert.equal(linkTarget(path.join(elsewhere, "storytree")), realpathSync(named.root));
   assert.equal(existsSync(named.folder), false, "the home's default folder is not used");
 
@@ -889,7 +889,7 @@ test("3.12 the factory folder is STORYTREE_FACTORY when set, else your-factory i
   const home = path.join(plain.base, "plain-home");
   mkdirSync(home);
   cloudFactory({ ...plain.options, home });
-  assert.deepEqual(plain.steps[0].args, ["clone", "--depth", "1", FACTORY_URL, path.join(home, "your-factory")]);
+  assert.deepEqual(plain.steps[0].args, ["clone", "--depth", "1", "--", FACTORY_URL, path.join(home, "your-factory")]);
 });
 
 test("3.12 outside a cloud container, or with no factory named, nothing runs and nothing is said", (t) => {

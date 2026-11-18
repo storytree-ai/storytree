@@ -122,6 +122,9 @@ test("1.8 · the push check refuses a push whose commits add a tag-removing glob
   const refusal = said.join("\n");
   assert.match(refusal, /src\/view\.ts:1 \(commit \w+\) removes \/<\[\^>\]\+>\/g by one global replace/);
   assert.match(refusal, /incomplete-multi-character-sanitization/);
+  assert.match(refusal, /\bfold\b[^\n]*\bunpushed commits\b[^\n]*\binto one\b/i, "each unpushed commit is charged for its own text, so the refusal says to fold them into one");
+  assert.match(refusal, /git reset --soft/, "the refusal names how to fold them");
+  assert.doesNotMatch(refusal, /fix it in a new commit/i, "a fix in a later commit cannot clear the refusal");
   assert.ok(!refusal.includes("notes.md"), "a file that is not code is not read for it");
 
   git("push", "-q", "--no-verify", "origin", "strips");

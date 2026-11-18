@@ -166,7 +166,11 @@ export function checkPush({ root, remote, stdin, home = homedir(), sources, erro
     );
   }
   if (patterns.length > 0) {
-    error(`push check: the push adds a pattern CodeQL refuses. Fix it in a new commit and push again:\n${patterns.map((problem) => `  ${problem}`).join("\n")}`);
+    error(
+      "push check: the push adds a pattern CodeQL refuses. Each unpushed commit is checked for the text it adds, so a later fix " +
+        "does not clear it: fix it and fold the unpushed commits into one (for example `git reset --soft` to the remote branch or " +
+        `the merge base, then commit again), and push again:\n${patterns.map((problem) => `  ${problem}`).join("\n")}`,
+    );
   }
   return secrets.length + patterns.length === 0 ? 0 : 1;
 }

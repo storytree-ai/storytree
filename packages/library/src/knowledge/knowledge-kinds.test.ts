@@ -10,9 +10,7 @@
  * change appends a history entry (capability 2), so an unchanged history means nothing was written.
  */
 import assert from "node:assert/strict";
-import { test } from "node:test";
-
-import { waitUntil } from "@storytree/test-waits";
+import { test, type TestContext } from "node:test";
 
 import { connect } from "../project/index.js";
 import { MissingReferenceError } from "../references.js";
@@ -684,17 +682,21 @@ function coldStart(story: string): Record<string, unknown> {
 }
 
 /**
- * Write records one after another, each strictly later than the one before, until there are at least `count` and the
- * ids of the even-numbered ones (and so of all of them) are not in creation order: any order a test then sees them in
- * can only be creation order.
+ * Write records one after another on a mocked clock (both backends stamp a record's creation with the process's Date),
+ * each a second after the one before, until there are at least `count` and the ids of the even-numbered ones (and so
+ * of all of them) are not in creation order: any order a test then sees them in can only be creation order.
  */
-async function writeInOrder<R extends { readonly id: string; readonly createdAt: string }>(count: number, write: (n: number) => Promise<R>): Promise<R[]> {
+async function writeInOrder<R extends { readonly id: string; readonly createdAt: string }>(t: TestContext, count: number, write: (n: number) => Promise<R>): Promise<R[]> {
   const written: R[] = [];
   const evens = () => written.filter((_, n) => n % 2 === 0);
-  while (written.length < count || evens().every((record, n, all) => n === 0 || all[n - 1]!.id < record.id)) {
-    const record = await write(written.length);
-    written.push(record);
-    await waitUntil(() => Date.now() > Date.parse(record.createdAt), 5_000, `the clock to pass ${record.createdAt}`);
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-11-18T09:00:00.000Z") });
+  try {
+    while (written.length < count || evens().every((record, n, all) => n === 0 || all[n - 1]!.id < record.id)) {
+      written.push(await write(written.length));
+      t.mock.timers.tick(1_000);
+    }
+  } finally {
+    t.mock.timers.reset();
   }
   return written;
 }
@@ -759,14 +761,14 @@ for (const backend of [memory, postgres]) {
     }
   });
 
-  test(`6.24 [${backend.label}] measures(story) lists that story's live measures oldest first, and measures() every live measure oldest first, a retired one in neither`, async () => {
+  test(`6.24 [${backend.label}] measures(story) lists that story's live measures oldest first, and measures() every live measure oldest first, a retired one in neither`, async (t) => {
     const { knowledge, transactions, cleanup } = await backend.open();
     try {
       const records = new SchemaRecords(transactions);
       const desktop = await records.create("story", { title: "Desktop app" });
       const library = await records.create("story", { title: "Library" });
       assert.deepEqual(await knowledge.measures(), [], "no measure yet");
-      const written = await writeInOrder(4, (n) =>
+      const written = await writeInOrder(t, 4, (n) =>
         knowledge.writeKnowledge("measure", { ...coldStart(n % 2 === 0 ? desktop.id : library.id), title: `Measure ${n}` } as never),
       );
       const retired = await knowledge.writeKnowledge("measure", { ...coldStart(desktop.id), title: "A retired measure" } as never);

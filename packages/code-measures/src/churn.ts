@@ -29,10 +29,12 @@ export interface ChurnReading {
 
 /** The path before and after a numstat line's rename (the same path when it is none): `a => b`, or `pre/{old => new}/post`. */
 function renamed(path: string): [string, string] {
-  const brace = /^(.*)\{(.*) => (.*)\}(.*)$/.exec(path);
   const tidy = (one: string) => one.replace(/\/{2,}/g, "/");
-  if (brace !== null) {
-    const [, before, from, to, after] = brace;
+  const open = path.lastIndexOf("{");
+  const middle = open < 0 ? -1 : path.indexOf(" => ", open + 1);
+  const close = middle < 0 ? -1 : path.indexOf("}", middle + 4);
+  if (close >= 0) {
+    const [before, from, to, after] = [path.slice(0, open), path.slice(open + 1, middle), path.slice(middle + 4, close), path.slice(close + 1)];
     return [tidy(`${before}${from}${after}`), tidy(`${before}${to}${after}`)];
   }
   const arrow = path.indexOf(" => ");

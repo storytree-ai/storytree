@@ -67,7 +67,7 @@ async function commitOf(folder: string, commit: string | undefined): Promise<str
 /** The window `since` gives in days: a whole number of days (`90`, `90d`) or weeks (`12w`). */
 function daysOf(since: string | undefined): number {
   if (since === undefined) return DEFAULT_DAYS;
-  const match = /^\s*(\d+)\s*([dw]?)\s*$/i.exec(since);
+  const match = /^(\d+)\s*([dw]?)$/i.exec(since.trim());
   const days = match === null ? Number.NaN : Number(match[1]) * (match[2]!.toLowerCase() === "w" ? 7 : 1);
   if (!(days > 0)) throw new VerbRefusal(`"${since}" is not a window: give days (90 or 90d) or weeks (12w).`, { misuse: true });
   return days;

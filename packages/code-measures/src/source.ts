@@ -35,15 +35,32 @@ const DECLARATION = /\.d\.[cm]?ts$/;
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 const TEST_SUPPORT = /(?:^|\/)testing\//;
 const GENERATED_NAME = /\.gen\.[cm]?[jt]sx?$/;
-/** The comments a file opens with, before its first code. */
-const LEADING_COMMENTS = /^(?:#![^\n]*\n)?(?:\s*(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/))+/;
+/** The comments a file opens with, before its first code: after a `#!` line, each `//` line or closed block comment, read in one pass. */
+function leadingComments(text: string): string | undefined {
+  let at = text.startsWith("#!") ? (text.indexOf("\n") + 1 || text.length) : 0;
+  let end = -1;
+  for (;;) {
+    let next = at;
+    while (next < text.length && /\s/.test(text[next]!)) next += 1;
+    if (text.startsWith("//", next)) {
+      const line = text.indexOf("\n", next);
+      at = line < 0 ? text.length : line;
+    } else if (text.startsWith("/*", next)) {
+      const close = text.indexOf("*/", next + 2);
+      if (close < 0) break;
+      at = close + 2;
+    } else break;
+    end = at;
+  }
+  return end < 0 ? undefined : text.slice(0, end);
+}
 const GENERATED_MARK = /@generated\b|\bdo not edit\b|\b(?:code|file|is) (?:auto-?)?generated\b|\bauto-?generated\b/i;
 
 /** What kind of file `file` is: source, a test, or out of both. */
 export function kindOf(file: SourceText): FileKind {
   if (!CODE_FILE.test(file.path) || DECLARATION.test(file.path) || GENERATED_NAME.test(file.path)) return "out";
   if (TEST_FILE.test(file.path) || TEST_SUPPORT.test(file.path)) return "test";
-  const leading = LEADING_COMMENTS.exec(file.text)?.[0];
+  const leading = leadingComments(file.text);
   return leading !== undefined && GENERATED_MARK.test(leading) ? "out" : "source";
 }
 

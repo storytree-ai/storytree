@@ -49,7 +49,7 @@ test("5.2 a question is read statement first with trade-offs, a non-binding reco
     { label: "Analogy", text: "Like a map", words: 3 },
     { label: "Context", text: "Full detail stays here", words: 4 },
   ]);
-  assert.equal(read.words, 41); // 20 words in the other fields, 21 across the three options.
+  assert.equal(read.words, 41);
   const noDiagram = questionReading({ id: "q", fields: { ...fields, diagram: undefined } });
   assert.equal(noDiagram.diagram, "No diagram stored");
   assert.equal(noDiagram.hasDiagram, false);
@@ -62,7 +62,6 @@ test("5.2 a question is read statement first with trade-offs, a non-binding reco
 });
 
 test("5.3 a settled question published with only its title and answer opens on those two, with no empty headings", () => {
-  // A saved reading publishes a settled question's title and answer alone (website 3.14), so its other fields are absent.
   const kept = record("kept", "question", { arc: "a", title: "Which way?", lifecycle: "settled", answer: "The short way" } as FieldsOf<"question">);
   const arc = { arc: record("a", "arc", { title: "Arc a", intent: "a", endState: "Done" }), state: "active" as const, increments: [], questions: [kept] };
   const under = renderBoard(boardView({ arcs: [arc], waits: {}, heldOn: {} }, [], new Date()), undefined, new Set(["a"]));

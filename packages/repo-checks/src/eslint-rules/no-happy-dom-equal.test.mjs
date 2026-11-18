@@ -1,14 +1,14 @@
-// Capability 8 · Storytree's own test and gate entries. increment_823822137caa / friction_edc7a93a10fe: a failing
-// assert.equal whose operand is a happy-dom node makes Node describe it without bound, so `pnpm lint` refuses one.
+// Capability 8 · Storytree's own test and gate entries.
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { test } from "node:test";
 
-import { removeTemp } from "@storytree/test-waits";
+import { RuleTester } from "eslint";
+import tseslint from "typescript-eslint";
 
-import { happyDomAssertProblems } from "./happy-dom-asserts.mjs";
+import plugin from "./index.mjs";
+
+const rule = plugin.rules["no-happy-dom-equal"];
+const refused = (code, filename, lines) => ({ code, filename, errors: lines.map((line) => ({ messageId: "nodeEqual", line })) });
 
 const PAGE = `import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -35,9 +35,6 @@ test("1.1 a page", () => {
 });
 `;
 
-const BAD_LINES = [11, 12, 13, 14, 15];
-
-/** Named imports, aliases, loop variables, callback and default parameters, reassignment, branches and nested destructuring. */
 const SHAPES = `import { equal, deepEqual as same } from "node:assert";
 import { test } from "node:test";
 import { Window } from "happy-dom";
@@ -73,8 +70,6 @@ test("1.2 shapes", async () => {
 });
 `;
 
-const SHAPE_LINES = [13, 14, 15, 16, 17, 18, 19, 21];
-
 const OTHER_ASSERTS = `import { strictEqual } from "assert";
 import { equal } from "./mine";
 import { Window } from "happy-dom";
@@ -83,31 +78,6 @@ strictEqual(document.body, null);
 equal(document.body, null);
 `;
 
-test("8.6 pnpm lint refuses an assert.equal-family call on what may be a happy-dom node in a test file importing happy-dom, naming file, line and assert.ok(a === b, message); primitive comparisons there, and files without happy-dom, pass", (t) => {
-  const root = mkdtempSync(path.join(tmpdir(), "happy-dom-asserts-"));
-  t.after(() => removeTemp(root));
-  const plant = (file, text) => {
-    mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
-    writeFileSync(path.join(root, file), text);
-  };
-  plant("packages/view/src/page.test.ts", PAGE);
-  plant("packages/view/src/plain.test.ts", 'import assert from "node:assert/strict";\nassert.equal(document.querySelector("a"), null);\n');
-  plant("packages/view/src/page.ts", PAGE);
-  plant("packages/view/node_modules/dep/page.test.ts", PAGE);
-  plant("packages/view/src/shapes.test.ts", SHAPES);
-  plant("packages/view/src/other.test.mjs", OTHER_ASSERTS);
-
-  const problems = happyDomAssertProblems(root);
-
-  const linesIn = (file) => problems.flatMap((problem) => (problem.startsWith(`${file}:`) ? [Number(problem.slice(file.length + 1).split(" ")[0])] : []));
-  assert.equal(problems.filter((problem) => !/^packages\/view\/src\/(?:page|shapes)\.test\.ts:|^packages\/view\/src\/other\.test\.mjs:/.test(problem)).length, 0, problems.join("\n"));
-  assert.deepEqual(linesIn("packages/view/src/page.test.ts"), BAD_LINES, problems.join("\n"));
-  assert.deepEqual(linesIn("packages/view/src/shapes.test.ts"), SHAPE_LINES, problems.join("\n"));
-  assert.deepEqual(linesIn("packages/view/src/other.test.mjs"), [5], "only node's own assert counts");
-  for (const problem of problems) assert.match(problem, /assert\.ok\(a === b, message\)/);
-});
-
-/** Helpers a local factory returns, destructured or read as members: the panel-folds form (increment_6b3c738489a6). */
 const FACTORY = `import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
@@ -133,13 +103,27 @@ test("1.3 a factory", () => {
 });
 `;
 
-test("8.6 pnpm lint refuses an assert.equal-family call on the result of a node-returning helper destructured from, or read as a member of, the object a local function returns; the helpers' strings pass", (t) => {
-  const root = mkdtempSync(path.join(tmpdir(), "happy-dom-asserts-"));
-  t.after(() => removeTemp(root));
-  mkdirSync(path.join(root, "src"), { recursive: true });
-  writeFileSync(path.join(root, "src/factory.test.ts"), FACTORY);
+const PLAIN = 'import assert from "node:assert/strict";\nassert.equal(document.querySelector("a"), null);\n';
 
-  const problems = happyDomAssertProblems(root);
+test("8.6 · storytree/no-happy-dom-equal refuses, in a test file importing happy-dom, an assert.equal-family call whose operand may be a happy-dom node (a DOM query, a node-only property, a new Window, a name, destructured name, loop variable, callback or default parameter bound to one, a branch holding one, or a node-returning helper destructured from, or read as a member of, the object a local function returns; node's own assert only), its message naming assert.ok(a === b, message); primitive comparisons there, an identity assert.ok, a file importing no happy-dom and a file that is not a test pass", () => {
+  assert.match(rule?.meta?.messages?.nodeEqual ?? "", /assert\.ok\(a === b, message\)/);
 
-  assert.deepEqual(problems.map((problem) => Number(problem.split(" ")[0].split(":")[1])), [16, 17, 18, 19], problems.join("\n"));
+  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("no-happy-dom-equal", rule, {
+    valid: [
+      { code: PLAIN, filename: "packages/view/src/plain.test.ts" },
+      { code: PAGE, filename: "packages/view/src/page.ts" },
+      { code: FACTORY, filename: "packages/view/src/factory.ts" },
+    ],
+    invalid: [
+      refused(PAGE, "packages/view/src/page.test.ts", [11, 12, 13, 14, 15]),
+      refused(SHAPES, "packages/view/src/shapes.test.ts", [13, 14, 15, 16, 17, 18, 19, 21]),
+      refused(OTHER_ASSERTS, "packages/view/src/other.test.mjs", [5]),
+      refused(FACTORY, "packages/view/src/factory.test.ts", [16, 17, 18, 19]),
+    ],
+  });
+
+  new RuleTester().run("no-happy-dom-equal", rule, {
+    valid: [{ code: OTHER_ASSERTS, filename: "packages/view/src/other.mjs" }],
+    invalid: [refused(OTHER_ASSERTS, "packages/view/src/other.test.mjs", [5])],
+  });
 });

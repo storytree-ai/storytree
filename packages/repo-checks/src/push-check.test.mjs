@@ -84,7 +84,7 @@ test("1.6 · the push check refuses a push whose commits add a credential this m
 /** Run git to its end without blocking this process, so the runner hears the test's reports on every platform. */
 function push(root, home, ...args) {
   return new Promise((resolve) => {
-    execFile("git", ["push", ...args], { cwd: root, encoding: "utf8", env: { ...process.env, HOME: home, USERPROFILE: home } }, (error, stdout, stderr) => resolve({ status: error ? 1 : 0, stderr }));
+    execFile("git", ["push", "--", ...args], { cwd: root, encoding: "utf8", env: { ...process.env, HOME: home, USERPROFILE: home } }, (error, stdout, stderr) => resolve({ status: error ? 1 : 0, stderr }));
   });
 }
 
@@ -218,4 +218,21 @@ test("1.8 · a branch already on origin that merges main is checked over its own
   assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/lane ${added} refs/heads/lane ${pushed}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
   assert.match(said.join("\n"), /src\/edit\.ts:1/);
   assert.ok(!said.join("\n").includes("src/view.ts"), said.join("\n"));
+});
+
+test("1.11 · the push check refuses a push whose commits add a git call passing an input-built argument after a remote subcommand with no -- before it (PR #988's clone), CodeQL's second-order command-line injection, naming file, commit and line; the call with -- passes", (t) => {
+  const { home, root, git } = machine(t);
+  git("checkout", "-q", "-b", "clones");
+  mkdirSync(path.join(root, "src"));
+  writeFileSync(path.join(root, "src", "clone.ts"), 'import { execFileSync } from "node:child_process";\nexport const cloned = (url: string, dir: string) => execFileSync("git", ["clone", "--depth", "1", url, dir]);\n');
+  writeFileSync(path.join(root, "src", "ended.ts"), 'import { execFileSync } from "node:child_process";\nexport const cloned = (url: string, dir: string) => execFileSync("git", ["clone", "--depth", "1", "--", url, dir]);\n');
+  git("add", ".");
+  git("commit", "-q", "-m", "clone");
+  const head = git("rev-parse", "HEAD").trim();
+  const said = [];
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/clones ${head} refs/heads/clones ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
+  const refusal = said.join("\n");
+  assert.match(refusal, new RegExp(`src/clone\\.ts:2 \\(commit ${head.slice(0, 10)}\\) `));
+  assert.match(refusal, /js\/second-order-command-line-injection/);
+  assert.ok(!refusal.includes("ended.ts"), refusal);
 });

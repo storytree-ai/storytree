@@ -127,7 +127,7 @@ test("4.23 a build's tag is checked against its version from a shallow clone too
   }
   og("tag", "v0.3.13");
   og("tag", "v0.3.14");
-  execFileSync("git", ["clone", "-q", "--depth", "1", `file://${origin}`, join(root, "clone")]);
+  execFileSync("git", ["clone", "-q", "--depth", "1", "--", `file://${origin}`, join(root, "clone")]);
   const clone = gitIn(join(root, "clone"));
   assert.equal(releaseCommit(clone, "0.3.13"), og("rev-parse", "HEAD"));
   assert.throws(() => releaseCommit(clone, "0.3.14"), /Release tag and merged build version do not match/);
@@ -222,7 +222,7 @@ test("4.23 a later main commit measures the same app only when it follows the bu
   write("packages/cli/src/b.ts", "3");
   const offMain = commit("off main");
   og("checkout", "-q", "main");
-  execFileSync("git", ["clone", "-q", "--depth", "1", `file://${origin}`, join(root, "clone")]);
+  execFileSync("git", ["clone", "-q", "--depth", "1", "--", `file://${origin}`, join(root, "clone")]);
   const same = sameAppCode(gitIn(join(root, "clone")));
   assert.equal(await same(build, build), true);
   assert.equal(await same(build, cliOnly), true);

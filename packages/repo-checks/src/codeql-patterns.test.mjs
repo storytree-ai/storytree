@@ -120,3 +120,56 @@ test("8.12 · pnpm lint refuses a replace of a one-character string pattern othe
   assert.deepEqual(refused.map((line) => /^codeql-patterns: (\S+:\d+) /.exec(line)?.[1]), ["packages/view/src/partial.test.ts:1", "packages/view/src/partial.test.ts:2", "packages/view/src/partial.test.ts:3", "packages/view/src/partial.test.ts:4", "packages/view/src/partial.test.ts:4"], lines.join("\n"));
   assert.match(refused[0], /js\/incomplete-sanitization/, "names the CodeQL rule it stands in for");
 });
+
+// increment_6f5baa5be4ed: PR #988's clone, CodeQL's js/second-order-command-line-injection. Each refused call is on a
+// line of its own, so the refusals name exactly these lines (a ternary of two refused lists may name its line twice).
+const UNENDED = code([
+  String.raw`import { execFile, execFileSync, spawn, spawnSync } from "node:child_process";`,
+  String.raw`export const cloned = (url: string, dir: string) => execFileSync("git", ["clone", "--depth", "1", url, dir]);`,
+  String.raw`export const fetched = (remote: string) => spawn("git", ["fetch", remote]);`,
+  String.raw`export const synced = (git: (args: string[]) => string, cond: boolean, folder: string, factory: string) => git(cond ? ["-C", folder, "pull", "--ff-only", factory, "main"] : ["clone", "--depth", "1", factory, folder]);`,
+  String.raw`export const heads = (runGit: (...args: string[]) => string, root: string, origin: string) => runGit(root, "ls-remote", origin);`,
+  String.raw`export const pushed = (args: string[]) => execFile("git", ["push", ...args]);`,
+  String.raw`export const pulled = (remote: string) => spawnSync("git", ["pull", '#{remote}', "main"]);`,
+]);
+
+const ENDED = code([
+  String.raw`import { execFile, execFileSync, spawn } from "node:child_process";`,
+  String.raw`export const cloned = (url: string, dir: string) => execFileSync("git", ["clone", "--depth", "1", "--", url, dir]);`,
+  String.raw`export const fetched = (remote: string) => spawn("git", ["fetch", "--end-of-options", remote]);`,
+  String.raw`export const synced = (git: (args: string[]) => string, cond: boolean, folder: string, factory: string) => git(cond ? ["-C", folder, "pull", "--ff-only", "--", factory, "main"] : ["clone", "--depth", "1", "--", factory, folder]);`,
+  String.raw`export const heads = (runGit: (...args: string[]) => string, root: string, origin: string) => runGit(root, "ls-remote", "--", origin);`,
+  String.raw`export const pushed = (args: string[]) => execFile("git", ["push", "--", ...args]);`,
+  String.raw`export const literal = () => execFileSync("git", ["fetch", "--quiet", "origin", "main"]);`,
+  String.raw`export const refspec = (main: string) => execFileSync("git", ["fetch", "origin", '+refs/heads/#{main}:refs/remotes/origin/#{main}']);`,
+  String.raw`export const local = (x: string) => execFileSync("git", ["clone", 'file://#{x}']);`,
+  String.raw`export const shallow = (n: string, url: string) => execFileSync("git", ["clone", "--depth", n, "--", url]);`,
+  String.raw`export const branched = (branch: string, url: string) => execFileSync("git", ["clone", "--branch", branch, "--", url]);`,
+  String.raw`export const quiet = (q: boolean) => execFileSync("git", ["fetch", ...(q ? ["--quiet"] : []), "origin"]);`,
+  String.raw`export const either = (git: (args: string[]) => string, cond: boolean) => git(cond ? ["fetch", "origin"] : ["pull", "origin", "main"]);`,
+  String.raw`export const parsed = (git: (args: string[]) => string, ref: string) => git(["rev-parse", ref]);`,
+  String.raw`export const adr = (storytree: (args: string[]) => string, id: string) => storytree(["adr", "pull", id]);`,
+  String.raw`export const fixture = 'execFileSync("git", ["clone", url, dir])';`,
+]);
+
+test("8.17 · pnpm lint refuses a git call passing an input-built argument after a remote subcommand (clone, fetch, pull, ls-remote, push) with no -- before it, CodeQL's second-order command-line injection (PR #988's clone), naming file, line and the fix; the same calls with -- or --end-of-options, literals, a refspec or file:// template, an option's value, a spread or ternary of literal lists, a list with no remote subcommand and a string pass", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "codeql-patterns-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages", "tools", "src"), { recursive: true });
+  writeFileSync(path.join(root, "packages", "tools", "src", "remote.ts"), UNENDED);
+  writeFileSync(path.join(root, "packages", "tools", "src", "ended.ts"), ENDED);
+
+  const lines = [];
+  const exit = await lint({ root, rules: RULES.filter(({ name }) => name === "codeql-patterns"), log: (line) => lines.push(line) });
+  assert.equal(exit, 1, lines.join("\n"));
+  const refused = lines.filter((line) => line.startsWith("codeql-patterns: "));
+  assert.deepEqual([...new Set(refused.map((line) => /^codeql-patterns: (\S+:\d+) /.exec(line)?.[1]))], ["packages/tools/src/remote.ts:2", "packages/tools/src/remote.ts:3", "packages/tools/src/remote.ts:4", "packages/tools/src/remote.ts:5", "packages/tools/src/remote.ts:6", "packages/tools/src/remote.ts:7"], lines.join("\n"));
+  for (const line of refused) {
+    assert.match(line, /js\/second-order-command-line-injection/, "names the CodeQL rule it stands in for");
+    assert.match(line, /["'`]?--["'`]? before/, "names the fix: -- before the argument");
+  }
+
+  writeFileSync(path.join(root, "packages", "tools", "src", "remote.ts"), "export {};\n");
+  const clean = [];
+  assert.equal(await lint({ root, rules: RULES.filter(({ name }) => name === "codeql-patterns"), log: (line) => clean.push(line) }), 0, clean.join("\n"));
+});

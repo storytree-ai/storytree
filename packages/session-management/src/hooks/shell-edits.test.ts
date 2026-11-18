@@ -160,7 +160,7 @@ test("3.22 a checkout moved to a published commit invents no edit even when HEAD
     const unlogged = () => writeFileSync(headLog, readFileSync(headLog, "utf8").split("\n").filter(Boolean).slice(0, -1).map((entry) => `${entry}\n`).join(""));
     git(upstream, "init", "-q", "-b", "main");
     commit(upstream, "source.ts", "one");
-    git(dir, "clone", "-q", upstream, root);
+    git(dir, "clone", "-q", "--", upstream, root);
     assert.deepEqual(edited(), []);
 
     commit(upstream, "source.ts", "two");

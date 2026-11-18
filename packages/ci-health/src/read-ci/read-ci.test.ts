@@ -9,7 +9,7 @@ import { test } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
 import { connect, type Library } from "@storytree/library";
-import { ghApi, gitIn, readProjectCi, VERIFIED_BY_PROJECT_CI, type GitHub } from "../index.js";
+import { ghApi, gitIn, readProjectCi, VERIFIED_BY_PROJECT_CI, type Git, type GitHub } from "../index.js";
 
 /** A project in the test Postgres `pnpm test` starts, dropped afterwards: one story, its agent reporting every contract passing. */
 async function shopLibrary(t: { after(fn: () => Promise<void>): void }): Promise<{ library: Library; capability: string; contracts: string[] }> {
@@ -109,6 +109,35 @@ test("3.1, 3.17 reading a project's CI writes each contract's verified column fr
 
   await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), tap("ok")) });
   assert.equal(await word(), "healthy", "CI passed both");
+});
+
+test("3.1 · a run whose commit this clone lacks is read all the same: the commit is fetched from origin, with -- before it, and its files then read", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder: origin, commit } = projectFolder(t, null);
+  // A clone made before the run's commit: its origin holds the commit, the clone does not.
+  const clone = mkdtempSync(path.join(tmpdir(), "ci-health-clone-"));
+  t.after(() => removeTemp(clone));
+  execFileSync("git", ["init", "-q", clone]);
+  execFileSync("git", ["-C", clone, "remote", "add", "origin", origin]);
+  const real = gitIn(clone);
+  const ran: string[][] = [];
+  // The clone's origin is a local folder; GitHub's address is what the reading names it by.
+  const git: Git = async (args) => {
+    ran.push(args);
+    return args[0] === "remote" && args[1] === "get-url" ? "https://github.com/acme/shop.git\n" : real(args);
+  };
+
+  const read = await readProjectCi({ library, git, github: github(pushRunsOnTrunk(commit), tap("ok")) });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  const fetches = ran.filter(([first]) => first === "fetch");
+  assert.equal(fetches.length, 1, JSON.stringify(ran));
+  const [fetch] = fetches;
+  assert.ok(fetch!.includes("origin"), `fetched from origin: ${JSON.stringify(fetch)}`);
+  assert.deepEqual(fetch!.slice(-2), ["--", commit], "the commit comes after --, so it is never read as an option");
+  const [first, second] = await Promise.all(contracts.map((id) => library.health(id)));
+  assert.equal(first!.verified.state, "passing", "the fetched commit's tests were read and judged");
+  assert.equal(second!.verified.state, "passing");
+  assert.match(second!.verified.note ?? "", new RegExp(`at commit ${commit.slice(0, 12)}`));
 });
 
 test("3.2 a project with no GitHub origin, or with no finished push run on its default branch, writes nothing and says why; its contracts keep reading not checked", async (t) => {

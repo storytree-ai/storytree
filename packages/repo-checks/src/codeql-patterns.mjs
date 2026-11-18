@@ -1,7 +1,7 @@
 // Capability 8 · Storytree's own test and gate entries. The CodeQL patterns a pull request has met, refused locally so
 // they never reach the repository (increment_15f747652fc7, Mick's voice note voice.note_496b63639fbb): `pnpm lint`
 // (lint.mjs) refuses them over the whole tree, in `pnpm gate` and in CI, and the push check (push-check.mjs) refuses
-// a push whose commits add one. Two patterns so far:
+// a push whose commits add one. Three patterns so far:
 // - PR #489's (CodeQL's js/incomplete-multi-character-sanitization): a global replace that removes an HTML tag or
 //   comment by a regex starting with `<`, replaced with the empty string, in one pass. What it removes can re-form
 //   from what is left (`<scr<script>ipt>`). A replace repeated in a loop until nothing changes passes, as do a spaced
@@ -12,6 +12,14 @@
 //   backslash too (the full escape `/[.*+?^${}()|[\]\\]/g, "\\$&"`, a range over it, `\W`, a negated class) passes.
 //   A string pattern of one character other than backslash (`replaceAll(".", "\\.")`) is the same shape, and with
 //   `replace` it escapes only the first (increment_82d197743d7b).
+// - PR #988's (CodeQL's js/second-order-command-line-injection, increment_6f5baa5be4ed): a git call passing an
+//   input-built argument after a subcommand that reads a remote (clone, fetch, pull, ls-remote, push) with neither
+//   `--` nor `--end-of-options` before it. A value opening with `-` is read as an option (`--upload-pack=…` runs a
+//   command). A git call is the array argument of a call whose first argument is "git" (execFile, spawn and their
+//   sync forms), or the arguments of a call whose callee's name holds "git", an array among them or a ternary's array
+//   branch (`git([...])`, `runGit(root, ...)`). A string, a template opening with literal text other than `-`, the
+//   value of an option that takes one (`--depth`, `--branch` and the like), a ternary of those and a spread of literal
+//   lists pass, as does a call with `--` before the argument; a list naming no remote subcommand is not read.
 //
 // It reads the code alone (Babel's parser), so a pattern inside a string or comment is never refused. A fix session
 // that meets a new pattern adds it here, beside this one, with its numbered test.
@@ -26,12 +34,12 @@ const SKIP_DIRS = new Set(["node_modules", "dist", "out", "build", "coverage"]);
 const SKIP_KEYS = new Set(["loc", "start", "end", "extra", "range", "leadingComments", "trailingComments", "innerComments", "comments", "tokens"]);
 const FUNCTIONS = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression", "ObjectMethod", "ClassMethod", "ClassPrivateMethod"]);
 const LOOPS = new Set(["WhileStatement", "DoWhileStatement", "ForStatement", "ForOfStatement", "ForInStatement"]);
-/** A cheap look for either shape, so only a file that may hold one is parsed: a replace whose regex opens with `<`, or
- * a string argument opening with a backslash. */
-const MAY_HOLD = /replace(?:All)?\s*\(\s*(?:\/[(?:]*<|(?:new\s+)?RegExp\s*\(\s*["'`][(?:]*<)|,\s*["'`]\\\\/;
+/** A cheap look for any shape, so only a file that may hold one is parsed: a replace whose regex opens with `<`, a
+ * string argument opening with a backslash, or a remote subcommand of git as a string. */
+const MAY_HOLD = /replace(?:All)?\s*\(\s*(?:\/[(?:]*<|(?:new\s+)?RegExp\s*\(\s*["'`][(?:]*<)|,\s*["'`]\\\\|["'`](?:clone|fetch|pull|ls-remote|push)["'`]/;
 
-/** Each tag-removing global replace and each partial backslash escape in `text`, the code of `file`: its line, its
- * regex and which of the two it is. */
+/** Each tag-removing global replace, each partial backslash escape and each git call with an unended remote argument
+ * in `text`, the code of `file`: its line, its regex or git subcommand, and which of the three it is. */
 export function sanitizationHits(file, text) {
   if (!MAY_HOLD.test(text)) return [];
   let ast;
@@ -50,6 +58,7 @@ export function sanitizationHits(file, text) {
       if (stripped !== undefined && !inLoop) hits.push({ line: node.loc.start.line, regex: stripped, kind: "strip" });
       const escaped = partialEscape(node);
       if (escaped !== undefined) hits.push({ line: node.loc.start.line, regex: escaped, kind: "escape" });
+      for (const subcommand of unendedGitArguments(node)) hits.push({ line: node.loc.start.line, subcommand, kind: "unended" });
     }
     const loop = FUNCTIONS.has(node.type) ? false : inLoop || LOOPS.has(node.type);
     for (const [key, value] of Object.entries(node)) {
@@ -75,7 +84,11 @@ export function codeqlPatternProblems(root) {
 }
 
 /** What a hit is and the way out, for a refusal. */
-export function describe({ regex, kind }) {
+export function describe({ regex, kind, subcommand }) {
+  if (kind === "unended") {
+    return `passes an input-built argument to git ${subcommand} with no "--" before it (CodeQL's js/second-order-command-line-injection): ` +
+      'a value opening with "-" is read as an option; put "--" before the first input-built argument';
+  }
   const shown = regex.length > 40 ? `${regex.slice(0, 37)}...` : regex;
   if (kind === "escape") {
     return `escapes ${shown} by a backslash and misses backslash itself (CodeQL's js/incomplete-sanitization): a backslash already in the text is left bare; ` +
@@ -189,4 +202,56 @@ function characters(source) {
   }
   matches ||= chars.includes("\\") || chars.some((char, at) => chars[at + 1] === "-" && char !== undefined && chars[at + 2] !== undefined && char <= "\\" && "\\" <= chars[at + 2]);
   return matches !== (negated === "^") ? "matches" : "misses";
+}
+
+const REMOTE_SUBCOMMANDS = new Set(["clone", "fetch", "pull", "ls-remote", "push"]);
+const VALUE_OPTIONS = new Set(["--depth", "-b", "--branch", "-o", "--origin", "--filter", "-j", "--jobs", "--shallow-since", "--shallow-exclude", "--deepen", "--reference", "--separate-git-dir", "--template", "--server-option"]);
+
+/** The remote subcommand of each git argument list in `call` that passes an input-built argument after it with no
+ * `--` before it: the array arguments of a call whose first argument is "git", or, for a callee whose name holds
+ * "git", its arguments, an array among them and a ternary's array branches. */
+function unendedGitArguments(call) {
+  const args = call.arguments;
+  let lists;
+  if (literal(args[0]) === "git") lists = args.slice(1).filter((arg) => arg.type === "ArrayExpression").map((arg) => arg.elements);
+  else if (/git/i.test(calleeName(call.callee))) {
+    lists = [args];
+    for (const arg of args) {
+      if (arg.type === "ArrayExpression") lists.push(arg.elements);
+      if (arg.type === "ConditionalExpression") for (const branch of [arg.consequent, arg.alternate]) if (branch.type === "ArrayExpression") lists.push(branch.elements);
+    }
+  } else return [];
+  return lists.map(unended).filter((subcommand) => subcommand !== undefined);
+}
+
+const calleeName = (callee) => callee.type === "Identifier" ? callee.name : (callee.type === "MemberExpression" || callee.type === "OptionalMemberExpression") && !callee.computed ? callee.property.name : "";
+
+/** The list's first remote subcommand when an unsafe element follows it before any `--` or `--end-of-options`. */
+function unended(list) {
+  const at = list.findIndex((element) => REMOTE_SUBCOMMANDS.has(literal(element)));
+  if (at < 0) return undefined;
+  for (let index = at + 1; index < list.length; index++) {
+    const element = list[index];
+    if (!element) continue;
+    const value = literal(element);
+    if (value === "--" || value === "--end-of-options") return undefined;
+    if (VALUE_OPTIONS.has(value)) index++;
+    else if (!safeArgument(element)) return literal(list[at]);
+  }
+  return undefined;
+}
+
+/** A string, a template opening with literal text other than `-`, a ternary of those, or a spread of literal lists. */
+function safeArgument(node) {
+  if (literal(node) !== undefined) return true;
+  if (node.type === "TemplateLiteral") {
+    const head = node.quasis[0].value.cooked;
+    return head !== "" && !head.startsWith("-");
+  }
+  if (node.type === "ConditionalExpression") return safeArgument(node.consequent) && safeArgument(node.alternate);
+  if (node.type === "SpreadElement") {
+    const lists = node.argument.type === "ConditionalExpression" ? [node.argument.consequent, node.argument.alternate] : [node.argument];
+    return lists.every((list) => list.type === "ArrayExpression" && list.elements.every((element) => element && safeArgument(element)));
+  }
+  return false;
 }

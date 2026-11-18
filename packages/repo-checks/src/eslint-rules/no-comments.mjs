@@ -1,7 +1,7 @@
 // Capability 8 · Storytree's own test and gate entries.
 const RULE = "storytree/no-comments";
 const CAPABILITY = /^Capability \d+ ·/;
-const KEPT = [/^posix-only:\s*\S/, /under test/, /^@ts-(?:expect-error|ignore)\b/, /^\/\s*<reference\b.*\/>$/];
+const KEPT = [/^posix-only:\s*\S/, /^(?:(?:the|this|a)\s+)?(?:wait|sleep|pause|delay)\b.*\bunder test\b/i, /^@ts-(?:expect-error|ignore)\b/, /^\/\s*<reference\b.*\/>$/];
 const REFUSED = "This comment's content goes to a decision or the library, not the code (ADR-1366, ADR-1369).";
 
 const names = (directive) => directive.value.split(",").map((name) => name.trim()).filter(Boolean);

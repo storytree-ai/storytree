@@ -35,10 +35,12 @@ export async function tellHatches({ project, hatches, storytree, log = console.l
   }
 }
 
-function storytreeCli(root) {
+const STORYTREE = [process.execPath, "--import", "tsx", "packages/cli/src/bins/storytree.ts"];
+
+export function cliRunner({ root, command = STORYTREE }) {
   const run = promisify(execFile);
   return async (args) => {
-    const { stdout } = await run(process.execPath, ["--import", "tsx", "packages/cli/src/bins/storytree.ts", ...args], { cwd: root, encoding: "utf8", shell: false, maxBuffer: 16 * 1024 * 1024, timeout: 120_000 });
+    const { stdout } = await run(command[0], [...command.slice(1), ...args], { cwd: root, encoding: "utf8", shell: false, maxBuffer: 16 * 1024 * 1024, timeout: 120_000 });
     return stdout;
   };
 }
@@ -46,5 +48,5 @@ function storytreeCli(root) {
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const root = fileURLToPath(new URL("../../..", import.meta.url));
   const { project } = JSON.parse(readFileSync(path.join(root, ".storytree", "project.json"), "utf8"));
-  process.exitCode = await tellHatches({ root, project, hatches: await commentHatches(root), storytree: storytreeCli(root) });
+  process.exitCode = await tellHatches({ root, project, hatches: await commentHatches(root), storytree: cliRunner({ root }) });
 }

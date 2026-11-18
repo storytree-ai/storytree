@@ -71,9 +71,10 @@ import { remoteAddress, takeTurn } from "./remote-turn.js";
 import { noteCodexHookRan } from "./codex-trust.js";
 import { BACKGROUND } from "./at-once.js";
 import { AFTER_TOOL, deliveredByTool, deliveredInput, noteDelivered, TOOL_GRACE_MS } from "./codex-delivery.js";
-import { contextNudge } from "./context-nudge.js";
+import { contextNudge, START_FRESH } from "./context-nudge.js";
 import { bigInjectionReport, definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven, type InjectionReport } from "./definitions.js";
 import { hookIdentity, noteHookFailure, type HookFailure } from "./failures.js";
+import { markGiven, type Given } from "./given-once.js";
 import { isSelfNamed, selfNamedLines } from "./self-named.js";
 import { shellEdits } from "./shell-edits.js";
 import type { HookClock } from "./timing.js";
@@ -239,7 +240,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     if (asked !== undefined) {
       // The user's own words may carry their yes to changing imported code (contract 3.37); a harness's notice is not theirs.
       const said = isHarnessNotice(asked.prompt) ? undefined : yesSaid(harness, asked, locate, homeOf(locate), failed, guardMs);
-      const [looked, yes] = await Promise.all([withinTime(contextForPrompt(asked), guardMs), said, made === undefined ? undefined : writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git)]);
+      const [looked, yes] = await Promise.all([givenWithinTime(asked.session, contextForPrompt(asked), guardMs), said, made === undefined ? undefined : writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git)]);
       const context = looked?.context;
       if (looked?.report !== undefined) {
         // The report is filed by a copy of this hook, so the prompt does not wait for the library's write.
@@ -629,10 +630,10 @@ function promptIn(harness: string, input: unknown): Prompted | undefined {
 
 /**
  * What the agent is to be shown for a prompt: the project's definitions for the terms it names and,
- * for Claude Code only, advice once past context guidance. Undefined for none. Both are remembered
- * separately across this session's prompts.
+ * for Claude Code only, advice once past context guidance. Undefined for none. Both are kept to once
+ * a session by ledgers this only reads: `given` is what to remember in them if this answer is shown.
  */
-async function contextForPrompt({ harness, session, folder, prompt }: Prompted): Promise<{ context?: string[]; report?: InjectionReport } | undefined> {
+async function contextForPrompt({ harness, session, folder, prompt }: Prompted): Promise<{ context?: string[]; report?: InjectionReport; given: Given[] } | undefined> {
   if (isHarnessNotice(prompt)) return undefined;
   const where = route(folder);
   if (where.status !== "routed") return undefined;
@@ -648,7 +649,11 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
     // A lapse comes first: the agent is to take its claims again before it edits (3.58).
     const context = [...(lapsed === undefined ? [] : [lapsed]), ...(definitions === undefined ? [] : [definitions]), ...(nudge === undefined ? [] : [nudge])];
     const report = definitions === undefined ? undefined : bigInjectionReport(session, fresh, definitions);
-    return { ...(context.length === 0 ? {} : { context }), ...(report === undefined ? {} : { report }) };
+    const given: Given[] = [
+      ...(fresh.length === 0 ? [] : [{ ledger: "definitions" as const, ids: fresh.map(({ id }) => id) }]),
+      ...(nudge === undefined ? [] : [{ ledger: "context-nudges" as const, ids: [START_FRESH] }]),
+    ];
+    return { ...(context.length === 0 ? {} : { context }), ...(report === undefined ? {} : { report }), given };
   } finally {
     await storytree.close();
   }
@@ -708,6 +713,21 @@ function withinTime<T>(work: Promise<T | undefined>, limitMs = CONNECT_TIMEOUT_M
   let timer: NodeJS.Timeout | undefined;
   const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), limitMs)));
   return Promise.race([work.catch(() => undefined), late]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * `lookup`'s answer within `limitMs`, as withinTime, with what it gave remembered in `session`'s
+ * ledgers only when that answer came in time (3.7, 9.9): a lookup cut off by the limit shows nothing,
+ * so it leaves them as they were, and what it would have given is given at a later prompt.
+ */
+export async function givenWithinTime<L extends { readonly given?: readonly Given[] }>(session: string, lookup: Promise<L | undefined>, limitMs?: number): Promise<L | undefined> {
+  const looked = await withinTime(lookup, limitMs);
+  try {
+    for (const given of looked?.given ?? []) markGiven(session, given);
+  } catch {
+    // A ledger that cannot be written costs only a repeat at a later prompt, never this answer.
+  }
+  return looked;
 }
 
 /** The input with the event its hook command names, where the harness's own input names none. */

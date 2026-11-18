@@ -42,7 +42,6 @@ test('4.8 a lit link\'s lane is one unbroken solid pale fill at sea between isla
   assert.deepEqual(laneRoutes(plan.lanes, [{ from: 'x', to: 'y', dir: 'up' }]), [], 'a link with no route lights nothing');
 });
 
-/** Where `p`, on the globe, lies against island `story`'s land: inside its coast, and how far from it. */
 function againstLand(plan: PlanetPathways, story: string, spot: { x: number; y: number; z: number }, p: Vector3) {
   const transform = plateTransform(spot, R), local = p.clone().sub(new Vector3(...transform.position)).applyQuaternion(transform.quaternion.clone().invert());
   let into = false, off = Infinity;
@@ -158,7 +157,6 @@ test('4.9 lit lanes start together and their fronts keep one steady pace, so the
   assert.equal(laneProgress(0, laneDrawSeconds(0), false), 1, 'a lane with no length is whole');
 });
 
-/** One island's dock at (-20, 0) sends lanes up a trunk to a fork at (0, 0), where an arm runs on to each of two islands. */
 function fork(links: { from: string; arm: 'east' | 'west'; dir: LitLink['dir'] }[]): LaneRoute[] {
   const point = (x: number, y: number) => new Vector3(x, y, R);
   const line = (id: string, from: [number, number], to: [number, number], with_: string[]) => ({
@@ -169,7 +167,6 @@ function fork(links: { from: string; arm: 'east' | 'west'; dir: LitLink['dir'] }
     docks: [],
     segments: [line('trunk', [-20, 0], [0, 0], links.map(link => `${link.from}->a1`)),
       line('east', [0, 0], [10, 10], on('east')), line('west', [0, 0], [10, -10], on('west'))],
-    // A chain runs from the building capability back to the one built on; the lane walks it the other way.
     edges: links.map(link => ({ from: link.from, to: 'a1', segments: [{ id: link.arm, reversed: true }, { id: 'trunk', reversed: true }], islands: [link.from, 'a'] as const })),
   };
   return laneRoutes(plan, links.map(link => ({ from: link.from, to: 'a1', dir: link.dir })));
@@ -223,7 +220,6 @@ test('4.9 slow rendered frames leave visible intermediate lane growth, while nor
   assert.equal(advanceLaneClock(0.1, -1), 0.1, 'a negative frame delta cannot wind growth backwards');
 });
 
-/** Three islands' lanes (b's, c's and d's) to a: each comes down its own arm to a trunk the three share into a's dock. */
 function trunkOfThree(): PlanetLanes {
   const point = (x: number, y: number) => new Vector3(x, y, R);
   const line = (id: string, from: [number, number], to: [number, number], links: string[]) => ({
@@ -263,7 +259,6 @@ test('4.44 at rest every lane is drawn as fine round dots of one size, spaced ab
     }
   }
   const trunk = stretches.find(s => s.id === 'trunk')!;
-  // The trunk runs from a's dock east to the fork; b's arm leaves north of it, d's south (+ across is north here).
   assert.deepEqual(trunk.carries, [['d1->a1'], ['c1->a1'], ['b1->a1']], 'each lane on the side its route leaves by, so strands part without crossing');
   const [first, second] = [...new Set(trunk.dots.map(d => d.across))].sort((a, b) => a - b).map(place => trunk.dots.filter(d => d.across === place));
   const pitch = first![1]!.ends[0] - first![0]!.ends[0];
@@ -327,7 +322,6 @@ test('4.41 a curved lane still keeps off land: each stretch takes the widest cur
   const cut = (curve: readonly { x: number; y: number }[]) => Math.max(...curve.map(p => Math.min(...corner.map(q => Math.hypot(p.x - q.x, p.y - q.y)))));
   const open = clearOfLand(corner, new Map());
   assert.ok(cut(open) > 4, `in open sea the bend is a wide curve (cut by ${cut(open).toFixed(1)})`);
-  // An island in the bend's elbow, its coast four units off the routed lane: the routed lane's clearance.
   const elbow = square(-30, 4, -4, 30), near = clearOfLand(corner, new Map([['c', elbow]]));
   assert.ok(near.every(p => !(p.x > -30 && p.x < -4 && p.y > 4 && p.y < 30) && coast(p, elbow.chartRings[0]!) >= 2 - 1e-9), 'beside an island, never on its land nor within two units of its coast');
   assert.ok(cut(near) > 0.5 && cut(near) < cut(open), `still a curve, a tighter one (cut by ${cut(near).toFixed(1)})`);

@@ -1,8 +1,3 @@
-// The drawing engine 4.43, on the real desktop page: the eight-story forest map as the app opens it, the sidebar hidden and
-// shown again with Ctrl+B while Chrome's screencast keeps every frame it paints, the map's own motion reduced so nothing else
-// moves but small things. Each toggle should change what is painted across the map once, on the frame it is painted on;
-// every further such change is a frame the map flickered through (drawn at the old size, then put right). `node --import tsx capture.mjs <label>`
-// writes the frames and `frames.json` under a temporary folder (append --retake to write into src/planet/evidence/sidebar-toggle).
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,7 +41,6 @@ await runCapture({
       }
       await cdp.send('Page.stopScreencast');
       for (const [index, frame] of frames.entries()) writeFileSync(path.join(out, `${String(index).padStart(3, '0')}.png`), Buffer.from(frame, 'base64'));
-      // How wide a change each frame made from the one before it, in pixels across the page, judged in a page of its own.
       const judge = await (await browser.newContext()).newPage();
       const boxes = await judge.evaluate(async shots => {
         const pixels = async data => {
@@ -72,9 +66,6 @@ await runCapture({
         return changed;
       }, frames);
       await judge.context().close();
-      // The map's motion reduced, what still moves (a lit stretch of road, the compass) changes under 300 pixels across; the
-      // toggle changes most of the page, and so does each frame flickered through. Two toggles that flicker through no frame
-      // are two such changes.
       results.toggles = 2;
       results.changes = boxes.filter(wide => wide > 0);
       results.acrossTheMap = results.changes.filter(wide => wide > page.viewportSize().width / 3).length;

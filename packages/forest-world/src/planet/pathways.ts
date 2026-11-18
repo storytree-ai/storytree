@@ -1,6 +1,4 @@
-/** Capability 4 · The planet. Sea lanes over the glass between tangent islands, dock to dock (forest contracts 3.6–3.7,
- * ADR-1261: the beige roads between islands are retired). The existing cost-grid router owns routing and merging; this
- * adapter only changes spaces. */
+// Capability 4 · The planet
 import type { ForestScene, Island } from '../scene.js';
 import { Quaternion, Vector3 } from 'three';
 import { clipToCoast, rimLoops, SHIPPED_COAST, type CoastPoint } from '../coast-clip.js';
@@ -13,37 +11,25 @@ import { SEA_LANE_CAP } from './lanes.js';
 
 export interface PlanetPathwayPlate {
   descriptors: Descriptor3D[];
-  /** The island's coast loops in the plate's local ground coordinates: the outline of its flat surface. */
   coast: CoastPoint[][];
 }
 
-/** One stretch of a lane's route at sea (ADR-1261 D3), shared by every link routed along it. */
 export interface PlanetLaneSegment {
   id: string;
   points: Vector3[];
-  /** The capability links routed along it. */
   links: string[];
-  /** How many of its links are type-only (ADR-0991 D1); absent for none. */
   typeOnlyLinks?: number;
-  /** Its longest stretch, in ground units, that the router never planned: the straight run on the chart from where the
-   * router ends it to its dock on the coast, or a gap the globe filled in along its surface. */
   unrouted?: number;
 }
 
-/** The lanes' plan (ADR-1261 D3): every capability link between islands routed by the trail router
- * dock to dock, around islands, merging where lanes head the same way. */
 export interface PlanetLanes {
   segments: PlanetLaneSegment[];
-  /** Each capability link's chain of segments, from the building capability to the one built on, with the islands it
-   * joins (`islands`: the building one's story, then the built-on one's). */
   edges: (TrailEdgeOut & { typeOnly?: true; islands: readonly [string, string] })[];
-  /** Where lanes come ashore, with the capability links each carries. */
   docks: { story: string; point: Vector3; local: CoastPoint; links: string[] }[];
 }
 
 export interface PlanetPathways {
   plates: Map<string, PlanetPathwayPlate>;
-  /** The lanes. */
   lanes: PlanetLanes;
 }
 
@@ -52,7 +38,6 @@ interface ChartPoint extends Point { local: CoastPoint }
 interface PreparedGround {
   descriptors: Descriptor3D[];
   rings: CoastPoint[][];
-  /** Kept with the ground, so a status change on another island does not rebuild this island's ground texture. */
   plate: PlanetPathwayPlate;
 }
 interface Ground extends PreparedGround {
@@ -66,34 +51,22 @@ interface Ground extends PreparedGround {
 }
 interface Link extends TrailEdgeIn { source: string; target: string; typeOnly?: true }
 
-/** The routes between islands a drawing asks the router for: plain data, so a worker can route them. Its lanes', one
- * per pair of islands a capability link joins (ADR-1261 D3). */
 export interface CrossRouting {
   islands: TrailIsland[];
   lanes: { edges: TrailEdgeIn[]; seed: string; tuning: Partial<TrailTuning> };
 }
 
-/** What routing a drawing answers: its lanes' network. */
 export interface PlanetNetworks { lanes: TrailNetwork }
 
-/** Routes a drawing's lanes with `route`. */
 export function routePlanet(routing: CrossRouting, route: typeof routeTrails = routeTrails): PlanetNetworks {
   return { lanes: route(routing.islands, routing.lanes.edges, routing.lanes.seed, routing.lanes.tuning) };
 }
 interface Dock { story: string; local: CoastPoint; point: Vector3; links: Set<string> }
 
-// Polls preserve unchanged island objects; retain their ground input and relief through routing.
 const preparedGrounds = new WeakMap<Island, PreparedGround>();
-// Routing is the costly part (ADR-0836 D1): the routes between islands are kept while every island's place and size
-// are, and moved with them when every island moved by one shift on the chart.
 let crossRoutes: { key: string; routing: CrossRouting; network: PlanetNetworks } | undefined;
-/** How far a charted point may stray from the one shift and still count as moved by it, in ground units: well under
- * the router's 2-unit cell. A desktop sheet shift of tens of units bends a chart point by under 1e-3. */
 const SHIFT_TOLERANCE = 0.01;
 
-/** The routes kept for a layout's routing: the last routing's when nothing changed, or the last routing's moved by one
- * shift when its islands all moved by that shift on the chart, with the same sizes, outlines, edges and tuning (the
- * drawing engine 4.37). A moved network is kept as this layout's. */
 function keptNetwork(key: string, routing: CrossRouting): PlanetNetworks | undefined {
   if (crossRoutes === undefined) return undefined;
   if (crossRoutes.key === key) return crossRoutes.network;
@@ -116,7 +89,6 @@ function chartShift(was: CrossRouting, now: CrossRouting): Point | undefined {
   }) ? shift : undefined;
 }
 
-/** The network moved by `shift` on the chart: its curves (`d`, alternating x and y), polylines and caves. */
 function shiftedNetwork(network: TrailNetwork, shift: Point): TrailNetwork {
   const along = <P extends Point>(p: P): P => ({ ...p, x: p.x + shift.x, y: p.y + shift.y });
   return {
@@ -141,12 +113,10 @@ function prepareGround(island: Island): PreparedGround {
   return prepared;
 }
 
-/** How far the island's coast reaches from its middle, in ground units: what the globe leaves room for (ADR-0804 D7). */
 export function islandCoastReach(island: Island): number {
   return Math.max(0, ...prepareGround(island).rings.flat().map(point => Math.hypot(point.x, point.z)));
 }
 
-/** The same local coast the plate draws, for the host to lay out its territories. */
 export function islandCoast(island: Island): readonly (readonly CoastPoint[])[] {
   return prepareGround(island).rings;
 }
@@ -155,7 +125,6 @@ const keyOf = (edge: TrailEdgeIn) => JSON.stringify([edge.from, edge.to]);
 const displayKey = (edge: TrailEdgeIn) => `${edge.from}->${edge.to}`;
 const refPrefix = (prefix: string, edge: TrailEdgeOut) => edge.segments.map(ref => ({ ...ref, id: prefix + ref.id }));
 
-/** Evaluate the router's actual cubic curve, not its angular control polygon. */
 function spline(segment: TrailSegment): Point[] {
   const values = segment.d.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
   if (values.length < 2) throw new Error(`No curve for trail ${segment.id}`);
@@ -174,13 +143,11 @@ function spline(segment: TrailSegment): Point[] {
     }
     a = d;
   }
-  // SVG rounds to two decimals; the shared network's true junctions must remain exact.
   out[0] = { ...segment.points[0]! };
   out[out.length - 1] = { ...segment.points.at(-1)! };
   return out;
 }
 
-/** Snap to the actual clipped coast; retain its local coordinates through chart projection. */
 function nearest(p: Point, rings: readonly (readonly ChartPoint[])[]): ChartPoint {
   let best: ChartPoint | undefined;
   let distance = Infinity;
@@ -198,32 +165,18 @@ function nearest(p: Point, rings: readonly (readonly ChartPoint[])[]): ChartPoin
   return best;
 }
 
-/** Plate point `p` where the globe draws it: on the island's surface, bent onto the sphere (ADR-0804 D1). On the flat
- * plate a coast 80 units out stood 11 units over its drawn land, and the route climbing to it showed past the globe's
- * edge (the owner, 2026-10-06: "the payways look to flow off the globe when they hit the edge rather then end"). */
 function onGround(g: Ground, p: CoastPoint): Vector3 {
   return g.surface(p).applyQuaternion(g.transform.quaternion).add(g.at);
 }
 
-/** How far a lane's route keeps off every coast, in ground units: a port's berth and half the widest lane (ADR-1261 D3). */
 const LANE_CLEARANCE = 3 + SEA_LANE_CAP / 2;
 
-/** The farthest apart two points of a lane are on the chart, in chart units: the router's own step. */
 const CHART_STEP = 0.8;
 
-/** How far over the glass a lane rides, away from its docks, in ground units. */
 const LANE_LIFT = 1.02;
 
-/** The farthest apart two points of a lane may be, in ground units: its strip is drawn straight between them, and at
- * this length it sags a fraction of a unit, so it stays on the glass. */
 const MAX_LANE_STEP = 1;
 
-/**
- * `points` with every longer gap filled in along the globe's surface, its height eased between the gap's ends.
- * The route is planned on an azimuthal chart that stretches islands far from its pole sideways, so a route can stop
- * short of a far island's coast; its dock was then joined by one straight chord through the ball (the owner,
- * 2026-10-05: "i can see a stray pathway").
- */
 function alongTheGlobe(points: readonly Vector3[]): Vector3[] {
   const out = [points[0]!.clone()];
   for (let i = 1; i < points.length; i++) {
@@ -248,19 +201,11 @@ function requireNetwork(network: TrailNetwork, what = 'pathways'): void {
   }
 }
 
-/** The candidate poles: a fixed Fibonacci spiral of 4000 directions, about 3° apart. */
 const POLES = Array.from({ length: 4000 }, (_, i) => {
   const z = 1 - (2 * i + 1) / 4000, s = Math.sqrt(1 - z * z), turn = i * Math.PI * (3 - Math.sqrt(5));
   return new Vector3(s * Math.cos(turn), s * Math.sin(turn), z);
 });
 
-/**
- * The chart's pole: the direction that brings the farthest coast nearest. The chart stretches land sideways by
- * θ/sinθ at θ from its pole (2.5 times at 122°, 3.3 at 135°), so about +z a route to an island far round the globe
- * stopped well short of its coast. On storytree's own plan the farthest island's middle sits 135° from +z and 113°
- * from this pole, which weighs each island by its coast's reach.
- * It depends only on where the islands are and how far their coasts reach, so routes are kept while no island moves.
- */
 function chartPole(islands: readonly { at: Vector3; reach: number }[]): Vector3 {
   if (islands.length === 0) return new Vector3(0, 0, 1);
   let best = POLES[0]!, worst = Infinity;
@@ -272,7 +217,6 @@ function chartPole(islands: readonly { at: Vector3; reach: number }[]): Vector3 
   return best;
 }
 
-/** Everything a drawing's lanes are laid out from, before and apart from routing them. */
 function chartPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number) {
   const pole = chartPole(scene.islands.flatMap(island => {
     const spot = spots.get(island.story);
@@ -314,8 +258,6 @@ function chartPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot
     return { ...edge, source, target };
   });
   const cross = links.filter(link => link.source !== link.target);
-  // One route per pair of islands a capability link joins, kept a berth and half the
-  // widest lane off every coast, so a lane never crosses or grazes another island's land.
   const pairs = [...new Map(cross.map(link => ({ from: link.source, to: link.target })).map(pair => [keyOf(pair), pair])).values()];
   const nodes = [...grounds.values()].map(g => ({ id: g.id, ...g.centre, r: g.r, outline: g.chartRings.map(ring => ring.map(({ x, y }) => ({ x, y }))) }));
   const routing: CrossRouting = { islands: nodes,
@@ -323,8 +265,6 @@ function chartPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot
   return { grounds, cross, chart, sphere, routing, key: JSON.stringify([nodes, pairs]) };
 }
 
-/** A routed network laid on the globe: each segment's points, ids prefixed, from dock to dock, and each edge's docks by
- * its pair of islands. Docks are where the network's ends meet each island's coast. */
 function laidOnGlobe(network: TrailNetwork, prefix: string, grounds: ReadonlyMap<string, Ground>, chart: (v: Vector3) => Point,
   sphere: (p: Point) => Vector3, radius: number) {
   const crossSegments = new Map(network.segments.map(segment => [segment.id, segment]));
@@ -351,8 +291,6 @@ function laidOnGlobe(network: TrailNetwork, prefix: string, grounds: ReadonlyMap
   const segments = network.segments.map(segment => {
     const routed = spline(segment);
     const ends = [docks.get(`${segment.id}:0`), docks.get(`${segment.id}:${segment.points.length - 1}`)];
-    // The router ends a lane on its island's charted coast; the dock is the nearest coast to that end, so any straight
-    // line left between them on the chart is the snap from the router's polyline to the coast's, sampled at its step.
     const points = clearOfLand([...ends[0] ? [chart(ends[0].point)] : [], ...routed, ...ends[1] ? [chart(ends[1].point)] : []]
       .flatMap((point, i, all) => {
         if (i === 0) return [point];
@@ -363,9 +301,6 @@ function laidOnGlobe(network: TrailNetwork, prefix: string, grounds: ReadonlyMap
     const walk = [0];
     for (let i = 1; i < points.length; i++) walk.push(walk[i - 1]! + Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y));
     const length = walk.at(-1)!;
-    // Over the sea a lane rides its lift above the glass; within 8 units of a dock it eases to the dock's height. A short
-    // lane's two approaches overlap, so it blends between its ends' heights rather than adding them up. A junction,
-    // an end with no dock, rides at the lift on every lane that meets there, so the chain does not break at it.
     const height = (end: Dock | undefined) => end ? end.point.length() - radius : LANE_LIFT;
     const ease = Math.min(8, length);
     const world = points.map((point, i) => {
@@ -386,17 +321,10 @@ function laidOnGlobe(network: TrailNetwork, prefix: string, grounds: ReadonlyMap
   return { segments, edges, docks, pairDocks };
 }
 
-/** How far apart, in chart units, the gentlest curve's control points are spaced, widest first: a stretch takes the
- * widest whose curve keeps clear of land (`clearOfLand`), none at last (the route as the router drew it). */
 const CURVE_SPANS = [24, 18, 12, 9, 6, 4] as const;
 
-/** How near, in chart units, a curved lane may come to a coast away from its own docks: the routed lane keeps
- * LANE_CLEARANCE off, and the curve may cut a bend by less than half of that. */
 const CURVE_KEEP = 2;
 
-/** `points` drawn as the gentlest curve that keeps clear of land (ADR-1307 D4, the owner, 2026-11-10: "fine dots
- * with gentle curves"): the widest of CURVE_SPANS whose curve (`gentleCurve`) comes no nearer than CURVE_KEEP to any
- * island's coast, except within that and a little more of its own two ends, which dock on a coast. */
 export function clearOfLand(points: readonly Point[], grounds: ReadonlyMap<string, Pick<Ground, 'centre' | 'r' | 'chartRings'>>): Point[] {
   const [first, last] = [points[0]!, points.at(-1)!];
   const near = (p: Point, q: Point, d: number) => Math.hypot(p.x - q.x, p.y - q.y) < d;
@@ -409,7 +337,6 @@ export function clearOfLand(points: readonly Point[], grounds: ReadonlyMap<strin
   return [...points];
 }
 
-/** Whether `p` lies inside a coast's rings (even-odd). */
 function insideRings(p: Point, rings: readonly (readonly Point[])[]): boolean {
   let inside = false;
   for (const ring of rings) for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -419,9 +346,6 @@ function insideRings(p: Point, rings: readonly (readonly Point[])[]): boolean {
   return inside;
 }
 
-/** A polyline's gentle curve: its points taken every about `span` along it (its ends kept), and a cubic B-spline through
- * those, clamped to the two ends and sampled about every `step`. A right-angle bend becomes an arc of radius about two
- * thirds of `span` that cuts the corner by about a quarter of `span`; a line shorter than two spans is kept as it is. */
 export function gentleCurve(points: readonly Point[], span: number, step: number): Point[] {
   const walk = [0];
   for (let i = 1; i < points.length; i++) walk.push(walk[i - 1]! + Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y));
@@ -440,13 +364,11 @@ export function gentleCurve(points: readonly Point[], span: number, step: number
     const t = j / per, w = [(1 - t) ** 3 / 6, (3 * t ** 3 - 6 * t * t + 4) / 6, (-3 * t ** 3 + 3 * t * t + 3 * t + 1) / 6, t ** 3 / 6];
     out.push({ x: w.reduce((sum, wk, k) => sum + wk * c[s + k]!.x, 0), y: w.reduce((sum, wk, k) => sum + wk * c[s + k]!.y, 0) });
   }
-  // The clamped spline ends where the line does, but exactly, so a junction's segments still meet.
   out[0] = { x: points[0]!.x, y: points[0]!.y };
   out[out.length - 1] = { x: points.at(-1)!.x, y: points.at(-1)!.y };
   return out;
 }
 
-/** Each capability link between islands on `laid`'s chain for its pair of islands, its docks and segments carrying it. */
 function linkOnto(laid: ReturnType<typeof laidOnGlobe>, prefix: string, cross: readonly Link[]) {
   const edges = cross.map(link => {
     const pairKey = keyOf({ from: link.source, to: link.target });
@@ -467,13 +389,9 @@ function linkOnto(laid: ReturnType<typeof laidOnGlobe>, prefix: string, cross: r
   return { edges, segmentById, typeOnly, docks };
 }
 
-/** One ordered chain per recorded capability edge between islands, from dock to dock; a link within an island has
- * none, since nothing draws it (ADR-0951 D3). Routes are planned on an azimuthal chart about the islands' own middle
- * (`chartPole`). */
 export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number, route: typeof routeTrails = routeTrails): PlanetPathways {
   const { grounds, cross, chart, sphere, routing, key: crossKey } = chartPathways(scene, spots, radius);
   const network = keptNetwork(crossKey, routing) ?? routePlanet(routing, route);
-  // A drawing with no lanes between islands leaves the last routing kept.
   if (routing.lanes.edges.length > 0) crossRoutes = { key: crossKey, routing, network };
   requireNetwork(network.lanes, 'lanes');
   const lanes = laidOnGlobe(network.lanes, 'lane:', grounds, chart, sphere, radius);
@@ -490,7 +408,6 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
   return plan;
 }
 
-/** A routing failure is visible without taking any island (especially a failing one) off the page, and is logged. */
 export function planetPathwayDrawing(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number, route: typeof routeTrails = routeTrails): PathwayDrawing {
   const { kept, leftOut } = drawnLinks(scene);
   try {
@@ -506,9 +423,6 @@ export function planetPathwayDrawing(scene: ForestScene, spots: ReadonlyMap<stri
 
 export interface PathwayDrawing { plan: PlanetPathways; issue: string | undefined }
 
-/** The links a drawing routes, and the notice naming those it leaves out. A link naming a capability on no island
- * (one depending on a retired capability, say) is left out on its own, rather than costing every lane. A link end
- * may name an island as a whole, by its story. */
 function drawnLinks(scene: ForestScene) {
   const drawn = new Set(scene.islands.flatMap(island => [island.story, ...island.trees.flatMap(tree => tree.capability === undefined ? [] : [tree.capability])]));
   const links = scene.links ?? [];
@@ -518,30 +432,24 @@ function drawnLinks(scene: ForestScene) {
   return { kept, leftOut };
 }
 
-/** The routing a drawing still waits on: undefined when it routes nothing between islands, its routes are kept from
- * the last routing, or a link it cannot draw leaves it to say so without routing. */
 export function pathwayRouting(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number): { key: string; routing: CrossRouting } | undefined {
   let charted: ReturnType<typeof chartPathways>;
   try {
     charted = chartPathways({ ...scene, links: drawnLinks(scene).kept }, spots, radius);
   } catch {
-    // Not logged here: planetPathwayDrawing, which the drawing falls back to, meets the same failure and logs it.
     return undefined;
   }
   return charted.routing.lanes.edges.length === 0 || keptNetwork(charted.key, charted.routing) !== undefined ? undefined : { key: charted.key, routing: charted.routing };
 }
 
-/** Keeps a network routed elsewhere (in a worker) as this page's last routing, so its drawing routes nothing. */
 export function keepRoutes({ key, routing }: { key: string; routing: CrossRouting }, network: PlanetNetworks): void {
   crossRoutes = { key, routing, network };
 }
 
-/** Whether `key`'s routes are the ones kept from the last routing. */
 export function routesKept(key: string): boolean {
   return crossRoutes?.key === key;
 }
 
-/** Every island's plate and no lanes: what is on show while the lanes are routed. */
 export function islandsOnly(scene: ForestScene): PathwayDrawing {
   return { plan: { plates: new Map(scene.islands.map(island => [island.story, prepareGround(island).plate])),
     lanes: { segments: [], edges: [], docks: [] } }, issue: undefined };

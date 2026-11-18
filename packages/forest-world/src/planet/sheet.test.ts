@@ -6,7 +6,6 @@ import { hollowIsland, islandSurface } from './island-surface.js';
 import { applySheetEye, clearGlass, hangUnderTheGlass, SHEET_FOV, SHEET_GLASS_THICKNESS, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetGlass, sheetKeptOnResize, sheetLights, sheetPoint, sheetSpot } from './sheet.js';
 import { applyPlanetSideOffset } from './camera.js';
 
-/** The page's eye on the sheet: a perspective one looking straight down at the glass's middle, framed to `zoom`. */
 function sheetEye(zoom: number, reach: number, size = { width: 1440, height: 960 }) {
   const camera = new PerspectiveCamera(SHEET_FOV, size.width / size.height, 0.1, 1000);
   camera.position.set(0, 0, 1);
@@ -17,7 +16,6 @@ function sheetEye(zoom: number, reach: number, size = { width: 1440, height: 960
 }
 
 test('4.22 on the glass sheet each island stands where it is placed and faces the eye square-on, within a degree, and the eye keeps a tight depth range round the sheet', () => {
-  // The globe turned to face the eye, as the page does: its own +z toward the eye, which looks straight down at the sheet.
   const reach = Math.hypot(3200, 900), camera = sheetEye(0.5, reach);
   const toEye = new Vector3(0, 0, 1).applyQuaternion(camera.quaternion);
   for (const at of [{ x: 0, y: 0 }, { x: -1600, y: 450 }, { x: 1600, y: -450 }, { x: 1200, y: 300 }]) {
@@ -40,16 +38,13 @@ test('4.26 the glass sheet is seen in perspective: nearer is drawn bigger, a zoo
   for (const zoom of [0.4, 1, 3]) {
     const camera = sheetEye(zoom, reach, size);
     assert.ok(Math.abs(sheetEyeZoom(camera, size) - zoom) < 1e-9, `the eye reads back the zoom it was framed to (${zoom})`);
-    // A 100-unit road across the middle of the view is drawn `zoom` pixels a unit wide there.
     const middle = new Vector3(0, 0, SHEET_RADIUS + PLATE_CLEARANCE), across = middle.clone().add(new Vector3(100, 0, 0));
     const px = (a: Vector3, b: Vector3) => { const p = a.clone().project(camera), q = b.clone().project(camera); return Math.abs(q.x - p.x) * size.width / 2; };
     assert.ok(Math.abs(px(middle, across) - 100 * zoom) < 1e-6, `${px(middle, across).toFixed(2)} px for 100 units at zoom ${zoom}`);
-    // The same road nearer the eye (raised toward it) is drawn bigger, and farther, smaller.
     const lifted = (by: number) => px(middle.clone().setZ(middle.z + by), across.clone().setZ(across.z + by));
     assert.ok(lifted(300) > px(middle, across) * 1.05 && lifted(-300) < px(middle, across) / 1.05, 'nearer is bigger, farther smaller');
     assert.ok(camera.near > 0 && camera.near < camera.position.length() - SHEET_RADIUS - PLATE_CLEARANCE && camera.far >= camera.position.length() - SHEET_RADIUS + reach / 2, 'the sheet lies between the near and far planes');
   }
-  // Zooming in moves the eye, not the lens: it stands half as far off at twice the zoom.
   const off = (zoom: number) => sheetEye(zoom, reach, size).position.length() - SHEET_RADIUS - PLATE_CLEARANCE;
   assert.ok(Math.abs(off(1) / off(2) - 2) < 1e-9 && sheetEye(2, reach, size).zoom === 1, 'twice the zoom, half the distance, the lens unchanged');
 });
@@ -66,7 +61,6 @@ test('4.27 the glass sheet is a lit slab: the glass has a visible thickness with
   const island = islandSurface([[{ x: -20, z: -20 }, { x: 20, z: -20 }, { x: 20, z: 20 }, { x: -20, z: 20 }]], SHEET_RADIUS, 'lit', SHEET_LAND_THICKNESS);
   const sides = island.getObjectByName('island-side') as Mesh;
   assert.ok(lit(sides) && sides.geometry.getAttribute('normal') !== undefined, 'an island\'s sides take the light');
-  // Each wall faces outward from the island, level with its land, so the light shades the four walls of a square four ways.
   const normals = sides.geometry.getAttribute('normal'), position = sides.geometry.getAttribute('position'), facing = new Set<string>();
   for (let i = 0; i < normals.count; i++) {
     const n = new Vector3().fromBufferAttribute(normals, i), p = new Vector3().fromBufferAttribute(position, i);
@@ -85,7 +79,6 @@ test('4.23 on the glass sheet every island is a raised plate of one shared thick
     const island = islandSurface(coast, SHEET_RADIUS, story, SHEET_LAND_THICKNESS);
     const sides = island.getObjectByName('island-side') as Mesh | undefined;
     assert.ok(sides !== undefined, `the ${story} island has sides`);
-    // The land's own height at each coast point, read off its drawn ground.
     const ground = (island.getObjectByName('island-ground') as Mesh).geometry.getAttribute('position'), land = new Map<string, number>();
     for (let i = 0; i < ground.count; i++) land.set(`${ground.getX(i).toFixed(3)} ${ground.getZ(i).toFixed(3)}`, ground.getY(i));
     const position = sides.geometry.getAttribute('position');
@@ -94,7 +87,6 @@ test('4.23 on the glass sheet every island is a raised plate of one shared thick
     assert.deepEqual([...drops].sort((a, b) => a - b), [0, SHEET_LAND_THICKNESS], `the ${story} island's sides run from its land down by the shared thickness`);
     assert.equal(islandSurface(coast, SHEET_RADIUS, story).getObjectByName('island-side'), undefined, 'and an island on the globe has none');
   }
-  // Raised on the sheet, an island's land stands that thickness above the glass as drawn, wherever it is placed.
   const glass = sheetGlass({ width: 1200, height: 600 });
   glass.updateMatrixWorld(true);
   const pane = glass.getObjectByName('sheet:pane') as Mesh, corners = pane.geometry.getAttribute('position');
@@ -120,7 +112,6 @@ test('4.24 on the glass sheet a hollow island is its coast line alone, hiding no
   island.updateMatrixWorld(true);
   assert.ok(shown().length > 0 && shown().every(o => o.name.startsWith('island-coast')), `only its coast shows: ${shown().map(o => o.name)}`);
   assert.ok(shown().every(o => !(o.material as { depthWrite: boolean }).depthWrite), 'and the coast writes no depth');
-  // A note under the island's middle, looked at from either side of the glass: nothing of the island is drawn over it.
   for (const way of [1, -1]) {
     const hits = new Raycaster(new Vector3(0, -40 * way, 0), new Vector3(0, way, 0)).intersectObject(island, true).filter(hit => hit.object.visible);
     assert.deepEqual(hits.map(hit => hit.object.name), [], `nothing covers the note from ${way > 0 ? 'below' : 'above'}`);
@@ -181,8 +172,6 @@ test('4.28 under clear glass (the Library look) what hangs beneath shows at ever
   assert.ok(glass.position.equals(where), "the glass never moves");
 });
 
-// Three draws a see-through, double-sided material in two passes and re-versions it before each, re-deriving its shader
-// program twice a frame (ADR-0836 D1); each glass part instead draws its far face then its near face, one material each.
 test('3.9 an animating glass sheet redraws its panes and edge, far face then near face, without re-deriving a shader program', () => {
   const glass = sheetGlass({ width: 400, height: 300 });
   for (const name of ['sheet:pane', 'sheet:pane-under', 'sheet:edge']) {
@@ -199,8 +188,6 @@ test('4.43 a frame that changes size keeps the zoom and the place under the edge
   const reach = Math.hypot(3200, 900), before = { width: 920, height: 700, left: 280 };
   const camera = sheetEye(0.5, reach, before);
   applyPlanetSideOffset(camera, before, -120);
-  // Two places at the middle of the view's depth, where the zoom is read, in page pixels: across from the frame's left and right
-  // edges, and down from its top.
   const drawn = (frame: typeof before) => [new Vector3(40, 20, SHEET_RADIUS + PLATE_CLEARANCE), new Vector3(-60, -10, SHEET_RADIUS + PLATE_CLEARANCE)].map(at => {
     camera.updateMatrixWorld();
     const seen = at.project(camera);
@@ -208,7 +195,6 @@ test('4.43 a frame that changes size keeps the zoom and the place under the edge
     return { fromLeft: x, fromRight: frame.left + frame.width - x, y: (1 - seen.y) / 2 * frame.height };
   });
   const resize = (from: typeof before, to: typeof before) => {
-    // What the canvas's root does as it takes the new size, then what the sheet's eye keeps.
     camera.aspect = to.width / to.height;
     camera.updateProjectionMatrix();
     sheetKeptOnResize(camera, reach, from, to);
@@ -216,14 +202,11 @@ test('4.43 a frame that changes size keeps the zoom and the place under the edge
   const shown = drawn(before), spread = (at: { fromLeft: number }[]) => at[0]!.fromLeft - at[1]!.fromLeft;
   const near = (a: number, b: number, what: string) => assert.ok(Math.abs(a - b) < 1e-6, `${what}: ${a} against ${b}`);
 
-  // The sidebar hides: the frame's left edge moves out to the window's, its right edge stays.
   const hidden = { width: 1200, height: 700, left: 0 };
   resize(before, hidden);
   drawn(hidden).forEach((at, i) => { near(at.fromRight, shown[i]!.fromRight, 'from the right edge'); near(at.y, shown[i]!.y, 'from the top'); });
-  // Shown again, the view is as it was.
   resize(hidden, before);
   drawn(before).forEach((at, i) => near(at.fromLeft, shown[i]!.fromLeft, 'back where it was'));
-  // The window narrows and shortens from its right and bottom: the left edge stays, and so do the pixels per unit.
   const smaller = { width: 700, height: 500, left: 280 };
   resize(before, smaller);
   const now = drawn(smaller);

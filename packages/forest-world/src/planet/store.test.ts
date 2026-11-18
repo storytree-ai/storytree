@@ -23,7 +23,6 @@ test('4.46 a store is its own flat object: its tables are laid in tiles that all
 });
 
 test("4.46 a table's tile is as wide as its name: checkbox's document_summaries and source_objects each hold their whole name, and stay apart", () => {
-  // A table's name is drawn 13px across at about a pixel a ground unit at the map's opening, under 8px a character.
   const laid = storeLayout(['tenants', 'users', 'source_objects', 'chunks', 'grants', 'document_summaries']);
   for (const tile of laid.tiles) assert.ok(tile.width >= tile.name.length * 8, `${tile.name}'s ${tile.name.length} characters cross its ${tile.width}-wide tile`);
   laid.tiles.forEach((a, i) => laid.tiles.slice(i + 1).forEach((b) =>
@@ -32,8 +31,6 @@ test("4.46 a table's tile is as wide as its name: checkbox's document_summaries 
 });
 
 test("4.46 a table's name scales with its tile, so document_summaries stays whole inside its tile at the map's opening zoom and every other", () => {
-  // Seen at the opening view (increment_02be8887ffb5): a ground unit drawn 0.71px across, so document_summaries' 160-wide tile
-  // was 114px while its 13px name was 136px. A name is under 0.6 of its size a character in the map's sans-serif.
   const laid = storeLayout(['tenants', 'users', 'source_objects', 'chunks', 'grants', 'document_summaries']);
   for (const pixels of [0.2, 0.71, 1, 3]) for (const tile of laid.tiles)
     assert.ok(tile.name.length * 0.6 * tableNameSize(pixels) <= tile.width * pixels, `${tile.name} crosses its tile at ${pixels}px a ground unit`);
@@ -41,7 +38,6 @@ test("4.46 a table's name scales with its tile, so document_summaries stays whol
 });
 
 test("4.46 each table's name is sized from its own tile as the map draws it, so every name stays whole at the opening view's 0.71px a unit", () => {
-  // The map seen from above, a little tilted: x drawn 0.71px a ground unit across, z foreshortened, the slab's middle at (700, 500).
   const laid = storeLayout(['tenants', 'users', 'source_objects', 'chunks', 'grants', 'document_summaries']);
   const sizes = tableNameSizes(laid, (x, z) => [700 + 0.71 * x, 500 + 0.6 * z]);
   for (const tile of laid.tiles) {

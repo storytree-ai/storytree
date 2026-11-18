@@ -13,11 +13,9 @@ const island = (story: string, capabilities: string[]): Island => ({
   trees: capabilities.map((capability, i) => ({ capability, form: 'green', status: 'healthy', contracts: 1, x: i, z: 0, scale: 1, turn: 0 })),
 });
 const scene: ForestScene = { islands: [island('a', ['a1', 'a2']), island('b', ['b1', 'b2'])], links: [{ from: 'b1', to: 'a1' }, { from: 'b2', to: 'a2' }] };
-/** The two islands `apart` radians apart: each angle is its own layout. */
 const layout = (apart: number) => new Map([['a', { x: R * Math.sin(apart / 2), y: 0, z: R * Math.cos(apart / 2) }], ['b', { x: -R * Math.sin(apart / 2), y: 0, z: R * Math.cos(apart / 2) }]]);
 const lanes = (drawing: PathwayDrawing) => JSON.stringify(drawing.plan.lanes);
 
-/** A router that answers only when told to, as a worker does, counting what it is asked. */
 function heldRouter() {
   const asked: { routing: CrossRouting; signal: AbortSignal; answer: () => void }[] = [];
   const router: RoadRouter = (routing, signal) => new Promise<PlanetNetworks>((resolve, reject) => {
@@ -38,7 +36,6 @@ test('4.21 a layout draws every island before its lanes are routed, then the sam
   const routed = (await drawing)!;
   assert.ok(routed.plan.lanes.segments.length > 0);
   assert.equal(routed.plan.plates.get('a'), now.drawing.plan.plates.get('a'), 'the islands drawn at once are kept, not drawn again');
-  // The page routing the same layout afresh, once another layout has been routed since.
   planetPathwayDrawing(scene, layout(0.67), R);
   assert.equal(lanes(planetPathwayDrawing(scene, spots, R)), lanes(routed), 'the lanes are the ones routing on the page draws');
 });
@@ -50,7 +47,6 @@ test('4.21 a layout is routed once: drawn again with nothing moved, its lanes ar
   const drawing = routedDrawing(scene, spots, R, first.routing!, router, new AbortController().signal);
   asked[0]!.answer();
   const routed = (await drawing)!;
-  // An island's health changes; no island moves.
   const healthier: ForestScene = { ...scene, islands: [{ ...scene.islands[0]!, trees: scene.islands[0]!.trees.map(tree => ({ ...tree, status: 'unhealthy' as const })) }, scene.islands[1]!] };
   const again = drawnAtOnce(healthier, spots, R);
   assert.equal(again.routing, undefined, 'nothing waits on a routing');
@@ -126,7 +122,6 @@ test('4.21 a dependency added with no island moved is drawn at once between isla
   const first = routedDrawing(one, spots, R, drawnAtOnce(one, spots, R).routing!, router, new AbortController().signal);
   asked[0]!.answer();
   const drawn = (await first)!;
-  // Lanes are routed by pair of islands: a second link between a and b rides the route they already have.
   const same = drawnAtOnce({ islands, links: scene.links! }, spots, R, { spots, radius: R, drawing: drawn });
   assert.equal(same.routing, undefined, 'nothing waits on a routing');
   assert.deepEqual(same.drawing.plan.lanes.edges.map(edge => `${edge.from}->${edge.to}`), ['b1->a1', 'b2->a2'], 'both links have their lane at once');
@@ -151,7 +146,6 @@ test('4.38 a layout whose islands moved relative to each other keeps the lanes, 
   assert.equal(rescaled.drawing.plan.lanes.segments.length, 0, 'lanes at another radius would float or sink, so a new radius shows islands only');
 });
 
-/** The two islands on the desktop's glass sheet, `shift` along it from where they first stood. */
 const onSheet = (shift: { x: number; y: number }, apart = 60) => new Map([['a', sheetSpot({ x: apart + shift.x, y: shift.y })], ['b', sheetSpot({ x: -apart + shift.x, y: shift.y })]]);
 const dockOffsets = (plan: { docks: { story: string; point: { x: number; y: number; z: number } }[] }, spots: ReadonlyMap<string, PlanetSpot>) =>
   plan.docks.map(dock => {
@@ -191,7 +185,6 @@ test('4.39 a routing in flight is kept while new layouts with the same routing k
   const roadsOf = roadsWhenRouted(router, (layout, drawing) => { drawn.push({ layout, drawing }); answered(); });
   const first = { scene, spots, radius: R, routing: drawnAtOnce(scene, spots, R).routing };
   roadsOf.show(first);
-  // An island's health changes while its lanes are routed: a new scene, the same routing.
   const healthier: ForestScene = { ...scene, islands: [{ ...scene.islands[0]!, trees: scene.islands[0]!.trees.map(tree => ({ ...tree, status: 'unhealthy' as const })) }, scene.islands[1]!] };
   const second = { scene: healthier, spots: layout(0.89), radius: R, routing: drawnAtOnce(healthier, layout(0.89), R).routing };
   assert.equal(second.routing?.key, first.routing?.key);
@@ -203,13 +196,11 @@ test('4.39 a routing in flight is kept while new layouts with the same routing k
   assert.equal(drawn.length, 1);
   assert.equal(drawn[0]!.layout, second, 'its answer is drawn for the latest layout');
   assert.deepEqual(drawn[0]!.drawing.plan.lanes.edges.map(edge => `${edge.from}->${edge.to}`), ['b1->a1', 'b2->a2'], 'with every link\'s lane');
-  // A layout computed before the answer landed, shown after it: its lanes are drawn at once.
   const third = { scene, spots, radius: R, routing: first.routing };
   roadsOf.show(third);
   assert.equal(asked.length, 1, 'a routing already answered is not asked again');
   assert.equal(drawn.at(-1)!.layout, third);
   assert.equal(lanes(drawn.at(-1)!.drawing), lanes(drawn[0]!.drawing));
-  // A new key overtakes the routing in flight.
   const fourth = { scene, spots: layout(0.91), radius: R, routing: drawnAtOnce(scene, layout(0.91), R).routing };
   roadsOf.show(fourth);
   const fifth = { scene, spots: layout(0.93), radius: R, routing: drawnAtOnce(scene, layout(0.93), R).routing };

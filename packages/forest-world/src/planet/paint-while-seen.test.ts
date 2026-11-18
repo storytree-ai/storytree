@@ -1,6 +1,3 @@
-// The globe's half of The drawing engine 4.10 that a headless test can reach: what it asks of its R3F root as the
-// browser says its canvas has come into or gone out of view. The browser half (that Chromium really
-// draws nothing) is the planet's browser capture, which counts the shipped canvas's frames.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Clock } from 'three';
@@ -8,24 +5,20 @@ import { paintWhileSeen, startingFrameloop, viewportWatch, type PaintingRoot, ty
 
 type Frameloop = PaintingRoot['frameloop'];
 
-/** An R3F root as far as painting goes, behaving as @react-three/fiber 9's own does. */
 function root(frameloop: Frameloop) {
   const clock = new Clock();
   const state = {
     frameloop, clock, internal: { frames: 0 },
-    // R3F's setFrameloop stops the clock and sets it back to zero, starting it again unless the loop is "never".
     setFrameloop(next: Frameloop) {
       clock.stop(); clock.elapsedTime = 0;
       if (next !== 'never') { clock.start(); clock.elapsedTime = 0; }
       state.frameloop = next;
     },
-    // R3F's invalidate asks for nothing while the loop is "never"; an animation calls it every frame.
     invalidate() { if (state.frameloop !== 'never') state.internal.frames = 1; },
   };
   return state;
 }
 
-/** A watch the test drives: it says what the browser would. */
 function watcher() {
   const watch = { seen: (_: boolean) => {}, stopped: false, element: undefined as Element | undefined };
   const observe: ViewportWatch = (element, seen) => { watch.element = element; watch.seen = seen; return () => { watch.stopped = true; }; };
@@ -45,7 +38,7 @@ test('4.10 a globe starts paused, draws once its canvas is seen, and asks for no
   assert.equal(globe.frameloop, 'demand', 'seen, it draws on demand');
   globe.invalidate();
   assert.equal(globe.internal.frames, 1);
-  globe.internal.frames = 2; // an animation has asked for its next frame
+  globe.internal.frames = 2;
   watch.seen(false);
   assert.equal(globe.frameloop, 'never');
   assert.equal(globe.internal.frames, 0, 'a frame asked for before it went out of view is not drawn');
@@ -63,7 +56,7 @@ test('4.10 its R3F clock keeps time while it is away, so recorded growth carries
   const globe = root(startingFrameloop(observe));
   paintWhileSeen(() => globe as unknown as PaintingRoot, canvas, observe);
   watch.seen(true);
-  globe.clock.elapsedTime = 5; // five seconds of drawing
+  globe.clock.elapsedTime = 5;
   watch.seen(false);
   assert.ok(globe.clock.running, 'away, the clock still runs');
   assert.ok(globe.clock.getElapsedTime() >= 5, 'away, the clock has not gone back to zero');

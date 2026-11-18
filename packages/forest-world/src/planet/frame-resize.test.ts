@@ -4,7 +4,6 @@ import { test } from 'node:test';
 import { build } from 'esbuild';
 import { chromium } from 'playwright-core';
 
-/** The planet canvas alone, beside a 280-pixel sidebar, on a sheet with one island; the capture seam hands over its state. */
 async function canvasBundle(): Promise<string> {
   const entry = `import { createElement } from 'react';
     import { createRoot } from 'react-dom/client';
@@ -23,7 +22,6 @@ async function canvasBundle(): Promise<string> {
 type Step = { canvas: number; frame: number; drawn: number; before: { left: number; right: number }; after: { left: number; right: number } };
 
 test('4.43 · the sidebar beside the map hidden or shown, or the map narrowed from its right, the canvas is at its frame\'s new size and drawn, the island kept from the edge that did not move, before the frame is painted', { timeout: 120_000 }, async t => {
-  // Chrome is installed on the three CI runner images; no browser download during tests.
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 1200, height: 700 }, deviceScaleFactor: 1 });
@@ -35,9 +33,6 @@ test('4.43 · the sidebar beside the map hidden or shown, or the map narrowed fr
     return state !== undefined && state.scene.getObjectByName('planet:a') !== undefined && state.gl.info.render.frame > 0;
   }, undefined, { timeout: 60_000 });
 
-  // A side of the page is hidden or shown, and the page's own watch on the map's frame, made after the canvas's, reads the canvas in the
-  // same resize step, between laying the page out and painting it: what it reads is what that frame paints. As a script, since
-  // a named function in an evaluated one would need the bundler's helper.
   await page.addScriptTag({ content: `window.__toggle = (side, shown) => {
     const state = window.__globe(), canvas = state.gl.domElement, frame = document.querySelector('#globe');
     const place = () => {
@@ -62,7 +57,6 @@ test('4.43 · the sidebar beside the map hidden or shown, or the map narrowed fr
   const toggle = (side: string, shown: boolean) => page.evaluate(([side, shown]) =>
     (window as unknown as { __toggle(side: string, shown: boolean): Promise<Step> }).__toggle(side, shown), [side, shown] as const);
 
-  // The rail on the left hidden and shown keeps the right edge; a panel on the right shown and hidden keeps the left one.
   for (const [side, shown, width, kept] of [['#rail', false, 1200, 'right'], ['#rail', true, 920, 'right'], ['#aside', true, 720, 'left'], ['#aside', false, 920, 'left']] as const) {
     const step = await toggle(side, shown);
     const what = `${side} ${shown ? 'shown' : 'hidden'}`;

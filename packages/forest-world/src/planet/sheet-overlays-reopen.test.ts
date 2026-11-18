@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const words = 'Some lanes could not be drawn. Island health and selection are still available.';
-/** The outcome the proof's last line reports, once its own assertions in the browser have passed. */
 const outcome = (stdout: string): unknown => JSON.parse(stdout.trim().split('\n').at(-1)!);
 
 test('4.35, 4.45 · in a real browser, a sheet opened, closed and opened again shows its lanes notice, and React reports no root unmounted mid-render; a host that shows the notice itself is told it and gets none laid over the sheet', { timeout: 150_000 }, async () => {

@@ -32,9 +32,7 @@ test('4.11 an island facing the viewer hides what lies behind it, and nothing la
   const depth = surface.getObjectByName('island-depth') as Mesh;
   assert.ok(depth, 'the island has a depth layer');
   const material = depth.material as MeshBasicMaterial;
-  // ADR-0919 D2: it writes depth and no colour, in the opaque pass, before any see-through line or note behind it is drawn.
   assert.deepEqual([material.colorWrite, material.depthWrite, material.depthTest, material.transparent], [false, true, true, false]);
-  // Only its outward face is drawn: an island seen from behind, through the glass, hides nothing.
   assert.equal(material.side, FrontSide);
   const centre = new Vector3(0, -(R + PLATE_CLEARANCE), 0);
   const at = depth.geometry.attributes.position!;
@@ -43,16 +41,13 @@ test('4.11 an island facing the viewer hides what lies behind it, and nothing la
   for (let i = 0; i < index.count; i += 3) {
     const [a, b, c] = [vertex(i), vertex(i + 1), vertex(i + 2)];
     const face = b.clone().sub(a).cross(c.clone().sub(a));
-    // A sliver along a straight coast edge has no area and no facing to get wrong.
     if (face.length() / 2 < 0.01) continue;
     assert.ok(face.dot(a.clone().sub(centre)) > 0, 'each triangle faces out of the globe');
   }
-  // Just under the land: a straight 25-unit chord laid on the surface (a territory triangle's edge sags most) stays in front.
   const sphere = R + PLATE_CLEARANCE;
   for (let i = 0; i < at.count; i++) assert.ok(Math.abs(new Vector3().fromBufferAttribute(at, i).distanceTo(centre) - (sphere - ISLAND_DEPTH_INSET)) < 1e-6);
   const chordSag = sphere - Math.sqrt(sphere ** 2 - 12.5 ** 2);
   assert.ok(ISLAND_DEPTH_INSET > chordSag && ISLAND_DEPTH_INSET <= 1, `${ISLAND_DEPTH_INSET} under the land, where a chord sags ${chordSag}`);
-  // It is never picked: picking finds the island by its ground.
   const hits: Intersection[] = [];
   depth.raycast(new Raycaster(new Vector3(0, 50, 0), new Vector3(0, -1, 0)), hits);
   assert.deepEqual(hits, []);

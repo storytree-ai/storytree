@@ -15,7 +15,7 @@ import path from "node:path";
 
 import { parse } from "@babel/parser";
 
-import { MINIFIED_NAME } from "./sketch-bundles.mjs";
+import { MINIFIED_NAME } from "./eslint-rules/sketch-bundle-names.mjs";
 
 export const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const SKIP_DIRS = new Set(["node_modules", "dist", "out", "build", "coverage"]);

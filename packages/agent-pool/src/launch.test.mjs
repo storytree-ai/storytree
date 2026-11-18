@@ -27,12 +27,9 @@ async function box(t, extra = {}) {
   const counts = [5, 4];
   return {
     lanesDir, events, lines, briefs, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
-    // No machine file: the computer's own (the laptop's machine-only one) would skip every untagged increment here.
     home: lanesDir, env: {},
     say: (line) => lines.push(line), argsOf: async () => "", maxLanes: async () => 5,
-    // A clear box: the real reading (/proc on a busy CI runner) would hold dispatch back (pace.mjs).
     pace: async () => undefined, briefPaths: undefined, laneRepo: undefined, projects: () => [{ name: "storytree" }],
-    // Plugged in and online: the real readings (the power line, the library and GitHub) are the start rule's tests' own (3.27).
     power: async () => "Online", refusals: async () => [],
     count: async () => { events.push("count"); return counts.length ? counts.shift() : 0; },
     lock: async (fn) => { events.push("lock"); await fn(); events.push("unlock"); },
@@ -56,7 +53,6 @@ test("3.5 · each lane waits for a slot and updates the checkout under the share
   const b = await box(t, {
     survey: async () => poolWork(["increment_one"]), rules: async () => "Pool rules.\n",
     lock: async (fn) => { b.events.push("lock"); locked = true; await fn(); locked = false; b.events.push("unlock"); },
-    // The lane's count, under its slot reservation (3.32), finds the cap full once; the dispatcher's own polls of free slots never do.
     count: async () => { if (!locked || waited || !new Error().stack.includes("reserveSlot")) return 0; waited = true; return 5; },
     sleep: async () => { b.events.push("sleep"); await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); },
   });
@@ -98,7 +94,6 @@ test("3.5 · the prepared checkout is at origin/main, installed from its lockfil
   assert.deepEqual(ran, ["git", "git", "git", "git", "pnpm"]);
   assert.deepEqual(install, ["install", "--frozen-lockfile", "--silent"]);
   assert.equal((await readFile(join(repo, "a.txt"), "utf8")).trim(), "two");
-  // The configured URLs, not get-url's, which a machine's own insteadOf rewrite (a box's deploy-key alias) would change.
   assert.equal((await git(repo, "config", "--get", "remote.origin.pushurl")).stdout.trim(), PUSH_URL);
   assert.equal((await git(repo, "config", "--get", "remote.origin.url")).stdout.trim(), origin);
 });
@@ -117,7 +112,6 @@ test("3.5 · a checkout that already pushes to the repository over SSH, through 
     await prepare();
     assert.equal((await git("config", "--get", "remote.origin.pushurl")).stdout.trim(), kept);
   }
-  // One that pushes anywhere else is pointed back at the repository over SSH.
   await git("config", "remote.origin.pushurl", "https://github.com/storytree-ai/storytree.git");
   await prepare();
   assert.equal((await git("config", "--get", "remote.origin.pushurl")).stdout.trim(), PUSH_URL);
@@ -189,7 +183,6 @@ test("3.45 · the survey carries no body: `pool` reads a picked increment's body
   assert.ok(b.lines.some((line) => /increment_unread not started: its body is unread \(connection reset\)/.test(line)), b.lines.join("\n"));
   assert.deepEqual(asked[0], ["storytree", { also: ["increment_cloud"] }], "the cloud lanes' increments are surveyed by id");
 
-  // An unreadable cloud ledger follows no lane, and the survey goes on.
   asked.length = 0;
   sleeps = 0;
   b.cloud = { ...b.cloud, watching: async () => { throw new Error("ledger unreadable"); } };
@@ -230,7 +223,6 @@ test("3.22 · an increment that closes or is claimed between the survey and its 
   const ran = [];
   const b = await box(t, {
     survey: async () => work(), count: async () => 0, maxLanes: async () => 2,
-    // Both are picked from one survey; then, while the checkout is prepared, one closes and the other is claimed.
     prepare: async () => {
       if (closed) return;
       closed = true;
@@ -286,7 +278,6 @@ test("3.10 · the dispatcher restarts between sessions when its own code changes
   assert.equal(steady, 0, "unchanged code: no restart");
   assert.deepEqual(refreshed, ["idle", "steady"]);
 
-  // A slow read (a loaded box) that began before the merge landed answers only after the session has ended.
   let tree = "tree-a", endSession;
   const slowStarted = [];
   const slow = await runPool({
@@ -326,7 +317,6 @@ test("3.10 · its own code is the code it runs: a merge touching only other dev 
       survey: async () => poolWork(["a", "b"]), maxLanes: async () => 1, count: async () => 0,
       codeVersion: () => codeVersion({ repo, config }), refresh: async () => {},
       stopFile: "/lanes/pool-stop", exists: async () => stop, now, say: () => {},
-      // The merge lands, and the shared checkout reaches it, while the first session runs.
       launch: async (one) => { started.push(one.id); if (started.length === 1) await merge(); return 0; },
       sleep: async () => { if (started.length === 2) stop = true; },
     });
@@ -336,11 +326,9 @@ test("3.10 · its own code is the code it runs: a merge touching only other dev 
   assert.deepEqual(elsewhere, { code: 0, started: ["a", "b"] }, "the test runner changed: no restart, and b starts after the merge");
   const own = await dispatch(() => commit("packages/agent-pool/src/launch.mjs", "pool v2"));
   assert.deepEqual(own, { code: 3, started: ["a"] }, "the dispatcher's code changed: it restarts, starting nothing more");
-  // The machine's own configuration, outside the repository (ADR-1216 D1), restarts it too.
   const configured = await dispatch(() => writeFile(config, "{\"sessions\": 4}"));
   assert.deepEqual(configured, { code: 3, started: ["a"] }, "the pool's configuration changed: it restarts to read it");
 
-  // A dispatcher given no version of its own reads its checkout's code and the configuration file it was started with.
   const pooled = await box(t, { survey: async () => poolWork(["a", "b"]), count: async () => 0, maxLanes: async () => 1, rules: async () => "Pool rules.\n",
     repo, configFile: config, runLane: async (options) => { pooled.briefs.push(await readFile(options.brief, "utf8")); await writeFile(config, "{\"sessions\": 4, \"addDirs\": [\"/wt\"]}"); return 0; } });
   pooled.sleep = async () => { await new Promise((go) => setImmediate(go)); if (pooled.briefs.length > 1) await writeFile(join(pooled.lanesDir, "pool-stop"), ""); };
@@ -531,7 +519,6 @@ test("3.26 · the lock file's own liveness check: a live holder, or one it may n
   const path = join(await folder(t), "night-checkout.lock");
   const gone = spawn(process.execPath, ["-e", ""]);
   await new Promise((done) => gone.once("exit", done));
-  // A system process this user may not signal: the System process on Windows, init elsewhere.
   for (const holder of [process.pid, process.platform === "win32" ? 4 : 1]) {
     await writeFile(path, `${holder}\n`);
     let waited = 0;
@@ -708,14 +695,12 @@ test("3.37 · another project's lane has that project's checkout brought to orig
   assert.deepEqual(ran.slice(0, 2), [["git", "fetch", "-q", "origin"], ["git", "merge", "-q", "--ff-only", "origin/main"]], "fetched and brought to origin/main");
   assert.ok(!ran.some(([command]) => command === "pnpm"), "no install: its own checks install");
   assert.equal(await pushUrl(), "git@github.com:storytree-ai/storytree-website.git", "pushes go to its own repository over SSH");
-  // One pushing to storytree's repository is pointed at its own; one already SSH to it, through an alias, is kept.
   await git("config", "remote.origin.pushurl", PUSH_URL);
   await prepare();
   assert.equal(await pushUrl(), "git@github.com:storytree-ai/storytree-website.git");
   await git("config", "remote.origin.pushurl", "git@github.com-website:storytree-ai/storytree-website.git");
   await prepare();
   assert.equal(await pushUrl(), "git@github.com-website:storytree-ai/storytree-website.git");
-  // A checkout whose fetch URL is already SSH to its repository (the box's website checkout) gets no push URL.
   await git("config", "--unset", "remote.origin.pushurl");
   await git("config", "remote.origin.url", "git@github.com-website:storytree-ai/storytree-website.git");
   await prepare();
@@ -779,9 +764,7 @@ test("3.39 · an edit to the machine file's projects or sessions reaches the run
   b.runLane = async (options) => {
     started.push({ increment: options.increment, cwd: options.cwd });
     most = Math.max(most, ++running);
-    // The first lane, alone under a cap of one, is where the owner edits the file: a second project and a cap of four.
     if (started.length === 1) await configure({ sessions: 4, projects: [{ name: "storytree" }, { name: "storytree-website", checkout: website }] });
-    // Each later lane runs until three have been up at once; under a cap still one the wait gives up, and the lane fails.
     else await waitUntil(() => most >= 3, 30_000, "three lanes running at once");
     running--;
     b.briefs.push(options.brief);
@@ -793,7 +776,6 @@ test("3.39 · an edit to the machine file's projects or sessions reaches the run
   assert.equal(started.find((one) => one.increment === "increment_site").cwd, website, "in the project's own checkout");
   assert.ok(most >= 3, `the three after the edit ran at once, under the new cap of four (at most ${most} did)`);
 
-  // A file that no longer reads leaves the cap at the start's, and fails the survey with its reason.
   const broken = await box(t, { count: async () => 0, survey: async () => poolWork(["increment_a", "increment_b"]) });
   broken.home = broken.lanesDir;
   broken.env = { AGENT_POOL_CONFIG: join(broken.lanesDir, "agent-pool.json") };
@@ -808,7 +790,6 @@ test("3.39 · an edit to the machine file's projects or sessions reaches the run
   assert.deepEqual(broken.briefs, ["increment_a"], "one lane under the start's cap of one");
   assert.ok(broken.lines.some((line) => /library survey failed \(could not read the agent pool's configuration /.test(line)), broken.lines.join("\n"));
 
-  // What the dispatcher runs on: an edit to its projects or cap leaves its version as it was, one to any other field moves it.
   const repo = await folder(t);
   await run("git", ["init", "-q"], { cwd: repo });
   await mkdir(join(repo, "packages/agent-pool/src"), { recursive: true });
@@ -890,7 +871,6 @@ test("3.31 · `stop` ends the dispatcher pool.pid names, and leaves a pid that i
 });
 
 test("3.8 · a dispatcher started while a lane an earlier one started still runs leaves that lane's increment alone until its engine ends, its claim not yet made", async (t) => {
-  // The box on 2026-11-03: the service stopped the dispatcher 5 s after it started increment_a's lane, which ran on unclaimed.
   let lanes = ["increment_a"];
   const b = await box(t, { survey: async () => poolWork(["increment_a", "increment_b"]), count: async () => lanes.length, maxLanes: async () => 3, lanes: async () => lanes });
   const started = [];
@@ -899,9 +879,7 @@ test("3.8 · a dispatcher started while a lane an earlier one started still runs
   b.sleep = async () => {
     looks += 1;
     await new Promise((go) => setImmediate(go));
-    // The earlier lane's engine ends a few looks after increment_b started.
     if (started.length === 1 && looks > 5) lanes = [];
-    // The cap only ends a pool that never starts increment_a: a slow runner (macOS CI) spends many looks starting a lane.
     if (started.length === 2 || looks > 2000) await writeFile(join(b.lanesDir, "pool-stop"), "");
   };
   assert.equal(await main(["pool"], b), 0);

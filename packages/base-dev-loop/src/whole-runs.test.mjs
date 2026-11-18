@@ -12,7 +12,6 @@ import { removeTemp, waitUntil } from "@storytree/test-waits";
 import { runGate } from "./gate.mjs";
 
 const runner = pathToFileURL(fileURLToPath(new URL("./test.mjs", import.meta.url))).href;
-const HOLD_MS = 1500;
 const PASSES = `import { test } from "node:test";\ntest("passes", () => {});\n`;
 const FAILS = `import assert from "node:assert/strict";\nimport { test } from "node:test";\ntest("fails", () => assert.equal(1, 2));\n`;
 const HANGS_WHEN_TOLD = `import { writeFileSync } from "node:fs";\nimport { test } from "node:test";\ntest("hangs when told", async () => {\n  if (!process.env.FIXTURE_HANG) return;\n  writeFileSync(process.env.FIXTURE_HANG, "started");\n  await new Promise((resolve) => setTimeout(resolve, 30_000));\n});\n`;
@@ -32,7 +31,7 @@ function git(root, ...args) {
   return execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: root, encoding: "utf8" });
 }
 
-function project(t, packages, { heldAt } = {}) {
+function project(t, packages) {
   const root = temp(t, "wr-root-");
   write(root, "package.json", JSON.stringify({ name: "root", private: true }));
   write(root, ".gitignore", ".pgtest/\n");
@@ -40,10 +39,7 @@ function project(t, packages, { heldAt } = {}) {
     write(root, `packages/${name}/package.json`, JSON.stringify({ name: `@w/${name}` }));
     for (const [file, text] of Object.entries(files)) write(root, `packages/${name}/${file}`, text);
   }
-  const hold = heldAt === undefined
-    ? "async () => () => {}"
-    : `async () => { await new Promise((resolve) => setTimeout(resolve, ${HOLD_MS})); writeFileSync(${JSON.stringify(heldAt)}, String(Date.now())); return () => {}; }`;
-  write(root, "run.mjs", `import { writeFileSync } from "node:fs";\nimport { testCommand } from ${JSON.stringify(runner)};\ntestCommand({ root: ${JSON.stringify(root)}, hold: ${hold} });\n`);
+  write(root, "run.mjs", `import { testCommand } from ${JSON.stringify(runner)};\ntestCommand({ root: ${JSON.stringify(root)}, hold: async () => () => {} });\n`);
   return root;
 }
 
@@ -86,10 +82,9 @@ function assertMachine(row) {
   assert.equal(new Date(row.at).toISOString(), row.at, `at ${row.at} is an ISO time`);
 }
 
-test("7.1 · a full pnpm test run appends one row to whole-runs.jsonl in STORYTREE_HOME: kind test, scope full, its units, pass, this machine, its load, cpus, jobs, platform and arch, ended inside the run, timed from its hold", { timeout: 180_000 }, (t) => {
+test("7.1 · a full pnpm test run appends one row to whole-runs.jsonl in STORYTREE_HOME: kind test, scope full, its units, pass, this machine, its load, cpus, jobs, platform and arch, ended inside the run", { timeout: 180_000 }, (t) => {
   const home = temp(t, "wr-home-");
-  const heldAt = path.join(temp(t, "wr-held-"), "held-at");
-  const root = project(t, { a: { "src/a.test.mjs": PASSES } }, { heldAt });
+  const root = project(t, { a: { "src/a.test.mjs": PASSES } });
   const before = Date.now();
   const run = runTests(root, home, ["--jobs=1"]);
   const after = Date.now();
@@ -106,8 +101,6 @@ test("7.1 · a full pnpm test run appends one row to whole-runs.jsonl in STORYTR
   assertMachine(row);
   const ended = Date.parse(row.at);
   assert.ok(ended >= before && ended <= after, `at ${row.at} falls inside the run`);
-  const held = Number(readFileSync(heldAt, "utf8"));
-  assert.ok(row.ms <= ended - held + 500, `ms ${row.ms} counts from the hold taken at ${new Date(held).toISOString()}, not the ${HOLD_MS} ms spent waiting for it, to ${row.at}`);
 });
 
 test("7.1 · a scoped pnpm test run whose unit fails appends a row with scope scoped, the units it ran, its jobs and result fail", { timeout: 180_000 }, (t) => {
@@ -164,7 +157,7 @@ test("7.1 · runs of named files, --only, --rerun-failed, a shard, --scope alone
 
 test("7.1 · an interrupted pnpm test run appends no row beside an earlier whole run's one", { timeout: 180_000 }, async (t) => {
   if (process.platform === "win32") {
-    t.skip("platform: a signal on Windows ends the runner without its handler, so interruption is not observable there");
+    t.skip("platform:win32: a signal on Windows ends the runner without its handler, so interruption is not observable there");
     return;
   }
   const home = temp(t, "wr-home-");
@@ -216,21 +209,23 @@ function append(home, row) {
 const lint = () => ({ command: process.execPath, args: [], shell: false });
 const noStandIns = () => ({ folder: undefined, plugins: {} });
 
+const STEP_MS = { typecheck: 1000, test: 2000, "check:lint": 500 };
+
 function gateUnder(t, home, { typecheck = 0, onLint = () => 0 } = {}) {
   const root = project(t, { a: { "src/a.test.mjs": PASSES }, b: { "src/b.test.mjs": PASSES } });
-  const step = { ms: undefined };
+  const clock = { at: Date.parse("2026-11-19T12:00:00.000Z") };
+  const started = clock.at;
   const run = async (name, options) => {
+    clock.at += STEP_MS[name];
     if (name === "typecheck") return typecheck;
     if (name === "check:lint") return onLint();
-    const started = Date.now();
     append(home, testRow({ scope: "scoped", units: 5 }));
     const ran = runTests(root, home, ["--jobs=1"], { ...options?.env, ...options?.command?.env });
     append(home, testRow({ scope: "scoped", units: 7 }));
-    step.ms = Date.now() - started;
     assert.equal(ran.status, 0, ran.output);
     return ran.status;
   };
-  return { run, step };
+  return { run, now: () => clock.at, started };
 }
 
 const composition = { parts: [{ name: "check:lint", command: lint }], owners: ["linter"], graph: { linter: [] } };
@@ -241,11 +236,8 @@ test("7.2 · the gate appends one gate row once its table prints, carrying its o
   append(home, testRow({ scope: "scoped", units: 3, at: new Date(Date.now() - 3_600_000).toISOString() }));
 
   for (const [index, [typecheck, code, result]] of [[0, 0, "pass"], [1, 1, "fail"]].entries()) {
-    const { run, step } = gateUnder(t, home, { typecheck });
-    const started = Date.now();
-    const answered = await gate({ root: project(t, {}), home, run });
-    const outer = Date.now() - started;
-    assert.equal(answered, code);
+    const { run, now, started } = gateUnder(t, home, { typecheck });
+    assert.equal(await gate({ root: project(t, {}), home, run, now }), code);
 
     const gates = rows(home).filter((row) => row.kind === "gate");
     assert.equal(gates.length, index + 1, `one gate row per gate run: ${JSON.stringify(rows(home))}`);
@@ -255,7 +247,8 @@ test("7.2 · the gate appends one gate row once its table prints, carrying its o
     assert.equal(row.units, 2, "the test step's own row ran 2 units; the other runs' rows ran 3, 5 and 7");
     assert.equal(row.result, result);
     assertMachine(row);
-    assert.ok(row.ms >= step.ms - 1 && row.ms <= outer + 1, `ms ${row.ms} spans the test step's ${step.ms} ms and no more than runGate's ${outer} ms`);
+    assert.equal(row.ms, 3500, "the injected clock moved 1000 ms in typecheck, 2000 in test and 500 in check:lint, all after runGate's start and before its table");
+    assert.equal(row.at, new Date(started + 3500).toISOString(), "at is the injected clock's reading when the table printed");
   }
 });
 

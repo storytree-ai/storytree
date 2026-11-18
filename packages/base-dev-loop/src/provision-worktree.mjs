@@ -56,6 +56,13 @@
 // from the environment itself (PGPASSWORD, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET), so nothing
 // secret is written. infra/library-host/README.md describes the route.
 //
+// There too, with --factory <url> --factory-token <VAR> --factory-plugin <name> (contract 3.12), a session whose
+// environment holds VAR clones the factory into the storytree home's factory folder (or fast-forwards it from main),
+// links this checkout into it as `storytree`, installs it and names its plugin. The cloud environment's setup script
+// never sees the environment's variables, but the session does, so it is done here. The token reaches git only as an
+// Authorization header in git's environment, never an argument, the log or the heads-up; an unset VAR is named to the
+// session, and a failed step is logged and stops the rest.
+//
 // There too, when the container's Node.js is below package.json's engines floor (its path put Node.js 22 first,
 // friction_7bc32d462aa2), the newest Node.js installed under /opt or on the path that meets the floor is put first
 // on the session's path, through the file Claude Code names in CLAUDE_ENV_FILE and sources before each Bash
@@ -81,7 +88,7 @@
 // (a failed install must never break the session) and writes to stdout only the heads-up for the
 // agent, as SessionStart additionalContext; pnpm's own output goes to stderr.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -452,6 +459,61 @@ export function connectCloud({
   return { ok: true, done: true };
 }
 
+/** The factory folder: env's STORYTREE_FACTORY, else your-factory beside a home inside .storytree, else inside the home. */
+function factoryFolder(env, home) {
+  if (env.STORYTREE_FACTORY) return path.resolve(env.STORYTREE_FACTORY);
+  const parent = path.dirname(home);
+  return path.join(path.basename(parent) === ".storytree" ? parent : home, "your-factory");
+}
+
+/**
+ * In a cloud container whose environment holds tokenVar, clone `factory` into the storytree home's factory folder (or
+ * fast-forward it from main), link root into it as `storytree`, install it and name `plugin` (contract 3.12). The token
+ * reaches git only as an Authorization header in its environment. A failed step is logged and stops the rest.
+ * @returns {{ ok: boolean, done: boolean, message?: string }}
+ */
+export function cloudFactory({
+  root = repoRoot,
+  env = process.env,
+  home = env.STORYTREE_HOME ? path.resolve(env.STORYTREE_HOME) : path.join(homedir(), ".storytree", "0.3"),
+  factory,
+  tokenVar,
+  plugin,
+  git = (args, { env: extra } = {}) =>
+    spawnSync("git", args, { cwd: root, env: { ...process.env, GIT_TERMINAL_PROMPT: "0", ...extra }, stdio: ["ignore", 2, 2], timeout: 120_000, windowsHide: true }),
+  run = (args) => storytreeCommand(root, args),
+  install = pnpmInstall,
+  log = () => {},
+} = {}) {
+  if (!inCloud(env) || !factory) return { ok: true, done: false };
+  const token = env[tokenVar];
+  if (!token) return { ok: true, done: false, message: `The factory ${factory} was not loaded: its token variable ${tokenVar} is not set in this cloud session.` };
+  const folder = factoryFolder(env, home);
+  const failed = (step, code) => {
+    log(`provision-worktree: cloud container; loading the factory: ${step} failed (${code}), so its plugin is not named`);
+    return { ok: false, done: false };
+  };
+  log(`provision-worktree: cloud container; loading the factory ${factory} into ${folder}`);
+  const header = `Authorization: Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
+  const gitEnv = { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "http.extraHeader", GIT_CONFIG_VALUE_0: header };
+  const cloned = existsSync(path.join(folder, ".git"));
+  const fetched = git(cloned ? ["-C", folder, "pull", "--ff-only", factory, "main"] : ["clone", "--depth", "1", factory, folder], { env: gitEnv });
+  if (fetched.status !== 0) return failed(cloned ? "git pull" : "git clone", fetched.error?.message ?? `exit ${fetched.status}`);
+  try {
+    const link = path.join(folder, "storytree");
+    rmSync(link, { force: true }); // A link is removed, never what it points at; a real folder there refuses.
+    symlinkSync(path.resolve(root), link, "junction");
+  } catch (error) {
+    return failed("linking this checkout as storytree", error.code ?? error.message);
+  }
+  const installed = install(folder);
+  if (!installed.ok) return failed(`pnpm install in ${folder}`, `exit ${installed.code}`);
+  const args = ["settings", "set", "module", plugin, "plugin", plugin];
+  const named = run(args);
+  if (!named.ok) return failed(`storytree ${args.join(" ")}`, `exit ${named.code}`);
+  return { ok: true, done: true };
+}
+
 /** `pnpm install --frozen-lockfile` in root, falling back to `corepack pnpm`. Never throws. */
 export function pnpmInstall(root, { spawn = spawnSync, platform = process.platform } = {}) {
   const options = { cwd: root, stdio: ["ignore", 2, 2], env: installEnvironment() };
@@ -703,8 +765,13 @@ if (isEntry()) {
     const node = cloudNode({ root, log });
     cloudMain({ root, log });
     const result = provision({ root, log });
-    if (result.ok) connectCloud({ root, log });
-    const notes = [node.message, pinnedNode({ root })].filter(Boolean);
+    const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
+    let loaded = {};
+    if (result.ok) {
+      connectCloud({ root, log });
+      loaded = cloudFactory({ root, factory: flag("--factory"), tokenVar: flag("--factory-token"), plugin: flag("--factory-plugin"), log });
+    }
+    const notes = [node.message, loaded.message, pinnedNode({ root })].filter(Boolean);
     const output = hook ? hookOutput(result, root, notes) : "";
     if (output) process.stdout.write(`${output}\n`);
     process.exitCode = hook ? 0 : result.code;

@@ -10,7 +10,7 @@ import path from "node:path";
 
 const SKETCHES = "docs/design";
 const LONG_LINE = 1000;
-const MINIFIED_NAME = /[.-]min\.js$/;
+export const MINIFIED_NAME = /[.-]min\.js$/;
 const DATA_ASSIGNMENT = /^\s*window\.[A-Za-z_$][\w$]*\s*=\s*(\{[\s\S]*\})\s*;?\s*$/;
 
 /** Whether `text` is only `window.NAME = {…};` with a value that parses as JSON. */

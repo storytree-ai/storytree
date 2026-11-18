@@ -1,40 +1,27 @@
-/**
- * Capability 1 · Key store and resolver. The key store and its resolver (ADR-0843), pi's shape: one `auth.json` in storytree's home, one
- * entry per name, readable and writable by the user alone, written under a lock by write-then-rename
- * so the app, the command line and the MCP server share it safely. A key resolves from an explicit
- * value, then its saved entry, then its environment variable; an entry `!<command>` runs the
- * command once per process and uses what it prints, which is how a user brings their own store.
- */
+// Capability 1 · Key store and resolver
 import { execSync } from "node:child_process";
 import { chmodSync, closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
 export interface StoreOptions {
-  /** Storytree's home; by default STORYTREE_HOME, else ~/.storytree/0.3, where settings.json is. */
   readonly home?: string;
 }
 
 export interface ResolveOptions extends StoreOptions {
-  /** A value given on the command: it beats everything else. */
   readonly explicit?: string;
-  /** The environment variable to fall back on; by default the vendor's own name, else the key's name in capitals. */
   readonly variable?: string;
-  /** The environment to read it from; by default this process's. */
   readonly env?: NodeJS.ProcessEnv;
 }
 
-/** Where a key resolves from: its saved value, its saved command, or its environment variable. */
 export type KeySource = "file" | "command" | "environment";
 
 export interface KeyReading {
   readonly name: string;
   readonly from: KeySource;
-  /** The environment variable, when it resolves from one. */
   readonly variable?: string;
 }
 
-/** The vendors' own variable names for the keys storytree knows (ADR-0843 D3). */
 const VARIABLES: Readonly<Record<string, string>> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
@@ -44,19 +31,16 @@ const VARIABLES: Readonly<Record<string, string>> = {
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
-/** The file keys are saved in. */
 export function authFile(options: StoreOptions = {}): string {
   return path.join(options.home ?? defaultHome(), "auth.json");
 }
 
-/** Save `value` as key `name`, replacing any saved before. */
 export function saveKey(name: string, value: string, options: StoreOptions = {}): void {
   checkName(name);
   if (value === "") throw new Error(`The key ${name} has no value: give the key, or !<command> to run for it.`);
   update(options, (entries) => ({ ...entries, [name]: { key: value } }));
 }
 
-/** Delete key `name`; whether there was one. */
 export function removeKey(name: string, options: StoreOptions = {}): boolean {
   checkName(name);
   let had = false;
@@ -68,7 +52,6 @@ export function removeKey(name: string, options: StoreOptions = {}): boolean {
   return had;
 }
 
-/** Every key saved, and every key storytree knows whose variable is set: names only, never values. */
 export function listKeys(options: StoreOptions & { readonly env?: NodeJS.ProcessEnv } = {}): KeyReading[] {
   const env = options.env ?? process.env;
   const saved = read(authFile(options));
@@ -79,7 +62,6 @@ export function listKeys(options: StoreOptions & { readonly env?: NodeJS.Process
   return readings.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Key `name`: the explicit value, else its saved entry, else its environment variable; undefined when none has it. */
 export function resolveKey(name: string, options: ResolveOptions = {}): string | undefined {
   checkName(name);
   const explicit = nonEmpty(options.explicit);
@@ -89,10 +71,8 @@ export function resolveKey(name: string, options: ResolveOptions = {}): string |
   return nonEmpty((options.env ?? process.env)[options.variable ?? variableOf(name)]);
 }
 
-/** What a command that fetches a key over the network (ssh, say) says when it could not reach its host, on Linux, macOS and Windows. */
 const COULD_NOT_CONNECT = /could not resolve hostname|name or service not known|nodename nor servname|no such host is known|temporary failure in name resolution|network is unreachable|no route to host|connection timed out|operation timed out|connection refused/i;
 
-/** A saved `!command` that failed. `unreachable`: it said it could not reach its host, which a later try may get past (the network not up yet). */
 export class KeyCommandError extends Error {
   constructor(message: string, readonly unreachable: boolean) {
     super(message);
@@ -100,7 +80,6 @@ export class KeyCommandError extends Error {
   }
 }
 
-/** What each `!command` printed, by command: each runs once per process. */
 const ran = new Map<string, string>();
 
 function run(name: string, command: string): string {
@@ -110,7 +89,6 @@ function run(name: string, command: string): string {
   try {
     printed = execSync(command, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
   } catch (error) {
-    // Never the command's output: it may hold the secret, or part of it.
     const { status, stderr } = error as { status?: number | null; stderr?: unknown };
     throw new KeyCommandError(
       `The command saved for key ${name} failed${typeof status === "number" ? ` (exit ${status})` : ""}: run it yourself to see why, or save the key again with \`storytree auth set ${name}\`.`,
@@ -140,7 +118,6 @@ function read(file: string): Entries {
   return parsed as Entries;
 }
 
-/** Change the saved keys under the file's lock, writing a temporary file and renaming it over the old. */
 function update(options: StoreOptions, change: (entries: Entries) => Entries): void {
   const file = authFile(options);
   mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
@@ -158,18 +135,13 @@ function update(options: StoreOptions, change: (entries: Entries) => Entries): v
   });
 }
 
-/** How long a lock may be held before another writer takes it as left by a crashed one. */
 const STALE_MS = 10_000;
 const WAIT_MS = 15_000;
 
 export interface LockOptions {
-  /** Takes the lock, failing as the file system does when it cannot; by default an exclusive create. */
   readonly open?: (lock: string) => void;
-  /** How long to wait for the lock before giving up. */
   readonly waitMs?: number;
-  /** Reads the clock the deadline is measured on; by default the wall clock. */
   readonly now?: () => number;
-  /** Waits between tries; by default blocks the thread for that many milliseconds. */
   readonly pause?: (ms: number) => void;
 }
 
@@ -180,8 +152,6 @@ export function withLock(lock: string, body: () => void, { open = openLock, wait
       open(lock);
       break;
     } catch (error) {
-      // Windows refuses the open with EPERM (or EACCES) while another writer is still removing the
-      // lock: wait that out like a held lock. One the user can never open still ends at the deadline.
       const code = (error as NodeJS.ErrnoException).code;
       if (code !== "EEXIST" && code !== "EPERM" && code !== "EACCES") throw error;
       if (code === "EEXIST" && stale(lock)) {
@@ -211,7 +181,6 @@ function stale(lock: string): boolean {
   }
 }
 
-/** Windows refuses a rename over a file another process has open for a moment: try again briefly. */
 function retrying(act: () => void): void {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -240,7 +209,6 @@ function nonEmpty(value: string | undefined): string | undefined {
   return value === undefined || value === "" ? undefined : value;
 }
 
-/** Storytree's home, as Session management's routing reads it: STORYTREE_HOME, else ~/.storytree/0.3. */
 function defaultHome(): string {
   const home = process.env.STORYTREE_HOME;
   return home !== undefined && home !== "" ? path.resolve(home) : path.join(homedir(), ".storytree", "0.3");

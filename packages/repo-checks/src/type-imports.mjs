@@ -1,13 +1,4 @@
-// Capability 5 · Package boundaries. A type-only import ends only at the library (ADR-1017 D2): the library is the
-// registry of the shapes stories share (D1), so a story's source file may import a name type-only from The
-// library's package and from no other story's. Imports by value between stories are not this check's business.
-//
-// It reads the code as the map's code survey does (storyEdges in packages/map/src/code-survey), so the two
-// never disagree about what counts: an edge between two stories' capabilities is type-only when every import
-// behind it is, and tests and test helpers make no edge. The survey takes each capability from the library; this
-// check reads only the code, so CI can run it too, and groups files by the capability numbers their numbered
-// tests carry, which is how the survey matches a file to a capability. `pnpm lint` runs it (lint.mjs), in
-// `pnpm gate` and in CI on every system.
+// Capability 5 · Package boundaries
 
 import path from "node:path";
 
@@ -15,14 +6,8 @@ import { codeSurveyReader } from "@storytree/map/code-survey";
 
 import { STORIES } from "./package-boundaries.mjs";
 
-/** Capability numbers a story's tests may carry: each stands for the capability the library numbers so. */
 const NUMBERS = Array.from({ length: 99 }, (_, at) => at + 1);
 
-/**
- * Each type-only import in the checkout at `root` that ends at a story other than the library or its own, one sentence each,
- * naming the importing file and the file that defines the name; empty when there is none. `stories` are the ids
- * of the stories, each the folder of its package under packages/.
- */
 export async function typeImportProblems(root, stories = STORIES) {
   const tree = { stories: stories.map((id) => ({ id, title: id, capabilities: NUMBERS.map((number) => ({ id: `${id}:${number}`, title: `${number} · ${number}` })) })) };
   const survey = await codeSurveyReader({ checkout: "current" }).read(root, tree);
@@ -40,14 +25,8 @@ export async function typeImportProblems(root, stories = STORIES) {
   return problems.sort();
 }
 
-/** A capability id's number, as the tree above names it (`<story>:<number>`). */
 const numberOf = (capability) => capability?.slice(capability.lastIndexOf(":") + 1);
 
-/**
- * When the importing file also imports `edge`'s story by value from another of its capabilities, which is what a re-cut
- * leaves when it moves the defining file to a capability of its own, the sentence's opening clause that names both
- * capabilities and the way out; otherwise undefined.
- */
 function valueSide(story, edges, edge, file) {
   if (edge.to === undefined || file.to === undefined) return undefined;
   for (const other of edges) {

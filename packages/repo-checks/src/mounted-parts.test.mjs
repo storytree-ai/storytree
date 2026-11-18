@@ -16,7 +16,6 @@ function write(root, name, pkg) {
   writeFileSync(path.join(root, "packages", name, "package.json"), JSON.stringify({ name: `@storytree/${name}`, ...pkg }));
 }
 
-/** A workspace whose origin/main has ci-health standing on the library only, and agent-pool declaring a service. */
 function workspace(t) {
   const root = mkdtempSync(path.join(tmpdir(), "mounted-parts-"));
   t.after(() => removeTemp(root));

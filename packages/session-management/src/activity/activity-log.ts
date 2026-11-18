@@ -1,20 +1,4 @@
-/**
- * Capability 2 · Agent activity log (the Session management story): Session management's own logbook of what
- * agents do, one per project, kept beside the library rather than in it (ADR-0626 D2). Lines are
- * only ever added, and are read back in order as "everything since line N", including lines other
- * processes wrote.
- *
- * - It lives in its own database, `storytree-activity`, on the same Postgres server as the
- *   projects' libraries: never in a project's database, so the library's records and change feed
- *   never see it. The library lists as projects only databases named `storytree_<name>`, so this
- *   one, with a hyphen, is never mistaken for a project.
- * - One table holds every project's lines, and a project reads only its own. A line's number comes
- *   from one sequence shared by all projects, so a project's numbers rise but skip.
- * - A project's writes take turns on a lock, so its lines commit in the order they are numbered:
- *   a reader passing back each cursor it is handed never misses a line that committed late, nor
- *   reads one twice.
- * - There is no way to change or delete a line.
- */
+// Capability 2 · Agent activity log
 import { hostname } from "node:os";
 
 import type { Pool, PoolClient } from "pg";
@@ -30,121 +14,52 @@ import { BEATS_SCHEMA, BEATS_SCHEMA_FILE, beatsOf, PgSessionBeats, type SessionB
 import { LANE_MESSAGES_SCHEMA, LANE_MESSAGES_SCHEMA_FILE, PgLaneMessages, type LaneMessages } from "./lane-messages.js";
 import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, TRANSCRIPT_SCHEMA_FILE, type TranscriptRecords } from "./transcript-records.js";
 
-/** The database the log lives in, on the same server as the projects' libraries. */
 export const ACTIVITY_DATABASE = "storytree-activity";
 
-/** What a bounded start reads (ActivityLog.start). */
 export interface StartOptions {
-  /** The kinds of line read whole, every one of them. */
   readonly kinds: readonly LineKind[];
-  /** When the sessions in view are judged from. By default, now. */
   readonly now?: Date;
-  /** How long a quiet session with no unmerged work stays listed. By default, the user's leave-after setting. */
   readonly leaveMs?: number;
 }
 
-/** A bounded start of a project's log (ActivityLog.start), each list oldest first. */
 export interface LinesStart {
-  /** Every line of the kinds asked. */
   lines: Line[];
-  /** The lines that decide each session in view and each claim holder, as foldLines reads them. */
   sessions: Line[];
-  /** The standing claims' lines, as standing reads them. */
   claims: Line[];
-  /** The cursor to ask from next: the log's latest line's when the start was read, or 0. */
   cursor: number;
 }
 
-/** The agent activity log on one Postgres server: one log per project, only ever added to until the project is deleted. */
 export interface ActivityLog {
-  /** Add a line to `project`'s log, and return it as the log keeps it. A line that is not one the log knows is refused. */
   append(project: string, line: NewLine, options?: AppendOptions): Promise<Line>;
-  /**
-   * Add `earlier`, lines written earlier elsewhere (a hook's queued lines), to `project`'s log in the
-   * order given, each as `append` adds it with its own time and `once`: one transaction of a few round
-   * trips however many lines there are, for a log reached across a slow route (contract 2.13).
-   */
   appendMany(project: string, earlier: readonly Earlier[]): Promise<void>;
-  /**
-   * `project`'s lines after `cursor`, oldest first, and the cursor to pass next time. Start from 0
-   * only for a reader that keeps what it read and asks again from its cursor (the app's): a reader
-   * that asks once asks for what it needs, with `lines`.
-   */
   since(project: string, cursor: number): Promise<LinesSince>;
-  /**
-   * A reader's bounded start of `project`'s log (contract 2.16), in place of every line since 0: every line of `kinds`, the
-   * lines that decide each session the running-sessions list may show and each claim holder (as readSessions reads them),
-   * the standing claims' lines, and the cursor to ask from next, the log's latest line's, with no line after it.
-   */
   start(project: string, options: StartOptions): Promise<LinesStart>;
-  /**
-   * The lines that decide each of `sessions` (contract 2.17), as a page's start reads them for the sessions in view: for a
-   * session a page's start left out that has written again since. A command started before a finished one could run, from
-   * `now` (by default, now), is sent without its text.
-   */
   sessionLines(project: string, sessions: readonly string[], options?: { now?: Date }): Promise<Line[]>;
-  /** `project`'s lines that `filter` asks for, oldest first, narrowed on the server (contract 2.7). */
   lines(project: string, filter: LineFilter): Promise<Line[]>;
-  /** The claim lines that decide who holds what in `project` now: ended claims send nothing (bounded.ts STANDING_CLAIMS). */
   standing(project: string): Promise<Line[]>;
-  /** When each of `sessions`, or of every session of `project` when none are named, last wrote a line. */
   lastSeen(project: string, sessions?: readonly string[]): Promise<Map<string, string>>;
-  /**
-   * The lines the sessions fold needs for `sessions`, read as it reads their whole history; a
-   * command started before `commandsSince` (ISO 8601) is past any limit, so its text is not sent
-   * (bounded.ts FOLD_LINES).
-   */
   foldLines(project: string, sessions: readonly string[], commandsSince: string): Promise<Line[]>;
-  /** The lines that decide the state alone of each session that wrote since `activeSince`, read as foldLines reads (bounded.ts STATE_LINES). */
   stateLines(project: string, activeSince: string, commandsSince: string): Promise<Line[]>;
-  /** The sessions the running-sessions list may show, judged from `since` (bounded.ts SESSIONS_IN_VIEW); the holders of claims are not among them unless they are otherwise. */
   sessionsInView(project: string, since: string): Promise<string[]>;
-  /** How many sessions have written a line of their own to `project`'s log. */
   sessionCount(project: string): Promise<number>;
-  /**
-   * `project`'s door-answered lines from `since` (ISO 8601) on, as the doors learner reads them (contract 2.18): counted on
-   * the server, with only the lines a refusal or a pointer is judged by sent whole (bounded.ts DOOR_STEPS).
-   */
   doorTally(project: string, since: string): Promise<DoorTally>;
-  /** The branches worth a look from `machine`, with what the log knows of each (bounded.ts BRANCH_FACTS). */
   branchFacts(project: string, machine: string | undefined): Promise<BranchFacts[]>;
-  /**
-   * Each machine that wrote a line to `project`'s log from `since` (ISO 8601) on, with how many it wrote then and from
-   * `recentSince` on, its first line from `recentSince` on (or in the window, when it wrote none since) and its last:
-   * counted on the server, in order of name.
-   */
   machineTally(project: string, since: string, recentSince: string): Promise<MachineTally[]>;
-  /**
-   * Run `work` holding `project`'s lock: what it reads through the LockedLog it is handed, and any
-   * line it adds, happen with no other write to the project in between. It is how a claim checks
-   * who holds a capability and takes it in one step (capability 5).
-   */
   locked<T>(project: string, work: (log: LockedLog) => Promise<T>): Promise<T>;
-  /** Sessions' transcripts as their hooks streamed them in, scrubbed (ADR-0749 D3): kept beside the lines, on the same connection. */
   readonly transcripts: TranscriptRecords;
-  /** Sessions' heartbeats, from their harness's own timer (ADR-1056 D3): kept beside the lines, on the same connection. */
   readonly beats: SessionBeats;
-  /** Messages waiting for running pool lanes, each taken once by the lane's hooks (4.49): kept beside the lines, on the same connection. */
   readonly messages: LaneMessages;
-  /** What this process's library connections read, kept beside the lines as a total per machine, reader and day (contract 2.15). */
   readonly reads: LibraryReads;
-  /** Close the log's connections: what this process read since it last recorded is recorded as its pool ends. */
   close(): Promise<void>;
 }
 
-/** A window's door-answered lines, as doorTally counts them. */
 export interface DoorTally {
-  /** How many sessions wrote one. */
   readonly sessions: number;
-  /** When the first was written (ISO 8601); none when there is none. */
   readonly first?: string;
-  /** How many there are of each verb, as its door names it. */
   readonly calls: ReadonlyMap<string, number>;
-  /** Each command refused as unknown with its word and its session's next line, and each pointed call with its session's next command, oldest first. */
   readonly steps: Line[];
 }
 
-/** A branch the project's lines name, as BRANCH_FACTS reads it: when it was first and last worked on, where this machine last worked on it, and its latest state line. */
 export interface BranchFacts {
   readonly branch: string;
   readonly firstAt: string;
@@ -153,87 +68,55 @@ export interface BranchFacts {
   readonly state?: Line & { kind: "branch-state" };
 }
 
-/** One machine's lines in a window, as machineTally counts them. */
 export interface MachineTally {
   readonly machine: string;
-  /** How many lines it wrote in the window, and how many of them from its recent part on. */
   readonly count: number;
   readonly recent: number;
-  /** When its first line from the recent part on (from the window's start, when it wrote none since) and its last were written (ISO 8601), and its last's number. */
   readonly first: string;
   readonly last: string;
   readonly lastSeq: number;
 }
 
-/** How a line written earlier elsewhere, and only now reaching the log, is added (a hook's queued line). */
 export interface AppendOptions {
-  /** When it was written, rather than now: an ISO 8601 time. */
   readonly at?: string;
-  /** Add it only if the project has no line exactly like it, at that time: an upload tried twice adds it once. */
   readonly once?: boolean;
-  /**
-   * The hook event it records, and which way that event came (ADR-1056 D2). A line exactly like it, of
-   * the same event, that came the other way within EVENT_WINDOW of its time is the same line, so it is
-   * not added again: an event both ways deliver is kept once. One way never dedupes against itself, so
-   * two events with the same input, each delivered once, are two.
-   */
   readonly event?: DeliveredEvent;
 }
 
-/** A line written earlier elsewhere, at `at` (ISO 8601), recording `event` when it records one. */
 export interface Earlier {
   readonly line: NewLine;
   readonly at: string;
   readonly event?: DeliveredEvent;
 }
 
-/** A hook event, by its key (the same whichever way it came), and the way it came: by the command hook, or through the tool server. */
 export interface DeliveredEvent {
   readonly key: string;
   readonly via: "command" | "tool";
 }
 
-/** How far apart the two ways may deliver one event and still be read as one: both run within seconds of it. */
 export const EVENT_WINDOW = "2 minutes";
 
-/** One project's log, as a locked write sees it. */
 export interface LockedLog {
-  /** The project's lines that `filter` asks for, or of `kinds`, oldest first (ActivityLog.lines). */
   lines(filter: LineFilter | readonly LineKind[]): Promise<Line[]>;
-  /** The claim lines that decide who holds what now (ActivityLog.standing). */
   standing(): Promise<Line[]>;
-  /** The bounded session reading, on the same locked connection as claim admission (ActivityLog.foldLines). */
   foldLines(sessions: readonly string[], commandsSince: string): Promise<Line[]>;
-  /** When each of `sessions`, or of every session when none are named, last wrote a line. */
   lastSeen(sessions?: readonly string[]): Promise<Map<string, string>>;
-  /** The latest heartbeat of each of `sessions` that has one (ActivityLog.beats). */
   beats(sessions: readonly string[]): Promise<Map<string, Beat>>;
-  /** The time by the database's clock, which stamps every line. */
   now(): Promise<Date>;
-  /** Add a line, as ActivityLog.append does. */
   append(line: NewLine): Promise<Line>;
 }
 
 export interface OpenOptions {
-  /** How long a connection to the server may take before the attempt is given up. By default, 5 s. */
   readonly connectTimeoutMs?: number;
-  /** The machine this log is written from: every line it adds that names no machine names this one. By default, none. */
   readonly machine?: string;
-  /** The git branch a folder on this machine is on (ADR-0754 D4): every line it adds that names a folder and no branch names this one. By default, none. */
   readonly branchOf?: (folder: string) => string | undefined;
-  /**
-   * The storytree home whose settings may name the experiment and arm this log's writer runs in (ADR-1064 D2): every line
-   * it adds is labelled with both, read once as the log opens. By default, this process's storytree home.
-   */
   readonly home?: string;
 }
 
-/** This machine's name, as lines record it: its host name, trimmed; undefined when it has none. */
 export function thisMachine(): string | undefined {
   return hostname().trim() || undefined;
 }
 
-/** The log's tables, as idempotent statements the library applies once per connection, in order. Later changes are appended. */
 const SCHEMA: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS activity (
     seq     bigserial PRIMARY KEY,
@@ -247,13 +130,10 @@ const SCHEMA: readonly string[] = [
     detail  jsonb NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS activity_project_seq_idx ON activity (project, seq)`,
-  // Bounded reads (contract 2.7) narrow by kind, by session and by time.
   `CREATE INDEX IF NOT EXISTS activity_project_kind_seq_idx ON activity (project, kind, seq)`,
   `CREATE INDEX IF NOT EXISTS activity_project_session_seq_idx ON activity (project, session, seq)`,
   `CREATE INDEX IF NOT EXISTS activity_project_at_idx ON activity (project, at)`,
-  // ... and inside folders, whatever their case or slashes (bounded.ts FOLDER_KEY), by a range of the folder's key.
   `CREATE INDEX IF NOT EXISTS activity_project_folder_idx ON activity (project, (lower(replace(folder, '\\', '/'))) text_pattern_ops)`,
-  // The hook event a line records and the way it came, so an event both ways deliver is kept once (ADR-1056 D2).
   `ALTER TABLE activity ADD COLUMN IF NOT EXISTS event text`,
   `ALTER TABLE activity ADD COLUMN IF NOT EXISTS event_via text`,
   `CREATE INDEX IF NOT EXISTS activity_project_event_idx ON activity (project, event) WHERE event IS NOT NULL`,
@@ -263,11 +143,10 @@ const SCHEMA: readonly string[] = [
   ...READS_SCHEMA,
 ];
 
-/** The fields every line has its own column for; the rest of a line is its `detail`. */
 const COLUMNS = ["session", "harness", "source", "kind", "folder"] as const;
 
 interface ActivityRow {
-  seq: string; // bigint: pg hands it over as a string
+  seq: string;
   project: string;
   at: Date;
   session: string;
@@ -278,13 +157,6 @@ interface ActivityRow {
   detail: Record<string, unknown>;
 }
 
-/**
- * Open the agent activity log where `server` is: the database of its own that a library connection
- * hands out and sets up (contract 2.5, ADR-0735 D3, ADR-0973), on whatever server the library
- * resolved to, local or at an address; or the Postgres server at a postgres:// URL, through a library
- * connection of the log's own. From a connection, the log's pool is the connection's, and closes
- * with it; from a URL, closing the log closes the connection it opened.
- */
 export async function openActivityLog(server: string | Storytree, options: OpenOptions = {}): Promise<ActivityLog> {
   const experiment = readExperiment(options.home);
   const stamp: Stamp = { machine: options.machine, branchOf: options.branchOf, ...(experiment === undefined ? {} : { labels: { experiment: experiment.name, arm: experiment.arm } }) };
@@ -298,16 +170,10 @@ export async function openActivityLog(server: string | Storytree, options: OpenO
   }
 }
 
-/** The log's database, which the library creates and sets up with the log's tables. */
 function activityPool(server: Storytree): Promise<Pool> {
   return server.ownDatabase(ACTIVITY_DATABASE, { tables: SCHEMA, declaredIn: [import.meta.url, TRANSCRIPT_SCHEMA_FILE, BEATS_SCHEMA_FILE, LANE_MESSAGES_SCHEMA_FILE, READS_SCHEMA_FILE] });
 }
 
-/**
- * Delete `project`'s lines and transcripts from the log on `server` (ADR-0831): deleting a project
- * deletes its records, and these are its records in the shared log, so a later project of the same
- * name starts with no old claims, sessions or lines. Held under the project's lock, as a write is.
- */
 export async function forgetProjectActivity(server: Storytree, project: string): Promise<void> {
   assertProject(project);
   const pool = await activityPool(server);
@@ -328,7 +194,6 @@ export async function forgetProjectActivity(server: Storytree, project: string):
   }
 }
 
-/** What a log adds to every line it writes: its machine, its folder's branch, and its experiment arm's labels. */
 interface Stamp {
   readonly machine: string | undefined;
   readonly branchOf: ((folder: string) => string | undefined) | undefined;
@@ -340,7 +205,6 @@ class PgActivityLog implements ActivityLog {
   readonly #stamp: Stamp;
   #closing: Promise<void> | undefined;
 
-  /** The connection the log opened for itself from a URL, closed with the log; the pool is its. */
   readonly #owner: Storytree | undefined;
 
   readonly transcripts: TranscriptRecords;
@@ -448,7 +312,6 @@ class PgActivityLog implements ActivityLog {
 
   async machineTally(project: string, since: string, recentSince: string): Promise<MachineTally[]> {
     assertProject(project);
-    // The (project, at) index narrows it to the window, so a month of a busy machine's lines is counted, never sent.
     const { rows } = await this.#pool.query<{ machine: string; count: string; recent: string; first: Date; last: Date; last_seq: string }>(
       `SELECT detail->>'machine' AS machine, count(*) AS count, count(*) FILTER (WHERE at >= $3) AS recent, coalesce(min(at) FILTER (WHERE at >= $3), min(at)) AS first, max(at) AS last, max(seq) AS last_seq
          FROM activity WHERE project = $1 AND at >= $2 AND detail ? 'machine' GROUP BY 1 ORDER BY 1`,
@@ -493,10 +356,6 @@ class PgActivityLog implements ActivityLog {
     );
   }
 
-  /**
-   * `line`, naming this log's machine when it names none, its folder's branch when it names a folder and no branch,
-   * and the experiment and arm this log's home names, whatever the line says (ADR-1064 D2).
-   */
   #stamped(line: NewLine): NewLine {
     const { machine: ownMachine, branchOf, labels } = this.#stamp;
     const machine = line.machine !== undefined || ownMachine === undefined ? line : { ...line, machine: ownMachine };
@@ -511,11 +370,6 @@ class PgActivityLog implements ActivityLog {
     return this.#closing;
   }
 
-  /**
-   * Run one write as one transaction, holding `project`'s lock until it commits: the project's
-   * writes take turns, so they commit in the order their lines are numbered. Writes for other
-   * projects do not wait.
-   */
   async #write<T>(project: string, work: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await this.#pool.connect();
     let broken = false;
@@ -536,17 +390,14 @@ class PgActivityLog implements ActivityLog {
   }
 }
 
-/** What runs a query: the log's pool, or the client a locked write holds. */
 type Queryable = Pool | PoolClient;
 
-/** `project`'s lines that `filter` asks for, oldest first. */
 async function readLines(on: Queryable, project: string, filter: LineFilter): Promise<Line[]> {
   const { text, values } = selectLines(project, filter);
   const lines = (await on.query<ActivityRow>(text, values)).rows.map(lineOf);
   return filter.newest === undefined ? lines : lines.reverse();
 }
 
-/** When each of `sessions`, or of every session, last wrote a line to `project`'s log. */
 async function lastSeenIn(on: Queryable, project: string, sessions: readonly string[] | undefined): Promise<Map<string, string>> {
   if (sessions !== undefined && sessions.length === 0) return new Map();
   const { rows } = await on.query<{ session: string; at: Date }>(
@@ -556,16 +407,13 @@ async function lastSeenIn(on: Queryable, project: string, sessions: readonly str
   return new Map(rows.map((row) => [row.session, row.at.toISOString()]));
 }
 
-/** `line`, checked against the kinds of line the log knows: anything else is refused, naming what is wrong. */
 function parseLine(line: NewLine): NewLine {
   const parsed = NEW_LINE.safeParse(line);
   if (!parsed.success) throw new Error(`the activity log refused a line: ${z.prettifyError(parsed.error)}`);
   return parsed.data;
 }
 
-/** Add `line` to `project`'s log on `client`, inside a transaction holding the project's lock. */
 async function insert(client: PoolClient, project: string, line: NewLine, { at, once = false, event }: AppendOptions = {}): Promise<Line> {
-  // A cause is an earlier line of this project's log: a dangling one is refused, never healed (0.2 inc-74).
   if (line.causedBy !== undefined) {
     const { rowCount } = await client.query("SELECT 1 FROM activity WHERE project = $1 AND seq = $2", [project, line.causedBy]);
     if (rowCount === 0) throw new Error(`the activity log refused a line: its cause, line ${line.causedBy}, is not a line of ${project}'s log`);
@@ -573,7 +421,6 @@ async function insert(client: PoolClient, project: string, line: NewLine, { at, 
   const { session, harness, source, kind, folder, ...detail } = line;
   const values = [project, session, harness ?? null, source, kind, folder ?? null, JSON.stringify(detail), at ?? null];
   if (once && at !== undefined) {
-    // The same line at the same time is the same line: the project's lock is held, so no other upload slips between.
     const { rows: same } = await client.query<ActivityRow>(
       `SELECT seq, project, at, ${COLUMNS.join(", ")}, detail FROM activity
         WHERE project = $1 AND session = $2 AND harness IS NOT DISTINCT FROM $3 AND source = $4 AND kind = $5
@@ -583,7 +430,6 @@ async function insert(client: PoolClient, project: string, line: NewLine, { at, 
     if (same[0] !== undefined) return lineOf(same[0]);
   }
   if (event !== undefined) {
-    // The same line of the same event, come the other way about the same time, is this line (ADR-1056 D2).
     const { rows: same } = await client.query<ActivityRow>(
       `SELECT seq, project, at, ${COLUMNS.join(", ")}, detail FROM activity
         WHERE project = $1 AND event = $9 AND event_via <> $10 AND session = $2 AND harness IS NOT DISTINCT FROM $3 AND source = $4
@@ -602,7 +448,6 @@ async function insert(client: PoolClient, project: string, line: NewLine, { at, 
   return { ...line, seq: Number(row.seq), project, at: row.at.toISOString() } as Line;
 }
 
-/** The same line, as the log compares lines: its columns and its detail, the detail's keys in order (jsonb sorts them). */
 function sameKey(line: NewLine): string {
   const { session, harness, source, kind, folder, ...detail } = line;
   const sorted = (value: unknown): unknown => Array.isArray(value) ? value.map(sorted)
@@ -610,15 +455,7 @@ function sameKey(line: NewLine): string {
   return JSON.stringify([session, harness ?? null, source, kind, folder ?? null, sorted(detail)]);
 }
 
-/**
- * Add `earlier` to `project`'s log on `client`, inside a transaction holding the project's lock, as
- * `insert` adds each with `once` and its time: one statement checks a run of lines against the log and
- * inserts the rest, in order. A line that could be the same as an earlier one of the run (exactly like
- * it at its time, or of its event come the other way) starts the next run, so it is checked against
- * the log once that one is in, as one line after another would be; almost every batch is one run.
- */
 async function insertMany(client: PoolClient, project: string, earlier: readonly Earlier[]): Promise<void> {
-  // A cause is an earlier line of this project's log: a dangling one is refused, never healed (0.2 inc-74).
   const causes = [...new Set(earlier.flatMap(({ line }) => (line.causedBy === undefined ? [] : [line.causedBy])))];
   if (causes.length > 0) {
     const { rows } = await client.query<{ seq: string }>("SELECT seq FROM activity WHERE project = $1 AND seq = ANY($2::bigint[])", [project, causes]);
@@ -645,7 +482,6 @@ async function insertMany(client: PoolClient, project: string, earlier: readonly
   await insertRun(client, project, run);
 }
 
-/** Insert the lines of `run` that the log does not already hold, by `insert`'s once and event rules, in one statement, in order. */
 async function insertRun(client: PoolClient, project: string, run: readonly Earlier[]): Promise<void> {
   if (run.length === 0) return;
   const column = (pick: (entry: Earlier) => string | null) => run.map(pick);
@@ -679,7 +515,6 @@ async function insertRun(client: PoolClient, project: string, run: readonly Earl
   );
 }
 
-/** A stored row as the line it is: its own fields, with nothing absent written as undefined. */
 function lineOf(row: ActivityRow): Line {
   return {
     ...row.detail,

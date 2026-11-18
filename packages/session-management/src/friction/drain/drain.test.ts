@@ -1,7 +1,4 @@
-/**
- * Capability 17 · Friction, its drain and route: one test per contract 17.8-17.14, each in a fresh
- * project's library on the real Postgres `pnpm test` provides.
- */
+// Capability 17 · Friction
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -35,7 +32,6 @@ test("17.8 · the friction drain takes three open reports from other branches, m
         branch: `repeat/${index}`, date: "2026-09-28", evidence: `#${index + 1}: happened again`,
       })) });
     }
-    // Judged after its recurrences: a recurrence on a settled report would reopen it (5.6).
     await route(library, routed.id, "nothing", "A one-off: the app was open.");
 
     const drain = await frictionDrain(library, { branch: "claude/me" });
@@ -65,7 +61,7 @@ test("17.10 · a tool route needs an open increment naming this friction, unless
     const report = await friction(library, "Seed refused", "claude/other");
     const arc = await library.createArc({ title: "Seeding", intent: "Seed live", endState: "Seed works" });
     const increment = { arc: arc.id, title: "Fix seeding", objective: "Use running Postgres", body: "Build the fix" };
-    await library.addIncrement(increment); // An unrelated live increment proves nothing.
+    await library.addIncrement(increment);
     await library.addIncrement({ ...increment, remedies: [report.id], outcome: { disposition: "landed", pr: "#1" } });
     const history = await library.history();
     await assert.rejects(route(library, report.id, "tool", "Fix seeding"), /live increment.*remedies/);
@@ -131,7 +127,6 @@ test("17.12 · every route but nothing needs an open increment remedying the rep
 test("17.13 · the friction drain leases what it lists to the session that asked: a second session draining meanwhile gets the next unleased reports, a route ends the lease, and a lapsed lease frees the report", async () => {
   await withLibrary(async (library) => {
     for (const name of ["A", "B", "C", "D", "E"]) await friction(library, `Report ${name}`, "claude/other");
-    // Reports written in one millisecond can tie on creation order, so take the order the drain lists.
     const [a, b, c, d, e] = await openFriction(library, { branch: "claude/me" });
     const one = { actor: "session:one" };
     const two = { actor: "session:two" };
@@ -163,7 +158,6 @@ test("17.13 · two sessions draining at the same moment are never handed the sam
 test("17.14 · route checks whether a report is already routed inside its write: a pass that read the report before another pass's route committed is refused, and nothing is written (regression, friction_2a561540827c: routed both ways 12 s apart)", async () => {
   await withLibrary(async (library) => {
     const report = await friction(library, "Seed refused", "claude/other");
-    // The later pass read the notes before the earlier pass's route committed: its reads stay as they were.
     const read = await library.search("");
     const late = new Proxy(library, {
       get(target, key) {
@@ -207,7 +201,6 @@ test("17.23 · routing a report with a theme records the route and reason on eve
     }
     assert.deepEqual((await frictionDrain(library, { branch: "claude/me" })).map(({ id }) => id), [], "the theme leaves nothing to drain");
 
-    // A pass that read the theme before another pass routed one of its reports elsewhere is refused inside that write.
     const next = await friction(library, "Push refused at night", "claude/other");
     const raced = await friction(library, "Push refused at dawn", "claude/other");
     await library.addIncrement({ arc: arc.id, title: "Let the box push at night", objective: "Push", body: "Push", remedies: [next.id, raced.id] });

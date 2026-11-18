@@ -10,9 +10,6 @@ import { removeTemp } from "@storytree/test-waits";
 import { describe, sanitizationHits } from "./codeql-patterns.mjs";
 import { RULES, lint } from "./lint.mjs";
 
-// increment_b3e14f7421a6: PR #989's three regexes (CodeQL's js/polynomial-redos, packages/code-measures churn.ts,
-// read.ts and source.ts), verbatim, and one built from a string with the same flaw, a refused regex a line from line 2.
-// The fixtures are text written to files, so this file holds none of them as a live regex.
 const OVERLAPPING = [
   "// PR #989's regexes, before they were fixed",
   String.raw`export const renamed = (path: string) => /^(.*)\{(.*) => (.*)\}(.*)$/.exec(path);`,
@@ -57,8 +54,6 @@ test("8.18 · pnpm lint refuses a regex whose repeated parts overlap so it can b
   assert.equal(await lint({ root, rules: RULES.filter(({ name }) => name === "codeql-patterns"), log: (line) => clean.push(line) }), 0, clean.join("\n"));
 });
 
-// The narrowing of 8.18: CodeQL's rule fires only on a regex run over outside input, which a test's assertion and a
-// vendored bundle never are, and a regex no input can make fail, or one holding a negative lookaround, is not refused.
 const BRACES = String.raw`export const braced = (text: string) => /^(.*)\{(.*)\}$/.exec(text);` + "\n";
 
 const UNFAILING = [
@@ -87,9 +82,6 @@ test("8.18 · pnpm lint does not read test files (*.test.*, *.spec.*) or minifie
   assert.match(refused[0], /js\/polynomial-redos/);
 });
 
-// Each refused regex below backtracks super-linearly on a long run of its string followed by a character that ends
-// the match: the em dash is outside ASCII; each backreference can match empty, so the \w parts either side of it meet;
-// -* can match empty, so the two \s* meet. The last can never fail: [\s\S]* takes the whole input and $ holds there.
 const REACHED = [
   String.raw`export const rule = (text: string) => /^(—+)\s*(—*)$/.exec(text);`,
   String.raw`export const twice = (text: string) => /^(\w*)\1\w*$/.exec(text);`,

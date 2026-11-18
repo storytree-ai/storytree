@@ -1,5 +1,3 @@
-// A branch changes only the capabilities its increment lists (ADR-0949 D3): the rules live in
-// packages/repo-checks/src/capability-list.mjs; `pnpm gate` runs them against the library as check:capability-list.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -17,7 +15,6 @@ import { branchTree, branchVerdict, capabilitiesOf, capabilityListFor, importRew
 import { runGate } from "@storytree/base-dev-loop";
 import { gateSteps } from "./gate-steps.mjs";
 
-/** A checkout holding the till's package: a declared source file, its test, and a file only the survey places. */
 function checkout(t) {
   const root = mkdtempSync(path.join(tmpdir(), "capability-list-"));
   t.after(() => removeTemp(root));
@@ -36,7 +33,6 @@ function checkout(t) {
 }
 
 const tree = { stories: [{ id: "story-till", title: "The till", capabilities: [{ id: "cap-drawer", title: "1 · The drawer" }, { id: "cap-receipts", title: "2 · Receipts" }] }] };
-/** The code survey's inference: the helper is reached nearest by the drawer's tests. */
 const survey = async () => ({ "story-till": { files: [{ path: "src/helper.ts", capability: "cap-drawer" }] } });
 
 test("4.1 a branch that changes a capability its increment does not list fails, naming the capability and its files", async (t) => {
@@ -105,7 +101,6 @@ test("4.1 a branch naming no increment leaves the check NOT RUN with its reason;
   const gate = async () => {
     const calls = [];
     const output = [];
-    // The temporary checkout has no package.json to compose the gate's steps from, so it is handed this package's.
     const steps = async () => ({ parts: gateSteps, owners: gateSteps.map(() => "repo-checks"), graph: { "repo-checks": [] } });
     const code = await runGate({ root, steps, partsOff: () => [], run: async (step) => { calls.push(step); return step === "check:capability-list" ? 1 : 0; }, log: (line) => output.push(line) });
     return { code, calls, table: output.at(-1) };
@@ -138,7 +133,6 @@ test("4.2 a branch's checks read the plan with its increment's pending changes l
   assert.match(problem, /history entry 41.*entry 57 \(updated 2026-10-11T01:00:00\.000Z by session:other\)/);
 });
 
-/** Run `sql` on the test server as the client at `url`, in `database` when given. */
 async function query(url, sql, database) {
   const at = new URL(url);
   if (database !== undefined) at.pathname = `/${database}`;

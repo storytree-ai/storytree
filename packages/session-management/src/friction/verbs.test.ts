@@ -1,8 +1,4 @@
-/**
- * Capability 17 · Friction, its verbs (17.15-17.18): the `friction` and `resteer`
- * verbs Session management declares for both front doors, run with a context of a fresh project's library on the real Postgres
- * `pnpm test` provides.
- */
+// Capability 17 · Friction
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
@@ -55,7 +51,6 @@ test("17.17 · Session management declares the `friction` and `resteer` families
 
 const verbNamed = (name: string) => FRICTION_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === name)!;
 
-/** Run `body` with a context in a fresh Git folder on `branch`, as session s. */
 async function onBranch(library: Library, branch: string, body: (context: VerbContext) => Promise<void>): Promise<void> {
   const folder = mkdtempSync(path.join(tmpdir(), "friction-verbs-"));
   try {
@@ -93,7 +88,6 @@ test("17.16 · `friction drain` lists the unrouted reports other branches filed 
     const routed = await library.writeKnowledge("friction", { ...fields, title: "Routed", provenance: provenance("another/branch") });
     await library.editNote(routed.id, { route: "nothing", routeReason: "Passed" });
     const later: { id: string }[] = [];
-    // Creation time is to the millisecond and ties fall to the random id, so each report is written in a later millisecond.
     for (const title of ["Third", "Fourth"]) {
       const from = Date.now();
       await waitUntil(() => Date.now() > from, 1_000, "the next millisecond");

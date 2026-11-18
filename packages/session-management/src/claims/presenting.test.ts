@@ -1,8 +1,4 @@
-/**
- * Capability 5 · Claims: contract 5.36, a question put to the owner is marked with the session
- * putting it, so a second live session is turned away from it, against the real Postgres `pnpm test`
- * provides, in a fresh project dropped afterwards.
- */
+// Capability 5 · Claims
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

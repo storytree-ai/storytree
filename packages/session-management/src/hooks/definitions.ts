@@ -1,29 +1,7 @@
-/**
- * Capability 3 · Hooks. Definition lookups at each prompt (ADR-0636 D1, b2; 0.2's `definition-injection.mjs`, ported by
- * behaviour): when the user sends a prompt, the hook adds the project library's definitions for the
- * terms it names, so the agent reads the project's meaning of a word before it acts on it.
- *
- * - A definition answers to its term, and to each `/`-separated part of it, but only by a name
- *   that points at it alone: its term unless another definition has the same term, and a part only
- *   when no other definition answers to it. So "Review/Ledger" and "Review/Brief" answer to their
- *   own parts but not to "Review", which they share, and two definitions of one term answer to
- *   neither it nor its parts (0.2 split on `/` too, but its 52 definitions shared no part). A name
- *   shorter than three letters is never looked for.
- * - A name is found as whole words, ignoring case, with `-`, `_` and runs of spaces read as one
- *   space, and its last word may be plural (`claims` finds "Claim", `policies` finds "Policy"): the
- *   library's whole-words rule, which ranked search's title lift shares (ADR-1044 D3).
- * - Every match is added, the longest name first (a tie keeps the library's order), and each only
- *   once a session: the ones already given are left out.
- * - A harness's own notice, sent to the agent as if it were a prompt, gets none: 0.2's markers, and
- *   an agent's message (a subagent's report, another session's message), in the first 400 characters.
- * - Nothing is cut (ADR-1049 D1): one prompt's definitions past BIG_INJECTION_BYTES are all added, and
- *   the first such prompt of a session also files a friction report, naming what each came through,
- *   for the drain to take to the owner (D2).
- */
+// Capability 3 · Hooks
 import { holdsName, normalisedWords } from "@storytree/library/whole-words";
 import { freshIds, notYetGivenIds } from "./given-once.js";
 
-/** The friction report this hook files through Friction's capture: the fields it writes (ADR-1017 D2). */
 export interface InjectionReport {
   readonly title: string;
   readonly description: string;
@@ -32,43 +10,29 @@ export interface InjectionReport {
   readonly impact: string;
 }
 
-/** A definition, as the library holds it. */
 export interface Definition {
   readonly id: string;
   readonly term: string;
   readonly meaning: string;
 }
 
-/** A definition a prompt named, with the name it answered to. */
 export interface NamedDefinition extends Definition {
   readonly name: string;
 }
 
-/** How much of a meaning is shown: its first line, cut to this many characters. */
 const MEANING_CHARS = 200;
-/** The shortest name looked for. */
 const SHORTEST_NAME = 3;
-/** How far into a prompt a harness's notice marker is looked for. */
 const NOTICE_HEAD = 400;
-/** How big one prompt's added definitions may be before a friction report is filed (ADR-1049 D2): a reporting threshold, never a cap. */
 export const BIG_INJECTION_BYTES = 8 * 1024;
-/** The title of that report. */
 const BIG_INJECTION_TITLE = "One prompt's definitions passed 8 KB";
-/** How many terms the report shows for each name they came through. */
 const TERMS_A_NAME = 3;
-/**
- * What a harness puts at the head of its own notices to the agent: 0.2's three, and the wrapping of
- * an agent's message (a subagent's report handed back, or another session's message).
- */
 const NOTICE_MARKERS = ["[SYSTEM NOTIFICATION - NOT USER INPUT]", "<task-notification>", "<system-reminder>", "<agent-message", "[Subagent hand-back]"];
 
-/** Whether `prompt` is a harness's own notice rather than something a person wrote. */
 export function isHarnessNotice(prompt: string): boolean {
   const head = prompt.slice(0, NOTICE_HEAD);
   return NOTICE_MARKERS.some((marker) => head.includes(marker));
 }
 
-/** All definitions `prompt` names, longest name first. */
 export function definitionsNamedIn(prompt: string, definitions: readonly Definition[]): NamedDefinition[] {
   const termsAndParts = definitions.map(({ term }) => {
     const whole = normalisedWords(term);
@@ -91,7 +55,6 @@ export function definitionsNamedIn(prompt: string, definitions: readonly Definit
     .map(({ definition, name }) => ({ ...definition, name }));
 }
 
-/** What the agent is shown for `definitions`. */
 export function definitionsContext(definitions: readonly Definition[]): string {
   return [
     "[storytree] Definitions from this project's library for terms in this prompt (open an artifact by its id to read all of it):",
@@ -99,23 +62,11 @@ export function definitionsContext(definitions: readonly Definition[]): string {
   ].join("\n");
 }
 
-/**
- * The ones of `definitions` not yet given to `session`, read only: they are remembered as given by
- * the caller, once what it gives is the answer shown (3.7). What a session has been given is kept in
- * the temporary folder, one file a session; a session id that could not be a file name keeps
- * nothing, so every definition is new to it.
- */
 export function notYetGiven<D extends Definition>(session: string, definitions: readonly D[]): D[] {
   const fresh = new Set(freshIds(session, definitions.map(({ id }) => id), "definitions"));
   return definitions.filter(({ id }) => fresh.has(id));
 }
 
-/**
- * The friction report for `added`, the definitions one prompt of `session` added as `context`, when
- * the context passes BIG_INJECTION_BYTES and is the session's first to: its evidence groups the
- * definitions by the name each came through, since one name bringing in many is the sprawl it is
- * for. At most one a session, remembered as soon as it is decided, whether or not its filing succeeds.
- */
 export function bigInjectionReport(session: string, added: readonly NamedDefinition[], context: string): InjectionReport | undefined {
   const bytes = Buffer.byteLength(context);
   if (bytes <= BIG_INJECTION_BYTES || notYetGivenIds(session, [BIG_INJECTION_TITLE], "big-injections").length === 0) return undefined;
@@ -134,7 +85,6 @@ export function bigInjectionReport(session: string, added: readonly NamedDefinit
   };
 }
 
-/** How many of `groups` hold each name. */
 function tally(groups: Iterable<string>[]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const group of groups) for (const name of group) counts.set(name, (counts.get(name) ?? 0) + 1);

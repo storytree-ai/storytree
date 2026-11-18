@@ -1,40 +1,15 @@
-/**
- * Capability 9 · Context readings. Contract 9.8 · what a Claude Code or Codex session's context is made of, in the four groups the owner
- * named (arc_895e232031b0): Injected (what arrives unasked), Grounding (reading to understand),
- * Implementation (changing things, and every call the session authored), Other (the rest).
- *
- * Ported from 0.2's measured composition fold (0.2 ADR-0516 D3/D4, ADR-0524;
- * `packages/context-traversal-transcript` there), regrouped:
- * - Sorted from the LABELS the harness put on each record (`attachment.type`, a block's `type`,
- *   a call's tool name and, for a shell, its command's verbs), never from a body's words. A label
- *   the table does not know goes to Other and is named in `unsorted`, never guessed into a group.
- * - A tool result is sorted by the call it answers, and a call by what it does, not which tool ran
- *   it: a shell `grep` is grounding, a shell test run is implementation.
- * - The system prompt and tool list are never written to a transcript, so they are the residual
- *   the first own request's resident tokens leave over what the transcript recorded before it,
- *   and they count as Injected.
- * - Sizes are the UTF-8 bytes of each record as serialised, at {@link CHARS_PER_TOKEN}. The groups
- *   are the window's intake over its life (a compaction's dropped records included), so a surface
- *   reads them as shares of tokens used, not as a second total.
- * - Subagent (`isSidechain`) lines are another window's and are left out, except in a subagent's own
- *   transcript, where every record is one and all of them are its window (9.17); the harness's own
- *   bookkeeping records (`last-prompt`, queue logs and kin) are not content and are not counted.
- */
+// Capability 9 · Context readings
 import { isCount, isRecord, jsonLines, SYNTHETIC, type JsonRecord } from "./transcript.js";
 
-/** Characters per token for the conversion from bytes (0.2 ADR-0330 D1's calibration). */
 export const CHARS_PER_TOKEN = 3.8;
 
 export type CompositionGroup = "injected" | "grounding" | "implementation" | "other";
 
-/** A reading's composition: estimated tokens per group, and the labels the table did not know. */
 export type Composition = Readonly<Record<CompositionGroup, number>> & {
-  /** Labels that fell to Other because nothing sorts them: `attachment:<type>`, `block:<type>`, `tool:<name>`, `tool_result:unmatched`. */
   readonly unsorted: readonly string[];
   readonly charsPerToken: number;
 };
 
-/** Attachment types the harness labels, by group. An absent type is unsorted. */
 const ATTACHMENT_GROUP: Readonly<Record<string, CompositionGroup>> = {
   nested_memory: "injected",
   skill_listing: "injected",
@@ -51,7 +26,6 @@ const ATTACHMENT_GROUP: Readonly<Record<string, CompositionGroup>> = {
   date_change: "injected",
   auto_mode: "injected",
   edited_text_file: "injected",
-  // Measured on this machine 2026-09-28 (Claude Code desktop), newer than 0.2's table.
   date: "injected",
   deferred_tools_record: "injected",
   environment: "injected",
@@ -63,28 +37,20 @@ const ATTACHMENT_GROUP: Readonly<Record<string, CompositionGroup>> = {
   queued_command: "other",
 };
 
-/** Tools whose output is reading: files, searches, the web, subagent digests. */
 const GROUNDING_TOOLS = new Set(["Read", "Grep", "Glob", "NotebookRead", "WebFetch", "WebSearch", "Agent", "Task", "TaskOutput", "ToolSearch"]);
-/** Tools that change things. */
 const IMPLEMENTATION_TOOLS = new Set(["Edit", "MultiEdit", "Write", "NotebookEdit"]);
-/** Tools whose input is a command line, sorted by the command's verbs. */
 const SHELL_TOOLS = new Set(["Bash", "PowerShell"]);
 
-/** Leading words of a command that only reads. Any other command in a shell call makes it implementation. */
 const READING_COMMANDS = new Set([
   "cat", "head", "tail", "less", "more", "grep", "rg", "egrep", "ls", "dir", "find", "wc", "tree", "stat", "file", "pwd",
   "which", "where", "echo", "type", "diff", "jq", "sort", "uniq", "cut", "awk", "basename", "dirname", "realpath", "cd",
   "Get-Content", "Get-ChildItem", "Select-String", "Get-Item", "Select-Object", "Measure-Object", "Test-Path", "Set-Location",
 ]);
-/** `git` / `gh` sub-commands that only read. */
 const READING_GIT = new Set(["log", "show", "diff", "status", "blame", "grep", "ls-files", "rev-parse", "branch", "remote", "fetch", "worktree"]);
 const READING_GH = new Set(["view", "list", "checks", "diff", "status"]);
-/** `storytree` families and verbs that only read the library. */
 const READING_STORYTREE = new Set(["read", "search", "show", "list", "links", "history", "noticeboard", "tree", "context", "processes", "own"]);
-/** An MCP tool's last name part that says it reads. */
 const READING_MCP = /(^|_)(read|search|list|get|open|find|show|query|fetch|notes?|page|text|screenshot|status|context|history)(_|$)/;
 
-/** What a call does. `undefined` for a tool nothing sorts, which goes to Other and is named. */
 export function callGroup(name: string, input: JsonRecord): CompositionGroup | undefined {
   if (GROUNDING_TOOLS.has(name)) return "grounding";
   if (IMPLEMENTATION_TOOLS.has(name)) return "implementation";
@@ -93,7 +59,6 @@ export function callGroup(name: string, input: JsonRecord): CompositionGroup | u
   return undefined;
 }
 
-/** Does every command in `line` only read? A pipeline, `&&` chain or `;` list reads only if each part does. */
 export function readsOnly(line: string): boolean {
   const parts = line.split(/\|\||&&|[|;\n]/).map((part) => part.trim()).filter((part) => part !== "");
   return parts.length > 0 && parts.every((part) => {
@@ -115,18 +80,12 @@ function storytreeReads(args: readonly string[]): boolean {
   return args.some((word) => READING_STORYTREE.has(word)) && !args.some((word) => ["new", "edit", "retire", "close", "settle", "set"].includes(word));
 }
 
-/**
- * The composition of a Claude Code transcript, or `undefined` when it holds no own request to take
- * the system prompt and tool list from (the reading is then an absence anyway, 9.2).
- */
 export function claudeCodeComposition(text: string): Composition | undefined {
   return composed(text, claudeCodeCompositionFold());
 }
 
-/** A composition worked out record by record, in transcript order, so a grown transcript is sorted only where it grew (9.14). */
 export interface CompositionFold {
   add(record: JsonRecord): void;
-  /** The composition of every record added so far; `undefined` while there is no floor to take the unrecorded part from. */
   composition(): Composition | undefined;
 }
 
@@ -137,7 +96,6 @@ function composed(text: string, fold: CompositionFold): Composition | undefined 
   return fold.composition();
 }
 
-/** {@link claudeCodeComposition}, a record at a time. */
 export function claudeCodeCompositionFold({ subagent = false }: { subagent?: boolean } = {}): CompositionFold {
   const { add, unknown, seen, unsorted, composition } = tally();
   const calls = new Map<string, CompositionGroup | undefined>();
@@ -191,25 +149,18 @@ export function claudeCodeCompositionFold({ subagent = false }: { subagent?: boo
   return { add: take, composition: () => (floor === undefined ? undefined : composition(floor)) };
 }
 
-/** Codex tools by the Claude Code tool that does the same, so one table sorts both. Shells are read by their command. */
 const CODEX_TOOLS: Readonly<Record<string, string>> = {
   apply_patch: "Edit", view_image: "Read", web__run: "WebFetch", spawn_agent: "Agent", wait_agent: "TaskOutput",
 };
 const CODEX_SHELLS = new Set(["shell_command", "exec_command"]);
-/** Items that are the session's own history, summarised or passed between agents: Other, and sorted. */
 const CODEX_OTHER_ITEMS = new Set(["reasoning", "compaction", "agent_message"]);
 
-/** What one Codex tool call does: a shell by its command's verbs, any other tool as its Claude Code twin. */
 function codexToolGroup(name: string, args: JsonRecord): CompositionGroup | undefined {
   if (CODEX_SHELLS.has(name)) return callGroup("Bash", { command: args.command ?? args.cmd });
   const twin = CODEX_TOOLS[name] ?? (name.startsWith("mcp__") ? undefined : CODEX_TOOLS[name.slice(name.lastIndexOf("__") + 2)]);
   return callGroup(twin ?? name, args);
 }
 
-/**
- * An `exec` cell is a script calling `tools.<name>(…)`: it reads only if every call in it does,
- * changes things if any call does, and is unsorted when a call nothing sorts (or no call) decides it.
- */
 function execGroup(source: string): { group: CompositionGroup | undefined; unsorted: string[] } {
   const starts = [...source.matchAll(/tools\.(\w+)\s*\(/g)];
   if (starts.length === 0) return { group: undefined, unsorted: ["tool:exec:script"] };
@@ -226,25 +177,10 @@ function execGroup(source: string): { group: CompositionGroup | undefined; unsor
   return unknown.length > 0 ? { group: undefined, unsorted: unknown } : { group: "grounding", unsorted: [] };
 }
 
-/**
- * The composition of a Codex rollout (Codex 0.155's shapes), or `undefined` when it holds no token
- * count to take the unrecorded floor from. Sorted as a Claude Code transcript is, by the labels
- * Codex writes: the session's `base_instructions` and `developer` messages are Injected, and so is
- * a `user` message the harness added (one Codex never recorded as the user's own `UserMessage`);
- * an `exec` cell by what its tool calls do, a `wait` by the cell it waits on, and an output by its
- * call. Codex has no request id: its first token count's input less the bytes recorded before it
- * is the tool list and world state it sent unrecorded, counted as Injected. Its bookkeeping
- * (`event_msg`, `world_state`, `turn_context`, `token_usage_record`, `compacted`) is not counted.
- */
 export function codexComposition(text: string): Composition | undefined {
   return composed(text, codexCompositionFold());
 }
 
-/**
- * {@link codexComposition}, a record at a time. Whether a `user` message is the user's own depends on
- * a `UserMessage` anywhere in the rollout, earlier or later, so each one's size is held, counted
- * toward the floor as it comes, and sorted only when the composition is asked for.
- */
 export function codexCompositionFold(): CompositionFold {
   const typed = new Set<string>();
   const { add, hold, unknown, seen, unsorted, composition } = tally();
@@ -315,15 +251,9 @@ export function codexCompositionFold(): CompositionFold {
   return { add: take, composition: () => (floor === undefined ? undefined : composition(floor, sorted())) };
 }
 
-/**
- * What the model pays for an image, in tokens: its pixels ÷ 750, the most one costs about 4,800.
- * Measured on this laptop's transcripts, 2026-09-29: the usage between the requests either side of
- * a lone screenshot read (1440×960 ≈ 1,900; 1918×1052 ≈ 2,700; 1875×1999 ≈ 4,760).
- */
 const PIXELS_PER_TOKEN = 750;
 const MOST_IMAGE_TOKENS = 4_800;
 
-/** An image's tokens from its base64 header (PNG, JPEG, GIF, WebP), or the most one costs when its size cannot be read. */
 export function imageTokens(base64: string): number {
   const head = Buffer.from(base64.slice(0, 8_000), "base64");
   const size = pixelSize(head);
@@ -350,7 +280,6 @@ function pixelSize(head: Buffer): [number, number] | undefined {
   return undefined;
 }
 
-/** The base64 of an image block: Claude Code's `image` source, or Codex's `input_image` data URL. */
 function imageData(value: unknown): string | undefined {
   if (!isRecord(value)) return undefined;
   if (value.type === "image" && isRecord(value.source) && typeof value.source.data === "string") return value.source.data;
@@ -358,7 +287,6 @@ function imageData(value: unknown): string | undefined {
   return undefined;
 }
 
-/** A value's size in bytes as the model pays for it: text by its length, each image by its pixels. */
 function sizeOf(value: unknown): number {
   let images = 0;
   const text = JSON.stringify(value, (_key, inner: unknown) => {
@@ -370,7 +298,6 @@ function sizeOf(value: unknown): number {
   return Buffer.byteLength(text ?? "") + images;
 }
 
-/** A running count of bytes per group, and the labels nothing sorted. */
 function tally() {
   const bytes: Record<CompositionGroup, number> = { injected: 0, grounding: 0, implementation: 0, other: 0 };
   const unsorted = new Set<string>();
@@ -382,7 +309,6 @@ function tally() {
   };
   return {
     add,
-    /** Count a value's size as seen, its group decided later: its size, for `composition`'s `held`. */
     hold: (value: unknown): number => {
       const size = sizeOf(value);
       seen += size;
@@ -391,7 +317,6 @@ function tally() {
     unknown: (label: string, value: unknown): void => { unsorted.add(label); add("other", value); },
     seen: (): number => seen,
     unsorted,
-    /** The groups in tokens, with the `held` bytes now sorted, the unrecorded `floor` counted as Injected. */
     composition: (floor: number, held: Partial<Record<CompositionGroup, number>> = {}): Composition => {
       const tokens = (group: CompositionGroup): number => Math.round((bytes[group] + (held[group] ?? 0)) / CHARS_PER_TOKEN);
       return {

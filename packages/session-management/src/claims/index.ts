@@ -1,4 +1,4 @@
-/** Capability 5 · Claims. */
+// Capability 5 · Claims
 export { attributeFrom, claim, claimAll, claimClearingOwnerWait, claimFrom, claimRefusal, claimsFrom, claimsGuidance, closed, closeRefusal, holdForPull, increments, land, letGo, readAttribution, readClaim, readClaims, recordQueueRed, recordRed, recordRerun, release, releaseAsked, releaseFor } from "./claims.js";
 export { presentersOf, presentQuestion, stopPresenting, type PresentAnswer, type Presenter } from "./presenting.js";
 export { staleClaims, type StaleClaim, type StaleWorklist } from "./stale-claims.js";

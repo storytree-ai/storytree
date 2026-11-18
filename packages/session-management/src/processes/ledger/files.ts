@@ -1,4 +1,4 @@
-/** Capability 12 · Record who started each run. */
+// Capability 12 · Record who started each run
 import { randomUUID } from 'node:crypto';
 import { mkdir, open, readdir, readFile, rename, rm, stat } from 'node:fs/promises';
 import { homedir, hostname } from 'node:os';
@@ -14,7 +14,6 @@ export function ledgerHome(options: LedgerOptions = {}): string {
 export const localMachine = (): string => hostname();
 export function reason(error: unknown): string { return error instanceof Error ? error.message : String(error); }
 
-/** Sync the complete record before publishing it. No shared append or read/modify/write lock. */
 export async function writeRecord(file: string, value: unknown): Promise<void> {
   const dir = path.dirname(file);
   await mkdir(dir, { recursive: true, mode: 0o700 });
@@ -32,7 +31,7 @@ export async function writeRecord(file: string, value: unknown): Promise<void> {
 }
 export async function writeGap(home: string, gap: ObservationGap): Promise<boolean> {
   try { await writeRecord(path.join(home, 'gaps', `${randomUUID()}.json`), gap); return true; }
-  catch { return false; } // The caller still receives the gap and this failed persistence flag.
+  catch { return false; }
 }
 export interface LedgerReading {
   readonly machine: string;
@@ -40,12 +39,9 @@ export interface LedgerReading {
   readonly outcomes: readonly RequestEvidence[];
   readonly gaps: readonly ObservationGap[];
 }
-/** Local, offline, append-only until capability 5 explicitly clears confirmed-gone work. */
 export async function readLedger(options: LedgerOptions = {}): Promise<LedgerReading> {
   const home = ledgerHome(options);
   const gaps: ObservationGap[] = [];
-  // A home that exists but is not a folder is a read gap, not an empty ledger: Windows reports
-  // ENOENT (not ENOTDIR) for a folder beneath a file, so the per-folder check alone cannot tell.
   try {
     if (!(await stat(home)).isDirectory()) {
       gaps.push({ kind: 'read', path: home, reason: 'cannot read ledger: its home is not a folder' });

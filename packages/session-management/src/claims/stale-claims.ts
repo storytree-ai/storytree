@@ -1,58 +1,34 @@
-/**
- * Capability 5 · Claims. The session manager's one stale-claim worklist (ADR-0953 D4): the claimed increments
- * whose holder is quiet, with no command still running and no open pull request from the claim's branch, each
- * with its route. A claim taken on the main line (main, or no branch), as a pool lane's runner takes it from the
- * main checkout, is judged by the branches its holder worked on instead: one of them with an open pull request
- * leaves it off. A holder that reads gone (no line for longer than a command may run, ADR-0754 D5), whose
- * safe close-out is verified, or whose process stopped (4.41) and that stayed quiet past the quiet time since
- * (ADR-1311 D2), is routed to release, through the manager's release (releaseFor, ADR-0944 D7); one only quiet is
- * routed to ask the holder first. Reading the worklist ends nothing: it replaces the hooks ending
- * gone holders' claims themselves (ADR-0944 D6, retired). Release on merge, the restart ending and idle takeover
- * stand beside it (ADR-0953 D1, D2).
- */
+// Capability 5 · Claims
 import type { ActivityLog } from "../activity/index.js";
 import { holdersOf, isMainBranch, LogFold, type Claim, type Restart } from "../readings.js";
 import { idleAfterMs } from "@storytree/project-and-caller";
 import { COMMANDS_MS, thisRestart } from "./claims.js";
 import { ghAllOpenPulls, type AllOpenPulls, type OpenPull } from "./merges.js";
 
-/** One claimed increment the session manager should move, and how. */
 export interface StaleClaim {
   readonly increment: string;
-  /** The holding session. */
   readonly holder: string;
-  /** Its harness as people call it. */
   readonly label: string;
   readonly reason: string;
-  /** When it was claimed. */
   readonly since: string;
   readonly branch?: string;
-  /** When the holder's latest line was written. */
   readonly lastSeenAt: string;
-  /** release: the holder is gone or ended, so the manager releases it; ask: the holder is only quiet, so the manager asks it first. */
   readonly route: "release" | "ask";
-  /** On a release: the holder's process stopped and it stayed quiet since, rather than reading gone (ADR-1311 D2). */
   readonly ended?: true;
 }
 
 export interface StaleWorklist {
-  /** Oldest claim first. */
   readonly claims: StaleClaim[];
-  /** GitHub could not be asked which pull requests are open: no claim was left off for one, so check before releasing. */
   readonly pullsUnread?: true;
 }
 
 export interface StaleOptions {
-  /** The time to judge holders by. By default, now. */
   readonly now?: Date;
-  /** How long a holder may be quiet before it reads idle. By default, the current idle-after setting. */
   readonly quietMs?: number;
   readonly restarted?: Restart;
-  /** How to ask GitHub which pull requests are open. By default, through `gh`. */
   readonly allOpenPulls?: AllOpenPulls;
 }
 
-/** The stale-claim worklist of `project`, asked of GitHub from `folder`. It only reads: no line is written. */
 export async function staleClaims(context: { readonly log: ActivityLog; readonly project: string; readonly folder: string }, options: StaleOptions = {}): Promise<StaleWorklist> {
   const { log, project } = context;
   const now = options.now ?? new Date();
@@ -67,10 +43,8 @@ export async function staleClaims(context: { readonly log: ActivityLog; readonly
     .filter((claim): claim is Claim & { increment: string } => claim.increment !== undefined && claim.holder === "idle");
   if (quiet.length === 0) return { claims: [] };
   const sessions = new Map(fold.sessions({ now }).map((session) => [session.session, session]));
-  // A claim on its own branch is judged by that branch; one on the main line by the branches its holder worked on.
   const branchesOf = (claim: Claim): readonly string[] =>
     claim.branch !== undefined && !isMainBranch(claim.branch) ? [claim.branch] : sessions.get(claim.session)?.branches ?? [];
-  // GitHub is asked only when a quiet claim names a branch, or its holder has one, a pull request could come from.
   const pulls: ReadonlyMap<string, OpenPull> | undefined = quiet.some((claim) => claim.branch !== undefined || branchesOf(claim).length > 0)
     ? await (options.allOpenPulls ?? ghAllOpenPulls)(context.folder).catch(() => undefined)
     : new Map();
@@ -79,7 +53,6 @@ export async function staleClaims(context: { readonly log: ActivityLog; readonly
     .map((claim): StaleClaim => {
       const session = sessions.get(claim.session);
       const gone = session?.state === "gone" || session?.closeOut?.verified === true;
-      // A stopped holder reads idle at once (4.41); one that stayed quiet the quiet time since has ended, not paused between turns.
       const ended = !gone && claim.quiet?.because === "stopped" && now.getTime() - Date.parse(claim.quiet.since) > quietMs;
       return {
         increment: claim.increment,

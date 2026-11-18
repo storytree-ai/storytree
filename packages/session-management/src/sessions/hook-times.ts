@@ -1,13 +1,8 @@
-/**
- * Capability 4 · Sessions. `storytree session hook-times`: how long the hooks took that machines uploaded to this project's
- * log (hooks/timing.ts, ADR-1056 D1), per harness, event and machine over the last days: how many, the median, 75th
- * percentile and worst total, and the median of each part, the worst first. A reading, never a gate (decision_fbe2cec9f404).
- */
+// Capability 4 · Sessions
 import type { ActivityLog } from "../activity/index.js";
 
 const DAY_MS = 86_400_000;
 
-/** One harness, event and machine's readings, in ms. */
 interface Row {
   harness: string;
   event: string;
@@ -19,13 +14,11 @@ interface Row {
   parts: Record<string, number>;
 }
 
-/** The nearest-rank percentile `p` (0 to 1) of `values`, which are not empty. */
 function percentile(values: readonly number[], p: number): number {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)]!;
 }
 
-/** The hook times of `project`'s log over the last `days` (7) before `now`: a table, or with `json` its rows. */
 export async function hookTimes(log: Pick<ActivityLog, "lines">, project: string, { days = 7, json = false, now = Date.now() }: { days?: number; json?: boolean; now?: number } = {}): Promise<string> {
   const since = now - days * DAY_MS;
   const lines = await log.lines(project, { kinds: ["hook-times"], since: new Date(since).toISOString() });

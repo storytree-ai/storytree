@@ -174,7 +174,6 @@ test('15.2/15.4 native: stale identity leaves the actual process alive; register
   if (root.birth.state !== 'live') return;
   const stale = { ...root, birth: { state: 'live', identity: { ...root.birth.identity, started: 'different-lifetime' } } };
   await writeFile(path.join(dir, 'runs', `${root.id}.json`), JSON.stringify(stale));
-  // Name the child separately later, so this stale-root check must not stop its real descendant.
   await writeFile(path.join(dir, 'runs', `${child.id}.json`), JSON.stringify({ ...child, parentRun: undefined }));
   const reused = await stopping.stopOwned({ home: dir, owner, targets: [root.id], graceMs: 50, forceMs: 2000 });
   assert.equal(reused.ok, true, JSON.stringify(reused));
@@ -196,8 +195,6 @@ test('15.2/15.4 native: stale identity leaves the actual process alive; register
 
 test('15.4 native: a cooperative process exits in the polite phase, while another owner stays live', async t => {
   const dir = await home(t);
-  // A hidden top-level native window exercises actual WM_CLOSE delivery on Windows CI.
-  // Other systems install a normal SIGTERM handler before publishing readiness.
   const setup = process.platform !== 'win32' ? "process.on('SIGTERM', () => process.exit(0));" : `
     const k = require('koffi');
     const u = k.load('user32.dll');

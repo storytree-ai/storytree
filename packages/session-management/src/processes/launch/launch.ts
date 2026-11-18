@@ -1,4 +1,4 @@
-/** Capability 12 · Record who started each run. */
+// Capability 12 · Record who started each run
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -13,12 +13,10 @@ import type { ProcessReading } from '../process/index.js';
 export interface LaunchOptions extends LedgerOptions {
   readonly owner?: RunOwner;
   readonly project?: string;
-  /** Executable and literal argv. For a shell command, explicitly launch that shell. */
   readonly command: string;
   readonly args?: readonly string[];
   readonly folder: string;
   readonly env?: NodeJS.ProcessEnv;
-  /** Another registered run, with the same owner or an explicit parentSession delegation. */
   readonly parentRun?: string;
 }
 export type LaunchResult =
@@ -26,11 +24,6 @@ export type LaunchResult =
   | { readonly status: 'untracked'; readonly pid?: number; readonly gap: ObservationGap; readonly gapRecorded: boolean };
 export interface LaunchDependencies { readonly readProcess?: (pid: number) => Promise<ProcessReading> }
 
-/**
- * The ONE launch boundary for harness adapters and session-bound terminals. Independent of turns,
- * claims and library connectivity. It never adopts an arbitrary PID. Tracking is reported only
- * after durable registration; an unsuccessful launch/registration is an explicit coverage gap.
- */
 export async function launchOwned(options: LaunchOptions, dependencies: LaunchDependencies = {}): Promise<LaunchResult> {
   const home = ledgerHome(options);
   const untracked = async (message: string, pid?: number): Promise<LaunchResult> => {
@@ -62,8 +55,6 @@ export async function launchOwned(options: LaunchOptions, dependencies: LaunchDe
   let birth: ProcessReading;
   try { birth = await (dependencies.readProcess ?? readProcess)(pid); }
   catch (error) { birth = { state: 'unknown', reason: `launch identity unavailable: ${reason(error)}` }; }
-  // libuv may reap several children before dispatching their exit callbacks. Let that batch
-  // finish: the spawned handle's confirmed exit outranks a lookup that saw a reused PID.
   await setImmediate();
   if (child.exitCode !== null || child.signalCode !== null) birth = { state: 'gone' };
   try {

@@ -1,9 +1,4 @@
-/**
- * Capability 2 · Agent activity log, contract 2.5, its live reading (ADR-1345 D1, D5): `storytree activity observe` reads
- * which machines wrote a project's activity log lately and reads their latest lines back in order, and with `--record` it
- * records that as the contract's live reading. Run with a fresh project's library and the real log on the Postgres `pnpm
- * test` provides, where "two machines" are two connections, each naming its own machine.
- */
+// Capability 2 · Agent activity log
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -19,7 +14,6 @@ const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.com
 const DAY = 86_400_000;
 const observe = ACTIVITY_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "observe")!;
 
-/** Run `body` with a log written from two machines, laptop and mint, each through its own connection, for one fresh project. */
 async function twoMachines(body: (logs: { laptop: ActivityLog; mint: ActivityLog }, project: string) => Promise<void>): Promise<void> {
   const project = uniqueProjectName();
   const [one, two] = await Promise.all([connect({ url: testServerUrl() }), connect({ url: testServerUrl() })]);

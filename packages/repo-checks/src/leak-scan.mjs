@@ -1,20 +1,4 @@
-// Capability 1 · Leak, secret and push scans. The tree-wide leak scan (arc_824a506f2125): every tracked file is read as text, a gzip,
-// tar or zip archive through its entries, UTF-16 by its byte-order mark or its zero bytes, and searched for what a
-// public repository must not hold: what the forest's seed sanitiser redacts (claude.ai and Google Docs links,
-// personal email addresses, user@host, home folders, tailnet names and addresses, machine names, the cloud project
-// id) and the private words, which the source holds only as sha256 hashes of their tokens so the scan brings back
-// no copy of them: the owner's username, and the names in the library's invitations table, read only where the
-// library is reachable (CI cannot). A home folder or email address that is plainly a placeholder (/home/runner,
-// someone@example.com), or the tailnet range's base, is not a leak. It reports counts, never the matched text.
-// `pnpm check:leaks` (the gate's check:leaks, and CI) refuses a branch that adds a leak: a file whose count of any
-// pattern rises against the merge base, so nothing new brings back what the flip to the new repo removes.
-// `pnpm check:leaks --tree <folder>` reports a whole tree's leaks by folder and its 20 worst files.
-// The credentials are a pattern family of their own, read the same way (CREDENTIALS: the transcript scrub's shapes
-// and the keys this project's services issue). `pnpm check:secrets` (the gate's check:secrets, and CI's
-// secret-check job, which verify requires) refuses a branch whose file gains one against the merge base, naming the
-// file and the kind, never the value. It matches shapes only, never a real value, so a branch's own scanner holds
-// nothing worth reading. A file the owner's list (SECRET_EXEMPTIONS) names is passed over. Its failure is a separate
-// check so the watcher can take it to the owner rather than to a fix session (isSecurityCheck).
+// Capability 1 · Leak, secret and push scans
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
@@ -26,29 +10,22 @@ import { redactionsIn } from "@storytree/forest/evidence-seed";
 
 import { changedFiles } from "@storytree/base-dev-loop/test-scope";
 
-/** A private word: the sha256 of a token (lowercased unless `exact`), its length, and what it is. */
 export const OWNER_WORDS = [{ what: "the owner's username", hash: "eae1206e68ff609dc03e5b25c4b2c2c4868d80901fa7319560f3a6469fcab8ff", length: 5, exact: false }];
 
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 
-/** Private words for each name given: every token of it, hashed exactly as written (a name, not the common word it may also be). */
 export function nameWords(names, what = "a private name") {
   return names.flatMap((name) => String(name).match(/[A-Za-z0-9]+/g) ?? []).map((token) => ({ what, hash: sha256(token), length: token.length, exact: true }));
 }
 
-/** Third parties' notices and the lockfile, which name other people's public addresses, not this project's. */
 export function isThirdParty(file) {
   return /(^|\/)licenses\//i.test(file) || /(^|\/)(?:LICEN[CS]E|NOTICE|COPYING|OFL|ThirdPartyNotices)[^/]*$/i.test(file) || file === "pnpm-lock.yaml";
 }
 
-/** A home folder's name that stands for anyone, not a person. */
 const PLACEHOLDER_HOME = /^(?:[a-z]|runner(?:~\d)?|user|username|someone|somebody|me|you|name|owner|synthetic|tester|alice|bob|carol|example|ubuntu|node|vscode|dev|backups|[<$%{*].*)$/i;
-/** A tailnet name made up for a test or a document. */
 const PLACEHOLDER_TAILNET = /(?:^|[.-])example(?:[.-]|$)|(?:^|\.)tail(?:0000|1234)\./i;
-/** A domain whose addresses reach no person: storytree's own, or a reserved example or test domain, or one below it. */
 const PLACEHOLDER_DOMAINS = ["storytree.dev", "example", "example.com", "example.org", "example.net", "test", "invalid", "localhost", "local"];
 
-/** An address that reaches no person: a placeholder domain, a no-reply sender or a service account. */
 function placeholderEmail(address) {
   const lower = address.toLowerCase();
   const at = lower.lastIndexOf("@");
@@ -59,14 +36,12 @@ function placeholderEmail(address) {
   return PLACEHOLDER_DOMAINS.some((placeholder) => domain === placeholder || (domain.endsWith(`.${placeholder}`) && domain.length > placeholder.length + 1));
 }
 
-/** `name` without the punctuation that ends a sentence or a bracket after it. */
 function withoutTrailingPunctuation(name) {
   let end = name.length;
   while (end > 0 && ".,;:!?)]}`".includes(name[end - 1])) end--;
   return name.slice(0, end);
 }
 
-/** The tailnet range's own base address (100.64.0.0/10), which a firewall rule names and no machine holds. */
 const TAILNET_RANGE = "100.64.0.0";
 
 function placeholder(what, match) {
@@ -77,7 +52,6 @@ function placeholder(what, match) {
   return false;
 }
 
-/** Each pattern's count in `text`, and each private word's (by what it is); placeholders are not counted. */
 export function leakCounts(text, words = OWNER_WORDS) {
   const counts = {};
   const add = (what) => (counts[what] = (counts[what] ?? 0) + 1);
@@ -94,14 +68,12 @@ export function leakCounts(text, words = OWNER_WORDS) {
   return counts;
 }
 
-/** The share of zero bytes at every other position from `start`, over the first 4 KB. */
 const zerosAt = (bytes, start) => {
   let zeros = 0;
   let seen = 0;
   for (let i = start; i < Math.min(bytes.length, 4096); i += 2, seen++) if (bytes[i] === 0) zeros++;
   return seen > 0 ? zeros / seen : 0;
 };
-/** UTF-16 without its mark: nearly every high byte zero (ASCII text), nearly no low one. */
 const unmarked = (bytes, high) => bytes.length >= 4 && zerosAt(bytes, high) > 0.9 && zerosAt(bytes, 1 - high) < 0.05;
 
 function zipEntries(bytes) {
@@ -133,11 +105,6 @@ function tarEntries(bytes) {
   return entries;
 }
 
-/**
- * The texts a file's bytes hold: one for a text file (UTF-8, or UTF-16 by its mark or its zero bytes), one per
- * entry for a gzip, tar or zip archive (read the same way, so JSON inside an archive is read), none for any other
- * binary file (a picture, a clip).
- */
 export function textsOf(bytes) {
   if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) return textsOf(gunzipSync(bytes));
   if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 3 && bytes[3] === 4) return zipEntries(bytes).flatMap(textsOf);
@@ -150,7 +117,6 @@ export function textsOf(bytes) {
   return [new TextDecoder("utf-8").decode(bytes)];
 }
 
-/** What a credential looks like, by kind: the transcript scrub's shapes, and the keys this project's services issue. */
 export const CREDENTIALS = [
   ["a private key", /-----BEGIN [A-Z ]*PRIVATE KEY-----/g],
   ["a bearer token", /\bBearer\s+[A-Za-z0-9\-._~+/]{20,}=*/g],
@@ -166,10 +132,8 @@ export const CREDENTIALS = [
   ["a password in a link", /\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@"'\\]+:([^\s@"'\\/]+)@/gi],
 ];
 
-/** A link's password that is a template or a stand-in (`${password}`, `<password>`), not a value. */
 const PLACEHOLDER_PASSWORD = /^(?:[$<{*%[].*|password|pass|pw|secret|x+|\.+)$/i;
 
-/** Each credential kind's count in `text`; a link's placeholder password is not counted. */
 export function credentialCounts(text) {
   const counts = {};
   for (const [what, shape] of CREDENTIALS) {
@@ -183,21 +147,18 @@ export function credentialCounts(text) {
 
 const sum = (counts) => Object.values(counts).reduce((a, b) => a + b, 0);
 
-/** A file's counts, every text it holds together; `count` reads one text (the leaks, or credentialCounts). */
 export function fileCounts(bytes, words = OWNER_WORDS, count = leakCounts) {
   const counts = {};
   for (const text of textsOf(bytes)) for (const [what, n] of Object.entries(count(text, words))) counts[what] = (counts[what] ?? 0) + n;
   return counts;
 }
 
-/** The folder a file is reported under: its package (packages/<name>, apps/<name>) or its top folder. */
 export function folderOf(file) {
   const parts = file.split("/");
   if (parts.length === 1) return "(root)";
   return ["packages", "apps"].includes(parts[0]) && parts.length > 2 ? `${parts[0]}/${parts[1]}` : parts[0];
 }
 
-/** A whole tree's leaks: each file with any, its counts and total, worst first. */
 export function scanTree(root, files, words = OWNER_WORDS) {
   return files
     .filter((file) => !isThirdParty(file))
@@ -209,7 +170,6 @@ export function scanTree(root, files, words = OWNER_WORDS) {
 
 const countsLine = (counts) => Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([what, n]) => `${n} × ${what}`).join(", ");
 
-/** The report of a scan: counts by folder and the `worst` worst files, by pattern, never the matched text. */
 export function leakReport(found, { worst = 20 } = {}) {
   if (found.length === 0) return "no leaks: every file is clean";
   const folders = new Map();
@@ -224,10 +184,6 @@ export function leakReport(found, { worst = 20 } = {}) {
   return lines.join("\n");
 }
 
-/**
- * Each file the branch changes whose count of a pattern rises against `base`, one sentence each; `before` reads a file
- * at the base. A folder is passed over: git lists an untracked nested repository as one folder, whose files it never adds.
- */
 export function addedLeaks(root, files, { before, words = OWNER_WORDS, count = leakCounts }) {
   const problems = [];
   for (const file of files) {
@@ -241,7 +197,6 @@ export function addedLeaks(root, files, { before, words = OWNER_WORDS, count = l
   return problems;
 }
 
-/** The private names in the library's invitations table as words, or undefined (with why) when the library cannot be read. */
 export async function libraryWords(root) {
   const connection = spawnSync(process.execPath, ["--import", "tsx", "packages/cli/src/bins/storytree.ts", "auth", "connection", "--database", "storytree_storytree"], { cwd: root, encoding: "utf8", timeout: 30_000 });
   const url = connection.stdout?.trim();
@@ -261,12 +216,10 @@ export async function libraryWords(root) {
 
 const git = (root, args, encoding = "utf8") => execFileSync("git", args, { cwd: root, encoding, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024 });
 
-/** The tracked files of the checkout or tree at `root`. */
 export function trackedFiles(root) {
   return git(root, ["ls-files", "-z"]).split("\0").filter(Boolean).filter((file) => existsSync(path.join(root, file)));
 }
 
-/** The files the branch at `root` changes against origin/main and a reader of each at the merge base, or undefined (said through `error`). */
 function branchChanges(root, check, error) {
   let files;
   let base;
@@ -281,23 +234,20 @@ function branchChanges(root, check, error) {
     try {
       return git(root, ["show", `${base}:${file}`], "buffer");
     } catch {
-      return undefined; // the file is new on this branch
+      return undefined;
     }
   };
   return { files, before };
 }
 
-/** The owner's list of files check:secrets passes over (a test's stand-in key), one path a line; `#` starts a comment. */
 export const SECRET_EXEMPTIONS = ".github/secret-check-exemptions.txt";
 
-/** The paths the owner's list exempts at `root`; none when there is no list. */
 export function secretExemptions(root) {
   const file = path.join(root, SECRET_EXEMPTIONS);
   if (!existsSync(file)) return new Set();
   return new Set(readFileSync(file, "utf8").split(/\r?\n/).map((line) => line.replace(/#.*/, "").trim()).filter(Boolean));
 }
 
-/** The secret check: each file the branch at `root` changes against origin/main, failing on one that gains a credential's shape. */
 export function checkSecrets({ root, log = console.log, error = console.error }) {
   const changes = branchChanges(root, "check:secrets", error);
   if (changes === undefined) return 1;
@@ -313,10 +263,6 @@ export function checkSecrets({ root, log = console.log, error = console.error })
   return 0;
 }
 
-/**
- * The check: with `tree`, that tree's report, failing on any leak; otherwise each file the branch at `root` changes
- * against origin/main, failing on one that adds a leak. The private names come from `readWords`, when it can read them.
- */
 export async function checkLeaks({ root, tree, readWords = libraryWords, log = console.log, error = console.error }) {
   const read = await readWords(root);
   const words = [...OWNER_WORDS, ...(read.words ?? [])];

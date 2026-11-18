@@ -1,14 +1,4 @@
-/**
- * Capability 3 · Hooks. Lines a hook could not deliver (ADR-0749's consequence: losing a line matters once everything reads
- * from the shared log). While storytree cannot be reached (the app stopped, the machine offline, the
- * store restarting), a hook writes its lines here, under the storytree home, each with the time and
- * machine it was written at. The next hook that reaches the log uploads every waiting line before
- * its own, oldest first, at its own time; an upload tried twice, by two hooks at once or after a
- * crash, adds each line once (ActivityLog.appendMany, as append's `once`).
- *
- * Each hook's lines are one file, written whole and then renamed into place, so a reader never sees
- * half of one; the file name starts with the time, so the files sort oldest first.
- */
+// Capability 3 · Hooks
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
@@ -17,7 +7,6 @@ import path from "node:path";
 import type { ActivityLog, DeliveredEvent, Earlier } from "../activity/index.js";
 import type { NewLine } from "@storytree/library";
 
-/** One waiting line: the project it is for, when it was written, and the hook event it records, so it is kept once whichever way that event came (ADR-1056 D2). */
 interface Queued {
   readonly project: string;
   readonly at: string;
@@ -25,12 +14,10 @@ interface Queued {
   readonly event?: DeliveredEvent;
 }
 
-/** Where lines wait, under the storytree home `home`. */
 export function queueFolder(home: string): string {
   return path.join(home, "queued-lines");
 }
 
-/** Keep `lines` for `project`, written now on this machine and recording `event`, until a hook reaches the log. */
 export function enqueue(home: string, project: string, lines: readonly NewLine[], event?: DeliveredEvent): void {
   if (lines.length === 0) return;
   const folder = queueFolder(home);
@@ -44,18 +31,8 @@ export function enqueue(home: string, project: string, lines: readonly NewLine[]
   renameSync(path.join(folder, `${name}.part`), path.join(folder, `${name}.jsonl`));
 }
 
-/** How many waiting lines go up in one transaction, of a few round trips (ADR-1207's follow-up): whole files, so a file is forgotten once its lines are in. */
 export const UPLOAD_BATCH = 100;
 
-/**
- * Upload every waiting line to `log`, oldest first, each once, and forget each file once all its
- * lines are in. They go up in batches of whole files, about UPLOAD_BATCH lines, each in a few round
- * trips (ActivityLog.appendMany), so a backlog over a slow route drains fast and holds the project's
- * lock only briefly. A file that cannot be read as lines is set aside (renamed `.unreadable`), never
- * retried for ever. Stops at the first failure, leaving the rest for the next hook. A line waits
- * only while storytree is out of reach, before its folder's approval could be asked, so it is
- * uploaded only if `admits` its project and folder now (ADR-0942 D1); one it does not is dropped.
- */
 export async function uploadQueued(home: string, log: ActivityLog, admits: (project: string, folder: string) => Promise<boolean>): Promise<void> {
   const answers = new Map<string, Promise<boolean>>();
   const admitted = (project: string, folder: string | undefined): Promise<boolean> => {
@@ -86,7 +63,6 @@ export async function uploadQueued(home: string, log: ActivityLog, admits: (proj
     try {
       waiting = readFileSync(file, "utf8").split("\n").filter((text) => text.trim() !== "").map((text) => JSON.parse(text) as Queued);
     } catch (error) {
-      // Another hook uploaded and removed it first: nothing is lost.
       if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
       renameSync(file, `${file}.unreadable`);
       continue;

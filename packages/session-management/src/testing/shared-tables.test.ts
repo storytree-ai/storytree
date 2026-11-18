@@ -1,7 +1,4 @@
-/**
- * Capability 2 · Agent activity log, contract 2.14's own harness: the cloud account's tests change the rules of tables
- * every other test on the server reads at once, and that change must never be what fails another test.
- */
+// Capability 2 · Agent activity log
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
@@ -16,11 +13,8 @@ test("2.14 · A change to shared tables that meets another test's reader in a de
   await withTestClient((client) => client.query(`CREATE TABLE ${first} (n int); CREATE TABLE ${second} (n int)`));
   try {
     await withTestClient(async (reader) => {
-      // The reader holds the first table, as a test reading the log inside a transaction does.
       await reader.query("BEGIN");
       assert.equal((await reader.query(`SELECT count(*)::int AS n FROM ${first}`)).rows[0].n, 0);
-      // The change takes the second table and, once the reader waits on it, the first: the order a rules change meets
-      // it in. Postgres must then end one of them; the reader waited first, so its deadlock check would end the reader.
       let attempts = 0;
       const change = changeSharedTables(undefined, async (client) => {
         attempts++;

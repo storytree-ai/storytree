@@ -11,7 +11,8 @@
     "./scope": "./src/ci-times/scope.ts",
     "./runtime": "./src/ci-times/runtime.ts",
     "./store": "./src/ci-times/store.ts",
-    "./view": "./src/ci-times/view.ts"
+    "./view": "./src/ci-times/view.ts",
+    "./measures": "./src/ci-times/measures.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -46,6 +47,12 @@
       {
         "from": "./runtime",
         "export": "ciTimesPageAnswers"
+      }
+    ],
+    "measures": [
+      {
+        "from": "./measures",
+        "export": "CI_TIME_MEASURE_READERS"
       }
     ]
   }

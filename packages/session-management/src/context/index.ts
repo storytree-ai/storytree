@@ -1,4 +1,4 @@
-/** Capability 9 · Context readings. */
+// Capability 9 · Context readings
 export { claudeCodeTokens, codexTokens, contextReading, NOTHING_STORED, readContext, readingLines, readTranscriptFile, reportedUsageOf, transcriptOf, type ReportedUsage } from "./context.js";
 export { tokensSpent } from "./spent.js";
 export { ContextFold } from "./context.js";

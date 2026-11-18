@@ -1,15 +1,8 @@
-/**
- * Helpers for the friction tests, which run against the real Postgres `pnpm test` starts
- * (packages/repo-checks/src/test.mjs hands it over as STORYTREE_TEST_PG_URL). A Postgres test must never skip
- * silently, so asking for the server when there is none throws. Restated from the library's, as each story
- * keeps its own helpers inside its package.
- */
 import { randomBytes } from "node:crypto";
 
 import { connect, type Library } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
-/** The server the tests run against. Throws when there is none. */
 export function testServerUrl(): string {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined || url === "") {
@@ -18,7 +11,6 @@ export function testServerUrl(): string {
   return url;
 }
 
-/** Run `body` with a fresh project's library, dropped afterwards, pass or fail. */
 export async function withLibrary(body: (library: Library) => Promise<void>): Promise<void> {
   const project = `t-${randomBytes(4).toString("hex")}`;
   const storytree = await connect({ url: testServerUrl() });
@@ -35,10 +27,6 @@ export async function withLibrary(body: (library: Library) => Promise<void>): Pr
   }
 }
 
-/**
- * Run `body` with a fresh product project's library, opened after it named a fresh factory (ADR-1040), and the
- * factory's; both dropped afterwards, pass or fail.
- */
 export async function withProduct(body: (product: Library, factory: Library) => Promise<void>): Promise<void> {
   const [factoryName, productName] = [`t-${randomBytes(4).toString("hex")}`, `t-${randomBytes(4).toString("hex")}`];
   const storytree = await connect({ url: testServerUrl() });

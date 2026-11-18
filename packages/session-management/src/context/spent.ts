@@ -1,16 +1,7 @@
-/**
- * Capability 9 · Context readings: what a project's sessions spent, added up from the same fold a reading takes
- * (ADR-1064 D4: an experiment's tokens to date read nothing of a transcript the context reading does not). Each
- * session's own transcript and each of its subagents' is folded from its stored records as its harness writes it,
- * and its running spend taken at the times asked for. A record counts when it was stored, the time the log knows.
- */
+// Capability 9 · Context readings
 import type { ActivityLog, StampedRecord } from "../activity/index.js";
 import { ContextFold, readingLines, transcriptOf } from "./context.js";
 
-/**
- * The tokens `project`'s sessions spent by `upTo`, as their stored transcripts say: or, given `after`, only what
- * they spent after it, so a caller adding up a series reads only the transcripts still growing.
- */
 export async function tokensSpent(log: ActivityLog, project: string, { upTo, after }: { upTo: Date; after?: Date }): Promise<number> {
   const records = await log.transcripts.storedUpTo(project, upTo, after);
   const parts = new Map<string, StampedRecord[]>();

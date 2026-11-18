@@ -1,7 +1,4 @@
-/**
- * Capability 11 · Machines: this machine's health. Every reading here is handed over by the test, never the test
- * machine's own, and every settings home is thrown away after its test.
- */
+// Capability 11 · Machines
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -17,7 +14,6 @@ const LIMITS = { memoryGB: 6, load: 12, diskPercent: 85 };
 const NOW = new Date("2026-10-21T12:00:00Z");
 const GB = 1024 ** 3;
 
-/** A disk of `size` GB with `used` GB used, all the rest a user's to use. */
 function disk(size: number, used: number): DiskBlocks {
   return { bsize: 4096, blocks: (size * GB) / 4096, bfree: ((size - used) * GB) / 4096, bavail: ((size - used) * GB) / 4096 };
 }

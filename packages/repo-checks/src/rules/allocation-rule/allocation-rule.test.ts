@@ -1,7 +1,4 @@
-/**
- * Capability 10 · The allocation rule: a story package's source file no numbered
- * test reaches fails, on a small project laid out as the habits card says (ADR-0900 D1).
- */
+// Capability 10 · The allocation rule
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -12,7 +9,6 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { allocationProblems, misdeclaredCode, unallocatedCode, undeclaredCode } from "./allocation-rule.js";
 
-/** A checkout holding `files` (repo-relative path to text), removed after the test. */
 function plant(t: TestContext, files: Record<string, string>): string {
   const at = mkdtempSync(path.join(tmpdir(), "allocation-"));
   t.after(() => removeTemp(at));

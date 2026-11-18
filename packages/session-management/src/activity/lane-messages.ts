@@ -1,17 +1,8 @@
-/**
- * Capability 2 · Agent activity log. Messages waiting for a running pool lane (contract 4.49, increment_783a63fe5b16): queued
- * against the lane's session beside the log, in the same database, and taken by its hooks, each once. A row is marked taken in
- * the statement that hands it over, so two hooks taking at the same moment never both deliver one message; and a take given the
- * time its hook stops waiting finishes before it or takes nothing, so no message is marked taken that the hook never handed on.
- * A lane whose harness keeps no heartbeat (Codex) is marked a lane by its hooks instead (contract 4.52), apart from the beats, so
- * the mark never judges whether it lives.
- */
+// Capability 2 · Agent activity log
 import type { Pool } from "pg";
 
-/** The file declaring LANE_MESSAGES_SCHEMA, which a shared library reads for being merged before it takes the table. */
 export const LANE_MESSAGES_SCHEMA_FILE = import.meta.url;
 
-/** The table, appended to the activity log's schema. */
 export const LANE_MESSAGES_SCHEMA: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS lane_messages (
     id        bigserial PRIMARY KEY,
@@ -25,7 +16,6 @@ export const LANE_MESSAGES_SCHEMA: readonly string[] = [
     taken_at  timestamptz
   )`,
   `CREATE INDEX IF NOT EXISTS lane_messages_waiting_idx ON lane_messages (project, session, id) WHERE taken_at IS NULL`,
-  // The sessions whose hooks said they are a pool lane's engine, for a harness that beats as none (4.52).
   `CREATE TABLE IF NOT EXISTS lane_sessions (
     project   text NOT NULL,
     session   text NOT NULL,
@@ -34,45 +24,30 @@ export const LANE_MESSAGES_SCHEMA: readonly string[] = [
   )`,
 ];
 
-/** How long before a take's deadline its statement must finish: the answer's way back to the hook. */
 export const TAKE_MARGIN_MS = 500;
 
-/** How a message reaches the lane's model: after its current tool call (steer), or when it would end its turn (follow-up). */
 export type QueuedMode = "steer" | "follow-up";
 
-/** Where the lane is when it takes its messages: at a tool call's end, which takes steers, or at its turn's end, which takes all. */
 export type TakenAt = "tool" | "stop";
 
-/** One message for a lane, as it was sent. */
 export interface LaneMessage {
   readonly session: string;
   readonly increment: string;
   readonly mode: QueuedMode;
   readonly text: string;
-  /** The session that sent it. */
   readonly sender: string;
-  /** When it was sent, ISO 8601. */
   readonly sent: string;
 }
 
-/** The messages waiting for every project's lanes. */
 export interface LaneMessages {
-  /** Queue `message` for its lane's session. */
   queue(project: string, message: Omit<LaneMessage, "sent">): Promise<void>;
-  /**
-   * Take the messages waiting for `session` that its place `at` delivers, in the order sent: each is taken once. Given `before`
-   * (ms since the epoch), when the taker stops waiting, it takes them only if it finishes TAKE_MARGIN_MS before then, else none.
-   */
   take(project: string, session: string, at: TakenAt, before?: number): Promise<LaneMessage[]>;
-  /** `session` is a pool lane's engine, as its hooks say where its harness keeps no heartbeat (4.52). */
   mark(project: string, session: string): Promise<void>;
-  /** Whether `session`'s hooks ever marked it a pool lane's engine. */
   marked(project: string, session: string): Promise<boolean>;
 }
 
-/** A message's row, as a take hands it back. */
 interface Row {
-  id: string; // bigint: pg hands it over as a string
+  id: string;
   session: string;
   increment: string;
   mode: QueuedMode;
@@ -112,7 +87,6 @@ export class PgLaneMessages implements LaneMessages {
     let rows: Row[];
     try {
       await client.query("BEGIN");
-      // Past the taker's deadline the statement is cancelled and rolled back: the messages stay waiting.
       if (left !== undefined) await client.query(`SET LOCAL statement_timeout = ${left}`);
       ({ rows } = await client.query<Row>(
         `UPDATE lane_messages SET taken_at = now()

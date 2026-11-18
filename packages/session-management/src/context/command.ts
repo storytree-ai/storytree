@@ -1,10 +1,4 @@
-/**
- * Capability 9 · Context readings. `storytree context` (contract 9.6): this session's context reading, from a shell. The command
- * line's front door hands its arguments here. The session is the one the harness put in the
- * shell's environment: Claude Code's `CLAUDE_CODE_SESSION_ID`, Codex's `CODEX_THREAD_ID`, or for any other
- * harness `STORYTREE_SESSION_ID`, which a connected session sets. It exits
- * 0 whatever it finds: a figure, or an absence said in words and never as a number.
- */
+// Capability 9 · Context readings
 import path from "node:path";
 
 import { ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "@storytree/project-and-caller";
@@ -13,22 +7,17 @@ import { readContext, type ContextReading } from "./context.js";
 import { guidanceSentence } from "./guidance.js";
 
 export interface ContextCommandOptions {
-  /** The folder the command runs in: its project is routed from here. */
   readonly folder: string;
-  /** The shell's environment, where the harness names the session. */
   readonly env: Readonly<Record<string, string | undefined>>;
-  /** Print the reading record as JSON instead of a sentence. */
   readonly json?: boolean;
   readonly locate?: LocateOptions;
 }
 
-/** What the command prints, and its exit code. */
 export interface ContextCommandAnswer {
   readonly text: string;
   readonly code: number;
 }
 
-/** Where a shell names its session: each watched harness's own variable, then storytree's for any other (contract 9.15). */
 const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness: WatchedHarness) => harness.shellSession ?? []), SESSION_ENV];
 
 function shellSession(env: ContextCommandOptions["env"]): string | undefined {
@@ -59,7 +48,6 @@ export async function contextCommand({ folder, env, json = false, locate }: Cont
   }
 }
 
-/** The reading as one sentence: the figure and where it came from, or the absence in words. */
 function sentence(reading: ContextReading): string {
   if ("absent" in reading) return `No context reading for this session: ${reading.absent}.`;
   return `This session's context holds ${reading.tokens.toLocaleString("en-US")} tokens (read from ${reading.source}). ${guidanceSentence(reading.guidance)}`;

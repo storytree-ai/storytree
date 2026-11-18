@@ -1,4 +1,4 @@
-/** Capability 3 · Hooks, contract 3.53: waiting lines upload in batches, so a backlog over a wss:// library takes a few round trips, not six a line. */
+// Capability 3 · Hooks
 import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
 import { mock, test } from "node:test";
@@ -17,7 +17,6 @@ test("3.53 a backlog of a hundred and twenty waiting lines uploads in a few roun
   try {
     await withTempDir(async (home) => {
       const line = (index: number): NewLine => ({ session: `${project}-s`, harness: "claude-code", source: "hook", kind: "command-run", folder: "/work", command: `step ${index}` });
-      // A file's name starts with its millisecond, so files a millisecond apart sort in the order they were written.
       mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-11-02T00:00:00.000Z") });
       try {
         for (let file = 0; file < 30; file += 1) {

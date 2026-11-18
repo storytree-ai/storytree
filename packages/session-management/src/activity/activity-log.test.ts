@@ -1,8 +1,4 @@
-/**
- * Capability 2 · Agent activity log: one test per contract 2.1-2.8 in the Session management story, against
- * the real Postgres `pnpm test` provides. Each test writes under projects named with
- * uniqueProjectName(), so tests sharing the server never read each other's lines.
- */
+// Capability 2 · Agent activity log
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -20,7 +16,6 @@ import { ACTIVITY_DATABASE, cachedLines, openActivityLog, type ActivityLog, type
 
 const WRITER = fileURLToPath(new URL("../testing/activity-writer.ts", import.meta.url));
 
-/** Run `body` with the log open on the test server, and close it afterwards. */
 async function withLog(body: (log: ActivityLog) => Promise<void>): Promise<void> {
   const log = await openActivityLog(testServerUrl());
   try {
@@ -30,7 +25,6 @@ async function withLog(body: (log: ActivityLog) => Promise<void>): Promise<void>
   }
 }
 
-/** Run the writer in a process of its own, resolving once it has exited cleanly. */
 function writeFromAnotherProcess(project: string, session: string, count: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--import", "tsx", WRITER, testServerUrl(), project, session, String(count)], {
@@ -43,7 +37,6 @@ function writeFromAnotherProcess(project: string, session: string, count: number
   });
 }
 
-/** The command a `command-run` line carries. */
 function commandOf(line: Line): string {
   assert.equal(line.kind, "command-run");
   return line.command;
@@ -53,8 +46,6 @@ test("2.1 two separate processes write lines for two sessions, and reading from 
   const project = uniqueProjectName();
   const count = 60;
   await withLog(async (log) => {
-    // Follow along while they write, passing back each cursor handed out: a line that commits late
-    // must still be read, and none twice.
     let writing = true;
     const writers = Promise.all(["A", "B"].map((session) => writeFromAnotherProcess(project, session, count))).finally(() => {
       writing = false;
@@ -273,7 +264,6 @@ test("2.8 a read inside folders, latest line per session, on a log of many lines
     const client = new pg.Client({ connectionString: url.href });
     await client.connect();
     try {
-      // Weeks of lines in other folders.
       await client.query(
         `INSERT INTO activity (project, session, source, kind, folder, detail)
          SELECT $1, 's' || (i % 50), 'hook', 'turn-ended', '/work/other-' || (i % 200), '{}'::jsonb FROM generate_series(1, 50000) AS i`,
@@ -310,7 +300,6 @@ test("2.11 a line appended for a hook event is not added again when the log hold
   });
 });
 
-/** Run `body`, counting the statements every connection sends the server meanwhile: each is one round trip. */
 async function countingRoundTrips(body: () => Promise<void>): Promise<number> {
   const query = pg.Client.prototype.query;
   let sent = 0;
@@ -393,7 +382,6 @@ test("2.16 a page's start reads every line of the kinds asked, the lines that de
     const held = await write({ session: "holder", kind: "claimed", increment: "increment_000000000002", reason: "still mine" }, days - 1);
     const recentStart = await write({ session: "recent", kind: "session-started" }, 5);
     const prompt = await write({ session: "recent", kind: "prompt-submitted" }, 4);
-    // The log's latest line, by number, is the quiet session's, written as if long ago: the start reads past it.
     const last = await write({ session: "quiet", kind: "command-started", command: "pnpm gate", call: "c1" }, days - 4);
 
     const start = await log.start(project, { kinds: ["claimed", "released", "note-read"] });

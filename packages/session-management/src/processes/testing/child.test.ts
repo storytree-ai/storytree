@@ -6,8 +6,6 @@ import { waitUntil } from '@storytree/test-waits';
 import { readProcess } from '../process/index.js';
 import { testChildArgs } from './child.js';
 
-// A runner killed before its teardown (a signal, a dropped SSH session) cannot stop a detached child:
-// the child must notice for itself that the test that launched it is gone.
 test('a test child exits by itself once the process it belongs to is gone', async t => {
   const parent = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
   await once(parent, 'spawn');

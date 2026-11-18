@@ -1,6 +1,3 @@
-// A factory plugin's own test run recorded as its story's health (factory-run.mjs, through record-run.mjs): against a
-// throwaway factory (a git folder with the factory's test-command shape and one plugin) and a library project of its own
-// in the Postgres `pnpm test` provides (STORYTREE_TEST_PG_URL), dropped afterwards.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -28,7 +25,6 @@ test("7.8, 7.11 · a story whose code is a factory plugin has that folder's test
   };
   mkdirSync(path.join(factory, "node_modules"));
   symlinkSync(tsx, path.join(factory, "node_modules", "tsx"), "junction");
-  // The factory's test command: every test under the folders named, run with --test; it dies of a signal for plugins/kettle.
   write("scripts/test.mjs", [
     'import { spawnSync } from "node:child_process";',
     'if (process.argv[2] === "plugins/kettle") process.kill(process.pid, "SIGKILL");',
@@ -52,7 +48,6 @@ test("7.8, 7.11 · a story whose code is a factory plugin has that folder's test
   execFileSync("git", ["init", "-q"], { cwd: factory });
   execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "factory"], { cwd: factory });
   const commit = factoryCommit(factory);
-  // Reached through a link, as macOS's temp folder is (/var under /private/var): the report names the real path.
   const linked = `${factory}-link`;
   symlinkSync(factory, linked, "junction");
   t.after(() => removeTemp(linked));
@@ -64,7 +59,6 @@ test("7.8, 7.11 · a story whose code is a factory plugin has that folder's test
     const kettle = await lib.addStory({ title: "The kettle" });
     const boils = await lib.addContract({ capability: (await lib.addCapability({ story: kettle.id, title: "1 · Boiling" })).id, title: "1.1 · It boils" });
     await lib.addStory({ title: "The teacup" });
-    // A plugin's own story (ADR-1187) is found by the plugin it names, whatever its title says.
     await lib.importPluginPlan("whistle", { story: { title: "Hear the kettle whistle" }, capabilities: [] });
     const { stories } = await lib.projectTree();
     const quiet = { log: () => {}, error: () => {} };
@@ -104,7 +98,6 @@ test("7.8 · a factory run that dies of a signal fails with no results, and `--f
 test("7.9 · a factory run with --unrecorded skips each plugin whose story already holds a factory test run's entry at the factory's commit, and records the rest; a new factory commit, or a new commit of the storytree it links, is recorded again", async (t) => {
   const factory = mkdtempSync(path.join(tmpdir(), "factory-unrecorded-"));
   t.after(() => removeTemp(factory));
-  // The storytree checkout the factory's plugins import, reached through the factory's `storytree` link.
   const storytree = mkdtempSync(path.join(tmpdir(), "factory-storytree-"));
   t.after(() => removeTemp(storytree));
   const write = (file, lines) => {

@@ -1,5 +1,3 @@
-// How the repository's plan-reading checks open storytree's library (library-reach.mjs): the library the user's
-// library setting names, refused with its way out when it holds no project storytree.
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -18,7 +16,6 @@ test("4.4 · a plan-reading check run against a library holding no storytree pro
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run these tests through `pnpm test`, which starts a local Postgres");
   const home = mkdtempSync(path.join(tmpdir(), "library-reach-"));
   t.after(() => removeTemp(home));
-  // The setting names the server without its password, which reaches it as PGPASSWORD, as CI's run gives it.
   const address = new URL(url);
   const password = decodeURIComponent(address.password);
   address.password = "";
@@ -31,7 +28,6 @@ test("4.4 · a plan-reading check run against a library holding no storytree pro
   const said = [];
   t.mock.method(console, "error", (line) => said.push(line));
 
-  // Its own project name, since other tests share the server: absent, then made.
   const project = `t-${randomBytes(4).toString("hex")}`;
   let read = false;
   const result = await withLibrary(async () => (read = true), "pnpm check", project);

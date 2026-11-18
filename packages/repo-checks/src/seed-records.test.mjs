@@ -11,7 +11,6 @@ import { sanitiseSeed } from "@storytree/forest/evidence-seed";
 
 import { scrubEvidence, seedFilesFor, seedRecordProblems } from "./seed-records.mjs";
 
-/** One of the owner's test laptops, joined at run time so this file does not name it. */
 const laptop = ["win", "lap"].join("");
 
 function folder(t, files) {

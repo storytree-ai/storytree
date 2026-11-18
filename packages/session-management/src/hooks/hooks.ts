@@ -1,50 +1,4 @@
-/**
- * Capability 3 · Hooks (the Session management story): the commands Claude Code, Codex and Cursor, Pi through
- * the extension storytree writes for it (pi.ts), and any
- * harness that names itself and sends the published input (self-named.ts), run by themselves when a session
- * starts, after every file edit and shell command, and when it ends, each adding one line about that
- * session to the agent activity log, so an agent that never calls storytree still shows up. They always
- * exit cleanly and never print, so they can never break the agent, and when storytree isn't running
- * they do nothing. Two more name the session's agents (ADR-0629 D2): one after a subagent is started,
- * and one just before each call to storytree's own tools, which the harness waits for.
- *
- * The harness waits for a hook unless told not to. Claude Code can be told (`async`); Codex cannot,
- * so a Codex hook that must never make the agent wait (the one before each shell command, and the
- * one at the end of each turn, ADR-0636 D2) is run with `--background`: once it knows it has a line
- * to write, it hands its input to a copy of itself that it leaves running, and exits.
- *
- * The once-a-minute look around the machine (which branches still hold open work, worktrees to reap,
- * which sessions the apps keep) takes longer than a hook may run: asking GitHub alone may take 10 s.
- * So a hook hands it, when due, to a copy of itself run with `--upkeep`, which may run longer and
- * writes nothing but what that look finds. Nothing claims a capability from an edit after the fact
- * (ADR-0953 D5 retired ADR-0924's edit claims and their notices).
- *
- * One more, before each file-edit tool, which the harness waits for (`--edit-gate`, edit-gate.ts),
- * refuses an edit to a capability the session's claimed increment does not list, or that another live
- * session holds (ADR-0949 D3): it prints the refusal, which the agent reads instead of the edit happening.
- * And one after each shell command, which the harness waits for (`--shell-guard`, shell-guard.ts), prints
- * what the command changed in imported code that no yes of the user's covers (ADR-1015).
- *
- * One more, at each prompt (ADR-0636 D1, b2), prints: the project's definitions
- * for the terms the prompt names (definitions.ts), once-per-session advice to start fresh when a
- * Claude Code session passes its context guidance (context-nudge.ts), and, when the user's message carries the
- * allow command on a line of its own, that their yes to changing imported code is recorded (edit-gate.ts, ADR-1015). The harness waits for it, so it gives up
- * after 2 s and prints nothing. It also writes a line saying the session's turn began (ADR-0754 D5). And a
- * second hook at the end of each turn (`--close-out-reminder`, close-out-reminder.ts) may
- * print one request to close out, once per session, deciding from this machine alone (ADR-0758 D4).
- * No other prints: in a folder that isn't a storytree project, a session start adds nothing for the
- * agent (ADR-0752 D3).
- *
- * Nothing a hook reads grows with the log (contract 3.21): every hook of every session on every
- * machine runs one, so each reads only the lines it needs, narrowed on the server (contract 2.7),
- * never the whole log, which once made the store's egress grow with the square of its activity.
- *
- * A hook's input is the harness's own JSON on stdin. hookLines() turns it into lines, and knows
- * nothing of storytree's state; runHook() routes the session's folder (capability 1) and, only when
- * it is a project on a running storytree, opens the log and writes them. Everything a hook does is
- * inside one try: a failure anywhere means nothing is written, never an error the agent sees, and
- * a trace of why left on this machine (failures.ts, contract 3.23).
- */
+// Capability 3 · Hooks
 import type { Harness } from "@storytree/project-and-caller/caller";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
@@ -82,58 +36,35 @@ import { rememberedImports, SHELL_GUARD, shellGuard, watchImports, watchWorktree
 import { TEST_GUARD, testGuard } from "./test-guard.js";
 import { noteSessionStart, toolsStoppedAtTurnEnd, toolsStoppedNotice } from "./tools-stopped.js";
 
-/** What a hook is run with: the command's arguments (the harness first, then any flags) and its stdin. */
 export interface HookInput {
   readonly argv: readonly string[];
   readonly input: string;
-  /**
-   * With `--background`, and for the look around the machine, how the hook hands its work on: start
-   * a copy of itself for `harness` with `flags`, and `input` on its stdin, that outlives this one.
-   * Resolves once the input is handed over. Without it, the look is taken in this hook.
-   */
   readonly handOff?: (harness: string, input: string, flags?: readonly string[]) => Promise<void>;
-  /** How merges that end claims are watched for (ADR-0643 D3). By default, through `gh`. */
   readonly merges?: MergeWatch;
-  /** Where storytree is. By default, where the app keeps its owner record. */
   readonly locate?: LocateOptions;
-  /** Which capability each edited file declares, for the gate before each edit (`--edit-gate`). Without it the gate refuses nothing. */
   readonly declaredCapabilities?: DeclaredCapabilities;
-  /** Which edited files are in a language the map reads, so the gate's refusal of one no capability covers names a step storytree takes for code it draws (ADR-1324). */
   readonly readsCode?: ReadsCode;
-  /** How long the hook after a shell command may wait to ask which changes a yes covers (`--shell-guard`), the gate before an edit to judge it (`--edit-gate`), and the prompt hook to look up its context. By default, each one's own. */
   readonly guardMs?: number;
-  /** The hook process's clock, which its parts are timed on (timing.ts, ADR-1056 D1). Without it, nothing is timed. */
   readonly clock?: HookClock;
-  /** How the hook runs git, only in an approved checkout (contract 3.46). By default, with the repository's own commands off. */
   readonly git?: Git;
 }
 
 export { BACKGROUND };
-/** The flag that makes a hook take only the once-a-minute look around the machine, which may run longer than a hook. */
 export const UPKEEP = "--upkeep";
-/** The flag that makes a hook file only the friction report a prompt hook handed it (ADR-1049 D2), so the prompt never waits on it. */
 export const BIG_INJECTION = "--big-injection";
-/** The flag of the session-start hook installs before ADR-0752 registered to ask the setup question; now it does nothing. */
 export const ASK_SETUP = "--ask-setup";
 
-/** The lines one hook's input makes, and the folder the session was working in. */
 export interface HookLines {
   readonly folder: string;
   readonly lines: NewLine[];
 }
 
-/** How long a hook waits to reach storytree's database before giving up and writing nothing. */
 const CONNECT_TIMEOUT_MS = 2_000;
 
-/**
- * The lines a hook input from `harness` makes, or undefined when it makes none: an event or a tool
- * the log does not record, or input that is not what that harness sends.
- */
 export function hookLines(harness: string, input: unknown): HookLines | undefined {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return undefined;
   switch (harness) {
     case "claude-code":
-      // Cursor runs Claude Code's hooks too: its own entry reports the session, so this one stands down (3.28).
       return inCursor(input) ? undefined : claudeCodeLines(input as Record<string, unknown>);
     case "codex":
       return codexLines(input as Record<string, unknown>);
@@ -144,31 +75,22 @@ export function hookLines(harness: string, input: unknown): HookLines | undefine
     case "antigravity":
       return antigravityLines(input as Record<string, unknown>);
     default:
-      // Any other name is a harness naming itself, sending the input storytree publishes (ADR-1007 D4).
       return isSelfNamed(harness) ? selfNamedLines(harness, input as Record<string, unknown>) : undefined;
   }
 }
 
-/** Whether a hook input is Cursor's, which names its version on every one: also on the Claude Code hooks it loads and runs. */
 export function inCursor(input: unknown): boolean {
   return typeof input === "object" && input !== null && typeof (input as Record<string, unknown>).cursor_version === "string";
 }
 
-/**
- * What a prompt hook prints to add `context` for the agent, in the shape `harness` reads; undefined for
- * nothing to add. Cursor reads `additional_context`, and `continue` lets the prompt through; Pi's extension
- * returns the answer from before_agent_start, where a message is added for the model and, with `display` off, not shown.
- */
 export function promptAnswer(harness: string, context: readonly string[] | undefined, input: unknown, shown?: string): string | undefined {
   if (context === undefined || context.length === 0 || (harness !== "cursor" && inCursor(input))) return undefined;
   const added = context.join("\n\n");
   if (harness === "pi") return JSON.stringify({ message: { customType: "storytree", content: added, display: false } });
   if (harness === "cursor") return JSON.stringify({ continue: true, additional_context: added });
-  // Claude Code also shows the user a warning (`shown`) beside the prompt.
   return JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: added }, ...(shown !== undefined && harness === "claude-code" ? { systemMessage: shown } : {}) });
 }
 
-/** A prompt the user sent, as each harness's prompt hook gives it (UserPromptSubmit; Cursor's beforeSubmitPrompt; Pi's before_agent_start). */
 interface Prompted {
   readonly harness: Harness;
   readonly session: string;
@@ -176,18 +98,11 @@ interface Prompted {
   readonly prompt: string;
 }
 
-/**
- * Run one hook: read its input, and write its lines to the log of the project its folder belongs
- * to; while storytree cannot be reached they wait on this machine for the next hook (queue.ts). Never throws. It prints nothing but what a prompt hook adds for the
- * agent (definitions and context advice), which it returns: the command prints it.
- */
 export async function runHook(hook: HookInput): Promise<string | undefined> {
   const said = await answerHook(hook);
-  // Antigravity reads every hook's answer as JSON: nothing to say is an empty object.
   return said === undefined && hook.argv[0] === "antigravity" ? "{}" : said;
 }
 
-/** The flag naming the event in a hook command, for a harness whose input names none (Antigravity). */
 export const EVENT = "--event=";
 
 async function answerHook({ argv, input: given, handOff: handing, merges, locate, declaredCapabilities, readsCode, guardMs, clock, git = runGit }: HookInput): Promise<string | undefined> {
@@ -196,38 +111,24 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
   const parsed = withEvent(read, flags);
   const event = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>).hook_event_name : undefined;
   if (clock !== undefined && typeof event === "string" && event !== "") clock.event = event;
-  // What this hook reads from the library is counted as its event's, `hook PostToolUse`, and its connections named for it (contract 3.56).
   if (typeof event === "string" && event !== "") nameReader(`hook ${event}`);
-  // Every copy this hook starts is timed as its hand-off.
   const handOff: HookInput["handOff"] = handing === undefined || clock === undefined ? handing : (to, input, more) => clock.time("handoff", () => handing(to, input, more));
-  // A copy this hook hands its work to is started without the flag, so the event goes with the input.
   const input = parsed === read ? given : JSON.stringify(parsed);
   const failed = (stage: HookFailure["stage"], error: unknown) => noteHookFailure(storytreeHome, hookIdentity(harness, parsed), stage, error);
-  // The event as the tool server would know it too, so the log keeps it once whichever way it came (ADR-1056 D2).
   const delivered: DeliveredEvent = { key: eventKey(harness, parsed), via: "command" };
   try {
-    // Any Codex hook that runs proves the user trusted storytree's hooks there (3.18), in a project or not.
     if (harness === "codex" && typeof parsed === "object" && parsed !== null) {
       noteCodexHookRan({ storytreeHome: storytreeHome(), codexHome: process.env.CODEX_HOME || path.join(homedir(), ".codex") });
     }
-    // When a session started its tool server, for telling it later whether an update stopped that server (3.57).
     if (event === "SessionStart") noteSessionStart(harness, parsed);
-    // An older install's asking hook, until the next setup check replaces its registration.
     if (flags.includes(ASK_SETUP)) return;
     if (flags.includes(BIG_INJECTION)) return void (await fileBigInjection(parsed));
-    // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).
-    // It first tells a session whose storytree tools an update stopped, once (3.57).
-    // In a Codex pool lane it also keeps the turn going with the messages waiting for the lane (3.61).
     if (flags.includes(CLOSE_OUT_REMINDER)) {
       const lane = event === "Stop" ? codexLaneMessages(harness, parsed, "stop", { locate, home: homeOf(locate), connectMs: CONNECT_TIMEOUT_MS }) : undefined;
       return withFollowUps(toolsStoppedAtTurnEnd(harness, parsed, storytreeHome()) ?? closeOutReminder(harness, parsed, git), await lane);
     }
-    // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
-    // The guard storytree's red and green builder agents run before each edit writes nothing either (3.50).
     if (flags.includes(TEST_GUARD)) return testGuard(harness, parsed, flags);
     if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed, guardMs, readsCode);
-    // The hook after each shell command that the harness waits for tells the agent of its changes to imported code (ADR-1015), and to capabilities its claims do not cover (ADR-0949 D3).
-    // After a command in a Codex pool lane it also hands the lane's model the steers waiting for it (3.61), taken beside the guard.
     if (flags.includes(SHELL_GUARD)) {
       const lane = event === "PostToolUse" ? codexLaneMessages(harness, parsed, "tool", { locate, home: homeOf(locate), connectMs: CONNECT_TIMEOUT_MS }) : undefined;
       const guarded = await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities, guardMs, git);
@@ -236,67 +137,47 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     const made = hookLines(harness, parsed);
     if (flags.includes(UPKEEP)) return void (made === undefined ? undefined : await upkeep(made, merges, locate));
     const asked = promptIn(harness, parsed);
-    // A prompt's line is written while its context is looked up: the harness waits for both.
     if (asked !== undefined) {
-      // The user's own words may carry their yes to changing imported code (contract 3.37); a harness's notice is not theirs.
       const said = isHarnessNotice(asked.prompt) ? undefined : yesSaid(harness, asked, locate, homeOf(locate), failed, guardMs);
       const [looked, yes] = await Promise.all([givenWithinTime(asked.session, contextForPrompt(asked), guardMs), said, made === undefined ? undefined : writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git)]);
       const context = looked?.context;
       if (looked?.report !== undefined) {
-        // The report is filed by a copy of this hook, so the prompt does not wait for the library's write.
         const handed = JSON.stringify({ hook_event_name: "UserPromptSubmit", session_id: asked.session, cwd: asked.folder, report: looked.report });
-        // Without a copy to hand it to, it is filed here; a failure is traced, never in the prompt's way.
         await (handOff === undefined ? fileBigInjection(JSON.parse(handed)).catch((error: unknown) => failed("hook", error)) : handOff(harness, handed, [BIG_INJECTION]));
       }
-      // A session whose storytree tools an update stopped is told first, once, whether or not the library answers (3.57).
       const stopped = toolsStoppedNotice(harness, parsed, storytreeHome());
       return promptAnswer(harness, [...(stopped === undefined ? [] : [stopped.agent]), ...(yes ?? []), ...(context ?? [])], parsed, stopped?.user);
     }
     if (made === undefined) return;
-    // After an edit the gate asked the user about, the user's yes is recorded on the increment (contract 3.34).
     await Promise.all([writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed, guardMs)]);
   } catch (error) {
-    // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said, but why is kept here.
     failed("hook", error);
   }
   return undefined;
 }
 
-/**
- * The key of a hook event from `harness` (ADR-1056 D2): its input as both ways deliver it (for Codex, the fields its tool
- * handler sends, codex-delivery.ts), keys in order, hashed with the harness's name. It is the same whichever way the
- * event reaches storytree, so the log keeps its lines once.
- */
 export function eventKey(harness: string, input: unknown): string {
   return createHash("sha256").update(JSON.stringify([harness, inOrder(deliveredInput(harness, input))])).digest("hex");
 }
 
-/** `value` with every object's keys in order, so two inputs alike but for their keys' order are one. */
 function inOrder(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(inOrder);
   if (typeof value !== "object" || value === null) return value;
   return Object.fromEntries(Object.keys(value).sort().map((key) => [key, inOrder((value as Record<string, unknown>)[key])]));
 }
 
-/** One hook's lines placed where they are recorded, before any git or library work: its route, and each line at its worktree's root. */
 interface Placed {
   readonly where: Exclude<Route, { status: "not-a-project" }>;
   readonly made: HookLines;
   readonly root: string | undefined;
 }
 
-/** One hook's lines as either way records them, and where. */
 interface Prepared {
   readonly where: Exclude<Route, { status: "not-a-project" }>;
   readonly made: HookLines;
   readonly firstLine: NewLine | undefined;
 }
 
-/**
- * Where `made`'s lines go, read from the files alone, with no git and no library (so a hook can leave them waiting from
- * here, 3.14): undefined outside a project. A command run in a subfolder is recorded at its worktree's root, so a session
- * lists each worktree once (4.22), or, with no git repository, at the folder holding the project's marker (4.33).
- */
 async function place(made: HookLines, locate: LocateOptions | undefined): Promise<Placed | undefined> {
   const where = route(made.folder, locate);
   if (where.status === "not-a-project") return undefined;
@@ -308,33 +189,18 @@ async function place(made: HookLines, locate: LocateOptions | undefined): Promis
   return { where, made, root };
 }
 
-/**
- * The placed lines as both the command hook and the tool server record them (ADR-1056 D2): each naming its folder's
- * branch, with what a shell command edited. `guarded` also sets the shell guard's baseline of the worktree. The branch
- * and the edits are read with `git` only in a checkout approved for the project (contract 3.46): in any other the lines
- * name neither.
- */
 async function prepare({ where, made, root }: Placed, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded: boolean, git: Git = runGit): Promise<Prepared> {
   const trusted = await mayRunGit(where, made.folder, locate);
-  // The branch the folder is on now, on every line, before any waits on this machine (ADR-0754 D4).
   const { currentBranch } = await import("../activity/branch.js");
   const branch = trusted ? currentBranch(made.folder, git) : undefined;
   if (branch !== undefined) made = { ...made, lines: made.lines.map((line) => (line.branch === undefined ? { ...line, branch } : line)) };
   const home = storytreeHome();
-  // Observe before queueing or reaching the store: shell writes remain edits while offline, and
-  // a command's edit line feeds the same upkeep/claim path as an explicit edit tool (3.22).
   const firstLine = made.lines[0];
   if (trusted && root !== undefined && firstLine !== undefined) made = { ...made, lines: [...made.lines, ...shellEdits(home, root, firstLine, (error) => failed("observe", error), git)] };
-  // The shell guard's own baseline of the worktree is set here too, when it is given the map's rule to judge claims by.
   if (trusted && guarded && root !== undefined && firstLine !== undefined) watchWorktree(home, root, firstLine, failed, git);
   return { where, made, firstLine };
 }
 
-/**
- * Whether a hook may run git in `folder`, in `where`'s project (contract 3.46): only once it is known as the project's approved checkout
- * on this machine, since a folder's own git config can name programs git starts. What this machine remembers answers at
- * once; a folder it does not, while storytree runs, is asked of the library (which remembers a yes), and otherwise not.
- */
 async function mayRunGit(where: Exclude<Route, { status: "not-a-project" }>, folder: string, locate: LocateOptions | undefined): Promise<boolean> {
   if (approvedHere(where.project, folder, homeOf(locate))) return true;
   if (where.status !== "routed") return false;
@@ -347,12 +213,10 @@ async function mayRunGit(where: Exclude<Route, { status: "not-a-project" }>, fol
       await storytree.close();
     }
   } catch {
-    // Unreached, nothing is known: the lines go on without git, as they would wait.
     return false;
   }
 }
 
-/** Add `lines` to `project`'s log as `delivered` records them, oldest first, counting each into `written` as it is added. */
 async function appendEvent(log: ActivityLog, project: string, lines: readonly NewLine[], delivered: DeliveredEvent, written: { count: number }): Promise<void> {
   for (const line of lines) {
     await log.append(project, line, { event: delivered });
@@ -360,21 +224,13 @@ async function appendEvent(log: ActivityLog, project: string, lines: readonly Ne
   }
 }
 
-/** How the tool server reaches the activity log of a routed project: through its own open connection, refused (a ProjectFolderError) for a checkout not approved for it. */
 export type ReachLog = (where: Extract<Route, { status: "routed" }>) => Promise<ActivityLog>;
 
-/** What one hook event delivered through the tool server came to: how many of its lines were recorded, and how many wait on this machine. */
 export interface DeliveredLines {
   readonly recorded: number;
   readonly waiting: number;
 }
 
-/**
- * Record one hook event from `harness` delivered through the tool server rather than by a command hook (ADR-1056 D2):
- * the lines the command hook makes of it, written through the server's connection (`reach`), each kept once whichever
- * way the event came. It does nothing else a command hook does: no look around the machine, no transcript shipped, no
- * claim ended. While the log cannot be reached its lines wait on this machine, as a command hook's do.
- */
 export async function recordHookEvent(harness: string, input: unknown, reach: ReachLog, locate?: LocateOptions): Promise<DeliveredLines> {
   const failed = (stage: HookFailure["stage"], error: unknown) => noteHookFailure(storytreeHome, hookIdentity(harness, input), stage, error);
   const made = hookLines(harness, input);
@@ -392,7 +248,6 @@ export async function recordHookEvent(harness: string, input: unknown, reach: Re
   try {
     log = await reach(where);
   } catch (error) {
-    // A checkout not approved for the project writes nothing, not even later (ADR-0942 D1).
     if (error instanceof ProjectFolderError) return { recorded: 0, waiting: 0 };
     failed("reach", error);
     return waits(0);
@@ -400,7 +255,6 @@ export async function recordHookEvent(harness: string, input: unknown, reach: Re
   const written = { count: 0 };
   try {
     await appendEvent(log, where.project, lines.lines, delivered, written);
-    // Its command hook, registered beside it, stands down (codex-delivery.ts).
     noteDelivered(storytreeHome(), delivered.key);
     return { recorded: written.count, waiting: 0 };
   } catch (error) {
@@ -409,34 +263,21 @@ export async function recordHookEvent(harness: string, input: unknown, reach: Re
   }
 }
 
-/** How this hook process leaves the lines it has made but not yet written waiting on this machine, while it is reaching or writing to the log. */
 let leaveWaiting: (() => void) | undefined;
 
-/**
- * At the hook's deadline, just before the command exits: the lines it has not yet written wait on this machine, for the
- * next hook to upload first (3.14), and why is traced. A hook cut off while it reached a busy store, or while its write
- * waited, lost them (seen on a loaded laptop, 2026-10-29). A line whose write landed just before is kept once by its event.
- * Never throws.
- */
 export function atDeadline(): void {
   const leave = leaveWaiting;
   leaveWaiting = undefined;
   try {
     leave?.();
   } catch {
-    // Nothing more can be done in the time left.
   }
 }
 
-/** Write one hook's lines to the log of the project its folder belongs to, or leave them waiting on this machine; a failure is traced with `failed`. Never throws. */
 async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, delivered: DeliveredEvent, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false, clock?: HookClock, git: Git = runGit): Promise<void> {
   let turn: (() => void) | undefined;
   try {
     if (made.lines.length === 0) return;
-    // Registered beside the tool server's handler (codex-delivery.ts) or under Claude Code's mod, an event the tool recorded is not recorded
-    // again, nor the library reached for it; but at most once a minute a project's hook takes its whole turn, so
-    // the work only a command hook does (merges, the transcript, the look around the machine) still happens.
-    // Claude Code's mod waits for its delivery before a foreground hook runs, so that hook looks for the note at once (ADR-1056 D3).
     const grace = flags.includes(AFTER_TOOL) ? TOOL_GRACE_MS : harness === "claude-code" ? 0 : undefined;
     if (grace !== undefined && (await deliveredByTool(storytreeHome(), delivered.key, grace))) {
       const where = route(made.folder, locate);
@@ -454,8 +295,6 @@ async function writeLines(harness: string, input: string, flags: readonly string
     made = placed.made;
     const home = storytreeHome();
     const { enqueue, uploadQueued } = await import("./queue.js");
-    // Cut off from here, with its lines made and placed, what the hook has not written waits, even while it still asks
-    // the library whether its checkout is approved or reads git; the lines it waits with are its latest (3.14).
     const written = { count: 0 };
     leaveWaiting = () => {
       failed("write", new Error(`cut off at its deadline with ${made.lines.length - written.count} of its ${made.lines.length} lines unwritten`));
@@ -472,7 +311,6 @@ async function writeLines(harness: string, input: string, flags: readonly string
       await handOff(harness, input);
       return undefined;
     }
-    // Over a wss:// library one hook at a time on this machine reaches it; the others leave their lines for the holder (remote-turn.ts).
     const remote = remoteAddress(where.library.address);
     turn = remote ? takeTurn(home) : undefined;
     if (remote && turn === undefined) {
@@ -480,7 +318,6 @@ async function writeLines(harness: string, input: string, flags: readonly string
       enqueue(home, where.project, made.lines, delivered);
       return;
     }
-    // Only now, with lines to write and somewhere to write them, is the database reached.
     const [{ openActivityLog, thisMachine, currentBranch }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
     const machine = thisMachine();
     let opened;
@@ -488,7 +325,6 @@ async function writeLines(harness: string, input: string, flags: readonly string
     try {
       const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS));
       const log = await (async () => {
-        // A checkout whose trunk is not approved writes nothing, not even what waited (ADR-0942 D1).
         await requireApproval(storytree, where.project, where.folder, homeOf(locate));
         return openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
       })().catch(async (error: unknown) => {
@@ -509,13 +345,9 @@ async function writeLines(harness: string, input: string, flags: readonly string
     const writing = performance.now();
     const handing = clock?.spent("handoff") ?? 0;
     try {
-      // A folder whose marker names a deleted project's database writes nothing, under its name or into a new project of it (ADR-0831).
       if (where.identity !== undefined && (await storytree.projectIdentities())[where.project] !== where.identity) return void (leaveWaiting = undefined);
-      // The folders the project imports here are remembered, and their baselines set, for the shell guard (shell-guard.ts).
       if (firstLine !== undefined) await watchImports(storytree, where.project, homeOf(locate), home, firstLine, failed, git);
-      // Lines that waited go first, so the log keeps each session's lines in the order they happened; the guard's are in an imported folder.
       await uploadQueued(home, log, async (project, folder) => rememberedImports(home, project).some((place) => place.folder === folder) || approved(storytree, project, folder, homeOf(locate)));
-      // The first hook to reach the log since this machine started says so, once: sessions it outlived read gone everywhere (4.29).
       const [by] = made.lines;
       if (by !== undefined) {
         const { recordMachineStart } = await import("../sessions/machine-start.js");
@@ -523,14 +355,10 @@ async function writeLines(harness: string, input: string, flags: readonly string
       }
       await appendEvent(log, where.project, made.lines, delivered, written);
       leaveWaiting = undefined;
-      // A claim whose pull request has merged ends now (ADR-0643 D3), except before a storytree tool
-      // call or at a prompt, which the harness waits for; the tool call looks for itself.
       const [first] = made.lines;
       if (first !== undefined && first.kind !== "tool-requested" && first.kind !== "prompt-submitted") {
-        // The library is opened only if a merge is seen, to apply its increment's pending plan changes (ADR-0966 D4).
         const library = () => openNamedProject(storytree, where.project, where.identity);
         const watcher = { log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook", library } as const;
-        // The look around the machine, when due, goes to a copy that may run longer (ADR-0754 D4); never at a session's end, which the harness cuts short.
         const looks = first.kind !== "session-ended";
         if (looks && handOff !== undefined) {
           const { due } = await import("../claims/merges.js");
@@ -538,7 +366,6 @@ async function writeLines(harness: string, input: string, flags: readonly string
         }
         const { endMergedClaims } = await import("../claims/index.js");
         await endMergedClaims(watcher, merges);
-        // What the session's transcript gained since the last hook streams into the shared log, scrubbed (ADR-0749 D3, D4).
         if (first.transcript !== undefined) {
           const { shipTranscript } = await import("../transcripts/index.js");
           await shipTranscript(log, where.project, first.session, first.transcript);
@@ -546,30 +373,24 @@ async function writeLines(harness: string, input: string, flags: readonly string
         if (looks && handOff === undefined) await lookAround(watcher, merges);
       }
     } catch (error) {
-      // The log went away mid-hook: what it did not take waits for the next hook.
       leaveWaiting = undefined;
       failed("write", error);
       enqueue(home, where.project, made.lines.slice(written.count), delivered);
     } finally {
-      // The write's time is its own: a hand-off inside it is timed as the hand-off.
       clock?.add("write", performance.now() - writing - ((clock?.spent("handoff") ?? 0) - handing));
       await log.close();
       await storytree.close();
     }
   } catch (error) {
-    // Whatever went wrong, nothing is written.
     failed("write", error);
   } finally {
-    // Done, or handed on, nothing is left to wait at the deadline.
     leaveWaiting = undefined;
     turn?.();
   }
 }
 
-/** How often a hook hands the look around the machine on, at most. */
 const UPKEEP_EVERY_MS = 60_000;
 
-/** The look around the machine, handed on by a hook: open the log of the project `made`'s folder belongs to, and look. Never throws. */
 async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: LocateOptions | undefined): Promise<void> {
   const [first] = made.lines;
   const where = route(made.folder, locate);
@@ -581,10 +402,8 @@ async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: L
     if (!(await approved(storytree, where.project, where.folder, homeOf(locate)))) return;
     const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
     try {
-      // The readings of how long this machine's hooks took go up first (ADR-1056 D1).
       const { uploadHookTimes } = await import("./timing.js");
       await uploadHookTimes(storytreeHome(), log, where.project, { session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }) });
-      // The hook that handed it on found it due: each look is taken now.
       await lookAround({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, { ...merges, everyMs: 0 });
     } finally {
       await log.close();
@@ -594,22 +413,17 @@ async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: L
   }
 }
 
-/** Whether each session's branches still hold open work (ADR-0754 D4), worktrees to reap (ADR-0790) and the sessions the apps keep, each at most once a minute unless `watch` says otherwise. */
 async function lookAround(watcher: MergeContext, watch: MergeWatch | undefined): Promise<void> {
   const { resolveBranches } = await import("../sessions/branch-states.js");
   await resolveBranches(watcher, watch).catch(() => []);
-  // Worktrees whose sessions have left and whose work is in main are removed (ADR-0790).
   const { reapWorktrees } = await import("../sessions/worktree-reaper.js");
   await reapWorktrees(watcher, watch?.everyMs === undefined ? {} : { everyMs: watch.everyMs }).catch(() => []);
-  // Shell-edits baselines no session has written for a week are let go, so they stop filling the disk.
   const { pruneBaselinesWhenDue } = await import("./shell-edits.js");
   pruneBaselinesWhenDue(storytreeHome());
-  // Which sessions the Claude desktop app and Codex keep on this machine, and whether each is archived there.
   const { recordAppStates } = await import("../sessions/app-records.js");
   await recordAppStates(watcher, watch?.everyMs === undefined ? {} : { everyMs: watch.everyMs }).catch(() => []);
 }
 
-/** The prompt in a prompt hook's input from `harness`, or undefined for any other input. */
 function promptIn(harness: string, input: unknown): Prompted | undefined {
   if (typeof input !== "object" || input === null) return undefined;
   if (harness === "cursor") {
@@ -628,11 +442,6 @@ function promptIn(harness: string, input: unknown): Prompted | undefined {
   return { harness, session, folder, prompt };
 }
 
-/**
- * What the agent is to be shown for a prompt: the project's definitions for the terms it names and,
- * for Claude Code only, advice once past context guidance. Undefined for none. Both are kept to once
- * a session by ledgers this only reads: `given` is what to remember in them if this answer is shown.
- */
 async function contextForPrompt({ harness, session, folder, prompt }: Prompted): Promise<{ context?: string[]; report?: InjectionReport; given: Given[] } | undefined> {
   if (isHarnessNotice(prompt)) return undefined;
   const where = route(folder);
@@ -646,7 +455,6 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
     const fresh = notYetGiven(session, named);
     const [nudge, lapsed] = await Promise.all([harness === "claude-code" ? contextNudge(storytree, where.project, session) : undefined, lapsedAtPrompt(storytree, where.project, session)]);
     const definitions = fresh.length === 0 ? undefined : definitionsContext(fresh);
-    // A lapse comes first: the agent is to take its claims again before it edits (3.58).
     const context = [...(lapsed === undefined ? [] : [lapsed]), ...(definitions === undefined ? [] : [definitions]), ...(nudge === undefined ? [] : [nudge])];
     const report = definitions === undefined ? undefined : bigInjectionReport(session, fresh, definitions);
     const given: Given[] = [
@@ -659,9 +467,7 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
   }
 }
 
-/** What the prompt says of `session`'s claims that lapsed since it last claimed (3.58), or undefined for none. */
 async function lapsedAtPrompt(storytree: Storytree, project: string, session: string): Promise<string | undefined> {
-  // Loaded here, not at the top: a static import would load the log on every hook's start (3.3).
   const [{ openActivityLog }, { lapseNotice }] = await Promise.all([import("../activity/index.js"), import("../claims/lapses.js")]);
   const log = await openActivityLog(storytree);
   try {
@@ -671,10 +477,6 @@ async function lapsedAtPrompt(storytree: Storytree, project: string, session: st
   }
 }
 
-/**
- * File the friction report a prompt hook handed on (ADR-1049 D2) in the library of the project its
- * folder belongs to, as its session wrote it. A failure is thrown to the hook, which traces it.
- */
 async function fileBigInjection(handed: unknown): Promise<void> {
   const { session_id: session, cwd: folder, report } = (handed ?? {}) as { session_id?: unknown; cwd?: unknown; report?: InjectionReport };
   if (typeof session !== "string" || typeof folder !== "string" || report === undefined) return;
@@ -692,12 +494,10 @@ async function fileBigInjection(handed: unknown): Promise<void> {
   }
 }
 
-/** The storytree home routing reads for `locate`, whose machine's approved trunks a hook is held to (ADR-0942). */
 function homeOf(locate: LocateOptions | undefined): string {
   return locate?.home ?? (locate?.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(locate.dataDir)));
 }
 
-/** Whether `folder` is in `project`'s approved trunk on this machine (ADR-0942); any other failure is thrown. */
 async function approved(storytree: Storytree, project: string, folder: string, home: string): Promise<boolean> {
   try {
     await requireApproval(storytree, project, folder, home);
@@ -708,29 +508,21 @@ async function approved(storytree: Storytree, project: string, folder: string, h
   }
 }
 
-/** `work`'s answer, or undefined if it takes longer than `limitMs`, by default as long as reaching storytree may (the harness waits on this hook). */
 function withinTime<T>(work: Promise<T | undefined>, limitMs = CONNECT_TIMEOUT_MS): Promise<T | undefined> {
   let timer: NodeJS.Timeout | undefined;
   const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), limitMs)));
   return Promise.race([work.catch(() => undefined), late]).finally(() => clearTimeout(timer));
 }
 
-/**
- * `lookup`'s answer within `limitMs`, as withinTime, with what it gave remembered in `session`'s
- * ledgers only when that answer came in time (3.7, 9.9): a lookup cut off by the limit shows nothing,
- * so it leaves them as they were, and what it would have given is given at a later prompt.
- */
 export async function givenWithinTime<L extends { readonly given?: readonly Given[] }>(session: string, lookup: Promise<L | undefined>, limitMs?: number): Promise<L | undefined> {
   const looked = await withinTime(lookup, limitMs);
   try {
     for (const given of looked?.given ?? []) markGiven(session, given);
   } catch {
-    // A ledger that cannot be written costs only a repeat at a later prompt, never this answer.
   }
   return looked;
 }
 
-/** The input with the event its hook command names, where the harness's own input names none. */
 function withEvent(parsed: unknown, flags: readonly string[]): unknown {
   const event = flags.find((flag) => flag.startsWith(EVENT))?.slice(EVENT.length);
   return event === undefined || typeof parsed !== "object" || parsed === null || Array.isArray(parsed) ? parsed : { ...parsed, hook_event_name: event };

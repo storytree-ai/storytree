@@ -1,7 +1,7 @@
 // Capability 4 · Measures over time per story
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { test, type TestContext } from "node:test";
+import { test } from "node:test";
 
 import { connect, type Storytree } from "@storytree/library";
 
@@ -113,12 +113,10 @@ test("4.1 · xmr gives limits of the mean of the readings before the latest plus
   assert.equal(one.reads, "too few readings");
 });
 
-async function server(t: TestContext): Promise<Storytree> {
+async function server(): Promise<Storytree> {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
-  const storytree = await connect({ url });
-  t.after(() => storytree.close());
-  return storytree;
+  return connect({ url });
 }
 
 const ALPHA = "story_a1a1a1a1a1a1";
@@ -128,11 +126,18 @@ const TIMING = "measure_400000000002";
 const commit = (n: number) => `c${n}`.padEnd(40, "0");
 
 test("4.2 · seriesIn groups a project's readings committed in the window, its first and last days included by UTC day, into one series per story, measure, version and machine, each ordered by committed, each reading carrying its runs and spread", async (t) => {
-  const storytree = await server(t);
-  assert.equal(typeof seam.seriesIn, "function", "code measures exports seriesIn");
-  const db = await seam.measureReadingsPool(storytree);
+  const storytree = await server();
   const project = `t-${randomBytes(4).toString("hex")}`;
-  t.after(() => db.query("DELETE FROM measure_readings WHERE project = $1 OR project = $2", [project, `${project}-other`]));
+  let db: ReadingsDb | undefined;
+  t.after(async () => {
+    try {
+      await db?.query("DELETE FROM measure_readings WHERE project = $1 OR project = $2", [project, `${project}-other`]);
+    } finally {
+      await storytree.close();
+    }
+  });
+  assert.equal(typeof seam.seriesIn, "function", "code measures exports seriesIn");
+  db = await seam.measureReadingsPool(storytree);
   const row = (fields: Partial<ReadingRow> & Pick<ReadingRow, "commit" | "committed" | "value">): ReadingRow => ({
     project, story: ALPHA, measure: LINES, version: 1, unit: "lines", machine: "mint", runs: 1, spread: null, readAt: "2026-11-18T06:00:00.000Z", ...fields,
   });

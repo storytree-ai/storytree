@@ -47,7 +47,6 @@ test("2.2 · the element pointed at is recorded with a selector only it matches,
   assert.ok(long.html.length <= 2048, `markup capped at 2 KB, not ${long.html.length}`);
   assert.ok(long.text!.length <= 200);
 
-  // React keeps its fiber on the nodes it renders; components are read up its owners, host elements skipped.
   await page.evaluate(`(() => {
     function ArcsDrawer() {}
     function Row() {}

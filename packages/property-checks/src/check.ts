@@ -1,8 +1,4 @@
-/**
- * Capability 1 · Writing a check. `propertyCheck(t, { why }, property)` runs a fast-check property inside the numbered
- * test it protects, naming the escape pattern or the test writer's reason it exists, in the tier the environment
- * names; a failure names its counterexample, seed and path and the line that replays it alone (ADR-1356 D3).
- */
+// Capability 1 · Writing a check
 import path from "node:path";
 import type { TestContext } from "node:test";
 
@@ -11,18 +7,14 @@ import fc from "fast-check";
 import { freshSeed, NIGHTLY_FACTOR, NIGHTLY_LIMIT_MS, pinAdvice } from "./nightly.js";
 import { addToTally, DEFAULT_SEEDS, overBudget, QUICK_RUNS, record, type Env } from "./quick-tier.js";
 
-/** Why a check exists: the escape pattern it guards against, or the test writer's own reason. */
 export type Why = { readonly pattern: string } | { readonly judged: string };
 
 export interface CheckOptions {
   readonly why: Why;
-  /** Seeds pinned on this check, run by the quick tier after the default ones. */
   readonly seeds?: readonly number[];
-  /** Cases per seed in the quick tier. */
   readonly runs?: number;
 }
 
-/** What the check reads from its surroundings; each defaults to the real one. */
 export interface CheckIo {
   readonly env?: Env;
   readonly now?: () => number;
@@ -43,7 +35,6 @@ function refusal(t: TestContext | undefined, why: Why | undefined): string | und
   return undefined;
 }
 
-/** Runs `property` in the tier the environment names, failing the test `t` with words that replay any failure. */
 export async function propertyCheck(t: TestContext, options: CheckOptions, property: fc.IRawProperty<unknown>, io: CheckIo = {}): Promise<void> {
   const refused = refusal(t, options?.why);
   if (refused) throw new Error(refused);

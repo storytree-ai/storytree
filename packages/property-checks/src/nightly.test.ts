@@ -1,4 +1,3 @@
-/** Property checks 3.1 and 3.2: the nightly tier's fresh seeds, and the nightly run that finds every check. */
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -38,9 +37,6 @@ test("3.1 · the nightly tier runs a check on a fresh seed with many more cases 
   assert.notDeepEqual(again.slice(0, 10), nightly.slice(0, 10), "a fresh seed each run");
 });
 
-// The limit is fast-check's own interruptAfterTimeLimit, which reads the time through the Date.now it captured when it
-// loaded and takes no clock, and an interrupt before any case has passed fails the run: so this test spends real time,
-// up to its limit, but waits for nothing. Far more cases than the limit allows are asked for, and it must stop short.
 test("3.1 · the nightly tier stops at its time limit without failing for it", async (t) => {
   let cases = 0;
   const endless = fc.property(fc.integer(), () => {

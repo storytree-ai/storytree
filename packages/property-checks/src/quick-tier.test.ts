@@ -1,4 +1,3 @@
-/** Property checks 2.1-2.3: the quick tier's fixed seeds, its budgets, and the line each run keeps for the reviewer. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
@@ -20,7 +19,6 @@ function tempDir(t: TestContext): string {
 
 const T0 = Date.UTC(2026, 10, 18, 9, 30, 0);
 
-/** A clock that stands still until the property moves it, once, by `ms`. */
 function slowOnce(ms: number) {
   let at = T0;
   let moved = false;

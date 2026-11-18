@@ -248,11 +248,18 @@ test("6.7 setting a new project up gives its factory the bare bones, no role, ch
           await library.close();
         }
       };
+      assert.equal(await userFactory(storytree, factory, []), factory, "the test's own factory is made under its own name, so setup finds it by that name");
       const choice = path.join(laptop, "project-choice.json");
       mkdirSync(choice, { recursive: true });
       await assert.rejects(setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop, factory }));
       rmSync(choice, { recursive: true });
       await setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop, factory });
+      const linked = await storytree.openProject(project);
+      try {
+        assert.deepEqual(await linked.factory(), { kind: "product", factory }, "the project is a product of the test's own factory");
+      } finally {
+        await linked.close();
+      }
       const bare = { roles: [], checks: [], notes: [] };
       assert.deepEqual(await pack(), bare, "the bare bones are the record and the map: the retry seeds nothing");
       await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true, factory });

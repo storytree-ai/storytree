@@ -355,6 +355,21 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ${{ job.status == 'success' && steps.shard.outputs.units == 'true' && 'error' || 'warn' }}
           retention-days: 14
+      # The job's test Postgres server log is kept with its evidence, so a server restart mid-run
+      # (run 43162863957: ECONNRESET in a drop, then 57P03) can be read from a failed run. Each run
+      # moves the last one's log to pg.previous.log as it starts, so when the repeat step ran after
+      # the tests, pg.previous.log holds the test step's (friction_de677032e36e).
+      - name: Keep the test Postgres server log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-postgres-log-${{ runner.os }}-${{ github.run_attempt }}${{ matrix.shard && format('-shard-{0}', matrix.shard) || '' }}
+          path: |
+            .pgtest/pg.log
+            .pgtest/pg.previous.log
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
       - name: Preserve this shard's plan
         if: always() && matrix.shard
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

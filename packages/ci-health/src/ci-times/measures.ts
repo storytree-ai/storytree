@@ -18,7 +18,7 @@ export interface CiTimeMeasureReader {
 
 export const CI_TIME_MEASURE_READERS: readonly CiTimeMeasureReader[] = [
   {
-    measure: "measure_000000000b01",
+    measure: "measure_b2d362bd15aa",
     version: 1,
     async sample({ folder, commit, project, server }) {
       const committed = new Date((await run("git", ["show", "-s", "--format=%cI", commit], { cwd: folder })).stdout.trim());

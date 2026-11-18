@@ -10,6 +10,6 @@ export interface HabitsCardMeasureReader {
 const cardBytes = () => Buffer.byteLength(habitsCard(), "utf8");
 
 export const HABITS_CARD_MEASURE_READERS: readonly HabitsCardMeasureReader[] = [
-  { measure: "measure_000000000b02", version: 1, sample: async () => ({ value: cardBytes(), runs: 1, spread: 0 }) },
-  { measure: "measure_000000000b03", version: 1, sample: async () => ({ value: Math.ceil(cardBytes() / 4), runs: 1, spread: 0 }) },
+  { measure: "measure_b2c1a8adba99", version: 1, sample: async () => ({ value: cardBytes(), runs: 1, spread: 0 }) },
+  { measure: "measure_34959955c3f6", version: 1, sample: async () => ({ value: Math.ceil(cardBytes() / 4), runs: 1, spread: 0 }) },
 ];

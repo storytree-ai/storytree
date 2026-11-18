@@ -1,30 +1,10 @@
-/**
- * Capability 5 · Claims, how a claim ends: every way one ends and what that does to its increment,
- * in one place, for the writers (release, the session manager's release, landing, close-out, merges,
- * closing an increment) and the readers (the fold in readings.ts and the standing-claims query in
- * activity/bounded.ts) alike.
- *
- * - Released by its holder, or by the session manager for a quiet holder (ADR-0944 D7): a "released"
- *   line. Releasing an increment also ends what its holder claimed under it (ADR-0949 D4).
- * - Landed by its holder: a "landed" line, on a capability.
- * - Its branch's pull request merged after it was taken (ADR-0643 D3): a "merged" line naming the holder.
- * - Its increment closed, whoever closes it and whatever the disposition: a "closed" line, which ends
- *   every claim on the increment and every capability claim taken under it (ADR-0944 D5, ADR-0949 D4).
- * - A release (by the holder or the manager) leaves an active increment nobody's work in progress, so
- *   it is a proposal again (5.29); a landing, merge or close does not return it.
- * A session's end ends none: its process stopped, so its holder reads idle at once and its claims stand
- * until another session takes them over or one of these ends them (ADR-1311 D1, 4.41, in readings.ts).
- *
- * Imports types alone, so the activity log's query can take its predicate without an import cycle.
- */
+// Capability 5 · Claims
 import type { IncrementStatus, Library, Line, NewLine, WriteOptions } from "@storytree/library";
 
 import type { LockedLog } from "../activity/activity-log.js";
 
-/** The kinds of line that end a claim. */
 export const ENDING_KINDS = ["released", "landed", "merged", "closed"] as const;
 
-/** Why a claim ends, as its writer says it. */
 export type Ending =
   | { readonly by: "holder" }
   | { readonly by: "manager"; readonly holder: string; readonly reason: string }
@@ -32,20 +12,12 @@ export type Ending =
   | { readonly by: "merge"; readonly holder: string; readonly branch: string; readonly pr: number }
   | { readonly by: "close"; readonly disposition: "landed" | "failed" | "withdrawn" };
 
-/** What a claim is on: a capability or an increment, exactly one. */
 type On = { capability: string; increment?: undefined } | { increment: string; capability?: undefined };
 
-/** Whose line ends it: the fields every line carries. */
 export type Ender = Pick<NewLine, "session" | "harness" | "source" | "folder" | "branch">;
 
-/** The library a release returns an unclosed increment through, and as whom. */
 export type Returning = { readonly library: Library; readonly writer?: WriteOptions; readonly session: string };
 
-/**
- * End the claim on `on` with `ending`, under the activity log's lock: a release first returns an
- * active increment to proposal through `returning`, when given (5.29), then the line is written.
- * The line written, and whether the increment was returned.
- */
 export async function endClaim(log: Pick<LockedLog, "append">, ender: Ender, on: On, ending: Ending, returning?: Returning): Promise<{ line: Line; returned?: true }> {
   const returned = (ending.by === "holder" || ending.by === "manager") && returning !== undefined ? await returnUnclosed(returning, on.increment) : undefined;
   const line = await log.append(endingLine(ender, on, ending));
@@ -68,13 +40,6 @@ function endingLine(ender: Ender, on: On, ending: Ending): NewLine {
   }
 }
 
-/**
- * An increment whose last claim ends without closing it is nobody's work in progress: when it is
- * active, it is a proposal again (5.29), through the library's own `returnIncrement`. Called under
- * the activity log's lock before the "released" line, as a claim's activation is before its
- * "claimed" line, so no claim can start it in between, and a library refusal writes nothing.
- * Whether it was returned.
- */
 export async function returnUnclosed(returning: Returning, increment: string | undefined): Promise<true | undefined> {
   if (increment === undefined) return undefined;
   const work = await returning.library.get(increment);
@@ -83,10 +48,8 @@ export async function returnUnclosed(returning: Returning, increment: string | u
   return true;
 }
 
-/** A standing claim, as far as whether a line ends it goes. */
 export type Held = { readonly session: string; readonly under?: string | undefined };
 
-/** Whether `line` ends `held`, the claim standing on `id`. A line of no ending kind ends nothing. */
 export function ends(line: Line, id: string, held: Held): boolean {
   switch (line.kind) {
     case "released": {
@@ -104,15 +67,10 @@ export function ends(line: Line, id: string, held: Held): boolean {
   }
 }
 
-/**
- * `ends` in SQL, for the standing-claims query: whether ending row `e` (its kind, session, holder and
- * id) ends latest claim row `l` (its id, session and under). The two must say the same.
- */
 export const ENDS_STANDING = `(
       (e.kind = 'released' AND coalesce(e.holder, e.session) = l.session AND (e.id = l.id OR e.id = l.under))
       OR (e.kind = 'landed' AND e.session = l.session AND e.id = l.id)
       OR (e.kind = 'merged' AND e.holder = l.session AND e.id = l.id)
       OR (e.kind = 'closed' AND (e.id = l.id OR e.id = l.under)))`;
 
-/** ENDING_KINDS as an SQL list. */
 export const ENDING_KINDS_SQL = ENDING_KINDS.map((kind) => `'${kind}'`).join(", ");

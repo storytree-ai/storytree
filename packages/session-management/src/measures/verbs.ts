@@ -1,13 +1,4 @@
-/**
- * Capability 20 · Lane measures, its verbs: `storytree measures` (contracts 20.1, 20.2, 20.6) and `storytree measures catch`
- * (20.5), declared once here (ADR-0969 D2) and named under `verbs` in the package's manifest (ADR-1033). The bare verb joins
- * each closed increment's lane to its cost, review rounds and pass measures and prints them per story and per capability,
- * with each story's catch rate by layer beside them; `catch` prints the whole catch reading; both read one window. The
- * door hands what Session management may not read itself: the map's placement of files (`placeFiles`), and the review
- * rounds of whichever mounted part keeps a QA ledger, as that part's project-records contribution offers them
- * (`reviewRounds`, beside its `forget`; ADR-1170 D2), the shape restated here rather than imported (ADR-1017 D2). Neither
- * is a tool: each is a report read at the command line, where those parts are mounted. Report only (ADR-1238).
- */
+// Capability 20 · Lane measures
 import type { Storytree } from "@storytree/library";
 import { verb, VerbRefusal, type Verb, type VerbFamily, type VerbInputs } from "@storytree/library/verbs";
 
@@ -16,24 +7,20 @@ import { CATCH_LAYERS, catchRateLines, catchReading, catchText } from "./catch.j
 import type { LaneRow, LaneWindow } from "./lanes.js";
 import { MEASURES, type GroupMeasures } from "./summary.js";
 
-/** Records a mounted part keeps for a project outside its library; one that keeps a QA ledger may also say each increment's review rounds. */
 interface ProjectRecords {
   readonly name: string;
   reviewRounds?(server: Storytree, project: string, increments: readonly string[]): Promise<ReadonlyMap<string, number>>;
 }
 
-/** The context the verb reads: the session context, with what the command line's door adds. */
 export type MeasuresContext = SessionVerbContext & { readonly server?: Storytree; projectRecords?(): Promise<readonly ProjectRecords[]> };
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_DAYS = 7;
 
-/** The UTC day `days` before `now`, as YYYY-MM-DD. */
 function dayBefore(now: Date, days: number): string {
   return new Date(now.getTime() - days * 86_400_000).toISOString().slice(0, 10);
 }
 
-/** The window `--from` and `--to` give, each a real day and in order: to today unless given, and from DEFAULT_DAYS days ending there. */
 export function windowOf(from: string | undefined, to: string | undefined, days = DEFAULT_DAYS): { from: string; to: string } {
   const last = to ?? dayBefore(new Date(), 0);
   const first = from ?? dayBefore(new Date(`${last}T00:00:00Z`), days - 1);
@@ -101,7 +88,6 @@ const CATCH_REPORT = verb({
   },
 });
 
-/** The command line's `measures` family: the lane report, and the catch reading. */
 export const MEASURES_FAMILIES: readonly VerbFamily<MeasuresContext>[] = [
   { name: "measures", summary: "each closed increment's lane cost, review rounds and pass measures, per story and per capability, and where faults were first caught (report only; Session management's)", order: 37, verbs: [CATCH_REPORT as Verb<VerbInputs, MeasuresContext>], bare: MEASURES_REPORT as Verb<VerbInputs, MeasuresContext> },
 ];

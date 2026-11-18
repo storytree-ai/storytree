@@ -1,36 +1,4 @@
-/**
- * Capability 3 · Hooks. Claude Code's hook inputs, as recorded from Claude Code 2.1.212 (and 2.1.283 for storytree's own
- * tools and subagents): every event names the session (`session_id`), its working folder (`cwd`)
- * and itself (`hook_event_name`).
- *
- * - SessionStart carries `source`: startup, resume, clear or compact. A resumed window keeps its
- *   session id.
- * - PostToolUse carries `tool_name` and `tool_input`. Write, Edit and MultiEdit name the file as
- *   `file_path`, NotebookEdit as `notebook_path`; Bash gives its `command`, and so does PowerShell,
- *   the shell tool Claude Code has on Windows without Git for Windows (seen in 2.1.283). The Agent tool (Task
- *   before it was renamed) starts a subagent: its `tool_input` gives the type (`subagent_type`) and
- *   the task (`description`), its `tool_response` the subagent's id (`agentId`). A call that read outside text
- *   (WebFetch's `url`, WebSearch's `query`, a GitHub or Gmail MCP tool, or a command reading an issue, pull request or
- *   web page) adds a line saying what it read (outside-text.ts). Other tools make no line.
- * - PreToolUse, registered for storytree's own tools, names the agent asking (requests.ts). Also
- *   registered, in the background, for Bash and PowerShell: its line says the command started,
- *   under the call's `tool_use_id`, which the line after it carries too (ADR-0636 D2).
- * - A command that exits with an error fires PostToolUseFailure instead of PostToolUse (seen
- *   2026-09-27 in Claude Code 2.1.283), with the same `tool_input` and `tool_use_id`, and `error`.
- * - UserPromptSubmit carries the `prompt`: its line says the session's turn began, without the words.
- * - Stop fires when the agent finishes its turn, and lists the `background_tasks` still running. In print mode (`claude -p`,
- *   CLAUDE_CODE_ENTRYPOINT exactly "sdk-cli") the process exits with the turn, so its line says so (3.54); its SessionEnd
- *   then writes a line each exit where Claude Code's mod is loaded (337 starts and 337 ends on the Mint box), but is
- *   unreliable without it (Claude Code issue #79702). Either reads as the process stopping, never as its claims ending
- *   (4.41). An SDK host (sdk-ts, sdk-py) may run more turns.
- * - SubagentStop fires when a subagent finishes (its own turn's end, instead of Stop), under its parent's `session_id`, with the
- *   subagent's `agent_id`, the id the Agent tool's `tool_response` gave it (shaped from Claude Code 2.1.284's hook schema). A
- *   foreground subagent's end comes before the Agent call's PostToolUse, a background one's after it.
- * - SessionEnd carries `reason`.
- * - Two events only Claude Code's mod sends (ADR-1056 D3), each with the session's `usage` as its status line has it
- *   (`context`, `rateLimits`, `cost`): UsageMeasured, while the figures move, and TurnComplete, at a main-loop turn's end, with
- *   its `reason` (answer, aborted, refusal or error). An error ends a rate-limited turn too: the windows at 100% or past name the limits it hit.
- */
+// Capability 3 · Hooks
 import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
 import { outsideTextLine } from "./outside-text.js";
@@ -38,13 +6,11 @@ import { toolRequestedLine } from "./requests.js";
 
 const EDITS_FILE = new Set(["Write", "Edit", "MultiEdit"]);
 const STARTS_SUBAGENT = new Set(["Agent", "Task"]);
-/** The tools that run a command line. */
 const RUNS_COMMAND = new Set(["Bash", "PowerShell"]);
 
 export function claudeCodeLines(input: Record<string, unknown>, env: NodeJS.ProcessEnv = process.env): HookLines | undefined {
   const { session_id: session, cwd: folder, hook_event_name: event } = input;
   if (!isText(session) || !isText(folder) || !isText(event)) return undefined;
-  // The transcript the harness named, on every line: where the session's context is read from (capability 9).
   const common = { session, harness: "claude-code", source: "hook", folder, ...(isText(input.transcript_path) ? { transcript: input.transcript_path } : {}) } as const;
   const line = (made: NewLine | undefined): HookLines | undefined => (made === undefined ? undefined : { folder, lines: [made] });
   const lines = (...made: (NewLine | undefined)[]): HookLines | undefined => {
@@ -60,7 +26,6 @@ export function claudeCodeLines(input: Record<string, unknown>, env: NodeJS.Proc
     case "PreToolUse":
       return line(toolRequestedLine(common, input) ?? commandStartedLine(common, input));
     case "PostToolUse":
-      // A call that read outside text says so on a line of its own, after the call's own (3.49).
       return lines(toolLine(common, input) ?? subagentLine(common, input.tool_name, input.tool_input, input.tool_response), outsideTextLine(common, input.tool_name, input.tool_input));
     case "PostToolUseFailure":
       return line(isText(input.tool_name) && RUNS_COMMAND.has(input.tool_name) ? toolLine(common, input) : undefined);
@@ -69,7 +34,6 @@ export function claudeCodeLines(input: Record<string, unknown>, env: NodeJS.Proc
     case "UserPromptSubmit":
       return line({ ...common, kind: "prompt-submitted" });
     case "Stop":
-      // A turn that leaves tasks running in the background may leave a command of theirs running too: its line says how many.
       return line({ ...common, kind: "turn-ended", ...(Array.isArray(input.background_tasks) ? { background: input.background_tasks.length } : {}),
         ...(env.CLAUDE_CODE_ENTRYPOINT === "sdk-cli" ? { exits: true } : {}) });
     case "UsageMeasured":
@@ -92,7 +56,6 @@ export function claudeCodeLines(input: Record<string, unknown>, env: NodeJS.Proc
 
 type UsageFields = Pick<Extract<NewLine, { kind: "usage-measured" }>, "context" | "rateLimits" | "cost">;
 
-/** The figures of a mod's `usage` that a usage line keeps, or undefined when it names no context window. */
 function usageOf(usage: unknown): UsageFields | undefined {
   if (!isRecord(usage) || !isRecord(usage.context) || !isCount(usage.context.window) || usage.context.window === 0) return undefined;
   const { tokens, window, percent } = usage.context;
@@ -132,7 +95,6 @@ function toolLine(common: Pick<NewLine, "session" | "harness" | "source" | "fold
 function commandStartedLine(common: Pick<NewLine, "session" | "harness" | "source" | "folder">, input: Record<string, unknown>): NewLine | undefined {
   const { tool_name: tool, tool_input: toolInput, tool_use_id: call } = input;
   if (!isText(tool) || !RUNS_COMMAND.has(tool) || !isRecord(toolInput) || typeof toolInput.command !== "string" || !isText(call)) return undefined;
-  // Claude Code's own limit on a command, where its environment (which the hook shares) sets one: the line keeps the command running until then.
   const limitMs = Number(process.env.BASH_MAX_TIMEOUT_MS);
   return { ...common, kind: "command-started", command: toolInput.command, call, ...(Number.isSafeInteger(limitMs) && limitMs > 0 ? { limitMs } : {}) };
 }

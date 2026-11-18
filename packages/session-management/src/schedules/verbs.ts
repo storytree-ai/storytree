@@ -1,21 +1,4 @@
-/**
- * Capability 18 · Scheduled processes, its verbs. The `schedule` verbs a factory's runner calls, declared once here
- * (ADR-0969 D2) and named under `verbs` in the package's manifest (ADR-1033), so the command line mounts them as its
- * `schedule` family and the MCP server as the tools schedule_due and schedule_ran: which scheduled process records are
- * due now, and recording that one ran with its outcome. The family is `schedule`, not `process`, because `processes`
- * already names this computer's running work, one letter apart (decision_8e018888b69e).
- *
- * A plugin's own librarian (ADR-1178 D5) is an agent record titled `librarian-<plugin>`, and its trigger is a scheduled
- * process linked to it: `schedule due` lists that run as the plugin's librarian, to run as the plugin's own database
- * role, so row security holds it to the plugin's kinds. That role is the one the plugin's manifest names, which the plugin
- * loader reads; session management does not import the loader, so the listing points the runner at `plugin check`, which
- * says it. The core librarian, librarian-curator, is no plugin's.
- *
- * Two outcomes mean no subagent ran (increment_dc6f1426f0ba): `missed`, a daily time past its schedule's grace, which is
- * recorded instead of run late, and `skipped`, a process whose precheck found nothing to do. `schedule due` lists each
- * apart from the due ones, and `schedule ran` records either only when a fresh reading says so, so neither hides work;
- * the runner's recording is what stops a missed time staying listed.
- */
+// Capability 18 · Scheduled processes
 import type { Line, SchemaRecord } from "@storytree/library";
 import { verb, VerbRefusal, type Verb, type VerbFamily, type VerbInputs } from "@storytree/library/verbs";
 
@@ -28,11 +11,9 @@ type Outcome = (typeof OUTCOMES)[number];
 type Ran = Extract<Line, { kind: "process-ran" }>;
 
 const MINUTE = 60_000;
-/** The core librarian's name, which a plugin's librarian, `librarian-<plugin>`, never is. */
 const CORE_LIBRARIAN = "librarian-curator";
 const PLUGIN_LIBRARIAN = /^librarian-([a-z0-9][a-z0-9-]*)$/;
 
-/** The plugin librarian a process runs: the first agent it links to named `librarian-<plugin>`, other than the core one. */
 function librarianOf(process: SchemaRecord<"process">, agents: ReadonlyMap<string, SchemaRecord<"agent">>): { agent: string; plugin: string } | undefined {
   for (const link of process.fields.links ?? []) {
     const title = agents.get(link)?.fields.title;
@@ -42,20 +23,17 @@ function librarianOf(process: SchemaRecord<"process">, agents: ReadonlyMap<strin
   return undefined;
 }
 
-/** How long `minutes` is, in days, hours and minutes: "1d 2h 5m", or "under a minute". */
 function span(minutes: number): string {
   if (minutes < 1) return "under a minute";
   const parts = [[Math.floor(minutes / 1440), "d"], [Math.floor((minutes % 1440) / 60), "h"], [minutes % 60, "m"]] as const;
   return parts.filter(([count]) => count > 0).map(([count, unit]) => `${count}${unit}`).join(" ");
 }
 
-/** The latest recorded run of each process, from the context's log. */
 async function latestRuns(context: SessionVerbContext): Promise<Map<string, Ran>> {
   const lines = await context.log.lines(context.project, { kinds: ["process-ran"], latestBy: ["process"] });
   return new Map(lines.filter((line): line is Ran => line.kind === "process-ran").map((line) => [line.process, line]));
 }
 
-/** Every scheduled process record, and the latest run of each, from the context's log. */
 async function scheduled(context: SessionVerbContext): Promise<{ processes: SchemaRecord<"process">[]; last: Map<string, Ran> }> {
   const processes = (await context.library.list("process")).filter((one) => one.fields.schedule !== undefined);
   return { processes, last: await latestRuns(context) };
@@ -166,15 +144,12 @@ const ran = verb({
   },
 });
 
-/** Its section of the habits card (ADR-1021, the guidance kind): what a factory's runner does with the two tools. */
 export const scheduleGuidance: readonly string[] = [
   "Asked to run the factory's routines, `schedule_due` lists the scheduled processes due now: run each through a subagent, then record it with `schedule_ran` and its outcome.",
 ];
 
-/** The schedule verbs, in the order the command line lists them. */
 export const SCHEDULE_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [due, ran];
 
-/** Session management's `schedule` command family, which its manifest names under `verbs` (ADR-1033), just after `processes`. */
 export const SCHEDULE_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [
   { name: "schedule", summary: "the scheduled processes due now, and recording that one ran (a factory's runner's)", order: 24.5, verbs: SCHEDULE_VERBS },
 ];

@@ -1,4 +1,4 @@
-/** Capability 15 · Stop the work I own. */
+// Capability 15 · Stop the work I own
 import koffi from 'koffi';
 import { probeProcess } from '../process/index.js';
 import type { ProcessIdentity } from '../process/index.js';
@@ -10,7 +10,6 @@ const pidfdSendSignal = libc.func('int pidfd_send_signal(int pidfd, int sig, con
 const close = libc.func('int close(int fd)');
 
 export async function signalLinux(identity: ProcessIdentity, phase: StopPhase): Promise<SignalResult> {
-  // The fd pins a lifetime BEFORE comparison. A subsequent PID replacement cannot receive this signal.
   const fd = pidfdOpen(identity.pid, 0);
   if (fd < 0) return { status: 'unknown', reason: `pidfd_open failed (errno ${koffi.errno()})` };
   try {

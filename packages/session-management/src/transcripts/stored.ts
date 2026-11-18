@@ -1,9 +1,4 @@
-/**
- * Capability 9 · Context readings. Readings parsed from the shared log (ADR-0749 D3, D4): a session's context reading and window,
- * worked out by our own folds from the transcript records its hooks streamed in, so an app on any
- * machine reads every machine's sessions without opening a transcript file. Raw records expire
- * after RETAIN_MS; before they go, what was worked out from them is kept, and read from then on.
- */
+// Capability 9 · Context readings
 import { createHash, randomBytes } from "node:crypto";
 import { appendFile, chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -13,22 +8,18 @@ import type { Line } from "@storytree/library";
 import { ContextFold, contextReading, transcriptLines, type ContextReading, type StoredAt, type TranscriptReader } from "../context/context.js";
 import { sessionWindow, type SessionWindow } from "../context/window.js";
 
-/** How long raw transcript records are kept: 180 days (D4). */
 export const RETAIN_MS = 180 * 24 * 60 * 60 * 1000;
 
-/** What is kept of a session once its raw records expire. */
 interface Kept {
   readonly context: ContextReading;
   readonly window: SessionWindow;
 }
 
-/** What a cache has of one session's stored transcript: its records so far, and the byte past the last. */
 interface Held {
   readonly records: readonly string[];
   readonly finish: number;
 }
 
-/** One fetch, as a checkpoint file keeps it: a line of its own, so a torn or doubled write costs only itself. */
 interface Batch {
   readonly from: number;
   readonly finish: number;
@@ -37,37 +28,22 @@ interface Batch {
 
 const NOTHING: Held = { records: [], finish: 0 };
 
-/** What a cache holds one stored transcript under: its session's, and the part's when it is a subagent's (9.17). */
 const keyOf = (project: string, session: string, part: string): string => (part === "" ? `${project}\0${session}` : `${project}\0${session}\0${part}`);
 
-/**
- * What a reader that asks again and again (the app, every 10 seconds) already has of each session's
- * stored transcript, so each ask fetches only the records stored since. Given a folder, it also keeps
- * them there, so a restarted app fetches only what was stored while it was closed (app 3.10). The
- * folder is one store's and one project's: the caller names it so no other's can be read for it.
- * Records are kept whole, not the readings worked out from them, so every fold reads exactly what it
- * would read from the store. Asks for one session wait on each other rather than fetching twice.
- */
 export class TranscriptCache {
   readonly #dir: string | undefined;
   readonly #held = new Map<string, Promise<Held>>();
-  /** Each session's context reading so far, and how many of its held records it has taken (9.14). */
   readonly #folds = new Map<string, { fold: ContextFold; taken: number }>();
 
   constructor(dir?: string) {
     this.#dir = dir;
   }
 
-  /** `session`'s own transcript as stored in `project`'s log, or its subagent `part`'s: what is held, and what was stored since. */
   async read(log: ActivityLog, project: string, session: string, part = ""): Promise<string | undefined> {
     const now = await this.#advance(log, project, session, part);
     return now.records.length === 0 ? undefined : now.records.join("\n");
   }
 
-  /**
-   * `session`'s context reading folded from its stored transcript, fed only the records stored since
-   * the last ask, so an ask over a long session costs what it gained (9.14); undefined while none is stored.
-   */
   async fold(log: ActivityLog, project: string, session: string, harness: string | undefined, part = ""): Promise<ContextFold | undefined> {
     const key = keyOf(project, session, part);
     const now = await this.#advance(log, project, session, part);
@@ -81,7 +57,6 @@ export class TranscriptCache {
     return now.records.length === 0 ? undefined : kept.fold;
   }
 
-  /** How many lines of `session`'s stored transcript, or its subagent `part`'s, its context reading has parsed. */
   parsed(project: string, session: string, part = ""): number {
     return this.#folds.get(keyOf(project, session, part))?.fold.parsed ?? 0;
   }
@@ -94,7 +69,6 @@ export class TranscriptCache {
     return after;
   }
 
-  /** Let `session` go, here and on disk: its raw records expired, and what was kept of them is read instead. */
   async forget(project: string, session: string): Promise<void> {
     this.#held.delete(`${project}\0${session}`);
     this.#folds.delete(`${project}\0${session}`);
@@ -107,11 +81,6 @@ export class TranscriptCache {
     return path.join(this.#dir, `${createHash("sha256").update(keyOf(project, session, part)).digest("hex").slice(0, 32)}.jsonl`);
   }
 
-  /**
-   * What the folder kept of `session`, never failing: a missing or unreadable file, or a line that
-   * does not continue from the one before, is left out, and the file is written again without it.
-   * A store holding less than was kept (emptied, or not the one it came from) leaves nothing kept.
-   */
   async #load(log: ActivityLog, project: string, session: string, part: string): Promise<Held> {
     const file = this.#file(project, session, part);
     if (file === undefined) return NOTHING;
@@ -152,10 +121,6 @@ export class TranscriptCache {
     return now;
   }
 
-  /**
-   * Append one batch, or write `held` afresh through a file put in place whole, the folder and file
-   * the user's alone on POSIX, narrowed if an earlier version left them wider (9.21). A failure only costs a later fetch.
-   */
   async #write(file: string, batch: Batch | Held, how: "append" | "rewrite"): Promise<void> {
     try {
       await mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
@@ -169,7 +134,6 @@ export class TranscriptCache {
         await rename(temporary, file);
       }
     } catch {
-      // The checkpoint only saves fetches: a folder that cannot be written is read from the store.
     }
   }
 }
@@ -185,7 +149,6 @@ function parseBatch(line: string): Batch | undefined {
   }
 }
 
-/** A reader of a transcript as stored in `project`'s log where its line says, through `cache` when given. */
 function storedReader(log: ActivityLog, project: string, cache?: TranscriptCache): TranscriptReader {
   if (cache === undefined) return (_transcript, { session, part }: StoredAt) => log.transcripts.text(project, session, part);
   return (_transcript, { session, part }: StoredAt) => cache.read(log, project, session, part);
@@ -197,7 +160,6 @@ interface StoredOptions {
   readonly cache?: TranscriptCache;
 }
 
-/** `session`'s context reading, parsed from its stored records; what was kept, once they expired. */
 export async function storedContextReading(log: ActivityLog, project: string, lines: readonly Line[], session: string,
   { now, home, cache }: StoredOptions = {}): Promise<ContextReading> {
   const kept = (await log.transcripts.kept(project, session)) as Kept | undefined;
@@ -212,7 +174,6 @@ export async function storedContextReading(log: ActivityLog, project: string, li
   });
 }
 
-/** `session`'s window, parsed from its stored records; what was kept, once they expired. */
 export async function storedSessionWindow(log: ActivityLog, project: string, lines: readonly Line[], session: string,
   { now, cache }: StoredOptions = {}): Promise<SessionWindow> {
   const kept = (await log.transcripts.kept(project, session)) as Kept | undefined;
@@ -223,11 +184,6 @@ export async function storedSessionWindow(log: ActivityLog, project: string, lin
   return sessionWindow(lines, session, { ...(now === undefined ? {} : { now }), read: storedReader(log, project, cache) });
 }
 
-/**
- * The retention pass: for each session with a record stored more than RETAIN_MS before `now`, keep
- * its readings worked out from all it has stored, then delete every record past the limit.
- * Returns how many records went.
- */
 export async function pruneTranscripts(log: ActivityLog, { now = new Date(), home }: { now?: Date; home?: string } = {}): Promise<number> {
   const before = new Date(now.getTime() - RETAIN_MS);
   for (const { project, session } of await log.transcripts.storedBefore(before)) {

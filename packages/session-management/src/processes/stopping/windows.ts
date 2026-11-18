@@ -1,4 +1,4 @@
-/** Capability 15 · Stop the work I own. */
+// Capability 15 · Stop the work I own
 import koffi from 'koffi';
 import type { ProcessIdentity } from '../process/index.js';
 import type { SignalResult, StopPhase } from './signal.js';
@@ -17,7 +17,6 @@ const windowPid = user.func('uint32_t __stdcall GetWindowThreadProcessId(void *w
 const postMessage = user.func('int __stdcall PostMessageW(void *window, uint32_t message, uintptr_t wparam, intptr_t lparam)');
 
 export function signalWindows(identity: ProcessIdentity, phase: StopPhase): SignalResult {
-  // The same handle is compared and terminated. Never taskkill /T or a PID-based force fallback.
   const handle = openProcess(0x00101000 | (phase === 'force' ? 1 : 0), 0, identity.pid);
   if (!handle) return { status: 'unknown', reason: `OpenProcess for stop failed (Windows error ${getLastError()})` };
   try {
@@ -31,15 +30,13 @@ export function signalWindows(identity: ProcessIdentity, phase: StopPhase): Sign
     if (state !== 258) return { status: 'unknown', reason: `Cannot read process handle state (Windows error ${getLastError()})` };
     if (phase === 'force') return terminate(handle, 1) ? { status: 'sent' } :
       { status: 'unknown', reason: `TerminateProcess failed (Windows error ${getLastError()})` };
-    // Detached console processes have no targeted polite channel. WM_CLOSE is cooperative for
-    // windows belonging to this process; do not broadcast console events to unrelated work.
     let sent = 0;
     let failed = false;
     const enumerated = enumWindows((window: unknown) => {
       const pid = [0];
       windowPid(window, pid);
       if (pid[0] === identity.pid && wait(handle, 0) === 258) {
-        if (postMessage(window, 0x0010 /* WM_CLOSE */, 0, 0)) sent++;
+        if (postMessage(window, 0x0010, 0, 0)) sent++;
         else failed = true;
       }
       return 1;

@@ -1,11 +1,4 @@
-/**
- * Capability 4 · Sessions. The session verbs, declared once (ADR-0969 D2): name a session, point the owner's eye (4.43), message a running lane (4.49), close it out, and list the
- * sessions, read how long the hooks took, and what the library sent each reader. The command line and the MCP server each mount them; listing the sessions
- * and the hook times have no tool, and say why.
- * Machines' verbs are mounted from here too (MACHINE_VERBS), as this is the verbs' one entry. SESSION_FAMILIES, which the
- * package's manifest names under `verbs` (ADR-1033), gives the command line them as its `session` and `machine` families,
- * with the noticeboard's (NOTICEBOARD_VERBS) and the context reading (CONTEXT_READING) as its `noticeboard` and `context`.
- */
+// Capability 4 · Sessions
 import path from "node:path";
 
 import { verb, VerbRefusal, type Verb, type VerbContext, type VerbFamily, type VerbInputs } from "@storytree/library/verbs";
@@ -20,10 +13,8 @@ import { MACHINE_VERBS } from "../machines/verbs.js";
 
 export { MACHINE_VERBS };
 
-/** What a session verb's work needs beyond the caller: the activity log it reads and writes, which the doors hand. */
 export interface SessionVerbContext extends VerbContext {
   readonly log: ActivityLog;
-  /** Where each of `paths` belongs, by the map's placement, which each door hands since Session management may not import the map (ADR-0969). */
   placeFiles?(paths: readonly string[]): Promise<readonly PlacedFile[]>;
 }
 
@@ -121,11 +112,9 @@ const list = verb({
     json: { kind: "switch", describe: "as JSON" },
   },
   async act({ all, json }, { log, server, project, folder, session, harness }: SessionVerbContext) {
-    // Merges are asked about now, as the board asks about claims: the list never waits on a hook's look.
     const look = { context: { log, project, folder, session, ...(harness === undefined ? {} : { harness }), source: "tool" } } as const;
     const { sessionsListing } = await import("./listing.js");
     const { machineNames } = await import("../machines/machines.js");
-    // Each session's machine is shown by its short name (Machines, 11.3); unreadable names leave the hostnames.
     const names = server === undefined ? undefined : await machineNames(server).catch(() => undefined);
     const text = await sessionsListing(log, project, { all, json, look, ...(names === undefined ? {} : { names }) });
     return json ? { text } : { text, next: [{ command: "session list --all", why: "the hidden sessions too" }] };
@@ -183,10 +172,8 @@ const reads = verb({
   },
 });
 
-/** The session verbs, in the order the command line lists them. */
 export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, show, name, point, message, closeOut, hookTimes, reads];
 
-/** The command line's families of these verbs, each at its place among `storytree`'s families. */
 export const SESSION_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [
   { name: "noticeboard", summary: "who is on what right now (read only)", order: 5, verbs: NOTICEBOARD_VERBS, bare: NOTICEBOARD_BOARD },
   { name: "context", summary: "how full this session's context is (Session management's)", order: 31, verbs: [], bare: CONTEXT_READING },

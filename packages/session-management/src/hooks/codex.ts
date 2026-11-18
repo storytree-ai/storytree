@@ -1,38 +1,14 @@
-/**
- * Capability 3 · Hooks. Codex's hook inputs, as recorded from Codex (codex-cli 0.155; hooks are on by default from 0.124,
- * and SessionEnd exists from 0.145): every event names the session (`session_id`), its working
- * folder (`cwd`) and itself (`hook_event_name`).
- *
- * - SessionStart carries `source`: startup, resume, clear or compact. A resumed session keeps its id.
- * - PostToolUse carries `tool_name` and `tool_input`. Codex edits files with `apply_patch`, whose
- *   `tool_input.command` is the patch text: the files are the ones its `*** Add File:`,
- *   `*** Update File:`, `*** Delete File:` and `*** Move to:` lines name. A shell command is `Bash`,
- *   its `tool_input.command` one string; a patch run through the shell (`apply_patch <<'EOF'`)
- *   arrives that way too, and is read as the patch it applies. `spawn_agent` starts a subagent: its
- *   `tool_input` gives the type (`agent_type`) and the task (`message`), and its `tool_response` is
- *   a JSON text holding the subagent's id (`agent_id`).
- * - PreToolUse, registered for storytree's own tools, names the agent asking (requests.ts). Also
- *   registered for Bash: its line says the command started, under the call's `tool_use_id`, which
- *   the line after it carries too (ADR-0636 D2). A command Codex's sandbox refuses fires only this
- *   one, never PostToolUse (seen 2026-09-27 in Codex 0.155).
- * - UserPromptSubmit carries the `prompt`: its line says the session's turn began, without the words.
- * - Stop fires when the agent finishes its turn, which closes a refused command.
- * - SessionEnd carries `reason`. Codex sends it only when a session shuts down, so a session whose
- *   end never comes goes idle instead (capability 4).
- */
+// Capability 3 · Hooks
 import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
 import { outsideTextLine } from "./outside-text.js";
 import { toolRequestedLine } from "./requests.js";
 
-/** A line of a patch that names a file: the one it adds, updates or deletes, or where it moves one to (its trailing
- * white space trimmed by the reader, so no regex backtracks over it). */
 const PATCH_FILE = /^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$/;
 
 export function codexLines(input: Record<string, unknown>): HookLines | undefined {
   const { session_id: session, cwd: folder, hook_event_name: event } = input;
   if (!isText(session) || !isText(folder) || !isText(event)) return undefined;
-  // The transcript the harness named, on every line: where the session's context is read from (capability 9).
   const common = { session, harness: "codex", source: "hook", folder, ...(isText(input.transcript_path) ? { transcript: input.transcript_path } : {}) } as const;
   const line = (made: NewLine | undefined): HookLines | undefined => (made === undefined ? undefined : { folder, lines: [made] });
   const lines = (...made: (NewLine | undefined)[]): HookLines | undefined => {
@@ -48,7 +24,6 @@ export function codexLines(input: Record<string, unknown>): HookLines | undefine
     case "PreToolUse":
       return line(toolRequestedLine(common, input) ?? commandStartedLine(common, input));
     case "PostToolUse":
-      // A command that read outside text says so on a line of its own, after the command's own (3.49).
       return lines(toolLine(common, input.tool_name, input.tool_input, input.tool_use_id) ?? subagentLine(common, input.tool_name, input.tool_input, input.tool_response),
         input.tool_name === "Bash" ? outsideTextLine(common, input.tool_name, input.tool_input) : undefined);
     case "UserPromptSubmit":
@@ -68,7 +43,6 @@ function subagentLine(common: Pick<NewLine, "session" | "harness" | "source" | "
   return { ...common, kind: "subagent-started", subagent, ...(isText(type) ? { type } : {}), ...(isText(task) ? { task } : {}) };
 }
 
-/** The subagent's id in spawn_agent's answer: a JSON text, or already an object. */
 function agentIdIn(response: unknown): string | undefined {
   let answer = response;
   if (typeof response === "string") {
@@ -98,11 +72,9 @@ function commandStartedLine(common: Pick<NewLine, "session" | "harness" | "sourc
   const { tool_name: tool, tool_input: toolInput, tool_use_id: call } = input;
   if (tool !== "Bash" || typeof toolInput !== "object" || toolInput === null || !isText(call)) return undefined;
   const { command } = toolInput as Record<string, unknown>;
-  // A patch run through the shell makes an edit line, not a command's finish line, so it starts no command.
   return typeof command === "string" && !command.includes("*** Begin Patch") ? { ...common, kind: "command-started", command, call } : undefined;
 }
 
-/** The files a patch names, each once, in the order it names them, with the whole text of each file it adds. */
 export function patchEdits(patch: string): { path: string; text?: string }[] {
   const edits: { path: string; text?: string }[] = [];
   let adding: { path: string; text: string } | undefined;
@@ -117,7 +89,6 @@ export function patchEdits(patch: string): { path: string; text?: string }[] {
   return edits;
 }
 
-/** The files a patch names, each once, in the order it names them. */
 function patchFiles(patch: string): string[] {
   const files: string[] = [];
   for (const line of patch.split(/\r?\n/)) {

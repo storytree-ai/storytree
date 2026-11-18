@@ -1,13 +1,8 @@
-/**
- * Capability 3 · Hooks. Which hook scripts the harnesses on this machine run: read from Claude Code's settings.json and
- * Codex's, Cursor's and Antigravity CLI's hooks.json, and from storytree's Pi extension, so the worktree reaper never deletes the build a harness runs. Writing those files is the
- * app setup story's (ADR-0969 D3); it reads them through this.
- */
+// Capability 3 · Hooks
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
-/** Where each harness keeps its settings: Claude Code's config folder (~/.claude), Codex's home (~/.codex), Cursor's (~/.cursor), Pi's agent folder (~/.pi/agent) and Antigravity CLI's (~/.gemini). */
 export interface Homes {
   readonly claude?: string;
   readonly codex?: string;
@@ -16,7 +11,6 @@ export interface Homes {
   readonly antigravity?: string;
 }
 
-/** The harnesses' homes on this machine: CLAUDE_CONFIG_DIR or ~/.claude, CODEX_HOME or ~/.codex, ~/.cursor, which no variable moves, PI_CODING_AGENT_DIR or ~/.pi/agent, and ~/.gemini, which no documented variable moves. */
 export function defaultHomes(env: Readonly<Record<string, string | undefined>> = process.env): Required<Homes> {
   return {
     claude: env.CLAUDE_CONFIG_DIR || path.join(homedir(), ".claude"),
@@ -27,14 +21,11 @@ export function defaultHomes(env: Readonly<Record<string, string | undefined>> =
   };
 }
 
-/** Antigravity CLI's user-level hooks file, in its home (measured: agy 1.3.3 loads it at startup). Its tool servers are beside it, in mcp_config.json. */
 export const ANTIGRAVITY_HOOKS = path.join("config", "hooks.json");
 
-/** Storytree's Pi extension, in Pi's agent folder: where it is, and the line naming the hook script it runs, which the app setup writes. */
 export const PI_EXTENSION = path.join("extensions", "storytree.ts");
 export const PI_EXTENSION_SCRIPT = "const SCRIPT = ";
 
-/** The hook script storytree's Pi extension `text` runs, or undefined when it names none. */
 export function piExtensionScript(text: string): string | undefined {
   const line = text.split("\n").find((one) => one.startsWith(PI_EXTENSION_SCRIPT));
   try {
@@ -45,7 +36,6 @@ export function piExtensionScript(text: string): string | undefined {
   }
 }
 
-/** The hook scripts Claude Code's settings.json, Codex's and Cursor's hooks.json and storytree's Pi extension register, as paths: none from a file missing or unreadable. */
 export function registeredHookScripts(homes: Homes = defaultHomes()): string[] {
   const scripts: string[] = [];
   if (homes.pi !== undefined) {
@@ -53,7 +43,6 @@ export function registeredHookScripts(homes: Homes = defaultHomes()): string[] {
       const script = piExtensionScript(readFileSync(path.join(homes.pi, PI_EXTENSION), "utf8"));
       if (script !== undefined) scripts.push(script);
     } catch {
-      // No extension of storytree's here.
     }
   }
   for (const file of [homes.claude && path.join(homes.claude, "settings.json"), homes.codex && path.join(homes.codex, "hooks.json"), homes.cursor && path.join(homes.cursor, "hooks.json"), homes.antigravity && path.join(homes.antigravity, ANTIGRAVITY_HOOKS)]) {
@@ -73,18 +62,12 @@ export function registeredHookScripts(homes: Homes = defaultHomes()): string[] {
   return scripts;
 }
 
-/** The hook script paths in `strings`: a Claude Code argument is the path alone; a Codex or Cursor command line holds it, perhaps quoted. */
 export function scriptsIn(strings: readonly unknown[]): string[] {
   return strings.flatMap((text) => typeof text !== "string" ? [] : text.split(/['"]/).flatMap(scriptsInPart));
 }
 
 const HOOK_FILE = "storytree-hook.mjs";
 
-/**
- * The hook script paths in `part`, a piece of a command line with no quote in it: each starts at the part's start or after
- * a space, with a slash (after a drive letter, perhaps), and runs to the first storytree-hook.mjs after it. Read by scanning,
- * not by a regular expression whose backtracking a long line of slashes and spaces would make slow.
- */
 function scriptsInPart(part: string): string[] {
   const found: string[] = [];
   for (let start = 0; start < part.length; start++) {

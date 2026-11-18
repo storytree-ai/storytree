@@ -1,39 +1,26 @@
-/**
- * Capability 2 · Agent activity log, contract 2.5's live reading (ADR-1345 D1, D5): whether the machines sharing one library
- * share its log, read from the lines they really write. A reading passes when two or more machines wrote the project's lines
- * within the freshness and each one's latest line reads back, oldest number first; it fails otherwise. Either way it names
- * each machine that wrote in the look-back before the freshness and has gone quiet since, with its last line's time: a
- * laptop that can no longer reach the shared library goes quiet, which leaves one machine writing and fails the reading,
- * while an occasional third writer (a cloud machine, a test VM) going quiet is said but fails nothing.
- */
+// Capability 2 · Agent activity log
 import type { ActivityLog, MachineTally } from "./activity-log.js";
 
-/** A freshness as a contract's proof states it: a whole number of hours or days (`36h`, `2d`). */
 const FRESHNESS = /^([1-9]\d*)([hd])$/;
 const HOUR = 3_600_000;
-/** How many freshnesses back a machine counts as one that has been writing, so a quiet one is named rather than missed. */
 const LOOK_BACK = 4;
 
 export interface Reading {
   readonly state: "passing" | "failing";
-  /** What it saw, in a line: each machine with its count and its first and last line within the freshness, or which went quiet. */
   readonly evidence: string;
   readonly machines: readonly MachineTally[];
 }
 
-/** `freshness` in milliseconds; undefined when it is not a whole number of hours or days. */
 export function freshnessMs(freshness: string): number | undefined {
   const [, count, unit] = FRESHNESS.exec(freshness) ?? [];
   return count === undefined ? undefined : Number(count) * (unit === "d" ? 24 : 1) * HOUR;
 }
 
-/** `freshness` in words: `2d` is "2 days", `1h` "1 hour". */
 function said(freshness: string): string {
   const [, count = "", unit] = FRESHNESS.exec(freshness) ?? [];
   return `${count} ${unit === "d" ? "day" : "hour"}${count === "1" ? "" : "s"}`;
 }
 
-/** Read `project`'s log on `log` as of `now` for a freshness of `freshness` (as `2d`, already checked). */
 export async function readTwoMachines(log: ActivityLog, project: string, freshness: string, now = new Date()): Promise<Reading> {
   const span = freshnessMs(freshness)!;
   const recentSince = new Date(now.getTime() - span).toISOString();

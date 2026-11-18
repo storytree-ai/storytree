@@ -1,4 +1,4 @@
-/** Capability 12 · Record who started each run. */
+// Capability 12 · Record who started each run
 import { z } from 'zod';
 
 const text = z.string().trim().min(1);
@@ -8,12 +8,7 @@ const agent = z.union([z.literal('orchestrator'), z.literal('unknown'), z.object
 export const ownerSchema = z.object({
   session: text, harness: text.optional(), agent: agent.optional(), parentSession: text.optional(),
 }).strict();
-/** Already resolved caller identity. parentSession is an explicit delegation, never inferred. */
 export type RunOwner = z.infer<typeof ownerSchema>;
-/**
- * the MCP server's tool call, as far as ownership reads it. Restated rather than imported: the agent
- * link depends on this package, and a dependency back would make a workspace cycle.
- */
 export interface OwningCall {
   readonly caller: { readonly session: string; readonly harness?: string };
   readonly agent: RunOwner['agent'];
@@ -40,7 +35,6 @@ export const runSchema = z.object({
   startedAt: z.iso.datetime(), pid: z.number().int().positive(), birth,
   parentRun: z.uuid().optional(),
 }).strict().refine(run => run.birth.state !== 'live' || run.pid === run.birth.identity.pid, 'birth identity must name the launched PID');
-/** Immutable launch observation; birth is NOT the process's current state. */
 export type RunRecord = z.infer<typeof runSchema>;
 export const gapSchema = z.object({
   kind: z.enum(['registration', 'read', 'observation']), reason: text,

@@ -1,5 +1,3 @@
-// increment_f465972caeaf: `pnpm test` tests several units at once, slowest first, so a full run is
-// paced by its slowest unit rather than the sum of them all.
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -51,7 +49,7 @@ test("4.10 · units start slowest first: by this machine's recent passes, then a
 });
 
 test("4.10 · how many units run at once: --jobs, else STORYTREE_TEST_JOBS, else the default, leaving a core free; anything but a whole number from 1 is refused", () => {
-  const native = { platform: "linux", arch: "x64" }; // not the machine this test runs on
+  const native = { platform: "linux", arch: "x64" };
   assert.deepEqual(testJobs({ env: {}, cpus: 12, ...native }), { jobs: DEFAULT_JOBS, source: "default" });
   assert.deepEqual(testJobs({ env: {}, cpus: 2, ...native }), { jobs: 1, source: "default" }, "a core is left for the Postgres and the browsers");
   assert.deepEqual(testJobs({ env: {}, cpus: 1, ...native }), { jobs: 1, source: "default" });
@@ -60,8 +58,6 @@ test("4.10 · how many units run at once: --jobs, else STORYTREE_TEST_JOBS, else
   for (const bad of ["0", "two", "1.5", ""]) assert.throws(() => testJobs({ flag: bad, env: {} }), /--jobs is a whole number/);
 });
 
-// increment_3f535ac2dc4e: the Surface Pro (Windows arm64, 12 cores) failed every full run at two
-// units at once, and passed one at a time in the same 16 minutes.
 test("4.13 · where the test Postgres runs under emulation the default is one unit at a time, with the reason; --jobs and STORYTREE_TEST_JOBS still decide", () => {
   const emulated = { platform: "win32", arch: "arm64", cpus: 12 };
   const { jobs, source } = testJobs({ env: {}, ...emulated });

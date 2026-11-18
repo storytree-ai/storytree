@@ -1,12 +1,3 @@
-// What `pnpm test` runs by default (test-scope.mjs, ADR-0649 D4): only the packages a
-// branch's changes can reach. The changes are the branch against where it left main
-// (merge-base(origin/main, HEAD)) plus the working tree, untracked files included. Each changed file
-// maps to the workspace package that holds it, and every package that depends on one of those is
-// added, by a declared dependency or by a path in its code that reaches into the other package. Any
-// file the workspace graph cannot account for runs everything: root files, any package.json, the
-// lockfile, a file in no package, a package the test harness itself runs on (the dev loop among them), and an
-// origin/main that cannot be read. The decision is printed as one `scope:` line, CI takes the same
-// one, and a run reports each package as PASS or FAIL and can rerun only the failures.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -33,7 +24,6 @@ import {
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
-/** A workspace on disk: `packages` maps a dir to its manifest and any files it holds. */
 function workspace(t, { rootDeps = {}, packages }) {
   const root = mkdtempSync(path.join(tmpdir(), "test-scope-"));
   t.after(() => removeTemp(root));
@@ -58,7 +48,6 @@ function git(root, ...args) {
   });
 }
 
-/** library <- agent-link <- cli, library <- forest, and a package the root harness runs on. */
 function fixture(t) {
   return workspace(t, {
     rootDeps: { "@x/pg": "workspace:*" },
@@ -229,7 +218,6 @@ test("2.1 a path into another package's file depends only on that file and what 
 });
 
 test("2.1 a path into desktop's renderer, or its build output, depends on desktop's files it imports by path, not on the stories it mounts; a folder, on what under it something runs", (t) => {
-  // Each test file sits a folder deep, so its paths climb out of this checkout when this file itself is scoped.
   const root = workspace(t, {
     packages: {
       "packages/site": { name: "@x/site", files: { "src/site.ts": "" } },
@@ -365,9 +353,7 @@ test("2.1 the real workspace: a story whose captures reach desktop's capture kit
   for (const file of ["apps/desktop/src/capture/index.ts", "packages/forest/testing/view/code-rows/seed.json.gz"]) {
     for (const dir of users) assert.ok(scope(file).includes(dir), `${file}: ${dir}`);
   }
-  // The bridge's types reach no capture by path: only the packages whose tests run the page join desktop (ADR-1302).
   assert.deepEqual(scope("apps/desktop/src/bridge.ts"), ["apps/desktop", "packages/forest", "packages/forest-world", "packages/knowledge-core"]);
-  // The page's road worker, which the kit builds from the drawing engine, is bounded to desktop's files as the renderer is.
   for (const dir of users) assert.ok(scope("apps/desktop/src/renderer/road-worker.ts").includes(dir), dir);
 });
 
@@ -378,7 +364,6 @@ test("2.1 the real workspace: a forest-only or desktop-only change runs knowledg
   for (const file of ["packages/forest/src/view/forest-view.ts", "apps/desktop/src/renderer/renderer.ts", "packages/forest-world/src/planet/road-worker.ts", "packages/surface-feedback/src/index.ts"]) {
     for (const dir of runners) assert.ok(scope(file).includes(dir), `${file}: ${dir}`);
   }
-  // app-setup's test only builds its capture's page, no teaching-cards test runs its capture, and agent-pool reaches nothing the renderer bundles.
   for (const dir of ["packages/app-setup", "packages/teaching-cards"]) assert.ok(!scope("packages/surface-feedback/src/index.ts").includes(dir), dir);
   for (const dir of runners) assert.ok(!scope("packages/agent-pool/src/watch.mjs").includes(dir), dir);
 });
@@ -395,7 +380,6 @@ test("2.2 a change in the dev loop runs everything: its runner, scoper and gate 
   assert.match(decision.reason, /@storytree\/repo-checks/);
 });
 
-// Written apart, so this file's own text reaches nothing under the real docs/.
 const UP = "../../" + "../";
 
 test("2.7 a change under docs/ runs only the packages whose code reads that path, by a relative path; with no reader it runs nothing", (t) => {
@@ -459,7 +443,6 @@ test("the changes are the branch since it left main plus the working tree, untra
   write(root, "packages/cli/src/committed.ts", "1");
   git(root, "add", "-A");
   git(root, "commit", "-q", "-m", "on the branch");
-  // main moves on after the branch left it: what main gained is not this branch's change
   git(root, "checkout", "-q", "main");
   write(root, "packages/library/src/on-main.ts", "1");
   git(root, "add", "-A");
@@ -630,7 +613,7 @@ test("2.3 --help prints the runner's usage, and an unknown flag is refused namin
   const home = mkdtempSync(path.join(tmpdir(), "test-help-"));
   t.after(() => removeTemp(home));
   const env = { ...process.env, STORYTREE_HOME: home };
-  delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
+  delete env.STORYTREE_HEAVY_LOCK_HOLDER;
   const run = (arg) => spawnSync(process.execPath, ["--import", "tsx", "packages/base-dev-loop/src/test.mjs", arg], { cwd: repoRoot, env, encoding: "utf8" });
   const help = run("--help");
   assert.equal(help.status, 0, help.stderr);

@@ -1,43 +1,22 @@
-// Capability 6 · Repeating a change's new tests. Before a test a change adds counts, it runs several times (arc_9631097b677e,
-// research_5864a61a3dcb route R9): a new test that fails in any repeat is flaky, a weak test that goes to an investigation
-// under ADR-1352, never to friction. CI runs this after the test step on each pull request, on Linux and on Windows.
-//
-//   node packages/base-dev-loop/src/repeat-new-tests.mjs [--times=<n>] [<test entry>]
-//
-// The new tests are found from the change's diff against merge-base(origin/main, HEAD), as the change-reviewer's red-run
-// check finds them (the micks-dev-loop factory plugin's redsOf, contract 15.21): each numbered test or `it` call in a test
-// file whose literal title opens on an added line, less one the diff rewords or moves. Only they run, through the project's
-// test entry (default this package's test.mjs; storytree's own is packages/repo-checks/src/test.mjs) given their files and
-// node's --test-name-pattern, so each repeat runs against the throwaway Postgres a run does. A failed repeat's tests are read
-// from the red runs that entry keeps (.pgtest/red-runs.jsonl, red-runs.mjs).
+// Capability 6 · Repeating a change's new tests
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** How many times each new test runs, unless measuring says otherwise. */
 export const TIMES = 5;
 
-/** A test file, by the name node:test and the dev loop give one. */
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
-/** A numbered test's title: `N.M` first. */
 const NUMBERED = /^\d+\.\d+/;
-/**
- * A string literal, a comment or a regex literal: the scan of a test file blanks them, so a test written inside a fixture's text is no
- * call, and a quote inside a regex opens no string. A slash opens a regex where an expression starts, never after a value.
- */
 const INERT = /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1|(?<=(?:^|[(,=:[!&|?{};+\-*%~^]|\breturn|\btypeof|\bcase)[ \t]*)\/(?:\\.|\[(?:\\.|[^\]\\\r\n])*\]|[^/\\\r\n[])+\/[a-z]*/gm;
-/** Code ending in a test or `it` call about to take its title; `.skip` and `.todo` ones run nothing, so are not read. */
 const CALLED = /\b(?:test|it)(?:\.only)?\s*\(\s*$/;
 const COOKED = { n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", v: "\v", 0: "\0" };
 
-/** A string literal's source text with its escapes cooked, as the runner names the test it titles. */
 function cooked(value) {
   return value.replace(/\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|.)/g, (_, escape) =>
     escape.length > 1 ? String.fromCodePoint(parseInt(escape.replace(/^[ux]\{?|\}$/g, ""), 16)) : COOKED[escape] ?? escape);
 }
 
-/** Where the call whose title ends at `from` in `code` (strings and comments blanked) closes, or the code's end. */
 function closeOf(code, from) {
   let depth = 1;
   for (let at = from; at < code.length; at += 1) {
@@ -48,7 +27,6 @@ function closeOf(code, from) {
   return code.length;
 }
 
-/** Each test or `it` call in `text`'s code with a literal title, by the line its title opens on, with its body collapsed. */
 function titlesIn(text) {
   const strings = [];
   const code = text.replace(INERT, (token, quote, at) => {
@@ -60,12 +38,6 @@ function titlesIn(text) {
     .map(({ at, end, value }) => ({ line: text.slice(0, at).split("\n").length, test: cooked(value), body: text.slice(end, closeOf(code, end)).replace(/\s+/g, " ").trim() }));
 }
 
-/**
- * The numbered tests `diff` (a `git diff` from the change's base) adds, each `{ file, line, test }`: a test whose title opens on an
- * added line of a test file, read whole by `readFile(file)` (undefined when the change deletes it). A title the diff also removes from
- * the same file is reworded or moved within it, and one whose body is that of a test whose title line the diff removes from any test
- * file (read from its old blob by `readBlob(blob)`, undefined when unreadable) was moved or renumbered: neither is new.
- */
 export function newTests(diff, { readFile, readBlob }) {
   const added = new Map();
   const removed = new Set();
@@ -127,12 +99,10 @@ export function newTests(diff, { readFile, readBlob }) {
   });
 }
 
-/** node's --test-name-pattern for exactly these tests' titles: a test matches by its own name, nested or not. */
 export function namePattern(tests) {
   return `^(?:${[...new Set(tests.map(({ test }) => test.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&")))].join("|")})$`;
 }
 
-/** The new tests of the checkout at `root`: its diff from merge-base(`base`, HEAD) to the working tree. Throws when git cannot say. */
 export function changeNewTests(root, base = "origin/main") {
   const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
   const diff = git("diff", "--no-color", "--no-ext-diff", git("merge-base", base, "HEAD").trim());
@@ -140,7 +110,6 @@ export function changeNewTests(root, base = "origin/main") {
   return newTests(diff, { readFile: (file) => quiet(() => readFileSync(path.join(root, file), "utf8")), readBlob: (blob) => quiet(() => git("cat-file", "blob", blob)) });
 }
 
-/** The red runs kept in the checkout at `root`, one row per failure. */
 function reds(root) {
   try {
     return readFileSync(path.join(root, ".pgtest", "red-runs.jsonl"), "utf8").split("\n").filter((line) => line.trim() !== "").map((line) => JSON.parse(line));
@@ -149,12 +118,6 @@ function reds(root) {
   }
 }
 
-/**
- * Run `tests` `times` times through `entry` (the test entry's node arguments, run from `root` with their files and their
- * --test-name-pattern after them) and say
- * which failed: each `{ file, test, failed }`, `failed` how many repeats it failed in; a repeat that failed naming none of them names
- * each file it ran, with `test` null. Returns the exit code and the lines it printed.
- */
 export function repeatTests({ root, tests, times = TIMES, entry, env = process.env, print = console.log }) {
   if (tests.length === 0) {
     print("repeat: this change adds no numbered test, so nothing repeats");

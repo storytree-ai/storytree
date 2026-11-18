@@ -1,34 +1,4 @@
-// Capability 2 · Test scoping. What `pnpm test` runs by default (ADR-0649 D4): only the packages a branch's changes can reach.
-// test.mjs runs it, locally and in CI alike, so the two never decide differently.
-//
-// The changes are the branch against where it left main, merge-base(origin/main, HEAD), plus the
-// working tree, untracked files included. Each changed file maps to the workspace package
-// (packages/*, apps/*) that holds it. Every package that depends on one of those is added, all the
-// way up: by a dependency its package.json declares, or by a relative path in its code that reaches
-// into the other package (app-setup builds cli's bin by path, and cli depends on app-setup, not
-// the other way round), since neither kind of edge would be seen by the other alone. An evidence
-// script (a file under a folder named evidence/) draws no path edge unless something can run it:
-// another source file names it or its folder (a test's `evidence/*/build.mjs` glob, a smoke run of
-// its capture script), or a script so reached imports it. A capture nothing runs reaching into
-// another package by path is not that package's test (increment_71258a385822).
-//
-// It fails WIDE: whatever the workspace graph cannot account for runs everything. That is a root
-// file (README.md, stories/, decisions/, tsconfig.base.json, .github/, ...), any package.json (the
-// graph's own input), the lockfile, a file in no package, a package the root workspace depends on
-// (the dev loop, whose runner, scoper and gate decide how every test runs, ADR-0805 D4, and the
-// packages it runs on), no change at all, and an
-// origin/main that cannot be read. Running a suite a change could not reach costs minutes; skipping
-// one it could reach merges untested code, so every doubt resolves to the full run. A root path is
-// narrowed only once its test-time readers have been measured, never by guessing (0.2's ADR-0394).
-// One doubt is settled narrow instead: a path into desktop's renderer reaches desktop's files only (ADR-1141), unless the
-// package's test runs the page in a browser: that package runs, as a leaf, on a change anywhere the renderer bundles (ADR-1302).
-// And one root path has been measured: docs/ (design mocks, research, the pages users read) is read by no test
-// (increment_6bae65aca68d), so a file under it runs only the packages whose code reaches it by a relative path, as
-// a path into another package is read, and their dependents; with no reader it runs nothing. A string merely starting
-// docs/ is no read: the leak scan's and mutation tests' fixtures, and code sorting paths, write them.
-//
-// A folder under infra/ that holds tests (the library host's backup checks) is a unit too, though no
-// package: a change there runs everything, so the full run carries it (increment_e557d7df8a07).
+// Capability 2 · Test scoping
 
 import { execFileSync } from "node:child_process";
 import { existsSync, globSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -40,17 +10,10 @@ const DOCS = "docs/";
 const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
 const RELATIVE_PATH = /["'`](\.{1,2}\/[^"'`$\r\n]*)["'`]/g;
 const PATH_TOKEN = /[\w.*-]+(?:\/[\w.*-]+)*\/?/g;
-/** A dynamic import or require of a computed path, or a relative path built from a template: imports that cannot be read. */
 const UNREADABLE_IMPORT = /\b(?:import|require)\s*\(\s*(?!["'][^"'`]*["']\s*[,)])[^)\s]|`\.{1,2}\/[^`]*\$\{/;
 const SPECIFIER = /["'`](@?[\w.-]+(?:\/[\w.-]+)*)["'`]/g;
-/** An `import type` or `export type … from`: erased before any test runs, so it reaches nothing a test can fail on (typecheck runs in full). */
 const TYPE_ONLY = /\b(?:import|export)\s+type\s+(?:\{[^}]*\}|\*(?:\s+as\s+\w+)?|\w+)\s+from\s*(["'])[^"'\r\n]*\1/g;
 
-/**
- * The workspace packages: each one's name, its dir (repo-relative, posix), the workspace packages
- * its package.json names, and the other packages' dirs its code reaches by a relative path. Also
- * which packages the root package.json depends on, as `rootDeps`.
- */
 export function readWorkspace(root) {
   const packages = [];
   for (const base of WORKSPACE_ROOTS) {
@@ -90,18 +53,6 @@ function dependencyNames(manifest) {
   return Object.keys({ ...manifest.dependencies, ...manifest.devDependencies, ...manifest.peerDependencies });
 }
 
-/**
- * Desktop's files whose imports a path reaching them does not follow in full, each with why (ADR-1141,
- * the first exception to ADR-0649 D4's "every doubt runs more"). The renderer mounts every story's surface, so a
- * package bundling it (forest's browser build, the capture kit's) would be a dependent of every story; that the whole
- * renderer bundles is desktop's own test to prove (3.17), so a path into it depends on desktop's files it reaches by
- * relative path, and no further (`own`). So does the page's road worker, which the app's build and the capture kit's both
- * build beside the renderer from the drawing engine: that it builds is desktop's 3.18 and 2.19 to prove. So do the page's
- * build options, which both builds share and which name desktop's folder (3.23, 2.21). The capture kit's
- * build names the renderer by a repo path the reading cannot
- * see, so it is written here (`targets`), and a path into the renderer's build output stands for the renderer
- * (`builtAt`). Launch's computed import is Playwright's module, outside the workspace (`readable`). A file renamed away leaves its entry unread, and the real-workspace scope test goes red.
- */
 const RENDERER = "apps/desktop/src/renderer/renderer.ts";
 const DESKTOP_ONLY = {
   [RENDERER]: { own: "apps/desktop", builtAt: ["apps/desktop/dist/renderer"] },
@@ -111,11 +62,6 @@ const DESKTOP_ONLY = {
   "apps/desktop/src/capture/launch.ts": { readable: true },
 };
 
-/**
- * Every source file whose relative paths can reach another file when something runs: its repo-relative
- * path and the repo paths those relative paths resolve to. An evidence script is left out unless a
- * file outside evidence/ names it or its folder, or a script kept imports it.
- */
 function reachingPaths(root, packages) {
   const sources = [];
   for (const pkg of packages) {
@@ -126,9 +72,9 @@ function reachingPaths(root, packages) {
       try {
         text = readFileSync(path.join(root, pkg.dir, file), "utf8");
       } catch {
-        continue; // a directory whose name looks like a source file
+        continue;
       }
-      text = withoutComments(text); // a path named only in prose is no read, so rewording a comment moves nothing in or out of scope
+      text = withoutComments(text);
       const at = `${pkg.dir}/${file.split(path.sep).join("/")}`;
       const from = path.posix.dirname(at);
       const runs = text.replace(TYPE_ONLY, "");
@@ -149,7 +95,7 @@ function reachingPaths(root, packages) {
       if (!tail.includes("*")) {
         if (at >= 0) folders.add(tail);
       } else if (SOURCE.test(tail.split("/").at(-1).replace(/\*/g, ""))) {
-        globs.add(tail); // a glob ending in a script's name; a bare ** or * (a comment, a git pathspec) runs nothing
+        globs.add(tail);
       }
       named.add(tail);
     }
@@ -182,19 +128,13 @@ function reachingPaths(root, packages) {
   return { reaching: [...kept].map(({ at, targets, text }) => ({ at, targets, text })), sources, kept };
 }
 
-/** A `/` after one of these, or after one of the words, or at the start, begins a regular expression rather than a division. */
 const BEFORE_REGEX = /(?:^|[(,=:[!&|?{};+\-*%<>~^]|\b(?:return|typeof|case|do|else|in|of|new|delete|void|throw|yield|await))$/;
 
-/**
- * The code with its comments blanked (newlines kept), reading strings, template literals and regular expressions
- * as such, so a `//` in a URL or a `/*` in a glob is not taken for a comment.
- */
 function withoutComments(text) {
   let out = "";
   let i = 0;
-  const braces = []; // for each open `${`, how many plain braces are open inside it
+  const braces = [];
   const copyFrom = (start) => (out += text.slice(start, i));
-  /** From just inside a template literal (after its backtick, or after the `}` closing a `${`) to its end or its next `${`. */
   const templateRest = () => {
     const start = i;
     while (i < text.length && text[i] !== "`") {
@@ -248,11 +188,6 @@ function withoutComments(text) {
   return out;
 }
 
-/**
- * What a repo path written in code stands for: the source file it names (an import's `.js` finding
- * its `.ts`), another file in the checkout, or neither (a folder, a build output, a path not on disk). A folder
- * depends on what is under it that something can run: an evidence script nothing runs stays out of it too.
- */
 function reachedFiles(root, packages, sources, kept) {
   const bare = (file) => file.replace(SOURCE, "");
   const byPath = new Map(sources.map((s) => [bare(s.at), s]));
@@ -267,15 +202,11 @@ function reachedFiles(root, packages, sources, kept) {
     } catch {}
     return {};
   };
-  /**
-   * Each file a reached source can run or read, by relative path or package name, and the packages it reaches whole.
-   * Within an `own` dir (a source DESKTOP_ONLY bounds, and what it imports), only relative paths staying in that dir are followed.
-   */
-  let whole = false; // set while reading what the renderer bundles, which no DESKTOP_ONLY entry bounds
+  let whole = false;
   const walk = (source, into, seen, own) => {
     const bound = whole ? undefined : DESKTOP_ONLY[source.at];
     own ??= bound?.own;
-    const key = `${own ?? ""}:${source.at}`; // read narrowly under the renderer, a file is still read in full when reached directly
+    const key = `${own ?? ""}:${source.at}`;
     if (seen.has(key)) return;
     seen.add(key);
     into.files.add(source.at);
@@ -288,10 +219,6 @@ function reachedFiles(root, packages, sources, kept) {
       if (named) into.dirs.add(named[1]);
     }
   };
-  /**
-   * What a path depends on: a source and what it imports, a file, everything under a folder, or else its whole package.
-   * Under a folder, a script is not followed when the code naming the folder (`from`) shows it reads the folder's data: see readsOnly.
-   */
   const reach = (target, into, seen, own, from) => {
     const built = Object.keys(DESKTOP_ONLY).find((at) => DESKTOP_ONLY[at].builtAt?.some((out) => target === out || target.startsWith(`${out}/`)));
     if (built) target = built;
@@ -306,7 +233,6 @@ function reachedFiles(root, packages, sources, kept) {
       if (owner) into.dirs.add(owner.dir);
     }
   };
-  /** Everything the renderer bundles that its walk can follow, read in full: the files, folders and whole packages it reaches. */
   const bundled = () => {
     const into = { files: new Set(), folders: new Set(), dirs: new Set() };
     const renderer = byPath.get(bare(RENDERER));
@@ -321,10 +247,6 @@ function reachedFiles(root, packages, sources, kept) {
   return { reach, bundled };
 }
 
-/**
- * The package dirs the renderer bundles (ADR-1302 D1): those its files reach, by path or package name, and everything those
- * depend on, by a declared dependency or a reach into a whole package. A change in one of them can break a page a browser runs.
- */
 function rendererClosure(packages, { bundled }) {
   const { files, folders, dirs } = bundled();
   const ownerOf = (file) => packages.find((p) => file.startsWith(`${p.dir}/`))?.dir;
@@ -344,11 +266,6 @@ function rendererClosure(packages, { bundled }) {
   return [...closure].sort();
 }
 
-/**
- * The capture kit's files, and the names each exports that launch a browser on the page (ADR-1302 D1): a script importing one
- * of them runs the page; one importing only the kit's build (buildCapture) builds it and no more. A name renamed away leaves
- * the real-workspace scope test red.
- */
 const LAUNCHERS = {
   "apps/desktop/src/capture/index.ts": ["launch", "runCapture", "withCapture"],
   "apps/desktop/src/capture/runner.ts": ["runCapture", "withCapture"],
@@ -357,12 +274,6 @@ const LAUNCHERS = {
 const NAMED_IMPORT = /\bimport\s*\{([^}]*)\}\s*from\s*["'](\.{1,2}\/[^"'\r\n]*)["']/g;
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 
-/**
- * Whether one of this package's tests runs the desktop page in a browser (ADR-1302 D2, read rather than listed): the test
- * imports a launcher from the capture kit itself, or names a script of its own package (its file name, and its folder within
- * the package) that does, or that imports, by path within the package, a script that does. A test naming only its capture's
- * build script builds the page without running it, and keeps ADR-1141 D2 (ADR-1302 D3).
- */
 function runsPage(pkg, sources) {
   const bare = (file) => file.replace(SOURCE, "");
   const own = sources.filter((s) => s.at.startsWith(`${pkg.dir}/`));
@@ -389,12 +300,6 @@ function runsPage(pkg, sources) {
 const QUOTED = /["'`]([^"'`\r\n]+)["'`]/g;
 const dataFiles = new Map();
 
-/**
- * Whether code naming a folder only reads its data, so a script under it is not what the code depends on: it names a file there
- * that is no script (the capture kit's seeds name seed.json.gz and survey.json), and names neither this script's file nor its
- * extension (a glob, a filter), and imports nothing by a computed path. Code that names no file under the folder may run
- * anything there, so it still depends on every script under it.
- */
 function readsOnly(root, text, folder, script) {
   const name = path.posix.basename(script);
   const extension = name.slice(name.lastIndexOf("."));
@@ -407,15 +312,6 @@ function readsOnly(root, text, folder, script) {
   return [...text.matchAll(QUOTED)].some(([, quoted]) => dataFiles.get(at).has(path.posix.basename(quoted)));
 }
 
-/**
- * The other packages' dirs that a relative path written in this package's code resolves into
- * (`reaches`), and what this package depends on through those paths (`through`): a path to another
- * package's file depends on that file and whatever it imports, by path or package name, and no more,
- * so a capture reaching desktop's capture kit is not a dependent of all desktop is built from
- * (increment_e6a2a86d876b). A path to a folder depends on what under it something can run (unless the code naming it only
- * reads its data, readsOnly); a build output or anything not on disk depends on the whole package it is in, since what it
- * reads cannot be followed. A type-only import is erased before a test runs, so no path or name in it is followed.
- */
 function reachesOf(pkg, packages, reaching, { reach }) {
   const reaches = new Set();
   const through = { files: new Set(), folders: new Set(), dirs: new Set() };
@@ -439,17 +335,13 @@ function reachesOf(pkg, packages, reaching, { reach }) {
   return { reaches: sorted(reaches), through: { files: sorted(through.files), folders: sorted(through.folders), dirs: sorted(through.dirs) } };
 }
 
-/**
- * Decide from a set of changed files: `{ mode: "full", reason }`, or `{ mode: "affected", dirs,
- * reason }` with the package dirs to run.
- */
 export function classify(files, workspace) {
   const changed = files.map((f) => f.replace(/\\/g, "/").replace(/^\.\//, "")).filter(Boolean);
   if (changed.length === 0) return full("no change against origin/main, so nothing narrows the run");
   const touched = new Set();
   const docs = changed.filter((file) => file.startsWith(DOCS));
   for (const file of changed) {
-    if (file.startsWith(DOCS)) continue; // reaches only the packages naming it, found below
+    if (file.startsWith(DOCS)) continue;
     if (file === "pnpm-lock.yaml") return full(`${file} changed: the lockfile can change what every package runs`);
     if (path.posix.basename(file) === "package.json") {
       return full(`${file} changed: package manifests are the dependency graph this scope is read from`);
@@ -483,7 +375,6 @@ export function classify(files, workspace) {
       }
     }
   }
-  // A package whose test runs the page joins as a leaf on a change the renderer bundles, after its dependents are found (ADR-1302).
   const renders = [...touched].some((dir) => workspace.renderer?.includes(dir));
   const runners = renders ? workspace.filter((p) => p.runsPage && !selected.has(p.dir)).map((p) => p.dir) : [];
   for (const dir of runners) selected.add(dir);
@@ -502,10 +393,6 @@ function full(reason) {
   return { mode: "full", reason };
 }
 
-/**
- * The files this branch changes: merge-base(origin/main, HEAD) against the working tree, deleted
- * and untracked files included. Throws when git cannot say, origin/main unreadable among them.
- */
 export function changedFiles(root, base = "origin/main") {
   const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   const mergeBase = git("merge-base", base, "HEAD").trim();
@@ -515,7 +402,6 @@ export function changedFiles(root, base = "origin/main") {
   return [...new Set([...tracked, ...untracked])];
 }
 
-/** The decision for the checkout at `root`: its changed files classified, or the full run if git cannot say. */
 export function scopeFor(root, workspace = readWorkspace(root)) {
   let files;
   try {
@@ -527,13 +413,11 @@ export function scopeFor(root, workspace = readWorkspace(root)) {
   return classify(files, workspace);
 }
 
-/** The decision as the one line a run prints first. */
 export function scopeLine(decision) {
   const what = decision.mode === "full" ? "everything" : decision.dirs.join(", ") || "nothing";
   return `scope: ${decision.mode} — ${what} — ${decision.reason}`;
 }
 
-/** What `pnpm run test --help` prints: the runner's flags, and what else it takes. */
 export const TEST_USAGE = `pnpm test: run the tests this branch's changes can reach, against a throwaway Postgres.
 
   pnpm test                        run what the branch's changes can reach (the first line, scope:, says what)
@@ -550,11 +434,6 @@ export const TEST_USAGE = `pnpm test: run the tests this branch's changes can re
 
 node --test's own options (--test-name-pattern=..., --test-only, ...) go to every unit; give them in --name=value form.`;
 
-/**
- * The runner's command line: its own flags, and what goes on to `node --test` (files, and node's
- * --test-* options). `help` asks for the usage; `refusal` names an unknown flag and the known ones.
- * Both end the run before the heavy-run lock or a Postgres is taken.
- */
 export function parseTestArgs(argv) {
   const flags = { full: false, scope: false, rerunFailed: false, only: [], setLimit: undefined, clearLimit: undefined, reason: undefined, jobs: undefined };
   const testArgs = [];
@@ -577,12 +456,6 @@ export function parseTestArgs(argv) {
   return { flags, testArgs, help, refusal };
 }
 
-/**
- * The folders among the arguments meant for `node --test`, which would read a folder as one file and crash on it
- * (ERR_UNSUPPORTED_DIR_IMPORT, shown as one failing test). A workspace package's folder or an infra folder is taken
- * as that package to run, as `--only` would name it, and moved out of `testArgs`; any other folder, or packages named
- * beside files, is a `refusal` that ends the run before the heavy-run lock or a Postgres.
- */
 export function namedFolders({ root, workspace, testArgs }) {
   const only = [];
   const rest = [];
@@ -604,22 +477,11 @@ export function namedFolders({ root, workspace, testArgs }) {
   return { only, testArgs: rest, refusal };
 }
 
-/** The units with each file to run alone whose package is among them added after them as its own. */
 function withAlone(root, units, alone) {
   const own = alone.filter((file) => !units.includes(file) && units.some((unit) => file.startsWith(`${unit}/`)) && existsSync(path.join(root, file)));
   return [...units, ...own];
 }
 
-/**
- * The units a run executes, after the flags: `full` forces everything, `only` names packages (by
- * dir, dir name or package name), and `rerunFailed` takes the units the last recorded
- * run failed or never reached. Returns the decision as it now stands and the unit list.
- *
- * `alone` names test files that run as a unit of their own, after every other unit has ended and with nothing beside them,
- * whenever their package runs; their package's unit runs its other files. `alwaysRun` names checks that a change inside any
- * one package can fail, so every scoped run carries each as a unit of its own (a full run has it in its package already).
- * Both are the calling repository's own (storytree's are in packages/repo-checks/src/test.mjs): the base runner names none.
- */
 export function planRun({ root, workspace, decision, flags = {}, record, alone = [], alwaysRun = [] }) {
   const infra = infraUnits(root);
   const all = [...workspace.filter((p) => hasTests(root, p.dir)).map((p) => p.dir), ...infra];
@@ -650,10 +512,6 @@ export function planRun({ root, workspace, decision, flags = {}, record, alone =
   return { decision, units: withAlone(root, [...decision.dirs.filter((dir) => all.includes(dir)), ...always], alone) };
 }
 
-/**
- * The test files a unit runs, as the globs node --test is given: a unit may be one file. A package
- * holding a file to run alone names its other files instead, since a glob cannot leave one out.
- */
 export function unitGlobs(unit, { root, alone = [] } = {}) {
   if (/\.test\.m?[jt]s$/.test(unit)) return [unit];
   if (unit.startsWith(`${INFRA}/`)) return [`${unit}/**/*.test.ts`, `${unit}/**/*.test.mjs`];
@@ -665,7 +523,6 @@ export function unitGlobs(unit, { root, alone = [] } = {}) {
     .sort();
 }
 
-/** The folders under infra/ holding test files, each a unit: infra code has no src/ of its own. */
 function infraUnits(root) {
   let entries = [];
   try {
@@ -682,5 +539,4 @@ function hasTests(root, dir) {
   return globSync(`${dir}/src/**/*.test.{ts,mjs}`, { cwd: root, exclude: (name) => path.basename(String(name)) === "node_modules" }).length > 0;
 }
 
-/** The test runner's hint under its results table when a unit did not pass. Kept here, not the table itself, so this module imports nothing of the gate's (the desktop bundles it to read open pull requests' scopes, 6.9). */
 export const RERUN_HINT = "rerun only these: pnpm run test --rerun-failed";

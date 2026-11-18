@@ -1,5 +1,3 @@
-// Whether CI's push run on main may stand on the merge queue's verdict (packages/base-dev-loop/src/queue-verdict.mjs),
-// against a fake Actions API.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -12,7 +10,6 @@ const B = "b".repeat(40);
 const run = (id, sha, event = "merge_group", attempt = 1) => ({ id, run_attempt: attempt, head_sha: sha, event,
   head_branch: event === "merge_group" ? `gh-readonly-queue/main/pr-${id}-${"0".repeat(40)}` : event === "push" ? "main" : "claude/branch" });
 
-/** A fake Octokit: runs filtered as GitHub filters them, and each run's latest jobs from `jobs` by run id. */
 function github(runs, jobs, { fail } = {}) {
   return {
     rest: {

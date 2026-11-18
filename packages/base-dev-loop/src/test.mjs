@@ -1,111 +1,4 @@
-// Capability 4 · Running the tests. `pnpm test`: run the tests a branch's changes can reach, with node:test (through tsx) against a
-// real Postgres. Run it as `pnpm test` (node --import tsx packages/repo-checks/src/test.mjs in storytree's checkout, which runs
-// this holding the run holds its parts contribute; node --import tsx packages/base-dev-loop/src/test.mjs holds nothing): it imports
-// @storytree/local-postgres, which is TypeScript. CI runs the same command, so it decides the same way.
-//
-// What runs (ADR-0649 D4, test-scope.mjs): the workspace packages holding a file changed
-// since the branch left origin/main, working tree and untracked files included, plus every package
-// that depends on them; everything whenever a change is one the workspace graph cannot account for
-// (a root file, a package.json, the lockfile, the dev loop, ...) or origin/main cannot be read. The
-// first line printed is the decision, `scope: ...`. Each package is one unit, its
-// `<dir>/src/**/*.test.{ts,mjs}`; the checks the caller names to carry (storytree's package-boundary check and code
-// allocation guardrail, packages/repo-checks/src/test.mjs) are units of every scoped run. Several units
-// run at once against the one Postgres (unit-pool.mjs: --jobs=<n>, else STORYTREE_TEST_JOBS, else 2 with a core left free,
-// or 1 where the Postgres runs under emulation, which the run says),
-// slowest first; each unit's output is held and printed whole under its name when it ends, and
-// `--jobs=1` runs them one after another with their output live. A file named to run alone
-// (by the caller: storytree's browser proofs) is a unit of its own, run once every other unit has
-// ended, with nothing beside it. A failure never stops the rest:
-// the run ends with a PASS / FAIL / NOT RUN table, and exits non-zero if any unit did not pass.
-//
-//   pnpm run test --scope            print the decision and the units, and run nothing
-//   pnpm run test --full             run everything, whatever changed
-//   pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name)
-//   pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
-//   pnpm run test --jobs=<n>         test n units at once; 1 runs them one after another
-//   pnpm run test --shard=<i>/<n>    run shard i of n of the scoped units (CI's two Windows jobs)
-//   pnpm run test <files>            run just those files, as one unit under UNIT_LIMIT_MS (or
-//                                    STORYTREE_UNIT_LIMIT_MS); killed there, it says so
-//   pnpm run test <package folders>  run those packages, as --only would; any other folder is refused
-//   pnpm run test --help             print the usage (TEST_USAGE) and run nothing
-//
-// Sharded (--shard=<i>/<n>, unit-pool.mjs shardUnits): the scoped units are split into n shards of
-// near-equal time by this machine's recent passes, the same split in every shard given the same
-// history; the run prints every shard's units, writes them to .pgtest/shard-plan.txt (CI's `verify`
-// checks its shards wrote the same) and runs its own, and its table is followed by the plan again,
-// so the shards' tables together name every unit.
-//
-// An unknown flag is refused, naming the known ones, before the heavy-run lock or a Postgres is taken.
-//
-// Give flags as `pnpm run test --flag`: `pnpm run` passes what follows the script name to it in
-// every shell. Windows PowerShell 5.1 drops a bare `--` before pnpm sees it, so the older
-// `pnpm test -- --flag` fails there with "Unknown option"; a literal `--` is still ignored here.
-//
-// The last result of each unit is kept in .pgtest/last-run.json for --rerun-failed; a run updates
-// the units it ran and leaves the others' results as they were. Every run, of named files too, adds each
-// test it saw fail to .pgtest/red-runs.jsonl, which only grows: the red the change-reviewer's brief shows (red-runs.mjs).
-//
-// With STORYTREE_TEST_PG_URL set, the tests use that server and nothing is started or stopped.
-// Otherwise this runs a throwaway local server through @storytree/local-postgres, and hands the
-// tests its data directory too, as STORYTREE_TEST_PG_DATA (Session management reads the owner record
-// local-postgres keeps beside it, as it reads the desktop app's). The server comes from the
-// @embedded-postgres binaries (on Windows arm64, the x64 build under the OS's emulation). Its
-// cluster lives in .pgtest/data and is created on first use. The server listens on 127.0.0.1 only,
-// on a free port, and is ALWAYS stopped again: after a pass, after a failure, and on Ctrl-C. A run
-// waits while another live run holds .pgtest/data, and a server that an interrupted run left
-// running is stopped before this one starts. A second run in the worktree, once past its hold, waits for the
-// first, saying so once and naming the first run's pid, what it runs and when it started (.pgtest/run.json,
-// worktree-run.mjs). Like every cluster local-postgres runs, it asks for a password, which the url
-// handed to the tests carries. Like the app's clients, the tests connect as the ordinary role. Setup that makes roles or ends other connections uses the superuser's url,
-// handed apart as STORYTREE_TEST_PG_ADMIN_URL (with STORYTREE_TEST_PG_URL set, that one unless
-// STORYTREE_TEST_PG_ADMIN_URL is set as well).
-//
-// Files and node's own --test-* options go to `node --test`, in every unit: `pnpm run test <file>`
-// runs just that file, with no scope and nothing kept for --rerun-failed, though each test it sees fail
-// is kept in the red runs like any run's. Give options in --name=value form, so that a value is never
-// mistaken for a file.
-//
-// On Windows, a Node.js whose libuv can end the process on a TCP connect is refused before anything
-// starts, with the release to install instead (node-runtime.mjs): under it, a test file now
-// and then dies at its first connection to Postgres, which reads as a flaky test.
-//
-// No unit can hang the run (unit-run.mjs): a test fails at its limit (60 s, or learned from the
-// unit's slowest tests' passes here: three times the slowest recent, doubled after each timeout since
-// it last passed; ADR-1152), a unit's process tree is
-// killed at its deadline and its row names the tests still running (or within 20 s, naming the
-// file, when a file's tests have all ended but its process does not exit), and the run goes on to the next
-// unit. Each unit's time is added to the machine's history (test-timings.jsonl in STORYTREE_HOME,
-// default ~/.storytree/0.3), with how many units the run tested at once, and its deadline is learned
-// from the runs that tested as many at once: twice its slowest recent pass, until it has five the run's default (STORYTREE_UNIT_LIMIT_MS when set, as CI sets it, else
-// 3 min) or twice its slowest recent pass at any concurrency when that is longer, doubled after each kill since it last passed, at most 15 min; a learned one is never under
-// STORYTREE_UNIT_LIMIT_MS when set (CI carries main's history, never a pull request's kills). Each
-// row gives the unit's time, its deadline and where the deadline came from. Any agent may set a
-// unit's deadline on this machine, and clear it again:
-//
-//   pnpm run test --set-limit=cli=300 --reason="two gates at once on this laptop"
-//   pnpm run test --clear-limit=cli
-//
-// A run given a deadline (STORYTREE_TEST_DEADLINE, Unix seconds; CI sets its job's limit less room
-// to report, increment_7f43f74526ab) ends before the job limit cancels it, since a cancelled job can
-// lose its whole log: the unit running at the deadline is cut there and named like any killed unit,
-// the units not yet started are NOT RUN, and the table prints. Stalled outside any unit for
-// DEADLINE_GRACE_MS past it (waiting, starting or stopping Postgres, or not exiting), the run says
-// where it stalled and exits 1. The units running at the deadline are each cut there.
-//
-// On macOS a unit killed at its own deadline runs once more while the run has time (withMacRetry,
-// friction_cb9a033867a9: forest's browser smokes stalled there on queue runners only), its row naming the
-// first try; it fails only if the second is killed or fails too, and its time is the second try's.
-//
-// One heavy run at a time on a machine, in storytree's checkout where Mick's factory plugin micks-dev-loop is named (its
-// heavy-run lock is the run hold packages/repo-checks/src/test.mjs hands this runner, gate.mjs's contributedHold): past the
-// scope decision, a run takes the machine's heavy-run lock (heavy-run.lock in STORYTREE_HOME) and holds it until its
-// Postgres has stopped. While another session's run holds it, this one prints who holds it and
-// waits (at most an hour), and it takes over a lock whose holder's process has gone. Under
-// `pnpm gate`, the gate holds the lock and its test step runs under that hold. No flock wrapper. A run of named files
-// tells the hold its scope is files, and that lock lets it take one of a few light slots instead of queueing behind full runs.
-//
-// Logs: .pgtest/pg.log (the server, this run), .pgtest/pg.previous.log (the server, the run before,
-// so a --rerun-failed keeps the red run's; server-log.mjs) and .pgtest/tools.log (initdb and pg_ctl).
+// Capability 4 · Running the tests
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -123,34 +16,26 @@ import { runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } fro
 import { runWhat, takeWorktreeRun } from "./worktree-run.mjs";
 import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, TEST_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withinDeadline, withMacRetry } from "./unit-run.mjs";
 
-let root; // the repository the run tests, from testCommand's root
-let work, dataDir, serverLog, toolLog, recordFile, shardPlanFile; // the run's files, under root's .pgtest
-let alone; // test files run as units of their own, from testCommand
-let alwaysRun; // checks every scoped run carries, from testCommand
+let root;
+let work, dataDir, serverLog, toolLog, recordFile, shardPlanFile;
+let alone;
+let alwaysRun;
 
-let shard; // which of several shards this run is, from --shard
-let flags; // the run's own flags, parsed from its arguments
-let testArgs; // what goes on to node --test: files and node's own --test-* options
-let namedFiles; // whether files were named, so the run is those files alone
-let hold; // takes the machine's lock for the heavy part, resolving to its release
-let deadline; // when the run must end by, from STORYTREE_TEST_DEADLINE
-const children = new Set(); // the units' test processes, while they run
-let jobs = 1; // how many units at once: testJobs, settled before the lock
+let shard;
+let flags;
+let testArgs;
+let namedFiles;
+let hold;
+let deadline;
+const children = new Set();
+let jobs = 1;
 let interrupted = false;
-let server; // the test Postgres this run started, until it is stopped
-let phase = "deciding the scope"; // where a run past its deadline says it stalled
-let plannedShards; // every shard's units, when this run is one shard of several
+let server;
+let phase = "deciding the scope";
+let plannedShards;
 
-/** Holds nothing: the base runner's default, where no part of the project gives it a lock to take. */
 const holdNothing = async () => () => {};
 
-/**
- * Run `pnpm test` with `argv`, once per process. `hold({ root, what, stopped, scope })` is taken past the scope decision,
- * `scope` "files" when the run is only files named on the command line,
- * and released once the test Postgres has stopped: storytree's own entry passes the run holds its parts contribute (packages/repo-checks/src/test.mjs).
- * `root` is the repository tested, by default the checkout this file is in; a repository building against storytree
- * (as a submodule) passes its own. `alone` and `alwaysRun` are its lists for planRun (test-scope.mjs), by default none.
- */
 export function testCommand({ argv: given = process.argv.slice(2), hold: takeHold = holdNothing, root: tested = fileURLToPath(new URL("../../..", import.meta.url)), alone: runAlone = [], alwaysRun: carried = [] } = {}) {
   hold = takeHold;
   root = tested;
@@ -171,7 +56,6 @@ export function testCommand({ argv: given = process.argv.slice(2), hold: takeHol
   flags.only.push(...folders.only);
   const flagRefusal = taken.refusal ?? parsed.refusal ?? folders.refusal;
   if (parsed.help || flagRefusal !== undefined) {
-    // Before the lock or a Postgres: asking how to run the tests never runs them.
     if (flagRefusal !== undefined) console.error(`test harness: ${flagRefusal}\n`);
     (parsed.help ? console.log : console.error)(TEST_USAGE);
     process.exit(parsed.help ? 0 : 2);
@@ -183,7 +67,6 @@ export function testCommand({ argv: given = process.argv.slice(2), hold: takeHol
     setTimeout(() => {
       console.error(`\ntest harness: past the run's deadline (STORYTREE_TEST_DEADLINE, ${new Date(deadline).toISOString()}) while ${phase}; ending the run`);
       for (const child of children) killTree(child);
-      // The test Postgres, if this run started it, whose stop the exit skips; the units' own stop on exit (unit-run.mjs).
       if (server !== undefined) stopServersUnder(server.dataDir);
       process.exit(1);
     }, Math.max(0, deadline + DEADLINE_GRACE_MS - Date.now())).unref();
@@ -191,7 +74,7 @@ export function testCommand({ argv: given = process.argv.slice(2), hold: takeHol
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
     process.on(signal, () => {
       interrupted = true;
-      for (const child of children) child.kill(); // a console Ctrl-C reaches them anyway; this covers a signal sent to us alone
+      for (const child of children) child.kill();
     });
   }
 
@@ -238,7 +121,7 @@ async function main() {
     try {
       plan = planRun({ root, workspace, decision: scopeFor(root, workspace), flags, record: readRecord(), alone, alwaysRun });
     } catch (error) {
-      console.error(`test harness: ${error.message}`); // a flag naming no package: nothing ran
+      console.error(`test harness: ${error.message}`);
       return 1;
     }
     console.log(scopeLine(plan.decision));
@@ -262,11 +145,8 @@ async function main() {
     else if (jobsSource.startsWith("default:")) console.log(`jobs: 1 unit at a time (${jobsSource}); --jobs=<n> tests more at once`);
   }
   phase = "waiting for the heavy-run lock";
-  // A run of named files tells its hold so (4.29): seconds of work, which a machine's hold may let pass its full runs' queue.
   const release = await hold({ root, what: "pnpm test", stopped: () => interrupted, ...(namedFiles ? { scope: "files" } : {}) });
   try {
-    // One live run at a time on this worktree's test Postgres (4.31): a second waits for the first, naming it. Taken under
-    // the hold, so the run it waits for already holds its own. A run given a server's url starts none, so takes none.
     let worktreeRun = { release: () => {} };
     if (!process.env.STORYTREE_TEST_PG_URL) {
       phase = "waiting for this worktree's other pnpm test";
@@ -287,7 +167,6 @@ async function main() {
   }
 }
 
-/** The heavy part, run under the hold (the machine's heavy-run lock, in storytree's checkout): the test Postgres and the units. */
 async function runHeavy(units) {
   if (interrupted) return 130;
   phase = "sweeping what earlier runs left in the temp folder";
@@ -308,8 +187,6 @@ async function runHeavy(units) {
       owner: "a `pnpm test` run",
       signIn: "client",
       superuserUrl: true,
-      // Its data is thrown away, so no commit or CREATE DATABASE need wait on a disk flush.
-      // Room for several units' connections at once (each unit runs its files at once too).
       settings: { fsync: "off", synchronous_commit: "off", full_page_writes: "off", max_connections: "300" },
       log: (message) => console.log(`test Postgres: ${message}`),
     });
@@ -329,17 +206,12 @@ async function runHeavy(units) {
   }
 }
 
-/**
- * `url` naming a 30-second connect_timeout, which the library takes over its 3-second default: on a
- * loaded machine the throwaway server can answer a handshake late, and that is no test's failure.
- */
 function patient(url) {
   const named = new URL(url);
   named.searchParams.set("connect_timeout", "30");
   return named.href;
 }
 
-/** Run the named files, or each unit in turn past any failure, then print and record the table. */
 async function runTests(env, units) {
   if (units === undefined) {
     const run = await runNodeTest(env, []);
@@ -367,10 +239,10 @@ async function runTests(env, units) {
     const run = await withMacRetry(() => runNodeTest(env, files, unit), { timeLeft: () => !interrupted && (deadline === undefined || Date.now() < deadline) });
     running.delete(unit);
     if (jobs > 1) process.stdout.write(`\n=== ${unit} ===\n${run.output}`);
-    if (interrupted) return; // Ctrl-C cut it short: it stays NOT RUN
+    if (interrupted) return;
     results[unit] = run.code === 0 ? "pass" : "fail";
     reasons[unit] = unitReason(run, root);
-    timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut && !run.cut }; // a cut is the run's deadline, not the unit's
+    timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut && !run.cut };
     tests.push(...run.tests);
     unitRuns.push(run);
     if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
@@ -387,7 +259,6 @@ async function runTests(env, units) {
   return Object.values(results).every((result) => result === "pass") ? 0 : 1;
 }
 
-/** Keep the runs' failing tests in the checkout's red runs, for the change-reviewer's brief (red-runs.mjs). */
 function keepReds(runs) {
   try {
     recordReds(root, { tests: runs.flatMap((run) => run.tests ?? []), unloaded: runs.flatMap((run) => run.unloaded ?? []) });
@@ -396,14 +267,11 @@ function keepReds(runs) {
   }
 }
 
-/** One unit's run; with other units running beside it, its output is held and returned as `output`. */
 async function runNodeTest(env, files, unit) {
   const limit = withinDeadline(unit === undefined ? defaultUnitLimit() : unitLimit(unit, { jobs }), deadline);
   const testLimit = unit === undefined ? { ms: TEST_LIMIT_MS, source: "default" } : unitTestLimit(unit);
   let spawned;
   try {
-    // No test loads the embedding model, so no run, CI included, downloads it (ADR-0733 D6):
-    // ranked search is tested with a fake embedder, and everything else ranks by words.
     const evidence = env.STORYTREE_TEST_EVIDENCE ? { directory: path.resolve(root, env.STORYTREE_TEST_EVIDENCE), unit: unit ?? "files" } : undefined;
     const hold = unit !== undefined && jobs > 1;
     const run = await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, evidence, testLimitMs: testLimit.ms, unitLimitMs: limit.ms, hold, onSpawn: (child) => children.add((spawned = child)) });
@@ -413,7 +281,6 @@ async function runNodeTest(env, files, unit) {
   }
 }
 
-/** --set-limit=<unit>=<seconds> --reason=… or --clear-limit=<unit>: change a unit's deadline on this machine. */
 function changeLimit() {
   const [name, seconds] = flags.setLimit !== undefined ? flags.setLimit.split("=") : [flags.clearLimit];
   let unit;
@@ -439,7 +306,6 @@ function changeLimit() {
   return 0;
 }
 
-/** Every shard's units, for CI's `verify` to check that its shards split the units alike. */
 function writeShardPlan() {
   try {
     mkdirSync(work, { recursive: true });
@@ -449,7 +315,6 @@ function writeShardPlan() {
   }
 }
 
-/** The last recorded result of each unit, or undefined if this checkout has none. */
 function readRecord() {
   try {
     return JSON.parse(readFileSync(recordFile, "utf8"));
@@ -458,7 +323,6 @@ function readRecord() {
   }
 }
 
-/** Record this run's results over the earlier ones, so a partial run never forgets another unit's failure. */
 function writeRecord(results) {
   try {
     mkdirSync(work, { recursive: true });

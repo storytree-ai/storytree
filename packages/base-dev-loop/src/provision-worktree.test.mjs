@@ -1,8 +1,3 @@
-// The fresh-worktree install (packages/base-dev-loop/src/provision-worktree.mjs): at session start, a 0.3 worktree that
-// cannot run its own code gets `pnpm install`, retried once, and the agent is told plainly when it
-// still cannot. The three conditions are 0.2's (ADR-0636 D1, ported per ADR-0633 D2): FRESH (no
-// install ever completed), STALE (pnpm-lock.yaml moved past the install, as after merging main) and
-// UNLINKED (an install reported success but linked no workspace package).
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
@@ -18,11 +13,6 @@ import { check, cloudMain, cloudNode, connectCloud, hookOutput, installEnvironme
 
 const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url));
 
-/**
- * Run a child to its end without blocking this process. On Windows a test file's reports reach the
- * runner through an asynchronous pipe, so a file that only blocks in spawnSync reports nothing, and
- * past 20 s the runner's exit watch kills it as hung (friction_d9a154e094e1).
- */
 function run(command, args, options = {}) {
   return new Promise((resolve) => {
     execFile(command, args, { encoding: "utf8", windowsHide: true, ...options }, (error, stdout, stderr) => {
@@ -33,7 +23,6 @@ function run(command, args, options = {}) {
   });
 }
 
-/** A worktree on disk: one workspace package, and node_modules as the named condition leaves it. */
 function worktree(t, condition) {
   const root = mkdtempSync(path.join(tmpdir(), "provision-"));
   t.after(() => removeTemp(root));
@@ -112,7 +101,6 @@ test("3.3 a failed install is retried once, and if it still fails the agent is t
     assert.match(context.additionalContext, new RegExp(condition, "i"), `it names the condition: ${condition}`);
   }
 
-  // A retry that succeeds is a success.
   const root = worktree(t, "fresh");
   let calls = 0;
   const result = provision({ root, install: () => ({ ok: ++calls === 2, code: 1 }) });
@@ -126,11 +114,6 @@ test("3.1 as a session-start hook it exits 0 and says nothing on a healthy workt
   assert.equal(hook.stdout, "");
 });
 
-/**
- * An Electron package in root's virtual store, as Electron 44 is installed: no binary until its
- * install.js runs. This install.js counts its runs, and writes what Electron's own does (dist/ and
- * path.txt) unless told to fail.
- */
 function electronPackage(root, { fails = false } = {}) {
   const dir = path.join(root, "node_modules", ".pnpm", "electron@44.4.5", "node_modules", "electron");
   mkdirSync(dir, { recursive: true });
@@ -182,7 +165,6 @@ test("3.5 a failed Electron fetch is named in the log but never fails the sessio
   assert.ok(lines.some((line) => line.includes(electron) && /electron/i.test(line)), lines.join("\n"));
 });
 
-/** A fake `pnpm install` that leaves root as a completed install with every workspace link made. */
 function linkingInstall(calls) {
   return (root) => {
     calls.push(root);
@@ -205,7 +187,6 @@ function linkingInstall(calls) {
   };
 }
 
-/** packages/library now depends on packages/keys, which landed after the install. */
 function addKeysDependency(root) {
   mkdirSync(path.join(root, "packages", "keys"));
   writeFileSync(path.join(root, "packages", "keys", "package.json"), JSON.stringify({ name: "@storytree/keys" }));
@@ -235,7 +216,6 @@ test("3.3 before a storytree command, a worktree its install cannot fix is refus
     assert.match(refusal, /node packages\/base-dev-loop\/src\/provision-worktree\.mjs/, `${condition}: it names the fix`);
     assert.equal(refusal.split("\n").length, 1, `${condition}: in one line`);
   }
-  // An install that reports success but still links nothing is refused too, naming the missing link.
   const root = worktree(t, "current");
   addKeysDependency(root);
   const lines = [];
@@ -264,7 +244,6 @@ test("3.2 missing root workspace links are reinstalled even after a package's mi
   addKeysDependency(root);
   mkdirSync(path.join(root, "packages", "library", "node_modules", "@storytree", "keys"), { recursive: true });
 
-  // Only the root's link is missing, although the lockfile still matches the last install.
   const lines = [];
   assert.equal(check({ root, install: () => ({ ok: true }), log: (line) => lines.push(line) }), 1, "an install that links nothing leaves it refused");
   assert.match(lines.at(-1), /storytree → @storytree\/library/);
@@ -289,7 +268,6 @@ test("the tool server starts in a fresh worktree once the session-start install 
   let started = 0;
   const serving = serve({ root, start: () => (started++, Promise.resolve(0)), pollMs: 5 });
   await quietFor(() => started > 0, 50, "the tool server starting before the install");
-  // The session-start hook's install completes.
   mkdirSync(path.join(root, "node_modules", ".pnpm"), { recursive: true });
   writeFileSync(path.join(root, "node_modules", ".pnpm", "lock.yaml"), "lockfileVersion: '9.0'\n");
   mkdirSync(path.join(root, "packages", "library", "node_modules"));
@@ -298,13 +276,6 @@ test("the tool server starts in a fresh worktree once the session-start install 
   assert.equal(started, 1);
 });
 
-/**
- * A git command in a test's repository. A slow Windows runner once took past a 10 s limit on a plain
- * commit, and the kill read as exit 1 with no reason (friction_eaa48abc2b88), so the limit is wide
- * and a failure says how the command ended and everything it printed. On Windows a fetch from a local
- * repository has exited 1 with nothing on stderr after updating its ref (increment_aeae14578dbd), so a
- * fetch that fails is run once more: fetching again is harmless.
- */
 async function git(root, ...args) {
   const timeout = 60_000;
   const once = () => run("git", ["-c", "user.name=Provision test", "-c", "user.email=provision@example.test", "-c", "commit.gpgsign=false", ...args], {
@@ -317,7 +288,6 @@ async function git(root, ...args) {
   return result.stdout.trim();
 }
 
-/** Two real repositories: origin can advance independently of the installed primary checkout. */
 async function repoPair(t) {
   const remote = worktree(t, "current");
   await git(remote, "init", "--initial-branch=main");
@@ -326,7 +296,6 @@ async function repoPair(t) {
   await git(remote, "commit", "-m", "initial");
   const root = worktree(t, "current");
   await git(root, "init", "--initial-branch=main");
-  // Windows runners check out with core.autocrlf on; keep the file's bytes as origin wrote them.
   await git(root, "config", "core.autocrlf", "false");
   await git(root, "remote", "add", "origin", remote);
   await git(root, "fetch", "origin", "main");
@@ -395,7 +364,6 @@ test("3.4 a clean primary whose fast-forward git refuses is left as it was and r
   await git(remote, "add", "notes.txt");
   await git(remote, "commit", "-m", "notes");
   writeFileSync(path.join(root, "notes.txt"), "an untracked file the merge would overwrite\n");
-  // Fetched here, so the session start's own fetch has nothing new to bring and its Windows exit 1 cannot stand in for the refused merge.
   await git(root, "fetch", "origin", "main");
   const before = await git(root, "rev-parse", "HEAD");
   const result = provision({ root, install: () => assert.fail("updating the checkout comes first") });
@@ -482,7 +450,6 @@ test("3.4 a feature branch or linked worktree can serve while the primary is beh
   assert.equal(await serve({ root: linked, waitMs: 0, start: async () => 23 }), 23, "even a linked worktree on main is left alone");
 });
 
-/** storytree held as a submodule of another repository (as the website holds it), on main and behind its origin, never installed. */
 async function submodule(t) {
   const { remote } = await repoPair(t);
   await git(remote, "add", "pnpm-lock.yaml", "packages");
@@ -517,7 +484,6 @@ test("3.11 a storytree checkout that is another repository's submodule is never 
   assert.equal(refusal.split("\n").length, 1);
 });
 
-/** A cloud container's checkout and storytree home, with nothing of storytree's set up in the home. */
 function cloud(t) {
   const root = mkdtempSync(path.join(tmpdir(), "cloud-root-"));
   const home = mkdtempSync(path.join(tmpdir(), "cloud-home-"));
@@ -619,7 +585,6 @@ test("3.6 approving a cloud container's checkout leaves its committed .storytree
   assert.equal(existsSync(path.join(root, ".storytree")), false, "the folder joining made is gone");
 });
 
-/** A checkout whose package.json names the engines floor, and a CLAUDE_ENV_FILE beside it, for cloudNode. */
 function floored(t, floor = ">=24.20.0") {
   const root = mkdtempSync(path.join(tmpdir(), "cloud-node-"));
   t.after(() => removeTemp(root));
@@ -696,7 +661,6 @@ test("3.8 the Node.js binaries searched are each /opt/<name>/bin/node, then each
   assert.deepEqual(installedNodes({}, path.join(root, "no-opt")), [], "no /opt and no PATH finds none");
 });
 
-/** This process's environment as a cloud container's, without the route's Access token, so no library setting is made. */
 function cloudEnv() {
   const env = { ...process.env, CLAUDE_CODE_REMOTE: "true" };
   delete env.CF_ACCESS_CLIENT_ID;
@@ -740,7 +704,6 @@ test("3.9 a cloud fetch that fails or runs past its time limit is logged, never 
   assert.equal(hook.status, 0);
 });
 
-/** A root pinning Node.js to `pin` in .node-version, or with no pin when `pin` is undefined. */
 function pinned(t, pin) {
   const root = mkdtempSync(path.join(tmpdir(), "provision-pin-"));
   t.after(() => removeTemp(root));
@@ -776,11 +739,9 @@ test("3.10 the pinned Node.js, or a root with no pin, says nothing", (t) => {
 const cloudFactory = (options) => provisionWorktree.cloudFactory(options);
 const FACTORY_URL = "https://github.com/HuaMick/storytree-factory.git";
 const FACTORY_TOKEN = "github_pat_11AAtestTOKEN0042";
-/** base64 of "x-access-token:github_pat_11AAtestTOKEN0042", worked out once by hand rather than the way the code does. */
 const FACTORY_TOKEN_BASE64 = "eC1hY2Nlc3MtdG9rZW46Z2l0aHViX3BhdF8xMUFBdGVzdFRPS0VOMDA0Mg==";
 const PLUGIN_NAMED = ["settings", "set", "module", "micks-dev-loop", "plugin", "micks-dev-loop"];
 
-/** Where a link at file resolves to, or undefined when file is not a link. */
 function linkTarget(file) {
   try {
     return lstatSync(file).isSymbolicLink() ? realpathSync(file) : undefined;
@@ -789,11 +750,6 @@ function linkTarget(file) {
   }
 }
 
-/**
- * A cloud container's checkout and a storytree home at `<base>/.storytree/0.3`, with git, the install and storytree's
- * command line recorded in one sequence. A clone git reports done makes the folder's .git, as git would, unless
- * `clones` is false.
- */
 function factory(t, { gitStatus = 0, installOk = true, runOk = true, clones = true } = {}) {
   const base = mkdtempSync(path.join(tmpdir(), "cloud-factory-"));
   t.after(() => removeTemp(base));
@@ -824,7 +780,6 @@ function factory(t, { gitStatus = 0, installOk = true, runOk = true, clones = tr
   return { base, root, home, folder, steps, lines, options };
 }
 
-/** The token, plain or in its header's base64, is in no argument given to any step, no log line and no message. */
 function assertTokenKeptOut({ steps, lines }, result) {
   const seen = [...steps.map((s) => JSON.stringify(s.args)), ...lines, result?.message ?? ""].join("\n");
   assert.equal(seen.includes(FACTORY_TOKEN), false, "the token is in an argument, a log line or the message");
@@ -941,9 +896,6 @@ test("3.12 as a cloud session-start hook given --factory, --factory-token and --
   const root = worktree(t, "current");
   const home = mkdtempSync(path.join(tmpdir(), "cloud-factory-home-"));
   t.after(() => removeTemp(home));
-  // A cloud container with no Access token (so the library is not connected), no session env file, no factory
-  // folder override, and a home of its own; git looks no higher than the worktree, which is not a repository,
-  // so the cloud fetch of origin's main fails at once and is only logged.
   const env = { ...cloudEnv(), STORYTREE_HOME: home, GIT_CEILING_DIRECTORIES: path.dirname(root) };
   delete env.ST_TEST_FACTORY_TOKEN;
   delete env.STORYTREE_FACTORY;

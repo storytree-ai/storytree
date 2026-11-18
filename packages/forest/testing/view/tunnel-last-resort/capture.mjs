@@ -1,14 +1,3 @@
-// Tunnels as a last resort (increment_fb8987cfd45e): storytree's own map as the app opens it, from the code-rows snapshot
-// and its survey (a fresh pair built in a scratch folder when the snapshot lacks an island `--islands` names), or a
-// given pair (`--seed <folder holding seed.json.gz and survey.json>`).
-//
-// - `--dump <asks.json>`: every island's ask to the territory search, answered at once with nothing so the next is asked,
-//   written with its story, for search.mjs to search with the score of either side.
-// - `--kept <arrangements.json> --prefix <name>`: the map drawn from the arrangements given (each story's seeds, kept under
-//   its structure as the page keys it, so nothing is searched), each island's tunnel portals counted from the scene, and a
-//   picture of each island `--islands <story,…>` names (append --retake to write into src/view/evidence/tunnel-last-resort).
-//
-// `node --import tsx capture.mjs …`
 import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
@@ -46,7 +35,6 @@ const zoomTo = async (page, settle, zoom) => {
   }, { zoom, ...eye });
   await settle(page, 12);
 };
-/** Each island's tunnel portals, counted from the scene (a tunnel has two). */
 const portals = page => page.evaluate(() => {
   const found = {};
   window.__globe.scene.traverse(island => {
@@ -58,7 +46,6 @@ const portals = page => page.evaluate(() => {
   return found;
 });
 
-// The arrangements to draw from, each kept under its island's structure as the page keys it.
 const shelf = {};
 if (keptFile !== undefined) {
   for (const { story, ask, seeds } of JSON.parse(readFileSync(keptFile, 'utf8'))) {
@@ -74,7 +61,6 @@ await runCapture({
       for (const [key, value] of Object.entries(shelf)) localStorage.setItem(key, value);
       window.__asks = [];
       if (!dump) return;
-      // Each search asked is written down and answered with nothing at once, so the next island is asked.
       const Original = window.Worker;
       window.Worker = class extends Original {
         postMessage(message, ...rest) {
@@ -94,7 +80,6 @@ await runCapture({
     await until(page, 'every island laid out with its roads', () => { let n = 0, laid = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('planet:') && o.name !== 'planet:shell') { n++; if (o.getObjectByName('island-roads')) laid++; } }); return n > 0 && laid === n; });
     await settle(page);
     if (dump !== undefined) {
-      // The asks come one at a time: wait until a second passes with none new.
       let seen = -1;
       for (let count = await page.evaluate(() => window.__asks.length); count !== seen; count = await page.evaluate(() => window.__asks.length)) { seen = count; await page.waitForTimeout(1000); }
       const asks = await page.evaluate(() => window.__asks);

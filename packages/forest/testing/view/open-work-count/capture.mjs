@@ -1,8 +1,3 @@
-// With an arc selected, the map's top row says how many capabilities and links its open work rings (3.108): storytree's own map (the
-// code-rows snapshot and its survey) as the app opens it, with the open-work capture's active arc in the stand-in bridge. No
-// arc selected shows no count; the arc's row clicked in the Arcs tab shows it, with no panel and with a story's panel open.
-// `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/open-work-count). It reads the count's words
-// from the page, so "says what the rings count" is measured.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -18,7 +13,6 @@ await buildCapture({ dist });
 const at = '2026-11-12T00:00:00.000Z';
 const record = (id, type, fields) => ({ id, type, fields, version: 1, createdAt: at, updatedAt: at });
 const work = (id, arc, title, status, capabilities) => record(id, 'increment', { arc, title, objective: title, status, parked: at, capabilities });
-// The open work names five capabilities of the seed (a closed increment's is not open work), and links no contract.
 const tree = record('arc_tree', 'arc', { title: 'Capability tree: a map of capabilities', intent: 'See where work lands', endState: 'The look landed' });
 const arcs = [{ arc: tree, state: 'active', questions: [], increments: [
   work('inc_ring', 'arc_tree', 'Open work: a hollow selection ring on arc select', 'active', ['capability_3c5ed8b3ca70', 'capability_6133809a4139', 'capability_8ffc78a4bad2', 'capability_d077e76e50d7']),

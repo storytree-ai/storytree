@@ -1,4 +1,3 @@
-/** 3.28 on the glass sheet: a host that changes layout moves its islands once, eased. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Vector3 } from "three";
@@ -13,7 +12,6 @@ import { sheetLayout } from "./sheet-navigation.js";
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const ids = ["story_05e45963ca9f", "story_16ac26dfa5d6", "story_78b33d16d0b6", "story_20549f1d48af", "story_be32e99ed54f", "story_4c04d95d52a8", "story_69d0ee10bbe7", "story_eb7d623fb9c8"];
 const counts = [4, 2, 3, 6, 4, 2, 3, 7];
-// The last story depends on the first, so it sits alone in the row above the other seven.
 const tree = { arcs: [], stories: ids.map((id, i) => ({ id, title: id, health, capabilities: Array.from({ length: counts[i]! }, (_, c) => ({ id: `${id}-${c}`, title: `Capability ${c}`, dependsOn: i === 7 && c === 0 ? [`${ids[0]}-0`] : [], proposed: true, status: "proposed" as const, contracts: [], health })) })) };
 const places = new Map(storyNodes(tree, []).map(({ id, place }) => [id, place]));
 

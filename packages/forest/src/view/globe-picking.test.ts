@@ -1,4 +1,3 @@
-/** Forest capability 3 · 3.12: a small library dot is picked in screen space (ADR-0661 D1). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { pickProjectedNote, type ProjectedNote } from "./globe-picking.js";

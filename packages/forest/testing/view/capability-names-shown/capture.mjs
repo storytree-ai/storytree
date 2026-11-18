@@ -1,8 +1,3 @@
-// Every territory on an island shows its name (3.33): storytree's own map (the code-rows snapshot and its survey) as the app
-// opens it. `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/capability-names-shown). It faces
-// each island in turn, just past the zoom the capability names show from (3.86), where they stand closest, and counts the
-// capability names drawn in the window and those hidden (faded to nothing); then pictures The library there. It asserts only that
-// names are drawn: a name shown faded, cut or overlapping is never judged here (ADR-1346 D1).
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -21,18 +16,14 @@ const started = performance.now();
 const phase = message => console.error(`[names +${Math.round(performance.now() - started)}ms] ${message}`);
 const until = (page, predicate, arg, timeout = 300_000) => page.waitForFunction(predicate, arg, { timeout, polling: 250 });
 const eye = { radius: SHEET_RADIUS + PLATE_CLEARANCE, fov: SHEET_FOV };
-// Just past where the names show, so a zoom resting there does not hide them again (DETAIL_SLACK).
 const near = DETAIL_ZOOM.near * (1 + DETAIL_SLACK + 0.03);
 
-/** The capability names on screen: drawn, and hidden (faded to nothing). */
 const names = page => page.evaluate(() => {
-  // In the window: a name off its edges is not read.
   const inWindow = box => box.width > 0 && box.right > 0 && box.bottom > 0 && box.left < innerWidth && box.top < innerHeight;
   const all = [...document.querySelectorAll('.planet-nameplate.capability')].filter(label => label.parentElement?.style.display !== 'none' && inWindow(label.getBoundingClientRect()));
   const hidden = all.filter(label => Number(getComputedStyle(label).opacity) < 0.05);
   return { drawn: all.length, hidden: hidden.map(label => label.textContent) };
 });
-/** Faces `story`, stands the eye at `zoom` on its line of sight, and lets the map draw it. */
 const faceAt = async (page, settle, story, zoom) => {
   if (!await page.evaluate(story => window.storytreeGlobe.face({ kind: 'story', story }), story)) return false;
   await until(page, () => window.storytreeGlobe.still());

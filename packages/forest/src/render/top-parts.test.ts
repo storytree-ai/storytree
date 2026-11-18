@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Story node render (the forest story): an imported island opens top-down, from its top folders to its
- * capabilities (question_a70f36ca932a).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -13,8 +10,6 @@ import { forestScene } from "./forest-scene.js";
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const explored = (id: string, status: CapabilityWord, covers: string[], more: { dependsOn?: string[]; parkedOn?: { arc: string; title: string }[] } = {}) =>
   ({ id, title: covers[0]!, dependsOn: more.dependsOn ?? [], proposed: false, status, contracts: [], health, covers, ...(more.parkedOn === undefined ? {} : { parkedOn: more.parkedOn }) });
-// An imported app: src/ui holds two capabilities, src/data two (both parked), src/main.ts is one alone at the top; and a
-// built story beside it whose capability depends on one inside src/ui.
 const tree: AnnotatedTree = { arcs: [], stories: [
   { id: "app", title: "app", health, mapped: { from: "/code/app", package: ".", folders: ["."] }, capabilities: [
     explored("button", "healthy", ["src/ui/button"], { dependsOn: ["form"] }),

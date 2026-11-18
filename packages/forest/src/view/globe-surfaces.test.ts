@@ -21,12 +21,12 @@ test("3.22 territories switch between health, plain boundaries and hidden withou
   assert.ok(territory.visible && border.visible); assert.equal(material.opacity, opacity); assert.ok(material.color.equals(colour));
   assert.equal(territory.geometry, geometry);
   presentTerritories(land, "plain");
-  territory.material = material.clone(); // Session emphasis owns a temporary material copy.
+  territory.material = material.clone();
   presentTerritories(land, "health");
   assert.equal((territory.material as MeshBasicMaterial).opacity, opacity, "health survives a plain-mode material copy");
   material.opacity = opacity;
   presentTerritories(land, "plain");
-  territory.material = material; // Emphasis cleanup restores its original.
+  territory.material = material;
   restoreTerritoryPresentation(land);
   assert.equal(material.opacity, 0, "cleanup cannot restore a stale health fill over a plain view");
 });
@@ -44,7 +44,6 @@ test("3.30 on a growing globe each territory fills in as the growth schedules it
   at({ pay: 0.5, ship: 0 });
   assert.ok(pay!.visible && !ship!.visible, "each capability on its own window");
   assert.equal((pay!.material as MeshBasicMaterial).opacity, full[0]! * 0.5);
-  // The territory switches hold while it grows: plain has no fill, hidden stays hidden.
   presentTerritories(land, "plain");
   assert.equal((pay!.material as MeshBasicMaterial).opacity, 0);
   presentTerritories(land, false);
@@ -62,7 +61,6 @@ test("3.62 seen from below the glass sheet, the islands are outlines with their 
   const face = shownSurfaces(undefined, true);
   assert.deepEqual(islandMarks(face), [true, false, true, "plain", true]);
   assert.equal(face.knowledgeCore, true, "the knowledge it shows");
-  // A guide's switch still hides what it hides.
   assert.equal(shownSurfaces({ nameplates: false }, true).nameplates, false);
   assert.deepEqual(islandMarks(shownSurfaces(undefined)), [true, true, true, "health", true], "the Stories face shows everything");
 });
@@ -70,7 +68,6 @@ test("3.62 seen from below the glass sheet, the islands are outlines with their 
 test("3.46 territories arrive without a flash: borders trace on along their length as the fill eases in; kept land stays drawn across a rebuild", () => {
   const flat = (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z);
   const square = (x: number) => [{ x, z: 0 }, { x: x + 2, z: 0 }, { x: x + 2, z: 2 }, { x, z: 2 }];
-  // A chain of two borders, 2 + 2 long, around one territory.
   const one = { territories: [{ capability: "pay", status: "healthy" as const }], cells: [{ territory: 0, polygon: square(0) }],
     borders: [{ from: { x: 2, z: 0 }, to: { x: 2, z: 2 } }, { from: { x: 2, z: 2 }, to: { x: 0, z: 2 } }] };
   const drawnOf = (land: ReturnType<typeof territoryLand>) => {
@@ -83,7 +80,6 @@ test("3.46 territories arrive without a flash: borders trace on along their leng
   };
   const fill = (land: ReturnType<typeof territoryLand>, capability: string) => ((land.getObjectByName(`territory:${capability}`) as Mesh).material as MeshBasicMaterial).opacity;
   const drawOn = new TerritoryDrawOn();
-  // Shown plain: a freshly built land has no fill on its first draw, and its borders start undrawn.
   const first = territoryLand(one, flat);
   drawOn.take(first, "plain", 10, { standing: false, reduced: false });
   assert.equal(fill(first, "pay"), 0, "plain shows no fill, even on the frame the land is built");
@@ -92,7 +88,6 @@ test("3.46 territories arrive without a flash: borders trace on along their leng
   assert.ok(Math.abs(drawnOf(first) - 2) < 1e-6, "half the chain at half the time");
   assert.equal(drawOn.frame(10 + TERRITORY_DRAW.borders, false), false);
   assert.ok(Math.abs(drawnOf(first) - 4) < 1e-6, "whole");
-  // Health: a territory on land nothing filled eases its fill in with its borders, never showing the bare ground after its first frame.
   const health = new TerritoryDrawOn();
   const land = territoryLand(one, flat);
   const full = fill(land, "pay");
@@ -102,7 +97,6 @@ test("3.46 territories arrive without a flash: borders trace on along their leng
   assert.ok(fill(land, "pay") > 0 && fill(land, "pay") < full, "the fill eases in as its borders trace on");
   health.frame(TERRITORY_DRAW.borders + TERRITORY_DRAW.fill, false);
   assert.equal(fill(land, "pay"), full);
-  // A rebuild that adds a territory keeps what was drawn, and draws on only the new land.
   const two = { territories: [...one.territories, { capability: "ship", status: "unhealthy" as const }],
     cells: [...one.cells, { territory: 1, polygon: square(2) }], borders: [...one.borders, { from: { x: 4, z: 0 }, to: { x: 4, z: 2 } }] };
   const rebuilt = territoryLand(two, flat);
@@ -113,7 +107,6 @@ test("3.46 territories arrive without a flash: borders trace on along their leng
   health.frame(5 + TERRITORY_DRAW.borders + TERRITORY_DRAW.fill, false);
   assert.ok(Math.abs(drawnOf(rebuilt) - 6) < 1e-6);
   assert.equal(fill(rebuilt, "ship"), ((territoryLand(two, flat).getObjectByName("territory:ship") as Mesh).material as MeshBasicMaterial).opacity);
-  // Hiding forgets it, so showing again draws on; reduced motion and the globe's first draw show it whole at once.
   health.take(rebuilt, false, 6, { standing: false, reduced: false });
   health.take(rebuilt, "health", 7, { standing: false, reduced: true });
   assert.ok(Math.abs(drawnOf(rebuilt) - 6) < 1e-6); assert.equal(fill(rebuilt, "pay"), full);
@@ -130,7 +123,6 @@ test("3.46 a part carved out of land already filled keeps that fill until its ow
     const material = (land.getObjectByName(`territory:${name}`) as Mesh).material as MeshBasicMaterial;
     return { colour: material.color.getHexString(), opacity: material.opacity };
   };
-  // The brown remainder of an imported story covers both squares; then a capability is carved out of the second.
   const before = territoryLand({ territories: [{ mapped: true }], cells: [{ territory: 0, polygon: square(0) }, { territory: 0, polygon: square(2) }], borders: [] }, flat);
   const after = territoryLand({ territories: [{ mapped: true }, { capability: "stats", mapped: true, status: "untested" }],
     cells: [{ territory: 0, polygon: square(0) }, { territory: 1, polygon: square(2) }], borders: [{ from: { x: 2, z: 0 }, to: { x: 2, z: 2 } }] }, flat);
@@ -145,7 +137,6 @@ test("3.46 a part carved out of land already filled keeps that fill until its ow
   }
   drawOn.frame(5 + TERRITORY_DRAW.borders + TERRITORY_DRAW.fill, false);
   assert.deepEqual(look(after, "stats"), yellow, "then it is its own");
-  // Hidden and shown again, nothing was under it: it draws on from the ground, as a new territory does.
   drawOn.take(after, false, 6, { standing: false, reduced: false });
   drawOn.take(after, "health", 7, { standing: false, reduced: false });
   assert.equal(look(after, "stats").opacity, 0);
@@ -156,7 +147,6 @@ test("3.87 · an island there as the map opens stands until a frame has drawn it
   assert.equal(opening.built(false), true, "its land as first built stands");
   opening.drew();
   assert.equal(opening.built(true), true, "built whole, with its roads, it stands");
-  // Built again before a frame drew it: the whole land was never on screen.
   assert.equal(opening.built(false), true, "a rebuild before any frame drew the whole land still stands");
   assert.equal(opening.built(true), true, "and so does the whole land after it");
   opening.drew();

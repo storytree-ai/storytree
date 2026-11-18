@@ -1,8 +1,4 @@
-/**
- * Capability 4 · Drill-down (the forest story), as the page draws it (ADR-1297): exactly what is selected, a story alone with
- * its capabilities by name or a capability with its contracts; no tree, card or pop-out of its own, and no front cover
- * anywhere. The panel is HTML text, so it is read here without a browser.
- */
+// Capability 4 · Drill-down
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -28,21 +24,18 @@ const panel: StoryPanel = {
   capabilities: [line("base", "passing", "healthy"), line("next", "failing")],
 };
 
-/** The fold of `kind` in a rendered panel: its handle's words, whether it is open, and what it holds. */
 function fold(html: string, kind: string): { handle: string; expanded: string; hidden: boolean; body: string } | undefined {
   const found = new RegExp(`<div class="panel-fold" data-fold="${kind}">\\s*<button type="button" class="panel-handle" aria-expanded="(true|false)">([\\s\\S]*?)</button>\\s*<div class="panel-fold-body"( hidden)?>`).exec(html);
   if (found === null) return undefined;
   return { expanded: found[1]!, handle: plainText(found[2]!), hidden: found[3] !== undefined, body: html.slice(found.index + found[0].length) };
 }
 
-/** The panel's head: the title it leads with, and the story named small above a capability's. */
 function head(html: string): { title: string; story: string | undefined } {
   const header = /<header class="panel-head"[\s\S]*?<\/header>/.exec(html)?.[0] ?? "";
   const story = /<button type="button" class="panel-story-name" data-pick-story>([\s\S]*?)<\/button>/.exec(header)?.[1];
   return { title: plainText(/<h2>([\s\S]*?)<\/h2>/.exec(header)?.[1] ?? ""), story: story === undefined ? undefined : plainText(story) };
 }
 
-/** The capability names a story's panel lists, each with the capability it opens. */
 function names(html: string): string[][] {
   return [...html.matchAll(/<button type="button" class="panel-pick" data-pick-capability="([^"]+)">([\s\S]*?)<\/button>/g)].map(([, id, title]) => [id!, plainText(title!)]);
 }
@@ -95,7 +88,6 @@ test("4.7 no capability is picked for the user: a story alone, or a pick no long
   assert.equal(head(renderStoryPanel(panel, "base")).title, "The base", "a capability of the story shows when picked");
 });
 
-/** The selected capability's surface: its section's words with every fold's body dropped. */
 function surface(html: string): string {
   const detail = /<section class="panel-detail[\s\S]*<\/section>/.exec(html)?.[0] ?? "";
   return plainText(detail.split(/<div class="panel-fold-body" hidden>[\s\S]*?<\/div><\/div>/).join(""));
@@ -138,7 +130,6 @@ test("4.8 the panel draws no tree, card or pop-out: its one pick is a story's ca
 });
 
 test("4.6 with the capability details switched off, the panel is the story's sentences alone, with no capability names and no capability shown (ADR-0750)", () => {
-  // A story whose microscope would show its capabilities on its land.
   const scoped: StoryPanel = { ...panel, microscope: { story: "s", levels: { s: { id: "s", path: ["s"], titles: ["S"], children: [{ id: "next", title: "Next", lines: 10, opens: "next" }], roads: [], gates: [] } } } };
   const html = renderStoryPanel(scoped, "next", { details: false });
   assert.match(html, /What s is\. Why\./);
@@ -152,12 +143,10 @@ function notGreen(why: CapabilityLine["why"], lastSeen?: { state: "passing" | "f
   return { ...panel, capabilities: [{ ...base, contracts: [contract], ...(why === undefined ? {} : { why }) }] };
 }
 
-/** A rendered fragment's words, its tags dropped and its spaces squeezed (split, not replace: the text stays escaped as rendered). */
 function plainText(fragment: string): string {
   return fragment.split(/<[^>]*>/).join("").replace(/\s+/g, " ").trim();
 }
 
-/** The sentence under the selected capability's word. */
 function whyLine(html: string): string {
   const found = /<p class="panel-why[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(html);
   assert.ok(found !== null, "a line saying why");
@@ -326,12 +315,10 @@ test("4.36 a story's panel lists its extra checks with what sets each off, and s
   assert.doesNotMatch(renderStoryPanel(panel, undefined), /extra-checks/);
 });
 
-/** The marks a rendered fragment draws, in order: each by its kind and the state it is coloured by. */
 function marks(html: string): string[][] {
   return [...html.matchAll(/<span class="panel-mark[^"]*" data-mark="([^"]+)" data-state="([^"]+)"/g)].map(([, kind, state]) => [kind!, state!]);
 }
 
-/** A contract's row in a rendered panel: its words at rest, its marks, and its opened fold's words. */
 function row(html: string, id: string): { rest: string; marks: string[][]; opened: string } {
   const item = new RegExp(`<li data-contract-id="${id}">[\\s\\S]*?</li>`).exec(html)?.[0] ?? "";
   const handle = /<button type="button" class="panel-handle"[^>]*>([\s\S]*?)<\/button>/.exec(item)?.[1] ?? "";

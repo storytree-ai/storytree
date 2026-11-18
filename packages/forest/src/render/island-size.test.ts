@@ -1,4 +1,3 @@
-/** 3.19 An island's land follows its story's lines of code (ADR-0804 D3, D7), through to the ground the globe draws. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -18,7 +17,6 @@ const tree = { arcs: [], stories: ["big", "small", "tiny", "unsurveyed"].map(id 
 const survey = (lines: number): StorySurvey => ({ files: [{ path: "src/a.ts", lines }], imports: [] });
 const surveys = { big: survey(9000), small: survey(1500), tiny: survey(20) };
 
-/** The land a plate's ground descriptors draw, in ground units²: the sum of its cells' rings. */
 function drawnArea(descriptors: readonly { kind: string; points?: readonly { x: number; z: number }[] }[]): number {
   let area = 0;
   for (const d of descriptors) {
@@ -54,7 +52,6 @@ test("3.19 a surveyed island's area follows its lines, a tiny story keeps a floo
 
 test("3.19 an island of many small files keeps the land its lines give it: it never grows to make room for its files", () => {
   const crowded = { arcs: [], stories: [{ id: "crowded", title: "crowded", health, capabilities: [capability("c1"), capability("c2"), capability("c3")] }] };
-  // Four hundred one-line files: little code, but many files.
   const files = Array.from({ length: 400 }, (_, at) => ({ path: `src/${at}.ts`, lines: 1, capability: `c${(at % 3) + 1}` }));
   const scene = forestScene(crowded, [], workStates([]), { crowded: { files, imports: [] } });
   assert.equal(scene.islands[0]!.area, islandArea(400));

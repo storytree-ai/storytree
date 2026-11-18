@@ -1,7 +1,4 @@
-/**
- * Capability 4 · Drill-down: the panel's microscope (ADR-1350 D2), as the page draws it and the user drills it. Read in
- * happy-dom: the panel's HTML, then its folds, which work the microscope beside them.
- */
+// Capability 4 · Drill-down
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
@@ -17,9 +14,6 @@ import { PARKED_FILL } from "./territory-land.js";
 
 const capability = (id: string): CapabilityLine => ({ id, title: `The ${id}`, description: `What ${id} does.`, reported: "passing", status: "healthy", contracts: [] });
 
-// Capability a's code nests three deep: x holds deep and wide, and deep holds inner. Its own file outside x imports x;
-// inside x, x's entry imports deep, deep's inner imports wide and b's file; story t's c imports wide. b is parked, and its
-// name runs long enough to be cut where a gate names it.
 const B = "The b, whose name runs long enough to be cut";
 const files = ["src/a/own.ts", "src/a/x/index.ts", "src/a/x/deep/index.ts", "src/a/x/deep/two.ts", "src/a/x/deep/inner/index.ts", "src/a/x/wide/index.ts"];
 const survey = {
@@ -60,7 +54,6 @@ function page(drawn: StoryPanel = story) {
   const host = window.document.createElement("aside") as unknown as HTMLElement;
   window.document.body.appendChild(host as never);
   const folds = panelFolds();
-  /** Draw the panel for `selected` as the page does, then let its microscope's layout finish. */
   const draw = async (selected: string | undefined): Promise<void> => {
     host.innerHTML = renderStoryPanel(drawn, selected);
     folds.draw(host);
@@ -81,7 +74,6 @@ function page(drawn: StoryPanel = story) {
     section().querySelector(selector)!.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true }) as never);
     await settled();
   };
-  /** Whether the level's roads hold a road from `from` to `to`, each a gate (by its name) or a part's junction (by its id). */
   const road = (from: string, to: string) => {
     const end = (what: string) => {
       const gate = [...section().querySelectorAll(".scope-gate")].find((each) => each.getAttribute("data-scope-gate") === what);
@@ -97,7 +89,6 @@ function page(drawn: StoryPanel = story) {
 test("4.55 · the panel's microscope shows the one thing it is rooted on, drills into a capability's parts as deep as the code goes with a breadcrumb back up, and names the neighbour at each gate", async () => {
   const { draw, section, shown, trail, gates, click, press, road, host, folds } = page();
 
-  // A story alone: its capabilities, each choosing that capability through the globe's selection.
   await draw(undefined);
   assert.deepEqual(shown(), ["a", "b"]);
   assert.equal(section().querySelector('[data-scope-child="a"]')?.getAttribute("data-pick-capability"), "a");
@@ -105,7 +96,6 @@ test("4.55 · the panel's microscope shows the one thing it is rooted on, drills
   assert.ok(road("Story t", "a"), "its road leads to the capability it reaches");
   assert.equal(section().querySelector('[data-scope-child="b"]')?.getAttribute("fill"), PARKED_FILL.colour, "a parked capability is grey, as on the map");
 
-  // The capability chosen: its parts, x opening further and its own files named by itself; b's road ends at a gate.
   await draw("a");
   assert.deepEqual(shown(), ["src/a/x", "a"]);
   assert.deepEqual(trail(), ["Story s", "The a"]);
@@ -113,12 +103,10 @@ test("4.55 · the panel's microscope shows the one thing it is rooted on, drills
   const named = [...section().querySelectorAll(".scope-gate")].find((gate) => gate.getAttribute("data-scope-gate") === B)!.querySelector("text")!;
   assert.equal(named.firstChild?.textContent, "The b, whose name runs…", "a long name is cut on the drawing");
   assert.equal(named.querySelector("title")?.textContent, B, "and whole on hover");
-  // The panel's behaviours drawn again over the same panel keep the microscope as it is.
   const kept = section();
   folds.draw(host);
   assert.ok(section() === kept, "drawing the panel's behaviours again replaces nothing");
 
-  // Into x by the keyboard, then on into deep: each drill re-rooted, only its own parts drawn, with a breadcrumb back up.
   await press('[data-scope-child="src/a/x"]', "Enter");
   assert.deepEqual(shown(), ["src/a/x/deep", "src/a/x/wide", "src/a/x"]);
   assert.deepEqual(trail(), ["Story s", "The a", "x"]);
@@ -130,7 +118,6 @@ test("4.55 · the panel's microscope shows the one thing it is rooted on, drills
   assert.deepEqual(gates(), [B, "wide", "x"], "deep's gates name the parts beside it inside x and the other capability");
   assert.ok(road(B, "src/a/x/deep/inner") && road("wide", "src/a/x/deep/inner"), "each gate's road leads to the part its files are in");
 
-  // A redraw of the panel keeps the drill; the breadcrumb climbs back.
   await draw("a");
   assert.deepEqual(trail(), ["Story s", "The a", "x", "deep"]);
   await click('.scope-trail [data-scope-to="a:src/a/x"]');
@@ -139,21 +126,18 @@ test("4.55 · the panel's microscope shows the one thing it is rooted on, drills
   assert.deepEqual(shown(), ["src/a/x", "a"]);
   assert.ok(section().querySelector(".scope-trail [data-pick-story]"), "the story's crumb opens the story alone, as the panel's head does");
 
-  // Another capability chosen starts at its own level.
   await click('[data-scope-child="src/a/x"]');
   await draw("b");
   assert.deepEqual(trail(), ["Story s", B]);
 });
 
 test("4.55 · where two of the microscope's names would be written over each other, the larger part's is written and the other's left to its hover", () => {
-  // "below" sits a line under "large", nearer than a 7-unit name's own height with its stroke, so it gives way too.
   const children = [{ id: "small", title: "2 · Small", lines: 10 }, { id: "large", title: "1 · Large", lines: 90 }, { id: "apart", title: "3 · Apart", lines: 5 }, { id: "below", title: "4 · Below", lines: 8 }];
   const places = new Map([["small", { x: 3, z: 2 }], ["large", { x: 0, z: 0 }], ["apart", { x: 0, z: 40 }], ["below", { x: 6, z: 9 }]]);
   assert.deepEqual(namesShown(children, places).map(({ child }) => child.id), ["large", "apart"]);
 });
 
 test("4.55 · news that leaves the story unchanged draws the panel the same once its microscope is laid out, so the page touches nothing (2.51)", async () => {
-  // Its own sizes, so no other test has laid its level out already.
   const resized = { ...surveys, s: { ...survey.s, files: survey.s.files.map((file) => ({ ...file, lines: file.lines + 1 })) } };
   const unchanged: StoryPanel = { ...story, microscope: microscope(plan, resized) };
   const { draw, host } = page(unchanged);
@@ -165,7 +149,6 @@ test("4.55 · news that leaves the story unchanged draws the panel the same once
 
 test("4.55 · a capability whose code is one part opens on that part's parts, the capability named on the way; a dependency only the plan records ends at its gate; a level of many roads draws them fine", () => {
   const window = new Window();
-  // r's code is one part, lib, holding two parts of its own; the plan alone says r depends on q.
   const one = microscope({
     story: "s", title: "Story s",
     capabilities: [{ id: "r", title: "The r", status: "healthy" }, { id: "q", title: "The q", status: "healthy" }],

@@ -1,4 +1,3 @@
-/** 1.10 on a first real build's size: a five-story forest, in a row and in a chain, opens on the glass sheet with every story's nameplate readable. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Group, PerspectiveCamera, Vector3 } from "three";
@@ -13,10 +12,8 @@ import { SHEET_OPENING_TILT, sheetLayout, sheetOpening, sheetTilted } from "./sh
 import { facing, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate, type ShownPlate } from "./nameplates.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
-// A first build's stories, as the Conduit builds named them: one capability each.
 const titles = ["Have an account", "Comment on articles", "Browse the home page feed", "Read and write articles", "Follow people and favourite articles"];
 
-/** A forest of the five stories: none depending on another (one row), or each on the one before (a chain). */
 function forest(chain: boolean) {
   const ids = titles.map((_, i) => `story_${i}`);
   return { arcs: [], stories: ids.map((id, i) => ({ id, title: titles[i]!, health, capabilities: [{
@@ -24,11 +21,6 @@ function forest(chain: boolean) {
   }] })) };
 }
 
-/**
- * A story nameplate's box as the desktop draws it (`.forest-label`: 0.82rem semibold, 0.1rem by 0.55rem of padding),
- * its title wrapped by word to the plate's width, at an estimated 7.2 px a character and 15.5 px a line, and a first
- * build's progress ("0 / 1 landed" over its meter, 58 px wide, 22 px tall) beneath it.
- */
 function plateSize(title: string): { width: number; height: number } {
   const room = Math.max(1, Math.floor((STORY_PLATE_WIDTH - 17.6) / 7.2));
   const lines: string[] = [];
@@ -40,8 +32,6 @@ function plateSize(title: string): { width: number; height: number } {
   return { width: Math.max(58, ...lines.map(line => line.length * 7.2)) + 17.6, height: lines.length * 15.5 + 22 + 3.2 };
 }
 
-/** Each story's nameplate on screen as the app opens the glass sheet in a window `width` by `height` (the canvas below its
- * header), measured as the view measures it: the perspective eye at the sheet's opening, looking straight down. */
 function opening(chain: boolean, width = 1440, height = 840): ShownPlate[] {
   const tree = forest(chain), size = { width, height };
   const places = new Map(storyNodes(tree, []).map(({ id, place }) => [id, place]));

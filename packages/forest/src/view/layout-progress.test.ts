@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Story node render (the forest story): the map's top-left mark while islands are still being laid out
- * (3.96), the line under a waiting island's name (3.95), and the island on screen searched first (3.97), as question_bb933ce50f45's option D asked.
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { createElement } from "react";
@@ -19,7 +16,6 @@ afterEach(() => shelveOn(undefined));
 const shares = [{ capability: "a", lines: 900 }, { capability: "b", lines: 700 }];
 const ask = { shares, coast: [], links: [], docks: [] };
 const settled = '<div hidden="" data-layout="settled"></div>';
-/** The mark over `islands` named alone, as an island with no land yet is: settled is no mark the eye reads. */
 const mark = (islands: readonly string[]) => {
   const html = renderToStaticMarkup(createElement(LayoutProgress, { islands: islands.map((story) => ({ story })) }));
   return html === settled ? "" : html;
@@ -48,7 +44,6 @@ test("3.96 the map's top-left mark counts the islands whose layout is searched o
     answers[1]!({ found: undefined });
     routed[0]!({ segments: [], junctions: [], gates: [], passes: [], portals: [], tunnels: [], towns: new Map(), settlements: new Map() });
     await waitUntil(() => mark(["one", "two", "three", "four"]) === "" || undefined, 2000, "the mark to go once both queues are idle");
-    // An island let go while it routes or waits its turn, or already let go when asked, is no longer counted.
     const island = (story: string): RoadsAsk => ({ ...roadsAsk, map: { ...roadsAsk.map }, story });
     const letGo = ["five", "six", "seven"].map((story) => ({ story, shown: new AbortController() }));
     for (const { story, shown } of letGo) islandRoadsWhenRouted(island(story), () => new Promise(() => {}), shown.signal);

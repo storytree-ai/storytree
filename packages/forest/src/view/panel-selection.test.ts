@@ -1,4 +1,3 @@
-/** Forest capability 3 / knowledge-core capability 4: one right-side panel (ADR-0661 D2). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { PanelSelection, panelPicks, type Selection } from "./panel-selection.js";
@@ -23,8 +22,6 @@ test("3.13 a card replaces a story and a story replaces a card; Close and Escape
   assert.equal(changes.length, 7, "unrelated keys leave the panel alone");
 });
 
-// The canvas, scene, core, camera, rotation and zoom surviving each switch, and a launch opening with both on, are
-// measured on the mounted page in Chromium, across each switch; hidden land is never picked (3.12).
 test("3.10 switching Stories off clears a selected story or shared store and its panel, switching Library off clears a note's card, and switching on clears nothing", () => {
   const changes: Selection[] = [];
   const panel = new PanelSelection(selection => changes.push(selection));
@@ -41,7 +38,6 @@ test("3.10 switching Stories off clears a selected story or shared store and its
   panel.switched({ stories: true, library: false });
   assert.equal(panel.current, undefined, "Library off closes the card");
   assert.equal(changes.length, 4, "only the two clearings changed the panel");
-  // A shared store stands on the sheet with the islands, so Stories off hides it and closes its panel; Library off keeps it.
   panel.store("postgres://db/shop");
   panel.switched({ stories: true, library: false });
   assert.deepEqual(panel.current, { kind: "store", id: "postgres://db/shop" }, "Library off keeps a store");

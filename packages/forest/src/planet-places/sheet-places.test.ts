@@ -1,4 +1,3 @@
-/** Story nodes on the glass sheet: depth runs west to east (ADR-1043 D2). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -9,7 +8,6 @@ import { sheetPlaces } from "./sheet-places.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 
-/** A project whose stories each have one capability, depending on the capabilities of the stories named. */
 function project(dependsOn: Record<string, readonly string[]>): AnnotatedTree {
   return { arcs: [], stories: Object.entries(dependsOn).map(([id, on]) => ({ id, title: id, health, capabilities: [
     { id: `${id}-cap`, title: "A part", dependsOn: on.map(other => `${other}-cap`), proposed: true, status: "proposed" as const, contracts: [], health },

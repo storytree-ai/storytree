@@ -936,3 +936,27 @@ test("3.12 a failed step is logged naming it and stops the rest, never failing t
     assertTokenKeptOut(f, result);
   }
 });
+
+test("3.12 as a cloud session-start hook given --factory, --factory-token and --factory-plugin with that token variable unset, it exits 0 and tells the session that the factory at that address was not loaded because that variable is not set", async (t) => {
+  const root = worktree(t, "current");
+  const home = mkdtempSync(path.join(tmpdir(), "cloud-factory-home-"));
+  t.after(() => removeTemp(home));
+  // A cloud container with no Access token (so the library is not connected), no session env file, no factory
+  // folder override, and a home of its own; git looks no higher than the worktree, which is not a repository,
+  // so the cloud fetch of origin's main fails at once and is only logged.
+  const env = { ...cloudEnv(), STORYTREE_HOME: home, GIT_CEILING_DIRECTORIES: path.dirname(root) };
+  delete env.ST_TEST_FACTORY_TOKEN;
+  delete env.STORYTREE_FACTORY;
+  const address = "https://factory.invalid/storytree-factory.git";
+  const hook = await run(process.execPath, [
+    script, "--hook", "--root", root, "--factory", address, "--factory-token", "ST_TEST_FACTORY_TOKEN", "--factory-plugin", "p",
+  ], { env });
+  assert.equal(hook.status, 0, hook.stderr);
+  const output = JSON.parse(hook.stdout).hookSpecificOutput;
+  assert.equal(output.hookEventName, "SessionStart");
+  assert.equal(
+    output.additionalContext,
+    "The factory https://factory.invalid/storytree-factory.git was not loaded: its token variable ST_TEST_FACTORY_TOKEN is not set in this cloud session.",
+  );
+  assert.equal(existsSync(path.join(home, "your-factory")), false, "nothing is cloned into the home");
+});

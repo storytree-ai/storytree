@@ -1,5 +1,3 @@
-// increment_5297d1d7c3e7: a run's start keeps the previous run's server log, so the rerun that
-// follows a red run leaves the red run's log readable.
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

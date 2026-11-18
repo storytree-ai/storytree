@@ -1,4 +1,3 @@
-// Node's junit report read into one result per test (junit.mjs), as unit-run.mjs keeps CI's evidence with it.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

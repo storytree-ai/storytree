@@ -1,5 +1,3 @@
-// increment_36281861bfe6: the tests connect as the ordinary role and make roles in their setup
-// with another url, the superuser's.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -24,7 +22,6 @@ async function superuser(url) {
   }
 }
 
-/** The urls a run of test.mjs hands a test file, given this environment. */
 function handed(t, env) {
   const dir = mkdtempSync(path.join(tmpdir(), "test-postgres-"));
   t.after(() => removeTemp(dir));
@@ -32,7 +29,7 @@ function handed(t, env) {
   writeFileSync(file, `import { test } from "node:test";
 test("urls", () => console.log("URLS " + JSON.stringify([process.env.STORYTREE_TEST_PG_URL, process.env.STORYTREE_TEST_PG_ADMIN_URL])));`);
   const run = { ...process.env, ...env, STORYTREE_HOME: path.join(dir, "home") };
-  delete run.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
+  delete run.STORYTREE_HEAVY_LOCK_HOLDER;
   if (env.STORYTREE_TEST_PG_ADMIN_URL === undefined) delete run.STORYTREE_TEST_PG_ADMIN_URL;
   const out = spawnSync(process.execPath, ["--import", "tsx", "packages/base-dev-loop/src/test.mjs", file], { cwd: root, env: run, encoding: "utf8" });
   assert.equal(out.status, 0, out.stdout + out.stderr);

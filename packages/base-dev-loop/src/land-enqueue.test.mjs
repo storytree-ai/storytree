@@ -1,5 +1,3 @@
-// Whether land.yml retries a refused enqueue: the rule lives in packages/base-dev-loop/src/land-enqueue.mjs,
-// which the land job runs on each refusal.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -27,8 +25,6 @@ test("5.1 any other refusal is not retried, however early", () => {
   assert.match(other.reason, /not one this job retries/);
 });
 
-// PR #706, run 42848031894: GitHub answered the enqueue with a transient GraphQL error, every check
-// green, and re-running the job unchanged enqueued it.
 const wentWrong = "gh: Something went wrong while executing your query. Please include `ABCD:1234:5678` when reporting this issue.";
 
 test("5.1 GitHub's transient 'Something went wrong' reply is retried inside the window and stops past it", () => {
@@ -53,8 +49,6 @@ test("5.1 the land job's command line exits 0 to retry and 1 to stop, reading th
   assert.match(run(90, "some other refusal").out, /::error::/);
 });
 
-// PR #403, run 41814666825: gh got an HTML page, not JSON, back from the enqueue, although GitHub
-// had enqueued the pull request in that run.
 const unparseable = "invalid character '<' looking for beginning of value";
 
 test("5.3 a failed enqueue that left the pull request in the merge queue is taken as enqueued, whatever the reply", () => {

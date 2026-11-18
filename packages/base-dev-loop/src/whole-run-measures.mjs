@@ -4,10 +4,10 @@ import { readWholeRuns, storytreeHome } from "./whole-runs.mjs";
 const DAY_MS = 24 * 3_600_000;
 
 const MEASURES = [
-  { kind: "test", scope: "full", measure: "measure_000000000c01" },
-  { kind: "test", scope: "scoped", measure: "measure_000000000c02" },
-  { kind: "gate", scope: "full", measure: "measure_000000000c03" },
-  { kind: "gate", scope: "scoped", measure: "measure_000000000c04" },
+  { kind: "test", scope: "full", measure: "measure_2c6ccbbfd78f" },
+  { kind: "test", scope: "scoped", measure: "measure_a3ade2703847" },
+  { kind: "gate", scope: "full", measure: "measure_2e13073282a4" },
+  { kind: "gate", scope: "scoped", measure: "measure_3b86cc5863af" },
 ];
 
 function median(sorted) {

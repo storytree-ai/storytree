@@ -9,12 +9,12 @@ export const storytreeHome = () => process.env.STORYTREE_HOME || path.join(homed
 
 const wholeRunsFile = (home) => path.join(home, "whole-runs.jsonl");
 
-export function startClock() {
-  return { started: Date.now(), load: loadavg()[0] };
+export function startClock(now = Date.now) {
+  return { now, started: now(), load: loadavg()[0] };
 }
 
 export function wholeRunRow(kind, clock, fields) {
-  const ended = Date.now();
+  const ended = clock.now();
   return { kind, at: new Date(ended).toISOString(), ms: ended - clock.started, ...fields, machine: hostname(), load: clock.load, cpus: availableParallelism(), platform: process.platform, arch: process.arch };
 }
 

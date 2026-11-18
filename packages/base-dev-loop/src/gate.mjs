@@ -74,8 +74,8 @@ export function contributedHold({ root = process.cwd(), compose = (at) => contri
   };
 }
 
-export async function runGate({ root = process.cwd(), flags = {}, rerunHint = null, signal, forceSignal, log = console.log, run = runCheck, prepare = () => null, steps = contributedSteps, partsOff = readPartsOff, standIns = readStandIns, home = storytreeHome() } = {}) {
-  const clock = startClock();
+export async function runGate({ root = process.cwd(), flags = {}, rerunHint = null, signal, forceSignal, log = console.log, run = runCheck, prepare = () => null, steps = contributedSteps, partsOff = readPartsOff, standIns = readStandIns, home = storytreeHome(), now = Date.now } = {}) {
+  const clock = startClock(now);
   const id = randomUUID();
   const unready = prepare(log);
   const results = Object.fromEntries(BASE.map((step) => [step, "not run"]));

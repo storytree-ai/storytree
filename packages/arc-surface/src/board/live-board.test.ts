@@ -56,7 +56,6 @@ test("3.9 the open board re-reads the work only when its news holds an arc, incr
     ? { kind, source: "tool", harness: "codex", session: "s", increment: "inc_1", reason: "draw the lanes", seq: ++seq, at: new Date(start).toISOString(), project: "p" }
     : { kind, source: "hook", harness: "codex", session: "s", seq: ++seq, at: new Date(start).toISOString(), project: "p" });
   const change = (type: string, recordId: string) => ({ seq: ++seq, recordId, type, action: "updated" as const, record: record(recordId, type as never, {} as never) });
-  // What each ask finds new: the first everything, then lines alone, a health change, and an increment change.
   const asks = [
     { lines: [line("session-started")], changes: [change("arc", "arc_1")] },
     { lines: [line("claimed")], changes: [] },
@@ -66,7 +65,6 @@ test("3.9 the open board re-reads the work only when its news holds an arc, incr
   let ask = -1;
   const asked = { boardArcs: 0, holds: 0 };
   const reads: BoardReads = {
-    // An ask starts its changes read first, then its lines read.
     changesSince: async () => { ask++; return { changes: asks[ask]?.changes ?? [], cursor: seq }; },
     linesSince: async () => ({ lines: asks[ask]?.lines ?? [], cursor: seq }),
     boardArcs: async () => { asked.boardArcs++; return [{ arc, increments: [increment], questions: [], state: "active" }]; }, closedArcs: async () => [],
@@ -144,7 +142,6 @@ test("3.9 a board told to start after the page's start reads nothing until then,
   let state: BoardState | undefined;
   const watcher = watchBoard({ project: "p", reads, timers, reading: page, kept, startAfter, onState: (next) => { state = next; } });
   try {
-    // The page's first read lands, with an arc change, while its start is still settling.
     await until(() => page.held().changes.length === 1);
     await new Promise((resolve) => setImmediate(resolve));
     assert.deepEqual(asked, { boardArcs: 0, holds: 0 }, "nothing is read before the start settles");
@@ -176,7 +173,6 @@ test("3.9 news the page reading already held when the board opened reads no work
   let state: BoardState | undefined;
   const watcher = watchBoard({ project: "p", reads, timers, reading: page, onState: (next) => { state = next; } });
   try {
-    // The page hands the held news on subscribing, and a read of the work starts as it is handled.
     assert.equal(asked.boardArcs, 1, "the held arc change is already in the board's own read");
     await until(() => state?.status === "ready");
     assert.equal(asked.boardArcs, 1);
@@ -199,7 +195,7 @@ test("3.12 the board reads live arcs and those closed yesterday and today; the C
   };
   const written: BoardSnapshot[] = [];
   let state: BoardState | undefined;
-  const now = new Date(2026, 9, 19, 12).getTime(); // noon on the 19th, local time
+  const now = new Date(2026, 9, 19, 12).getTime();
   const watcher = watchBoard({ project: "p", reads, timers: { now: () => now, every: () => () => {} }, kept: { read: () => undefined, write: (value) => { written.push(value); } },
     onState: (next) => { state = next; } });
   const lanes = () => state?.board?.lanes.map(({ id }) => id);

@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Arc surface: contract 3.28, `arc increment new` refusing a capability another open increment lists and
- * `arc increment edit` telling of it, run on a fresh project's library and activity log on the real Postgres `pnpm test` provides.
- */
+// Capability 3 · Arc surface.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test, type TestContext } from "node:test";
@@ -15,7 +12,6 @@ import { ARC_FAMILIES, type ArcVerbContext } from "./index.js";
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 const verbOf = (name: string) => ARC_FAMILIES.find((family) => family.name === "arc")!.families!.find((family) => family.name === "increment")!.verbs.find((one) => "name" in one.command && one.command.name === name) as Verb<VerbInputs, ArcVerbContext>;
 
-/** A fresh project's library and activity log, dropped when the test ends. */
 async function aProject(t: TestContext): Promise<{ library: Library; log: ActivityLog; project: string }> {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");

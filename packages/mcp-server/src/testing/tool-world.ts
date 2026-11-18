@@ -1,8 +1,3 @@
-/**
- * A project for the agent tools' tests (capability 6): a throwaway folder set up as a fresh project, with its
- * library and activity log, and the plan most tests start from, planned through the tools. Shared by the
- * agent-tools test files, which are split so a unit runs them side by side.
- */
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -13,7 +8,6 @@ import { idOf, type Agent } from "./agent.js";
 import { withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
-/** The toolbox: every tool the server offers. */
 export const TOOLS = [
   "add_remedies",
   "apply_pending",
@@ -92,7 +86,6 @@ export const TOOLS = [
   "write_note",
 ];
 
-/** A founding decision: every story and capability planned through the tools is born with one (ADR-0627 D5). */
 export const FOUNDED = { founding: { title: "Email first", text: "Signing up by email is the smallest thing that works" } };
 
 export interface World {
@@ -102,7 +95,6 @@ export interface World {
   log: ActivityLog;
 }
 
-/** Run `body` with a throwaway folder set up as a fresh project, and that project's library and log. */
 export async function withProject(body: (world: World) => Promise<void>): Promise<void> {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
@@ -125,7 +117,6 @@ export async function withProject(body: (world: World) => Promise<void>): Promis
   });
 }
 
-/** A story, an arc growing it, and a capability, planned through the tools. */
 export async function planned(agent: Agent) {
   const story = idOf(await agent.call("plan_story", { title: "Visitor can sign up", ...FOUNDED }));
   const arc = idOf(await agent.call("plan_arc", { title: "Launch v1", intent: "Ship sign-up", end_state: "Visitors can sign up", stories: [story] }));

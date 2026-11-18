@@ -1,4 +1,4 @@
-/** Capability 6 · Tool server: the tool server's shutdown, run in a child process as the server runs it. */
+// Capability 6 · Tool server (the MCP server)
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
@@ -13,8 +13,6 @@ import { removeTempDir } from "@storytree/project-and-caller/testing/folders";
 import { shutdownOnce } from "./shutdown.js";
 
 test("6.45 the tool server exits with code 0 when a delivery ran during its shutdown", async (t) => {
-  // A response with many headers makes fetch's WebAssembly parser tier up in the background just
-  // as the process ends; on Windows ARM, process.exit() at that moment aborts Node (0xC0000409).
   const server = createServer((request, response) => {
     request.resume();
     request.on("end", () => {

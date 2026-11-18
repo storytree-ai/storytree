@@ -1,15 +1,4 @@
-/**
- * Capabilities 6 · Tool server, 9 · Plan tools, 10 · Work tools, 11 · Session tools, 12 · Setup tools and 13 · Note tools, in the MCP server story: waits, corrections and retirements, questions, other stories' tools, workspaces, search, and bounded reads. One of three files
- * (agent-tools, agent-tools-reads, agent-tools-writes) split so a test unit runs them side by side.
- * A test client talks to the server inside the test itself, over an
- * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
- * Code's session id reaches the server in its environment, Codex's on each call's `_meta`, and each
- * call's `_meta` carries its id as that harness sends it.
- *
- * The server works in a throwaway folder set up as a project (named with uniqueProjectName(), its
- * library dropped afterwards), and finds storytree from the test Postgres's own owner record.
- * What the tests check is read back through the library and the activity log themselves.
- */
+// Capability 6 · Tool server (the MCP server)
 import assert from "node:assert/strict";
 import { copyFileSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
@@ -224,7 +213,6 @@ test("9.2 it retires a contract and then a capability with a reason, and each is
       assert.equal(wrong.isError, true);
       assert.equal((await library.arcView(arc))?.arc.id, arc, "the arc is not retired");
 
-      // An edge is retired live while the session holds an increment claimed on no branch, which no merge applies.
       const link = idOf(await agent.call("plan_capability", { story: (await library.projectTree()).stories[0]!.id, title: "Confirmation link", ...FOUNDED }));
       const edge = idOf(await agent.call("plan_edge", { from: link, to: capability }));
       const increment = idOf(await agent.call("park_increment", { arc, title: "Tidy", objective: "Tidy the plan", body: "Retire what is overtaken" }));
@@ -425,9 +413,7 @@ test("6.17 another story registers its tools on this server, sharing routing, th
       assert.deepEqual(calls.map((line) => [line.session, line.kind === "tool-called" && line.tool]), [["librarian-reader", "librarian_worklist"]]);
       const instructions = agent.instructions()!;
       assert.ok(instructions.includes(extension.instructions!));
-      // The card names every tool but a harness's own (ADR-1056 D2).
       assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), (await agent.tools()).filter((tool) => tool !== "hook_event" && tool !== "heartbeat" && tool !== "lane_messages"));
-      // A section costs its words, not two lines whatever its length (ADR-1113 D1).
       assert.ok(cardWords(instructions) <= CARD_WORD_BUDGET);
     });
   });
@@ -495,10 +481,8 @@ test("6.16 every library write from a tool names the calling session, including 
       await write("set_wait", { waiter: increment, on: blocker, reason: "Needs mail" });
       await write("clear_wait", { waiter: increment, on: blocker, reason: "the blocker is no longer needed" });
       const questionArgs = { arc, title: "Mailer?", stakes: "Delivery", statement: "Which?", context: "Signup", options: "Mailgun or SES" };
-      // Holding the writer's own increment releases it, returning it to proposal: a third record (6.44).
       const question = await write("raise_question", { ...questionArgs, holds: [increment] }, 3);
       await write("correct_question", { question, stakes: "Cost and deliverability" });
-      // Settling takes the question off the increment it held: a second record (12.3).
       await write("settle_question", { question, answer: "Mailgun" }, 2);
       const mistaken = await write("raise_question", questionArgs);
       await write("retire_question", { question: mistaken, reason: "Already asked" });
@@ -577,7 +561,6 @@ test("6.34 a call a hook saw works in the worktree that hook ran in, so a claim 
     git(folder, "init", "-b", "main");
     git(folder, "add", ".");
     git(folder, "commit", "-m", "first");
-    // The session moved into a workspace after the harness started the tool server in the checkout.
     const worktree = path.join(folder, ".claude", "worktrees", "form");
     git(folder, "worktree", "add", "-q", "-b", "claude/form", worktree);
     const elsewhere = path.join(path.dirname(folder), "other");
@@ -694,7 +677,6 @@ test("13.6 search_notes answers with the library's ranked search (capability 14)
       const answer = await agent.call("search_notes", { query: "mailer", limit: 2 });
 
       assert.match(answer.text, /ranked by words: the embedding model is switched off/);
-      // Notes made in the same millisecond tie in creation order (their random ids break it), so which two come back is not pinned.
       assert.equal(answer.text.match(/"Mailer \d"/g)?.length, 2);
     });
   });
@@ -1060,14 +1042,12 @@ test("6.39 a tool call's reads do not grow with the log's length: the same calls
   const taken: number[] = [];
   let history = 0;
   for (const long of [false, true]) {
-    // Each phase is a subtest, so a unit killed at its deadline names the phase still running.
     const which = long ? "weeks of log" : "an hour of log";
     await withProject(async ({ folder, project, library, log }) => {
       let emailForm = "";
       await t.test(`${which}: the project and its log are written`, async () => {
         const story = await library.addStory({ title: "Visitor can sign up" });
         emailForm = (await library.addCapability({ title: "Email form", story: story.id })).id;
-        // The same last hour in both: this session and another one working.
         for (const session of ["cc-1", "cc-2"]) {
           await log.append(project, { session, harness: "claude-code", source: "hook", folder, kind: "session-started", how: "startup", transcript: path.join(folder, `${session}.jsonl`) });
           await log.append(project, { session, harness: "claude-code", source: "hook", folder, kind: "command-run", command: "pnpm test", call: `${session}-call` });
@@ -1103,7 +1083,7 @@ test("6.39 a tool call's reads do not grow with the log's length: the same calls
 
 test("9.9 edit_plan and retire_from_plan, under an increment's claim, hold a change to a record planned before it (an edge's retirement too) as a pending change on the increment, leaving the live record alone (ADR-0966 D1; the rule itself is 10.29's)", async () => {
   await withProject(async ({ folder, library }) => {
-    git(folder, "init", "-b", "claude/address-form"); // the claim is taken on a branch, which merging applies its pending changes
+    git(folder, "init", "-b", "claude/address-form");
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, story, capability } = await planned(agent);
       const contract = idOf(await agent.call("plan_contract", { capability, title: "Accepts a valid address" }));
@@ -1182,7 +1162,7 @@ test("9.25 park_increment naming a capability another open increment lists is re
 
 test("9.17 plan_capability, under an increment's claim, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story frees is given, and one a pending move into the story brings is refused", async () => {
   await withProject(async ({ folder, library }) => {
-    git(folder, "init", "-b", "claude/address-form"); // the claim is taken on a branch, which merging applies its pending changes
+    git(folder, "init", "-b", "claude/address-form");
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, story, capability } = await planned(agent);
       const reset = idOf(await agent.call("plan_story", { title: "Visitor can reset a password", ...FOUNDED }));
@@ -1218,7 +1198,6 @@ test("12.1 import_project imports a folder into the project as imported stories,
       assert.ok(imported.text.includes(stories[0]!.id), imported.text);
       assert.match(imported.text, /: 1 imported stories added: /, "the reply calls the import's stories imported");
       assert.ok(imported.text.includes(`"@shop/cart" (${stories[0]!.id}), capabilities drawn: 1`), imported.text);
-      // The agent names and describes what storytree drew, and redraws none of it (ADR-1324 D3).
       assert.match(imported.text, /Name and describe each capability storytree drew with edit_plan/, imported.text);
       assert.match(imported.text, /Do not merge, split or redraw them/, imported.text);
       assert.doesNotMatch(imported.text, /map (its|their) capabilities by reading it/, "every story added is one storytree reads");
@@ -1248,7 +1227,6 @@ test("9.23 · plan_story in a project whose folder declares a JavaScript, TypeSc
       assert.equal(planned.isError, false, planned.text);
     });
   });
-  // A codebase with a story for one of its declared packages was imported, though a package was added since: it plans on.
   await withProject(async ({ folder, library }) => {
     writeFileSync(path.join(folder, "package.json"), JSON.stringify({ workspaces: ["packages/*"] }));
     for (const name of ["cart", "till"]) {
@@ -1456,7 +1434,6 @@ test("9.18 apply_pending applies an open increment's pending plan changes under 
       const increment = await library.addIncrement({ arc, title: "Sign-up form", objective: "Describe it", body: "Red then green" });
       await library.advanceIncrement(increment.id, "active");
       await library.pendChange(increment.id, { record: capability, fields: { description: "Where they type it" } });
-      // A `gh` that is Node itself runs the project folder's `pr` script: #151 merged, #152 still open.
       writeFileSync(path.join(folder, "pr"), "const number = Number(process.argv[3]);\nprocess.stdout.write(JSON.stringify({ number, isCrossRepository: false, ...(number === 151 ? { state: 'MERGED', mergedAt: '2026-10-31T12:00:00Z' } : { state: 'OPEN', mergedAt: null }) }));\n");
       await withTempDir(async (ghFolder) => {
         const gh = path.join(ghFolder, process.platform === "win32" ? "gh.exe" : "gh");
@@ -1493,7 +1470,6 @@ test("9.31 · plan_contract given an open increment adds the new contract to tha
       const planned31 = await agent.call("plan_contract", { edge, increment, title: "The link reads the form's checked address" });
       assert.notEqual(planned31.isError, true, planned31.text);
       const contract = idOf(planned31);
-      // An open increment's links naming a contract are what the arc board rings a gate by (arc surface's openContracts).
       const { status, links } = (await library.get(increment))!.fields as { status: string; links?: string[] };
       assert.deepEqual(links, [story, contract], "the contract joins the increment's links, beside what it already cited");
       assert.notEqual(status, "closed");
@@ -1503,7 +1479,6 @@ test("9.31 · plan_contract given an open increment adds the new contract to tha
       for (const wrong of [story, "increment_000000000000"]) {
         const refused = await agent.call("plan_contract", { capability: form, increment: wrong, title: "Belongs to no increment" });
         assert.equal(refused.isError, true, wrong);
-        // An id no library holds as an increment is refused where the write is placed (ADR-1348 D3), before the tool runs.
         assert.match(refused.text, /not an open increment|No library this folder reads holds increment/, refused.text);
       }
       await agent.call("close_increment", { increment, disposition: "withdrawn", note: "replaced" });
@@ -1518,7 +1493,7 @@ test("9.31 · plan_contract given an open increment adds the new contract to tha
 
 test("9.32 · edit_plan moving a contract to another capability says when its number changed, from what to what, and that its tests' titles take the new number; held, it says the number changes on apply", async () => {
   await withProject(async ({ folder, library }) => {
-    git(folder, "init", "-b", "claude/context-service"); // a claim on a branch holds a change until it merges
+    git(folder, "init", "-b", "claude/context-service");
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Context service", ...FOUNDED }));
       const arc = idOf(await agent.call("plan_arc", { title: "Launch v1", intent: "Ship it", end_state: "It serves", stories: [story] }));
@@ -1634,7 +1609,6 @@ test("6.108 a tool that writes a library takes project, arc or increment, at lea
         const unnamed = await agent.callExactly("plan_arc", arcAsked);
         assert.equal(unnamed.isError, true);
         assert.match(unnamed.text, new RegExp(`names where it goes.*give project.*this folder's is "${project}".*arc or the increment`));
-        // Each other tool that writes is refused the same, the librarian's, the pins and the contract report among them.
         const others = {
           link: { from: "principle_000000000000", to: "decision_000000000000" },
           supersede: { olds: ["decision_000000000000"], successor: "decision_111111111111" },

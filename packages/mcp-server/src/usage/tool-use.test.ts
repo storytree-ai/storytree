@@ -1,4 +1,3 @@
-/** The MCP server 8.1–8.3: its own tools' use, counted from one window of the tool door's door-answered lines. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

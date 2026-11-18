@@ -1,15 +1,4 @@
-/**
- * Capabilities 6 · Tool server, 9 · Plan tools, 10 · Work tools, 11 · Session tools and 13 · Note tools, in the MCP server story: what each call records and reads (sessions, notes, context), refusals with storytree stopped, increments and plan health. One of three files
- * (agent-tools, agent-tools-reads, agent-tools-writes) split so a test unit runs them side by side.
- * A test client talks to the server inside the test itself, over an
- * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
- * Code's session id reaches the server in its environment, Codex's on each call's `_meta`, and each
- * call's `_meta` carries its id as that harness sends it.
- *
- * The server works in a throwaway folder set up as a project (named with uniqueProjectName(), its
- * library dropped afterwards), and finds storytree from the test Postgres's own owner record.
- * What the tests check is read back through the library and the activity log themselves.
- */
+// Capability 6 · Tool server (the MCP server)
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
@@ -34,7 +23,6 @@ import { registerWorkTools } from "./work-tools.js";
 import type { Answer, Call, Define } from "./server.js";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
-/** A note's fields, as the library holds them. */
 async function noteFields(library: Library, id: string): Promise<{ links?: string[] }> {
   const found = (await library.search("")).find((note) => note.id === id);
   assert.ok(found !== undefined, `note ${id} is in the library`);
@@ -47,7 +35,6 @@ test("6.3 every call is recorded against the session that made it, using the ses
       await withAgent(folder, codex("codex-1"), async (codexAgent) => {
         await claude.call("show_plan");
         await codexAgent.call("show_plan");
-        // Codex before 0.155 sends only the thread's id, which is its hooks' session id.
         await codexAgent.call("plan_story", { title: "Visitor can sign in", ...FOUNDED }, { threadId: "codex-2" });
       });
     });
@@ -73,7 +60,7 @@ test("in a folder whose project was deleted from the library, a tool says so and
     const storytree = await connect({ url: testServerUrl() });
     try {
       await (await storytree.openProject(project)).close();
-      await storytree.dropProject(project); // deleted from another computer; this folder still names it
+      await storytree.dropProject(project);
       await withAgent(folder, claudeCode("claude-1"), async (agent) => {
         const plan = await agent.call("show_plan");
         assert.equal(plan.isError, true);
@@ -99,8 +86,8 @@ test("in a folder whose project was deleted and a new project of its name set up
       await first.close();
       writeMarker(folder, `${JSON.stringify({ project, identity: first.identity })}\n`);
       await approveCheckout(folder, project);
-      await storytree.dropProject(project); // deleted from another computer; this folder still names it
-      await (await storytree.openProject(project)).close(); // and a new project of that name set up elsewhere
+      await storytree.dropProject(project);
+      await (await storytree.openProject(project)).close();
       await withAgent(folder, claudeCode("claude-1"), async (agent) => {
         const plan = await agent.call("show_plan");
         assert.equal(plan.isError, true);
@@ -161,7 +148,6 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
       assert.equal(story.isError, false, "and the server carries on");
     });
 
-    // The same folder with storytree stopped: nowhere the app's owner record would be.
     await withAgent(folder, claudeCode("claude-1", { dataDir: path.join(folder, "..", "stopped", "pgdata") }), async (agent) => {
       const calls: [string, Record<string, unknown>][] = [
         ["plan_arc", { title: "Launch v1", intent: "Ship sign-up", end_state: "Visitors can sign up" }],
@@ -228,7 +214,6 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["fetch_media", { record: "definition_000000000000", name: "dusk.png", out: "dusk.png" }],
         ["message_lane", { increment: "increment_000000000000", mode: "steer", text: "Use the SES client." }],
       ];
-      // Own's offline tools, the setup check's two and the factory plugin's three do not depend on the library; a harness's hook event waits on this machine instead (3.40), its missed beat is never told (3.44), and a lane's untaken messages wait for its next take (3.60).
       const offlineTools = ["check_setup", "set_up_project", "list_all_runs", "list_own_runs", "stop_own_run", "clear_own_runs", "hook_event", "heartbeat", "lane_messages", "plugin_contract", "new_plugin", "check_plugin"];
       assert.deepEqual(calls.map(([tool]) => tool).sort(), TOOLS.filter((tool) => !offlineTools.includes(tool)), "every library tool is tried");
       for (const [tool, args] of calls) {
@@ -265,7 +250,6 @@ test("6.4 show_plan waits the library's ten seconds for a stalled handshake, the
       placeTestServer(dataDir, { port: (silent.address() as AddressInfo).port });
       await approveCheckout(folder, project, folder);
       await withAgent(folder, claudeCode("stalled-db", { dataDir }), async (agent) => {
-        // The deadline runs on a mocked clock, so the test does not wait the ten seconds.
         mock.timers.enable({ apis: ["setTimeout"] });
         try {
           let answer: Answer | undefined;
@@ -297,11 +281,9 @@ test("6.4 show_plan waits the library's ten seconds for a stalled handshake, the
   }
 });
 
-/** The real clock, kept for waiting on the network while a test runs on a mocked one. */
 const realSetTimeout = setTimeout;
 const networkClock = { now: () => performance.now(), sleep: (ms: number) => new Promise<void>((resolve) => realSetTimeout(resolve, ms)) };
 
-/** Let the event loop turn `count` times. */
 async function turns(count: number): Promise<void> {
   for (let turn = 0; turn < count; turn++) await new Promise((resolve) => setImmediate(resolve));
 }
@@ -314,7 +296,6 @@ test("13.1 a note written with no place named while holding a claim goes onto th
       const [founding] = (await library.frontCovers(form)).map((cover) => cover.id);
       assert.ok(founding !== undefined, "the capability is born with its founding decision on its shelf");
 
-      // No claim: no default place.
       const loose = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Written before any claim" }));
       assert.deepEqual((await noteFields(library, loose)).links, undefined);
 
@@ -322,13 +303,10 @@ test("13.1 a note written with no place named while holding a claim goes onto th
       const arc = idOf(await agent.call("plan_arc", { title: "Launch", intent: "Ship signup", end_state: "Visitors join" }));
       const increment = idOf(await agent.call("park_increment", { arc, title: "Signup release", objective: "Ship the form", body: "Red then green" }));
       assert.equal((await agent.call("claim", { increment, reason: "driving the release too" })).isError, false);
-      // A memory, with no cover opened yet this session, goes inside the shelf's first book: its founding decision.
       const first = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Mailgun needs a verified domain" }));
-      // A new decision becomes another front cover of the claimed capability; once this session has opened it, a new memory goes inside that one.
       const second = idOf(await agent.call("write_note", { kind: "decision", title: "Validate on the client first", text: "Before any request" }));
       await agent.call("open", { id: second });
       const latest = idOf(await agent.call("write_note", { kind: "definition", term: "Bounce", meaning: "An email that could not be delivered" }));
-      // A place the agent names itself always wins.
       const named = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Filed where I say", links: [founding] }));
 
       assert.deepEqual((await library.frontCovers(form)).map((cover) => cover.id), [founding, second]);
@@ -336,7 +314,6 @@ test("13.1 a note written with no place named while holding a claim goes onto th
       assert.deepEqual((await noteFields(library, latest)).links, [second]);
       assert.deepEqual((await noteFields(library, named)).links, [founding]);
 
-      // Holding only a capability whose shelf is empty, as one made through the library itself can be: nothing is added, and the agent is told.
       const link = (await library.addCapability({ title: "Confirmation link", story })).id;
       await agent.call("release", { capability: form });
       await agent.call("claim", { capability: link, reason: "building the confirmation link" });
@@ -372,12 +349,12 @@ test("13.2 searching and opening a note leaves a log line saying which session r
 
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const before = (await log.since(project, 0)).cursor;
-      await agent.call("search_notes", { query: "bounces" }); // a peek at `other`, found by search
-      await agent.call("open", { id: other.id }); // opened from the search
-      await agent.call("open", { id: form.id }); // the capability's shelf: a peek at its cover
-      await agent.call("open", { id: cover.id }); // opened from the shelf, showing what links in: `inside`
-      await agent.call("open", { id: inside.id }); // opened from that link, showing what it links to: the cover
-      await agent.call("open", { id: unrelated.id }); // never shown: opened by id
+      await agent.call("search_notes", { query: "bounces" });
+      await agent.call("open", { id: other.id });
+      await agent.call("open", { id: form.id });
+      await agent.call("open", { id: cover.id });
+      await agent.call("open", { id: inside.id });
+      await agent.call("open", { id: unrelated.id });
 
       const reads = (await log.since(project, before)).lines.filter((line): line is Extract<Line, { kind: "note-read" }> => line.kind === "note-read");
       assert.deepEqual(
@@ -420,12 +397,10 @@ test("13.7 search_notes says each friction report's state, so a settled one foun
 test("6.7 each read names the agent that made it, as the harness revealed it: a subagent by its id, type and task, the orchestrator, or unknown when the harness said nothing", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     const note = await library.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain" });
-    // What Claude Code's hooks leave (capability 3): a subagent's start, and who asked for each storytree call, by the call's id.
     const claudeHook = { session: "claude-1", harness: "claude-code", source: "hook", folder } as const;
     await log.append(project, { ...claudeHook, kind: "subagent-started", subagent: "a5b1", type: "Explore", task: "find the mail setup" });
     await log.append(project, { ...claudeHook, kind: "tool-requested", tool: "open", call: "toolu_sub", agent: { subagent: "a5b1", type: "Explore" } });
     await log.append(project, { ...claudeHook, kind: "tool-requested", tool: "open", call: "toolu_main", agent: "orchestrator" });
-    // Codex's: a subagent's start. Its calls name their own thread.
     await log.append(project, { session: "codex-1", harness: "codex", source: "hook", folder, kind: "subagent-started", subagent: "thread-2", type: "explorer", task: "Read the mail decision" });
     const before = (await log.since(project, 0)).cursor;
 
@@ -475,15 +450,12 @@ test("6.24 a call a hook saw writes its tool-called and note-read lines naming t
 
 test("6.8 after Claude Code's /clear, which gives the window a new session id the tool server never sees, each call is recorded on the new session its hook named; a call no hook saw keeps the id the server was started with", async () => {
   await withProject(async ({ folder, project, log }) => {
-    // check_setup finds storytree through a storytree home: here, one saying where the test Postgres listens.
     const storytreeHome = path.join(folder, "..", "storytree-home");
     mkdirSync(storytreeHome);
     placeTestServer(path.join(storytreeHome, "pgdata"));
     await approveCheckout(folder, project, storytreeHome);
     const setup = { dataDir: path.join(storytreeHome, "pgdata"), setup: { homes: {}, storytreeHome } };
-    // The tool server was started before the /clear: its environment still names the old session.
     await withAgent(folder, claudeCode("claude-before-clear", setup), async (agent) => {
-      // The hooks before two calls, as Claude Code runs them after the /clear: they name the new session.
       for (const [call, tool] of [
         ["toolu_plan", "show_plan"],
         ["toolu_check", "check_setup"],
@@ -524,11 +496,9 @@ test("11.3 a test client calls read_context as session S and gets S's reading, w
       assert.deepEqual(first.data.guidance, { value: 600_000, source: "default", position: "under" });
       assert.match(first.text, /under.*600,000.*default/i);
 
-      // The transcript grows mid-turn, with no hook run: the next call reads it as it now stands.
       appendFileSync(before, usage("req_2", 240_000));
       assert.equal((await agent.call("read_context", {})).data.tokens, 240_000);
 
-      // After /clear the window is session T, which only its hooks name; the server still holds S's id.
       await log.append(project, { ...hook, session: "claude-after-clear", kind: "session-started", how: "clear", transcript: after });
       await log.append(project, { ...hook, session: "claude-after-clear", kind: "tool-requested", tool: "read_context", call: "toolu_ctx", agent: "orchestrator", transcript: after });
       const cleared = await agent.call("read_context", {}, { "claudecode/toolUseId": "toolu_ctx" });
@@ -1243,7 +1213,6 @@ test("9.40 · show_plan given a story's, a capability's or an arc's id gives tha
       assert.match(arcPart.text, new RegExp(`^Arc "Signup release" \\(${arc.id}\\)`));
       assert.match(arcPart.text, /^ {2}Increment "Form" \(increment_\w+\): /m);
       assert.doesNotMatch(arcPart.text, /Story "/);
-      // An arc closed outside the window a bare show_plan reads is given whole all the same.
       const closedPart = await agent.call("show_plan", { id: old.id });
       assert.match(closedPart.text, /^ {2}Increment "Beta form" \(increment_\w+\): closed; /m);
 

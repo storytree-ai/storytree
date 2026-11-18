@@ -1,8 +1,3 @@
-/**
- * What Session management promises of a call that comes through the MCP server: the wrapper ends merged
- * claims before the tool runs (session-management 5.10), and a running server rereads the idle-after setting
- * for claim takeover (session-management 5.43). The rules are Session management's; these tests prove the server calls them.
- */
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
@@ -118,7 +113,6 @@ test("6.65 a client that names no session keeps one session id for the tool serv
 test("6.66 a tool call from Cursor, which sends the tool server neither a session nor a call id, is recorded on the session Cursor's hook named just before it; a call no hook announced keeps the server's own session", async () => {
   await withProject(async ({ folder, project, log }) => {
     const calledBy = async (tool: string) => (await log.lines(project, { kinds: ["tool-called"], where: { tool } })).map((line) => `${line.session} ${line.harness}`);
-    // Cursor's MCP client names itself "Cursor"; its hook before the call names the conversation.
     await withAgent(folder, { client: "Cursor" }, async (agent) => {
       await log.append(project, { session: "cursor-conversation-1", harness: "cursor", source: "hook", folder, kind: "tool-requested", tool: "show_plan", call: "gen-1:show_plan", agent: "orchestrator" });
       await agent.call("show_plan");
@@ -133,7 +127,6 @@ test("6.66 a tool call from Cursor, which sends the tool server neither a sessio
 test("6.68 a tool call from Pi, which sends the tool server neither a session nor a call id, is recorded on the session Pi's extension named just before it, never on another harness's announcement", async () => {
   await withProject(async ({ folder, project, log }) => {
     const calledBy = async (tool: string) => (await log.lines(project, { kinds: ["tool-called"], where: { tool } })).map((line) => `${line.session} ${line.harness}`);
-    // Pi's MCP client names itself "pi" (measured, Pi 1.1.0); its extension's tool_call names the session and Pi's own call id.
     await withAgent(folder, { client: "pi" }, async (agent) => {
       await log.append(project, { session: "cursor-conversation-2", harness: "cursor", source: "hook", folder, kind: "tool-requested", tool: "stale_claims", call: "gen-2:stale_claims", agent: "orchestrator" });
       await log.append(project, { session: "pi-session-1", harness: "pi", source: "hook", folder, kind: "tool-requested", tool: "show_plan", call: "call_mcp_1", agent: "orchestrator" });

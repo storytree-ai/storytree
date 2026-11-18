@@ -10,7 +10,6 @@ function platformFeeds(version: string): { mac: PlatformFeed; linux: PlatformFee
   return { mac: { version, files: [file("mac-arm64.zip"), file("arm64.dmg")] }, linux: { version, files: [{ ...file("linux-x86_64.AppImage"), blockMapSize: 8 }] } };
 }
 
-/** A release's Windows installers: one per architecture, or, before they were split, one for both. */
 function installers(version: string, combined = false): PinCandidate["installers"] {
   const installer = (name: string) => ({ url: `${RELEASES}/v${version}/storytree-0.3-${version}-${name}`, sha256: "a".repeat(64), sha512: Buffer.alloc(64, 1).toString("base64"), size: 128 });
   return combined ? [installer("setup.exe")] : [installer("windows-x64-setup.exe"), installer("windows-arm64-setup.exe")];
@@ -56,7 +55,6 @@ test("4.16 a PR mentioned by another merge is not recorded as shipped", () => {
 test("4.16 a pin reuses the released installer and records only newly landed increments; late closure records survive the boundary", async () => {
   const { state, ports } = fixture();
   const first = await pinStable("0.3.2", ports);
-  // The Windows feed names both architectures' installers; each installed app's updater takes its own.
   assert.deepEqual(first.files, state.candidate.installers.map(({ url, sha512, size }) => ({ url, sha512, size })));
   assert.deepEqual(first.pin.increments.map(i => i.id), ["one"]);
   assert.match(first.releaseNotes, /Choose update timing.*#531/);
@@ -68,7 +66,6 @@ test("4.16 a pin reuses the released installer and records only newly landed inc
   assert.deepEqual(next.pin.increments.map(i => i.id), ["late", "two"]);
   assert.deepEqual(next.pin.includedIncrements, ["one", "late", "two"]);
   assert.equal(state.published.length, 2);
-  // A release built before the installers were split still pins, its one installer serving both architectures.
   state.candidate = { ...state.candidate, version: "0.3.4", commit: "c".repeat(40), installers: installers("0.3.4", true) };
   assert.deepEqual((await pinStable("0.3.4", ports)).files.map(f => f.url), [`${RELEASES}/v0.3.4/storytree-0.3-0.3.4-setup.exe`]);
 });
@@ -126,7 +123,6 @@ test("4.16 competing publishers expose one complete feed and bootstrap, with the
   const tree = trees.get(commits.get(head)!.tree)!.tree;
   assert.deepEqual(JSON.parse(tree.find(f => f.path === "latest.yml")!.content), manifest);
   assert.equal(tree.find(f => f.path === "install-storytree.ps1")!.content, "the published bootstrap");
-  // A release that carries the Mac's one-liner pins it beside the Windows one; one that does not, pins none.
   const mac = tree.find(f => f.path === "install-storytree.sh")?.content;
   assert.equal(mac, results[0]!.status === "fulfilled" ? "the Mac's bootstrap" : undefined);
 });
@@ -148,7 +144,6 @@ test("4.16 a pin writes a feed for each platform the release carries; a Windows-
   assert.deepEqual(next.feeds, platformFeeds("0.3.2"));
   assert.match(pinCoverage(next), /Mac stays on 0\.3\.2/);
   assert.match(pinCoverage(next), /Linux stays on 0\.3\.2/);
-  // The stable branch carries each platform's feed beside latest.yml, pointing at the original release's files.
   const trees: { path: string; content: string }[][] = [];
   const api: GithubRequest = async (endpoint, _method, body) => {
     if (endpoint === "git/trees") trees.push((body as { tree: { path: string; content: string }[] }).tree);
@@ -159,7 +154,6 @@ test("4.16 a pin writes a feed for each platform the release carries; a Windows-
   assert.deepEqual(JSON.parse(tree.find(f => f.path === "latest-mac.yml")!.content), platformFeeds("0.3.2").mac);
   assert.deepEqual(JSON.parse(tree.find(f => f.path === "latest-linux.yml")!.content), platformFeeds("0.3.2").linux);
   assert.match(tree.find(f => f.path === "README.md")!.content, /Mac stays on 0\.3\.2/);
-  // A first pin of a release without a platform writes no feed for it, and says so.
   const fresh = fixture();
   release(fresh.state, "0.3.4", { mac: platformFeeds("0.3.4").mac });
   const macOnly = await pinStable("0.3.4", fresh.ports, true);
@@ -193,15 +187,12 @@ test("4.16 the pin moves back only to a build pinned before, restoring that pin'
   release(state, "0.3.3", {});
   const bad = await pinStable("0.3.3", ports);
   assert.deepEqual(bad.pin.includedIncrements, ["one", "two"]);
-  // Pinning forward to an older build stays refused, and says how to stop a bad pin instead.
   release(state, "0.3.2", {});
   await assert.rejects(pinStable("0.3.2", ports), /older.*--back/s);
-  // Back to a build never pinned, or to one that is not older, is refused.
   release(state, "0.3.1", {});
   await assert.rejects(moveStableBack("0.3.1", ports), /never pinned/);
   release(state, "0.3.3", {});
   await assert.rejects(moveStableBack("0.3.3", ports), /older/);
-  // The release behind a former pin must still be that pin's build.
   release(state, "0.3.2", platformFeeds("0.3.2"));
   await assert.rejects(moveStableBack("0.3.2", ports), /identity/);
   assert.equal(state.published.length, 2);
@@ -217,7 +208,6 @@ test("4.16 the pin moves back only to a build pinned before, restoring that pin'
   assert.equal(back.pin.previous, "0.3.3");
   assert.equal(back.pin.movedBackFrom, "0.3.3");
   assert.match(back.releaseNotes, /moved back from 0\.3\.3/i);
-  // Stable users on the restored build never had the bad pin's increments, so the next pin lists them again.
   assert.deepEqual(back.pin.includedIncrements, ["one"]);
   release(state, "0.3.4", {});
   const next = await pinStable("0.3.4", ports);
@@ -277,7 +267,6 @@ test("4.16 the macOS run a pin stands on is main's latest green nightly run, and
   const contains = async (head: string, commit: string) => head === commit || (later.has(head) && commit === "a".repeat(40));
   assert.match((await nightlyMacos([run(9, "c".repeat(40), "success")], "a".repeat(40), contains)).evidence, /^macOS nightly run 9 tested main at cccccccccccc\b/);
   assert.equal((await nightlyMacos([run(9, "c".repeat(40), "success")], "a".repeat(40), contains)).tested, true);
-  // The newest green run is the one that counts; a red run after it, or a run off another branch, tests nothing.
   const refused = await nightlyMacos([run(11, "c".repeat(40), "failure"), run(10, "d".repeat(40), "success", "topic"), run(9, "e".repeat(40), "success"), run(8, "c".repeat(40), "success")], "a".repeat(40), contains);
   assert.equal(refused.tested, false);
   assert.match(refused.evidence, /main's last green nightly macOS run, 9, tested eeeeeeeeeeee/);
@@ -315,7 +304,6 @@ test("4.16 a former pin is read from the stable branch's history, a move back in
   assert.deepEqual(await formerPin("0.3.2", api), pinned);
   assert.deepEqual(read, ["contents/latest.yml?ref=c3"]);
   assert.equal(await formerPin("0.3.1", api), undefined);
-  // A move back is written to the branch under its own message.
   const messages: string[] = [];
   await publishStable({ ...pinned, pin: { ...pinned.pin, movedBackFrom: "0.3.3" } }, { ps1: "b" }, "base", async (endpoint, _m, body) => {
     if (endpoint === "git/commits") messages.push((body as { message: string }).message);
@@ -341,7 +329,6 @@ test("4.16 a release's own Mac feed is read with each file at its absolute URL o
   assets["storytree-0.3-0.3.5-arm64.dmg"] = 41;
   assert.throws(() => releaseFeed(text, resolve, "0.3.5"), /size/);
   assert.throws(() => releaseFeed(text.replace("    size: 30", "    unknown: 30"), resolve, "0.3.5"), /Cannot read/);
-  // A later release without a new Mac build carries this feed (4.6): it is no Mac build of that release, so a pin of it keeps the Mac where it was.
   assert.equal(releaseFeed(text.replaceAll("url: storytree", "url: ../v0.3.5/storytree"), resolve, "0.3.6"), undefined);
 });
 
@@ -370,7 +357,6 @@ test("4.34 a pin records the day its build was published, and the stable branch'
   await publishStable(pinned, { ps1: "published bootstrap" }, undefined, api);
   const page = trees[0]!.find(f => f.path === "README.md")!.content;
   assert.match(page, /storytree 0\.3\.2 was published on 2026-10-01\. Work that landed after that day is only in alpha: .*INSTALL\.md#stable-or-alpha/);
-  // A pin made before builds carried the day says nothing of it, rather than a wrong one.
   const { releaseDate: _, ...older } = pinned;
   trees.length = 0;
   await publishStable(older, { ps1: "published bootstrap" }, undefined, api);
@@ -388,7 +374,6 @@ test("4.34 moving stable back names the restored build's own day, taken from its
   await pinStable("0.3.3", ports);
   state.candidate = good;
   assert.equal((await moveStableBack("0.3.2", ports)).releaseDate, "2026-10-01T09:30:00Z");
-  // A former pin that recorded its day keeps it.
   release(state, "0.3.4", {});
   state.candidate = { ...state.candidate, published: "2026-10-09T10:00:00Z" };
   await pinStable("0.3.4", ports);

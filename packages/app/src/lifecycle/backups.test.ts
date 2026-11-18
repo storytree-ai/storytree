@@ -1,8 +1,4 @@
-/**
- * Capability 10 · Daily snapshots, contract 10.1 in the app story (ADR-0641 D2 step 4, choice B1): the app
- * writes a snapshot of each project once a day (at start unless one under a day old is reused), keeping each project's newest 14.
- * Against the real Postgres `pnpm test` provides; apps/desktop wires the timing to the app.
- */
+// Capability 10 · Daily snapshots
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import fs, { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -32,7 +28,6 @@ test("10.1 the app writes a snapshot of each project to backups/<project>/, keep
     await library.close();
     await (await storytree.openProject(app)).close();
 
-    // Fifteen older snapshots of `site`, and a file that is not one, which is never touched.
     mkdirSync(path.join(dir, site));
     const older = Array.from({ length: 15 }, (_, day) => `2026-01-${String(day + 1).padStart(2, "0")}T00-00-00-000Z.json`);
     for (const name of older) writeFileSync(path.join(dir, site, name), "{}");
@@ -72,7 +67,6 @@ test("10.1 a snapshot past the longest string JavaScript can build is written wh
     records: Array.from({ length: 50 }, (_, i) => ({ id: `term_${i}`, type: "term", version: 1, fields: { meaning: `meaning ${i}\n"quoted"` }, createdAt: "now", updatedAt: "now" })),
     history: Array.from({ length: 50 }, (_, i) => ({ seq: i + 1, recordId: `term_${i}`, type: "term", action: "created" as const, record: { meaning: `meaning ${i}` }, at: "then" })),
   };
-  // V8 refuses a string past about 2^29 characters; here the limit is 400, far below the whole snapshot.
   const stringify = (value: unknown): string => {
     const text = JSON.stringify(value);
     if (text.length > 400) throw new RangeError("Invalid string length");
@@ -83,7 +77,6 @@ test("10.1 a snapshot past the longest string JavaScript can build is written wh
   assert.deepEqual(await readBackup(file), snapshot, "the file reads back, piece by piece, as the object restore takes");
   assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), snapshot, "and is still one JSON value");
   const empty: ProjectSnapshot = { ...snapshot, project: "empty", records: [], history: [] };
-  // A 1.2 MB record, then 3 MB more, reach the file in a few writes each well below the whole, never as one string.
   const big: ProjectSnapshot = { ...snapshot, project: "big", records: Array.from({ length: 3001 }, (_, i) => ({ ...snapshot.records[0]!, id: `term_${i}`, fields: { meaning: "x".repeat(i === 0 ? 1_200_000 : 1000) } })) };
   const write = fs.writeSync, writes: number[] = [];
   const mock = t.mock.method(fs, "writeSync", ((fd: number, data: string) => { writes.push(data.length); return write(fd, data); }) as typeof write);
@@ -150,7 +143,6 @@ test("10.1 a start reuses a project's successful snapshot under a day old, and t
     snapshot: async (project) => { taken.push(project); return { format: "storytree-project-snapshot", version: 1, project, takenAt: new Date().toISOString(), records: [], history: [] }; },
   } });
   t.after(() => backups.stop());
-  // Each snapshot is written to disk, which Windows can take many turns to finish (the waits' clock is not mocked here).
   const untilTaken = (count: number) => waitUntil(() => taken.length >= count, 10_000, `${count} snapshots taken`);
   await untilTaken(3);
   assert.deepEqual(taken, ["stale", "none", "partial"], "a start takes no new snapshot of a project whose newest successful one is under a day old");

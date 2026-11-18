@@ -1,7 +1,3 @@
-/**
- * The Surfaces menu's readings (ADR-0750): every surface the stories declare, on and at its
- * defaults until you change it in the settings file, which a throwaway home holds here.
- */
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

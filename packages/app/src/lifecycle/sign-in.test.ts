@@ -6,7 +6,6 @@ import { test } from "node:test";
 
 import { loginItemsFor, SIGN_IN_DESKTOP_FILE, SIGN_IN_LABEL, signIn, type LoginItem } from "./sign-in.js";
 
-/** Electron's login item, faked: what each call asked for. */
 function fakeLoginItems(): { calls: LoginItem[]; set(item: LoginItem): void } {
   const calls: LoginItem[] = [];
   return { calls, set: (item) => { calls.push(item); } };
@@ -24,7 +23,6 @@ test("1.12 the installed app opens at sign-in, straight to the tray, until the u
   assert.deepEqual(first.set(false), { available: true, on: false });
   assert.deepEqual(items.calls.at(-1), { openAtLogin: false, args: ["--background"], name: "storytree 0.3" });
 
-  // The next start keeps the user's choice rather than registering again.
   const restarted = signIn({ installed: true, file, loginItems: items });
   restarted.apply();
   assert.equal(items.calls.at(-1)?.openAtLogin, false);
@@ -55,9 +53,7 @@ test("1.12 on a Mac, opening at sign-in is a LaunchAgent that starts the app wit
   const plist = readFileSync(agent, "utf8");
   assert.match(plist, /<key>ProgramArguments<\/key>\s*<array>\s*<string>\/Applications\/storytree-0\.3\.app\/Contents\/MacOS\/storytree-0\.3<\/string>\s*<string>--background<\/string>\s*<\/array>/);
   assert.match(plist, /<key>RunAtLoad<\/key>\s*<true\/>/);
-  // An update relaunches the app from it: launchd must not stop that new start when this one quits.
   assert.match(plist, /<key>AbandonProcessGroup<\/key>\s*<true\/>/);
-  // Electron's own Mac login item, which would open the window, is never left registered.
   assert.ok(electron.calls.every((call) => !call.openAtLogin));
 
   mac.set(false);
@@ -88,7 +84,6 @@ test("1.12 on Linux, opening at sign-in is an XDG autostart entry that starts th
   const desktop = readFileSync(entry, "utf8");
   assert.match(desktop, /^\[Desktop Entry\]$/m);
   assert.match(desktop, /^Type=Application$/m);
-  // A path with a space is quoted, as the desktop entry spec asks, so the session starts the AppImage itself.
   assert.match(desktop, /^Exec="\/home\/someone\/My Apps\/storytree-0\.3" --background$/m);
   assert.equal(electron.calls.length, 0);
 

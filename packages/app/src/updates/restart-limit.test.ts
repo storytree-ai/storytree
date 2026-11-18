@@ -1,7 +1,4 @@
-/**
- * Capability 4 · Updates, contract 4.35: after five restarts in a row the app stops restarting itself, and a start that
- * stays up resets the count. Each start of the app is a new background() with a new restartLimit on the same file.
- */
+// Capability 4 · Updates
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,7 +10,6 @@ import { RESTARTS_IN_A_ROW, restartLimit, RestartsStopped, STABLE_AFTER_MS } fro
 
 const NEWER = { execPath: "/runtime/b/electron", args: ["/runtime/b/app"] };
 
-/** One start of the app: its restart into a newer build, and what it did. */
 async function startAndRestart(file: string): Promise<{ restarted: boolean; stopped: boolean; refusal?: unknown }> {
   let stopped = false;
   let relaunched = false;
@@ -46,7 +42,6 @@ test("4.35 after five restarts in a row the app stops restarting itself: the six
   assert.ok(sixth.refusal instanceof RestartsStopped, "it is refused, saying why");
   assert.equal((await startAndRestart(file)).restarted, false, "and stays refused while no start has stayed up");
 
-  // This start stays up: the restarts before it are no longer in a row.
   restartLimit({ file });
   t.mock.timers.tick(STABLE_AFTER_MS);
   for (let restart = 1; restart <= RESTARTS_IN_A_ROW; restart++) {

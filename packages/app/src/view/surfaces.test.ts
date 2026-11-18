@@ -1,7 +1,3 @@
-/**
- * The Surfaces menu in Settings (ADR-0750), as HTML: every surface with its name and description,
- * a switch where it can be switched off, and its own settings beneath it. Read without a browser.
- */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setImmediate } from "node:timers/promises";
@@ -19,7 +15,6 @@ const readings: SurfaceReading[] = [
   { id: "sessions", name: "Sessions", description: "Who is working.", switchable: true, on: true, source: "default", settings: [] },
 ];
 
-/** The HTML of the one surface `id`, its group's members excluded. */
 function row(html: string, id: string): string {
   const found = new RegExp(`<div class="surface"[^>]*data-surface="${id}"[\\s\\S]*?<!-- /${id} -->`).exec(html)?.[0];
   assert.ok(found !== undefined, `a row for ${id}`);

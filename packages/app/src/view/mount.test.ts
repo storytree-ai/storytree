@@ -19,7 +19,6 @@ test("2.7 clicking the mounted menu sections switches their content and preserve
   const host = window.document.createElement("header");
   const background = window.document.createElement("main");
   window.document.body.append(host, background);
-  // Share the Desktop capture's typed bridge; the mounted App keeps the same section actions.
   const bridge = fakeBridge({
     standingDelegations: async () => "The owner chooses the design.",
     saveSurface: async () => { throw new Error("not changing surfaces in this test"); },
@@ -62,8 +61,6 @@ test("2.7 clicking the mounted menu sections switches their content and preserve
   });
   menu.update({ projects: ["first", "second"], current: "second" });
   assert.equal(host.querySelector("select")?.value, "second");
-  // Native popover opening and dismissal remain exercised by the real browser capture.
-  // This mounted test exercises the app's section wiring inside that frame.
   const section = async (name: string) => {
     const tab = host.querySelector<HTMLButtonElement>(`[data-app-section="${name}"]`)!;
     tab.click();
@@ -140,7 +137,6 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
     await window.happyDOM.close();
     rmSync(home, { recursive: true, force: true });
   });
-  // happy-dom has no popovers; the real browser capture opens the overlay itself.
   let opened = 0;
   Object.assign(host.querySelector("#app-menu")!, { showPopover() { opened++; }, hidePopover() {} });
   const bar = () => host.querySelector(".app-bar")!;
@@ -161,7 +157,6 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   assert.doesNotMatch(bar().textContent, /your factory/i);
   assert.equal(projectsTab().getAttribute("aria-current"), "true", "on a product, Projects is the selected tab");
   assert.equal(factoryTab().hasAttribute("aria-current"), false);
-  // The product on show is named after the Projects tab, and its copy button puts the name on the clipboard.
   assert.equal(bar().querySelector("[data-app-project-name]")!.textContent, "my-site");
   bar().querySelector<HTMLButtonElement>("[data-app-copy-project]")!.click();
   await setImmediate();
@@ -171,7 +166,6 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   await setImmediate();
   assert.deepEqual(chosen, ["my-factory"], "the factory icon switches straight to the factory, with no dropdown");
   assert.equal(shown, 1);
-  // In the factory its icon is the selected tab, no product is selected, and any product is one choice away.
   menu.update({ projects, current: "my-factory", factory: { place: "factory", product: "my-site" } });
   assert.equal(factoryTab().getAttribute("aria-current"), "true");
   assert.equal(projectsTab().hasAttribute("aria-current"), false);
@@ -182,7 +176,6 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   assert.deepEqual(chosen, ["my-factory"], "the factory icon on the factory switches nothing");
   await choose("other-site");
   assert.deepEqual(chosen, ["my-factory", "other-site"]);
-  // With no factory yet, the icon stays, greyed, and says so; every project is a product.
   menu.update({ projects, current: "other-site", factory: { place: "none" } });
   assert.equal(factoryTab().getAttribute("aria-disabled"), "true");
   assert.equal(factoryTab().title, "No factory yet");
@@ -190,7 +183,6 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   factoryTab().click();
   await setImmediate();
   assert.deepEqual(chosen, ["my-factory", "other-site"], "a greyed factory icon switches nothing");
-  // Add a project… opens the gear on Projects and starts Add project, leaving the project on show selected.
   select().selectedIndex = select().options.length - 1;
   select().dispatchEvent(new window.Event("change"));
   await setImmediate();
@@ -199,14 +191,12 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   assert.equal(select().value, "other-site");
   assert.equal(host.querySelector("#app-projects")!.hasAttribute("hidden"), false);
   assert.deepEqual(chosen, ["my-factory", "other-site"], "Add a project… switches nothing by itself");
-  // A refused choice says why beside the tabs and leaves them free, on the project still on show, to retry.
   refused = true;
   await choose("my-site");
   assert.equal(errors.length, 1);
   assert.match(bar().querySelector("[data-app-project-error]")!.textContent, /Couldn’t switch project: the library is not reachable/);
   assert.equal(select().disabled, false);
   assert.equal(select().value, "other-site");
-  // Add a project… after a refusal puts the stale reason away.
   select().selectedIndex = select().options.length - 1;
   select().dispatchEvent(new window.Event("change"));
   await setImmediate();
@@ -216,7 +206,6 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   await choose("my-site");
   assert.deepEqual(chosen, ["my-factory", "other-site", "my-site"]);
   assert.equal(bar().querySelector("[data-app-project-error]")!.hasAttribute("hidden"), true);
-  // With no projects at all, the dropdown holds only Add a project…
   menu.update({ projects: [], current: undefined });
   assert.deepEqual([...select().options].map((option) => option.textContent), ["Add a project…"]);
   select().selectedIndex = 0;
@@ -323,7 +312,6 @@ test("2.58 the app menu opens on Help when asked from outside the gear, as the e
     await window.happyDOM.close();
     await removeTemp(home);
   });
-  // Native popovers are the real browser capture's; here the menu's own opening is counted.
   const popover = host.querySelector("#app-menu")!;
   let open = false, shown = 0;
   Object.assign(popover, { showPopover: () => { open = true; shown++; }, matches: (selector: string) => selector === ":popover-open" && open });

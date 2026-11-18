@@ -14,7 +14,6 @@ const snapshot: ProjectSnapshot = {
   history: [{ seq: 1, recordId: "term_private", type: "term", action: "created", record: { meaning: "private historical text" }, at: "then" }],
 };
 const stamp = "2026-10-08T00-00-00-000Z.json";
-// Each Windows PowerShell spawn may take up to its 120 s bound on a slow CI runner, past the 60 s default test limit.
 const windowsOnly = { skip: process.platform !== "win32" ? "platform:win32: Windows Authz effective-access proof runs on Windows CI" : false, timeout: 300_000 };
 
 for (const existing of [false, true]) {
@@ -35,8 +34,6 @@ for (const existing of [false, true]) {
     }
     allowUnrelated(before);
     const notes = path.join(folder, "notes.txt");
-    // Keep an unprotected unrelated child too: changing a directory via SetAccessControl would
-    // remove its inherited grants. The repair must touch only the named backup objects.
     if (existing) fs.writeFileSync(notes, "unrelated notes");
     const original = access(before);
     const originalNotes = existing ? access([notes]) : [];
@@ -156,11 +153,6 @@ function assertPrivate(files: string[]): void {
   }
 }
 
-/** Ask Windows' authorization engine about the actual on-disk descriptors. The unrelated user
- * is an arbitrary SID with Everyone, Authenticated Users and BUILTIN Users groups, no administrator
- * group or privileges. No account, password, logon, machine policy or service is created/changed.
- * https://learn.microsoft.com/windows/win32/api/authz/nf-authz-authzinitializecontextfromsid
- */
 function access(files: string[]): Access[] {
   return JSON.parse(powershell(`Add-Type -TypeDefinition @'
 using System;

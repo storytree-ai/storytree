@@ -49,7 +49,6 @@ test("4.34 the gear's channel read names the stable build and the day it was pub
   const feed = (text: string) => async (url: string) => { asked.push(url); return text; };
   assert.deepEqual(await stableBuild(feed(pin({ releaseDate: "2026-11-02T22:10:00Z" }))), { version: "0.3.2259", published: "2026-11-02" });
   assert.deepEqual(asked, [`${STABLE_FEED}latest.yml`]);
-  // A pin from before pins recorded the day, an unreadable one and a failed read name nothing, and the failure is logged.
   const logged: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
   assert.equal(await stableBuild(feed(pin({}))), undefined);

@@ -1,20 +1,4 @@
-/**
- * Capability 10 · The allocation rule (storytree's repository checks, ADR-1199 D5; moved from Architecture
- * checks' packages/guardrails, ADR-0911 D2): which source files of a story
- * package no numbered test reaches (ADR-0838 D5), the rule that keeps every line of code on an island
- * inside a capability's territory. storytree's own lint runs it over its checkout in every `pnpm test`
- * (allocation.mjs), and the owner's dev-loop plugin imports the same code for `storytree check`.
- *
- * It needs no plan: any numbered test of a package, or its coverage map (survey-coverage.json), allocates,
- * as the map's code survey reads the checkout as it stands. A test numbered for a capability the plan
- * lacks is the plan's health to report, not this rule's.
- *
- * A source file that declares its capability in its opening comment ("Capability N · <title>", ADR-0925 D1)
- * is checked against the same reach (D2): it fails when capability N's numbered tests and coverage map do not
- * reach it while another's do, named with the capabilities that do. Asked to, as storytree's own dev loop asks
- * since every one of its source files declares, it also fails an undeclared file, suggesting the capability the
- * survey infers for it (D2's last clause); a user's project is not asked, and works without the convention (D3).
- */
+// Capability 10 · The allocation rule
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -24,23 +8,19 @@ import { storiesOf } from "../package-rule/package-rule.js";
 
 type SurveyedFile = ProjectSurvey[string]["files"][number];
 
-/** Enough capabilities that every number a story's tests can carry names one. */
 const NUMBERS = Array.from({ length: 99 }, (_, at) => at + 1);
 
-/** A source file no numbered test reaches, repo-relative, with its lines of code. */
 export interface Unallocated {
   readonly file: string;
   readonly lines: number;
 }
 
-/** A source file declaring capability `declared`, which only the capabilities `reachedBy` reach, repo-relative. */
 export interface Misdeclared {
   readonly file: string;
   readonly declared: number;
   readonly reachedBy: readonly number[];
 }
 
-/** The source files of the `stories` packages at `root` as the code survey allocates them, repo-relative. */
 async function surveyed(root: string, stories: readonly string[]): Promise<SurveyedFile[]> {
   const tree = { arcs: [], stories: stories.map((id) => ({ id, title: id, capabilities: NUMBERS.map((n) => ({ id: `${id}#${n}`, title: `${n} · ${n}` })) })) };
   const survey = await codeSurveyReader({ checkout: "current" }).read(root, tree as unknown as Parameters<CodeSurveyReader["read"]>[1]);
@@ -51,46 +31,33 @@ async function surveyed(root: string, stories: readonly string[]): Promise<Surve
 const unallocatedOf = (files: readonly SurveyedFile[]): Unallocated[] =>
   files.filter((file) => !file.capability).map((file) => ({ file: file.path, lines: file.lines }));
 
-/** A declared file another capability's tests reach, but not its own; a file nothing reaches is unallocated instead. */
 const misdeclaredOf = (files: readonly SurveyedFile[]): Misdeclared[] =>
   files.flatMap(({ path: file, declared, reachedBy = [] }) => declared === undefined || reachedBy.length === 0 || reachedBy.includes(declared) ? [] : [{ file, declared, reachedBy }]);
 
-/** A reached source file whose opening comment declares no capability, with the capability number the survey infers for it. */
 export interface Undeclared {
   readonly file: string;
   readonly suggested: number;
 }
 
-/** What the rule is asked to fail beyond unallocated and misdeclared files. */
 export interface AllocationOptions {
-  /** Fail a reached file that declares no capability (ADR-0925 D2), for a project whose every source file declares. */
   readonly undeclaredFails?: boolean;
 }
 
-/** A reached file with no declaration; a file nothing reaches is unallocated instead. */
 const undeclaredOf = (files: readonly SurveyedFile[]): Undeclared[] =>
   files.flatMap(({ path: file, declared, capability }) => declared !== undefined || !capability ? [] : [{ file, suggested: Number(capability.slice(capability.lastIndexOf("#") + 1)) }]);
 
-/** Each source file of the `stories` packages (packages/<id>) at `root` that no numbered test reaches; by default, of every package under packages/. */
 export async function unallocatedCode(root: string, stories: readonly string[] = storiesOf(root)): Promise<Unallocated[]> {
   return unallocatedOf(await surveyed(root, stories));
 }
 
-/** Each source file of the `stories` packages at `root` whose declared capability's numbered tests do not reach it (ADR-0925 D2). */
 export async function misdeclaredCode(root: string, stories: readonly string[] = storiesOf(root)): Promise<Misdeclared[]> {
   return misdeclaredOf(await surveyed(root, stories));
 }
 
-/** Each reached source file of the `stories` packages at `root` whose opening comment declares no capability, with the survey's suggestion. */
 export async function undeclaredCode(root: string, stories: readonly string[] = storiesOf(root)): Promise<Undeclared[]> {
   return undeclaredOf(await surveyed(root, stories));
 }
 
-/**
- * The way out for a file whose package keeps a coverage map (survey-coverage.json) that holds no entry for it, as a
- * file only the built command reaches has until the map is re-measured, and a file only a browser proof reaches until that proof
- * records its coverage (recordBrowserCoverage, the coverage map's browser half); empty for a package with no map, or a mapped file.
- */
 function remeasure(root: string, file: string): string {
   const [, id = "", ...rest] = file.split("/");
   let map: Record<string, unknown>;
@@ -102,7 +69,6 @@ function remeasure(root: string, file: string): string {
   return Object.hasOwn(map, rest.join("/")) ? "" : ` Or, if a test reaches it only through a process it starts, re-measure ${id}'s coverage map, which has no entry for it: pnpm survey:coverage ${id}. That re-measure counts Node processes, and a browser proof only once it records its coverage, so a file only a browser proof reaches enters the map after that proof calls recordBrowserCoverage (@storytree/repo-checks/coverage-map) as it passes.`;
 }
 
-/** One sentence per unallocated, misdeclared or (asked to) undeclared source file, each with its ways out; empty when every file is allocated as it says. */
 export async function allocationProblems(root: string, stories: readonly string[] = storiesOf(root), options: AllocationOptions = {}): Promise<string[]> {
   const files = await surveyed(root, stories);
   return [

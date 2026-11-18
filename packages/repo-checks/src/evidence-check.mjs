@@ -1,12 +1,4 @@
-// Capability 1 · Leak, secret and push scans. Evidence media is not committed (ADR-1234 D1): a screenshot, clip, trace
-// or coverage file (.png, .webm, .json.gz) under a folder named evidence or under docs/design goes to the evidence
-// bucket under its pull request (`pnpm evidence:upload`, on the Mint box) and is linked, since git history never
-// shrinks. `pnpm check:evidence` (the gate's check:evidence, and CI) refuses a branch that adds or changes such a file
-// against origin/main. An input a build, test or script reads (a capture's seed.json.gz, or a file under a folder named
-// inputs) stays committed, since CI's tests read it with no library; an owner-approved reference (a file under a folder
-// named approved) is refused too, and sent to the library beside the note citing it (ADR-1234 D3, `storytree media
-// attach`). A deletion passes, as the arc-close sweep makes them, and so does a file git does not track (a capture's
-// --retake writes its pictures into the evidence folder untracked), since only what the branch commits or stages lands.
+// Capability 1 · Leak, secret and push scans
 import { execFileSync } from "node:child_process";
 import { statSync } from "node:fs";
 import path from "node:path";
@@ -14,20 +6,15 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { changedFiles } from "@storytree/base-dev-loop/test-scope";
 
-/** Evidence media: a picture, clip, trace or coverage file under an evidence folder or docs/design. */
 const MEDIA = /\.(png|webm|json\.gz)$/i;
 const FOLDERS = /(^|\/)evidence\/|^docs\/design\//;
-/** A build's input, which stays committed: a capture's seed or a file under an inputs/ folder. */
 const DURABLE = /(^|\/)inputs\/|(^|\/)seed\.json\.gz$/;
-/** An owner-approved reference, which the library keeps instead. */
 const APPROVED = /(^|\/)approved\//;
 
-/** Whether `file` (a path in the checkout, forward slashes) is media that must not be committed: evidence, or an approved reference. */
 export function isCommittedEvidence(file) {
   return MEDIA.test(file) && FOLDERS.test(file) && !DURABLE.test(file);
 }
 
-/** The check: each file the branch at `root` adds or changes against origin/main, committed or staged, failing on evidence media. */
 export function checkEvidence({ root, log = console.log, error = console.error }) {
   let files;
   try {

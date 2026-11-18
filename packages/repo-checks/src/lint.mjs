@@ -7,7 +7,6 @@ import { eslintProblems } from "./eslint.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
 import { typeImportProblems } from "./type-imports.mjs";
 
-/** The rules, each `{ name, problems(root) }`, its problems one sentence each naming the file that breaks it. */
 export const RULES = [
   { name: "type-imports", problems: typeImportProblems },
   { name: "package-boundaries", problems: boundaryProblems },
@@ -16,7 +15,6 @@ export const RULES = [
   { name: "eslint", problems: eslintProblems },
 ];
 
-/** Run `rules` over the checkout at `root`, logging each problem under its rule's name; 1 when any rule breaks, else 0. */
 export async function lint({ root, rules = RULES, log = console.log }) {
   let count = 0;
   for (const rule of rules) {

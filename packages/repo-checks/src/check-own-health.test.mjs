@@ -1,6 +1,3 @@
-// Storytree's own health is CI health's recording of a test run, configured for storytree (ADR-1066 D2 G): this checks
-// the configuration's own part, that a story's tests run through this repo's harness and come back as their junit
-// report's results, which CI health's rules then judge.
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

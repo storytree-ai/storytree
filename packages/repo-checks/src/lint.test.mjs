@@ -1,5 +1,4 @@
-// Capability 8 · Storytree's own test and gate entries. ADR-1199 D2 / increment_343265b93ea4: storytree's three
-// code-structure rules run as one lint step, `pnpm lint`, in the gate and in CI on every pull request.
+// Capability 8 · Storytree's own test and gate entries.
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

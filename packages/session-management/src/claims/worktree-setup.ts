@@ -1,35 +1,4 @@
-/**
- * Capability 19 · Worktree setup. A workspace storytree makes in a user's project is set up from the
- * project's own local file, `.storytree/worktree.local.json` in its main checkout, right after git
- * makes it (founding decision_4fa20493e9a7; behaviour borrowed from Orca's orca.yaml and
- * .worktreeinclude, rebuilt). The file is the user's, so it runs without asking, but only while git
- * does not track it. A team's checked-in `.storytree/worktree.json`, with the same keys, is read
- * beside it, the local file winning key by key; a clone must not make storytree run a command the
- * user never saw, so the checked-in file's commands run only once the user has approved that exact
- * set (`storytree workspace approve-setup <fingerprint>`, kept in their settings), and are asked
- * again when they change (Orca's trust gate, 19.6-19.8). Until then the rest of its setup runs, and
- * its answer says how to approve, or, when an agent runs alone, that no one is here to.
- *
- *   { "copy": [".env"], "share": [".cache/models"], "setup": ["pnpm install"], "teardown": ["docker compose down"] }
- *
- * - `copy`: gitignored files or folders, copied from the main checkout into the same place in the worktree.
- * - `share`: gitignored folders the worktree reaches in the main checkout: a junction on Windows (no
- *   developer mode needed), a symlink elsewhere.
- * - `setup`: commands, run in the worktree in order, after the copies and shares.
- * - `teardown`: commands, run in the worktree in order when the reaper is about to remove it (19.4).
- *
- * A worktree set up here is marked in its own git folder, which git prunes with it, so it is set up
- * once however often it is attached, and the marker carries the teardown the file named at setup:
- * those are the commands that undo this setup, whatever the file says by the time it is reaped.
- * The reaper runs in a hook with seconds to spare, so teardown runs in a detached process of its
- * own, started when the reaper would remove the worktree; the reaper keeps the worktree until that
- * process has finished, then removes it on a later pass, a failed command included. Teardown never
- * keeps a worktree for good: its cleanliness was judged before teardown began.
- *
- * Every path stays inside the repository: no `..`, no absolute path, no link leading out. Copies are
- * capped by size and entry count. A step that fails is reported with why, and the rest still run;
- * nothing here ever undoes the claim or the worktree.
- */
+// Capability 19 · Worktree setup
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from "node:fs";
@@ -37,37 +6,26 @@ import path from "node:path";
 
 import { readSetupApproval, setSetupApproval } from "@storytree/project-and-caller";
 
-/** Where the local file sits, from the repository's root. */
 export const LOCAL_SETUP_FILE = ".storytree/worktree.local.json";
-/** Where a team's checked-in file sits, from the repository's root: its commands wait for the user's approval. */
 export const CHECKED_IN_SETUP_FILE = ".storytree/worktree.json";
 
-/** One step of a worktree's setup, and how it went. */
 export interface SetupStep {
   readonly kind: "file" | "copy" | "share" | "run" | "approve";
-  /** The path or command the file named, or the local file itself. */
   readonly what: string;
   readonly ok: boolean;
-  /** Why it failed. */
   readonly why?: string;
 }
 
-/** What setting a worktree up did: the files it read and each step it took. */
 export interface WorktreeSetup {
   readonly file: string;
   readonly steps: readonly SetupStep[];
 }
 
 export interface SetupLimits {
-  /** Bytes copied across every `copy`, at most. By default, 100 MB. */
   readonly copyBytes?: number;
-  /** Files and folders copied across every `copy`, at most. By default, 10,000. */
   readonly copyEntries?: number;
-  /** How long one setup command may run. By default, 20 minutes. */
   readonly commandMs?: number;
-  /** Whether a person attends the session, who could approve a checked-in setup. By default, unless the harness says no one does (CLAUDE_CODE_SESSION_ATTENDED=0). */
   readonly attended?: boolean;
-  /** The storytree home whose settings hold the user's approvals. By default, this computer's. */
   readonly home?: string;
 }
 
@@ -75,15 +33,9 @@ const COPY_BYTES = 100 * 1024 * 1024;
 const COPY_ENTRIES = 10_000;
 const COMMAND_MS = 20 * 60_000;
 const KEYS = ["copy", "share", "setup", "teardown"] as const;
-/** The marker of a worktree set up here, in its own git folder. */
 const MARK = "storytree-setup.json";
-/** How long a teardown that has not yet written its pid is taken to be starting. */
 const STARTING_MS = 60_000;
 
-/**
- * Set the new worktree `worktree` up from the local file in the main checkout `repository`, and the
- * checked-in one beside it. Undefined when the project has neither: nothing is run, copied or shared. Never throws.
- */
 export function setUpWorktree(repository: string, worktree: string, limits: SetupLimits = {}): WorktreeSetup | undefined {
   const local = path.join(repository, ...LOCAL_SETUP_FILE.split("/"));
   const checkedIn = path.join(repository, ...CHECKED_IN_SETUP_FILE.split("/"));
@@ -104,7 +56,6 @@ export function setUpWorktree(repository: string, worktree: string, limits: Setu
   if (typeof theirs === "string") return failed(CHECKED_IN_SETUP_FILE, theirs);
   const file = files.join(" and ");
   const steps: SetupStep[] = [];
-  // The local file wins key by key; commands left to the checked-in file wait for the user's approval of that exact set.
   const named = Object.fromEntries(KEYS.map((key) => [key, mine[key] ?? theirs[key] ?? []])) as Record<(typeof KEYS)[number], string[]>;
   const gated = { setup: mine.setup === undefined ? theirs.setup ?? [] : [], teardown: mine.teardown === undefined ? theirs.teardown ?? [] : [] };
   if (gated.setup.length + gated.teardown.length > 0) {
@@ -124,18 +75,15 @@ export function setUpWorktree(repository: string, worktree: string, limits: Setu
     try {
       writeFileSync(mark, JSON.stringify({ teardown: named.teardown } satisfies Mark));
     } catch {
-      // Unmarked, it may be set up again on a later attach, and its teardown does not run.
     }
   }
   return { file, steps };
 }
 
-/** The fingerprint of a checked-in setup's commands: what the user approves, and what changes when they do. */
 export function setupFingerprint(commands: { readonly setup: readonly string[]; readonly teardown: readonly string[] }): string {
   return createHash("sha256").update(JSON.stringify({ setup: commands.setup, teardown: commands.teardown })).digest("hex").slice(0, 16);
 }
 
-/** The step saying the checked-in commands wait for the user's approval, or undefined when they have approved exactly these. */
 function approvalNeeded(repository: string, gated: { setup: readonly string[]; teardown: readonly string[] }, limits: SetupLimits): SetupStep | undefined {
   const fingerprint = setupFingerprint(gated);
   const what = `the commands of ${CHECKED_IN_SETUP_FILE}`;
@@ -158,10 +106,6 @@ function approvalNeeded(repository: string, gated: { setup: readonly string[]; t
   };
 }
 
-/**
- * Record the user's approval of the checked-in setup commands of the repository `folder` is in, when
- * `fingerprint` is theirs now; otherwise the reason it is refused, and nothing is recorded.
- */
 export function approveCheckedInSetup(folder: string, fingerprint: string, home?: string): { ok: true; commands: readonly string[] } | { ok: false; reason: string } {
   let repository: string;
   try {
@@ -189,28 +133,17 @@ export function approveCheckedInSetup(folder: string, fingerprint: string, home?
   return { ok: true, commands };
 }
 
-/** Whether storytree has already set `worktree` up. */
 export function wasSetUp(worktree: string): boolean {
   const mark = markOf(worktree);
   return mark !== undefined && existsSync(mark);
 }
 
-/** A set-up worktree's marker: the teardown it was set up with, and how running it has gone. */
 interface Mark {
   readonly teardown: readonly string[];
-  /** When the reaper started the teardown, and the pid of the process running it once that has begun. */
   readonly started?: { readonly at: number; readonly pid?: number };
-  /** Each teardown command, and how it went. */
   readonly ran?: readonly SetupStep[];
 }
 
-/**
- * Where `worktree`'s teardown stands: "none" when it was never set up here or names no teardown,
- * "due" before it has started, "running" while its process runs (the worktree must stay), and
- * "done" once that process has finished or died. Never throws: a marker it cannot read is "none",
- * unless it was written in the last minute: then a write is taken to be in flight (each write
- * empties the file before filling it), and it reads "running".
- */
 export function teardownState(worktree: string): "none" | "due" | "running" | "done" {
   const mark = readMark(worktree)?.mark;
   if (mark === undefined) return writtenWithin(markOf(worktree), STARTING_MS) ? "running" : "none";
@@ -221,7 +154,6 @@ export function teardownState(worktree: string): "none" | "due" | "running" | "d
   return (pid === undefined ? Date.now() - at < STARTING_MS : isAlive(pid)) ? "running" : "done";
 }
 
-/** Start `worktree`'s due teardown in a detached process that outlives the caller. Never throws: one that cannot start is left "done". */
 export function startTeardown(worktree: string, limits: Pick<SetupLimits, "commandMs"> = {}): void {
   const read = readMark(worktree);
   if (read === undefined) return;
@@ -231,7 +163,6 @@ export function startTeardown(worktree: string, limits: Pick<SetupLimits, "comma
     child.on("error", () => undefined);
     child.unref();
   } catch {
-    // Started, never run: the marker reads "done" once its start is a minute old.
   }
 }
 
@@ -244,11 +175,6 @@ function readMark(worktree: string): { where: string; mark: Mark } | undefined {
   }
 }
 
-/**
- * The script that runs a marker's teardown: it writes its pid, runs each command in the worktree,
- * a failed one not stopping the rest, and writes what each did. Its arguments: the marker, the
- * worktree, and how long one command may run.
- */
 const TEARDOWN = `
 const fs = require("node:fs");
 const { spawnSync } = require("node:child_process");
@@ -262,13 +188,11 @@ const ran = read().teardown.map((what) => {
 fs.writeFileSync(mark, JSON.stringify({ ...read(), ran }));
 `;
 
-/** Where `worktree`'s marker goes: its own git folder, as its `.git` file names it, which git prunes with it. Read, not asked of git, so a hook spends no process on it. */
 function markOf(worktree: string): string | undefined {
   try {
     const named = /^gitdir: (.+)$/m.exec(readFileSync(path.join(worktree, ".git"), "utf8"))?.[1]?.trim();
     return named === undefined ? undefined : path.join(path.resolve(worktree, named), MARK);
   } catch {
-    // The main checkout's .git is a folder, and a folder with none is no worktree: neither is marked.
     return undefined;
   }
 }
@@ -286,12 +210,10 @@ function isAlive(pid: number): boolean {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    // Alive, but not ours to signal.
     return (error as NodeJS.ErrnoException).code === "EPERM";
   }
 }
 
-/** What a setup did, a line for each step, for an agent to read. */
 export function setupText(setup: WorktreeSetup): string {
   const verb = { file: "read", copy: "copied", share: "shared", run: "ran", approve: "approved" } as const;
   const lines = setup.steps.map((step) => step.ok ? `  ${verb[step.kind]} ${step.what}`
@@ -302,7 +224,6 @@ export function setupText(setup: WorktreeSetup): string {
   return [head, ...lines].join("\n");
 }
 
-/** The install each lockfile implies, the first one found winning. */
 const INSTALLS = [
   ["pnpm-lock.yaml", "pnpm install --frozen-lockfile"],
   ["package-lock.json", "npm ci"],
@@ -310,10 +231,6 @@ const INSTALLS = [
   ["uv.lock", "uv sync"],
 ] as const;
 
-/**
- * The answer for a worktree the project names no setup for (19.9): a headless lane runs no session-start setup, so
- * when its lockfile names the package manager, it is told nothing was installed and the command that installs it.
- */
 export function noSetupText(worktree: string): string {
   const install = INSTALLS.find(([lockfile]) => existsSync(path.join(worktree, lockfile)))?.[1];
   if (install === undefined) return "Set it up as this project does at session start.";
@@ -329,7 +246,6 @@ function attempt(kind: SetupStep["kind"], what: string, step: () => void): Setup
   }
 }
 
-/** The keys a setup file names, each a list of non-empty strings; a key it leaves out is left out here too. */
 function parse(text: string): Partial<Record<(typeof KEYS)[number], string[]>> {
   const value: unknown = JSON.parse(text);
   if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error("it must be a JSON object");
@@ -345,7 +261,6 @@ function parse(text: string): Partial<Record<(typeof KEYS)[number], string[]>> {
   return named;
 }
 
-/** The relative path `what` names, refused when it is absolute or climbs out with `..`. */
 function relative(what: string): string {
   if (path.isAbsolute(what) || path.win32.isAbsolute(what) || path.posix.isAbsolute(what)) throw new Error("an absolute path; name it from the repository's root");
   const parts = what.split(/[\\/]+/).filter((part) => part !== "" && part !== ".");
@@ -354,7 +269,6 @@ function relative(what: string): string {
   return parts.join("/");
 }
 
-/** The source in the main checkout for `what`: inside the repository, even through links, and gitignored. */
 function sourceOf(repository: string, what: string): { rel: string; source: string } {
   const rel = relative(what);
   const source = path.join(repository, ...rel.split("/"));
@@ -364,7 +278,6 @@ function sourceOf(repository: string, what: string): { rel: string; source: stri
   return { rel, source };
 }
 
-/** The place in the worktree for `rel`: free, with its folder made inside the worktree. */
 function destinationOf(worktree: string, rel: string): string {
   const destination = path.join(worktree, ...rel.split("/"));
   if (existsSync(destination) || isLink(destination)) throw new Error("the worktree already has something there");
@@ -447,7 +360,6 @@ function ignored(repository: string, rel: string): boolean {
   return git(repository, ["check-ignore", "--quiet", "--", rel]);
 }
 
-/** Whether git, run in `cwd`, exits 0. */
 function git(cwd: string, args: readonly string[]): boolean {
   try {
     execFileSync("git", args, { cwd, stdio: "ignore", timeout: 30_000, windowsHide: true });

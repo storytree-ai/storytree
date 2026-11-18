@@ -1,16 +1,10 @@
-/**
- * Capability 11 · Machines: this machine's health, on Linux and Windows. It reads when the machine booted, the memory
- * it has available, its load (the 15-minute load average on Linux, the processor queue on Windows) and how full its
- * system disk is, and reads each against the limits in settings: past one is a concern. Each platform's readings are
- * taken from what it hands over (its files, numbers and command output), so a test hands over its own.
- */
+// Capability 11 · Machines
 import { execFileSync } from "node:child_process";
 import { readFileSync, statfsSync } from "node:fs";
 import { freemem, hostname, loadavg, totalmem, uptime } from "node:os";
 
 const GB = 1024 ** 3;
 
-/** The system disk as statfs reports it: its block size, and its blocks in all, free, and available to a user. */
 export interface DiskBlocks {
   readonly bsize: number;
   readonly blocks: number;
@@ -18,7 +12,6 @@ export interface DiskBlocks {
   readonly bavail: number;
 }
 
-/** What Linux hands over: /proc/meminfo's text, the seconds since boot, the load averages and the root disk's blocks. */
 export interface LinuxSources {
   readonly now: Date;
   readonly uptimeSeconds: number;
@@ -27,7 +20,6 @@ export interface LinuxSources {
   readonly disk: () => DiskBlocks;
 }
 
-/** What Windows hands over: the memory free and in all, the seconds since boot, the processor queue's output and the system drive's blocks. */
 export interface WindowsSources {
   readonly now: Date;
   readonly uptimeSeconds: number;
@@ -38,7 +30,6 @@ export interface WindowsSources {
   readonly disk: () => DiskBlocks;
 }
 
-/** One machine's readings; a reading that could not be taken is absent, and why is in `unread`. */
 export interface MachineReadings {
   readonly platform: "Linux" | "Windows";
   readonly bootedAt: Date;
@@ -48,14 +39,12 @@ export interface MachineReadings {
   readonly unread: readonly string[];
 }
 
-/** The limits a machine is read against, as settings keep them: memory available in GB, load, and disk full in percent. */
 export interface HealthLimits {
   readonly memoryGB: number;
   readonly load: number;
   readonly diskPercent: number;
 }
 
-/** The Linux readings, from what Linux hands over. */
 export function linuxReadings(sources: LinuxSources): MachineReadings {
   const unread: string[] = [];
   const kb = (field: string) => {
@@ -77,7 +66,6 @@ export function linuxReadings(sources: LinuxSources): MachineReadings {
   };
 }
 
-/** The Windows readings, from what Windows hands over. */
 export function windowsReadings(sources: WindowsSources): MachineReadings {
   const unread: string[] = [];
   let queue: number | undefined;
@@ -102,7 +90,6 @@ function bootedAt({ now, uptimeSeconds }: { now: Date; uptimeSeconds: number }):
   return new Date(now.getTime() - uptimeSeconds * 1000);
 }
 
-/** How full the disk is as `df` says it: what is used, of what is used and what a user may still use. */
 function diskOf(path: string, read: () => DiskBlocks, unread: string[]): Pick<MachineReadings, "disk"> {
   try {
     const { bsize, blocks, bfree, bavail } = read();
@@ -114,7 +101,6 @@ function diskOf(path: string, read: () => DiskBlocks, unread: string[]): Pick<Ma
   }
 }
 
-/** This machine's readings: Linux's or Windows'; any other platform is refused, as this reads only those two. */
 export function thisMachine(now = new Date()): MachineReadings {
   if (process.platform === "linux") {
     return linuxReadings({ now, uptimeSeconds: uptime(), meminfo: readFileSync("/proc/meminfo", "utf8"), loadavg: loadavg(), disk: () => statfsSync("/") });
@@ -134,7 +120,6 @@ export function thisMachine(now = new Date()): MachineReadings {
   throw new Error(`machine health reads Linux and Windows, and this machine runs ${process.platform}`);
 }
 
-/** Each concern, worst kept first: a reading past its limit, or one that could not be taken. */
 export function concernsOf(readings: MachineReadings, limits: HealthLimits): readonly string[] {
   const concerns: string[] = [];
   if (readings.memory !== undefined && readings.memory.availableGB < limits.memoryGB) {
@@ -149,7 +134,6 @@ export function concernsOf(readings: MachineReadings, limits: HealthLimits): rea
   return [...concerns, ...readings.unread.map((why) => `unread ${why}`)];
 }
 
-/** The health as the command line says it: the concerns first, then each reading. */
 export function healthSaid(readings: MachineReadings, concerns: readonly string[], host = hostname()): string {
   const lines = concerns.length === 0
     ? [`No concerns on ${host}.`]

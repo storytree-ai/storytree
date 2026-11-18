@@ -1,5 +1,3 @@
-// The Mint box's factory-health tick (box/factory-health.sh), run from a throwaway copy standing for its runner checkout,
-// with a stand-in pnpm that logs the folder and words of each command, and no factory clone, so the tick stops after its telling.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";

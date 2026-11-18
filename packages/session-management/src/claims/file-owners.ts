@@ -1,14 +1,8 @@
-/**
- * Capability 5 · Claims: the owners query. A session about to edit several files learns, before its first edit, each
- * file's capability and who holds it, by the edit gate's own rule (holderOf), so it can claim every free one in one
- * call (ADR-1079 D2) instead of finding them from the gate's refusals one by one. Where each file belongs is the
- * map's to say, which Session management may not import (ADR-0969): each door hands it as `placeFiles`.
- */
+// Capability 5 · Claims
 import type { Claim, ClaimContext } from "./claims.js";
 import { readClaims } from "./claims.js";
 import { holderOf, listOf } from "./edit-gate.js";
 
-/** Where a file belongs, as the door's placement gives it: the door's own copy of the map's shape (ADR-1017 D2). */
 export interface PlacedFile {
   readonly file: string;
   readonly path: string;
@@ -18,7 +12,6 @@ export interface PlacedFile {
   readonly inferred?: boolean;
 }
 
-/** A placed file with its capability's title and its holder: another live session (`on` an increment's list), the caller, or nobody. */
 export interface FileOwner extends PlacedFile {
   readonly title?: string;
   readonly holder?: Claim;
@@ -26,7 +19,6 @@ export interface FileOwner extends PlacedFile {
   readonly yours?: true;
 }
 
-/** Each of `placed` with its capability's title and holder, as the context's session would meet them at the edit gate. */
 export async function fileOwners(context: Pick<ClaimContext, "log" | "library" | "project" | "session" | "quietMs" | "restarted">, placed: readonly PlacedFile[]): Promise<FileOwner[]> {
   const [tree, claims] = await Promise.all([
     context.library.projectTree(),
@@ -51,7 +43,6 @@ export async function fileOwners(context: Pick<ClaimContext, "log" | "library" |
   });
 }
 
-/** One file's line: its capability and holder, or the story package that holds it, or that no story's package does. */
 export function ownerLine(owner: FileOwner): string {
   if (owner.capability === undefined) {
     if (owner.story === undefined) return `${owner.file}: in no story's package, so no claim covers it.`;

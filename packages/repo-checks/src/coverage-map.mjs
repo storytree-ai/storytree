@@ -1,9 +1,4 @@
-// Capability 6 · Code allocation guardrail. The measured coverage map the allocation rule and the code survey read where
-// import tracing cannot reach (ADR-0838 D3): each story package's survey-coverage.json, `{ "src/families/arc.ts": { "4": 15 } }`,
-// one capability number's tests times how many of the file's functions they ran. Its Node half is written by Mick's coverage
-// survey (`pnpm survey:coverage`, his factory plugin's); its browser half is recorded here, by each story's own evidence
-// capture as its proof passes (recordBrowserCoverage, into survey-browser-coverage.json beside the package's src), so a
-// checkout without his plugin still records its browser proofs. The executed-function reading both halves share is here too.
+// Capability 6 · Code allocation guardrail
 
 import { existsSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import { SourceMap } from "node:module";
@@ -15,7 +10,6 @@ export const CODE_FILE = /\.[cm]?[jt]sx?$/;
 export const MAP_FILE = "survey-coverage.json";
 const BROWSER_FILE = "survey-browser-coverage.json";
 
-/** A path from a coverage record or a source map, as a full path; undefined for one not on disk (node:, data:). */
 function fullPath(url, from) {
   if (url.startsWith("file:")) return fileURLToPath(url);
   if (/^[a-z][a-z0-9+.-]*:/i.test(url) && !/^[a-z]:[\\/]/i.test(url)) return undefined;
@@ -24,7 +18,6 @@ function fullPath(url, from) {
 
 const realFile = file => existsSync(file) ? realpathSync(file) : file;
 
-/** The full paths of the files whose functions ran, each with how many of its functions ran, read from a NODE_V8_COVERAGE folder. */
 export function executedFiles(coverageDir) {
   const records = [];
   for (const name of readdirSync(coverageDir)) {
@@ -33,7 +26,7 @@ export function executedFiles(coverageDir) {
     try {
       record = JSON.parse(readFileSync(path.join(coverageDir, name), "utf8"));
     } catch {
-      continue; // a process killed mid-write leaves half a record: it proves nothing
+      continue;
     }
     records.push(record);
   }
@@ -45,7 +38,6 @@ function executedRecords(records) {
   const add = (file, fn) => ran.set(file, (ran.get(file) ?? new Set()).add(fn));
   for (const record of records) {
     const maps = record["source-map-cache"] ?? {};
-    // V8 and Node's cache may use different spellings of a Windows short path or a junction.
     const byFile = new Map(Object.entries(maps).flatMap(([url, cached]) => {
       const file = fullPath(url, process.cwd());
       return file === undefined ? [] : [[realFile(file), cached]];
@@ -60,7 +52,6 @@ function executedRecords(records) {
         for (const fn of functions) add(file, fn.ranges[0].startOffset);
         continue;
       }
-      // A function's offset into the script, as the line and column its source map is read by.
       const starts = [0];
       for (const length of cached.lineLengths) starts.push(starts.at(-1) + length + 1);
       const map = new SourceMap(cached.data);
@@ -77,7 +68,6 @@ function executedRecords(records) {
   return new Map([...ran].map(([file, functions]) => [file, functions.size]));
 }
 
-/** Saved measured browser inputs, kept independently of regenerated Node coverage. */
 export function browserProofs(pkgDir) {
   try {
     return JSON.parse(readFileSync(path.join(pkgDir, BROWSER_FILE), "utf8"));
@@ -91,8 +81,6 @@ export function sorted(tally) {
   return Object.fromEntries([...tally].sort(([a], [b]) => a.localeCompare(b)).map(([file, counts]) => [file, Object.fromEntries([...counts].sort(([a], [b]) => Number(a) - Number(b)))]));
 }
 
-// App owns the Desktop frame in the same checkout. Keep its map beside packages/app/src,
-// using package-relative keys as the survey does; no other story gains sibling source roots.
 export function sourceRoots(pkgDir) {
   return path.basename(pkgDir) === "app" && path.basename(path.dirname(pkgDir)) === "packages"
     ? ["src/", "../../apps/desktop/src/"] : ["src/"];
@@ -108,12 +96,6 @@ export function addExecution(tally, pkgDir, executed, counts) {
   }
 }
 
-/**
- * Record one passing story-prefixed browser proof. scripts contains precise V8 functions,
- * generated source text, its source map and the bundle's local path (to resolve map sources).
- * A recapture replaces that proof; a failed or unexecuted recapture removes its previous input.
- * Regenerate survey-coverage.json with survey:coverage after recording the browser proofs.
- */
 export function recordBrowserCoverage({ pkgDir: given, proof, passed, scripts }) {
   const pkgDir = realpathSync(given);
   const match = /^([a-z][a-z0-9-]*) (\d+)\.\d+\b/.exec(proof);
@@ -121,7 +103,6 @@ export function recordBrowserCoverage({ pkgDir: given, proof, passed, scripts })
   const proofs = browserProofs(pkgDir);
   delete proofs[proof];
   const save = () => writeFileSync(path.join(pkgDir, BROWSER_FILE), `${JSON.stringify(Object.fromEntries(Object.entries(proofs).sort(([a], [b]) => a.localeCompare(b))), null, 1)}\n`);
-  // Invalidate the old capture before validating the new one: any refusal proves nothing.
   save();
   if (passed !== true) {
     throw new Error("only a passing browser proof contributes coverage");

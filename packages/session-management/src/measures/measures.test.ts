@@ -1,7 +1,4 @@
-/**
- * Capability 20 · Lane measures: contracts 20.1 and 20.2, against the real library and agent activity log on the
- * Postgres `pnpm test` provides, in a fresh project dropped afterwards.
- */
+// Capability 20 · Lane measures
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -17,7 +14,6 @@ import { laneRows, type LaneRow } from "./lanes.js";
 import { groupMeasures, measuresText, spreadOf } from "./summary.js";
 import { MEASURES_FAMILIES } from "./verbs.js";
 
-/** A Claude Code assistant line: one request's usage, on `model`, under its `requestId`. */
 function claudeLine(requestId: string, model: string, usage: { input: number; read?: number; created?: number; hour?: number; output: number }, sidechain = false): string {
   return JSON.stringify({
     type: "assistant", requestId, isSidechain: sidechain,
@@ -37,12 +33,10 @@ interface World {
   log: ActivityLog;
   library: Library;
   project: string;
-  /** Stories "Sign up" and "Mail", and their capabilities "Email form" and "Sender". */
   signUp: string;
   mail: string;
   emailForm: string;
   sender: string;
-  /** Increments, by name: each closed as the test below says. */
   inc: Record<"built" | "abandoned" | "old" | "sharedA" | "sharedB" | "unpriced", string>;
 }
 
@@ -82,20 +76,17 @@ async function withWorld(body: (world: World) => Promise<void>): Promise<void> {
 test("20.1 a closed increment's lane is joined to its sessions' spend and list-price dollars, review rounds, pass measures and the stories it touched; what is not found is unattributed, never zero", async () => {
   await withWorld(async ({ log, library, project, signUp, mail, emailForm, sender, inc }) => {
     const hook = { source: "hook", folder: "/work", harness: "claude-code" } as const;
-    // The lane L claimed "Built"; its fix session F a capability under it; the watcher held it for its pull request.
     await log.append(project, { ...hook, session: "L", kind: "claimed", increment: inc.built, reason: "build it" });
     await log.append(project, { ...hook, session: "F", kind: "claimed", capability: emailForm, under: inc.built, reason: "fix the red" });
     await log.append(project, { session: "pull-request-5", harness: "watcher", source: "tool", kind: "claimed", increment: inc.built, reason: "held for PR #5" });
     await log.append(project, { session: "pull-request-5", harness: "watcher", source: "tool", kind: "pr-red", pr: 5, increment: inc.built, conflict: false, checks: ["test"] });
     await log.append(project, { session: "watcher", harness: "watcher", source: "tool", kind: "queue-red", pr: 5, increment: inc.built, removedAt: "2026-11-10T01:00:00Z", commit: "abc", checks: ["test"], tests: [], outcome: "flake" });
-    // Y claimed "Abandoned" but none of its transcript reached the log; Z drove two increments from one transcript.
     await log.append(project, { ...hook, session: "Y", kind: "claimed", increment: inc.abandoned, reason: "try it" });
     await log.append(project, { ...hook, session: "Z", kind: "claimed", increment: inc.sharedA, reason: "both" });
     await log.append(project, { ...hook, session: "Z", kind: "claimed", increment: inc.sharedB, reason: "both" });
     await log.append(project, { ...hook, session: "M", kind: "claimed", increment: inc.unpriced, reason: "a new model" });
 
     await log.transcripts.store(project, "L", records([
-      // One request written across two lines counts once.
       claudeLine("req_1", "claude-opus-5-5", { input: 100, read: 1_000, output: 40 }),
       claudeLine("req_1", "claude-opus-5-5", { input: 100, read: 1_000, output: 40 }),
       claudeLine("req_2", "claude-opus-5-5", { input: 10, read: 2_000, created: 500, hour: 500, output: 60 }),
@@ -117,7 +108,6 @@ test("20.1 a closed increment's lane is joined to its sessions' spend and list-p
     const built = by.get(inc.built)!;
     assert.deepEqual(built.sessions, ["F", "L"], "the lane and its fix session; the watcher's hold is no agent's");
     assert.equal(built.tokens, 1_140 + 2_570 + 3_010 + 1_100, "each session's own requests once each, and its subagent's");
-    // Opus: input 1,110 at $4, cache reads 3,000 at $0.20, an hour's cache write of 500 at $8, output 200 at $20; Haiku: 2 at $1, 3,000 at $0.10, 8 at $5.
     assert.ok(Math.abs(built.dollars! - (13_040 + 342) / 1_000_000) < 1e-12, `list-price dollars, got ${built.dollars}`);
     assert.equal(built.rounds, 2);
     assert.equal(built.fixSessions, 1);
@@ -152,7 +142,6 @@ test("20.1 a closed increment's lane is joined to its sessions' spend and list-p
   });
 });
 
-/** A joined lane with the measures given, touching story S and capability C. */
 function row(id: string, measures: Partial<LaneRow>): LaneRow {
   return {
     increment: id, title: id, closed: "2026-11-10", disposition: "landed", sessions: ["s"], fixSessions: 0, queueReds: 0,
@@ -183,7 +172,6 @@ test("20.2 the measures print per story and per capability as median, middle hal
   assert.match(text, /Not attributed:\n {2}increment_c \(increment_c\): tokens: session X has no transcript stored/);
   assert.match(measuresText([], { from: "2026-11-04", to: "2026-11-10" }), /No increment closed in that window/);
 
-  // The command: the window it is given, and review rounds from whichever mounted part's project records offer them.
   const family = MEASURES_FAMILIES[0]!;
   await withWorld(async ({ log, library, project, inc }) => {
     const folder = mkdtempSync(path.join(tmpdir(), "measures-"));
@@ -196,7 +184,6 @@ test("20.2 the measures print per story and per capability as median, middle hal
       const report = JSON.parse(answer.text) as { rows: LaneRow[] };
       assert.deepEqual(report.rows.map((one) => [one.increment, one.rounds]), [[inc.built, 4]]);
       assert.match(report.rows[0]!.unattributed.files!, /#5's merge is not on the checkout's main line/, "a folder with no git history finds no pull request's merge");
-      // With no days given, the window is the seven days to today.
       const today = new Date().toISOString().slice(0, 10);
       const week = JSON.parse((await family.bare!.act({ json: true }, context as never, {} as never)).text) as { window: { from: string; to: string } };
       assert.deepEqual(week.window, { from: new Date(Date.parse(`${today}T00:00:00Z`) - 6 * 86_400_000).toISOString().slice(0, 10), to: today });

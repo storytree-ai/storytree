@@ -1,4 +1,4 @@
-/** Capability 4 · Sessions, a machine's start: the line every reader judges a restart's dead sessions by (contract 4.29). */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";

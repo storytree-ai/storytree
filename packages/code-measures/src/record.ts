@@ -18,7 +18,7 @@ export interface MachineLoad {
   readonly cpus: number;
 }
 
-export async function recordMeasures({ folder, project, machine, stories, records, readers, db, plan, load = () => ({ load: loadavg()[0]!, cpus: availableParallelism() }) }: {
+export async function recordMeasures({ folder, project, machine, stories, records, readers, db, plan, server, load = () => ({ load: loadavg()[0]!, cpus: availableParallelism() }) }: {
   readonly folder: string;
   readonly project: string;
   readonly machine: string;
@@ -27,6 +27,7 @@ export async function recordMeasures({ folder, project, machine, stories, record
   readonly readers: readonly MeasureReader[];
   readonly db: MeasureReadingsDb;
   readonly plan: () => Promise<unknown>;
+  readonly server?: unknown;
   readonly load?: () => MachineLoad;
 }): Promise<string> {
   const unpaired = pairMeasures(records, readers).filter(({ unpaired: none }) => none.length > 0);
@@ -41,7 +42,7 @@ export async function recordMeasures({ folder, project, machine, stories, record
   const short = commit.slice(0, 12);
   const lines = [
     await recordBase({ folder, project, machine, stories, records, readers, db, commit, short }),
-    await recordDedicated({ folder, project, machine, records, readers, db, commit, short, plan, load }),
+    await recordDedicated({ folder, project, machine, records, readers, db, commit, short, plan, server, load }),
   ];
   return lines.filter((line) => line !== undefined).join("\n");
 }
@@ -92,7 +93,7 @@ async function recordBase({ folder, project, machine, stories, records, readers,
   return `Recorded ${rows.length} reading${s(rows.length)} of ${base.length} base measure${s(base.length)} read on ${machine}, for ${reading.stories.length} stor${reading.stories.length === 1 ? "y" : "ies"} at origin/main ${short} (${reading.committed.slice(0, 10)}).`;
 }
 
-async function recordDedicated({ folder, project, machine, records, readers, db, commit, short, plan, load }: {
+async function recordDedicated({ folder, project, machine, records, readers, db, commit, short, plan, server, load }: {
   readonly folder: string;
   readonly project: string;
   readonly machine: string;
@@ -102,6 +103,7 @@ async function recordDedicated({ folder, project, machine, records, readers, db,
   readonly commit: string;
   readonly short: string;
   readonly plan: () => Promise<unknown>;
+  readonly server: unknown;
   readonly load: () => MachineLoad;
 }): Promise<string | undefined> {
   const dedicated = records.filter(({ fields }) => fields["base"] !== true && fields["machine"] === machine);
@@ -121,13 +123,19 @@ async function recordDedicated({ folder, project, machine, records, readers, db,
   const sampled = dedicated.map((record) => ({ record, sample: readers.find(({ measure }) => measure === record.id)?.sample }));
   const unsampled = sampled.filter(({ sample }) => sample === undefined).map(({ record: { id, fields } }) => `${String(fields["title"] ?? id)} (${id})`);
   const rows: MeasureReadingRow[] = [];
+  const unread: string[] = [];
   if (unsampled.length < sampled.length) {
     const tree = await plan();
     const committed = new Date((await run("git", ["show", "-s", "--format=%cI", commit], { cwd: folder })).stdout.trim()).toISOString();
     const readAt = new Date().toISOString();
     for (const { record: { id, fields }, sample } of sampled) {
       if (sample === undefined) continue;
-      const { value, runs, spread } = (await sample({ folder, commit, tree })) as { value: number; runs: number; spread: number };
+      const answer = (await sample({ folder, commit, tree, project, server })) as { value: number; runs: number; spread: number } | undefined;
+      if (answer === undefined) {
+        unread.push(`${String(fields["title"] ?? id)} (${id})`);
+        continue;
+      }
+      const { value, runs, spread } = answer;
       rows.push({
         project, story: String(fields["story"]), measure: id, version: Number(fields["version"]), value, unit: String(fields["unit"]),
         commit, committed, machine, runs, spread, readAt,
@@ -136,5 +144,6 @@ async function recordDedicated({ folder, project, machine, records, readers, db,
     await writeReadings(db, rows);
   }
   const named = unsampled.length === 0 ? "" : `; no sample, so nothing recorded, for ${unsampled.join(", ")}`;
-  return `Recorded ${rows.length} reading${s(rows.length)} of ${dedicated.length} dedicated measure${s(dedicated.length)} read on ${machine} at origin/main ${short}${named}.`;
+  const none = unread.length === 0 ? "" : `; no reading at this head, so nothing recorded, for ${unread.join(", ")}`;
+  return `Recorded ${rows.length} reading${s(rows.length)} of ${dedicated.length} dedicated measure${s(dedicated.length)} read on ${machine} at origin/main ${short}${named}${none}.`;
 }

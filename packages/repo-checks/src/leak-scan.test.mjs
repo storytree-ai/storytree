@@ -11,7 +11,6 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { addedLeaks, checkLeaks, checkSecrets, credentialCounts, fileCounts, leakCounts, leakReport, nameWords, scanTree, SECRET_EXEMPTIONS } from "./leak-scan.mjs";
 
-// Each leak is put together at run time, so this file holds none of them for the scan to find.
 const join = (...parts) => parts.join("");
 const LEAKS = {
   "a link to a claude.ai artifact, code session or share": join("https://claude", ".ai/share/", "abc123"),
@@ -54,7 +53,6 @@ function zip(name, body) {
   return Buffer.concat([entries, central, Buffer.from(name), end]);
 }
 
-/** A tar archive of the entries given, in order. */
 function tar(...entries) {
   const parts = entries.flatMap(([name, body]) => {
     const header = Buffer.alloc(512);
@@ -181,7 +179,6 @@ test("1.3 · check:leaks reads a branch holding an untracked folder, catching a 
   assert.match(lines.at(-1), /drafts\/new\.md adds 1 more × a private name/);
 });
 
-// Each stand-in credential is put together at run time too, so this file holds no credential's shape.
 const CREDENTIALS = {
   "a private key": join("-----BEGIN ", "OPENSSH PRIVATE", " KEY-----\nb3Blbn\n-----END ", "OPENSSH PRIVATE", " KEY-----"),
   "a bearer token": join("Authorization: Bear", "er ", "q".repeat(32)),

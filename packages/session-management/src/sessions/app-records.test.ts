@@ -1,9 +1,4 @@
-/**
- * Capability 4 · Sessions, contract 4.25: which sessions the Claude desktop app and Codex keep in
- * their own records, and whether they are archived there (ADR-0754 D4), read from files made in
- * the formats measured on the owner's laptop on 2026-09-29 (Claude's local_<id>.json, Codex's
- * state_5.sqlite `threads`), and written to the real activity log on the Postgres `pnpm test` provides.
- */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";

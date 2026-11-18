@@ -1,4 +1,4 @@
-/** Capability 3 · Hooks. */
+// Capability 3 · Hooks
 export { ASK_SETUP, atDeadline, BACKGROUND, EVENT, hookLines, runHook, UPKEEP } from "./hooks.js";
 export { codexHookTrust, noteCodexHookRan } from "./codex-trust.js";
 export { AFTER_TOOL, CODEX_DELIVERS_FROM, CODEX_TOOL_EVENTS, codexDelivers, codexToolArguments } from "./codex-delivery.js";

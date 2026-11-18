@@ -1,18 +1,10 @@
-/**
- * Capability 14 · See what remains. The `processes` verbs, declared here (ADR-0969 D2) and named under `verbs` in the
- * package's manifest (ADR-1033), so the command line mounts them as its `processes` family, which still answers to the
- * story's old name `own`. Each is callerless: it runs offline, with no project, and acts for the session the shell names
- * alone; with none, only `processes --all` reads. None is a tool: Session management's tool part (tools.ts) serves list_own_runs,
- * list_all_runs, stop_own_run and clear_own_runs.
- */
+// Capability 14 · See what remains
 import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
-/** The session the door handed, if any: whose runs are this caller's. */
 function callerOf(place: VerbPlace): { session: string; harness?: string } | undefined {
   return place.session === undefined ? undefined : { session: place.session, ...(place.harness === undefined ? {} : { harness: place.harness }) };
 }
 
-/** A self-scoped verb's owner: the calling session, or a refusal pointing to the read every session may make. */
 async function owner(place: VerbPlace, command: string): Promise<{ session: string; harness?: string }> {
   const caller = callerOf(place);
   if (caller !== undefined) return caller;
@@ -20,7 +12,6 @@ async function owner(place: VerbPlace, command: string): Promise<{ session: stri
   throw new VerbRefusal(`storytree ${command} needs a session identity: ${NAME_A_SESSION}; use storytree processes --all to inspect work.`);
 }
 
-/** The app's database, read as shared work no session may stop. */
 async function sharedWork() {
   const { locateStorytree } = await import("@storytree/project-and-caller/routing");
   const { appDatabaseWork } = await import("./listing/index.js");
@@ -76,7 +67,6 @@ const clear = verb({
   },
 });
 
-/** The command line's `processes` family, 24th among `storytree`'s families. */
 export const PROCESSES_FAMILIES: readonly VerbFamily<VerbPlace>[] = [
   { name: "processes", aliases: ["own"], summary: "see recorded work on this computer and stop your own runs", order: 24, bare: list, verbs: [stop, clear] },
 ];

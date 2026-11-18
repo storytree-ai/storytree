@@ -1,9 +1,4 @@
-/**
- * Capability 5 · Claims, a workspace already claimed (ADR-0653, the owner's K1): one test per
- * contract 5.12-5.14 in the Session management story, against the real Postgres `pnpm test` provides and
- * real git. Each test clones a throwaway repository whose origin gains a commit after the clone, so
- * a workspace cut from the clone's own, stale view of main would show it.
- */
+// Capability 5 · Claims
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -30,13 +25,9 @@ interface World {
   log: ActivityLog;
   library: Library;
   project: string;
-  /** The clone the sessions work in, one commit behind its origin's main. */
   site: string;
-  /** The commit origin's main is at: a workspace must start from it. */
   fresh: string;
-  /** A proposed increment on a fresh arc. */
   park(title: string): Promise<string>;
-  /** Session A (Claude Code), or B (Codex), working in `folder` (by default, the clone). */
   as(session: "A" | "B", folder?: string): ClaimContext & { folder: string };
 }
 
@@ -88,7 +79,6 @@ async function withWorld(body: (world: World) => Promise<void>): Promise<void> {
   });
 }
 
-/** The worktrees git has for the repository `folder` is in. */
 function worktrees(folder: string): string[] {
   return git(folder, "worktree", "list", "--porcelain")
     .split(/\r?\n/)
@@ -96,7 +86,6 @@ function worktrees(folder: string): string[] {
     .map((line) => path.resolve(line.slice("worktree ".length)));
 }
 
-/** The branches of the repository `folder` is in. */
 function branches(folder: string): string[] {
   return git(folder, "branch", "--format=%(refname:short)").split(/\r?\n/).filter((line) => line !== "");
 }
@@ -174,7 +163,6 @@ test("5.19 making a workspace for a capability from inside a worktree whose bran
     const claimed = (await readClaims(log, project)).find((one) => one.capability === form);
     assert.deepEqual({ session: claimed?.session, branch: claimed?.branch }, { session: "A", branch: made.branch });
 
-    // Session B holds nothing on that branch: its call is prepared a workspace of its own, as before.
     const reset = (await library.addCapability({ title: "Password reset", story: story.id })).id;
     const other = await makeWorkspace(as("B", made.folder), reset, "building the reset");
     assert.ok(other.ok && other.status === "prepared", JSON.stringify(other));
@@ -288,7 +276,6 @@ test("5.12 Codex prepares without creating or claiming, then attaches the app's 
       const folder = path.join(dir, detached ? "app detached" : "app named");
       const branch = detached ? `codex/${prepared.name}` : "codex/app-chosen";
       git(site, "worktree", "add", ...(detached ? ["--detach"] : ["-b", branch]), folder, prepared.ref);
-      // The expected commit is the prepared SHA, even if another fetch moves the remote ref.
       git(site, "update-ref", "refs/remotes/origin/main", git(site, "rev-parse", "main").trim());
       const attached = await workspace.attachWorkspace(as("B"), increment, "build form", { folder, ref: prepared.ref, name: prepared.name });
       assert.ok(attached.ok, JSON.stringify(attached));
@@ -373,7 +360,6 @@ test("5.59 a workspace for an increment claims every capability on its list with
     const capability = async (title: string) => (await library.addCapability({ title, story: story.id })).id;
     const [form, mail, page, button, banner] = [await capability("Form"), await capability("Mail"), await capability("Page"), await capability("Button"), await capability("Banner")];
     const arc = (await library.createArc({ title: "Wide", intent: "Many parts", endState: "All built" })).id;
-    // Listed by an edit, since parking a second open increment on a capability is refused (10.35).
     const wide = async (title: string, capabilities: string[]) => {
       const { id } = await library.addIncrement({ arc, title, objective: title, body: title });
       await library.editIncrement(id, { capabilities });
@@ -383,7 +369,6 @@ test("5.59 a workspace for an increment claims every capability on its list with
       .filter((line) => line.kind === "claim-refused").map((line) => [line.session, line.capability, line.under, line.holder]);
     const mine = async (session: string) => (await readClaims(log, project)).filter((one) => one.session === session);
 
-    // Free: the increment and both listed capabilities, on the new branch.
     const both = await wide("form and mail", [mail, form]);
     const made = await makeWorkspace(as("A"), both, "form and mail");
     assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
@@ -392,7 +377,6 @@ test("5.59 a workspace for an increment claims every capability on its list with
     const trees = worktrees(site);
     const branchesNow = branches(site);
 
-    // Held before the call: refused before anything is fetched, claimed or made.
     assert.equal((await claim({ ...as("B"), branch: "codex/page" }, page, "the page")).ok, true);
     const standing = await wide("page and button", [button, page]);
     let from = (await log.since(project, 0)).lines.length;
@@ -401,7 +385,6 @@ test("5.59 a workspace for an increment claims every capability on its list with
     assert.deepEqual(await refusedUnder(from), [["A", page, standing, "B"]]);
     assert.equal(await statusOf(library, standing), "proposal", "not started");
 
-    // Taken in the moment between the check and the claim: the increment claim is let go again.
     const raced = await wide("banner", [banner]);
     const locked = log.locked.bind(log);
     log.locked = async (project, work) => {
@@ -418,7 +401,6 @@ test("5.59 a workspace for an increment claims every capability on its list with
     assert.deepEqual((await mine("A")).map((one) => one.increment ?? one.capability).sort(), [both, form, mail].sort(), "nothing else is held");
     assert.equal(await statusOf(library, raced), "proposal", "the released claim leaves it a proposal");
 
-    // Codex: a listed capability taken after preparation refuses the attachment, and the app's worktree is left as it was.
     const codex = await wide("button", [button]);
     const prepared = await makeWorkspace(as("B"), codex, "button");
     assert.ok(prepared.ok && prepared.status === "prepared", JSON.stringify(prepared));
@@ -441,7 +423,6 @@ test("5.13 a claim taken by this session during attachment is refused as already
     const folder = path.join(dir, "app-worktree");
     git(site, "worktree", "add", "--detach", folder, prepared.ref);
     const branch = `codex/${prepared.name}`;
-    // The other call wins after preflight but immediately before attachment's atomic claim.
     const locked = log.locked.bind(log);
     log.locked = async (project, work) => {
       log.locked = locked;
@@ -624,7 +605,6 @@ test("5.47 a worktree git makes while printing to stderr is made and claimed; on
     assert.ok(worktrees(site).includes(path.resolve(made.folder)));
     assert.deepEqual((await readClaims(log, project)).map(({ increment, branch }) => ({ increment, branch })), [{ increment, branch: made.branch }]);
 
-    // Git prints its progress line, makes the branch, then cannot keep the new worktree's records where they go.
     renameSync(path.join(site, ".git", "worktrees"), path.join(site, ".git", "worktrees-aside"));
     writeFileSync(path.join(site, ".git", "worktrees"), "not a folder\n");
     const reset = await park("password reset");
@@ -658,7 +638,6 @@ test("5.48 a session claiming again, from a linked worktree, work it holds on an
   });
 });
 
-/** Write the project's local setup file in the main checkout `site`, and have git ignore `ignored` there. */
 function localSetup(site: string, setup: unknown, ignored: readonly string[] = []): void {
   mkdirSync(path.join(site, ".storytree"), { recursive: true });
   writeFileSync(path.join(site, ".storytree", "worktree.local.json"), typeof setup === "string" ? setup : JSON.stringify(setup));
@@ -857,10 +836,6 @@ test("19.5 · a Codex session attaching the worktree its app just made at the pr
   });
 });
 
-/**
- * Run `body` with storytree's home in `home` and the harness saying whether anyone attends the session, as a
- * headless lane's does (CLAUDE_CODE_SESSION_ATTENDED=0); both restored after.
- */
 async function withHome(home: string, attended: boolean, body: () => Promise<void>): Promise<void> {
   const before = { home: process.env.STORYTREE_HOME, attended: process.env.CLAUDE_CODE_SESSION_ATTENDED };
   process.env.STORYTREE_HOME = home;
@@ -876,7 +851,6 @@ async function withHome(home: string, attended: boolean, body: () => Promise<voi
   }
 }
 
-/** Check `setup` in as the project's `.storytree/worktree.json` in the main checkout `site`, beside an untracked local file when `local` is given. */
 function checkedInSetup(site: string, setup: unknown, local?: unknown, ignored: readonly string[] = []): void {
   mkdirSync(path.join(site, ".storytree"), { recursive: true });
   writeFileSync(path.join(site, ".git", "info", "exclude"), [".storytree/worktree.local.json", ...ignored].join("\n") + "\n");

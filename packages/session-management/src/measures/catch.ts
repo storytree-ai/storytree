@@ -1,16 +1,8 @@
-/**
- * Capability 20 · Lane measures: the catch rate by layer (contracts 20.4, 20.5, 20.6). One vocabulary for the layer a fault
- * was first caught at, earliest to latest, each defined once, and what maps onto it: a red-team drill's layers, an escape
- * pattern's caughtAt and the QA ledger's found_by by its slice (ADR-1356 D7). Over a window it reads the field reading, from
- * the escape patterns harvested in it (the day each record was made), and the drill reading, from the drills dated in it,
- * overall, per pattern and per story; `storytree measures catch` prints it all and `storytree measures` its per-story part.
- * Report only (ADR-1238): it states no verdict, and nothing reads it to decide.
- */
+// Capability 20 · Lane measures
 import type { FieldsOf, Library } from "@storytree/library";
 
 import type { LaneWindow } from "./lanes.js";
 
-/** The catch layers, earliest to latest, each as the help defines it. */
 export const CATCH_LAYERS = [
   { name: "test writer", means: "the test writer's failing tests, written before the code, went red on it" },
   { name: "builder", means: "the builder, writing the code to those tests, found it" },
@@ -25,7 +17,6 @@ export const CATCH_LAYERS = [
 
 export type CatchLayer = (typeof CATCH_LAYERS)[number]["name"];
 
-/** The layers whose catches say whether the reviewer was the planter's model. */
 const REVIEWERS: readonly CatchLayer[] = ["test reviewer", "code reviewer"];
 
 type DrillCaught = FieldsOf<"drill">["caughtBy"];
@@ -35,17 +26,14 @@ const OF_DRILL: Readonly<Record<DrillCaught, CatchLayer>> = {
   "test-reviewer": "test reviewer", "code-reviewer": "code reviewer", "ci-linux": "CI", "ci-windows": "CI", none: "escaped",
 };
 
-/** The catch layer of a drill's layer, or of its caughtBy none. */
 export function layerOfDrill(layer: DrillCaught): CatchLayer {
   return OF_DRILL[layer];
 }
 
-/** The catch layer of an escape pattern's caughtAt. */
 export function layerOfField(caughtAt: FieldsOf<"escape">["caughtAt"]): CatchLayer {
   return caughtAt === "ci" ? "CI" : "escaped";
 }
 
-/** The catch layer of a QA ledger finding, by what found it and the slice of its review; a reviewer's hit on a whole review has none. */
 export function layerOfFinding(foundBy: "graduated" | "mutation" | "weakening" | "reviewer", slice: "code" | "test" | "whole"): CatchLayer | undefined {
   if (foundBy === "graduated") return "lint";
   if (foundBy === "mutation") return "mutation report";
@@ -53,13 +41,11 @@ export function layerOfFinding(foundBy: "graduated" | "mutation" | "weakening" |
   return slice === "code" ? "code reviewer" : slice === "test" ? "test reviewer" : undefined;
 }
 
-/** Escape patterns harvested in a window, by where they were caught. */
 export interface FieldCount {
   readonly caughtByCi: number;
   readonly escaped: number;
 }
 
-/** One layer's drills: the plants it caught first, those it was not run on, and of a reviewer's catches, those by the planter's model. */
 export interface LayerCount {
   readonly layer: CatchLayer;
   readonly caughtFirst: number;
@@ -67,19 +53,16 @@ export interface LayerCount {
   readonly sameModel?: number;
 }
 
-/** A set of drills, read per layer, every layer in the fixed order. */
 export interface DrillReading {
   readonly drills: number;
   readonly layers: readonly LayerCount[];
 }
 
-/** The drills replanting one escape pattern. */
 export interface PatternCatch extends DrillReading {
   readonly pattern: string;
   readonly title?: string;
 }
 
-/** One story's escape patterns (by their instance) and drills (by their plant); its title when the record names it by id. */
 export interface StoryCatch {
   readonly story: string;
   readonly title?: string;
@@ -87,7 +70,6 @@ export interface StoryCatch {
   readonly drills: DrillReading;
 }
 
-/** The catch reading over a window. */
 export interface CatchReading {
   readonly field: { readonly overall: FieldCount; readonly storyNotRecorded: FieldCount };
   readonly drills: DrillReading;
@@ -101,7 +83,6 @@ function fieldCount(caughtAt: readonly FieldsOf<"escape">["caughtAt"][]): FieldC
   return { caughtByCi: caughtAt.filter((at) => layerOfField(at) === "CI").length, escaped: caughtAt.filter((at) => layerOfField(at) === "escaped").length };
 }
 
-/** A layer is not run on a drill when every drill layer mapping onto it was not run. */
 function drillReading(drills: readonly Drill[]): DrillReading {
   return {
     drills: drills.length,
@@ -116,7 +97,6 @@ function drillReading(drills: readonly Drill[]): DrillReading {
   };
 }
 
-/** The field and drill readings over `window`: escape patterns by the day harvested, drills by their date. */
 export async function catchReading(library: Library, window: LaneWindow): Promise<CatchReading> {
   const inWindow = (day: string): boolean => day >= window.from && day <= window.to;
   const [escapes, allDrills, tree] = await Promise.all([library.list("escape"), library.list("drill"), library.projectTree()]);
@@ -146,14 +126,12 @@ const fieldText = (count: FieldCount): string => `${count.caughtByCi} caught by 
 
 const named = (id: string, title: string | undefined): string => (title === undefined ? id : `${title} [${id}]`);
 
-/** A drill reading's nine layer lines, each indented by `indent`. */
 function layerLines(reading: DrillReading, indent: string): string[] {
   return reading.layers.map((count) => `${indent}${count.layer}: ${count.caughtFirst} caught first, ${count.notRun} not run${count.sameModel === undefined ? "" : `, ${count.sameModel} same-model`}`);
 }
 
 const drillsText = (count: number): string => `${count} drill${count === 1 ? "" : "s"}`;
 
-/** `storytree measures`' catch rate section: each story with escape patterns or drills in the window, read as `measures catch` reads it. */
 export function catchRateLines(stories: readonly StoryCatch[]): string[] {
   const lines = ["Catch rate per story (escape patterns harvested and drills dated in the window, by the layer that caught each first; report only):"];
   if (stories.length === 0) return [...lines, "  No escape pattern or drill in that window."];
@@ -163,7 +141,6 @@ export function catchRateLines(stories: readonly StoryCatch[]): string[] {
   return lines;
 }
 
-/** `storytree measures catch`'s text: the layers' definitions, the field reading and the drill reading. */
 export function catchText(reading: CatchReading, window: LaneWindow): string {
   return [
     `Catch by layer for escape patterns harvested and drills dated ${window.from} to ${window.to} (report only: nothing gates on these, and none is a verdict).`,

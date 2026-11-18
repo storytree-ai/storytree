@@ -1,16 +1,10 @@
-/**
- * Capability 2 · Agent activity log, its verbs. The `activity` family, declared once here (ADR-0969 D2) and named under
- * `verbs` in the package's manifest (ADR-1033): `activity observe` reads whether the machines sharing this project's library
- * share its log (observe.ts), and with `--record <contract>` records that as the contract's live reading (ADR-1345 D1), as
- * the Mint box's scheduled run does for contract 2.5.
- */
+// Capability 2 · Agent activity log
 import { verb, VerbRefusal, type Verb, type VerbFamily, type VerbInputs } from "@storytree/library/verbs";
 
 import type { SessionVerbContext } from "../sessions/verbs.js";
 import { thisMachine } from "./activity-log.js";
 import { freshnessMs, readTwoMachines } from "./observe.js";
 
-/** The freshness a reading looks back over when no contract names one. */
 const FRESHNESS = "2d";
 
 const observe = verb({
@@ -35,7 +29,6 @@ const observe = verb({
   },
 });
 
-/** The observability proof of contract `id`, refused when it is no live contract or another proof proves it. */
 async function proofOf(context: SessionVerbContext, id: string): Promise<{ freshness: string }> {
   const record = await context.library.get(id);
   if (record === null || record === undefined || record.type !== "contract") throw new VerbRefusal(`${id} is no contract: give the id of a contract proved by observability as proof.`);
@@ -44,10 +37,8 @@ async function proofOf(context: SessionVerbContext, id: string): Promise<{ fresh
   return { freshness: proof.freshness };
 }
 
-/** The activity verbs, in the order the command line lists them. */
 export const ACTIVITY_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [observe];
 
-/** Session management's `activity` command family, which its manifest names under `verbs` (ADR-1033). */
 export const ACTIVITY_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [
   { name: "activity", summary: "whether the machines sharing this project's library share its activity log (the Mint box's live reading for contract 2.5)", order: 24.6, verbs: ACTIVITY_VERBS },
 ];

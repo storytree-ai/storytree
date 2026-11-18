@@ -1,5 +1,3 @@
-// Which main commit an own-health run records, and whose CI evidence it credits
-// (packages/repo-checks/src/test-run/main-commit.mjs), against a fake Actions API.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -16,7 +14,6 @@ const prRun = (id, sha) => ({ id, run_attempt: 1, head_sha: sha, conclusion: "su
 const nightlyRun = (id, sha, { conclusion = "success", event = "schedule", branch = "main" } = {}) =>
   ({ id, run_attempt: 3, head_sha: sha, conclusion, event, head_branch: branch, workflow: "macos-nightly.yml", html_url: `https://github.com/storytree-ai/storytree03/actions/runs/${id}` });
 
-/** A fake Octokit: listWorkflowRuns answers from `runs` (each ci.yml's unless it names its workflow), filtered as GitHub filters them; compare answers `status`. */
 function github(runs, status = "behind") {
   return {
     rest: {

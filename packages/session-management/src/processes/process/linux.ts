@@ -1,4 +1,4 @@
-/** Capability 13 · Keep sight of unfinished runs. */
+// Capability 13 · Keep sight of unfinished runs
 import { readFile } from "node:fs/promises";
 import type { ProcessReading } from "./index.js";
 
@@ -8,7 +8,6 @@ function code(error: unknown): unknown {
 
 function confirmAbsent(pid: number): "gone" | "unknown" {
   try {
-    // Signal 0 delivers no signal. It distinguishes a vanished PID from hidepid/access restrictions.
     process.kill(pid, 0);
   } catch (error) {
     if (code(error) === "ESRCH") return "gone";
@@ -23,7 +22,6 @@ export async function readLinuxProcess(
 ): Promise<ProcessReading> {
   let boot: string;
   try {
-    // Establish that procfs is available before interpreting a missing PID entry.
     boot = (await read("/proc/sys/kernel/random/boot_id")).trim();
     if (!boot) throw new Error("Empty boot identity");
   } catch (error) {
@@ -36,8 +34,6 @@ export async function readLinuxProcess(
     if ((code(error) === "ENOENT" || code(error) === "ESRCH") && absent(pid) === "gone") return { state: "gone" };
     return { state: "unknown", reason: `Cannot read process ${pid}: ${String(error)}` };
   }
-  // comm (field 2) may itself contain spaces and parentheses. starttime is field 22.
-  // https://docs.kernel.org/filesystems/proc.html
   const end = stat.lastIndexOf(")");
   const fields = stat.slice(end + 1).trim().split(/\s+/);
   const started = fields[19];

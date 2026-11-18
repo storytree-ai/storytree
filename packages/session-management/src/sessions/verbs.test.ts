@@ -1,9 +1,4 @@
-/**
- * Capability 4 · Sessions. The session verbs, declared once under the library's command schema (ADR-0969 D2,
- * ADR-1035): naming a session, closing it out and listing the sessions answer the same from either door; how each door
- * reads their words is the door's own (the command line's 13.1). Lines go to the real agent activity log on the Postgres
- * `pnpm test` provides; the process ledger is a throwaway home.
- */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -53,7 +48,6 @@ test("4.34 · naming a session, closing it out and listing the sessions are verb
     assert.equal(byTool.text, "Closed out: not safe to close (handoff). Nothing of yours is running here. No claims to release.");
     assert.deepEqual(byTool.data, { safe: false, released: [], running: 0 });
 
-    // A refusal from the work is the verb's own, on either door.
     await assert.rejects(name.act({ title: "x".repeat(41) }, context, DOORS.tool), (error: unknown) => error instanceof VerbRefusal && /40/.test(error.message));
     const named = await name.act({ title: "Building signup" }, context, DOORS.command);
     assert.equal(named.text, 'Named this session "Building signup" in the sessions list.');

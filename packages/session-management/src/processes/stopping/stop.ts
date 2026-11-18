@@ -1,4 +1,4 @@
-/** Capability 15 · Stop the work I own. */
+// Capability 15 · Stop the work I own
 import { performance } from 'node:perf_hooks';
 import { setTimeout as pause } from 'node:timers/promises';
 import { z } from 'zod';
@@ -14,14 +14,12 @@ import type { SignalResult, StopPhase } from './signal.js';
 
 export interface StopOptions extends LedgerOptions {
   readonly owner: RunOwner;
-  /** Explicit immutable run IDs, never PIDs, commands, groups or an implicit "all". */
   readonly targets: readonly string[];
   readonly graceMs?: number;
   readonly forceMs?: number;
 }
 export interface StopDependencies {
   readonly probe?: (identity: ProcessIdentity) => Promise<ProcessReading>;
-  /** Must bind/revalidate the recorded lifetime at delivery, as the native implementation does. */
   readonly signal?: (identity: ProcessIdentity, phase: StopPhase) => Promise<SignalResult>;
 }
 export interface StopAttempt { readonly phase: StopPhase; readonly result: SignalResult }
@@ -36,7 +34,6 @@ export interface StopExclusion { readonly run: string; readonly owner: RunOwner;
 export interface StopTarget {
   readonly target: string;
   readonly owner?: RunOwner;
-  /** stopped/already-gone apply ONLY to the stated registered membership. */
   readonly status: 'stopped' | 'already-gone' | 'refused' | 'incomplete';
   readonly reason?: string;
   readonly members: readonly StopMember[];
@@ -55,7 +52,6 @@ export interface StopResult {
 function sessionAuthority(caller: RunOwner): boolean {
   return caller.agent === undefined || caller.agent === 'orchestrator';
 }
-/** Delegation comes only from registered parentSession edges, never command/folder/age. */
 export function owns(caller: RunOwner, owner: RunOwner, runs: readonly RunRecord[], visited = new Set<string>()): boolean {
   if (caller.harness !== owner.harness) return false;
   if (sameOwner(caller, owner)) {
@@ -70,7 +66,6 @@ export function owns(caller: RunOwner, owner: RunOwner, runs: readonly RunRecord
 }
 function sameLifetime(left: RunRecord, right: RunRecord): boolean {
   if (left.machine !== right.machine || left.pid !== right.pid) return false;
-  // Missing birth evidence cannot prove that a conflicting PID registration is harmless.
   if (left.birth.state !== 'live' || right.birth.state !== 'live') return right.birth.state !== 'gone';
   return left.birth.identity.platform === right.birth.identity.platform && left.birth.identity.boot === right.birth.identity.boot &&
     left.birth.identity.started === right.birth.identity.started;
@@ -100,11 +95,6 @@ function bounded(value: number | undefined, fallback: number): number {
   return ms;
 }
 
-/**
- * Stops only explicit registered membership, individually; never signals an OS group or inferred
- * tree. There is no launch interlock: newly registered descendants cause an incomplete result.
- * Records remain intact, including confirmed-gone ones; clearing belongs to capability 5.
- */
 export async function stopOwned(options: StopOptions, dependencies: StopDependencies = {}): Promise<StopResult> {
   const waits = { polite: bounded(options.graceMs, 2000), force: bounded(options.forceMs, 2000) };
   const caller = ownerSchema.safeParse(options.owner);
@@ -162,9 +152,7 @@ export async function stopOwned(options: StopOptions, dependencies: StopDependen
     };
     for (const phase of ['polite', 'force'] as const) {
       await refresh();
-      // Parent first limits fresh work; every covered child is still independently checked.
       for (const run of covered.values()) {
-        // A previous member may have registered more work while its signal was in flight.
         await refresh();
         const member = members.get(run.id)!;
         if (excluded.has(run.id) || member.process.state !== 'live' || run.birth.state !== 'live') continue;
@@ -175,7 +163,6 @@ export async function stopOwned(options: StopOptions, dependencies: StopDependen
       }
       const deadline = performance.now() + waits[phase];
       do {
-        // Checks follow even unsupported/failed attempts; signal acceptance is not the verdict.
         await refresh();
         if ([...members.values()].every(member => member.process.state === 'gone') || performance.now() >= deadline) break;
         await pause(Math.min(25, Math.max(0, deadline - performance.now())));

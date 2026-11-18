@@ -1,4 +1,4 @@
-/** Capability 5 · Claims and 14 · See what remains: Session management's tools, as its tool part registers them for the MCP server. */
+// Capability 5 · Claims
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -36,7 +36,6 @@ test("5.16 the claim and make_workspace tools take a reason longer than 40 chara
   t.after(() => rmSync(folder, { recursive: true, force: true }));
   const acts = new Map<string, (args: Record<string, unknown>, call: ToolCall) => Promise<{ text: string; refused?: boolean }>>();
   sessionTools().registerTools?.((name, _description, _input, act) => { acts.set(name, act as never); });
-  // Any read or write of the library or the log throws on this call, so reaching it shows the reason was not refused.
   const untouchable = new Proxy({}, { get: () => { throw new Error("read or wrote the library"); } });
   const call = { library: untouchable, log: untouchable, project: "p", caller: { session: "s" }, folder, quietMs: 0, writer: {} } as unknown as ToolCall;
   const reason = "x".repeat(200);

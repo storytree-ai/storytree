@@ -1,8 +1,4 @@
-/**
- * Capability 9 · The package rule: each planted tree below starts from a checkout
- * that keeps the rule and breaks one part of it. The first trees declare storytree's own frame and front
- * door, as its dev loop does; the last declares nothing, as a user's project does.
- */
+// Capability 9 · The package rule
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,7 +9,6 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { packageProblems, type Declarations, type Edge } from "./package-rule.js";
 
-// Five stories (declared: the stories live in the library, which CI cannot read), their packages, the frame and the front door, all within bounds.
 const KEPT = {
   "packages/app/package.json": pkg("app"),
   "packages/app/src/lifecycle/start.ts": 'import { connect } from "@storytree/library";\n',
@@ -64,7 +59,6 @@ test("9.1 · a project that declares no stories has one per package under packag
 
 test("9.6 · A story owns exactly one package: a story declared with several is refused, and the package it would add belongs to no story", (t: TestContext) => {
   const root = plant(t, { "packages/local-postgres/package.json": pkg("local-postgres"), "packages/local-postgres/src/index.ts": "" });
-  // As a project's untyped declarations (storytree's own are a .mjs file) could write a story with two packages (ADR-1078 rule 4).
   const several = { ...DECLARED, stories: ["app", "cli", "forest", "forest-world", { story: "library", packages: ["library", "local-postgres"] }] } as unknown as Declarations;
   const problems = packageProblems(root, several);
   assert.ok(problems.some((problem) => /"story":"library".*exactly one package/.test(problem)), problems.join("\n"));
@@ -98,7 +92,6 @@ test("9.2 · a story's code in the frame or the front door is refused", (t: Test
   assert.match(problems.join("\n"), /packages\/cli\/src\/forest\/scene\.ts.*forest/);
 });
 
-// increment_5c95db0bb297: the frame tests its own mounting of a story under that story's name.
 test("9.2 · a frame test of mounting a story may carry the story's name, when it reaches the story through its package", (t: TestContext) => {
   const problems = packageProblems(
     plant(t, {
@@ -149,8 +142,6 @@ test("9.3 · a package reaching into another story's files is refused, by relati
 });
 
 test("9.4 · packages that depend on each other, even for development only, are refused: pnpm links them into a loop", (t: TestContext) => {
-  // On Windows each workspace link is a directory junction, which git walks as a folder, so a
-  // cycle makes `git clean` recurse without end and a desktop session's start never finishes.
   const problems = packageProblems(
     plant(t, {
       "packages/forest/package.json": pkg("forest", undefined, { dependencies: { "@storytree/forest-world": "workspace:*" } }),
@@ -173,8 +164,6 @@ for (const size of [4, 5, 6]) {
       ]));
       if (cyclicTail) files[`packages/${names.at(-1)}/package.json`] = pkg(names.at(-1)!, undefined, { peerDependencies: { [`@storytree/${names.at(-1)}`]: "workspace:*" } });
       const root = plant(t, files);
-      // Count dependency-list reads in the real checker, not elapsed time or a copied walker.
-      // Fixture names keep other maps used while reading the checkout out of the count.
       const get = Map.prototype.get;
       let reads = 0;
       const probe = t.mock.method(Map.prototype, "get", function (this: Map<unknown, unknown>, key: unknown): unknown {
@@ -235,7 +224,6 @@ function pkg(name: string, exports: Record<string, string> | undefined = { ".": 
   return JSON.stringify({ name: `@storytree/${name}`, exports, ...fields });
 }
 
-/** A temporary copy of KEPT with `files` added over it, removed when the test ends. */
 function plant(t: TestContext, files: Record<string, string>): string {
   const dir = mkdtempSync(path.join(tmpdir(), "boundaries-"));
   t.after(() => removeTemp(dir));

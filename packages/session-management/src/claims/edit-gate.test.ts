@@ -1,7 +1,4 @@
-/**
- * Capability 5 · Claims: the edit tools' refusal before the edit (ADR-0949 D3), against the real
- * Postgres `pnpm test` provides, in a fresh project's library and a checkout made in a temp folder.
- */
+// Capability 5 · Claims
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -60,7 +57,6 @@ test("5.31 an edit tool aimed at a capability its session's claimed increment do
       const refusals = await log.lines(project, { kinds: ["claim-refused"] });
       assert.deepEqual(refusals.map((line) => line.kind === "claim-refused" && [line.session, line.capability, line.under]), [["A", reset, mine], ["C", reset, undefined]], "each refusal is in the activity log, under the increment its session drives (5.38)");
 
-      // A claim on a capability another live session's increment lists is refused (5.53), so B claims it while A's is released.
       assert.equal((await release(as("A"), mine)).ok, true);
       assert.equal((await claim(as("B"), form, "a quick fix to the form")).ok, true);
       assert.equal((await claim(as("A"), mine, "driving the email form")).ok, true);
@@ -158,7 +154,6 @@ test("5.40 an edit tool aimed at a file in an imported folder is refused before 
       assert.deepEqual([claudeAnswer.decision, claudeAnswer.hookSpecificOutput.permissionDecision], [undefined, "ask"], "Claude Code asks its user");
       assert.equal(JSON.parse(refusalAnswer("codex", refusalMessage(asked!), asked!.refused === "ask")).decision, "block", "a harness that cannot ask its user refuses");
 
-      // A claim on a capability another live session's increment lists is refused (5.53), so B claims it while A's is released.
       assert.equal((await release(as("A"), mine)).ok, true);
       assert.equal((await claim(as("B"), stats, "a fix to the stats page")).ok, true);
       assert.equal((await claim(as("A"), mine, "driving the stats page")).ok, true);
@@ -338,11 +333,9 @@ test("5.70 a session whose claims lapsed without its asking (the session manager
       assert.equal((await gate())?.refused, "ask", "while A holds the increment, the edit is the user's to allow");
       assert.equal((await gate())?.lapsed, undefined, "nothing lapsed while A holds its work");
 
-      // A headless turn's process exits and its SessionEnd hook writes an end line: its process stopped, its claims stand (4.41).
       await log.append(project, { session: "A", harness: "claude-code", source: "hook", folder: checkout, kind: "session-ended", reason: "other" });
       assert.deepEqual([(await gate())?.refused, (await gate())?.lapsed], ["ask", undefined], "A still holds its work, so nothing lapsed");
 
-      // The session manager releases a quiet holder's claim (ADR-0944 D7).
       const lapse = () => releaseFor(as("manager", { quietMs: 0 }), mine, "A", "quiet for an hour");
       assert.equal((await lapse()).ok, true);
       const lapsed = await gate();
@@ -381,7 +374,6 @@ test("5.70 a session whose claims lapsed without its asking (the session manager
       await closed(as("B"), mine, "withdrawn");
       assert.equal((await gate())?.lapsed, undefined, "work closed after it lapsed is not offered to claim again");
 
-      // A's process stops between turns, and B takes its work over in the gap (ADR-1311 D3).
       const next = (await library.addIncrement({ arc: arc.id, title: "stats chart", objective: "stats chart", body: "stats chart" })).id;
       assert.equal((await claim(as("A"), next, "driving the stats chart")).ok, true);
       assert.equal((await claim(as("A"), stats, "the stats chart itself")).ok, true);

@@ -1,4 +1,4 @@
-/** Capability 9 · Context readings. Contract 9.7: guidance is a fresh settings reading, never an enforced limit. */
+// Capability 9 · Context readings
 import { readSettings } from "@storytree/project-and-caller";
 
 export type ContextGuidance = {
@@ -7,7 +7,6 @@ export type ContextGuidance = {
   readonly position: "under" | "at" | "past";
 } | { readonly absent: string };
 
-/** Keep a usable token count even when settings cannot be read. */
 export function contextGuidance(tokens: number, home?: string): ContextGuidance {
   try {
     const { value, source } = readSettings(home)["context-guidance"];
@@ -17,7 +16,6 @@ export function contextGuidance(tokens: number, home?: string): ContextGuidance 
   }
 }
 
-/** The CLI and agent tool state the same guidance and any reason it is unavailable. */
 export function guidanceSentence(guidance: ContextGuidance): string {
   if ("absent" in guidance) return `Context guidance could not be read: ${guidance.absent}`;
   return `This is ${guidance.position} the context guidance of ${guidance.value.toLocaleString("en-US")} tokens (${guidance.source}).`;

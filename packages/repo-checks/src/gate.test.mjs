@@ -1,6 +1,4 @@
-// Capability 8 · Storytree's own test and gate entries. ADR-0716 / increment_bc6346078e4d: one foreground gate runs
-// typecheck, the existing scoped test runner and the steps parts contribute, continuing past failures with honest rows.
-// The guidance check's own tests moved with it into Mick's factory plugin micks-dev-loop (ADR-1192 D2).
+// Capability 8 · Storytree's own test and gate entries.
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,8 +11,6 @@ import { gateSteps as repoSteps } from "./gate-steps.mjs";
 
 import { runGate } from "./gate.mjs";
 
-// The gate's own steps as the checkout's manifests contribute them (the repository checks'), with nothing switched off:
-// the temporary folders below have no package.json to compose them from.
 const own = { steps: async () => ({ parts: repoSteps, owners: repoSteps.map(() => "repo-checks"), graph: { "repo-checks": [] } }), partsOff: () => [], hold: async () => () => {} };
 const gate = (options) => runGate({ ...own, ...options });
 

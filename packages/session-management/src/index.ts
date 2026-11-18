@@ -1,6 +1,4 @@
-// Capability 2 · Agent activity log. @storytree/session-management: the record of what the user's own Claude Code or Codex does with storytree
-// (the Session management story). It reaches the library only through the library's public API. The MCP server's wrapper calls
-// what it exports to name a call's session, record the call and end merged claims (ADR-0969 D1).
+// Capability 2 · Agent activity log
 export { ACTIVITY_DATABASE, cachedLines, currentBranch, forgetProjectActivity, fullLineText, lineText, openActivityLog, thisMachine } from "./activity/index.js";
 export type { ActivityLog, LinesCache, LinesStart, LockedLog, OpenOptions } from "./activity/index.js";
 export { closeOut, labelOf, nameRefusal, nameSession, SESSION_NAME_LIMIT, lookAsApp, projectFolder, QUIET_MS, readSessions, sessionsFrom, sessionsListing } from "./sessions/index.js";

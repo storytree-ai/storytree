@@ -1,16 +1,4 @@
-// Capability 7 · Own health. How a run of a story's tests, read from their junit report, becomes each of its
-// contracts' VERIFIED health: the rules record-run.mjs runs, and storytree's own health is this run configured for
-// storytree (`pnpm check:own-health`, packages/repo-checks/src/check-own-health.mjs, ADR-1066 D2 G). A story's contracts
-// and their numbers are read from the library, and its tests are its own packages': the package named after the
-// story's title (packageOf) and any other it owns. Everything here but markPending, which writes through the
-// library's public API, is pure.
-//
-// A contract is judged by the rule a CI log's results are (CI health's verdictOf): it passes only if it has tests and
-// every one of them passed; any failure fails it; a skipped test is no pass, so a skip, or no tests, leaves it not
-// checked. A junit report adds what a log cannot: a test file that produced no results (its process died before running
-// any test) proves nothing either way, so the contracts it holds are left not checked, never failed on the strength of
-// a crash. Each verdict is written by CI health's recordHealth, as a CI log's are, reached through CI health's
-// declared interface (ADR-1112), never its insides.
+// Capability 7 · Own health
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -23,23 +11,14 @@ import { parseJunit } from "@storytree/base-dev-loop/junit";
 
 export { CI_PLATFORMS, recordHealth, unseenPlatform };
 
-/** The package whose tests prove a story, by its title (packages/map/src/code-survey/package-of.ts): its tests are in packages/<name>/src. */
 export { packageOf };
 
-/** A junit report's results: the base dev loop's reader, which `pnpm test` keeps CI's evidence with. */
 export { parseJunit };
 
-/** Who writes the verified health: a run of the story's tests, seen by storytree for itself. */
 export const VERIFIED_BY = "storytree test run";
 
-/** The same, run by CI on each change to main (ADR-0744 D3), with its commit in each note. */
 export const VERIFIED_BY_CI = "storytree test run on CI";
 
-// --- a test run -------------------------------------------------------------------------------
-
-/** @typedef {import("@storytree/base-dev-loop/junit").TestResult} TestResult */
-
-/** Read only the downloaded `platform` run/attempt for the exact recording commit; bad or absent evidence proves nothing. */
 export function readCiEvidence(directory, { commit, run, platform }) {
   if (!directory || !commit || !run || !Object.hasOwn(CI_PLATFORMS, platform)) return undefined;
   try {
@@ -60,13 +39,6 @@ function validEvidence(evidence, commit, platform = evidence?.platform) {
       ["passed", "failed", "skipped"].includes(test.status));
 }
 
-/**
- * Replace only a local `platform:<os>` skip whose complete test identity passed in that system's matching run. A skip
- * whose file that run never ran (its scope, ADR-0649 D4, did not reach the package) is marked `unrun`: the run could not
- * re-run it, so it proves nothing either way. A local failure stays a failure, marked `flaky` when its complete identity is
- * in such a run (7.19): that run passed (its evidence is kept only when it did), and its scope ran the test's unit on every
- * system, Linux's job included, so the same commit passed the test there: a flake, which stays red.
- */
 export function creditPlatforms(results, evidence, { root, commit }) {
   const key = (test, file = test.file) => JSON.stringify([file, test.suites, test.name]);
   const byPlatform = new Map();
@@ -94,17 +66,6 @@ export function creditPlatforms(results, evidence, { root, commit }) {
   });
 }
 
-/**
- * The contract numbers a test file names, in itself and in every module it imports by a relative
- * path, transitively, within `root`: the leading contract list of each test title (`titlesIn`), or,
- * given a story's `prefix`, of each title that starts with it (a title like cli 1.3: …). It is how the contracts
- * a crashed file would have tested are known when the file reported nothing, and which of a
- * dependant's test files name a story's contracts. It may find more than the file tests, never
- * fewer, so a crash can only ever leave too much not checked.
- * @param {string} file
- * @param {{ root: string, prefix?: string }} options
- * @returns {Set<string>}
- */
 export function contractsCoveredBy(file, { root, prefix }) {
   const numbers = new Set();
   const seen = new Set();
@@ -130,15 +91,6 @@ export function contractsCoveredBy(file, { root, prefix }) {
   return numbers;
 }
 
-/**
- * The test titles a source names: each string that is a call's first argument (`test("1.2 …")`,
- * or a helper's, `contract("2.1", …)`), and each constant's string passed as one (`test(TITLE)`,
- * or at the start of a template, `test(`${TITLE} (local)`)`). Given a story's `prefix`, only
- * the titles that start with it count, read from after it (a title cli 1.3: … reads as 1.3: …).
- * A comment or any other string is no title, so it covers nothing.
- * @param {string} text
- * @param {string} [prefix]
- */
 function titlesIn(text, prefix) {
   const lead = prefix === undefined ? "" : `${prefix.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&")}\\s+`;
   const titles = [...text.matchAll(new RegExp(`[\\w$.]\\s*\\(\\s*["'\`]${lead}(\\d+\\.\\d+[^"'\`\\r\\n]*)`, "g"))].map(([, title]) => title);
@@ -149,14 +101,6 @@ function titlesIn(text, prefix) {
   return titles;
 }
 
-/**
- * The test files of the packages other than those a story owns (`packages/<own>/src` and any other it owns) whose titles name
- * its contracts with its package's name first (a title like cli 1.3: …): a dependant's tests that prove the
- * story's contracts through the dependant's front door. Paths relative to `root`, with forward slashes.
- * @param {string} own the story's package
- * @param {{ root: string }} options
- * @returns {string[]}
- */
 export function dependantTestsNaming(own, { root }) {
   const packages = path.join(root, "packages");
   let names;
@@ -183,7 +127,6 @@ export function dependantTestsNaming(own, { root }) {
   return files;
 }
 
-/** The source file an import names: as written, or its TypeScript twin (`x.js` -> `x.ts`). */
 function moduleFile(target) {
   const candidates = [target, target.replace(/\.js$/, ".ts"), target.replace(/\.mjs$/, ".mts"), `${target}.ts`];
   return candidates.find((candidate) => {
@@ -195,32 +138,12 @@ function moduleFile(target) {
   });
 }
 
-/**
- * @typedef {{ number: string, state: "passing" | "failing" | "not-checked", passed: number, failed: number, skipped: number, total: number, note?: string, reason?: string, skip?: "owner" | "other" | `platform:${string}`, crashed?: true, unrun?: true, tests?: string[] }} Verdict
- */
-
-/**
- * Judge each of `contracts` (their numbers) from a test run's results. A test counts for the
- * contracts its outermost numbered name gives ("8.1 …" around "2.1 [address] …" is 8.1's), read
- * after the story's `prefix` when it starts with it (a title like cli 1.3: …). A test in a dependant's file
- * (`dependant(file)`) counts only through that prefix, and is otherwise none of the story's business.
- * `coverage(file)` gives the contract numbers a test file holds, for a file that produced no
- * results. Returns each contract's verdict, the results that name no contract of the story, the
- * dependant's results titled with the prefix and a number the story lacks (`stray`, with those
- * numbers), and the files that produced no results with the contracts they leave not checked.
- * @param {{ contracts: string[], results: TestResult[], coverage: (file: string) => Set<string>, show?: (file: string) => string, prefix?: string, dependant?: (file: string) => boolean }} input
- */
 export function judge({ contracts, results, coverage, show = (file) => file, prefix, dependant = () => false }) {
   const known = new Set(contracts);
-  /** @type {Map<string, TestResult[]>} */
   const tests = new Map(contracts.map((number) => [number, []]));
-  /** @type {TestResult[]} */
   const unmapped = [];
-  /** @type {{ result: TestResult, numbers: string[] }[]} */
   const stray = [];
-  /** @type {{ file: string, contracts: string[] }[]} */
   const crashedFiles = [];
-  /** @type {Map<string, string>} */
   const crashedUnder = new Map();
 
   for (const result of results) {
@@ -241,19 +164,16 @@ export function judge({ contracts, results, coverage, show = (file) => file, pre
     else for (const number of numbers) tests.get(number).push(result);
   }
 
-  /** @type {Map<string, Verdict>} */
   const verdicts = new Map();
   for (const number of contracts) {
     const own = tests.get(number);
     const { note, tests: named, ...judged } = verdictOf(own);
     const counts = { passed: judged.passed, failed: judged.failed, skipped: judged.skipped, total: judged.total };
     const ciRuns = [...new Set(own.map((test) => test.ciRun).filter(Boolean))];
-    /** @type {Verdict} */
     let verdict;
     if (judged.state !== "failing" && crashedUnder.has(number)) {
       verdict = { number, state: "not-checked", ...counts, crashed: true, reason: `${show(crashedUnder.get(number))} produced no results (its process died before running any test)` };
     } else if (judged.state !== "not-checked") {
-      // Named as verdictOf names its tests: the suites around it and its name.
       const flaky = own.filter((test) => test.status === "failed" && test.flaky === true).map(({ suites, name }) => [...suites, name].join(" › "));
       verdict = { number, state: judged.state, ...counts, note: `${note}${ciRuns.map((run) => `; ${run}`).join("")}`, ...(named === undefined ? {} : { tests: named }), ...(flaky.length === 0 ? {} : { flaky }) };
     }
@@ -266,17 +186,12 @@ export function judge({ contracts, results, coverage, show = (file) => file, pre
   return { verdicts, unmapped, stray, crashedFiles };
 }
 
-/** The result Node reports for a test file itself, named after the file, as it does for one that died. */
 function isFileResult(result) {
   const name = result.name.replaceAll("\\", "/").toLowerCase();
   const file = result.file.replaceAll("\\", "/").toLowerCase();
   return result.suites.length === 0 && /\.test\.[cm]?[jt]sx?$/.test(name) && file.endsWith(name);
 }
 
-/**
- * The contracts a test counts for: the list its outermost numbered name starts with, after the
- * story's `prefix` if the name starts with that; with `prefixedOnly`, only a name with the prefix.
- */
 function contractsOfResult(result, prefix, prefixedOnly) {
   for (const name of [...result.suites, result.name]) {
     const after = prefix === undefined || !name.startsWith(prefix) ? undefined : /^\s+(.*)$/s.exec(name.slice(prefix.length))?.[1];
@@ -286,15 +201,6 @@ function contractsOfResult(result, prefix, prefixedOnly) {
   return [];
 }
 
-/**
- * Only a leading list names contracts: N.M entries joined by comma, slash or "and", with
- * ascending en-dash ranges within one capability. Whitespace or the title's end must follow
- * the last entry, or a colon and then one ("3.6: …"). Once prose starts, later numbers give no
- * credit. Overlaps count only once. A list wider than LEADING_LIST_LIMIT numbers, counting
- * overlaps, or with an end past a safe integer is no real list (a fixture's "3.1–3.9007199254740991"),
- * so it credits nothing, checked before any expanding.
- */
-// As map's survey bounds a title's proofs (8.10): the widest real range spans a handful.
 const LEADING_LIST_LIMIT = 256;
 
 function leadingContracts(title) {
@@ -324,14 +230,6 @@ function byNumber(a, b) {
   return a1 - b1 || a2 - b2;
 }
 
-// --- the story, from the library ------------------------------------------------------------
-
-/**
- * A story's contracts as the library holds them: their numbers, in the tree's order, and each
- * number's contract id. A contract's number is the one its title starts with (`1.4 · …`).
- * @param {import("@storytree/library").AnnotatedStory} story a story of `projectTree()`
- * @returns {{ numbers: string[], contractIds: Map<string, string> }}
- */
 export function contractsOf(story) {
   const contractIds = new Map();
   for (const capability of story.capabilities) {
@@ -343,38 +241,18 @@ export function contractsOf(story) {
   return { numbers: [...contractIds.keys()], contractIds };
 }
 
-/**
- * The repo-relative folders holding a story's own tests, by its package: packages/<name>/src and that of each
- * other package it owns (ADR-1066 D3), and for the app story also the desktop app's, the other half of its frame (ADR-0649).
- * @param {string} name
- */
 export function sourcesOf(name) {
   return name === "app" ? ["packages/app/src", "apps/desktop/src"] : ownedBy(name).map((owned) => `packages/${owned}/src`);
 }
 
-/** Every package the story whose own package is `name` owns, its own first (ADR-1066 D3). */
 function ownedBy(name) {
   return [name, ...(Object.hasOwn(ALSO_OWNED, name) ? ALSO_OWNED[name] : [])];
 }
-
-// --- writing to the library -------------------------------------------------------------------
 
 function optional(field, value) {
   return value === undefined || value === "" ? {} : { [field]: value };
 }
 
-/**
- * Before a run of `story`'s tests, mark pending each of its contracts the run can newly record: one a numbered test
- * at this checkout names (its own package's, or a dependant's titled with its package, as checkStory runs them) whose
- * verified column is failing or not checked without a skip. The health worklist then holds back a capability those
- * carry until the run records them (friction_87a4d32684e3). A passing or skipped one is left as it is: the run would
- * only say so again. The numbers marked, in the story's order.
- * @param {import("@storytree/library").Library} library
- * @param {import("@storytree/library").AnnotatedStory} story a story of `projectTree()`
- * @param {Writer} writer
- * @param {{ root: string }} options
- * @returns {Promise<string[]>}
- */
 export async function markPending(library, story, writer, { root }) {
   const name = packageOf(story);
   const named = new Set();
@@ -407,18 +285,6 @@ export async function markPending(library, story, writer, { root }) {
   return marked;
 }
 
-// --- where to record ------------------------------------------------------------------------
-
-/** @typedef {import("@storytree/ci-health").Writer} Writer */
-
-/**
- * Where a run records verified health, and as whom. On CI (GITHUB_ACTIONS), by a test run on CI at
- * GITHUB_SHA: in the library at HEALTH_PG_ADDRESS (the Mint box over Tailscale, ADR-0928 D4; its
- * password is PGPASSWORD), and nowhere when that is unset, saying so. Run by hand, the library the
- * storytree setting names: a Postgres address, or the desktop app's own (`"app"`).
- * @param {{ env: Record<string, string | undefined>, setting: { location: "local" } | { location: "postgres", address: string } }} input
- * @returns {{ record: false, why: string } | { record: true, library: "app" | { address: string }, writer: Writer }}
- */
 export function recordingTarget({ env, setting }) {
   if (env.GITHUB_ACTIONS === "true") {
     const writer = { by: VERIFIED_BY_CI, source: "ci", ...optional("commit", env.GITHUB_SHA) };

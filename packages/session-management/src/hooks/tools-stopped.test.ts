@@ -1,8 +1,4 @@
-/**
- * Capability 3 · Hooks, contract 3.57: a Claude Code or Codex session in a storytree project that started before an
- * update's setup stopped storytree's tool servers (its record in the storytree home, Updates 4.46) is told, once, at its
- * next prompt or turn end, why storytree's tools are gone and what the user should do. Real hook runs on real files.
- */
+// Capability 3 · Hooks
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, statSync, utimesSync, writeFileSync } from "node:fs";
@@ -39,8 +35,6 @@ test("3.57 a session started before an update stopped storytree's tools is told 
       for (const session of [claude, codex, compacted, resumed, unrecorded]) transcript(session);
       assert.equal(await prompt("claude-code", unrecorded), undefined, "no stop recorded: nothing to tell");
 
-      // The setup's stop step, after these sessions began: its record's time is set just past the last one's creation,
-      // and the sessions below start once the clock has passed it.
       const stopped = path.join(home, TOOLS_STOPPED);
       writeFileSync(stopped, "stopped\r\n");
       const at = Math.max(...[claude, codex, compacted, resumed, unrecorded].map((session) => statSync(path.join(dir, `${session}.jsonl`)).birthtimeMs)) + 1;
@@ -57,16 +51,13 @@ test("3.57 a session started before an update stopped storytree's tools is told 
       assert.equal(said(await prompt("claude-code", claude)).hookSpecificOutput?.additionalContext, undefined, "told once per session");
       assert.equal(await turnEnd("claude-code", claude), undefined, "told once, across the prompt and the turn end");
 
-      // A turn a Stop hook's block continued is never blocked again, even in a session not yet told.
       assert.equal(await hook("codex", "Stop", unrecorded, { stop_hook_active: true }, [CLOSE_OUT_REMINDER]), undefined);
 
-      // A Codex session with no new prompt coming: its turn end tells it, and its next prompt does not again.
       const ended = said(await turnEnd("codex", codex));
       assert.equal(ended.decision, "block");
       assert.match(ended.reason ?? "", /restart/i);
       assert.equal(said(await prompt("codex", codex)).hookSpecificOutput?.additionalContext, undefined);
 
-      // A compaction keeps the old tool server's session: it is still told.
       await hook("claude-code", "SessionStart", compacted, { source: "compact" });
       assert.match(said(await prompt("claude-code", compacted)).hookSpecificOutput?.additionalContext ?? "", /stopped by a storytree update/);
 

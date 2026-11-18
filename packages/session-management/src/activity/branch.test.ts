@@ -1,8 +1,3 @@
-/**
- * Contract 3.16 · a line records the git branch its folder is on, read from the worktree's HEAD as git reads it, without starting git:
- * in a linked worktree (whose `.git` is a file pointing at its own HEAD), from a subfolder, and none on a detached head.
- * The main checkout's unborn branch and a folder in no repository are pinned through the hooks in hooks.test.ts.
- */
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";

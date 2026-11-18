@@ -1,4 +1,4 @@
-// Capability 12 · Record who started each run. Session management (story_609c3b171b3f), which holds Process ledger's capabilities (ADR-1066 D4): foundation capabilities 12 and 13.
+// Capability 12 · Record who started each run
 export { launchOwned } from './launch/launch.js';
 export type { LaunchOptions, LaunchResult, LaunchDependencies } from './launch/launch.js';
 export { ledgerHome, localMachine, readLedger } from './ledger/files.js';

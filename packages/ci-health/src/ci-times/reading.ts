@@ -30,9 +30,9 @@ export function median(values: readonly number[]): number | undefined {
   return sorted.length % 2 === 1 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
 }
 
-const minutes = (ms: number) => ms / 60_000;
+export const minutes = (ms: number) => ms / 60_000;
 
-type RunRow = { event: string; pull: number | null; head_sha: string; created_at: Date; started_at: Date | null; ended_at: Date | null; status: string; conclusion: string | null; bound: string | null };
+export type RunRow = { event: string; pull: number | null; head_sha: string; created_at: Date; started_at: Date | null; ended_at: Date | null; status: string; conclusion: string | null; bound: string | null };
 
 export async function ciTimesReading(db: CiTimesDb, project: string, now = new Date()): Promise<CiTimesReading | undefined> {
   const { rows: [reading] } = await db.query<{ repository: string; read_at: Date }>("SELECT repository, read_at FROM ci_readings WHERE project = $1", [project]);
@@ -51,23 +51,18 @@ export async function ciTimesReading(db: CiTimesDb, project: string, now = new D
     `SELECT event, pull, head_sha, created_at, started_at, ended_at, status, conclusion, bound FROM ci_runs
       WHERE project = $1 AND (created_at >= $2 OR (status <> 'completed' AND created_at >= $3))`,
     [project, new Date(weekAgo), new Date(reading.read_at.getTime() - STALE_MS)]);
-  const groups = new Map<string, RunRow[]>();
-  for (const run of runs.filter(({ created_at }) => created_at.getTime() >= weekAgo)) {
-    const key = `${run.event}\0${run.head_sha}`;
-    groups.set(key, [...(groups.get(key) ?? []), run]);
-  }
   const passing: { event: string; minutes: number; bound: string | null }[] = [];
   let reds = 0;
   let verdicts = 0;
-  for (const group of groups.values()) {
+  for (const group of headsOf(runs.filter(({ created_at }) => created_at.getTime() >= weekAgo))) {
     if (group.some(({ status }) => status !== "completed")) continue;
     const conclusions = group.map(({ conclusion }) => conclusion ?? "");
     if (group[0]!.event === "merge_group" && !conclusions.includes("cancelled")) {
       verdicts++;
       if (conclusions.some((one) => RED.has(one))) reds++;
     }
-    if (!conclusions.every((one) => PASSED.has(one))) continue;
-    const longest = group.reduce((best, one) => (span(one) > span(best) ? one : best));
+    const longest = passedLongest(group);
+    if (longest === undefined) continue;
     passing.push({ event: group[0]!.event, minutes: minutes(span(longest)), bound: longest.bound });
   }
   const bounds = new Map<string, number>();
@@ -89,7 +84,21 @@ export async function ciTimesReading(db: CiTimesDb, project: string, now = new D
   };
 }
 
-function span(run: RunRow): number {
+export function headsOf(runs: readonly RunRow[]): RunRow[][] {
+  const groups = new Map<string, RunRow[]>();
+  for (const run of runs) {
+    const key = `${run.event}\0${run.head_sha}`;
+    groups.set(key, [...(groups.get(key) ?? []), run]);
+  }
+  return [...groups.values()];
+}
+
+export function passedLongest(group: readonly RunRow[]): RunRow | undefined {
+  if (!group.every(({ status, conclusion }) => status === "completed" && PASSED.has(conclusion ?? ""))) return undefined;
+  return group.reduce((best, one) => (span(one) > span(best) ? one : best));
+}
+
+export function span(run: RunRow): number {
   return run.ended_at === null ? 0 : run.ended_at.getTime() - (run.started_at ?? run.created_at).getTime();
 }
 

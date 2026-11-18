@@ -1,13 +1,7 @@
-/**
- * Capability 17 · Friction, its verbs (ADR-1097). The `friction` and `resteer` verbs, declared once here
- * (ADR-0969 D2) and mounted by both front doors: by the command line as its families of those names, 13th and 14th
- * (ADR-1033), and by the MCP server as the tools record_friction, reinforce, friction_drain, route and record_resteer.
- * File friction or a re-steer, add a recurrence, and drain and route the friction a landing's pass judges.
- */
+// Capability 17 · Friction
 import type { FieldsOf } from "@storytree/library";
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "@storytree/library/verbs";
 
-/** A field's value as given: JSON for a list, else the text. */
 function listOf(text: string): string[] {
   const trimmed = text.trim();
   if (trimmed.startsWith("[")) {
@@ -15,13 +9,11 @@ function listOf(text: string): string[] {
       const parsed: unknown = JSON.parse(trimmed);
       if (Array.isArray(parsed)) return parsed as string[];
     } catch {
-      // Not JSON: read it as comma-separated ids.
     }
   }
   return text.split(",").map((id) => id.trim()).filter(Boolean);
 }
 
-/** The fields given, each under its camel-cased name, and the links as a list: capture takes only its own fields. */
 function fields(given: Readonly<Record<string, string | undefined>>): Record<string, unknown> {
   const named: Record<string, unknown> = {};
   for (const [name, value] of Object.entries(given)) {
@@ -31,7 +23,6 @@ function fields(given: Readonly<Record<string, string | undefined>>): Record<str
   return named;
 }
 
-/** The branch checked out in `folder`, or "(no branch)". */
 async function branchIn(folder: string): Promise<string> {
   const { runGit } = await import("../activity/git.js");
   try {
@@ -66,8 +57,6 @@ const frictionNew = verb({
   writes: true,
   async act({ "about-storytree": aboutStorytree, "none-match": noneMatch, ...input }, context: VerbContext) {
     const { closestFriction, frictionHome, recordFriction } = await import("./filing/capture.js");
-    // A repeat is a recurrence of the earlier report, so the filer sees the closest first (ADR-1233 D1); filed new
-    // past them, the report records which it was shown, so a repeat filed as new can be found. A product's are in its factory's library.
     const home = frictionHome(context.library);
     const closest = await closestFriction(home, { title: input.title, statement: input.statement });
     if (!noneMatch && closest.length > 0) {
@@ -87,12 +76,9 @@ const frictionNew = verb({
     const note = await recordFriction(context.library, {
       ...fields(input), branch: await branchIn(context.folder), lookup: { shown: closest.map((one) => one.id), noneMatch: noneMatch === true },
     } as never, context.writer!);
-    // Filed into the factory, it is not read from the product's library (ADR-1331 D5): no step to read it there.
     const where = home === context.library ? "" : ` in factory ${home.name}'s library, from project ${context.library.name}`;
     const next = where === "" ? [{ command: `library read ${note.id}`, why: "read it whole" }] : [];
     if (!aboutStorytree) return { text: `Recorded friction ${note.id}${where}.`, data: { id: note.id }, next };
-    // Settled by question_03c165b887c7 (option A), narrowed by ADR-1270: storytree sends nothing and never prompts for it;
-    // the draft is there for a user who wants to send it.
     const { issueDraft } = await import("./issue-draft.js");
     const draft = issueDraft({ ...input, project: context.project, folder: context.folder });
     return {
@@ -134,14 +120,12 @@ const drain = verb({
     description: "Drain friction for the landing's pass: up to three open reports other branches filed, most recurrences first, leased to this session for a few minutes, each with its lookalikes from the last four weeks (settled ones too). Read each whole, judge those sharing its root cause as one theme, then route it once, naming the theme.",
   },
   inputs: {},
-  // It leases what it lists to the asking session (17.13).
   writes: true,
   async act(_input, context: VerbContext) {
     const { leaseFriction, lookalikes, openFriction } = await import("./drain/drain.js");
     const open = await openFriction(context.library, { branch: await branchIn(context.folder) });
     const { taken: due, free } = await leaseFriction(context.library, open, context.writer === undefined ? {} : { writer: context.writer });
     if (due.length === 0) return { text: "No friction is due: every report from another branch is routed." };
-    // Judged together, reports sharing a root cause are routed once as a theme (ADR-1241).
     const alike = await Promise.all(due.map((note) => lookalikes(context.library, note)));
     const lines = due.flatMap((note, index) => [
       `  ${note.id}  (${note.fields.reinforcedBy?.length ?? 0} recurrences)  ${note.fields.title}`,
@@ -199,7 +183,6 @@ const routeVerb = verb({
   },
 });
 
-/** A re-steer's short name, from what the user redirected the session to: its first line, cut to 80 characters. */
 function titleOf(redirect: string): string {
   const line = redirect.trim().split("\n")[0]!;
   return line.length <= 80 ? line : `${line.slice(0, 79)}…`;
@@ -253,16 +236,13 @@ const resteerNew = verb({
   },
 });
 
-/** Session management's friction command families, which its manifest names under `verbs` (ADR-1033), 13th and 14th among `storytree`'s. */
 export const FRICTION_FAMILIES: readonly VerbFamily[] = [
   { name: "friction", summary: "file friction with its evidence, add a recurrence, or drain and route it", order: 13, verbs: [frictionNew, reinforce, drain, routeVerb] },
   { name: "resteer", summary: "file a re-steer, with the owner's own words", order: 14, verbs: [resteerNew] },
 ];
 
-/** Its section of the habits card (ADR-1021, the guidance kind): filing what fought you, and draining what others filed. */
 export const frictionGuidance: readonly string[] = [
   "File what fought you: `record_friction` when something got in your way, with concrete evidence (marked about storytree when the defect is storytree's own, so the user can choose to send it on), and `reinforce` the existing item when it happens again, with its own (filing first shows the closest earlier reports: reinforce the one that is the same problem, or file it again marked none-match); `record_resteer` when the owner redirects you, quoting their own words. Before landing, `friction_drain` hands you up to three reports other sessions filed, each with its lookalikes: read each, judge those sharing its root cause as one theme, then `route` it once with its reason, naming the theme.",
 ];
 
-/** Friction's verbs that are tools, which the MCP server mounts (17.18). */
 export const FRICTION_TOOLS = FRICTION_FAMILIES.flatMap((family) => family.verbs);

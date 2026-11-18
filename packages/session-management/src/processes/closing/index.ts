@@ -1,4 +1,4 @@
-/** Capability 16 · Finish with an honest inventory: conservative record cleanup and a bounded, all-session closing reading. */
+// Capability 16 · Finish with an honest inventory
 import { unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { ledgerHome, readLedger, reason } from '../ledger/files.js';
@@ -10,14 +10,12 @@ import { observeRuns } from '../observation/observe.js';
 import type { ObservationOptions } from '../observation/observe.js';
 
 export interface KnownGaps {
-  /** Carry launch gaps whose persistence failed; a later disk read cannot recover them. */
   readonly knownGaps?: readonly ObservationGap[];
 }
 export interface ClearOptions extends ObservationOptions, KnownGaps {
   readonly owner: RunOwner;
 }
 export interface ClearDependencies {
-  /** Same semantics as unlink: resolve only after removing the file, reject on failure. */
   readonly remove?: (file: string) => Promise<void>;
 }
 export interface RetainedRecord {
@@ -36,18 +34,10 @@ export interface ClearResult {
   readonly removed: readonly string[];
   readonly retained: readonly RetainedRecord[];
   readonly failed: readonly FailedRemoval[];
-  /** Unreadable records have no trustworthy owner/run ID and are reported here, never removed. */
   readonly gaps: readonly ObservationGap[];
   readonly coverage: string;
 }
 
-/**
- * Only caller records are removed. Explicit descendants must also be confirmed gone, including
- * delegated sessions whose records this caller cannot clear. Any missing evidence blocks cleanup.
- * No signals, request/gap deletion, claim releases or session-age expiry. Launch records are
- * immutable; rereading detects changed records and late child registrations before each unlink.
- * This is a snapshot, not a launch interlock: subsequent launches need another closing reading.
- */
 export async function clearOwned(options: ClearOptions, dependencies: ClearDependencies = {}): Promise<ClearResult> {
   const owner = ownerSchema.parse(options.owner);
   const home = ledgerHome(options);
@@ -65,14 +55,11 @@ export async function clearOwned(options: ClearOptions, dependencies: ClearDepen
     const id = original.run.id;
     const current = await observeRuns({ ...options, home });
     remember(current.gaps);
-    // Read after the probes too: a child can register while native observation is in flight.
     const latest = await readLedger({ home });
     remember(latest.gaps);
     const members = descendants(id, latest.runs);
     const observed = new Map(current.runs.map(row => [row.run.id, row]));
     const latestById = new Map(latest.runs.map(run => [run.id, run]));
-    // Compare both directions: disappearing/reparented children are lost evidence too.
-    // Only deletions this call has confirmed itself may shrink the original membership.
     const previous = [...descendants(id, initial.runs.map(row => row.run)),
       ...descendants(id, current.runs.map(row => row.run))].filter(run => !removed.includes(run.id));
     const root = latest.runs.find(run => run.id === id);
@@ -117,12 +104,10 @@ function descendants(root: string, runs: readonly RunRecord[]): RunRecord[] {
 
 export interface ClosingOptions extends Omit<InventoryOptions, 'scope' | 'stopAction'>, KnownGaps {}
 export interface ClosingReading {
-  /** empty means no live/unknown tracked session work, even if gone records remain on disk. */
   readonly status: 'empty' | 'remaining' | 'incomplete';
   readonly inventory: Inventory;
 }
 
-/** Always reads all local session records, regardless of caller, session end or released claims. */
 export async function readClosing(options: ClosingOptions = {}): Promise<ClosingReading> {
   const carried = (options.knownGaps ?? []).map(gap => gapSchema.parse(gap));
   const reading = await listRuns({ ...options, scope: 'all' });
@@ -132,7 +117,6 @@ export async function readClosing(options: ClosingOptions = {}): Promise<Closing
     inventory.rows.some(row => row.process.state !== 'gone') ? 'remaining' : 'empty' };
 }
 
-/** Evidence for the existing closing leg; this does not grant or perform session closure. */
 export function renderClosing(reading: ClosingReading): string {
   const verdict = reading.status === 'empty' ? 'Closing reading: no tracked session work remains on this machine.' :
     reading.status === 'incomplete' ? 'Closing reading incomplete: missing evidence prevents a clearance claim.' :

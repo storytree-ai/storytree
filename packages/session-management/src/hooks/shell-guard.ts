@@ -1,26 +1,4 @@
-/**
- * Capability 3 · Hooks. The hook after each shell command that the harness waits for (`--shell-guard`, ADR-1015): a
- * command that changed or deleted files in a folder the project imports, which no yes of the user's covers, is told to
- * the agent at once, and recorded as an edit there where the user sees it. A shell command cannot be read reliably
- * before it runs, so it is caught after: each imported folder keeps a baseline of its files per session (shell-edits.ts,
- * under its own home so it never shares one with the worktree's), which the ordinary hooks set at the session's start,
- * before a command and after an edit tool, and which the guard compares after the command.
- *
- * The guard does not read the library to find the imported folders: the ordinary hooks remember them on this machine
- * once the checkout's approval is known. It reaches storytree only when something changed there, to ask which changes
- * the user's yes covers; when it cannot in time, it tells the agent of them all. It tells the agent to ask the user,
- * never to restore: the user may have changed their own project themselves between two commands (ADR-1015 D4).
- *
- * Given the map's rule for which capability a file declares, it also compares the session's own worktree with a baseline
- * of its own, and tells the agent of each changed file the hook before an edit tool would have refused: in a capability
- * its increment does not list, or another live session holds (ADR-0949 D3), unless the file is back as the branch's base
- * has it. That needs storytree; unreached in time, it says nothing of them, as the gate lets an edit go ahead.
- * Before a shell command it reads only the command, and refuses one that kills what a search of the process list found
- * (contract 3.59): that search also matches the session's own engine, whose command line carries its increment's id, so
- * the kill would end the agent mid-work (friction_abac06856ce1). Its runs are stopped through their records instead.
- *
- * Like every hook it never breaks the agent: on any failure it says nothing.
- */
+// Capability 3 · Hooks
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -37,36 +15,23 @@ import { limitOf, withinLimit, type Step } from "./learned-limits.js";
 import { enqueue } from "./queue.js";
 import { shellEdits } from "./shell-edits.js";
 
-/** The flag of the hook after each shell command that the harness waits for. */
 export const SHELL_GUARD = "--shell-guard";
 
-/**
- * How long the guard may take to ask which changes a yes covers, and each Git read comparing the worktree with its
- * base: the harness waits on it. Learned on each machine (ADR-1163 D2), never under the 3 s it was fixed at, nor over
- * 6 s, so the guard and the observations before it stay inside the hook's 9 s (GUARDED_DEADLINE_MS).
- */
 export const SHELL_GUARD_STEP: Step = { name: "shell-guard", floorMs: 3_000, ceilingMs: 6_000 };
 
-/** The most changed files a notice names one by one. */
 const NAMED = 20;
 
-/**
- * A kill fed from a search of the process list: ps or pgrep piped on, within one command of the line, to kill (directly
- * or through xargs); kill given a ps or pgrep substitution; and pkill -f, which is that search and kill in one.
- */
 const KILL_FROM_SEARCH = [
   /(?:^|[|;&(\n]|\$\()\s*(?:sudo\s+)?(?:ps|pgrep)\b(?:(?!&&)[^;\n])*\|\s*(?:sudo\s+)?(?:xargs\b[^|;&\n]*?\s)?kill\b/,
   /(?:^|[|;&(\s])kill\b[^|;&\n]*(?:\$\(|`)\s*(?:sudo\s+)?(?:ps|pgrep)\b/,
   /(?:^|[|;&(\n])\s*(?:sudo\s+)?pkill\b[^|;&\n]*\s-[a-zA-Z]*f/,
 ];
 
-/** Whether `command` kills what a search of the process list found. Text in single quotes is only text. */
 export function killsFromSearch(command: string): boolean {
   const unquoted = command.replace(/'[^']*'/g, "''");
   return KILL_FROM_SEARCH.some((shape) => shape.test(unquoted));
 }
 
-/** The guard's answer before a shell command in a storytree project: a refusal for a kill fed from a process-list search, else nothing. */
 function beforeCommand(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined): string | undefined {
   const command = ((input as Record<string, unknown>).tool_input as Record<string, unknown> | undefined)?.command;
   if (made === undefined || typeof command !== "string" || !killsFromSearch(command)) return undefined;
@@ -77,7 +42,6 @@ function beforeCommand(harness: string, input: unknown, made: HookLines | undefi
   );
 }
 
-/** The folders `project` imports on this machine, as the ordinary hooks last remembered them; none when they never did. */
 export function rememberedImports(home: string, project: string): ImportedFolderPlace[] {
   try {
     const stored: unknown = JSON.parse(readFileSync(importsFile(home, project), "utf8"));
@@ -87,11 +51,6 @@ export function rememberedImports(home: string, project: string): ImportedFolder
   }
 }
 
-/**
- * After an ordinary hook reached storytree in an approved checkout of `project`: remember the folders it imports on this
- * machine, and set their baselines for `line`'s session (at its start, before a command, after an edit tool, so an edit
- * the gate let through is not blamed on the next command). Never throws; `failed` keeps why.
- */
 export async function watchImports(storytree: Storytree, project: string, machineHome: string, home: string, line: NewLine, failed: (stage: HookFailure["stage"], error: unknown) => void, git: Git = runGit): Promise<void> {
   if (!["session-started", "command-started", "file-edited"].includes(line.kind)) return;
   try {
@@ -106,12 +65,6 @@ export async function watchImports(storytree: Storytree, project: string, machin
   }
 }
 
-/**
- * The guard's answer after a shell command, for the agent; undefined for nothing to say. Each imported folder's changes
- * are recorded (queued for the next hook to upload); those no yes covers are told. It runs no git, and says nothing, in a
- * checkout this machine does not know as approved (contract 3.46). It may take `guardMs` when given, else the time this
- * machine learned in `home`, which learns how long asking storytree took. Never throws.
- */
 export async function shellGuard(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined, machineHome: string, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, declared?: DeclaredCapabilities, guardMs?: number, git: Git = runGit): Promise<string | undefined> {
   try {
     if (typeof input === "object" && input !== null && (input as Record<string, unknown>).hook_event_name === "PreToolUse") return beforeCommand(harness, input, made, locate);
@@ -122,7 +75,6 @@ export async function shellGuard(harness: string, input: unknown, made: HookLine
     if (where.status === "not-a-project" || !approvedHere(where.project, made.folder, machineHome)) return undefined;
     const imports = rememberedImports(home, where.project);
     const edits = imports.flatMap(({ folder }) => shellEdits(baselines(home), folder, line, (error) => failed("observe", error), git));
-    // The session's own worktree, observed apart from the ordinary hooks' baseline, whose lines record the same edits.
     const root = declared === undefined ? undefined : worktreeRoot(made.folder);
     const touched = root === undefined ? [] : shellEdits(worktreeBaselines(home), root, line, (error) => failed("observe", error), git).flatMap((edit) => (edit.kind === "file-edited" ? edit.files : []));
     const own = touched.length === 0 ? touched : offBase(root!, touched, git, limit);
@@ -139,7 +91,6 @@ export async function shellGuard(harness: string, input: unknown, made: HookLine
       return undefined;
     }));
     const answer = result.late ? undefined : result.answer;
-    // Imported changes storytree could not judge in time are all told; the worktree's, like an edit the gate could not judge, go ahead.
     const told = answer?.told ?? changed;
     const refused = answer?.refused ?? [];
     if (told.length === 0 && refused.length === 0) return undefined;
@@ -155,7 +106,6 @@ export async function shellGuard(harness: string, input: unknown, made: HookLine
   }
 }
 
-/** What the agent reads: which files its command changed in which imported folder, and to ask the user. */
 function notice(changed: readonly { folder: string; file: string }[]): string {
   const folders = [...new Set(changed.map(({ folder }) => folder))];
   const where = folders.map((folder) => {
@@ -166,22 +116,12 @@ function notice(changed: readonly { folder: string; file: string }[]): string {
   return `[storytree] Your last shell command changed ${where}: the user's original project, imported into storytree, which is changed only on the user's explicit permission (ADR-1015), and no yes of theirs covers these files. Do not restore them on your own, since the user may have changed their project themselves: tell the user what changed, and ask the user whether to keep it or restore it (git checkout or git clean there).`;
 }
 
-/**
- * After an ordinary hook in the worktree at `root`: set the guard's own baseline there for `line`'s session (at its start,
- * before a command, after an edit tool, so an edit the gate already judged is not told again after the next command).
- */
 export function watchWorktree(home: string, root: string, line: NewLine, failed: (stage: HookFailure["stage"], error: unknown) => void, git: Git = runGit): void {
   if (["session-started", "command-started", "file-edited"].includes(line.kind)) shellEdits(worktreeBaselines(home), root, line, (error) => failed("observe", error), git);
 }
 
-/**
- * Of `files` in the worktree at `root`, those whose content is not what the branch's base has: the merge base with
- * origin/main, else HEAD. A command that returns a file there, as a git checkout undoing a trespass does, changed
- * nothing the branch carries (friction_53b3f12c30aa). When Git cannot say, every file counts as changed.
- */
 function offBase(root: string, files: readonly string[], run: Git, limitMs: number): string[] {
   try {
-    // Hashing would start the clean filters the repository's config names on its files' content.
     const off = filtersOff(run, root, limitMs);
     const git = (args: string[], input?: string) => run([...off, "--no-optional-locks", ...args], { cwd: root, ...(input === undefined ? {} : { input }), timeout: limitMs, maxBuffer: 8 * 1024 * 1024 });
     let base: string;
@@ -200,12 +140,10 @@ function offBase(root: string, files: readonly string[], run: Git, limitMs: numb
   }
 }
 
-/** Where the imported folders' baselines are kept: apart from the worktrees' own. */
 function baselines(home: string): string {
   return path.join(home, "imported-edits");
 }
 
-/** Where the guard's baselines of the session's worktree are kept: apart from the ordinary hooks', which record its edits. */
 function worktreeBaselines(home: string): string {
   return path.join(home, "guarded-edits");
 }

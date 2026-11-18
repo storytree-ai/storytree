@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./tool-input": "./src/tools/tool-input.ts"
+    "./tool-input": "./src/tools/tool-input.ts",
+    "./measures": "./src/instructions/measures.ts"
   },
   "imports": {
     "#parts/tools": "./src/parts/tools.ts",
@@ -38,5 +39,13 @@
     "@storytree/test-waits": "workspace:*",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"
+  },
+  "storytree": {
+    "measures": [
+      {
+        "from": "./measures",
+        "export": "HABITS_CARD_MEASURE_READERS"
+      }
+    ]
   }
 }

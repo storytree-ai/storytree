@@ -1,9 +1,4 @@
-/**
- * Capability 3 · Hooks, contract 3.17 (ADR-0758 D4): when a Claude Code or Codex turn, or a Pi run, ends in
- * a storytree project on a branch whose work has reached main, and the session has not closed out, the
- * Stop hook (Pi's agent_before_settle) asks it to, once; a pool lane, whose runner closes it out, is never asked. Real git in a throwaway repository with an origin beside it; the close-out
- * is written to the real log on the Postgres `pnpm test` provides.
- */
+// Capability 3 · Hooks
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -19,7 +14,6 @@ import { CLOSE_OUT_REMINDER, runHook } from "./index.js";
 test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-out is asked, once, to close out; a fresh branch with no commits of its own (made by checkout or as a workspace), a branch still ahead, main, a stop the reminder caused, a session that closed out, or a pool lane its runner started is not", async () => {
   const project = uniqueProjectName();
   const was = process.env.STORYTREE_HOME;
-  // This test may itself run inside a pool lane: the interactive sessions below carry no lane marker.
   const lane = process.env.STORYTREE_LANE_RUN;
   delete process.env.STORYTREE_LANE_RUN;
   try {
@@ -29,7 +23,6 @@ test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-ou
       git(dir, "init", "--bare", "-b", "main", origin);
       git(dir, "init", "-b", "main", site);
       writeFileSync(path.join(site, ".storytree.json"), `${JSON.stringify({ project })}\n`);
-      // The checkout approved on this machine, as a setup leaves it: the reminder runs git in no other (3.46).
       const home = path.join(dir, "storytree-home");
       mkdirSync(home);
       process.env.STORYTREE_HOME = home;
@@ -43,7 +36,6 @@ test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-ou
       const [asked, again, caused, done] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
 
       assert.equal(await stop(asked), undefined, "on main: nothing to close out");
-      // The way `storytree workspace` cuts one: a linked worktree on a new branch from origin/main (friction_ec191ac911de).
       const workspace = path.join(dir, "workspace");
       git(site, "fetch", "-q", "origin");
       git(site, "worktree", "add", "-q", "-b", "claude/increment-x", workspace, "refs/remotes/origin/main");
@@ -60,7 +52,6 @@ test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-ou
       assert.match(reminder.reason ?? "", /fix-login/);
       assert.match(reminder.reason ?? "", /storytree session close-out --safe yes\|no --why/);
       assert.equal(await stop(asked), undefined, "asked once per session");
-      // A pool lane: its runner set its marker on the engine, and closes it out at the engine's exit (ADR-1314 D3).
       process.env.STORYTREE_LANE_RUN = "4242-lane";
       try {
         assert.equal(await stop(randomUUID()), undefined, "a pool lane is not asked");
@@ -70,7 +61,6 @@ test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-ou
       }
       const codex = JSON.parse((await stop(randomUUID(), {}, "codex")) ?? "{}") as { decision?: string };
       assert.equal(codex.decision, "block", "a Codex session is asked the same way");
-      // Pi's run settling, as its extension forwards agent_before_settle: asked by an entry in the model's context and one continuation.
       const settle = (session: string, extra: Record<string, unknown> = {}) =>
         runHook({ argv: ["pi", CLOSE_OUT_REMINDER], input: JSON.stringify({ type: "agent_before_settle", hook_event_name: "agent_before_settle", session_id: session, cwd: site, outcome: "completed", continue: false, ...extra }) });
       const piSession = randomUUID();

@@ -1,4 +1,4 @@
-/** Capability 14 · See what remains: one local inventory reading for the CLI, MCP and closing surfaces. */
+// Capability 14 · See what remains
 import { ownerSchema, sameOwner } from '../ledger/records.js';
 import type { RunOwner } from '../ledger/records.js';
 import { observeRuns } from '../observation/observe.js';
@@ -16,14 +16,8 @@ export type StopOffer =
 export interface SharedWork {
   readonly name: string;
   readonly state: 'live' | 'gone' | 'unknown';
-  /** The public lifecycle reading's limitations and how to manage this shared work. */
   readonly reason: string;
 }
-/**
- * The storytree app and its database, as a shared row: the app lifecycle's reading of whether the
- * database is running is itself an observation, so it is live or gone, never unknown; it only lacks
- * the native lifetime that stop authority needs, and `storytree app quit` is the one way to stop it.
- */
 export function appDatabaseWork(running: boolean): SharedWork {
   return { name: 'storytree app and database', state: running ? 'live' : 'gone',
     reason: `The app lifecycle reports the database ${running ? 'running' : 'not running'}; it supplies no native lifetime or separate app identity. This shared work is managed by the app; use storytree app quit to stop it.` };
@@ -32,9 +26,7 @@ export interface InventoryOptions extends ObservationOptions {
   readonly scope?: 'self' | 'all';
   readonly owner?: RunOwner;
   readonly now?: Date;
-  /** Supplied only by a surface with an installed stop entry point. It must revalidate on use. */
   readonly stopAction?: (run: string) => StopAction;
-  /** Optional public lifecycle readings; never converted into owned runs or signal authority. */
   readonly shared?: readonly SharedWork[];
 }
 export interface InventoryRow extends ObservedRun {
@@ -52,7 +44,6 @@ export interface Inventory {
   readonly shared: readonly (SharedWork & { readonly stop: StopOffer })[];
   readonly gaps: RunObservation['gaps'];
   readonly coverage: string;
-  /** Complete only for the stated scope/coverage, never a whole-computer idle assertion. */
   readonly complete: boolean;
 }
 
@@ -74,7 +65,6 @@ export async function listRuns(options: InventoryOptions = {}): Promise<Inventor
   const rows: InventoryRow[] = [];
   for (const row of observation.runs) {
     const { run } = row;
-    // An old run at a reused PID is still a row. Only this exact lifetime is the inspector.
     if (run.machine === observation.machine && run.birth.state === 'live' && inspecting.state === 'live' &&
         sameIdentity(run.birth.identity, inspecting.identity)) continue;
     const ownership = owner === undefined || !owns(owner, run.owner, runs) ? 'other' :
@@ -108,7 +98,6 @@ function sameIdentity(a: ProcessIdentity, b: ProcessIdentity): boolean {
   return a.pid === b.pid && a.platform === b.platform && a.boot === b.boot && a.started === b.started;
 }
 
-/** Both front doors render the same reading; live work is a successful inventory result. */
 export function renderInventory(inventory: Inventory): string {
   const scope = inventory.scope === 'all' ? 'all recorded sessions' : `session ${quoted(inventory.owner!.session)}`;
   const lines = [`Work on ${quoted(inventory.machine)} — ${scope}.`,
@@ -141,7 +130,6 @@ function age(ms: number): string {
   return `${Math.floor(seconds / 3_600)}h`;
 }
 
-/** Its section of the habits card (ADR-1021, the guidance kind): the runs a caller may read, stop and clear. */
 export const runsGuidance: readonly string[] = [
   'Use `list_own_runs` for this caller’s recorded work, `list_all_runs` for every recorded session on this computer, `stop_own_run` for named runs you own, and `clear_own_runs` to remove only your confirmed-gone records and read what remains on this computer. These tools work with the app offline; uncertain caller identity grants no stop authority.',
 ];

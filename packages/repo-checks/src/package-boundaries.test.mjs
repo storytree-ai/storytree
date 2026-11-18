@@ -1,10 +1,3 @@
-// Each story keeps its code in its own package (ADR-0649 D1-D3, in storytree 0.2's decision log):
-// a story has a package, the frame (packages/app, apps/desktop) and the front door (packages/cli)
-// hold no story's code, and no package reaches into another story's files. The rule lives in this
-// package's capability 9 (src/rules/package-rule), with its planted trees; `pnpm lint` refuses a change to this
-// repo that breaks it in the gate and CI; this file is contract 5.1's test, run with this package's tests.
-// Contract 5.4: which packages are a story's comes from each package's own package.json ("story": "story_<12 hex>"),
-// read from the checkout boundaryProblems is given, not from a hand-kept list.
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,7 +15,6 @@ test("5.1 · this repo keeps every story in its own package, behind a thin frame
   assert.deepEqual(boundaryProblems(root), []);
 });
 
-/** A planted checkout: one packages/<folder>/package.json per entry, each the given manifest; removed after the test. */
 function plant(t, manifests) {
   const dir = mkdtempSync(path.join(tmpdir(), "package-boundaries-"));
   t.after(() => removeTemp(dir));

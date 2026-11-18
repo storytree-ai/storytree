@@ -1,8 +1,4 @@
-/**
- * Capability 11 · Machines. The machine verbs, declared once (ADR-0969 D2): give this computer its short name, list the
- * project's machines, and say which one this computer is. They are the command line's: a computer is named by the
- * person at it, and an agent has no use for the list until an increment names a machine.
- */
+// Capability 11 · Machines
 import { verb, VerbRefusal, type Verb, type VerbContext, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
 
 import type { MachineReadings } from "./health.js";
@@ -10,13 +6,11 @@ import type { MachineRecord } from "./machines.js";
 
 const NO_TOOL = { absent: "a computer is named, and its machines read, by the person at it on the command line" };
 
-/** The library server the machines are kept on: a door that has none open cannot reach them. */
 function server(context: VerbContext) {
   if (context.server === undefined) throw new VerbRefusal("the machines are kept on the library server, which this door has not opened");
   return context.server;
 }
 
-/** Where the caller's computer keeps its storytree home, when the context names one. */
 function here(context: VerbContext) {
   return context.home === undefined ? {} : { home: context.home };
 }
@@ -73,14 +67,8 @@ const which = verb({
   },
 });
 
-/** Where `machine health` is called: the place alone, and the storytree home whose settings hold its limits. */
 export type HealthPlace = VerbPlace & { readonly home?: string };
 
-/**
- * `storytree machine health`, reading the machine `read` gives (this one, unless a test hands its own) against the
- * limits in the settings of `home`. It needs no library, so it answers on a machine whose library is out of reach; a
- * concern is its "no", so the command exits 1 and a script over SSH can tell.
- */
 export function healthVerb(read?: () => MachineReadings): Verb<VerbInputs, HealthPlace> {
   return verb({
     command: { family: "machine", name: "health", summary: "this machine's health: its uptime, memory, load and disk, concerns first; exits 1 on a concern" },
@@ -100,5 +88,4 @@ export function healthVerb(read?: () => MachineReadings): Verb<VerbInputs, Healt
   });
 }
 
-/** The machine verbs, in the order the command line lists them. */
 export const MACHINE_VERBS: readonly Verb[] = [list, which, name, healthVerb()];

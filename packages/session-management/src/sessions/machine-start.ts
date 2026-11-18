@@ -1,10 +1,4 @@
-/**
- * Capability 4 · Sessions, a machine's start (contract 4.29): a session killed by its machine's
- * restart writes no end line, so every reader, on every machine, needs to know when that machine
- * last started. The first hook on a machine to reach a project's log after each start writes it
- * there, once: a "machine-started" line, with the start by the machine's own clock. This machine
- * remembers, under the storytree home, the start it last recorded in each project.
- */
+// Capability 4 · Sessions
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -13,19 +7,13 @@ import type { Line } from "@storytree/library";
 import { thisRestart } from "../claims/claims.js";
 import type { Restart } from "../readings.js";
 
-/** How far apart two readings of one start may lie: a start is read from the machine's uptime, to within a second or so. */
 const SAME_START_MS = 60_000;
 
-/** Who records the start: the session whose hook reached the log. */
 export interface Recorder {
   readonly session: string;
   readonly harness?: string;
 }
 
-/**
- * Record in `project`'s log that this machine started at `started`, unless this machine already
- * recorded that start there: the line written, or undefined when there was nothing to write.
- */
 export async function recordMachineStart(home: string, log: ActivityLog, project: string, by: Recorder, started: Restart | undefined = thisRestart()): Promise<Line | undefined> {
   if (started === undefined) return undefined;
   const file = path.join(home, "machine-started.json");
@@ -45,7 +33,6 @@ export async function recordMachineStart(home: string, log: ActivityLog, project
   return line;
 }
 
-/** The start this machine last recorded in each project, by project. */
 function readRecorded(file: string): Record<string, string> {
   try {
     const recorded: unknown = JSON.parse(readFileSync(file, "utf8"));

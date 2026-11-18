@@ -1,10 +1,4 @@
-/**
- * Capability 3 · Hooks: Pi (contract 3.32).
- *
- * Each input is what storytree's Pi extension forwards: Pi's own event, in the shapes a real Pi 1.1.0
- * logged on the Mint box on 2026-10-12 (its `type`, and a tool call's `toolName`, `toolCallId` and
- * `input`), with the session's id, folder and transcript the extension reads from Pi's context added.
- */
+// Capability 3 · Hooks
 import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
@@ -16,7 +10,6 @@ const SESSION = "01a12d5d-50ac-77b1-b29b-7123c4ef9c18";
 const FOLDER = path.resolve("/work/site");
 const TRANSCRIPT = path.join("/home/dev/.pi/agent/sessions/--work-site--", `2026-10-11T23-47-32-653Z_${SESSION}.jsonl`);
 
-/** What the extension adds to every event it forwards. */
 const forwarded = (event: Record<string, unknown> & { type: string }) => ({ ...event, hook_event_name: event.type, session_id: SESSION, cwd: FOLDER, transcript_path: TRANSCRIPT });
 
 const common = { session: SESSION, harness: "pi", source: "hook", folder: FOLDER, transcript: TRANSCRIPT };

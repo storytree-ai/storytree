@@ -1,8 +1,3 @@
-/**
- * Contract 9.10 · a session's window, read from its transcript (ADR-0746 D1): what is in it now, the
- * call that brought each piece, what it opened and whether that is still in view, and what it only
- * glimpsed. Written in the shapes Claude Code 2.1.283 and Codex 0.155 write.
- */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -28,7 +23,6 @@ test("9.10 a Claude Code window holds what came after the last compaction and it
     results(result("search", [{ type: "text", text: "decision_000000000002 Release on merge\ndecision_000000000001 Claims" }])),
     calls(call("open-2", "mcp__storytree__open", { id: "decision_000000000002" })),
     results(result("open-2", "Release on merge. Links to decision_000000000001 and src/claims/merges.ts")),
-    // A subagent's window is another window's: its calls and results are never this one's.
     { ...calls(call("side", "Read", { file_path: "src/claims/merges.ts" })), isSidechain: true },
     { ...results(result("side", "decision_000000000003")), isSidechain: true },
     calls(call("open-1", "Bash", { command: "pnpm storytree library read decision_000000000001 | head -40" }), call("file", "Read", { file_path: "src/claims/merges.ts" })),

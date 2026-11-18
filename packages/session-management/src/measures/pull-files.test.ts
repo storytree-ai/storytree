@@ -1,6 +1,4 @@
-/**
- * Capability 20 · Lane measures: contract 20.3, against a real git repository made for the test.
- */
+// Capability 20 · Lane measures
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";

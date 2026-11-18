@@ -1,5 +1,4 @@
-// Capability 8 · Storytree's own test and gate entries. increment_333dd2946299: the base runner names no file of storytree's
-// own, so storytree's `pnpm test` hands it its lists; and it holds what this computer's parts contribute (8.3).
+// Capability 8 · Storytree's own test and gate entries.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";

@@ -1,12 +1,4 @@
-/**
- * Capability 20 · Lane measures: the join (contract 20.1). For each increment closed in a window, the lane that drove it,
- * put together from what is already recorded: the agent sessions that claimed it or a capability under it (the watcher's
- * own holds left out), each one's spend from its stored transcript records (9.18's fold, its subagents' included) and its
- * list-price dollars; the fix sessions the watcher started (pr-red lines) and the merge queue's reds (queue-red lines);
- * its review rounds, from the part that keeps a QA ledger; and the stories and capabilities it touched, by its capabilities
- * list and by the files its pull request changed. A measure it cannot find for an increment is unattributed, with why,
- * never a zero. It reads and decides nothing (ADR-1238).
- */
+// Capability 20 · Lane measures
 import type { Library } from "@storytree/library";
 
 import type { ActivityLog } from "../activity/index.js";
@@ -14,30 +6,23 @@ import type { PlacedFile } from "../claims/file-owners.js";
 import { ContextFold, readingLines, transcriptOf, type ModelUsage } from "../context/index.js";
 import { dollarsOf } from "./prices.js";
 
-/** The days increments closed on to be counted, inclusive, each YYYY-MM-DD. */
 export interface LaneWindow {
   readonly from: string;
   readonly to: string;
 }
 
-/** What the reading is handed by its door, since Session management reads neither git, the map nor the QA ledger itself. */
 export interface LaneSources {
-  /** The files pull request `pr` changed, or undefined when its merge is not found. */
   prFiles?(pr: number): Promise<readonly string[] | undefined>;
-  /** Where each of `paths` belongs, by the map's placement. */
   placeFiles?(paths: readonly string[]): Promise<readonly PlacedFile[]>;
-  /** The review rounds the QA ledger holds for each of `increments`, one it holds none for counting 0; undefined when no part keeps a ledger here. */
   reviewRounds?(increments: readonly string[]): Promise<ReadonlyMap<string, number> | undefined>;
 }
 
-/** A story or capability a lane touched, and how it is known: by the increment's capabilities list, the files its pull request changed, or both. */
 export interface Touched {
   readonly id: string;
   readonly title: string;
   readonly by: "list" | "files" | "both";
 }
 
-/** The measures the reading could not attribute for one increment, each with why. */
 export interface Unattributed {
   tokens?: string;
   dollars?: string;
@@ -45,37 +30,30 @@ export interface Unattributed {
   files?: string;
 }
 
-/** One closed increment's lane, joined. */
 export interface LaneRow {
   readonly increment: string;
   readonly title: string;
   readonly closed: string;
   readonly disposition: "landed" | "failed" | "withdrawn";
   readonly pr?: number;
-  /** The agent sessions that claimed it or a capability under it. */
   readonly sessions: readonly string[];
   readonly tokens?: number;
   readonly dollars?: number;
   readonly rounds?: number;
-  /** Fix sessions the watcher started on its pull request's reds. */
   readonly fixSessions: number;
-  /** Times the merge queue removed its pull request for failed checks. */
   readonly queueReds: number;
   readonly stories: readonly Touched[];
   readonly capabilities: readonly Touched[];
   readonly unattributed: Unattributed;
 }
 
-/** The session holding a handed-over pull request for the watcher, which is no agent's. */
 const PULL_HOLDER = /^pull-request-\d+$/;
 
-/** One session's spend: its tokens, and its bill by model when its harness names one. */
 interface Spend {
   readonly tokens: number;
   readonly bill?: Map<string, ModelUsage>;
 }
 
-/** `session`'s spend from every part of its stored transcript, its own and its subagents'; undefined when none is stored. */
 async function sessionSpend(log: ActivityLog, project: string, session: string): Promise<Spend | undefined> {
   const parts = [...(await log.transcripts.cursors(project, session)).keys()];
   if (parts.length === 0) return undefined;
@@ -83,7 +61,6 @@ async function sessionSpend(log: ActivityLog, project: string, session: string):
   let tokens = 0;
   let bill: Map<string, ModelUsage> | undefined = new Map();
   for (const part of parts) {
-    // Only a line carrying a request's usage or a running token count adds to the spend: the rest is left unparsed.
     const text = (await log.transcripts.text(project, session, part)) ?? "";
     const fold = new ContextFold(harness, { subagent: part !== "" }).feed(text.split("\n").filter((line) => line.includes('"usage"') || line.includes('"token_count"')).join("\n"));
     tokens += fold.spent();
@@ -99,19 +76,16 @@ function add(sum: ModelUsage | undefined, usage: ModelUsage): ModelUsage {
   return { input: sum.input + usage.input, cacheRead: sum.cacheRead + usage.cacheRead, cacheWrite5m: sum.cacheWrite5m + usage.cacheWrite5m, cacheWrite1h: sum.cacheWrite1h + usage.cacheWrite1h, output: sum.output + usage.output };
 }
 
-/** The pull request's number an outcome names ("#12" or "12"), or undefined. */
 function prNumber(pr: string | undefined): number | undefined {
   const match = /^#?(\d+)$/.exec(pr?.trim() ?? "");
   return match === null ? undefined : Number(match[1]);
 }
 
-/** Merge what a lane touched by its list and by its files into one list, each saying how it is known. */
 function touched(list: ReadonlyMap<string, string>, files: ReadonlyMap<string, string>): Touched[] {
   const ids = new Set([...list.keys(), ...files.keys()]);
   return [...ids].map((id) => ({ id, title: list.get(id) ?? files.get(id)!, by: list.has(id) ? (files.has(id) ? "both" : "list") : "files" }));
 }
 
-/** Each increment closed in `window`, its lane joined to what it spent, its review rounds, its pass measures and what it touched. */
 export async function laneRows(context: { log: ActivityLog; library: Library; project: string }, window: LaneWindow, sources: LaneSources = {}): Promise<LaneRow[]> {
   const { log, library, project } = context;
   const closed = (await library.list("increment")).filter((one) => {
@@ -138,7 +112,6 @@ export async function laneRows(context: { log: ActivityLog; library: Library; pr
     set.add(line.session);
     sessionsOf.set(increment, set);
   }
-  // A session that claimed more than one increment drove them all from one transcript, so its spend cannot be split.
   const allSessions = [...new Set([...sessionsOf.values()].flatMap((set) => [...set]))];
   const drove = new Map<string, Set<string>>();
   if (allSessions.length > 0) {
@@ -151,14 +124,12 @@ export async function laneRows(context: { log: ActivityLog; library: Library; pr
       drove.set(line.session, set);
     }
   }
-  // A few sessions at a time, so a window of hundreds of lanes never holds every transcript at once.
   const spends = new Map<string, Spend | undefined>();
   const queue = [...allSessions];
   await Promise.all(Array.from({ length: Math.min(4, queue.length) }, async () => {
     for (let session = queue.shift(); session !== undefined; session = queue.shift()) spends.set(session, await sessionSpend(log, project, session));
   }));
   const rounds = sources.reviewRounds === undefined ? undefined : await sources.reviewRounds(ids);
-  // Every pull request's files placed in one call: placing surveys the whole checkout, so once, not once a pull request.
   const filesOf = new Map<number, readonly string[] | undefined>();
   if (sources.prFiles !== undefined) {
     for (const pr of new Set(closed.map((one) => prNumber(one.fields.outcome!.pr)))) if (pr !== undefined) filesOf.set(pr, await sources.prFiles(pr));

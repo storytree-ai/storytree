@@ -1,5 +1,4 @@
-// Capability 8 · Storytree's own test and gate entries. ADR-1199 D2 / increment_343265b93ea4: storytree's three
-// code-structure rules run as one lint step, `pnpm lint`, in the gate and in CI on every pull request.
+// Capability 8 · Storytree's own test and gate entries.
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -12,7 +11,7 @@ import { gateSteps } from "./gate-steps.mjs";
 import { lint, RULES } from "./lint.mjs";
 
 test("8.5 pnpm lint runs its rules and fails naming each rule and file that breaks; it passes when none does", async (t) => {
-  assert.deepEqual(RULES.map(({ name }) => name), ["type-imports", "package-boundaries", "allocation", "codeql-patterns", "sketch-bundle-names", "eslint"]);
+  assert.deepEqual(RULES.map(({ name }) => name), ["type-imports", "package-boundaries", "allocation", "codeql-patterns", "eslint"]);
 
   const root = mkdtempSync(path.join(tmpdir(), "lint-"));
   t.after(() => removeTemp(root));

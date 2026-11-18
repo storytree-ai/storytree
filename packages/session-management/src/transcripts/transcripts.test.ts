@@ -1,8 +1,4 @@
-/**
- * Capability 9 · Transcripts in the shared log (ADR-0749 D3, D4): what is stored of a session's
- * transcript, scrubbed of obvious secrets, and what is kept once its raw records expire. Records
- * are written to the real activity log on the Postgres `pnpm test` provides.
- */
+// Capability 9 · Context readings
 import assert from "node:assert/strict";
 import { appendFileSync, chmodSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -16,7 +12,6 @@ import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/
 import { contextReading, readingLines } from "../context/index.js";
 import { pruneTranscripts, scrub, shipTranscript, storedContextReading, storedSessionWindow, TranscriptCache } from "./index.js";
 
-// Fakes built at run time, so no scanner mistakes this file for a leak.
 const fake = (...parts: string[]) => parts.join("");
 
 test("9.12 obvious secrets are replaced by a marker naming what was removed, and the record still parses", () => {
@@ -52,8 +47,6 @@ test("9.13 raw records older than 180 days are deleted by the retention pass, an
       const fresh = path.join(dir, "fresh.jsonl");
       writeFileSync(fresh, `${JSON.stringify({ type: "user", message: { content: "still fresh" } })}\n`);
       await shipTranscript(log, project, "fresh", fresh);
-      // The pass runs at the real time over the log every test shares, so the old record is made
-      // old rather than the pass run in the future, which would expire other tests' fresh records too.
       await storeAgo(project, "old", 181 * 24 * 60 * 60 * 1000);
       await pruneTranscripts(log);
       assert.equal(await log.transcripts.text(project, "old"), undefined, "its raw records are gone");
@@ -80,7 +73,6 @@ test("9.14 a reading asked again over a grown transcript parses only the records
         { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "r".repeat(4_000) }] } },
         { type: "assistant", requestId: "r2", message: { model: "claude-opus-5-5", usage: { input_tokens: 12_000, cache_read_input_tokens: 3_000 }, content: [{ type: "text", text: "Done." }] } },
       ];
-      // The user's prompt and the event naming it as the user's own land in different asks.
       const codex = [
         { type: "session_meta", payload: { id: "c", base_instructions: { text: "b".repeat(800) } } },
         { type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text: "Split the bars" }] } },
@@ -187,7 +179,6 @@ test("9.21 transcript records a cache keeps on disk are readable only by the use
   }
 });
 
-/** Move `session`'s stored records `ms` into the past, as if they had been stored then. */
 async function storeAgo(project: string, session: string, ms: number): Promise<void> {
   const url = new URL(testServerUrl());
   url.pathname = `/${ACTIVITY_DATABASE}`;

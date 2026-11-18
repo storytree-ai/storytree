@@ -1,8 +1,3 @@
-// The rules of recording a test run (test-run.mjs, record-run.mjs; storytree's own `pnpm check:own-health` among them): how a test run's results become
-// each contract's verified health, and how a story's contracts and its package are read from 0.3's
-// own library. The parsing and judging tests are pure; the library tests run against the Postgres
-// `pnpm test` provides (STORYTREE_TEST_PG_URL), each in a project of its own that is dropped
-// afterwards.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -29,7 +24,6 @@ test("7.1 judge: a contract passes only if every test it has passed; any failure
       result("2.1 [memory] some", "passed"),
       result("2.1 [postgres] some", "skipped", { message: "no server" }),
       result("8.1 live proof", "skipped", { message: "owner-gated" }),
-      // Nested under 8.1, a test named for 2.2 counts for 8.1, the outermost numbered name.
       { name: "2.2 [address] inside", suites: ["8.2 around it"], file: "C:\\repo\\a.test.ts", status: "passed" },
       result("robustness [memory] no number", "passed"),
       result("9.9 a contract the story does not have", "passed"),
@@ -213,13 +207,11 @@ test("7.1 · contractsCoveredBy finds the contract numbers a test file names, in
   writeFileSync(path.join(directory, "outside.ts"), 'test("9.9 · beyond the root", () => {});');
   plant("reaches-out.test.ts", ['import "../outside.js";', 'test("3.1 · inside", () => {});']);
   const covered = (file) => [...contractsCoveredBy(path.join(src, file), { root: src })].sort();
-  // pg.test.ts names no contract itself: it covers what the modules it imports name, transitively and through a cycle.
   assert.deepEqual(covered("transactions/pg.test.ts"), ["2.1", "2.2", "2.3", "4.1"]);
   assert.deepEqual(covered("named.test.ts"), ["1.1", "1.13", "1.2", "2.1", "2.2", "2.3"], "its own titles and an import's");
   assert.deepEqual(covered("reaches-out.test.ts"), ["3.1"], "a module outside the root covers nothing");
 });
 
-/** A story in `lib` with one capability and four contracts, as `projectTree()` hands it back. */
 async function kettle(lib) {
   const story = await lib.addStory({ title: "The cli" });
   const capability = await lib.addCapability({ story: story.id, title: "1 · Front door" });
@@ -419,7 +411,6 @@ test("7.7 a contract retired between a run's checkout and its record is skipped 
     const story = await kettle(lib);
     const { contractIds } = contractsOf(story);
     const run = async () => {
-      // Retired on the library while the tests run, after the story was read.
       await lib.retire(contractIds.get("1.2"), "Overtaken");
       await lib.retire(contractIds.get("1.3"), "Overtaken");
       return {
@@ -442,7 +433,6 @@ test("7.7 a contract retired between a run's checkout and its record is skipped 
   });
 });
 
-/** `lib` whose writes of verified health (one or many at once) first fail with each of `failures` in turn, as a dropped connection would, then go through; `tries` counts every write tried. */
 function dropping(lib, failures) {
   const left = [...failures];
   const tries = { count: 0 };
@@ -459,7 +449,6 @@ function dropping(lib, failures) {
   return { flaky, tries };
 }
 
-/** pg's errors as the own-health runs met them over the tailnet (runs 40442719643, 41216004749, 40806340594). */
 const terminated = () => new Error("Connection terminated unexpectedly");
 const timedOut = () => new Error("Connection terminated due to connection timeout");
 const idleInTransaction = () => Object.assign(new Error("terminating connection due to idle-in-transaction timeout"), { code: "25P03" });
@@ -644,7 +633,6 @@ test("7.1 macOS CI at the same commit verifies Get storytree 1.11's Apple Silico
 });
 
 test("7.15 · a Windows run that skips a Linux-only test leaves the Mint box's Linux pass of it standing; a Linux run that skips it takes the pass away", async (t) => {
-  // The laptop's factory run skipped micks-agent-runner's 11.2 and wrote over the box's pass of it (increment_55c151c7f0b4).
   const root = mkdtempSync(path.join(tmpdir(), "own-health-linux-"));
   t.after(() => removeTemp(root));
   mkdirSync(path.join(root, "plugins", "runner", "src"), { recursive: true });
@@ -774,9 +762,6 @@ test("7.19 · own health records a failing test the passing CI run of the same c
   });
 });
 
-/** A story file with three capabilities, their dependencies and their contracts, for syncStory to load and reload. */
-
-/** Run `body` with a library for a fresh project on the test server, dropped afterwards, pass or fail. */
 async function withLibrary(body) {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run these tests through `pnpm test`, which starts a local Postgres");

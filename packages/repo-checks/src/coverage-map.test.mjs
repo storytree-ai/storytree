@@ -1,5 +1,3 @@
-// The browser half of the measured coverage map (coverage-map.mjs, ADR-0838 D3): a story's evidence capture records the
-// functions its passing browser proof ran, read through the bundle's source map, into survey-browser-coverage.json.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
@@ -12,11 +10,9 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { browserProofs, executedFiles, recordBrowserCoverage } from "./coverage-map.mjs";
 
-/** The bundle at `bundlePath` run under coverage into `coverageDir`, and the one script record it reported for that bundle. */
 function measure(bundlePath, coverageDir, expected) {
   assert.equal(execFileSync(process.execPath, ["--enable-source-maps", bundlePath], { env: { ...process.env, NODE_V8_COVERAGE: coverageDir }, encoding: "utf8" }).trim(), expected);
   const records = readdirSync(coverageDir).map(file => JSON.parse(readFileSync(path.join(coverageDir, file), "utf8")));
-  // V8 may report a short Windows path or a resolved link. This child loads one fixture bundle.
   const bundles = records.flatMap(record => record.result).filter(script => script.url.endsWith("bundle.cjs"));
   assert.equal(bundles.length, 1, "the child reported exactly one fixture bundle");
   return bundles[0];
@@ -41,16 +37,13 @@ test("6.2 · a passing browser proof that names its own story records the functi
     assert.equal(measured.functions.find(fn => fn.functionName === "idle").ranges[0].count, 0);
     const scripts = [{ bundlePath, source, sourceMap, functions: measured.functions }];
     const proof = "keys 2.1 the click answers";
-    // Only the ran function of the package's own source counts: not the idle one, not the other story's.
     assert.deepEqual(recordBrowserCoverage({ pkgDir: pkg, proof, passed: true, scripts }), { "src/view.ts": { 2: 1 } });
-    // Repeating a capture replaces its previous contribution rather than accumulating it.
     recordBrowserCoverage({ pkgDir: pkg, proof, passed: true, scripts });
     assert.deepEqual(browserProofs(pkg), { [proof]: { "src/view.ts": { 2: 1 } } });
     assert.throws(() => recordBrowserCoverage({ pkgDir: pkg, proof: "forest-world 2.1 foreign", passed: true, scripts }), /own story/);
     assert.throws(() => recordBrowserCoverage({ pkgDir: pkg, proof: "keys 3.1 failed", passed: false, scripts }), /passing/);
     assert.throws(() => recordBrowserCoverage({ pkgDir: pkg, proof: "keys 4.1 idle", passed: true, scripts: [{ ...scripts[0], functions: measured.functions.filter(fn => fn.functionName === "idle") }] }), /executed/);
     assert.deepEqual(browserProofs(pkg), { [proof]: { "src/view.ts": { 2: 1 } } }, "a refused capture of another proof leaves this one's");
-    // A failed recapture invalidates that proof's earlier evidence, and so does one with no source map.
     assert.throws(() => recordBrowserCoverage({ pkgDir: pkg, proof, passed: false, scripts }), /passing/);
     assert.deepEqual(browserProofs(pkg), {});
     recordBrowserCoverage({ pkgDir: pkg, proof, passed: true, scripts });
@@ -86,8 +79,6 @@ test("6.2 · App's browser proof records the same checkout's Desktop functions a
     const { functions } = measure(bundlePath, coverageDir, "6");
     for (const name of names) assert.equal(functions.find(fn => fn.functionName === name).ranges[0].count, name === "idle" ? 0 : 1);
     const scripts = [{ bundlePath, source, sourceMap, functions }];
-    // V8 and Node's map cache can spell the same file differently across a link or junction.
-    // Keep the real measured functions and map, but give the cache the other valid file URL.
     const urls = [pathToFileURL(bundlePath).href, pathToFileURL(realpathSync(bundlePath)).href];
     for (const name of readdirSync(coverageDir)) {
       const file = path.join(coverageDir, name);

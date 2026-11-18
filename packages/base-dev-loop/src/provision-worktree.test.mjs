@@ -5,7 +5,7 @@
 // UNLINKED (an install reported success but linked no workspace package).
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 
 import { quietFor, removeTemp } from "@storytree/test-waits";
 
+import * as provisionWorktree from "./provision-worktree.mjs";
 import { check, cloudMain, cloudNode, connectCloud, hookOutput, installEnvironment, installedNodes, pinnedNode, pnpmInstall, provision, serve } from "./provision-worktree.mjs";
 
 const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url));
@@ -770,4 +771,192 @@ test("3.10 with no version manager it knows, the session is told the exact versi
 test("3.10 the pinned Node.js, or a root with no pin, says nothing", (t) => {
   assert.equal(pinnedNode({ root: pinned(t, "24.22.1"), version: "v24.22.1", platform: "win32", env: {} }), undefined);
   assert.equal(pinnedNode({ root: pinned(t, undefined), version: "v24.19.0", platform: "win32", env: {} }), undefined);
+});
+
+const cloudFactory = (options) => provisionWorktree.cloudFactory(options);
+const FACTORY_URL = "https://github.com/HuaMick/storytree-factory.git";
+const FACTORY_TOKEN = "github_pat_11AAtestTOKEN0042";
+/** base64 of "x-access-token:github_pat_11AAtestTOKEN0042", worked out once by hand rather than the way the code does. */
+const FACTORY_TOKEN_BASE64 = "eC1hY2Nlc3MtdG9rZW46Z2l0aHViX3BhdF8xMUFBdGVzdFRPS0VOMDA0Mg==";
+const PLUGIN_NAMED = ["settings", "set", "module", "micks-dev-loop", "plugin", "micks-dev-loop"];
+
+/** Where a link at file resolves to, or undefined when file is not a link. */
+function linkTarget(file) {
+  try {
+    return lstatSync(file).isSymbolicLink() ? realpathSync(file) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A cloud container's checkout and a storytree home at `<base>/.storytree/0.3`, with git, the install and storytree's
+ * command line recorded in one sequence. A clone git reports done makes the folder's .git, as git would, unless
+ * `clones` is false.
+ */
+function factory(t, { gitStatus = 0, installOk = true, runOk = true, clones = true } = {}) {
+  const base = mkdtempSync(path.join(tmpdir(), "cloud-factory-"));
+  t.after(() => removeTemp(base));
+  const root = path.join(base, "checkout");
+  const home = path.join(base, ".storytree", "0.3");
+  mkdirSync(root, { recursive: true });
+  mkdirSync(home, { recursive: true });
+  const folder = path.join(base, ".storytree", "your-factory");
+  const steps = [];
+  const lines = [];
+  const git = (args, options = {}) => {
+    steps.push({ step: "git", args, env: options.env });
+    if (gitStatus === 0 && clones && args[0] === "clone") mkdirSync(path.join(args.at(-1), ".git"), { recursive: true });
+    return { status: gitStatus };
+  };
+  const install = (dir) => {
+    steps.push({ step: "install", args: [dir], linked: linkTarget(path.join(dir, "storytree")) });
+    return installOk ? { ok: true, code: 0 } : { ok: false, code: 1 };
+  };
+  const run = (args) => {
+    steps.push({ step: "run", args });
+    return runOk ? { ok: true, code: 0 } : { ok: false, code: 2 };
+  };
+  const options = {
+    root, home, env: { CLAUDE_CODE_REMOTE: "true", FACTORY_READ_TOKEN: FACTORY_TOKEN }, factory: FACTORY_URL,
+    tokenVar: "FACTORY_READ_TOKEN", plugin: "micks-dev-loop", git, run, install, log: (line) => lines.push(line),
+  };
+  return { base, root, home, folder, steps, lines, options };
+}
+
+/** The token, plain or in its header's base64, is in no argument given to any step, no log line and no message. */
+function assertTokenKeptOut({ steps, lines }, result) {
+  const seen = [...steps.map((s) => JSON.stringify(s.args)), ...lines, result?.message ?? ""].join("\n");
+  assert.equal(seen.includes(FACTORY_TOKEN), false, "the token is in an argument, a log line or the message");
+  assert.equal(seen.includes(FACTORY_TOKEN_BASE64), false, "the token's base64 is in an argument, a log line or the message");
+}
+
+test("3.12 a cloud container clones the factory its hook names into the home's factory folder, the address and folder after -- so git never reads them as options, links the checkout as storytree, installs it, then names its plugin", (t) => {
+  const f = factory(t);
+  const result = cloudFactory(f.options);
+  assert.equal(result.ok, true);
+  assert.equal(result.done, true);
+  assert.deepEqual(f.steps.map((s) => s.step), ["git", "install", "run"]);
+  assert.deepEqual(f.steps[0].args, ["clone", "--depth", "1", "--", FACTORY_URL, f.folder], "a home at .storytree/0.3 has its factory at .storytree/your-factory, the address and folder after -- so git never reads them as options");
+  assert.deepEqual(f.steps[1].args, [f.folder]);
+  assert.equal(f.steps[1].linked, realpathSync(f.root), "the checkout is linked into the factory before it is installed");
+  assert.deepEqual(f.steps[2].args, PLUGIN_NAMED);
+  assert.equal(linkTarget(path.join(f.folder, "storytree")), realpathSync(f.root));
+  assertTokenKeptOut(f, result);
+});
+
+test("3.12 the token reaches git only as an Authorization header in git's environment, never in an argument, a log line or the message", (t) => {
+  const f = factory(t);
+  const result = cloudFactory(f.options);
+  const env = f.steps[0].env;
+  assert.equal(env.GIT_CONFIG_COUNT, "1");
+  assert.equal(env.GIT_CONFIG_KEY_0, "http.extraHeader");
+  assert.equal(env.GIT_CONFIG_VALUE_0, `Authorization: Basic ${FACTORY_TOKEN_BASE64}`);
+  assertTokenKeptOut(f, result);
+
+  const failing = factory(t, { gitStatus: 128 });
+  const failed = cloudFactory(failing.options);
+  assert.ok(failing.lines.length > 0, "the failed clone is logged");
+  assertTokenKeptOut(failing, failed);
+});
+
+test("3.12 an already-cloned factory is fast-forwarded from the named repository's main, the address after -- so git never reads it as an option, and an existing storytree link is replaced by one to this checkout", (t) => {
+  const f = factory(t);
+  mkdirSync(path.join(f.folder, ".git"), { recursive: true });
+  const old = path.join(f.base, "old-checkout");
+  mkdirSync(old);
+  symlinkSync(old, path.join(f.folder, "storytree"), "junction");
+  const result = cloudFactory(f.options);
+  assert.equal(result.ok, true);
+  assert.equal(result.done, true);
+  assert.deepEqual(f.steps.map((s) => s.step), ["git", "install", "run"]);
+  assert.deepEqual(f.steps[0].args, ["-C", f.folder, "pull", "--ff-only", "--", FACTORY_URL, "main"], "the address follows -- so git never reads it as an option");
+  assert.equal(f.steps[0].env.GIT_CONFIG_VALUE_0, `Authorization: Basic ${FACTORY_TOKEN_BASE64}`);
+  assert.equal(linkTarget(path.join(f.folder, "storytree")), realpathSync(f.root));
+  assert.equal(existsSync(old), true, "the old link's target is left alone");
+  assertTokenKeptOut(f, result);
+});
+
+test("3.12 the factory folder is STORYTREE_FACTORY when set, else your-factory inside a home whose parent is not .storytree", (t) => {
+  const named = factory(t);
+  const elsewhere = path.join(named.base, "elsewhere-factory");
+  cloudFactory({ ...named.options, env: { ...named.options.env, STORYTREE_FACTORY: elsewhere } });
+  assert.deepEqual(named.steps[0].args, ["clone", "--depth", "1", "--", FACTORY_URL, elsewhere]);
+  assert.equal(linkTarget(path.join(elsewhere, "storytree")), realpathSync(named.root));
+  assert.equal(existsSync(named.folder), false, "the home's default folder is not used");
+
+  const plain = factory(t);
+  const home = path.join(plain.base, "plain-home");
+  mkdirSync(home);
+  cloudFactory({ ...plain.options, home });
+  assert.deepEqual(plain.steps[0].args, ["clone", "--depth", "1", "--", FACTORY_URL, path.join(home, "your-factory")]);
+});
+
+test("3.12 outside a cloud container, or with no factory named, nothing runs and nothing is said", (t) => {
+  const f = factory(t);
+  for (const remote of [undefined, "false"]) {
+    const env = { FACTORY_READ_TOKEN: FACTORY_TOKEN, ...(remote === undefined ? {} : { CLAUDE_CODE_REMOTE: remote }) };
+    assert.deepEqual(cloudFactory({ ...f.options, env }), { ok: true, done: false }, `CLAUDE_CODE_REMOTE=${remote}`);
+  }
+  assert.deepEqual(cloudFactory({ ...f.options, factory: undefined }), { ok: true, done: false }, "in the cloud with no --factory");
+  assert.deepEqual(f.steps, []);
+  assert.deepEqual(f.lines, []);
+  assert.equal(existsSync(f.folder), false);
+});
+
+test("3.12 in the cloud with the factory named but its token variable unset or empty, nothing runs and the session is told that variable is not set", (t) => {
+  const f = factory(t);
+  for (const env of [{ CLAUDE_CODE_REMOTE: "true" }, { CLAUDE_CODE_REMOTE: "true", OTHER_FACTORY_TOKEN: "" }]) {
+    const result = cloudFactory({ ...f.options, env, tokenVar: "OTHER_FACTORY_TOKEN" });
+    assert.equal(result.done, false);
+    assert.match(result.message ?? "", /OTHER_FACTORY_TOKEN/, "the message names the variable the hook was given");
+    assert.match(result.message ?? "", /not set|unset/i);
+  }
+  assert.deepEqual(f.steps, []);
+  assert.equal(existsSync(f.folder), false);
+});
+
+test("3.12 a failed step is logged naming it and stops the rest, never failing the session", (t) => {
+  const cases = [
+    { step: /clone/, options: { gitStatus: 128 }, ran: ["git"] },
+    { step: /pull/, options: { gitStatus: 1 }, cloned: true, ran: ["git"] },
+    { step: /link/, options: { clones: false }, folderIsFile: true, ran: ["git"] },
+    { step: /install/, options: { installOk: false }, ran: ["git", "install"] },
+    { step: /settings set module micks-dev-loop plugin micks-dev-loop/, options: { runOk: false }, ran: ["git", "install", "run"] },
+  ];
+  for (const { step, options, cloned, folderIsFile, ran } of cases) {
+    const f = factory(t, options);
+    if (cloned) mkdirSync(path.join(f.folder, ".git"), { recursive: true });
+    if (folderIsFile) writeFileSync(f.folder, "not a folder");
+    const result = cloudFactory(f.options);
+    assert.equal(result.ok, false, String(step));
+    assert.equal(result.done, false, String(step));
+    assert.deepEqual(f.steps.map((s) => s.step), ran, `nothing runs after the failed ${step}`);
+    assert.ok(f.lines.some((line) => step.test(line) && /fail/i.test(line)), `a log line names the failed ${step}: ${f.lines.join(" | ")}`);
+    assertTokenKeptOut(f, result);
+  }
+});
+
+test("3.12 as a cloud session-start hook given --factory, --factory-token and --factory-plugin with that token variable unset, it exits 0 and tells the session that the factory at that address was not loaded because that variable is not set", async (t) => {
+  const root = worktree(t, "current");
+  const home = mkdtempSync(path.join(tmpdir(), "cloud-factory-home-"));
+  t.after(() => removeTemp(home));
+  // A cloud container with no Access token (so the library is not connected), no session env file, no factory
+  // folder override, and a home of its own; git looks no higher than the worktree, which is not a repository,
+  // so the cloud fetch of origin's main fails at once and is only logged.
+  const env = { ...cloudEnv(), STORYTREE_HOME: home, GIT_CEILING_DIRECTORIES: path.dirname(root) };
+  delete env.ST_TEST_FACTORY_TOKEN;
+  delete env.STORYTREE_FACTORY;
+  const address = "https://factory.invalid/storytree-factory.git";
+  const hook = await run(process.execPath, [
+    script, "--hook", "--root", root, "--factory", address, "--factory-token", "ST_TEST_FACTORY_TOKEN", "--factory-plugin", "p",
+  ], { env });
+  assert.equal(hook.status, 0, hook.stderr);
+  const output = JSON.parse(hook.stdout).hookSpecificOutput;
+  assert.equal(output.hookEventName, "SessionStart");
+  assert.equal(
+    output.additionalContext,
+    "The factory https://factory.invalid/storytree-factory.git was not loaded: its token variable ST_TEST_FACTORY_TOKEN is not set in this cloud session.",
+  );
+  assert.equal(existsSync(path.join(home, "your-factory")), false, "nothing is cloned into the home");
 });

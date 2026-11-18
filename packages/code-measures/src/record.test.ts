@@ -262,3 +262,63 @@ test("3.3 · recordMeasures reads each paired non-base measure of the given mach
   assert.deepEqual(kept(await series(alpha.id, peak.id)), [peakAt(first), peakAt(second)]);
   assert.equal(sampled().length, 4);
 });
+
+test("3.4 · recordMeasures hands each dedicated measure's sample the folder, origin/main's commit, the plan, the project and the library server; a sample answering undefined records no row and is named in the answer as having no reading, while the other dedicated measure is still recorded", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library: Library = await storytree.openProject(name);
+  const alpha = await library.addStory({ title: "Alpha tools" });
+  const nothing = await library.writeKnowledge("measure", { ...measure("Run time unread", alpha.id, "mint", false), unit: "minutes" } as never);
+  const wall = await library.writeKnowledge("measure", { ...measure("Run time read", alpha.id, "mint", false), unit: "minutes" } as never);
+
+  const repo = repository(t);
+  const asked = `__serverAsked_${randomBytes(4).toString("hex")}`;
+  const handed = (id: string, answer: string) => ({
+    measure: id,
+    member: `async sample({ folder, commit, tree, project, server }) { asked.push({ measure: ${JSON.stringify(id)}, folder, commit, tree, project, server }); return ${answer}; }`,
+  });
+  declareSamplers(repo, alpha.id, `served-${randomBytes(4).toString("hex")}.mjs`, asked, [
+    handed(nothing.id, "undefined"),
+    handed(wall.id, JSON.stringify({ value: 17.5, runs: 6, spread: 4.25 })),
+  ]);
+  const head = repo.commitAsOrigin("2026-11-10T12:00:00Z");
+
+  const db = await codeMeasures.measureReadingsPool(storytree);
+  const byId = new Map((await library.measures()).map(({ id, fields }) => [id, { id, fields }]));
+  const records = [byId.get(nothing.id)!, byId.get(wall.id)!];
+  const readers = await codeMeasures.measureReadersOf(repo.folder);
+  const plan = { arcs: [], stories: [{ id: alpha.id, title: "Alpha tools", capabilities: [] }], marker: name };
+  const recordWithServer = codeMeasures.recordMeasures as (input: Parameters<typeof codeMeasures.recordMeasures>[0] & { readonly server: Storytree }) => Promise<string>;
+  const answer = await recordWithServer({
+    folder: repo.folder, project: library.name, machine: "mint", stories: [{ id: alpha.id, title: "Alpha tools" }], records, readers, db,
+    plan: async () => plan,
+    load: () => ({ load: 0.5, cpus: 4 }),
+    server: storytree,
+  });
+
+  const sampled = ((globalThis as Record<string, unknown>)[asked] as { measure: string; folder: string; commit: string; tree: unknown; project: string; server: unknown }[] | undefined) ?? [];
+  assert.deepEqual(
+    sampled.map(({ measure: id, folder, commit, tree, project, server }) => ({ id, folder, commit, tree, project, server: server === storytree })).sort((a, b) => a.id.localeCompare(b.id)),
+    [nothing.id, wall.id].map((id) => ({ id, folder: repo.folder, commit: head, tree: plan, project: library.name, server: true })).sort((a, b) => a.id.localeCompare(b.id)),
+    "each sample is asked once with the folder, the head, the plan, the project and the very server recordMeasures was given",
+  );
+
+  const series = (id: string) => seam.measureSeries(db, { project: library.name, story: alpha.id, measure: id, version: 1 });
+  const kept = (rows: readonly Record<string, unknown>[]) => rows.map(({ story, measure: id, version, value, unit, commit, machine, runs, spread }) => ({ story, measure: id, version, value, unit, commit, machine, runs, spread }));
+  assert.deepEqual(kept(await series(wall.id)), [{ story: alpha.id, measure: wall.id, version: 1, value: 17.5, unit: "minutes", commit: head, machine: "mint", runs: 6, spread: 4.25 }], "the measure whose sample answered is recorded, though the one before it answered none");
+  assert.deepEqual(await series(nothing.id), [], "a sample answering undefined records no row");
+
+  assert.match(answer, /\b1 reading of 2 dedicated measures\b/, `one reading recorded of the two dedicated measures: ${answer}`);
+  const unread = answer.split("\n").find((line) => line.includes("Run time unread"));
+  assert.ok(unread !== undefined, `the measure with no reading is named: ${answer}`);
+  assert.match(unread, /no reading/i, `it is named as having no reading: ${answer}`);
+});

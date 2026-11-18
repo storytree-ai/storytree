@@ -46,6 +46,6 @@ export function factoryRepo(t: TestContext, files: Record<string, string>, under
     return git(author, "rev-parse", "HEAD");
   };
   push({ ".gitignore": "node_modules/\n", "pnpm-lock.yaml": "lockfileVersion: '9.0'\n", ...files }, "the factory");
-  execFileSync("git", ["clone", "-q", origin, clone]);
+  execFileSync("git", ["clone", "-q", "--", origin, clone]);
   return { clone, push };
 }

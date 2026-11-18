@@ -39,10 +39,10 @@
   },
   "devDependencies": {
     "@storytree/base-dev-loop": "workspace:*",
-    "@storytree/local-postgres": "workspace:*",
-    "@storytree/session-management": "workspace:*",
-    "@storytree/repo-checks": "workspace:*",
     "@storytree/library": "workspace:*",
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/repo-checks": "workspace:*",
+    "@storytree/session-management": "workspace:*",
     "esbuild": "^0.28.2",
     "pg": "^8.23.0",
     "tsx": "^4.23.15"
@@ -60,7 +60,8 @@
       ]
     },
     "patchedDependencies": {
-      "app-builder-lib": "patches/app-builder-lib.patch"
+      "app-builder-lib": "patches/app-builder-lib.patch",
+      "playwright-core": "patches/playwright-core.patch"
     }
   }
 }

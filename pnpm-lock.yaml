@@ -17,6 +17,9 @@ patchedDependencies:
   app-builder-lib:
     hash: aad7f35f155bcbc89d685273733e658196582a8d302620f10cf68ab9acdfc17d
     path: patches/app-builder-lib.patch
+  playwright-core:
+    hash: 0c77033b0f352cfba0efd9013761086443ab7aca55cd0d3e22569e473880ce5e
+    path: patches/playwright-core.patch
 
 importers:
 
@@ -129,7 +132,7 @@ importers:
         version: 0.28.2
       playwright-core:
         specifier: 1.60.0
-        version: 1.60.0
+        version: 1.60.0(patch_hash=0c77033b0f352cfba0efd9013761086443ab7aca55cd0d3e22569e473880ce5e)
       typescript:
         specifier: ~7.0.2
         version: 7.0.2
@@ -541,7 +544,7 @@ importers:
         version: 20.14.5
       playwright-core:
         specifier: 1.60.0
-        version: 1.60.0
+        version: 1.60.0(patch_hash=0c77033b0f352cfba0efd9013761086443ab7aca55cd0d3e22569e473880ce5e)
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -584,7 +587,7 @@ importers:
         version: 0.28.2
       playwright-core:
         specifier: 1.60.0
-        version: 1.60.0
+        version: 1.60.0(patch_hash=0c77033b0f352cfba0efd9013761086443ab7aca55cd0d3e22569e473880ce5e)
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -1061,7 +1064,7 @@ importers:
         version: 0.28.2
       playwright-core:
         specifier: 1.60.0
-        version: 1.60.0
+        version: 1.60.0(patch_hash=0c77033b0f352cfba0efd9013761086443ab7aca55cd0d3e22569e473880ce5e)
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -1092,7 +1095,7 @@ importers:
         version: 20.14.5
       playwright-core:
         specifier: 1.60.0
-        version: 1.60.0
+        version: 1.60.0(patch_hash=0c77033b0f352cfba0efd9013761086443ab7aca55cd0d3e22569e473880ce5e)
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -5139,7 +5142,7 @@ snapshots:
 
   platform@1.3.6: {}
 
-  playwright-core@1.60.0: {}
+  playwright-core@1.60.0(patch_hash=0c77033b0f352cfba0efd9013761086443ab7aca55cd0d3e22569e473880ce5e): {}
 
   plist@3.1.0:
     dependencies:

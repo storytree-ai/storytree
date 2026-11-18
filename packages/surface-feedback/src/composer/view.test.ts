@@ -9,20 +9,14 @@ const SURFACES = [
   { id: "menu:projects", name: "App menu: Projects", story: "app" },
 ];
 
-/** A page like the app's: a main view, and a gear menu popover with a tab, both named. */
 const PAGE = `<!doctype html><html><head><meta charset="utf-8"></head><body data-project="site" data-selected="story_000000000001">
   <main data-surface-id="globe" style="height: 90vh"><button id="press" onclick="window.pressed = (window.pressed ?? 0) + 1">Press</button><canvas id="drawn" width="300" height="200" style="display: block"></canvas></main>
   <div id="menu" popover="auto" style="inset: 0; width: 100vw; height: 100vh; margin: 0"><section data-surface-id="menu:projects">projects</section></div>
 </body></html>`;
 
-/**
- * The corner mounted on PAGE over a stand-in bridge kept in the page: each call is recorded in `window.calls`, a capture
- * notes whether the composer was on show when it was taken, and each send waits for the test to settle it.
- */
 async function mounted(browser: Browser): Promise<Page> {
   const context = await browser.newContext({ viewport: { width: 1200, height: 800 }, colorScheme: "light", permissions: ["clipboard-read", "clipboard-write"] });
   const page = await context.newPage();
-  // Served from localhost, a secure context, as the app's own file is: the clipboard is there.
   await page.route("http://localhost/corner", (route) => route.fulfill({ contentType: "text/html", body: PAGE }));
   await page.goto("http://localhost/corner");
   await page.addScriptTag({ content: await bundled({ entryPoints: [new URL("./view.ts", import.meta.url)] }, "corner") });
@@ -36,7 +30,6 @@ async function mounted(browser: Browser): Promise<Page> {
         const picker = document.querySelector("[data-corner-picker]");
         const shown = (composer === null || composer.hidden) && (picker === null || picker.hidden) ? "corner not on show" : "corner on show";
         calls.push(box === undefined ? { capture: shown } : { crop: box, shown });
-        // A test holding the crop sets holdCrop, then lets it go with releaseCrop().
         if (box !== undefined && window.holdCrop) return new Promise((resolve) => { window.releaseCrop = () => resolve("crop-1"); });
         return box === undefined ? "picture-1" : "crop-1";
       },
@@ -50,7 +43,6 @@ async function mounted(browser: Browser): Promise<Page> {
 
 const composerOnShow = (page: Page) => page.evaluate("!document.querySelector('[data-corner-composer]').hidden");
 const pickerOnShow = (page: Page) => page.evaluate("!document.querySelector('[data-corner-picker]').hidden");
-/** Click at the middle of `selector`'s box: what the owner does to pick it. */
 async function pickAt(page: Page, selector: string): Promise<void> {
   const box = (await page.locator(selector).first().boundingBox())!;
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
@@ -211,7 +203,6 @@ test("1.4 · while picking, the element under the pointer is outlined with its t
   await pickAt(page, "main");
   assert.equal(await page.locator("[data-corner-anchor]").textContent(), "main", "the new pick replaces the old");
 
-  // While the element's picture is being taken, a second press of the button or Ctrl+Shift+F starts nothing.
   await page.keyboard.press("Escape");
   await page.evaluate("window.holdCrop = true");
   await page.click("[data-corner-button]");

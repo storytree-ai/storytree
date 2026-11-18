@@ -1,9 +1,4 @@
-/**
- * Capability 3 · Feedback record. The main process's side of a feedback note: it takes the picture of the app's own page
- * (webContents.capturePage, so no operating-system screen-recording permission is involved), and one cut to the element
- * the note points at, keeps each under a token until the note is sent, and writes the note into project storytree with
- * the element, the story that declares its surface, the app's version and the time.
- */
+// Capability 3 · Feedback record
 import { randomUUID } from "node:crypto";
 
 import type { FeedbackNote, Library, Storytree } from "@storytree/library";
@@ -12,24 +7,17 @@ import type { DeclaredSurface } from "../naming/resolve.js";
 import { HTML_LIMIT } from "../naming/anchor.js";
 import { FEEDBACK_CHANNELS, type DrawnObject, type FeedbackAnchor, type FeedbackBridge, type FeedbackSetup, type PageNote } from "./bridge.js";
 
-/** The project every note is written to: the owner's own, whichever project is on show ("just me for now"). */
 export const FEEDBACK_PROJECT = "storytree";
-/** Pictures waiting for their note: a composer opened and closed unsent leaves one, so only the latest few are kept. */
 const KEPT_PICTURES = 4;
-/** Around the element, so the crop shows what it sits beside. */
 export const CROP_MARGIN = 16;
 
-/** What a host offers this story's page part. */
 export interface FeedbackPageFrame {
   readonly appVersion: string;
-  /** Every surface the mounted stories declare, with the story declaring it. */
   readonly declaredSurfaces: readonly DeclaredSurface[];
-  /** The open library's server, asked at call time: none before the library opens. */
   server(): {
     listProjects: Storytree["listProjects"];
     openProject(name: string, options?: { create?: boolean }): Promise<Pick<Library, "sendFeedback">>;
   } | undefined;
-  /** A JPEG of the app's window as it is now, or of the part `rect` names, in CSS pixels; none when there is no window. */
   captureWindow(rect?: { x: number; y: number; width: number; height: number }): Promise<Uint8Array | undefined>;
 }
 
@@ -61,7 +49,6 @@ export function createFeedbackRuntime(frame: FeedbackPageFrame, options: { now?:
     async sendFeedback(given: unknown, screenshot?: unknown, crop?: unknown) {
       const note = noteOf(given, frame.declaredSurfaces, (options.now ?? (() => new Date()))(), frame.appVersion);
       const picture = typeof screenshot === "string" ? pictures.get(screenshot) : undefined;
-      // A crop is kept only with its window picture: a dropped picture drops both.
       const cut = picture !== undefined && typeof crop === "string" ? pictures.get(crop) : undefined;
       const record = await (await library()).sendFeedback(note, { actor: "app:feedback-corner", ...(picture === undefined ? {} : { screenshot: picture }), ...(cut === undefined ? {} : { crop: cut }) });
       for (const token of [screenshot, crop]) if (typeof token === "string") pictures.delete(token);
@@ -70,7 +57,6 @@ export function createFeedbackRuntime(frame: FeedbackPageFrame, options: { now?:
   };
 }
 
-/** The element's box the page sent, widened by the margin and kept inside the window's top-left. */
 function cropOf(given: unknown): { x: number; y: number; width: number; height: number } {
   const box = (typeof given === "object" && given !== null ? given : {}) as Record<string, unknown>;
   const [x, y, width, height] = [box.x, box.y, box.width, box.height].map((value) => (typeof value === "number" && Number.isFinite(value) ? value : Number.NaN));
@@ -80,7 +66,6 @@ function cropOf(given: unknown): { x: number; y: number; width: number; height: 
   return { x: left, y: top, width: Math.ceil(x! + width! + CROP_MARGIN) - left, height: Math.ceil(y! + height! + CROP_MARGIN) - top };
 }
 
-/** The object a canvas answered a pick with, checked field by field; none where it is not whole (2.3). */
 function drawnOf(given: unknown): DrawnObject | undefined {
   if (typeof given !== "object" || given === null) return undefined;
   const drawn = given as Record<string, unknown>;
@@ -103,7 +88,6 @@ function drawnOf(given: unknown): DrawnObject | undefined {
   };
 }
 
-/** The element the page read, checked field by field: only an anchor's own fields are kept. */
 function anchorOf(given: unknown): NonNullable<FeedbackNote["anchor"]> {
   const anchor = (typeof given === "object" && given !== null ? given : undefined) as Partial<Record<keyof FeedbackAnchor, unknown>> | undefined;
   if (anchor === undefined) throw new Error("A feedback note needs the element it is about: pick one.");
@@ -134,7 +118,6 @@ function anchorOf(given: unknown): NonNullable<FeedbackNote["anchor"]> {
   };
 }
 
-/** The note the page sent, checked, with only its own fields, and what the main process adds. */
 function noteOf(given: unknown, surfaces: readonly DeclaredSurface[], at: Date, version: string): FeedbackNote {
   const page = (typeof given === "object" && given !== null ? given : {}) as Partial<Record<keyof PageNote, unknown>>;
   const text = typeof page.text === "string" ? page.text.trim() : "";
@@ -161,5 +144,4 @@ function noteOf(given: unknown, surfaces: readonly DeclaredSurface[], at: Date, 
   };
 }
 
-/** The main process's side, named in its manifest (`pageAnswers`, ADR-1021): the desktop answers the page's notes with it. */
 export const feedbackPageAnswers = [(frame: FeedbackPageFrame) => ({ channels: FEEDBACK_CHANNELS, answers: createFeedbackRuntime(frame) })];

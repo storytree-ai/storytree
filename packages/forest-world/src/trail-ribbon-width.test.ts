@@ -1,5 +1,3 @@
-// trail-ribbon-width.test.ts — a road scales with the land: never thicker as you zoom out.
-
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -12,17 +10,12 @@ import {
   trailRibbonScreenWidth,
 } from './trail-ribbon-width.js';
 
-// The three zooms measured on the live forest, 2026-09-25 (CSS px per ground unit): 8 wheel notches
-// in, the studio's opening view, and wheeled out to the zoom-out floor.
 const ZOOMED_IN = 4.228;
 const OPENING = 1.972;
 const ZOOMED_OUT = 0.28;
-// An island is drawn in ground units, so its on-screen width is proportional to the zoom.
 const ISLAND_GROUND = 60.3;
 
 test('3.7 a road keeps the same share of an island at every zoom above the floor', () => {
-  // The defect: the old ribbon drew `width` SCREEN px at every zoom, so its share of an island grew
-  // 15x from zoomed in to zoomed out. This reds on that rule (`(w) => w`).
   for (const usage of [2, 4, 9]) {
     const w = trailFillWidth(usage);
     const shares = [ZOOMED_IN, OPENING, ZOOMED_OUT]
@@ -42,8 +35,6 @@ test('3.7 a road is never thicker on screen, nor a larger share of an island, as
       const px = trailRibbonScreenWidth(w, z);
       assert.ok(px <= prevPx + 1e-12, `usage ${usage} at zoom ${z}: ${px}px after ${prevPx}px`);
       prevPx = px;
-      // Above the floor the share is flat; at the floor it may only grow because the island
-      // shrinks under a road that has stopped shrinking — never because the road grew.
       const share = px / (ISLAND_GROUND * z);
       if (px > RIBBON_MIN_SCREEN_PX) assert.ok(share <= prevShare + 1e-12 || prevShare === 0);
       prevShare = share;
@@ -52,7 +43,6 @@ test('3.7 a road is never thicker on screen, nor a larger share of an island, as
 });
 
 test('the opening view keeps the width the owner approved (within 2%)', () => {
-  // The approved picture drew `width` screen px; at the opening zoom the rule must draw the same.
   for (const usage of [1, 2, 4, 9]) {
     const w = trailFillWidth(usage);
     const ratio = trailRibbonScreenWidth(w, OPENING) / w;
@@ -68,7 +58,6 @@ test('3.7 a road never vanishes: the floor holds, and a zoom that projects nothi
   for (const w of [0, -2, Number.NaN, Number.POSITIVE_INFINITY]) {
     assert.equal(trailRibbonScreenWidth(w, OPENING), RIBBON_MIN_SCREEN_PX);
   }
-  // Zoomed right out, the heaviest measured trunk still reads above the floor.
   assert.ok(trailRibbonScreenWidth(12.44, ZOOMED_OUT) > RIBBON_MIN_SCREEN_PX);
 });
 
@@ -88,17 +77,12 @@ test('the installed hook sets the drawn width from the camera of THAT draw, afte
     return line.material.linewidth;
   };
   const ortho = (zoom: number) => ({ isOrthographicCamera: true, zoom });
-  // The old ribbon drew `w` px whatever the zoom; this one follows the zoom of each draw.
   const opening = draw(ortho(OPENING));
   const zoomedOut = draw(ortho(ZOOMED_OUT));
   const zoomedIn = draw(ortho(ZOOMED_IN));
-  // Worked by hand: four uses fill 1.2 + 1.8·√4 = 4.8 ground units, drawn at half (2.4) and
-  // 4.228 px per unit when zoomed in, so 2.4 × 4.228 = 10.1472 px.
   assert.ok(Math.abs(zoomedIn - 10.1472) < 1e-9, `${zoomedIn}`);
   assert.ok(zoomedOut < opening && opening < zoomedIn, `${zoomedOut} < ${opening} < ${zoomedIn}`);
   assert.deepEqual(calls, ['own', 'own', 'own']);
-  // A perspective camera has no zoom in this sense, nor does an orthographic one reporting none, nor
-  // a draw handed no camera at all: the width is left as it was.
   line.material.linewidth = 7;
   assert.equal(draw({ isPerspectiveCamera: true, zoom: 1 }), 7);
   assert.equal(draw({ isOrthographicCamera: true }), 7);

@@ -1,5 +1,3 @@
-// The globe's half of The drawing engine 4.15 that a headless test can reach: what it asks of its R3F root when the
-// browser hands its canvas's WebGL context back. The browser half is the planet's context-loss capture.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { redrawOnRestore } from './redraw-on-restore.js';

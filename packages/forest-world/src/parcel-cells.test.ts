@@ -1,9 +1,3 @@
-// parcel-cells.test.ts — the route from the shipped descriptor stream into the placement basis.
-//
-// ⚠ THE `y`-MEANS-`z` CONVERSION HAPPENS HERE AND NOWHERE ELSE, which is what makes it worth
-// pinning: anything placed in a basis rotated ninety degrees from the land it stands on produces a
-// picture that looks merely odd rather than wrong.
-
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -11,7 +5,6 @@ import { cellsByIsland, cellsByParcel, parcelCellsFrom } from './parcel-cells.js
 import type { LayoutCell } from './parcel-cells.js';
 import type { Descriptor3D, InstanceDescriptor } from './descriptors.js';
 
-/** A `cell-ground` descriptor with a real ring — the shape `forestDescriptors` emits. */
 function cell(over: Partial<InstanceDescriptor> = {}): InstanceDescriptor {
   return {
     kind: 'cell-ground',
@@ -29,10 +22,6 @@ function cell(over: Partial<InstanceDescriptor> = {}): InstanceDescriptor {
 }
 
 test('a cell-ground ring becomes an {x, z} outline — the SECOND coordinate is z, not y', () => {
-  // ⚠ THE TRAP. The descriptor's ring is `{x, y, z}` with `y` pinned to the ground plane; the
-  // placement basis is `{x, z}`. Taking `y` would collapse every outline onto a line at z = 0 and
-  // put everything placed on it on one edge of the island. The fixture's y is deliberately 0 and its z is not,
-  // so the two readings cannot be confused.
   const [got] = parcelCellsFrom([cell({ parcel: 'cap-0' })]);
   assert.ok(got);
   assert.deepEqual(got.points, [
@@ -50,17 +39,12 @@ test('the parcel and the status carry through', () => {
 });
 
 test('a cell with no material reads as unknown, never as undefined', () => {
-  // `unknown` is the one state that means "no data". Anything else would have a reader asserting a
-  // proof state read off a cell that declared none.
   const bare = cell();
   delete bare.material;
   assert.equal(parcelCellsFrom([bare])[0]?.status, 'unknown');
 });
 
 test('a cell with no parcel is KEPT, and carries an honest absence', () => {
-  // ⚠ Dropping it would shrink the ground a whole-story claim reads, and on a substrate with
-  // no parcel groups at all it would shrink the island to nothing — a map reporting none of the
-  // work, drawn with no error anywhere.
   const [got] = parcelCellsFrom([cell()]);
   assert.ok(got);
   assert.equal(got.parcel, undefined);
@@ -68,13 +52,10 @@ test('a cell with no parcel is KEPT, and carries an honest absence', () => {
 });
 
 test('a ring bounding no area is stepped over, and so is a missing one', () => {
-  // A bilinear sample of two points is a point on a line, and of none is a throw. `forestDescriptors`
-  // already refuses to emit either, but this takes descriptors from any caller.
   const two = cell({ points: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }] });
   const none = cell();
   delete none.points;
   assert.deepEqual(parcelCellsFrom([two, none]), []);
-  // NON-VACUITY: three vertices DO bound an area and must survive the same guard.
   const tri = cell({
     points: [{ x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 }, { x: 5, y: 0, z: 8 }],
   });
@@ -82,18 +63,12 @@ test('a ring bounding no area is stepped over, and so is a missing one', () => {
 });
 
 test('the order of the cells is the descriptor stream’s own', () => {
-  // The placement walks capabilities in first-seen order and seeds off the index, so a reordering
-  // here would move every prop on every island with nothing saying so.
   const ids = ['cap-2', 'cap-0', 'cap-1'];
   assert.deepEqual(
     parcelCellsFrom(ids.map((parcel) => cell({ parcel }))).map((c) => c.parcel),
     ids,
   );
 });
-
-// ---------------------------------------------------------------------------
-// grouping
-// ---------------------------------------------------------------------------
 
 const cellOf = (
   parcel: string | undefined,
@@ -120,8 +95,6 @@ test('cells group by their parcel, in first-seen order, with every cell kept', (
 });
 
 test('a cell with no parcel joins no group — not a group of unnamed ones', () => {
-  // ⚠ A `undefined` key would be a capability the scene never declared, and one object would be
-  // stood on it asserting a state nothing holds.
   const grouped = cellsByParcel([cellOf(undefined), cellOf('cap-0'), cellOf(undefined)]);
   assert.deepEqual([...grouped.keys()], ['cap-0']);
   assert.equal(grouped.size, 1);
@@ -132,14 +105,7 @@ test('an empty input groups to nothing, not to one empty group', () => {
   assert.equal(cellsByIsland([]).size, 0);
 });
 
-// ---------------------------------------------------------------------------
-// the ISLAND identity — a different question from the parcel, and both are carried
-// ---------------------------------------------------------------------------
-
 test('a cell carries the STORY whose island it sits on, alongside the capability whose parcel it is', () => {
-  // ⚠ TWO IDS, TWO QUESTIONS. A capability's tree stands on its own parcel; a story's signed UAT
-  // criterion belongs to the whole island. Carrying only one of them is what pinned the shipped
-  // bloom count at zero.
   const [got] = parcelCellsFrom([cell({ parcel: 'cap-0', island: 'atlas' })]);
   assert.ok(got);
   assert.equal(got.parcel, 'cap-0');
@@ -147,9 +113,6 @@ test('a cell carries the STORY whose island it sits on, alongside the capability
 });
 
 test('a cell the substrate could not attribute carries an honest absence, and is still KEPT', () => {
-  // The classic extruded-hex substrate has no island group at all. Dropping such a cell would
-  // shrink the ground a prop may stand on; inventing an id for it would attribute work to a story
-  // that does not exist.
   const cells = parcelCellsFrom([cell({ parcel: 'cap-0' }), cell({ island: 'atlas' })]);
   assert.equal(cells.length, 2, 'both cells kept');
   assert.equal(cells[0]!.island, undefined);
@@ -168,19 +131,12 @@ test('cells group by their island, in first-seen order, with every attributed ce
 });
 
 test('⚠ an unattributed cell joins no island group — the fail-CLOSED direction', () => {
-  // Unlike the parcel case this one is deliberate about WHICH way it fails: a caller groups by
-  // island precisely so a per-story claim lands on the right story's ground, so ground nobody can
-  // attribute is exactly the ground no such claim may be drawn on. An island bucket that swept up
-  // the orphans would let one story's signatures stand anywhere on the map.
   const grouped = cellsByIsland([cellOf('cap-0'), cellOf('cap-1', 'healthy', 'atlas'), cellOf(undefined)]);
   assert.deepEqual([...grouped.keys()], ['atlas']);
   assert.equal(grouped.size, 1);
 });
 
 test('the island grouping and the parcel grouping partition the SAME cells differently', () => {
-  // ⚠⚠ NON-VACUITY for the whole distinction: one island holding two capabilities must produce
-  // ONE island group and TWO parcel groups. A reader that had quietly collapsed the two ids would
-  // produce the same count twice and every other assertion here would still pass.
   const cells = [
     cellOf('cap-a', 'healthy', 'atlas'),
     cellOf('cap-b', 'healthy', 'atlas'),

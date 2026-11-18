@@ -1,0 +1,33 @@
+{
+  "name": "@storytree/code-measures",
+  "story": "story_ed509b2d94fc",
+  "private": true,
+  "type": "module",
+  "description": "Code measures (story_ed509b2d94fc, ADR-1365): each story's base code-structure measures read from a checkout's source, report-only, never a gate (ADR-1354, ADR-1238).",
+  "exports": {
+    ".": "./src/index.ts",
+    "./verbs": "./src/verbs.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@babel/parser": "^7.29.9",
+    "@storytree/library": "workspace:*",
+    "@storytree/map": "workspace:*"
+  },
+  "devDependencies": {
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "CODE_MEASURES_FAMILIES"
+      }
+    ]
+  }
+}

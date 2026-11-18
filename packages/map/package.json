@@ -9,6 +9,7 @@
     "./code-survey/worker": "./src/code-survey/survey-worker.ts",
     "./folder-languages": "./src/code-survey/folder-languages.ts",
     "./languages": "./src/code-survey/languages.ts",
+    "./measures": "./src/survey-measures/readers.ts",
     "./package-of": "./src/code-survey/package-of.ts",
     "./read": "./src/read.ts",
     "./tools": "./src/tools.ts",
@@ -66,6 +67,12 @@
       {
         "from": "./pin-verbs",
         "export": "PIN_FAMILIES"
+      }
+    ],
+    "measures": [
+      {
+        "from": "./measures",
+        "export": "SURVEY_MEASURE_READERS"
       }
     ]
   }

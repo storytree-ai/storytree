@@ -220,6 +220,7 @@ export function killTree(child, signal = "SIGKILL") {
 
 function descendants(pid) {
   const children = new Map();
+  // posix-only: descendants is called only by killTree, which has already gone to taskkill on win32 and returned.
   for (const line of execFileSync("ps", ["-A", "-o", "pid=,ppid="], { encoding: "utf8" }).split("\n")) {
     const [child, parent] = line.trim().split(/\s+/).map(Number);
     if (!child) continue;

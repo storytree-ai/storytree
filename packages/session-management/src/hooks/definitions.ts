@@ -21,7 +21,7 @@
  *   for the drain to take to the owner (D2).
  */
 import { holdsName, normalisedWords } from "@storytree/library/whole-words";
-import { notYetGivenIds } from "./given-once.js";
+import { freshIds, notYetGivenIds } from "./given-once.js";
 
 /** The friction report this hook files through Friction's capture: the fields it writes (ADR-1017 D2). */
 export interface InjectionReport {
@@ -100,12 +100,13 @@ export function definitionsContext(definitions: readonly Definition[]): string {
 }
 
 /**
- * The ones of `definitions` not yet given to `session`, which are then remembered as given. What a
- * session has been given is kept in the temporary folder, one file a session; a session id that
- * could not be a file name keeps nothing, so every definition is new to it.
+ * The ones of `definitions` not yet given to `session`, read only: they are remembered as given by
+ * the caller, once what it gives is the answer shown (3.7). What a session has been given is kept in
+ * the temporary folder, one file a session; a session id that could not be a file name keeps
+ * nothing, so every definition is new to it.
  */
 export function notYetGiven<D extends Definition>(session: string, definitions: readonly D[]): D[] {
-  const fresh = new Set(notYetGivenIds(session, definitions.map(({ id }) => id), "definitions"));
+  const fresh = new Set(freshIds(session, definitions.map(({ id }) => id), "definitions"));
   return definitions.filter(({ id }) => fresh.has(id));
 }
 

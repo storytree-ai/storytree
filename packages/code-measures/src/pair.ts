@@ -45,15 +45,11 @@ export interface MeasureRecord {
   readonly fields: Readonly<Record<string, unknown>>;
 }
 
-/** The file an export path of a package's exports map names: the path itself, or its import (else default) condition. */
+/** The file an export path of a package's exports map names, when it names one as a plain path. */
 function exportTarget(exports: unknown, from: string): string | undefined {
   if (typeof exports !== "object" || exports === null) return undefined;
   const target = (exports as Record<string, unknown>)[from];
-  if (typeof target === "string") return target;
-  if (typeof target !== "object" || target === null) return undefined;
-  const conditions = target as Record<string, unknown>;
-  const chosen = conditions["import"] ?? conditions["default"];
-  return typeof chosen === "string" ? chosen : undefined;
+  return typeof target === "string" ? target : undefined;
 }
 
 /**
@@ -91,7 +87,7 @@ export async function measureReadersOf(folder: string): Promise<MeasureReader[]>
 /**
  * Pair each live measure record with the readers of its id (contract 2.1), per story: a record read once, at its version,
  * in a package of its story is paired; any other is named with why. A reader of no live record is named under its
- * package's story. One entry for each story with a record or a reader, in story id order.
+ * package's story. One entry for each story with a record or a reader of no live record, in story id order.
  */
 export function pairMeasures(records: readonly MeasureRecord[], readers: readonly MeasureReader[]): StoryPairing[] {
   const stories = new Map<string, StoryPairing>();
@@ -114,8 +110,8 @@ export function pairMeasures(records: readonly MeasureRecord[], readers: readonl
   const live = new Set(records.map(({ id }) => id));
   const recordless = new Map<string, Unpaired & { packages: string[] }>();
   for (const reader of readers) {
-    const pairing = of(reader.story ?? "");
     if (live.has(reader.measure)) continue;
+    const pairing = of(reader.story ?? "");
     const key = `${pairing.story} ${reader.measure}`;
     const named = recordless.get(key);
     if (named !== undefined) named.packages.push(reader.package);

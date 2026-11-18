@@ -289,9 +289,10 @@ class ServerConnection implements Storytree {
   /**
    * `inherit: false` opens a factory for the product reading it, which reads no factory of its own. An open that only
    * reaches an existing project, finds its database and then loses its connection (no SQLSTATE, or 57P01, or 3D000 for
-   * a database gone) may be racing the project's deletion: it is refused as gone if the database is gone, or marked
-   * invalid as a drop does before removing it, within five seconds. A forced drop ends the open's connection before it
-   * waits for the ended backends to exit, which a slow machine's server can take more than a second over.
+   * a database gone, or 55000 for one a drop has marked invalid) may be racing the project's deletion: it is refused as
+   * gone if the database is gone, or marked invalid as a drop does before removing it (or a drop cut short by a crash
+   * left it), within five seconds. A forced drop ends the open's connection before it waits for the ended backends to
+   * exit, which a slow machine's server can take more than a second over.
    */
   async #openProject(name: string, options: OpenOptions & { readonly inherit?: boolean }): Promise<Project> {
     assertProjectName(name); // before anything touches the server
@@ -303,7 +304,7 @@ class ServerConnection implements Storytree {
       if (identity === undefined || (options.create === false && options.identity !== undefined && identity !== options.identity)) throw new ProjectGoneError(name);
       return await this.#openFound(name, database, identity, options);
     } catch (error) {
-      const lost = identity !== undefined && !(error instanceof ProjectGoneError) && [undefined, "57P01", "3D000"].includes(sqlState(error));
+      const lost = identity !== undefined && !(error instanceof ProjectGoneError) && [undefined, "57P01", "3D000", "55000"].includes(sqlState(error));
       if (options.create === false && lost && (await this.#goneWithin(database, 5_000))) throw new ProjectGoneError(name);
       throw this.#server.explain(error);
     }

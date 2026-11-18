@@ -1,11 +1,4 @@
-/**
- * Capability 8 · Page bridge. The factory plugins standing in for switched-off parts, in the window (plugin loader capability 5,
- * question_5867f490cdd6: run-time loading). The main process composes them into its page answers, page channels and
- * surfaces as the command line composes its verbs, so a stand-in is mounted where its part was while that part is off.
- * The page is sandboxed and its script bundled, so it cannot read the factory: the preload asks for the stand-ins' page
- * channels, and a surface's view, an ES module the plugin exports, reaches the page over the window's own scheme,
- * which serves only a mounted stand-in's exported files.
- */
+// Capability 8 · Page bridge
 import { readFileSync } from "node:fs";
 
 import type { SurfaceDeclaration } from "@storytree/app";
@@ -15,24 +8,16 @@ import { mount, offSaid, pluginAt, standInPlaces, switchedOff, type Composition,
 
 import type { PageChannelMap, PagePart, PageStandIns } from "../page-operations.js";
 
-/** The window's own scheme, which serves a stand-in's view modules to the page. */
 export const PLUGIN_SCHEME = "storytree-plugin";
 
-/** A surface, which a factory plugin's may give a view: a name its package.json exports, an ES module whose `mount(host, context)` draws it. */
 export type WindowSurface = SurfaceDeclaration & { readonly view?: string };
 
-/** The window's parts, as `#parts/<kind>` composes them. */
 export interface WindowParts {
   readonly surfaces: Composition<WindowSurface>;
   readonly pageAnswers: Composition<PagePart>;
   readonly pageChannels: Composition<PageChannelMap>;
 }
 
-/**
- * The kinds of record the factory plugins the app mounts declare (ADR-1178 D3), for `graph`, `standIns` and `off`, which
- * the page's reads open each project with; each plugin whose kinds could not be read is logged as a stand-in that
- * failed is said.
- */
 export function windowKinds(graph: PartsGraph, standIns: StandIns, off: readonly string[], log: (line: string) => void): PluginRecordKind[] {
   const { kinds, failed } = recordKinds(graph, standIns, off);
   const because = switchedOff(graph, off);
@@ -40,24 +25,15 @@ export function windowKinds(graph: PartsGraph, standIns: StandIns, off: readonly
   return kinds;
 }
 
-/**
- * The records Delete forgets with a project (contract 8.6): those the app's story packages name in `records`, and each
- * factory plugin's `standIns` names, as code review's QA ledger is now (ADR-1209), but none of a part `off` switches off.
- */
 export function windowProjectRecords<Records>(records: Composition<Records>, standIns: StandIns, off: readonly string[]): Records[] {
   return mount(standIn(records, "projectRecords", standIns), off).mounted;
 }
 
-/** What the window's scheme may serve: files of the factory's plugins standing in for a switched-off part, or adding one. */
 export interface Served {
   readonly folder?: string;
   readonly plugins: ReadonlySet<string>;
 }
 
-/**
- * The window's parts with the stand-ins `standIns` names composed in, what the page is offered of those `off` mounts,
- * and what the window's scheme serves.
- */
 export function windowStandIns(parts: WindowParts, standIns: StandIns, off: readonly string[]): WindowParts & { page: PageStandIns; served: Served } {
   const surfaces = standIn(parts.surfaces, "surfaces", standIns);
   const pageAnswers = standIn(parts.pageAnswers, "pageAnswers", standIns);
@@ -75,7 +51,6 @@ export function windowStandIns(parts: WindowParts, standIns: StandIns, off: read
   };
 }
 
-/** The declarations of `composition` a stand-in adds that are mounted when `off` names parts off, each with its plugin. */
 function standing<Part>(composition: Composition<Part>, off: readonly string[]): { plugin: string; part: Part }[] {
   const mounted = new Set(mount(composition, off).mounted);
   return composition.parts.flatMap((part, index) => {
@@ -84,7 +59,6 @@ function standing<Part>(composition: Composition<Part>, off: readonly string[]):
   });
 }
 
-/** The window scheme's answer to `url`: the file a mounted stand-in exports under that name, as JavaScript, or not found with why. */
 export function pluginResponse(url: string, served: Served): Response {
   let file: string;
   try {

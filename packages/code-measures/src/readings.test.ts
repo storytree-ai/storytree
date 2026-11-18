@@ -1,9 +1,4 @@
-/**
- * Code measures, capability 3 · Measure readings recorded on the box: contract 3.1 (a reading is kept once per project,
- * story, measure, version, commit and machine, in a database of its own beside the library, and read back as one
- * version's series, oldest commit first). Runs against the test Postgres `pnpm test` starts; each test's project name is
- * its own, so its rows are read apart from any other's.
- */
+// Capability 3 · Measure readings recorded on the box
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test, type TestContext } from "node:test";
@@ -12,7 +7,6 @@ import { connect, type Storytree } from "@storytree/library";
 
 import * as codeMeasures from "./index.js";
 
-/** One reading as the store keeps it. */
 interface MeasureReadingRow {
   readonly project: string;
   readonly story: string;
@@ -32,7 +26,6 @@ interface ReadingsDb {
   query(text: string, values?: unknown[]): Promise<{ rows: object[] }>;
 }
 
-/** The seam the builder provides from the package's index (contract 3.1). */
 interface ReadingsSeam {
   MEASURE_READINGS_DATABASE: string;
   measureReadingsPool(server: Pick<Storytree, "ownDatabase">): Promise<ReadingsDb>;
@@ -64,14 +57,14 @@ test("3.1 · writing a reading again at the same project, story, measure, versio
 
   const atC1 = reading({ commit: C1, committed: "2026-11-01T12:00:00.000Z", value: 1200 });
   const atC2 = reading({ commit: C2, committed: "2026-11-03T12:00:00.000Z", value: 1260.5, runs: 5, spread: 0.25, readAt: "2026-11-18T07:00:00.000Z" });
-  const atC3 = reading({ commit: C3, committed: "2026-11-02T12:00:00.000Z", value: 1230 }); // written last, read between c1 and c2 by its commit's date
+  const atC3 = reading({ commit: C3, committed: "2026-11-02T12:00:00.000Z", value: 1230 });
   await seam.writeReadings(db, [atC2, atC1]);
   await seam.writeReadings(db, [
     atC3,
-    reading({ commit: C2, committed: "2026-11-03T12:00:00.000Z", value: 99, version: 2 }), // another version of the measure
-    reading({ commit: C2, committed: "2026-11-03T12:00:00.000Z", value: 98, story: "story_b2b2b2b2b2b2" }), // another story
-    reading({ commit: C2, committed: "2026-11-03T12:00:00.000Z", value: 97, measure: "measure_100000000002" }), // another measure
-    reading({ commit: C2, committed: "2026-11-03T12:00:00.000Z", value: 96, project: `${project}-other` }), // another project
+    reading({ commit: C2, committed: "2026-11-03T12:00:00.000Z", value: 99, version: 2 }),
+    reading({ commit: C2, committed: "2026-11-03T12:00:00.000Z", value: 98, story: "story_b2b2b2b2b2b2" }),
+    reading({ commit: C2, committed: "2026-11-03T12:00:00.000Z", value: 97, measure: "measure_100000000002" }),
+    reading({ commit: C2, committed: "2026-11-03T12:00:00.000Z", value: 96, project: `${project}-other` }),
   ]);
   const again = { ...atC1, value: 1210, readAt: "2026-11-19T06:00:00.000Z" };
   await seam.writeReadings(db, [again]);

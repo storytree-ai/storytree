@@ -1,11 +1,4 @@
-/**
- * Code measures, capability 3 · Measure readings recorded on the box: contract 3.2 (`storytree code-measures record
- * --machine <name>` records, at origin/main as last fetched, every story's value of each live base measure whose machine
- * is the one named, refused when any measure does not pair or without --machine, at most once a day on a new head).
- *
- * The fixture is a git checkout whose one reading package, Alpha tools', declares readers for measure records written into
- * a test project's library on the test Postgres `pnpm test` starts, and whose origin/main is set by hand: nothing is fetched. Its stories are Alpha tools and Beta kit.
- */
+// Capability 3 · Measure readings recorded on the box
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -24,7 +17,6 @@ interface ReadingsDb {
   query(text: string, values?: unknown[]): Promise<{ rows: object[] }>;
 }
 
-/** The seam the builder provides from the package's index (contract 3.1), read here to see what was recorded. */
 interface ReadingsSeam {
   measureReadingsPool(server: Pick<Storytree, "ownDatabase">): Promise<ReadingsDb>;
   measureSeries(db: ReadingsDb, of: { project: string; story: string; measure: string; version: number }): Promise<{ story: string; measure: string; version: number; value: number; unit: string; commit: string; committed: string; machine: string; runs: number }[]>;
@@ -36,12 +28,10 @@ const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.com
 interface Repository {
   readonly folder: string;
   git(...args: string[]): string;
-  /** Commit everything at `when`, and set origin/main to it as if fetched. */
   commitAsOrigin(when: string): string;
   write(file: string, text: string): void;
 }
 
-/** A checkout with an origin whose main is set by hand: packages/alpha-tools (4 source lines) and packages/beta-kit (2). */
 function repository(t: TestContext): Repository {
   const folder = mkdtempSync(path.join(tmpdir(), "code-measures-record-"));
   t.after(() => removeTemp(folder));
@@ -62,7 +52,6 @@ function repository(t: TestContext): Repository {
   git("init", "-q", "-b", "main");
   git("remote", "add", "origin", "https://example.test/fixture.git");
   write("package.json", '{ "name": "fixture", "private": true }\n');
-  // The readers' modules are read from the working tree, never committed: committed, they would be Alpha's source too.
   write(".gitignore", "packages/alpha-tools/src/*.mjs\n");
   write("pnpm-workspace.yaml", 'packages:\n  - "packages/*"\n');
   write("packages/alpha-tools/src/a.ts", "export function a(x: number): number {\n  if (x > 0) return x;\n  return -x;\n}\n");
@@ -71,10 +60,6 @@ function repository(t: TestContext): Repository {
   return { folder, git, commitAsOrigin, write };
 }
 
-/**
- * Alpha tools' manifest, naming its story and declaring `readers` (each a measure id and the body of its read) in
- * src/<file>: a file of its own each time, since a module once imported is not read again.
- */
 function declareReaders(repo: Repository, story: string, file: string, readers: readonly { measure: string; read: string }[]): void {
   const manifest = { name: "@ws/alpha-tools", story, exports: { ".": "./src/a.ts", "./measures": `./src/${file}` }, storytree: { measures: [{ from: "./measures", export: "READERS" }] } };
   repo.write("packages/alpha-tools/package.json", `${JSON.stringify(manifest, null, 2)}\n`);
@@ -82,7 +67,6 @@ function declareReaders(repo: Repository, story: string, file: string, readers: 
   repo.write(`packages/alpha-tools/src/${file}`, `export const READERS = [\n${listed.join("\n")}\n];\n`);
 }
 
-/** A measure record's fields (6.24), version 1. */
 function measure(title: string, story: string, machine: string, base: boolean): Record<string, unknown> {
   return { title, description: `${title}, for the record test`, story, ...(base ? { base: true } : {}), reads: title.toLowerCase(), unit: "lines", better: "lower", howRead: "from the story's measures", machine, runs: 1, version: 1 };
 }
@@ -113,9 +97,9 @@ test("3.2 · storytree code-measures record --machine mint records each story's 
   const alpha = await library.addStory({ title: "Alpha tools" });
   const beta = await library.addStory({ title: "Beta kit" });
   const lines = await library.writeKnowledge("measure", measure("Source lines", alpha.id, "mint", true) as never);
-  const unread = await library.writeKnowledge("measure", measure("Never there", alpha.id, "mint", true) as never); // its reader gives none
-  const laptop = await library.writeKnowledge("measure", measure("Laptop lines", alpha.id, "laptop", true) as never); // read on another machine
-  const own = await library.writeKnowledge("measure", measure("Own lines", alpha.id, "mint", false) as never); // not a base measure
+  const unread = await library.writeKnowledge("measure", measure("Never there", alpha.id, "mint", true) as never);
+  const laptop = await library.writeKnowledge("measure", measure("Laptop lines", alpha.id, "laptop", true) as never);
+  const own = await library.writeKnowledge("measure", measure("Own lines", alpha.id, "mint", false) as never);
 
   const repo = repository(t);
   const pairedReaders = [
@@ -124,9 +108,9 @@ test("3.2 · storytree code-measures record --machine mint records each story's 
     { measure: laptop.id, read: "story.size?.sourceLines ?? null" },
     { measure: own.id, read: "story.size?.sourceLines ?? null" },
   ];
-  declareReaders(repo, alpha.id, "unpaired.mjs", pairedReaders.filter(({ measure: id }) => id !== laptop.id)); // Laptop lines has no reader yet
+  declareReaders(repo, alpha.id, "unpaired.mjs", pairedReaders.filter(({ measure: id }) => id !== laptop.id));
   const first = repo.commitAsOrigin("2026-11-10T12:00:00Z");
-  repo.write("packages/alpha-tools/src/a.ts", "export const dirty = 1;\n"); // the working tree is not what is read
+  repo.write("packages/alpha-tools/src/a.ts", "export const dirty = 1;\n");
 
   const unserved: VerbContext = { folder: repo.folder, project: library.name, session: "s", library };
   const context: VerbContext = { ...unserved, server: storytree };

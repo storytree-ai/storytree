@@ -161,7 +161,7 @@ test("2.1 · each measure record pairs with a reader of its id and version in it
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("2.2 · storytree code-measures pair prints each story's measures paired and unpaired with why, is refused naming the count when any does not pair, says so and passes with nothing to pair, and gives the same data with --json", async (t) => {
+test("2.2 · storytree code-measures pair prints each story's measures paired and unpaired with why, is refused naming the count when any does not pair, says so and passes with nothing to pair, and gives the same pairing as data with --json, never refused", async (t) => {
   const family = CODE_MEASURES_FAMILIES.find((one) => one.name === "code-measures");
   const pair = family?.verbs.find((one) => mounted(one.command) && one.command.name === "pair") as Verb<VerbInputs, VerbContext> | undefined;
   assert.ok(pair !== undefined, "the code-measures family has a pair verb");
@@ -196,6 +196,11 @@ test("2.2 · storytree code-measures pair prints each story's measures paired an
     assert.match(lineOf("Bundle size"), /no reader/i, "a record no package reads is listed with why");
     assert.match(lineOf(recordless), /no record/i, "a reader of no live record is listed with why");
     assert.match(refused.message, /\b2\b[^\n]*pair/i, "the refusal names how many do not pair");
+    const mixedData = await pair.act({ json: true }, contextIn(mixed), WORDS);
+    assert.equal(mixedData.raw, true, "--json never refuses: its reader judges the pairing");
+    const mixedParsed = JSON.parse(mixedData.text) as StoryPairing[];
+    assert.deepEqual(pairingOf(mixedParsed, alpha.id), { paired: [coldStart.id], unpaired: [{ measure: bundle.id, why: "no-reader", packages: [] }] }, "the same pairing as data: Alpha's paired one and its unread one, with why");
+    assert.deepEqual(pairingOf(mixedParsed, beta.id), { paired: [], unpaired: [{ measure: recordless, why: "no-record", packages: ["packages/beta-kit"] }] }, "and Beta's reader of no live record");
 
     const fixed = checkout(t, [
       { folder: "alpha-tools", story: alpha.id, readers: [{ measure: coldStart.id, version: 1 }, { measure: bundle.id, version: 1 }] },

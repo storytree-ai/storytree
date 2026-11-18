@@ -21,7 +21,7 @@
  */
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
-import { judgedState, unstorable, type FieldsOf, type KnowledgeKind, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
+import { judgedState, SchemaError, unstorable, type FieldsOf, type KnowledgeKind, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import { defaultEmbedder } from "./embedding-model.js";
 import { checkFrontCover, DecisionLog, type DecisionNumberPlan, type DecisionView, type NewDecision } from "../decisions/index.js";
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
@@ -124,6 +124,7 @@ export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
   "experiment",
   "escape",
   "drill",
+  "measure",
 ];
 
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
@@ -206,12 +207,36 @@ function refuseFrozenEdit(note: Note, change: object): void {
   }
 }
 
+/** The fields that say what a measure reads (ADR-1354 D3): a change to any of them is a new version. */
+const MEASURE_READING = ["reads", "howRead", "unit", "better", "machine", "runs", "base", "story"] as const;
+
+/**
+ * Refuse a measure's edit that changes what it reads without raising its version, or that lowers its version (ADR-1354
+ * D3, contract 6.25): changing what it reads is its own recorded step. Its words and links change at the same version.
+ */
+function refuseUnversionedEdit(note: Note, change: object): void {
+  if (note.type !== "measure") return;
+  const before = note.fields as FieldsOf<"measure">;
+  const edit = change as Partial<Record<keyof FieldsOf<"measure">, unknown>>;
+  const version = "version" in edit ? edit.version : before.version;
+  const raised = typeof version === "number" && version > before.version;
+  if (typeof version === "number" && version < before.version) {
+    throw new SchemaError("measure", [{ field: "version", problem: `measure ${note.id} is at version ${before.version}: its version never falls, not to ${version}` }]);
+  }
+  const changed = MEASURE_READING.filter((field) => field in edit && edit[field] !== before[field]);
+  if (changed.length > 0 && !raised) {
+    throw new SchemaError("measure", [{ field: "version", problem: `changing what measure ${note.id} reads (${changed.map((field) => JSON.stringify(field)).join(", ")}) raises its version above ${before.version}` }]);
+  }
+}
+
 /** What an artifact may link to: another artifact, never the work (capability 9). */
 const NOTE: Expected = artifactsOnly(NOTE_TYPES);
 /** What a check may enforce (ADR-0956 D3): the principles and guardrails that carry a rule's reason. */
 const ENFORCEABLE: Expected = { name: "principle or guardrail", types: ["principle", "guardrail"], why: "a check enforces the principle or guardrail note that carries its rule's reason" };
 /** What a red-team drill replants (ADR-1356 D1): a live escape pattern. */
 const REPLANTABLE: Expected = { name: "escape pattern", types: ["escape"], why: "a drill replants a harvested escape pattern" };
+/** What a measure is of (ADR-1354): a live story, whose package reads it. */
+const MEASURED: Expected = { name: "story", types: ["story"], why: "a measure is of the story whose package reads it" };
 
 export class Knowledge {
   readonly #records: SchemaRecords;
@@ -368,6 +393,7 @@ export class Knowledge {
       ...writer,
       checkCurrent: (current) => {
         refuseFrozenEdit(current as Note, fields);
+        refuseUnversionedEdit(current as Note, fields);
         checkCurrent?.(current as Note);
       },
     })) as Note | null;
@@ -494,6 +520,15 @@ export class Knowledge {
   }
 
   /**
+   * Every live measure, oldest first, or only those of story `story` when it is given (contract 6.24): what a story's
+   * readers pair with (code measures 2.1).
+   */
+  async measures(story?: string): Promise<SchemaRecord<"measure">[]> {
+    const measures = (await this.#records.list("measure")).sort(byCreation);
+    return story === undefined ? measures : measures.filter(({ fields }) => fields.story === story);
+  }
+
+  /**
    * Every live definition, in creation order: what a reader that looks terms up by name (the agent
    * link's prompt-time lookup, ADR-0636 D1) matches against.
    */
@@ -571,7 +606,8 @@ export class Knowledge {
    * Every reference an artifact's fields hold must name a live artifact: its links, and an agent role's
    * required reading, rules, anti-patterns and step reading, and a process's branch edges. Not one loop
    * over REFERENCE_FIELD_NAMES: `enforces` must name a principle or guardrail, not any note, a drill's
-   * `pattern` a live escape pattern, and `supersedes` is checked against decisions by the decision log.
+   * `pattern` a live escape pattern, a measure's `story` a live story, and `supersedes` is checked against
+   * decisions by the decision log.
    */
   async #checkNoteReferences(fields: object): Promise<void> {
     const at = fields as Record<string, unknown>;
@@ -582,6 +618,7 @@ export class Knowledge {
     for (const edge of listOf(at["branchEdges"])) await checkReference(this.#records, "branchEdges", fieldOf(edge, "to"), NOTE);
     await checkReferences(this.#records, "enforces", at["enforces"], ENFORCEABLE);
     await checkReference(this.#records, "pattern", at["pattern"], REPLANTABLE);
+    await checkReference(this.#records, "story", at["story"], MEASURED);
   }
 
   /** An artifact may link to a live artifact, and to nothing else. */

@@ -1,4 +1,17 @@
 // Capability 8 · Storytree's own test and gate entries.
+import gitEndOfOptions from "./git-end-of-options.mjs";
 import noComments from "./no-comments.mjs";
+import noOneCharacterEscape from "./no-one-character-escape.mjs";
+import noPartialEscape from "./no-partial-escape.mjs";
+import noTagStrip from "./no-tag-strip.mjs";
 
-export default { meta: { name: "storytree" }, rules: { "no-comments": noComments } };
+export default {
+  meta: { name: "storytree" },
+  rules: {
+    "no-comments": noComments,
+    "no-tag-strip": noTagStrip,
+    "no-partial-escape": noPartialEscape,
+    "no-one-character-escape": noOneCharacterEscape,
+    "git-end-of-options": gitEndOfOptions,
+  },
+};

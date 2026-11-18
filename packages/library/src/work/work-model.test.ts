@@ -1,16 +1,4 @@
-/**
- * Capability 4 · Work model: one test per contract of 4 but its pending plan changes (pending-changes.test.ts; 4.9 is in library-api.test.ts) in the library story, each run on
- * BOTH backends, as capabilities 2 and 3 are:
- *
- * - memory: a WorkModel over SchemaRecords over a fresh MemoryTransactions;
- * - postgres: the `work` of a fresh project, opened through capability 1 on the server `pnpm test`
- *   provides and named with uniqueProjectName(). Its database is dropped afterwards, pass or fail.
- *   Other test files share that server, so a test only ever reads its own project.
- *
- * Whether anything was written is judged one layer down, through the same project's
- * Transactions: every change appends a history entry (capability 2), so an unchanged history
- * means nothing was written.
- */
+// Capability 4 · Work model
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { isDeepStrictEqual } from "node:util";
@@ -24,7 +12,6 @@ import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
 import { ANCHOR_ID, anchorGaps, WorkModel, type PluginPlan } from "./index.js";
 
-/** A fresh, empty library: the work model under test, and the layers it runs over. */
 interface Library {
   readonly work: WorkModel;
   readonly records: SchemaRecords;
@@ -59,7 +46,6 @@ const postgres: Backend = {
       }
     };
     try {
-      // The project handle's own work model and layers: the work model as later stories reach it.
       const project = await storytree.openProject(name);
       return { work: project.work, records: project.records, transactions: project.transactions, cleanup };
     } catch (error) {
@@ -69,15 +55,12 @@ const postgres: Backend = {
   },
 };
 
-/** An id of the right shape that names no record. */
 const NO_STORY = "story_000000000000";
 const NO_CAPABILITY = "capability_000000000000";
 
-/** Text the library cannot store (capability 3 refuses it): a NUL, and a lone UTF-16 surrogate. */
 const UNSTORABLE = ["story_\u0000", "story_\uD83C"];
 
 for (const backend of [memory, postgres]) {
-  /** Register one test for this backend, run against a fresh library disposed of afterwards, pass or fail. */
   const contract = (number: string, title: string, body: (library: Library) => Promise<void>): void => {
     test(`${number} [${backend.label}] ${title}`, async () => {
       const library = await backend.open();
@@ -113,8 +96,6 @@ for (const backend of [memory, postgres]) {
       "the story holds its capability, which holds its contract; a description appears only where there is one",
     );
 
-    // Every id is the library's own: an id in the input is refused as an unknown field, so no
-    // caller can replace a record by naming it, and nothing is written.
     const before = await transactions.history();
     await assert.rejects(work.addStory(untyped({ id: story.id, title: "Replaced?" })), schemaError("story", ["id"]));
     await assert.rejects(
@@ -128,17 +109,12 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before, "nothing was written");
     await laterThan(contract);
 
-    // A bigger plan. Every level holds several children, each created strictly after the one
-    // before and under ids whose own order is not creation order, so the only order the tree can
-    // show them in is creation order.
     const stories = await createInOrder(3, (n) => work.addStory({ title: `Story ${n}` }));
     const planned = at(stories, 0);
     const tried = at(stories, 1);
     const capabilities = await createInOrder(3, (n) => work.addCapability({ title: `Capability ${n}`, story: planned.id }));
     const first = at(capabilities, 0);
     const contracts = await createInOrder(3, (n) => work.addContract({ title: `Contract ${n}`, capability: first.id }));
-    // Under the second story: a capability depending on two of the first story's, holding a
-    // contract, each with a description.
     const link = await work.addCapability({
       title: "Confirmation link",
       story: tried.id,
@@ -148,9 +124,7 @@ for (const backend of [memory, postgres]) {
     await laterThan(link);
     const expiry = await work.addContract({ title: "The link expires", capability: link.id, description: "After 24 hours" });
     await laterThan(expiry);
-    // A child added later to an earlier parent goes after that parent's older children.
     const late = await work.addCapability({ title: "Late capability", story: planned.id });
-    // Records that are not part of the plan stay out of the tree.
     await records.create("definition", { term: "Delivery", meaning: "Not part of the plan", links: [planned.id] });
     await records.create("health", { node: expiry.id, column: "reported", state: "passing" });
 
@@ -185,8 +159,6 @@ for (const backend of [memory, postgres]) {
       "every child under its own parent, in creation order at every level",
     );
 
-    // The tree is read from the records as they are now. An older capability moved to the second
-    // story sits there before that story's newer one, and a retired contract is gone.
     const moved = at(capabilities, 1);
     await work.editCapability(moved.id, { story: tried.id });
     const dropped = at(contracts, 1);
@@ -223,18 +195,15 @@ for (const backend of [memory, postgres]) {
     const before = await transactions.history();
 
     const refused: [attempt: () => Promise<unknown>, field: string, id: string, found?: RecordType][] = [
-      // A capability whose story is missing, retired, a near miss, or not a story at all...
       [() => work.addCapability({ title: "Email form", story: NO_STORY }), "story", NO_STORY],
       [() => work.addCapability({ title: "Email form", story: retiredStory.id }), "story", retiredStory.id],
       [() => work.addCapability({ title: "Email form", story: "" }), "story", ""],
       [() => work.addCapability({ title: "Email form", story: story.id.toUpperCase() }), "story", story.id.toUpperCase()],
       [() => work.addCapability({ title: "Email form", story: capability.id }), "story", capability.id, "capability"],
       [() => work.addCapability({ title: "Email form", story: arc.id }), "story", arc.id, "arc"],
-      // ...and moving a capability onto such a story.
       [() => work.editCapability(capability.id, { story: NO_STORY }), "story", NO_STORY],
       [() => work.editCapability(capability.id, { story: retiredStory.id }), "story", retiredStory.id],
       [() => work.editCapability(capability.id, { title: "Renamed", story: contract.id }), "story", contract.id, "contract"],
-      // A contract whose capability is missing, retired, or not a capability.
       [() => work.addContract({ title: "Rejects a bad email", capability: NO_CAPABILITY }), "capability", NO_CAPABILITY],
       [() => work.addContract({ title: "Rejects a bad email", capability: retiredCapability.id }), "capability", retiredCapability.id],
       [() => work.addContract({ title: "Rejects a bad email", capability: story.id }), "capability", story.id, "story"],
@@ -245,8 +214,6 @@ for (const backend of [memory, postgres]) {
     }
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
 
-    // An id holding text the library cannot store is never looked up (Postgres cannot even be
-    // asked for one): the write's own schema check refuses it, naming the field, on both backends.
     for (const bad of UNSTORABLE) {
       await assert.rejects(work.addCapability({ title: "Email form", story: bad }), schemaError("capability", ["story"]));
       await assert.rejects(work.editCapability(capability.id, { story: bad }), schemaError("capability", ["story"]));
@@ -254,15 +221,12 @@ for (const backend of [memory, postgres]) {
     }
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
 
-    // Editing something that is not a live capability edits nothing and returns null, as any edit
-    // of a missing record does: a story, a contract or an arc is not changed through it.
     for (const id of [story.id, contract.id, arc.id, retiredCapability.id, NO_CAPABILITY, ...UNSTORABLE]) {
       assert.equal(await work.editCapability(id, { title: "Renamed" }), null, `editCapability(${JSON.stringify(id)})`);
     }
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
     assert.deepEqual(await transactions.get(story.id), story, "the story keeps its title");
 
-    // Control: the same writes, naming live records of the right type, go through.
     const moved = await work.editCapability(capability.id, { story: elsewhere.id });
     assert.deepEqual(moved, { ...capability, fields: { title: "1 · Email form", story: elsewhere.id, proposed: true }, updatedAt: moved?.updatedAt });
     const second = await work.addCapability({ title: "Password rules", story: elsewhere.id });
@@ -302,8 +266,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
     assert.deepEqual(await transactions.get(form.id), form, "the edited capability is unchanged");
 
-    // Control: dependencies on live capabilities are kept as given, on a new capability and on an edit (inside one
-    // story, as edges, so the capability stores none of them: ADR-1282 D1).
     const linked = await work.addCapability({ ...link, dependsOn: [form.id, mailer.id] });
     assert.deepEqual(new Set(linked.fields.dependsOn), new Set([form.id, mailer.id]));
     assert.deepEqual((await transactions.get(linked.id))?.fields, { ...link, title: "3 · Confirmation link", dependsOn: [], proposed: true });
@@ -311,8 +273,6 @@ for (const backend of [memory, postgres]) {
     await assertCreated(transactions, none, "capability", { title: "4 · Welcome email", story: story.id, dependsOn: [], proposed: true });
     const edited = await work.editCapability(form.id, { dependsOn: [mailer.id] });
     assert.deepEqual(edited?.fields, { title: "1 · Email form", story: story.id, proposed: true, dependsOn: [mailer.id] });
-    // The tree shows each capability's dependencies (these were created too close together for
-    // their order to be the point, so they are compared as sets).
     const tree = await work.projectTree();
     assert.deepEqual(
       Object.fromEntries(tree.stories.flatMap((node) => node.capabilities.map(({ id, dependsOn }) => [id, new Set(dependsOn)]))),
@@ -325,10 +285,8 @@ for (const backend of [memory, postgres]) {
     const add = (title: string, dependsOn?: string[]) =>
       work.addCapability({ title, story: story.id, ...(dependsOn === undefined ? {} : { dependsOn }) });
 
-    // B depends on A, so A depending on B would close the loop A → B → A.
     const a = await add("A");
     const b = await add("B", [a.id]);
-    // A longer chain: B2 depends on C2 and C2 on A2, so A2 depending on B2 would close A2 → B2 → C2 → A2.
     const a2 = await add("A2");
     const c2 = await add("C2", [a2.id]);
     const b2 = await add("B2", [c2.id]);
@@ -339,9 +297,7 @@ for (const backend of [memory, postgres]) {
       [() => work.editCapability(a.id, { dependsOn: [b.id] }), [a.id, b.id, a.id]],
       [() => work.editCapability(a.id, { dependsOn: [a.id] }), [a.id, a.id]],
       [() => work.editCapability(a2.id, { dependsOn: [b2.id] }), [a2.id, b2.id, c2.id, a2.id]],
-      // Found wherever it hides: behind a dependency that leads nowhere, alongside other fields.
       [() => work.editCapability(a2.id, { title: "A2, renamed", dependsOn: [deadEnd.id, b.id, b2.id] }), [a2.id, b2.id, c2.id, a2.id]],
-      // Closed from the middle of the chain: C2 depending on B2, which depends on C2.
       [() => work.editCapability(c2.id, { dependsOn: [a2.id, b2.id] }), [c2.id, b2.id, c2.id]],
     ];
     for (const [attempt, path] of loops) {
@@ -352,36 +308,24 @@ for (const backend of [memory, postgres]) {
       assert.deepEqual(await work.dependsOn(record.id), record.fields.dependsOn ?? [], `${record.fields.title} is unchanged`);
     }
 
-    // Control: edits that leave no loop go through. A diamond is not a loop: two paths from W
-    // reach X, but nothing leads back to W.
     const x = await add("X");
     const y = await add("Y", [x.id]);
     const z = await add("Z", [x.id]);
     const w = await add("W");
     assert.deepEqual(new Set((await work.editCapability(w.id, { dependsOn: [y.id, z.id] }))?.fields.dependsOn), new Set([y.id, z.id]));
     assert.deepEqual((await work.editCapability(x.id, { dependsOn: [deadEnd.id] }))?.fields.dependsOn, [deadEnd.id]);
-    // A capability inside a chain can change its other fields.
     assert.equal((await work.editCapability(c2.id, { title: "C2, renamed" }))?.fields.title, "C2, renamed");
-    // Once B no longer depends on A, A may depend on B: the check is against the graph as it is now.
     assert.deepEqual((await work.editCapability(b.id, { dependsOn: [] }))?.fields.dependsOn, []);
     assert.deepEqual((await work.editCapability(a.id, { dependsOn: [b.id] }))?.fields.dependsOn, [b.id]);
 
-    // A loop already stored, as a second process racing this one could store it (a work model
-    // queues only its own writes), does not trap the check: an edit leading into the loop but not
-    // back out of it goes through, one closing a new loop through it is refused, and the stored
-    // loop can be broken.
     const l1 = await add("L1");
     const l2 = await add("L2", [l1.id]);
-    await records.edit(l1.id, { dependsOn: [l2.id] }); // L1 → L2 → L1, written around the work model
+    await records.edit(l1.id, { dependsOn: [l2.id] });
     const into = await add("Into");
     assert.deepEqual((await work.editCapability(into.id, { dependsOn: [l1.id] }))?.fields.dependsOn, [l1.id]);
     await assert.rejects(work.editCapability(l1.id, { dependsOn: [into.id] }), dependencyLoop([l1.id, into.id, l1.id]));
     assert.deepEqual((await work.editCapability(l2.id, { dependsOn: [] }))?.fields.dependsOn, []);
 
-    // Two edits racing each other, each fine alone, that together would close a loop: exactly
-    // one of them is written, and the other is refused as a loop. The connection pool is warmed
-    // first, as capability 2's race checks do, so that neither racer has to wait for a new
-    // connection and the edits genuinely overlap.
     const p = await add("P");
     const q = await add("Q");
     await Promise.all(Array.from({ length: 8 }, () => transactions.get("warm-up")));
@@ -817,7 +761,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(signUp.edges, [{ id: edges[0]!.id, from: link.id, to: form.id, contracts: [] }]);
     assert.equal(tree.stories.find(({ id }) => id === elsewhere.id)?.edges, undefined, "a story with no edges lists none");
 
-    // An edge written directly reads the same way, and is described.
     const welcome = await work.addCapability({ title: "Welcome email", story: story.id });
     const direct = await work.addEdge({ from: welcome.id, to: link.id, description: "Sent once the link is used" });
     assert.deepEqual(await work.dependsOn(welcome.id), [link.id]);
@@ -836,7 +779,6 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(work.editEdge(direct.id, untyped({ to: form.id })), schemaError("edge", ["to"]), "an edge keeps its two capabilities");
     assert.deepEqual(await transactions.history(), beforeRefusals, "none of them wrote anything");
 
-    // An edit naming the same-story ids again writes the edges it lacks and retires those it no longer names.
     const captcha = await work.addCapability({ title: "Captcha", story: story.id });
     const edited = await work.editCapability(link.id, { dependsOn: [mailer.id, captcha.id] });
     assert.deepEqual(edited?.fields.dependsOn, [captcha.id, mailer.id], "edges read first, then the stored ids");
@@ -867,13 +809,11 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(new Map(node.capabilities.map(({ id, contracts }) => [id, contracts.map((contract) => contract.id)])), new Map([[form.id, [own.id]], [link.id, []]]), "each capability's own contracts are unchanged");
     assert.deepEqual(node.edges?.[0]?.contracts.map(({ id }) => id), [loose.id, numbered.id]);
 
-    // A capability's contract moves onto the edge keeping its number, and back.
     const moved = await work.editContract(own.id, { edge: edge.id });
     assert.deepEqual(moved?.fields, { title: "1.1 · Rejects a bad email", edge: edge.id }, "it leaves its capability");
     const back = await work.editContract(own.id, { capability: form.id });
     assert.deepEqual(back?.fields, { title: "1.1 · Rejects a bad email", capability: form.id }, "it leaves the edge");
 
-    // Under numbered capabilities, a contract given no number gets its dependent capability's next free one.
     const shop = await work.addStory({ title: "Shopper checks out" });
     const cart = await work.addCapability({ title: "1 · Cart", story: shop.id });
     const pay = await work.addCapability({ title: "2 · Payment", story: shop.id, dependsOn: [cart.id] });
@@ -917,7 +857,6 @@ for (const backend of [memory, postgres]) {
     const mail = await work.addStory({ title: "Mail" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
     const sender = await work.addCapability({ title: "Sender", story: mail.id });
-    // Stored as the plan stored them before edges, written around the work model.
     const link = await records.create("capability", { title: "2 · Confirmation link", story: story.id, proposed: true, dependsOn: [sender.id, form.id] });
     const lone = await records.create("capability", { title: "2 · Bounce handling", story: mail.id, proposed: true, dependsOn: [form.id] });
     const faces = async () => Object.fromEntries(await Promise.all([form, sender, link, lone].map(async ({ id }) => [id, new Set(await work.dependsOn(id))])));
@@ -973,7 +912,6 @@ for (const backend of [memory, postgres]) {
     const ids = async () => new Map((await work.projectTree()).stories.find(({ id }) => id === first.story)!.capabilities.flatMap((capability) => [[capability.title, capability.id], ...capability.contracts.map((contract) => [contract.title, contract.id] as const)]));
     const landed = await ids();
 
-    // A folder cut before 1.2 and capability 2 landed, whose own history dropped 1.1's old sibling 1.3, holds only 1.1.
     const stale = await work.importPluginPlan("voice", plan([{ title: "1 · The address", contracts: [{ title: "1.1 · A wrong path is answered 404" }] }]), { held: { capabilities: [1], contracts: ["1.1", "1.3"] } });
     assert.deepEqual(stale.retired, [], "nothing the source never held is retired");
     assert.deepEqual(new Set(stale.left), new Set([landed.get("1.2 · A wrong method is answered 405"), landed.get("2 · Speech"), landed.get("2.1 · Speaks")]), "another lane's capability and contracts are left, and said");
@@ -991,18 +929,15 @@ for (const backend of [memory, postgres]) {
     const first = await work.importPluginPlan("voice", cut);
     const [capability, contract] = [first.added.find((id) => id.startsWith("capability_"))!, first.added.find((id) => id.startsWith("contract_"))!];
     const held = (...versions: PluginPlan[]) => ({ held: { capabilities: [1], contracts: ["1.1"], versions } });
-    // Another lane lands a new description for both, from its own folder.
     const landed = plan("The port and path it listens on.", "Any path outside its routes.");
     await work.importPluginPlan("voice", landed, held(cut, landed));
 
-    // A folder cut before that landing, whose own history changed only the contract's description, holds the old capability text.
     const stale = await work.importPluginPlan("voice", plan("Where it listens.", "A path it never serves."), held(cut, plan("Where it listens.", "A path it never serves.")));
     assert.deepEqual(stale.edited, [], "nothing another lane changed is written back");
     assert.deepEqual(new Set(stale.stood), new Set([capability, contract]), "each is said");
     assert.equal(((await records.get(capability))?.fields as { description?: string } | undefined)?.description, "The port and path it listens on.");
     assert.equal(((await records.get(contract))?.fields as { description?: string } | undefined)?.description, "Any path outside its routes.");
 
-    // After merging the landing, the folder's history holds the live text, so its own change is written.
     const merged = await work.importPluginPlan("voice", plan("The port and path it listens on.", "A path it never serves."), held(cut, landed, plan("The port and path it listens on.", "A path it never serves.")));
     assert.deepEqual(merged.edited, [contract]);
     assert.deepEqual(merged.stood, []);
@@ -1014,10 +949,8 @@ for (const backend of [memory, postgres]) {
     const address = (...contracts: string[]) => ({ title: "1 · The address", contracts: [{ title: "1.1 · A wrong path is answered 404" }, ...contracts.map((title) => ({ title }))] });
     const cut = plan([address()]);
     await work.importPluginPlan("voice", cut);
-    // Lane A imports its new 1.2 and capability 2 from its own folder.
     const a = plan([address("1.2 · A wrong method is answered 405"), { title: "2 · Speech", contracts: [{ title: "2.1 · Speaks" }] }]);
     const theirs = await work.importPluginPlan("voice", a, { held: { capabilities: [1, 2], contracts: ["1.1", "1.2", "2.1"], versions: [cut, a] } });
-    // Lane B's folder once held its own 1.2 and capability 2, and renumbered them to 1.3 and 3 before importing.
     const b = (contract: string, capability: string) => plan([address(`${contract} · A slow request is cut off`), { title: `${capability} · Listening`, contracts: [{ title: `${capability}.1 · Hears` }] }]);
     const mine = await work.importPluginPlan("voice", b("1.3", "3"), { held: { capabilities: [1, 2, 3], contracts: ["1.1", "1.2", "1.3", "2.1", "3.1"], versions: [cut, b("1.2", "2"), b("1.3", "3")] } });
     assert.deepEqual(mine.retired, [], "nothing of lane A's is retired under a number lane B's folder once held");
@@ -1107,10 +1040,6 @@ for (const backend of [memory, postgres]) {
   });
 }
 
-/**
- * Assert that `record` is a new record of `type` holding exactly `fields`, under an id the library
- * generated, and that it is stored exactly as returned.
- */
 async function assertCreated(
   transactions: Transactions,
   record: RecordEnvelope,
@@ -1126,16 +1055,10 @@ async function assertCreated(
   assert.deepEqual(await transactions.get(record.id), record, `the ${type} is stored as returned`);
 }
 
-/** Wait until the clock has passed `record`'s creation, so the next record is created strictly later. */
 async function laterThan(record: { readonly createdAt: string }): Promise<void> {
   await waitUntil(() => Date.now() > Date.parse(record.createdAt), 5_000, `the clock to pass ${record.createdAt}`);
 }
 
-/**
- * Create records one after another with `create`, each strictly later than the one before, until
- * there are at least `count` and their ids' own order is NOT their creation order. Any order a
- * test then sees them in can only be creation order, never the id order `list` hands back.
- */
 async function createInOrder<R extends { readonly id: string; readonly createdAt: string }>(
   count: number,
   create: (n: number) => Promise<R>,
@@ -1153,17 +1076,14 @@ function inIdOrder(records: readonly { readonly id: string }[]): boolean {
   return records.every((record, n) => n === 0 || at(records, n - 1).id < record.id);
 }
 
-/** The item at `index`, which the test has made sure is there. */
 function at<T>(items: readonly T[], index: number): T {
   return items[index] ?? assert.fail(`there is no item ${index}`);
 }
 
-/** A value the compiler would refuse, sent the way a JavaScript caller or an agent could send it. */
 function untyped(value: unknown): never {
   return value as never;
 }
 
-/** What each reference field must name, restated from the spec. */
 const MUST_NAME: Readonly<Record<string, string>> = {
   story: "story",
   capability: "capability",
@@ -1174,11 +1094,6 @@ const MUST_NAME: Readonly<Record<string, string>> = {
   edge: "edge",
 };
 
-/**
- * An assert.rejects check: a MissingReferenceError for `field` holding `id`, whose message names
- * both. `found` is the type of the record `id` names when that record is of the wrong type, and
- * undefined when there is no such record (it is missing or retired).
- */
 function missingReference(field: string, id: string, found?: RecordType): (error: unknown) => true {
   return (error) => {
     assert.ok(error instanceof MissingReferenceError, `expected a MissingReferenceError, got: ${String(error)}`);
@@ -1194,7 +1109,6 @@ function missingReference(field: string, id: string, found?: RecordType): (error
   };
 }
 
-/** An assert.rejects check: a DependencyLoopError around exactly `path`, whose message names the loop. */
 function dependencyLoop(path: readonly string[]): (error: unknown) => true {
   return (error) => {
     assert.ok(error instanceof DependencyLoopError, `expected a DependencyLoopError, got: ${String(error)}`);
@@ -1204,7 +1118,6 @@ function dependencyLoop(path: readonly string[]): (error: unknown) => true {
   };
 }
 
-/** An assert.rejects check: a SchemaError (capability 3) for `type` whose fields at fault are exactly `fields`. */
 function schemaError(type: RecordType, fields: readonly string[]): (error: unknown) => true {
   return (error) => {
     assert.ok(error instanceof SchemaError, `expected a SchemaError, got: ${String(error)}`);

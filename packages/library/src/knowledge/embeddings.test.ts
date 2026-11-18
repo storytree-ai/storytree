@@ -78,7 +78,6 @@ test("14.10 · vector writes reach both stores, keys are model-scoped, and a mis
       const file = path.join(folder, "vectors.sqlite");
       const vectors = new PgVectors(pool, file, domain);
       const raw = new PgVectors(pool);
-      // Store a view with an offset: unrelated floats must not be copied into either store.
       const first = Float32Array.of(99, 1, 2, 99).subarray(1, 3);
       const second = Float32Array.of(3, 4);
       await vectors.put("first", new Map([["same-key", first]]));
@@ -123,8 +122,6 @@ test("14.10 · independent processes write one cache concurrently and a fresh pr
   const phase = (message: string) => t.diagnostic(`vectors +${Math.round(performance.now() - started)} ms: ${message}`);
   const workers = new AbortController();
   const signal = AbortSignal.any([t.signal, workers.signal]);
-  // A stalled child must report its last phase and exit before the test's 60-second deadline.
-  // Wait for its close callback, including after cancellation, before removing the cache or proxy.
   const run = (label: string, script: string, args: string[], timeout: number) => new Promise<void>((resolve, reject) => {
     let last = "Node/tsx startup (no child output)";
     let pending = "";

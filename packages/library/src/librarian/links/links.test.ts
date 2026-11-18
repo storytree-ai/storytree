@@ -1,7 +1,4 @@
-/**
- * Capability 21 · Links: one test per contract 21.1-21.5 in The library story, each in a fresh
- * project's library on the real Postgres `pnpm test` provides.
- */
+// Capability 21 · Links
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -11,7 +8,6 @@ import { withLibrary } from "../testing/pg.js";
 import { worklist } from "../rounds/index.js";
 import { brokenEdges, link, unrestedDecisions } from "./index.js";
 
-/** A story with one capability, and a decision on its shelf. */
 async function shelf(library: Library) {
   const story = await library.addStory({ title: "Visitor can sign up" });
   const capability = await library.addCapability({ title: "Email form", story: story.id });
@@ -19,7 +15,6 @@ async function shelf(library: Library) {
   return { capability, cover };
 }
 
-/** A decision about the whole project: on no shelf. */
 function wholeProject(library: Library, title: string) {
   return library.recordDecision({ title, text: `${title}, for every part of the project.`, status: "accepted" });
 }
@@ -80,8 +75,6 @@ test("21.3 the worklist names each accepted decision on no shelf that no note re
     const spec = await wholeProject(library, "The MVP spec");
     const license = await wholeProject(library, "The license");
 
-    // Two decisions written back to back can share a creation millisecond, so their order is the
-    // random ids'; the contract promises which decisions, not their order.
     assert.deepEqual((await unrestedDecisions(library)).map((decision) => decision.id).sort(), [spec.id, license.id].sort());
 
     await link(library, cover.id, spec.id);

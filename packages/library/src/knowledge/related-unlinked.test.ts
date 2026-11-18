@@ -1,8 +1,4 @@
-/**
- * Capability 6 · Knowledge artifacts, grown by ADR-0654: contract 6.10 in the library story, the
- * related-but-unlinked search 0.2's librarian used for its Links round, and 6.11, the same and search()
- * asked many times from one reading, run on BOTH backends, as 6.1-6.7 are (knowledge-memory.test.ts).
- */
+// Capability 6 · Knowledge artifacts
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -75,8 +71,6 @@ for (const backend of [memory, postgres]) {
       why: "Visitors never receive their confirmation",
       howToApply: "Verify the domain first",
     });
-    // About the same thing: one the source's own links will reach, one that links to the source,
-    // one nothing connects, and one that shares a single word.
     const linkedOut = await knowledge.defineTerm({ term: "Verified domain", meaning: "A mailgun domain whose confirmation email does not bounce" });
     await knowledge.editNote(source.id, { links: [linkedOut.id] });
     const linkedIn = await knowledge.writeKnowledge("pattern", {
@@ -120,7 +114,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await knowledge.related(source.id, { unlinked: true, limit: 1 }))?.hits.map(({ id }) => id), [unlinked.id]);
     assert.deepEqual((await knowledge.related(source.id, { kind: "decision" }))?.hits.map(({ id }) => id), [unlinked.id], "one kind only");
 
-    // Once linked, it leaves the unlinked list; a retired artifact is never ranked.
     await knowledge.editNote(unlinked.id, { links: [source.id] });
     assert.ok(!(await knowledge.related(source.id, { unlinked: true }))?.hits.some(({ id }) => id === unlinked.id));
     await records.retire(linkedIn.id, "merged");

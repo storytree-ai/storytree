@@ -1,14 +1,4 @@
-/**
- * Capability 6 · Knowledge and memory, grown by ADR-0640 and ADR-0956: contracts 6.6, 6.7, 6.12, 6.13, 6.14, 6.15 and 6.16, and the kinds after them to 6.25 (6.18 and 6.19, the friction a close moves, in work-in-flight.test.ts)
- * in the library story, each run on BOTH backends, as 6.1-6.5 are (knowledge-memory.test.ts):
- *
- * - memory: a Knowledge over SchemaRecords over a fresh MemoryTransactions;
- * - postgres: the `knowledge` of a fresh project on the server `pnpm test` provides, dropped
- *   afterwards, pass or fail.
- *
- * Whether anything was written is judged one layer down, through the project's Transactions: every
- * change appends a history entry (capability 2), so an unchanged history means nothing was written.
- */
+// Capability 6 · Knowledge artifacts
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 
@@ -60,11 +50,6 @@ const postgres: Backend = {
   },
 };
 
-/**
- * Each kind with every field 0.2 requires of it, plus the title and one-line description every
- * kind carries (6-a). An agent role's required reading is a list of notes, so it is filled in by
- * the test with a note it has written.
- */
 function fullKinds(noteId: string): Record<string, Record<string, unknown>> {
   const head = { title: "A title", description: "One line" };
   return {
@@ -79,7 +64,6 @@ function fullKinds(noteId: string): Record<string, Record<string, unknown>> {
   };
 }
 
-/** Each kind's required fields: taking any one away must be refused, naming it. */
 const REQUIRED: Record<string, readonly string[]> = {
   principle: ["title", "description", "statement", "why", "howToApply"],
   pattern: ["title", "description", "statement", "problem", "approach"],
@@ -110,7 +94,6 @@ for (const backend of [memory, postgres]) {
 
     for (const [kind, fields] of Object.entries(kinds)) {
       const saved = await knowledge.writeKnowledge(kind as KnowledgeKind, fields as never);
-      // A friction report is filed open (6.13): the one field the library adds.
       const stored = kind === "friction" ? { ...fields, state: "open" } : fields;
       assert.equal(saved.type, kind);
       assert.deepEqual(saved.fields, stored, `${kind} is stored as given`);
@@ -127,7 +110,6 @@ for (const backend of [memory, postgres]) {
         assert.deepEqual(await transactions.history(), before, `${kind} without ${field}: nothing written`);
       }
     }
-    // They are notes: found by search on their words.
     assert.equal((await knowledge.search("pgdata")).length, 1, "a friction is found by a word of its evidence");
   });
 
@@ -142,7 +124,6 @@ for (const backend of [memory, postgres]) {
         `friction with evidence ${JSON.stringify(evidence)} is refused`,
       );
     }
-    // A recurrence is evidence too: one with none is refused.
     await assert.rejects(
       knowledge.writeKnowledge("friction", { ...friction, reinforcedBy: [{ branch: "b", date: "2026-09-27" }] } as never),
       (error: unknown) => error instanceof SchemaError && error.fields.includes("reinforcedBy"),
@@ -154,7 +135,6 @@ for (const backend of [memory, postgres]) {
     );
     assert.deepEqual(await transactions.history(), before, "nothing was written");
 
-    // A matter of taste has no failure mode, and a defect with one is kept.
     await knowledge.writeKnowledge("resteer", resteer as never);
     const defect = await knowledge.writeKnowledge("resteer", { ...resteer, disposition: "defect", mode: "tool-defect" } as never);
     assert.equal((defect.fields as Record<string, unknown>).mode, "tool-defect");
@@ -547,7 +527,6 @@ for (const backend of [memory, postgres]) {
 const DRILL_LAYERS = ["test-writer", "builder", "lint", "tests", "mutation", "test-reviewer", "code-reviewer", "ci-linux", "ci-windows"] as const;
 type DrillResult = "caught" | "missed" | "not-run";
 
-/** One layer row per result, in the fixed order, each with evidence a red-team session would record. */
 function drillLayers(results: readonly DrillResult[]): { layer: string; result: DrillResult; evidence: string }[] {
   assert.equal(results.length, DRILL_LAYERS.length, "the fixture gives a result for each of the nine layers");
   return DRILL_LAYERS.map((layer, at) => ({ layer, result: results[at]!, evidence: `${layer}: ${results[at]} on packages/map/src/read.ts at scratch head 3f9c2a1b` }));
@@ -665,7 +644,6 @@ for (const backend of [memory, postgres]) {
   });
 }
 
-/** A measure's whole set of fields (contract 6.24): what it reads, its unit, its better direction, how and where it is read, its runs and version. */
 function coldStart(story: string): Record<string, unknown> {
   return {
     title: "Cold start to first frame",
@@ -681,11 +659,6 @@ function coldStart(story: string): Record<string, unknown> {
   };
 }
 
-/**
- * Write records one after another on a mocked clock (both backends stamp a record's creation with the process's Date),
- * each a second after the one before, until there are at least `count` and the ids of the even-numbered ones (and so
- * of all of them) are not in creation order: any order a test then sees them in can only be creation order.
- */
 async function writeInOrder<R extends { readonly id: string; readonly createdAt: string }>(t: TestContext, count: number, write: (n: number) => Promise<R>): Promise<R[]> {
   const written: R[] = [];
   const evens = () => written.filter((_, n) => n % 2 === 0);

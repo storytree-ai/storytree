@@ -1,9 +1,3 @@
-/**
- * Helpers for the librarian's tests, which run against the real Postgres `pnpm test` starts
- * (packages/repo-checks/src/test.mjs hands it over as STORYTREE_TEST_PG_URL). A Postgres test must never skip
- * silently, so asking for the server when there is none throws. The library keeps its own helpers
- * inside its package, so the few needed here are restated, as Session management's are.
- */
 import { randomBytes } from "node:crypto";
 import { connect as connectSocket, createServer, type AddressInfo, type Socket } from "node:net";
 
@@ -11,7 +5,6 @@ import { connect, type Library } from "../../index.js";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import pg from "pg";
 
-/** The server the tests run against. Throws when there is none. */
 export function testServerUrl(): string {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined || url === "") {
@@ -20,7 +13,6 @@ export function testServerUrl(): string {
   return url;
 }
 
-/** Run `body` with a fresh project's library, dropped afterwards, pass or fail. */
 export async function withLibrary(body: (library: Library) => Promise<void>): Promise<void> {
   const project = `t-${randomBytes(4).toString("hex")}`;
   const storytree = await connect({ url: testServerUrl() });
@@ -37,19 +29,12 @@ export async function withLibrary(body: (library: Library) => Promise<void>): Pr
   }
 }
 
-/** What withCountedLibrary hands its body: the library, read through a stand-in that counts what the server sends. */
 export interface CountedLibrary {
   readonly library: Library;
   readonly project: string;
-  /** The bytes the server has sent the library so far, as a cloud database bills them (its egress). */
   received(): number;
 }
 
-/**
- * Run `body` with a fresh project's library whose every connection goes through a stand-in for the
- * network in front of the test server, counting the bytes the server sends back. Restated from the
- * Session management's countingStore, as the rest of these helpers are.
- */
 export async function withCountedLibrary(body: (counted: CountedLibrary) => Promise<void>): Promise<void> {
   const upstream = new URL(testServerUrl());
   let received = 0;
@@ -90,11 +75,6 @@ export async function withCountedLibrary(body: (counted: CountedLibrary) => Prom
   }
 }
 
-/**
- * Write `entries` health changes into `project`'s history, straight into the table as weeks of CI
- * runs leave them (each about half a kilobyte), from `at` on, a second apart, and none into its
- * records. Not through the counted connection. Returns how many bytes the history now holds.
- */
 export async function healthHistory(project: string, entries: number, at: Date): Promise<number> {
   const url = new URL(testServerUrl());
   url.pathname = `/storytree_${project}`;

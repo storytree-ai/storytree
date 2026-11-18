@@ -1,18 +1,4 @@
-/**
- * Capability 5 · Health record: one test per contract 5.1-5.12 in the library story, each run on
- * BOTH backends, as capabilities 2-4 and 6 are:
- *
- * - memory: a HealthRecord over SchemaRecords and a WorkModel over a fresh MemoryTransactions;
- * - postgres: the `health` of a fresh project, opened through capability 1 on the server
- *   `pnpm test` provides and named with uniqueProjectName(). Its database is dropped afterwards,
- *   pass or fail. Other test files share that server, so a test only ever reads its own project.
- *
- * The plan that health rolls up over is built with capability 4's WorkModel. Whether anything was
- * written is judged one layer down, through the same project's Transactions: every change appends
- * a history entry (capability 2), so an unchanged history means nothing was written. What the
- * spec fixes is restated here rather than taken from the code: the three states, the two columns,
- * and the roll-up rule.
- */
+// Capability 5 · Health record
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -26,7 +12,6 @@ import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../t
 import { WorkInFlight, WorkModel, type ProjectTree } from "../work/index.js";
 import { capabilityStatus, capabilityWhy, HealthRecord, wordAndWhy, type AnnotatedTree, type HealthColumn, type HealthEntry, type NodeHealth } from "./index.js";
 
-/** A fresh, empty library: the health record under test, and the layers it runs over. */
 interface Library {
   readonly health: HealthRecord;
   readonly work: WorkModel;
@@ -65,7 +50,6 @@ const postgres: Backend = {
       }
     };
     try {
-      // The project handle's own health record and layers: health as later stories reach it.
       const project = await storytree.openProject(name);
       const { health, work, flight, records, transactions } = project;
       return { health, work, flight, records, transactions, cleanup };
@@ -76,17 +60,13 @@ const postgres: Backend = {
   },
 };
 
-/** The health of a node with no entries: not-checked in both columns, and nothing else. */
 const UNCHECKED: NodeHealth = { reported: { state: "not-checked" }, verified: { state: "not-checked" } };
 
-/** An id of the right shape that names no record. */
 const NO_CONTRACT = "contract_000000000000";
 
-/** Text the library cannot store (capability 3 refuses it): a NUL, and a lone UTF-16 surrogate. */
 const UNSTORABLE = ["contract_\u0000", "contract_\uD83C"];
 
 for (const backend of [memory, postgres]) {
-  /** Register one test for this backend, run against a fresh library disposed of afterwards, pass or fail. */
   const contract = (number: string, title: string, body: (library: Library) => Promise<void>): void => {
     test(`${number} [${backend.label}] ${title}`, async () => {
       const library = await backend.open();
@@ -102,10 +82,8 @@ for (const backend of [memory, postgres]) {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const capability = await work.addCapability({ title: "Email form", story: story.id });
     const contract = await work.addContract({ title: "Rejects a bad email", capability: capability.id });
-    // A story with no capabilities, and a capability with no contracts: nothing to roll up.
     const bare = await work.addStory({ title: "Visitor can leave" });
     const empty = await work.addCapability({ title: "Password rules", story: story.id });
-    // An arc, which is part of the tree but has no health.
     const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const before = await transactions.history();
 
@@ -114,22 +92,16 @@ for (const backend of [memory, postgres]) {
     }
     assert.deepEqual(await health.healthHistory(contract.id), [], "a contract with no entries has no history");
 
-    // The annotated tree is projectTree()'s tree with health added to every story, capability and
-    // contract, every one of them reading not-checked in both columns, and its arcs as they were.
-    // The tree it is given is left as it was. Nothing is verified yet, so the project reads unverified.
     const tree = await work.projectTree();
     const asGiven = structuredClone(tree);
     assert.deepEqual(await health.annotate(tree), { ...withHealth(tree, () => UNCHECKED), unverified: true });
     assert.deepEqual(tree, asGiven, "annotate leaves the tree it is given unchanged");
     assert.equal(countNodes(tree), 5, "control: the tree holds all five nodes");
     assert.deepEqual(tree.arcs, [{ id: arc.id, title: "Launch v1", stories: [story.id] }], "control: and the arc");
-    // Given no tree, it annotates the plan as it is now.
     assert.deepEqual(await health.annotate(), { ...withHealth(tree, () => UNCHECKED), unverified: true });
 
     assert.deepEqual(await transactions.history(), before, "reading health writes nothing");
 
-    // An id naming no live story, capability or contract has no entries either, and reads the same:
-    // never passing, and never an error.
     const note = await records.create("definition", { term: "Delivery", meaning: "Mailgun needs a verified domain", links: [story.id] });
     const dropped = await work.addContract({ title: "Accepts a plus address", capability: capability.id });
     await records.retire(dropped.id, "out of scope");
@@ -158,15 +130,12 @@ for (const backend of [memory, postgres]) {
     });
     assert.deepEqual(await health.health(sibling.id), UNCHECKED, "the contract beside it has no entry, and still reads not-checked");
 
-    // Stored as ONE health record, for this contract's reported column (seen one layer down).
     const stored = await healthRecordsOf(transactions, contract.id);
     assert.equal(stored.length, 1, "one health record");
     const record = at(stored, 0);
     assert.deepEqual(record.fields, { node: contract.id, column: "reported", state: "passing", by: "agent", note: "3 of 3 cases pass" });
     assert.equal(record.version, 1);
 
-    // The agent reports again: the newest entry is what the column reads. Each entry stands alone
-    // (the earlier by and note are not carried over), and it is a save of that same record.
     const failing = await health.reportHealth(contract.id, "failing");
     assert.deepEqual(failing, { column: "reported", state: "failing", at: failing.at });
     assert.deepEqual(await health.health(contract.id), { reported: { state: "failing", at: failing.at }, verified: { state: "not-checked" } });
@@ -184,8 +153,6 @@ for (const backend of [memory, postgres]) {
       "each report is a save of the one record, and its history holds them all",
     );
 
-    // A column is only ever passing, failing or not-checked: any other state is refused, naming the
-    // state, and so is a who or a note that is not text the library can store. None writes anything.
     const before = await transactions.history();
     for (const state of ["passed", "Passing", "PASSING", "pass", "green", "not checked", "notChecked", "", null, 1, undefined]) {
       await assert.rejects(health.reportHealth(contract.id, untyped(state)), schemaError("health", ["state"]), `state ${String(state)}`);
@@ -211,7 +178,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await health.health(contract.id), sideBySide, "reported: passing, verified: failing");
     assert.deepEqual(healthInTree(await health.annotate(await work.projectTree())).get(contract.id), sideBySide, "and so in the annotated tree");
 
-    // Two health records now, one per column.
     assert.deepEqual(
       (await healthRecordsOf(transactions, contract.id)).map((record) => record.fields).sort(byColumn),
       [
@@ -220,8 +186,6 @@ for (const backend of [memory, postgres]) {
       ],
     );
 
-    // Each column moves on its own: a new report leaves the verification as it was, and a new
-    // verification leaves the report.
     const rereported = await health.reportHealth(contract.id, "failing", { by: "agent", note: "found the bug" });
     const newReport = { state: "failing", by: "agent", at: rereported.at, note: "found the bug" };
     assert.deepEqual(await health.health(contract.id), { reported: newReport, verified: sideBySide.verified });
@@ -232,7 +196,6 @@ for (const backend of [memory, postgres]) {
     });
     assert.equal((await healthRecordsOf(transactions, contract.id)).length, 2, "still one record per column");
 
-    // Verified before anything was reported: the reported column stays not-checked.
     const seen = await health.recordVerified(sibling.id, "passing", { by: "storytree" });
     assert.deepEqual(await health.health(sibling.id), {
       reported: { state: "not-checked" },
@@ -241,8 +204,6 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("5.4", "a capability or story's health is rolled up from its contracts, column by column: failing if any is failing, passing only if there is one and all are passing, otherwise not-checked", async ({ health, work, records }) => {
-    // Story S holds capability A (contracts A1, A2), capability B (contract B1) and capability E,
-    // which has no contracts. Story T has no capabilities. Story U holds capability F, with no contracts.
     const S = await work.addStory({ title: "Visitor can sign up" });
     const A = await work.addCapability({ title: "Email form", story: S.id });
     const A1 = await work.addContract({ title: "Rejects a bad email", capability: A.id });
@@ -255,11 +216,6 @@ for (const backend of [memory, postgres]) {
     const F = await work.addCapability({ title: "Password form", story: U.id });
     const nodes = { S, A, A1, A2, B, B1, E, T, U, F };
 
-    /**
-     * Check every node's health against `expected`: two letters per node, its reported and its
-     * verified state (P passing, F failing, - not-checked). health(id) and the annotated tree must
-     * both say so. A rolled-up column holds its state and nothing else: no one wrote it.
-     */
     const expectHealth = async (step: string, expected: Readonly<Record<keyof typeof nodes, string>>): Promise<void> => {
       const inTree = healthInTree(await health.annotate(await work.projectTree()));
       for (const [name, node] of Object.entries(nodes)) {
@@ -303,8 +259,6 @@ for (const backend of [memory, postgres]) {
     await health.reportHealth(A2.id, "passing");
     await expectHealth("every contract passing in both columns", { S: "PP", A: "PP", A1: "PP", A2: "PP", B: "PP", B1: "PP", E: "--", T: "--", U: "--", F: "--" });
 
-    // The plan as it is now: a new, never-checked contract holds its capability and story back
-    // until it is retired; a capability moved to another story takes its contracts' health along.
     const B2 = await work.addContract({ title: "The link works once", capability: B.id });
     await expectHealth("B2 added, never checked", { S: "--", A: "PP", A1: "PP", A2: "PP", B: "--", B1: "PP", E: "--", T: "--", U: "--", F: "--" });
     await records.retire(B2.id, "covered by B1");
@@ -314,9 +268,6 @@ for (const backend of [memory, postgres]) {
     await health.reportHealth(B1.id, "failing");
     await expectHealth("B1 reported failing, now under U", { S: "PP", A: "PP", A1: "PP", A2: "PP", B: "FP", B1: "FP", E: "--", T: "--", U: "FP", F: "--" });
 
-    // A capability whose story has been retired is no longer in the tree, but it is still a
-    // capability: its health is still rolled up from its contracts. The retired story, like any
-    // record that is gone, reads not-checked.
     await records.retire(U.id, "merged into sign up");
     const inTree = healthInTree(await health.annotate(await work.projectTree()));
     for (const node of [U, B, B1, F]) assert.equal(inTree.has(node.id), false, `${node.fields.title} has left the tree`);
@@ -329,7 +280,6 @@ for (const backend of [memory, postgres]) {
   contract("5.5", "every health entry is kept in history with who wrote it and when, and an entry for a node that does not exist is refused", async ({ health, work, flight, records, transactions }) => {
     const { story, capability, contract, sibling } = await smallPlan(work);
 
-    // Entries in both columns, interleaved, with and without a who and a note; one on another contract.
     const start = Date.now();
     const written: HealthEntry[] = [];
     written.push(await health.reportHealth(contract.id, "passing", { by: "agent-a", note: "all cases pass locally" }));
@@ -341,8 +291,6 @@ for (const backend of [memory, postgres]) {
     written.push(await health.recordVerified(contract.id, "not-checked", { by: "storytree", note: "the suite was not run" }));
     const end = Date.now();
 
-    // healthHistory holds every entry of both columns, in the order written, each with its column,
-    // its state, who wrote it and when, and its note.
     const history = await health.healthHistory(contract.id);
     assert.deepEqual(history, written, "exactly the entries written, as the writes returned them");
     assert.deepEqual(
@@ -362,12 +310,8 @@ for (const backend of [memory, postgres]) {
       previous = Date.parse(entry.at);
     }
     assert.deepEqual(await health.healthHistory(sibling.id), [elsewhere], "each contract's history is its own");
-    // Each column reads its latest entry.
     assert.deepEqual(await health.health(contract.id), { reported: columnOf(at(written, 4)), verified: columnOf(at(written, 5)) });
 
-    // The library's own history (capability 2) keeps the same entries: each one a change to a health
-    // record, made by the entry's writer at the entry's moment. Each column is one record, saved
-    // once per entry.
     const kept = (await transactions.history()).filter((entry) => entry.type === "health" && entry.record.fields.node === contract.id);
     assert.deepEqual(
       kept.map((entry) => ({ at: entry.at, actor: entry.actor, fields: entry.record.fields })),
@@ -380,7 +324,6 @@ for (const backend of [memory, postgres]) {
       ["created", "updated", "updated"],
     ]);
 
-    // Entries racing each other are all kept, each once, and the column reads whichever was written last.
     await warmUp(transactions);
     const racers = await Promise.all(
       Array.from({ length: 8 }, (_, n) => health.reportHealth(contract.id, "passing", { by: `racer-${n}` })),
@@ -391,9 +334,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual([...raced].sort(byWriter), [...racers].sort(byWriter), "every racing entry, once");
     assert.deepEqual((await health.health(contract.id)).reported, columnOf(at(raced, raced.length - 1)));
 
-    // A column's record retired by hand (capability 2's retire, which the library API offers): the
-    // column has no entry now, so it reads not-checked; the retirement is not an entry, and the
-    // entries before it stay in the history; the next entry starts the column again.
     const reportedRecord = at((await healthRecordsOf(transactions, contract.id)).filter((record) => record.fields.column === "reported"), 0);
     await records.retire(reportedRecord.id, "cleared by hand");
     assert.deepEqual(await health.health(contract.id), { reported: { state: "not-checked" }, verified: columnOf(at(written, 5)) });
@@ -402,9 +342,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await health.healthHistory(contract.id), [...everything, fresh]);
     assert.deepEqual((await health.health(contract.id)).reported, columnOf(fresh));
 
-    // Refused: an entry for a node that does not exist (missing, retired, a near miss, an id the
-    // library cannot store), or for a record that is not a contract. For a story or a capability the
-    // error says why: their health is rolled up from their contracts. Nothing is written.
     const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const note = await records.create("definition", { term: "Delivery", meaning: "Mailgun needs a verified domain" });
     const healthRecord = at(await healthRecordsOf(transactions, contract.id), 0);
@@ -429,8 +366,6 @@ for (const backend of [memory, postgres]) {
     }
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
 
-    // A retired contract keeps its entries in its history. Like any record that is gone it reads
-    // not-checked, and a new entry for it is refused.
     await records.retire(contract.id, "replaced by a stricter contract");
     assert.deepEqual(await health.healthHistory(contract.id), [...everything, fresh]);
     assert.deepEqual(await health.health(contract.id), UNCHECKED);
@@ -439,9 +374,6 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(health.recordVerified(contract.id, "passing"), missingNode(contract.id));
     assert.deepEqual(await transactions.history(), afterRetiring, "nothing was written");
 
-    // An entry written on a newer schema version than this code knows (as a later storytree could
-    // write one) is refused when read, as capability 3 refuses reading any such record: in the
-    // column, and in the history.
     const siblingRecord = at(await healthRecordsOf(transactions, sibling.id), 0);
     await transactions.save({ id: siblingRecord.id, type: "health", version: 2, fields: { ...siblingRecord.fields, state: "failing" } });
     await assert.rejects(health.health(sibling.id), NewerSchemaError);
@@ -465,7 +397,6 @@ for (const backend of [memory, postgres]) {
     await health.recordVerified(sibling.id, "not-checked");
     assert.equal(await wordOf(), "untested", "a contract with no verified result");
 
-    // The agent's reported column never turns a card healthy.
     const fresh = await work.addCapability({ title: "Password rules", story: capability.fields.story });
     const reported = await work.addContract({ title: "Refuses a short password", capability: fresh.id });
     await work.setProposed(fresh.id, false);
@@ -583,7 +514,6 @@ for (const backend of [memory, postgres]) {
   contract("5.8", "a capability that is not healthy carries its reason in the annotated tree, and a healthy one none", async ({ health, work }) => {
     const { capability, contract, sibling } = await smallPlan(work);
     const whyOf = async () => (await health.annotate()).stories[0]!.capabilities.find(({ id }) => id === capability.id)!.why;
-    // A project something verifies: one verified entry anywhere in it (5.10 is the other kind).
     const elsewhere = await work.addCapability({ title: "Elsewhere", story: capability.fields.story });
     await health.recordVerified((await work.addContract({ title: "Checked elsewhere", capability: elsewhere.id })).id, "passing");
     assert.deepEqual(await whyOf(), { reason: "not built", mover: "agent", contracts: [] });
@@ -834,7 +764,6 @@ for (const backend of [memory, postgres]) {
     const other = await work.addCapability({ title: "Elsewhere", story: story.id });
     const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const add = async (title: string, capabilities: string[]) => {
-      // Listed by an edit, which a park's one-open-increment-per-capability refusal (10.35) does not stop.
       const increment = await flight.addIncrement({ arc: arc.id, title, objective: "Test it", body: "Red then green" });
       await flight.editIncrement(increment.id, { capabilities });
       await later();
@@ -861,7 +790,6 @@ for (const backend of [memory, postgres]) {
     const { story } = await smallPlan(work);
     const harness = await work.addCapability({ title: "Test harness", story: story.id });
     const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
-    // Each increment leads a capability of its own, so each is the one that moves it.
     const leads = new Map<string, string[]>();
     const add = async (title: string, extra: { heldOn?: string[]; arc?: string } = {}, capabilities?: string[]) => {
       const increment = await flight.addIncrement({ arc: extra.arc ?? arc.id, title, objective: "Test it", body: "Red then green", ...(extra.heldOn === undefined ? {} : { heldOn: extra.heldOn }) });
@@ -1034,7 +962,6 @@ for (const backend of [memory, postgres]) {
     assert.equal(item?.why.reason, "failing");
     assert.equal(item?.failure, "0/1 tests passed; first failure: assert 3 == 4");
 
-    // Beside a contract: a failing reading fails it, a passing one leaves it passing, a not-checked one counts for nothing.
     await health.recordUnclaimed(cart.id, "failing", { by: "a local test run" });
     assert.equal((await read()).of(cart.id).health.verified.state, "failing");
     assert.equal((await read()).of(cart.id).why?.reason, "failing");
@@ -1254,7 +1181,6 @@ for (const backend of [memory, postgres]) {
     assert.notEqual(next!.id, investigation!.id, "once its investigation is closed, a new flake parks a new one");
     assert.equal(next!.fields.arc, fields.arc, "on the same test's arc");
 
-    // A flake of the same test found elsewhere (the watcher's retry of a pull request's red) reaches the same investigation (ADR-1352 D1).
     const elsewhere = { test: flaky, story: story.id, seen: "PR #9 at abc1234", evidence: "PR #9 at abc1234: retried as random", found: "The watcher retried PR #9 for it", by: "the watcher" };
     assert.equal(await health.investigateFlake(elsewhere), next!.id);
     assert.equal(await health.investigateFlake(elsewhere), next!.id);
@@ -1267,7 +1193,6 @@ for (const backend of [memory, postgres]) {
   });
 }
 
-/** `records` as CI's database role writes through it (infra/library-host/grants.sql): health only, anything else refused as row-level security refuses it. */
 function onlyHealth(records: SchemaRecords): SchemaRecords {
   const refused = (): Promise<never> => Promise.reject(Object.assign(new Error('new row violates row-level security policy for table "record_event"'), { code: "42501" }));
   return new Proxy(records, {
@@ -1280,16 +1205,13 @@ function onlyHealth(records: SchemaRecords): SchemaRecords {
   });
 }
 
-/** Past the current millisecond, so the next write's time sorts after the last one's. */
 async function later(): Promise<void> {
   const now = Date.now();
   await waitUntil(() => Date.now() > now, 5_000, "the clock to move on");
 }
 
-/** A proof by observability, as contract 2.5 of the agent activity log states it (ADR-1345 D5). */
 const OBSERVED = { by: "observability-as-proof", reason: "Only the laptop and the Mint box doing real work show it.", freshness: "2d", watcher: "the Mint box's activity watcher" } as const;
 
-/** One story › one capability › two contracts: the plan most of these tests write health on. */
 async function smallPlan(work: WorkModel): Promise<{
   story: SchemaRecord<"story">;
   capability: SchemaRecord<"capability">;
@@ -1303,13 +1225,8 @@ async function smallPlan(work: WorkModel): Promise<{
   return { story, capability, contract, sibling };
 }
 
-/** What each letter of 5.4's table stands for. */
 const STATE_OF: Readonly<Record<string, string>> = { P: "passing", F: "failing", "-": "not-checked" };
 
-/**
- * `tree` with `health` added to every story, capability and contract node, as `healthOf` gives it:
- * the shape the spec asks annotate for, restated here.
- */
 function withHealth(tree: ProjectTree, healthOf: (id: string) => NodeHealth): AnnotatedTree {
   return {
     stories: tree.stories.map(({ edges, ...story }) => ({
@@ -1331,7 +1248,6 @@ function withHealth(tree: ProjectTree, healthOf: (id: string) => NodeHealth): An
   };
 }
 
-/** Every node of an annotated tree, by id, with the health it shows. */
 function healthInTree(tree: AnnotatedTree): Map<string, NodeHealth> {
   const found = new Map<string, NodeHealth>();
   for (const story of tree.stories) {
@@ -1344,7 +1260,6 @@ function healthInTree(tree: AnnotatedTree): Map<string, NodeHealth> {
   return found;
 }
 
-/** How many stories, capabilities and contracts a tree holds. */
 function countNodes(tree: ProjectTree): number {
   return tree.stories.reduce(
     (count, story) => count + 1 + story.capabilities.reduce((sum, capability) => sum + 1 + capability.contracts.length, 0),
@@ -1352,18 +1267,15 @@ function countNodes(tree: ProjectTree): number {
   );
 }
 
-/** The live health records about `nodeId`, seen one layer down. */
 async function healthRecordsOf(transactions: Transactions, nodeId: string): Promise<RecordEnvelope[]> {
   return (await transactions.list("health")).filter((record) => record.fields.node === nodeId);
 }
 
-/** A contract's column as an entry leaves it: the entry without its column name. */
 function columnOf(entry: HealthEntry): Record<string, unknown> {
   const { column: _column, ...rest } = entry;
   return rest;
 }
 
-/** The fields of the health record an entry about `nodeId` is stored as. */
 function healthFields(nodeId: string, entry: HealthEntry): Record<string, unknown> {
   const { at: _at, ...rest } = entry;
   return { node: nodeId, ...rest };
@@ -1377,7 +1289,6 @@ function byWriter(a: HealthEntry, b: HealthEntry): number {
   return String(a.by).localeCompare(String(b.by));
 }
 
-/** Assert that `value` is an ISO 8601 UTC timestamp no earlier than `from` and no later than `to` (both ms). */
 function assertTimestamp(value: unknown, from: number, to: number): void {
   assert.equal(typeof value, "string", "a timestamp is a string");
   assert.equal(new Date(value as string).toISOString(), value, `${String(value)} is an ISO 8601 timestamp`);
@@ -1385,27 +1296,18 @@ function assertTimestamp(value: unknown, from: number, to: number): void {
   assert.ok(time >= from && time <= to, `${String(value)} is between ${new Date(from).toISOString()} and ${new Date(to).toISOString()}`);
 }
 
-/** Start several reads at once, so a pooled backend has a connection ready for every racer that follows. */
 async function warmUp(transactions: Transactions): Promise<void> {
   await Promise.all(Array.from({ length: 8 }, () => transactions.get("warm-up")));
 }
 
-/** The item at `index`, which the test has made sure is there. */
 function at<T>(items: readonly T[], index: number): T {
   return items[index] ?? assert.fail(`there is no item ${index}`);
 }
 
-/** A value the compiler would refuse, sent the way a JavaScript caller or an agent could send it. */
 function untyped(value: unknown): never {
   return value as never;
 }
 
-/**
- * An assert.rejects check: a MissingReferenceError for field `node` holding `id`, which must name a
- * live contract. `found` is the type of the record `id` names when it names one of another type.
- * For a story or a capability the message also says that their health is rolled up from their
- * contracts; for anything else it does not.
- */
 function missingNode(id: string, found?: RecordType): (error: unknown) => true {
   return (error) => {
     assert.ok(error instanceof MissingReferenceError, `expected a MissingReferenceError, got: ${String(error)}`);
@@ -1426,7 +1328,6 @@ function missingNode(id: string, found?: RecordType): (error: unknown) => true {
   };
 }
 
-/** An assert.rejects check: a SchemaError (capability 3) for `type` whose fields at fault are exactly `fields`. */
 function schemaError(type: RecordType, fields: readonly string[]): (error: unknown) => true {
   return (error) => {
     assert.ok(error instanceof SchemaError, `expected a SchemaError, got: ${String(error)}`);
@@ -1463,7 +1364,6 @@ test("5.8 one reason per capability that is not healthy, the agent's work ranked
   assert.deepEqual(capabilityWhy(false, all.slice(0, 2)), { reason: "out of CI's reach", mover: "agent", contracts: ["p"], since: at(25) });
   assert.deepEqual(capabilityWhy(false, [owner, c("a", passing)]), { reason: "needs owner", mover: "owner", contracts: ["w"], since: at(24) }, "an owner skip needs the owner, whatever it last saw");
   assert.deepEqual(capabilityWhy(false, []), { reason: "no test names it", mover: "agent", contracts: [] }, "no contracts");
-  // A contract proved by agentic user acceptance testing is never named by a plain test: with no verdict, its acceptance test has not run.
   const judged = { ...c("u", { state: "not-checked" }), proof: "agentic-user-acceptance-testing" as const };
   assert.deepEqual(capabilityWhy(false, [owner, platform, judged]), { reason: "acceptance test not run", mover: "agent", contracts: ["u"] });
   assert.deepEqual(capabilityWhy(false, [judged, noTest]), { reason: "no test names it", mover: "agent", contracts: ["n"] }, "a test to write ranks first");
@@ -1479,7 +1379,6 @@ test("5.29 [postgres] recordVerifiedAll writes a story's verdicts in as many rou
     const capability = await work.addCapability({ title: "Email form", story: story.id });
     const contracts = [];
     for (let n = 0; n < 32; n++) contracts.push((await work.addContract({ title: `Contract ${n}`, capability: capability.id })).id);
-    // Every query the project sends, on a connection taken from its pool (pool.query takes one too), each counted once.
     let count = 0;
     const counted = new WeakSet<object>();
     const counting = <T extends { query: (...args: never[]) => unknown }>(client: T): T => {

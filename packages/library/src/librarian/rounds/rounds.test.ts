@@ -1,8 +1,4 @@
-/**
- * Capability 26 · Rounds: contracts 26.1-26.2, 26.6 and 26.7 in The library story, each in a fresh project's
- * library on the real Postgres `pnpm test` provides; 26.5 against the librarian's subagent definition.
- * 26.3-26.4 are proven beside the MCP server (packages/mcp-server/src/tools/librarian-tools.test.ts).
- */
+// Capability 26 · Rounds
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -70,11 +66,9 @@ test("26.6 the worklist and land's next-line check take about as much from a lib
       await withCountedLibrary(async ({ library, project, received }) => {
         const started = new Date(Date.now() - 2 * 3_600_000);
         if (long) {
-          // Weeks of CI runs before the session started, and an hour and more of them since.
           await healthHistory(project, 40_000, new Date(started.getTime() - 3 * 86_400_000));
           history = await healthHistory(project, 4_000, new Date(started.getTime() + 1_000));
         }
-        // A curated write since the session started: the rest of the pass is due, and read too.
         const principle = await library.writeKnowledge("principle", { title: "Edit first", description: "Edit before writing new.", statement: "Edit first.", why: "No near-copies.", howToApply: "Search first." });
         const tools = librarianTools();
         const acts = new Map<string, (args: unknown, call: ToolCall) => Promise<ToolAnswer>>();
@@ -106,12 +100,10 @@ test("26.7 the worklist reads the live notes about once however many notes the s
   const principle = (n: number, title: string) => ({ title, description: `Lesson ${n}`, statement: `Lesson ${n} holds.`, why: `Learned the hard way, ${n}. `.repeat(40), howToApply: "Apply it." });
   try {
     await withCountedLibrary(async ({ library, project, received }) => {
-      // A library of some size, its notes each edited, before the session started.
       for (let n = 0; n < 120; n += 1) {
         const note = await library.writeKnowledge("principle", principle(n, `Older lesson number ${n}`));
         await library.editNote(note.id, { statement: `Lesson ${n} holds, edited.` });
       }
-      // The start just after the last older edit by the library's own clock, which a runner's may not match.
       const [last] = await library.history({ newest: 1 });
       const started = new Date(Date.parse(last!.at) + 1);
       await libraryClockPast(started);
@@ -202,7 +194,6 @@ test("26.9 the worklist tool answers in a size a session can read, including whe
     const folder = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
     try {
       const long = "A decision's reasoning, at length. ".repeat(600);
-      // A fast database can save several notes in one millisecond. Exercise that tie on every run.
       t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
       const decisions = [];
       for (let n = 0; n < 12; n += 1) decisions.push(await library.recordDecision({ title: `Decision ${n}`, text: long, status: "accepted" }));
@@ -219,7 +210,6 @@ test("26.9 the worklist tool answers in a size a session can read, including whe
         log: { lines: async () => [] },
       });
       const listed = answer.data?.worklist as WorklistView;
-      // Creation order breaks equal timestamps by ID, not by insertion order or title.
       decisions.sort((a, b) => a.id < b.id ? -1 : 1);
       assert.deepEqual(listed.rest?.links, decisions.slice(0, 5).map(({ id, fields }) => ({ id, type: "decision", title: fields.title })));
       assert.equal(listed.rest?.counts.links, 12);
@@ -242,7 +232,6 @@ test("26.10 a plugin's curation guidance is offered only when its own kinds were
     const pluginKinds = ["voice.note", "diary.entry"];
 
     assert.deepEqual(await roundDue(library, { since: cursor, pluginKinds }), { graduation: true, rest: false, plugins: [] });
-    // A voice note arrives as the door writes one: on its own connection, never through the library's own kinds.
     await withTestClient(async (client) => {
       const fields = { text: "Ring the plumber." };
       await client.query("INSERT INTO record_event (record_id, type, action, record, actor, at) VALUES ('voice.note_1', 'voice.note', 'created', $1::jsonb, 'the door', now())",
@@ -273,13 +262,11 @@ test("26.5 the librarian's subagent definition names every tool the librarian se
   librarianTools().registerTools!((name) => { served.push(name); });
   const definition = readFileSync(new URL("../../../../../.claude/agents/librarian-curator.md", import.meta.url), "utf8");
   assert.ok(served.length > 0);
-  // The role's tools field, which the generated definition writes as its "**Tools.**" paragraph.
   const tools = definition.split("\n").find((line) => line.startsWith("**Tools.**")) ?? "";
   const named = new Set(tools.match(/[\w-]+/g));
   assert.deepEqual(served.filter((name) => !named.has(name)), [], "tools the definition does not name");
 });
 
-/** Wait until the library's clock (the server's, which stamps its history) has passed `at`, so what is written next is stamped later. */
 async function libraryClockPast(at: Date): Promise<void> {
   await waitUntil(
     () => withTestClient(async (client) => (await client.query<{ past: boolean }>("SELECT now() > $1 AS past", [at])).rows[0]?.past),

@@ -1,7 +1,4 @@
-/**
- * Capability 13 · Decision log, its supersession: contracts 13.12-13.14 in The library story, each in a fresh
- * project's library on the real Postgres `pnpm test` provides.
- */
+// Capability 13 · Decision log
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -17,7 +14,6 @@ import { librarianTools, type ToolAnswer, type ToolCall } from "../librarian/ind
 import { ADR_FAMILY, supersede } from "./index.js";
 
 
-/** A capability, with an accepted, load-bearing decision on its shelf. */
 async function shelf(library: Library) {
   const story = await library.addStory({ title: "Visitor can sign up" });
   const capability = await library.addCapability({ title: "Email form", story: story.id });
@@ -25,7 +21,6 @@ async function shelf(library: Library) {
   return { capability, cover };
 }
 
-/** Every text a record has held, oldest first, from the change feed. */
 async function textsOf(library: Library, id: string): Promise<unknown[]> {
   return (await library.changesSince(0)).changes.filter((change) => change.recordId === id).map((change) => change.record.fields.text);
 }

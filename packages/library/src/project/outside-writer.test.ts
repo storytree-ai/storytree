@@ -1,11 +1,4 @@
-/**
- * Capability 30 · Outside writers, contracts 30.1-30.3 and 30.5 (ADR-1178 D1 and D5): an outside writer's own database role,
- * fenced by fenceOutsideWriter as the project database's owner, inserts only its plugin's kinds, is refused everything
- * else, and its rows carry its role in `recorded_by`. Run as the Mint box runs it: a role that owns the
- * project's database, an owner's account acting as it, and the writer's account with no role to take on. The writer
- * writes as storytree writes a record (the history entry first, then the record put with INSERT ... ON CONFLICT DO
- * UPDATE), on a plain connection of its own: its rights, not the library's care.
- */
+// Capability 30 · Outside writers
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -16,19 +9,14 @@ import { fenceOutsideWriter, fenceProject, type OutsideWriter } from "./outside-
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
 
 interface Fenced {
-  /** Run `fn` on a connection of the writer's own. */
   readonly asWriter: <T>(fn: (client: Client) => Promise<T>) => Promise<T>;
-  /** Run one statement as the writer. */
   readonly writerSql: (sql: string, params?: unknown[]) => Promise<{ rowCount: number | null; rows: any[] }>;
-  /** Run one statement as the server's superuser, which the policies do not bind. */
   readonly adminSql: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>;
-  /** Fence the writer again, with another grant, as the owner. */
   readonly refence: (grant: Omit<OutsideWriter, "role">) => Promise<void>;
   readonly writer: string;
   readonly story: string;
 }
 
-/** A project with one story, written by its owner, and a writer fenced by `grant` (its role filled in). */
 async function withFencedWriter(grant: Omit<OutsideWriter, "role">, body: (fenced: Fenced) => Promise<void>): Promise<void> {
   const run = uniqueProjectName();
   const [owner, writer, creator] = [`${run}-owner`, `${run}-writer`, `${run}-creator`];
@@ -62,7 +50,6 @@ async function withFencedWriter(grant: Omit<OutsideWriter, "role">, body: (fence
   }
 }
 
-/** Write one record as storytree does: its history entry first, then the record itself, in one transaction. */
 async function put(client: Client, id: string, type: string, action: "created" | "updated" = "created"): Promise<void> {
   const record = { id, type, version: 1, fields: { text: `${type} ${id}` }, createdAt: "2026-10-26T00:00:00Z", updatedAt: "2026-10-26T00:00:00Z" };
   await client.query("BEGIN");
@@ -102,7 +89,6 @@ test("30.1 · An outside writer's role, fenced to its plugin's kinds, inserts a 
 
 test("30.2 · An outside writer's role is refused a core kind, another plugin's kind, an update, a delete and any change to the tables", async () => {
   await withFencedWriter({ kinds: ["voice.note"] }, async ({ asWriter, writerSql, adminSql, refence, writer, story }) => {
-    // The template itself fences a writer to one plugin's kinds: it will not grant a core kind, nor two plugins'.
     await assert.rejects(refence({ kinds: ["decision"] }), /only a plugin's kinds/);
     await assert.rejects(refence({ kinds: ["voice.note", "diary.entry"] }), /one plugin, not voice and diary/);
     await asWriter((client) => put(client, "note-1", "voice.note"));
@@ -113,8 +99,6 @@ test("30.2 · An outside writer's role is refused a core kind, another plugin's 
         "INSERT INTO record (id, type, version, fields, created_at, updated_at) VALUES ($1, $2, 1, '{}', now(), now())", [id, type],
       ), /row-level security/, `${type}, the record alone`);
     }
-    // A history entry that says it is the writer's kind is refused when its record is not, or its id names another
-    // record, its own included: an insert-only writer adds history for a new record only.
     await assert.rejects(writerSql(
       "INSERT INTO record_event (record_id, type, action, record) VALUES ('sly', 'voice.note', 'created', '{\"id\": \"sly\", \"type\": \"decision\"}')",
     ), /row-level security/);
@@ -125,7 +109,6 @@ test("30.2 · An outside writer's role is refused a core kind, another plugin's 
       ), /row-level security/, id);
     }
 
-    // No update, its own record included: storytree's put of an existing id is refused, and a plain UPDATE finds no row.
     await assert.rejects(asWriter((client) => put(client, "note-1", "voice.note", "updated")), /row-level security/);
     assert.equal((await writerSql("UPDATE record SET fields = '{}' WHERE id = 'note-1'")).rowCount, 0);
     assert.equal((await writerSql("UPDATE record SET fields = '{}' WHERE id = $1", [story])).rowCount, 0);
@@ -163,7 +146,6 @@ test("30.3 · An outside writer whose plugin declares updates may change its own
     assert.deepEqual((await asWriter((client) => client.query("SELECT id FROM record ORDER BY id"))).rows.map((row) => row.id),
       ["note-1", story], "it reads the kinds its grant names");
 
-    // Applied again narrower, the update and the read it was given are taken back.
     await refence({ kinds: ["voice.note"] });
     await assert.rejects(asWriter((client) => put(client, "note-1", "voice.note", "updated")), /row-level security/);
     assert.deepEqual((await asWriter((client) => client.query("SELECT id FROM record ORDER BY id"))).rows.map((row) => row.id), ["note-1"]);

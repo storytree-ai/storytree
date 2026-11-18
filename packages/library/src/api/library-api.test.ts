@@ -1,20 +1,9 @@
-/**
- * Capability 7 · Library API: one test per contract 7.1-7.3 in the library story, run through the
- * package's public entry the way every later story will reach the library: `@storytree/library`,
- * the package importing itself by name. They run against the real Postgres `pnpm test` provides.
- * There is no backend choice here: the public API is the library on Postgres.
- *
- * Every project is named with uniqueProjectName() and its database is dropped afterwards, pass or
- * fail. Other test files share the server, so a test only ever reads its own project.
- */
+// Capability 7 · Library API
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
 
 import { connect, MissingReferenceError, RetireRefusedError, type Change, type NodeHealth, type RecordEnvelope, type Storytree } from "@storytree/library";
-// The type half of 7.3, which `pnpm typecheck` checks rather than a test run: the entry exports no
-// type that reaches a connection pool, a store or a table. Each import below must fail to compile.
-// If one ever compiles, its @ts-expect-error is left unused, and that fails the typecheck.
 // @ts-expect-error the project handle, which holds the connection pool
 import type { Project } from "@storytree/library";
 // @ts-expect-error a store: the only data actions, over a table
@@ -34,7 +23,6 @@ import type { HealthRecord } from "@storytree/library";
 
 import { dropTestDatabases, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 
-/** What a Library offers: the API's list, restated from the spec and the brief. */
 const LIBRARY_API = [
   "name",
   "identity",
@@ -168,7 +156,6 @@ const LIBRARY_API = [
   "attachMedia",
   "media",
   "mediaFile",
-  // Capability 27's fixed data questions.
   "counts",
   "latestChanges",
   "findByTitle",
@@ -176,29 +163,6 @@ const LIBRARY_API = [
   "close",
 ];
 
-/**
- * What the package's entry exports at run time: connect, and the errors callers catch by class.
- * ConnectionError joined the list with capability 8: it is how connect() refuses a server it cannot
- * reach or use as it is set up (an address with no password saved, say), with a message
- * saying what to fix, so a caller catches every such refusal by its class. MissingUpgradeError
- * joined it with schema upgrades: how a record no upgrade step can bring up to date is refused.
- * LifecycleError joined it with capability 10: how an increment asked to move backward is refused,
- * WaitLoopError with capability 11, whose wait writes are capability 10's since ADR-1242 D2: how a wait that would close a loop is refused, and
- * RetireRefusedError with capability 12: how retiring a question work is held on is refused.
- * NumberTakenError and SupersessionLoopError joined it with capability 13: how a decision number
- * already held, and a decision superseding itself, are refused. LinkLoopError joined it with
- * contract 9.4: how a note link that would close a loop is refused (ADR-0647 D2). wordAndWhy joined
- * it with contract 5.8: how a capability's word and why it is not healthy are said (ADR-0825 D1).
- * heldBack joined it with contract 5.11: how the worklist says what a test run in progress holds back.
- * NEW_LINE joined it with ADR-1017 D3: the schema Session management checks each activity log line
- * against before it stores it in the library's database. connectionString joined it with contract 15.5:
- * the routed library's connection string, signed in, that `storytree auth connection` hands psql.
- * ANCHOR_ID and anchorGaps joined it with ADR-1085 D1: where the project's anchor is kept, and the plan-health reading of it.
- * parseSchedule and OWNER_TIME_ZONE joined it with ADR-1105 D1: the one reader of a process's schedule, which `schedule due` reads it with.
- * CONNECT_TIMEOUT_MS and explainConnectTimeout joined it with ADR-1163 D1: the default connect limit and the one wording of its refusal, which the MCP server gives too.
- * pluginSchema joined it with ADR-1178 D3: the one reader of a plugin's declared record kinds, which the plugin loader checks a manifest's with.
- * referenceEdgesOf joined it with increment_895979551c68: the one list of a note's reference fields, which the librarian's curation reads.
- */
 const RUNTIME_EXPORTS = [
   "ANCHOR_ID",
   "CONNECT_TIMEOUT_MS",
@@ -244,26 +208,21 @@ const RUNTIME_EXPORTS = [
   "wordAndWhy",
 ];
 
-/** The health of a node with no entries. */
 const UNCHECKED: NodeHealth = { reported: { state: "not-checked" }, verified: { state: "not-checked" } };
 
 test("7.1 an agent's day against a real local Postgres: every step is visible where the next step expects it", async () => {
   const name = uniqueProjectName();
   await withStorytree([name], async (storytree) => {
-    // Open a project: its library is created the first time, and the project is listed.
     const lib = await storytree.openProject(name);
     assert.equal(lib.name, name);
     assert.ok((await storytree.listProjects()).includes(name), "the new project is listed");
     assert.deepEqual(await lib.projectTree(), { stories: [], arcs: [], unverified: true }, "its plan is empty, and nothing verifies it yet");
     assert.deepEqual(await lib.changesSince(0), { changes: [], cursor: 0 }, "and nothing has changed in it yet");
 
-    // Add a story, and create an arc that grows it: the arc may list the story because it is there.
-    // (An arc lists stories that exist, so the story comes first, as in the spec's own sketch.)
     const story = await lib.addStory({ title: "Visitor can sign up" });
     const arc = await lib.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     assert.deepEqual(await lib.arcsFor(story.id), [arc], "the arc is found from its story");
 
-    // A capability under the story, and a contract under that: each accepted because its parent is there.
     const capability = await lib.addCapability({ title: "Email form", story: story.id });
     const contract = await lib.addContract({ title: "Rejects a bad email", capability: capability.id });
     const planWith = (contractHealth: NodeHealth, rolledUp: NodeHealth) => ({
@@ -290,13 +249,11 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
     });
     assert.deepEqual(await lib.projectTree(), { ...planWith(UNCHECKED, UNCHECKED), unverified: true }, "the plan, nested, with nothing checked yet: nothing verifies the project");
 
-    // The agent reports the contract passing: the contract reads it, and it rolls up.
     const reported = await lib.reportHealth(contract.id, "passing", { by: "agent" });
     const agentSays = { state: "passing" as const, by: "agent", at: reported.at };
     assert.deepEqual(await lib.health(contract.id), { reported: agentSays, verified: { state: "not-checked" } });
     assert.deepEqual(await lib.health(story.id), { reported: { state: "passing" }, verified: { state: "not-checked" } });
 
-    // Storytree records what it verified for itself, failing: both columns stand side by side.
     const verified = await lib.recordVerified(contract.id, "failing", { by: "storytree" });
     const contractHealth: NodeHealth = { reported: agentSays, verified: { state: "failing", by: "storytree", at: verified.at } };
     const rolledUp: NodeHealth = { reported: { state: "passing" }, verified: { state: "failing" } };
@@ -305,8 +262,6 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
     assert.deepEqual(await lib.health(story.id), rolledUp);
     assert.deepEqual(await lib.healthHistory(contract.id), [reported, verified], "both entries, with who wrote them and when");
 
-    // A decision that is the email form's front cover, and a memory filed inside it: the cover is on
-    // the capability's shelf, the memory is found from the cover, and both are found by their words.
     const cover = await lib.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
     const memory = await lib.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain", links: [cover.id] });
     assert.deepEqual(await lib.frontCovers(capability.id), [cover]);
@@ -314,16 +269,12 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
     assert.deepEqual(await lib.search("mailgun DOMAIN"), [memory]);
     assert.deepEqual(await lib.search("mailgun simplest"), [cover]);
 
-    // What the forest reads: the whole plan, with its health.
     const theDay = await lib.projectTree();
     assert.deepEqual(theDay, planWith(contractHealth, rolledUp));
 
-    // What just changed: one change per step, in the order the steps were taken, each holding the
-    // record as its step left it (a health entry as the record of its contract's column).
     const day = await lib.changesSince(0);
     const reportedColumn = at(day.changes, 4).recordId;
     const verifiedColumn = at(day.changes, 5).recordId;
-    // The verdict that turned red told the owner by FYI (5.23).
     const red = at(await lib.unheardFyis(), 0);
     assert.deepEqual(withoutSeq(day.changes), [
       { recordId: story.id, type: "story", action: "created", record: story },
@@ -350,25 +301,21 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
     assertIncreasing(day.changes);
     assert.equal(day.cursor, at(day.changes, 8).seq, "the cursor handed back is the last change's");
     assert.deepEqual(await lib.changesSince(day.cursor), { changes: [], cursor: day.cursor }, "and nothing came after it");
-    // The day ends: the library is closed, and takes no more calls.
     await lib.close();
     await assert.rejects(lib.projectTree(), "a closed library is not read");
 
-    // The next session, on a fresh connection, finds the day's work where it was left.
     const tomorrow = await connect({ url: testServerUrl() });
     try {
       const again = await tomorrow.openProject(name);
       assert.deepEqual(await again.projectTree(), theDay);
       assert.deepEqual(await again.changesSince(0), day);
 
-      // A session's increment retires the contract pending its merge: its branch reads the plan without it, everyone else as it was.
       const work = await again.addIncrement({ arc: arc.id, title: "Drop the check", objective: "Drop it", body: "Retire 1.1." });
       await again.advanceIncrement(work.id, "active");
       await again.pendChange(work.id, { record: contract.id, retire: "overtaken" });
       assert.deepEqual(await again.projectTree(), theDay);
       assert.deepEqual((await again.projectTree({ pendingOf: work.id })).stories[0]!.capabilities[0]!.contracts, []);
       assert.deepEqual(await again.stalePending(work.id), []);
-      // Its pull request merges: the retirement applies, and every reader reads the plan without it.
       assert.deepEqual(await again.applyPending(work.id, "#12"), { applied: [contract.id] });
       assert.deepEqual((await again.projectTree()).stories[0]!.capabilities[0]!.contracts, []);
     } finally {
@@ -382,7 +329,6 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
   await withStorytree([name], async (storytree) => {
     const lib = await storytree.openProject(name);
 
-    // A reader following along, passing back the cursor each call hands it.
     const followed: Change[] = [];
     let cursor = 0;
     const follow = async (): Promise<Change[]> => {
@@ -401,16 +347,12 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
     assert.deepEqual(withoutSeq(await follow()), [{ recordId: story.id, type: "story", action: "created", record: story }]);
     assert.deepEqual(await follow(), [], "nothing new since: nothing is handed out twice");
 
-    // A write that rolls back after taking its number in the history (a crash, say) leaves a gap:
-    // seqs are strictly increasing, not contiguous, so a cursor is a seq and never a count.
     await withTestClient(async (client) => {
       await client.query("BEGIN");
       await client.query("INSERT INTO record_event (record_id, type, action, record) VALUES ('rolled-back', 'story', 'created', '{}')");
       await client.query("ROLLBACK");
     }, `storytree_${name}`);
 
-    // Many writes between two reads, of every kind: records created, edited and retired, a health
-    // column saved twice, a note edited. Writes that change nothing add no change.
     const capability = await lib.addCapability({ title: "Email form", story: story.id });
     const renamed = await lib.editCapability(capability.id, { title: "Signup form" });
     const contract = await lib.addContract({ title: "Rejects a bad email", capability: capability.id });
@@ -450,26 +392,22 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
       { recordId: decision.id, type: "decision", action: "created", record: decision },
     ]);
     assert.deepEqual(await follow(), []);
-    // No gap and no repeat: what the reader followed is exactly the whole history, in order.
     const whole = await lib.changesSince(0);
     assert.deepEqual(followed, whole.changes);
     assert.equal(cursor, whole.cursor);
     assertIncreasing(whole.changes);
-    // From any change's seq: exactly the changes after it, and the same cursor at the end.
     for (const [n, change] of whole.changes.entries()) {
       assert.deepEqual(await lib.changesSince(change.seq), { changes: whole.changes.slice(n + 1), cursor: whole.cursor }, `changesSince(${change.seq})`);
     }
-    // A cursor past the last change: nothing, and that cursor handed back.
     assert.deepEqual(await lib.changesSince(whole.cursor + 1000), { changes: [], cursor: whole.cursor + 1000 });
 
-    // Writes racing each other while the reader follows along: it misses none and sees none twice.
-    await Promise.all(Array.from({ length: 8 }, () => lib.changesSince(cursor))); // a connection ready for every racer
+    await Promise.all(Array.from({ length: 8 }, () => lib.changesSince(cursor)));
     const before = followed.length;
     let writing = true;
     const writes = Promise.all(Array.from({ length: 8 }, (_, n) => lib.defineTerm({ term: "Delivery", meaning: `Raced note ${n}` }))).finally(() => {
       writing = false;
     });
-    writes.catch(() => undefined); // a failed write is reported by the `await writes` below
+    writes.catch(() => undefined);
     do {
       await follow();
     } while (writing);
@@ -482,8 +420,6 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
     );
     assert.deepEqual(followed, (await lib.changesSince(0)).changes, "the whole history, followed with no gap and no repeat");
 
-    // A cursor is 0 or a seq a call handed back. Anything else is refused rather than read as
-    // something it is not.
     for (const bad of [-1, 0.5, 1.5, Number.NaN, Number.POSITIVE_INFINITY, "3", null, undefined, {}]) {
       await assert.rejects(lib.changesSince(untyped(bad)), RangeError, `changesSince(${String(bad)})`);
     }
@@ -491,8 +427,6 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
 });
 
 test("7.3 the package's public entry exports exactly the API and nothing else, and its internals cannot be imported through the package", async () => {
-  // At run time the entry exports connect() and the errors a caller may need to catch by class.
-  // Everything else it exports is a type (that half is checked by the typecheck: see the imports above).
   const api: Record<string, unknown> = { ...(await import("@storytree/library")) };
   assert.deepEqual(Object.keys(api).sort(), RUNTIME_EXPORTS);
   assert.equal(api.connect, connect, "the entry's connect is the connect imported above");
@@ -504,9 +438,6 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
 
   const name = uniqueProjectName();
   await withStorytree([name], async (storytree) => {
-    // connect() hands back exactly openProject, listProjects, snapshot, restore, dropProject (1.12), ownDatabase (7.7) and
-    // close (snapshot and restore are contracts 1.6 to 1.8, ADR-0641 B1), and openProject a Library
-    // with exactly the API's name and methods. Neither exposes the internals.
     assert.deepEqual(surface(storytree), ["close", "dropProject", "listProjects", "openProject", "ownDatabase", "projectIdentities", "restore", "snapshot"]);
     const lib = await storytree.openProject(name);
     assert.deepEqual(surface(lib), [...LIBRARY_API].sort());
@@ -517,8 +448,6 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
       assert.equal(internal in storytree, false, `the connection has no ${internal}`);
     }
 
-    // What the API throws is what the entry exports, so callers can catch each error by its class.
-    // (Options naming both a url and an address are refused before anything reaches the network.)
     await assert.rejects(connect(untyped({ url: "postgres://127.0.0.1/postgres", address: "postgres://127.0.0.1/postgres" })), errorClass("ConnectionError"));
     await assert.rejects(storytree.openProject("Not A Project"), errorClass("ProjectNameError"));
     await assert.rejects(lib.addStory(untyped({ titel: "Visitor can sign up" })), errorClass("SchemaError"));
@@ -527,8 +456,6 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
     const form = await lib.addCapability({ title: "Email form", story: story.id });
     const link = await lib.addCapability({ title: "Confirmation link", story: story.id, dependsOn: [form.id] });
     await assert.rejects(lib.editCapability(form.id, { dependsOn: [link.id] }), errorClass("DependencyLoopError"));
-    // Records as a newer storytree could have written them: of a type this code does not know, and
-    // on a newer schema version.
     await withTestClient(async (client) => {
       await client.query(
         `INSERT INTO record (id, type, version, fields, created_at, updated_at)
@@ -540,7 +467,6 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
     await assert.rejects(lib.projectTree(), errorClass("NewerSchemaError"));
   });
 
-  // Nothing but the entry can be imported through the package: every internal path is refused.
   for (const internal of [
     "@storytree/library/src/transactions/pg.ts",
     "@storytree/library/src/transactions/pg.js",
@@ -587,7 +513,6 @@ test("7.18 sendFeedback writes a feedback record, with the element it points at,
     assert.equal(await lib.feedbackScreenshot(plain.id), null);
     assert.equal(await lib.feedbackScreenshot(sent.id, { element: true }), null, "a note sent without a crop has none");
 
-    // The element the owner pointed at rides in the fields; the picture cut to it is kept beside the window's.
     const anchor = {
       selector: "#arcs > button:nth-of-type(2)",
       tag: "button",
@@ -619,7 +544,6 @@ test("7.22 pluginRecords lists a switched-off plugin's records by kind, with how
   const name = uniqueProjectName();
   await withStorytree([name], async (storytree) => {
     const lib = await storytree.openProject(name);
-    // Written as the voice door writes them: straight into the table, a kind this library was opened without.
     await withTestClient(async (client) => {
       for (const [id, type] of [["voice.note_2", "voice.note"], ["voice.note_1", "voice.note"], ["voice.tag_1", "voice.tag"], ["voicemail.note_1", "voicemail.note"]]) {
         await client.query("INSERT INTO record (id, type, version, fields, created_at, updated_at) VALUES ($1, $2, 1, '{}', now(), now())", [id, type]);
@@ -638,7 +562,6 @@ test("7.22 pluginRecords lists a switched-off plugin's records by kind, with how
     assert.deepEqual(await lib.pluginRecords("nobody"), { plugin: "nobody", kinds: [] });
     await assert.rejects(lib.pluginRecords("voice%"), /not a plugin's name/);
 
-    // A listing that no longer matches the library is refused, and nothing is removed.
     const stale = { plugin: "voice", kinds: [{ kind: "voice.note", count: 1, ids: ["voice.note_1"] }] };
     await assert.rejects(lib.removePluginRecords(stale, "the owner removed voice"), /changed since they were listed/);
     assert.deepEqual(await lib.pluginRecords("voice"), listed);
@@ -757,14 +680,13 @@ test("7.4 editStory, editContract and editArc change only the fields they name, 
     const contract = await lib.addContract({ title: "Rejects a bad email", capability: form.id, description: "Before sending" });
     const arc = await lib.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
 
-    // Only the named fields change; the others keep their stored values, and one set to undefined goes.
     assert.deepEqual((await lib.editStory(story.id, { title: "Visitor can sign up with email" }))?.fields, {
       title: "Visitor can sign up with email",
       description: "With an email",
     });
     assert.deepEqual((await lib.editStory(story.id, { description: undefined }))?.fields, { title: "Visitor can sign up with email" });
     assert.deepEqual((await lib.editContract(contract.id, { capability: link.id }))?.fields, {
-      title: "2.1 · Rejects a bad email", // a move takes its new capability's number (4.45)
+      title: "2.1 · Rejects a bad email",
       capability: link.id,
       description: "Before sending",
     });
@@ -775,7 +697,6 @@ test("7.4 editStory, editContract and editArc change only the fields they name, 
       stories: [story.id, other.id],
       description: "The first release",
     });
-    // The plan reads the edits: the story renamed, the contract under the capability it moved to, the arc grown.
     const tree = await lib.projectTree();
     assert.equal(tree.stories.find((node) => node.id === story.id)?.title, "Visitor can sign up with email");
     const capabilities = tree.stories.flatMap((node) => node.capabilities);
@@ -783,8 +704,6 @@ test("7.4 editStory, editContract and editArc change only the fields they name, 
     assert.deepEqual(capabilities.find((node) => node.id === link.id)?.contracts.map((node) => node.id), [contract.id]);
     assert.deepEqual((await lib.arcsFor(other.id)).map((node) => node.id), [arc.id]);
 
-    // A new reference is checked as adding checks it; an id that is not a live record of the type
-    // gives null. Neither writes anything.
     const before = await lib.changesSince(0);
     await assert.rejects(lib.editContract(contract.id, { capability: "capability_000000000000" }), MissingReferenceError);
     await assert.rejects(lib.editContract(contract.id, { capability: story.id }), MissingReferenceError, "a story is not a capability");
@@ -805,7 +724,6 @@ test("4.9 · retiring a capability refuses live dependents without writing, then
     const otherStory = await lib.addStory({ title: "The world" });
     const target = await lib.addCapability({ story: story.id, title: "Source" });
     const unrelated = await lib.addCapability({ story: story.id, title: "Other source" });
-    // The first links to it inside its story, by an edge (ADR-1282 D1); the second from another story, stored on it.
     const first = await lib.addCapability({ story: story.id, title: "First dependent", dependsOn: [target.id, unrelated.id] });
     const second = await lib.addCapability({ story: otherStory.id, title: "Second dependent", dependsOn: [target.id] });
     const retired = await lib.addCapability({ story: otherStory.id, title: "Old dependent", dependsOn: [target.id] });
@@ -840,13 +758,8 @@ test("4.9 · retiring a capability refuses live dependents without writing, then
   });
 });
 
-/** A class a caller can catch an error by. */
 type ErrorClass = new (...args: never[]) => Error;
 
-/**
- * Run `body` with a fresh connection to the test server. Afterwards close it and drop the
- * databases of `projects`, whether the body passed or failed.
- */
 async function withStorytree(projects: readonly string[], body: (storytree: Storytree) => Promise<void>): Promise<void> {
   const storytree = await connect({ url: testServerUrl() });
   try {
@@ -860,10 +773,6 @@ async function withStorytree(projects: readonly string[], body: (storytree: Stor
   }
 }
 
-/**
- * Every property name an object offers, its own and those it inherits (short of Object's), bar
- * `constructor`, sorted: what a caller holding it can reach.
- */
 function surface(object: object): string[] {
   const names = new Set<string>();
   for (let level: object | null = object; level !== null && level !== Object.prototype; level = Object.getPrototypeOf(level) as object | null) {
@@ -872,17 +781,14 @@ function surface(object: object): string[] {
   return [...names].sort();
 }
 
-/** The record a column's health entry is stored as, at version 1: created at `createdAt`, last saved at `updatedAt`. */
 function healthRecord(id: string, fields: Record<string, unknown>, createdAt: string, updatedAt = createdAt): RecordEnvelope {
   return { id, type: "health", version: 1, fields, createdAt, updatedAt };
 }
 
-/** The changes without their seq, for comparing with what a test expects. */
 function withoutSeq(changes: readonly Change[]): Omit<Change, "seq">[] {
   return changes.map(({ seq: _seq, ...change }) => change);
 }
 
-/** Assert that the changes' seqs are positive whole numbers, strictly increasing. */
 function assertIncreasing(changes: readonly Change[]): void {
   let previous = 0;
   for (const change of changes) {
@@ -891,12 +797,10 @@ function assertIncreasing(changes: readonly Change[]): void {
   }
 }
 
-/** The item at `index`, which the test has made sure is there. */
 function at<T>(items: readonly T[], index: number): T {
   return items[index] ?? assert.fail(`there is no item ${index}`);
 }
 
-/** A value the compiler would refuse, sent the way a JavaScript caller or an agent could send it. */
 function untyped(value: unknown): never {
   return value as never;
 }
@@ -1011,7 +915,6 @@ test("7.26 attachMedia keeps a file beside a live record, with its type, size an
     assert.equal(await lib.mediaFile(note.id, "other.png"), null);
     assert.deepEqual(await lib.media("glossary_000000000000"), []);
 
-    // The same bytes again change nothing; other bytes under the name are refused, or replace it when asked.
     assert.equal((await lib.attachMedia(note.id, { name: "dusk.png", type: "image/png", bytes: png })).outcome, "same");
     const redrawn = Uint8Array.from([...png, 7]);
     await assert.rejects(lib.attachMedia(note.id, { name: "dusk.png", type: "image/png", bytes: redrawn }), /already holds other bytes.*replace/s);
@@ -1020,7 +923,6 @@ test("7.26 attachMedia keeps a file beside a live record, with its type, size an
     assert.deepEqual([replaced.outcome, replaced.size], ["replaced", redrawn.length]);
     assert.deepEqual((await lib.mediaFile(note.id, "dusk.png"))?.bytes, redrawn);
 
-    // Up to 10 MB is kept; past it, a missing or retired record, and a name or type that is not a file's are refused.
     const cap = new Uint8Array(10 * 1024 * 1024);
     assert.equal((await lib.attachMedia(note.id, { name: "clip.mp4", type: "video/mp4", bytes: cap })).size, cap.length);
     await assert.rejects(lib.attachMedia(note.id, { name: "long.mp4", type: "video/mp4", bytes: new Uint8Array(cap.length + 1) }), /10 MB/);

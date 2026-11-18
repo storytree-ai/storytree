@@ -1,4 +1,4 @@
-/** Capability 1 · Project libraries: whether this code's project schema is merged, read from its checkout. */
+// Capability 1 · Project libraries
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";

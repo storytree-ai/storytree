@@ -1,7 +1,4 @@
-/**
- * Capability 28 · Shared server, contract 28.12: every byte the server sends a library connection is counted against the
- * reader that asked for it, so the library's reads can be ranked by reader (increment_28a5cea44ef7).
- */
+// Capability 28 · Shared server
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

@@ -1,4 +1,3 @@
-/** Data schema contract 3.5: a newer-schema refusal helps identify stale running code. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -16,7 +15,6 @@ test("3.5 · CommonJS bundled schema errors load and explain recovery with unkno
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-bundled-schema-"));
   try {
     const require = createRequire(import.meta.url);
-    // Use the bundler already installed by this package's TypeScript test runner.
     const { buildSync } = createRequire(require.resolve("tsx"))("esbuild");
     const bundle = path.join(folder, "errors.cjs");
     buildSync({

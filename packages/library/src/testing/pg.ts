@@ -1,25 +1,3 @@
-/**
- * Helpers for tests that need a real Postgres.
- *
- * `pnpm test` (packages/repo-checks/src/test.mjs) starts a throwaway local server and hands it to the tests as
- * STORYTREE_TEST_PG_URL; set that variable yourself to test against another server. A Postgres
- * test must never skip silently, so asking for the server when there is none throws.
- *
- * Three kinds of sign-in reach it, and a test never mixes them up:
- * - The client's: STORYTREE_TEST_PG_URL itself, as the app's own clients sign in (`pnpm test` hands
- *   it the server's ordinary role). The code under test connects with it (testServerUrl).
- * - The harness's authority: STORYTREE_TEST_PG_ADMIN_URL, a superuser, carrying its password when
- *   the server asks for one (STORYTREE_TEST_PG_URL when it is unset). Only these helpers use it, to
- *   create and drop test databases and roles, grant memberships, end backends and read the server's
- *   state (withTestClient). Nothing is reached as that user by the code under test.
- * - Ordinary test roles: createTestRole() gives each login role a fresh synthetic password, and a
- *   test reaches one only through testRoleUrl() or withTestClientAs(), never by writing a role's
- *   name into a URL itself.
- * A role named with uniqueProjectName() must give its password whatever the server's other rules
- * say: createTestRole() puts a scram-sha-256 line for those names at the top of the server's
- * pg_hba.conf, so these paths run against an authenticated server on every platform, and no test
- * leans on the server trusting a passwordless login.
- */
 import { randomBytes } from "node:crypto";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { connect as connectSocket, createServer, type AddressInfo, type Socket } from "node:net";
@@ -33,10 +11,8 @@ import { connect, type Project } from "../project/index.js";
 import pg from "pg";
 import type { Client } from "pg";
 
-/** What uniqueProjectName() puts in every name; the only roles dropTestRoles() will drop. */
 const TEST_TOKEN = /t-[0-9a-f]{8}/;
 
-/** The server the tests run against. Throws when there is none. */
 export function testServerUrl(): string {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined || url === "") {
@@ -48,21 +24,15 @@ export function testServerUrl(): string {
   return url;
 }
 
-/**
- * The test server signed in with the harness's authority: STORYTREE_TEST_PG_ADMIN_URL, or the
- * client's url when that is unset. Only these helpers' setup uses it.
- */
 function testAdminUrl(): string {
   const url = process.env.STORYTREE_TEST_PG_ADMIN_URL;
   return url === undefined || url === "" ? testServerUrl() : url;
 }
 
-/** A project name no other test, and no earlier run, is using: `t-` and 8 random hex digits. */
 export function uniqueProjectName(): string {
   return `t-${randomBytes(4).toString("hex")}`;
 }
 
-/** Run `body` with a fresh project's library, as everything outside the library reaches it, dropped afterwards, pass or fail. */
 export async function withLibrary(body: (library: Library) => Promise<void>): Promise<void> {
   const name = uniqueProjectName();
   const storytree = await connectLibrary({ url: testServerUrl() });
@@ -79,10 +49,6 @@ export async function withLibrary(body: (library: Library) => Promise<void>): Pr
   }
 }
 
-/**
- * Run `fn` with a client connected to `database` on the test server (to the server URL's own
- * database when omitted). The connection is independent of the code under test.
- */
 export async function withTestClient<T>(
   fn: (client: Client) => Promise<T>,
   database?: string,
@@ -90,11 +56,6 @@ export async function withTestClient<T>(
   return withClient(undefined, fn, database);
 }
 
-/**
- * Run `fn` with a client signed in to the test server as `role` with the password createTestRole()
- * gave it, connected to `database` (to the server URL's own database when omitted). The connection
- * is independent of the code under test.
- */
 export async function withTestClientAs<T>(
   role: string,
   fn: (client: Client) => Promise<T>,
@@ -119,22 +80,10 @@ async function withClient<T>(
   }
 }
 
-/*
- * Through a `server` signed in as a user that may not create databases, a project database that user
- * made by borrowing a role that may (capability 8) is the borrowed role's, and is dropped all the
- * same, as the user: DROP DATABASE takes a member holding its owner's rights by inheritance, as a
- * role granted with the default INHERIT does. It is deliberately not dropped AS that role (SET
- * ROLE): WITH (FORCE) could then not end the user's own sessions still open on it.
- */
 export { dropTestDatabases, type Queryable } from "@storytree/local-postgres/testing";
 
-/** The password createTestRole() gave each login role it made, by role. */
 const rolePasswords = new Map<string, string>();
 
-/**
- * The test server's URL signed in as `role`, a login role createTestRole() made, with its password,
- * connected to `database` (to the server URL's own database when omitted).
- */
 export function testRoleUrl(role: string, database?: string): string {
   const password = rolePasswords.get(role);
   if (password === undefined) throw new Error(`no test role ${JSON.stringify(role)} signs in: make it with createTestRole()`);
@@ -145,14 +94,6 @@ export function testRoleUrl(role: string, database?: string): string {
   return url.href;
 }
 
-/**
- * Create a role on the test server, made by its superuser: a login role, for a test to connect as,
- * unless `login` is false. It may create databases only when `createdb` is set, and roles only when
- * `createrole` is, without being a superuser (as a managed server's admin user may). A
- * login role has `password`, or a fresh synthetic one, and the server asks for it (see the top of
- * this file). Its name must carry a uniqueProjectName() token, like every role dropTestRoles() will
- * drop.
- */
 export async function createTestRole(
   name: string,
   options: { readonly createdb: boolean; readonly login?: boolean; readonly createrole?: boolean; readonly password?: string },
@@ -172,41 +113,28 @@ export async function createTestRole(
   if (login) rolePasswords.set(name, password);
 }
 
-/** The pg_hba.conf line that makes every role named with uniqueProjectName() give its password. */
 export const TEST_ROLE_PASSWORD_LINE = `host all "/^t-[0-9a-f]{8}" all scram-sha-256`;
 
 let passwordsRequired: Promise<void> | undefined;
 
-/** The test server's pg_hba.conf, once a process has read where it is. */
 let hbaFile: string | undefined;
 
-/**
- * Put TEST_ROLE_PASSWORD_LINE at the top of the test server's pg_hba.conf and wait until the server
- * has taken it up. Every test file's process writes the same text, but another file's test may
- * prepend a line of its own from a copy read before this one was written (capability 15's does),
- * so each call looks again, and the line is put back on each try until the server asks.
- */
 async function requireTestRolePasswords(): Promise<void> {
   if (hbaFile !== undefined && passwordsRequired === undefined &&
     readFileSync(hbaFile, "utf8").split(/\r?\n/).includes(TEST_ROLE_PASSWORD_LINE)) return;
   passwordsRequired ??= (async () => {
     const file = hbaFile ??= await withTestClient(async (client) => (await client.query<{ hba_file: string }>("SHOW hba_file")).rows[0]!.hba_file);
-    // One that does not exist, with a wrong password: a server that asks refuses it outright
-    // (28P01), one that still trusts says it does not exist (28000).
     const probe = new URL(testServerUrl());
     probe.username = `${uniqueProjectName()}-probe`;
     probe.password = "not-the-password";
     await waitUntil(async () => {
       const rules = readFileSync(file, "utf8");
       if (!rules.split(/\r?\n/).includes(TEST_ROLE_PASSWORD_LINE)) {
-        // Written beside it and renamed over it: on Windows every new backend reads pg_hba.conf afresh,
-        // so a connection from another test file opened mid-write would fail on a truncated file.
         const next = `${file}.${process.pid}.next`;
         writeFileSync(next, `${TEST_ROLE_PASSWORD_LINE}\n${rules}`);
         await replace(next, file);
         await withTestClient((client) => client.query("SELECT pg_reload_conf()"));
       }
-      // The reload is a signal: wait until the server asks a test role for its password.
       const client = new pg.Client({ connectionString: probe.href });
       const asked = await client.connect().then(() => false, (error: unknown) => (error as { code?: unknown }).code === "28P01");
       await client.end().catch(() => {});
@@ -216,7 +144,6 @@ async function requireTestRolePasswords(): Promise<void> {
   return passwordsRequired;
 }
 
-/** Rename `from` over `to`, retrying while Windows refuses because a backend has `to` open. */
 async function replace(from: string, to: string): Promise<void> {
   await waitUntil(() => {
     try {
@@ -230,13 +157,6 @@ async function replace(from: string, to: string): Promise<void> {
   }, 10_000, `${to} to be free to replace`);
 }
 
-/**
- * Drop a test's roles, in the order given. Missing ones are skipped. A role that still owns a
- * database cannot be dropped, so drop the test's databases first; nor can one that granted a
- * membership still standing, so give a role's members and the role before whoever granted it.
- * Only names carrying a uniqueProjectName() token are accepted, so a mistake in a test can never
- * drop somebody's real role on a shared server.
- */
 export async function dropTestRoles(roles: Iterable<string>): Promise<void> {
   const names = [...roles];
   for (const name of names) assertTestName("drop", "role", name);
@@ -263,7 +183,6 @@ function quoteLiteral(text: string): string {
   return `'${text.replaceAll("'", "''")}'`;
 }
 
-/** Count bytes on every project connection, as the shared server bills its egress. */
 export async function withCountedProject(body: (project: Project, received: () => number) => Promise<void>): Promise<void> {
   const upstream = new URL(testServerUrl());
   let received = 0;

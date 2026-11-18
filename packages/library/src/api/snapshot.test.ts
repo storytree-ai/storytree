@@ -1,8 +1,4 @@
-/**
- * Capability 1 · Project libraries, contracts 1.6 to 1.8 (the library story): a project's
- * snapshot, and restoring one only into an empty project (ADR-0641 D2 step 4, choice B1). Through
- * the public API, against the real Postgres `pnpm test` provides.
- */
+// Capability 1 · Project libraries
 import assert from "node:assert/strict";
 import { connect as dial, createServer, type AddressInfo, type Socket } from "node:net";
 import { test } from "node:test";
@@ -23,7 +19,6 @@ async function withServer(projects: readonly string[], body: (storytree: Storytr
   }
 }
 
-/** A small project: a story with a capability and a contract, a decision written after reading outside text, a memory note, an edit, a retirement and an actor. */
 async function fill(library: Library): Promise<void> {
   const story = await library.addStory({ title: "The kettle", description: "It boils water." }, { actor: "tester" });
   const capability = await library.addCapability({ story: story.id, title: "1 · Heating" });
@@ -54,7 +49,6 @@ test("1.6 snapshot returns every record of the project and its whole history, as
     assert.ok(!snapshot.records.some(({ fields }) => JSON.stringify(fields).includes("whistle")), "a retired record is only in the history");
     assert.deepEqual(JSON.parse(JSON.stringify(snapshot)), snapshot, "a snapshot is plain data, as a file holds it");
 
-    // Taken while another write lands, it reads one moment: every record it holds has its history.
     const [during] = await Promise.all([storytree.snapshot(name), library.defineTerm({ term: "Delivery", meaning: "Written during the snapshot." })]);
     const recorded = new Set(during.history.map(({ recordId }) => recordId));
     assert.ok(during.records.every(({ id }) => recorded.has(id)), "no record without its history");
@@ -93,10 +87,8 @@ test("1.8 restoring into a project that holds any record or history is refused, 
     await fill(library);
     const snapshot = await storytree.snapshot(name);
 
-    // The project restored from holds records: restoring over it would overwrite live edits.
     await assert.rejects(storytree.restore(name, snapshot), (error: unknown) => error instanceof RestoreRefusedError && error.message.includes(name));
 
-    // A project whose one record was retired still has history, so it is not empty either.
     const other = await storytree.openProject(busy);
     const note = await other.defineTerm({ term: "Delivery", meaning: "Soon gone." });
     await other.retire(note.id, "retired");
@@ -127,13 +119,11 @@ test("1.30 a snapshot carries the media kept beside the project's records, and a
     assert.deepEqual((await restored.mediaFile(note.id, "kettle.png"))?.bytes, png, "the same bytes");
     assert.deepEqual((await storytree.snapshot(copy)).media, plain.media);
 
-    // Bytes that are not what their hash says are refused, and the restore writes nothing at all.
     const damaged: ProjectSnapshot = { ...plain, media: plain.media!.map((file) => ({ ...file, bytes: Buffer.from("not the kettle").toString("base64") })) };
     await assert.rejects(storytree.restore(bad, damaged), /kettle\.png.*SHA-256/s);
     const after = await storytree.snapshot(bad);
     assert.deepEqual([after.records, after.history, after.media ?? []], [[], [], []], "nothing written");
 
-    // A project holding only media is not empty either: a restore into it is refused (1.8), writing nothing.
     const onlyMedia: ProjectSnapshot = { ...plain, project: bad, records: [], history: [] };
     await storytree.restore(bad, onlyMedia);
     await assert.rejects(storytree.restore(bad, { ...plain, project: bad }), (error: unknown) => error instanceof RestoreRefusedError && error.message.includes(bad));
@@ -143,10 +133,6 @@ test("1.30 a snapshot carries the media kept beside the project's records, and a
   });
 });
 
-/**
- * A stand-in for a far-away server: a proxy to the test server that holds every packet it passes
- * each way for `delayMs`, as a network to another continent does. Its URL, and how to stop it.
- */
 async function slowLink(delayMs: number): Promise<{ url: string; close(): Promise<void> }> {
   const target = new URL(testServerUrl());
   const sockets = new Set<Socket>();
@@ -177,7 +163,6 @@ async function slowLink(delayMs: number): Promise<{ url: string; close(): Promis
 }
 
 test("1.7 a restore over a slow link finishes in seconds, not a round trip per record", async () => {
-  // A project the size of storytree's own, in miniature: 2,000 records and 4,000 history entries.
   const at = "2026-09-28T00:00:00.000Z";
   const records = Array.from({ length: 2_000 }, (_, i) => ({ id: `definition_${String(i).padStart(12, "0")}`, type: "definition", version: 1, fields: { term: `Term ${i}`, meaning: "It means this." }, createdAt: at, updatedAt: at }));
   const history = records.flatMap((record, i) => [
@@ -194,7 +179,6 @@ test("1.7 a restore over a slow link finishes in seconds, not a round trip per r
     const seconds = (performance.now() - started) / 1000;
     assert.ok(seconds < 15, `restored in ${seconds.toFixed(1)} s`);
     await withServer([name], async (storytree) => {
-      // The server writes times in its own zone; the instants are what must match.
       const instant = (time: string) => new Date(time).toISOString();
       const again = await storytree.snapshot(name);
       assert.deepEqual(again.records.map((r) => ({ ...r, createdAt: instant(r.createdAt), updatedAt: instant(r.updatedAt) })), snapshot.records);

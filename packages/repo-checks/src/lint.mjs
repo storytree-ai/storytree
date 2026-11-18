@@ -13,6 +13,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { allocationProblems } from "./allocation.mjs";
 import { codeqlPatternProblems } from "./codeql-patterns.mjs";
+import { eslintProblems } from "./eslint.mjs";
 import { happyDomAssertProblems } from "./happy-dom-asserts.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
 import { posixCommandProblems } from "./posix-commands.mjs";
@@ -30,6 +31,7 @@ export const RULES = [
   { name: "sketch-bundle-names", problems: sketchBundleProblems },
   { name: "test-asserts", problems: testAssertProblems },
   { name: "posix-commands", problems: posixCommandProblems },
+  { name: "eslint", problems: eslintProblems },
 ];
 
 /** Run `rules` over the checkout at `root`, logging each problem under its rule's name; 1 when any rule breaks, else 0. */

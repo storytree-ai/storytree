@@ -1,30 +1,4 @@
-// Capability 4 · Running the tests. One test unit's `node --test` process, bounded so that `pnpm test` and the gate always end and
-// name what hung (ADR-0731). Three layers:
-//   --test-force-exit   a file whose tests have finished exits even if a failed test left a handle
-//                       open (a connection, a held lock): it reports its real failure, not a hang;
-//   --test-timeout      a test that never ends fails at TEST_LIMIT_MS, and node names it;
-//   the exit watch      a file whose tests have all ended but whose process has not exited for
-//                       EXIT_GRACE_MS (a Node exit deadlock seen on CI, increment_67a3090c077c)
-//                       fails the unit at once, named, instead of waiting out its deadline, if the
-//                       unit's processes sat idle all that time; a test or hook blocking its event
-//                       loop reports nothing until it lets go, so a file still computing (or in
-//                       spawnSync on a busy child) looks ended too, and its CPU tells it apart
-//                       (friction_07818dc5b19b); where the CPU cannot be read (Windows), idle is assumed;
-//   the unit deadline   past UNIT_LIMIT_MS the unit's whole process tree is killed, and the tests
-//                       still running are named (test-running-reporter.mjs records them).
-// TEST_LIMIT_MS is about three times the slowest test seen anywhere on 2026-09-28 (117 CI jobs on
-// Linux, macOS and Windows x64: 22.4 s), and the least any test gets. Each test's own limit is learned
-// too (testLimit, ADR-1152): three times its slowest recent pass here, doubled after each timeout since
-// it last passed; a unit's tests run under the largest of its tests' (unitTestLimit), since
-// --test-timeout is one value per process, so a hanging test still fails at a bounded limit, named.
-// A test's own `timeout` option overrides it, so it is never lowered.
-// Each unit's deadline is learned from this machine's history (unitLimit, ADR-0785):
-// twice its slowest recent pass, doubled after each kill since it last passed, or what an agent set
-// for it here with a reason. Until a unit has enough history its deadline is the run's default:
-// STORYTREE_UNIT_LIMIT_MS when given (CI gives one, its runners having little history), else UNIT_LIMIT_MS;
-// or twice its slowest recent pass at any concurrency, when that is longer (increment_3f535ac2dc4e).
-// A run that gives its own default never gives a learned deadline under it: CI carries its history
-// from main's runs, and a pull request's kills are never carried back to grow it (increment_d51b4f1d9fc8).
+// Capability 4 · Running the tests
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -37,41 +11,31 @@ import { parseJunit } from "./junit.mjs";
 
 import { removeWhenFree, stopServersUnder, unitTempPrefix } from "./test-leftovers.mjs";
 
-/** The variables that name an agent's session to a command: each watched harness's, and storytree's own. */
 const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness) => (harness.shellSession === undefined ? [] : [harness.shellSession])), SESSION_ENV];
 
 export const TEST_LIMIT_MS = 60_000;
 export const UNIT_LIMIT_MS = 180_000;
-export const EXIT_GRACE_MS = 20_000; // a root after() hook or coverage written at exit fits well inside
+export const EXIT_GRACE_MS = 20_000;
 export const UNIT_LIMIT_FLOOR_MS = 60_000;
 export const UNIT_LIMIT_CEILING_MS = 900_000;
-const BUSY_SHARE = 0.25; // of one core, over an exit watch tick: a unit computing, not one sitting idle in a hung exit
-export const DEADLINE_GRACE_MS = 30_000; // past the run's deadline, longer than a cut unit takes to be killed and tabled
-const LEARN_FROM_PASSES = 5; // fewer passes than this on this machine: the fixed deadline
+const BUSY_SHARE = 0.25;
+export const DEADLINE_GRACE_MS = 30_000;
+const LEARN_FROM_PASSES = 5;
 const RECENT_PASSES = 20;
-export const TIMING_ROWS_KEPT = 2 * RECENT_PASSES; // per unit, machine and concurrency (per test and machine), once the history is trimmed
-const TEST_LIMIT_FACTOR = 3; // a test's learned limit, times its slowest recent pass: the rule TEST_LIMIT_MS came from
-const TRIM_TIMINGS_AT = 5_000; // rows; past this a recorded run trims the history
+export const TIMING_ROWS_KEPT = 2 * RECENT_PASSES;
+const TEST_LIMIT_FACTOR = 3;
+const TRIM_TIMINGS_AT = 5_000;
 const defaultHome = () => process.env.STORYTREE_HOME || path.join(homedir(), ".storytree", "0.3");
 const limitsFile = (home) => path.join(home, "test-limits.json");
 
-const tsx = import.meta.resolve("tsx"); // from here, so a unit whose cwd is elsewhere still finds it
+const tsx = import.meta.resolve("tsx");
 const reporter = fileURLToPath(new URL("./test-running-reporter.mjs", import.meta.url));
 let runs = 0;
-// The units' temp folders while they run: a harness that exits mid-unit (past its run's deadline) stops their servers.
 const liveTemps = new Set();
 process.on("exit", () => {
   for (const temp of liveTemps) stopServersUnder(temp);
 });
 
-/**
- * Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs, tests, unloaded, skipped },
- * `tests` being each test that ended: { file (from root), name (its full name), result, ms, timedOut (at testLimitMs) },
- * `unloaded` each file (from root) that failed with no test in it ended, as one whose import is not built yet does,
- * and `skipped` how many of its tests were skipped.
- * With `hold`, as when other units run beside it, nothing is printed: its stdout and stderr, in the
- * order they came, are resolved as `output` once the process has ended.
- */
 export function runUnit({ root, files, env, args = [], evidence, testLimitMs = TEST_LIMIT_MS, unitLimitMs = UNIT_LIMIT_MS, exitGraceMs = EXIT_GRACE_MS, hold = false, stdio = hold ? ["ignore", "pipe", "pipe"] : "inherit", onSpawn = () => {} }) {
   const runningFile = path.join(tmpdir(), `storytree-running-${process.pid}-${++runs}.jsonl`);
   rmSync(runningFile, { force: true });
@@ -80,11 +44,8 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
   if (givenLimit !== undefined) testLimitMs = Number(givenLimit.slice("--test-timeout=".length));
   else guard.push(`--test-timeout=${testLimitMs}`);
   if (!args.some((arg) => arg.startsWith("--test-reporter"))) {
-    // Separate destinations: spec ending stdout can discard another reporter's final output.
     guard.push("--test-reporter=spec", "--test-reporter-destination=stdout", `--test-reporter=${pathToFileURL(reporter).href}`, "--test-reporter-destination=stderr");
   }
-  // A fresh directory per invocation: later units and reruns cannot replace earlier evidence.
-  // Keep JUnit alongside the normal reporters, including the watchdog's running-test stream.
   let report;
   let provenance;
   if (evidence !== undefined) {
@@ -98,20 +59,9 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
     };
     guard.push("--test-reporter=junit", `--test-reporter-destination=${report}`);
   }
-  // A unit is a run of its own even when a test runs it: under node:test, NODE_TEST_CONTEXT would
-  // make it report into the outer run instead.
   const { NODE_TEST_CONTEXT: _, STORYTREE_TEST_EVIDENCE: _evidence, ...own } = env;
-  // Nor are its tests an agent's session: a command a test runs in the real project would record on the session
-  // that started the run, its fixture words read as that agent's (friction_fa050a39ba6f). A test that needs one sets its own.
   for (const name of SESSION_VARIABLES) delete own[name];
-  // Nor do they inherit the run's factory folder: its plugin tests would read and write that factory's plugins
-  // instead of their own (friction_32a74f49b40f). A test that needs a factory sets its own.
   delete own.STORYTREE_FACTORY;
-  // A temp folder of the unit's own, named by each platform's variable and removed with whatever its
-  // tests left in it when it ends: a run leaves nothing of its own in the system temp folder
-  // (increment_74ca830203db). A Postgres a test started there is stopped first, however the unit
-  // ended (increment_e72347bdd355). A run killed with its harness may leave this one folder, which
-  // the next run's start sweeps (test-leftovers.mjs).
   const temp = mkdtempSync(path.join(tmpdir(), unitTempPrefix()));
   liveTemps.add(temp);
   const removeTemp = () => {
@@ -122,8 +72,6 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
   };
   const started = Date.now();
   return new Promise((resolve, reject) => {
-    // Options before any file: node hands whatever follows the first file to the tests as their own
-    // argv, so `pnpm run test <file> --test-name-pattern=<p>` would run every test (friction_d5da3da1aac6).
     const options = args.filter((arg) => arg.startsWith("-"));
     const named = args.filter((arg) => !arg.startsWith("-"));
     const child = spawn(process.execPath, ["--import", tsx, "--test", ...guard, ...options, ...named, ...files], {
@@ -133,7 +81,6 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
     });
     onSpawn(child);
     let output = "";
-    // Its last output may still be in the pipes when it exits; a killed tree's close at once.
     const closed = !hold ? Promise.resolve() : Promise.race([new Promise((done) => child.once("close", done)), new Promise((done) => setTimeout(done, 5_000).unref())]);
     if (hold) for (const stream of [child.stdout, child.stderr]) stream.on("data", (chunk) => (output += chunk));
     let timedOut = false;
@@ -144,10 +91,6 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
       running = stillRunning(runningFile);
       killTree(child);
     }, unitLimitMs);
-    // While a file sits with no test open, the unit's processes are read for CPU each tick; one tick busy
-    // (a quarter of a core or more) restarts the grace, and so does the first reading, the grace counting
-    // from when the watch could first tell. Other files computing beside it keep it alive too, up to the
-    // unit's deadline.
     let quietSince = started;
     let cpu;
     const exitWatch = setInterval(() => {
@@ -185,7 +128,7 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
       if (report !== undefined) {
         try {
           let xml = "";
-          try { xml = readFileSync(report, "utf8"); } catch { /* A killed process may have no report. */ }
+          try { xml = readFileSync(report, "utf8"); } catch {}
           const results = xml.trimEnd().endsWith("</testsuites>") ? parseJunit(xml).map((test) => ({
             ...test, file: path.relative(root, test.file).replaceAll("\\", "/"),
           })) : [];
@@ -200,7 +143,6 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
   });
 }
 
-/** Kill a process and every process under it: taskkill /T on Windows, the ps tree elsewhere. */
 export function killTree(child, signal = "SIGKILL") {
   if (!child.pid || child.exitCode !== null) return;
   try {
@@ -211,7 +153,7 @@ export function killTree(child, signal = "SIGKILL") {
     for (const pid of [...descendants(child.pid), child.pid]) {
       try {
         process.kill(pid, signal);
-      } catch {} // already gone
+      } catch {}
     }
   } catch {
     child.kill(signal);
@@ -238,7 +180,6 @@ function descendants(pid) {
   return found;
 }
 
-/** The entries started and not yet ended in a unit's running file. */
 function openEntries(runningFile) {
   const lines = readJsonLines(runningFile);
   const open = new Map();
@@ -250,13 +191,8 @@ function openEntries(runningFile) {
   return { lines, open: [...open.values()] };
 }
 
-/**
- * A file's own entry, named by the path it was given: its basename, or a path relative to the unit's
- * root, which `file` ends with (compared by suffix: on macOS `file` is the real path under /private).
- */
 const isFileEntry = (entry) => entry.nesting === 0 && entry.file && `/${entry.file.replaceAll("\\", "/")}`.endsWith(`/${entry.name.replaceAll("\\", "/").replace(/^\.\//, "")}`);
 
-/** The files whose own entry is still open, with no test open, after tests that all ended before `since`. */
 function endedNotExited(runningFile, since) {
   const { lines, open } = openEntries(runningFile);
   const busy = new Set(open.filter((entry) => !isFileEntry(entry)).map((entry) => entry.file));
@@ -267,11 +203,6 @@ function endedNotExited(runningFile, since) {
     .map((entry) => entry.file);
 }
 
-/**
- * What each process under `pid` (and it) has used of the CPU, by pid: on Linux its CPU time in ms, from
- * /proc; on macOS its recent share of a core, as ps reports it (read from ps's accumulated time, a file
- * computing for 4 seconds was killed as idle on CI's macOS, PR #624); undefined where it cannot be read (Windows).
- */
 function treeCpu(pid) {
   const table = [];
   try {
@@ -280,9 +211,9 @@ function treeCpu(pid) {
         if (!/^\d+$/.test(name)) continue;
         try {
           const stat = readFileSync(`/proc/${name}/stat`, "utf8");
-          const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" "); // from field 3, after the name
-          table.push({ pid: Number(name), ppid: Number(fields[1]), used: (Number(fields[11]) + Number(fields[12])) * 10 }); // utime + stime, at 100 ticks a second
-        } catch {} // gone since the listing
+          const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+          table.push({ pid: Number(name), ppid: Number(fields[1]), used: (Number(fields[11]) + Number(fields[12])) * 10 });
+        } catch {}
       }
     } else if (process.platform === "darwin") {
       for (const line of execFileSync("ps", ["-A", "-o", "pid=,ppid=,pcpu="], { encoding: "utf8" }).split("\n")) {
@@ -309,7 +240,6 @@ function treeCpu(pid) {
   return cpu;
 }
 
-/** The share of one core used between two of treeCpu's readings, a process new since the first counting all its own time. */
 function cpuShare(before, after) {
   const values = [...after.reading.values()];
   if (process.platform === "darwin") return values.reduce((sum, share) => sum + share, 0);
@@ -317,10 +247,6 @@ function cpuShare(before, after) {
   return used / Math.max(1, after.at - before.at);
 }
 
-/**
- * Each test that ended in a unit's running file (test-running-reporter.mjs writes its time and result), by
- * its full name; one that failed for its time at `limitMs` or later timed out at the limit, not its own shorter one.
- */
 function endedTests(runningFile, root, limitMs) {
   return readJsonLines(runningFile).flatMap((entry) => entry.event !== "end" || entry.fullName === undefined ? [] : [{
     file: path.relative(root, realPath(entry.file)).replaceAll("\\", "/"),
@@ -331,14 +257,12 @@ function endedTests(runningFile, root, limitMs) {
   }]);
 }
 
-/** The files, from root, whose own entry ended failed with no test in them ended: a file that failed to load. */
 function failedUnloaded(runningFile, root) {
   const lines = readJsonLines(runningFile).filter((entry) => entry.event === "end");
   const ran = new Set(lines.filter((entry) => entry.fullName !== undefined).map((entry) => realPath(entry.file)));
   return lines.filter((entry) => isFileEntry(entry) && entry.passed === false && !ran.has(realPath(entry.file))).map((entry) => path.relative(root, realPath(entry.file)).replaceAll("\\", "/"));
 }
 
-/** A file by its real path, as macOS names a temporary file one way for its tests and another (under /private) for itself. */
 function realPath(file) {
   try {
     return realpathSync(file);
@@ -347,7 +271,6 @@ function realPath(file) {
   }
 }
 
-/** The tests started and not yet ended, the innermost of each file; a file stuck outside any test is named alone. */
 function stillRunning(runningFile) {
   const byFile = new Map();
   for (const entry of openEntries(runningFile).open) {
@@ -367,28 +290,12 @@ function stillRunning(runningFile) {
   return result;
 }
 
-/**
- * The deadline for a unit with too little history (and for named files): STORYTREE_UNIT_LIMIT_MS
- * when the run gives one, else UNIT_LIMIT_MS. CI gives one (increment_3bd2b051ab67), which is also
- * the least a learned deadline may be there (increment_d51b4f1d9fc8); so does a test of the deadline itself.
- */
 export function defaultUnitLimit(env = process.env) {
   const ms = Number(env.STORYTREE_UNIT_LIMIT_MS);
   return env.STORYTREE_UNIT_LIMIT_MS && Number.isFinite(ms) && ms > 0 ? { ms, source: "STORYTREE_UNIT_LIMIT_MS" } : { ms: UNIT_LIMIT_MS, source: "default" };
 }
 
-/**
- * A unit's deadline on this machine and where it came from: what an agent set for it here, else
- * twice its slowest recent pass once it has enough, else the run's default (defaultUnitLimit); then
- * doubled for each kill since it last passed (a killed run never enters the passes, so without this
- * it could never recover), never over UNIT_LIMIT_CEILING_MS. Only runs testing `jobs` units at once
- * count, but for one thing: a unit with too few of those is never given less than twice its slowest
- * recent pass at any concurrency, since beside others it is no faster than alone, and a unit slower
- * than the default would otherwise be killed again after every pass until it had enough.
- */
 export function unitLimit(unit, { home = defaultHome(), platform = process.platform, arch = process.arch, env = process.env, jobs = 1 } = {}) {
-  // Learned only from runs testing as many units at once as this one: a unit sharing the machine
-  // with others runs slower than alone (a row from before jobs were recorded ran alone).
   const here = readJsonLines(path.join(home, "test-timings.jsonl")).filter((row) => row.unit === unit && row.platform === platform && row.arch === arch);
   const rows = here.filter((row) => (row.jobs ?? 1) === jobs);
   const set = readLimits(home)[unit];
@@ -410,16 +317,10 @@ export function unitLimit(unit, { home = defaultHome(), platform = process.platf
   return { ms: Math.min(UNIT_LIMIT_CEILING_MS, ms * 2 ** kills), source: `${source}, grown after ${kills} kill${kills === 1 ? "" : "s"}` };
 }
 
-/**
- * A test's limit on this machine and where it came from (ADR-1152): three times its slowest recent pass once
- * it has enough, never under TEST_LIMIT_MS, else TEST_LIMIT_MS; then doubled for each timeout since it last
- * passed, never over UNIT_LIMIT_CEILING_MS. On CI the history is main's, so a pull request's timeouts never grow it.
- */
 export function testLimit(file, name, { home = defaultHome(), platform = process.platform, arch = process.arch } = {}) {
   return limitFrom(testRows(home, platform, arch).filter((row) => row.file === file && row.test === name));
 }
 
-/** The limit a unit's tests run under: the largest of its tests' (a unit's files, or the one file run alone), naming whose. */
 export function unitTestLimit(unit, { home = defaultHome(), platform = process.platform, arch = process.arch } = {}) {
   const tests = Map.groupBy(testRows(home, platform, arch).filter((row) => row.file === unit || row.file.startsWith(`${unit}/`)), (row) => JSON.stringify([row.file, row.test]));
   let largest = { ms: TEST_LIMIT_MS, source: "default" };
@@ -442,26 +343,22 @@ function limitFrom(rows) {
   return { ms: Math.min(UNIT_LIMIT_CEILING_MS, ms * 2 ** timeouts), source: `${source}, grown after ${timeouts} timeout${timeouts === 1 ? "" : "s"}` };
 }
 
-/** The run's deadline, from STORYTREE_TEST_DEADLINE (Unix seconds) when set: CI's job limit less room to report. */
 export function runDeadline(env) {
   const seconds = Number(env.STORYTREE_TEST_DEADLINE);
   return env.STORYTREE_TEST_DEADLINE && Number.isFinite(seconds) ? seconds * 1000 : undefined;
 }
 
-/** A unit's limit cut to the time left before the run's deadline, saying so when it is. */
 export function withinDeadline(limit, deadline, now = Date.now()) {
   if (deadline === undefined || deadline - now >= limit.ms) return limit;
   return { ms: Math.max(0, deadline - now), source: "cut to the run's deadline", cut: true };
 }
 
-/** Set a unit's deadline on this machine, with the reason any later run shows beside it. */
 export function setUnitLimit(unit, ms, { reason, home = defaultHome() }) {
   if (!reason?.trim()) throw new Error("a unit's deadline is set with a reason, shown on every run it applies to");
   if (!(ms > 0)) throw new Error(`a deadline is a positive time, not ${ms}`);
   writeLimits(home, { ...readLimits(home), [unit]: { ms, reason: reason.trim(), at: new Date().toISOString() } });
 }
 
-/** Clear a set deadline, so the unit's is learned again. */
 export function clearUnitLimit(unit, { home = defaultHome() } = {}) {
   const { [unit]: _, ...rest } = readLimits(home);
   writeLimits(home, rest);
@@ -491,28 +388,20 @@ function readJsonLines(file) {
     try {
       return line.trim() ? [JSON.parse(line)] : [];
     } catch {
-      return []; // a line cut short by a run that died mid-write
+      return [];
     }
   });
 }
 
-/**
- * `runOnce()`, and on macOS once more when it was killed at its own deadline (not cut to the run's, not an
- * exit that hung) and `timeLeft()` says the run has time: forest's real-browser smokes stalled past their
- * learned deadline on macOS queue runners only, and passed in the next run (friction_cb9a033867a9). The
- * second try is the result, carrying the first as `firstTry`, with both tries' ended tests, unloaded files
- * and held output, the first's before; one that times out again fails as any kill does.
- */
 export async function withMacRetry(runOnce, { platform = process.platform, timeLeft = () => true } = {}) {
   const first = await runOnce();
   if (platform !== "darwin" || !first.timedOut || first.cut || first.exitHung?.length > 0 || !timeLeft()) return first;
   const second = await runOnce();
   const both = (key) => [...(first[key] ?? []), ...(second[key] ?? [])];
-  const output = second.output === undefined ? undefined : `${first.output ?? ""}${second.output}`; // held only beside other units
+  const output = second.output === undefined ? undefined : `${first.output ?? ""}${second.output}`;
   return { ...second, tests: both("tests"), unloaded: both("unloaded"), output, firstTry: first };
 }
 
-/** A unit's row note in the results table: its time and deadline, and on a timeout what was still running. */
 export function unitReason(run, root) {
   if (run.firstTry !== undefined) {
     const { firstTry, ...second } = run;
@@ -538,14 +427,6 @@ function unitRowReason({ ms, timedOut, running = [], exitHung = [], unitLimitMs,
   return `timed out after ${took} (${limit}), killed; ${what}`;
 }
 
-/**
- * Add this run's unit times, and how many units it tested at once, to the machine's history, which
- * unitLimit learns each deadline from; and its tests' times (runUnit's `tests`), which testLimit learns
- * each test's from: only a test that could need more than TEST_LIMIT_MS (a pass a third of it or
- * longer, or a timeout at its limit), and then every pass or timeout of it, so the history holds only
- * slow tests. Past `trimAt` rows the history keeps only each unit's last TIMING_ROWS_KEPT on each
- * machine at each concurrency, and each test's on each machine, so one carried from run to run stays small.
- */
 export function recordTimings(units, { home = defaultHome(), jobs = 1, trimAt = TRIM_TIMINGS_AT, tests = [] } = {}) {
   const at = new Date().toISOString();
   const file = path.join(home, "test-timings.jsonl");
@@ -571,7 +452,6 @@ export function recordTimings(units, { home = defaultHome(), jobs = 1, trimAt = 
   writeFileSync(file, `${kept.toReversed().map((row) => JSON.stringify(row)).join("\n")}\n`);
 }
 
-/** Each unit's slowest recent passing time on this machine, at any number of units at once: what a pool orders by. */
 export function recentPassTimes({ home = defaultHome(), platform = process.platform, arch = process.arch } = {}) {
   const passes = new Map();
   for (const row of readJsonLines(path.join(home, "test-timings.jsonl"))) {

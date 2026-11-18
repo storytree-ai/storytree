@@ -1,27 +1,9 @@
-// Capability 4 · Running the tests. Node's junit report read into one result per test: how `pnpm test` keeps CI's
-// evidence of each unit (unit-run.mjs), and what storytree's own health, recording a test run, judges contracts by
-// (packages/repo-checks/src/test-run).
+// Capability 4 · Running the tests
 
-/**
- * @typedef {{ name: string, suites: string[], file: string, status: "passed" | "failed" | "skipped", message?: string, ciRun?: string, unrun?: true }} TestResult
- */
-
-/**
- * Read the output of Node's junit reporter (`node --test --test-reporter=junit`): one result per
- * testcase, with the names of the suites it sits in (outermost first), its file, and whether it
- * passed, failed or was skipped (a todo counts as skipped). A test file whose process died before
- * reporting any test appears as a failed testcase named after the file.
- * @param {string} xml
- * @returns {TestResult[]}
- */
 export function parseJunit(xml) {
-  /** @type {TestResult[]} */
   const results = [];
-  /** @type {string[]} */
   const suites = [];
-  /** @type {TestResult | undefined} */
   let open;
-  // A tag, with its attributes matched value by value: a value may hold a raw ">".
   const tags = /<(\/?)([A-Za-z][\w:.-]*)((?:\s+[\w:.-]+\s*=\s*"[^"]*")*)\s*(\/?)>/g;
   for (const [, closing, tag, attributeText, selfClosing] of xml.matchAll(tags)) {
     const attributes = attributesOf(attributeText);
@@ -33,7 +15,6 @@ export function parseJunit(xml) {
         if (open !== undefined) results.push(open);
         open = undefined;
       } else {
-        /** @type {TestResult} */
         const result = { name: attributes.name ?? "", suites: [...suites], file: attributes.file ?? "", status: "passed" };
         if (selfClosing) results.push(result);
         else open = result;
@@ -49,18 +30,12 @@ export function parseJunit(xml) {
   return results;
 }
 
-/** A tag's attributes, decoded: each follows whitespace, as the tag's pattern matched it. */
 function attributesOf(text) {
-  /** @type {Record<string, string>} */
   const attributes = {};
   for (const [, name, value] of text.matchAll(/\s([\w:.-]+)\s*=\s*"([^"]*)"/g)) attributes[name] = decode(value);
   return attributes;
 }
 
-/**
- * An attribute value's text. Node's reporter escapes a quote as `&quot;` and then escapes that
- * `&` again, so after the one XML decoding a quote still reads `&quot;`.
- */
 function decode(value) {
   const entities = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
   return value

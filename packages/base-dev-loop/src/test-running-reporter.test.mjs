@@ -1,5 +1,3 @@
-// The test runner's reporter (packages/base-dev-loop/src/test-running-reporter.mjs), fed the events node's
-// test runner emits: a file whose process failed is named with how it ended and its own stderr.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

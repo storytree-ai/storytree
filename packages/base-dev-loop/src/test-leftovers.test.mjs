@@ -1,7 +1,3 @@
-// increment_e72347bdd355: a test Postgres started under Temp on 2026-10-11 was still running twelve days
-// later, from a worktree that no longer existed, beside hundreds of storytree scratch folders. These
-// tests run real servers through @storytree/local-postgres and leave each one to be stopped by what
-// they test.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
@@ -19,12 +15,8 @@ import { killTree, runUnit } from "./unit-run.mjs";
 
 const localPostgres = pathToFileURL(fileURLToPath(import.meta.resolve("@storytree/local-postgres"))).href;
 const DAY = 24 * 60 * 60 * 1000;
-// increment_6237cbe8961f: on Windows CI a Postgres start outlasted the inner unit's 60 s test limit, so no
-// RECORD came, and a unit's temp folder stayed held past the harness's ten seconds. The inner units get
-// limits a slow start fits in, and the test waits on the unit's write and the folder's removal.
 const SLOW_START_MS = 300_000;
 
-/** Cleanups run last first, so a server is stopped before the folder holding it is removed. */
 function cleanups(t) {
   const steps = [];
   t.after(async () => {
@@ -48,20 +40,14 @@ function alive(pid) {
   }
 }
 
-/** The postmaster's pid, read from the data folder while the server runs. */
 function postmaster(dataDir) {
   return Number(readFileSync(path.join(dataDir, "postmaster.pid"), "utf8").split("\n")[0]);
 }
 
-/**
- * A pid no process can have: above Linux's and macOS's pid ranges, and on Windows, which hands out
- * small pids, never reached. An exited child's pid would not do: Windows can reuse it at once.
- */
 function deadPid() {
   return 2 ** 31 - 1;
 }
 
-/** Start a server on `dataDir` from a process that then exits without stopping it, as a killed run does. */
 function abandoned(dataDir) {
   mkdirSync(path.dirname(dataDir), { recursive: true });
   const script = path.join(path.dirname(dataDir), `${path.basename(dataDir)}.abandon.mjs`);
@@ -73,17 +59,11 @@ process.exit(0);`);
   return postmaster(dataDir);
 }
 
-/** Make a data folder's owner record name a gone process: the exited starter's own pid, Windows can reuse at once. */
 function goneOwner(dataDir) {
   const owner = `${dataDir}.owner.json`;
   writeFileSync(owner, JSON.stringify({ ...JSON.parse(readFileSync(owner, "utf8")), pid: deadPid() }));
 }
 
-/**
- * A stopper for a server the test itself must stop if what it tests did not, and a check, true once the
- * server is seen gone. A pid seen gone is never signalled: Windows can give it at once to another
- * process, as a test file's of this same run, killed with exit code 1 and no word on CI (increment_bd97e464ae7a).
- */
 function stopLater(steps, pid) {
   let gone = false;
   steps.push(() => {
@@ -92,7 +72,6 @@ function stopLater(steps, pid) {
   return () => (gone = !alive(pid));
 }
 
-/** A unit whose one test starts a server in the unit's temp folder, records it, then ends as `ending` says. */
 function serverUnit(steps, ending) {
   const root = folder(steps, "leftovers-unit-");
   writeFileSync(path.join(root, "server.test.mjs"), `import { readFileSync, writeFileSync } from "node:fs"; import { tmpdir } from "node:os"; import path from "node:path"; import { test } from "node:test";
@@ -106,10 +85,6 @@ test("starts a server and never stops it", async () => {
   return root;
 }
 
-/**
- * The unit's RECORD, waited for until it is written, or failed at once if the unit ends without it, as
- * one whose server start outlasted its limits does.
- */
 async function untilRecord(root, run) {
   const file = path.join(root, "RECORD");
   let ended;
@@ -122,7 +97,6 @@ async function untilRecord(root, run) {
   return JSON.parse(readFileSync(file, "utf8"));
 }
 
-/** Wait until `at` is gone: the harness removes a held folder once its hold lets go. */
 async function untilGone(at, what) {
   await waitUntil(() => !existsSync(at), 120_000, what);
 }
@@ -167,8 +141,6 @@ test("4.21 · a run's start stops any Postgres server in Temp left by a run that
   assert.equal(existsSync(liveRun), true, "a live run's unit folder is left alone");
 });
 
-// friction_4e5b26e21141: 4.20 and 4.21 failed on Windows with EPERM removing a temp folder a Postgres
-// just killed still held, past Node's own retries of about a second and a half.
 test("4.20 · 4.21 · a folder whose files stay held for a while after its server stops is still removed, and one held past the budget fails with the reason", async (t) => {
   const steps = cleanups(t);
   const at = folder(steps, "leftovers-held-");
@@ -191,8 +163,6 @@ test("4.20 · 4.21 · a folder whose files stay held for a while after its serve
   assert.ok(clock >= 10_000, "after retrying for the whole ten-second budget");
 });
 
-// increment_6237cbe8961f: on Windows CI a unit's temp folder was still held when the ten seconds ran out,
-// and nothing tried again, so the folder stayed.
 test("4.20 · a folder still held past the budget is removed in the background once the hold lets go, and an error that is no hold gives up with the reason", async (t) => {
   const steps = cleanups(t);
   const at = folder(steps, "leftovers-late-");
@@ -228,10 +198,6 @@ test("4.20 · a folder still held past the budget is removed in the background o
   assert.equal(said.filter((message) => /could not remove .*EIO/.test(message)).length, 2, "each with the reason");
 });
 
-// friction_963e813bb97c: on 2026-11-12 Windows CI's shared test Postgres went into recovery mode four times
-// under packages/cli while the base dev loop's unit, whose tests kill servers, ran beside it. A killed
-// server leaves its postmaster.pid, and Windows hands its pid to the next process, often a backend of the
-// live test Postgres (every connection is a process there): stopping that pid crashed the server.
 test("4.20 · 4.21 · a data folder's stale postmaster.pid whose pid is now another server's backend stops nothing", { timeout: 120_000 }, async (t) => {
   const steps = cleanups(t);
   const live = await start({ dataDir: path.join(folder(steps, "leftovers-live-"), "db") });

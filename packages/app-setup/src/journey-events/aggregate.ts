@@ -1,10 +1,4 @@
-/**
- * Capability 17 · Aggregate journey reading. Anyone with the shipped public token can write events, so event text is outside
- * data: an administrative caller reads PostHog only through here, as counts of allow-listed milestones for install IDs
- * storytree recorded. The query-read key comes from POSTHOG_QUERY_APIKEY or the secret posthog_query_apikey, never printed.
- *
- *   tsx src/journey-events/aggregate.ts --project <id> [--days 7] <install-id>…
- */
+// Capability 17 · Aggregate journey reading.
 import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -16,11 +10,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const unavailable = () => new Error("Journey aggregates unavailable");
 
 export interface JourneyAggregates {
-  /** How many install IDs the caller named. */
   installs: number;
-  /** How many of them have at least one allow-listed event in the window. */
   reporting: number;
-  /** Count per allow-listed event name, summed over the named installs. */
   events: Record<string, number>;
 }
 
@@ -51,7 +42,6 @@ export async function readJourneyAggregates(options: {
     rows = ((await response.json()) as { results?: unknown }).results;
   } catch { throw unavailable(); }
   if (!Array.isArray(rows)) throw unavailable();
-  // The query already filters; this re-checks every row, so nothing but a known ID, a named event and a count passes.
   const events: Record<string, number> = {};
   const seen = new Set<string>();
   for (const row of rows) {
@@ -67,7 +57,6 @@ export async function readJourneyAggregates(options: {
 
 const readText = (file: string): string | undefined => { try { return readFileSync(file, "utf8"); } catch { return undefined; } };
 
-/** The cloud project the secret is read in: STORYTREE_GCP_PROJECT, else the Google credentials' own, else none (gcloud's). */
 export function secretProject(env: Record<string, string | undefined>, read: (file: string) => string | undefined = readText): string | undefined {
   const named = env.STORYTREE_GCP_PROJECT?.trim();
   if (named) return named;
@@ -78,7 +67,6 @@ export function secretProject(env: Record<string, string | undefined>, read: (fi
   } catch { return undefined; }
 }
 
-/** POSTHOG_QUERY_APIKEY, else the secret posthog_query_apikey read through the box's Google credentials. */
 export async function journeyQueryKey(env: Record<string, string | undefined> = process.env): Promise<string> {
   const fromEnv = env.POSTHOG_QUERY_APIKEY?.trim();
   if (fromEnv) return fromEnv;

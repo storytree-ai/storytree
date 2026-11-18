@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { ESLint } from "eslint";
+import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 
 import storytreePlugin from "./eslint-rules/index.mjs";
@@ -30,6 +30,19 @@ function config(plugin) {
     { files: TYPESCRIPT, languageOptions: { parser: tseslint.parser } },
     { files: ["**/*.js", "**/*.mjs", "**/*.cjs", ...TYPESCRIPT], plugins: { storytree: plugin }, rules },
   ];
+}
+
+const PATTERN_RULES = Object.fromEntries(Object.keys(storytreePlugin.rules).filter((name) => `storytree/${name}` !== NO_COMMENTS).map((name) => [`storytree/${name}`, "error"]));
+const PATTERN_CONFIG = [
+  { files: ["**/*"], plugins: { storytree: storytreePlugin }, rules: PATTERN_RULES },
+  { files: TYPESCRIPT, languageOptions: { parser: tseslint.parser } },
+  { files: ["**/*.jsx"], languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } } },
+];
+
+export function ruleHits(file, text) {
+  return new Linter().verify(text, PATTERN_CONFIG, { filename: file })
+    .filter(({ ruleId }) => ruleId?.startsWith("storytree/"))
+    .map(({ line, ruleId, message }) => ({ line, rule: ruleId, message }));
 }
 
 function mergeBase(root) {

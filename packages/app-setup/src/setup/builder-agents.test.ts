@@ -1,8 +1,4 @@
-/**
- * Capability 2 · Connect an agent, contract 2.24: registering Claude Code's hooks writes storytree's red and green builder
- * agents into Claude Code's user-level agents folder, each fenced by the test guard (Hooks 3.50) its frontmatter runs
- * with this build's Node and hook script; removing storytree takes them out, and a file of the user's own is never touched.
- */
+// Capability 2 · Connect an agent
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -14,7 +10,6 @@ import { registerHooks, removeHooks, type HookCommand } from "./index.js";
 
 const HOOK: HookCommand = { node: path.resolve("/opt/storytree/node"), script: path.resolve("/opt/storytree/build-1/storytree-hook.mjs") };
 
-/** The command line an agent file's frontmatter hook runs, read back from its YAML single-quoted scalar. */
 function guardCommand(file: string): string {
   const match = /^\s+command: '((?:[^']|'')*)'$/m.exec(readFileSync(file, "utf8"));
   assert.ok(match, `no hook command in ${file}`);

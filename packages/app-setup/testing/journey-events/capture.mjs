@@ -1,4 +1,3 @@
-// Real desktop renderer, fixed state/viewport, bridge intercepted locally. No service credentials or sends.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,7 +6,6 @@ import { withCapture, fakeBridge } from '../../../../apps/desktop/src/capture/in
 import { build } from './build.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = await build();
-// --retake writes its pictures and capture.json into the package's evidence set of this name; nothing here reads them.
 await withCapture({ folder: path.join(here, '../../evidence', 'journey-events'), dist, softwareGL: false }, async ({ browser, origin, out, settle }) => {
   const page = await browser.newPage({ viewport: { width: 1100, height: 820 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   let state = { consent: 'pending', available: false, installId: 'installation-capture-example', queued: 0 };
@@ -47,7 +45,6 @@ await withCapture({ folder: path.join(here, '../../evidence', 'journey-events'),
   await page.waitForSelector('[data-journey-deletion]:not([hidden])');
   assert.match(await page.locator('[data-journey-deletion]').innerText(), /has not been sent/);
   await capture('deletion-unavailable');
-  // Configured appearance only: this bridge remains intercepted and never sends a real event.
   state = { ...state, consent: 'on', available: true, retention: '30 days (capture example)', deletionContact: 'privacy@example.test' };
   await page.getByRole('button', { name: 'Projects', exact: true }).click();
   await page.getByRole('button', { name: 'Sharing', exact: true }).click();

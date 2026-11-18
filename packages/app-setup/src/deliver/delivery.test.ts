@@ -14,7 +14,6 @@ import { finishDelivery, followBuildTools, installCommand, refreshTools, toolPat
 import { launch, runtimeProblem, waitForApp } from "./delivery.js";
 import { runningFrom } from "./payload.js";
 
-/** The program the Windows command is made from: on Windows the real one, which tests run; elsewhere nothing runs it. */
 let program: Buffer | undefined;
 function launcherProgram(): Buffer {
   if (process.platform !== "win32") return Buffer.from("a runnable fixture");
@@ -106,13 +105,11 @@ test("1.19 on Windows, finish records the agents' tools as a copy under the home
     assert.deepEqual(first.tools, record.tools);
     if (process.platform === "win32") assert.deepEqual(launcherRuns(first.command.file), { node: record.tools.node, target: record.tools.cli });
 
-    // The same build again reuses its copy; a damaged copy is made whole again.
     assert.equal((await finishDelivery(options, effects)).tools.dir, record.tools.dir);
     writeFileSync(record.tools.hook, "damaged");
     assert.equal((await finishDelivery(options, effects)).tools.dir, record.tools.dir);
     assert.equal(readFileSync(record.tools.hook, "utf8"), "a runnable fixture");
 
-    // An update replaces the installation's tools; the older build's copy, which open sessions run, stays whole beside the new one's.
     writeFileSync(f.tools.cli, "the next build");
     writePayloadManifest(f.tools.dir, "arm64", "24.21.0");
     const next = await finishDelivery(options, effects);
@@ -132,7 +129,6 @@ test("1.20 on Windows, the installed app's start points the record, the connecte
   const options = { installDir: f.install, home: f.home, arch: "arm64" as const, platform: "win32" as const, searchPath: "", connections };
   const recordFile = path.join(f.home, "delivery.json");
   try {
-    // Today's release: the record and Claude Code's registration and hooks run the installation's own tools.
     mkdirSync(f.home, { recursive: true });
     writeFileSync(recordFile, JSON.stringify({ schema: 1, installDir: path.resolve(f.install), tools: f.tools }));
     await connectAgents({ harnesses: ["claude-code"], installed: installedToolServerCommand(f.tools.node, f.tools.mcp), ...connections });
@@ -161,7 +157,6 @@ test("1.20 on Windows, an agent the start could not point at its build's copy is
   const f = fixture();
   const user = path.join(f.dir, "user");
   mkdirSync(path.join(user, ".claude"), { recursive: true });
-  // The app started where Claude Code is not on the PATH, as from Explorer before it was installed.
   let found = true;
   const run: RunHarness = async (_executable, args) => { if (args[0] === "--version" && found) return "a harness"; throw new Error("claude is not recognized"); };
   const connections = { home: user, env: { PATH: "", STORYTREE_HOME: f.home }, run };
@@ -171,7 +166,6 @@ test("1.20 on Windows, an agent the start could not point at its build's copy is
     const older = (await finishDelivery(options, { launch: async () => {}, waitForApp: async () => {} })).tools;
     await connectAgents({ harnesses: ["claude-code"], installed: installedToolServerCommand(older.node, older.mcp), ...connections });
 
-    // An update whose start cannot find Claude Code.
     writeFileSync(f.tools.cli, "the next build");
     writePayloadManifest(f.tools.dir, "arm64", "24.21.0");
     found = false;
@@ -182,7 +176,6 @@ test("1.20 on Windows, an agent the start could not point at its build's copy is
     assert.equal(registration(), older.mcp, "Claude Code still runs the older copy");
     assert.ok(existsSync(older.mcp), "so that copy is kept, though no process runs it");
 
-    // The next start, with Claude Code found, points it at this build's copy and clears the older one.
     found = true;
     const current = JSON.parse(readFileSync(path.join(f.home, "delivery.json"), "utf8")).tools;
     assert.deepEqual(await followBuildTools(options), { moved: ["Claude Code"], notMoved: [] });
@@ -201,7 +194,6 @@ test("1.21 on Windows, the installed app's start removes older builds' copies no
   const copies = path.join(f.home, "app-tools");
   let session: ReturnType<typeof spawn> | undefined;
   let running: string | undefined;
-  // On Windows a real node.exe runs from the copy, which Windows refuses to delete; elsewhere deleting it is refused as Windows would.
   const remove = process.platform === "win32" ? undefined : (file: string) => {
     if (path.dirname(file) === running) throw Object.assign(new Error(`EPERM: operation not permitted, unlink '${file}'`), { code: "EPERM" });
     rmSync(file, { force: true });
@@ -209,15 +201,12 @@ test("1.21 on Windows, the installed app's start removes older builds' copies no
   const options = { installDir: f.install, home: f.home, arch: "arm64" as const, platform: "win32" as const, searchPath: "", connections, ...(remove ? { remove } : {}) };
   try {
     const older = (await finishDelivery(options, { launch: async () => {}, waitForApp: async () => {} })).tools.dir;
-    // A copy left by a build before it, which no session runs any more.
     const stale = path.join(copies, "fedcba9876543210");
     mkdirSync(stale);
     writeFileSync(path.join(stale, "node.exe"), "an older build's");
-    // One an earlier start moved aside and could not finish deleting, and one another start is still copying in.
     mkdirSync(path.join(copies, "0011223344556677.old-123"));
     const copying = "8899aabbccddeeff.next-456";
     mkdirSync(path.join(copies, copying));
-    // A session still runs the older build's tools.
     running = older;
     if (process.platform === "win32") {
       copyFileSync(process.execPath, path.join(older, "node.exe"));
@@ -225,7 +214,6 @@ test("1.21 on Windows, the installed app's start removes older builds' copies no
       await new Promise((resolve, reject) => { session!.once("spawn", resolve); session!.once("error", reject); });
     }
 
-    // An update: the app's start follows its new build, clears what no session runs, and leaves the running copy whole.
     writeFileSync(f.tools.cli, "the next build");
     writePayloadManifest(f.tools.dir, "arm64", "24.21.0");
     assert.deepEqual(await followBuildTools(options), { moved: [], notMoved: [] });
@@ -233,18 +221,15 @@ test("1.21 on Windows, the installed app's start removes older builds' copies no
     assert.deepEqual(readdirSync(copies).sort(), [path.basename(older), path.basename(current), copying].sort());
     assert.ok(existsSync(path.join(older, "storytree-hook.mjs")), "the copy a session runs keeps every file");
 
-    // Once that session has ended, the next start removes its copy too.
     if (session) { const ended = new Promise((resolve) => session!.once("exit", resolve)); session.kill(); await ended; session = undefined; }
     running = undefined;
     assert.equal(await followBuildTools(options), undefined);
-    // Windows can hold an ended process's executable a moment longer; a later start would find it free.
     for (let start = 0; start < 20 && readdirSync(copies).length > 2; start++) {
       await new Promise((resolve) => setTimeout(resolve, 250));
       await followBuildTools(options);
     }
     assert.deepEqual(readdirSync(copies).sort(), [path.basename(current), copying].sort());
   } finally {
-    // A session still running holds its copy, and Windows refuses to delete the fixture under it.
     if (session) { const ended = new Promise((resolve) => session!.once("exit", resolve)); session.kill(); await ended; }
     rmSync(f.dir, { recursive: true, force: true, maxRetries: 10 });
   }
@@ -300,7 +285,6 @@ test("1.6: finish repoints an older storytree launcher on PATH and says which on
   try {
     const first = installCommand({ home: f.home, tools: f.tools, platform: "win32", searchPath: cargo });
     assert.deepEqual(first.replaced, [older]);
-    // The batch file it was becomes the launcher program in the same folder (ADR-0854).
     assert.equal(existsSync(older), false);
     assert.deepEqual(readFileSync(path.join(cargo, "storytree.exe")), readFileSync(first.file));
     assert.deepEqual(installCommand({ home: f.home, tools: f.tools, platform: "win32", searchPath: cargo }).replaced, []);
@@ -374,7 +358,6 @@ test("1.12: on an Apple Silicon Mac, finish opens the bundle's own executable an
     });
     assert.deepEqual(launched, [tools.app]);
     assert.equal(result.command.file, path.join(home, "bin", "storytree"));
-    // The command runs this build's copy of the tools under the home, which an update of the bundle leaves in place (1.19).
     assert.deepEqual(launcherRuns(result.command.file), { node: result.tools.node, target: result.tools.cli });
     assert.equal(path.dirname(result.tools.dir), path.join(home, "app-tools"));
     assert.equal(JSON.parse(readFileSync(path.join(home, "delivery.json"), "utf8")).installDir, bundle);
@@ -413,7 +396,6 @@ test("1.9 on Windows, the installed command hands each word on as the caller's l
       assert.deepEqual(readdirSync(folder), [], `${caller} wrote a file: ${said}`);
       assert.doesNotMatch(ran.stdout, /INJECTED/, `${caller} ran a second command: ${said}`);
     };
-    // Words cmd.exe would read as its own syntax; then free text with an inner double quote, and a folder.
     const plain = ["a&echo", "INJECTED", "x|y", "x>y", "100%PATH%", "^caret"];
     const words = [...plain, 'he said "website -> forest -> the rest" ok', "C:\\a folder\\"];
     const bash = path.join(process.env.ProgramFiles ?? "C:\\Program Files", "Git", "bin", "bash.exe");
@@ -421,8 +403,6 @@ test("1.9 on Windows, the installed command hands each word on as the caller's l
     const quoted = words.map((word) => `'${word.replaceAll("'", "'\\''")}'`).join(" ");
     hears("Git Bash", words, () => spawnSync(bash, ["-c", `storytree ${quoted}`], { cwd: folder, env, encoding: "utf8", timeout: 30_000 }));
     hears("a program", words, () => spawnSync("storytree", words, { cwd: folder, env, encoding: "utf8", timeout: 30_000 }));
-    // Windows PowerShell 5.1 quotes a word with a space for every program it starts without escaping what is in it
-    // (increment_e95ceec15288), so it is given only the words cmd.exe would misread.
     const script = `& storytree ${plain.map((word) => `'${word.replaceAll("'", "''")}'`).join(" ")}`;
     const powershell = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
     hears("Windows PowerShell", plain, () => spawnSync(powershell, ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], { cwd: folder, env, encoding: "utf8", timeout: 60_000 }));
@@ -462,7 +442,6 @@ test("1.5 after a Linux AppImage replaces itself, its next start puts its own ag
   try {
     const install = path.join(dir, ".local", "share", "storytree-0.3");
     const tools = toolPaths(install, "linux");
-    // A build's agent tools: the scripts, its node and a lazily imported chunk named for that build.
     const build = (into: string, chunk: string) => {
       mkdirSync(path.join(into, "chunks"), { recursive: true });
       for (const file of ["node", ...["mcp", "hook", "setup", "cli", "deliver"].map((key) => path.basename(tools[key as "mcp"]))]) writeFileSync(path.join(into, file), `${chunk} ${file}`);
@@ -471,7 +450,6 @@ test("1.5 after a Linux AppImage replaces itself, its next start puts its own ag
     };
     build(tools.dir, "old");
     writeFileSync(tools.app, "the replaced AppImage");
-    // The new AppImage's own tools, in the mount it runs from.
     const bundled = path.join(dir, "mount", "resources", "agent-tools");
     build(bundled, "new");
 
@@ -498,7 +476,6 @@ test("1.22 on Linux and macOS, a tool server that started before an update loads
   const run: RunHarness = async (_executable, args) => { if (args[0] === "--version") return "a harness"; throw new Error(`unexpected ${args.join(" ")}`); };
   const connections = { home: user, env: { PATH: "", STORYTREE_HOME: home }, run };
   const options = { installDir: install, home, arch: "x64" as const, platform, searchPath: "", connections };
-  // A build's tools: node, and a tool server that imports its build's hashed chunk only when asked, as the real one loads its tools lazily.
   const build = (into: string, chunk: string) => {
     rmSync(into, { recursive: true, force: true });
     mkdirSync(path.join(into, "chunks"), { recursive: true });
@@ -515,7 +492,6 @@ test("1.22 on Linux and macOS, a tool server that started before an update loads
     writeFileSync(tools.app, "the app");
     const older = (await finishDelivery(options, { launch: async () => {}, waitForApp: async () => {} })).tools;
     await connectAgents({ harnesses: ["claude-code"], installed: installedToolServerCommand(older.node, older.mcp), ...connections });
-    // A session's tool server starts from what the agent's registration names.
     const claude = JSON.parse(readFileSync(path.join(user, ".claude.json"), "utf8")).mcpServers.storytree;
     session = spawn(claude.command, claude.args, { stdio: ["pipe", "pipe", "ignore"] });
     const out: string[] = [];
@@ -525,7 +501,6 @@ test("1.22 on Linux and macOS, a tool server that started before an update loads
     });
     assert.equal(await line(), "ready");
 
-    // An update replaces the installation's tools with the next build's (an AppImage's refresh, or a Mac's new bundle), and its start follows them.
     if (platform === "linux") {
       const bundled = path.join(dir, "mount", "resources", "agent-tools");
       build(bundled, "new");
@@ -560,9 +535,6 @@ test("1.22 a copy is running when a running command line names a file in it, and
   assert.equal(unread("/home/u/.storytree/0.3/app-tools/bbbb"), true, "so a start that cannot tell deletes nothing");
 });
 
-// Injects a host's path module: a module loaded with `?host=win32` or `?host=posix` gets that platform's `node:path`,
-// so code that reads a POSIX `ps` listing with the host's bare `path` fails here on any host, not only on CI's
-// Windows runner (escape_6e7f172abe87).
 registerHooks({
   resolve(specifier, context, next) {
     const host = /[?&]host=(win32|posix)\b/.exec(context.parentURL ?? "")?.[1];
@@ -586,7 +558,6 @@ test("1.22 · a copy is found running in a POSIX process listing whichever host'
 test("1.16: when the launched app cannot come up, the finish step keeps its output and names the cause", async () => {
   const f = fixture();
   const home = f.home;
-  /** A stand-in app: node running `script`, launched the way the finish step launches the real one. */
   const standIn = (script: string) => (_exe: string, at: string) => launch(process.execPath, at, ["-e", script]);
   const fails = async (script: string, timeoutMs = 60_000, before?: () => void) => {
     const launched = await standIn(script)("", home);
@@ -598,7 +569,6 @@ test("1.16: when the launched app cannot come up, the finish step keeps its outp
   const log = path.join(home, "app-launch.log");
   const toolLog = path.join(home, "pgdata.tools.log");
   try {
-    // Through the finish step itself: the app that exits is not waited on for the whole 90 seconds.
     const options = { installDir: f.install, home, arch: "arm64" as const, platform: "win32" as const, searchPath: "" };
     const error = await finishDelivery(options, { launch: standIn('console.error("fuse: failed to open /dev/fuse: Permission denied"); process.exit(127)'), waitForApp })
       .then(() => undefined, (e: Error) => e);
@@ -617,13 +587,11 @@ test("1.16: when the launched app cannot come up, the finish step keeps its outp
     const display = await fails('console.error("Missing X server or $DISPLAY"); process.exit(1)');
     assert.match(display, /display/i);
 
-    // initdb refuses root while the app hands over and exits cleanly: only the database's own log says so.
     const initdb = await fails("process.exit(0)", 2_000, () => writeFileSync(toolLog, "initdb: error: cannot be run as root\n"));
     assert.match(initdb, /did not come up within 2 seconds/);
     assert.match(initdb, /database refuses to run as root/);
     assert.ok(initdb.includes(toolLog));
 
-    // The database's log still holds that refusal; a later launch that fails otherwise is not blamed on it.
     const unknown = await fails('console.error("something nobody has seen before"); process.exit(3)');
     assert.match(unknown, /stopped \(exit code 3\)/);
     assert.match(unknown, /something nobody has seen before/);

@@ -1,4 +1,4 @@
-// Capability 6 · Repeating a change's new tests: the tests a change adds, found from its diff, run several times before they count.
+// Capability 6 · Repeating a change's new tests
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -10,7 +10,6 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { changeNewTests, repeatTests } from "./repeat-new-tests.mjs";
 
-/** A git repository in a fresh folder whose origin/main is its first commit, holding `files`. */
 function repository(t, files) {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "repeat-new-")));
   t.after(() => removeTemp(dir));
@@ -62,8 +61,6 @@ test("6.1 · the tests a change adds are its numbered tests whose titles open on
 
 test("6.2 · each new test runs five times through the test entry, old tests never; a failure among the repeats fails the run naming it flaky, and no new test runs nothing", (t) => {
   const { dir, git } = repository(t, { "a.test.mjs": `import { test } from "node:test";\ntest("1.1 · old", () => { throw new Error("an old test ran"); });\n` });
-  // A stand-in test entry: node's runner on the files and name pattern it is given, keeping each failure in the red runs as a
-  // project's test entry does.
   writeFileSync(path.join(dir, "entry.mjs"), `import { appendFileSync, mkdirSync } from "node:fs";
 import { run } from "node:test";
 const args = process.argv.slice(2);
@@ -78,7 +75,7 @@ for await (const event of stream) {
 }
 `);
   const lines = [];
-  const { NODE_TEST_CONTEXT, ...env } = process.env; // the stand-in's runner reports to its own output, not to this test's runner
+  const { NODE_TEST_CONTEXT, ...env } = process.env;
   const repeat = () => repeatTests({ root: dir, tests: changeNewTests(dir), entry: [path.join(dir, "entry.mjs")], env, print: (line) => lines.push(line) });
 
   assert.equal(repeat(), 0);
@@ -102,7 +99,6 @@ test("1.2 · new (flaky)", () => {
     ["flaky: a.test.mjs › 1.2 · new (flaky) failed 1 of 5 repeats. A new test that does not pass every time is weak: investigate it (ADR-1352), never file it as friction."]);
   assert.ok(!readFileSync(path.join(dir, ".pgtest", "red-runs.jsonl"), "utf8").includes("1.1 · old"));
 
-  // A repeat that fails naming none of the new tests (its process died before any test ended) names their file.
   writeFileSync(path.join(dir, "dies.mjs"), "process.exit(1);\n");
   lines.length = 0;
   assert.equal(repeatTests({ root: dir, tests: changeNewTests(dir), times: 2, entry: [path.join(dir, "dies.mjs")], env, print: (line) => lines.push(line) }), 1);

@@ -1,4 +1,4 @@
-/** Capability 12 · Import an existing project: the import_project tool, as App setup's tool part serves it on the MCP server. */
+// Capability 12 · Import an existing project.
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -13,7 +13,6 @@ import { setupToolParts } from "./tools.js";
 
 type Tool = (args: Record<string, unknown>, call: never) => Promise<{ text: string; refused?: boolean }>;
 
-/** The tools App setup's part registers, by name. */
 function setupTools(): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
   for (const part of setupToolParts) part({}).registerTools!((name, _description, _input, act) => { tools[name] = act as never; });
@@ -22,7 +21,6 @@ function setupTools(): Record<string, Tool> {
 
 test("12.3 · the import_project tool answers a folder that does not exist with the refusal saying there is nothing to import, marked refused, reading nothing", async () => {
   const tools = setupTools();
-  // A call whose library and connection throw on any read but the library's name, the folder's project the call names: the refusal comes first.
   const unread = () => { throw new Error("read"); };
   const call = { library: new Proxy({}, { get: (_library, key) => (key === "name" ? "shop" : unread()) }), storytree: new Proxy({}, { get: unread }), project: "shop", folder: path.resolve("/nowhere-here") } as never;
   const answered = await tools.import_project!({ folder: "gone" }, call);
@@ -105,7 +103,6 @@ test("12.1 · import_project's reply asks the agent to name and describe the cap
 
 test("12.11 · each App setup tool that writes a library, handed a library other than the folder's project, is refused naming the folder's project, reading and writing nothing (ADR-1348 D3)", async () => {
   const tools = setupTools();
-  // The server hands the library the call named, here the factory's; any read of it or the connection throws.
   const unread = () => { throw new Error("read"); };
   const call = { library: new Proxy({}, { get: (_library, key) => (key === "name" ? "shops-factory" : unread()) }), storytree: new Proxy({}, { get: unread }), project: "shop", folder: path.resolve("/nowhere-here") } as never;
   const asked: Record<string, Record<string, unknown>> = { take_starter_pack: {}, move_onto_factory: {}, import_project: { folder: "." }, wire_pipeline: { test: "npm test" } };

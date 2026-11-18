@@ -1,12 +1,7 @@
-// Drive the running storytree window over the Chrome DevTools Protocol (app started with
-// --remote-debugging-port=$CDP_PORT, default 9222). Usage: node cdp.mjs <outDir> <step...>. Copied from
-// the first-build run's harness, with its port taken from CDP_PORT.
-// Steps: shot:<name> | eval:<js> | click:<css> | wait:<ms> | select:<projectName> | typefile:<path> | buttons: | text:<css>
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const ESCAPES = { "<": "\\u003C", ">": "\\u003E", "/": "\\u002F", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t", "\0": "\\0", "\u2028": "\\u2028", "\u2029": "\\u2029" };
-/** `value` as a JavaScript literal for an evaluated expression, with the characters that could end a string written as escapes. */
 const literal = (value) => JSON.stringify(value).replace(/[<>/\b\f\n\r\t\0\u2028\u2029]/g, (char) => ESCAPES[char]);
 
 const [outDir, ...steps] = process.argv.slice(2);
@@ -32,7 +27,6 @@ for (const step of steps) {
     writeFileSync(path.join(outDir, arg + ".png"), Buffer.from(r.result.data, "base64"));
     console.log("shot", arg);
   } else if (kind === "mouse") {
-    // A real mouse click on the first visible button (or select) whose label or text is `arg`, or on a CSS selector prefixed with "css=".
     const find = arg.startsWith("css=")
       ? `document.querySelector(${literal(arg.slice(4))})`
       : `[...document.querySelectorAll("button, select, summary, a")].find((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0 && (b.getAttribute("aria-label") || b.textContent || "").trim() === ${literal(arg)}; })`;
@@ -42,7 +36,6 @@ for (const step of steps) {
     await new Promise((ok) => setTimeout(ok, 700));
     console.log("mouse", arg, "clicked at", Math.round(rect.x), Math.round(rect.y));
   } else if (kind === "at") {
-    // A real mouse click at CSS pixel x,y.
     const [x, y] = arg.split(",").map(Number);
     for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
     await new Promise((ok) => setTimeout(ok, 700));

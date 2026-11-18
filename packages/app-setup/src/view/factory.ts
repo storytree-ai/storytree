@@ -1,12 +1,8 @@
-/** Capability 3 · First-run guide. */
+// Capability 3 · First-run guide.
 import type { FactoryFolder, SetupHelpBridge } from "../help/bridge.js";
 
 type FactoryBridge = Pick<SetupHelpBridge, "factoryFolder" | "chooseFactory">;
 
-/**
- * Your factory, in the app menu's Projects section (question_0b0b82eb8fbc): the folder of your own plugins in use, and
- * "Import or switch factory…", which picks another, set up or validated as first launch does, with no approval asked.
- */
 export function mountFactory(host: HTMLElement, bridge: FactoryBridge): { stop(): void; refresh(): void } {
   const root = document.createElement("div");
   root.className = "setup-help setup-factory";
@@ -39,7 +35,6 @@ export function mountFactory(host: HTMLElement, bridge: FactoryBridge): { stop()
       say(chosen.status === "set up" ? `${chosen.folder} is now your factory, set up for your plugins.` : `${chosen.folder} is now your factory.`);
       refresh();
     }).catch((error: unknown) => {
-      // A refused folder and a failed switch reach the page alike, so both are written down.
       console.error("app-setup factory: the folder could not become the factory", error);
       say(`That folder cannot be your factory: ${messageOf(error)}`, true);
     })

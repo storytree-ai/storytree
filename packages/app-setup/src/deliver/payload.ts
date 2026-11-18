@@ -1,4 +1,4 @@
-/** Capability 1 · Get storytree. */
+// Capability 1 · Get storytree
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -17,14 +17,9 @@ export interface InstalledTools {
 }
 
 const scripts = ["storytree-mcp.mjs", "storytree-hook.mjs", "storytree-setup.mjs", "storytree.mjs", "storytree-deliver.mjs"];
-/** The program the `storytree` command on Windows is made from, beside the scripts (ADR-0854). */
 const launcher = "storytree-launcher.exe";
 const digest = (file: string): string => createHash("sha256").update(readFileSync(file)).digest("hex");
 
-/**
- * Stable across updates: no versioned checkout, npm cache or portable extraction path.
- * On macOS the installation is the .app bundle, whose resources and executable sit under Contents.
- */
 export function toolPaths(installDir: string, platform: NodeJS.Platform = process.platform): InstalledTools {
   const root = path.resolve(installDir);
   const contents = platform === "darwin" ? path.join(root, "Contents") : root;
@@ -32,7 +27,6 @@ export function toolPaths(installDir: string, platform: NodeJS.Platform = proces
   return toolsIn(dir, platform === "win32" ? path.join(root, "storytree-0.3.exe") : path.join(contents, platform === "darwin" ? "MacOS" : "", "storytree-0.3"), platform);
 }
 
-/** Package the whole buildBins output, including lazy imported chunks: Windows needs its node.exe and command launcher, macOS its node. */
 export function writePayloadManifest(dir: string, arch: Architecture, nodeVersion: string, platform: NodeJS.Platform = "win32"): void {
   for (const file of [...(platform === "win32" ? ["node.exe", launcher] : ["node"]), ...scripts]) {
     if (!existsSync(path.join(dir, file))) throw new Error(`Missing payload file: ${file}`);
@@ -51,7 +45,6 @@ export function writePayloadManifest(dir: string, arch: Architecture, nodeVersio
   writeFileSync(path.join(dir, "payload.json"), JSON.stringify({ schema: 1, arch, nodeVersion, files }, null, 2) + "\n");
 }
 
-/** Refuse partial/mismatched payloads before changing the user's launchers or install record. */
 export function verifyPayload(installDir: string, arch: Architecture, platform: NodeJS.Platform = process.platform): InstalledTools {
   const tools = toolPaths(installDir, platform);
   verifyTools(tools.dir, arch, platform);
@@ -59,7 +52,6 @@ export function verifyPayload(installDir: string, arch: Architecture, platform: 
   return tools;
 }
 
-/** A folder of agent tools is whole: its payload.json names every entry point, and every file it lists has that file's digest. */
 function verifyTools(dir: string, arch: Architecture, platform: NodeJS.Platform): void {
   const payload = JSON.parse(readFileSync(path.join(dir, "payload.json"), "utf8")) as {
     schema?: unknown; arch?: unknown; nodeVersion?: unknown; files?: Record<string, unknown>;
@@ -75,7 +67,6 @@ function verifyTools(dir: string, arch: Architecture, platform: NodeJS.Platform)
   }
 }
 
-/** The tools of one folder of agent tools, with the app the installation runs. */
 function toolsIn(dir: string, app: string, platform: NodeJS.Platform): InstalledTools {
   return {
     dir, app, node: path.join(dir, platform === "win32" ? "node.exe" : "node"),
@@ -84,18 +75,9 @@ function toolsIn(dir: string, app: string, platform: NodeJS.Platform): Installed
   };
 }
 
-/**
- * The agents run storytree's tools from a copy under the home, never from the installation: on Windows a node.exe
- * running from the installation folder holds it, and the installer's check waits on it; on Linux and macOS an update
- * replaces the installation's tools, and a session's server would lose the chunks it has not loaded yet (contracts 1.19, 1.22). Each build's
- * copy has a folder of its own, named for its payload, so a session still running an older build's keeps it whole while
- * the next starts this one's. The installation's tools are verified, copied beside and renamed in, so no agent starts
- * from a half-copied folder; a copy already there and whole is reused.
- */
 export function stageTools(installDir: string, home: string, arch: Architecture, platform: NodeJS.Platform = process.platform): InstalledTools {
   const installed = verifyPayload(installDir, arch, platform);
   const build = createHash("sha256").update(readFileSync(path.join(installed.dir, "payload.json"))).digest("hex").slice(0, 16);
-  // Not the home's agent-tools, which keeps a checkout's own builds of main and prunes them (Built commands).
   const dir = path.join(home, "app-tools", build);
   const whole = (): boolean => {
     try { verifyTools(dir, arch, platform); return true; } catch { return false; }
@@ -105,7 +87,6 @@ export function stageTools(installDir: string, home: string, arch: Architecture,
     rmSync(next, { recursive: true, force: true });
     mkdirSync(path.dirname(dir), { recursive: true });
     cpSync(installed.dir, next, { recursive: true });
-    // A damaged copy is moved aside (one still in use cannot be, and the start says so); one another start renamed in meanwhile is kept.
     if (existsSync(dir)) {
       const old = `${dir}.old-${process.pid}`;
       renameSync(dir, old);
@@ -120,14 +101,6 @@ export function stageTools(installDir: string, home: string, arch: Architecture,
   return toolsIn(dir, installed.app, platform);
 }
 
-/**
- * Every copy under the home's app-tools but `keep` goes once no process runs it (contract 1.21). Its node goes first:
- * Windows refuses to delete a node.exe a session or hook still runs, though it lets the folder holding it be moved, so
- * a copy whose node stays keeps every file and is tried again at the next start, and one whose node went can start
- * nothing more. Linux and macOS delete a running program's files under it, so there `running` says which copies a
- * process runs (1.22). Another start's copy still being made (`.next-`) is left alone, and so is one whose folder name
- * `named` finds in an agent's registration or hooks (an agent the start could not re-point, 1.20).
- */
 export function clearOlderTools(home: string, keep: string, remove: (file: string) => void = (file) => rmSync(file, { force: true }), named: (name: string) => boolean = () => false, running: (dir: string) => boolean = () => false): void {
   const root = path.join(home, "app-tools");
   let names: string[];
@@ -138,14 +111,10 @@ export function clearOlderTools(home: string, keep: string, remove: (file: strin
     try {
       for (const node of ["node.exe", "node"]) remove(path.join(dir, node));
       rmSync(dir, { recursive: true, force: true });
-    } catch { /* In use: the next start tries again. */ }
+    } catch {}
   }
 }
 
-/**
- * On Linux and macOS, which folders a process runs from: one is when a running command line names a file in it, as an
- * agent's tool server and hooks are started by their absolute paths. When the process list cannot be read, every folder is.
- */
 export function runningFrom(
   // posix-only: its one caller, deliverTools (delivery.ts), calls it only when the platform is not win32.
   list: () => { status: number | null; stdout: unknown } = () => spawnSync("ps", ["-A", "-ww", "-o", "args="], { encoding: "utf8" }),
@@ -156,13 +125,6 @@ export function runningFrom(
   return (dir) => commands.includes(dir + path.posix.sep);
 }
 
-/**
- * On Linux the installation's agent tools sit beside the AppImage, extracted by the one-liner, since a running
- * AppImage's mount moves; the agents run a copy of them under the home (stageTools). An AppImage that replaced itself
- * still has the old build's tools there, so its next start copies its own (`bundled`, its resources/agent-tools) over
- * them, keeping their paths (contract 1.5), before its agents follow that build. True when it replaced them; tools
- * that already match are left alone.
- */
 export function refreshTools(installDir: string, bundled: string): boolean {
   const { dir } = toolPaths(installDir, "linux");
   const manifest = (from: string): string | undefined => {
@@ -170,7 +132,6 @@ export function refreshTools(installDir: string, bundled: string): boolean {
   };
   const wanted = manifest(bundled);
   if (wanted === undefined || wanted === manifest(dir)) return false;
-  // Copied beside, then swapped in: a hook never starts from a half-copied folder, nor one mixing two builds.
   const next = `${dir}.next-${process.pid}`, old = `${dir}.old-${process.pid}`;
   rmSync(next, { recursive: true, force: true });
   cpSync(bundled, next, { recursive: true });

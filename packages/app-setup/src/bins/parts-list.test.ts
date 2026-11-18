@@ -1,4 +1,4 @@
-/** Capability 18 · Built commands: contract 18.6. Setup's builds pack each host's parts from the list Plugin loader's step writes, never from its code. */
+// Capability 18 · Built commands.
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,7 +13,6 @@ import { partsFromList, writeWithPluginLoader } from "./parts-list.js";
 
 interface Story { readonly name: string; readonly dependencies?: readonly string[]; readonly surfaces?: { readonly ids: readonly string[]; readonly order: number }; readonly files?: Record<string, string> }
 
-/** A folder holding a host that imports #parts/surfaces, with each story installed in its node_modules. */
 function host(t: TestContext, stories: readonly Story[], dependencies = stories.map((story) => story.name)): string {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-parts-list-"));
   t.after(() => removeTemp(root));
@@ -38,7 +37,6 @@ function host(t: TestContext, stories: readonly Story[], dependencies = stories.
   return root;
 }
 
-/** Bundle `entry` in `dir` with the parts list, and import what it exports once the node_modules it came from are gone. */
 async function bundle<T>(dir: string, entry: string, plugin = partsFromList()): Promise<T> {
   writeFileSync(path.join(dir, "src", "entry.js"), entry);
   const outfile = path.join(dir, "out.mjs");
@@ -59,7 +57,6 @@ test("18.6 · a build packs each #parts/<kind> from the parts list Plugin loader
 });
 
 test("18.6 · two hosts in one bundle importing the same #parts/<kind> each get their own parts list's parts", async (t) => {
-  // A story package that is itself a host, mounting its own dependencies' parts, bundled into another host.
   const inner: Story = { name: "@s/inner", dependencies: ["@s/arcs"], files: { "index.js": `import surfaces from "#parts/surfaces";\nexport { surfaces };\n` } };
   const dir = host(t, [arcs, forest, inner]);
   const bundled = await bundle<{ surfaces: { parts: unknown }; inner: { parts: unknown } }>(dir, `import surfaces from "#parts/surfaces";\nimport { surfaces as inner } from "@s/inner";\nexport { surfaces, inner };\n`);
@@ -73,7 +70,6 @@ test("18.6 · a build whose parts list is missing, or out of date with a package
   await assert.rejects(bundle(missing, entry, partsFromList({ write: async () => {} })), /no parts list for .*: Plugin loader's step wrote none/);
   const stale = host(t, [arcs, forest]);
   const changed = path.join(stale, "node_modules", "@s", "arcs", "package.json");
-  // The list is written, then a story's manifest changes under it: an install between the step and the pack.
   const write = async (from: string, file: string) => { await writeWithPluginLoader(from, file); writeFileSync(changed, "{}"); };
   await assert.rejects(bundle(stale, entry, partsFromList({ write })), (error: Error) => error.message.includes(`out of date: ${realpathSync(changed)} changed`));
   const unmapped = host(t, [arcs, forest]);

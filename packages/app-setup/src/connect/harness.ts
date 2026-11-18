@@ -1,4 +1,4 @@
-/** Capability 2 · Connect an agent. The installed harness validates Codex's TOML; no second TOML parser or global CLI edits. */
+// Capability 2 · Connect an agent
 import { execFile } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,7 +11,6 @@ export interface InstalledToolServerCommand {
   readonly command: string;
   readonly args: readonly [string];
 }
-/** Delivery supplies absolute paths to its bundled Node and existing storytree-mcp.mjs. No cwd or project. */
 export function installedToolServerCommand(node: string, server: string): InstalledToolServerCommand {
   if (!path.isAbsolute(node) || !path.isAbsolute(server) || path.basename(server) !== "storytree-mcp.mjs") {
     throw new Error("Use absolute paths to the installed Node and storytree-mcp.mjs.");
@@ -19,10 +18,6 @@ export function installedToolServerCommand(node: string, server: string): Instal
   return { command: node, args: [server] };
 }
 
-/**
- * The registration's command as a copy of storytree's installed tools: an absolute node beside its storytree-mcp.mjs, as each
- * build's own folder of them under the home on Windows. A registration of one is storytree's own, only out of date (2.26).
- */
 export function installedCopy(command: unknown, args: unknown): InstalledToolServerCommand | undefined {
   if (typeof command !== "string" || !Array.isArray(args) || args.length !== 1 || typeof args[0] !== "string") return undefined;
   const server: string = args[0];
@@ -33,8 +28,6 @@ export function installedCopy(command: unknown, args: unknown): InstalledToolSer
 
 export type RunHarness = (executable: "claude" | "codex" | "cursor-agent" | "pi" | "agy", args: readonly string[], options: { cwd: string; env: NodeJS.ProcessEnv }) => Promise<string>;
 export const runHarness: RunHarness = (executable, args, options) => new Promise((resolve, reject) => {
-  // Every word is fixed by this module. On Windows the installed CLI may be an npm .cmd shim.
-  // Installed paths never enter this shell: they are written as JSON/TOML data below.
   const fixed = [executable, ...args];
   if (fixed.some((word) => !/^[a-z-]+$/.test(word))) return reject(new Error("Unexpected harness command"));
   const command = process.platform === "win32" ? (process.env.ComSpec || "cmd.exe") : executable;
@@ -50,7 +43,6 @@ export function read(file: string): string | undefined {
   catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined; throw error; }
 }
 
-/** Refuse a concurrent settings edit; never replace a user's symlink or truncate their file. A new file is its owner's alone (0600). */
 export function save(file: string, before: string | undefined, after: string): void {
   if (before === after) return;
   mkdirSync(path.dirname(file), { recursive: true });
@@ -72,12 +64,7 @@ function object(value: unknown): value is Record<string, unknown> {
 export interface Settings {
   readonly current: unknown;
   compatible(installed: InstalledToolServerCommand): boolean;
-  /** An entry storytree itself wrote that an older connect left out of date; `update` rewrites it. */
   outdated(installed: InstalledToolServerCommand): boolean;
-  /**
-   * An entry that runs another copy of storytree's installed tools, when `installed` is a copy too: connect re-points it
-   * with `update` (2.26). Only connect does: an uninstaller never takes another installation's registration for its own.
-   */
   anotherCopy(installed: InstalledToolServerCommand): boolean;
   add(installed: InstalledToolServerCommand): Promise<void>;
   update(installed: InstalledToolServerCommand): Promise<void>;
@@ -85,11 +72,6 @@ export interface Settings {
   close(): void;
 }
 
-/**
- * A JSON settings file holding its servers under `mcpServers`: Claude Code's ~/.claude.json, and Cursor's ~/.cursor/mcp.json
- * and Pi's <agent folder>/mcp.json, which take the same entry. `own` is what one harness's entry adds: Pi's `exposure`
- * and `description`, which the user may change afterwards without the entry ceasing to be storytree's.
- */
 export function claudeSettings(file: string, own: Readonly<Record<string, unknown>> = {}): Settings {
   const before = read(file);
   const config: unknown = before === undefined ? {} : JSON.parse(before);
@@ -105,10 +87,8 @@ export function claudeSettings(file: string, own: Readonly<Record<string, unknow
     current,
     compatible,
     outdated: () => false,
-    // Another copy of the installed tools is replaced only by a copy: a source build never takes over an installation's entry.
     anotherCopy: (installed) => !compatible(installed) && copy !== undefined && compatible(copy) && installedCopy(installed.command, installed.args) !== undefined,
     async update(installed) {
-      // The user's own changes to the fields a harness lets them change (Pi's exposure) are kept.
       save(file, before, `${JSON.stringify({ ...config, mcpServers: { ...servers, storytree: { ...own, ...(current as object), type: "stdio", command: installed.command, args: installed.args, env: {} } } }, null, 2)}\n`);
     },
     async add(installed) {
@@ -122,14 +102,6 @@ export function claudeSettings(file: string, own: Readonly<Record<string, unknow
   };
 }
 
-/**
- * Codex starts a tool server with only HOME, LANG, LOGNAME, PATH, SHELL and USER (measured with
- * Codex 0.153), so a Codex home other than ~/.codex is
- * handed to it in the registration's env as `home`: without it the server's setup check would
- * register and read hooks in ~/.codex while Codex reads them from its own home.
- * Codex cuts a tool call at 60 s unless the registration says otherwise, and a tool call may
- * run for many minutes, so the registration allows one call CODEX_TOOL_TIMEOUT_SEC.
- */
 const CODEX_TOOL_TIMEOUT_SEC = 1800;
 
 export async function codexSettings(file: string, run: RunHarness, env: NodeJS.ProcessEnv, home?: string): Promise<Settings> {
@@ -155,8 +127,6 @@ export async function codexSettings(file: string, run: RunHarness, env: NodeJS.P
       launches(entry, installed, hand) && object(entry) && typeof entry.tool_timeout_sec === "number" && entry.tool_timeout_sec >= CODEX_TOOL_TIMEOUT_SEC;
     const older = (launched: InstalledToolServerCommand) => launches(current, launched, home) || (home !== undefined && launches(current, launched, undefined));
     const append = async (source: string, installed: InstalledToolServerCommand) => {
-      // JSON's quoted strings/array are also TOML basic strings/array; escape control characters.
-      // Appending a fresh table keeps every existing setting and comment byte-for-byte.
       writeFileSync(staged, `${source}\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(installed.command)}\nargs = ${JSON.stringify(installed.args)}\n${home === undefined ? "" : `env = { CODEX_HOME = ${JSON.stringify(home)} }\n`}tool_timeout_sec = ${CODEX_TOOL_TIMEOUT_SEC}\n`, { mode: 0o600 });
       if (!compatible(JSON.parse(await cli(["get", "storytree", "--json"])), installed, home)) throw new Error("Codex did not accept the installed tool server.");
       save(file, before, readFileSync(staged, "utf8"));
@@ -164,8 +134,6 @@ export async function codexSettings(file: string, run: RunHarness, env: NodeJS.P
     return {
       current,
       compatible: (installed) => compatible(current, installed, home),
-      // Before PR #350 connect handed no custom home over, and before this no tool timeout:
-      // either registration is storytree's own, only older.
       outdated: (installed) => !compatible(current, installed, home) && older(installed),
       anotherCopy: (installed) => {
         const transport = object(current) ? current.transport : undefined;

@@ -1,10 +1,4 @@
-/**
- * Capability 3 · First-run guide. Adding a project (ADR-0752, ADR-0757): the folder the user chose, in the installer's folder step
- * or the app's Add project, becomes a storytree project through the one setup check (capability 6, making.ts),
- * as every other way of adding one does. The choice is the user's explicit yes; a folder that
- * already belongs to a project is left as it is (and put back on this computer's list, if it was
- * removed from it), and a folder the check refuses is said with why.
- */
+// Capability 3 · First-run guide.
 import { execFileSync } from "node:child_process";
 import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -27,27 +21,19 @@ export { ImportRefusedError, importLines, importProject, unimportedPackages, uni
 export type { FileChanges, Imported, ImportOptions, Named, Redrawn } from "./importing.js";
 export { seedStarterPack, STARTER_CHECKS, STARTER_PACK_VERSION, STARTER_ROLES, starterPackStatus, starterRolesIn, takeStarterPack, type StarterPackRecord, type StarterPackStatus, type StarterPackTake } from "./starter-pack.js";
 
-/** The project a folder belongs to, or the name no project has yet to suggest for it. The folder need not exist yet. */
 export type ProjectFolder = { folder: string; project: string } | { folder: string; suggestion: string };
 
 export type AddedProject =
-  /** `brought back`: the folder of a project removed from this computer, which is that project here again. */
   | { status: "set up" | "already a project" | "brought back"; folder: string; project: string; replaced?: string; unreadable?: string[] }
-  /** Another name would do: the message says why this one would not, and suggests one. */
   | { status: "name refused"; folder: string; message: string; suggestion?: string }
-  /** The folder cannot be a project of its own (it is inside, or holds, another project's folder). */
   | { status: "folder refused"; folder: string; message: string };
 
 export interface AddProjectOptions {
-  /** The app's home, where the project choice is recorded. By default, storytreeHome(). */
   readonly home?: string;
-  /** How to reach the library. By default, the running app's (opened when it is closed). */
   readonly open?: (home: string) => Promise<Storytree>;
-  /** A library already open, such as the app's own: used, and left open. */
   readonly library?: Storytree;
 }
 
-/** What `folder` is: the project it belongs to, or the name to suggest, which no project has yet. */
 export async function projectFolder(folder: string, options: AddProjectOptions = {}): Promise<ProjectFolder> {
   const resolved = path.resolve(folder);
   const found = findProject(resolved);
@@ -71,14 +57,12 @@ async function withLibrary<T>(options: AddProjectOptions, use: (storytree: Story
   }
 }
 
-/** Make `folder` (created if missing) project `name`, and the one the app shows. Nothing is made for a folder already in a project, or for one removed from this computer, which brings its project back; a folder whose own marker names a project this library lacks is set up under the marker's name, replacing it. */
 export async function addProject(folder: string, name: string, options: AddProjectOptions = {}): Promise<AddedProject> {
   const resolved = path.resolve(folder);
   const home = options.home ?? storytreeHome();
   const found = findProject(resolved);
   return withLibrary({ ...options, home }, async (storytree) => {
     if (found.project !== undefined) {
-      // The folder's own marker naming a project this library lacks is set up afresh under that name, replacing it (contract 3.17).
       if (found.folder !== resolved || (await storytree.listProjects()).includes(found.project)) {
         keepOnThisComputer(found.project, home);
         return { status: "already a project", folder: resolved, project: found.project };
@@ -86,7 +70,6 @@ export async function addProject(folder: string, name: string, options: AddProje
     }
     const project = found.project ?? name;
     try {
-      // A folder removed from this computer, its project still in the library, is that project again, never a second one (ADR-0757).
       const identities = await storytree.projectIdentities();
       const removed = removedProjects(home).find((each) => each.folder === resolved && identities[each.name] !== undefined && (each.identity === undefined || each.identity === identities[each.name]));
       if (removed !== undefined) {
@@ -95,7 +78,6 @@ export async function addProject(folder: string, name: string, options: AddProje
       }
       mkdirSync(resolved, { recursive: true });
       const { replaced } = await setUpProject({ folder: resolved, project, storytree, storytreeHome: home });
-      // Code only in languages the survey cannot read leaves the map empty of it: the reply says so (3.19, 6.115).
       const unreadable = unreadableOf(await folderLanguages(resolved).catch(() => undefined));
       return { status: "set up", folder: resolved, project, ...(replaced === undefined ? {} : { replaced }), ...(unreadable === undefined ? {} : { unreadable }) };
     } catch (error) {
@@ -110,24 +92,10 @@ export async function addProject(folder: string, name: string, options: AddProje
   });
 }
 
-/**
- * Removing a project added by mistake: the project leaves this computer's list of projects (the app's
- * Projects picker), and every record of it stays in the library, shared with every other machine.
- * Its folder here is freed: its marker is deleted and this machine's trunk record forgotten, so the
- * folder can be set up afresh, and the project comes back here only by joining it on purpose
- * (ADR-0757 D4). A marker git tracks is the user's to change: it is kept and named, so deleting it
- * frees the folder, and until then adding the folder again brings the project back.
- */
 export type RemovedProject =
   | { status: "removed"; project: string; freed?: string; kept?: string }
   | { status: "no such project"; project: string; message: string };
 
-/**
- * `projects` (every project in the library, by the identity of its database) less those removed
- * from this computer. A removed project no longer in the library was deleted (from any computer),
- * so it leaves this computer's list too: a later project of that name has a database of its own, a
- * new project, shown here, even when this computer did not look in between.
- */
 export function projectsOnThisComputer(projects: Readonly<Record<string, string>>, home: string = storytreeHome()): string[] {
   const removed = removedProjects(home);
   const kept = removed.filter((each) => projects[each.name] !== undefined && (each.identity === undefined || each.identity === projects[each.name]));
@@ -137,12 +105,10 @@ export function projectsOnThisComputer(projects: Readonly<Record<string, string>
     .sort();
 }
 
-/** The project the app on this computer shows: its picker's rule over its own list (app 2), so a fallback to the first counts too. */
 export async function projectInView(storytree: Storytree, home: string = storytreeHome()): Promise<string | undefined> {
   return projectOnShow(projectsOnThisComputer(await storytree.projectIdentities(), home), readProjectChoice(path.join(home, "project-choice.json")));
 }
 
-/** Take `project` off this computer's list and free its folder here. Nothing in the library is deleted. */
 export async function removeProject(project: string, options: AddProjectOptions = {}): Promise<RemovedProject> {
   const home = options.home ?? storytreeHome();
   return withLibrary({ ...options, home }, async (storytree) => {
@@ -151,7 +117,6 @@ export async function removeProject(project: string, options: AddProjectOptions 
   });
 }
 
-/** Take `project` off this computer's list and free its folder here. */
 async function freeOnThisComputer(storytree: Storytree, project: string, home: string): Promise<RemovedProject & { status: "removed" }> {
   const machine = machineOf(home).id;
   const trunk = (await trunksOn(storytree, machine)).find((each) => each.project === project);
@@ -171,40 +136,23 @@ async function freeOnThisComputer(storytree: Storytree, project: string, home: s
   return kept ? { status: "removed", project, kept: trunk.folder } : { status: "removed", project, freed: trunk.folder };
 }
 
-/**
- * Deleting a project (ADR-0831): its database is dropped, with every record and all its history,
- * for every computer that uses the library, and it leaves their lists. Only once the user has typed
- * its name; a snapshot into this computer's backups first is the user's choice. Refused for the
- * project in use (the one the app here shows, or the one a command's folder belongs to), and while
- * a live session holds a claim in it.
- */
 export type DeletedProject =
   | { status: "deleted"; project: string; snapshot?: string; freed?: string; kept?: string }
   | { status: "refused" | "no such project"; project: string; message: string };
 
 export interface DeleteProjectOptions extends AddProjectOptions {
-  /** The name the user typed to confirm. */
   readonly confirm: string;
-  /** Whether to write a snapshot into this computer's backups first. */
   readonly snapshot: boolean;
-  /** The project the caller is working in, besides the one the app here shows. */
   readonly inUse?: string;
-  /** The snapshot's time, which names its file. */
   readonly now?: Date;
-  /** The records the parts the host mounts keep for a project outside its library, forgotten with it (ADR-1170 D2): none when no part contributes any. */
   readonly records?: readonly ProjectRecords[] | undefined;
 }
 
-/**
- * Records a part keeps for a project outside its library, as its manifest's `projectRecords` contributes them (code
- * review's QA ledger): this package's own copy of the shape (ADR-1017 D2), so it forgets them without importing that part.
- */
 export interface ProjectRecords {
   readonly name: string;
   forget(server: Storytree, project: string): Promise<void>;
 }
 
-/** Where `project`'s records live and who loses them when it is deleted, in plain words. */
 export function whoLoses(project: string, home: string = storytreeHome()): string {
   const library = readLibrary(home);
   const shared = library.location === "postgres" ? `at ${library.address}` : undefined;
@@ -213,7 +161,6 @@ export function whoLoses(project: string, home: string = storytreeHome()): strin
     : `Deleting “${project}” deletes its plan, notes and whole history from this computer’s library. There is no undo except a snapshot.`;
 }
 
-/** Delete `project`'s records once `confirm` is its name, after a snapshot when asked. */
 export async function deleteProject(project: string, options: DeleteProjectOptions): Promise<DeletedProject> {
   const home = options.home ?? storytreeHome();
   if (options.confirm !== project) return { status: "refused", project, message: `Type the project’s name, “${project}”, to delete it.` };
@@ -232,7 +179,6 @@ export async function deleteProject(project: string, options: DeleteProjectOptio
     let snapshot: string | undefined;
     if (options.snapshot) {
       const backups = path.join(home, "backups"), folder = path.join(backups, project);
-      // Protect both new and existing folders before saving anything.
       for (const dir of [backups, folder]) {
         mkdirSync(dir, { recursive: true, mode: 0o700 });
         if (!lstatSync(dir).isDirectory()) throw new Error(`Backup folder is not a directory: ${dir}`);
@@ -240,7 +186,6 @@ export async function deleteProject(project: string, options: DeleteProjectOptio
       }
       snapshot = path.join(folder, `${(options.now ?? new Date()).toISOString().replace(/[:.]/g, "-")}.json`);
       const contents = `${JSON.stringify(await storytree.snapshot(project))}\n`;
-      // Lock both folders, then create the Windows file exclusively with its DACL before it receives the snapshot.
       if (process.platform === "win32") {
         windowsSnapshotPermissions([...[backups, folder].map(file => ({ file, kind: "directory" as const })), { file: snapshot, kind: "create" }]);
       }
@@ -256,10 +201,6 @@ export async function deleteProject(project: string, options: DeleteProjectOptio
   });
 }
 
-/** Same owner-only policy as automatic backups, owned here by project deletion. The non-propagating
- * directory repair leaves unrelated children alone; each new file has an explicit protected DACL.
- * A failed permission operation aborts deletion, with no chmod fallback on Windows.
- */
 function windowsSnapshotPermissions(entries: { file: string; kind: "directory" | "create" }[]): void {
   const script = `
 $ErrorActionPreference = 'Stop'
@@ -298,9 +239,7 @@ foreach ($entry in $entries) {
   }
 }`;
   const env = { ...process.env };
-  // A parent PowerShell 7's module path can break Windows PowerShell 5's built-in cmdlets.
   for (const key of Object.keys(env)) if (key.toUpperCase() === "PSMODULEPATH") delete env[key];
-  // Starting PowerShell 5 has passed 30 s on a loaded Windows CI runner.
   try {
     execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
     ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
@@ -313,7 +252,6 @@ foreach ($entry in $entries) {
   }
 }
 
-/** The marker `folder` holds, as a path within it: `.storytree/project.json`, or an older project's root `.storytree.json`. */
 export function markerNamed(folder: string): string {
   const marker = markerIn(folder);
   return marker === undefined ? PROJECT_FILE : path.relative(folder, marker).split(path.sep).join("/");
@@ -328,7 +266,6 @@ function markerProject(marker: string): string | undefined {
   }
 }
 
-/** Whether the folder's marker is in git, where deleting it would be a change to the user's repository. */
 function trackedByGit(folder: string, marker: string): boolean {
   try {
     return execFileSync("git", ["ls-files", "--", path.relative(folder, marker)], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim() !== "";

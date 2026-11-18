@@ -1,4 +1,4 @@
-/** Capability 3 · First-run guide. */
+// Capability 3 · First-run guide.
 import { homedir } from "node:os";
 import path from "node:path";
 import { codexHookTrust } from "@storytree/session-management";
@@ -17,10 +17,8 @@ import { openFeedbackDraft } from "../journey-events/feedback.js";
 import { readShippedLicense } from "./license.js";
 
 const SENTENCE_ACTOR = "storytree app (Settings → Projects)";
-/** What the guide says in a copy the installer did not deliver, which has no tools of its own to connect an agent to. */
 const NOT_INSTALLED = "Connecting your coding agents is for installed copies: this copy was not delivered by the storytree installer, so it has no tools of its own to connect them to. Install storytree to connect them, or, to try it from a checkout, use a dev home (`pnpm --filter @storytree/app-setup dev-home`, see packages/app-setup/src/connect/README.md).";
 
-/** `work` on project `name`'s library, opened for it alone and closed after; a project not in the library is refused, never made. */
 async function withProject<T>(storytree: Storytree, name: string, work: (library: Library) => Promise<T>): Promise<T> {
   const library = await storytree.openProject(name, { create: false });
   try {
@@ -30,37 +28,27 @@ async function withProject<T>(storytree: Storytree, name: string, work: (library
   }
 }
 
-/** The anchor's halves that are said, as Settings → Projects shows them. */
 function sentenceOf(anchor: { what?: string | undefined; audience?: string | undefined } | undefined): ProjectSentence {
   return { ...(anchor?.what === undefined ? {} : { what: anchor.what }), ...(anchor?.audience === undefined ? {} : { audience: anchor.audience }) };
 }
 
-/** Platform adapters come from the frame; diagnostics and recovery stay with Session management. */
 export function setupHelpActions(options: {
   licenseFile: string;
   storytreeHome: string;
-  /** Codex's home. By default, CODEX_HOME or ~/.codex. */
   codexHome?: string;
   chooseFolder(): Promise<string | undefined>;
   openExternal(url: string): Promise<void>;
   copyText(text: string): Promise<void>;
-  /** The app's open library, which Add project writes to and Remove reads. */
   library(): Storytree;
-  /** The installed app's own agent tools, used when the installer has recorded none in delivery.json. */
   agentTools?: string;
-  /** Where the agents are looked for and connected. By default, this user's home and environment. */
   connections?: Pick<ConnectionOptions, "home" | "env" | "run"> & { probeTimeoutMs?: number };
-  /** The project records the parts the frame mounts contribute, which Delete forgets with a project. */
   projectRecords?: readonly ProjectRecords[];
 }): SetupHelpBridge {
-  // First launch asks for no factory folder (ADR-1118): with none chosen, storytree's own is made as the app starts.
   makeFactoryFolder(options.storytreeHome);
-  // The tools an agent is connected to: those the installer recorded, else the ones this app carries.
   const installed = () => deliveredCommand(options.storytreeHome, options.agentTools ?? options.storytreeHome);
   return {
     readSetupLicense: () => readShippedLicense(options.licenseFile),
     async agentConnections() {
-      // Codex runs storytree's hooks only once the user trusts them; a hook that has run is the proof (Session management 3.18).
       const codexHome = options.codexHome ?? (process.env.CODEX_HOME || path.join(homedir(), ".codex"));
       const trust = codexHookTrust({ storytreeHome: options.storytreeHome, codexHome });
       const connections: AgentConnection[] = [];
@@ -69,7 +57,6 @@ export function setupHelpActions(options: {
       return connections;
     },
     async agentsToConnect() {
-      // A development copy is told so, not handed the installer's error: its own tools stay out of the user's real home.
       const command = deliveredCommandIfAny(options.storytreeHome, options.agentTools ?? options.storytreeHome);
       if (command === undefined) return { notInstalled: NOT_INSTALLED };
       const found = await agentsOnThisComputer({ probeTimeoutMs: AGENT_SEARCH_SECONDS * 1000, ...options.connections, installed: command });
@@ -83,8 +70,6 @@ export function setupHelpActions(options: {
     async checkSetupFolder() {
       const folder = await options.chooseFolder();
       if (folder === undefined) return null;
-      // With no hook command supplied this is a diagnostic, not a second hook installer.
-      // The returned fixes direct the user to their installed agent session for recovery.
       return (await runSetupCheck({ folder, storytreeHome: options.storytreeHome, openWaitMs: 2_000, unnamedPlugins: () => unnamedPlugins(readStandIns(options.storytreeHome)) })).lines;
     },
     async factoryFolder() {
@@ -93,7 +78,6 @@ export function setupHelpActions(options: {
     async chooseFactory() {
       const folder = await options.chooseFolder();
       if (folder === undefined) return null;
-      // Set up or validated as first launch does, and switched with no approval: the desktop app is recorded instead.
       const chosen = setFactory(folder, options.storytreeHome, { through: "desktop app" });
       return { status: chosen.status, folder: chosen.folder };
     },
@@ -102,8 +86,6 @@ export function setupHelpActions(options: {
       if (folder === undefined) return null;
       const library = options.library();
       const found = await projectFolder(folder, { library });
-      // The folder's own name, unless a project has it already: a second folder never joins it silently (ADR-0757).
-      // A folder already a project is said so, unless its marker names a project this library lacks, set up here afresh.
       const added = await addProject(found.folder, "project" in found ? found.project : found.suggestion, { home: options.storytreeHome, library });
       if (added.status === "name refused" || added.status === "folder refused") throw new Error(added.message);
       return added;

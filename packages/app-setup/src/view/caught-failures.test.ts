@@ -32,7 +32,6 @@ afterEach(async () => {
 });
 
 const failing = (message: string) => async (): Promise<never> => { throw new Error(message); };
-/** The console errors written so far, each as its where-and-what line and the message of the error it carries. */
 const errors = (): [string, string][] => logged.map(([what, error]) => [String(what), error instanceof Error ? error.message : String(error)]);
 function helpBridge(overrides: Partial<SetupHelpBridge> = {}): SetupHelpBridge {
   const unused = failing("Unexpected help bridge call");
@@ -44,7 +43,6 @@ function helpBridge(overrides: Partial<SetupHelpBridge> = {}): SetupHelpBridge {
 }
 const click = (selector: string) => document.querySelector<HTMLButtonElement>(selector)!.click();
 const text = (selector: string) => document.querySelector(selector)!.textContent!;
-/** A failure said where it happens is said as an alert. */
 const alerted = (selector: string) => assert.equal(document.querySelector(selector)!.getAttribute("role"), "alert", selector);
 
 test("3.14 the guide's reads that fail, the connected agents and the agents to connect, are written to the console", async () => {

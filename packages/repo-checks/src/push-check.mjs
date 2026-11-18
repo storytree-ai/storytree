@@ -15,6 +15,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { CODE_FILE, describe, sanitizationHits } from "./codeql-patterns.mjs";
+import { ruleHits } from "./eslint.mjs";
 import { textsOf } from "./leak-scan.mjs";
 
 /** A credential's key: a name that holds a token, secret, password or key. */
@@ -87,6 +88,11 @@ export function machineSecrets({ home = homedir(), sources = MACHINE_CREDENTIALS
   return [...secrets].map(([value, what]) => ({ value, what }));
 }
 
+const patternHits = (file, text) => [
+  ...sanitizationHits(file, text).map((hit) => ({ line: hit.line, said: describe(hit) })),
+  ...ruleHits(file, text).map(({ line, rule, message }) => ({ line, said: `${rule}: ${message}` })),
+];
+
 const occurrences = (texts, value) => texts.reduce((n, text) => n + text.split(value).length - 1, 0);
 
 const ZERO = /^0+$/;
@@ -142,9 +148,9 @@ export function pushProblems({ root, remote, updates, secrets }) {
         const kinds = new Set(secrets.filter(({ value }) => occurrences(added, value) > most((prior) => occurrences(prior, value))).map(({ what }) => what));
         for (const what of kinds) problems.push(`${file} (commit ${commit.slice(0, 10)}) adds the value of ${what}`);
         if (!CODE_FILE.test(file)) continue;
-        const hits = added.flatMap((text) => sanitizationHits(file, text));
-        if (hits.length <= most((prior) => prior.flatMap((text) => sanitizationHits(file, text)).length)) continue;
-        for (const hit of hits) patterns.push(`${file}:${hit.line} (commit ${commit.slice(0, 10)}) ${describe(hit)}`);
+        const hits = added.flatMap((text) => patternHits(file, text));
+        if (hits.length <= most((prior) => prior.flatMap((text) => patternHits(file, text)).length)) continue;
+        for (const { line, said } of hits) patterns.push(`${file}:${line} (commit ${commit.slice(0, 10)}) ${said}`);
       }
     }
   }

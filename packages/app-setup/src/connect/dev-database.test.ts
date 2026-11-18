@@ -13,18 +13,12 @@ import pg from "pg";
 const home = mkdtempSync(path.join(tmpdir(), "storytree dev database "));
 const dataDir = path.join(home, "pgdata");
 const ownerFile = `${dataDir}.owner.json`;
-// pg_ctl as the server runs it: as root (a cloud container), the tools' account, since Postgres refuses root.
 const serverCtl = (...args: string[]) => pgCtl(dataDir, args, { timeoutMs: 15_000 });
-// The cluster is made once, outside each case's deadline, which then times only the entry: on a
-// loaded Windows runner initdb alone took 6-24 s, and one stall held every server ~18 s at once
-// (run 38933803186), so two fresh clusters inside two 60 s cases timed one out (run 38929066683).
 before(() => ensureCluster(dataDir), { timeout: 180_000 });
 after(() => removeTemp(home));
 
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   test(`2.2 a dev home's database answers queries and releases its server on ${signal}`, { timeout: 60_000 }, async (t) => {
-    // Import completion means start() returned and the entry installed its handlers. The owner
-    // record alone is not readiness: local-postgres writes it before it starts the server.
     const bootstrap = `
       process.argv[2] = ${JSON.stringify(home)};
       await import(${JSON.stringify(new URL("./dev-database.ts", import.meta.url).href)});
@@ -53,7 +47,6 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
     assert.deepEqual(ready, ["ready", undefined]);
     const owner = JSON.parse(readFileSync(ownerFile, "utf8")) as { pid: number; port: number };
     assert.equal(owner.pid, child.pid);
-    // It asks for the home's password, which it hands over privately while it runs.
     const handoff = JSON.parse(readFileSync(path.join(`${dataDir}.auth`, "connection.json"), "utf8")) as { user: string; password: string };
     const client = new pg.Client({ host: "127.0.0.1", port: owner.port, user: handoff.user, password: handoff.password, database: "postgres", connectionTimeoutMillis: 30_000 });
     try {

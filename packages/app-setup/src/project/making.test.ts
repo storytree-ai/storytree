@@ -1,11 +1,4 @@
-/**
- * Capability 6 · Make a folder a project: one test per contract 6.1-6.8 in the app setup story (ADR-0969 D3; until then
- * Session management's 1.3, 1.8-1.11, 1.13 and 1.14).
- *
- * The folders are throwaway directories. Setting one up opens its project in the library on the
- * real Postgres `pnpm test` provides; each such project is named with uniqueProjectName() and its
- * database is dropped afterwards, pass or fail.
- */
+// Capability 6 · Make a folder a project.
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -21,15 +14,12 @@ import { takeStarterPack } from "./starter-pack.js";
 import { PRINCIPLES, PROCESSES } from "./starter-notes.js";
 import { ROLES } from "./starter-roles.js";
 
-/** What a project's first commit holds: its .storytree folder, with no machine-local file of it. */
 const STORYTREE_FILES = [".storytree/.gitignore", PROJECT_FILE];
 
-/** The project a lookup found and the folder holding its marker, leaving aside the database identity the marker records. */
 function named(lookup: ProjectLookup): { project: string; folder: string } | ProjectLookup {
   return lookup.project === undefined ? lookup : { project: lookup.project, folder: lookup.folder };
 }
 
-/** Run `body` with a connection to the test server; afterwards close it and drop `projects`' libraries. */
 async function withStorytree(projects: readonly string[], body: (storytree: Storytree) => Promise<void>): Promise<void> {
   const storytree = await connect({ url: testServerUrl() });
   try {
@@ -43,12 +33,10 @@ async function withStorytree(projects: readonly string[], body: (storytree: Stor
   }
 }
 
-/** Two storytree homes stand for two machines: each keeps its own machine identity. */
 function machines(dir: string): { laptop: string; box: string } {
   return { laptop: path.join(dir, "laptop-home"), box: path.join(dir, "box-home") };
 }
 
-/** A refusal of a folder by the one setup check (ADR-0757 D3), with the words it must carry. */
 function folderRefusal(...words: string[]): (error: unknown) => boolean {
   return (error: unknown) => error instanceof Error && error.name === "ProjectFolderError" && words.every((word) => error.message.includes(word));
 }
@@ -116,7 +104,6 @@ test("6.2 a folder that is a project's trunk, inside one, a git worktree of one,
     git(trunk, "worktree", "add", "-q", "-b", "feature", worktree);
     await withStorytree([site, other], async (storytree) => {
       await setUpProject({ folder: trunk, project: site, storytree, storytreeHome: laptop });
-      // The marker is gone (never committed, say): the library's record of the trunk still refuses.
       rmSync(path.join(trunk, PROJECT_FILE));
       const inside = path.join(trunk, "docs");
       mkdirSync(inside);
@@ -157,7 +144,6 @@ test("6.4 a new folder named like an existing project is refused unless it joins
     await withStorytree([project, `${project}-2`], async (storytree) => {
       await setUpProject({ folder: trunk, project, storytree, storytreeHome: laptop });
       assert.equal(await suggestProjectName(other, storytree), `${project}-2`, "the suggestion avoids every existing project");
-      // On another machine too: a matching folder name is never taken as joining.
       await assert.rejects(setUpProject({ folder: other, project, storytree, storytreeHome: box }), folderRefusal(`${project}-2`));
       assert.equal(existsSync(path.join(other, PROJECT_FILE)), false);
       await setUpProject({ folder: other, project: `${project}-2`, storytree, storytreeHome: box });
@@ -217,10 +203,8 @@ test("6.6 a moved trunk is never adopted on sight: it reaches its project only o
   });
 });
 
-/** The six test-quality checks the starter pack leaves out for a user to take in, by title. */
 const STARTER_CHECKS = ["Hidden skip", "Module mock", "Proxy assertion", "Tautological expected value", "Test title without a contract number", "Wall-clock duration"];
 
-/** Every role the starter pack leaves out for a user to take in, by title. */
 const STARTER_ROLE_TITLES = ["blind-reviewer", "change-reviewer", "corpus-investigator", "explorer", "frontend-builder", "librarian", "orchestrator", "story-author"];
 
 test("6.7 setting a new project up gives its factory the bare bones, no role, check or note (ADR-1094 D1), and joining or a retry adds none; each part left out is taken in by its title with the notes it links, and taking every one gives the library, read through its factory, every starter role, the six test-quality checks a review's brief lists, and the notes they stand on", async () => {
@@ -231,7 +215,6 @@ test("6.7 setting a new project up gives its factory the bare bones, no role, ch
     mkdirSync(onLaptop, { recursive: true });
     mkdirSync(onBox, { recursive: true });
     await withStorytree([project, factory], async (storytree) => {
-      // The pack as the library holds it: each role and check by title, every note a role stands on, keeps as a rule or refuses, and every note a check enforces, live.
       const pack = async () => {
         const library = await storytree.openProject(project);
         try {
@@ -251,7 +234,6 @@ test("6.7 setting a new project up gives its factory the bare bones, no role, ch
           await library.close();
         }
       };
-      // What a role stands on, by title: the notes behind its required reading, its rules and what it refuses.
       const standsOn = async (title: string) => {
         const library = await storytree.openProject(project);
         try {
@@ -266,7 +248,6 @@ test("6.7 setting a new project up gives its factory the bare bones, no role, ch
           await library.close();
         }
       };
-      // A first try that fails at its last step (the choice cannot be saved), then the retry.
       const choice = path.join(laptop, "project-choice.json");
       mkdirSync(choice, { recursive: true });
       await assert.rejects(setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop, factory }));
@@ -277,7 +258,6 @@ test("6.7 setting a new project up gives its factory the bare bones, no role, ch
       await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true, factory });
       assert.deepEqual(await pack(), bare, "nor does joining");
 
-      // A guardrail comes back one part at a time (ADR-1094 D2): the explorer and one check, with what they link.
       const take = async (include: readonly string[]) => {
         const library = await storytree.openProject(project);
         try {
@@ -305,7 +285,6 @@ test("6.7 setting a new project up gives its factory the bare bones, no role, ch
         rules: ["Delegate exploration to digest-returning subagents", "Reference, don't restate", "Plain language first", "No claim without evidence"],
         refuse: ["Escalate up when blocked or out of scope"],
       });
-      // The notes no role of storytree's links, which its factory's contents mark in (ADR-1040), each taken by its title.
       const factoryNotes = [
         "principle: Price the deferral",
         "principle: Durable notes carry intent, not implementation surface",
@@ -334,7 +313,6 @@ test("6.7 setting a new project up gives its factory the bare bones, no role, ch
       assert.deepEqual(factoryNotes.filter((note) => !seeded.notes.includes(note)), [], "every note the factory's contents mark in is taken");
       assert.deepEqual((await standsOn("corpus-investigator")).rules.slice(-2), ["The same file in another tree is a different file", "A measured claim carries the method that produced it"]);
 
-      // The project's library holds the checks taken, live, for a review's brief to list.
       const library = await storytree.openProject(project);
       try {
         assert.deepEqual((await library.list("check")).map((check) => check.fields.title).sort(), STARTER_CHECKS);
@@ -368,7 +346,6 @@ test("6.16 the starter pack's user-fork bar and grill-me's liveness check let an
 
 test("6.10 a folder in no git repository gets one, whose first commit holds the project's marker; a folder already in one is left as it is; with no git nothing is made, and with no git identity the repository waits, its marker staged, for the first commit once git has one; the setup goes on", async () => {
   await withTempDir(async (dir) => {
-    // Git reads no config of this machine's: the test chooses the identity, or none.
     const noConfig = path.join(dir, "no-gitconfig");
     writeFileSync(noConfig, "");
     const bare: NodeJS.ProcessEnv = { ...process.env, GIT_CONFIG_GLOBAL: noConfig, GIT_CONFIG_NOSYSTEM: "1" };
@@ -410,7 +387,6 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
     assert.equal(firstCommit(anonymous, { env: signed }), undefined, "a repository with a commit is no longer waiting for its first");
     assert.equal(firstCommit(empty, { env: signed }), undefined);
 
-    // A repository an older setup began, its root marker staged alone, still gets its first commit (ADR-1191 D4).
     const older = path.join(dir, "older");
     mkdirSync(older);
     writeFileSync(path.join(older, ROOT_MARKER_FILE), "{}\n");
@@ -420,7 +396,6 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
     assert.deepEqual(firstCommit(older, { env: signed }), { state: "made" });
     assert.deepEqual(git(older, "show", "--name-only", "--format=", "HEAD").trim().split("\n"), [ROOT_MARKER_FILE]);
 
-    // A repository the user began, with nothing or something else staged, is theirs: storytree commits nothing in it.
     const theirs = project("theirs");
     git(theirs, "init", "-q");
     assert.equal(firstCommit(theirs, { env: signed }), undefined);
@@ -447,7 +422,6 @@ test("6.11 the user's factory is found by its mark: with none of storytree's nam
       const trunked = [first!, second!, plain];
       for (const project of trunked) await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: path.join(dir, project) }, "setup");
       try {
-        // Only these projects are looked at, so no other test's factory is found.
         assert.equal(await userFactory(storytree, shipped, [plain, stray, second!]), second, "found by its mark and its folder, under none of storytree's names");
         assert.equal(await userFactory(storytree, shipped, [second!, first!, plain, stray]), first, "of several, the first by name");
         assert.equal((await storytree.listProjects()).includes(shipped), false, "and no factory is made");
@@ -488,7 +462,6 @@ test("6.11 setting the first project up makes the user's factory, a project with
     for (const folder of folders) mkdirSync(folder);
     const projects = [factory, first, second, before, `${factory}-2`, `${second}-2`];
     await withStorytree(projects, async (shared) => {
-      // Only these projects are listed, so a factory another test brought (marked, with a folder) at the same time is not found.
       const storytree = new Proxy(shared, {
         get: (target, key) => {
           if (key === "listProjects") return async () => (await target.listProjects()).filter((project) => projects.includes(project));
@@ -517,7 +490,6 @@ test("6.11 setting the first project up makes the user's factory, a project with
       assert.deepEqual(await linkOf(factory), made, "neither seeds the factory again");
       assert.equal((await storytree.listProjects()).includes(`${factory}-2`), false, "no second factory is made");
 
-      // A product project holding the name the factory would take leaves it the next free one.
       await setUpProject({ folder: folders[3]!, project: before, storytree, storytreeHome: laptop, factory: second });
       assert.deepEqual((await linkOf(before)).link, { kind: "product", factory: `${second}-2` });
       const next = await linkOf(`${second}-2`);
@@ -533,7 +505,6 @@ test("6.14 setting up a folder whose own marker names a project this library lac
     const home = path.join(dir, "app-home");
     const folder = path.join(dir, "checkout");
     mkdirSync(folder);
-    // A marker committed on another computer, against another library: this one never had the project.
     writeFileSync(path.join(folder, ROOT_MARKER_FILE), `${JSON.stringify({ project: gone, identity: "19697429" })}\n`);
     await withStorytree([gone, other], async (storytree) => {
       const made = await setUpProject({ folder, project: gone, storytree, storytreeHome: home });

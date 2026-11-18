@@ -1,32 +1,26 @@
-/** Capability 3 · First-run guide. */
+// Capability 3 · First-run guide.
 import type { AddedFolder, SetupHelpBridge } from "../help/bridge.js";
 import { unreadableSentence } from "@storytree/map/languages";
 import { ACTIONS } from "@storytree/shown-words";
 
 import { COMMIT_STORYTREE } from "../project/storytree-folder.js";
 
-/** Said on the page the remove and delete views live on when a project leaves this computer's list, so a line naming it is cleared. */
 const PROJECT_GONE = "storytree:project-gone";
 
-/** Say from `from` that `project` left this computer's list, with its own window's event (the page it is on). */
 export function sayProjectGone(from: HTMLElement, project: string): void {
   const page = from.ownerDocument.defaultView;
   if (page !== null) from.dispatchEvent(new page.CustomEvent(PROJECT_GONE, { bubbles: true, detail: project }));
 }
 
-/** What adding a folder made of it, in plain words. */
 export function addedSentence(added: AddedFolder, shown = ""): string {
-  // A folder whose code the map cannot read is told so after what it became (3.19).
   const { unreadable, ...folder } = added;
   if (unreadable !== undefined) return `${addedSentence(folder, shown)} ${unreadableSentence(unreadable)}`;
-  // What was done leads; why a marker's project is new here comes after the step it asks for (3.17).
   if (added.status === "set up" && added.replaced !== undefined) return `Project “${added.project}” is set up in ${added.folder}${shown}. ${COMMIT_STORYTREE} It is new here because its marker named “${added.replaced}”, a project this computer's library does not have.`;
   if (added.status === "set up") return `Project “${added.project}” is set up in ${added.folder}${shown}. ${COMMIT_STORYTREE}`;
   if (added.status === "brought back") return `${added.folder} is project “${added.project}” again, with its records${shown}.`;
   return `${added.folder} is already project “${added.project}”.`;
 }
 
-/** Add a project…, in the app menu's Projects section: the native folder picker, then the new project on show. */
 export function mountAddProject(host: HTMLElement, bridge: Pick<SetupHelpBridge, "addProject">, options: { onAdded(project: string): Promise<void> }): { stop(): void; add(): void } {
   const root = document.createElement("div");
   root.className = "setup-help setup-add-project";
@@ -34,12 +28,10 @@ export function mountAddProject(host: HTMLElement, bridge: Pick<SetupHelpBridge,
   host.append(root);
   const button = root.querySelector<HTMLButtonElement>("[data-add-project]")!;
   const status = root.querySelector<HTMLElement>("[data-add-project-status]")!;
-  /** The project the line names, which leaving this computer's list clears. */
   let named: string | undefined;
   const say = (text: string, failed = false, project?: string) => { status.textContent = text; status.setAttribute("role", failed ? "alert" : "status"); named = project; };
   const gone = (event: Event) => { if (named !== undefined && (event as CustomEvent<string>).detail === named) say(""); };
   root.ownerDocument.addEventListener(PROJECT_GONE, gone);
-  /** The picker, then the project added on show; the app bar's "Add a project…" starts it too. */
   function add(): void {
     if (button.disabled) return;
     button.disabled = true;

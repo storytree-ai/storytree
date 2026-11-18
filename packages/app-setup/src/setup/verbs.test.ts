@@ -1,7 +1,4 @@
-/**
- * Capability 8 · Setup check: the `doctor` and `setup` families the app setup declares for the command line, at their
- * places among `storytree`'s families, and `setup`'s bare verb run beside a stand-in for the installed setup script.
- */
+// Capability 8 · Setup check.
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

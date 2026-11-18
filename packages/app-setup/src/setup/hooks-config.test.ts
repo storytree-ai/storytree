@@ -1,10 +1,4 @@
-/**
- * Capability 2 · Connect an agent: hook registration, the half of connecting an agent the setup check also runs at
- * every session start. Registering storytree's hooks in each harness's own user-level settings (Claude Code, Codex,
- * Cursor, Pi and Antigravity CLI), keeping every setting of the user's own, and taking out exactly what it added.
- *
- * Each test works in a throwaway home (../testing/homes.ts).
- */
+// Capability 2 · Connect an agent.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -43,7 +37,6 @@ test("2.15 in a throwaway home with only the tool server installed, the first se
 
     const claude = readJson(home.claudeSettings);
     assert.deepEqual({ ...claude, hooks: undefined, statusLine: undefined }, { ...CLAUDE_SETTINGS, hooks: undefined, statusLine: undefined }, "Claude Code's other settings are as they were");
-    // The user has no status line of their own, so storytree's is installed: the hook script, run for the status line.
     const statusLine = claude.statusLine as { type: string; command: string };
     assert.equal(statusLine.type, "command");
     assert.ok(statusLine.command.includes(HOOK.script) && statusLine.command.endsWith(" statusline"), statusLine.command);
@@ -54,27 +47,21 @@ test("2.15 in a throwaway home with only the tool server installed, the first se
       ["claude-code", storytreeHooks(claude, HOOK.script, "claude-code"), true],
       ["codex", storytreeHooks(readJson(home.codexHooks), HOOK.script, "codex"), false],
     ] as const) {
-      // Claude Code also says when a command failed, and when a subagent finished, which its end line records (3.55).
       const claudeOnly = harness === "claude-code" ? ["PostToolUseFailure", "SubagentStop"] : [];
       assert.deepEqual(Object.keys(events).sort(), ["PostToolUse", ...claudeOnly, "PreToolUse", "SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"].sort(), harness);
       if (harness === "claude-code") assert.ok(events.SubagentStop?.every((entry) => entry.background), "a subagent's end is recorded in the background");
-      // And after each tool that reads outside text, whose line marks the session's later knowledge writes (3.49).
       const edits = harness === "claude-code"
         ? ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Agent", "Task", "WebFetch", "WebSearch", "mcp__github__get_issue", "mcp__claude_ai_Gmail__read_thread"]
         : ["apply_patch", "Bash", "spawn_agent"];
       for (const tool of edits) assert.ok(runsFor(events.PostToolUse?.[0], tool, anchored), `${harness}: after ${tool}`);
       assert.ok(!runsFor(events.PostToolUse?.[0], "mcp__storytree__open", anchored), `${harness}: not after a storytree tool`);
       if (harness === "claude-code") assert.ok(runsFor(events.PostToolUseFailure?.[0], "Bash", anchored), "after a shell command that failed");
-      // Without Git for Windows, Claude Code runs commands with its PowerShell tool instead of Bash.
       if (harness === "claude-code") {
         const shellBefore = (events.PreToolUse ?? []).find((entry) => entry.background);
         for (const [entry, when] of [[shellBefore, "before"], [events.PostToolUse?.[0], "after"], [events.PostToolUseFailure?.[0], "after a failed"]] as const)
           assert.ok(runsFor(entry, "PowerShell", anchored), `claude-code: ${when} a PowerShell command`);
       }
 
-      // The harness waits for the hook before a storytree tool, so its line is written before the
-      // call reaches the tool server; the one before a shell command never makes the agent wait; and it
-      // waits for the one before a file edit, whose answer may refuse the edit (ADR-0949 D3).
       const before = events.PreToolUse ?? [];
       assert.equal(before.length, 4, `${harness}: four hooks before a tool`);
       const [tools, shell, edit] = [before[0], before.find((entry) => entry.background), before[2]];
@@ -82,16 +69,12 @@ test("2.15 in a throwaway home with only the tool server installed, the first se
       assert.ok(edit?.background === false && edited.every((tool) => runsFor(edit, tool, anchored)) && !runsFor(edit, "Bash", anchored), `${harness}: in the foreground before a file edit, and no other`);
       assert.ok(runsFor(tools, "mcp__storytree__open", anchored) && !runsFor(tools, "Bash", anchored), `${harness}: in the foreground before a storytree tool, and no other`);
       assert.ok(runsFor(shell, "Bash", anchored) && !runsFor(shell, "mcp__storytree__open", anchored), `${harness}: in the background before a shell command, and no other`);
-      // And a guard in the foreground before a shell command, which refuses a kill fed from a process-list search (3.59).
       const shellGuards = before.filter((entry) => entry.guard);
       const shells = harness === "claude-code" ? ["Bash", "PowerShell"] : ["Bash"];
       assert.ok(shellGuards.length === 1 && !shellGuards[0]!.background && shells.every((tool) => runsFor(shellGuards[0], tool, anchored)) && !runsFor(shellGuards[0], edited[0]!, anchored), `${harness}: a guard in the foreground before a shell command, and no other`);
       assert.equal(events.Stop?.[0]?.background, true, `${harness}: in the background at the end of a turn`);
-      // A second, in the foreground, may ask the agent to close out (ADR-0758 D4): the harness reads what it prints.
       assert.equal(events.Stop?.[1]?.background, false, `${harness}: and in the foreground at the end of a turn`);
-      // The one at each prompt adds the project's definitions for the agent, so the harness waits for it.
       assert.equal(events.UserPromptSubmit?.[0]?.background, false, `${harness}: in the foreground at each prompt`);
-      // After a shell command, finished or failed, it waits for a guard that tells the agent of its changes to imported code (ADR-1015).
       for (const event of harness === "claude-code" ? ["PostToolUse", "PostToolUseFailure"] : ["PostToolUse"]) {
         const guards = (events[event] ?? []).filter((entry) => entry.guard);
         const shells = harness === "claude-code" ? ["Bash", "PowerShell"] : ["Bash"];
@@ -119,7 +102,6 @@ test("2.16 a second start changes nothing, and removing storytree takes out exac
     assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
     assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", cursor: "none", pi: "none", antigravity: "none", statusLine: "none" }, "and removing again finds nothing");
 
-    // An install from before the PowerShell tool was matched gets the new matchers at its next setup check.
     registerHooks(home.homes, HOOK);
     const older = readJson(home.claudeSettings);
     const olderHooks = older.hooks as Record<string, HookEntry[]>;
@@ -130,7 +112,6 @@ test("2.16 a second start changes nothing, and removing storytree takes out exac
     assert.ok(runsFor(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code").PostToolUseFailure?.[0], "PowerShell", true), "the older install now hears PowerShell");
     removeHooks(home.homes);
 
-    // A registration from an older install, at another path, is replaced rather than doubled, and the check names the path it replaced.
     const old = path.join(dir, "old", "storytree-hook.mjs");
     registerHooks(home.homes, { ...HOOK, script: old });
     const moved = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
@@ -146,7 +127,6 @@ test("2.16 the built storytree-setup install registers storytree's hooks, and re
     const home = throwawayHome(dir);
     const bin = path.join(dir, ".local", "bin");
     mkdirSync(bin, { recursive: true });
-    // Every home it could reach is inside the throwaway folder, never the real one.
     const env = { PATH: bin, Path: bin, SystemRoot: process.env.SystemRoot ?? "", HOME: dir, USERPROFILE: dir, CLAUDE_CONFIG_DIR: home.homes.claude, CODEX_HOME: home.homes.codex, STORYTREE_HOME: home.storytreeHome };
     const setup = (command: string) => spawnSync(process.execPath, [path.join(bins, "storytree-setup.mjs"), command], { env, encoding: "utf8", timeout: 60_000 });
 
@@ -154,7 +134,6 @@ test("2.16 the built storytree-setup install registers storytree's hooks, and re
     assert.equal(installed.status, 0, installed.stderr);
     assert.match(installed.stdout, /^Claude Code: registered$/m, installed.stdout);
     assert.match(installed.stdout, /^Codex: registered/m, installed.stdout);
-    // The command names its own hook by its real path (on macOS the temporary folder is a link into /private).
     assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), realpathSync(hookScript), "claude-code")).length, 8, "the hook built beside it is registered");
 
     const removed = setup("remove");
@@ -205,7 +184,6 @@ test("2.18 the setup check registers storytree's hooks for Cursor where Cursor's
     const own = { version: 1, hooks: { stop: [{ command: "./mine.sh" }] } };
     writeFileSync(path.join(cursor, "mcp.json"), servers);
     writeFileSync(path.join(cursor, "hooks.json"), JSON.stringify(own));
-    // Cursor's command line, as measured on the owner's laptop (2026-10-12): it says it is logged in whether or not it is.
     fakeTool(bin, "cursor-agent", { "--version": { out: "2026.07.09", code: 0 }, status: { out: "Logged in", code: 0 } });
     const check = () => runSetupCheck({
       folder: dir, hook: HOOK, homes: { ...home.homes, cursor }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, calling: "cursor",
@@ -222,7 +200,6 @@ test("2.18 the setup check registers storytree's hooks for Cursor where Cursor's
     for (const event of ["sessionStart", "sessionEnd", "beforeSubmitPrompt", "beforeMCPExecution", "preToolUse", "postToolUse", "postToolUseFailure", "afterFileEdit", "subagentStart", "stop"]) {
       assert.ok(ours(event).length > 0, `Cursor: at ${event}`);
     }
-    // Cursor waits for every hook: the one before a shell command hands its work on, the one before a file edit answers.
     const [shell, edit] = ours("preToolUse");
     assert.ok(new RegExp(shell!.matcher!).test("Shell") && shell!.command.endsWith(" --background"), "in the background before a shell command");
     assert.ok(new RegExp(edit!.matcher!).test("Write") && !new RegExp(edit!.matcher!).test("Shell") && !edit!.command.includes("--background"), "in the foreground before a file edit, and no other");
@@ -241,7 +218,6 @@ test("2.20 the setup check registers storytree's named hook in Antigravity CLI's
     const gemini = path.join(dir, ".gemini");
     const bin = path.join(dir, "bin");
     for (const folder of [gemini, bin]) mkdirSync(folder);
-    // Antigravity CLI's command line, as measured on the Mint box (2026-10-12): it answers its version signed in or not.
     fakeTool(bin, "agy", { "--version": { out: "1.3.3", code: 0 } });
     const check = () => runSetupCheck({
       folder: dir, hook: HOOK, homes: { ...home.homes, antigravity: gemini }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, calling: "antigravity",
@@ -261,7 +237,6 @@ test("2.20 the setup check registers storytree's named hook in Antigravity CLI's
     assert.equal(removeHooks({ antigravity: gemini }).antigravity, "removed");
     assert.deepEqual(readJson(hooksFile), own, "removing storytree takes out its named hook alone");
 
-    // The hook's path is read out of a command line, quoted with spaces or bare, and a long line of anything else is read at once.
     assert.deepEqual(scriptsIn(['node "C:\\Program Files\\st\\storytree-hook.mjs" codex', "node /a/b/storytree-hook.mjs x /c/storytree-hook.mjs", "/d/storytree-hook.mjs", 7]),
       ["C:\\Program Files\\st\\storytree-hook.mjs", "/a/b/storytree-hook.mjs", "/c/storytree-hook.mjs", "/d/storytree-hook.mjs"]);
     const started = performance.now();
@@ -280,7 +255,6 @@ test("2.19 the setup check installs storytree's Pi extension where Pi's agent fo
     writeFileSync(path.join(pi, "mcp.json"), servers);
     mkdirSync(path.join(pi, "extensions"));
     writeFileSync(path.join(pi, "extensions", "mine.ts"), "export default function () {}\n");
-    // A hook script standing in for storytree's: it notes each run, refuses every edit it is asked about, and asks every settling run to close out.
     const heard = path.join(dir, "heard.jsonl");
     const script = path.join(dir, "tools", "storytree-hook.mjs");
     mkdirSync(path.dirname(script));
@@ -309,7 +283,6 @@ if (process.argv.includes("--close-out-reminder")) process.stdout.write(JSON.str
     assert.equal((await check()).hooks?.pi, "already registered");
     assert.equal(readFileSync(extension, "utf8"), written, "not a byte changed");
 
-    // The extension as Pi loads it: a default export given Pi's API, whose handlers Pi calls with each event and its context.
     const handlers: [string, (event: Record<string, unknown>, ctx: unknown) => Promise<unknown>][] = [];
     const { default: load } = (await import(pathToFileURL(extension).href)) as { default: (pi: unknown) => void };
     load({ on: (event: string, handler: (event: Record<string, unknown>, ctx: unknown) => Promise<unknown>) => void handlers.push([event, handler]) });
@@ -360,7 +333,6 @@ test("2.21 with a Codex that runs tool handlers (0.148 or later), each event the
     const { home, events } = await registered("0.153.4");
     const tool = (group: Group | undefined) => group?.hooks.find((hook) => hook.type === "mcp_tool");
     const delivered = { SessionStart: events.SessionStart?.[0], PreToolUse: events.PreToolUse?.find((group) => group.matcher === "^Bash$"), PostToolUse: events.PostToolUse?.[0], Stop: events.Stop?.[0] };
-    // Only fields every input of the event carries (Codex 0.155's recorded inputs, Session management's fixtures): a missing one fails the handler.
     const common = ["session_id", "cwd", "hook_event_name", "transcript_path"];
     const fields: Record<string, string[]> = {
       SessionStart: [...common, "source"],
@@ -375,13 +347,10 @@ test("2.21 with a Codex that runs tool handlers (0.148 or later), each event the
       const command = group?.hooks.find((hook) => hook.type === "command");
       assert.ok(command?.async === true && command.command?.endsWith(` codex ${AFTER_TOOL}`), `${event}: the command hook beside it, in the background, standing down when the tool recorded the event`);
     }
-    // Codex runs no tool handler at a session's end; before a storytree tool, only a subagent's input names its agent; the prompt hook reaches the library anyway.
     for (const event of ["SessionEnd", "UserPromptSubmit"]) assert.equal(tool(events[event]?.[0]), undefined, event);
     assert.equal(tool(events.PreToolUse?.[0]), undefined, "before a storytree tool");
-    // The hooks the agent waits for, for their answers, are as they were.
     assert.ok(!events.Stop?.[1]?.hooks[0]?.async && !events.PostToolUse?.[1]?.hooks[0]?.async, "the close-out reminder and the shell guard stay in the foreground");
 
-    // A tool handler of the user's own, in a group of storytree's, stays when storytree's hooks go.
     const own = { type: "mcp_tool", server: "mine", tool: "note", input: {} };
     const file = readJson(home.codexHooks) as { hooks: Record<string, Group[]> };
     file.hooks.Stop![0]!.hooks.push(own as Hook);
@@ -397,14 +366,12 @@ test("2.22 Claude Code's registration leaves the mod's own tool calls (hook_even
     await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, calling: "claude-code" });
     const groups = (readJson(home.claudeSettings).hooks ?? {}) as Record<string, HookEntry[]>;
     const ours = (event: string) => (groups[event] ?? []).flatMap((group) => group.hooks.filter((hook) => hook.args?.[0] === HOOK.script).map((hook) => ({ matcher: group.matcher ?? "", hook })));
-    // Claude Code matches a tool's name against the whole matcher, as a regular expression.
     const runs = (matcher: string, tool: string) => new RegExp(`^(?:${matcher})$`).test(tool);
     const [tools] = ours("PreToolUse").filter(({ matcher }) => runs(matcher, "mcp__storytree__open"));
     assert.ok(tools, "a hook before a storytree tool");
     assert.ok(runs(tools.matcher, "mcp__storytree__claim") && !runs(tools.matcher, "mcp__storytree__hook_event"), "before every storytree tool but hook_event");
     assert.ok(runs(tools.matcher, "mcp__storytree__check_setup") && !runs(tools.matcher, "mcp__storytree__heartbeat"), "nor before the mod's heartbeat");
     assert.ok(runs(tools.matcher, "mcp__storytree__hook_events"), "a tool whose name only starts like it is still one");
-    // Every background hook that records a line stands down when the tool recorded its event; the foreground ones look for the note at once.
     const background = Object.keys(groups).flatMap((event) => ours(event).map((one) => ({ event, ...one }))).filter(({ hook }) => hook.async === true);
     assert.deepEqual([...new Set(background.map(({ event }) => event))].sort(), ["PostToolUse", "PostToolUseFailure", "PreToolUse", "SessionStart", "Stop", "SubagentStop"], "the background hooks");
     for (const { hook } of background) assert.ok(hook.args?.includes(AFTER_TOOL), hook.args?.join(" "));

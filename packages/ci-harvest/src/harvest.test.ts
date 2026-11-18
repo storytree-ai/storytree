@@ -21,17 +21,14 @@ const NOW = new Date("2026-11-17T12:00:00Z");
 const REPO = "acme/shop";
 const API = `repos/${REPO}`;
 
-/** A failed run as the harvest lists it. */
 function failed(id: number, fields: Partial<FailedRun> = {}): FailedRun {
   return { id, attempt: 1, workflow: "CI", event: "pull_request", head: `${id}`.padStart(12, "a"), branch: "feature", conclusion: "failure", createdAt: "2026-11-17T08:00:00Z", ...fields };
 }
 
-/** A CI job's log naming `tests` failed in `unit`, as the test runner prints it. */
 function logOf(unit: string, tests: readonly string[]): string {
   return [`2026-11-17T08:01:00Z === ${unit} ===`, ...tests.map((one) => `2026-11-17T08:02:00Z ✖ ${one} (12ms)`), `2026-11-17T08:03:00Z FAIL    ${unit}`].join("\n");
 }
 
-/** The library the harvest writes through, its writes kept: one story owning packages/shop, with contract 2.1 on capability_s. */
 function libraryOf(increments: object[] = [], patterns: object[] = [], arcs: object[] = []) {
   const flakes: Record<string, unknown>[] = [];
   const written: { kind: string; fields: Record<string, any> }[] = [];
@@ -45,13 +42,11 @@ function libraryOf(increments: object[] = [], patterns: object[] = [], arcs: obj
   return { library: library as unknown as Library, flakes, written };
 }
 
-/** A ledger kept in memory. */
 function memoryLedger(): HarvestLedger & { rows: Map<number, string> } {
   const rows = new Map<number, string>();
   return { rows, harvested: async (ids) => new Set(ids.filter((id) => rows.has(id))), mark: async (marked) => { for (const { id, sorted } of marked) if (!rows.has(id)) rows.set(id, sorted); } };
 }
 
-/** GitHub's REST API over `routes`, each route's JSON or text; every route asked is kept. */
 function gitHub(routes: Record<string, unknown>): GitHub & { asked: string[] } {
   const asked: string[] = [];
   const answer = (route: string) => {
@@ -62,7 +57,6 @@ function gitHub(routes: Record<string, unknown>): GitHub & { asked: string[] } {
   return { asked, json: async (route) => answer(route), text: async (route) => String(answer(route)) };
 }
 
-/** Every package a change reaches, by the files it changes: packages/lib's change reaches packages/shop too. */
 const scope = (files: readonly string[]) => {
   const dirs = new Set(files.map((file) => /^(packages\/[^/]+)\//.exec(file)?.[1]).filter((dir): dir is string => dir !== undefined));
   if (dirs.has("packages/lib")) dirs.add("packages/shop");
@@ -91,8 +85,6 @@ test("1.1 · The harvest counts a failed run of a workflow that tests no code, o
     4: [{ name: "verify on Linux", conclusion: "cancelled", steps: 5, log: "" }, { name: "verify on Windows", conclusion: "timed_out", steps: 5, log: "" }],
     5: [{ name: "verify on Linux", conclusion: "failure", steps: 5, log: "2026-11-17T08:00:00Z error TS2322: Type 'string' is not assignable" }],
   };
-  // GitHub lists failed and timed-out runs apart, by the day they were made, a hundred to a page: run 3 in both, run 6
-  // before the window, and the failed runs' ten full pages, the most the harvest reads, repeating run 1.
   const api = (one: FailedRun) => ({ id: one.id, run_attempt: 1, name: one.workflow, event: one.event, head_sha: one.head, head_branch: one.branch, conclusion: one.conclusion, created_at: one.createdAt, pull_requests: one.pr === undefined ? [] : [{ number: one.pr }] });
   const page = (some: FailedRun[]) => ({ workflow_runs: [...some, ...Array.from({ length: 100 - some.length }, () => runs[0]!)].map(api) });
   const listing = gitHub({
@@ -136,7 +128,6 @@ test("1.1 · The harvest counts a failed run of a workflow that tests no code, o
   assert.deepEqual(read, [7], "nor read again, while one GitHub could not be read for is read again");
   assert.match(harvestText(again), /^Harvested 1 failed run \(5 already harvested before\):/);
 
-  // The command: a folder with no GitHub origin has nothing to harvest; one with an origin needs the library's server.
   const harvestVerb = HARVEST_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "ci")!;
   const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
   const folder = mkdtempSync(path.join(tmpdir(), "ci-harvest-"));
@@ -150,13 +141,9 @@ test("1.1 · The harvest counts a failed run of a workflow that tests no code, o
 
 test("1.2 · The harvest sends each flaky failing test of a CI run to its one investigation, sorted by the watcher's own reading", async () => {
   const runs = [
-    // PR #7 changes only packages/web, and its run failed a test in packages/shop: outside what it changes.
     failed(11, { pr: 7 }),
-    // PR #8 changes packages/shop, and its head passed on a rerun.
     failed(12, { pr: 8 }),
-    // PR #9's queue red merged at the head it was red at.
     failed(13, { pr: 9, event: "merge_group", branch: "gh-readonly-queue/main/pr-9-cafe" }),
-    // PR #10 changes packages/shop and is still red, on a test that flaked in run 11 and one already under investigation.
     failed(14, { pr: 10 }),
   ];
   const queueCommit = runs[2]!.head;
@@ -214,9 +201,7 @@ test("1.2 · The harvest sends each flaky failing test of a CI run to its one in
 
 test("1.2 · A failed CI run on no pull request is sorted by the watcher's reading of an empty reach, with no pull request read", async () => {
   const runs = [
-    // A push to main: no pull request, and none looked for.
     failed(31, { event: "push", branch: "main" }),
-    // A pull request run whose branch GitHub finds no pull request for.
     failed(32, { branch: "gone" }),
   ];
   const job = (id: number, test: string) => ({ [`${API}/actions/runs/${id}/attempts/1/jobs?per_page=100`]: { jobs: [{ id: id * 10, name: "verify on Linux", conclusion: "failure", steps: [{}] }] }, [`${API}/actions/jobs/${id * 10}/logs`]: logOf("packages/shop", [test]) });
@@ -251,17 +236,10 @@ test("1.2 · A failed CI run on no pull request is sorted by the watcher's readi
 
 test("1.3 · The harvest records each real failure, and each increment fixing an escape, as one unjudged escape pattern", async () => {
   const runs = [
-    // PR #20 changes packages/shop and packages/lib; red at its first head, green at the next, whose change to packages/lib
-    // reaches packages/shop. Merged since, its run no longer names it: it is found by its branch.
     failed(21, { branch: "b20" }),
-    // PR #22 changes packages/shop; red, then green at a head whose only change since is main's packages/lib, merged into
-    // its branch and none of its own: a flake.
     failed(23, { pr: 22 }),
-    // PR #24 is still red: nothing settles it, so it waits for the next harvest.
     failed(25, { pr: 24 }),
-    // PR #26 is still red at the window's end: recorded unsettled.
     failed(27, { pr: 26, createdAt: "2026-11-11T06:00:00Z" }),
-    // PR #28's queue red at its head e…, which merged only at a new head f… whose change reaches packages/shop.
     failed(29, { pr: 28, event: "merge_group", branch: "gh-readonly-queue/main/pr-28-b0b" }),
   ];
   const job = (id: number, test = "2.1 · totals add up") => ({ [`${API}/actions/runs/${id}/attempts/1/jobs?per_page=100`]: { jobs: [{ id: id * 10, name: "verify on Linux", conclusion: "failure", steps: [{}] }] }, [`${API}/actions/jobs/${id * 10}/logs`]: logOf("packages/shop", [test]) });
@@ -270,7 +248,6 @@ test("1.3 · The harvest records each real failure, and each increment fixing an
     [`${API}/actions/runs?head_sha=${head}&status=success&per_page=100&page=1`]: none,
     [`${API}/pulls/${pr}`]: { merged: false, head: { sha: later?.sha ?? head, ref: `b${pr}` } },
     [`${API}/pulls/${pr}/files?per_page=100`]: files.map((filename) => ({ filename })),
-    // Listed newest first: a later green at a head after the next, which the harvest must not take for the next.
     [`${API}/actions/runs?branch=b${pr}&event=pull_request&status=success&per_page=100&page=1`]: { workflow_runs: later === undefined ? [] : [
       { id: pr * 100 + 2, name: "CI", head_sha: "9".repeat(40), created_at: "2026-11-17T11:00:00Z" },
       { id: pr * 100, name: "CI", head_sha: head, created_at: "2026-11-17T07:00:00Z" },
@@ -280,7 +257,6 @@ test("1.3 · The harvest records each real failure, and each increment fixing an
   const github = gitHub({
     ...job(21), ...job(23, "2.4 · prices show"), ...job(25), ...job(27),
     [`${API}/pulls?head=acme:b20&state=all&per_page=1`]: [{ number: 20 }],
-    // PR #20's files fill thirty pages, the most the harvest reads: its first names both its files.
     ...pull(20, runs[0]!.head, { sha: "c".repeat(40), at: "2026-11-17T10:00:00Z" }, ["packages/shop/src/cart.ts", "packages/lib/src/round.ts", ...Array<string>(98).fill("packages/shop/src/cart.ts")]),
     ...Object.fromEntries(Array.from({ length: 29 }, (_, at) => [`${API}/pulls/20/files?per_page=100&page=${at + 2}`, Array(100).fill({ filename: "packages/shop/src/cart.ts" })])),
     [`${API}/compare/${runs[0]!.head}...${"c".repeat(40)}`]: { files: [{ filename: "packages/lib/src/round.ts" }] },
@@ -331,10 +307,7 @@ test("1.3 · The harvest records each real failure, and each increment fixing an
 test("1.4 · The harvest records each failing test of a red property-checks nightly run as a real failure, its head's green rerun notwithstanding, and a nightly run that only timed out or was cancelled as infra", async () => {
   const NIGHTLY = "Property checks nightly";
   const runs = [
-    // A scheduled run on main that found counterexamples to two property checks; a run by hand at the same head, on
-    // another fresh seed, passed.
     failed(41, { workflow: NIGHTLY, event: "schedule", branch: "main" }),
-    // One that timed out, and one whose only red job was cancelled while another timed out.
     failed(42, { workflow: NIGHTLY, event: "schedule", branch: "main", conclusion: "timed_out" }),
     failed(43, { workflow: NIGHTLY, event: "schedule", branch: "main" }),
   ];
@@ -375,21 +348,16 @@ test("1.4 · The harvest records each failing test of a red property-checks nigh
 test("1.5 · The harvest adds a run's flaky test to an earlier increment, open or landed, whose title names the test and whose body names the run, instead of parking another investigation", async () => {
   const CAPTURE = "2.9 · capture settling awaits each requested frame after invalidating the globe";
   const UNNUMBERED = "a test with no number";
-  // Every run fails outside what it changes (it changes nothing), so each failing test is a flake.
   const failing: Record<number, string> = { 43052546224: CAPTURE, 43052546225: CAPTURE, 43052546226: CAPTURE, 43052546227: UNNUMBERED };
   const runs = Object.keys(failing).map((id) => failed(Number(id), { event: "push", branch: "main" }));
   const facts: HarvestSource["facts"] = async (run) => ({
     jobs: [{ name: "verify on Linux", conclusion: "failure", steps: 1, log: logOf("packages/shop", [failing[run.id]!]) }], reach: new Set(), passedSameHead: false,
   });
   const { library, flakes, written } = libraryOf([
-    // The real incident: a landed investigation of 2.9 whose body names run 43052546224.
     { id: "increment_372f2435eca0", fields: { arc: "arc_aaaaaaaaaaaa", status: "closed", title: "Flaky: desktop 2.9: capture settling browser launch times out", body: "Seen in CI run 43052546224, job 130633358246." } },
-    // Run 43052546225 is named, but the title names test 4.20 (2.9 only in the body), or 12.9 and 2.91, never 2.9.
     { id: "increment_bbbbbbbbbbbb", fields: { arc: "arc_bbbbbbbbbbbb", status: "active", title: "Flaky: desktop 4.20: globe spin stalls", body: "CI run 43052546225; 2.9 failed beside it." } },
     { id: "increment_cccccccccccc", fields: { arc: "arc_cccccccccccc", status: "active", title: "Flaky: desktop 12.9 and 2.91 time out", body: "CI run 43052546225." } },
-    // 2.9 is named, but the run named is 430525462260, not 43052546226.
     { id: "increment_dddddddddddd", fields: { arc: "arc_dddddddddddd", status: "active", title: "Flaky: desktop 2.9 again", body: "CI run 430525462260." } },
-    // The full title of a test with no number, and the run, both in the title.
     { id: "increment_eeeeeeeeeeee", fields: { arc: "arc_eeeeeeeeeeee", status: "active", title: `Flaky: "${UNNUMBERED}" in run 43052546227`, body: "" } },
   ]);
   const counts = await harvest({ library, source: { failedRuns: async () => runs, facts }, ledger: memoryLedger(), watcher: await watcherReading(), now: NOW });

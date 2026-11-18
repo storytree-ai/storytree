@@ -25,8 +25,9 @@ import type { HookLines } from "./hooks.js";
 import { outsideTextLine } from "./outside-text.js";
 import { toolRequestedLine } from "./requests.js";
 
-/** A line of a patch that names a file: the one it adds, updates or deletes, or where it moves one to. */
-const PATCH_FILE = /^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+?)\s*$/;
+/** A line of a patch that names a file: the one it adds, updates or deletes, or where it moves one to (its trailing
+ * white space trimmed by the reader, so no regex backtracks over it). */
+const PATCH_FILE = /^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$/;
 
 export function codexLines(input: Record<string, unknown>): HookLines | undefined {
   const { session_id: session, cwd: folder, hook_event_name: event } = input;
@@ -108,7 +109,7 @@ export function patchEdits(patch: string): { path: string; text?: string }[] {
   for (const line of patch.split(/\r?\n/)) {
     if (line.startsWith("***")) adding = undefined;
     else if (adding !== undefined && line.startsWith("+")) adding.text += `${line.slice(1)}\n`;
-    const file = PATCH_FILE.exec(line)?.[1];
+    const file = PATCH_FILE.exec(line)?.[1]?.trimEnd();
     if (file === undefined || edits.some((edit) => edit.path === file)) continue;
     if (line.startsWith("*** Add File:")) edits.push((adding = { path: file, text: "" }));
     else edits.push({ path: file });
@@ -120,7 +121,7 @@ export function patchEdits(patch: string): { path: string; text?: string }[] {
 function patchFiles(patch: string): string[] {
   const files: string[] = [];
   for (const line of patch.split(/\r?\n/)) {
-    const file = PATCH_FILE.exec(line)?.[1];
+    const file = PATCH_FILE.exec(line)?.[1]?.trimEnd();
     if (file !== undefined && !files.includes(file)) files.push(file);
   }
   return files;

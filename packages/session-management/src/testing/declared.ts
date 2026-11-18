@@ -17,7 +17,7 @@ export const declaredInTests: DeclaredCapabilities = async (_checkout, files, tr
     } catch {
       continue;
     }
-    const number = /^\/\*\*\s*\n\s*\*\s*Capability (\d+) ·/.exec(text)?.[1];
+    const number = /^\/\*\*[^\S\n]*\n\s*\*\s*Capability (\d+) ·/.exec(text)?.[1];
     const capability = story.capabilities.find(({ title }) => /^\s*(\d+)\s*·/.exec(title)?.[1] === number);
     if (number !== undefined && capability !== undefined) placed.set(file, capability.id);
   }

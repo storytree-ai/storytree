@@ -484,8 +484,8 @@ function setupMetadata(folder: string): { name?: string; description?: string } 
   for (const line of config.split(/\r?\n/)) {
     const header = /^\s*\[([^\]]+)\]\s*$/.exec(line);
     if (header !== null) section = header[1]!.trim();
-    const entry = section === "metadata" ? /^(name|description)\s*[=:]\s*(.+?)\s*$/.exec(line) : null;
-    if (entry !== null) found[entry[1] as "name" | "description"] = entry[2]!;
+    const entry = section === "metadata" ? /^(name|description)\s*[=:](.+)$/.exec(line) : null;
+    if (entry !== null) found[entry[1] as "name" | "description"] = entry[2]!.trim();
   }
   return found;
 }
@@ -521,7 +521,7 @@ function yamlPackages(text: string): string[] {
   let inPackages = false;
   for (const line of text.split(/\r?\n/)) {
     if (/^\S/.test(line)) inPackages = /^packages\s*:/.test(line);
-    const entry = inPackages ? /^\s*-\s*(.+?)\s*$/.exec(line.replace(/\s#.*$/, ""))?.[1] : undefined;
+    const entry = inPackages ? /^\s*-(.+)$/.exec(line.replace(/\s#.*$/, ""))?.[1]?.trim() : undefined;
     if (entry !== undefined) entries.push(entry.replace(/^(['"])(.*)\1$/, "$2"));
   }
   return entries;

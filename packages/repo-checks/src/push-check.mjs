@@ -41,7 +41,7 @@ function jsonValues(text) {
 function lineValues(text) {
   const values = linkPasswords(text);
   for (const line of text.split(/\r?\n/)) {
-    const pair = /^\s*(?:export\s+)?["']?([^\s=]+?)["']?\s*(?:=|:(?=\s))\s*["']?([^\s"']+)["']?\s*$/.exec(line);
+    const pair = /^\s*(?:export\s+)?["']?([^\s=]+?)["']?\s*(?:=\s*|:\s+)["']?([^\s"']+)["']?\s*$/.exec(line);
     if (pair !== null && SECRET_KEY.test(pair[1])) values.push(pair[2]);
   }
   return values;

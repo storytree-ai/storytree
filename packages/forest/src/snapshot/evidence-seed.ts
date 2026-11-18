@@ -237,9 +237,21 @@ export function seedProblems(file: string, text: string, withheld: readonly stri
 // Captures: what a harness saves from a run (stream-json transcripts, logs, tables, CPU profiles) and a repository may
 // hold. A capture keeps what the run did; it loses whose machine, account and session it ran in.
 
-/** Each pattern a capture may not carry beyond a seed's, with what takes its place. */
+/** What a capture may not carry beyond a seed's: a connector line from claude mcp list. */
+const CONNECTOR_LINE = "a connector line from claude mcp list";
+
+/** Whether `line` names a claude.ai connector and its address, as claude mcp list prints one (`claude.ai Gmail:
+ * https://…`): read between its colons, so no regex backtracks over it. */
+function namesConnector(line: string): boolean {
+  const parts = line.split(":");
+  return parts.some((part, at) => /\bclaude\.ai [^\n]/.test(part) && /^ https?$/.test(parts[at + 1] ?? "") && parts[at + 2]?.startsWith("//") === true);
+}
+
+/** `text` without each line that names a claude.ai connector, its line break with it. */
+const withoutConnectors = (text: string): string => text.split(/(?<=\n)/).filter((line) => !namesConnector(line)).join("");
+
+/** Each further pattern a capture may not carry beyond a seed's, with what takes its place. */
 const CAPTURE_REDACTIONS: readonly [string, RegExp, string][] = [
-  ["a connector line from claude mcp list", /^[^\n]*\bclaude\.ai [^:\n]+: https?:\/\/[^\n]*(?:\r?\n|$)/gm, ""],
   ["a connector in a status line", /,?\bclaude\.ai [^=,\n"]+=[a-z]+/g, ""],
   ["a session id", /"session_id"\s*:\s*"[^"]*",?/g, ""],
   ["a synced plugin path", /[^\s"']*plugins(?:\\{1,2}|\/)synced(?:\\{1,2}|\/)[^\s"']*/gi, "<synced-plugin>"],
@@ -248,7 +260,7 @@ const CAPTURE_REDACTIONS: readonly [string, RegExp, string][] = [
 
 /** A capture's text with each machine named by its role. */
 function scrubText(text: string, machines: readonly Machine[]): string {
-  let out = text;
+  let out = withoutConnectors(text);
   for (const [, pattern, placeholder] of CAPTURE_REDACTIONS) out = out.replace(pattern, placeholder);
   return redact(out, (_name, role) => role, machines);
 }
@@ -305,6 +317,7 @@ export function captureProblems(file: string, bytes: Uint8Array, machines: reado
   const problems: string[] = [];
   if ((bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff) || bytes.includes(0)) problems.push(`${file} is UTF-16, not UTF-8: ${fix}`);
   const text = captureText(bytes);
+  if (text.split("\n").some(namesConnector)) problems.push(`${file} carries ${CONNECTOR_LINE}: ${fix}`);
   for (const [what, pattern] of CAPTURE_REDACTIONS) {
     pattern.lastIndex = 0;
     if (pattern.test(text)) problems.push(`${file} carries ${what}: ${fix}`);

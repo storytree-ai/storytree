@@ -20,7 +20,7 @@ import { handedOff, HOME } from "./watch.mjs";
 const run = promisify(execFile);
 // posix-only: the pool switch is run on the Mint box (process_761459dc626c B1, B9); the laptop's pool is paused by its pool-stop file alone.
 const ps = async () => (await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout;
-const rowsOf = (table) => table.split("\n").map((line) => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line)).filter(Boolean)
+const rowsOf = (table) => table.split("\n").map((line) => /^\s*(\d+)\s+(\d+)\s+(\S.*|)$/.exec(line)).filter(Boolean)
   .map(([, pid, ppid, args]) => ({ pid, ppid, args }));
 
 /**

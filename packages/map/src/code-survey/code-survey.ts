@@ -67,7 +67,7 @@ const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const DECLARATION = /\.d\.[cm]?ts$/;
 const NUMBERED_TITLE = /^(?:([a-z][a-z0-9-]*)\s+)?(\d+)\.\d+\b/;
 /** Static imports, re-exports and literal dynamic imports: kind, names, specifier. */
-const IMPORT = /\b(import|export)\s+(type\s+)?([^;'"`]*?)\s*\bfrom\s*["']([^"']+)["']|\bimport\s*\(?\s*["']([^"']+)["']/g;
+const IMPORT = /\b(import|export)\s+(type\s+)?(?:([^\s;'"`](?:[^;'"`]*[^\s;'"`])?)\s*)?\bfrom\s*["']([^"']+)["']|\bimport\s*(?:\(\s*)?["']([^"']+)["']/g;
 
 /** Where a reach by types alone ranks: after every reach by a value or by running (ADR-0838 D4). */
 const BY_TYPES = 1000;

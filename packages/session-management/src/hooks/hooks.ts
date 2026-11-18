@@ -99,7 +99,7 @@ export interface HookInput {
   readonly declaredCapabilities?: DeclaredCapabilities;
   /** Which edited files are in a language the map reads, so the gate's refusal of one no capability covers names a step storytree takes for code it draws (ADR-1324). */
   readonly readsCode?: ReadsCode;
-  /** How long the hook after a shell command may wait to ask which changes a yes covers (`--shell-guard`), and the gate before an edit to judge it (`--edit-gate`). By default, each one's own. */
+  /** How long the hook after a shell command may wait to ask which changes a yes covers (`--shell-guard`), the gate before an edit to judge it (`--edit-gate`), and the prompt hook to look up its context. By default, each one's own. */
   readonly guardMs?: number;
   /** The hook process's clock, which its parts are timed on (timing.ts, ADR-1056 D1). Without it, nothing is timed. */
   readonly clock?: HookClock;
@@ -239,7 +239,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     if (asked !== undefined) {
       // The user's own words may carry their yes to changing imported code (contract 3.37); a harness's notice is not theirs.
       const said = isHarnessNotice(asked.prompt) ? undefined : yesSaid(harness, asked, locate, homeOf(locate), failed, guardMs);
-      const [looked, yes] = await Promise.all([withinTime(contextForPrompt(asked)), said, made === undefined ? undefined : writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git)]);
+      const [looked, yes] = await Promise.all([withinTime(contextForPrompt(asked), guardMs), said, made === undefined ? undefined : writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git)]);
       const context = looked?.context;
       if (looked?.report !== undefined) {
         // The report is filed by a copy of this hook, so the prompt does not wait for the library's write.
@@ -703,10 +703,10 @@ async function approved(storytree: Storytree, project: string, folder: string, h
   }
 }
 
-/** `work`'s answer, or undefined if it takes longer than reaching storytree may (the harness waits on this hook). */
-function withinTime<T>(work: Promise<T | undefined>): Promise<T | undefined> {
+/** `work`'s answer, or undefined if it takes longer than `limitMs`, by default as long as reaching storytree may (the harness waits on this hook). */
+function withinTime<T>(work: Promise<T | undefined>, limitMs = CONNECT_TIMEOUT_MS): Promise<T | undefined> {
   let timer: NodeJS.Timeout | undefined;
-  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), CONNECT_TIMEOUT_MS)));
+  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), limitMs)));
   return Promise.race([work.catch(() => undefined), late]).finally(() => clearTimeout(timer));
 }
 

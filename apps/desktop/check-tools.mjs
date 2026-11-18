@@ -1,11 +1,8 @@
-// Run the delivered commands from a temporary user's unrelated folder, with no checkout modules.
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, writeSync } from "node:fs";
 import path from "node:path";
 
-// Each check's time, straight to stdout like the bundle's own steps (tools.mjs), so a check a
-// deadline kills shows as started and not finished.
 function timed(name, run) {
   const started = performance.now();
   observe(`${name} START`);
@@ -19,8 +16,6 @@ function observe(message) {
   try { writeSync(1, `tools: ${message}\n`); } catch { console.log(`tools: ${message}`); }
 }
 
-// This runs beside the delivered entrypoints, outside the checkout. Importing transformers
-// must load the native CPU backend without downloading a model or silently using word ranking.
 export function checkEmbeddingRuntime(node, dir, home, env) {
   const probe = path.join(dir, ".embedding-proof.mjs");
   writeFileSync(probe, `
@@ -47,8 +42,6 @@ export function checkEmbeddingRuntime(node, dir, home, env) {
   } finally { rmSync(probe, { force: true }); }
 }
 
-// An x64 runner can prove that the delivered ARM64 files exist and have ARM64 PE headers,
-// but cannot prove that Windows ARM64 loads them.
 export function checkEmbeddingBinaries(dir, arch) {
   const binaries = path.join(dir, "node_modules", "onnxruntime-node", "bin", "napi-v6", "win32", arch);
   for (const name of ["onnxruntime_binding.node", "onnxruntime.dll"]) {
@@ -79,7 +72,6 @@ export async function checkTools(node, dir, home) {
   const delivery = run("storytree-deliver", ["invalid"]);
   assert.equal(delivery.status, 1, delivery.stderr);
   assert.match(delivery.stderr, /usage:/);
-  // Asking the real server for its tools forces the bundled MCP protocol and imports to load.
   const mcpStarted = performance.now();
   const mcpAt = (message) => observe(`MCP ${message} at ${Math.round(performance.now() - mcpStarted)} ms`);
   await timed("MCP tool listing", () => new Promise((resolve, reject) => {

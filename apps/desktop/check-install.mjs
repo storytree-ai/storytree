@@ -1,7 +1,3 @@
-// Windows packaging proof: install the built NSIS payload, start the installed app's own main once
-// (4.17's start check), prove a sign-in callback reaches it (1.15: through the shell when the build offers sign-in), run its Postgres binaries, verify the shipped license (app setup 4.2), and
-// uninstall. No real app data, update feed or release is used. The release workflow runs it before
-// it publishes, so a release whose installed app cannot start never publishes.
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -12,21 +8,14 @@ import { archiveVersion, fuseMismatches } from "./packaged-app.mjs";
 import { startsCleanly } from "./src/main/start-check.ts";
 
 const release = path.resolve("apps/desktop/release");
-// Each architecture has its own installer; this runner proves its own.
 const installer = readdirSync(release).find((file) => file.endsWith(`-windows-${process.arch}-setup.exe`));
 assert.ok(installer, "NSIS installer was not built");
 assert.equal(process.platform, "win32", "Run this proof on Windows");
 const version = process.env.STORYTREE_RELEASE_VERSION ?? JSON.parse(readFileSync("apps/desktop/package.json", "utf8")).version;
-// Long names: CI's temp folder is given in its 8.3 form (RUNNER~1), which no process path reported by Windows begins with.
 const temp = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-installer-")));
 const installed = path.join(temp, "app with spaces");
 const license = readFileSync("LICENSE");
 
-/**
- * App setup 1.8, through the real NSIS uninstaller, for a temporary user whose home this
- * installation's delivery record owns. Reinstalling (the path every update takes: the old
- * uninstaller runs with --updated) must remove nothing; uninstalling then removes all of it.
- */
 function checkUninstall(tools) {
   const user = path.join(temp, "leaving user");
   const home = path.join(user, ".storytree", "0.3");
@@ -46,12 +35,6 @@ function checkUninstall(tools) {
   writeFileSync(path.join(project, "notes.md"), "the user's work");
   const env = { ...process.env, USERPROFILE: user, STORYTREE_HOME: home, CLAUDE_CONFIG_DIR: claude, CODEX_HOME: path.join(user, ".codex"), LOCALAPPDATA: localAppData };
 
-  // 4.43: the installers' running-app check looks only for storytree-0.3.exe. electron-builder's own
-  // asks PowerShell for every process whose path starts with the install folder's and stops them, so
-  // programs in a folder named like it, beside it (not moved by the update's uninstall), show which ran.
-  // Two, because its query counts matches with .Count, which one CIM object lacks in PowerShell 5.1.
-  // The runner's PSModulePath names PowerShell 7's modules, where 5.1 cannot load Get-ExecutionPolicy
-  // and electron-builder's check falls back to tasklist; a user's has no such entry, so the run drops it.
   const beside = path.join(`${installed}-beside`, "node.exe");
   mkdirSync(path.dirname(beside), { recursive: true });
   copyFileSync(path.join(tools, "node.exe"), beside);
@@ -71,8 +54,6 @@ function checkUninstall(tools) {
   const asks = spawnSync(path.join(tools, "node.exe"), [path.join(tools, "storytree-deliver.mjs"), "uninstall-asks", installed], { encoding: "utf8", env });
   assert.equal(asks.status, 0, `the installation owns the home it delivered: ${asks.stdout}${asks.stderr}`);
 
-  // What `storytree setup uninstall --remove-library` runs. The uninstaller it starts relaunches from a
-  // copy and returns at once, so the proof waits for the app's own files to go.
   const opened = spawnSync(path.join(tools, "node.exe"), [path.join(tools, "storytree-deliver.mjs"), "open-uninstaller", "remove"], { encoding: "utf8", env });
   assert.equal(opened.status, 0, `the uninstall command starts the uninstaller: ${opened.stdout}${opened.stderr}`);
   const deadline = Date.now() + 180_000;
@@ -86,14 +67,6 @@ function checkUninstall(tools) {
   console.log("app setup 1.8 PASS (Windows x64): an update keeps storytree's home and connection; the uninstaller removes the app, home, library, update cache and Claude Code connection, and leaves the project and other settings");
 }
 
-/**
- * 4.46: the first update off a release from before the agents' tool copies. A session that release
- * started still runs its install folder's agent-tools node.exe, and its uninstaller (here, a copy of
- * cmd.exe, which waits on its console whatever it is given) never returns. The setup must stop that
- * node.exe by its path, end the old uninstaller at its time limit, install over the old files, and
- * leave programs beside the folder running. It records the stop, and the next prompt of a session begun
- * before it is told why its storytree tools are gone (Hooks 3.57).
- */
 function checkOldUninstallerBounded(tools, env, neighbours) {
   const toolServer = spawn(path.join(tools, "node.exe"), ["-e", "setInterval(() => {}, 1000)"], { windowsHide: true, stdio: "ignore" });
   const stalled = path.join(temp, "stalled uninstaller", "Uninstall storytree-0.3.exe");
@@ -107,7 +80,6 @@ function checkOldUninstallerBounded(tools, env, neighbours) {
   });
   assert.ok(key, `an uninstall key names ${installed}`);
   execFileSync("reg", ["add", key, "/v", "UninstallString", "/t", "REG_SZ", "/d", `"${stalled}" /currentuser`, "/f"]);
-  // A Claude Code session in a storytree project, begun before the update (Hooks 3.57).
   const project = path.join(temp, "session project");
   mkdirSync(project, { recursive: true });
   writeFileSync(path.join(project, ".storytree.json"), JSON.stringify({ project: "check-install" }));
@@ -125,7 +97,6 @@ function checkOldUninstallerBounded(tools, env, neighbours) {
     assert.ok(existsSync(path.join(installed, "storytree-0.3.exe")));
     const record = path.join(env.STORYTREE_HOME, "tools-stopped");
     assert.ok(existsSync(record) && statSync(record).mtimeMs >= started - 2000, "the setup recorded that it stopped storytree's agent tools, and when");
-    // That session's next prompt runs the new release's hook, from the files the update put in place, and is told.
     const prompt = JSON.stringify({ hook_event_name: "UserPromptSubmit", session_id: `check-install-${process.pid}`, cwd: project, transcript_path: transcript, prompt: "carry on" });
     const told = spawnSync(path.join(tools, "node.exe"), [path.join(tools, "storytree-hook.mjs"), "claude-code"], { input: prompt, encoding: "utf8", env, timeout: 60_000 });
     assert.match(told.stdout, /stopped by a storytree update/, `the interrupted session is told why its tools are gone: ${told.stdout}${told.stderr}`);
@@ -136,7 +107,6 @@ function checkOldUninstallerBounded(tools, env, neighbours) {
   }
 }
 
-/** The environment of a temporary user with an empty storytree home, for starting the installed app as Electron, under CI so it takes its check flags (lifecycle 1.39). */
 function throwawayUser(name) {
   const user = path.join(temp, name);
   const home = path.join(user, ".storytree", "0.3");
@@ -145,14 +115,6 @@ function throwawayUser(name) {
   return { ...env, CI: "true", USERPROFILE: user, STORYTREE_HOME: home, LOCALAPPDATA: path.join(user, "AppData", "Local"), APPDATA: path.join(user, "AppData", "Roaming") };
 }
 
-/**
- * Lifecycle 1.15, in the installed app: under `--callback-check` the first start holds the single-instance
- * lock and reports each sign-in callback a later start hands it, and where it went. A build stamped with a
- * WorkOS client ID offers sign-in, so the first start registers the storytree-auth scheme and the callback
- * is opened through the shell (`start storytree-auth://…`, as a browser's redirect reaches the app); it must
- * reach the sign-in session. An unstamped build registers no scheme, so a second start carries the callback
- * as its argument and the first reports that no sign-in takes it. No live sign-in.
- */
 async function checkCallbackDelivery(env) {
   const exe = path.join(installed, "storytree-0.3.exe");
   const code = "fabricated-code-0f3a";
@@ -171,13 +133,11 @@ async function checkCallbackDelivery(env) {
   try {
     await heard(/callback check: waiting for sign-in callbacks/, "that it was waiting for callbacks");
     const callback = `storytree-auth://callback?code=${code}&state=x`;
-    // cmd.exe /d /s /c "start "" "<callback>"": the quotes keep the callback's & from cmd.
     const second = offered
       ? spawnSync(`start "" "${callback}"`, { env, shell: true, windowsHide: true, timeout: 60_000, encoding: "utf8" })
       : spawnSync(exe, [callback], { env, windowsHide: true, timeout: 60_000, encoding: "utf8" });
     assert.equal(second.status, 0, `${offered ? "the shell opens the callback" : "the second start hands its callback over and exits"}: ${second.error ?? ""}${second.stdout}${second.stderr}`);
     const outcome = offered ? "reached the sign-in session" : "this build offers no sign-in";
-    // The shell hands the callback over normalised, as storytree-auth://callback/?code=…
     await heard(new RegExp(`sign-in callback received: storytree-auth://callback/?; ${outcome}`), `the callback (${outcome})`);
     assert.ok(!said.includes(code), "the report never prints the callback's code");
     const quit = spawnSync(exe, ["--quit"], { env, windowsHide: true, timeout: 60_000 });
@@ -199,11 +159,8 @@ try {
   assert.match(update, /owner: storytree-ai/);
   assert.match(update, /repo: storytree\s/);
   const archive = path.join(installed, "resources", "app.asar");
-  // The packaged app cannot run as Node (contract 4.28): its version is read from its archive, and its fuses from its executable.
   assert.equal(archiveVersion(archive), version);
   assert.deepEqual(await fuseMismatches(path.join(installed, "storytree-0.3.exe")), [], "the packaged app's fuses are set as the build sets them");
-  // The installed app's real main, as Electron, with a throwaway home: it must reach its handlers and
-  // exit 0 in time, with no promise rejection left unhandled (0.3.606 passed every check and died here).
   const cannotStart = await startsCleanly({ execPath: path.join(installed, "storytree-0.3.exe"), args: ["--page-check"], env: throwawayUser("starting user") });
   assert.equal(cannotStart, undefined, `the installed app cannot start: ${cannotStart}`);
   await checkCallbackDelivery(throwawayUser("signing-in user"));
@@ -216,12 +173,10 @@ try {
   assert.equal(JSON.parse(runtime).arch, process.arch);
   assert.match(JSON.parse(runtime).version, /^24\./);
   await checkTools(node, tools, path.join(temp, "fresh user"));
-  // An x64 CI host cannot execute arm64 Node; inspect its PE architecture and manifest instead.
   const armTools = path.join(release, "win-arm64-unpacked", "resources", "agent-tools");
   checkEmbeddingBinaries(armTools, "arm64");
   const armNode = readFileSync(path.join(armTools, "node.exe"));
   assert.equal(armNode.readUInt16LE(armNode.readUInt32LE(0x3c) + 4), 0xaa64, "arm64 payload contains native arm64 Node");
-  // The command launcher (ADR-0854) is built for each payload's own architecture.
   for (const [dir, machine] of [[tools, 0x8664], [armTools, 0xaa64]]) {
     const launcher = readFileSync(path.join(dir, "storytree-launcher.exe"));
     assert.equal(launcher.readUInt16LE(launcher.readUInt32LE(0x3c) + 4), machine, `${dir} carries a command launcher for its architecture`);

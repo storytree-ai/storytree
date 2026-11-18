@@ -26,6 +26,7 @@
     "@storytree/arc-surface": "workspace:*",
     "@storytree/ci-harvest": "workspace:*",
     "@storytree/ci-health": "workspace:*",
+    "@storytree/code-measures": "workspace:*",
     "@storytree/service-host": "workspace:*",
     "@storytree/forest": "workspace:*",
     "@storytree/keys": "workspace:*",

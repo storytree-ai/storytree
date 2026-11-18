@@ -420,6 +420,9 @@ importers:
       '@storytree/ci-health':
         specifier: workspace:*
         version: link:../ci-health
+      '@storytree/code-measures':
+        specifier: workspace:*
+        version: link:../code-measures
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest

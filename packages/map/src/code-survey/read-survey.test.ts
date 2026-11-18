@@ -699,8 +699,22 @@ test("8.35 the survey's Git runs no program its repository's settings name, and 
   };
   const ran = () => readFile(marker, "utf8").catch(() => "");
   const claimLines = async (reading: Promise<Record<string, StorySurvey>>) => (await reading)["story-shop"]?.files[0]?.lines;
-  const fetched = (reader: ReturnType<typeof codeSurveyReader>, lines: number, what: string) =>
-    waitUntil(async () => await claimLines(reader.read(checkout, tree)) === lines, 15_000, what);
+  const fetchSaid = () => {
+    try {
+      git(checkout, "-c", "protocol.allow=never", ...["https", "ssh", "file", "git"].flatMap(name => ["-c", `protocol.${name}.allow=always`]),
+        "fetch", "--quiet", "--no-tags", "--no-auto-maintenance", "--no-recurse-submodules", "--no-write-fetch-head", "origin", "+refs/heads/main:refs/remotes/origin/main");
+      return "it succeeded";
+    } catch (failed) {
+      return String((failed as { stderr?: string }).stderr ?? failed).split("\n").filter(line => line.trim()).slice(0, 2).join(" | ");
+    }
+  };
+  const fetched = async (reader: ReturnType<typeof codeSurveyReader>, lines: number, what: string) => {
+    let last: number | undefined;
+    await waitUntil(async () => (last = await claimLines(reader.read(checkout, tree))) === lines, 10_000, what).catch(async (error: Error) => {
+      const locks = (await readdir(path.join(checkout, ".git"), { recursive: true })).filter(name => name.endsWith(".lock"));
+      throw new Error(`${error.message}; the survey last answered ${last} lines; a fetch run here said: ${fetchSaid()}; locks under .git: ${locks.join(", ") || "none"}`, { cause: error });
+    });
+  };
   try {
     const script = async (name: string, tail = "") => {
       const file = path.join(folder, `${name}.sh`);

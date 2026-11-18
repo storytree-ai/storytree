@@ -1,11 +1,4 @@
-/**
- * Capability 3 · Hooks: Antigravity CLI (contract 3.33).
- *
- * Each input is in the shape the hook documentation shipped inside Antigravity CLI 1.3.3 gives (its
- * builtin agy-customizations skill, docs/hooks.md): camelCase, the same common fields on every event,
- * and no field naming the event, which storytree's registration passes as `--event=<name>`. Not recorded
- * from a live session: agy runs no prompt without a Google sign-in (Mint box, 2026-10-12).
- */
+// Capability 3 · Hooks
 import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
@@ -17,7 +10,6 @@ const SESSION = "ec33ebf9-0cba-4100-8142-c61503f6c587";
 const FOLDER = path.resolve("/work/site");
 const TRANSCRIPT = `/home/dev/.gemini/antigravity-cli/brain/${SESSION}/.system_generated/logs/transcript.jsonl`;
 
-/** The common fields Antigravity sends with every event, and the event storytree's registration names. */
 const sent = (event: string, fields: Record<string, unknown> = {}) => ({
   ...fields, hook_event_name: event, conversationId: SESSION, workspacePaths: [FOLDER], transcriptPath: TRANSCRIPT,
   artifactDirectoryPath: `/home/dev/.gemini/antigravity-cli/brain/${SESSION}`, modelName: "auto",
@@ -55,7 +47,6 @@ test("3.33 in Antigravity the hook answers in Antigravity's own shape: the edit 
   assert.equal(editIn("antigravity", sent("PreToolUse", { toolCall: { name: "run_command", args: { CommandLine: "ls" } }, stepIdx: 5 })), undefined);
 
   assert.deepEqual(JSON.parse(refusalAnswer("antigravity", "held by another session")), { decision: "deny", reason: "held by another session" });
-  // Outside any storytree project the hook writes nothing, and still answers in JSON.
   const outside = JSON.stringify({ ...sent("Stop"), hook_event_name: undefined, workspacePaths: [path.resolve("/nowhere/at/all")] });
   assert.equal(await runHook({ argv: ["antigravity", "--event=Stop"], input: outside, locate: { home: path.resolve("/nowhere/home") } }), "{}");
 });

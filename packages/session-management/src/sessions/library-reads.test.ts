@@ -1,7 +1,4 @@
-/**
- * Capability 4 · Sessions: what the library sent each reader on a day, read back per machine (increment_28a5cea44ef7).
- * Totals go to the real agent activity log on the Postgres `pnpm test` provides.
- */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -30,14 +27,13 @@ test("4.45 · a day's library reads read back by machine, or for one: each machi
     assert.match(await libraryReads(log, { machine, day: "2001-01-01" }), /No library reads recorded on 2001-01-01/);
     await assert.rejects(libraryReads(log, { day: "2026-13-45" }), RangeError, "a day that is no day is refused");
 
-    // Every machine's readers, each machine under its own total.
     const box = await openActivityLog(testServerUrl(), { machine: `${machine}-box` });
     try {
       takeReads();
       giveBackReads([{ reader: "tool show_plan", bytes: 3_000_000_000, statements: 9 }, { reader: "hook Stop", bytes: 500, statements: 1 }]);
       await box.reads.record();
     } finally {
-      takeReads(); // the test's own reads stay off the box's totals
+      takeReads();
       await box.close();
     }
     const all = await libraryReads(log);

@@ -1,8 +1,3 @@
-/**
- * Contract 9.8 · a Claude Code reading's composition in four groups (arc_895e232031b0). The
- * transcript is written in the shapes Claude Code 2.1.283 writes: `attachment` records typed by
- * `attachment.type`, message blocks typed by `type`, a tool's result naming its call's id.
- */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -42,13 +37,11 @@ test("9.8 a Claude Code reading splits its context into Injected, Grounding, Imp
     { type: "attachment", attachment: hook },
     { type: "attachment", attachment: unknown },
     user(prompt),
-    // The first own request: 20,000 tokens resident, most of it the system prompt and tool list no line records.
     assistant([thinking, ...calls], { input_tokens: 2_000, cache_read_input_tokens: 0, cache_creation_input_tokens: 18_000 }),
     user(results),
     user([orphan]),
     user([meta], { isMeta: true }),
     { type: "last-prompt", lastPrompt: "bookkeeping, never counted" },
-    // A subagent's own window: left out whatever it holds.
     { ...user([result("sidechain", 50_000)]), isSidechain: true },
     assistant([prose], { input_tokens: 10, cache_read_input_tokens: 30_000, cache_creation_input_tokens: 0 }),
   );
@@ -64,7 +57,6 @@ test("9.8 a Claude Code reading splits its context into Injected, Grounding, Imp
   });
 });
 
-/** A Codex rollout line, in the shapes Codex 0.155 writes: a `type` and a `payload`. */
 const item = (payload: Record<string, unknown>) => ({ type: "response_item", payload });
 const exec = (id: string, source: string) => ({ type: "custom_tool_call", call_id: id, name: "exec", input: source });
 const shell = (command: string): string => `const r = await tools.exec_command({"cmd":${JSON.stringify(command)},"workdir":"C:\\\\w"}); text(r.output);`;
@@ -83,7 +75,6 @@ test("9.8 a Codex reading splits its context into the same four groups: base ins
     exec("patch", "const r = await tools.apply_patch(\"*** Begin Patch\\n*** End Patch\"); text(r);"),
     exec("script", "text(ALL_TOOLS.length);"),
   ];
-  // The test cell outlives its call and names its cell; `wait` polls that cell.
   const wait = { type: "function_call", call_id: "wait", name: "wait", arguments: "{\"cell_id\":\"4\"}" };
   const outputs = [output("read", "Script completed\n" + "r".repeat(3_000)), output("test", "Script running with cell ID 4\n"), output("patch", "p".repeat(200)), output("script", "12")];
   const waited = { type: "function_call_output", call_id: "wait", output: "Exit code: 0\n" + "t".repeat(1_500) };
@@ -100,7 +91,6 @@ test("9.8 a Codex reading splits its context into the same four groups: base ins
     { type: "event_msg", payload: { type: "item_completed", item: { type: "UserMessage", content: [{ type: "text", text: "Split the bars" }] } } },
     item(reasoning),
     ...calls.map(item),
-    // The first request: 15,000 tokens resident, part of it the tool list and world state no line records as sent.
     counted(15_000),
     { type: "token_usage_record", payload: { usage: { input_tokens: 15_000 } } },
     ...outputs.map(item),
@@ -123,7 +113,6 @@ test("9.8 a Codex reading splits its context into the same four groups: base ins
   });
 });
 
-/** A PNG's first bytes, naming its size, then `size` bytes of body: base64 as the harness writes it. */
 const png = (width: number, height: number, size: number): string => {
   const head = Buffer.alloc(24);
   head.writeUInt32BE(0x89504e47, 0);
@@ -136,7 +125,6 @@ const png = (width: number, height: number, size: number): string => {
 };
 
 test("9.8 a screenshot a session reads counts at what the model pays for its pixels, not at its base64 length, in Claude Code and Codex readings alike", () => {
-  // A 1920×1080 screenshot, about 660K characters of base64: the length alone would read as ~170K tokens.
   const shot = png(1920, 1080, 490_000);
   const claude = claudeCodeComposition(jsonl(
     user("Look at it"),

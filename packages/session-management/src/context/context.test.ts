@@ -1,10 +1,4 @@
-/**
- * Capability 9 · Context readings: contracts 9.1-9.3 and 9.5-9.7 in Session management
- * story. The transcripts are written line by line in the shapes Claude Code 2.1.283 and Codex 0.155
- * write them (a Claude Code assistant line's `message.usage` under its `requestId`; a Codex
- * `event_msg` of type `token_count`); the lines naming each session's transcript go to the real
- * agent activity log on the Postgres `pnpm test` provides.
- */
+// Capability 9 · Context readings
 import assert from "node:assert/strict";
 import { appendFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -19,7 +13,6 @@ import type { Line } from "@storytree/library";
 import { transcriptLines } from "./context.js";
 import { CONTEXT_READING } from "./verbs.js";
 
-/** One Claude Code assistant line: a request's usage, as the harness records it. */
 function claudeLine(requestId: string, usage: { input: number; read: number; created: number }, extra: Record<string, unknown> = {}): string {
   return JSON.stringify({
     type: "assistant",
@@ -35,7 +28,6 @@ function claudeLine(requestId: string, usage: { input: number; read: number; cre
   });
 }
 
-/** One Codex token count, as its rollout records it. */
 function codexLine(input: number): string {
   return JSON.stringify({
     type: "event_msg",
@@ -50,7 +42,6 @@ test("9.1 a Claude Code transcript reads the session's own latest request: input
     JSON.stringify({ type: "user", message: { role: "user", content: "go" } }),
     claudeLine("req_1", { input: 10, read: 1_000, created: 200 }),
     claudeLine("req_2", { input: 12_000, read: 300_000, created: 5_000 }),
-    // One request, written across several lines (one per content block): counted once.
     claudeLine("req_2", { input: 12_000, read: 300_000, created: 5_000 }),
     claudeLine("req_3", { input: 1, read: 900_000, created: 0 }, { isSidechain: true }),
     JSON.stringify({ type: "assistant", message: { model: "<synthetic>", role: "assistant", usage: { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }),
@@ -73,7 +64,6 @@ test("9.3 a Codex rollout reads its last token count's input tokens as tokens us
   assert.deepEqual(codexTokens(text), { tokens: 40_210 });
 });
 
-/** One Pi message line, as Pi 1.1.0 writes its session file: an assistant message carries its request's usage. */
 function piLine(role: string, extra: Record<string, unknown> = {}): string {
   return JSON.stringify({ type: "message", id: `m${Math.random()}`, timestamp: "2026-10-11T23:47:32.749Z", message: { role, content: [], ...extra } });
 }
@@ -85,7 +75,6 @@ test("9.16 a Pi session's reading is its last own assistant message's total toke
     piLine("user"),
     piLine("assistant", { usage: piUsage(2_042, 15, 0, 2_042, 4_099), stopReason: "toolUse" }),
     piLine("toolResult"),
-    // No totalTokens: the four parts, summed.
     piLine("assistant", { usage: piUsage(64, 1, 2_042, 65), stopReason: "stop" }),
     piLine("assistant", { usage: piUsage(90_000, 0, 0, 0, 90_000), stopReason: "aborted" }),
     piLine("assistant", { usage: piUsage(0, 0, 0, 0, 0), stopReason: "stop" }),
@@ -98,7 +87,6 @@ test("9.16 a Pi session's reading is its last own assistant message's total toke
   assert.deepEqual("absent" in none ? none.absent : none, "the session file holds no assistant message's usage");
 });
 
-/** Run `body` with the log open on the test server, a fresh project to write in, and a throwaway folder. */
 async function withProject(body: (log: ActivityLog, project: string, dir: string) => Promise<void>): Promise<void> {
   const log = await openActivityLog(testServerUrl());
   try {
@@ -120,17 +108,14 @@ test("9.5 a session's reading is worked out when asked, from the transcript last
 
     const first = await readContext(log, project, "S", { now: new Date("2026-09-28T02:00:00.000Z"), home: dir });
     assert.deepEqual(first, { session: "S", harness: "claude-code", tokens: 1_100,
-      // No record before its one request: all 1,100 tokens are the system prompt and tool list (9.8).
       composition: { injected: 1_100, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 },
       guidance: { value: 600_000, source: "default", position: "under" },
       at: "2026-09-28T02:00:00.000Z", source: mine });
 
-    // The transcript grew with no turn ended and no hook fired: the next ask sees it.
     appendFileSync(mine, jsonl(claudeLine("req_2", { input: 200, read: 50_000, created: 800 })));
     const grown = await readContext(log, project, "S");
     assert.equal("tokens" in grown && grown.tokens, 51_000);
 
-    // Nothing recorded for a session: an absence, and no other session's transcript stands in.
     const none = await readContext(log, project, "U", { now: new Date("2026-09-28T02:00:00.000Z") });
     assert.deepEqual(none, { session: "U", absent: "no hook has named this session's transcript", at: "2026-09-28T02:00:00.000Z" });
   });
@@ -142,7 +127,6 @@ test("9.17 a Claude Code subagent's reading comes from its own transcript beside
     const own = path.join(dir, "P", "subagents", "agent-a1.jsonl");
     writeFileSync(parent, jsonl(claudeLine("req_1", { input: 100, read: 1_000, created: 0 }), claudeLine("req_s", { input: 1, read: 900_000, created: 0 }, { isSidechain: true })));
     mkdirSync(path.dirname(own), { recursive: true });
-    // Every record of a subagent's own file is a sidechain record, as Claude Code 2.1.284 writes it.
     writeFileSync(own, jsonl(
       JSON.stringify({ type: "user", isSidechain: true, agentId: "a1", message: { role: "user", content: "Find the reader" } }),
       claudeLine("req_a", { input: 2, read: 37_000, created: 1_300 }, { isSidechain: true, agentId: "a1", message: { model: "claude-sonnet-5-5", role: "assistant", content: [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: "context.ts" } }], usage: { input_tokens: 2, cache_read_input_tokens: 37_000, cache_creation_input_tokens: 1_300 } } }),
@@ -174,7 +158,6 @@ test("9.19 · A reading takes its tokens, window and percentage from the session
     await log.append(project, { ...common, session: "S", kind: "session-started", transcript });
     const now = new Date("2026-10-17T10:00:00.000Z");
 
-    // The mod's figure, newer than the transcript's: its tokens, window and percent; what they are made of, still the transcript's.
     await log.append(project, { ...common, session: "S", kind: "usage-measured", context: { tokens: 50_000, window: 200_000, percent: 25 }, rateLimits: [] });
     const live = await readContext(log, project, "S", { now, home: dir });
     assert.ok("tokens" in live);
@@ -182,18 +165,15 @@ test("9.19 · A reading takes its tokens, window and percentage from the session
     assert.ok(!("absent" in live.composition), "the composition is the transcript's");
     assert.deepEqual(live.guidance, { value: 600_000, source: "default", position: "under" }, "judged on the mod's tokens");
 
-    // Before a response reported the fill: the transcript's tokens, as a share of the window the mod named.
     await log.append(project, { ...common, session: "S", kind: "usage-measured", context: { window: 200_000 }, rateLimits: [] });
     const windowOnly = await readContext(log, project, "S", { now, home: dir });
     assert.ok("tokens" in windowOnly);
     assert.deepEqual([windowOnly.tokens, windowOnly.window, windowOnly.percent], [1_100, 200_000, 1]);
 
-    // A session no mod reported for reads as before: no window, no percent (9.5).
     await log.append(project, { ...common, session: "T", kind: "session-started", transcript });
     const plain = await readContext(log, project, "T", { now, home: dir });
     assert.ok("tokens" in plain && plain.tokens === 1_100 && !("window" in plain) && !("percent" in plain));
 
-    // A mod that stopped reporting: its last figure, older than the transcript's latest line by more than two report periods, gives way.
     const at = (iso: string, line: Record<string, unknown>, seq: number) => ({ ...common, ...line, session: "U", project, seq, at: iso }) as unknown as Line;
     const stale = [
       at("2026-10-17T09:00:00.000Z", { kind: "usage-measured", context: { tokens: 90_000, window: 200_000, percent: 45 }, rateLimits: [] }, 1),
@@ -201,7 +181,6 @@ test("9.19 · A reading takes its tokens, window and percentage from the session
     ];
     const fallen = await contextReading(stale, "U", { now, home: dir });
     assert.ok("tokens" in fallen && fallen.tokens === 1_100 && !("window" in fallen));
-    // While current, it stands even with no transcript to read.
     const unread = await contextReading([stale[0]!], "U", { now, home: dir });
     assert.ok("tokens" in unread);
     assert.deepEqual([unread.tokens, unread.percent, unread.composition], [90_000, 45, { absent: "no hook has named this session's transcript" }]);
@@ -276,7 +255,6 @@ test("9.15 `storytree context` reads the session STORYTREE_SESSION_ID names and 
     mkdirSync(folder);
     writeMarker(folder, `${JSON.stringify({ project })}\n`);
     await approveCheckout(folder, project, dir);
-    // A Claude-shaped transcript, named by a harness storytree does not know: it has no figure.
     const transcript = path.join(dir, "cursor.jsonl");
     writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 2_000, read: 0, created: 0 })));
     await log.append(project, { session: "C", harness: "cursor", source: "hook", folder, kind: "session-started", transcript });
@@ -306,13 +284,11 @@ test("9.7 a reading states fresh default or set guidance, including under, at an
     };
     const first = await read(317_000);
     assert.deepEqual(first.guidance, { value: 600_000, source: "default", position: "under" });
-    // Nothing recorded before its one token count: all of it is the unrecorded tool list and world state (9.8).
     assert.deepEqual("composition" in first && first.composition, { injected: 317_000, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 });
     setSetting("context-guidance", "400000", home);
     for (const [tokens, position] of [[317_000, "under"], [400_000, "at"], [450_000, "past"]] as const) {
       assert.deepEqual((await read(tokens)).guidance, { value: 400_000, source: "set", position });
     }
-    // A running session sees a settings change on its next reading.
     setSetting("context-guidance", "500000", home);
     assert.deepEqual((await read(450_000)).guidance, { value: 500_000, source: "set", position: "under" });
     const file = path.join(home, "settings.json");
@@ -356,8 +332,6 @@ test("9.7 the context command states guidance and its source, exits 0 under and 
       assert.deepEqual(JSON.parse(json.text).guidance, { value: 400_000, source: "set", position });
     }
 
-    // A settings file whose guidance is unusable still routes (routing reads only the library
-    // setting), so the command gives the tokens and says why the guidance could not be read.
     writeFileSync(path.join(home, "settings.json"), '{"context-guidance":"four hundred"}');
     const damaged = await contextCommand(options);
     assert.equal(damaged.code, 0);

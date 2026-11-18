@@ -1,7 +1,4 @@
-/**
- * Capability 18 · Scheduled processes, its verbs (18.1-18.2): `schedule due` and `schedule ran`, run with a fresh
- * project's library and the real agent activity log on the Postgres `pnpm test` provides.
- */
+// Capability 18 · Scheduled processes
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -24,7 +21,6 @@ const ran = verbNamed("ran");
 const NOTE = { text: "The arcs drawer hides the island I clicked", surface: "arcs", version: "0.3.99", window: { width: 1440, height: 960 }, theme: "dark" as const, at: "2026-10-21T12:00:00.000Z" };
 const PROCESS = { description: "A routine", statement: "S", trigger: "When due", steps: "1. Do it", surfaces: "The box", failureModes: "None" };
 
-/** Run `body` with a context on a fresh library and the real log, as the runner session r. */
 async function withRunner(body: (context: SessionVerbContext, library: Library, log: ActivityLog) => Promise<void>): Promise<void> {
   await withLibrary(async (library) => {
     const log = await openActivityLog(testServerUrl());
@@ -36,7 +32,6 @@ async function withRunner(body: (context: SessionVerbContext, library: Library, 
   });
 }
 
-/** The next HH:MM in UTC after `from`, at least `ahead` minutes on, and that instant. */
 function nextUtcTime(from: Date, ahead: number): { words: string; at: Date } {
   const at = new Date(Math.ceil((from.getTime() + ahead * MINUTE) / MINUTE) * MINUTE);
   return { words: `${String(at.getUTCHours()).padStart(2, "0")}:${String(at.getUTCMinutes()).padStart(2, "0")}`, at };

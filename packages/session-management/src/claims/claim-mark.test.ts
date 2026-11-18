@@ -1,4 +1,4 @@
-/** Capability 5 · Claims: contract 5.39, a claim's mark is one shape and one colour wherever it is drawn. */
+// Capability 5 · Claims
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

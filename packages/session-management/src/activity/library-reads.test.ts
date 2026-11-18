@@ -1,7 +1,4 @@
-/**
- * Capability 2 · Agent activity log, contract 2.15: what a process's library connections read is kept beside the log as
- * one total per machine, reader and day, never a line per statement (increment_28a5cea44ef7).
- */
+// Capability 2 · Agent activity log
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -19,10 +16,8 @@ test("2.15 a log records what this process read from the library as one total pe
     takeReads();
     giveBackReads([{ reader: "arc show", bytes: 1_000, statements: 2 }, { reader: "tool show_plan", bytes: 300, statements: 1 }]);
     await first.reads.record();
-    // A later process on the same machine and day adds to the same totals.
     giveBackReads([{ reader: "arc show", bytes: 500, statements: 1 }]);
     await first.reads.record();
-    // A log that closes records what was read since its last record, closed side by side with its connection too.
     const storytree = await connect({ url: testServerUrl() });
     const second = await openActivityLog(storytree, { machine });
     giveBackReads([{ reader: "tool show_plan", bytes: 2_000, statements: 4 }]);
@@ -35,7 +30,6 @@ test("2.15 a log records what this process read from the library as one total pe
     ]);
     assert.deepEqual((await first.reads.day("2001-01-01")).filter((row) => row.machine === machine), [], "another day's totals are its own");
 
-    // A record that cannot be written keeps its totals for the next.
     const gone = await openActivityLog(testServerUrl(), { machine });
     await gone.close();
     takeReads();

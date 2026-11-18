@@ -1,20 +1,4 @@
-/**
- * Capability 2 · Agent activity log, contract 2.5 (ADR-0735 D3): the log opens on whichever server
- * the library resolved to, through the library's connection, so two machines sharing one library
- * share one log.
- *
- * Against the test server always, where "two machines" are two connections, each naming its own
- * machine. Against the shared library itself (since ADR-0928 the Mint box's Postgres, which the
- * laptop reaches over Tailscale and the box at 127.0.0.1) only when a run is given its address in
- * STORYTREE_TEST_SHARED_LIBRARY, as the `library` setting names it (signed in with the `postgres` key): each machine's run adds one line naming itself to one proof
- * project's log and reads the log back, and a run given STORYTREE_TEST_SHARED_LIBRARY_PEER (the
- * other machine's host name) also requires that machine's latest line before its own, in order.
- * The proof is three runs: the box, the laptop naming the box, the box naming the laptop.
- *
- * Without the address the live test skips, visibly, as the owner's to run: CI cannot reach the box.
- * Its title carries no contract number, so that skip leaves 2.5 judged by the local half, which
- * proves the behaviour on every run, rather than "not checked" on every CI run.
- */
+// Capability 2 · Agent activity log
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
@@ -26,7 +10,6 @@ import { ACTIVITY_DATABASE, openActivityLog, thisMachine } from "./index.js";
 
 const CONTRACT = "2.5 lines two machines write for one project, each through its own library connection, are both read back from either, in order";
 
-/** The project the live proof writes to on the shared library: no library project has this name, so no one's log holds it. */
 const PROOF_PROJECT = "storytree-test-two-machine-log";
 
 async function twoMachines(library: ConnectOptions): Promise<void> {
@@ -45,18 +28,11 @@ async function twoMachines(library: ConnectOptions): Promise<void> {
     }
     await Promise.all([fromLaptop.close(), fromMint.close()]);
   } finally {
-    // Only this test's lines go; the log's database is shared by everything on the server.
     await (await laptop.ownDatabase(ACTIVITY_DATABASE)).query("DELETE FROM activity WHERE project = $1", [project]).catch(() => undefined);
     await Promise.all([laptop.close(), mint.close()]);
   }
 }
 
-/**
- * One machine's run of the live proof on the shared library at `address`: it adds a line naming this machine to the proof
- * project's log and reads the log back from the start through its own connection, in number order, its own line last of
- * its own; given `peer`, the other machine's latest line must be read back too, before this one. The lines stay: the
- * other machine's next run reads them.
- */
 async function onSharedLibrary(address: string, peer: string | undefined): Promise<void> {
   const machine = thisMachine();
   assert.ok(machine !== undefined, "this machine has a host name to stamp its line with");

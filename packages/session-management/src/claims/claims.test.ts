@@ -1,9 +1,4 @@
-/**
- * Capability 5 · Claims: one test per contract 5.1-5.6 in the Session management story, against the real
- * Postgres `pnpm test` provides. Each test plans a story with two capabilities in a fresh project's
- * library (named with uniqueProjectName(), dropped afterwards), and claims them through the agent
- * activity log, as sessions A (Claude Code) and B (Codex) would.
- */
+// Capability 5 · Claims
 import assert from "node:assert/strict";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -30,15 +25,11 @@ interface World {
   log: ActivityLog;
   library: Library;
   project: string;
-  /** The capability "Email form". */
   emailForm: string;
-  /** The capability "Password reset". */
   passwordReset: string;
-  /** Session A (Claude Code), or B (Codex), claiming in this project. */
   as(session: "A" | "B" | "C" | "D" | "E", options?: { quietMs?: number; log?: ActivityLog; branch?: string }): ClaimContext;
 }
 
-/** Run `body` with a fresh project planned with two capabilities, and the log open on the test server. */
 async function withWorld(body: (world: World) => Promise<void>): Promise<void> {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
@@ -91,7 +82,6 @@ test("5.2 B's claim on it is refused, naming A, and a claim-refused line records
     const quietMs = 1_000;
     assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
 
-    // Refused under the usual quiet time: a slow runner can take longer than quietMs between A's claim and this one.
     const refused = await claim(as("B"), emailForm, "I want it too");
     assert.equal(refused.ok, false);
     assert.ok(!refused.ok && refused.refused === "held");
@@ -166,7 +156,6 @@ test("5.2, 4.12 verified safe close-out permits takeover despite stale commands;
       const append = (line: NewLine) => log.append(project, line);
       assert.ok((await claim({ ...as("A"), ...own, source: "tool" }, emailForm, "building email form")).ok);
       await append({ ...own, kind: "command-started", call: "lost-finish", command: "pnpm test > results.log" });
-      // A branch look can resolve the work without releasing a capability claimed on main.
       await append({ ...own, branch: "fix-login", kind: "file-edited", files: ["a.ts"] });
       if (scenario !== "unmerged") await append({ session: "observer", source: "hook", kind: "branch-state", of: "fix-login", open: false, how: "merged", pr: 3 });
       await append({ ...own, source: "tool", kind: "closed-out", safe: scenario !== "unsafe", why: "finished",
@@ -215,7 +204,6 @@ test("5.34 a takeover's claimed line names the holder, when it was last seen and
     assert.deepEqual({ from: idle.takenOverFrom, since: idle.quietSince, because: idle.takenBecause }, { from: "A", since: lastSeen.at, because: "idle" });
     assert.match(lineText(idle), new RegExp(`claimed ${emailForm}, taken over from A after \\d+ s quiet \\(idle\\)  ·`), "the activity log reads who, how long and why");
 
-    // A holder seen on this machine only before it last started died with it, however short its quiet.
     assert.ok((await claim(as("C"), passwordReset, "password reset")).ok);
     await log.append(project, { session: "C", harness: "claude-code", source: "hook", machine: "mint", kind: "prompt-submitted" });
     const restarted = { machine: "mint", at: new Date(Date.now() + 60_000) };
@@ -224,7 +212,6 @@ test("5.34 a takeover's claimed line names the holder, when it was last seen and
     assert.ok(restart?.kind === "claimed" && restart.takenOverFrom === "C" && restart.takenBecause === "restart");
     assert.match(lineText(restart), /taken over from C after \d+ s quiet \(machine restarted\)/);
 
-    // A holder quiet past the longest a command may run is gone.
     const lines = (await log.since(project, 0)).lines;
     const gone = claimsFrom(lines, { quietMs, now: new Date(Date.parse(lastSeen.at) + LONGEST_COMMAND_MS + 90 * 60_000) })
       .find((one) => one.session === "D");
@@ -246,17 +233,14 @@ test("5.51 a holder whose heartbeat stopped a minute ago, or whose session ended
     const at = (ms: number) => new Date(Date.parse(beat.at) + ms);
     const holders = async (now: Date) => new Map((await readClaims(log, project, { now })).map((one) => [one.session, one]));
 
-    // Beating, however quiet: the quiet rule alone judges it. Its beats stopped past a minute: stopped, while B, which never beat, is still live.
     assert.equal((await holders(at(30_000))).get("A")?.holder, "live");
     const stopped = await holders(at(STOPPED_MS + 5_000));
     assert.deepEqual(stopped.get("A")?.quiet?.because, "stopped");
     assert.equal(stopped.get("B")?.holder, "live", "a holder without beats keeps the idle window");
 
-    // A line written after its beats stopped: it lives without them, so the quiet rule judges it.
     await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "prompt-submitted" }, { at: at(2 * STOPPED_MS).toISOString() });
     assert.equal((await holders(at(2 * STOPPED_MS + 5_000))).get("A")?.holder, "live");
 
-    // Its session's end: stopped at once, and another session takes the work over saying so.
     await log.beats.beat(project, "B", { ended: true });
     assert.ok((await log.beats.of(project, ["B"])).get("B")?.ended);
     const taken = await claim(as("C"), passwordReset, "B ended; taking over");
@@ -265,7 +249,6 @@ test("5.51 a holder whose heartbeat stopped a minute ago, or whose session ended
     assert.ok(line?.kind === "claimed" && line.takenBecause === "stopped");
     assert.match(lineText(line), /\(heartbeat stopped\)/);
 
-    // A beat after an end opens the session again.
     await log.beats.beat(project, "B");
     assert.equal((await log.beats.of(project, ["B"])).get("B")?.ended, undefined);
   });
@@ -314,8 +297,6 @@ test("5.4 a claim on a capability the library doesn't have is refused, and when 
     assert.deepEqual(missing, { ok: false, refused: "unknown-capability", capability: "capability_000000000000" });
     assert.deepEqual((await log.since(project, 0)).lines, [], "nothing written for it");
 
-    // Each agent through its own connection, both claiming the same capability at once: every time,
-    // one wins and the other is refused naming the winner.
     const other = await openActivityLog(testServerUrl());
     try {
       const [story] = (await library.projectTree()).stories;
@@ -338,13 +319,13 @@ test('5.5 an edit made while A holds "email form" counts toward it, and an edit 
     const edit = (session: "A" | "B", file: string) =>
       log.append(project, { session, harness: session === "A" ? "claude-code" : "codex", source: "hook", kind: "file-edited", files: [file] });
 
-    await edit("A", "notes.md"); // before any claim
+    await edit("A", "notes.md");
     assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
     await edit("A", "src/signup.ts");
     await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "command-run", command: "npm test" });
-    await edit("B", "src/other.ts"); // B holds nothing
+    await edit("B", "src/other.ts");
     assert.equal((await land(as("A"), emailForm)).ok, true);
-    await edit("A", "README.md"); // after landing
+    await edit("A", "README.md");
 
     assert.deepEqual(
       (await readAttribution(log, project)).map(({ line, capability }) => [line.session, line.kind === "file-edited" ? line.files[0] : line.kind, capability]),
@@ -371,7 +352,6 @@ test("5.6 while a command A started is still running, past the quiet time, B's c
       ...inside,
       foldLines: (sessions, since) => { historyReads++; return inside.foldLines(sessions, since); },
     }));
-    // The log as it is, but for the lock: each of its other reads still reaches the real log.
     const counted = new Proxy(log, {
       get(target, key) {
         if (key === "locked") return locked;
@@ -400,7 +380,6 @@ test("5.6 a command still recorded as running keeps its holder live even once it
     const after = (await readClaims(log, project, { now: at(11 * 60 * 1000) }))[0];
     assert.equal(after?.quiet?.because, "stopped", "past Claude Code's own limit on the command, nothing keeps it live");
 
-    // A session that says it ended has ended, whatever command it left recorded as running.
     await log.beats.beat(project, "A", { ended: true });
     const ended = (await log.beats.of(project, ["A"])).get("A")!;
     assert.equal((await readClaims(log, project, { now: new Date(Date.parse(ended.ended!) + 1_000) }))[0]?.quiet?.because, "stopped");
@@ -411,13 +390,11 @@ test("5.6 a Claude Code command with no finish line keeps its holder live only u
   await withWorld(async ({ log, project, emailForm, as }) => {
     const quietMs = 5 * 60 * 1000;
     assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
-    // The turn is interrupted: Claude Code writes neither the command's finish nor the turn's end.
     const started = await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "command-started", command: "gh pr create", call: "call-1" });
     const at = (ms: number) => new Date(Date.parse(started.at) + ms);
     assert.equal((await readClaims(log, project, { quietMs, now: at(9 * 60 * 1000) }))[0]?.holder, "live", "still within Claude Code's limit");
     assert.equal((await readClaims(log, project, { quietMs, now: at(11 * 60 * 1000) }))[0]?.holder, "idle", "Claude Code has ended the command by now");
 
-    // Where Claude Code's limit is raised, the command's line says so, and the command counts until then.
     const long = await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "command-started", command: "npm run e2e", call: "call-2", limitMs: 30 * 60 * 1000 });
     const later = (ms: number) => new Date(Date.parse(long.at) + ms);
     assert.equal((await readClaims(log, project, { quietMs, now: later(20 * 60 * 1000) }))[0]?.holder, "live");
@@ -431,7 +408,6 @@ test("5.66 a turn that ends leaving its gate running in the background keeps its
     const increment = await park("windowsHide on the library's git reads");
     const quietMs = 30 * 60 * 1000;
     assert.ok((await claim(as("A"), increment, "windowsHide on the library's git reads")).ok);
-    // The gate is started as a background task: its launch returns at once, so its finish line follows its start.
     const own = { session: "A", harness: "claude-code", source: "hook", machine: "laptop" } as const;
     const started = await log.append(project, { ...own, kind: "command-started", command: "pnpm gate", call: "gate" });
     const at = (ms: number) => new Date(Date.parse(started.at) + ms).toISOString();
@@ -449,7 +425,6 @@ test("5.66 a turn that ends leaving its gate running in the background keeps its
     assert.equal(waiting?.holder, "live", "the gate still waits on the heavy-run lock, so the pool must pass the increment by");
     assert.match(waiting?.binds ?? "", /background/);
 
-    // The owner's next turn ends with nothing left in the background: from then on the quiet time judges A again.
     await log.append(project, { ...own, kind: "prompt-submitted" }, { at: at(60 * 60 * 1000) });
     await log.append(project, { ...own, kind: "turn-ended", background: 0 }, { at: at(61 * 60 * 1000) });
     assert.equal((await reading(80 * 60 * 1000))?.holder, "live", "within the quiet time of its last line");
@@ -489,7 +464,6 @@ test("4.41 a session whose process stopped (its end line, or a print-mode turn's
     await log.append(project, { ...own, kind: "prompt-submitted" });
     await log.append(project, { ...own, kind: "turn-ended", background: 1 });
     const ended = await log.append(project, { ...own, kind: "session-ended", reason: "other" });
-    // The pool's runner writes its own exit line after the harness's end (runner.mjs).
     await log.append(project, { ...own, source: "tool", kind: "turn-ended", background: 0, exits: true });
     const soon = new Date(Date.parse(ended.at) + 1_000);
     assert.deepEqual(await reading(soon), [
@@ -503,7 +477,6 @@ test("4.41 a session whose process stopped (its end line, or a print-mode turn's
     assert.deepEqual((await reading(new Date(Date.now() + 1_000))).map(({ capability, session, holder }) => [capability, session, holder]),
       [[passwordReset, "A", "live"], [emailForm, "B", "live"]], "the resumed turn finds what nobody took its own and live again");
 
-    // B runs in print mode: its turn's end says its process exits with it, and no end line follows.
     const printed = { session: "B", harness: "codex", source: "hook" } as const;
     await log.append(project, { ...printed, kind: "prompt-submitted" });
     const exited = await log.append(project, { ...printed, kind: "turn-ended", background: 0, exits: true });
@@ -519,9 +492,9 @@ test("5.17 a holder last seen on this machine before it restarted is taken over 
     const mint = await openActivityLog(testServerUrl(), { machine: "mint" });
     try {
       assert.equal((await claim(as("A", { log: mint }), emailForm, "building the email form")).ok, true);
-      const restarted = { machine: "mint", at: new Date(Date.now() + 1_000) }; // mint started again after A's last line
+      const restarted = { machine: "mint", at: new Date(Date.now() + 1_000) };
       const elsewhere = { machine: "laptop", at: restarted.at };
-      const before = { machine: "mint", at: new Date(Date.now() - 60_000) }; // mint's last start was before A's claim
+      const before = { machine: "mint", at: new Date(Date.now() - 60_000) };
 
       for (const [why, restart] of [["another machine restarted", elsewhere], ["A was seen since the restart", before]] as const) {
         const refused = await claim({ ...as("B"), restarted: restart }, emailForm, "resuming A's work");
@@ -548,17 +521,15 @@ test("5.10 a claim taken on branch feature/signup ends with a merged line once G
       writeMarker(folder, `${JSON.stringify({ project })}
 `);
       await approveCheckout(folder, project);
-      // GitHub, as `gh` would answer: the merged pull requests from each branch.
       const pulls = new Map<string, MergedPull[]>();
       const merges: MergeWatch = { mergedPulls: async (_folder, branch) => pulls.get(branch) ?? [], everyMs: 0 };
       const held = async () => (await readClaims(log, project)).map(({ capability, session }) => [capability, session]);
 
-      pulls.set("feature/signup", [{ number: 6, mergedAt: new Date(Date.now() - 3_600_000).toISOString() }]); // an earlier pull request from the same branch
+      pulls.set("feature/signup", [{ number: 6, mergedAt: new Date(Date.now() - 3_600_000).toISOString() }]);
       assert.equal((await claim(as("A", { branch: "feature/signup" }), emailForm, "building the email form")).ok, true);
-      assert.equal((await claim(as("B", { branch: "feature/reset" }), passwordReset, "building the reset")).ok, true); // B's pull request is still open
+      assert.equal((await claim(as("B", { branch: "feature/reset" }), passwordReset, "building the reset")).ok, true);
       await clockPastLastLine(log, project, 20, "the clock to pass the claims, so a merge now comes after them");
 
-      // What the MCP server's wrapper calls before every tool call (ADR-0969 D1).
       const toolCall = () => endMergedClaims({ log, project, folder, session: "C", harness: "claude-code", source: "tool" }, merges);
       await toolCall();
       assert.deepEqual(await held(), [[emailForm, "A"], [passwordReset, "B"]], "a merge from before the claim, and an open pull request, end nothing");
@@ -589,7 +560,6 @@ test("5.75 · a claim on increment B, or a capability under it, taken on increme
     const onA = as("A", { branch });
     assert.ok((await claim(onA, a, "driving the email form")).ok);
     assert.ok((await claim(onA, emailForm, "building the email form")).ok);
-    // Still on A's branch, the session claims the next increment and its capability.
     assert.ok((await claim(onA, b, "driving the password reset")).ok);
     assert.ok((await claim(onA, passwordReset, "building the password reset")).ok);
     const branches = async () => new Map((await readClaims(log, project)).map(({ increment, capability, branch }) => [increment ?? capability, branch]));
@@ -631,7 +601,6 @@ test("5.37 when a claim on an increment ends because its branch's pull request m
     assert.equal((await claim(as("A", { branch: "feature/signup" }), increment.id, "renaming the form")).ok, true);
     await library.pendChange(increment.id, { record: emailForm, fields: { title: "Address form" } });
 
-    // Merged a minute after the claim was taken, as GitHub would date it.
     const mergedAt = new Date(Date.now() + 60_000).toISOString();
     const merges: MergeWatch = { mergedPulls: async (_folder, branch) => (branch === "feature/signup" ? [{ number: 7, mergedAt }] : []), everyMs: 0 };
     let applied: readonly string[] | undefined;
@@ -662,7 +631,6 @@ test("5.37 the noticeboard, which the box's runner and watcher read from the mai
       assert.ok((await claim(as("A", { branch: "feature/signup" }), work, "driving the email form")).ok);
       await library.pendChange(work, { record: emailForm, fields: { title: "Address form" } });
       await holdForPull(as("C"), "A", 12, "feature/signup");
-      // GitHub, as `gh` answers, saying feature/signup's pull request merged a minute after the claim was taken.
       const bin = path.join(dir, "bin");
       mkdirSync(bin);
       const pulls = JSON.stringify([{ number: 12, mergedAt: new Date(Date.now() + 60_000).toISOString(), isCrossRepository: false }]);
@@ -699,7 +667,7 @@ test("5.10 the board asks GitHub itself before it shows claims, even in a minute
     assert.equal(locks, 0, "with no merge to reconcile, displaying claims does not queue behind writers (concurrent scan waits, 2026-10-02)");
     await clockPastLastLine(log, project, 20, "the clock to pass A's claim, so a merge now comes after it");
     const merges: MergeWatch = { mergedPulls: async (_folder, branch) => (branch === "feature/signup" ? [{ number: 7, mergedAt: new Date().toISOString() }] : []) };
-    due(project, 60_000); // a hook asked moments ago, and saw no merge then
+    due(project, 60_000);
     const shown = await boardClaims(context, merges);
     assert.deepEqual(shown, [], "the merge ended the claim");
     assert.equal(locks, 1, "a merge still rechecks the current holder under the project lock");
@@ -709,12 +677,9 @@ test("5.10 the board asks GitHub itself before it shows claims, even in a minute
 
 test("5.10 asking gh for merged pull requests answers when gh exits, even while a process it started still holds its output (regression: gh's tzutil, 2026-09-28)", { timeout: 30_000 }, async (t) => {
   await withTempDir(async (folder) => {
-    // The descendant holds output until this test stops it: its lifetime proves the ordering,
-    // independently of how long a busy runner takes to start gh (queue run 37328670634).
     const gh = path.join(folder, "gh.mjs");
     const pidFile = path.join(folder, "descendant.pid");
     const merged = [{ number: 9, mergedAt: "2026-09-28T00:00:00Z", isCrossRepository: false }];
-    // Detached, as Node would otherwise end it with gh on Windows; in the temporary folder, so it holds no folder the test removes.
     writeFileSync(gh, `import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -732,12 +697,11 @@ process.stdout.write(${JSON.stringify(JSON.stringify(merged))}, () => process.ex
       const pid = Number(readFileSync(pidFile, "utf8"));
       assert.doesNotThrow(() => process.kill(pid, 0), "the descendant still holds gh's output when the answer arrives");
     } finally {
-      try { process.kill(Number(readFileSync(pidFile, "utf8")), "SIGKILL"); } catch { /* gh may have failed before spawning. */ }
+      try { process.kill(Number(readFileSync(pidFile, "utf8")), "SIGKILL"); } catch { }
     }
   });
 });
 
-/** A `gh` in `folder` that prints `answers`' entry for the GraphQL cursor it is given (`after=…`), or its "" entry with none. */
 function fakeGh(folder: string, name: string, answers: Record<string, unknown>): string {
   const gh = path.join(folder, `${name}.mjs`);
   writeFileSync(gh, `const answers = ${JSON.stringify(answers)};
@@ -784,7 +748,6 @@ test("5.10 a fork's merged pull request from a claim's branch ends nothing: merg
   });
 });
 
-/** An arc of work in `library`, and a way to park increments on it, each touching what it names. */
 async function arcOf(library: Library, title = "Launch sign-up") {
   const [story] = (await library.projectTree()).stories;
   const arc = await library.createArc({ title, intent: "Ship sign-up", endState: "Visitors sign up", stories: [story!.id] });
@@ -795,7 +758,6 @@ async function arcOf(library: Library, title = "Launch sign-up") {
   };
 }
 
-/** Where increment `id` is in its lifecycle, as the library reads it. */
 async function statusOf(library: Library, arc: string, id: string): Promise<string | undefined> {
   return (await library.arcView(arc))?.increments.find((increment) => increment.id === id)?.fields.status;
 }
@@ -988,7 +950,6 @@ test("5.9 a capability claim is never refused because the open increments listin
     const { park } = await arcOf(library);
     const design = await park("design");
     const first = await park("form, first cut", [emailForm]);
-    // Listed by an edit, since parking a second open increment on a capability is refused (10.35).
     const second = await park("form, second cut");
     await library.editIncrement(second, { capabilities: [emailForm] });
     await library.addWait(first, design, "the design comes first");
@@ -1052,7 +1013,7 @@ for (const target of ["capability", "active increment"] as const) {
         unblock();
         await blocker;
       }
-      await cancelled; // The entire claim has settled before inspecting its effects.
+      await cancelled;
       assert.deepEqual(await library.get(id), before);
       assert.deepEqual(await library.history({ id }), history);
       assert.deepEqual((await log.since(project, 0)).lines, []);
@@ -1094,13 +1055,10 @@ test("5.23 a claim takes from the library what deciding it needs and no more: on
       const story = await library.addStory({ title: "Visitor can sign up" });
       const emailForm = (await library.addCapability({ title: "Email form", story: story.id })).id;
       const arc = (await library.createArc({ title: "Signup", intent: "Build signup", endState: "Signup works" })).id;
-      // Weeks of closed work, as a project's increment log grows.
       for (let n = 0; n < 150; n++) {
         await library.addIncrement({ arc, title: `Done ${n}`, objective: "Done", body: "x".repeat(3000), outcome: { disposition: "landed", pr: `#${n}` } });
       }
-      // Open increments naming the capability, all but the last waiting: a capability claim reads none of them (ADR-0944 D2).
       const schema = await library.addIncrement({ arc, title: "Schema", objective: "Tables", body: "…" });
-      // All but the first list it by an edit, since parking a second open increment on a capability is refused (10.35).
       for (let n = 0; n < naming; n++) {
         const part = await library.addIncrement({ arc, title: `Part ${n}`, objective: "A part", body: "…", ...(n === 0 ? { capabilities: [emailForm] } : {}) });
         if (n > 0) await library.editIncrement(part.id, { capabilities: [emailForm] });
@@ -1164,14 +1122,12 @@ test("5.33 the session manager's worklist lists claimed increments whose holder 
     assert.equal((await claim(as("A", { branch: "a-branch" }), waiting, "driving it")).ok, true);
     assert.equal((await claim(as("A"), emailForm, "building the form")).ok, true);
     assert.equal((await claim(as("D", { branch: "d-branch" }), reviewed, "driving it")).ok, true);
-    // C's window crashed: no line from it for longer than a command may run, and no session-ended.
     const store = await connect({ url: testServerUrl() });
     try {
       await (await store.ownDatabase(ACTIVITY_DATABASE)).query("UPDATE activity SET at = at - interval '13 hours' WHERE project = $1 AND session = 'C'", [project]);
     } finally {
       await store.close();
     }
-    // E's headless turn exits: its process stopped, so it reads idle at once, but it may yet resume (4.41).
     assert.equal((await claim(as("E"), ended, "driving it")).ok, true);
     await log.append(project, { session: "E", harness: "claude-code", source: "hook", kind: "session-ended", reason: "other" });
     const justStopped = await staleClaims({ log, project, folder: "." }, { quietMs, allOpenPulls: async () => new Map() });
@@ -1205,7 +1161,6 @@ test("5.33 a quiet holder whose claim was taken on the main line, on main or on 
     const quietMs = 1_000;
     const { park } = await arcOf(library);
     const [onMain, branchless, unpulled] = [await park("claimed on main"), await park("claimed on no branch"), await park("no pull request")];
-    // A pool lane's runner claims from the main checkout; the lane then works in a worktree on its own branch.
     assert.ok((await claim(as("A", { branch: "main" }), onMain, "driving it")).ok);
     assert.ok((await claim(as("B"), branchless, "driving it")).ok);
     assert.ok((await claim(as("C", { branch: "main" }), unpulled, "driving it")).ok);
@@ -1388,7 +1343,6 @@ test("5.61 letting go of a merged pull request applies each held increment's pen
     await assert.rejects(letGo(failing, 12, "PR #12 merged", { merged: true }), /library unreachable/);
     assert.deepEqual((await readClaims(log, project)).map(({ increment }) => increment), [work], "nothing ends while its changes are unapplied");
 
-    // Through the command the watcher runs: `workspace let-go 12 --reason … --merged`.
     const letGoVerb = WORKSPACE_FAMILIES[0]!.verbs.find((verb) => (verb.command as { name?: string }).name === "let-go")!;
     const said = await letGoVerb.act({ pr: "12", reason: "PR #12 merged", merged: true }, as("C") as never, { door: "command", say: (step) => step.command ?? step.tool! });
     assert.match(said.text, new RegExp(`Released what PR #12 held: ${work}`));
@@ -1414,7 +1368,6 @@ test("5.61 letting go of a merged pull request also applies the pending plan cha
     await library.pendChange(work, { record: emailForm, fields: { title: "Address form" } });
     await holdForPull(as("C"), "A", 12, "feature/signup");
     await clockPastLastLine(log, project, 20, "the clock to pass the held claim, so a merge now comes after it");
-    // A session that saw the merge with no library to apply through ends the held claim first.
     const merges: MergeWatch = { mergedPulls: async () => [{ number: 12, mergedAt: new Date().toISOString() }], everyMs: 0 };
     await endMergedClaims({ log, project, folder: "/work/site", session: "person:owner", source: "tool" }, merges);
     assert.deepEqual(await readClaims(log, project), [], "the merge line ended the held claim");
@@ -1580,7 +1533,6 @@ test("5.58 only the increment's live holder closes it: another session is refuse
   });
 });
 
-/** Let the clock pass the project's last line by `ms`: the scenario's passage of time, as a quiet session or a later merge needs it. */
 async function clockPastLastLine(log: ActivityLog, project: string, ms: number, what: string): Promise<void> {
   const last = Date.parse((await log.since(project, 0)).lines.at(-1)!.at);
   await waitUntil(() => Date.now() > last + ms, ms + 1_000, what);

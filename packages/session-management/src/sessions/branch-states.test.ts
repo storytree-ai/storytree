@@ -1,8 +1,4 @@
-/**
- * Capability 4 · Sessions, contract 4.10: whether each branch a session worked on still holds open
- * work (ADR-0754 D4), found by asking GitHub (a stand-in here) and this machine's git, and written
- * to the real activity log on the Postgres `pnpm test` provides.
- */
+// Capability 4 · Sessions
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -149,18 +145,15 @@ test("4.10 a branch another machine took for deleted while it was only on its ow
       const noPulls = { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map(), everyMs: 0, budgetMs: 60_000 };
       const openWork = async () => sessionsFrom((await log.since(project, 0)).lines).map((session) => [session.session, session.openWork]);
 
-      // The box looks while both exist only on the laptop: it takes them for deleted.
       await resolveBranches(watcher(site), { ...noPulls, machine: "box" });
       assert.deepEqual(await openWork(), [["lane", []]]);
 
-      // The lane works on, pushes one and opens its pull request; the box looks again.
       for (const branch of ["claude/handed", "claude/unpushed"]) await work(branch);
       git(laptop, "push", "-q", "origin", "claude/handed");
       const opened = async () => new Map([["claude/handed", { number: 7, draft: false, checks: "passing" as const, queued: false }]]);
       await resolveBranches(watcher(site), { ...noPulls, allOpenPulls: opened, machine: "box" });
       assert.deepEqual(await openWork(), [["lane", ["claude/handed"]]], "an open pull request from a branch taken for deleted opens it again");
 
-      // The laptop looks, with GitHub slower than the whole look's budget: its git is still asked.
       mock.timers.enable({ apis: ["Date"], now: Date.now() });
       try {
         const slow = async () => {
@@ -192,7 +185,6 @@ test("4.10 a git that does not answer whether a branch exists leaves it unresolv
 
       const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
       const watch = { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map(), everyMs: 0, budgetMs: 60_000, machine: "here" };
-      // A loaded machine: git answers everything but one question, which outlasts its wait.
       const slow = (question: string): GitRunner => async (cwd, timeout, args) => (args.includes(question) ? { answered: false } : gitRunner(cwd, timeout, args));
       for (const question of ["--verify", "symbolic-ref"]) assert.deepEqual(await resolveBranches(watcher, { ...watch, home: path.join(dir, "home"), git: slow(question) }), [], `a slow ${question} is not absence`);
 
@@ -213,7 +205,6 @@ test("4.39 the look's git calls get the time this machine learned: 2 s on a new 
       git(dir, "init", "-q", "-b", "main", repo);
       await log.append(project, { session: "worker", harness: "claude-code", source: "hook", machine: "here", folder: repo, branch: "claude/work", kind: "file-edited", files: ["x.ts"] });
       const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
-      // A git that never answers: the branch stays unresolved, so every look asks again, and gives up at its limit.
       const given: number[] = [];
       const silent: GitRunner = async (_cwd, timeout) => {
         given.push(timeout);
@@ -351,7 +342,6 @@ test("4.24 the same look reads each open branch's pull request from GitHub in on
 
 test("4.47 the open-pulls look reads when a pull request's earliest check run started, when it joined the merge queue and whether it still waits there for its turn, and writes them on its branch state: a re-queue is a change; the reading gives an open pull request's state by its number, with when its line was written", async () => {
   await withTempDir(async (dir) => {
-    // GitHub's GraphQL answer: one pull request whose checks run, one in the merge queue waiting its turn, one with no check started.
     const node = (number: number, headRefName: string, extra: object) => ({ number, headRefName, isDraft: false, isCrossRepository: false, headRepository: { nameWithOwner: "acme/app" }, ...extra });
     const rollup = (state: string, started: (string | null)[]) => ({ commits: { nodes: [{ commit: { statusCheckRollup: { state, contexts: { nodes: [...started.map((startedAt) => ({ startedAt })), { context: "a status, no check run" }] } } } }] } });
     const answer = { data: { repository: { nameWithOwner: "acme/app", pullRequests: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [
@@ -402,9 +392,6 @@ test("4.21 the look never stalls its process: while git takes its time asking or
     await withTempDir(async (dir) => {
       const repo = path.join(dir, "site");
       git(dir, "init", "-q", "-b", "main", repo);
-      // Origin answers slowly: the stand-in for a network round trip is an ssh command that waits 3 s.
-      // A look that blocked its process would hold a timer for that whole wait; a loaded runner's own
-      // stalls are shorter (865 ms seen on Windows CI), so the bound is half the wait, not a fixed budget.
       const roundTripMs = 3_000;
       git(repo, "remote", "add", "origin", "ssh://origin.invalid/site.git");
       git(repo, "config", "core.sshCommand", `node -e "setTimeout(() => {}, ${roundTripMs})"`);
@@ -421,7 +408,6 @@ test("4.21 the look never stalls its process: while git takes its time asking or
       const started = performance.now();
       try {
         await resolveBranches(watcher, { allMergedPulls: async () => new Map(), allOpenPulls: async () => undefined, everyMs: 0, machine: "here" });
-        // One more turn of the timers, so a stall at the look's very end is seen too.
         await new Promise((done) => setTimeout(done, 30));
       } finally {
         clearInterval(ticking);
@@ -448,7 +434,6 @@ test("3.46 the branch look the hooks hand on runs git with the repository's own 
     chmodSync(path.join(hooks, "post-index-change"), 0o755);
     git(repo, "config", "core.hooksPath", hooks);
     git(repo, "config", "core.fsmonitor", `echo fsmonitor >> '${marker}'`);
-    // A file touched since it was staged makes git look at the working tree and refresh its index.
     writeFileSync(path.join(repo, "a.txt"), "a\n");
 
     const answer = await gitRunner(repo, 60_000, ["status", "--porcelain"]);

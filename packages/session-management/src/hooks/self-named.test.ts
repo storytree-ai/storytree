@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Hooks: a harness that names itself (contracts 3.30 and 3.31), sending the input
- * docs/custom-harness-hooks.md publishes (ADR-1007 D4). The inputs are that page's own examples.
- */
+// Capability 3 · Hooks
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -33,7 +30,6 @@ test("3.30 a harness that names itself and sends the published input makes its s
   assert.deepEqual(made(every("Stop")), one({ kind: "turn-ended" }));
   assert.deepEqual(made({ ...every("SessionEnd"), reason: "exit" }), one({ kind: "session-ended", reason: "exit" }));
 
-  // What storytree does not guess at: the harness's own tool names, and events outside the published six.
   for (const tool of ["Read", "MultiEdit", "apply_patch", "Shell", "NotebookEdit"]) {
     assert.equal(made({ ...every("PostToolUse"), tool_name: tool, tool_input: { file_path: "a.ts", command: "ls" } }), undefined, tool);
   }
@@ -42,7 +38,6 @@ test("3.30 a harness that names itself and sends the published input makes its s
   assert.equal(made({ session_id: SESSION, hook_event_name: "Stop" }), undefined, "no folder, no line");
   assert.equal(made({ cwd: FOLDER, hook_event_name: "Stop" }), undefined, "no session, no line");
 
-  // The name is the harness's own, recorded as given; a built-in name keeps its own parser, and a name that is no name records nothing.
   assert.equal(hookLines("Zed.ai_agent", every("Stop"))?.lines[0]?.harness, "Zed.ai_agent");
   assert.equal(hookLines("codex", { ...every("PostToolUse"), tool_name: "Edit", tool_input: { file_path: "a.ts" } }), undefined, "Codex's parser, not the published one");
   for (const name of ["", "-x", "has space", "statusline", "a/b", "x".repeat(65)]) assert.equal(hookLines(name, every("Stop")), undefined, JSON.stringify(name));

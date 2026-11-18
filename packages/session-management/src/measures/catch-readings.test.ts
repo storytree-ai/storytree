@@ -1,15 +1,4 @@
-/**
- * Capability 20 · Lane measures: contracts 20.5 and 20.6, the catch readings, from real escape patterns and red-team drills
- * written into a fresh project on the Postgres `pnpm test` provides, dropped afterwards. An escape pattern counts on the
- * day it was harvested (the day its record was made, so today here); a drill on its date.
- *
- * The printed form these tests read: a "field reading" heading, then lines "<n> caught by CI … <m> escaped", overall and
- * per story (the story's id on its line, or "story not recorded"); a "drill reading" heading, then the nine layer lines
- * overall, again after a line naming each pattern's id, and again after a "per story" heading and a line naming each
- * story's id, each such line saying how many drills it is over. A layer line is "<layer>: <n> caught first, <m> not
- * run", a reviewer's adding ", <k> same-model". In `storytree measures` the per-story catch follows a "catch rate"
- * heading. --json gives the reading's numbers as fields, read here against the same worked values.
- */
+// Capability 20 · Lane measures
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -31,7 +20,6 @@ type Result = "caught" | "missed" | "not-run";
 const nr = "not-run", m = "missed", c = "caught";
 const DRILL_LAYERS = ["test-writer", "builder", "lint", "tests", "mutation", "test-reviewer", "code-reviewer", "ci-linux", "ci-windows"] as const;
 
-/** One layer row per result, in the fixed order. */
 function layers(results: readonly Result[]): { layer: string; result: Result; evidence: string }[] {
   assert.equal(results.length, DRILL_LAYERS.length);
   return DRILL_LAYERS.map((layer, at) => ({ layer, result: results[at]!, evidence: `${layer}: ${results[at]} at scratch head 3f9c2a1b` }));
@@ -43,18 +31,10 @@ interface World {
   project: string;
   signUp: string;
   mail: string;
-  /** The escape patterns the drills replant: p1 a CI catch on Sign up, p2 an escape on Mail. */
   p1: string;
   p2: string;
 }
 
-/**
- * Stories Sign up and Mail. Escapes, all harvested today: two CI caught on Sign up (p1 one of them), one escaped on Mail
- * (p2), one CI caught naming no story. Drills: d1 p1 on Sign up, 11-10, mutation first; d2 p1 on Sign up, 11-12, the code
- * reviewer first, the planter's model; d3 p2 on Mail, 11-12, none caught, mutation and CI not run; d4 p2 on Mail, 11-10, a
- * task the test writer caught first; d5 p1 on Mail, 11-11, the test reviewer first, another model; d6 p1 on Sign up,
- * 2026-10-01, lint first. One increment touching Sign up closed landed on 11-10.
- */
 async function withWorld(body: (world: World) => Promise<void>): Promise<void> {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
@@ -101,7 +81,6 @@ async function withWorld(body: (world: World) => Promise<void>): Promise<void> {
 
 const LAYER_LINE = new RegExp(`^\\s*(${NAMES.join("|")}): (\\d+) caught first, (\\d+) not run(?:, (\\d+) same-model)?`);
 
-/** The nine layer lines first found after line `from`, as [layer, caught first, not run, same-model]. */
 function layersAfter(lines: readonly string[], from: number): (readonly [string, number, number, number | undefined])[] {
   const found: (readonly [string, number, number, number | undefined])[] = [];
   for (const line of lines.slice(from + 1)) {
@@ -113,7 +92,6 @@ function layersAfter(lines: readonly string[], from: number): (readonly [string,
   return found;
 }
 
-/** Every layer in the fixed order: zero but where `counts` says [caught first, not run, same-model]; a reviewer's same-model zero unless given. */
 function expected(counts: Partial<Record<Name, readonly number[]>>): (readonly [string, number, number, number | undefined])[] {
   return NAMES.map((name) => {
     const [first = 0, notRun = 0, same = 0] = counts[name] ?? [];
@@ -124,7 +102,6 @@ function expected(counts: Partial<Record<Name, readonly number[]>>): (readonly [
 interface JsonLayer { layer: string; caughtFirst: number; notRun: number; sameModel?: number }
 interface JsonDrills { drills: number; layers: JsonLayer[] }
 type JsonField = { caughtByCi: number; escaped: number };
-/** The reading as --json gives it. */
 interface JsonReading {
   field: { overall: JsonField; storyNotRecorded: JsonField };
   drills: JsonDrills;
@@ -132,12 +109,10 @@ interface JsonReading {
   stories: { story: string; field: JsonField; drills: JsonDrills }[];
 }
 
-/** --json's layer counts as [layer, caught first, not run, same-model]. */
 function tuples(layers: readonly JsonLayer[]): (readonly [string, number, number, number | undefined])[] {
   return layers.map((one) => [one.layer, one.caughtFirst, one.notRun, one.sameModel] as const);
 }
 
-/** The first line after `from` (and before `to`) that `match` finds, or -1. */
 function lineAfter(lines: readonly string[], from: number, match: (line: string) => boolean, to = lines.length): number {
   for (let at = from + 1; at < to; at++) if (match(lines[at]!)) return at;
   return -1;
@@ -190,14 +165,12 @@ test("20.5 · `storytree measures catch` prints, over its window, the field read
         "test writer": [1, 2], builder: [0, 2], "mutation report": [0, 1], "test reviewer": [1, 0, 0], CI: [0, 1], escaped: [1, 0],
       }), "per story: Mail's plants d3, d4 and d5");
 
-      // A window ending before today holds none of today's harvest, and only the drills dated in it.
       const earlier = (await run({ from: "2026-11-01", to: "2026-11-11", json: false })).split("\n");
       const earlierField = earlier.findIndex((line) => /field reading/i.test(line));
       const earlierDrills = earlier.findIndex((line) => /drill reading/i.test(line));
       assert.match(earlier[lineAfter(earlier, earlierField, (line) => /caught by CI/.test(line), earlierDrills)] ?? "", /\b0 caught by CI\b.*\b0 escaped\b/);
       assert.deepEqual(layersAfter(earlier, earlierDrills), expected({ "test writer": [1, 2], builder: [0, 2], "mutation report": [1], "test reviewer": [1, 0, 0] }), "d1, d4 and d5 alone");
 
-      // How many drills each reading is over, and the patterns with the most drills first.
       assert.match(lines[lineAfter(lines, drills, (line) => /overall/.test(line))] ?? "", /\b5 drills\b/);
       const p1At = lineAfter(lines, drills, (line) => line.includes(p1));
       const p2At = lineAfter(lines, drills, (line) => line.includes(p2));
@@ -205,7 +178,6 @@ test("20.5 · `storytree measures catch` prints, over its window, the field read
       assert.match(lines[p2At] ?? "", /\b2 drills\b/);
       assert.ok(p1At < p2At, "p1, replanted three times, before p2, twice");
 
-      // --json: the same numbers.
       const json = JSON.parse(await run({ ...window, json: true })) as JsonReading & { window: unknown };
       assert.deepEqual(json.window, window);
       assert.deepEqual(json.field, { overall: { caughtByCi: 3, escaped: 1 }, storyNotRecorded: { caughtByCi: 1, escaped: 0 } });
@@ -222,7 +194,6 @@ test("20.5 · `storytree measures catch` prints, over its window, the field read
         "test writer": [1, 2], builder: [0, 2], "mutation report": [0, 1], "test reviewer": [1, 0, 0], CI: [0, 1], escaped: [1, 0],
       }));
 
-      // The same window rules as `storytree measures`.
       const week = JSON.parse(await run({ json: true })) as { window: unknown };
       assert.deepEqual(week.window, { from: new Date(Date.parse(`${today()}T00:00:00Z`) - 6 * 86_400_000).toISOString().slice(0, 10), to: today() });
       await assert.rejects(run({ from: "2026-11-31", json: false }), /not a day/);
@@ -257,7 +228,6 @@ test("20.6 · `storytree measures` prints, beside the lane measures, the catch r
         "test writer": [1, 2], builder: [0, 2], "mutation report": [0, 1], "test reviewer": [1, 0, 0], CI: [0, 1], escaped: [1, 0],
       }), "Mail: d3, d4 and d5");
 
-      // The same window as the lane measures: in October only d6, on Sign up, and no lane closed.
       const october = (await run({ from: "2026-10-01", to: "2026-10-01", json: false })).split("\n");
       const octoberHeading = october.findIndex((line) => /catch rate/i.test(line));
       assert.ok(octoberHeading >= 0, "the catch is printed when no increment closed in the window");

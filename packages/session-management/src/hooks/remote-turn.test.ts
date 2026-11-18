@@ -1,4 +1,4 @@
-/** Capability 3 · Hooks, contracts 3.51 and 3.52: hooks over a wss:// library, which every round trip crosses Cloudflare and a tunnel to reach (ADR-1093). */
+// Capability 3 · Hooks
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { utimesSync, writeFileSync } from "node:fs";
@@ -35,10 +35,8 @@ test("3.52 one hook at a time on a machine holds the turn to reach a wss:// libr
   await withTempDir((dir) => {
     const release = takeTurn(dir);
     assert.ok(release !== undefined, "a free turn is taken");
-    // Another live process holding it: this process's parent stands in for a second hook.
     writeFileSync(path.join(dir, TURN_FILE), String(process.ppid));
     assert.equal(takeTurn(dir), undefined, "held by a live process: refused");
-    // A holder that has gone.
     const gone = spawnSync(process.execPath, ["-e", "process.stdout.write(String(process.pid))"], { encoding: "utf8" }).stdout;
     writeFileSync(path.join(dir, TURN_FILE), gone);
     const taken = takeTurn(dir);

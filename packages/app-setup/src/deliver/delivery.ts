@@ -1,4 +1,4 @@
-/** Capability 1 · Get storytree. */
+// Capability 1 · Get storytree
 import { locateApp, locateStorytree, readLibrary, storytreeHome } from "@storytree/project-and-caller";
 import { spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -19,11 +19,9 @@ interface DeliveryOptions {
   platform?: NodeJS.Platform;
 }
 
-/** The app the finish step launched: where its output is kept, and how it ended if it has. */
 export interface Launched {
   log: string;
   toolLog: string;
-  /** How far the database's tool log already ran before this launch, so an older attempt's error is not read as this one's. */
   toolLogFrom: number;
   exit(): { code: number | null; signal: NodeJS.Signals | null } | undefined;
 }
@@ -36,7 +34,6 @@ function readFrom(file: string, from: number): string {
   try { return readFileSync(file).subarray(from).toString("utf8"); } catch { return ""; }
 }
 
-/** Launch even when already running: Electron's second-instance handler brings its window back. Its output is kept in the home's app-launch.log. */
 export function launch(exe: string, home: string, args: string[] = []): Promise<Launched> {
   mkdirSync(home, { recursive: true });
   const log = path.join(home, "app-launch.log");
@@ -53,7 +50,6 @@ export function launch(exe: string, home: string, args: string[] = []): Promise<
   });
 }
 
-/** The known reasons the app cannot come up, read from its output and the database's tool log, each with what to do. */
 const CAUSES: { pattern: RegExp; source: "app" | "database"; cause: string }[] = [
   { pattern: /running as root without --no-sandbox/i, source: "app", cause: "the app refuses to run as root (Electron's sandbox needs an ordinary user). Run the installer as an ordinary user, not as root or with sudo" },
   { pattern: /fuse: |\/dev\/fuse|libfuse/i, source: "app", cause: "the AppImage could not use /dev/fuse (FUSE is missing or not permitted here, as in many containers). Run the installer again with APPIMAGE_EXTRACT_AND_RUN=1 set, so the app runs without FUSE" },
@@ -65,12 +61,10 @@ function lastLines(text: string, count = 5): string {
   return text.trim().split(/\r?\n/).slice(-count).join("\n");
 }
 
-/** Whether the launched process ended in failure: a second instance hands over to the running app and exits 0. */
 function failed(ended: ReturnType<Launched["exit"]>): boolean {
   return ended !== undefined && (ended.code !== 0 || ended.signal !== null);
 }
 
-/** Why the launched app did not come up, in words a user can act on, naming the file that keeps its output. */
 export function whyAppDidNotStart(launched: Launched, waited: string): string {
   const output = readFrom(launched.log, 0);
   const database = readFrom(launched.toolLog, launched.toolLogFrom);
@@ -83,11 +77,6 @@ export function whyAppDidNotStart(launched: Launched, waited: string): string {
   return `The app ${how}.${said}Its output is in ${launched.log}${database ? ` and its database's in ${launched.toolLog}` : ""}.`;
 }
 
-/**
- * Wait until the delivered app is up. On a local library that is its database answering; on a
- * Postgres-address library the app starts no local database, so it is the app itself running (its launch
- * record's process, app lifecycle 1.11). An app that exits with an error, or never comes up, fails with why (1.16).
- */
 export async function waitForApp(home: string, timeoutMs = 90_000, launched?: Launched): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   const remote = readLibrary(home).location !== "local";
@@ -117,7 +106,6 @@ export async function waitForApp(home: string, timeoutMs = 90_000, launched?: La
   throw new Error(`The app did not come up within ${waited}. Open the app to read its error, then retry the delivery command.`);
 }
 
-/** Finishing touches only delivery's own command and record. It never creates a project or configures a harness. */
 export async function finishDelivery(options: DeliveryOptions, effects: {
   launch(exe: string, home: string): Promise<Launched | void>;
   waitForApp(home: string, timeoutMs?: number, launched?: Launched): Promise<void>;
@@ -125,14 +113,12 @@ export async function finishDelivery(options: DeliveryOptions, effects: {
   const installed = verifyPayload(options.installDir, options.arch, options.platform);
   const launched = await effects.launch(installed.app, options.home);
   await effects.waitForApp(options.home, undefined, launched || undefined);
-  // The agents run a copy under the home, so an update never finds them in the installation, nor takes their files from under them (1.19, 1.22).
   const tools = stageTools(options.installDir, options.home, options.arch, options.platform ?? process.platform);
   const command = installCommand({ ...options, tools });
   writeRecord(options, tools);
   return { state: "ready", tools, command };
 }
 
-/** delivery.json, renamed into place whole. `pending` names the agents a start could not point at `tools` (1.20). */
 function writeRecord(options: DeliveryOptions, tools: InstalledTools, pending: readonly string[] = []): void {
   const record = { schema: 1, installDir: path.resolve(options.installDir), tools, ...(pending.length > 0 ? { pending } : {}) };
   mkdirSync(options.home, { recursive: true });
@@ -143,24 +129,14 @@ function writeRecord(options: DeliveryOptions, tools: InstalledTools, pending: r
   } finally { rmSync(temp, { force: true }); }
 }
 
-/** Which connected agents a start pointed at its build's copy of the tools, and which it could not, each with why. */
 export interface FollowedTools {
   readonly moved: readonly string[];
   readonly notMoved: readonly { readonly agent: string; readonly reason: string }[];
 }
 
-/**
- * The installed app's start (1.20): its own build's tools are copied under the home and, when the delivery record
- * names this installation but other tools (the last build's copy, or a release's from before the copies), or agents an
- * earlier start could not re-point, the record, the connected agents' registrations and hooks, and the storytree command
- * are pointed at that copy. A session still open keeps the copy it started. A record naming another installation, or
- * none, is not this app's to rewrite. Undefined when there was nothing to re-point.
- */
 export async function followBuildTools(options: DeliveryOptions & {
   connections?: Pick<ConnectionOptions, "home" | "env" | "run">;
-  /** How a copy's node is deleted before the rest of it; Windows refuses while a session runs it. */
   remove?: (file: string) => void;
-  /** Which copies a process runs; Linux and macOS would delete them under it (1.22). */
   running?: (dir: string) => boolean;
 }): Promise<FollowedTools | undefined> {
   let recorded: { installDir?: unknown; tools?: { dir?: unknown }; pending?: unknown } | undefined;
@@ -177,17 +153,14 @@ export async function followBuildTools(options: DeliveryOptions & {
       moved: results.filter((result) => result.tools !== "not connected").map((result) => agentLabel(result.harness)),
       notMoved: failed.map((result) => ({ agent: agentLabel(result.harness), reason: result.next })),
     };
-    // An agent left on an older copy is tried again at the next start.
     writeRecord(options, tools, failed.map((result) => result.harness));
   }
-  // Older builds' copies no session runs and no agent still names go (1.21).
   const named = agentFiles(options.connections ?? {}).map((file) => { try { return readFileSync(file, "utf8"); } catch { return ""; } }).join("\n");
   const running = options.running ?? ((options.platform ?? process.platform) === "win32" ? undefined : runningFrom());
   clearOlderTools(options.home, tools.dir, options.remove, (name) => named.includes(name), running);
   return followed;
 }
 
-/** The helper runs only from its own payload's Node: Windows x64 or arm64, an Apple Silicon Mac or x64 Linux (install.sh). */
 export function runtimeProblem(arch: Architecture, runtime = { platform: process.platform, arch: process.arch, node: process.versions.node }): string | undefined {
   if (runtime.platform === "darwin" && arch !== "arm64") return "storytree needs a Mac with Apple Silicon";
   if (runtime.platform === "linux" && arch !== "x64") return "storytree on Linux needs an x64 computer";
@@ -197,13 +170,11 @@ export function runtimeProblem(arch: Architecture, runtime = { platform: process
   return undefined;
 }
 
-/** Installed delivery and connection commands. inspect has no side effects, including no app launch. */
 export async function runDeliveryCommand(args = process.argv.slice(2)): Promise<void> {
   if (args[0] === "connect" || args[0] === "disconnect") {
     process.stdout.write(await runInstalledConnection(args[0], args.slice(1)) + "\n");
     return;
   }
-  // Leaving storytree: the NSIS uninstaller asks, then removes, from this installation's own Node.
   if (args[0] === "uninstall-asks" && args.length === 2) {
     const asks = uninstallAsks(args[1]!, storytreeHome());
     process.stdout.write(asks + "\n");

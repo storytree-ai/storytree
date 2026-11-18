@@ -1,7 +1,4 @@
-/**
- * Capability 2 · Connect an agent. `storytree setup connect | disconnect | uninstall`: each runs the installed delivery
- * helper beside the command, which owns delivery paths and connection results.
- */
+// Capability 2 · Connect an agent
 import { verb, VerbRefusal, type Verb, type VerbInputs } from "@storytree/library/verbs";
 
 import type { SetupVerbContext } from "../verbs.js";
@@ -10,7 +7,6 @@ const NO_TOOL = { absent: "an agent is connected, and storytree uninstalled, by 
 const AGENTS = { claude: "claude-code", codex: "codex", cursor: "cursor", pi: "pi", antigravity: "antigravity" } as const;
 const HARNESSES: readonly string[] = Object.values(AGENTS);
 
-/** Run the installed delivery helper beside the command with `args`, answering what it printed. */
 async function installed(args: string[], context: SetupVerbContext): Promise<{ text: string }> {
   const { existsSync } = await import("node:fs");
   const path = await import("node:path");

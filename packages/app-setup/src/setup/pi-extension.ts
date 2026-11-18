@@ -1,49 +1,24 @@
-/**
- * Capability 2 · Connect an agent. Storytree's Pi extension: Pi runs no hook command, only TypeScript extensions it loads from
- * `<agent dir>/extensions/` (PI_CODING_AGENT_DIR, else ~/.pi/agent), with no trust prompt at the user level.
- * So storytree's hook registration for Pi is one generated file there, `storytree.ts`, written whole: the
- * Node and hook script it runs, and a table of which of Pi's events it forwards, with which flags, and
- * whether Pi waits for the answer. It holds no storytree logic: it forwards each event, with the session's
- * id, folder and transcript, to `storytree-hook pi` (hooks/pi.ts in Session management reads it) and hands
- * Pi back what the hook prints, so the edit gate's `{block, reason}` refuses an edit and the close-out reminder's
- * `{entries, continue}` asks a settling run to close out. Pi blocks a tool whose
- * handler throws, so every handler catches everything and answers nothing.
- *
- * Built against Pi 1.1.0 (`@earendil-works/pi-coding-agent`), measured on the Mint box on 2026-10-12. When a
- * later Pi no longer loads it, Pi reports the extension's load error at startup and the session runs unwatched:
- * the setup check, run in that session, then says no storytree hook was received from it.
- */
+// Capability 2 · Connect an agent
 import { CLOSE_OUT_REMINDER, EDIT_GATE, PI_EXTENSION_SCRIPT, STORYTREE_TOOLS } from "@storytree/session-management";
 
 import type { HookCommand } from "./hooks-config.js";
 
-/** Pi's version the extension was built against. */
 export const PI_BUILT_AGAINST = "1.1.0";
 
-/**
- * Each forwarded event: Pi's event, the tools it is for (a pattern on `toolName`, any when absent), the hook's
- * flags, and whether Pi waits for the hook and takes its answer. A hook Pi does not wait for runs on in its own
- * process, so it outlives a session that is quitting.
- */
 export function piEvents(): readonly (readonly [event: string, tools: string | null, flags: readonly string[], waits: boolean])[] {
   return [
     ["session_start", null, [], false],
-    // Once per run, before the model: its answer adds the definitions the prompt names (ADR-0636 D1).
     ["before_agent_start", null, [], true],
-    // Before a call to storytree's own tools, so its line is there when the call reaches the tool server (6.68).
     ["tool_call", `^${STORYTREE_TOOLS}`, [], true],
     ["tool_call", "^bash$", [], false],
-    // Before each file edit, waited for: an edit to a capability the session may not write is refused (ADR-0949 D3).
     ["tool_call", "^(write|edit)$", [EDIT_GATE], true],
     ["tool_result", "^(bash|write|edit)$", [], false],
     ["agent_end", null, [], false],
-    // As a run settles, waited for: a session whose branch has merged is asked once to close out (ADR-0758 D4).
     ["agent_before_settle", null, [CLOSE_OUT_REMINDER], true],
     ["session_shutdown", null, [], false],
   ];
 }
 
-/** The extension's whole text for `hook`: the same text for the same hook command, so registering again changes nothing. */
 export function piExtension({ node, script }: HookCommand): string {
   return `// storytree's Pi extension, written by storytree's setup check: do not edit, the next setup check rewrites it.
 // Removing storytree deletes it. Built against Pi ${PI_BUILT_AGAINST} (@earendil-works/pi-coding-agent).

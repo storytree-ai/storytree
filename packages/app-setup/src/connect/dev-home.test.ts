@@ -15,7 +15,6 @@ const originalSignIn = '{"refresh":"synthetic-original-sign-in"}';
 const refreshedSignIn = '{"refresh":"synthetic-refreshed-sign-in"}';
 const conflictingSignIn = '{"refresh":"synthetic-other-sign-in"}';
 
-// Stop after the real credential writes, before command compilation or agent registration.
 const stopBeforeBuild = async () => { throw new Error("stopped before build"); };
 
 for (const mask of [0o022, 0o077]) {
@@ -94,7 +93,6 @@ for (const legacy of [false, true]) {
           assert.equal(statSync(dir).mode & 0o777, 0o700);
           assert.equal(statSync(marker).mode & 0o777, 0o600);
         }
-        // A refused legacy cleanup leaves a usable digest marker for the next attempt.
         writeFileSync(source, originalSignIn);
         await removeDevHome(dir);
         assert.equal(readFileSync(source, "utf8"), refreshedSignIn);
@@ -114,8 +112,6 @@ for (const crashed of [false, true]) {
     const dir = path.join(root, "dev home");
     const made = await makeDevHome({
       dir, harnesses: [],
-      // Command compilation and agent registration are covered separately. The home's actual
-      // app.json and database entry are used below, with no test signal delivery or stop shim.
       build: async (tools) => {
         mkdirSync(tools, { recursive: true });
         const bins = Object.fromEntries(["storytree-mcp", "storytree-hook", "storytree-setup", "storytree"].map((name) => [name, path.join(tools, `${name}.mjs`)]));
@@ -128,7 +124,6 @@ for (const crashed of [false, true]) {
     const dataDir = path.join(home, "pgdata");
     const ownerFile = `${dataDir}.owner.json`;
     const handoffFile = path.join(`${dataDir}.auth`, "connection.json");
-    // pg_ctl as the server runs it: as root (a cloud container), the tools' account, since Postgres refuses root.
     const serverCtl = (...args: string[]) => pgCtl(dataDir, args, { timeoutMs: 15_000 });
     const app = JSON.parse(readFileSync(path.join(home, "app.json"), "utf8")) as { command: string; args: string[] };
     const child = spawn(app.command, app.args, { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
@@ -142,26 +137,18 @@ for (const crashed of [false, true]) {
       await client?.end();
       if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
       await exited;
-      // A removed home has no cluster left to ask about.
       if (existsSync(path.join(dataDir, "PG_VERSION")) && await serverCtl("status") === 0) await serverCtl("-m", "immediate", "-w", "stop");
-      // The old removal can partially delete a live cluster. Cleanup must still stop that
-      // test-only server even when pg_ctl has lost its postmaster.pid.
       if (postgresPid !== undefined && postgresStart !== undefined && started(postgresPid) === postgresStart) {
         if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(postgresPid), "/T", "/F"], { stdio: "ignore" });
         else process.kill(postgresPid, "SIGQUIT");
       }
       await removeTemp(root);
     });
-    // A loaded Windows runner can take well over 30 s to make and start the home's Postgres
-    // (release run 38758914357). Across 55 green Windows CI runs on 2026-10-22 this whole case
-    // took 7 to 21 s with a tail at 44 s and 78 s, and run 39799689426 waited the full 90 s. The
-    // budget is stated in Linux terms: Windows's factor of 4 makes it 180 s there, twice that window.
     client = await waitUntil(async () => {
       assert.equal(child.exitCode, null, stderr);
       if (!existsSync(ownerFile) || !existsSync(handoffFile)) return undefined;
       const owner = JSON.parse(readFileSync(ownerFile, "utf8")) as { pid: number; port: number };
       assert.equal(owner.pid, child.pid);
-      // The home's database asks for its password, which it hands over privately while it runs.
       const handoff = JSON.parse(readFileSync(handoffFile, "utf8")) as { user: string; password: string };
       const candidate = new pg.Client({ host: "127.0.0.1", port: owner.port, user: handoff.user, password: handoff.password, database: "postgres", connectionTimeoutMillis: 500 });
       try {
@@ -190,8 +177,6 @@ for (const crashed of [false, true]) {
     assert.notEqual(started(postgresPid), postgresStart, "the real Postgres process stopped before its home was deleted");
     await exited;
     await disconnected;
-    // On Windows the backend's close can reset the socket before its 57P01 is read; the same
-    // pg_ctl fast stop runs on every platform, so Linux and macOS pin the message itself.
     assert.ok(shutdown === "57P01" || (process.platform === "win32" && shutdown === "ECONNRESET"),
       `Postgres shut down through its native fast-stop path (saw ${shutdown})`);
     assert.equal(existsSync(ownerFile), false, "ownership was released");
@@ -199,19 +184,13 @@ for (const crashed of [false, true]) {
   });
 }
 
-/** Names the live process holding `pid`, or undefined when none does. Windows hands a freed pid
- * straight to the next process, so there it is the process's start time: a newcomer reusing the
- * number reads as a different process, not as the one that stopped. */
 function started(pid: number): string | undefined {
   if (process.platform !== "win32") {
     try { process.kill(pid, 0); return "alive"; } catch { return undefined; }
   }
   const env = { ...process.env };
-  // A parent PowerShell 7's module path can break Windows PowerShell 5's Get-Process.
   for (const key of Object.keys(env)) if (key.toUpperCase() === "PSMODULEPATH") delete env[key];
   const found = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
-    // A pid taken by another user's process cannot show its start time: that, too, is not ours.
-    // A caught error still leaves $? false, which -Command turns into exit 1, so say 0 outright.
     `$ErrorActionPreference = 'Stop'; try { (Get-Process -Id ${pid}).StartTime.ToFileTimeUtc() } catch {}; exit 0`],
   { encoding: "utf8", env, windowsHide: true, timeout: 30_000 });
   assert.equal(found.status, 0, found.stderr);

@@ -1,10 +1,4 @@
-/**
- * Capability 2 · Connect an agent: contract 2.9. Codex keeps a tool server's instructions and tools out
- * of the agent's first view (it finds them by searching), so a fresh Codex session never reads the
- * habits card; what it does read is the AGENTS.md in its home. Measured on the owner's Windows laptop
- * in three first sessions: without this section 0 of 3
- * called check_setup; with it, 3 of 3 did before their first change.
- */
+// Capability 2 · Connect an agent
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -33,7 +27,6 @@ test("2.9 Codex's AGENTS.md gets one storytree section telling the agent to call
     const both = readFileSync(file, "utf8");
     assert.ok(both.startsWith(own), "the user's own text stays first, as it was");
     assert.match(both, /`check_setup`/);
-    // An older wording is replaced, not doubled.
     writeFileSync(file, both.replace("check_setup", "check_setup_old"));
     assert.equal(writeCodexInstructions(codexHome), "written");
     assert.equal(readFileSync(file, "utf8"), both);

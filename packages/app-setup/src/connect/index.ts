@@ -1,4 +1,4 @@
-/** Capability 2 · Connect an agent: per-user agent connection. The setup check and hook verification are capability 8 (setup/). */
+// Capability 2 · Connect an agent
 import { mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -16,24 +16,17 @@ export type { Harness, InstalledToolServerCommand, RunHarness };
 export interface ConnectionOptions {
   readonly harnesses: readonly Harness[];
   readonly installed: InstalledToolServerCommand;
-  /** Defaults to the current user's home/environment. Explicit values support installed-artifact checks. */
   readonly home?: string;
   readonly env?: NodeJS.ProcessEnv;
   readonly run?: RunHarness;
-  /** Whether this runs as a Windows administrator, where Codex cannot run commands. By default, asked of Windows. */
   readonly elevated?: () => Promise<boolean>;
 }
 export interface ConnectionResult {
   readonly harness: Harness;
   readonly settingsFile: string;
   readonly tools: "connected" | "already connected" | "not connected";
-  /**
-   * Codex runs storytree's hooks only once the user trusts them, which only a hook that has run proves:
-   * until then its hooks wait for the user. Claude Code's are verified inside a session by check_setup.
-   */
   readonly hooks: "not verified" | "waiting for you to trust them in Codex" | "running";
   readonly next: string;
-  /** Where the connection was written, for a reader who asks: kept out of `next`, which says only what the user does. */
   readonly where?: string;
 }
 export interface DisconnectionResult {
@@ -52,13 +45,9 @@ function locations(options: ConnectionOptions) {
   const env = options.env ?? process.env;
   const claude = env.CLAUDE_CONFIG_DIR || path.join(home, ".claude");
   const codex = env.CODEX_HOME || path.join(home, ".codex");
-  // Where storytree keeps what the user disconnected, which the setup check honours.
   const storytree = env.STORYTREE_HOME || path.join(home, ".storytree", "0.3");
-  // Cursor's home is ~/.cursor on every machine: no variable moves it (its documentation; not measured in a live session).
   const cursor = path.join(home, ".cursor");
-  // Pi's agent folder: PI_CODING_AGENT_DIR, else ~/.pi/agent (measured, Pi 1.1.0).
   const pi = env.PI_CODING_AGENT_DIR || path.join(home, ".pi", "agent");
-  // Antigravity CLI's home is ~/.gemini; its tool servers are in config/mcp_config.json (measured, agy 1.3.3).
   const antigravity = path.join(home, ".gemini");
   return { home, env, claude, codex, cursor, pi, antigravity, storytree, files: {
     "claude-code": env.CLAUDE_CONFIG_DIR ? path.join(claude, ".claude.json") : path.join(home, ".claude.json"),
@@ -68,37 +57,24 @@ function locations(options: ConnectionOptions) {
     antigravity: path.join(antigravity, "config", "mcp_config.json"),
   } };
 }
-/** The hook the installation carries: its bundled Node and the hook script beside its tool server. */
 const hookCommand = (installed: InstalledToolServerCommand) => ({ node: installed.command, script: path.join(path.dirname(installed.args[0]), "storytree-hook.mjs") });
 const executable = (harness: Harness) => harness === "claude-code" ? "claude" : harness === "codex" ? "codex" : harness === "pi" ? "pi" : harness === "antigravity" ? "agy" : "cursor-agent";
-/** The agent's name as the user knows it: Claude Code, Codex, Cursor, Pi, Antigravity CLI. */
 export const agentLabel = (harness: Harness) => watchedHarness(harness)?.label ?? harness;
 const label = agentLabel;
-/** The file a harness keeps its hooks in: Claude Code's settings.json, Codex's, Cursor's and Antigravity's hooks.json, and storytree's Pi extension. */
 const hooksFileOf = (where: ReturnType<typeof locations>, harness: Harness) => harness === "claude-code" ? path.join(where.claude, "settings.json") : harness === "pi" ? path.join(where.pi, PI_EXTENSION) : harness === "antigravity" ? path.join(where.antigravity, ANTIGRAVITY_HOOKS) : path.join(where[harness], "hooks.json");
-/** The folder a harness keeps its hooks file in: its home, for Pi its agent folder, which holds the extensions folder, and for Antigravity ~/.gemini, which holds its config folder. */
 const harnessHomeOf = (where: ReturnType<typeof locations>, harness: Harness) => harness === "pi" ? where.pi : harness === "antigravity" ? where.antigravity : path.dirname(hooksFileOf(where, harness));
 const homesOf = (where: ReturnType<typeof locations>) => ({ claude: where.claude, codex: where.codex, cursor: where.cursor, pi: where.pi, antigravity: where.antigravity });
-/** Pi's default exposure, codemode, declares no tool to the model: storytree's are declared directly (measured, Pi 1.1.0). */
 const PI_ENTRY = { exposure: "direct", description: "storytree: the project's plan, claims, library and questions" };
 async function openSettings(harness: Harness, options: ConnectionOptions): Promise<Settings> {
   const where = locations(options);
-  // Cursor's mcp.json names its servers under mcpServers, as Claude Code's file does.
   return harness !== "codex" ? claudeSettings(where.files[harness], harness === "pi" ? PI_ENTRY : {}) : codexSettings(where.files[harness], options.run ?? runHarness, where.env, where.codex === path.join(where.home, ".codex") ? undefined : where.codex);
 }
 const ELEVATED = "This terminal runs as administrator, and Codex cannot run commands when started from one (its Windows sandbox times out on each): open Codex from a normal terminal, not \"Run as administrator\".";
 const conflict = (file: string) => `The existing storytree entry in ${file} is incompatible and was kept (including any 0.2 entry). Review or move that entry yourself before retrying. The name storytree is required by the existing hooks.`;
 
-/**
- * Register the chosen harnesses independently: the tool server and storytree's hooks. The hooks go
- * in now, not at the first session's setup check, because a harness reads its hooks when a session
- * starts: registered later, the first session would miss its start hook.
- * No app launch, agent session, project creation or hook attestation.
- */
 export async function connectAgents(options: ConnectionOptions): Promise<ConnectionResult[]> {
   const where = locations(options);
   const results: ConnectionResult[] = [];
-  // Codex's own limit, which storytree only names: started from an administrator terminal, it runs no command (Session management 8.17).
   const elevated = options.harnesses.includes("codex") && await (options.elevated ?? runsElevated)().catch(() => false);
   const hook = hookCommand(options.installed);
   for (const harness of new Set(options.harnesses)) {
@@ -123,9 +99,7 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
     const harnessHome = harnessHomeOf(where, harness);
     let checkingFile = hooksFile;
     try {
-      // A harness that has never started a session has no home yet (its --version makes none): make it, so its hooks go in now.
       mkdirSync(harnessHome, { recursive: true });
-      // Pi's is an extension storytree writes whole, not a settings file.
       const hooksText = harness === "pi" ? undefined : read(checkingFile);
       if (hooksText !== undefined) {
         const hooks: unknown = JSON.parse(hooksText);
@@ -143,27 +117,19 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       else if (settings.current === undefined) await settings.add(options.installed);
       markDisconnected(where.storytree, harness, false);
       checkingFile = hooksFile;
-      // Codex's hooks take the shape its version runs (hooks-config.ts), asked of the Codex these settings' PATH finds.
       const codexVersion = harness === "codex" ? installedCodexVersion({ codexHome: where.codex, ...(where.env.PATH === undefined ? {} : { path: where.env.PATH }) }) : undefined;
       const registration = registerHooks(harness === "claude-code" ? { claude: where.claude } : { [harness]: harnessHome }, hook, undefined, codexVersion)[harness];
       if (registration !== "registered" && registration !== "already registered") throw new Error(`Hooks ${registration}`);
-      // Codex shows the agent neither the tool server's instructions nor its tools until it searches, and
-      // runs no hook until the user trusts it: its home's AGENTS.md is what sends its first session to check_setup.
-      // Pi shows the agent no server instructions in either exposure (measured, Pi 1.1.0), and reads its agent folder's AGENTS.md in every folder.
       if (harness === "codex" || harness === "pi") writeCodexInstructions(harnessHome);
       const trust = harness === "codex" ? codexHookTrust({ storytreeHome: where.storytree, codexHome: where.codex }) : "not registered";
       if (trust === "running") result(tools, "Tools connected in user settings; Codex has run storytree's hooks. Start a new Codex session in the folder of your project.", "running");
       else if (trust === "waiting") result(tools, `Tools connected in user settings. One step is yours: Codex runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work. ${CODEX_TRUST_STEP}`, "waiting for you to trust them in Codex");
-      // Cursor's hooks are known from its documentation and code, not from a session: nothing here says they run.
       else if (harness === "cursor") result(tools, "Tools connected in user settings; hooks not verified. Start a new Cursor agent session in the folder of your project and call check_setup.");
-      // Antigravity's hooks are known from the documentation it ships, not from a session (agy runs no prompt unsigned).
       else if (harness === "antigravity") result(tools, "Tools connected in user settings and storytree's hooks added to Antigravity's hooks.json; hooks not verified. Start a new agy session in the folder of your project and call check_setup.");
       else if (harness === "pi") result(tools, "Tools connected in user settings and storytree's Pi extension installed; hooks not verified. Start a new Pi session in the folder of your project and call check_setup.");
-      // Claude Code's: what the user does in their words, and where it was written one step away (Fable's F1.7).
       else result(tools, "Not yet verified: that happens the first time you start Claude Code in your project's folder and approve its check. If storytree does not hear from it, ask the agent to run check_setup; it names each missing hook until its event is received.",
         "not verified", "Written to Claude Code's user settings; project or managed settings can override it.");
     } catch {
-      // Do not copy a CLI's stdout/stderr (which can include settings or credentials) into the result.
       const reason = harness === "codex" ? " Check that codex mcp list --json succeeds and hooks.json contains a valid JSON object." : " Check that the file contains a valid JSON object.";
       result("not connected", `Repair ${checkingFile} or its write permissions, then retry Connect.${reason}`);
     } finally { settings?.close(); }
@@ -171,10 +137,6 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
   return results;
 }
 
-/**
- * When the installed tools move (each Windows build's own copy, Get storytree 1.20): connect again every agent whose hooks
- * carry storytree's and that the user has not disconnected, so its registration and hooks run `installed`. No other agent is touched.
- */
 export async function reconnectAgents(options: Omit<ConnectionOptions, "harnesses">): Promise<ConnectionResult[]> {
   const where = locations({ ...options, harnesses: [] });
   const disconnected = disconnectedHarnesses(where.storytree);
@@ -182,32 +144,20 @@ export async function reconnectAgents(options: Omit<ConnectionOptions, "harnesse
   return harnesses.length === 0 ? [] : connectAgents({ ...options, harnesses });
 }
 
-/** Every file an agent keeps storytree's registration or hooks in, so a copy of the tools one still names is known (Get storytree 1.21). */
 export function agentFiles(options: Pick<ConnectionOptions, "home" | "env">): string[] {
   const where = locations({ ...options, harnesses: [], installed: { command: "", args: [""] } });
   return HARNESS_IDS.flatMap((harness) => [where.files[harness], hooksFileOf(where, harness)]);
 }
 
-/** An agent this computer runs, and whether this installation's tool server is already registered with it. */
 export interface FoundAgent {
   readonly harness: Harness;
   readonly agent: string;
   readonly connected: boolean;
-  /** Why it is offered unconfirmed: it did not answer within the search's bound. */
   readonly note?: string;
 }
 
-/**
- * How long the search waits on one agent before offering it anyway. execFile's own timeout is not the bound:
- * on Windows it kills the .cmd shim's shell, and the agent it started can keep the output open (seen on Windows, 0.3.2354).
- */
 export const PROBE_TIMEOUT_MS = 15_000;
 
-/**
- * The agents whose command runs here (its `--version`), each said connected or not, so the app's first run can offer
- * to connect the rest (ADR-1162 D3). An agent whose settings cannot be read is said not connected; connecting it names the fix.
- * The agents are asked side by side, each within the bound: one that has not answered by then is offered with a note.
- */
 export async function agentsOnThisComputer(options: Omit<ConnectionOptions, "harnesses"> & { readonly probeTimeoutMs?: number }): Promise<FoundAgent[]> {
   const where = locations({ ...options, harnesses: [] });
   const bound = options.probeTimeoutMs ?? PROBE_TIMEOUT_MS;
@@ -222,7 +172,7 @@ export async function agentsOnThisComputer(options: Omit<ConnectionOptions, "har
       try {
         settings = await openSettings(harness, { ...options, harnesses: [harness] });
         connected = settings.current !== undefined && settings.compatible(options.installed);
-      } catch { /* Unreadable settings: offered, and Connect says how to repair them. */ } finally { settings?.close(); }
+      } catch {} finally { settings?.close(); }
       return { harness, agent: label(harness), connected };
     })();
     let timer: NodeJS.Timeout | undefined;
@@ -237,7 +187,6 @@ export async function agentsOnThisComputer(options: Omit<ConnectionOptions, "har
   return found.filter((each): each is FoundAgent => each !== undefined);
 }
 
-/** Remove only the selected registration and this installation's hooks. Keep the command while another registration may need it. */
 export async function disconnectAgents(options: ConnectionOptions): Promise<DisconnectReport> {
   const where = locations(options);
   const harnesses: DisconnectionResult[] = [];
@@ -246,16 +195,13 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
     let settings: Settings | undefined;
     try {
       settings = await openSettings(harness, options);
-      // An outdated registration is still this installation's, only older: it goes too.
       if (settings.current !== undefined && !settings.compatible(options.installed) && !settings.outdated(options.installed)) {
         harnesses.push({ harness, tools: "kept", next: conflict(where.files[harness]) });
         continue;
       }
-      // Validate/remove only this harness's hooks; never call the unscoped `setup remove` command.
       removeHooks(homesOf(where), { harness, hook });
       if (harness === "codex" || harness === "pi") removeCodexInstructions(harnessHomeOf(where, harness));
       if (settings.current !== undefined) await settings.remove();
-      // So the setup check, run from another harness's session, does not register its hooks again.
       markDisconnected(where.storytree, harness, true);
       harnesses.push({ harness, tools: settings.current === undefined ? "not connected" : "disconnected", next: "Restart this agent to finish disconnecting. Project libraries and unrelated settings were kept." });
     } catch {
@@ -269,14 +215,12 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
       let settings: Settings | undefined;
       try {
         settings = await openSettings(harness, options);
-        // An unknown/conflicting connection is conservatively kept with the shared command.
         remaining ||= settings.current !== undefined;
       } catch { remaining = true; }
       finally { settings?.close(); }
     }
     if (!remaining) {
       try {
-        // The existing setup check registers hooks for every detected home, even an unchosen harness.
         for (const harness of HARNESS_IDS) removeHooks(homesOf(where), { harness, hook });
         removeCodexInstructions(where.codex);
         removeCodexInstructions(where.pi);
@@ -293,29 +237,20 @@ export interface RemovalResult {
   readonly next?: string;
 }
 
-/** The command a registration starts: Codex's under its transport, a JSON file's at its top. */
 function commandOf(current: unknown): unknown {
   if (current === null || typeof current !== "object") return undefined;
   const entry = current as { transport?: { command?: unknown }; command?: unknown };
   return entry.transport !== null && typeof entry.transport === "object" ? entry.transport.command : entry.command;
 }
 
-/** Whether a file lies inside a folder, compared without case as Windows compares its paths. */
 function inside(file: unknown, folder: string): boolean {
   if (typeof file !== "string" || !path.isAbsolute(file)) return false;
   const relative = path.relative(path.resolve(folder).toLowerCase(), path.resolve(file).toLowerCase());
   return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
-/**
- * Uninstalling: take out this installation's registration, hooks and status line from every agent,
- * whichever were chosen. A registration whose command lies in the installation folder being removed
- * is ours whatever shape an older connect gave it, since it cannot run afterwards. Anything else
- * (another build's, 0.2's, the user's own) is not ours and stays, silently. Records no disconnection, since the home goes too.
- */
 export async function removeConnections(options: Omit<ConnectionOptions, "harnesses"> & { readonly installDir?: string; readonly also?: readonly InstalledToolServerCommand[] }): Promise<RemovalResult[]> {
   const where = locations({ ...options, harnesses: [] });
-  // The installation's tools, and any copy of them the installation's record names (on Windows its build's copy, Get storytree 1.19).
   const installed = [options.installed, ...(options.also ?? [])];
   const results: RemovalResult[] = [];
   for (const harness of HARNESS_IDS) {
@@ -323,7 +258,6 @@ export async function removeConnections(options: Omit<ConnectionOptions, "harnes
     try {
       for (const each of installed) removeHooks(homesOf(where), { harness, hook: hookCommand(each) });
       if (harness === "codex" || harness === "pi") removeCodexInstructions(harnessHomeOf(where, harness));
-      // Codex's own command line reads its TOML; without a storytree table there is nothing to ask it.
       if (harness === "codex" && !/mcp_servers\.["']?storytree\b/.test(read(where.files.codex) ?? "")) { results.push({ harness, tools: "none" }); continue; }
       settings = await openSettings(harness, { ...options, harnesses: [] });
       const ours = settings.current !== undefined && (installed.some((each) => settings!.compatible(each) || settings!.outdated(each)) ||
@@ -342,7 +276,6 @@ export async function removeConnections(options: Omit<ConnectionOptions, "harnes
   return results;
 }
 
-/** This installation's own launchers in the user's home: any of storytree's (the batch file before ADR-0854 too) that runs its Node and command. */
 function removeInstalledCommand(home: string, env: NodeJS.ProcessEnv, installed: InstalledToolServerCommand): "removed" | "none" {
   const target = path.join(path.dirname(installed.args[0]), "storytree.mjs");
   let removed = false;

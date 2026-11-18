@@ -24,7 +24,6 @@ for (const permissive of [false, true]) {
     fs.writeFileSync(source, original);
     const before = access([root, codex, source]);
     if (permissive) {
-      // The old mkdir/write mode options alone leave inherited Windows access intact.
       fs.chmodSync(source, 0o600);
       assert.ok(access([source])[0]!.stranger & 1, "control: POSIX mode leaves the synthetic sign-in readable on Windows");
     }
@@ -123,8 +122,6 @@ for (const operation of ["copy", "hand-back"] as const) {
     t.after(() => Object.defineProperty(process, "platform", platform));
     let calls = 0;
     const mock = t.mock.method(childProcess, "execFileSync", () => {
-      // Let legacy-home repair finish so the hand-back refusal is exercised at the
-      // source file itself, immediately before it would receive refreshed bytes.
       if (++calls === 1 && operation === "hand-back") return Buffer.alloc(0);
       throw new Error("synthetic ACL refusal");
     });
@@ -139,7 +136,6 @@ for (const operation of ["copy", "hand-back"] as const) {
   });
 }
 
-// Add-Type compiles C# on each call; on a loaded Windows CI runner a cold compile has run past 30 s.
 function powershell(script: string, files: string[]): string {
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (key.toUpperCase() === "PSMODULEPATH") delete env[key];
@@ -169,11 +165,6 @@ function assertPrivate(files: string[]): void {
   }
 }
 
-/** Ask Windows' authorization engine about the actual on-disk descriptors. The unrelated user
- * is an arbitrary SID with Everyone, Authenticated Users and BUILTIN Users groups, no administrator
- * group or privileges. No account, password, logon, machine policy or service is created/changed.
- * https://learn.microsoft.com/windows/win32/api/authz/nf-authz-authzinitializecontextfromsid
- */
 function access(files: string[]): Access[] {
   return JSON.parse(powershell(`Add-Type -TypeDefinition @'
 using System;

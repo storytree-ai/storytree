@@ -1,15 +1,13 @@
-/** Capability 14 · PostHog delivery. */
+// Capability 14 · PostHog delivery.
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { openJourney, type JourneyConfiguration, type JourneyTransport } from "./index.js";
 import type { DeletionRequest, JourneyBridge, JourneyState } from "./bridge.js";
 
-/** PostHog's public project token, stamped into shipped builds only (release.ts); absent in development copies. */
 declare const STORYTREE_JOURNEY_KEY: string | undefined;
 const RELEASE_CONFIGURATION = releaseConfiguration(typeof STORYTREE_JOURNEY_KEY === "string" ? STORYTREE_JOURNEY_KEY : undefined);
 
-/** US project 645059 on PostHog's free plan (one year of events); the owner is the deletion contact. */
 export function releaseConfiguration(projectKey: string | undefined): JourneyConfiguration | undefined {
   return projectKey === undefined ? undefined
     : { projectKey, retention: "1 year (PostHog's free plan)", deletionContact: "privacy@storytree.dev" };
@@ -17,12 +15,11 @@ export function releaseConfiguration(projectKey: string | undefined): JourneyCon
 
 export type JourneyRuntime = ReturnType<typeof createJourneyRuntime>;
 
-/** The tool binary's public release stamp; development copies carry no release stamp. */
 export function journeyVersion(release: unknown): string {
   try {
     const version: unknown = typeof release === "string" ? JSON.parse(release).version : undefined;
     if (typeof version === "string" && /^\d{1,5}\.\d{1,5}\.\d{1,5}$/.test(version)) return version;
-  } catch { /* An unstamped development copy. */ }
+  } catch {}
   return "0.3.0";
 }
 
@@ -31,7 +28,6 @@ export function createJourneyRuntime(options: {
   appVersion: string;
   configuration?: JourneyConfiguration;
   transport?: JourneyTransport;
-  /** The flush deadline's clock; real time by default. */
   now?: () => number;
 }) {
   let journey: ReturnType<typeof openJourney> | undefined;
@@ -48,10 +44,8 @@ export function createJourneyRuntime(options: {
   });
   function record(event: unknown): void {
     if (finishing || configuration === undefined) return;
-    // With no journey database consent is still pending, so a milestone is not kept, and opening one would make a storytree home, after an uninstall too (contract 1.8).
     if (journey === undefined && !existsSync(path.join(home, "journey-events.sqlite"))) return;
-    // Observation must never break the journey it observes, or send error content about itself.
-    try { open().record(event); } catch { /* Optional observation stays quiet on local failure. */ }
+    try { open().record(event); } catch {}
   }
   function launch(): void {
     if (desktop === undefined) return;
@@ -60,7 +54,7 @@ export function createJourneyRuntime(options: {
     record("app_version");
   }
   async function flush(): Promise<void> {
-    try { if (!finishing) await journey?.flush(options.transport); } catch { /* Observation cannot stop the app. */ }
+    try { if (!finishing) await journey?.flush(options.transport); } catch {}
   }
   function start(): void { timer ??= setInterval(() => { void flush(); }, 30_000).unref(); }
   const bridge: JourneyBridge = {
@@ -86,8 +80,8 @@ export function createJourneyRuntime(options: {
     finish(): Promise<void> {
       return finishing ??= (async () => {
         clearInterval(timer);
-        try { await journey?.flush(options.transport); } catch { /* Best effort, never block shutdown. */ }
-        finally { try { journey?.close(); } catch { /* Normal application cleanup must still run. */ } }
+        try { await journey?.flush(options.transport); } catch {}
+        finally { try { journey?.close(); } catch {} }
       })();
     },
   };

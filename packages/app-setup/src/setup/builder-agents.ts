@@ -1,14 +1,4 @@
-/**
- * Capability 2 · Connect an agent, contract 2.24. storytree's red and green builder agents for Claude Code: two user-level
- * agent files, `<claude home>/agents/storytree-red.md` and `storytree-green.md`, written with storytree's hooks and taken
- * out with them. Each one's frontmatter runs the test guard (Session management's Hooks 3.50) before every file edit,
- * so the red agent can edit only test files and the green agent never one: the split is enforced, not only asked for.
- * A role in a project's library cannot carry a hook, which is why these are files of Claude Code's own.
- * They are user-level on purpose: Claude Code 2.1.311 runs an agent's frontmatter hooks for an agent in the user's
- * agents folder but not for one in a project's .claude/agents (tried both, 2026-10-29), so a project copy would be unfenced.
- *
- * A file is storytree's when it carries MARKER; a file of that name without it is the user's own and is never touched.
- */
+// Capability 2 · Connect an agent
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -16,24 +6,17 @@ import { TEST_GUARD } from "@storytree/session-management";
 
 import type { HookCommand } from "./hooks-config.js";
 
-/** What marks an agent file as storytree's. */
 const MARKER = "<!-- storytree builder agent: written and removed by storytree's setup -->";
 
 type Mode = "red" | "green";
 const MODES: readonly Mode[] = ["red", "green"];
 
-/**
- * Both agents' tools: each runs the project's own test command through the shell Claude Code gives it, Bash, or
- * PowerShell where that is its shell (Windows). Claude Code drops a listed tool it does not have, so both are listed.
- */
 const TOOLS = "Read, Grep, Glob, Edit, Write, Bash, PowerShell";
 
-/** The guard's command line, run by Claude Code through its shell: each path in double quotes. */
 function guardCommand({ node, script }: HookCommand, mode: Mode): string {
   return `"${node}" "${script}" claude-code ${TEST_GUARD} ${mode}`;
 }
 
-/** A YAML single-quoted scalar: backslashes stay as they are, and a quote is doubled. */
 function yamlQuoted(text: string): string {
   return `'${text.replaceAll("'", "''")}'`;
 }
@@ -104,7 +87,6 @@ function isStorytrees(file: string): boolean {
   }
 }
 
-/** Write storytree's builder agents into Claude Code's home, leaving a file of the user's own; a look writes nothing. A new file is its owner's alone (0600). */
 export function installBuilderAgents(home: string | undefined, hook: HookCommand, look: boolean): void {
   if (home === undefined || look || !existsSync(home)) return;
   const folder = path.join(home, "agents");
@@ -118,7 +100,6 @@ export function installBuilderAgents(home: string | undefined, hook: HookCommand
   }
 }
 
-/** Delete storytree's builder agents from Claude Code's home: with `script`, only those that run that build's guard. */
 export function removeBuilderAgents(home: string | undefined, script?: string): void {
   if (home === undefined) return;
   for (const mode of MODES) {

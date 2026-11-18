@@ -17,7 +17,6 @@ test("1.10 release delivery assets publish a stable command, an explicit alpha c
     const manifest = JSON.parse(readFileSync(path.join(dir, "storytree-delivery.json"), "utf8"));
     assert.equal(manifest.channelSchema, 1);
     assert.deepEqual(manifest.architectures, ["x64", "arm64"]);
-    // Each architecture's own installer, so a machine downloads only the app it runs.
     assert.deepEqual(manifest.installers, Object.fromEntries(Object.entries(built).map(([arch, bytes]) => [arch, {
       name: `storytree-0.3-0.3.123-windows-${arch}-setup.exe`,
       sha256: createHash("sha256").update(bytes).digest("hex"),
@@ -29,8 +28,6 @@ test("1.10 release delivery assets publish a stable command, an explicit alpha c
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-// install.ps1 promises Windows PowerShell 5.1, the engine stock Windows ships, as well as PowerShell 7.
-// On Windows, 5.1 is always required and pwsh runs too when present (CI requires both); elsewhere pwsh only.
 const engines = process.env.STORYTREE_TEST_PWSH
   ? [{ command: process.env.STORYTREE_TEST_PWSH, required: true }]
   : process.platform === "win32"
@@ -42,7 +39,6 @@ for (const { command, required } of engines) {
     const found = spawnSync(command, ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()"], { encoding: "utf8" });
     if (found.error && !required) return t.skip(`platform:win32: ${command} unavailable here; Windows CI runs this proof`);
     assert.ifError(found.error);
-    // A user opens Windows PowerShell afresh; a module path inherited from pwsh (CI's shell) would load 7's modules into 5.1.
     const env = { ...process.env };
     if (command === "powershell.exe") for (const name of Object.keys(env)) if (name.toUpperCase() === "PSMODULEPATH") delete env[name];
     const result = spawnSync(command, ["-NoProfile", "-File", fileURLToPath(new URL("./bootstrap.test.ps1", import.meta.url))], { encoding: "utf8", env });

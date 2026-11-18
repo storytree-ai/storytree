@@ -11,7 +11,6 @@ import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { removeDevHome } from "./dev-home.js";
 
-/** A long-lived stand-in for a database owner (it ends itself once this runner is gone), and its identity. */
 async function standIn(): Promise<{ child: ChildProcess; identity: ProcessIdentity; exited: Promise<unknown[]> }> {
   const child = spawn(process.execPath, testChildArgs(), { stdio: "ignore", windowsHide: true });
   const exited = once(child, "exit");
@@ -22,14 +21,12 @@ async function standIn(): Promise<{ child: ChildProcess; identity: ProcessIdenti
   return { child, identity, exited };
 }
 
-/** Kill a stand-in only while its pid still names it, never whatever process has since been given that pid. */
 async function stop(identity: ProcessIdentity, exited: Promise<unknown>): Promise<void> {
   if ((await probeProcess(identity)).state !== "live") return;
   try { process.kill(identity.pid, "SIGKILL"); } catch { return; }
   await exited;
 }
 
-/** A dev home as makeDevHome leaves it, with no Postgres: its marker, its storytree home and the database owner's record. */
 function fabricateHome(root: string, ownerPid: number, identity: ProcessIdentity | undefined) {
   const dir = path.join(root, "dev home");
   const storytree = path.join(dir, "home", ".storytree", "0.3");
@@ -46,7 +43,6 @@ test("2.27 · removing a dev home whose owner record is stale (its pid names a p
   const root = mkdtempSync(path.join(tmpdir(), "storytree dev home owner "));
   const stranger = await standIn();
   t.after(async () => { await stop(stranger.identity, stranger.exited); await removeTemp(root); });
-  // The owner's recorded lifetime: same pid, another start, as when the owner died and its pid was handed on.
   const ownerLifetime: ProcessIdentity = { ...stranger.identity, started: `${stranger.identity.started}0` };
   const { dir } = fabricateHome(root, stranger.identity.pid, ownerLifetime);
 
@@ -70,7 +66,6 @@ for (const unconfirmed of ["no identity recorded", "identity of another pid", "i
     });
     const identity = unconfirmed === "no identity recorded" ? undefined
       : unconfirmed === "identity of another pid" ? other!.identity
-      // Lifetime evidence from another platform: the probe can read neither live nor gone.
       : { ...live.identity, platform: process.platform === "win32" ? "linux" as const : "win32" as const };
     const { dir, marker, owner } = fabricateHome(root, live.identity.pid, identity);
     const ownerText = readFileSync(owner, "utf8");
@@ -97,7 +92,6 @@ test("2.27 · removing a dev home whose owner's recorded identity is confirmed l
   await removeDevHome(dir);
 
   const [code, signal] = await owner.exited;
-  // Windows has no signals: process.kill ends the process outright, with exit code 1.
   if (process.platform === "win32") assert.equal(code, 1);
   else assert.equal(signal, "SIGTERM");
   assert.equal((await probeProcess(owner.identity)).state, "gone");

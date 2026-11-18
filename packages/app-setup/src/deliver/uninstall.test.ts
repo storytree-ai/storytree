@@ -9,7 +9,6 @@ import { connectAgents, installedToolServerCommand, type RunHarness } from "@sto
 import { toolPaths } from "./payload.js";
 import { openUninstaller, uninstall, uninstallAsks, withoutPathEntry } from "./uninstall.js";
 
-// Only Codex's command line is fake: it reads and writes the TOML it was pointed at, as the real one does.
 const run: RunHarness = async (_executable, args, options) => {
   if (args[0] === "--version") return "test harness";
   const file = path.join(options.env.CODEX_HOME!, "config.toml");
@@ -22,7 +21,6 @@ const run: RunHarness = async (_executable, args, options) => {
   throw new Error(`Unexpected command ${args.join(" ")}`);
 };
 
-/** A first user's machine after the one-liner: app, home, command, both agents connected, a project. */
 async function installedMachine(t: { after(fn: () => void): void }) {
   const user = mkdtempSync(path.join(tmpdir(), "storytree uninstall "));
   t.after(() => rmSync(user, { recursive: true, force: true, maxRetries: 10 }));
@@ -106,7 +104,6 @@ test("1.8: uninstalling removes a Codex registration storytree wrote before it a
 test("1.8: uninstalling removes any registration that starts a tool server from the installation, whatever shape an older connect gave it", async (t) => {
   const m = await installedMachine(t);
   const tools = toolPaths(m.installDir, "win32");
-  // An older connect's entries: this installation's Node (spelt in another case, as Windows allows), another server file and shape.
   const node = tools.node.toUpperCase() === tools.node ? tools.node.toLowerCase() : tools.node.toUpperCase();
   const older = [path.join(m.installDir, "resources", "app.asar.unpacked", "storytree-mcp.mjs"), "--stdio"];
   const toml = path.join(m.codex, "config.toml");
@@ -149,7 +146,6 @@ test("1.8 / 1.21: uninstalling while a session still runs a build's copy of the 
   copyFileSync(process.execPath, path.join(copy, "node.exe"));
   const session = spawn(path.join(copy, "node.exe"), ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
   const ended = new Promise((resolve) => session.once("exit", resolve));
-  // The session ends inside the test: the machine's own clean-up runs first and could not delete a running copy.
   try {
     await new Promise((resolve, reject) => { session.once("spawn", resolve); session.once("error", reject); });
 
@@ -174,7 +170,6 @@ test("1.8: the uninstall's report is kept in a file that names what stayed and h
 test("1.8: removing the library also removes the empty factory folder the app made, so no ~/.storytree is left", async (t) => {
   const m = await installedMachine(t);
   rmSync(m.old);
-  // What the app makes as it starts when no factory is chosen (2.21): the default folder, with an empty plugins folder.
   mkdirSync(path.join(m.user, ".storytree", "your-factory", "plugins"), { recursive: true });
   const report = await uninstall({ ...m.options, library: "remove" });
   assert.equal(report.complete, true, report.lines.join("\n"));
@@ -194,13 +189,10 @@ test("1.8: a factory folder holding the user's plugins stays, and the user is to
 
 test("1.8: keeping the library leaves only the library behind", async (t) => {
   const m = await installedMachine(t);
-  // What the app leaves in its home beside the library: its browser data, logs and launch record.
   mkdirSync(path.join(m.home, "electron", "Cache"), { recursive: true });
   writeFileSync(path.join(m.home, "electron", "Cache", "data_0"), "cached");
   for (const file of ["releases.log", "pgdata.log", "app.json"]) writeFileSync(path.join(m.home, file), "the app's");
-  // What finds the library again: this machine's identity (its projects' folders are recorded under it) and the chosen project.
   for (const file of ["machine.json", "project-choice.json"]) writeFileSync(path.join(m.home, file), "{}");
-  // And what signs in to it: the database's password, in its private directory beside it.
   mkdirSync(path.join(m.home, "pgdata.auth"));
   writeFileSync(path.join(m.home, "pgdata.auth", "installation.json"), "{}");
   const report = await uninstall({ ...m.options, library: "keep" });
@@ -235,7 +227,6 @@ test("1.8: a connection that cannot be removed is named, and the rest is still r
   assert.equal(existsSync(m.home), false);
 });
 
-/** A Linux user's machine after install.sh: its folder, menu entry and marked ~/.profile line, both agents connected. */
 const posix = { skip: process.platform === "win32" && "platform:posix: install.sh writes the PATH line under a POSIX shell, which Windows CI does not provide" };
 
 async function installedLinuxMachine(t: { after(fn: () => void): void }) {
@@ -253,7 +244,6 @@ async function installedLinuxMachine(t: { after(fn: () => void): void }) {
   for (const dir of [path.join(home, "pgdata"), path.join(home, "bin")]) mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(home, "pgdata", "PG_VERSION"), "17");
   writeFileSync(path.join(home, "delivery.json"), JSON.stringify({ schema: 1, installDir, tools }));
-  // The PATH line is the one install.sh itself writes, between the user's own lines.
   const profile = path.join(user, ".profile");
   writeFileSync(profile, "# the user's own\nexport EDITOR=vi\n");
   const script = path.join(import.meta.dirname, "install.sh");
@@ -296,7 +286,6 @@ test("1.8: on Linux a library is kept or removed only on the user's say", posix,
   assert.match(said, new RegExp(m.home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
-/** A Mac user's machine after install.sh: the .app in ~/Applications and the marked .zprofile line, Claude Code connected. */
 async function installedMacMachine(t: { after(fn: () => void): void }, zdotdir?: string) {
   const user = mkdtempSync(path.join(tmpdir(), "storytree mac uninstall "));
   t.after(() => rmSync(user, { recursive: true, force: true }));

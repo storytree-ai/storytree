@@ -1,4 +1,4 @@
-/** Capability 14 · PostHog delivery. */
+// Capability 14 · PostHog delivery.
 import { PostHog } from "posthog-node";
 
 export interface DeliveryEvent {
@@ -14,12 +14,10 @@ export const JOURNEY_VERSION = /^\d{1,5}\.\d{1,5}\.\d{1,5}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const unavailable = () => new Error("Journey event delivery unavailable");
 
-/** Storytree owns persistence and retries. Each immediate SDK send has no background queue. */
 export function createPostHogTransport(options: {
   projectKey: string;
   permitted: () => boolean;
   fetch?: typeof globalThis.fetch;
-  /** Schedules `fire` after `ms` on the transport's clock and returns its cancel; real time by default. */
   after?: (ms: number, fire: () => void) => () => void;
 }): { send(event: DeliveryEvent): Promise<void>; close(): Promise<void> } {
   const fetch = options.fetch ?? globalThis.fetch;
@@ -48,13 +46,10 @@ export function createPostHogTransport(options: {
         disableSurveys: true,
         enableExceptionAutocapture: false,
         fetch: async (url, init) => {
-          // captureImmediate in this pinned SDK catches its own failures. Record the actual
-          // HTTP acknowledgement here; keep vendor error bodies and request keys out of SDK logs.
           let cancel: (() => void) | undefined;
           const controller = new AbortController();
           try {
             if (url !== "https://us.i.posthog.com/batch/"|| typeof init.body !== "string" || !permitted()) throw unavailable();
-            // A cold TLS connection to the US from far away takes over a second (seen live from Australia).
             const deadline = new Promise<never>((_resolve, reject) => {
               cancel = after(2_500, () => { controller.abort(); reject(unavailable()); });
             });
@@ -69,8 +64,6 @@ export function createPostHogTransport(options: {
             void response.body?.cancel().catch(() => {});
           } catch { accepted = false; }
           finally { cancel?.(); }
-          // A neutral SDK response prevents internal retries/logging. Only `accepted` below
-          // is returned to Storytree as success; failed or blocked events remain on disk.
           return Response.json({ status: 1 });
         },
       });

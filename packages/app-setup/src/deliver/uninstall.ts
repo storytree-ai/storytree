@@ -1,10 +1,4 @@
-/**
- * Capability 1 · Get storytree. Leaving storytree: what the NSIS uninstaller runs, from the installation's own bundled Node, just
- * before it deletes the app's files, and what `storytree setup uninstall` runs itself on Linux and macOS, where nothing else would. It
- * undoes what delivery and connection added: both agents' registration, hooks and status line, the command and its PATH
- * entry, the home, and the updater's download cache; on Linux and macOS also install.sh's installation folder (the .app on a
- * Mac), Linux's menu entry, and the marked ~/.profile (Mac: .zprofile) line. The user's project folders are never touched, not even their storytree marker.
- */
+// Capability 1 · Get storytree
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -16,7 +10,6 @@ import { toolPaths } from "./payload.js";
 
 export type LibraryChoice = "keep" | "remove";
 export interface UserPath {
-  /** The per-user PATH exactly as stored, or undefined when there is none. */
   readUserPath(): string | undefined;
   writeUserPath(value: string): void;
 }
@@ -29,23 +22,16 @@ export interface UninstallOptions {
   readonly run?: RunHarness;
   readonly localAppData?: string;
   readonly effects?: UserPath;
-  /** The installation's layout (toolPaths); the host's by default. */
   readonly platform?: NodeJS.Platform;
-  /** Where the report is also written, for an uninstaller that runs with no window to show it in. */
   readonly reportFile?: string;
 }
 export interface UninstallReport {
-  /** False when something storytree added is still there; `lines` says what and how to remove it. */
   readonly complete: boolean;
   readonly lines: string[];
 }
 
 const same = (a: string, b: string) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
 
-/**
- * Only the installation that delivery recorded owns the home. An uninstaller of any other copy (a
- * packaging check's, a second install) leaves the home, PATH and update cache alone.
- */
 function ownsHome(installDir: string, home: string): boolean {
   try {
     const record = JSON.parse(readFileSync(path.join(home, "delivery.json"), "utf8"));
@@ -53,7 +39,6 @@ function ownsHome(installDir: string, home: string): boolean {
   } catch { return false; }
 }
 
-/** The tool server the delivery record names: on Windows a build's copy under the home (1.19). */
 function recordedTools(home: string): InstalledToolServerCommand | undefined {
   try {
     const record = JSON.parse(readFileSync(path.join(home, "delivery.json"), "utf8"));
@@ -61,7 +46,6 @@ function recordedTools(home: string): InstalledToolServerCommand | undefined {
   } catch { return undefined; }
 }
 
-/** What the uninstaller should ask: whether to keep a local library, or nothing. */
 export function uninstallAsks(installDir: string, home: string): "ask" | "no library" | "not ours" {
   if (!ownsHome(installDir, home)) return "not ours";
   return existsSync(path.join(home, "pgdata")) ? "ask" : "no library";
@@ -72,14 +56,12 @@ export function withoutPathEntry(current: string, entry: string): string {
   return current.split(";").filter((part) => withoutTrailingSlashes(part.trim().replace(/^"|"$/g, "")).toLowerCase() !== wanted).join(";");
 }
 
-/** `folder` without the slashes or backslashes it ends in, found by walking back rather than by a regex that rescans each run of them. */
 function withoutTrailingSlashes(folder: string): string {
   let end = folder.length;
   while (end > 0 && (folder[end - 1] === "/" || folder[end - 1] === "\\")) end--;
   return folder.slice(0, end);
 }
 
-/** The updater's download cache, named in the installation's own update configuration. */
 function updaterCache(installDir: string, localAppData: string | undefined): string | undefined {
   try {
     const name = /^updaterCacheDirName:\s*['"]?([^'"\r\n]+)['"]?\s*$/m.exec(readFileSync(path.join(installDir, "resources", "app-update.yml"), "utf8"))?.[1];
@@ -88,17 +70,10 @@ function updaterCache(installDir: string, localAppData: string | undefined): str
   } catch { return undefined; }
 }
 
-/**
- * The library, and what lets a reinstall find it again: its database, its sign-in and backups, its location
- * setting, this machine's identity (its projects' folders are recorded under it), the chosen project,
- * and hook lines queued for it while storytree was not running. The rest of the home is the app's.
- */
 const library = new Set(["pgdata", "pgdata.owner.json", "pgdata.auth", "backups", "settings.json", "machine.json", "project-choice.json", "queued-lines"]);
 
-/** install.sh marks the PATH line it adds with this, so only that line is taken out again. */
 const PROFILE_MARKER = "# storytree 0.3's command: added by its installer, taken out by storytree setup uninstall";
 
-/** Takes install.sh's marked lines out of a shell profile, leaving every other line as it was; false when there were none. */
 export function removeMarkedLines(file: string): boolean {
   if (!existsSync(file)) return false;
   const lines = readFileSync(file, "utf8").split("\n");
@@ -108,7 +83,6 @@ export function removeMarkedLines(file: string): boolean {
   return true;
 }
 
-/** What install.sh added on Linux outside the home: the installation folder, its menu entry and the PATH line. */
 function removeLinuxInstallation(installDir: string, userHome: string, lines: string[]): boolean {
   const profile = path.join(userHome, ".profile");
   try {
@@ -123,7 +97,6 @@ function removeLinuxInstallation(installDir: string, userHome: string, lines: st
   }
 }
 
-/** What install.sh added on a Mac outside the home: the .app and the PATH line in zsh's login profile. */
 function removeMacInstallation(installDir: string, userHome: string, env: NodeJS.ProcessEnv, lines: string[]): boolean {
   const profile = path.join(env.ZDOTDIR || userHome, ".zprofile");
   try {
@@ -137,13 +110,8 @@ function removeMacInstallation(installDir: string, userHome: string, env: NodeJS
   }
 }
 
-/**
- * The silent Windows uninstaller shows nothing, so its report goes where `storytree setup uninstall` says to look: outside the
- * installation folder and the home, which both go.
- */
 export const uninstallReportFile = () => path.join(tmpdir(), "storytree-uninstall.txt");
 
-/** Its report, with the sign of the end: the uninstaller deletes the installation folder after this helper has run, last. */
 function writeReport(file: string, installDir: string, report: UninstallReport): void {
   try {
     writeFileSync(file, [
@@ -153,12 +121,11 @@ function writeReport(file: string, installDir: string, report: UninstallReport):
       `The uninstall is finished when ${installDir} is gone.`,
       "",
     ].join("\n"));
-  } catch { /* The report is also printed; a file that cannot be written loses nothing else. */ }
+  } catch {}
 }
 
 const remove = (target: string) => rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
 
-/** The factory folder storytree makes itself when none is chosen (2.21), or undefined when one was chosen or cannot be read. */
 function defaultFactory(home: string): string | undefined {
   try {
     const factory = factoryFolder(home);
@@ -166,7 +133,6 @@ function defaultFactory(home: string): string | undefined {
   } catch { return undefined; }
 }
 
-/** Whether `folder` holds folders only, as the app made it (an empty `plugins`), and no file of the user's. */
 function holdsNoFiles(folder: string): boolean {
   return readdirSync(folder, { withFileTypes: true }).every((entry) => entry.isDirectory() && holdsNoFiles(path.join(folder, entry.name)));
 }
@@ -181,7 +147,6 @@ async function removeInstallation(options: UninstallOptions): Promise<UninstallR
   const lines: string[] = [];
   let complete = true;
   const tools = toolPaths(options.installDir, options.platform);
-  // Where the home is this installation's, also what runs the build's copy its record names (1.19).
   const recorded = ownsHome(options.installDir, options.home) ? recordedTools(options.home) : undefined;
   const connections = await removeConnections({
     installed: installedToolServerCommand(tools.node, tools.mcp),
@@ -228,12 +193,10 @@ async function removeInstallation(options: UninstallOptions): Promise<UninstallR
     } else {
       const factory = defaultFactory(options.home);
       remove(options.home);
-      // The app made its default factory beside the home: it goes too, unless the user has put plugins in it.
       if (factory !== undefined && existsSync(factory)) {
         if (holdsNoFiles(factory)) remove(factory);
         else lines.push(`Your factory was kept in ${factory}: it holds your own plugins. Delete that folder to remove it.`);
       }
-      // ~/.storytree may also hold 0.2's files: it goes only when nothing else is in it.
       const parent = path.dirname(options.home);
       if (path.basename(parent) === ".storytree" && existsSync(parent) && readdirSync(parent).length === 0) rmdirSync(parent);
       lines.push("storytree's home and library were removed.");
@@ -245,19 +208,9 @@ async function removeInstallation(options: UninstallOptions): Promise<UninstallR
   return { complete, lines };
 }
 
-/**
- * `storytree setup uninstall`: open this installation's own Windows uninstaller, the one Apps &
- * features runs. With a library choice it runs unattended. The uninstaller stops every process running
- * from the installation, this one included, but only after it has checked for PowerShell (a second or
- * more), by when this command has printed and returned. It is started directly: Windows PowerShell,
- * started detached as a delay, has no console and exits without running anything.
- * Linux and macOS have no uninstaller, so it uninstalls here, once the app is not running from what it removes;
- * the helper runs without a terminal, so a library is removed or kept only when the user chose which.
- */
 export async function openUninstaller(choice?: string, helperDir = path.dirname(process.argv[1] ?? ""), host: Partial<Omit<UninstallOptions, "installDir" | "library">> = {}): Promise<string> {
   if (choice !== undefined && choice !== "keep" && choice !== "remove") throw new Error("usage: storytree setup uninstall [--keep-library|--remove-library]");
   const platform = host.platform ?? process.platform;
-  // The helper sits in resources/agent-tools, which a Mac bundle keeps under Contents.
   const installDir = path.resolve(helperDir, "..", "..", ...(platform === "darwin" ? [".."] : []));
   if (platform === "linux" || platform === "darwin") {
     const home = host.home ?? storytreeHome();
@@ -274,9 +227,7 @@ export async function openUninstaller(choice?: string, helperDir = path.dirname(
   if (process.platform !== "win32" || !existsSync(uninstaller)) {
     throw new Error(`This storytree has no Windows uninstaller at ${uninstaller}; only the installed Windows app has one. Your projects are not affected either way.`);
   }
-  // Apps & features runs it with /currentuser, the per-user installation's switch.
   const args = ["/currentuser", ...(choice === undefined ? [] : ["/S", `--${choice}-library`])];
-  // An earlier uninstall's report must not be read as this one's.
   rmSync(uninstallReportFile(), { force: true });
   const child = spawn(uninstaller, args, { detached: true, stdio: "ignore" });
   await new Promise<void>((resolve, reject) => { child.once("error", reject); child.once("spawn", () => { child.unref(); resolve(); }); });
@@ -285,7 +236,6 @@ export async function openUninstaller(choice?: string, helperDir = path.dirname(
     : `storytree is uninstalling in the background (${choice === "keep" ? "keeping" : "removing"} your library). It removes the app, its command and its agent connections, and leaves your project folders alone. It is finished when ${installDir} is gone, usually within a few minutes; ${uninstallReportFile()} then says what it removed and anything it could not. Restart your agents afterwards.`;
 }
 
-/** The registry's raw per-user Path, so %VARIABLES% and its value kind survive the edit. */
 const script = (body: string) => Buffer.from(`$ErrorActionPreference='Stop'\n$ProgressPreference='SilentlyContinue'\n$k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment',$true)\n${body}`, "utf16le").toString("base64");
 const powershell = (body: string, env: NodeJS.ProcessEnv = process.env) =>
   execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand", script(body)], { encoding: "utf8", env, windowsHide: true, timeout: 30_000 });
@@ -296,7 +246,6 @@ const windowsUserPath: UserPath = {
     return out.split(/\r?\n/).find((line) => line.startsWith("value:"))?.slice("value:".length);
   },
   writeUserPath(value) {
-    // Explorer is told the environment changed, so a newly opened terminal no longer finds storytree.
     powershell(`$k.SetValue('Path', $env:STORYTREE_USER_PATH, $k.GetValueKind('Path'))
 Add-Type -Namespace StorytreeUninstall -Name Environment -MemberDefinition '[DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern System.IntPtr SendMessageTimeout(System.IntPtr hwnd, uint msg, System.UIntPtr wparam, string lparam, uint flags, uint timeout, out System.UIntPtr result);'
 $r=[UIntPtr]::Zero

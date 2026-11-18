@@ -1,10 +1,9 @@
-/** Capability 3 · First-run guide. */
+// Capability 3 · First-run guide.
 import type { SetupHelpBridge } from "../help/bridge.js";
 import { sayProjectGone } from "./add-project.js";
 
 type Deletion = { deleted: null } | { deleted: string; snapshot?: string } | { failed: string };
 
-/** Delete the chosen project once its name is typed, then let the frame refresh; a name not yet typed asks nothing of the library. */
 export async function deleteChosenProject(bridge: Pick<SetupHelpBridge, "deleteProject">, options: { project: string; typed: string; snapshot: boolean; onDeleted(project: string): Promise<void> }): Promise<Deletion> {
   if (options.typed !== options.project) return { deleted: null };
   try {
@@ -17,12 +16,6 @@ export async function deleteChosenProject(bridge: Pick<SetupHelpBridge, "deleteP
   }
 }
 
-/**
- * Delete a project, in the app menu's Projects section below Remove (ADR-0831): picks any project
- * in the library but the one on show, says where its records live and who loses them, and deletes
- * only once its name is typed. A snapshot into this computer's backups is ticked by default and can
- * be unticked.
- */
 export function mountDeleteProject(host: HTMLElement, bridge: Pick<SetupHelpBridge, "deletableProjects" | "deleteProject">, options: { onDeleted(project: string): Promise<void> }): { stop(): void; refresh(): void } {
   const root = document.createElement("div");
   root.className = "setup-help setup-delete-project";
@@ -62,7 +55,6 @@ export function mountDeleteProject(host: HTMLElement, bridge: Pick<SetupHelpBrid
     if (projects.length === 0) { close(); say("There is no other project to delete: the one on show is in use."); }
     ready();
   }
-  /** Read the projects afresh while the dialog is open; a closed one asks the library nothing. */
   function refresh(): void {
     if (dialog.hidden) return;
     void load().catch((error: unknown) => {

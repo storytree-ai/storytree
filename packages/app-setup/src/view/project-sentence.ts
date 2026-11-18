@@ -1,9 +1,8 @@
-/** Capability 3 · First-run guide. */
+// Capability 3 · First-run guide.
 import type { ProjectSentence, SetupHelpBridge } from "../help/bridge.js";
 
 type SentenceBridge = Pick<SetupHelpBridge, "projectSentence" | "setProjectSentence">;
 
-/** Save what was typed as project `project`'s sentence; a refusal is said, never reported as saved. */
 export async function saveProjectSentence(bridge: SentenceBridge, project: string, typed: { what: string; audience: string }): Promise<{ saved: ProjectSentence } | { failed: string }> {
   try {
     return { saved: await bridge.setProjectSentence(project, typed.what, typed.audience) };
@@ -13,10 +12,6 @@ export async function saveProjectSentence(bridge: SentenceBridge, project: strin
   }
 }
 
-/**
- * The project's sentence, in the app menu's Projects section (ADR-1085 D1 as narrowed): the selected project's two
- * halves, what it is and who it is for, as fields saved together; a half not yet said shows as unsaid.
- */
 export function mountProjectSentence(host: HTMLElement, bridge: SentenceBridge, options: { current(): string | undefined }): { stop(): void; refresh(): void } {
   const root = document.createElement("div");
   root.className = "setup-help setup-project-sentence";

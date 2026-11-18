@@ -1,4 +1,4 @@
-/** Capability 3 · First-run guide. */
+// Capability 3 · First-run guide.
 export { mountSetupHelp } from "./mount.js";
 export { mountAddProject } from "./add-project.js";
 export { mountFactory } from "./factory.js";

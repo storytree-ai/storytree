@@ -1,4 +1,3 @@
-// The desktop renderer the capture photographs, built alone: no browser, no pictures.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildCapture } from '../../../../apps/desktop/src/capture/index.ts';

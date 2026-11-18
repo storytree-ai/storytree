@@ -19,7 +19,6 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   const [blog, site] = [`blog-posts-${token}`, `site-${token}`];
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
-  // The app's own open library: used, never closed by adding a project.
   const library = await connect({ url });
   t.after(async () => {
     await library.close();
@@ -47,7 +46,6 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   writeFileSync(path.join(home, "project-choice.json"), JSON.stringify({ current: `${site}-2` }));
   picked = path.join(dir, `Blog Posts ${token}`);
   assert.deepEqual(await actions.addProject(), { status: "already a project", project: blog, folder: picked });
-  // Only this test's projects: sibling tests add and drop their own on the same server.
   const ours = (names: readonly string[]) => [blog, site, `${site}-2`].filter((name) => names.includes(name));
   const projects = ours(await library.listProjects());
   assert.equal(projects.length, 3, "an existing project creates nothing");
@@ -69,7 +67,6 @@ test("3.6 the project the app shows when none was chosen, the first on this comp
   const home = path.join(dir, "home");
   const token = `t-${randomBytes(4).toString("hex")}`;
   const [first, second] = [`0-first-${token}`, `0-second-${token}`];
-  // What a killed run leaves on the server: a project that sorts before this test's own.
   const leftover = `0-0-t-${randomBytes(4).toString("hex")}`;
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
@@ -79,7 +76,6 @@ test("3.6 the project the app shows when none was chosen, the first on this comp
     await dropTestDatabases([first, second, leftover].map((name) => `storytree_${name}`));
   });
   for (const name of [leftover, first, second]) await (await library.openProject(name)).close();
-  // Take every other project off this computer's list in the test's own home, so a leftover never sorts first.
   recordRemovedProjects(home, Object.keys(await library.projectIdentities()).filter((name) => name !== first && name !== second).map((name) => ({ name })));
   const actions = setupHelpActions({
     licenseFile: "", storytreeHome: home, chooseFolder: async () => undefined,
@@ -108,7 +104,6 @@ test("3.17 Add project on a folder whose marker names a project this computer's 
   });
   const picked = path.join(dir, "checkbox-assessment");
   mkdirSync(picked);
-  // A marker committed on another computer, against another library: this one never had the project.
   writeFileSync(path.join(picked, ".storytree.json"), `${JSON.stringify({ project: checkbox, identity: "19697429" })}\n`);
   const actions = setupHelpActions({
     licenseFile: "", storytreeHome: home, chooseFolder: async () => picked,

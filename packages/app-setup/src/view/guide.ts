@@ -1,4 +1,4 @@
-/** Capability 3 · First-run guide. One offline guide; the README and installation point here. */
+// Capability 3 · First-run guide.
 
 import { languageList, SURVEYED_LANGUAGES } from "@storytree/map/languages";
 
@@ -7,13 +7,10 @@ import { ACTIONS, CONCEPTS } from "@storytree/shown-words";
 
 import { AGENT_SEARCH_SECONDS } from "../help/bridge.js";
 
-/** The agents the search asks, named while it waits on them. */
 const AGENT_SEARCH_LABELS = languageList(HARNESS_IDS.map((id) => watchedHarness(id)?.label ?? id));
 
-/** The platform the guide's troubleshooting is for (3.15); undefined when the app cannot tell, which gets every platform's. */
 export type GuidePlatform = "windows" | "mac" | "linux";
 
-/** The platform named in the app's user agent, as Electron's renderer reports it. */
 export function platformOf(userAgent: string): GuidePlatform | undefined {
   if (/Windows NT/.test(userAgent)) return "windows";
   if (/Macintosh|Mac OS X/.test(userAgent)) return "mac";
@@ -55,7 +52,6 @@ const troubleshooting: Record<GuidePlatform, string> = {
 `,
 };
 
-/** The guide, with the troubleshooting for `platform`, or every platform's when it is not known. */
 export function guideFor(platform: GuidePlatform | undefined): string {
   const steps = platform === undefined ? (["windows", "mac", "linux"] as const).map((each) => troubleshooting[each]).join("") : troubleshooting[platform];
   return `

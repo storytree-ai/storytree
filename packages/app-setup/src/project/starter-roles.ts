@@ -1,18 +1,10 @@
-/**
- * Capability 6 · Make a folder a project. The starter pack's roles (contract 6.7): every role
- * storytree's own sessions work with, adapted for a user's project (ADR-0996 D2). Each names the notes
- * it stands on by title, from starter-notes.ts: its required reading (`standsOn`), its rules, and what
- * it refuses. starter-pack-classification.md records where each section came from and what was
- * dropped. This file is part of the pack's one versioned place: change it and raise STARTER_PACK_VERSION.
- */
+// Capability 6 · Make a folder a project.
 import type { NewKnowledge } from "@storytree/library";
 import { NO_MODULE_MOCK, TEST_CREATION } from "./starter-notes.js";
 
 export type Role = Omit<NewKnowledge<"agent">, "context" | "rules" | "antiPatterns"> & {
-  /** Its required reading: the notes it reads before it works. */
   readonly standsOn: readonly string[];
   readonly rules?: readonly string[];
-  /** What it refuses: the guardrails it never crosses. */
   readonly refuse?: readonly string[];
 };
 

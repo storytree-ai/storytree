@@ -1,22 +1,4 @@
-/**
- * Capability 8 · Setup check. `storytree doctor`: run storytree's setup check from a terminal, the same one every agent
- * session start runs: is storytree running, are the hooks registered and last seen firing, does Codex have storytree's
- * tool server, is this folder a project, is `storytree` on the path, is `gh` signed in, is Claude Code or Codex signed in,
- * and are git and a usable Node there (ADR-0716). It fixes what the check fixes by itself and names the fix for the rest,
- * and it sets a folder up as a project only when you tell it to.
- *
- * - The check is `runSetupCheck`, which opens storytree when it is closed, registers the hooks, and puts the `storytree`
- *   command on the path. Those last two need storytree's hook script, which an installed storytree keeps beside the
- *   command; run from anywhere else, the doctor says so rather than registering something else.
- * - Setting a folder up is capability 6's `setUpProject`, called only for `--set-up <name>`, or `--join <name>` to add
- *   this machine's checkout to a project that already exists (ADR-0757 D4).
- * - A folder whose marker names a project is read only once it is approved as that project's checkout on this machine
- *   (ADR-0942 D1); until then the doctor says so, and `--join <name>` run there approves it on purpose.
- * - The hooks last seen firing is the latest hook line in the project's activity log.
- * - Run inside a Claude Code session (CLAUDECODE=1), Claude Code counts as signed in, as check_setup counts its caller.
- *
- * `storytree setup install | remove` runs the installed `storytree-setup.mjs` beside the command.
- */
+// Capability 8 · Setup check.
 import { verb, VerbRefusal } from "@storytree/library/verbs";
 import type { ConnectOptions } from "@storytree/library";
 
@@ -26,7 +8,6 @@ import type { SetupReport } from "./setup.js";
 const NO_TOOL = { absent: "an agent session's setup check is the check_setup tool; this is the person at the terminal's" };
 const HARNESSES = { "claude-code": "Claude Code", codex: "Codex", cursor: "Cursor", pi: "Pi", antigravity: "Antigravity CLI" } as const;
 
-/** storytree's hook script, when the command sits beside it as an installed storytree's does. */
 async function hookBeside(script: string | undefined): Promise<string | undefined> {
   if (script === undefined) return undefined;
   const { existsSync } = await import("node:fs");
@@ -47,7 +28,6 @@ function hooksSaid(report: SetupReport): string[] {
   });
   const server = report.lines.find((line) => line.check === "codex-server" && line.fix !== undefined);
   if (server !== undefined) said.push(`${server.message} Fix: ${server.fix}`);
-  // Whether Codex runs its hooks yet, and an administrator terminal where it cannot (Session management 8.16, 8.17).
   for (const line of report.lines.filter((each) => each.check === "codex-hooks" || each.check === "elevated")) said.push(line.fix === undefined ? line.message : `${line.message} Fix: ${line.fix}`);
   const statusLine = report.hooks.statusLine;
   if (statusLine === "installed") said.push("Claude Code status line: storytree's installed now; it shows from the next session.");
@@ -79,19 +59,16 @@ function ghSaid(report: SetupReport): string[] {
   return report.gh === "signed in" || line === undefined ? ["GitHub's gh: signed in."] : [line.message];
 }
 
-/** The agent CLI, git and Node lines, as the setup check words them. */
 function machineSaid(report: SetupReport): string[] {
   return report.lines
     .filter((line) => line.check === "agent-cli" || line.check === "git" || line.check === "node")
     .map((line) => (line.fix === undefined ? line.message : `${line.message} Fix: ${line.fix}`));
 }
 
-/** Each factory plugin no part setting names, and the command that names it (8.45). */
 function factorySaid(report: SetupReport): string[] {
   return (report.unnamedPlugins ?? []).map(({ plugin, part }) => `This computer's factory holds the plugin ${plugin}, which no module setting names, so nothing of it is mounted: \`storytree settings set module ${part} plugin ${plugin}\` names it, for a session started after.`);
 }
 
-/** When storytree last heard from a hook in `project`, and from which harness. */
 async function lastHook(library: ConnectOptions, project: string): Promise<string> {
   const { connect } = await import("@storytree/library");
   const storytree = await connect(library);
@@ -110,7 +87,6 @@ async function lastHook(library: ConnectOptions, project: string): Promise<strin
   }
 }
 
-/** `setUpProject`, its refusal of the folder said as the verb's. */
 async function setUp(options: { folder: string; project: string; storytree: import("@storytree/library").Storytree; join: boolean }): Promise<void> {
   const { ProjectFolderError } = await import("@storytree/project-and-caller/routing");
   const { setUpProject } = await import("../project/making.js");
@@ -119,13 +95,11 @@ async function setUp(options: { folder: string; project: string; storytree: impo
   });
 }
 
-/** Join `project` from `folder`, the folder its marker already names: how a recorded checkout is approved (ADR-0942 D1). */
 async function joinHere(folder: string, project: string, library: ConnectOptions): Promise<void> {
   const { connect } = await import("@storytree/library");
   const { findProject } = await import("@storytree/project-and-caller/routing");
   const storytree = await connect(library);
   try {
-    // Joining approves the checkout from its own top folder, where the marker is.
     const at = findProject(folder);
     await setUp({ folder: at.project === undefined ? folder : at.folder, project, storytree, join: true });
   } finally {
@@ -133,7 +107,6 @@ async function joinHere(folder: string, project: string, library: ConnectOptions
   }
 }
 
-/** Whether `folder` is approved as `project`'s checkout on this machine. */
 async function approvedHere(folder: string, project: string, library: ConnectOptions): Promise<boolean> {
   const { connect } = await import("@storytree/library");
   const { ProjectFolderError, requireApproval } = await import("@storytree/project-and-caller/routing");
@@ -165,11 +138,8 @@ export const DOCTOR = verb({
     const [{ readStandIns }, { unnamedPlugins }] = await Promise.all([import("@storytree/project-and-caller"), import("@storytree/plugin-loader/factory")]);
     const report = await runSetupCheck({
       folder: context.folder,
-      // The factory's plugins no part setting names, as check_setup reads them (8.45).
       unnamedPlugins: () => unnamedPlugins(readStandIns()),
       look: input.repair !== true,
-      // Run from a Claude Code session's shell, which Claude Code strips of its CLAUDE_CODE_OAUTH_TOKEN, that session is the asking one (8.11).
-      // and its harness is connected by asking, so --repair registers its hooks even where it has none yet (8.43).
       ...(process.env.CLAUDECODE === "1" ? { asking: "claude" as const, calling: "claude-code" as const } : {}),
       ...(hook === undefined ? {} : { hook: { node: process.execPath, script: hook }, command: { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() } }),
     });
@@ -205,7 +175,6 @@ export const DOCTOR = verb({
           if (join === undefined) await context.journey?.().then((journey) => journey.projectCreated()).catch(() => {});
           const { COMMIT_STORYTREE } = await import("../project/storytree-folder.js");
           said.push(join === undefined ? `This folder is set up as storytree project "${project}" now. ${COMMIT_STORYTREE}` : `This folder is storytree project "${project}"'s checkout on this machine now.`);
-          // Code only in languages the survey cannot read leaves the map empty of it: said as set_up_project says it (8.44, 6.115).
           if (join === undefined) {
             const { folderLanguages } = await import("@storytree/map/folder-languages");
             const { unreadableOf, unreadableSentence } = await import("@storytree/map/languages");

@@ -1,17 +1,4 @@
-/**
- * Capability 8 · Setup check. Opening storytree when it is closed. The storytree app records how it was started, in
- * `<storytree home>/app.json` (`{ "command": ..., "args": [...] }`), each time it starts; opening
- * storytree is starting that again, and waiting until its Postgres accepts connections.
- *
- * Waiting for the owner record alone is not enough: the app's Postgres writes where it will listen
- * before it starts listening, and a call made in between reads as "not running" (seen in the agent
- * link's live check). So storytree counts as up once its owner record is live and its port accepts
- * a connection.
- *
- * With the library set to a Postgres address (ADR-0846), there is nothing to open: the library is
- * at that address, and reaching it (and saying plainly when it cannot be) is the library's
- * connection's job.
- */
+// Capability 8 · Setup check.
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { connect } from "node:net";
@@ -22,20 +9,16 @@ import type { ConnectOptions } from "@storytree/library";
 
 import { locateStorytree, readLibrary, storytreeHome } from "@storytree/project-and-caller";
 
-/** Where the library is once storytree is up (the local app's database, or the Postgres address), or why it is not. */
 export type StorytreeOpened =
   | { state: "running"; library: ConnectOptions }
   | { state: "opened"; library: ConnectOptions }
   | { state: "not running"; message: string };
 
 export interface OpenOptions {
-  /** The storytree home. By default, storytreeHome(). */
   readonly home?: string;
-  /** How long to wait for storytree to come up once opened. By default, 60 s: a first start makes its database. */
   readonly waitMs?: number;
 }
 
-/** Open storytree if it is closed, and say where it listens, or why it isn't running. */
 export async function openStorytree(options: OpenOptions = {}): Promise<StorytreeOpened> {
   const home = options.home ?? storytreeHome();
   const dataDir = path.join(home, "pgdata");
@@ -45,7 +28,6 @@ export async function openStorytree(options: OpenOptions = {}): Promise<Storytre
 
   const now = locateStorytree({ dataDir });
   if (now.running) {
-    // Running, as its owner record says; if it has only just started, it may not answer yet.
     while (!(await accepts(now.url))) {
       if (Date.now() >= deadline) return { state: "not running", message: "storytree is starting but its database isn't answering yet: try again in a moment" };
       await sleep(250);
@@ -59,8 +41,6 @@ export async function openStorytree(options: OpenOptions = {}): Promise<Storytre
   }
   let failed: string | undefined;
   try {
-    // Started from its own program's folder: a process working in the storytree home would keep
-    // Windows from ever removing it.
     const child = spawn(app.command, app.args, { cwd: path.dirname(app.command), detached: true, stdio: "ignore" });
     child.on("error", (error) => (failed = error.message));
     child.unref();
@@ -78,7 +58,6 @@ export async function openStorytree(options: OpenOptions = {}): Promise<Storytre
   };
 }
 
-/** Whether the server at `url` accepts a connection within half a second. */
 function accepts(url: string): Promise<boolean> {
   const { hostname, port } = new URL(url);
   return new Promise((resolve) => {
@@ -95,7 +74,6 @@ function accepts(url: string): Promise<boolean> {
   });
 }
 
-/** How the app was last started, as it recorded it; undefined when it never recorded it. */
 function appRecord(home: string): { command: string; args: string[] } | undefined {
   try {
     const { command, args } = JSON.parse(readFileSync(path.join(home, "app.json"), "utf8")) as { command?: unknown; args?: unknown };

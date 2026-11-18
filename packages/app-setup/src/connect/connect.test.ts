@@ -14,7 +14,6 @@ import { makeDevHome, removeDevHome } from "./dev-home.js";
 
 const legacy = '# user comment\nmodel = "kept"\n[mcp_servers.legacy]\ncommand = "storytree-02"\n';
 
-// Only the harness process is fake: registration edits real files in isolated homes.
 const run: RunHarness = async (executable, args, options) => {
   if (args[0] === "--version") return "test harness";
   assert.equal(executable, "codex");
@@ -77,7 +76,6 @@ for (const harnesses of [["claude-code"], ["codex"], ["claude-code", "codex"]] a
 
 test("2.13 the agents this computer runs are found, each said connected to this installation or not, and one not installed is not offered", async (t) => {
   const f = fixture(t);
-  // Claude Code and Codex are installed here; Cursor, Pi and Antigravity are not.
   const here: RunHarness = async (executable, args, options) => {
     if (args[0] === "--version" && !["claude", "codex"].includes(executable)) throw new Error("not installed");
     return run(executable, args, options);
@@ -97,8 +95,6 @@ test("2.13 the agents this computer runs are found, each said connected to this 
 
 test("2.14 the agent search answers within its bound: the agents are asked side by side, a probe that never returns holds up no other, and its agent is offered with a note saying it did not answer", async (t) => {
   const f = fixture(t);
-  // Claude Code's first --version after a restart never answers; Codex answers only once every agent has been asked,
-  // which a search asking one after another would never reach; nothing else is installed.
   const asked: string[] = [];
   let everyoneAsked: () => void = () => {};
   const allAsked = new Promise<void>((resolve) => { everyoneAsked = resolve; });
@@ -121,7 +117,6 @@ test("2.14 the agent search answers within its bound: the agents are asked side 
 test("2.14 an agent that answers --version but whose settings are not read within the bound is offered with a note saying whether it is connected is not known", async (t) => {
   const f = fixture(t);
   writeFileSync(f.codexFile, legacy);
-  // Codex answers --version, then its codex mcp list never returns.
   const stuck: RunHarness = async (executable, args, options) => {
     if (args[0] === "--version") { if (executable === "codex") return "codex 1"; throw new Error("not installed"); }
     if (args[1] === "list") return new Promise<string>(() => {});
@@ -210,7 +205,6 @@ test("2.12 choosing Antigravity CLI registers the tool server in ~/.gemini/confi
 
 test("2.11 choosing Pi registers the tool server, directly exposed, in its agent folder's mcp.json, installs storytree's Pi extension and its AGENTS.md section, keeping every other server, extension and instruction; repeating changes nothing, disconnecting removes exactly what it added, and a machine without Pi gets a recovery action", async (t) => {
   const f = fixture(t);
-  // PI_CODING_AGENT_DIR moves Pi's agent folder, as CODEX_HOME moves Codex's.
   const pi = path.join(f.home, "pi agent");
   const env = { ...f.options.env, PI_CODING_AGENT_DIR: pi };
   mkdirSync(path.join(pi, "extensions"), { recursive: true });
@@ -355,7 +349,6 @@ test("2.2/2.6 the registered launch keeps the session folder and reaches its exi
   const f = fixture(t);
   const folders = [path.join(f.home, "first project"), path.join(f.home, "second project")];
   for (const folder of folders) mkdirSync(folder);
-  // A tiny installed-server stand-in measures exactly the cwd and environment delivered by the registration.
   writeFileSync(f.script, 'console.log(process.env.CLAUDE_PROJECT_DIR || process.cwd());');
   await connectAgents({ ...f.options, harnesses: ["claude-code", "codex"] });
   const server = JSON.parse(readFileSync(f.claudeFile, "utf8")).mcpServers.storytree;
@@ -458,7 +451,6 @@ test("2.5 a disconnected harness stays disconnected: the other harness's next se
   assert.equal(result.harnesses[0]!.tools, "disconnected");
   assert.equal(existsSync(codexHooks), false);
 
-  // The next Claude Code session's setup check, as its tool server runs it.
   const check = () => runSetupCheck({
     folder: f.home, hook, homes: { claude: f.claude, codex: f.codex }, storytreeHome: path.join(f.home, ".storytree", "0.3"), openWaitMs: 0,
     gh: async () => "missing", machine: async () => ({ claude: "missing", codex: "missing", git: "missing", node: { state: "missing" }, waitMs: 0 }),
@@ -474,7 +466,6 @@ test("2.5 a disconnected harness stays disconnected: the other harness's next se
 
 test("2.26 connect rewrites a registration that runs another copy of storytree's installed tools to this one's, and still refuses one that is not a copy", async (t) => {
   const f = fixture(t);
-  // Two builds' tools, each its node beside its storytree-mcp.mjs, as each build's copy under the home on Windows.
   const copy = (build: string) => {
     const dir = path.join(f.home, "app-tools", build);
     mkdirSync(dir, { recursive: true });
@@ -496,7 +487,6 @@ test("2.26 connect rewrites a registration that runs another copy of storytree's
   assert.ok(codex.includes(`command = ${JSON.stringify(newer.command)}`), codex);
   assert.deepEqual((await connectAgents({ ...f.options, installed: newer, harnesses })).map((r) => r.tools), ["already connected", "already connected"]);
 
-  // A node that is not beside its tool server (a source build's, say) is not a copy of the installed tools: kept, and named.
   const elsewhere = { mcpServers: { storytree: { type: "stdio", command: process.execPath, args: [older.args[0]], env: {} } } };
   writeFileSync(f.claudeFile, JSON.stringify(elsewhere));
   const [kept] = await connectAgents({ ...f.options, installed: newer, harnesses: ["claude-code"] });
@@ -613,12 +603,10 @@ test("2.2 a dev build connects its own commands to a throwaway Codex home with i
   mkdirSync(signedIn);
   writeFileSync(path.join(signedIn, "auth.json"), '{"signed":"in"}');
   writeFileSync(path.join(signedIn, "config.toml"), legacy);
-  // The commands a dev build makes, stood in for: building them is Session management's own concern.
   const build = async (outdir: string) => {
     mkdirSync(outdir, { recursive: true });
     const names = ["storytree-mcp", "storytree-hook", "storytree-setup", "storytree"];
     for (const name of names) writeFileSync(path.join(outdir, `${name}.mjs`), `// ${name}\n`);
-    // A build on Windows also makes the program its command is made from (ADR-0854); nothing runs it here.
     writeFileSync(path.join(outdir, "storytree-launcher.exe"), "a stand-in launcher program");
     return Object.fromEntries(names.map((name) => [name, path.join(outdir, `${name}.mjs`)]));
   };
@@ -633,10 +621,8 @@ test("2.2 a dev build connects its own commands to a throwaway Codex home with i
   assert.ok(readFileSync(path.join(codexHome, "hooks.json"), "utf8").includes("storytree-hook.mjs"));
   assert.match(readFileSync(path.join(codexHome, "AGENTS.md"), "utf8"), /check_setup/);
   assert.equal(readFileSync(path.join(signedIn, "config.toml"), "utf8"), legacy, "the user's own Codex home is only read");
-  // Its own database: opening storytree in the throwaway home starts it there, as the app would.
   const app = JSON.parse(readFileSync(path.join(made.env.STORYTREE_HOME!, "app.json"), "utf8"));
   assert.equal(app.command, process.execPath);
-  // One file to source, and the dev build's storytree command first on its PATH.
   const envFile = readFileSync(made.envFile, "utf8");
   for (const name of ["HOME", "CODEX_HOME", "STORYTREE_HOME"]) assert.ok(envFile.includes(made.env[name]!), name);
   assert.ok(existsSync(path.join(made.env.PATH!.split(path.delimiter)[0]!, launcherFile())));
@@ -654,14 +640,12 @@ test("2.2 a dev home never copies Claude Code's sign-in, and hands a Codex sign-
     mkdirSync(outdir, { recursive: true });
     const names = ["storytree-mcp", "storytree-hook", "storytree-setup", "storytree"];
     for (const name of names) writeFileSync(path.join(outdir, `${name}.mjs`), `// ${name}\n`);
-    // A build on Windows also makes the program its command is made from (ADR-0854); nothing runs it here.
     writeFileSync(path.join(outdir, "storytree-launcher.exe"), "a stand-in launcher program");
     return Object.fromEntries(names.map((name) => [name, path.join(outdir, `${name}.mjs`)]));
   };
   const rig = path.join(dir, "rig");
   const made = await makeDevHome({ dir: rig, harnesses: ["codex", "claude-code"], signedIn: { codex }, build, run });
   assert.equal(existsSync(path.join(made.env.CLAUDE_CONFIG_DIR!, ".credentials.json")), false, "a copied Claude Code sign-in refreshes on its own and ends the user's");
-  // Codex refreshed its sign-in inside the throwaway home: the user's old one no longer works.
   writeFileSync(path.join(made.env.CODEX_HOME!, "auth.json"), '{"refresh":"two"}');
   await removeDevHome(rig);
   assert.equal(readFileSync(path.join(codex, "auth.json"), "utf8"), '{"refresh":"two"}');

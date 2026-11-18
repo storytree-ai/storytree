@@ -15,7 +15,6 @@ test("15.1 first-launch consent records current launch milestones only after an 
   const runtime = createJourneyRuntime({ home, appVersion: "0.3.42", configuration: {
     projectKey: "phc_test", retention: "30 days", deletionContact: "privacy@example.test",
   }, transport: { send: async event => { events.push(event.event); }, close: async () => { closed = true; } },
-  // The flush deadline's clock stands still, so a slow runner cannot cut delivery short.
   now: () => 0 });
   try {
     runtime.desktopStarted(true);
@@ -112,13 +111,10 @@ test("14.3 CLI shutdown awaits a bounded flush: a network that never answers can
   const requested = new Promise<void>((resolve) => { asked = resolve; });
   const transport = createPostHogTransport({
     projectKey: "phc_test", permitted: () => true,
-    // The transport's clock: its deadline comes due only when the test says.
     after: (ms, fire) => { const deadline = { ms, fire }; deadlines.add(deadline); return () => deadlines.delete(deadline); },
     fetch: () => { asked(); return new Promise<Response>(() => {}); },
   });
   const runtime = createJourneyRuntime({ home, appVersion: "0.3.42", configuration, transport });
-  // The next invocation, still offline. Its finish flushes too: left to the real transport, the test
-  // posted to PostHog, and on Windows ARM process.exit with that connection closing aborts in libuv.
   const offline = { send: async () => { throw new Error("offline"); }, close: async () => {} };
   const reopened = createJourneyRuntime({ home, appVersion: "0.3.42", configuration, transport: offline });
   try {
@@ -126,7 +122,6 @@ test("14.3 CLI shutdown awaits a bounded flush: a network that never answers can
     runtime.projectCreated();
     const finished = runtime.finish();
     await requested;
-    // The bound is a deadline of at most five seconds; once it comes due, shutdown completes.
     assert.deepEqual([...deadlines].map(({ ms }) => ms <= 5_000), [true]);
     for (const deadline of [...deadlines]) deadline.fire();
     await finished;
@@ -139,7 +134,6 @@ test("15.3 the command line's status, on, off and delete-request share the persi
   const configuration = { projectKey: "phc_never_printed", retention: "30 days", deletionContact: "privacy@example.test" };
   const sent: string[] = [];
   const transport = { send: async (event: { event: string }) => { sent.push(event.event); }, close: async () => {} };
-  // Each command is its own process: a fresh runtime over the same home, finished before it exits.
   async function invoke(verb: "status" | "on" | "off" | "delete-request", configured: boolean): Promise<string> {
     const runtime = createJourneyRuntime({ home, appVersion: "0.3.42", ...(configured ? { configuration, transport } : {}) });
     try {

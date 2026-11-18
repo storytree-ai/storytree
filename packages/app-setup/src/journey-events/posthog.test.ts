@@ -109,7 +109,6 @@ test("14.2 a slow but successful US acknowledgement counts as delivery, as a col
   const transport = createPostHogTransport({
     projectKey: "phc_test_only",
     permitted: () => true,
-    // The transport's clock: a deadline is scheduled here and comes due only when the test says.
     after: (ms, fire) => { const deadline = { ms, fire }; deadlines.add(deadline); return () => deadlines.delete(deadline); },
     fetch: () => { asked(); return new Promise<Response>((resolve) => { answer = resolve; }); },
   });

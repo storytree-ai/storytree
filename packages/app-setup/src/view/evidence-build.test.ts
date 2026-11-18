@@ -5,7 +5,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-// Build the setup views' evidence captures against this branch: no browser, no pictures retaken.
 const view = fileURLToPath(new URL(".", import.meta.url));
 const checkout = path.resolve(view, "../../../..");
 const run = promisify(execFile);

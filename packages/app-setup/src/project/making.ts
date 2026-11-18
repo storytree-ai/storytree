@@ -1,15 +1,4 @@
-/**
- * Capability 6 · Make a folder a project (ADR-0969 D3, ADR-0757). After the user says yes, a folder becomes a storytree
- * project: the one check every way of adding a project goes through (the installer, the app's Add a project…,
- * `storytree doctor --set-up`, the agent's set_up_project), then the project opened (naming the user's factory,
- * whose starter pack it reads, the first time), the folder recorded and approved as this machine's trunk, the marker left,
- * and the app's choice recorded. Reading which project a folder belongs to is Session management's project routing,
- * beneath the hooks; this writes to the trunks table it reads, through Session management's trunk functions.
- *
- * The one check, refusal(), refuses a second trunk for a project on this machine, a folder that is, is inside,
- * is a worktree of, or holds another project's trunk, and a name some project already has unless this
- * machine's checkout is joining it on purpose.
- */
+// Capability 6 · Make a folder a project.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -24,42 +13,22 @@ import { seedStarterPack } from "./starter-pack.js";
 import { IGNORE_FILE, STORYTREE_FOLDER } from "./storytree-folder.js";
 
 export interface SetUpOptions {
-  /** The folder the user said yes for. */
   readonly folder: string;
-  /** The project's name, as the user gave it. */
   readonly project: string;
-  /** A connection to the running storytree's library. */
   readonly storytree: Storytree;
-  /** The app's home; defaults to STORYTREE_HOME, else ~/.storytree/0.3. It keeps this machine's identity. */
   readonly storytreeHome?: string;
-  /** Add this machine's checkout to project `project`, which already exists (ADR-0757 D4). */
   readonly join?: boolean;
-  /** The name the user's factory is found or made under (ADR-1040); by default FACTORY_NAME. */
   readonly factory?: string;
 }
 
-/** The name the user's factory is made under, unless a product project already has it (ADR-1040). */
 export const FACTORY_NAME = "factory";
 
-/**
- * Set `folder` up as project `project`, after the user said yes: the one check (ADR-0757) first,
- * then open the project in the library (creating its library the first time, 6.7), record the folder as
- * the project's trunk on this machine, leave the marker, and record the user's choice for the app.
- * A refused folder (ProjectFolderError) or name (ProjectNameError, judged by the library before
- * anything touches the server) leaves nothing behind. `join` adds this machine's checkout to a
- * project that already exists; without it, an existing project's name is refused. Either approves
- * the trunk (ADR-0942 D1), and joining from a project's own recorded trunk approves it in place. A new project
- * names the user's factory (6.11), made the first time and seeded with the starter pack, and holds no copy of the
- * pack itself: its roles, notes and checks are the factory's (6.7). A join makes none.
- */
 export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false, factory = FACTORY_NAME }: SetUpOptions): Promise<{ project: string; marker: string; replaced?: string; smallFixesArc?: string }> {
   const at = canonical(path.resolve(folder));
   const existing = findProject(at);
-  // Joining on purpose from the folder its marker already names is how an unapproved trunk is approved (ADR-0942 D1).
   const rejoining = join && existing.project === project && existing.folder === at;
   const machine = machineOf(home);
   const [projects, trunks] = await Promise.all([storytree.listProjects(), liveTrunks(storytree, machine.id, home)]);
-  // The folder's own marker naming a project this library lacks (set up against another library, or deleted here) gives way to the new one.
   const replaced = !join && existing.project !== undefined && existing.folder === at && !projects.includes(existing.project) ? existing.project : undefined;
   if (existing.project !== undefined && !rejoining && replaced === undefined) throw new ProjectFolderError(`${at} is already part of storytree project "${existing.project}" (its folder is ${existing.folder}).`);
   const refused = refusal({ folder: at, inMain: inMainCheckout(at), project, join, projects, trunks, suggestion: unusedName(suggestedName(at), projects) });
@@ -68,21 +37,17 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   const { identity } = library;
   let smallFixes: string | undefined;
   try {
-    // A new project inherits no lines written under its name before it: an older install's hooks, in a deleted project's folder.
     if (!join) await forgetProjectActivity(storytree, project);
     const own = trunks.find((trunk) => trunk.project === project);
     const by = join ? "join" : "setup";
     const registered = own === undefined ? await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }, by) : own.approvedBy !== undefined || (await approveTrunk(storytree, own, by));
     if (!registered) throw new ProjectFolderError(`${at} or project "${project}" was set up on this machine a moment ago by something else; check it again before setting it up.`);
     rememberApproval(home, machine.id, own ?? { project, folder: at });
-    // A new project names the user's factory and reads its system from there, holding no copy (ADR-1040); one joined was set up where it was made.
     if (!join) await library.recordFactory(await userFactory(storytree, factory, [...projects, project]));
-    // A new project's one home for its small fixes, made by storytree, never by the agent (6.15); one joined gains it at its check.
     if (!join) smallFixes = (await smallFixesArc(library))?.id;
   } finally {
     await library.close();
   }
-  // Should what follows fail, the trunk stays recorded: a retry here sets its own trunk up again.
   const storytreeFolder = path.join(at, STORYTREE_FOLDER);
   const madeFolder = !existsSync(storytreeFolder);
   mkdirSync(storytreeFolder, { recursive: true });
@@ -93,10 +58,8 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   writeFileSync(ignore, ignoring(previousIgnore?.toString("utf8")));
   try {
     recordProjectChoice(path.join(home, "project-choice.json"), project);
-    // A project removed from this computer and joined again on purpose is back on its list.
     keepOnThisComputer(project, home);
   } catch (error) {
-    // A new marker would make the tool's explicit retry stop at "already set up".
     if (madeFolder) rmSync(storytreeFolder, { recursive: true, force: true });
     else {
       for (const [file, was] of [[marker, previous], [ignore, previousIgnore]] as const) {
@@ -106,12 +69,10 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
     }
     throw error;
   }
-  // The root marker an older setup left, naming the project replaced, would only be read as ignored beside the new one.
   if (replaced !== undefined && rootMarkerNames(at, replaced)) rmSync(path.join(at, ROOT_MARKER_FILE), { force: true });
   return { project, marker, ...(replaced === undefined ? {} : { replaced }), ...(smallFixes === undefined ? {} : { smallFixesArc: smallFixes }) };
 }
 
-/** Whether `folder`'s root `.storytree.json` names `project`. */
 function rootMarkerNames(folder: string, project: string): boolean {
   try {
     return (JSON.parse(readFileSync(path.join(folder, ROOT_MARKER_FILE), "utf8")) as { project?: unknown }).project === project;
@@ -122,21 +83,12 @@ function rootMarkerNames(folder: string, project: string): boolean {
 
 const LOCAL_FILES = "*.local.json";
 
-/** `.storytree/.gitignore`'s text: as it was, with `*.local.json` added when it lacks that line. */
 function ignoring(was: string | undefined): string {
   if (was === undefined) return `${LOCAL_FILES}\n`;
   if (was.split(/\r?\n/).some((line) => line.trim() === LOCAL_FILES)) return was;
   return `${was}${was === "" || was.endsWith("\n") ? "" : "\n"}${LOCAL_FILES}\n`;
 }
 
-/**
- * The user's factory (ADR-1040, 6.11): a project holding the system their product projects build with, found among
- * `taken` by its mark (ADR-1086 D4). The one storytree ships has no folder, only a library, and is found first, as the
- * first project named `name`, `name-2`, `name-3`… that is a factory. With none, a factory the user brought is found:
- * a project of another name marked a factory and with a folder of its own (a trunk on some machine), the first by name
- * of several. With neither, it is made under the first of storytree's names `taken` lacks, marked a factory and seeded
- * with the starter pack. Of two setups making it at once, only the one whose mark made it seeds it.
- */
 export async function userFactory(storytree: Storytree, name: string, taken: readonly string[]): Promise<string> {
   const candidate = new RegExp(`^${name}(-[0-9]+)?$`);
   const named = taken.filter((each) => candidate.test(each)).sort((a, b) => a.length - b.length || a.localeCompare(b));
@@ -154,10 +106,6 @@ export async function userFactory(storytree: Storytree, name: string, taken: rea
   return made;
 }
 
-/**
- * Whether project `name`'s library says it is a factory; a project deleted since the list was read is none, and so is
- * one deleted while it is read: a read that fails opens it once more, which finds it gone.
- */
 async function isFactory(storytree: Storytree, name: string, attempt = 1): Promise<boolean> {
   const library = await storytree.openProject(name, { create: false }).catch((error: unknown) => {
     if (error instanceof ProjectGoneError) return undefined;
@@ -174,26 +122,14 @@ async function isFactory(storytree: Storytree, name: string, attempt = 1): Promi
   return isFactory(storytree, name, attempt + 1);
 }
 
-/**
- * What making a project's folder a git repository came to (6.10). With no git identity, the repository is made and
- * its marker staged, waiting for the first commit (firstCommit) once git has one.
- */
 export type RepositoryMade =
   | { readonly state: "made" }
   | { readonly state: "already"; readonly root: string }
   | { readonly state: "no identity"; readonly reason: string }
   | { readonly state: "could not"; readonly reason: string };
 
-/** What the user is asked to do when git has no identity to commit a project's repository with (6.10, 8.31). */
 export const IDENTITY_FIX = 'ask the user for the name and email their commits should carry, and with their words run git config --global user.name "<name>" and git config --global user.email "<email>"; the next check_setup then makes the first commit';
 
-/**
- * Make `folder`, a project's folder, a git repository when it is in none (6.10, increment_c270de438175): review,
- * landing and verified health all read one. The first commit holds the project's `.storytree` folder alone (its marker and
- * its .gitignore), under the user's own git identity, never a guessed one. A folder already in a repository is left as it
- * is. Never throws: with no git nothing is made; with no identity the repository stays, that folder staged for the first commit
- * (increment_e2cb527f4320); any other failure takes the half-made repository away again. Each says its reason.
- */
 export function makeRepository(folder: string, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): RepositoryMade {
   const run = gitIn(folder, env);
   try {
@@ -213,17 +149,11 @@ export function makeRepository(folder: string, { env = process.env }: { env?: No
   return made;
 }
 
-/**
- * Make the first commit of a repository makeRepository began in `folder` with no identity (6.10, 8.31): one whose
- * root is the folder, with no commit yet and only the `.storytree` folder staged (or an older setup's root marker alone). Undefined for any other folder, so a
- * repository the user began is never committed to.
- */
 export function firstCommit(folder: string, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): Exclude<RepositoryMade, { state: "already" }> | undefined {
   const run = gitIn(folder, env);
   try {
     if (canonical(run("rev-parse", "--show-toplevel")) !== canonical(path.resolve(folder))) return undefined;
     if (run("rev-list", "-n", "1", "--all") !== "") return undefined;
-    // An older setup staged its root marker alone (ADR-1191 D4).
     const staged = run("ls-files");
     if (staged === ROOT_MARKER_FILE) return commitMarker(run, ROOT_MARKER_FILE);
     if (staged.split("\n").some((file) => !file.startsWith(`${STORYTREE_FOLDER}/`))) return undefined;
@@ -233,12 +163,10 @@ export function firstCommit(folder: string, { env = process.env }: { env?: NodeJ
   return commitMarker(run);
 }
 
-/** Run git in `folder` with `env`, giving back what it printed, trimmed. */
 function gitIn(folder: string, env: NodeJS.ProcessEnv): (...args: string[]) => string {
   return (...args) => execFileSync("git", args, { cwd: folder, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
 }
 
-/** Commit the staged `.storytree` folder (or an older setup's root marker) under the user's own identity, never one git guesses. */
 function commitMarker(run: (...args: string[]) => string, staged: string = STORYTREE_FOLDER): Exclude<RepositoryMade, { state: "already" }> {
   try {
     run("-c", "user.useConfigOnly=true", "commit", "-q", "-m", "Set up storytree project", "--", staged);
@@ -249,29 +177,21 @@ function commitMarker(run: (...args: string[]) => string, staged: string = STORY
   }
 }
 
-/** What git said when it failed, on one line. */
 function gitError(error: unknown): string {
   const stderr = (error as { stderr?: string | Buffer }).stderr?.toString().trim();
   return (stderr || (error as Error).message).split(/\r?\n/).filter(Boolean).slice(0, 3).join(" ");
 }
 
-/**
- * This machine's trunks whose folders are still there. A trunk whose folder is gone (moved away or
- * deleted) is forgotten, so the project can be joined or seen at its new folder. A folder that is
- * there keeps its trunk even with its marker gone: the record, not the marker, holds it (6.2).
- */
 async function liveTrunks(storytree: Storytree, machine: string, home: string): Promise<Trunk[]> {
   const trunks = await trunksOn(storytree, machine);
   for (const trunk of trunks) if (!existsSync(trunk.folder)) await forgetTrunk(storytree, trunk, home);
   return trunks.filter((trunk) => existsSync(trunk.folder));
 }
 
-/** A name to suggest for `folder` as a new project: its own name, or the first of name-2, name-3… no project has. */
 export async function suggestProjectName(folder: string, storytree: Storytree): Promise<string> {
   return unusedName(suggestedName(folder), await storytree.listProjects());
 }
 
-/** A project name to suggest for `folder`: its own name, as the library's project-name rule allows. */
 export function suggestedName(folder: string): string {
   const name = path
     .basename(path.resolve(folder))
@@ -283,16 +203,10 @@ export function suggestedName(folder: string): string {
   return name === "" ? "my-project" : name;
 }
 
-/**
- * What check_setup says in `folder`, which isn't a storytree project: that it isn't, and how the user
- * can add it, naming the app's control by its shown word (ADR-1315 D1). The agent is not told to offer setup (ADR-0752 D3);
- * the user adds projects deliberately.
- */
 export function notAProjectYet(folder: string, name: string = suggestedName(folder)): string {
   return `This folder is not a storytree project, so storytree records nothing here; carry on with the user's request. The user can add it as a project: ${ACTIONS.addProject} in the storytree app, \`storytree doctor --set-up ${name}\` in a terminal here, or by asking you to set it up.`;
 }
 
-/** `name`, or the first of `name-2`, `name-3`… that is no project yet, within the project-name length. */
 export function unusedName(name: string, taken: readonly string[]): string {
   for (let n = 1; ; n++) {
     const suffix = n === 1 ? "" : `-${n}`;
@@ -302,22 +216,15 @@ export function unusedName(name: string, taken: readonly string[]): string {
 }
 
 interface Asked {
-  /** The folder, canonical. */
   readonly folder: string;
-  /** Where the folder sits in its trunk's main checkout, when it is in a git worktree; else the folder. */
   readonly inMain: string;
   readonly project: string;
-  /** Adding this machine's checkout to an existing project, on purpose (ADR-0757 D4). */
   readonly join: boolean;
-  /** Every project on the server. */
   readonly projects: readonly string[];
-  /** This machine's trunks. */
   readonly trunks: readonly Trunk[];
-  /** The name to suggest for the folder if it is new. */
   readonly suggestion: string;
 }
 
-/** Why `asked` must be refused, or undefined when the folder may be set up as its project. */
 function refusal(asked: Asked): ProjectFolderError | undefined {
   for (const trunk of asked.trunks) {
     if (within(asked.folder, trunk.folder) || within(asked.inMain, trunk.folder)) {
@@ -329,7 +236,6 @@ function refusal(asked: Asked): ProjectFolderError | undefined {
     }
   }
   const own = asked.trunks.find((trunk) => trunk.project === asked.project);
-  // Setting its own trunk up again (after a setup that failed on this machine, say) is no new folder.
   if (own !== undefined && samePath(own.folder, asked.folder)) return undefined;
   if (own !== undefined) {
     return new ProjectFolderError(`storytree project "${asked.project}" already lives at ${own.folder} on this machine, and a project has one folder per machine: work in a git worktree of it (git worktree add), or set this folder up as a new project, such as "${asked.suggestion}".`, asked.suggestion);
@@ -344,7 +250,6 @@ function refusal(asked: Asked): ProjectFolderError | undefined {
   return undefined;
 }
 
-/** Whether `folder` is `root` or inside it. */
 function within(folder: string, root: string): boolean {
   const relative = path.relative(key(root), key(folder));
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
@@ -354,12 +259,10 @@ function samePath(a: string, b: string): boolean {
   return key(a) === key(b);
 }
 
-/** A path as compared: Windows paths ignore case. */
 function key(folder: string): string {
   return process.platform === "win32" ? folder.toLowerCase() : folder;
 }
 
-/** The path with symlinks resolved and, on Windows, short (8.3) names spelled out; as it is if it cannot be. */
 function canonical(file: string): string {
   try {
     return realpathSync.native(file);

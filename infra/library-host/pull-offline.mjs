@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// The owner's offline copy of the library backups, run on the laptop with his own gcloud login:
-// the newest verified backup and the archive/, in one gpg-encrypted file on the disk he names.
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync } from 'node:fs';
@@ -11,7 +9,6 @@ import { fileURLToPath } from 'node:url';
 import { checkedManifest } from './host.mjs';
 
 const WINDOWS = process.platform === 'win32';
-// Windows reaches gcloud.cmd only through a shell, so every word it is given must need no quoting.
 const PLAIN = /^[A-Za-z0-9_.:/\\*@=+-]+$/;
 
 async function sha256(file) {
@@ -32,8 +29,6 @@ function run(command, args, { input, shell = false } = {}) {
   });
 }
 
-// The real bucket, through the laptop's own gcloud login: the cloud project's backups bucket, the project given
-// with --project or else the login's own (gcloud config get-value project). Patterns and names are the bucket's own.
 export function gcloudBucket({ project, gcloud = WINDOWS ? 'gcloud.cmd' : 'gcloud' } = {}) {
   const tool = args => run(gcloud, ['--quiet', ...args], { shell: WINDOWS });
   let bucket;
@@ -53,7 +48,6 @@ export function gcloudBucket({ project, gcloud = WINDOWS ? 'gcloud.cmd' : 'gclou
   };
 }
 
-// tar the staged folder into gpg: to a public key when one is named, else to a passphrase gpg asks for itself.
 export async function gpgEncrypt(folder, file, recipient) {
   const mode = recipient ? ['--encrypt', '--recipient', recipient] : ['--symmetric', '--cipher-algo', 'AES256'];
   const tar = spawn('tar', ['-cf', '-', '-C', folder, '.'], { stdio: ['ignore', 'pipe', 'inherit'] });
@@ -64,8 +58,6 @@ export async function gpgEncrypt(folder, file, recipient) {
   await Promise.all([run('gpg', [...mode, '--output', file], { input: tar.stdout }), tarDone]);
 }
 
-// The newest backup whose manifest checks out and whose every dump is in the bucket at its recorded size,
-// newest by when its manifest was written (uploaded last, so it marks a complete backup), not by name.
 export async function newestVerified(bucket, folder) {
   const objects = await bucket.list('backups/**');
   const sizes = new Map(objects.map(o => [o.name, o.bytes]));
@@ -111,7 +103,6 @@ export async function pullOffline({ out, recipient, project, bucket = gcloudBuck
     log(`Wrote ${target} (${(await stat(target)).size} bytes, sha256 ${await sha256(target)})`);
     return { prefix, target };
   } finally {
-    // Nothing unencrypted stays behind, even after a failure.
     await rm(staging, { recursive: true, force: true });
   }
 }

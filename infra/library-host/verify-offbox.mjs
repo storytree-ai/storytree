@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-// The off-box check of the library backups, run on the laptop with the owner's own gcloud login by the session
-// manager's process "Verifying the library backups from off the box": it checks the box's digest chain, checks the
-// newest backup, records its manifest's hash in the verified list `host.mjs restore-backup --verified` takes, and
-// once a week restores that backup into a throwaway local server. Run with `node --import tsx` (the weekly restore
-// starts its server through @storytree/local-postgres, which is TypeScript).
 import { spawn } from 'node:child_process';
 import { appendFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
@@ -13,9 +8,7 @@ import pg from 'pg';
 import { chainOf, checkedCounts, checkedCreation, checkedManifest, operator } from './host.mjs';
 import { gcloudBucket } from './pull-offline.mjs';
 
-// The box backs up all five databases (host.mjs BACKED); a newest backup of fewer is refused.
 const DATABASES = 5;
-// A dump this much smaller, or larger, than the same database's in the backup before is refused: data lost, or junk added.
 const SHRINK = 0.8, GROWTH = 2;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const HEX = /^[a-f0-9]{64}$/;
@@ -33,7 +26,6 @@ function checkedDigest(digest, folder) {
   return digest;
 }
 
-/** The chain's tip, once every digest links to the one before it, from the last verified digest (or the first there is). */
 export function checkedChain(digests, anchor) {
   const sorted = [...digests].sort((a, b) => a.seq - b.seq);
   if (!sorted.length) throw new Error('No backup carries a digest');
@@ -70,10 +62,6 @@ async function tableCounts(url, database) {
   try { return await operator.counts(client); } finally { await client.end(); }
 }
 
-/**
- * Restores each dump the manifest names into its own database on a throwaway local server (packages/local-postgres),
- * checks its row counts against the manifest's, and stops the server. Returns each database's counts.
- */
 export async function localRestore(directory, manifest, { pgRestore = 'pg_restore' } = {}) {
   const { start } = await import('@storytree/local-postgres');
   const work = await mkdtemp(path.join(tmpdir(), 'storytree-restore-proof-'));
@@ -99,11 +87,6 @@ export async function localRestore(directory, manifest, { pgRestore = 'pg_restor
   }
 }
 
-/**
- * The off-box check. `state` is the laptop's folder holding the verified list (verified.txt), the chain's last
- * verified digest (state.json) and each restore proof (restore-<backup>.json). Nothing is recorded unless every check,
- * and a due restore, passes.
- */
 export async function verifyOffbox({ bucket, state, now = new Date(), restore = localRestore, restoreDue, log = console.log }) {
   const saved = await readJson(path.join(state, 'state.json')).catch(error => { if (error.code === 'ENOENT') return {}; throw error; });
   const objects = await bucket.list('backups/**');
@@ -116,7 +99,6 @@ export async function verifyOffbox({ bucket, state, now = new Date(), restore = 
   }
   const staging = await mkdtemp(path.join(tmpdir(), 'storytree-verify-'));
   try {
-    // Only digests from the last verified one on: older ones were checked by an earlier run.
     const digests = [];
     for (const [folder, files] of byFolder) {
       const object = files.get('digest.json');
@@ -129,7 +111,6 @@ export async function verifyOffbox({ bucket, state, now = new Date(), restore = 
     }
     const tip = checkedChain(digests, saved.anchor);
 
-    // The newest backup by when its manifest was written (uploaded last), not by its name.
     const complete = [...byFolder].filter(([, files]) => files.has('manifest.json'))
       .sort(([, a], [, b]) => b.get('manifest.json').created - a.get('manifest.json').created);
     if (!complete.length) throw new Error('The bucket holds no backup with a manifest');
@@ -147,7 +128,6 @@ export async function verifyOffbox({ bucket, state, now = new Date(), restore = 
     }
     checkedCreation({ prefix: newest, objects: [...files.values()].map(o => ({ creation_time: new Date(o.created).toISOString() })), now });
 
-    // Sizes close to the backup before it (the newest earlier one whose manifest checks out).
     for (const [folder] of complete.slice(1)) {
       const file = path.join(staging, `${folder}.manifest.json`);
       await bucket.download(`backups/${folder}/manifest.json`, file);
@@ -162,7 +142,6 @@ export async function verifyOffbox({ bucket, state, now = new Date(), restore = 
       break;
     }
 
-    // Weekly, the newest backup restores into a throwaway local server before it is recorded as verified.
     let proof;
     const due = restoreDue ?? (!saved.restoredAt || now.getTime() - Date.parse(saved.restoredAt) >= WEEK_MS);
     if (due) {

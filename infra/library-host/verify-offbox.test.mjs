@@ -16,12 +16,9 @@ import { localRestore, verifyOffbox } from './verify-offbox.mjs';
 const DBS = ['storytree_storytree', 'storytree-activity', 'storytree-trunks', 'storytree-lag', 'storytree-quality'];
 const sha = text => createHash('sha256').update(text).digest('hex');
 const DAY = 24 * 60 * 60 * 1000;
-// A backup's name is the UTC time it began, as host.mjs stamps it.
 const nameAt = (ms, tag) => new Date(ms).toISOString().replaceAll(/[-:.]/g, '') + '-' + tag;
 const T0 = Date.UTC(2026, 9, 20, 0, 0, 0);
 
-// A fake bucket: object name -> { body, created (ms) }, listed the way gcloudBucket lists the real one, in an order
-// unrelated to names or times, so that nothing leans on the listing's order.
 function fakeBucket(objects) {
   const downloads = [];
   return {
@@ -34,7 +31,6 @@ function fakeBucket(objects) {
     async download(name, file) { downloads.push(name); await writeFile(file, objects[name].body); },
   };
 }
-// One backup made by the box: five dumps, then the manifest, then its digest chained from `last`.
 function backup(objects, last, at, tag, { size = 100, digest = true, alter = d => d, dbs = DBS } = {}) {
   const prefix = nameAt(at, tag);
   const databases = dbs.map(name => {
@@ -67,11 +63,9 @@ test('the newest backup is verified off the box: its digest is the chain\'s tip,
   assert.equal(result.prefix, c.prefix);
   const verified = await readFile(path.join(state, 'verified.txt'), 'utf8');
   assert.match(verified, new RegExp(`^${c.manifestHash} ${c.prefix} `, 'm'));
-  // The list it writes is the one host.mjs restore-backup takes.
   assert.doesNotThrow(() => checkedPrefix({ prefix: `gs://p-library-backups/backups/${c.prefix}`, manifestHash: c.manifestHash, verified, now,
     objects: Object.entries(objects).filter(([n]) => n.startsWith(`backups/${c.prefix}/`)).map(([name, o]) => ({ name, creation_time: new Date(o.created).toISOString() })) }));
 
-  // The next run starts from that tip: it reads no digest older than it, and accepts a chain that continues it.
   const d = backup(objects, c.digest, T0 + DAY * 0.75, 'dddddddd');
   const bucket = fakeBucket(objects);
   await verifyOffbox({ bucket, state, now: new Date(T0 + DAY * 1.25), restore: noRestore, log: () => {} });
@@ -145,7 +139,6 @@ test('verification refuses a chain that no longer passes through the digest the 
   const a = backup(objects, undefined, T0, 'aaaaaaaa');
   const state = await stateDir(t);
   await verifyOffbox({ bucket: fakeBucket(objects), state, now: new Date(T0 + DAY), restore: async () => ({}), log: () => {} });
-  // The bucket is rewritten from scratch: a different first digest, and one after it.
   delete objects[`backups/${a.prefix}/digest.json`];
   const forged = backup(objects, undefined, T0 + 1000, 'ffffffff');
   backup(objects, forged.digest, T0 + DAY / 4, 'bbbbbbbb');
@@ -180,13 +173,11 @@ test('a restore proof is due weekly: it restores every dump checked against its 
   assert.deepEqual(restored, DBS, 'a week after the last proof, the next one runs');
   assert.ok((await readdir(state)).includes(`restore-${c.prefix}.json`));
 
-  // A restore that fails records neither the proof nor the hash.
   const d = backup(objects, c.digest, T0 + 16 * DAY, 'dddddddd');
   await assert.rejects(verifyOffbox({ bucket: fakeBucket(objects), state, now: new Date(T0 + 16 * DAY + 60 * 60 * 1000), restore: async () => { throw new Error('row counts differ'); }, log: () => {} }), /row counts/);
   assert.ok(!(await readFile(path.join(state, 'verified.txt'), 'utf8')).includes(d.manifestHash));
 });
 
-// The real restore needs a PostgreSQL install with a server and pg_dump to make the dump it restores (pg_config names it).
 const pgBin = (() => {
   try {
     const bin = execFileSync('pg_config', ['--bindir'], { encoding: 'utf8' }).trim();
@@ -197,11 +188,8 @@ const pgBin = (() => {
 test('the weekly restore puts each dump into a throwaway local server and checks its row counts against the manifest', { skip: process.platform === 'win32' ? 'platform:linux: the source server\'s socket option takes no Windows path' : !pgBin && 'other: no PostgreSQL install with a server and pg_dump on this machine' }, async (t) => {
   const work = await mkdtemp(path.join(tmpdir(), 'verify-offbox-restore-'));
   t.after(() => rm(work, { recursive: true, force: true }));
-  // A source server of the install's own version stands in for the box's, its socket in the work folder.
   const tool = name => path.join(pgBin, name);
   const data = path.join(work, 'source');
-  // Postgres refuses root, so run as root (a cloud container) the source server runs as the account local-postgres
-  // runs its servers as, which is given the work folder (its cluster, log and socket go there) and let through to it.
   const account = serverAccount();
   const asAccount = account === undefined ? {} : { uid: account.uid, gid: account.gid };
   if (account !== undefined) {
@@ -226,7 +214,6 @@ test('the weekly restore puts each dump into a throwaway local server and checks
   await assert.rejects(localRestore(work, { databases: [{ ...entry, rows: { 'public.record': '8' } }] }, { pgRestore }), /row counts/);
 });
 
-// A stand-in gcloud on the PATH that writes each call's words to a log and lists an empty bucket.
 test('run from the command line, it reads the cloud project and the state folder it is given, and records nothing from an empty bucket', { skip: process.platform === 'win32' && 'platform:linux: the stand-in gcloud is a shell script' }, async (t) => {
   const folder = await stateDir(t);
   const calls = path.join(folder, 'calls');

@@ -14,7 +14,6 @@ async function folder(t) {
   return path;
 }
 
-/** A process the fakes below stand for: its pid, ended by `end`. */
 function processes() {
   const live = new Set();
   let next = 100;
@@ -30,9 +29,9 @@ test("3.33 · the dispatcher's and watcher's service adopts the one already runn
   const left = [];
   const sleep = async () => {
     turns += 1;
-    if (turns === 1) box.end(7); // the adopted dispatcher ends
-    if (turns === 3) why = undefined; // pool-stop goes
-    if (turns === 5) box.end(101); // the one it started ends
+    if (turns === 1) box.end(7);
+    if (turns === 3) why = undefined;
+    if (turns === 5) box.end(101);
     if (turns === 8) stopping.abort();
   };
   await keepRunning({
@@ -60,8 +59,6 @@ test("3.33 · under systemd on Linux the service starts its process in a scope o
   assert.deepEqual(outsideHost(node, { env: { INVOCATION_ID: "abc" }, platform: "win32" }), node);
 });
 
-// A dispatcher as the lane runner makes one: its lane in a process group of its own, which a SIGTERM to the dispatcher
-// is forwarded to, as runner.mjs forwards it to its engine.
 const FAKE_DISPATCHER = `
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -93,7 +90,6 @@ test("3.33 · stopping the dispatcher's service ends the dispatcher and leaves i
   const running = service.start({ stopping: stopping.signal, log: (line) => lines.push(line) });
   const lane = Number(await waitUntil(async () => (await readFile(join(lanesDir, "lane.pid"), "utf8").catch(() => "")), 10_000, "the fake lane's pid"));
   const dispatcherPid = Number(await readFile(join(lanesDir, "pool.pid"), "utf8"));
-  // A lane seen gone is never signalled: Windows can give its pid at once to another process (increment_845f8cd71c6d).
   let laneGone = false;
   t.after(() => { if (!laneGone) try { process.kill(lane); } catch {} });
   stopping.abort();
@@ -110,7 +106,6 @@ test("3.33 · the dispatcher's service holds the dispatcher once a run of its ow
   const status = join(lanesDir, "pool.status");
   await writeFile(status, "2026-11-03T00:00:00Z dispatcher started\n2026-11-03T00:01:00Z pool stopped: engine failing at once on increment_a\n");
   const script = join(lanesDir, "launch.mjs");
-  // Each run says it started; the second ends on 75, as the dispatcher does with an engine failing at once.
   await writeFile(script, `import { appendFileSync, readFileSync } from "node:fs";
 const status = process.argv[3] + "/pool.status";
 const runs = readFileSync(status, "utf8").split("dispatcher started").length - 1;
@@ -129,7 +124,6 @@ appendFileSync(status, "2026-11-03T00:02:00Z dispatcher started\\n" + (runs >= 2
   assert.match(stoppedOn75("2026-11-03T00:02:00Z dispatcher started\n2026-11-03T00:03:00Z pool stopped: engine failing at once on increment_b\n"), /increment_b$/);
 });
 
-// A watcher as `watch.mjs run` is one: its look loop a child in its process group, and a fix session it started in a group of its own.
 const FAKE_WATCHER = `
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -154,7 +148,6 @@ test("3.33 · stopping the watcher's service ends the watcher and its look loop,
   stopping.abort();
   await running;
   await waitUntil(() => !alive(pids.run) && !alive(pids.loop), 10_000, "the watcher and its look loop to end");
-  // Seen gone, so never signalled: their pids may already be another process's (increment_845f8cd71c6d).
   left.delete(pids.run);
   left.delete(pids.loop);
   assert.equal(alive(pids.fix), true, "the fix session runs on after the watcher's service stopped");

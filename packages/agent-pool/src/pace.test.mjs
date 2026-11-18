@@ -5,7 +5,7 @@ import { runPool } from "./launch.mjs";
 import { readBoxPace, saturationOf } from "./pace.mjs";
 
 const now = Date.parse("2026-10-23T12:00:00Z");
-const GB = 1024 * 1024; // /proc/meminfo counts kB
+const GB = 1024 * 1024;
 
 test("3.20 · only a saturated box holds dispatch back: CPU run queue, memory or a GPU really maxed; busy is not saturated, and an unread part holds nothing back", () => {
   assert.equal(saturationOf({}), undefined, "nothing read: dispatch as usual");

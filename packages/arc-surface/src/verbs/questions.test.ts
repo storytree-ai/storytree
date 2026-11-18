@@ -1,8 +1,4 @@
-/**
- * Capability 3 · Arc surface: contracts 3.22, 3.23, 3.32 and 3.33, the `question` family's predict, prediction, score, prep and
- * deviation verbs (ADR-1231 D3) and its evidence links, 3.42, question and arc reads of another library of the factory's circle, and 3.43, the owner's questions and waits gathered across that circle and a question settled in its own project's library, run with a caller on a fresh project's library and activity log on the real Postgres
- * `pnpm test` provides.
- */
+// Capability 3 · Arc surface.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test, type TestContext } from "node:test";
@@ -64,12 +60,10 @@ test("3.22 · the question family declares predict, prediction, score and prep, 
   await assert.rejects(run("predict", { question: question.id, pick: "1", confidence: "low", why: "x" }), (error: unknown) => error instanceof VerbRefusal && /settled/.test(error.message));
   assert.match(await run("score", { question: question.id, prediction: "match", recommendation: "different", by: undefined }), new RegExp(`Scored ${question.id} by person:test: would-be answer match, raiser's recommendation different`));
 
-  // A question with no would-be answer is scored for its raiser's recommendation alone.
   const unpredicted = await library.raiseQuestion({ arc: arc.id, ...ASK });
   await assert.rejects(run("prep", { question: unpredicted.id, stance: "differs", reason: undefined }), (error: unknown) => error instanceof VerbRefusal && /--reason/.test(error.message));
   await library.settleQuestion(unpredicted.id, { answer: "Mailgun" });
   assert.equal(await run("score", { question: unpredicted.id, prediction: undefined, recommendation: "match", by: "lane" }), `Scored ${unpredicted.id} by lane: raiser's recommendation match.`);
-  // A caller with no writer is named by its session.
   const unwritten = await library.raiseQuestion({ arc: arc.id, ...ASK });
   await library.settleQuestion(unwritten.id, { answer: "Mailgun" });
   const scoreVerb = ARC_FAMILIES.find((one) => one.name === "question")!.verbs.find((one) => "name" in one.command && one.command.name === "score") as Verb<VerbInputs, ArcVerbContext>;
@@ -188,7 +182,6 @@ test("3.42 · question list and show and arc list and show read the factory's li
   const fromFactory = contextOf(factory);
   const fromProduct = contextOf(await storytree.openProject(productName));
 
-  // From the factory's folder, the project's questions and arcs.
   const listed = await run("question", "list", { arc: undefined, project: productName }, fromFactory);
   assert.match(listed, new RegExp(`^project ${productName}:\\n1 open across arcs:\\n  - ${siteQuestion.id}`));
   assert.match(await run("question", "show", { question: siteQuestion.id, project: productName }, fromFactory), new RegExp(`^project ${productName}:\\nWhich mailer\\?`));
@@ -196,7 +189,6 @@ test("3.42 · question list and show and arc list and show read the factory's li
   assert.match(await run("arc", "show", { arc: siteArc.id, project: productName }, fromFactory), new RegExp(`^project ${productName}:\\nRicky's site goes live`));
   assert.doesNotMatch(await run("question", "list", { arc: undefined }, fromFactory), new RegExp(siteQuestion.id), "named nowhere, it reads the folder's own");
 
-  // From the project's folder, the factory's.
   const arcs = await run("arc", "list", { project: factoryName }, fromProduct);
   assert.ok(arcs.startsWith(`project ${factoryName}:`) && arcs.includes(toolArc.id) && !arcs.includes(siteArc.id));
   await assert.rejects(run("arc", "list", { project: outsideName }, fromProduct), (error: unknown) => error instanceof VerbRefusal && error.message.includes(outsideName));
@@ -232,14 +224,11 @@ test("3.43 · question list and arc waits with --project all read every library 
     return (await verb.act(input as never, context, WORDS)).text;
   };
 
-  // Each says so in its usage, which is how a session finds the flag.
   for (const [family, name] of [["question", "list"], ["arc", "waits"]] as const) {
     const verb = ARC_FAMILIES.find((one) => one.name === family)!.verbs.find((one) => "name" in one.command && one.command.name === name)!;
     assert.match((verb.command as { usage?: string }).usage ?? "", /\[--project <project\|all>\]$/, `${family} ${name}`);
   }
   const questions = await run("question", "list", { arc: undefined, project: ["all"] });
-  // The shared test Postgres holds other tests' projects too, so the circle may name one it could not open
-  // (dropped mid-read) between these two: find the product's section by its name, not its position.
   const sections = questions.split("\n\n");
   const own = sections[0]!;
   const theirs = sections.find((section) => section.startsWith(`project ${productName}:\n`));

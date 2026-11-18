@@ -1,5 +1,4 @@
-// Capability 3 · The pool runs its lanes under the machine's cap (ADR-0955 D2): one dispatcher at a time, at most
-// the box's cap of engines at once, each lane's brief composed from its header, notes and the pool's rules.
+// Capability 3 · The pool runs its lanes under the machine's cap (ADR-0955 D2).
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -7,29 +6,15 @@ import { join, posix } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
 import { promisify } from "node:util";
 
-/**
- * The code the dispatcher runs (3.10, ADR-0981): what launch.mjs loads, each lane's runner loads, and the briefs it
- * composes. A change to one of these restarts the dispatcher; a change anywhere else in the dev loop (the test runner,
- * the gate, the health readers, a test) leaves it starting work. When one of these files comes to import another file,
- * name that file here. The pool's configuration reader (pool-config.mjs) is read once at start, so it is here too; the
- * machine's own configuration file is outside the repository (ADR-1216 D1), so codeVersion reads it beside these, less
- * the fields its reader reads again as it runs (`live`, the dispatcher's projects and sessions, 3.39).
- */
 export const POOL_CODE = ["launch.mjs", "feed.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "watch.mjs", "pool-config.mjs",
   "pool-brief.md", "pool-brief-plan.md", "pool-brief-read-only.md"].map((name) => `packages/agent-pool/src/${name}`);
 
-/**
- * The version of `paths` (repository-relative) at the checkout's HEAD: one hash of their blob ids, so it moves only
- * when one of them changes. A path HEAD lacks is left out; with none of them there it is undefined.
- */
 export async function codeVersion({ repo, paths = POOL_CODE, config, live = [], exec = promisify(execFile) }) {
   const { stdout } = await exec("git", ["ls-tree", "HEAD", "--", ...paths], { cwd: repo });
-  // The machine's configuration file, read once at start, is part of what it runs: a change to it restarts it too.
   const configured = config ? settled(await readFile(config, "utf8").catch(() => ""), live) : "";
   return stdout.trim() ? createHash("sha1").update(stdout).update(configured).digest("hex").slice(0, 12) : undefined;
 }
 
-/** A machine file's text less its `live` fields, or the text as it is when it names none or does not parse. */
 function settled(text, live) {
   if (!live.length) return text;
   try {
@@ -41,13 +26,10 @@ function settled(text, live) {
 
 const ENGINES = [["codex", "exec"], ["codex", "e"], ["claude", "-p"], ["claude", "--print"]];
 
-/** A command line's first words, a quoted word ("C:\Program Files\…\node.exe") read as one. */
 const leadingWords = (args, count) => [...args.trim().matchAll(/"([^"]*)"|(\S+)/g)].slice(0, count).map((word) => word[1] ?? word[2]);
 
-/** A program's name from its path, on either system: `/usr/bin/codex`, `C:\…\claude.exe` and `…\codex.js` are codex and claude. */
 const programName = (path = "") => posix.basename(path.replace(/\\/g, "/")).replace(/\.(exe|cmd|js)$/i, "");
 
-/** Whether a process's command line starts an engine: `codex exec …` or `claude -p …`, run directly or by node, on Linux or Windows. */
 export function isEngine(args) {
   const words = leadingWords(args, 3);
   const start = /^node\d*$/i.test(programName(words[0])) ? 1 : 0;
@@ -55,14 +37,9 @@ export function isEngine(args) {
   return ENGINES.some(([engine, flag]) => name === engine && verb === flag);
 }
 
-/** What lists Windows's processes as JSON (Win32_Process: ProcessId, ParentProcessId, CommandLine), for processTable. */
 export const WINDOWS_PROCESSES = ["powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
   "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress"]];
 
-/**
- * Windows's process list (WINDOWS_PROCESSES's JSON) as the `pid ppid args` table `ps -eo pid=,ppid=,args=` prints on Linux,
- * each command line on one line (a brief passed as an argument spans many), so countEngines and holdRunner read either.
- */
 export function processTable(json) {
   if (!json.trim()) return "";
   const listed = JSON.parse(json);
@@ -70,11 +47,6 @@ export function processTable(json) {
     .map((one) => `${one.ProcessId} ${one.ParentProcessId} ${String(one.CommandLine).replace(/\s+/g, " ").trim()}`).join("\n");
 }
 
-/**
- * The engines running on the box, from `ps -eo pid=,ppid=,args=`: each lane counts once. An engine started by
- * another engine (Codex's node wrapper runs its native binary with the same arguments) is the same lane, and a
- * process that only mentions an engine (a wrapper, a grep, a brief quoting `codex exec`) is not one.
- */
 export function countEngines(table) {
   const rows = table.split("\n").map((line) => /^\s*(\d+)\s+(\d+)\s+(\S.*|)$/.exec(line)).filter(Boolean)
     .map(([, pid, ppid, args]) => ({ pid, ppid, args }));
@@ -82,21 +54,12 @@ export function countEngines(table) {
   return rows.filter((row) => engines.has(row.pid) && !engines.has(row.ppid)).length;
 }
 
-/**
- * The increments whose pool lanes run on the box, from the same table: each engine's brief names its own
- * (`Your increment: increment_…`), so a dispatcher started after a lane, before that lane claimed, still sees it.
- * Only engines count, once a lane; a process that only mentions an increment (a grep) does not.
- */
 export function runningLanes(table) {
   const ids = table.split("\n").map((line) => /^\s*\d+\s+\d+\s+(\S.*|)$/.exec(line)?.[1]).filter((args) => args && isEngine(args))
     .map((args) => /Your increment: (increment_[0-9a-f]+)/.exec(args)?.[1]).filter(Boolean);
   return [...new Set(ids)];
 }
 
-/**
- * Wait, a minute at a time, until fewer than `max` engines run; say so once when it has to wait. `max` may be a
- * reader of the cap, read on every poll, so a raised cap frees a waiting runner without a lane ending.
- */
 export async function waitForSlot({ max, count, sleep, onWait }) {
   let waited = false;
   for (;;) {
@@ -107,17 +70,11 @@ export async function waitForSlot({ max, count, sleep, onWait }) {
   }
 }
 
-/** Whether process `pid` is alive: signal 0 tests it on Linux and Windows alike; a process we may not signal is alive. */
 export const isAlive = (pid) => {
   try { process.kill(pid, 0); return true; }
   catch (error) { return error.code === "EPERM"; }
 };
 
-/**
- * Hold the lock file `path` while `fn` runs, where flock(1) is absent (Windows, ADR-1179 D1): it is created exclusively with the
- * holder's pid, waited on a second at a time while a live process holds it, taken over from a dead holder, and removed after.
- * Windows refuses the create with EPERM while a holder's file is still being removed; that is waited on as a held lock.
- */
 export async function withLockFile(path, fn, { pid = process.pid, alive = isAlive, sleep = (ms) => wait(ms), write = writeFile } = {}) {
   for (;;) {
     try { await write(path, `${pid}\n`, { flag: "wx" }); break; }
@@ -130,16 +87,8 @@ export async function withLockFile(path, fn, { pid = process.pid, alive = isAliv
   finally { await rm(path, { force: true }); }
 }
 
-/** The lanes folder's folder of engine slot reservations, shared by every starter on the machine (reserveSlot). */
 export const ENGINE_SLOTS = "engine-slots";
 
-/**
- * Take one of the machine's engine slots (3.32): under a lock file in `dir`, count the engines running (`count`) plus the
- * slots other starters there have reserved and not yet released, and reserve one when that is under `max`; else wait a
- * minute outside the lock, as waitForSlot does, and look again. `release` frees the slot once its engine's process is
- * up (or its start failed), so two starters cannot both see the last slot before either engine shows. A reservation
- * whose starter has died holds no slot and is removed.
- */
 export async function reserveSlot({ dir, max, count, sleep, onWait, pid = process.pid, alive = isAlive }) {
   await mkdir(dir, { recursive: true });
   let waited = false;
@@ -162,12 +111,6 @@ export async function reserveSlot({ dir, max, count, sleep, onWait, pid = proces
   }
 }
 
-/** A lane's brief: its header, the increment's own notes when it has any, then the pool's rules. */
-/**
- * The pool's rules name the folders a lane works from and reports to as `{checkout}` and `{lanes}`, and another project's
- * the pool's own storytree checkout as `{pool}`: a lane is briefed with its machine's own (ADR-1216 D1), so it works and
- * reports where its runner looks.
- */
 export function localBrief(text, { checkout, lanes, pool } = {}) {
   let local = text;
   if (checkout) local = local.replaceAll("{checkout}", () => checkout);
@@ -180,11 +123,6 @@ export function composeBrief({ title, intro, notes = "", common }) {
   return [`# ${title}`, "", intro, "", ...(notes ? [notes.replace(/\n*$/, ""), ""] : []), common].join("\n");
 }
 
-/**
- * One runner at a time (the dispatcher, the watcher): refuse while the pid file names a live process whose command
- * line is one of its runners (`marks`); a dead runner's leftover pid, or a pid reused by another program, does not block.
- * `argsOf(pid)` is that process's command line, or "" when it is gone.
- */
 export async function holdRunner({ pidFile, pid = process.pid, marks, argsOf }) {
   const old = (await readFile(pidFile, "utf8").catch(() => "")).trim();
   if (old && old !== String(pid)) {

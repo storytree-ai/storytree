@@ -1,28 +1,4 @@
-/**
- * Capability 3 · Arc surface. The `question` verbs, declared here (ADR-0969 D2) and mounted by the command line as its
- * `question` family (ADR-1033): raise a question for the owner on an arc, optionally holding increments on it; read one
- * whole; settle it with his answer in his words and the decision that carried it, retire one that was wrong, or list the
- * open ones, or move an open one to another arc. Retirement checks the record is a question first; other kinds are directed to `library retire`. None is a
- * tool: the MCP server's own raise_question, present_question, settle_question, retire_question and move_question do these jobs.
- *
- * Every rule is the library's (its capability 12): the required fields, that settling needs an answer, and that a held
- * increment waits on the owner. Holding an increment is the library's `editIncrement` of its `heldOn`, read from the
- * arc's own view, so only increments on the question's arc are held when it is raised; another is held with
- * `storytree arc increment edit <increment> --held-on <question>`. Retiring one goes through the library's
- * retireQuestion, which takes it off every increment held on it first. `show` reads one question whole, with the open
- * increments held on it. Holding an increment the caller's session holds releases its claims on it, through Session
- * management's releaseAsked (ADR-0944 D4). `--arc` lists one arc's questions, naming a parked arc's as parked with it.
- * `check` reads a question's review lease, and `renew` re-stamps it, which refuses a settled question (ADR-0654).
- * `present` marks a question as being put to the owner by the calling session, through Session management's
- * presentQuestion, which refuses it while another live session is (its 5.36), and `--done` clears the mark; `list`
- * flags each question a live session is presenting.
- * A question links the evidence it cites (contracts 3.32 and 3.33): `new --links` names it, beside the records its words
- * name; `show` names each by title on its Evidence line and `list` counts them; `link-named` links the records named in
- * a question's words that it does not link yet, for the backfill and the prep pass.
- * For the assistant pass (ADR-1231 D3, contracts 3.22 and 3.23): `predict` records its would-be answer, which only
- * `prediction` reads while the question is open (show and list never carry it); `prep` marks it prepped, which `list`
- * flags; `score` scores a settled one; `deviation` counts the scores per confidence band over a window.
- */
+// Capability 3 · Arc surface.
 import { verb, VerbRefusal } from "@storytree/library/verbs";
 import type { SchemaRecord } from "@storytree/library";
 
@@ -151,7 +127,6 @@ const present = verb({
     done: { kind: "switch", describe: "this session has moved on without his answer" },
   },
   async act({ question: id, done }, context: ArcVerbContext) {
-    // A person's own shell has no agent session to present it (the door names a person's session `person:<name>`).
     if (context.session.startsWith("person:")) throw new VerbRefusal("Run workspace from the agent's shell: a claim belongs to the agent session that will work there.");
     const { presentQuestion, stopPresenting } = await import("@storytree/session-management");
     if (done) {
@@ -175,10 +150,8 @@ const present = verb({
   },
 });
 
-/** The live session putting a question to the owner, as this listing names it: its own copy of what it reads (ADR-1017 D2). */
 type Presenter = { readonly session: string; readonly label: string };
 
-/** Of `open`, those a live session is putting to the owner, read through Session management. */
 async function presentersAmong({ log, project }: ArcVerbContext, open: readonly SchemaRecord<"question">[]): Promise<ReadonlyMap<string, Presenter>> {
   const { presentersOf } = await import("@storytree/session-management");
   return presentersOf(log, project, open);
@@ -191,25 +164,20 @@ const list = verb({
   async act({ arc }, context: ArcVerbContext) {
     const { library } = context;
     const open = (await (arc === undefined ? library.list("question") : library.questions(arc))).filter((question) => question.fields.lifecycle === "open");
-    // A parked arc's questions are parked with it, off the owner's list (ADR-0835 D2).
     const views = arc === undefined ? await library.arcViews() : [await library.arcView(arc)];
     const parkedArcs = new Set(views.flatMap((view) => (view?.state === "parked" ? [view.arc.id] : [])));
     const waiting = open.filter((question) => !parkedArcs.has(question.fields.arc));
     const parked = open.filter((question) => parkedArcs.has(question.fields.arc));
-    // A question another session is putting to the owner right now is flagged, so he is not asked twice (Session management 5.36).
     const presenters = open.some((question) => question.fields.presenting !== undefined) ? await presentersAmong(context, open) : new Map<string, Presenter>();
     const flag = (id: string) => {
       const by = presenters.get(id);
       return by === undefined ? "" : `  (being put to the owner by ${by.label} session ${by.session})`;
     };
-    // A prepped question says the pass's stance; one reworded since its prep reads unprepared (Owner questions 12.15).
     const prepFlag = ({ fields: { prep } }: (typeof open)[number]) =>
       prep === undefined ? "" : prep.editedAt !== undefined ? "  (unprepared: edited since its prep)" : `  (prepped: ${prep.stance === "retire" ? "proposes retire" : prep.stance})`;
-    // Its evidence counted right after its title (3.32), where the voice door's catch_up reads it as the title's.
     const linked = ({ fields: { links } }: (typeof open)[number]) => (links === undefined || links.length === 0 ? "" : `  (${links.length} linked)`);
     const line = (question: (typeof open)[number]) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}${linked(question)}${prepFlag(question)}${flag(question.id)}`;
     const where = arc === undefined ? "across arcs" : `on ${arc}`;
-    // Across arcs they stay off the list, but the arcs that hold them are named; one arc's own listing names them.
     const holding = [...new Set(parked.map((question) => question.fields.arc))];
     const aside =
       parked.length === 0
@@ -269,12 +237,10 @@ const move = verb({
   },
 });
 
-/** A library step's refusal of a question's state (settled, open, already scored) as the verb's own. */
 function refused(error: unknown): never {
   throw error instanceof RangeError ? new VerbRefusal(error.message) : error;
 }
 
-/** One of `allowed` as `name` was given, or a refusal naming them. */
 function oneOf<T extends string>(given: string, allowed: readonly T[], name: string): T {
   if ((allowed as readonly string[]).includes(given)) return given as T;
   throw new VerbRefusal(`${name} is ${allowed.slice(0, -1).join(", ")} or ${allowed.at(-1)}, not "${given}"`);
@@ -284,7 +250,6 @@ const CONFIDENCES = ["high", "medium", "low"] as const;
 const VERDICTS = ["match", "match-with-changes", "different", "rejected"] as const;
 const STANCES = ["agrees", "differs", "retire"] as const;
 
-/** A would-be answer's pick in words: an option by its number, retire or defer. */
 const pickWords = (pick: number | string): string => (typeof pick === "number" ? `option ${pick}` : pick);
 
 const predict = verb({
@@ -384,10 +349,8 @@ const prep = verb({
   },
 });
 
-/** A prep mark's stance in words. */
 const STANCE_WORDS: Readonly<Record<(typeof STANCES)[number], string>> = { agrees: "agrees with the raiser", differs: "differs from the raiser", retire: "proposes retire" };
 
-/** A band's verdicts, each counted. */
 const counted = (tally: Readonly<Record<string, number>>): string => VERDICTS.map((verdict) => `${tally[verdict] ?? 0} ${verdict.replaceAll("-", " ")}`).join(", ");
 
 const deviation = verb({
@@ -447,7 +410,6 @@ const linkNamed = verb({
   },
 });
 
-/** A question's Evidence line (3.32): each record it links, by title, or undefined when it links none. */
 async function evidenceLine(library: ArcVerbContext["library"], question: SchemaRecord<"question">): Promise<string | undefined> {
   const links = question.fields.links ?? [];
   if (links.length === 0) return undefined;
@@ -458,8 +420,6 @@ async function evidenceLine(library: ArcVerbContext["library"], question: Schema
   return `Evidence: ${named.join(", ")}`;
 }
 
-/** The question verbs, as the command line's `question` family lists them. */
 export const QUESTION_VERBS = [raise, readsElsewhere(show), present, readsElsewhere(settle, WRITE_PROJECT_INPUT), retire, move, readsAcross(list), check, renew, predict, prediction, score, prep, deviation, linkNamed];
 
-/** Words agents try for reading one question. */
 export const QUESTION_GUESSES: Readonly<Record<string, string>> = { read: "question show <id>", get: "question show <id>", open: "question show <id>" };

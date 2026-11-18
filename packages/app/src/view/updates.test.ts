@@ -1,4 +1,3 @@
-/** App capability 4 · Updates: what the gear's Updates section says for each state of an update. */
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { setImmediate } from "node:timers/promises";
@@ -236,7 +235,6 @@ test("4.34 the Update channel names the stable build and the day it was publishe
   const line = host.querySelector("[data-app-stable-build]")!;
   assert.equal(line.hasAttribute("hidden"), false);
   assert.match(line.textContent, /^Stable is at storytree 0\.3\.2259, published on 2026-11-02\..*after that day is only in alpha/, "the channel's build, not the running one");
-  // A change, whose answer does not read the pin again, keeps the line.
   const radio = host.querySelector('input[value="stable"]') as HTMLInputElement;
   radio.checked = true;
   radio.dispatchEvent(new window.Event("change", { bubbles: true }));
@@ -292,7 +290,6 @@ test("4.49 the Updates section names the build running once, under its lead, apa
   await window.happyDOM.close();
 });
 
-/** The menu's Updates section in a fresh window, and every console error the page writes (app.log, errors 9.1). */
 function updatesSection(t: TestContext) {
   const window = new Window();
   const host = window.document.createElement("div");
@@ -328,7 +325,6 @@ test("4.29 a refused change in the Updates section and a failed update check are
   const install = mountInstallChoice(host as unknown as HTMLElement, { read: async () => ({ available: true, choice: { mode: "quiet" } }), set: async () => { throw refused; } });
   const channel = mountReleaseChannel(host as unknown as HTMLElement, { read: async () => ({ available: true, channel: "stable" }), set: async () => { throw refused; } });
   const checked = new Error("the feed is unreachable");
-  // The status line is drawn with the page's own document.
   const had = Object.getOwnPropertyDescriptor(globalThis, "document");
   Object.assign(globalThis, { document: window.document });
   t.after(() => { if (had === undefined) delete (globalThis as { document?: unknown }).document; else Object.defineProperty(globalThis, "document", had); });

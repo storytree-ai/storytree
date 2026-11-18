@@ -5,7 +5,6 @@ import { Window } from "happy-dom";
 import type { LagReading } from "./bridge.js";
 import { mountLagRecorder, type RecorderWindow } from "./view.js";
 
-/** A page over happy-dom's document whose frames, clock, timers and inputs the test drives; what it was asked to listen to is kept. */
 function page(search: string) {
   const dom = new Window();
   dom.document.body.innerHTML = `<div data-forest-mode="forest"><canvas></canvas></div><aside class="story-panel" hidden></aside>`;
@@ -25,16 +24,12 @@ function page(search: string) {
   } as unknown as RecorderWindow;
   return {
     win, listeners, timers,
-    /** A trusted click at `at`. */
     click(at: number) { now = at; listeners.get("pointerdown")?.({ isTrusted: true, timeStamp: at } as unknown as Event); },
-    /** A script's click at `at` (an element's click(), as a driver or the smoke check makes): no pointerdown, and untrusted. */
     scriptClick(at: number) { now = at; listeners.get("click")?.({ type: "click", isTrusted: false, timeStamp: at } as unknown as Event); },
-    /** A trusted pointer event of `type` at `at` on the map's canvas, its button and Ctrl as given. */
     pointer(type: string, at: number, press: { button?: number; ctrlKey?: boolean } = {}) {
       now = at;
       listeners.get(type)?.({ type, isTrusted: true, timeStamp: at, button: 0, ctrlKey: false, isPrimary: true, target: dom.document.querySelector("canvas"), ...press } as unknown as Event);
     },
-    /** Run the frame the recorder asked for, at `at`, then what it left to run after the frame. */
     frame(at: number) {
       now = at;
       frames.splice(0).forEach((callback) => callback(at));
@@ -79,13 +74,11 @@ test("5.1 · a panel a script closes after its user's click is no reading of tha
   const on = page("");
   const recorder = mountLagRecorder({ recordLag: async (readings: LagReading[]) => { sent.push(readings); } }, on.win)!;
   on.openIsland("story_lib");
-  // The user clicks inside the open panel (a fold), which no catalogue action settles; two seconds on, a script clicks its close.
   on.click(1000);
   for (const at of [1016, 1033]) on.frame(at);
   on.scriptClick(3037);
   on.closePanel();
   for (const at of [3050, 3066, 3083]) on.frame(at);
-  // The user opens it again and closes it with their own click.
   on.openIsland("story_lib");
   on.click(5000);
   on.closePanel();
@@ -100,7 +93,6 @@ test("5.3 · a trusted Ctrl+drag or right-drag on the map's canvas is recorded a
   const sent: LagReading[][] = [];
   const on = page("");
   const recorder = mountLagRecorder({ recordLag: async (readings: LagReading[]) => { sent.push(readings); } }, on.win)!;
-  // A plain drag pans: no turn, and like any input the page shows no answer to, it is watched until its limit passes.
   on.pointer("pointerdown", 0);
   on.pointer("pointermove", 10);
   for (const at of [16, 33]) on.frame(at);
@@ -112,7 +104,6 @@ test("5.3 · a trusted Ctrl+drag or right-drag on the map's canvas is recorded a
   for (const at of [11_050, 11_066]) on.frame(at);
   on.pointer("pointerup", 11_070);
   for (const at of [11_083, 11_100]) on.frame(at);
-  // A right-drag in the Library is a turn of the Library.
   (on.win.document.querySelector("[data-forest-mode]") as HTMLElement).dataset.forestMode = "library";
   on.pointer("pointerdown", 13_000, { button: 2 });
   on.pointer("pointermove", 13_010, { button: 2 });

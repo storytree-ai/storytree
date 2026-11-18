@@ -1,8 +1,4 @@
-/**
- * Capability 7 · Lag report. `storytree lag`, declared here (ADR-0969 D2) and named under `verbs` in the package's manifest
- * (ADR-1033), so the command line mounts it as its `lag` family: what the desktop app's own recorder kept of each named
- * action's lag on this computer, read back against the budgets. It reads a file in the storytree home and needs no caller.
- */
+// Capability 7 · Lag report
 import { verb, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
 const read = verb({
@@ -16,7 +12,6 @@ const read = verb({
   },
 });
 
-/** The command line's `lag` family, 7th among `storytree`'s families. */
 export const LAG_FAMILIES: readonly VerbFamily<VerbPlace>[] = [
   { name: "lag", summary: "how fast the desktop app answered you, by named action (read only)", order: 7, verbs: [], bare: read },
 ];

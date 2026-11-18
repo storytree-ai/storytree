@@ -1,7 +1,4 @@
-/**
- * Capability 1 · Lifecycle, contract 1.43: the order the app stops what it holds. The parts are stand-ins that record
- * each call.
- */
+// Capability 1 · Lifecycle
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

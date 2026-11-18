@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Surfaces, contract 3.7, as the declared `settings show` and `settings set` answer it: the surfaces are
- * the ones the door's place hands, read and switched in a throwaway storytree home.
- */
+// Capability 3 · Surfaces
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,7 +16,6 @@ const declared: readonly SurfaceDeclaration[] = [
   { id: "sessions", name: "Sessions", description: "Who is working.", switchable: true, settings: [] },
 ];
 
-/** The host's parts, each with the parts it stands on. */
 const graph = { library: [], "project-and-caller": ["library"], forest: ["library"], "arc-surface": ["forest", "library"] };
 
 function home(t: TestContext): string {
@@ -115,7 +111,6 @@ test("project-and-caller 2.25 `settings set service <module>/<service> on|off` t
   assert.match((await named("set").act({ words: ["service", "voice/listen", "off"] }, place, words)).text, /^No service is turned on on this computer\./);
 });
 
-/** The host's command families, as `#parts/verbs` composes them: ci-health's `health`, and forest's `globe` with a tool. */
 const hostVerbs = {
   parts: [
     { name: "health", verbs: [{ command: { family: "health", name: "worklist" }, tool: { absent: "the MCP server's own" } }, { command: { family: "health", name: "ci" }, tool: { absent: "a terminal step" } }] },

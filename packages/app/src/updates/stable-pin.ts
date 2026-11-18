@@ -1,19 +1,16 @@
-/** Capability 4 · Updates. Contract 4.16: a stable pin is release metadata, never a second build. */
+// Capability 4 · Updates
 import { beforeCutover, type PrCutover } from "@storytree/library";
 
-/** The repository the release notes' pull requests are on, until a repository cut-over names its own. */
 const REPOSITORY = "storytree-ai/storytree";
 export interface LandedIncrement {
   id: string;
   fields: { title: string; status: string; outcome?: { date?: string; disposition: string; pr?: string | undefined; note?: string | undefined } | undefined };
 }
-/** The platforms whose updaters read their own feed file beside latest.yml, and the build each must name. */
 export const FEED_PLATFORMS = {
   mac: { name: "Mac", file: "latest-mac.yml", build: ".zip" },
   linux: { name: "Linux", file: "latest-linux.yml", build: ".AppImage" },
 } as const;
 export type FeedPlatform = keyof typeof FEED_PLATFORMS;
-/** One platform's update feed as electron-updater reads it; every file stays on its original release. */
 export interface PlatformFeed { version: string; files: { url: string; sha512: string; size: number; blockMapSize?: number }[] }
 export type PlatformFeeds = Partial<Record<FeedPlatform, PlatformFeed>>;
 export interface StableManifest {
@@ -22,26 +19,18 @@ export interface StableManifest {
   version: string;
   files: { url: string; sha512: string; size: number }[];
   releaseNotes: string;
-  /** When the pinned build was published, electron-updater's name for it; absent on a pin made before pins recorded it. */
   releaseDate?: string;
-  /** Mac and Linux feeds; a platform this pin's release lacks keeps the build an earlier pin gave it. */
   feeds?: PlatformFeeds;
   pin: {
     commit: string;
     at: string;
     previous?: string;
-    /** Set when this pin moved stable back to a build pinned before, to stop the named bad build spreading. */
     movedBackFrom?: string;
-    /** The owner's reason for pinning this build without the 24-hour soak, as an urgent fix. */
     expedited?: string;
-    /** What says this build passed its fresh-install sweep before the pin (4.25); absent on an expedited pin. */
     swept?: string;
-    /** The nightly macOS run on main that tested this build's commit or a later one containing it (ADR-1303 D3). */
     macos?: string;
-    /** The platforms this pin moved to its version. */
     covers?: ("windows" | FeedPlatform)[];
     increments: { id: string; title: string; pr: string; note?: string }[];
-    /** Includes earlier pins, so closures recorded late are included next time, never silently lost. */
     includedIncrements: string[];
   };
 }
@@ -51,31 +40,21 @@ export interface PinCandidate {
   channelSchema: number;
   draft: boolean;
   prerelease: boolean;
-  /** Windows' installers: one per architecture (windowsInstallers), or the one for both of a build from before the split. */
   installers: { url: string; sha256: string; sha512: string; size: number }[];
-  /** The release's one-line installers: Windows' always, the Mac's once releases publish it. */
   bootstrap: Bootstraps;
-  /** Each platform feed the release itself published. */
   feeds: PlatformFeeds;
-  /** When the release was published. */
   published?: string;
 }
 export interface Bootstraps { ps1: string; sh?: string }
 export interface PinPorts {
   previous(): Promise<{ ref: string; manifest: StableManifest } | undefined>;
-  /** The manifest the latest earlier pin of this version published, read from the stable branch's history. */
   formerPin(version: string): Promise<StableManifest | undefined>;
-  /** The adapter checks the release tag is on main and its version matches that commit. */
   candidate(version: string): Promise<PinCandidate>;
   pullRequests(commit: string): Promise<ReadonlySet<string>>;
   increments(): Promise<readonly LandedIncrement[]>;
-  /** The library's repository cut-over, when it has one: a pull request closed before it is the old repository's. */
   cutover?(): Promise<PrCutover | undefined>;
-  /** What says this build passed its fresh-install sweep (4.25), or undefined while none has. */
   swept(version: string): Promise<string | undefined>;
-  /** Whether main's latest green nightly macOS run tested `commit` (its own or a later main commit containing it), and the run that says so. */
   macos(commit: string): Promise<{ tested: boolean; evidence: string }>;
-  /** Publish atomically only while the channel still has the expected ref. */
   publish(manifest: StableManifest, bootstrap: Bootstraps, expectedRef?: string): Promise<void>;
   now(): string;
 }
@@ -85,7 +64,6 @@ function buildNumber(version: string): number {
   return Number(version.slice(4));
 }
 
-/** Subjects of first-parent merges: a reference to another PR in prose is not evidence it shipped. */
 export function mergedPullRequests(subjects: string): ReadonlySet<string> {
   return new Set(subjects.split(/\r?\n/).flatMap(subject => /^Merge pull request #([1-9]\d*) from \S+$/.exec(subject)?.[1] ?? []));
 }
@@ -107,10 +85,6 @@ export function readStableManifest(value: unknown): StableManifest {
 
 const RELEASES = "https://github.com/storytree-ai/storytree/releases/download";
 
-/**
- * The Windows installer names a release of `version` publishes: one per architecture, which an installed app's updater
- * tells apart by its architecture in the name, or, for a build from before they were split, one carrying both.
- */
 export function windowsInstallers(version: string, combined = false): string[] {
   return combined ? [`storytree-0.3-${version}-setup.exe`] : ["x64", "arm64"].map(arch => `storytree-0.3-${version}-windows-${arch}-setup.exe`);
 }
@@ -126,7 +100,6 @@ function checkFeed(platform: FeedPlatform, feed: PlatformFeed, version: string):
   }
 }
 
-/** What a pin moved and what it left, for its output and the stable branch's README. */
 export function pinCoverage(manifest: StableManifest): string {
   const covers = manifest.pin.covers ?? ["windows"];
   const moved = covers.map(p => p === "windows" ? "Windows" : FEED_PLATFORMS[p].name);
@@ -139,18 +112,12 @@ export function pinCoverage(manifest: StableManifest): string {
   })].join(" ");
 }
 
-/** How old stable is, for the stable branch's README: work after the build's day is only in alpha (4.34). */
 export function stableAge(manifest: StableManifest): string {
   if (!manifest.releaseDate) return "";
   return `storytree ${manifest.version} was published on ${manifest.releaseDate.slice(0, 10)}. Work that landed after that day is only in alpha: ` +
     `see https://github.com/${REPOSITORY}/blob/main/INSTALL.md#stable-or-alpha for how to choose it.`;
 }
 
-/**
- * Stops a bad pin spreading: stable goes back to a build it was pinned to before, with that pin's installer, feeds and
- * recorded increments, so the next pin lists again what only the bad build carried. Installs that already took the bad
- * build keep it (the updater never downgrades: their database may have been migrated forward).
- */
 export async function moveStableBack(version: string, ports: PinPorts, preview = false): Promise<StableManifest> {
   const build = buildNumber(version);
   const current = await ports.previous();
@@ -173,13 +140,6 @@ export async function moveStableBack(version: string, ports: PinPorts, preview =
   return manifest;
 }
 
-/**
- * `expedited` is the owner's reason for pinning an urgent fix without the 24-hour soak; the notes say it first. Any
- * other pin waits on the build's fresh-install sweep (4.25, the owner's answer on question_0e1c032af8b9): a preview
- * only reads, and an expedited fix waives the sweep as it waives the soak (ADR-1032 D7). Every pin but a preview waits on
- * macOS too: main's latest green nightly macOS run must have tested the build (ADR-1303 D3, the owner's answer on
- * question_9eb0545bdaba), an expedited fix included, since a run by hand on main gives it one within the hour.
- */
 export async function pinStable(version: string, ports: PinPorts, preview = false, expedited?: string): Promise<StableManifest> {
   const build = buildNumber(version);
   const previous = await ports.previous();
@@ -218,7 +178,6 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
   const increments = (await ports.increments()).flatMap(({ id, fields }) => {
     const outcome = fields.outcome;
     if (included.has(id) || fields.status !== "closed" || outcome?.disposition !== "landed" || !outcome.pr) return [];
-    // Closed before the repository cut-over, its number is the old repository's, never one this build's history merged.
     if (outcome.date !== undefined && beforeCutover(cutover, outcome.date)) return [];
     const pr = /^(?:https:\/\/github\.com\/storytree-ai\/storytree\/pull\/|#)?([1-9]\d*)$/.exec(outcome.pr)?.[1];
     if (!pr || !reachable.has(pr)) return [];

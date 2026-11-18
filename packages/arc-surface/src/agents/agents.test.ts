@@ -18,7 +18,6 @@ test("2.4 an arc's holders come only from its open increments: their own claims 
   const board = agentsOnBoard([...lines, under(6, "s1", "mine", "i"), under(7, "s4", "shared", "other-arc-work")], at(8));
   const open = { id: "i", fields: { status: "active" as const, capabilities: ["shared"] } };
   assert.deepEqual(board.onArc([open]).map((agent) => agent.capability ?? agent.increment), ["i", "mine"], "a capability counts toward the increment it was taken under, not toward a list naming it");
-  // The 2026-10-09 case: a landed increment lists a capability another arc's session holds.
   const landed = { id: "done", fields: { status: "closed" as const, capabilities: ["shared", "part"] } };
   assert.deepEqual(board.onArc([landed]), [], "a closed increment contributes nothing");
   assert.deepEqual(agentsOnBoard([...lines, under(6, "s1", "mine", "done")], at(8)).onArc([landed]), [], "not even a claim taken under it");
@@ -56,7 +55,6 @@ test("2.2 every claim-ending event removes the holder, a window closing leaves i
   assert.equal(agentsOnBoard([...lines, { kind: "command-started", source: "hook", session: "s1", command: "tests", call: "c", seq: 6, at: at(6).toISOString(), project: "p" }], at(90)).on("i")?.activity, "live");
 });
 
-// The laptop's board threw on every news from 2026-10-19 00:13 to 01:29 UTC: a pull request's holder is no session (ADR-1037).
 test("2.2 a handed-over pull request's claims show on the board, held for it, though its holder is no session (ADR-1037)", () => {
   const handedOver: Line = { kind: "claimed", source: "tool", harness: "watcher", session: "pull-request-12", increment: "held", reason: "handed over", seq: 6, at: at(6).toISOString(), project: "p" };
   const agent = agentsOnBoard([...lines, handedOver], at(50)).on("held");

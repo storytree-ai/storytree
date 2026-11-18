@@ -1,9 +1,4 @@
-// Capability 3 · The pool switch (3.23), which a cut-over to a new repository drains and resumes the pool with (process_761459dc626c B1, B9):
-// node --import tsx packages/agent-pool/src/pause.mjs pause [--repo <owner/name>] [--wait-minutes <n>] (no new work; waits until no other lane runs and no pull request is in the merge queue, then says what is still open)
-// node --import tsx packages/agent-pool/src/pause.mjs resume   (takes work again: the stop file goes, and the dispatcher's service, when on, starts it again)
-// node --import tsx packages/agent-pool/src/pause.mjs status [--repo <owner/name>]
-// What starts the dispatcher is the service host's agent-pool/dispatcher (services.mjs) where this machine's settings
-// turn it on, else whatever runs it on the machine (the laptop's scheduled task); pause and resume start no process.
+// Capability 3 · The pool switch (3.23), which a cut-over to a new repository drains and resumes the pool with (process_761459dc626c B1, B9).
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { rm, writeFile } from "node:fs/promises";
@@ -23,10 +18,6 @@ const ps = async () => (await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer
 const rowsOf = (table) => table.split("\n").map((line) => /^\s*(\d+)\s+(\d+)\s+(\S.*|)$/.exec(line)).filter(Boolean)
   .map(([, pid, ppid, args]) => ({ pid, ppid, args }));
 
-/**
- * The lanes running beside process `self`: each engine counted once (as countEngines counts), leaving out the one
- * `self` runs under, so a lane can pause the pool it runs in without waiting for itself.
- */
 export function lanesBeside(table, self = String(process.pid)) {
   const rows = rowsOf(table), parent = new Map(rows.map((row) => [row.pid, row.ppid]));
   const mine = new Set();
@@ -36,10 +27,8 @@ export function lanesBeside(table, self = String(process.pid)) {
     .map(({ pid, args }) => ({ pid, args: args.slice(0, 120) }));
 }
 
-/** The dispatcher's service, as this machine's settings name it (ADR-1216 D3). */
 export const DISPATCHER_SERVICE = "agent-pool/dispatcher";
 
-/** The pull requests in `repo`'s merge queue for main, as GitHub lists them. */
 export async function mergeQueue(repo) {
   const [owner, name] = repo.split("/");
   const { stdout } = await run("gh", ["api", "graphql", "-f", `owner=${owner}`, "-f", `name=${name}`, "-f",
@@ -47,13 +36,11 @@ export async function mergeQueue(repo) {
   return (JSON.parse(stdout).data.repository.mergeQueue?.entries.nodes ?? []).map((one) => ({ number: one.pullRequest.number, title: one.pullRequest.title, state: one.state }));
 }
 
-/** `repo`'s open pull requests. */
 export async function openPulls(repo) {
   const { stdout } = await run("gh", ["pr", "list", "-R", repo, "--state", "open", "--limit", "200", "--json", "number,title,isDraft"]);
   return JSON.parse(stdout);
 }
 
-/** What is still open, said after a drain or by `status`: open pull requests and the watcher's hand-offs. */
 async function sayOpen({ open, handed, say }) {
   const pulls = await open().catch((error) => { say(`open pull requests unread (${String(error.message).split("\n")[0]})`); return undefined; });
   if (pulls) say(pulls.length ? `open pull requests (${pulls.length}):\n${pulls.map((one) => `  #${one.number}${one.isDraft ? " (draft)" : ""} ${one.title}`).join("\n")}` : "no open pull requests");
@@ -61,12 +48,6 @@ async function sayOpen({ open, handed, say }) {
   say(watched.length ? `handed to the watcher (${watched.length}):\n${watched.map((one) => `  ${one.note.replace(/ is with the [\w ]+'s watcher/, "")}: ${one.increment}`).join("\n")}` : "nothing handed to the watcher");
 }
 
-/**
- * `pause`: write the stop file, so the dispatcher starts nothing more and ends once its lanes have (launch.mjs runPool),
- * then wait, every `pollMs` up to `waitMs`, until no lane runs beside this process and the merge queue is empty. 0 once
- * drained, saying what is still open; 1 when the wait ran out first, saying what still runs (the pool stays paused, and
- * running `pause` again waits again).
- */
 export async function pause({ stopFile, lanes, queue, open, handed, waitMs = 180 * 60_000, pollMs = 60_000, sleep = (ms) => wait(ms), now = Date.now, say = console.log }) {
   const was = existsSync(stopFile);
   if (!was) await writeFile(stopFile, `paused ${new Date(now()).toISOString()} by pause.mjs\n`);
@@ -93,7 +74,6 @@ export async function pause({ stopFile, lanes, queue, open, handed, waitMs = 180
   }
 }
 
-/** `resume`: the stop file goes; the dispatcher's service, when on, starts the dispatcher again, and nothing else is started. */
 export async function resume({ stopFile, serviceOn, say = console.log }) {
   const was = existsSync(stopFile);
   if (was) await rm(stopFile);
@@ -109,13 +89,11 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   return {
     lanesDir, stopFile: join(lanesDir, "pool-stop"), repo: HOME,
     lanes: async () => lanesBeside(await ps()),
-    // Read only when asked, so reclone.mjs, which imports lanesBeside, still runs under plain node.
     serviceOn: async () => (await import("@storytree/project-and-caller")).readServicesOn().includes(DISPATCHER_SERVICE),
     handed: () => handedOff(join(lanesDir, "watch")),
   };
 }
 
-/** `pause`, `resume` or `status`; `box` overrides the box's paths and processes in tests. */
 export async function main(args, box = {}) {
   const b = { ...boxDefaults({ home: box.home, env: box.env }), ...box };
   const flag = (name) => args.includes(name) ? args[args.indexOf(name) + 1] : undefined;

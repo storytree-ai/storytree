@@ -1,13 +1,4 @@
-/**
- * Capability 3 · Surfaces. `storytree settings show` and `settings set`, declared once (ADR-0969 D2, ADR-1033): each of the
- * user's settings, where the library lives, and the app's surfaces (3.7), shown and set offline. They need no caller. The
- * surfaces are the host's, composed from its story packages' manifests (ADR-0750, ADR-1021), so the door hands them on its
- * place. So are its modules (ADR-1095, ADR-1322 D2): `settings set module` switches one off or on for this computer, which every host reads
- * as it starts, or off with a plugin in this computer's factory folder (`settings set factory`) standing in for it, and `settings set system` switches roles, checks and notes off or on for what agents read (ADR-1092 D2).
- * `settings set service <part>/<service>` turns a part's declared service on or off for this computer (ADR-1180 D2).
- * The command line mounts them as its `settings` family (SETTINGS_FAMILIES); they have no tool. `switch_factory` is the
- * one tool among them: an agent switches the factory folder when asked, with no approval (question_0b0b82eb8fbc).
- */
+// Capability 3 · Surfaces
 import path from "node:path";
 
 import type { FactorySwitched } from "@storytree/project-and-caller";
@@ -17,10 +8,6 @@ import type { ProvidingFamily } from "@storytree/plugin-loader/switch";
 
 import type { SurfaceDeclaration, SurfaceReading } from "./switches.js";
 
-/**
- * Where a settings verb was called: the place, the host's surfaces, in the order the Surfaces menu lists them, its parts,
- * and, from a door that composes them, its command families, each with the part that declares it.
- */
 export interface SettingsPlace extends VerbPlace {
   surfaces(): Promise<readonly SurfaceDeclaration[]>;
   parts(): Promise<PartsGraph>;
@@ -46,21 +33,12 @@ const show = verb({
   },
 });
 
-/**
- * The parts `off` switches off in `graph`, each with the part it is off because of, and each part `off` names that
- * `graph` lacks: one that has left the base, such as voice, or one a factory plugin adds, in no host's parts.
- */
 function switchedHere(graph: PartsGraph, off: readonly string[]): ReadonlyMap<string, string> {
   const switched = new Map(switchedOff(graph, off));
   for (const part of off) if (!Object.hasOwn(graph, part) && !CORE.includes(part)) switched.set(part, part);
   return switched;
 }
 
-/**
- * What switching `part` off takes away, given the parts `off` names off and the host's command families `composed`: each
- * part off because of it, itself first, with its command families, commands and tools, and those of the factory plugin
- * standing in for it (the stand-ins `standIns` name), added in its place (friction_9ff1eaa190a0).
- */
 async function takenSaid(part: string, graph: PartsGraph, off: readonly string[], standIns: { readonly folder?: string; readonly plugins: Readonly<Record<string, string>> }, composed: Composition<ProvidingFamily>): Promise<string[]> {
   const [{ standIn }, { partProvides, pluginProvides, providedSaid }] = await Promise.all([import("@storytree/plugin-loader"), import("@storytree/plugin-loader/switch")]);
   const gone = [...switchedOff(graph, off)].filter(([, because]) => because === part).map(([one]) => one).sort((a, b) => a === part ? -1 : b === part ? 1 : a.localeCompare(b));
@@ -128,12 +106,10 @@ const switchFactory = verb({
   },
 });
 
-/** The command line's `settings` family, at its place among `storytree`'s families. */
 export const SETTINGS_FAMILIES: readonly VerbFamily<SettingsPlace>[] = [
   { name: "settings", summary: "show or set your storytree settings", order: 25, verbs: [show, set, switchFactory] },
 ];
 
-/** A setting as Project and caller reads it, other than where the library lives: this story's own copy of what it says (ADR-1017 D2). */
 type SettingReading = {
   readonly name: string;
   readonly type: string;
@@ -144,7 +120,6 @@ type SettingReading = {
   readonly source: "default" | "set";
 };
 
-/** Where the library lives, as Project and caller reads it: this story's own copy of what it says (ADR-1017 D2). */
 type LibraryReading = (
   | { readonly location: "local" }
   | { readonly location: "postgres"; readonly address: string }
@@ -161,7 +136,6 @@ function librarySaid(reading: LibraryReading): string {
   return `library: ${where} (${reading.source})\n  Default: ${reading.default}.\n  ${reading.meaning}`;
 }
 
-/** A factory folder just switched to: set up, or a factory already, and who switched it. */
 function chosenSaid(chosen: { status: "set up" | "already a factory"; folder: string }): string {
   const how = chosen.status === "set up" ? "Set up as your factory: its plugins folder is made." : "Already a factory: kept as it was.";
   return `${how}\n${factorySaid({ folder: chosen.folder, chosen: true })}`;
@@ -169,12 +143,10 @@ function chosenSaid(chosen: { status: "set up" | "already a factory"; folder: st
 
 const THROUGH: Record<FactorySwitched["through"], string> = { "desktop app": "in the desktop app", "command line": "from the command line", "agent tool": "through an agent's tool" };
 
-/** Who switched the factory folder, and when: the record no approval stands in for. */
 function switchedSaid({ through, session, at }: FactorySwitched): string {
   return `switched ${session === undefined ? "" : `by session ${session} `}${THROUGH[through]}, ${at}`;
 }
 
-/** This computer's factory folder, whose plugins may stand in for a part switched off: storytree's own, or one switched to. */
 function factorySaid({ folder, chosen, switched }: { folder: string; chosen: boolean; switched?: FactorySwitched }): string {
   const said = !chosen ? `${folder} (storytree's own, the default)` : switched === undefined ? folder : `${folder} (${switchedSaid(switched)})`;
   return `factory: ${said}\n  The folder of your own factory, whose plugins (plugins/<plugin>/) may stand in for a module you switch off with \`storytree settings set module <module> plugin <plugin>\`. Choose another with \`storytree settings set factory <folder>\`.\n  What a plugin must contain: \`storytree plugin contract\`. Start one with \`storytree plugin new <plugin> --for <module>\`, and check this storytree would load it with \`storytree plugin check <plugin>\`.`;

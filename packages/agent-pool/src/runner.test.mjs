@@ -27,19 +27,15 @@ async function lane(t) {
   const lanesDir = join(home, "lanes"), cwd = join(home, "worktree");
   await mkdir(lanesDir); await mkdir(cwd); await mkdir(join(home, ".storytree"));
   await writeFile(join(home, ".storytree", "secrets.json"), JSON.stringify({ CLAUDE_CODE_OAUTH_TOKEN: "test-login" }));
-  // The machine's own pool configuration (ADR-1216 D1): the engines' models and who a lane commits as.
   await writeFile(join(home, ".storytree", "agent-pool.json"), JSON.stringify({ engines: { codex: { model: "codex-model" }, claude: { model: "claude-model" } },
     identity: { name: "Lane Owner", email: "owner@example.com" } }));
   const brief = join(home, "brief.md"), log = join(lanesDir, "lane.log"), err = join(lanesDir, "lane.err");
   await writeFile(brief, "Build this increment. Preserve `literal` $text and \"quotes\".\n");
   const lines = [];
-  // Run from a Claude lane, the runner's own environment already carries what it gives a Claude engine; run under systemd
-  // on the box, it would start each engine in a scope of its own, which only 1.27 asks for.
   const { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: _hooks, STORYTREE_SESSION_FILE: _file, INVOCATION_ID: _unit, ...inherited } = process.env;
   return { home, lanesDir, cwd, brief, log, err, addDirs: [join(home, "directory with spaces"), "another"],
     env: { ...inherited, LANES_DIR: lanesDir, CODEX_STOP_AT: "95", FAST_FAIL_S: "120", CLAUDE_CODE_OAUTH_TOKEN: "", OPENAI_API_KEY: "test-api", CODEX_API_KEY: "test-api", CODEX_ACCESS_TOKEN: "test-api", ANTHROPIC_API_KEY: "test-api" },
     commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines, failed: async () => [], exited: async () => {},
-    // The box's own engines never hold up a command-line lane under test (1.24 sets its own count).
     count: async () => 0 };
 }
 
@@ -71,7 +67,6 @@ test("1.6 · foreground engines receive the exact brief, model, directories and 
 
 test("1.14 · A Claude lane loads the Claude Code mod from its plugin folder with function hooks turned on; a Codex lane is given neither", async (t) => {
   const options = await lane(t);
-  // Started from a Claude Code session with the mod loaded, as a pool's dispatcher may be.
   Object.assign(options.env, { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: "1", CLAUDE_CODE_PLUGIN_DIRS: "/parent/plugin", STORYTREE_SESSION_FILE: "/parent.session" });
   const told = `console.log(JSON.stringify({args:process.argv.slice(1),hooks:process.env.CLAUDE_CODE_ENABLE_FUNCTION_HOOKS??null,plugins:process.env.CLAUDE_CODE_PLUGIN_DIRS??null,file:process.env.STORYTREE_SESSION_FILE??null}));`;
   options.commands = { codex: command(told), claude: command(told) };
@@ -222,7 +217,6 @@ test("1.24 · a lane started from the command line waits while the box's engines
 test("3.32 · a lane started from the command line holds its reserved slot only until its engine is up, while the process table counts it", async (t) => {
   const options = await lane(t);
   await writeFile(join(options.lanesDir, "engine-override"), "codex");
-  // The engine reports the reservations left in the lanes folder once it has run a moment (up to 5 s for its starter to release).
   options.commands.codex = command(`const fs=require('node:fs'),slots=require('node:path').join(process.env.LANES_DIR,'engine-slots');const left=()=>fs.readdirSync(slots).filter((n)=>n.endsWith('.slot')).length;
     const until=Date.now()+5000;(function look(){if(left()&&Date.now()<until)return setTimeout(look,50);console.log(JSON.stringify({reserved:left()}));})();`);
   assert.equal(await main(["run", options.brief, options.log, options.err], options), 0);
@@ -257,7 +251,6 @@ test("1.11 · a lane that exits 0 having left no report or push is resumed once,
   const options = await lane(t);
   const session = "1aeed14e-4eef-44a7-a5a0-55f748d0a4b5";
   const runs = join(options.home, "runs");
-  // A Claude engine that names its session, records each call, and with WRITE_REPORT set writes the lane's report.
   options.commands.claude = command(`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(runs)}, JSON.stringify(process.argv.slice(1))+'\\n');`
     + ` console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}}));`
     + ` if (process.env.WRITE_REPORT && process.argv.includes('--resume')) fs.writeFileSync(${JSON.stringify(join(options.lanesDir, "pool-increment_abc.report.md"))}, 'done');`);
@@ -303,7 +296,6 @@ test("1.11 · a lane that exits 0 having left no report or push is resumed once,
 test("1.16 · A Claude lane is told a file beside its log to write its session id in; the runner resumes the session that file names, and searches the log only when the file is absent", async (t) => {
   const options = await lane(t);
   const runs = join(options.home, "runs");
-  // A Claude engine that writes its session id where it is told, as the mod does, and names a different one in its log.
   options.commands.claude = command(`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(runs)}, JSON.stringify({args:process.argv.slice(1),file:process.env.STORYTREE_SESSION_FILE??null})+'\\n');`
     + ` if (process.env.STORYTREE_SESSION_FILE && !process.env.NO_FILE) fs.writeFileSync(process.env.STORYTREE_SESSION_FILE, 'from-the-mod\\n');`
     + ` console.log(JSON.stringify({type:'system',subtype:'init',session_id:'from-the-log'}));`);
@@ -392,7 +384,6 @@ test("1.17 · a lane that ends by its engine's own exit with no report or push i
   assert.match(edit[5], /2026-10-05T00:00:00.000Z: exit 2/);
   assert.match(edit[5], /exit 3/);
 
-  // Another project's lane is counted in its own project, and its residue re-offers it there.
   recorded.length = 0; told.length = 0;
   options.project = "storytree-website";
   assert.equal(await runLane(options), 3);
@@ -403,7 +394,6 @@ test("1.17 · a lane that ends by its engine's own exit with no report or push i
 
   for (const [what, set] of [["a report", () => { options.commands.claude = command(`require('node:fs').writeFileSync(${JSON.stringify(join(options.lanesDir, "pool-increment_abc.report.md"))}, 'r'); process.exitCode=3;`); }],
     ["a push", () => { options.commands.claude = command("process.exitCode=3;"); let n = 0; options.heads = async () => (n++ ? { "claude/increment-abc-x": "9" } : {}); }],
-    // Windows ends a process that signals itself with exit 1 and no signal, so the signal case runs where signals exist.
     ...(process.platform === "win32" ? [] : [["a signal", () => { options.commands.claude = command("process.kill(process.pid, 'SIGTERM');"); options.heads = async () => ({}); }]]),
     ["a fast failure", () => { options.commands.claude = command("process.exitCode=3;"); options.heads = async () => ({}); options.say = () => {}; }]]) {
     recorded.length = 0;
@@ -467,7 +457,6 @@ test("1.30 · a Claude or Codex lane that finishes for good releases every claim
     const told = [];
     options.storytree = async (args) => {
       told.push(args);
-      // The hand-over moved the increment's claim to the pull request's holder; its reason happens to name the session.
       return args[0] === "noticeboard" ? `3 claims now:\n  - increment increment_abc  watcher pull-request-12 (live, on claude/increment-abc-x), since 2026-10-06T00:00:00Z: handed over by ${session} at its end\n`
         + `  - capability capability_mine  ${engine === "claude" ? "Claude Code" : "Codex"} ${session} (idle), since 2026-10-06T00:00:00Z: build\n  - capability capability_other  Claude Code someone-else (live), since 2026-10-06T00:00:00Z: other\n` : "";
     };
@@ -560,9 +549,7 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   const options = await lane(t);
   const session = "7e1c0a55-0000-4000-8000-0000000c0ffe";
   const runs = join(options.home, "runs"), report = join(options.lanesDir, "pool-increment_abc.report.md");
-  // Claude's own last words when its requests never reach the API (read from a run pointed at a closed port, 2026-10-27).
   const cutOff = `console.log(JSON.stringify({type:'result',subtype:'success',is_error:true,terminal_reason:'api_error',api_error_status:null,result:"API Error: Can't reach the API server \\u2014 check your internet or DNS (ENOTFOUND)",session_id:${JSON.stringify(session)}})); process.exitCode=1;`;
-  // The first run does what FIRST says, the second what LATER says (report: write the lane's report; empty: exit 0, leaving nothing), any after writes the report.
   options.commands.claude = command(`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(runs)}, JSON.stringify(process.argv.slice(1))+'\\n');`
     + ` const n=fs.readFileSync(${JSON.stringify(runs)},'utf8').trim().split('\\n').length; const what=n===1?process.env.FIRST:n===2?process.env.LATER:n===3&&process.env.THIRD||'report';`
     + ` if (n===1) console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}}));`
@@ -577,12 +564,9 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   let clock = start, answers = [];
   options.now = () => clock;
   options.sleep = async (ms) => { clock += ms; };
-  // The scripted answers are for the hold and the watch a scenario is about, never for a look the watch takes while the engine
-  // is still starting (seconds on a loaded Windows runner): until the engine has written to its log, the network answers.
   const spoke = () => readFile(options.log, "utf8").then((text) => text.length > 0, () => false);
   const scripted = async () => (await spoke()) ? answers.shift() ?? true : true;
   options.reachable = scripted;
-  // Only the scenarios about a quiet log watch with a 400 ms quiet time; the rest never see one, so the watch takes none of their answers.
   const quiet = (quietMs) => { options.offline = { ceilingMs: 3_600_000, pollMs: 60_000, quietMs, everyMs: 20 }; };
   quiet(3_600_000);
   const calls = async () => (await readFile(runs, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
@@ -632,8 +616,6 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   await reset();
   Object.assign(options.env, { FIRST: "chatty", LATER: "report" });
   answers = Array(100).fill(false);
-  // The watch reads quiet time on a clock that moves 100 ms with each line the engine writes, so the log grows for 700 ms, past the
-  // 400 ms quiet time, however long a loaded runner keeps the engine from writing its next line.
   options.offline.clock = () => 100 * (readFileSync(options.log, "utf8").match(/^working /gm)?.length ?? 0);
   assert.equal(await runLane(options), 0, "a log that keeps growing for longer than the quiet time is not stopped, even offline");
   assert.equal((await calls()).length, 1);
@@ -641,7 +623,6 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
 
   await reset();
   Object.assign(options.env, { FIRST: "linger" });
-  // The engine ends while a slow reachability check (400 ms to answer) is in flight: the watch looks no more once it has.
   let probes = 0;
   options.reachable = async () => { probes++; await latency(400); return true; };
   assert.equal(await runLane(options), 0);
@@ -661,7 +642,6 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
 
   await reset();
   await writeFile(join(options.lanesDir, "engine-override"), "codex");
-  // Codex's own last word when its stream is cut (the words in its build, 2026-10-27).
   options.commands.codex = command(`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(runs)}, JSON.stringify(process.argv.slice(1))+'\\n');`
     + ` if (process.argv.includes('resume')) fs.writeFileSync(${JSON.stringify(report)}, 'done');`
     + ` else { console.log(JSON.stringify({type:'thread.started',thread_id:'codex-thread'})); console.log(JSON.stringify({type:'error',message:'stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses)'})); process.exitCode=1; }`);
@@ -743,7 +723,6 @@ test("1.23 · when its engine exits, the runner stops what the engine left runni
   const options = await lane(t);
   await writeFile(join(options.lanesDir, "engine-override"), "claude");
   const pids = join(options.home, "pids");
-  // A detached server that never ends, a background job of a shell that has exited, and a short hand-off that ends by itself.
   options.commands.claude = command(`const { spawn, execFileSync } = require("node:child_process"); const fs = require("node:fs");
     const server = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)", "lane-server"], { detached: true, stdio: "ignore" }); server.unref();
     const hook = spawn(process.execPath, ["-e", "setTimeout(() => {}, 300)", "lane-hook"], { detached: true, stdio: "ignore" }); hook.unref();
@@ -754,9 +733,7 @@ test("1.23 · when its engine exits, the runner stops what the engine left runni
   options.reap = { settleMs: 1_500, graceMs: 2_000, everyMs: 100 };
   assert.equal(await runLane(options), 0, await readFile(options.err, "utf8"));
   const { server, hook, job, bare, stubborn } = JSON.parse(await readFile(pids, "utf8"));
-  // A killed process its new parent has not yet reaped is a zombie (state Z): stopped, though signal 0 still finds it.
   const alive = (pid) => { try { const stat = readFileSync(`/proc/${pid}/stat`, "utf8"); return stat.slice(stat.lastIndexOf(")") + 2)[0] !== "Z"; } catch { return false; } };
-  // Only what was seen running is stopped here: a pid seen gone may already be another process's (increment_845f8cd71c6d).
   const running = new Set([server, job, bare, stubborn].filter(alive));
   t.after(() => { for (const pid of running) if (alive(pid)) process.kill(pid, "SIGKILL"); });
   assert.equal(running.has(server), false, "the detached server is stopped");
@@ -783,7 +760,7 @@ test("4.43 · a watcher a lane starts by its hand-over outlives the lane: the ru
   options.reap = { settleMs: 300, graceMs: 1_000, everyMs: 100 };
   assert.equal(await runLane(options), 0, await readFile(options.err, "utf8"));
   const watcher = Number(await readFile(pid, "utf8"));
-  t.after(() => { try { process.kill(watcher, "SIGKILL"); } catch { /* gone */ } });
+  t.after(() => { try { process.kill(watcher, "SIGKILL"); } catch {} });
   assert.doesNotThrow(() => process.kill(watcher, 0), "the watcher is still running");
   assert.doesNotMatch(options.lines.join("\n"), /left running by the engine/);
 });
@@ -795,7 +772,6 @@ test("1.25 · a lane of a project other than storytree reaches the library throu
   assert.deepEqual(await refusals({ project: "storytree-website", platform: "linux", probe: async (file, args) => { probed.push([file, ...args]); } }), []);
   assert.deepEqual(probed.find((call) => call[0] !== "gh"), ["storytree", "arc", "list"], "no storytree record, which another project's library lacks");
 
-  // The lane-token question, asked through the installed command in the lane's checkout.
   const options = await lane(t);
   await writeFile(join(options.home, ".storytree", "secrets.json"), "{}");
   const record = join(options.home, "storytree-calls.jsonl");
@@ -818,7 +794,6 @@ test("1.26 · a lane started from the command line in another project's checkout
   options.commands.storytree = command(`const fs=require('node:fs');const a=process.argv.slice(1);fs.appendFileSync(${JSON.stringify(record)},JSON.stringify({args:a,cwd:process.cwd()})+'\\n');`
     + `console.log(a[0]==='library'?'arc_site':'Raised question_9 on arc_site.');`);
   options.increment = "increment_site";
-  // The folder it runs in, a subfolder of the checkout, as the watcher's sessions start: no project is passed.
   options.cwd = join(options.cwd, "packages");
   await mkdir(options.cwd);
   assert.equal(await main(["run", options.brief, options.log, options.err], options), 75);
@@ -861,7 +836,6 @@ test("1.27 · a lane whose engine runs out of its scope's memory is killed alone
   const told = [];
   options.storytree = async (args) => (told.push(args), args[0] === "noticeboard"
     ? `1 claim now:\n  - increment increment_abc  Claude Code ${session} (gone, on claude/increment-abc-x), since 2026-10-06T00:00:00Z: build\n` : "");
-  // The kernel log names this kill's victim oom-probe-1.27, not MainThread, so it never reads as a lane's (friction_895888dd4011).
   options.commands.claude = command(`process.title = 'oom-probe-1.27'; console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}})); const held = []; for (;;) held.push(Buffer.alloc(1e6, 1));`);
   const code = await runLane(options);
   assert.equal(code, OUT_OF_MEMORY);
@@ -890,8 +864,6 @@ test("1.31 · a lane killed out of memory leaves residue naming its scope's larg
     if (args[0] === "arc" && args[1] === "increment" && args[2] === "edit") edits.push(args[args.indexOf("--body") + 1]);
     return "";
   };
-  // The engine starts a child that grows to 100 MB and holds it; only once the child says it holds it all, and 20 of the
-  // runner's readings later, does the engine itself grow until the scope's limit is hit, so the kill lands on the engine.
   const grower = "/* holder-grows-1.31 */ const held = []; for (let n = 0; n < 20; n++) held.push(Buffer.alloc(5e6, 1)); process.send('held'); setInterval(() => {}, 1000);";
   options.commands.claude = command(`process.title = 'oom-probe-1.31';
     const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(grower)}], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
@@ -910,7 +882,6 @@ test("1.31 · a scope's reading keeps its five largest processes by resident and
   t.after(() => rm(root, { recursive: true, force: true }));
   const scope = join(root, "scope"), proc = join(root, "proc");
   await mkdir(scope);
-  // kB resident and swapped for pids 1 to 7: 2 holds most only once its swapped memory is counted; 7 has ended (no status).
   const sizes = { 1: [100, 0], 2: [50, 300], 3: [200, 0], 4: [10, 0], 5: [20, 5], 6: [30, 0] };
   for (const [pid, [rss, swap]] of Object.entries(sizes)) {
     await mkdir(join(proc, pid), { recursive: true });

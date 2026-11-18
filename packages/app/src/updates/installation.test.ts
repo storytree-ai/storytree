@@ -1,8 +1,4 @@
-/**
- * Capability 4 · Updates, contract 4.21 in the app story: which running app is the installed one, and
- * which installed app follows published releases. A throwaway machine holds the bundles, the delivery
- * record and the packaged package.json; the platform is given, so every case runs on every system.
- */
+// Capability 4 · Updates
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -17,7 +13,6 @@ function machine(t: TestContext): string {
   return dir;
 }
 
-/** A Mac bundle at `bundle`, as electron-builder lays it out, its package.json recording `signing` if given. */
 function macApp(home: string, bundle: string, signing?: string): RunningApp {
   const resourcesPath = path.join(bundle, "Contents", "Resources");
   const appPath = path.join(resourcesPath, "app");
@@ -81,7 +76,6 @@ test("4.21 a Linux AppImage the delivery record's folder holds is installed and 
   const dir = machine(t);
   const home = path.join(dir, ".storytree", "0.3");
   const installDir = path.join(dir, ".local", "share", "storytree-0.3");
-  // A running AppImage's resources sit in its mount, which moves each run; APPIMAGE names the file itself.
   const app: RunningApp = { platform: "linux", packaged: true, resourcesPath: "/tmp/.mount_storyt1/resources", appPath: "/tmp/.mount_storyt1/resources/app.asar", home, appImage: path.join(installDir, "storytree-0.3") };
   const none = { installed: false, followsReleases: false, markerFile: undefined };
 

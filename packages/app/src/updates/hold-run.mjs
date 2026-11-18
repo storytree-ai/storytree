@@ -23,7 +23,6 @@ function main() {
     writeFileSync(pending, JSON.stringify({ run, startedAt, expiresAt }), { flag: "wx" });
     renameSync(pending, file);
     console.error(`Automatic updates held for ${run} until ${new Date(expiresAt).toISOString()} or this command ends.`);
-    // No shell reinterprets the command's arguments. A crashed wrapper leaves only the finite lease.
     const result = spawnSync(command, args, { stdio: "inherit", windowsHide: true });
     if (result.error) console.error(result.error.message);
     process.exitCode = result.status ?? 1;

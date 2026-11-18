@@ -1,7 +1,4 @@
-/**
- * Capability 2 · Storytree projects: the left rail's width, collapse and toggle (ADR-1219), on a page of its own. The pointer and
- * keys are dispatched as the window would; the width is what the rail lays out, the `--rail-width` its frame and the map read.
- */
+// Capability 2 · Storytree projects
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";

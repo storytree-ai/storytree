@@ -1,9 +1,4 @@
-/**
- * Capability 4 · Updates, contract 4.8: a ready build restarts the app, and the restart stops the database, so it waits while a writing library script (`pnpm check:own-health`,
- * `pnpm library:restore`, which write into the running app's database) is connected: a restart mid-seed would cut it off (seen
- * 2026-09-27, when the updater restarted the app under a reseed). Against the Postgres `pnpm test`
- * provides, in a database of its own, so another unit's seed on the shared server is not this app's.
- */
+// Capability 4 · Updates
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
@@ -25,7 +20,6 @@ test("4.8 the restart into a new build waits while a seed is writing the app's l
   const url = new URL(server);
   url.pathname = `/${name}`;
   const app = url.toString();
-  // Another unit's seed, writing another database on the same server.
   const stranger = new pg.Client({ connectionString: server, application_name: SEED_CONNECTION });
   await stranger.connect();
   try {
@@ -38,7 +32,6 @@ test("4.8 the restart into a new build waits while a seed is writing the app's l
     } finally {
       await seed.end();
     }
-    // The server lists a backend until it has finished leaving, a moment after its client's end().
     await waitUntil(async () => !(await seedWriting(app)), 10_000, "the restart to go ahead once the seed has gone");
   } finally {
     await stranger.end();

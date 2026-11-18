@@ -1,17 +1,8 @@
-/**
- * Capability 4 · Updates: how an installed app follows its releases, apart from Electron. It checks at start and every
- * three minutes until it quits (contract 4.30); a Linux AppImage refreshes the agent tools beside it (4.31) and every installed app points the agents at its build's copy (4.42); the
- * gear's channel is offered only where releases install themselves, and never in a smoke check (4.32).
- */
+// Capability 4 · Updates
 import path from "node:path";
 
-/** How often a following app checks for a release. */
 export const RELEASE_CHECK_EVERY_MS = 3 * 60_000;
 
-/**
- * Checks now and every `every` until stopped: a check that fails is logged and the next goes ahead, and one that finds
- * a release waiting for its moment logs `waiting()`'s line. Stopping ends the checks and the updater.
- */
 export function keepCheckingReleases({ updater, log, waiting, every = RELEASE_CHECK_EVERY_MS }: {
   updater: { check(): Promise<string>; stop(): void };
   log: { info(line: string): void; error(error: unknown): void };
@@ -29,13 +20,6 @@ export function keepCheckingReleases({ updater, log, waiting, every = RELEASE_CH
   return { stop: () => { clearInterval(timer); updater.stop(); } };
 }
 
-/**
- * An installed Linux AppImage that replaced itself puts its own agent tools beside it (4.31); then every installed app
- * (Windows, a Mac, a Linux AppImage) points the agents at its own build's copy of the tools under the home, so none runs
- * from the installation the next update replaces, and a session still open keeps the copy it started (4.42).
- * `refresh` copies this build's tools into a folder, saying whether it changed anything, and `follow` re-points the
- * agents, saying which moved and which could not and why; one that fails is said, and the app starts all the same.
- */
 export async function refreshAgentTools({ platform, appImage, refresh, follow, log }: {
   platform: NodeJS.Platform;
   appImage: string | undefined;
@@ -60,7 +44,6 @@ export async function refreshAgentTools({ platform, appImage, refresh, follow, l
   } catch (error) { log.error(`Agent tools could not be pointed at this build's: ${error instanceof Error ? error.message : String(error)}`); }
 }
 
-/** The installation an installed app's start follows (4.42): the folder holding the AppImage or the Windows exe, or a Mac's .app bundle. */
 export function installationFolder({ platform, execPath, appImage }: { platform: NodeJS.Platform; execPath: string; appImage: string | undefined }): string {
   const paths = platform === "win32" ? path.win32 : path.posix;
   if (platform === "linux" && appImage !== undefined) return paths.dirname(appImage);
@@ -68,7 +51,6 @@ export function installationFolder({ platform, execPath, appImage }: { platform:
   return paths.dirname(execPath);
 }
 
-/** Whether the gear offers the update channel: only where releases install themselves, and not in a smoke check. */
 export function channelOffered({ smoke, followsReleases }: { smoke: boolean; followsReleases: boolean }): boolean {
   return !smoke && followsReleases;
 }

@@ -1,8 +1,4 @@
-/**
- * Capability 3 · Surfaces: the smoke check's judgement, contract 3.3 in the app story. It is a
- * plain function of the project's tree and what the surface on show says it drew, so it is tested
- * without Electron; `pnpm desktop:smoke` runs it in the real app.
- */
+// Capability 3 · Surfaces
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -14,7 +10,6 @@ const HEALTH: NodeHealth = { reported: { state: "not-checked" }, verified: { sta
 const capability = (id: string, title: string): AnnotatedCapability => ({ id, title, dependsOn: [], proposed: true, contracts: [], health: HEALTH, status: "proposed" });
 const story = (id: string, title: string, capabilities: AnnotatedCapability[]): AnnotatedStory => ({ id, title, capabilities, health: HEALTH });
 
-/** A project of two stories: the first with two capabilities, the second with one. */
 const TREE: AnnotatedTree = {
   arcs: [],
   stories: [

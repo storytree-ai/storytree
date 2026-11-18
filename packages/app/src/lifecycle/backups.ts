@@ -1,15 +1,4 @@
-/**
- * Capability 10 · Daily snapshots, contract 10.1 (the app story; ADR-0641 D2 step 4, choice B1): once a
- * project's library is the only copy of its plan, the app keeps snapshots of it. keepBackups gives
- * each project one a day: at start it takes one of each project whose newest successful snapshot is
- * missing or a day old, reusing one under a day old (increment_cdce468a4e1a: the development app
- * restarts on every merged build), and while it runs takes the next at each project's day mark.
- * backUp writes one snapshot of each project to <dir>/<project>/<time>.json (the library's
- * `snapshot`, records, history and any media, one JSON object written a line per record, history entry or file
- * (10.2) and read back by readBackup), under that name only once whole, and keeps that project's newest
- * BACKUPS_KEPT. A file there that is not a snapshot is never touched. A snapshot restores only into
- * an empty project (the library's `restore`), so it can never overwrite live edits.
- */
+// Capability 10 · Daily snapshots
 import { execFileSync } from "node:child_process";
 import { chmodSync, closeSync, createReadStream, fstatSync, lstatSync, mkdirSync, openSync, readdirSync, readSync, renameSync, rmSync, writeSync } from "node:fs";
 import { createInterface } from "node:readline";
@@ -17,33 +6,22 @@ import path from "node:path";
 
 import type { ProjectSnapshot, Storytree } from "@storytree/library";
 
-/** How often the app takes its snapshots while it runs: once a day. */
 export const BACKUP_EVERY_MS = 24 * 60 * 60 * 1000;
-/** How many snapshots of each project are kept: the newest. */
 export const BACKUPS_KEPT = 14;
 
-/** A snapshot's file name: its time, sortable as text (2026-09-27T01-02-03-456Z.json). */
 const SNAPSHOT_FILE = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.json$/;
-/** A snapshot still being written, renamed to its snapshot name once whole. */
 const PARTIAL_FILE = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.json\.partial$/;
-/** The shortest wait before the next run, so a project that cannot be snapshotted never spins. */
 const SOONEST_MS = 60 * 1000;
 
 export interface BackUpOptions {
   readonly storytree: Pick<Storytree, "snapshot">;
-  /** The projects to take a snapshot of. */
   readonly projects: readonly string[];
-  /** Where the snapshots go: ~/.storytree/0.3/backups for the app. */
   readonly dir: string;
-  /** The snapshots' time, which names their files. */
   readonly now?: Date;
-  /** How many of each project's snapshots to keep. */
   readonly keep?: number;
-  /** Turns each piece of a snapshot into JSON text: JSON.stringify, replaced only by tests. */
   readonly stringify?: (value: unknown) => string;
 }
 
-/** Write a snapshot of each project and prune each project's folder to its newest `keep`. The files written, in project order. */
 export async function backUp({ storytree, projects, dir, now = new Date(), keep = BACKUPS_KEPT, stringify = JSON.stringify }: BackUpOptions): Promise<string[]> {
   repairBackupPermissions(dir);
   const name = `${now.toISOString().replace(/[:.]/g, "-")}.json`;
@@ -54,8 +32,6 @@ export async function backUp({ storytree, projects, dir, now = new Date(), keep 
     privateDirectories([dir, folder]);
     for (const stale of readdirSync(folder).filter((entry) => PARTIAL_FILE.test(entry))) rmSync(path.join(folder, stale));
     const file = path.join(folder, name);
-    // Windows creates the empty partial with an explicit DACL atomically. Opening it only after
-    // that succeeds never puts snapshot bytes in a file with permissive inherited permissions.
     if (process.platform === "win32") windowsPermissions([{ file: `${file}.partial`, kind: "create" }]);
     writeSnapshot(`${file}.partial`, snapshot, stringify);
     renameSync(`${file}.partial`, file);
@@ -66,7 +42,6 @@ export async function backUp({ storytree, projects, dir, now = new Date(), keep 
   return written;
 }
 
-/** Privacy belongs to the backup tree, independent of the application's home or umask. */
 function privateDirectories(dirs: string[]): void {
   for (const dir of dirs) {
     mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -76,10 +51,6 @@ function privateDirectories(dirs: string[]): void {
   if (process.platform === "win32") windowsPermissions(dirs.map(file => ({ file, kind: "directory" })));
 }
 
-/** Repair before reusing a fresh snapshot, including retained projects no longer in the library.
- * Only real project folders and our snapshot/partial files belong to this lifecycle; no symlinks
- * are followed and unrelated files keep their permissions and contents.
- */
 function repairBackupPermissions(dir: string): void {
   const stat = lstatSync(dir, { throwIfNoEntry: false });
   if (stat === undefined) return;
@@ -105,11 +76,6 @@ function repairBackupPermissions(dir: string): void {
 
 type WindowsPermission = { file: string; kind: "directory" | "file" | "create" };
 
-/** Replace both inherited and explicit grants with the current user's SID alone. SetFileSecurity
- * deliberately avoids propagating directory changes into unrelated children; every snapshot gets a
- * protected DACL. Windows PowerShell's .NET Framework FileStream overload creates a partial exclusively with
- * that DACL, before it can contain bytes. Any refusal aborts the backup; chmod is no ACL fallback.
- */
 function windowsPermissions(entries: WindowsPermission[]): void {
   const script = `
 $ErrorActionPreference = 'Stop'
@@ -145,24 +111,14 @@ foreach ($entry in $entries) {
   }
 }`;
   const env = { ...process.env };
-  // A parent PowerShell 7's module path can break Windows PowerShell 5's built-in cmdlets.
   for (const key of Object.keys(env)) if (key.toUpperCase() === "PSMODULEPATH") delete env[key];
-  // Starting PowerShell 5 and compiling the type above has passed 30 s on a loaded Windows CI runner.
   execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
     ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
     { input: JSON.stringify(entries), env, windowsHide: true, timeout: 120_000, stdio: ["pipe", "pipe", "pipe"] });
 }
 
-/** How much snapshot text is gathered before it is written to the file. */
 const WRITE_CHUNK = 1 << 20;
 
-/**
- * Write a snapshot as one JSON object without ever building it as one string (V8's longest is about
- * 2^29 characters, which the storytree project's passed on 2026-10-25): a first line holding every
- * field but records, history and media, then one record per line, then one history entry per line, then, when the
- * project keeps any, one media file per line (10.2), ending "]}\n". A small file still reads with JSON.parse;
- * readBackup reads any size line by line.
- */
 function writeSnapshot(partial: string, snapshot: ProjectSnapshot, stringify: (value: unknown) => string): void {
   const { records, history, media, ...head } = snapshot;
   const fd = openSync(partial, process.platform === "win32" ? "r+" : "wx", 0o600);
@@ -191,7 +147,6 @@ function writeSnapshot(partial: string, snapshot: ProjectSnapshot, stringify: (v
   }
 }
 
-/** Read a snapshot file back, line by line, as the object the library's `restore` takes; reads a one-line file from before too. */
 export async function readBackup(file: string): Promise<ProjectSnapshot> {
   let snapshot: ProjectSnapshot | undefined;
   let list: "records" | "history" | "media" | undefined;
@@ -210,7 +165,6 @@ export async function readBackup(file: string): Promise<ProjectSnapshot> {
   return snapshot;
 }
 
-/** When a project's newest successful snapshot was taken, read from its file name; undefined when it has none. */
 export function newestSnapshot(dir: string, project: string): Date | undefined {
   const folder = path.join(dir, project);
   let entries: string[];
@@ -224,7 +178,6 @@ export function newestSnapshot(dir: string, project: string): Date | undefined {
   return undefined;
 }
 
-/** A snapshot file written to its end: backUp ends each with "}\n", which an interrupted write lacks. */
 function whole(file: string): boolean {
   const fd = openSync(file, "r");
   try {
@@ -238,7 +191,6 @@ function whole(file: string): boolean {
   }
 }
 
-/** Keep each project's daily snapshot, reusing one under a day old at start, and hold update restarts until their library reads and files finish. */
 export function keepBackups(options: {
   storytree: Pick<Storytree, "listProjects" | "snapshot">;
   dir: string;
@@ -247,7 +199,6 @@ export function keepBackups(options: {
   let taking = false;
   let stopped = false;
   let timer: ReturnType<typeof setInterval> | undefined;
-  // One timer, re-armed after each run for the soonest project's day mark.
   const arm = (wait: number): void => {
     if (stopped) return;
     timer = setInterval(() => void take(), Math.max(SOONEST_MS, wait));

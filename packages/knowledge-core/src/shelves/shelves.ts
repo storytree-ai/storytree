@@ -1,38 +1,29 @@
-/** Capability 1 · Knowledge under its shelves. Capability 1's founding book (D1): knowledge hangs under its shelves, as deep as its longest chain. */
+// Capability 1 · Knowledge under its shelves
 import type { Change } from "@storytree/library";
 
 import { linksOf, type Knowledge } from "../ghosts/ghosts.js";
 
-/** What an empty shelf says. */
 export const EMPTY_SHELF = "no knowledge on this shelf yet";
-/** What a loop says: the knowledge graph refuses loops (ADR-0647 D2), so one met here is an error. */
 export const LOOP_LABEL = "loop: a refused shape; the knowledge graph allows no loops (ADR-0647)";
 
-/** A story's or capability's shelf: an entrance into the core, on its story's island. */
 export interface Shelf {
   node: string;
   story: string;
-  /** Its front covers, oldest first. */
   covers: string[];
   empty?: string;
 }
 
 export interface Placement {
   note: string;
-  /** The longest chain from a shelf, the shelf-to-cover step counting 1. */
   depth: number;
-  /** The shelf it hangs under: a cover's own, else the oldest shelf that reaches it. */
   home: string;
-  /** Every shelf that reaches it, oldest first. */
   entrances: string[];
-  /** The loop it belongs to, if any. */
   loop: string | undefined;
 }
 
 export interface Loop {
   id: string;
   members: string[];
-  /** The group's depth; undefined when no shelf reaches it. */
   depth: number | undefined;
   label: string;
 }
@@ -40,17 +31,10 @@ export interface Loop {
 export interface Core {
   shelves: Shelf[];
   placed: ReadonlyMap<string, Placement>;
-  /** Active notes no shelf reaches, by id. */
   outside: string[];
   loops: Loop[];
 }
 
-/**
- * Hang a project's active notes (capability 2's `knowledge`) under the shelves of its live stories
- * and capabilities, read from the same change history. Links are followed in their stored
- * direction, between active notes only. Notes that all lead back to one another form one group,
- * which takes one depth and is reported as a loop; depth is then the longest chain over the groups.
- */
 export function underShelves(changes: readonly Change[], { notes, active }: Knowledge): Core {
   const nodes = new Map<string, { story: string; seq: number }>();
   for (const change of changes) {
@@ -70,7 +54,6 @@ export function underShelves(changes: readonly Change[], { notes, active }: Know
   const coverShelf = new Map<string, string>();
   for (const id of active) {
     const note = notes.get(id);
-    // A measure's story is its shelf (1.18), as a front cover's node is: it hangs among that story's covers.
     const shelf = note?.type === "measure" ? note.fields.story : note?.fields.frontCoverOf;
     const onStory = note?.type !== "measure" || (typeof shelf === "string" && nodes.get(shelf)?.story === shelf);
     if (typeof shelf === "string" && nodes.has(shelf) && onStory) coverShelf.set(id, shelf);
@@ -86,7 +69,6 @@ export function underShelves(changes: readonly Change[], { notes, active }: Know
   const groupOut = groups.map(() => new Set<number>());
   for (const [id, targets] of out) for (const target of targets) if (groupOf.get(id) !== groupOf.get(target)) groupOut[groupOf.get(id)!]!.add(groupOf.get(target)!);
 
-  // Tarjan's algorithm finds groups in reverse topological order, so walk them backwards.
   const depth: (number | undefined)[] = groups.map(() => undefined);
   const reachedFrom: Set<string>[] = groups.map(() => new Set());
   for (const [cover, shelf] of coverShelf) {
@@ -127,7 +109,6 @@ export function underShelves(changes: readonly Change[], { notes, active }: Know
   return { shelves, placed, outside, loops };
 }
 
-/** Tarjan's strongly connected groups, each sorted, in reverse topological order. */
 function stronglyConnected(ids: readonly string[], out: ReadonlyMap<string, readonly string[]>) {
   const index = new Map<string, number>();
   const low = new Map<string, number>();
@@ -137,7 +118,6 @@ function stronglyConnected(ids: readonly string[], out: ReadonlyMap<string, read
   const groupOf = new Map<string, number>();
 
   const visit = (start: string) => {
-    // Iterative, so a long chain cannot overflow the call stack.
     const frames: { id: string; next: number }[] = [{ id: start, next: 0 }];
     index.set(start, index.size);
     low.set(start, index.get(start)!);

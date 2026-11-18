@@ -1,53 +1,30 @@
-/**
- * Capability 1 · Knowledge under its shelves. Under the glass sheet (ADR-1043 D5, ADR-1063): each note is pulled toward every
- * island its links reach, links counting both ways. A note one island reaches hangs under it, one reached from two or more
- * settles between them, nearer the ones it has more links to, and neighbours at one depth keep room from each other (D1).
- * A note a shelf reaches hangs at its computed depth; one no shelf reaches but which links to hung knowledge, one step below
- * the deepest note it links to (D2). Notes with no links, or linked only among themselves, lie on one floor below the
- * deepest hanging note, spread across the islands' footprint, each linked group together (D3). There is no pool.
- * The links between drawn notes are returned too.
- * Positions are in the sheet's own frame: x east, y north, z up from the glass, so a hung note's z is below zero.
- */
+// Capability 1 · Knowledge under its shelves
 import type { RecordEnvelope } from "@storytree/library";
 import { linksOf } from "../ghosts/ghosts.js";
 import type { Core } from "./shelves.js";
 import type { GlobePoint } from "./positions.js";
 
-/** How far under the glass the first depth hangs, and the room neighbours at one depth keep, in ground units. */
 const FIRST_BELOW = 6;
 const ROOM = 6;
-/** The relaxation's fixed number of rounds, and how hard a note is drawn each round toward its islands and its linked neighbours. */
 const ROUNDS = 80;
 const ISLAND_PULL = 0.15;
 const LINK_PULL = 0.04;
-/** The most a note is drawn toward its islands in one round. */
 const MOST_PULL = 1;
-/** Linked notes draw together only when further apart than this, in ground units, so links gather without crushing. */
 const LINK_SLACK = 3 * ROOM;
 
 interface Area { x: number; y: number; width: number; height: number }
 interface Flat { x: number; y: number }
 
 export interface SheetHanging {
-  /** Where a shelf (a story or capability id) stands on the sheet, or undefined for one not drawn. */
   shelfAt(node: string): Flat | undefined;
-  /** The islands' footprint on the sheet, which the sea floor spreads across (D3). */
   floor: Area;
-  /** How much deeper each depth hangs than the one above it, in ground units. */
   depthStep: number;
 }
 
-/** A note's place under the sheet, and the shelves pulling it, strongest first: none for a note on the sea floor. */
 export interface SheetPoint extends GlobePoint { toward: string[] }
 
-/** The sheet as laid out: every drawn note's place, each stored link between two drawn notes, and the sea floor. */
 export interface SheetLayout { points: SheetPoint[]; links: [string, string][]; floor: Area & { z: number; notes: number } }
 
-/**
- * A sheet that lays out again only when what it lays out changed (Live updates never freeze the globe): read again with the
- * same notes, links, shelves and floor, however fresh the objects handed it, it returns its last layout without relaxing.
- * Each reading is laid out in steps (1.17, `sheetSteps`); one that changes nothing returns at its first, with no step.
- */
 export function sheetLayout(): (core: Core, hanging: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>) => Generator<void, SheetLayout, void> {
   let last: { key: string; layout: SheetLayout } | undefined;
   return function* (core, hanging, notes) {
@@ -57,12 +34,10 @@ export function sheetLayout(): (core: Core, hanging: SheetHanging, notes?: Reado
   };
 }
 
-/** What `steps` returns, run to its end at once. */
 export function whole<T>(steps: Generator<void, T, void>): T {
   for (;;) { const at = steps.next(); if (at.done) return at.value; }
 }
 
-/** Everything sheetPoints reads, written out: each note's shelves and where they stand, its depth and links, and the floor. */
 function layoutKey(core: Core, { shelfAt, floor, depthStep }: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>): string {
   const ids = [...core.placed.keys(), ...core.outside].sort(compare);
   const where = (shelf: string) => { const at = shelfAt(shelf); return at === undefined ? "-" : `${at.x},${at.y}`; };
@@ -75,21 +50,15 @@ function layoutKey(core: Core, { shelfAt, floor, depthStep }: SheetHanging, note
   return `${floor.x},${floor.y},${floor.width},${floor.height},${depthStep}\n${parts.join("\n")}`;
 }
 
-/** A note's stored links: its `links` and what it `supersedes`. */
 function storedLinks(record: RecordEnvelope): string[] {
   const supersedes = Array.isArray(record.fields.supersedes) ? record.fields.supersedes.filter((v): v is string => typeof v === "string") : [];
   return [...linksOf(record), ...supersedes];
 }
 
-/** Every drawn note's place under the sheet, the sea floor's plane and how many notes lie on it, and each stored link (a `links` or `supersedes`) between two drawn notes. */
 export function sheetPoints(core: Core, hanging: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>): SheetLayout {
   return whole(sheetSteps(core, hanging, notes));
 }
 
-/**
- * `sheetPoints` in steps (1.17): each `yield` ends one, after the links and pulls are gathered and after every round of the sea
- * floor's spreading and of the relaxation, so a page can lay a big library out across tasks without one long one.
- */
 export function* sheetSteps(core: Core, { shelfAt, floor, depthStep }: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>): Generator<void, SheetLayout, void> {
   const ids = [...core.placed.keys(), ...core.outside].sort(compare);
   const drawn = new Set(ids);
@@ -101,7 +70,6 @@ export function* sheetSteps(core: Core, { shelfAt, floor, depthStep }: SheetHang
     if (record === undefined) continue;
     for (const to of storedLinks(record)) {
       if (to === id || !drawn.has(to)) continue;
-      // Links count both ways (D1), and each stored link once, however many times it is stored.
       const key = id < to ? `${id} ${to}` : `${to} ${id}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -111,20 +79,16 @@ export function* sheetSteps(core: Core, { shelfAt, floor, depthStep }: SheetHang
     }
   }
 
-  // Each hung note's pulls, shelf to weight, summing to one, and its depth.
   const pulls = new Map<string, Map<string, number>>();
   const depths = new Map<string, number>();
   for (const id of ids) {
     const placement = core.placed.get(id);
     const shelves = placement?.entrances.filter(shelf => shelfAt(shelf) !== undefined) ?? [];
     if (placement === undefined || shelves.length === 0) continue;
-    // A shelf pulls one, and once more for each link to a note that shelf also reaches.
     const weights = new Map(shelves.map(shelf => [shelf, 1 + [...near.get(id)!].reduce((sum, [other, count]) => sum + (core.placed.get(other)?.entrances.includes(shelf) ? count : 0), 0)]));
     pulls.set(id, normalised(weights));
     depths.set(id, placement.depth);
   }
-  // Out from the hung notes, one ring of links at a time: a note no shelf reaches takes the pulls of the hung notes it links
-  // to, each link carrying its neighbour's, and hangs one step below the deepest of them (D2).
   for (let ring = ids.filter(id => !pulls.has(id) && [...near.get(id)!.keys()].some(other => pulls.has(other))); ring.length > 0;
     ring = ids.filter(id => !pulls.has(id) && [...near.get(id)!.keys()].some(other => pulls.has(other)))) {
     const taken = ring.map(id => {
@@ -146,7 +110,6 @@ export function* sheetSteps(core: Core, { shelfAt, floor, depthStep }: SheetHang
   const seaZ = below(deepest + 1);
   const sea = ids.filter(id => !pulls.has(id));
 
-  // Where each note is drawn toward: the weighted middle of its shelves, or its group's place on the floor.
   const target = new Map<string, Flat>();
   for (const [id, weights] of pulls) {
     let x = 0, y = 0;
@@ -168,23 +131,14 @@ export function* sheetSteps(core: Core, { shelfAt, floor, depthStep }: SheetHang
   return { points, links, floor: { ...floor, z: seaZ, notes: sea.length } };
 }
 
-/** The notes lit when a story is selected (D4): every note pulled toward any of its shelves, wherever it sits. */
 export function sheetLit(points: readonly Pick<SheetPoint, "id" | "toward">[], selected: string, storyOf: (node: string) => string | undefined): Set<string> {
   return new Set(points.filter(point => point.toward.some(shelf => storyOf(shelf) === selected)).map(point => point.id));
 }
 
-/**
- * The roots drawn under the sheet (ADR-1260 D2): none with nothing selected, and with a story selected one for each of its
- * `notes`, from where it hangs straight up to the sheet's plane above it, so its place and depth read with the eye still.
- */
 export function sheetRoots(points: readonly Pick<SheetPoint, "id" | "at">[], notes: ReadonlySet<string> | undefined): [GlobePoint["at"], GlobePoint["at"]][] {
   return notes === undefined ? [] : points.filter(({ id }) => notes.has(id)).map(({ at }) => [at, { x: at.x, y: at.y, z: 0 }]);
 }
 
-/**
- * The sea floor's linked groups, each with its place on the floor: scattered over the footprint by note id, then pushed
- * apart until each keeps an even share of the floor, so the floor reads as a scatter, not a grid, and never piles at an edge.
- */
 function* floorGroups(sea: readonly string[], near: ReadonlyMap<string, ReadonlyMap<string, number>>, floor: Area): Generator<void, [string[], Flat][], void> {
   const grouped = new Set<string>(), groups: string[][] = [];
   for (const id of sea) {
@@ -195,7 +149,6 @@ function* floorGroups(sea: readonly string[], near: ReadonlyMap<string, Readonly
     groups.push(members.sort(compare));
   }
   if (groups.length === 0) return [];
-  // Each group's own room, as wide as its members need, and an even share of the floor between groups.
   const share = Math.sqrt(floor.width * floor.height / groups.length) * 0.8;
   const room = (members: readonly string[]) => ROOM * Math.sqrt(members.length) / 2;
   const centre = new Map(groups.map((members, i) => [i, { x: floor.x + floor.width * seeded(members[0]!, 1), y: floor.y + floor.height * seeded(members[0]!, 2) }]));
@@ -212,14 +165,6 @@ function* floorGroups(sea: readonly string[], near: ReadonlyMap<string, Readonly
   return groups.map((members, i) => [members, centre.get(i)!]);
 }
 
-/**
- * The fixed, seeded relaxation (D1): each note starts scattered by its id across a disc round its target as wide as the crowd
- * sharing that target needs; then for a fixed number of rounds it is pushed out of any neighbour's room at its depth, drawn
- * back toward its target only once outside that disc, and toward its linked neighbours only once they are far apart. With no
- * pull inside the disc a crowd spreads instead of being crushed. Every round moves all notes at once, so the order notes are
- * met in never matters, and one note added moves only those it crowds. (Measured: started from where the last reading drew
- * them, the same rounds moved notes more than a cold seeded start does, so every reading starts cold.)
- */
 function* relax(ids: readonly string[], target: ReadonlyMap<string, Flat>, layer: (id: string) => number, near: ReadonlyMap<string, ReadonlyMap<string, number>>): Generator<void, Map<string, Flat>, void> {
   const crowd = new Map<string, number>();
   const spot = (id: string) => { const t = target.get(id)!; return `${Math.round(t.x)} ${Math.round(t.y)} ${layer(id)}`; };
@@ -249,11 +194,6 @@ function* relax(ids: readonly string[], target: ReadonlyMap<string, Flat>, layer
   return at;
 }
 
-/**
- * How far each item is pushed this round out of its neighbours' room: half the overlap each, for every pair on one layer
- * nearer than `room` asks. Pairs are found through a grid of cells `reach` wide, the largest room asked, so the work grows with the
- * notes, not their square. Two items at one place part along a direction seeded by their ids.
- */
 function apart<K>(keys: readonly K[], at: ReadonlyMap<K, Flat>, layer: (key: K) => number, room: (a: K, b: K) => number, name: (key: K) => string, cell: number): Map<K, Flat> {
   const push = new Map(keys.map(key => [key, { x: 0, y: 0 }]));
   if (keys.length < 2) return push;
@@ -279,13 +219,11 @@ function apart<K>(keys: readonly K[], at: ReadonlyMap<K, Flat>, layer: (key: K) 
   return push;
 }
 
-/** Weights scaled to sum to one. */
 function normalised(weights: ReadonlyMap<string, number>): Map<string, number> {
   const total = [...weights.values()].reduce((sum, w) => sum + w, 0);
   return new Map([...weights].map(([key, w]) => [key, w / total]));
 }
 
-/** A number in [0, 1) fixed by `id` and `salt` (FNV-1a, then mixed), so the same note scatters the same way every time. */
 function seeded(id: string, salt: number): number {
   let h = 0x811c9dc5 ^ salt;
   for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193);

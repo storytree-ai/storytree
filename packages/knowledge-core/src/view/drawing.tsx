@@ -1,14 +1,9 @@
-/**
- * Capability 4 · Look inside and inspect an artifact. The knowledge core's drawing (the knowledge core story, capability 4 · Look inside and inspect a note): the
- * pinned note's summary card, mounted in the globe's right-hand story-panel slot. The notes themselves
- * are drawn under the islands by `GlobePoints`.
- */
+// Capability 4 · Look inside and inspect an artifact
 import React from "react";
 
 import type { KindRow } from "../kinds/kinds.js";
 import type { Card } from "../look-inside/look-inside.js";
 
-/** The kind list (capability 5): a press switches a kind's dots on or off. */
 export function KindList({ rows, onShow }: { rows: readonly KindRow[]; onShow: (kind: string, shown: boolean) => void }) {
   return rows.length === 0 ? null : <div className="core-kinds" role="group" aria-label="Artifact kinds">
     {rows.map(({ kind, label, colour, count, shown }) => <button key={kind} type="button" data-kind={kind} aria-pressed={shown} onClick={() => onShow(kind, !shown)}>
@@ -19,7 +14,6 @@ export function KindList({ rows, onShow }: { rows: readonly KindRow[]; onShow: (
   </div>;
 }
 
-/** The pinned note's summary card. */
 export function NoteCard({ card, onClose }: { card: Card; onClose: () => void }) {
   return <section className="core-card" aria-label="Library panel">
     <p className="core-card-kind">{card.kind}</p>

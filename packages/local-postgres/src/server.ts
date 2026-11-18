@@ -1,31 +1,4 @@
-/**
- * Capability 2 · A server on a data directory. One local Postgres server on a data directory, as storytree runs it: the cluster is made with
- * initdb the first time, asks every connection for the installation's password (SCRAM, see
- * auth.ts) and listens on 127.0.0.1 only, and the server runs on a free port unless one is asked
- * for. A cluster made when local connections were trusted is given the password and its trust
- * taken away before its server next starts, with no network open while that happens.
- *
- * Clients sign in as an ordinary role, never the superuser (ADR-0948): once the server listens, and
- * before any client is handed a way in, start() makes sure the role `storytree` exists with its
- * password, may create databases and nothing more, and owns every database in the cluster (but the
- * two templates), with everything in them. A cluster from before this, whose databases and tables
- * are the superuser's, is handed over then; each database is given away last, so an interrupted
- * start does it again.
- *
- * A data directory has at most one owner: the process that started its server and has not yet
- * stopped it. start() records the owner beside the directory (`<dataDir>.owner.json`), and stop()
- * removes the record. While the recorded process is alive, a start is refused with a
- * DataDirInUseError naming it. A record whose process has died is stale: the server it left
- * running is stopped and the record cleared, and the start goes ahead.
- *
- * On Windows the tools' output always goes to a log file, never to a pipe: `pg_ctl start` leaves a
- * shell holding its output handles for as long as the server runs, so a pipe would never close.
- *
- * Postgres will not run as root, and a cloud container runs everything as root, so there the tools
- * and the server run as the unprivileged account `nobody` (serverAccount()): it is handed what they
- * write (the cluster, the server log, initdb's password file), and the folders above what they use
- * are let through for it (letThrough()). Run as anyone else, they run as that user.
- */
+// Capability 2 · A server on a data directory
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
@@ -69,68 +42,33 @@ import {
 import { findBinaries } from "./binaries.js";
 
 export interface ClusterOptions {
-  /** The directory holding initdb, pg_ctl and postgres. By default, findBinaries(). */
   readonly bin?: string;
-  /** The account the tools and the server run as, other than this process's. By default, serverAccount(). */
   readonly account?: Account;
-  /** Where the Postgres tools' output is appended. By default, `<dataDir>.tools.log`. */
   readonly toolLog?: string;
-  /** Called with each step worth telling a person about. */
   readonly log?: (message: string) => void;
 }
 
 export interface StartOptions extends ClusterOptions {
-  /** The cluster's directory. It is made (initdb) if there is none. */
   readonly dataDir: string;
-  /** The port to listen on, on 127.0.0.1. By default, a free one. */
   readonly port?: number;
-  /** Where the server writes its log. By default, `<dataDir>.log`. */
   readonly serverLog?: string;
-  /** Who is starting it, as a refusal names the holder to someone else. */
   readonly owner?: string;
-  /**
-   * Server settings for this run only (`-c name=value`), each value one plain word. A throwaway
-   * test server is started with fsync, synchronous_commit and full_page_writes off; the app's own
-   * server never is.
-   */
   readonly settings?: Readonly<Record<string, string>>;
-  /**
-   * Whom the url and the handoff sign in as: the ordinary role `storytree` (by default), or the
-   * superuser, for a throwaway test server whose tests make roles of their own. The app's own
-   * server never hands out the superuser.
-   */
   readonly signIn?: "client" | "superuser";
-  /**
-   * Also hand back the superuser's url, as `superuserUrl`, for a throwaway test server whose tests
-   * sign in as the ordinary role but make roles in their setup. The app's own server never asks.
-   */
   readonly superuserUrl?: boolean;
 }
 
-/** A running server. */
 export interface LocalPostgres {
-  /**
-   * postgres://storytree:<password>@127.0.0.1:<port>/postgres (postgres:… when started with
-   * signIn "superuser"), which carries the installation's secret: connect with it, never show or
-   * log it.
-   */
   readonly url: string;
-  /** The superuser's url, as secret as `url`: only when started with superuserUrl true. */
   readonly superuserUrl?: string;
   readonly port: number;
-  /** The data directory, as an absolute path. */
   readonly dataDir: string;
-  /** Stop the server and give up the data directory. Stopping it again is harmless. */
   stop(): Promise<void>;
 }
 
-/** A start refused because a live process holds the data directory. */
 export class DataDirInUseError extends Error {
-  /** The data directory, as an absolute path. */
   readonly dataDir: string;
-  /** The process holding it. */
   readonly pid: number;
-  /** Who that process said it was, when it said. */
   readonly owner: string | undefined;
 
   constructor(dataDir: string, pid: number, owner?: string) {
@@ -145,40 +83,29 @@ export class DataDirInUseError extends Error {
   }
 }
 
-/** The owner record kept beside a data directory while its server runs. */
 interface OwnerRecord {
   pid: number;
-  /** Tells this process's records from those of an earlier process that had the same pid. */
   token: string;
   owner?: string;
   port: number;
   startedAt: string;
-  /** A client signs in through the private handoff this names (ADR-0941). */
   auth: AuthMarker;
 }
 
-/** An account on this machine the tools and the server can run as. */
 export interface Account {
   readonly name: string;
   readonly uid: number;
   readonly gid: number;
 }
 
-/** Where the tools are, where their output goes, and whom they run as (this process's user when none). */
 interface Tools {
   readonly bin: string;
   readonly toolLog: string;
   readonly account?: Account;
 }
 
-/** The unprivileged account the tools run as when this process is root. */
 const UNPRIVILEGED = "nobody";
 
-/**
- * The account the tools and the server run as when not this process's own: `nobody`, read from
- * `passwd` (by default /etc/passwd), when this process is root, as in a cloud container; none
- * otherwise, Windows included. Root with no such account is refused, naming it.
- */
 export function serverAccount(uid = process.getuid?.(), passwd?: string): Account | undefined {
   if (uid !== 0) return undefined;
   for (const line of (passwd ?? readText("/etc/passwd")).split("\n")) {
@@ -190,11 +117,6 @@ export function serverAccount(uid = process.getuid?.(), passwd?: string): Accoun
   throw new Error(`Postgres will not run as root, and this machine has no account "${UNPRIVILEGED}" to run it as`);
 }
 
-/**
- * Let `account` through every folder above `target` that shuts it out: each is given search
- * (others' x, never r or w), so the account can reach `target` by its path without listing or
- * changing anything on the way.
- */
 export function letThrough(target: string, account: Account): void {
   let dir = path.dirname(path.resolve(target));
   for (;;) {
@@ -207,15 +129,12 @@ export function letThrough(target: string, account: Account): void {
   }
 }
 
-/** Give `file` to the tools' account, when they run as one. */
 function handOver(tools: Tools, file: string): void {
   if (tools.account !== undefined) chownSync(file, tools.account.uid, tools.account.gid);
 }
 
-/** This process's token: a record carrying it was written by this very process. */
 const PROCESS_TOKEN = randomUUID();
 
-/** Every storytree cluster's pg_hba.conf: a password, from this machine only, for everyone. */
 const HBA = `# storytree: every connection signs in with a password (SCRAM), from this machine only
 local   all           all                    scram-sha-256
 host    all           all    127.0.0.1/32    scram-sha-256
@@ -225,15 +144,8 @@ host    replication   all    127.0.0.1/32    scram-sha-256
 host    replication   all    ::1/128         scram-sha-256
 `;
 
-/** In the data directory, the installation whose password the cluster holds. */
 const SIGN_IN_MARKER = "storytree-sign-in";
 
-/**
- * Make the cluster in `dataDir` unless there is one: initdb as user `postgres`, with the
- * installation's password, signing in by password only, UTF8, set to listen on 127.0.0.1 only. The cluster is made in a scratch directory
- * and renamed into place once complete, so an interrupted first run never leaves half a cluster.
- * True if it was made now. A directory that holds something other than a cluster is refused.
- */
 export async function ensureCluster(dataDir: string, options: ClusterOptions = {}): Promise<boolean> {
   const dir = path.resolve(dataDir);
   if (existsSync(path.join(dir, "PG_VERSION"))) return false;
@@ -251,8 +163,6 @@ export async function ensureCluster(dataDir: string, options: ClusterOptions = {
   log(`creating the cluster in ${dir} (first run only; it can take minutes under x64 emulation)`);
   const started = Date.now();
   const installation = ensureInstallation(dir);
-  // initdb is given the password's verifier, never the password itself. An account the tools run
-  // as is handed the cluster's scratch directory, and the verifier in a folder of its own beside.
   const pwDir = tools.account === undefined ? authDir(dir) : `${dir}.initdb-pw`;
   if (tools.account !== undefined) {
     letThrough(scratch, tools.account);
@@ -281,11 +191,6 @@ export async function ensureCluster(dataDir: string, options: ClusterOptions = {
   return true;
 }
 
-/**
- * Start the server on `options.dataDir`, making the cluster first if there is none. Refused with a
- * DataDirInUseError while a live process holds the directory; a server left running by a process
- * that has died is stopped first. The server listens on 127.0.0.1 only.
- */
 export async function start(options: StartOptions): Promise<LocalPostgres> {
   const dataDir = path.resolve(options.dataDir);
   const tools = toolsFor(dataDir, options);
@@ -317,7 +222,6 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
     if (!made) await requirePasswords(dataDir, installation, tools, log);
     mkdirSync(path.dirname(serverLog), { recursive: true });
     if (tools.account !== undefined) {
-      // pg_ctl opens the server's log as the account, which may not make files beside it.
       letThrough(serverLog, tools.account);
       closeSync(openSync(serverLog, "a"));
       handOver(tools, serverLog);
@@ -353,7 +257,7 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
       stopping ??= stopServer(dataDir, tools, log).then(
         () => release(dataDir),
         (error: unknown) => {
-          stopping = undefined; // it may be tried again
+          stopping = undefined;
           throw error;
         },
       );
@@ -362,13 +266,6 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
   };
 }
 
-/**
- * Record this process as the data directory's owner. The record is created whole or not at all
- * (a hard link to a complete file), so no one ever reads half of one. A record already there
- * whose process is alive refuses the start; one whose process is gone is stale and cleared. Once
- * this process owns the directory, a server still running there has no live owner, so it is
- * stopped.
- */
 async function claim(dataDir: string, record: OwnerRecord, tools: Tools, log: (message: string) => void): Promise<void> {
   const file = ownerFile(dataDir);
   const scratch = `${file}.${process.pid}.${randomUUID()}`;
@@ -384,7 +281,6 @@ async function claim(dataDir: string, record: OwnerRecord, tools: Tools, log: (m
       const text = readText(file);
       const holder = parseRecord(text);
       if (holder !== undefined && isOwnerAlive(holder)) throw new DataDirInUseError(dataDir, holder.pid, holder.owner);
-      // Stale: its process is gone. Clear it, unless someone replaced it meanwhile.
       if (readText(file) === text) rmSync(file, { force: true });
     }
   } finally {
@@ -401,14 +297,6 @@ async function claim(dataDir: string, record: OwnerRecord, tools: Tools, log: (m
   }
 }
 
-/**
- * Make an existing cluster ask for the installation's password, unless it already does. A cluster
- * whose password is another installation's, or none (one made when local connections were
- * trusted), is given this one's in single-user mode (singleUser()), which opens no connection at all; then its
- * pg_hba.conf is replaced, and the marker naming the installation written last. Interrupted at any
- * step, the next start does it again; the server is never started before all of it is done. A
- * pg_hba.conf line that lets anyone in without a password is replaced in the same way.
- */
 async function requirePasswords(dataDir: string, installation: Installation, tools: Tools, log: (message: string) => void): Promise<void> {
   const marker = path.join(dataDir, SIGN_IN_MARKER);
   const hba = path.join(dataDir, "pg_hba.conf");
@@ -427,26 +315,16 @@ async function requirePasswords(dataDir: string, installation: Installation, too
   }
   log("signing in by password only");
   replaceFile(hba, HBA);
-  handOver(tools, hba); // the server reads it as the account
+  handOver(tools, hba);
   replaceFile(marker, installation.installationId);
 }
 
-/**
- * Run `input` through the cluster's server in single-user mode, which opens no connection at all.
- * Resolves to its exit code.
- *
- * Postgres will not run for a Windows user with administrator rights, and single-user mode has
- * no way to give them up, so on Windows pg_ctl starts it: pg_ctl starts what it runs with those
- * rights taken out of its token, whoever runs pg_ctl. What it is given to run (`-p`) is a script
- * in the private sign-in directory that runs single-user mode on the input and writes down its
- * exit code; pg_ctl hands back at once (`-W`), so that exit code is waited for.
- */
 async function singleUser(dataDir: string, tools: Tools, input: string): Promise<number> {
   if (process.platform !== "win32") return tool(tools, "postgres", ["--single", "-D", dataDir, "postgres"], input);
   const dir = authDir(dataDir);
   const inputFile = writePrivate(dir, input);
   const written = writePrivate(dir, SINGLE_USER_SCRIPT);
-  const script = `${written}.cmd`; // cmd runs a script by its extension
+  const script = `${written}.cmd`;
   renameSync(written, script);
   const exitFile = `${inputFile}.exit`;
   try {
@@ -469,15 +347,10 @@ async function singleUser(dataDir: string, tools: Tools, input: string): Promise
   }
 }
 
-/** Where single-user mode's output goes on Windows. */
 function singleUserLog(dataDir: string): string {
   return `${dataDir}.single-user.log`;
 }
 
-/**
- * The script pg_ctl runs for singleUser() on Windows, given everything by its environment. Its
- * exit code is written beside, then renamed into place, so it is never read half written.
- */
 const SINGLE_USER_SCRIPT = [
   "@echo off",
   '"%STORYTREE_SINGLE_POSTGRES%" --single -D "%STORYTREE_SINGLE_DATA%" postgres < "%STORYTREE_SINGLE_INPUT%"',
@@ -486,19 +359,10 @@ const SINGLE_USER_SCRIPT = [
   "",
 ].join("\r\n");
 
-/**
- * Make the ordinary role clients sign in as, signed in as the superuser: it exists, logs in with
- * `client`'s password, may create databases, and is no superuser, makes no roles, replicates
- * nothing and bypasses no row security, whatever it was before. Then every database not yet its
- * own (the templates aside) is handed to it, with the schemas, tables, views, sequences,
- * functions and types in it that are the superuser's; the database itself goes last.
- */
 async function provisionClient(installation: Installation, client: SignIn, port: number, log: (message: string) => void): Promise<void> {
   const role = quoteIdentifier(client.user);
   const handOver: string[] = await withClient(connectionUrl(installation, port), async (admin) => {
     const exists = (await admin.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [client.user])).rows.length > 0;
-    // A CREATE or DROP DATABASE cut short (a killed test run) leaves its database marked invalid,
-    // datconnlimit -2: nothing can connect to it, and dropping it is all Postgres allows.
     const invalid = (await admin.query<{ datname: string }>("SELECT datname FROM pg_database WHERE datconnlimit = -2 ORDER BY datname")).rows.map((row) => row.datname);
     if (invalid.length > 0) log(`dropping ${invalid.length === 1 ? "a database" : "databases"} an interrupted run left invalid: ${invalid.join(", ")}`);
     for (const database of invalid) await admin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(database)}`);
@@ -520,11 +384,6 @@ async function provisionClient(installation: Installation, client: SignIn, port:
   }
 }
 
-/**
- * Give `role` what the superuser owns in the connected database, outside the system's own
- * schemas. A table takes its indexes, its column sequences and its row type with it, so sequences
- * and types are looked for after the tables.
- */
 function handOverObjects(role: string): string {
   const user = "(SELECT oid FROM pg_roles WHERE rolname = current_user)";
   const ours = (namespace: string): string => `${namespace} IN (SELECT oid FROM pg_namespace WHERE nspname <> 'information_schema' AND nspname NOT LIKE 'pg\_%')`;
@@ -566,20 +425,17 @@ function quoteIdentifier(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;
 }
 
-/** A pg_hba.conf line that lets a connection in without the password (or includes rules unseen). */
 function lacksPassword(line: string): boolean {
   const words = line.replace(/#.*/, "").trim().split(/\s+/).filter((word) => word !== "");
   return words.length > 0 && !words.includes("scram-sha-256") && !words.includes("reject");
 }
 
-/** Replace `file` with `text` whole: written beside it, then renamed over it. */
 function replaceFile(file: string, text: string): void {
   const scratch = `${file}.${process.pid}.${randomUUID()}`;
   writeFileSync(scratch, text, { mode: 0o600 });
   renameSync(scratch, file);
 }
 
-/** Withdraw this process's connection handoff and remove its owner record for `dataDir`. Anyone else's are left alone. */
 function release(dataDir: string): void {
   withdrawConnection(dataDir, PROCESS_TOKEN);
   const file = ownerFile(dataDir);
@@ -604,17 +460,9 @@ async function stopServer(dataDir: string, tools: Tools, log: (message: string) 
 }
 
 export interface PgCtlOptions extends ClusterOptions {
-  /** Kill pg_ctl if it has not finished in this many milliseconds; it then reads as exit code 1. */
   readonly timeoutMs?: number;
 }
 
-/**
- * Run pg_ctl on `dataDir` (given as its `-D`) as start() runs it: as the tools' account when this
- * process is root, as in a cloud container, where Postgres refuses root, let through the folders
- * above the data directory again (a caller may have shut one since the start). Its output is
- * appended to the tools' log. Resolves to its exit code: for `status`, 0 while a server runs and 3
- * once none does.
- */
 export function pgCtl(dataDir: string, args: readonly string[], options: PgCtlOptions = {}): Promise<number> {
   const dir = path.resolve(dataDir);
   const tools = toolsFor(dir, options);
@@ -641,14 +489,13 @@ function parseRecord(text: string): OwnerRecord | undefined {
   }
 }
 
-/** Whether the process that wrote `record` is still running. Our own pid counts only for records this process wrote. */
 function isOwnerAlive(record: OwnerRecord): boolean {
   if (record.pid === process.pid) return record.token === PROCESS_TOKEN;
   try {
     process.kill(record.pid, 0);
     return true;
   } catch (error) {
-    return isCode(error, "EPERM"); // alive, but not ours to signal
+    return isCode(error, "EPERM");
   }
 }
 
@@ -659,7 +506,6 @@ function toolsFor(dataDir: string, options: ClusterOptions): Tools {
   return { bin, toolLog: options.toolLog ?? `${dataDir}.tools.log`, ...(account === undefined ? {} : { account }) };
 }
 
-/** Run one Postgres tool to completion, appending its output to the tool log. Resolves to its exit code. */
 function tool(
   tools: Tools,
   name: string,
@@ -673,7 +519,6 @@ function tool(
   writeSync(out, `\n[${new Date().toISOString()}] ${name} ${args.join(" ")}\n`);
   const executable = path.join(tools.bin, process.platform === "win32" ? `${name}.exe` : name);
   return new Promise<number>((resolve, reject) => {
-    // windowsHide: started from a GUI app, the tools and the server get a hidden console, not a window.
     const child = spawn(executable, args, {
       stdio: [input === undefined ? "ignore" : "pipe", out, out],
       windowsHide: true,
@@ -693,7 +538,6 @@ async function renameIntoPlace(from: string, to: string): Promise<void> {
       renameSync(from, to);
       return;
     } catch (error) {
-      // Windows can keep a just-written file open for a moment (a virus scan, the indexer).
       if (attempt === 20 || !(isCode(error, "EPERM") || isCode(error, "EBUSY") || isCode(error, "EACCES"))) throw error;
       await sleep(250);
     }

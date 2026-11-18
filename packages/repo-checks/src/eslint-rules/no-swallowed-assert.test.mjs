@@ -59,6 +59,5 @@ test("8.14 · storytree/no-swallowed-assert refuses, in a test file, an assertio
 
   const messages = new Linter().verify(FAIL, [{ plugins: { storytree: plugin }, rules: { "storytree/no-swallowed-assert": "error" } }], { filename: "packages/b/src/fail.test.mjs" });
   assert.deepEqual(messages.map(({ line, ruleId }) => [line, ruleId]), [[6, "storytree/no-swallowed-assert"]]);
-  assert.match(messages[0].message, /assert\.match/);
-  assert.match(messages[0].message, /assert\.rejects or assert\.throws/);
+  assert.match(messages[0].message, /^assert\.match sits in a catch block that does not rethrow.*use assert\.rejects or assert\.throws instead/);
 });

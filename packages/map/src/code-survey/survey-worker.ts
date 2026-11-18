@@ -1,6 +1,4 @@
-// Capability 8 · Code survey. The worker thread an off-thread reader starts (8.16): it keeps one reader, as
-// readCodeSurvey does in place, keeping its surveys where the asker said (8.25) and answering a start from the main
-// already fetched when asked to (8.27), and answers each ask with the survey or the reason it failed.
+// Capability 8 · Code survey
 import { parentPort, workerData } from "node:worker_threads";
 
 import type { AnnotatedTree } from "@storytree/library";

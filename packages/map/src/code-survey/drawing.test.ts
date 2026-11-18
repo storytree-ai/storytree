@@ -1,19 +1,14 @@
-/**
- * Capability 8 · Code survey: an imported story's capabilities and links drawn from its code (ADR-1324 D1, D2).
- * Written against small stories shaped like the two trials: a FastAPI backend and a flat package like tinydb.
- */
+// Capability 8 · Code survey
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { readersReady } from "./code-survey.js";
 import { drawImportedStory } from "./drawing.js";
 import type { SourceFile } from "./language-reader.js";
-// Gives the Python reader its parser.
 import "./read-survey.js";
 
 const filesOf = (files: Record<string, string>): SourceFile[] => Object.entries(files).map(([path, text]) => ({ path, text }));
 
-/** A TypeScript package with src/: a leaf folder, a folder with a folder beneath it, root files, configuration, tests. */
 const SHOP = filesOf({
   "packages/shop/package.json": "{\"name\":\"@shop/shop\"}\n",
   "packages/shop/vite.config.ts": "export default {};\n",
@@ -28,7 +23,6 @@ const SHOP = filesOf({
   "packages/shop/src/pay/cards/visa.ts": "import { add } from \"../../cart/add.js\";\nexport const visa = add();\n",
 });
 
-/** A flat Python package at the top of its story, like tinydb: its root and one module import each other. */
 const TINY = filesOf({
   "setup.py": "from setuptools import setup\nsetup()\n",
   "tinydb/__init__.py": "from .database import TinyDB\nVERSION = 1\n",
@@ -40,7 +34,6 @@ const TINY = filesOf({
   "tests/test_tinydb.py": "from tinydb import TinyDB\ndef test_it(): TinyDB()\n",
 });
 
-/** A FastAPI backend: its import package under the story's folder, a leaf folder, and a loop across a folder and a module. */
 const BACKEND = filesOf({
   "backend/pyproject.toml": "[project]\nname = \"app\"\n",
   "backend/app/__init__.py": "",
@@ -138,7 +131,6 @@ test("8.62 a name taken from a file that only passes it on (a package root's re-
   ], "a TypeScript barrel's modules that import through it are not merged with it");
 });
 
-/** A Next.js app at its import's top: imports by its tsconfig's path aliases and by another of its packages' names. */
 const NEXT = filesOf({
   "tsconfig.json": "{\n  // Next.js writes comments and trailing commas\n  \"compilerOptions\": {\n    \"baseUrl\": \".\",\n    \"paths\": { \"@/*\": [\"./*\"], \"@ui\": [\"./packages/ui/src/index.ts\"], },\n  },\n}\n",
   "package.json": "{\"name\":\"taxonomy\"}\n",

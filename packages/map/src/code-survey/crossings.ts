@@ -1,22 +1,4 @@
-/**
- * Capability 3 · Counts before detail: what crosses a line drawn round files of a mapped island (ADR-0993 D6, D10).
- *
- * - The line is a set of patterns relative to the import's folder (a folder takes everything under it, `*` stays
- *   within a segment, `**` crosses segments), or full paths. The island is the import the matched files belong to;
- *   patterns matching nothing, or files of two imports, are refused. A mapped story named keeps them to its files.
- * - `cap:<id|number>` in place of a pattern names an explored capability: the line takes the folders and files it
- *   covers (ADR-0993 D5), among its story's files only. One that covers nothing, or a number two stories share, is refused.
- * - In: the files outside the line that import files inside it, the island's apart from built stories'. Out: the
- *   files inside that import files outside. Each is a count of files and of imports first; show lists each import,
- *   or refuses above the ceiling with the counts.
- * - A specifier resolves against the island's mapped files and every built file: a relative path, the importer's
- *   nearest tsconfig.json `compilerOptions.paths` (from its baseUrl, else its folder; `extends` is not followed),
- *   or a mapped package's name with or without a subpath (its literal exports, else main, else its folder's index).
- * - An island's Python file is read by the survey's Python reader, against the island's files from the mapped
- *   package's src/, then its top: `from src.db import x` at the top of a project whose src/ is a package reaches src/db.py.
- * - The island's files are read for their imports only here, when asked: the black box stays cheap until someone looks.
- *   Code that uses the files through the database, events or a name this cannot resolve is not counted, and the answer says so.
- */
+// Capability 3 · Counts before detail
 import path from "node:path";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
@@ -27,27 +9,20 @@ import { manifestFrom } from "./survey-source.js";
 import { aliasesOf, aliasTargets, type PathAliases } from "./tsconfig.js";
 
 export type CrossingOptions = {
-  /** Folders or file patterns relative to the import's folder, full paths, or `cap:<id|number>` for an explored capability. */
   readonly patterns: readonly string[];
-  /** A mapped story's id or title: the line is drawn among its files only. */
   readonly story?: string;
   readonly mode?: "counts" | "show";
 };
 
-/** Files on one side that import across the line, and how many imports they make across it. */
 export type CrossingSide = { readonly files: number; readonly imports: number };
 
-/** One import across the line: island paths are from the import's folder, built ones from the checkout. */
 export type CrossingRow = { readonly direction: "in" | "out"; readonly side: "island" | "built"; readonly from: string; readonly to: string };
 
 export type CrossingAnswer = {
   readonly mode: "counts" | "show";
-  /** The folder this machine imports the island from. */
   readonly island: string;
-  /** The mapped stories the line's files belong to. */
   readonly stories: readonly string[];
   readonly patterns: readonly string[];
-  /** Files inside the line. */
   readonly inside: number;
   readonly in: { readonly island: CrossingSide; readonly built: CrossingSide };
   readonly out: { readonly island: CrossingSide; readonly built: CrossingSide };
@@ -65,17 +40,14 @@ const COMPILED = { ".js": [".ts", ".tsx"], ".jsx": [".tsx"], ".mjs": [".mts"], "
 
 const posix = (file: string): string => path.resolve(file).split(path.sep).join("/");
 
-/** A known file of the line's world: where it is, which side it is on, and its path as rows show it. */
 export type Known = { readonly full: string; readonly side: "island" | "built"; readonly shown: string; readonly story: string };
 
-/** The file `base` names, trying TypeScript's and Node's spellings, among `known`. */
 function fileAt(base: string, known: ReadonlyMap<string, Known>): string | undefined {
   const ext = path.posix.extname(base);
   const tries = [base, ...(COMPILED[ext] ?? []).map((to) => base.slice(0, -ext.length) + to), ...EXTENSIONS.map((one) => base + one), ...EXTENSIONS.map((one) => `${base}/index${one}`)];
   return tries.find((one) => known.has(one));
 }
 
-/** Reads each folder's nearest tsconfig.json once, up to a root, for its path aliases. */
 function aliasReader(readText: (file: string) => Promise<string>) {
   const at = new Map<string, Promise<PathAliases>>();
   const own = async (dir: string): Promise<PathAliases | undefined> => {
@@ -93,26 +65,19 @@ function aliasReader(readText: (file: string) => Promise<string>) {
   return of;
 }
 
-/** A mapped package: its folder, name, literal exports and main. */
 type MappedPackage = { readonly dir: string; readonly name: string; readonly exports: Readonly<Record<string, string>>; readonly main?: string };
 
-/** The regex a pattern of the line matches paths from the import's folder with: a folder takes what is under it. */
 function patternOf(pattern: string): RegExp {
   const parts = pattern.replace(/^\.\//, "").split("/").filter((segment) => segment !== "").map((segment) => segment === "**" ? ".*" : segment.split("*").map((text) => text.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join("[^/]*"));
   return new RegExp(`^${parts.join("/").replace(/^\.\*\//, "(?:.*/)?").replace(/\/\.\*\//g, "/(?:.*/)?")}(?:/.*)?$`);
 }
 
-/**
- * Every file a mapped island's imports are read against (its mapped files and every built story's files and tests), and
- * a reader of one file's imports among them: the crossing (3.9) and the links check (3.15) read imports through this one.
- */
 export async function islandImports(
   tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>, checkout: string, island: string, readText: (file: string) => Promise<string>,
 ): Promise<{ readonly islandStories: AnnotatedTree["stories"]; readonly known: ReadonlyMap<string, Known>; readonly importsFrom: (file: Known) => Promise<string[]> }> {
   const mapped = tree.stories.filter((story) => story.mapped !== undefined && survey[story.id]?.mapped !== undefined);
   const islandStories = mapped.filter((story) => posix(survey[story.id]!.mapped!.folder) === island);
 
-  // Every file the line's world knows: the island's mapped files and every built story's files and tests.
   const known = new Map<string, Known>();
   for (const story of islandStories) {
     for (const file of survey[story.id]!.files) known.set(`${island}/${file.path}`, { full: `${island}/${file.path}`, side: "island", shown: file.path, story: story.id });
@@ -121,7 +86,6 @@ export async function islandImports(
   for (const story of tree.stories) {
     const read = survey[story.id];
     if (story.mapped !== undefined || read === undefined) continue;
-    // A built story's paths are from its package's folder (packages/<package>); rows show them from the checkout.
     for (const file of [...read.files, ...read.tests ?? []]) {
       const shown = path.posix.normalize(`packages/${packageOf(story)}/${file.path}`);
       known.set(`${root}/${shown}`, { full: `${root}/${shown}`, side: "built", shown, story: story.id });
@@ -137,7 +101,6 @@ export async function islandImports(
     return { dir, name: manifest.name, exports: manifest.exports, ...(typeof main === "string" ? { main } : {}) };
   }))).filter((one): one is MappedPackage => one !== undefined);
   const aliases = aliasReader(readText);
-  // A Python file's imports are read against the island's files, from each mapped package's root.
   const islandPaths = new Set([...known.values()].filter(({ side }) => side === "island").map(({ shown }) => shown));
   const pythonPackages = islandStories.map((story) => {
     const dir = path.posix.normalize(story.mapped!.package);
@@ -176,7 +139,6 @@ export async function islandImports(
   return { islandStories, known, importsFrom };
 }
 
-/** What crosses the line `options` draws in a mapped island of `survey`, read from disk (`readText`) only now. */
 export async function crossingsOf(
   tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>, checkout: string, options: CrossingOptions,
   { ceiling = CEILING, readText = async (file: string) => (await import("node:fs/promises")).readFile(file, "utf8") }: { ceiling?: number; readText?: (file: string) => Promise<string> } = {},
@@ -191,7 +153,6 @@ export async function crossingsOf(
   }
   if (options.patterns.length === 0) throw new Error("Name the folders or file patterns the line is drawn round.");
 
-  // An explored capability stands for the paths it covers, within its own story.
   const named = options.patterns.filter((pattern) => pattern.startsWith("cap:"));
   const covering = new Map<string, readonly string[]>();
   for (const pattern of named) {
@@ -206,7 +167,6 @@ export async function crossingsOf(
     covering.set(story.id, [...covering.get(story.id) ?? [], ...capability.covers]);
   }
 
-  // The files the line takes, by full path, with the import each belongs to.
   const inside = new Map<string, { readonly folder: string; readonly story: string }>();
   for (const story of candidates) {
     const folder = posix(survey[story.id]!.mapped!.folder);
@@ -249,7 +209,6 @@ export async function crossingsOf(
   const refused = mode === "show" && rows.length > ceiling;
   const lined = new Set([...inside.values()].map(({ story }) => story));
   return {
-    // The island as this machine names it: native separators, not the posix form matching uses.
     mode, island: path.resolve(survey[islandStories[0]!.id]!.mapped!.folder), stories: islandStories.filter((story) => lined.has(story.id)).map((story) => story.title), patterns: options.patterns,
     inside: inside.size,
     in: { island: side("in", "island"), built: side("in", "built") },
@@ -259,7 +218,6 @@ export async function crossingsOf(
   };
 }
 
-/** The CLI and the focus tool share this readable answer as well as the JSON. */
 export function formatCrossing(answer: CrossingAnswer): string {
   const count = ({ files, imports }: CrossingSide) => `${files} ${files === 1 ? "file" : "files"}, ${imports} ${imports === 1 ? "import" : "imports"}`;
   const lines = [

@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Counts before detail: a mapped story's links checked against its code's imports (question_23191b4f2a29,
- * option D). Written against a small import in a temporary folder.
- */
+// Capability 3 · Counts before detail
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -21,7 +18,6 @@ const REPOSITORY = "https://example.test/shop.git";
 const capability = (id: string, title: string, dependsOn: string[], covers?: string[]) =>
   ({ id, title, dependsOn, contracts: [], ...(covers === undefined ? {} : { covers }) });
 
-/** A shop mapped into four explored capabilities and one that covers nothing; a file in none imports the lib. */
 const tree = { arcs: [], stories: [
   { id: "story-built", title: "Built", capabilities: [] },
   { id: "story-shop", title: "shop", mapped: { from: REPOSITORY, package: ".", folders: ["."] }, capabilities: [
@@ -85,7 +81,6 @@ test("3.15 for an imported story the map lists each import between the files of 
   }
 });
 
-/** A flat Python package like tinydb: its root passes on names its modules bind, and its modules take them through it. */
 const TINY = {
   "tinydb/__init__.py": "from .database import TinyDB\nfrom .storages import JSONStorage, Storage\n",
   "tinydb/database.py": "from . import JSONStorage\n\n\nclass TinyDB:\n    storage = JSONStorage\n",
@@ -119,7 +114,6 @@ test("3.15 the links check resolves each import as the drawing does, so a map st
   }
 });
 
-/** A Next.js app: its files import each other by its tsconfig's `@/` alias and by a package's name, never by a relative path. */
 const NEXT = {
   "tsconfig.json": "{\n  // as Next.js writes it\n  \"compilerOptions\": { \"baseUrl\": \".\", \"paths\": { \"@/*\": [\"./*\"], }, },\n}\n",
   "package.json": JSON.stringify({ name: "taxonomy" }),

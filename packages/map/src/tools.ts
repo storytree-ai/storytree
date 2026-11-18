@@ -1,9 +1,4 @@
-/**
- * Capability 2 · Focus selection: the map's tools on the MCP server's one server, named in its manifest (ADR-1021), so
- * switching the map off takes them with it (ADR-1095): `focus`, with its crossing and a story's capability tree, and `health_worklist`. The extension's
- * shape is restated rather than imported, as quality assurance's is: no story may depend on the MCP server, which
- * depends on this package to serve the tools, and checks the two still fit where it mounts its tool parts (its 6.75).
- */
+// Capability 2 · Focus selection
 import type { HealthWorkItem, Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
@@ -14,44 +9,31 @@ import type { ImportedFolder } from "./code-survey/read-survey.js";
 import { formatLinks } from "./code-survey/links.js";
 import { capabilityTreeProject, crossingProject, focusProject, healthWorklistAt, linksProject } from "./read.js";
 
-/** What a tool has for one call, of what the server hands it. */
 interface ToolCall {
   readonly library: Library;
   readonly storytree: Storytree;
-  /** The folder the agent works in: the checkout the map reads. */
   readonly folder: string;
 }
 
-/** What a tool answers. */
 interface ToolAnswer {
   readonly text: string;
   readonly data?: Record<string, unknown>;
   readonly refused?: boolean;
 }
 
-/** Registers one tool: its name, what it is for, its arguments and what it does with them. */
 type Define = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>) => void;
 
-/** The map's contribution to the MCP server's one tool server. */
 export interface ToolExtension {
   readonly registerTools?: (define: Define) => void;
 }
 
-/**
- * What the part is given: the core's readings its tools use. The map does not install the library or Project and caller,
- * so the server hands them over.
- */
 export interface ToolHost {
-  /** The folders this machine imports for `project`, where the map reads the mapped stories (ADR-0993 D2). */
   readonly imports: (storytree: Storytree, project: string) => Promise<readonly ImportedFolder[]>;
-  /** What the worklist says of the capabilities a test run holds back, as the library words it. */
   readonly heldBack: (items: readonly HealthWorkItem[]) => string | undefined;
 }
 
-/** The map's tool part, named in its manifest (ADR-1021): served for every project's library. */
 export const mapToolParts = [(host: ToolHost): ToolExtension => mapTools(host)];
 
-/** The tools the map serves: focus and its crossing, and the health worklist. */
 export function mapTools({ imports: importsOf, heldBack }: ToolHost): ToolExtension {
   return {
     registerTools(define) {

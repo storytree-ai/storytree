@@ -1,35 +1,4 @@
-/**
- * Capability 8 · Code survey, read from disk: each story's package in a project's checkout, surveyed.
- * Node only (the app's main process reads it; the page cannot reach the disk).
- *
- * - Main reads an immutable snapshot of fetched origin/main without touching a checkout. An offline
- *   remote keeps the last fetched main; without a fetched main the read fails. Without origin, the
- *   primary folder is read. The map explicitly chooses the current checkout (ADR-0864).
- * - A story's package is the one named after its title ("Session management" is packages/session-management),
- *   but for a story whose package was named otherwise; a story with no such package has no code yet.
- * - A story's package manifests say which other stories' packages it depends on, through any dependency
- *   field: the code's edges between stories, which place the islands in rows (ADR-0840 D2). The app
- *   story includes both its package and desktop manifests, as plan-edges does.
- * - A package's test files outside its src (a test/ folder, say), and the helpers its tests depend on,
- *   are read too: their numbered titles reach source as a test in src would. Helpers outside src stay
- *   within the package and add no source lines; unrelated scripts there are not read.
- * - A package's coverage map (survey-coverage.json beside its src, ADR-0838 D3) is read with its files,
- *   and again only when it changed.
- * - Surveying again reads only what changed (ADR-0836 D2): a file whose size and modified time are as
- *   last read (or the same Git blob) is not read again, an unchanged story keeps its survey, the checkout is
- *   found once per folder without blocking, and one survey of a folder runs at a time.
- * - A mapped story is read from the folder this machine imports it from, as mapped-survey.ts reads it
- *   (ADR-0993 D2), never from the checkout's packages. A story's package dependency on a mapped story's
- *   package is a road to it, as one on another story's package is (ADR-0993 D8).
- * - Each story's survey carries its capabilities' nested parts and the imports reaching round a part's entry (nested-parts.ts, 8.67).
- * - A reader given a keep folder keeps each checkout's last survey of a fetched main there, by commit, plan and
- *   survey code: a start that finds main unmoved and the plan the same answers from it, reading and parsing no
- *   file (8.25). A commit is immutable, so a kept survey cannot be stale. A plan with mapped stories is not kept:
- *   an imported folder can change without a commit.
- * - A current-checkout reader given its code's name keeps the checkout's last survey in its Git directory, with
- *   every folder listing and file version the survey consulted: a start that finds each as it was, and the code
- *   and plan the same, answers from it, reading no file but the keep (8.42). A folder with no Git keeps nothing.
- */
+// Capability 8 · Code survey
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -50,36 +19,23 @@ import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
 import { ALSO_OWNED, declaredNumberOf, declaresTitle, dependenciesOf, isCodeFile, isTestFile, packageOf, packagesOf, readersReady, readsFile, storyEdges, surveyStory, type CoverageMap, type SourceFile, type SurveyPackage } from "./code-survey.js";
 
-// The survey reads Python with tree-sitter, loaded here, where it runs on Node (8.50).
 usePythonParser({ load: pythonLanguage, parse: parsePythonNow });
 
-/** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
 
-
-/** The file beside a package's src that holds its coverage map (written by the dev loop's `pnpm survey:coverage`). */
 const COVERAGE_MAP = "survey-coverage.json";
 
 export { declaredNumberOf, folderLanguages, noMergedMain, packageOf, packagesOf };
 export { languageList, SURVEYED_LANGUAGES } from "./languages.js";
 export type { SharedStore, StoreTable } from "./stores.js";
 
-/** The packages stories own beyond their own, by their own package's folder name (ADR-1066 D3). */
 type AlsoOwned = Readonly<Record<string, readonly string[]>>;
 
-/** A file's capability, and whether the survey inferred it because the file declares none. */
 export interface FileOwner {
   readonly capability: string;
   readonly inferred: boolean;
 }
 
-/**
- * ADR-0925 D4's lookup, shared by edit claims and the gate's capability-list check so they never place a
- * file differently: each of `files` (repo-relative to `root`) is placed by its own declaration, else by
- * the code survey's inference of `root`'s current checkout. A source file's header declares only when it names
- * the title of the capability its number does in the file's story (8.29); a file in any package its story owns is its (8.30). A file in no story's package, one
- * `readText` cannot read (undefined or a throw), or a barrel of re-exports only (8.59) is placed nowhere. Keys use forward slashes.
- */
 export async function capabilitiesOfFiles(root: string, files: readonly string[], tree: AnnotatedTree, {
   readText = (file: string) => readFileSync(path.join(root, file), "utf8"),
   alsoOwned = ALSO_OWNED,
@@ -98,7 +54,6 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
     if (text === undefined || onlyReExports(file, text)) continue;
     const number = declaredNumberOf({ path: file, text }, packagesOf(story, alsoOwned));
     const numbered = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
-    // A source file's header must name the capability its number does here; a test file's numbers carry no title.
     const declared = numbered !== undefined && (isTestFile(file) || declaresTitle({ path: file, text }, numbered.title)) ? numbered : undefined;
     if (declared === undefined) undeclared.push(file);
     else owners.set(file, { capability: declared.id, inferred: false });
@@ -114,13 +69,8 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
   return owners;
 }
 
-/** One `export … from "…"` statement, of names, of a namespace or of everything, at the start of the text. */
 const RE_EXPORT = /^\s*export\s+(?:type\s+)?(?:\*(?:\s+as\s+[\w$]+)?|\{[^}]*\})\s*from\s*(["'])[^"']*\1\s*;?/;
 
-/**
- * Whether `file` is a JavaScript or TypeScript barrel: its statements, past its comments and triple-slash directives,
- * are one or more re-exports and nothing else. A barrel belongs to no capability (8.59), as the lockfile does (ADR-0955 D6).
- */
 function onlyReExports(file: string, text: string): boolean {
   if (!/\.[cm]?[jt]sx?$/.test(file) || isTestFile(file)) return false;
   let rest = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
@@ -132,7 +82,6 @@ function onlyReExports(file: string, text: string): boolean {
   return found && rest.trim() === "";
 }
 
-/** The story of `tree`'s, mapped from a folder of its own or not, whose package holds `file` (repo-relative, forward slashes), with that package's folder. */
 function storyHolding(tree: AnnotatedTree, file: string, alsoOwned: AlsoOwned): { story: AnnotatedTree["stories"][number]; folder: string } | undefined {
   for (const story of tree.stories) {
     if (story.mapped !== undefined) continue;
@@ -143,7 +92,6 @@ function storyHolding(tree: AnnotatedTree, file: string, alsoOwned: AlsoOwned): 
   return undefined;
 }
 
-/** Where a file belongs: the path as given, repo-relative, and the story whose package holds it, that package, and its capability when it has one. */
 export interface FilePlace {
   readonly file: string;
   readonly path: string;
@@ -153,14 +101,7 @@ export interface FilePlace {
   readonly inferred?: boolean;
 }
 
-/**
- * Each of `paths`, absolute or relative to `folder`, placed in the checkout `folder` is in, in order: the story whose
- * package holds it and that package, whether the survey reads the file or not (an .mjs script outside src, a file not
- * yet made), and its capability as {@link capabilitiesOfFiles} places it. A path in no story's package is placed nowhere.
- */
 export async function placeFiles(folder: string, paths: readonly string[], tree: AnnotatedTree, options: Parameters<typeof capabilitiesOfFiles>[3] = {}): Promise<FilePlace[]> {
-  // Git names the top by its real path, so each path is read by its own. A path in a worktree nested in the folder's
-  // checkout (a lane's under .claude/worktrees) is read against that worktree's top, never the folder's.
   const root = realOf(await checkoutTop(realOf(folder)));
   const tops = new Map<string, Promise<string>>();
   const topOf = (at: string): Promise<string> => {
@@ -189,17 +130,12 @@ export async function placeFiles(folder: string, paths: readonly string[], tree:
   });
 }
 
-/** `folder`, or its nearest parent that exists (the file system's root always does): a file not yet made is in a checkout through it. */
 function existingFolder(folder: string): string {
   let at = folder;
   while (!existsSync(at)) at = path.dirname(at);
   return at;
 }
 
-/**
- * `file`'s real path, through its nearest folder that exists: a file not yet made has none of its own. It is the final
- * path, as Git writes a top, so a Windows 8.3 short name (a runner's temp folder) is read by its long name.
- */
 function realOf(file: string): string {
   try {
     return realpathSync.native(file);
@@ -209,7 +145,6 @@ function realOf(file: string): string {
   }
 }
 
-/** The folder a mapped story imported from `from` is read in: the top of `root`'s checkout when `from` is that top or its remote's address, else the folder of `imports` keyed by it. */
 async function importFolder(root: string, from: string, imports: readonly ImportedFolder[]): Promise<string | undefined> {
   const top = await checkoutTop(root);
   if (samePlace(top, from)) return top;
@@ -219,10 +154,6 @@ async function importFolder(root: string, from: string, imports: readonly Import
   return imports.find(({ folder, repository }) => repository === from || folder === from)?.folder;
 }
 
-/**
- * Whether `one` and `other` name the same folder: Git writes Windows paths with forward slashes and long names, where
- * a caller's may be an 8.3 short name or differ in the drive letter's case, so each is resolved to its final path.
- */
 function samePlace(one: string, other: string): boolean {
   const final = (folder: string) => {
     const resolved = path.resolve(folder);
@@ -236,25 +167,14 @@ function samePlace(one: string, other: string): boolean {
   return process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b;
 }
 
-/** The top of the checkout `folder` is in, or `folder` itself when it is in none. */
 async function checkoutTop(folder: string): Promise<string> {
   return gitText(folder, ["rev-parse", "--show-toplevel"]).catch(() => folder);
 }
 
-/**
- * The contract numbers the numbered tests in `capability`'s story package carry in `root`'s current
- * checkout, which both front doors skip when they number a new contract, from every package the story owns; none for a
- * capability `tree` lacks. A title prefixed with another story's package carries that package's numbers, not these.
- */
 export async function testedNumbers(root: string, tree: AnnotatedTree, capability: string, options: Parameters<typeof storyTests>[3] = {}): Promise<string[]> {
   return (await storyTests(root, tree, capability, options)).numbers;
 }
 
-/**
- * The drawing of imported `story` (ADR-1324 D1): its code read from `folder`, where its import is, as storyTests reads it,
- * and drawn by drawImportedStory; `stories` are the plan's, whose packages inside its folders it leaves out. Code the
- * survey cannot read draws nothing (ADR-1324 D4).
- */
 export async function drawImport(story: Pick<MappedStory, "mapped">, folder: string, stories: Parameters<typeof mappedCode>[2], readText: (file: string) => Promise<string> = (file) => readFile(file, "utf8")): Promise<Drawing> {
   const code = await mappedCode(story, folder, stories, readText);
   await readersReady(code.map((file) => file.path));
@@ -262,11 +182,6 @@ export async function drawImport(story: Pick<MappedStory, "mapped">, folder: str
   return drawImportedStory({ folder: story.mapped.package, files: [...code, ...manifests] });
 }
 
-/**
- * Whether storytree draws imported `story` itself (ADR-1324 D1, D4): its code, read where `root`'s checkout or `imports`
- * (this machine's) has its import, as storyTests finds it, gives the drawing at least one capability. False when the
- * survey cannot read its code or its import is not on this machine, the code an agent draws by reading.
- */
 export async function drawsItself(root: string, story: Pick<MappedStory, "mapped">, stories: Parameters<typeof mappedCode>[2], imports: readonly ImportedFolder[] = []): Promise<boolean> {
   const from = await importFolder(root, story.mapped.from, imports);
   if (from === undefined) return false;
@@ -275,14 +190,6 @@ export async function drawsItself(root: string, story: Pick<MappedStory, "mapped
 
 export type { Drawing, DrawnCapability } from "./drawing.js";
 
-/**
- * {@link testedNumbers}'s numbers, and whether the survey saw `capability`'s story's tests at all: unseen when the
- * checkout holds no package of the story's (a hand-planned story with no code here) and no pytest test carries a number
- * of its, so an empty list is no evidence that a test is missing. A mapped story's tests are read where it was imported
- * from (8.44): `root`'s checkout when that is its import, by the checkout's top or its remote, else the folder of
- * `imports` (this machine's) that is; with neither, it is unseen. An unseen story in a checkout whose code is only in
- * languages the survey cannot read names them as `unreadable` (5.63).
- */
 export async function storyTests(root: string, tree: AnnotatedTree, capability: string, {
   alsoOwned = ALSO_OWNED,
   survey = (plan: AnnotatedTree) => codeSurveyReader({ checkout: "current", alsoOwned }).read(root, plan),
@@ -303,20 +210,13 @@ export async function storyTests(root: string, tree: AnnotatedTree, capability: 
   }
   const surveyed = (await survey({ ...tree, stories: [story] }))[story.id];
   const numbered = (surveyed?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
-  // A Python project's pytest tests outside the packages the survey read carry numbers too, for this check alone (ADR-1189, 8.55).
   const pytest = await pytestTestedNumbers(root, tree, story.id, surveyed === undefined ? [] : own.map((name) => `packages/${name}`));
   const seen = surveyed !== undefined || pytest.length > 0;
-  // Unseen in a checkout whose code is only in languages the survey cannot read: that, not a missing package, is why (5.63).
   const languages = seen ? undefined : await folderLanguages(root).catch(() => undefined);
   const unreadable = languages !== undefined && languages.read.length === 0 && languages.unread.length > 0 ? languages.unread : undefined;
   return { numbers: [...numbered, ...pytest], seen, ...(unreadable === undefined ? {} : { unreadable }) };
 }
 
-/**
- * The titles of `capability`'s planned contracts whose number none of `tested` carries (the numbers
- * {@link testedNumbers} reads), in plan order; none for a capability `tree` lacks. A contract whose provedBy tests
- * storytree verified, passing or failing, is tested as health counts it, whatever their names carry (8.60).
- */
 export function untestedContracts(tree: AnnotatedTree, capability: string, tested: readonly string[]): string[] {
   const proven = new Set(tested);
   const contracts = tree.stories.flatMap((story) => story.capabilities).find((part) => part.id === capability)?.contracts ?? [];
@@ -327,21 +227,14 @@ export function untestedContracts(tree: AnnotatedTree, capability: string, teste
   }).map((contract) => contract.title);
 }
 
-/** A file as last read: kept while its disk fingerprint or Git blob is unchanged. */
 type Kept = { readonly version: string; readonly file: SourceFile };
 
-/** Surveys a project's checkout, keeping what it read so that surveying again reads only what changed. */
 export interface CodeSurveyReader {
-  /**
-   * The survey of every story in `tree` whose package the checkout at `folder` holds, and of every mapped story
-   * whose import is among `imports`, the folders this machine imports (ADR-0993 D2).
-   */
   read(folder: string, tree: AnnotatedTree, imports?: readonly ImportedFolder[]): Promise<ProjectSurvey>;
 }
 
 export type { ImportedFolder };
 
-/** A coverage map's text, read; an unreadable one allocates nothing. */
 function coverageFrom(text: string): CoverageMap {
   try {
     const parsed: unknown = JSON.parse(text);
@@ -351,7 +244,6 @@ function coverageFrom(text: string): CoverageMap {
   }
 }
 
-/** Where a reader keeps its surveys between starts, and what names the code that surveyed them: a survey kept by other code is not used. */
 export interface SurveyKeep {
   readonly folder: string;
   readonly code: string;
@@ -359,13 +251,10 @@ export interface SurveyKeep {
 
 const hashOf = (text: string) => createHash("sha256").update(text).digest("hex");
 
-/** What a survey read from disk consulted: each folder's listing and each file's version, null for a file that was not there. */
 type Witness = { readonly entries: readonly (readonly [string, string])[]; readonly files: readonly (readonly [string, string | null])[] };
 
-/** A survey as kept: the key it was kept for, and for a current checkout what it consulted. */
 type KeptSurvey = { readonly key: string; readonly survey: ProjectSurvey; readonly witness?: Witness };
 
-/** The checkout's survey kept in `file`, if the keep holds one; a missing or unreadable keep holds none. */
 async function keptSurvey(file: string): Promise<KeptSurvey | undefined> {
   try {
     const kept = JSON.parse(await readFile(file, "utf8")) as Partial<KeptSurvey>;
@@ -375,7 +264,6 @@ async function keptSurvey(file: string): Promise<KeptSurvey | undefined> {
   }
 }
 
-/** Keep `kept`, replacing the checkout's last; a keep that cannot be written leaves the survey answered all the same. */
 async function keepSurvey(file: string, kept: KeptSurvey): Promise<void> {
   try {
     await mkdir(path.dirname(file), { recursive: true });
@@ -388,7 +276,6 @@ async function keepSurvey(file: string, kept: KeptSurvey): Promise<void> {
 type Entries = Awaited<ReturnType<SurveySource["entries"]>>;
 const listing = (entries: Entries) => entries.map(({ name, directory, file }) => `${directory ? "d" : file ? "f" : "o"}:${name}`).sort().join("\0");
 
-/** `source`, noting every folder it lists and every file it is asked for, so that what a survey consulted can be checked again by stat alone. */
 function witnessing(source: SurveySource): { source: SurveySource; witness(): Witness } {
   const entries = new Map<string, string>();
   const files = new Map<string, string | null>();
@@ -411,7 +298,6 @@ function witnessing(source: SurveySource): { source: SurveySource; witness(): Wi
   };
 }
 
-/** Whether every folder and file `witness` names is as it was, read by listing and stat, no file's text. */
 async function stillWitnessed(source: SurveySource, witness: Witness): Promise<boolean> {
   const checks = [
     ...witness.entries.map(async ([directory, was]) => listing(await source.entries(directory)) === was),
@@ -420,15 +306,9 @@ async function stillWitnessed(source: SurveySource, witness: Witness): Promise<b
   return (await Promise.all(checks)).every(Boolean);
 }
 
-/** The survey's own code: TypeScript, its tests left out. */
 const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 
-/**
- * The name of the survey's code at `at` (8.43): a hash of every source file, tests left out, in the folder of the file
- * `at` names, a path or a file URL (this module's own by default). In development that is the survey's own folder; in a bundle, the bundle
- * standing for it. None when they cannot be read.
- */
 export function surveyCodeName(at: string | URL = import.meta.url): string | undefined {
   try {
     const folder = path.dirname(typeof at === "string" && !at.startsWith("file:") ? at : fileURLToPath(at));
@@ -444,21 +324,10 @@ export function surveyCodeName(at: string | URL = import.meta.url): string | und
 
 export function codeSurveyReader({ readFile: readText = (file: string) => readFile(file, "utf8"), checkout: checkoutScope = "main", keep, codeName, startFromFetched = false, alsoOwned = ALSO_OWNED }: {
   readFile?(file: string): Promise<string>;
-  /** The packages stories own beyond the one named after their title (8.30); by default, those package-of.ts declares. */
   alsoOwned?: AlsoOwned;
-  /** Main reads fetched origin/main; current reads the caller's worktree. Without origin, main reads the primary folder. */
   checkout?: "main" | "current";
-  /** Where surveys of a fetched main are kept between starts (8.25); without it nothing is kept. */
   keep?: SurveyKeep;
-  /**
-   * The name of the code surveying, asked once when first needed: a current-checkout reader given one keeps the checkout's
-   * last survey in its Git directory between starts (8.42), by that name. None keeps nothing.
-   */
   codeName?(): string | undefined;
-  /**
-   * A start's reader (8.27): its first ask of a repository is answered from the main already fetched, when there is one, while
-   * it fetches; its next ask waits on that fetch and surveys what it brought. Without it, every ask waits on its own fetch.
-   */
   startFromFetched?: boolean;
 } = {}): CodeSurveyReader {
   const sourceAt = surveySourceReader(checkoutScope, readText, startFromFetched);
@@ -469,7 +338,6 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
   const edged = new Map<string, { readonly base: StorySurvey; readonly survey: StorySurvey }>();
   const mappedReader = mappedSurveyReader(readText);
 
-  /** A file at `full`, its path from `root` with forward slashes, read again only if it changed; undefined when there is none. */
   async function fileAt(source: SurveySource, root: string, full: string, seen: Map<string, Kept>, testSupport?: true): Promise<SourceFile | undefined> {
     const found = await source.file(full);
     if (found === undefined) return undefined;
@@ -482,7 +350,6 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     return now.file;
   }
 
-  /** Every code file under `dir`, its path from `root` with forward slashes, read again only if it changed. */
   async function filesUnder(source: SurveySource, root: string, dir: string, seen: Map<string, Kept>): Promise<SourceFile[]> {
     const entries = await source.entries(dir);
     const found = await Promise.all(entries.map(async (entry): Promise<SourceFile[]> => {
@@ -495,7 +362,6 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     return found.flat();
   }
 
-  /** Candidate paths outside src: enumerate without reading unrelated scripts or leaving the package. */
   async function codeBeside(source: SurveySource, root: string, dir: string): Promise<string[]> {
     const entries = await source.entries(dir);
     const found = await Promise.all(entries.map(async (entry): Promise<string[]> => {
@@ -506,10 +372,6 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     return found.flat();
   }
 
-  /**
- * The build steps and cleanups storytree.check.json's `placement.plumbing` declares, keyed by the importing file's
- * repository path and the package folder it reaches (`packages/<to>`); empty when there is none or it does not parse.
- */
 async function declaredPlumbing(source: SurveySource, checkout: string): Promise<ReadonlyMap<string, "build step" | "cleanup">> {
   const found = await source.file(path.join(checkout, "storytree.check.json"));
   if (found === undefined) return new Map();
@@ -526,14 +388,11 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
       ? [[`${path.posix.normalize(call.from)} packages/${call.to}`, call.kind] as const] : []));
 }
 
-/** The checkout's last kept survey by its file, and the key it was kept for: written again only when that changes. */
   const keptKeys = new Map<string, string>();
-  /** Each current checkout's last survey by its keep's file, with what it consulted: the disk's keep is read only before there is one. */
   const keptCurrent = new Map<string, KeptSurvey>();
   const gitDirectories = new Map<string, Promise<string | undefined>>();
   let code: { readonly name: string | undefined } | undefined;
 
-  /** Where the current checkout at `checkout` keeps its survey of `tree`, and the key it keeps it for; none without Git or a code name. */
   async function currentKeep(checkout: string, tree: AnnotatedTree): Promise<{ file: string; key: string } | undefined> {
     if (checkoutScope !== "current" || codeName === undefined || tree.stories.some((story) => story.mapped !== undefined)) return undefined;
     code ??= { name: codeName() };
@@ -573,21 +432,18 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
     }
     const seen = new Map<string, Kept>();
     const mapped = mappedReader.read(tree.stories, imports);
-    mapped.catch(() => {}); // Awaited below; a failure there is the survey's.
+    mapped.catch(() => {});
     const surveys = await Promise.all(tree.stories.filter((story) => story.mapped === undefined).map(async (story) => {
-      // Every package the story owns is read, each path from the one named after its title (8.30).
       const owned = packagesOf(story, alsoOwned);
       const storyPackage = owned[0]!;
       const root = path.join(checkout, "packages", storyPackage);
       const roots = owned.map((name) => path.join(checkout, "packages", name));
       const sources = (await Promise.all(roots.map((dir) => filesUnder(source, root, path.join(dir, "src"), seen)))).flat();
-      // The desktop is the app story's frame, just as plan-edges maps it (ADR-0864 D4).
       if (storyPackage === "app") sources.push(...await filesUnder(source, root, path.join(checkout, "apps", "desktop", "src"), seen));
       if (sources.length === 0) return [];
       const beside = (await Promise.all(roots.map((dir) => codeBeside(source, dir, dir)))).flat();
       const manifestPaths = [...roots.map((dir) => path.join(dir, "package.json")), ...(storyPackage === "app" ? [path.join(checkout, "apps", "desktop", "package.json")] : [])];
       const manifests = await Promise.all(manifestPaths.map((file) => fileAt(source, root, file, seen)));
-      // A Python package's pyproject.toml names its project and the projects it depends on (8.52).
       const pyprojects = await Promise.all(roots.map((dir) => fileAt(source, root, path.join(dir, "pyproject.toml"), seen)));
       const maps = await Promise.all(roots.map((dir) => fileAt(source, root, path.join(dir, COVERAGE_MAP), seen)));
       const capabilities = JSON.stringify(story.capabilities.map(({ id, title }) => [id, title]));
@@ -599,12 +455,9 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
         const project = file === undefined ? undefined : pyprojectFrom(file.text);
         return project === undefined ? [] : [{ ...project, imports: {}, parts: {}, root: path.posix.dirname(path.posix.normalize(`packages/${storyPackage}/${file!.path}`)) + "/" }];
       }));
-      // Survey in repository coordinates so imports crossing the app/desktop seam can return to
-      // packages/app; publish the package-relative paths the forest and map already consume.
       const base = `packages/${storyPackage}`;
       const inCheckout = (file: string) => path.posix.normalize(`${base}/${file}`);
       const inPackage = (file: string) => path.posix.relative(base, file);
-      // Keep syntax-cache identities across reads and share them with surveyStory below.
       const inRepository = (file: SourceFile): SourceFile => {
         let located = positioned.get(file);
         if (located === undefined) {
@@ -636,7 +489,6 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
       const files = [...sources, ...maps.flatMap((map) => map === undefined ? [] : [map])];
       const packages = JSON.stringify(read.filter(pkg => Object.keys(pkg.exports).length > 0 || Object.keys(pkg.imports).length > 0).map(({ root, name, exports, imports }) => ({ root, name, exports, imports })));
       if (last !== undefined && last.capabilities === capabilities && last.packages === packages && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey, read, sources.map(inRepository), base] as const];
-      // Each package's coverage map is keyed from its own folder.
       const coverage = Object.fromEntries(maps.flatMap((map, at) => map === undefined ? [] : Object.entries(coverageFrom(map.text)).map(([file, counts]) => [path.posix.normalize(`packages/${owned[at]}/${file}`), counts] as const)));
       const measured = surveyStory(sources.map(inRepository), story.capabilities, coverage, owned, read);
       const relativeImport = ({ from, to }: { from: string; to: string }) => ({ from: inPackage(from), to: inPackage(to) });
@@ -645,20 +497,14 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
         imports: measured.imports.map(relativeImport),
         tests: (measured.tests ?? []).map((file) => ({ ...file, path: inPackage(file.path), imports: file.imports.map(relativeImport) })),
       };
-      // Its capabilities' nested parts and the imports reaching round a part's entry (ADR-1339 D1).
       const parts = nestedParts(fresh, read.length === 0 ? [""] : read.map((pkg) => inPackage(pkg.root)));
       if (parts !== undefined) Object.assign(fresh, { parts });
       surveyed.set(story.id, { files, capabilities, packages, survey: fresh });
       return [[story.id, fresh, read, sources.map(inRepository), base] as const];
     }));
-    // Each story's package dependencies on other stories' packages, by package name: a mapped story's too, so a
-    // built package that imports one has a road to it (ADR-0993 D8).
     const mappedRead = await mapped;
     const storyOf = new Map([...mappedRead.storyOf, ...surveys.flat().flatMap(([id, , read]) => read.map(({ name }) => [name, id] as const))]);
-    // And the edges its imports of them derive, between capabilities (ADR-0991 D1, D2), each path from its own package.
     const baseOf = new Map(surveys.flat().map(([id, , , , base]) => [id, base] as const));
-    // Build steps and cleanups no code shows, as the checkout declares them (8.33): matched by the importing file's
-    // repository path and the package it reaches, since story ids need not be package names.
     const plumbingOf = await declaredPlumbing(source, checkout);
     const derived = storyEdges(surveys.flat().map(([id, survey, read, files, base]) => ({
       id, files, packages: read,
@@ -697,7 +543,6 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
 
   return {
     read(folder, tree, imports = []) {
-      // One survey of a folder at a time: an ask while one runs takes its answer (ADR-0836 D2).
       const now = running.get(folder) ?? survey(folder, tree, imports).finally(() => running.delete(folder));
       running.set(folder, now);
       return now;
@@ -707,19 +552,10 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
 
 const shared = codeSurveyReader();
 
-/** The survey of every story in `tree` whose package the checkout at `folder` holds, and of each mapped story `imports` holds, read through one kept reader. */
 export function readCodeSurvey(folder: string, tree: AnnotatedTree, imports?: readonly ImportedFolder[]): Promise<ProjectSurvey> {
   return shared.read(folder, tree, imports);
 }
 
-/**
- * A reader whose surveys run on a worker thread started from `workerFile` (this folder's survey-worker, or a
- * bundle of it), so parsing never holds the asking thread's event loop (8.16). The worker starts on the first ask,
- * keeps its reader between asks, and is started again after it dies; close ends it. Given `keptIn`, it keeps its
- * surveys there between starts (8.25), named by the survey's code, every source file beside the worker (8.43), so a survey
- * kept by other survey code is not used; with no name for that code it keeps nothing.
- * Given `startFromFetched`, its reader answers a start's first ask from the main already fetched (8.27).
- */
 export function offThreadSurveyReader(workerFile: string | URL, options: { execArgv?: string[]; keptIn?: string; startFromFetched?: boolean } = {}) {
   const codeName = options.keptIn === undefined ? undefined : surveyCodeName(workerFile);
   const keep: SurveyKeep | undefined = options.keptIn === undefined || codeName === undefined ? undefined : { folder: options.keptIn, code: codeName };
@@ -743,7 +579,6 @@ export function offThreadSurveyReader(workerFile: string | URL, options: { execA
     });
     made.on("error", failAll);
     made.on("exit", (code) => { if (worker === made) failAll(new Error(`the survey worker stopped (exit ${code})`)); });
-    // An idle worker holds no process open; it is unref'd after its listeners, since attaching one refs it again.
     made.unref();
     worker = made;
     return made;
@@ -754,7 +589,6 @@ export function offThreadSurveyReader(workerFile: string | URL, options: { execA
         const id = next++;
         waiting.set(id, { resolve, reject });
         const asking = started();
-        // While an ask waits, its answer holds the process open.
         asking.ref();
         asking.postMessage({ id, folder, tree, imports });
       });

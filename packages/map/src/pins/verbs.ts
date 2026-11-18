@@ -1,9 +1,4 @@
-/**
- * Capability 9 · Agents' pins. The pin verbs, declared once (ADR-0969 D2) and named under `verbs` in the package's
- * manifest (ADR-1033): the command line mounts them as its `pin` family and the MCP server as the `pin`, `pins` and
- * `retire_pin` tools. As the map's other verbs, only the library's command schema's types are read here, and its refusal
- * and the caller's imports inside the acts.
- */
+// Capability 9 · Agents' pins
 import type { Library } from "@storytree/library";
 import type { Verb, VerbContext, VerbFamily, VerbInputs } from "@storytree/library/verbs";
 import type { ImportedFolder } from "../code-survey/read-survey.js";
@@ -17,7 +12,6 @@ async function refuse(message: string, misuse = false): Promise<never> {
   throw new VerbRefusal(message, { misuse });
 }
 
-/** The library's pin records, as the pins read and write them. */
 function shelfOf(library: Library, context: VerbContext): PinShelf {
   return {
     list: () => library.list("pin"),
@@ -27,12 +21,10 @@ function shelfOf(library: Library, context: VerbContext): PinShelf {
   };
 }
 
-/** A pin verb's context: a door may hand the world the pins are read against; left out, the current checkout's is read. */
 export interface PinVerbContext extends VerbContext {
   readonly pinWorld?: () => Promise<PinWorld>;
 }
 
-/** The current checkout's plan, survey and stores, which every pin is read against. */
 async function worldOf(context: PinVerbContext): Promise<PinWorld> {
   if (context.pinWorld !== undefined) return context.pinWorld();
   const [{ pinWorldAt }, { importsOf, machineOf, storytreeHome }] = await Promise.all([import("../read.js"), import("@storytree/project-and-caller")]);
@@ -41,7 +33,6 @@ async function worldOf(context: PinVerbContext): Promise<PinWorld> {
   return pinWorldAt(context.library, context.folder, imports);
 }
 
-/** The commit a pin was checked at: the one given, else the checkout at `folder`'s HEAD; undefined when Git cannot say. */
 export async function checkedAt(commit: string | undefined, folder: string): Promise<string | undefined> {
   if (commit !== undefined) return commit;
   const { execFile } = await import("node:child_process");
@@ -118,12 +109,10 @@ const pinRetire: Verb<typeof retireInputs, PinVerbContext> = {
   },
 };
 
-/** What the habits card says of the pins, named under `guidance` in the package's manifest beside the map's. */
 export const pinGuidance: readonly string[] = [
   "Pin a lasting finding on the map with `pin`; `pins` lists them, `retire_pin` retires one.",
 ];
 
-/** The command line's `pin` family, beside the map's. */
 export const PIN_FAMILIES: readonly VerbFamily<PinVerbContext>[] = [
   { name: "pin", summary: "agents' lasting pins on the map, with their evidence: new, list, retire", order: 17.5, verbs: [pinNew, pinList, pinRetire] as Verb<VerbInputs, PinVerbContext>[] },
 ];

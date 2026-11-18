@@ -106,12 +106,9 @@ test("3.11 with --capabilities, the map answers a selected story's capabilities 
 });
 
 test("3.13 a new process's map or diff focus on an unchanged Git checkout parses no file of it, and diff focus shares the map's reading", async () => {
-  // By its real path, as Git names the checkout: a temporary folder can sit behind a link (macOS) or a short name (Windows).
   const folder = realpathSync.native(await mkdtemp(path.join(tmpdir(), "map-new-process-")));
   const health = { reported: { state: "not-checked" }, verified: { state: "passing" } };
   const plan = { arcs: [], stories: [{ id: "app", title: "The app", health, capabilities: [{ id: "projects", title: "2 · Projects", health, dependsOn: [], contracts: [{ id: "empty", title: "2.5 empty view", health }] }] }] };
-  // Each start is a fresh worker thread, with its own copy of every module: it counts the checkout's files it reads,
-  // its Git directory left out, through a map and then a diff focus.
   const script = path.join(await mkdtemp(path.join(tmpdir(), "map-new-process-script-")), "start.mjs");
   await writeFile(script, `
       import { parentPort, workerData } from "node:worker_threads";
@@ -166,7 +163,6 @@ test("3.13 a new process's map or diff focus on an unchanged Git checkout parses
 
 test("3.12 a repeat map or focus on an unchanged checkout reads and parses no file; a changed file is read again", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "map-repeat-"));
-  // Every file the survey reads from disk goes through fs/promises' readFile: count those in this checkout.
   const read: string[] = [];
   const readFile = fsPromises.readFile;
   mock.method(fsPromises, "readFile", (file: unknown, ...rest: unknown[]) => {

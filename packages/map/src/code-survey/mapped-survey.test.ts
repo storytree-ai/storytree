@@ -1,7 +1,4 @@
-/**
- * Capability 8 · Code survey of imported stories (ADR-0993 D2, D3, D5): an imported project's packages, read
- * from the folder this machine imports it from, as black boxes. Written against small imports in temporary folders.
- */
+// Capability 8 · Code survey
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
@@ -17,7 +14,6 @@ import { codeSurveyReader } from "./read-survey.js";
 
 const REPOSITORY = "https://example.test/shop.git";
 
-/** An imported story of `from`, for `package`, holding its code in `folders`. */
 const mappedStory = (id: string, title: string, pkg: string, from = REPOSITORY, folders = [pkg]) =>
   ({ id, title, capabilities: [], mapped: { from, package: pkg, folders } });
 
@@ -29,7 +25,6 @@ const tree = { arcs: [], stories: [
   mappedStory("story-away", "away", ".", "/not/imported/here"),
 ] } as unknown as AnnotatedTree;
 
-/** Write `files` (path from `root` to text) under `root`. */
 async function write(root: string, files: Record<string, string>): Promise<void> {
   for (const [file, text] of Object.entries(files)) {
     await mkdir(path.dirname(path.join(root, file)), { recursive: true });
@@ -43,7 +38,6 @@ const commit = (cwd: string) => {
   git(cwd, "-c", "user.name=Survey test", "-c", "user.email=survey@example.test", "-c", "commit.gpgsign=false", "commit", "-qm", "fixture");
 };
 
-/** An imported shop: a workspace root with two packages, each depending on the other. */
 const SHOP = {
   "package.json": JSON.stringify({ name: "shop", workspaces: ["packages/*"] }),
   "scripts/build.mjs": "export const build = 1;\n",
@@ -179,7 +173,6 @@ test("8.24 work done at source in an imported checkout counts before it is commi
       { path: "packages/cart/src/index.ts", lines: 1 },
       { path: "packages/cart/src/pages/new.tsx", lines: 2 },
     ], "an edit and a new file count from disk, an ignored file does not, a deleted one leaves");
-    // Git names the checkout by its real path (macOS's temporary folder sits behind a link).
     const real = await realpath(shop);
     assert.deepEqual(read.sort(), [path.join(real, "packages/cart/src/index.ts"), path.join(real, "packages/cart/src/pages/new.tsx")], "only the changed files are read");
     assert.equal(second["story-pay"], first["story-pay"], "an island with no local work keeps its survey");
@@ -198,7 +191,6 @@ test("8.23 a built story's package dependency on an imported story's package is 
   const shop = await mkdtemp(path.join(tmpdir(), "mapped-built-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
   try {
-    // The old code names the new package too (ADR-0993 D9): still no road that way.
     await write(shop, { ...SHOP, "packages/pay/package.json": JSON.stringify({ name: "@shop/pay", dependencies: { "@x/built": "1.0.0" } }) });
     await write(trunk, {
       "packages/built/package.json": JSON.stringify({ name: "@x/built", dependencies: { "@shop/cart": `link:${path.join(shop, "packages/cart")}` } }),
@@ -280,7 +272,6 @@ test("8.58 an imported story's source file, JavaScript, TypeScript or Python, im
       "packages/cart/src/lines/total.ts": "import { rate } from \"../tax.js\";\nexport const total = rate;\n",
       "packages/cart/src/tax.ts": "export const rate = 1;\n",
       "packages/cart/src/index.test.ts": "import { total } from \"./lines/total.js\";\ntest(\"1.1 a cart\", () => total);\n",
-      // A Python service with src/ and no pyproject, as checkbox is: its absolute imports are searched from its package's src/, then the package.
       "interview/src/main.py": "import os\nfrom src.retrieve import search\nfrom packet import compile_packet\nfrom src import auth\n",
       "interview/src/auth.py": "def caller():\n    return 1\n",
       "interview/src/retrieve.py": "def search(q):\n    return [q]\n",

@@ -1,8 +1,4 @@
-/**
- * Capability 8 · Code survey (the map story): each story's code files, their lines, the capability
- * each belongs to by the contract numbers its tests name, and the imports between them (ADR-0804 D3,
- * D4). Written against a small package tree held in memory.
- */
+// Capability 8 · Code survey
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -187,7 +183,6 @@ test("8.10 proof ranges validate the whole title before expanding at most 256 en
     ["3.1–3.2, 3.4–3.3", []],
     ["3.1–4.2", []],
     ["3.9007199254740992–3.9007199254740992", []],
-    // Large endpoints are exercised only after the pre-expansion guard exists.
     ["3.1–3.9007199254740991", []],
     ["3.1–3.2, 3.3–3.9007199254740991", []],
     ["3.9007199254740990–3.9007199254740991", ["3.9007199254740990", "3.9007199254740991"]],
@@ -410,6 +405,6 @@ test("8.41 deciding which strings are a call's first argument reads text in prop
 
 test("8.15 an opening comment of hundreds of thousands of stars that never names a capability is read as no declaration without stalling", { timeout: 20_000 }, async () => {
   assert.equal(declarationOf(`/*${"*".repeat(300_000)}`), undefined);
-  await new Promise((resolve) => setTimeout(resolve, 0)); // a stalled read now fails at the test's timeout, which a synchronous call cannot reach
+  await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(declarationOf("/*** \n * Capability 4 ·\tHooks */")?.title, "Hooks */");
 });

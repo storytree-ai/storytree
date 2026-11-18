@@ -1,20 +1,4 @@
-/**
- * Capability 3 · Counts before detail: an imported story's links checked against its code's own imports (3.15,
- * question_23191b4f2a29 option D).
- *
- * - The capabilities checked are the story's that cover folders or files (ADR-0993 D5); a file belongs to the one the
- *   survey gives it. An import from a file of capability A to a file of capability B backs the link A depends on B.
- * - Each import is resolved as the drawing resolves it (importedLinks, 8.62), by path, by a package's name or by the
- *   nearest tsconfig's path alias, with the package.json and tsconfig.json files above the code, so a map storytree drew reports no missing
- *   and no unbacked link: a name taken from a file that only passes it on is followed to the file that binds it.
- * - Missing: imports from A's files to B's files with no link A depends on B. Unbacked: a link A depends on B, both
- *   covering files in this story, that no import from A's files to B's backs; the imports from B's files to A's, if any, are
- *   listed with it, since the link may be drawn the wrong way round. A link to a capability that covers nothing, or to
- *   another story's, cannot be checked here, and is named as such.
- * - Imports within one capability, or from or to a file in none, are no link's. Each link's imports are listed, or above
- *   the ceiling only counted. It informs: it writes no plan record. Code reached through the database, events or a name
- *   this cannot resolve is not counted, and the answer says so.
- */
+// Capability 3 · Counts before detail
 import path from "node:path";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
@@ -25,23 +9,16 @@ import { importedLinks, manifestsOf } from "./drawing.js";
 
 type Named = { readonly id: string; readonly title: string };
 
-/** One import behind a link, by paths from the import's folder. */
 export type LinkImport = { readonly from: string; readonly to: string };
 
-/** A link, A depends on B, with how many imports run from A's files to B's and, below the ceiling, each of them. */
 export type LinkRow = { readonly from: Named; readonly to: Named; readonly count: number; readonly imports: readonly LinkImport[] };
 
 export type LinksAnswer = {
   readonly story: Named;
-  /** The folder this machine imports the story from. */
   readonly island: string;
-  /** How many of the story's capabilities cover files. */
   readonly covering: number;
-  /** Imports between two capabilities' files that no link covers. */
   readonly missing: readonly LinkRow[];
-  /** Links between two capabilities that cover files that no import backs, each with the imports running the other way. */
   readonly unbacked: readonly (LinkRow & { readonly reverse: readonly LinkImport[] })[];
-  /** Links this cannot check, and why. */
   readonly unchecked: readonly { readonly from: Named; readonly to: Named; readonly why: string }[];
   readonly refused: boolean;
   readonly ceiling: number;
@@ -50,7 +27,6 @@ export type LinksAnswer = {
 
 const posix = (file: string): string => path.resolve(file).split(path.sep).join("/");
 
-/** The links of the mapped story `select` names (story:<name|id>) checked against its imports, read from disk only now. */
 export async function linksOf(
   tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>, checkout: string, select: string,
   { ceiling = CEILING, readText = async (file: string) => (await import("node:fs/promises")).readFile(file, "utf8") }: { ceiling?: number; readText?: (file: string) => Promise<string> } = {},
@@ -64,17 +40,14 @@ export async function linksOf(
   for (const each of tree.stories) for (const { id, title } of each.capabilities) named.set(id, { id, title });
   const covering = new Set(story.capabilities.filter(({ covers }) => covers !== undefined && covers.length > 0).map(({ id }) => id));
 
-  // Each file of a capability that covers files, by its path from the import's folder, and the capability it belongs to.
   const owner = new Map<string, string>();
   for (const file of survey[story.id]!.files) if (file.capability !== undefined && covering.has(file.capability)) owner.set(file.path, file.capability);
 
-  // The story's code read now, its imports resolved as the drawing resolves them (importedLinks).
   const code = (await Promise.all(survey[story.id]!.files.map(async ({ path: file }): Promise<SourceFile | undefined> => {
     const text = await readText(`${island}/${file}`).catch(() => undefined);
     return text === undefined ? undefined : { path: file, text };
   }))).filter((file): file is SourceFile => file !== undefined);
   await readersReady(code.map((file) => file.path));
-  // The imports from one capability's files to another's, by `from>to` capability ids.
   const between = new Map<string, LinkImport[]>();
   const manifests = await manifestsOf(code, (file) => readText(`${island}/${file}`).catch(() => undefined));
   for (const { from, to, files } of importedLinks(story.mapped.package, [...code, ...manifests], owner)) {
@@ -117,7 +90,6 @@ export async function linksOf(
   };
 }
 
-/** The CLI and the focus tool share this readable answer as well as the JSON. */
 export function formatLinks(answer: LinksAnswer): string {
   const imports = (count: number) => `${count} ${count === 1 ? "import" : "imports"}`;
   const rows = (list: readonly LinkImport[]) => list.map(({ from, to }) => `    ${from} -> ${to}`);

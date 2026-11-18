@@ -1,7 +1,4 @@
-/**
- * Capability 8 · Code survey: tree-sitter's Python grammar loads from its bytes and parses, from source and from a
- * bundle built as the app's survey worker and the commands are, with no node_modules beside it.
- */
+// Capability 8 · Code survey
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";

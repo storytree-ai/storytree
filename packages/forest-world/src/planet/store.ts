@@ -1,29 +1,17 @@
-/**
- * Capability 4 · The planet. A shared store's own flat object on the sheet (ADR-1332 D1): a slab beside the islands, never
- * part of one's land, with its tables laid inside it as tiles in rows, west to east then north to south, in the order given.
- * Each column of tiles is as wide as the longest table name in it, and a name is drawn at a size that scales with its tile,
- * so every name stays whole inside its own tile at whatever zoom the map draws it.
- * A store with no tables (a Redis, say) is a bare slab. On the slab x runs east and z south, about its middle, in ground units.
- */
+// Capability 4 · The planet
 
-/** One table's tile on its store: its middle and size. */
 export interface StoreTile { readonly name: string; readonly x: number; readonly z: number; readonly width: number; readonly depth: number }
 
-/** A store's slab, its tables' tiles, and its reach: how far from its middle its corners lie. */
 export interface StoreLayout { readonly width: number; readonly depth: number; readonly reach: number; readonly tiles: readonly StoreTile[] }
 
-/** The least tile, so a store of short names stands as large as a middling island. */
 const TILE_WIDTH = 80;
-/** A table's name is drawn 13px across where a ground unit is a pixel: under 8 a character, with room at its ends. */
 const NAME_SIZE = 13;
 const CHARACTER = 8;
 const NAME_ROOM = 16;
 const TILE_DEPTH = 30;
 const GAP = 8;
 const PAD = 12;
-/** The strip along the slab's north edge kept for the store's own name. */
 const HEADING = 36;
-/** The least slab, for a store with no tables. */
 const BARE = { width: 120, depth: 60 };
 
 export function storeLayout(tables: readonly string[]): StoreLayout {
@@ -44,14 +32,10 @@ export function storeLayout(tables: readonly string[]): StoreLayout {
   return { width, depth, reach: Math.hypot(width, depth) / 2, tiles };
 }
 
-/** The size in pixels a table's name is drawn at where the map draws a ground unit `pixels` across: 13px at a pixel a unit or
- * nearer, and smaller with its tile as the map draws it smaller (its opening view of a large project draws a unit under a pixel). */
 export function tableNameSize(pixels: number): number {
   return NAME_SIZE * Math.min(1, pixels);
 }
 
-/** Each table's name size, by name, where the map draws the point (x, z) of the slab at `drawn(x, z)` in the window's pixels:
- * a tile's pixels a ground unit are its west and east edges' distance apart in the window over its width. */
 export function tableNameSizes(laid: StoreLayout, drawn: (x: number, z: number) => readonly [number, number]): Map<string, number> {
   return new Map(laid.tiles.map((tile) => {
     const [wx, wy] = drawn(tile.x - tile.width / 2, tile.z), [ex, ey] = drawn(tile.x + tile.width / 2, tile.z);

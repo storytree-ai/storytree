@@ -1,12 +1,10 @@
-/** Capability 4 · The planet. */
+// Capability 4 · The planet
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, PerspectiveCamera, ShaderMaterial, Vector3, type Camera, type Mesh, type Object3D } from 'three';
 import { usePlanetGrowth } from './PlanetGrowth.js';
 import { advanceLaneClock, LANE_DOTS, LANE_STRANDS, laneDrawn, laneScale, laneDrawSeconds, laneHead, laneHeads, laneProgress, laneShown, restShown, SEA_LANE, SEA_LANE_FILL, SEA_LANE_ONE, type LaneRoute, type RestStretch } from './lanes.js';
 
-/** A lane's strip: at each vertex its physical distance along the route (`along`) and the way out to its side at half
- * the strip's width (`sideways`), so a shader can draw its front and head. */
 export function laneRibbon(route: { points: Vector3[]; widths: readonly number[] }, lift = 0): BufferGeometry {
   const position: number[] = [], sideways: number[] = [], along: number[] = [], index: number[] = [];
   let distance = 0;
@@ -31,13 +29,8 @@ export function laneRibbon(route: { points: Vector3[]; widths: readonly number[]
   return geometry;
 }
 
-/** The head (ADR-1000 D2), warm lamplight rather than a white spark: how far behind the front its brightness fades, how
- * much wider than the body it runs, and the cream it is tinted towards and how far. */
 export const LANE_HEAD = { tail: 34, widen: 0.2, tint: '#ffe2b0', mix: 0.55 } as const;
 
-/** Drawn where a fragment's distance along the route is at most `uDrawn`: the front lies at its exact physical
- * distance wherever it falls between samples. Near the front the strip warms towards cream and widens a little (the head).
- * Colours are written as authored (the globe's exact-colour mode). */
 export function laneMaterial(colour: string, opacity: number): ShaderMaterial {
   return new ShaderMaterial({
     uniforms: { uColour: { value: new Color(colour) }, uOpacity: { value: opacity }, uDrawn: { value: -1 }, uHead: { value: 0 }, uScale: { value: 1 },
@@ -63,19 +56,12 @@ void main() {
   });
 }
 
-/** Set a lane's front `progress` of the way along its `length`, its head at `head` brightness, its width `scale` times
- * its own (`laneScale`); nothing at 0. */
 export function drawLane(material: ShaderMaterial, progress: number, head: number, length: number, scale = 1): void {
   material.uniforms.uDrawn!.value = progress > 0 ? progress * length : -1;
   material.uniforms.uHead!.value = head;
   material.uniforms.uScale!.value = scale;
 }
 
-/** The dots at rest as one mesh: a flat quad a dot, lifted off the sea a little (under a selection's fill), carrying its
- * place on its stretch's route (`position`), the way along the route (`ahead`), its corner at ±1 (`corner`) for the shader
- * to round and size it, its size, its place in its strand (`order`), its strand's place across the route (`across`), how
- * far it lies from the stretch's two ends (`ends`), how bright its stretch is (`bright`) and whether it shows (`shown`,
- * set by `drawDots`). */
 export function laneDots(stretches: readonly RestStretch[], lift = 0.08): BufferGeometry {
   const position: number[] = [], ahead: number[] = [], corner: number[] = [], size: number[] = [], order: number[] = [], across: number[] = [],
     ends: number[] = [], bright: number[] = [], index: number[] = [];
@@ -111,14 +97,8 @@ export function laneDots(stretches: readonly RestStretch[], lift = 0.08): Buffer
   return geometry;
 }
 
-/** How far a bright stretch's dots (`RestStretch.bright`, 1) are tinted towards the selection's pale fill, and how much
- * more opaque they are, so the lanes above LANE_STRANDS.cap still read on a trunk. */
 export const LANE_BRIGHT = { mix: 0.6, opacity: 0.33 } as const;
 
-/** Round dots in the lane blue at the dots' opacity, each `uScale` times its size, every `uScale`th of a strand kept so
- * they stay about three times their size apart (`laneScale`), each strand set its place across the route times
- * `uScale`, fanning in at the stretch's ends as `strandSpread` does; a bright stretch's dots tinted pale and more opaque;
- * a dot not `shown` is not drawn. */
 export function laneDotMaterial(): ShaderMaterial {
   return new ShaderMaterial({
     uniforms: { uColour: { value: new Color(SEA_LANE) }, uBright: { value: new Color(SEA_LANE_FILL) }, uOpacity: { value: LANE_DOTS.opacity }, uScale: { value: 1 },
@@ -146,8 +126,6 @@ void main() {
   });
 }
 
-/** Dim the dots while a story is `selected` (ADR-1278 D2), size them by `scale` (`laneScale`), and show each stretch's
- * once its lanes' islands have risen (4.33); true when that changed which show. */
 export function drawDots(material: ShaderMaterial, geometry: BufferGeometry, stretches: readonly RestStretch[], selected: boolean, island: (story: string) => number, scale = 1): boolean {
   material.uniforms.uOpacity!.value = LANE_DOTS.opacity * (selected ? LANE_DOTS.dim : 1);
   material.uniforms.uScale!.value = scale;
@@ -161,7 +139,6 @@ export function drawDots(material: ShaderMaterial, geometry: BufferGeometry, str
   return changed;
 }
 
-/** Ground units a pixel is across, in `object`'s own units, at the middle of what `geometry` draws: what `laneScale` reads. */
 export function worldPerPixel(object: Object3D, geometry: BufferGeometry, camera: Camera, height: number): number {
   if (!(camera instanceof PerspectiveCamera) || geometry.boundingSphere === null || height <= 0) return 0;
   const centre = geometry.boundingSphere.center.clone().applyMatrix4(object.matrixWorld);
@@ -169,11 +146,6 @@ export function worldPerPixel(object: Object3D, geometry: BufferGeometry, camera
   return 2 * centre.distanceTo(camera.getWorldPosition(new Vector3())) * Math.tan(camera.fov * Math.PI / 360) / camera.zoom / height / scale;
 }
 
-/** Every lane at rest (ADR-1278 D1 as ADR-1307 narrows it, ADR-1276 D1, contract 4.44): each stretch of the merged
- * routes fine round dots of one size in the lane blue, a dotted strand a lane riding it side by side up to a cap
- * (`restLanes`); dimmed while a story is selected, its share filled over them (`SelectionLanes`). Zoomed out, every lane
- * size, the strands' places across included, scales up together (`laneScale`), written to `scale` for the fills to read.
- * In a recorded growth a stretch shows once a lane on it has both islands risen. */
 export function RestLanes({ stretches, selected, scale }: { stretches: readonly RestStretch[]; selected: boolean; scale: { current: number } }) {
   const dots = useMemo(() => ({ geometry: laneDots(stretches), material: laneDotMaterial() }), [stretches]);
   useEffect(() => () => { dots.geometry.dispose(); dots.material.dispose(); }, [dots]);
@@ -192,18 +164,10 @@ export function RestLanes({ stretches, selected, scale }: { stretches: readonly 
   </group>;
 }
 
-// No lane can occlude a name, claim marker or island selection ray.
 const ignoreRay = () => {};
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** A selected story's lit links (The drawing engine 4.8–4.9, ADR-1236 D1, ADR-1261 D3–D5, ADR-1278 D2): each lane one
- * solid pale fill at sea on its own route over the dots at rest, lanes sharing a stretch one line there, its share of the
- * stretch: wider by how many of its lanes share it up to a cap,
- * ending at the far island's dock and just off the selected island's port (`seaLanes`); it draws on from the island
- * built on, every lane starting together at one pace, with a warm head at the front of each stretch it leads; a plumbing
- * call is one more link among them (ADR-1277 D1). In a recorded growth a lane shows once both its islands have risen
- * (4.33). A new selection draws its lanes again. */
 export function SelectionLanes({ routes, scale }: { routes: readonly LaneRoute[]; scale: { readonly current: number } }) {
   const key = routes.map(lane => `${lane.colour}:${lane.dir}:${lane.from}->${lane.to}`).sort().join('\n');
   const animation = useRef({ key, elapsed: 0, started: false, reduced: reducedMotion() });
@@ -226,7 +190,6 @@ export function SelectionLanes({ routes, scale }: { routes: readonly LaneRoute[]
   draw(animation.current.elapsed, animation.current.reduced);
   useFrame((_, delta) => {
     const state = animation.current;
-    // The first submitted frame is undrawn. Slow frames may stretch wall time, never skip the front.
     if (state.started) state.elapsed = advanceLaneClock(state.elapsed, delta);
     state.started = true;
     draw(state.elapsed, state.reduced);
@@ -234,7 +197,6 @@ export function SelectionLanes({ routes, scale }: { routes: readonly LaneRoute[]
     for (const { lane, seconds, heads } of lanes) {
       drawing ||= laneProgress(state.elapsed, seconds, state.reduced) < 1 || laneHead(state.elapsed, lane.length, heads, state.reduced) > 0;
     }
-    // The canvas draws on demand: keep asking for frames only while a lane is still drawing or its head fading.
     if (drawing) invalidate();
   });
   return <group name="pathways:selection-lanes" userData={{ lanes: lanes.map(({ lane, seconds, heads }) =>

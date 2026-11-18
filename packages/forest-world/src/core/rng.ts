@@ -1,7 +1,4 @@
-// Capability 1 · Scene layout. Deterministic pseudo-random — FNV-1a hash + a single mulberry32 step. Every
-// "random" value in the forest world (tile growth, crown-blob jitter, road bows,
-// mesh jitter) is hashed from a STABLE id, never Math.random, so the world renders
-// identically every visit and ships as static output. Pure, browser-safe.
+// Capability 1 · Scene layout
 
 export function hash(s: string): number {
   let h = 2166136261;
@@ -12,7 +9,6 @@ export function hash(s: string): number {
   return h >>> 0;
 }
 
-/** One uniform [0,1) draw from an integer seed (mulberry32 single step). */
 export function rand01(seed: number): number {
   let t = (seed + 0x6d2b79f5) | 0;
   t = Math.imul(t ^ (t >>> 15), t | 1);

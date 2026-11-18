@@ -1,29 +1,4 @@
-// Capability 1 · Scene layout. Deterministic cost-grid trail router (ADR-0169 §1). Every story edge routes
-// over ONE shared scalar cost field on a coarse world grid: island discs
-// hard-blocked (inflated by a clearance margin), a soft falloff ring beyond it,
-// seeded value noise, a turn penalty — searched by 8-connected A* with stable
-// tie-breaking (f, then g, then cell index). Edges route in canonical
-// longest-chord-first order; after each route the traversed cells earn a reuse
-// discount so later routes snap onto existing trails and trunks EMERGE, the way
-// footpaths form in a field. An edge that cannot route with islands blocked
-// re-routes with interiors passable at high cost — the under-island runs come
-// out hidden, with cave portals emitted at the rim crossings. The output is a
-// shared-SEGMENT network (a trunk is one segment rendered once; each edge keeps
-// its ordered chain of segment refs) smoothed to centripetal Catmull-Rom
-// cubics. A pure function of (islands, edges, seed): hash/rand01 only, no
-// Math.random, no clock — same input, byte-identical output.
-//
-// THE ROUTER ITSELF STAYS CAMERA-AGNOSTIC (ADR-0367 D1/D3). Every distance it reasons about —
-// clearance, falloff, the reuse halo, an island's obstacle radius — is an ISOTROPIC screen
-// distance, which is only true in the ground plane: a ground-plane circle seen through the land's
-// declared camera is an ELLIPSE, and treating it as a circle is exactly what forces edges that
-// could route around an island to give up and tunnel under it instead (the measured 0 -> 156
-// `world-cave` delta, `land-camera-consumers-reconcile`). Rather than teach every isotropic
-// distance in this module about an anisotropic screen projection, the CALLER routes with
-// GROUND-SPACE islands (see `TrailIsland`'s doc) and calls {@link projectTrailNetwork} once, at
-// the end, to project the routed geometry into screen space. Centripetal Catmull-Rom is affine in
-// its control points, so projecting the points and re-splining reproduces exactly the curve that
-// splining the already-projected points would have drawn.
+// Capability 1 · Scene layout
 
 import type { Pt } from './hex.js';
 import { HEX_R } from './hex.js';
@@ -32,18 +7,12 @@ import { LAND_CAMERA_ELEVATION_DEG, projectGround } from './camera.js';
 
 export interface TrailIsland {
   id: string;
-  /** GROUND-plane px — isotropic, unprojected (the router is camera-agnostic; see the module
-   *  doc). Pass `unprojectGround`/plan-view coordinates here, not screen coordinates, and
-   *  recover screen space from the result via {@link projectTrailNetwork}. */
   x: number;
   y: number;
-  r: number; // obstacle disc radius, in the same ground-plane units as x/y
-  /** The island's real coast, as rings in the same units: when given, the router blocks, docks and opens caves
-   *  against it rather than the disc, which must still enclose it (`r` bounds the grid and the cheap far test). */
+  r: number;
   outline?: readonly (readonly Pt[])[];
 }
 
-/** Signed distance from (x, y) to the island's edge: negative inside. The disc's, or its outline's when it has one. */
 function rimDistance(isl: TrailIsland, x: number, y: number): number {
   const disc = Math.hypot(x - isl.x, y - isl.y) - isl.r;
   if (!isl.outline) return disc;
@@ -54,7 +23,6 @@ function rimDistance(isl: TrailIsland, x: number, y: number): number {
       const a = ring[j]!;
       const b = ring[i]!;
       if ((b.y > y) !== (a.y > y) && x < ((a.x - b.x) * (y - b.y)) / (a.y - b.y) + b.x) inside = !inside;
-      // nearestOnSegment, inlined: this runs for every grid cell near a coast, and allocates nothing
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const l2 = dx * dx + dy * dy;
@@ -74,7 +42,6 @@ function nearestOnSegment(a: Pt, b: Pt, x: number, y: number): Pt {
   return { x: a.x + u * dx, y: a.y + u * dy };
 }
 
-/** The point of the island's edge nearest (x, y); without an outline, the disc's point on the bearing (bx, by). */
 function rimPoint(isl: TrailIsland, x: number, y: number, bx: number, by: number): Pt {
   if (!isl.outline) return { x: isl.x + bx * isl.r, y: isl.y + by * isl.r };
   let best: Pt = { x: isl.x, y: isl.y };
@@ -92,8 +59,6 @@ function rimPoint(isl: TrailIsland, x: number, y: number, bx: number, by: number
   return best;
 }
 
-/** How far out along the bearing (bx, by) from the island's centre its edge last lies: the disc's radius, or the
- *  outline's outermost crossing of that ray. */
 function rimReach(isl: TrailIsland, bx: number, by: number): number {
   if (!isl.outline) return isl.r;
   let far = 0;
@@ -107,8 +72,8 @@ function rimReach(isl: TrailIsland, bx: number, by: number): number {
       if (Math.abs(den) < 1e-12) continue;
       const ax = a.x - isl.x;
       const ay = a.y - isl.y;
-      const along = (ax * ey - ay * ex) / den; // distance along the ray
-      const u = (ax * by - ay * bx) / den; // position on the edge
+      const along = (ax * ey - ay * ex) / den;
+      const u = (ax * by - ay * bx) / den;
       if (along > far && u >= 0 && u <= 1) far = along;
     }
   }
@@ -122,75 +87,61 @@ export interface TrailEdgeIn {
 }
 
 export interface TrailTuning {
-  cellSize: number; // grid cell in world px
-  clearance: number; // hard inflation margin beyond island r
-  falloff: number; // soft-penalty band beyond clearance
-  falloffCost: number; // peak soft penalty at the clearance boundary
-  noiseAmp: number; // cost-noise amplitude
-  turnPenalty: number; // per-direction-change cost
-  reuseDiscount: number; // multiplier applied to routed cells
-  discountFloor: number; // min cell cost after discounts
-  reuseHaloRadius: number; // Chebyshev ring count of the reuse-halo around a laid trail
-  reuseHaloInner: number; // cost FRAC at ring 1 (0 = full trunk discount, 1 = base cost, >1 = MOAT/penalty)
-  reuseHaloOuter: number; // cost FRAC at the outermost ring (linear-interpolated from Inner)
-  dockMergeGap: number; // max angular GAP (rad) between adjacent approaches kept in one shared dock
-  dockMergeSpan: number; // max total angular SPAN (rad) of a shared-dock cluster (anti-chaining cap)
-  reclusterOnApproach: boolean; // second pass: re-cluster docks by the ACTUAL routed approach bearing
-  // (not the straight chord) so edges that FUNNEL together via the reuse trunk share one dock instead
-  // of forking into a Y at the rim, while genuinely opposite-side edges still keep their own dock
-  approachProbe: number; // how far past the rim (world px) to read the pass-1 approach bearing
-  interiorCost: number; // island-interior cost for the cave fallback pass
-  meanderAmp: number; // perpendicular displacement amplitude (MUST stay < clearance)
-  meanderWavelength: number; // arc-length period of the meander noise
-  meanderTaper: number; // arc-length band near each junction/dock end over which meander ramps 0→full
-  meanderClearInner: number; // ≤ this distance from ANOTHER trail, meander is fully suppressed
-  meanderClearOuter: number; // ≥ this distance from another trail, meander is at full amplitude
-  junctionWeld: number; // weld JUNCTION nodes within this distance into one (kills the ~1-cell merge stub)
+  cellSize: number;
+  clearance: number;
+  falloff: number;
+  falloffCost: number;
+  noiseAmp: number;
+  turnPenalty: number;
+  reuseDiscount: number;
+  discountFloor: number;
+  reuseHaloRadius: number;
+  reuseHaloInner: number;
+  reuseHaloOuter: number;
+  dockMergeGap: number;
+  dockMergeSpan: number;
+  reclusterOnApproach: boolean;
+  approachProbe: number;
+  interiorCost: number;
+  meanderAmp: number;
+  meanderWavelength: number;
+  meanderTaper: number;
+  meanderClearInner: number;
+  meanderClearOuter: number;
+  junctionWeld: number;
 }
 
 export interface TrailSegment {
-  id: string; // stable content-derived id (hash of its cell run, collision-extended)
-  d: string; // SVG path, M + cubic C segments, r2-rounded coords
-  points: readonly { x: number; y: number }[]; // the smoothed polyline d was built from
-  usage: number; // distinct edges routed through this segment
-  hidden: boolean; // true = under-island ghost run
+  id: string;
+  d: string;
+  points: readonly { x: number; y: number }[];
+  usage: number;
+  hidden: boolean;
 }
 
 export interface TrailCave {
   islandId: string;
-  x: number; // portal point on the island rim
+  x: number;
   y: number;
-  bearing: number; // radians, outward normal from island centre
-  width: number; // trail fill width at the portal (from the usage rule)
-  edgeIds: string[]; // "from->to" keys passing through this portal
+  bearing: number;
+  width: number;
+  edgeIds: string[];
 }
 
 export interface TrailEdgeOut {
   from: string;
   to: string;
   title?: string;
-  segments: readonly { id: string; reversed: boolean }[]; // ordered chain from -> to
+  segments: readonly { id: string; reversed: boolean }[];
 }
 
 export interface TrailNetwork {
   segments: TrailSegment[];
   edges: TrailEdgeOut[];
   caves: TrailCave[];
-  /** Edges that could not be routed — unknown endpoint island (a filtered-out
-   *  fold) or an unroutable grid. The §5 honesty signal: an edge this network
-   *  does not draw is at least observable. Self-edges and exact duplicates are
-   *  not drops (nothing distinct to draw). Sorted by from, then to; deduped. */
   dropped: { from: string; to: string }[];
 }
 
-/**
- * The ONE width rule every surface shares: fill width from segment usage.
- * Owner feedback 2026-07-07: thinner overall so WIDTH ALONE reads the merge —
- * only `.trail-fill` renders (casing/shadow are `display:none`), so this IS the
- * visible width. A usage-1 spur is a thin 3.0 line; each extra edge sharing a
- * trunk steps it up (usage-4 = 4.8, a clearly thicker road) — a legible
- * thin→thick usage ladder, no other cue needed.
- */
 export function trailFillWidth(usage: number): number {
   return 1.2 + 1.8 * Math.sqrt(Math.max(0, usage));
 }
@@ -202,76 +153,26 @@ function resolveTuning(o?: Partial<TrailTuning>): TrailTuning {
     clearance,
     falloff: o?.falloff ?? 2.5 * HEX_R,
     falloffCost: o?.falloffCost ?? 6,
-    // Owner feedback 2026-07-06: the map read as winding + side-by-side parallel
-    // trails. A SMOOTHER field (lower noise) + a STRONGER, WIDER reuse pull make
-    // near-parallel routes snap onto ONE shared trunk instead of running a cell
-    // apart, and a firmer turn penalty keeps the minimalist line from zigzagging.
     noiseAmp: o?.noiseAmp ?? 0.15,
     turnPenalty: o?.turnPenalty ?? 0.5,
-    // a much cheaper trunk (0.22 vs the old 0.4) is a stronger attractor, so a later
-    // route prefers merging onto an existing trail over laying a parallel lane; the
-    // deep floor (0.05) lets a HIGH-usage trunk compound into a very strong magnet.
     reuseDiscount: o?.reuseDiscount ?? 0.22,
     discountFloor: o?.discountFloor ?? 0.05,
-    // reuse halo as a MOAT (owner feedback item 4, 2026-07-07, re-tuned against the
-    // stress placement default): the owner still saw side-by-side lanes a cell apart.
-    // A cheaper adjacent ring only made those lanes MORE comfortable, so instead the
-    // ring immediately beside a laid trail is now a slight MOAT (frac > 1 ⇒ cost ABOVE
-    // base) — there is no free parallel lane, so a nearby route must either join the
-    // trunk's exact (cheap) cells or stay well clear. A moat only RAISES cost, never
-    // blocks, so it can never force a cave. Cut side-by-side trail length ~48% on the
-    // real graph (0.19 → 0.10) with the trunk-merge behaviour intact.
     reuseHaloRadius: o?.reuseHaloRadius ?? 2,
     reuseHaloInner: o?.reuseHaloInner ?? 1.2,
     reuseHaloOuter: o?.reuseHaloOuter ?? 1.0,
-    // shared docks (owner feedback item 1, 2026-07-07): several edges converging on
-    // one island from nearly the same direction snap to ONE dock bearing so they
-    // dock as a single thicker trunk, not separate approach lines fanning at the rim.
-    // `dockMergeGap` (60°) groups adjacent approaches; `dockMergeSpan` caps a cluster's
-    // total angular spread so opposite-side approaches keep their own dock (no forced
-    // detour).
-    // Owner feedback 2026-07-08 ("pathways split unnecessarily when joining together"):
-    // the 90° cap was UNNECESSARILY splitting moderate fans — a 6-edge fan spanning ~100°
-    // to one island was cut into two docks, and that split boundary rendered as a Y-fork
-    // right at the rim. Widened to 100° (a ~50° half-angle from the shared bearing — the
-    // widest an edge bends toward the shared dock before the approach reads as a detour).
-    // A general rule, not per-map tuning: fans up to ~100° dock as one trunk; genuinely
-    // wide fans (>100°) still keep multiple docks, so the reuse funnel — not a rim-wrap —
-    // carries them. Halved the Y-fork pairs on the real 28-story stress graph (40 → 25),
-    // no new rim-wraps, caves/drops unchanged.
     dockMergeGap: o?.dockMergeGap ?? Math.PI / 3,
     dockMergeSpan: o?.dockMergeSpan ?? (5 * Math.PI) / 9,
     reclusterOnApproach: o?.reclusterOnApproach ?? true,
-    // read the approach ~4 cells past the clearance band: far enough that near-parallel edges
-    // have funnelled onto their shared trunk (so their approach bearings coincide and the dock
-    // merges), but not so far that the reading runs past a downstream bend and mis-clusters a
-    // genuinely-separate edge (measured: <50px misses the merge, >90px starts splitting docks).
     approachProbe: o?.approachProbe ?? clearance + 4 * (o?.cellSize ?? HEX_R / 2),
     interiorCost: o?.interiorCost ?? 40,
-    // derived from the RESOLVED clearance so the amp<clearance invariant holds
-    // under a clearance override too; an EXPLICIT amp is clamped below clearance
-    // for the same reason — meander must never be able to push a path into an
-    // island, whatever the caller asks for. Amplitude HALVED (0.45→0.22·clearance)
-    // to quiet the gratuitous winding the owner flagged.
     meanderAmp: Math.min(o?.meanderAmp ?? 0.22 * clearance, 0.95 * clearance),
     meanderWavelength: o?.meanderWavelength ?? 4 * HEX_R,
-    // owner feedback 2026-07-08: keep the organic wander on OPEN solo stretches but turn it
-    // OFF at junctions and wherever a trail runs close to another — that is where a wander
-    // reads as an "unnecessary split". The taper straightens each segment's ends (its ends
-    // ARE junction/dock nodes), so short segments — which mostly sit at junctions — get little
-    // or no meander, while long open runs keep the full wave. The clear-band suppresses the
-    // wander near any other pathway so two trails never wobble into looking like they fork.
     meanderTaper: o?.meanderTaper ?? 4 * HEX_R,
     meanderClearInner: o?.meanderClearInner ?? clearance,
     meanderClearOuter: o?.meanderClearOuter ?? clearance + 2 * (o?.cellSize ?? HEX_R / 2),
-    // owner feedback 2026-07-08: where several trunks converge they can touch at ADJACENT grid
-    // cells rather than one shared cell, leaving a ~1-cell stub between two junctions that reads
-    // as a hook. Weld junction nodes (degree ≥ 3) closer than ~1.4 cells into one shared point.
     junctionWeld: o?.junctionWeld ?? 1.4 * (o?.cellSize ?? HEX_R / 2),
   };
 }
-
-// ---------- cost grid ----------
 
 interface Grid {
   ox: number;
@@ -279,17 +180,13 @@ interface Grid {
   cs: number;
   cols: number;
   rows: number;
-  cost: Float64Array; // soft cost (base + falloff + noise); the reuse discount mutates it
-  blockA: Int32Array; // nearest hard-blocking island index (within r + clearance), -1 = none
-  blockB: Int32Array; // second-nearest hard-blocking island index
-  blockC: Int32Array; // third-nearest — endpoint masking needs THREE: an edge's own two
-  // islands can consume two slots in a pinch, so any foreign blocker must still hold one
-  interior: Int32Array; // island index whose r covers the cell centre, -1 = none
+  cost: Float64Array;
+  blockA: Int32Array;
+  blockB: Int32Array;
+  blockC: Int32Array;
+  interior: Int32Array;
 }
 
-// Hard blocking is carried as island INDICES (blockA/B/C), not Infinity in the
-// cost array: the per-edge endpoint mask and the cave fallback both re-interpret
-// the same field per edge without a rebuild, and the reuse discount stays finite.
 function buildGrid(islands: readonly TrailIsland[], seed: string, t: TrailTuning): Grid {
   const margin = t.clearance + t.falloff + 2 * t.cellSize;
   let minX = Infinity;
@@ -317,7 +214,7 @@ function buildGrid(islands: readonly TrailIsland[], seed: string, t: TrailTuning
     for (let ix = 0; ix < cols; ix++) {
       const idx = iy * cols + ix;
       const cx = ox + (ix + 0.5) * t.cellSize;
-      let surplusMin = Infinity; // distance beyond the nearest inflated rim
+      let surplusMin = Infinity;
       let bA = -1;
       let bAd = Infinity;
       let bB = -1;
@@ -330,7 +227,6 @@ function buildGrid(islands: readonly TrailIsland[], seed: string, t: TrailTuning
         const isl = islands[k];
         if (!isl) continue;
         let rim = Math.hypot(cx - isl.x, cy - isl.y) - isl.r;
-        // the disc encloses the outline, so beyond the falloff band the disc's distance already decides nothing
         if (isl.outline && rim < t.clearance + t.falloff) rim = rimDistance(isl, cx, cy);
         surplusMin = Math.min(surplusMin, rim - t.clearance);
         if (rim <= t.clearance) {
@@ -371,13 +267,6 @@ function buildGrid(islands: readonly TrailIsland[], seed: string, t: TrailTuning
   return { ox, oy, cs: t.cellSize, cols, rows, cost, blockA, blockB, blockC, interior };
 }
 
-/**
- * Hard-blocked for the edge whose own islands are fi/ti: any of the three
- * nearest clearance blockers is FOREIGN, or the cell is INTERIOR to an own
- * island. Own clearance rings stay open (paths must dock and leave), but own
- * interiors are cave territory like anyone else's — under an island is a cave,
- * never a surface trail (ADR-0169 §1/§2), and pass 1 must not shortcut it.
- */
 function blockedFor(grid: Grid, idx: number, fi: number, ti: number): boolean {
   const a = grid.blockA[idx] ?? -1;
   const b = grid.blockB[idx] ?? -1;
@@ -393,8 +282,6 @@ function blockedFor(grid: Grid, idx: number, fi: number, ti: number): boolean {
   return ii !== -1 && (ii === fi || ii === ti);
 }
 
-// ---------- A* ----------
-
 const SQRT2 = Math.SQRT2;
 
 const DIRS: readonly { dx: number; dy: number; len: number }[] = [
@@ -408,8 +295,6 @@ const DIRS: readonly { dx: number; dy: number; len: number }[] = [
   { dx: -1, dy: -1, len: SQRT2 },
 ];
 
-/** The open set: a binary heap over three parallel typed arrays, so a push allocates nothing. Its order is total
- *  (f, then g, then cell index — the determinism anchor), so it pops in the same order however it is stored. */
 class OpenHeap {
   f = new Float64Array(1024);
   g = new Float64Array(1024);
@@ -447,7 +332,6 @@ class OpenHeap {
     }
   }
 
-  /** Removes the least entry, leaving it in `top`; false when empty. */
   pop(top: { g: number; i: number }): boolean {
     if (this.size === 0) return false;
     top.g = this.g[0]!;
@@ -473,8 +357,8 @@ class OpenHeap {
 interface AstarState {
   g: Float64Array;
   parent: Int32Array;
-  dirAt: Int8Array; // arrival direction of the best-known g (per-parent turn approximation)
-  seen: Int32Array; // generation stamps — reuse the arrays across edges without clearing
+  dirAt: Int8Array;
+  seen: Int32Array;
   closed: Int32Array;
   gen: number;
 }
@@ -492,8 +376,6 @@ function runAstar(
   st.gen++;
   const gen = st.gen;
   const { cols, rows, cost } = grid;
-  // The edge's own clearance rings are never obstacles for it (paths must
-  // leave/enter them); in cave mode a blocked cell is passable at interiorCost.
   const cellCost = (idx: number): number => {
     if (!blockedFor(grid, idx, fi, ti)) return cost[idx] ?? 1;
     return cave ? t.interiorCost : Infinity;
@@ -502,7 +384,7 @@ function runAstar(
   if (start === goal) return [start];
   const gx = goal % cols;
   const gy = (goal / cols) | 0;
-  const hScale = Math.min(1, t.discountFloor); // min possible cell cost — keeps h admissible
+  const hScale = Math.min(1, t.discountFloor);
   const hOf = (ix: number, iy: number): number => {
     const dx = Math.abs(ix - gx);
     const dy = Math.abs(iy - gy);
@@ -521,7 +403,7 @@ function runAstar(
   while (open.pop(e)) {
     const cur = e.i;
     if (st.closed[cur] === gen) continue;
-    if (e.g !== st.g[cur]) continue; // stale entry — a better g was pushed later
+    if (e.g !== st.g[cur]) continue;
     st.closed[cur] = gen;
     if (cur === goal) {
       found = true;
@@ -540,7 +422,6 @@ function runAstar(
       if (st.closed[ni] === gen) continue;
       const cNb = cellCost(ni);
       if (cNb === Infinity) continue;
-      // no corner cutting: a diagonal step needs both orthogonal shoulders open
       if (dd.dx !== 0 && dd.dy !== 0) {
         if (cellCost(cyi * cols + nx) === Infinity || cellCost(ny * cols + cx) === Infinity) continue;
       }
@@ -561,15 +442,11 @@ function runAstar(
   return path;
 }
 
-// ---------- smoothing ----------
-
-/** r2-rounded coordinate for the `d` string (no trailing zeros, no -0). */
 function r2(v: number): string {
   const n = Math.round(v * 100) / 100;
   return (n === 0 ? 0 : n).toString();
 }
 
-/** Centripetal Catmull-Rom (alpha 0.5) through the points, as M + cubic C `d`. */
 export function crPathD(pts: readonly Pt[]): string {
   const first = pts[0];
   if (!first) return '';
@@ -582,7 +459,7 @@ export function crPathD(pts: readonly Pt[]): string {
     const d1 = Math.sqrt(Math.hypot(p1.x - p0.x, p1.y - p0.y));
     const d2 = Math.sqrt(Math.hypot(p2.x - p1.x, p2.y - p1.y));
     const d3 = Math.sqrt(Math.hypot(p3.x - p2.x, p3.y - p2.y));
-    if (d2 < 1e-9) continue; // duplicate points — nothing to draw
+    if (d2 < 1e-9) continue;
     let m1x: number;
     let m1y: number;
     let m2x: number;
@@ -610,23 +487,17 @@ export function crPathD(pts: readonly Pt[]): string {
   return d;
 }
 
-/** A segment's pure resampled geometry (no meander): the routed cell run
- *  decimated + resampled, with cumulative arc-length and a bbox for the
- *  near-another-trail proximity prune. */
 interface ResampledSeg {
   pts: Pt[];
-  cum: number[]; // cumulative arc-length at each point
-  total: number; // full segment length
+  cum: number[];
+  total: number;
   minX: number;
   minY: number;
   maxX: number;
   maxY: number;
 }
 
-/** Collinear decimation → resample long straight spans (so the meander has
- *  vertices to bend). Pure geometry — no meander, no spline. */
 function resampleSegment(rawPts: readonly Pt[], t: TrailTuning): ResampledSeg {
-  // 1. drop duplicates, then exactly-collinear interior points
   const dedup: Pt[] = [];
   for (const p of rawPts) {
     const prev = dedup[dedup.length - 1];
@@ -644,7 +515,6 @@ function resampleSegment(rawPts: readonly Pt[], t: TrailTuning): ResampledSeg {
     }
     dec.push(p);
   }
-  // 2. resample long straight spans (decimation alone would leave no interior points)
   const step = Math.max(t.meanderWavelength / 3, t.cellSize);
   const pts: Pt[] = [{ x: dec[0]!.x, y: dec[0]!.y }];
   for (let i = 0; i + 1 < dec.length; i++) {
@@ -656,7 +526,7 @@ function resampleSegment(rawPts: readonly Pt[], t: TrailTuning): ResampledSeg {
       const f = k / nSub;
       pts.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f });
     }
-    pts.push({ x: b.x, y: b.y }); // exact endpoint — junction continuity
+    pts.push({ x: b.x, y: b.y });
   }
   const cum: number[] = [0];
   let minX = Infinity;
@@ -674,7 +544,6 @@ function resampleSegment(rawPts: readonly Pt[], t: TrailTuning): ResampledSeg {
   return { pts, cum, total: cum[cum.length - 1] ?? 0, minX, minY, maxX, maxY };
 }
 
-/** Squared distance from (px,py) to the segment a→b. */
 function distSqPtSeg(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
   const dx = bx - ax;
   const dy = by - ay;
@@ -686,8 +555,6 @@ function distSqPtSeg(px: number, py: number, ax: number, ay: number, bx: number,
   return (px - cx) * (px - cx) + (py - cy) * (py - cy);
 }
 
-/** Nearest distance from a point to any OTHER segment's polyline, pruned by
- *  bbox so a full scan is only paid for the handful of trails actually near. */
 function distToOtherTrails(px: number, py: number, others: readonly ResampledSeg[], within: number): number {
   const w2 = within * within;
   let best = Infinity;
@@ -698,26 +565,12 @@ function distToOtherTrails(px: number, py: number, others: readonly ResampledSeg
       const b = o.pts[i + 1]!;
       const d2 = distSqPtSeg(px, py, a.x, a.y, b.x, b.y);
       if (d2 < best) best = d2;
-      if (best <= w2) return Math.sqrt(best); // already inside the suppression band
+      if (best <= w2) return Math.sqrt(best);
     }
   }
   return best === Infinity ? Infinity : Math.sqrt(best);
 }
 
-/**
- * Seeded perpendicular meander → centripetal Catmull-Rom spline. First/last
- * points are junction nodes SHARED with neighbouring segments and are never
- * moved, so edge chains stay connected. The meander is SUPPRESSED where a
- * wander would read as a split (owner feedback 2026-07-08): fully at island
- * rims and hidden runs; ramped down over `meanderTaper` near each junction/dock
- * end; and faded out within `meanderClear*` of ANY other trail. It only reaches
- * full amplitude on open solo stretches — and its amplitude stays below the
- * clearance margin, so it can never push a trail inside an island.
- */
-/** A meandered trail segment: the moved points plus the Catmull-Rom path `d` drawn through them.
- *  Named because `anti-slop/no-known-value-widening` reads an anonymous object return annotation as
- *  discarded type evidence, and inc-08's refactor panel settled the fork 3-0 toward NAMING rather
- *  than deleting: with no build step, the declaration site is the only API-surface document. */
 interface MeanderedSegment {
   points: Pt[];
   d: string;
@@ -738,7 +591,7 @@ function meanderSpline(
     const total = base.total;
     const clearSpan = t.meanderClearOuter - t.meanderClearInner;
     for (let i = 1; i + 1 < pts.length; i++) {
-      const bp = base.pts[i]!; // proximity is judged on the UN-meandered geometry (order-independent)
+      const bp = base.pts[i]!;
       let nearIsland = false;
       for (const isl of islands) {
         if (rimDistance(isl, bp.x, bp.y) < t.clearance) {
@@ -747,10 +600,8 @@ function meanderSpline(
         }
       }
       if (nearIsland) continue;
-      // taper to 0 at the junction/dock ends; full only in the open interior
       const distEnd = Math.min(s[i] ?? 0, total - (s[i] ?? 0));
       const fEnd = t.meanderTaper > 0 ? Math.min(1, distEnd / t.meanderTaper) : 1;
-      // fade out near any OTHER trail so two paths never wobble into a fake fork
       let fOther = 1;
       if (clearSpan > 0) {
         const dOther = distToOtherTrails(bp.x, bp.y, others, t.meanderClearOuter);
@@ -779,15 +630,11 @@ function meanderSpline(
   return { points: pts, d: crPathD(pts) };
 }
 
-// ---------- the router ----------
-
 interface NodeRec {
-  key: string; // shared node identity — cell index or island rim point
+  key: string;
   x: number;
   y: number;
-  underOf: number; // island index whose interior this node sits UNDER (any island,
-  // own included — own interiors are pass-1 blocked, so only a forced cave run
-  // ever enters one), -1 = surface
+  underOf: number;
 }
 
 interface RoutedEdge {
@@ -798,8 +645,6 @@ interface RoutedEdge {
   nodes: NodeRec[];
 }
 
-// Non-printable separators/markers, so ids containing ':', '|', '->' etc. can
-// never collide inside link keys or signatures.
 const SEP = '\u0000';
 const HIDDEN_MARK = '\u0001';
 const SIG_JOIN = '\u0002';
@@ -808,7 +653,6 @@ function linkKeyOf(a: NodeRec, b: NodeRec): string {
   return a.key < b.key ? `${a.key}${SEP}${b.key}` : `${b.key}${SEP}${a.key}`;
 }
 
-/** Segment-circle crossing point (the t in [0,1] where the rim is crossed). */
 function circleCrossing(a: NodeRec, b: NodeRec, isl: TrailIsland): Pt {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -828,7 +672,6 @@ function circleCrossing(a: NodeRec, b: NodeRec, isl: TrailIsland): Pt {
   return { x: a.x + dx * tt, y: a.y + dy * tt };
 }
 
-/** Where the link a-b, one end under the island and one not, crosses its outline: bisected on the signed distance. */
 function outlineCrossing(a: NodeRec, b: NodeRec, isl: TrailIsland): Pt {
   let lo = 0;
   let hi = 1;
@@ -843,14 +686,6 @@ function outlineCrossing(a: NodeRec, b: NodeRec, isl: TrailIsland): Pt {
   return { x: a.x + (b.x - a.x) * tt, y: a.y + (b.y - a.y) * tt };
 }
 
-/**
- * Route every edge over one shared cost field and emit the shared-segment trail
- * network (ADR-0169 §1). Self-edges and duplicate from->to pairs are folded
- * away (nothing distinct to draw); edges with unknown endpoints or no routable
- * path are dropped AND surfaced on `network.dropped` (§5 — never hide an edge
- * silently). The rest route in canonical order (descending chord, then
- * lexicographic key), so the result is independent of input order.
- */
 export function routeTrails(
   islands: readonly TrailIsland[],
   edges: readonly TrailEdgeIn[],
@@ -874,7 +709,6 @@ export function routeTrails(
   }
   const cands: Cand[] = [];
   const dropped: { from: string; to: string }[] = [];
-  // dedupe + sort so `dropped` is input-order independent like everything else
   const finishDropped = (): { from: string; to: string }[] => {
     const seen = new Set<string>();
     const out: { from: string; to: string }[] = [];
@@ -893,16 +727,13 @@ export function routeTrails(
     const fi = byId.get(e.from);
     const ti = byId.get(e.to);
     if (fi === undefined || ti === undefined) {
-      dropped.push({ from: e.from, to: e.to }); // unknown endpoint — observable, not silent
+      dropped.push({ from: e.from, to: e.to });
       continue;
     }
-    if (fi === ti) continue; // self-edge: nothing to draw by design
+    if (fi === ti) continue;
     const a = islands[fi]!;
     const b = islands[ti]!;
     cands.push({
-      // the INTERNAL key joins with the non-printable SEP so ids containing
-      // '->' can never make two distinct edges collide; the display key
-      // (`from->to`, on caves and scene metadata) is built where it is shown
       key: `${e.from}${SEP}${e.to}`,
       from: e.from,
       to: e.to,
@@ -912,8 +743,6 @@ export function routeTrails(
       chord: Math.hypot(b.x - a.x, b.y - a.y),
     });
   }
-  // canonical order: longest chord first, then key, then title (total order so
-  // dedupe below is input-order independent)
   cands.sort((p, q) => {
     if (p.chord !== q.chord) return q.chord - p.chord;
     if (p.key !== q.key) return p.key < q.key ? -1 : 1;
@@ -932,7 +761,7 @@ export function routeTrails(
   }
 
   let grid = buildGrid(islands, seed, t);
-  const freshCost = grid.cost.slice(); // pass 2 starts from these costs: the grid itself does not change
+  const freshCost = grid.cost.slice();
   const nCells = grid.cols * grid.rows;
   const st: AstarState = {
     g: new Float64Array(nCells),
@@ -951,17 +780,11 @@ export function routeTrails(
     x: grid.ox + ((idx % grid.cols) + 0.5) * grid.cs,
     y: grid.oy + (((idx / grid.cols) | 0) + 0.5) * grid.cs,
   });
-  // Dock just outside the rim on the preferred bearing; when a THIRD island's
-  // inflated ring covers that one cell (a decor islet sitting over the dock),
-  // scan alternate bearings nearest-first around the rim instead of letting
-  // pass 1 abort — cave mode is for WALLED-IN edges, never a blocked doorstep
-  // (ADR-0169 §1: caves only when forced).
   const dockCellAt = (isl: TrailIsland, bx: number, by: number, fi: number, ti: number): number => {
     const rad = rimReach(isl, bx, by) + 0.75 * grid.cs;
     const idx0 = cellIndexAt(isl.x + bx * rad, isl.y + by * rad);
     if (!blockedFor(grid, idx0, fi, ti)) return idx0;
     const base = Math.atan2(by, bx);
-    // step ≈ one cell of arc so no opening between candidates is skipped
     const steps = Math.max(16, Math.ceil((2 * Math.PI * rad) / grid.cs));
     for (let k = 1; k <= steps >> 1; k++) {
       for (const s of [1, -1] as const) {
@@ -971,18 +794,9 @@ export function routeTrails(
         if (!blockedFor(grid, idx, fi, ti)) return idx;
       }
     }
-    return idx0; // fully enclosed — the cave fallback takes it from here
+    return idx0;
   };
 
-  // ---------- shared docks: merge near-coincident approaches into ONE trunk ----------
-  // Owner feedback 2026-07-07: pathways fanned into separate lines right at an island's
-  // rim because each edge docked on its OWN bearing (toward its far island). Where
-  // several edges approach one island from nearly the same direction, snap them to a
-  // SHARED dock bearing so their final approach shares one dock cell + rim node —
-  // segmentation then folds them into ONE trunk (usage = the number sharing it, so it
-  // renders THICKER), instead of parallel approach lines. Pure function of the canonical
-  // edge set: each island's approach bearings are sorted, the circle cut at its widest
-  // gap (seam-stable), then greedily clustered within dockMergeGap AND dockMergeSpan.
   interface Approach {
     edgeKey: string;
     bx: number;
@@ -1004,18 +818,14 @@ export function routeTrails(
     if (arr) arr.push(rec);
     else incident.set(islIdx, [rec]);
   };
-  // greedily cluster each island's approaches (angular gap + span cap) and map every
-  // (island, edge) to its shared unit dock bearing — the circular mean of its cluster.
   const clusterDocks = (incident: Map<number, Approach[]>): Map<string, { bx: number; by: number }> => {
     const dockBearing = new Map<string, { bx: number; by: number }>();
     for (const [islIdx, appsRaw] of incident) {
-      // canonical order (angle, then edge key) — input-order independent
       const apps = [...appsRaw].sort((p, q) =>
         p.ang !== q.ang ? p.ang - q.ang : p.edgeKey < q.edgeKey ? -1 : p.edgeKey > q.edgeKey ? 1 : 0,
       );
       const n = apps.length;
       const assign = (members: Approach[]): void => {
-        // shared bearing = circular mean of members (angularly tight, so stable)
         let sx = 0;
         let sy = 0;
         for (const m of members) {
@@ -1028,10 +838,9 @@ export function routeTrails(
         for (const m of members) dockBearing.set(`${islIdx}${SEP}${m.edgeKey}`, { bx, by });
       };
       if (n === 1) {
-        assign(apps); // lone approach: its own bearing, unchanged
+        assign(apps);
         continue;
       }
-      // cut the circle at its widest angular gap so clustering is seam-stable
       let cut = 0;
       let widest = -1;
       for (let i = 0; i < n; i++) {
@@ -1065,18 +874,14 @@ export function routeTrails(
     return dockBearing;
   };
 
-  // pass 1: cluster by the straight CHORD bearing toward the far island
   const chordIncident = new Map<number, Approach[]>();
   for (const c of canon) {
     const A = islands[c.fi]!;
     const B = islands[c.ti]!;
-    pushApproach(chordIncident, c.fi, c.key, B.x - A.x, B.y - A.y); // at A, bearing toward B
-    pushApproach(chordIncident, c.ti, c.key, A.x - B.x, A.y - B.y); // at B, bearing toward A
+    pushApproach(chordIncident, c.fi, c.key, B.x - A.x, B.y - A.y);
+    pushApproach(chordIncident, c.ti, c.key, A.x - B.x, A.y - B.y);
   }
 
-  // Route every canonical edge over the (mutable) grid with the given dock bearings,
-  // returning the routed node chains. The reuse funnel mutates grid.cost in place, so a
-  // second pass MUST be given a freshly rebuilt grid.
   const routePass = (dockBearing: Map<string, { bx: number; by: number }>): RoutedEdge[] => {
     const routed: RoutedEdge[] = [];
     for (const c of canon) {
@@ -1092,28 +897,17 @@ export function routeTrails(
         ux /= chordLen;
         uy /= chordLen;
       }
-      // dock just outside each rim on the SHARED approach bearing (falls back to the raw
-      // chord bearing for a lone approach), re-bearing around a blocker if the cell is covered
       const dbA = dockBearing.get(`${c.fi}${SEP}${c.key}`) ?? { bx: ux, by: uy };
       const dbB = dockBearing.get(`${c.ti}${SEP}${c.key}`) ?? { bx: -ux, by: -uy };
       const start = dockCellAt(A, dbA.bx, dbA.by, c.fi, c.ti);
       const goal = dockCellAt(B, dbB.bx, dbB.by, c.fi, c.ti);
-      // cave fallback ONLY when the island-blocked route is impossible
       let path = runAstar(grid, st, t, start, goal, c.fi, c.ti, false);
       if (!path) path = runAstar(grid, st, t, start, goal, c.fi, c.ti, true);
       if (!path) {
-        dropped.push({ from: c.from, to: c.to }); // degenerate grid — observable, not silent
+        dropped.push({ from: c.from, to: c.to });
         continue;
       }
 
-      // reuse discount FUNNEL: traversed cells earn the strongest discount so later
-      // routes snap ONTO the trunk; a graduated halo of `reuseHaloRadius` Chebyshev
-      // rings earns a weaker discount (nearest ring wins) so a route drifting nearby is
-      // funnelled in instead of settling into a parallel lane one cell over — the owner's
-      // side-by-side-trails complaint (2026-07-06 / re-pushed 2026-07-07). The exact trail
-      // cells stay strictly cheapest (an equal halo discount would let later routes ride a
-      // parallel lane and never share). Each cell is discounted at most ONCE per route
-      // (the cost mutates in place). Ring c's frac interpolates Inner→Outer over the radius.
       const R = Math.max(1, Math.round(t.reuseHaloRadius));
       const ringDisc = (c: number): number => {
         const frac = R <= 1 ? t.reuseHaloInner : t.reuseHaloInner + (t.reuseHaloOuter - t.reuseHaloInner) * ((c - 1) / (R - 1));
@@ -1142,8 +936,6 @@ export function routeTrails(
       for (const ci of onPath) grid.cost[ci] = Math.max(t.discountFloor, (grid.cost[ci] ?? 1) * t.reuseDiscount);
       for (const [ni, disc] of ringOf) grid.cost[ni] = Math.max(t.discountFloor, (grid.cost[ni] ?? 1) * disc);
 
-      // node sequence: exact rim point → cells → exact rim point, so trails dock
-      // on the coast at the final approach bearing
       const nodes: NodeRec[] = [];
       const firstCell = path[0]!;
       const lastCell = path[path.length - 1]!;
@@ -1165,9 +957,6 @@ export function routeTrails(
           key: `c:${ci}`,
           x: p.x,
           y: p.y,
-          // ABSOLUTE island interior, own islands included: every edge through the
-          // cell agrees a run under an island is hidden, so a shared link can never
-          // render as one edge's surface trail across another edge's cave
           underOf: grid.interior[ci] ?? -1,
         });
       }
@@ -1190,18 +979,8 @@ export function routeTrails(
 
   let routed = routePass(clusterDocks(chordIncident));
 
-  // pass 2 (owner feedback 2026-07-08, "pathways split unnecessarily when joining together"):
-  // the chord bearing toward the far island is a POOR predictor of where a trail actually
-  // reaches the rim — the reuse funnel bends near-parallel edges onto a shared trunk, so two
-  // edges whose CHORDS fan wide can arrive from the SAME direction and then fork into a Y at
-  // the rim to reach two chord-split docks. Re-cluster by each edge's ACTUAL routed approach
-  // bearing (island centre → the path a few cells out from the dock) and route once more over
-  // a fresh grid. Edges that funnelled together now share ONE dock (the Y collapses to one
-  // trunk); genuinely opposite-side edges still approach from opposite bearings, so the
-  // anti-chaining span cap still keeps them apart — no forced rim-wrap. Deterministic: pass 1
-  // is a pure function of the input, so the approach bearings and the re-clustering are too.
   if (t.reclusterOnApproach) {
-    const probe = t.approachProbe; // how far past the rim to read the approach
+    const probe = t.approachProbe;
     const apprIncident = new Map<number, Approach[]>();
     for (const re of routed) {
       const fi = byId.get(re.from);
@@ -1209,39 +988,31 @@ export function routeTrails(
       if (fi === undefined || ti === undefined) continue;
       const A = islands[fi]!;
       const B = islands[ti]!;
-      // walk in from each docking end to the first node clear of the rim + probe band; its
-      // bearing from the island centre is the direction the trail truly arrives from
       const approachFrom = (isl: TrailIsland, fromStart: boolean): { x: number; y: number } => {
         const N = re.nodes.length;
         for (let k = 0; k < N; k++) {
           const nd = re.nodes[fromStart ? k : N - 1 - k]!;
           if (rimDistance(isl, nd.x, nd.y) > probe) return nd;
         }
-        return re.nodes[fromStart ? N - 1 : 0]!; // whole path within the band — use the far end
+        return re.nodes[fromStart ? N - 1 : 0]!;
       };
       const pa = approachFrom(A, true);
       const pb = approachFrom(B, false);
       pushApproach(apprIncident, fi, re.key, pa.x - A.x, pa.y - A.y);
       pushApproach(apprIncident, ti, re.key, pb.x - B.x, pb.y - B.y);
     }
-    grid = { ...grid, cost: freshCost }; // fresh costs — pass 1 mutated the reuse costs
+    grid = { ...grid, cost: freshCost };
     routed = routePass(clusterDocks(apprIncident));
   }
 
-  // ---------- weld near-coincident junctions (owner feedback 2026-07-08) ----------
-  // Where trunks converge, different edges can join at ADJACENT grid cells rather than the same
-  // cell, leaving a ~1-cell stub between two junction nodes that renders as a hook. Weld surface
-  // junction nodes (degree ≥ 3 — a merge/split, never a straight-through degree-2 trail cell, so
-  // trail resolution is untouched) within `junctionWeld` into ONE shared key + centroid position.
-  // Deterministic: keys are processed in sorted order; the union-find always keeps the smaller key.
   if (t.junctionWeld > 0) {
-    const nbrs = new Map<string, Set<string>>(); // key -> distinct neighbour keys (degree)
+    const nbrs = new Map<string, Set<string>>();
     const posOf = new Map<string, Pt>();
     for (const re of routed) {
       for (let i = 0; i < re.nodes.length; i++) {
         const nd = re.nodes[i]!;
         if (!posOf.has(nd.key)) posOf.set(nd.key, { x: nd.x, y: nd.y });
-        if (nd.underOf !== -1) continue; // never weld hidden/under-island nodes (cave portals)
+        if (nd.underOf !== -1) continue;
         const set = nbrs.get(nd.key) ?? nbrs.set(nd.key, new Set()).get(nd.key)!;
         const prev = re.nodes[i - 1];
         const next = re.nodes[i + 1];
@@ -1279,7 +1050,6 @@ export function routeTrails(
           if (dx * dx + dy * dy <= weld2) union(junctionKeys[i]!, junctionKeys[j]!);
         }
       }
-      // canonical position = cluster centroid (deterministic — members sorted)
       const members = new Map<string, string[]>();
       for (const k of junctionKeys) (members.get(find(k)) ?? members.set(find(k), []).get(find(k))!).push(k);
       const canonPos = new Map<string, Pt>();
@@ -1293,8 +1063,6 @@ export function routeTrails(
         }
         canonPos.set(root, { x: sx / ms.length, y: sy / ms.length });
       }
-      // remap welded junctions to their canonical key + centroid, then drop any degenerate
-      // run this weld created: consecutive duplicates (A A) and one-node spikes (A X A → A)
       for (const re of routed) {
         const mapped: NodeRec[] = re.nodes.map((nd) => {
           if (nd.underOf !== -1 || !parent.has(nd.key)) return nd;
@@ -1305,9 +1073,9 @@ export function routeTrails(
         const out: NodeRec[] = [];
         for (const nd of mapped) {
           const prev = out[out.length - 1];
-          if (prev && prev.key === nd.key) continue; // A A → A (drop nd)
+          if (prev && prev.key === nd.key) continue;
           if (out.length >= 2 && out[out.length - 2]!.key === nd.key) {
-            out.pop(); // A X A → A: drop X; out end is now A === nd, so drop nd too
+            out.pop();
             continue;
           }
           out.push(nd);
@@ -1317,11 +1085,6 @@ export function routeTrails(
     }
   }
 
-  // ---------- segmentization: split where the co-travelling edge set changes ----------
-  // Each undirected link (node pair) carries a signature = the sorted set of
-  // edges using it (hidden-flagged per edge). A segment is a maximal run of
-  // links with one signature — junctions and hidden/visible transitions both
-  // change the signature, so both split.
   const linkEntries = new Map<string, Set<string>>();
   for (const re of routed) {
     for (let i = 0; i + 1 < re.nodes.length; i++) {
@@ -1348,7 +1111,7 @@ export function routeTrails(
   }
   const segByCanon = new Map<string, SegRec>();
   const segOrder: SegRec[] = [];
-  const segIdCount = new Map<string, number>(); // 32-bit hash collision guard
+  const segIdCount = new Map<string, number>();
   const outEdges: TrailEdgeOut[] = [];
   for (const re of routed) {
     const linkCount = re.nodes.length - 1;
@@ -1362,13 +1125,11 @@ export function routeTrails(
       const keys = run.map((nd) => nd.key);
       const fwd = keys.join(SEP);
       const rev = [...keys].reverse().join(SEP);
-      const reversed = rev < fwd; // canonical orientation: lexicographically smaller key run
+      const reversed = rev < fwd;
       const canonKey = reversed ? rev : fwd;
       let rec = segByCanon.get(canonKey);
       if (!rec) {
         const entries = (sigs[from] ?? '').split(SIG_JOIN).filter((x) => x.length > 0);
-        // two distinct cell runs CAN share a 32-bit FNV hash — a shared id would
-        // corrupt edge chains and reveal targeting, so extend, never share
         const base = `t${hash(canonKey).toString(36)}`;
         const nth = segIdCount.get(base) ?? 0;
         segIdCount.set(base, nth + 1);
@@ -1391,14 +1152,11 @@ export function routeTrails(
       }
     }
     emitRun(runStart, linkCount);
-    // ANNOTATED local, then one guarded assignment — the shape
-    // `anti-slop/no-conditional-empty-object-spread` requires.
     const outEdge: TrailEdgeOut = { from: re.from, to: re.to, segments: chain };
     if (re.title !== undefined) outEdge.title = re.title;
     outEdges.push(outEdge);
   }
 
-  // ---------- cave portals: rim crossings of the hidden runs ----------
   interface CaveAcc {
     islandId: string;
     x: number;
@@ -1424,13 +1182,13 @@ export function routeTrails(
     acc.edgeIds.add(edgeKey);
   };
   for (const re of routed) {
-    const displayKey = `${re.from}->${re.to}`; // the PUBLIC edge key (docs on TrailCave)
+    const displayKey = `${re.from}->${re.to}`;
     for (let i = 0; i + 1 < re.nodes.length; i++) {
       const a = re.nodes[i]!;
       const b = re.nodes[i + 1]!;
       if (a.underOf === b.underOf) continue;
-      if (a.underOf !== -1) addPortal(islands[a.underOf]!, a, b, displayKey); // exit portal
-      if (b.underOf !== -1) addPortal(islands[b.underOf]!, a, b, displayKey); // entry portal
+      if (a.underOf !== -1) addPortal(islands[a.underOf]!, a, b, displayKey);
+      if (b.underOf !== -1) addPortal(islands[b.underOf]!, a, b, displayKey);
     }
   }
   const caves: TrailCave[] = [...caveMap.values()].map((acc) => ({
@@ -1442,8 +1200,6 @@ export function routeTrails(
     edgeIds: [...acc.edgeIds].sort(),
   }));
 
-  // resample every segment first (pure geometry), so the meander pass can see the
-  // OTHER trails and fade its wander out wherever two paths run close (owner 2026-07-08)
   const bases = segOrder.map((rec) => resampleSegment(rec.pts, t));
   const visibleBases = segOrder.map((rec, i) => (rec.hidden ? null : bases[i]!));
   const segments: TrailSegment[] = segOrder.map((rec, i) => {
@@ -1458,22 +1214,6 @@ export function routeTrails(
   return { segments, edges: outEdges, caves, dropped: finishDropped() };
 }
 
-/**
- * Project a network routed in GROUND SPACE (via {@link routeTrails} fed ground-plane
- * `TrailIsland`s) into SCREEN space at the declared land camera (ADR-0367 D1). The router itself
- * stays camera-agnostic (see the module doc) — this is the one seam where that ground-space
- * geometry becomes the screen-space `d`/`points` every render surface expects.
- *
- * Centripetal Catmull-Rom is affine in its control points, so re-splining the PROJECTED points
- * (`crPathD`) reproduces exactly the curve `routeTrails` would have drawn had it computed the
- * spline after projection — this is not an approximation.
- *
- * A cave's `bearing` is recomputed from the PROJECTED island centre to the PROJECTED portal point
- * rather than reprojecting the ground-space angle directly: an anisotropic (non-uniform) scale
- * does not carry an angle to its own image (a ground-space outward normal does not project to the
- * screen-space outward normal of the resulting ellipse), where "point away from the projected
- * centre, through the projected portal" is still exactly the outward direction on screen.
- */
 export function projectTrailNetwork(
   network: TrailNetwork,
   islands: readonly TrailIsland[],

@@ -1,19 +1,15 @@
-/** Capability 4 · The planet. The globe's growth clock (The drawing engine 5.4): what the canvas and the host's marks read to draw a growth as it stands. */
+// Capability 4 · The planet
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { growthMoment, growthNow, growthProgress, type GrowthPlan } from './growth.js';
 
-/** A growth to replay: its plan, and either a fixed moment (a host scrubbing it) or the canvas's own clock from when it was given. */
 export interface PlanetGrowth { plan: GrowthPlan; at?: number | undefined }
 
-/** How grown each thing is now: 1 for anything the growth does not schedule, and for everything once it is done. */
 export interface GrowthReader {
-  /** Seconds into the growth; Infinity when there is none. */
   now(): number;
   globe(): number;
   island(story: string): number;
   capability(capability: string): number;
-  /** Where a recorded date falls in the growth, in its seconds (The drawing engine 5.5); 0 when there is none. */
   moment(date: string): number;
 }
 
@@ -22,11 +18,8 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 const WHOLE: GrowthReader = { now: () => Infinity, globe: () => 1, island: () => 1, capability: () => 1, moment: () => 0 };
 const GrowthContext = createContext<GrowthReader>(WHOLE);
 
-/** Read inside the globe (a plate's children, say) to fade a mark in with its island; read it in `useFrame`. */
 export function usePlanetGrowth(): GrowthReader { return useContext(GrowthContext); }
 
-/** Keeps the growth's clock and asks for frames while it is still growing; under reduced motion it is whole at once, unless the
- * host fixes its moment. */
 export function GrowthProvider({ growth, children }: { growth: PlanetGrowth | undefined; children: ReactNode }) {
   const { clock, invalidate } = useThree();
   const plan = growth?.plan;
@@ -42,7 +35,6 @@ export function GrowthProvider({ growth, children }: { growth: PlanetGrowth | un
       moment: date => growthMoment(plan, date) };
   }, [plan, at, clock]);
   useFrame(() => { if (plan !== undefined && at === undefined && reader.now() < plan.seconds) invalidate(); });
-  // A fixed moment draws once when it changes.
   useEffect(() => invalidate(), [reader, invalidate]);
   return <GrowthContext.Provider value={reader}>{children}</GrowthContext.Provider>;
 }

@@ -8,7 +8,7 @@ import tseslint from "typescript-eslint";
 import plugin from "./index.mjs";
 
 const rule = plugin.rules["no-happy-dom-equal"];
-const refused = (code, filename, lines) => ({ code, filename, errors: lines.map((line) => ({ messageId: "nodeEqual", line })) });
+const refused = (code, filename, reports) => ({ code, filename, errors: reports.map(([line, callee, shown]) => ({ messageId: "nodeEqual", line, data: { callee, shown } })) });
 
 const PAGE = `import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -103,9 +103,27 @@ test("1.3 a factory", () => {
 });
 `;
 
+const EDGES = `import assert from "node:assert/strict";
+import { Window } from "happy-dom";
+const { document } = new Window();
+function node() {
+  return document.body;
+}
+function name() {
+  return "x";
+}
+assert.equal(name(), "x");
+assert.equal(node(), null);
+assert.equal(document.querySelector("#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"), null);
+assert.equal(document.querySelector("#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"), null);
+assert.deepEqual([
+  document.body,
+], []);
+`;
+
 const PLAIN = 'import assert from "node:assert/strict";\nassert.equal(document.querySelector("a"), null);\n';
 
-test("8.6 · storytree/no-happy-dom-equal refuses, in a test file importing happy-dom, an assert.equal-family call whose operand may be a happy-dom node (a DOM query, a node-only property, a new Window, a name, destructured name, loop variable, callback or default parameter bound to one, a branch holding one, or a node-returning helper destructured from, or read as a member of, the object a local function returns; node's own assert only), its message naming assert.ok(a === b, message); primitive comparisons there, an identity assert.ok, a file importing no happy-dom and a file that is not a test pass", () => {
+test("8.6 · storytree/no-happy-dom-equal refuses, in a test file importing happy-dom, an assert.equal-family call whose operand may be a happy-dom node (a DOM query, a node-only property, a new Window, a name, destructured name, loop variable, callback or default parameter bound to one, a branch holding one, or a node-returning helper destructured from, or read as a member of, the object a local function returns; node's own assert only), its message naming assert.ok(a === b, message), the call and the operand (whitespace collapsed, cut to 57 characters and ... past 60); primitive comparisons there, an identity assert.ok, a block-bodied local function returning a string, a file importing no happy-dom and a file that is not a test pass", () => {
   assert.match(rule?.meta?.messages?.nodeEqual ?? "", /assert\.ok\(a === b, message\)/);
 
   new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("no-happy-dom-equal", rule, {
@@ -115,15 +133,41 @@ test("8.6 · storytree/no-happy-dom-equal refuses, in a test file importing happ
       { code: FACTORY, filename: "packages/view/src/factory.ts" },
     ],
     invalid: [
-      refused(PAGE, "packages/view/src/page.test.ts", [11, 12, 13, 14, 15]),
-      refused(SHAPES, "packages/view/src/shapes.test.ts", [13, 14, 15, 16, 17, 18, 19, 21]),
-      refused(OTHER_ASSERTS, "packages/view/src/other.test.mjs", [5]),
-      refused(FACTORY, "packages/view/src/factory.test.ts", [16, 17, 18, 19]),
+      refused(PAGE, "packages/view/src/page.test.ts", [
+        [11, "assert.strictEqual", "target"],
+        [12, "assert.equal", 'document.querySelector("#read-error")'],
+        [13, "assert.equal", "on.content.firstElementChild"],
+        [14, "assert.deepEqual", "[button]"],
+        [15, "assert.deepEqual", "tabs()"],
+      ]),
+      refused(SHAPES, "packages/view/src/shapes.test.ts", [
+        [13, "equal", "found"],
+        [14, "equal", "link"],
+        [15, "same", "item"],
+        [16, "equal", "chosen"],
+        [17, "equal", "Math.random() > 0.5 ? page.body : null"],
+        [18, "equal", "null ?? page.body"],
+        [19, "equal", "await (page.body as unknown)"],
+        [21, "equal", "top"],
+      ]),
+      refused(OTHER_ASSERTS, "packages/view/src/other.test.mjs", [[5, "strictEqual", "document.body"]]),
+      refused(FACTORY, "packages/view/src/factory.test.ts", [
+        [16, "assert.equal", "focused()"],
+        [17, "assert.equal", "p.focused()"],
+        [18, "assert.equal", "deep()"],
+        [19, "assert.equal", "p.first()"],
+      ]),
+      refused(EDGES, "packages/view/src/edges.test.ts", [
+        [11, "assert.equal", "node()"],
+        [12, "assert.equal", 'document.querySelector("#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")'],
+        [13, "assert.equal", 'document.querySelector("#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...'],
+        [14, "assert.deepEqual", "[ document.body, ]"],
+      ]),
     ],
   });
 
   new RuleTester().run("no-happy-dom-equal", rule, {
     valid: [{ code: OTHER_ASSERTS, filename: "packages/view/src/other.mjs" }],
-    invalid: [refused(OTHER_ASSERTS, "packages/view/src/other.test.mjs", [5])],
+    invalid: [refused(OTHER_ASSERTS, "packages/view/src/other.test.mjs", [[5, "strictEqual", "document.body"]])],
   });
 });

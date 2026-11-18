@@ -1171,6 +1171,7 @@ export function boxDefaults({ home = homedir(), env = process.env, platform = pr
     ownViewOf: async (pr, on) => JSON.parse((await run("gh", ["pr", "view", String(pr), ...(on ? ["-R", on] : []), ...VIEW])).stdout),
     ownBranchOf: async () => (await run("git", ["branch", "--show-current"])).stdout.trim().replace(/^(main|master)$/, ""),
     alive: async (pid) => isFixSession(await argsOf(pid)),
+    // posix-only: room is read only by the watcher's look loop, which the Mint box's service host runs.
     room: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout)
       < await readCap({ lanesDir, sessions: config.sessions }),
     startFix: async ({ pr, n, brief, project }) => {

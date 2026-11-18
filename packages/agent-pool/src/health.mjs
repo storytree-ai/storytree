@@ -173,6 +173,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   return {
     lanesDir, credentials: join(home, ".claude", ".credentials.json"), now: Date.now, out: console.log,
     argsOf: async (pid) => (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").join(" ").trim(),
+    // posix-only: the pool's health report reads the Mint box's pool, run there.
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     serviceOn: async () => (await import("@storytree/project-and-caller")).readServicesOn().includes("agent-pool/dispatcher"),

@@ -1,8 +1,4 @@
-/**
- * Capability 2 · Storytree projects: the desktop page's decisions, on stand-in surfaces. Each surface the renderer would mount is a
- * fake that records what the page asked of it, and the project's tree is the forest capture's seed, so the forest's own functions
- * draw it as they do in the app.
- */
+// Capability 2 · Storytree projects
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { setImmediate } from "node:timers/promises";
@@ -14,14 +10,12 @@ import type { ProjectSelection } from "../projects/selection.js";
 import type { SurfacesResult } from "../surfaces/bridge.js";
 import { openProjectPage, type ForestGlobe, type ForestSelection, type PageParts, type ProjectParts } from "./page.js";
 
-/** Who hears the page's one reading, as the page reading takes them. */
 type NewsListener = Parameters<ProjectParts["page"]["subscribe"]>[0];
 
 const { seed } = captureSeed("forest");
 const tree = seed.tree as AnnotatedTree;
 const story = tree.stories.find((each) => each.capabilities.length >= 2)!;
 const settled = () => setImmediate();
-/** The tests whose timers are already stood in for: a test may open two pages. */
 const timed = new WeakSet<TestContext>();
 
 function deferred<T>() {
@@ -33,7 +27,6 @@ function deferred<T>() {
 
 type Reading = Parameters<ProjectParts["reading"]>[0];
 
-/** What the page did with one project's surfaces. */
 interface Drawn {
   name: string;
   mounted: string[];
@@ -46,30 +39,20 @@ interface Drawn {
   islands: Parameters<ProjectParts["teaching"]>[2] | undefined;
   rendered: (string | undefined)[];
   gates: (readonly [string, string] | undefined)[];
-  /** The contracts the opened arc's open work links, as each panel drawn was handed them. */
   opens: (readonly string[] | undefined)[];
-  /** Whether each panel drawn showed its capability's details, as the Surfaces menu says. */
   details: boolean[];
-  /** The capability each panel handed to its folds was drawn on, read from the panel after it was drawn. */
   folded: (string | undefined)[];
   kept: AnnotatedTree | undefined;
   timed: { read(): Promise<unknown> } | undefined;
-  /** Where the arcs and the sessions list were mounted, and how the arcs speak to their tab's badge. */
   hosts: { arcs?: HTMLElement; sessions?: HTMLElement; ciTimes?: HTMLElement };
   waiting: ((count: number) => void) | undefined;
-  /** How the arcs tell the page the open arc's capabilities. */
   opened: ((capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined) => void) | undefined;
-  /** The increments the arcs were asked to open. */
   increments: string[];
-  /** What the arcs were told to start reading after. */
   arcsStart: PromiseLike<unknown> | undefined;
-  /** Who hears the page's one reading, in the order they subscribed: the forest's reading among them, as in the app. */
   listeners: NewsListener[];
-  /** What the forest and the arcs did, in order: the forest asking its tree on its first news, the arcs mounting. */
   events: string[];
 }
 
-/** The page on stand-in surfaces; `answers` overrides the bridge and how each project's surfaces answer. */
 function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "waiting" | "projectSelection" | "readSurfaces" | "globe" | "pluginViews">> & {
   openView?: (name: string) => Promise<void>;
   plugins?: (on: (surface: string) => boolean) => Promise<{ stop(): void; failed: [] }>;
@@ -144,7 +127,6 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
           return { take: (reading) => { mine.teaching.push({ factory: reading.factory, library: reading.library }); }, stop: () => { mine.stopped.push("teaching"); } };
         },
         plugins: (on) => answers.plugins!(on),
-        // The forest's reading hears the page's reading and asks its tree on its first news, as forestReading does.
         reading: (options) => {
           mine.reading = options;
           let asked = false;
@@ -170,12 +152,9 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "wait
     get selections() { return selections; },
     choose(next: ProjectSelection) { selection = next; },
     surfaces(next: SurfacesResult) { surfaces = next; },
-    /** The project last drawn, once its forest has opened. */
     last: () => drawn.at(-1)!,
-    /** The page's reading handing news, or failing, to everyone who hears it, in the order they subscribed. */
     heard: (on = drawn.at(-1)!) => { for (const listener of [...on.listeners]) void listener.onNews({ changes: [], lines: [] }); },
     readFailed: (error: Error, on = drawn.at(-1)!) => { for (const listener of [...on.listeners]) listener.onError?.(error); },
-    /** The fresh tree landing for the project last drawn. */
     land: (on = drawn.at(-1)!, landed: AnnotatedTree = tree) => on.reading!.onTree(landed, { changes: [], lines: [] }, {}, []),
     heading: () => content.querySelector("h1")?.textContent,
     line: () => content.querySelector("p")?.textContent,
@@ -293,7 +272,6 @@ test("2.26 · what lands after the page left the project's drawing changes nothi
   });
   await settled();
   const opening = on.last();
-  // A surface is switched while the globe is still opening: the project is drawn again, and the first globe lands too late.
   const again = on.page.surfacesChanged();
   await settled();
   views[0]!.resolve();
@@ -302,7 +280,6 @@ test("2.26 · what lands after the page left the project's drawing changes nothi
   assert.equal(opening.reading, undefined, "and never reads");
   assert.equal(on.drawn.length, 2);
 
-  // The second drawing's factory views are on their way when a failed choice takes the project off show.
   views[1]!.resolve();
   await settled();
   on.page.choiceFailed(new Error("that project's library is not reachable"));
@@ -311,7 +288,6 @@ test("2.26 · what lands after the page left the project's drawing changes nothi
   assert.equal(pluginStops, 1, "plugin views mounted too late are stopped");
   assert.equal(on.drawn[1]!.reading, undefined);
 
-  // A tree or a failure the left drawing's reading had in flight draws nothing and says nothing.
   await settled();
   views.at(-1)!.resolve();
   await settled();
@@ -485,7 +461,6 @@ test("2.29 · teaching cards hear whether the project on show is the factory and
   assert.deepEqual(on.last().islands!(), [{ left: 0, top: 10, right: 20, bottom: 30 }, { left: 60, top: 70, right: 80, bottom: 90 }],
     "every island on show with a box, which a card covers as little of as it can; not one round the back of the globe");
 
-  // What is being read near a card's target, which the card keeps clear of: the open story panel and the target's nameplates.
   const reading = on.last().readingNear!;
   const boxed = (element: HTMLElement, box: { left: number; top: number; right: number; bottom: number }) => {
     element.getBoundingClientRect = () => ({ ...box, width: box.right - box.left, height: box.bottom - box.top }) as DOMRect;
@@ -506,13 +481,11 @@ test("2.29 · teaching cards hear whether the project on show is the factory and
   assert.deepEqual(reading({ kind: "capability", story: story.id, capability: "cap_a" }).map(box => box.left), [100, 0, 200], "the switcher, and its story's and capability's nameplates, not another's");
   shut.hidden = false;
   assert.deepEqual(reading({ kind: "arc" }).map(box => box.left), [100, 500], "the story panel once it is open");
-  // The bar's project switcher and the globe's Stories/Library switch are kept clear for every card, whatever its target.
   const views = on.document.createElement("div");
   views.className = "forest-views";
   boxed(views, { left: 600, top: 60, right: 760, bottom: 90 });
   assert.deepEqual(reading({ kind: "arc" }).map(box => box.left), [100, 500, 600], "the project switcher and the Stories/Library switch");
   assert.deepEqual(reading({ kind: "switch" }).map(box => box.left), [100, 500, 600], "the factory's card too, beside the switcher, never on it");
-  // The bar's gear (the app menu) too: a tall card with its More open reaches up to the bar's right end.
   const gear = on.document.createElement("button");
   gear.className = "app-gear";
   boxed(gear, { left: 1400, top: 4, right: 1436, bottom: 40 });
@@ -550,7 +523,6 @@ test("2.29 · a card about the map keeps off the whole rail; a card about the pl
 test("2.30 · each start mark is sent once, and what the forest drew joins the page's census", async (t) => {
   const on = page(t);
   await settled();
-  // The arc surface has said what it drew once the project is on show.
   on.body.dataset.drew = JSON.stringify({ arcs: ["arc_1"] });
   const project = on.last();
   await project.timed!.read();

@@ -1,9 +1,3 @@
-/**
- * The live reading (part of capability 3 · Arc surface, the arc surface story): while it runs it
- * asks the app's two reads about every two seconds, carrying each read's cursor forward, and re-reads
- * the clock once a minute even when nothing is new. The reads and the clock are stand-ins here, so
- * no app and no database are needed.
- */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -14,7 +8,6 @@ import { claimsFrom, LogFold, sessionsFrom, type LogFoldSnapshot } from "@storyt
 import { liveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
 import { heldReading, joinedReads, pageReading, type Keeping, type KeptReading } from "./page-reading.js";
 
-/** A stand-in clock whose timers fire only when the test moves it on. */
 class Clock implements Timers {
   #now = Date.UTC(2026, 8, 27, 12);
   #timers: { ms: number; next: number; run: () => void }[] = [];
@@ -31,7 +24,6 @@ class Clock implements Timers {
     };
   }
 
-  /** Move on `ms`, firing each timer as its time comes, and let each read it starts settle. */
   async advance(ms: number): Promise<void> {
     const until = this.#now + ms;
     for (;;) {
@@ -51,7 +43,6 @@ async function settle(): Promise<void> {
   for (let turn = 0; turn < 10; turn++) await Promise.resolve();
 }
 
-/** The app's two reads over a project whose library and log the test adds to, recording every ask. */
 class App implements LiveReads {
   readonly asked: string[] = [];
   readonly changes: Change[] = [];
@@ -237,7 +228,6 @@ test("the surfaces hearing one news share one read of the project's tree", async
 
 test("the shared tree read works over the desktop's bridge, whose functions are read-only", async () => {
   let reads = 0;
-  // Electron's context bridge hands the page an object whose properties cannot be assigned.
   const bridge = Object.freeze({ projectTree: async (project: string) => { reads++; await settle(); return project; } });
   const tree = joinedReads(bridge);
   const [a, b] = await Promise.all([tree.projectTree("shop"), tree.projectTree("shop")]);
@@ -307,7 +297,6 @@ test("the page reading holds the log's sessions and claims folded, and drops eve
     { ...common, seq: 4, kind: "command-run", command: "pnpm gate", call: "c1" },
     { ...common, seq: 5, kind: "file-edited", files: ["a.ts"] },
     { ...common, seq: 6, kind: "turn-ended" },
-    // The sessions list reads a subagent's start and end one by one (7.2).
     { ...common, seq: 7, kind: "subagent-started", subagent: "a1" },
     { ...common, seq: 8, kind: "subagent-ended", subagent: "a1" },
   );
@@ -356,7 +345,6 @@ test("3.30 · a surface's test hears what the page holds: the same thinning, so 
   reading.stop();
 });
 
-/** A kept reading in memory, as the page's storage keeps one between starts: its pieces, and the latest fold written out. */
 class KeptStandIn implements KeptReading {
   pieces: News[] = [];
   fold: string | undefined;
@@ -458,7 +446,6 @@ test("a kept reading the library does not know is dropped, and the page reads fr
   reading.stop();
 });
 
-/** The app's reads with the bounded start (Agent activity log 2.16): a stand-in that hands out the start it is given. */
 class StartingApp extends App {
   given: LinesStart = { lines: [], sessions: [], claims: [], cursor: 0 };
   override async changesSince(project: string, cursor: number, filter?: ChangesFilter): Promise<Changes> {
@@ -598,7 +585,6 @@ test("3.29 a reading stopped while its first start is on its way holds, keeps an
   assert.deepEqual(app.asked, [], "and nothing is asked after it");
 });
 
-/** The app's reads with the bounded start and the lines that decide the sessions asked: a stand-in that hands out the log's whole lines of each. */
 class ReturningApp extends StartingApp {
   earlier: Line[] = [];
   failingSessions = false;
@@ -630,7 +616,6 @@ test("3.31 · news from a session the bounded start left out asks the log once f
   assert.deepEqual(reading.held().fold.sessions({ now: new Date(15 * 60_000) }).map(({ session }) => session), ["here"], "and nothing of the news is held");
 
   app.failingSessions = false;
-  // A line the session writes after the news was read, which the log hands out with its earlier ones: it waits for its own news.
   const later = line(16, "back", "session-named", { title: "Renamed after" });
   const sessionLines = app.sessionLines.bind(app);
   app.sessionLines = async (project, sessions) => [...await sessionLines(project, sessions), later];

@@ -1,61 +1,28 @@
-// Capability 4 · The watcher also owns a stopped release (ADR-1032 D2). Every few minutes its look loop reads the
-// latest published release, the "Release installed app" runs and main's own CI runs from GitHub, with no model. A
-// release attempt or main's newest CI run that failed is rerun once (main's again, bounded, while only the runner
-// failed it); if releases are still stopped after that, one fix session is started for the stop, and after the fix
-// limit the owner is asked on the release arc.
-//
-// The retry lives here rather than in a workflow beside rerun-unrun.yml: the once-only retry and the alarm read the
-// same runs and the same attempt numbers, so one reader decides both and its decisions are pure and tested (4.16),
-// where a workflow's shell would be untested; and the watcher already reads GitHub every minute. A box that is down
-// retries nothing, but then it starts no lanes either. rerun-unrun.yml still reruns a CI job no runner took; when it
-// reruns main's newest run first, that run's next attempt is the retry here.
+// Capability 4 · The watcher also owns a stopped release (ADR-1032 D2).
 import { existsSync } from "node:fs";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { localBrief } from "./queue.mjs";
 
-/** How long a commit green on main may wait for a published release before the alarm: 90th percentile gap 2.8 h, median 44 min (ADR-1032). */
 export const RELEASE_LIMIT_MS = 2 * 3600_000;
-/** How often the look loop reads release state; a release takes about 23 minutes. */
 export const RELEASE_EVERY_MS = 5 * 60_000;
-/** The arc that owns the release process, where a stop no session could move is put to the owner. */
 export const RELEASE_ARC = "arc_312aa103bfca";
 
 const RED = new Set(["failure", "cancelled", "timed_out", "startup_failure"]);
 const MAIN_RED = new Set(["failure", "timed_out", "startup_failure"]);
 
-/** Whether a release run's jobs attempted a release: a job after `source` (which picks the commit, or nothing) ran. */
 export const attempted = (jobs) => jobs.some((job) => !/^source\b/.test(job.name) && job.steps > 0);
 
-/** The job to name for a red run: the first that ran and ended red. */
 export const failedJob = (jobs) => jobs.find((job) => job.steps > 0 && RED.has(job.conclusion))?.name;
 
-/**
- * Whether a check or job is a security check: CodeQL default setup's check runs and the secret check (4.41). Its
- * failure goes to the owner as a library question, never to a fix session, whose commits and pull request are public.
- */
 export const isSecurityCheck = (name) => typeof name === "string" && (name.startsWith("CodeQL") || name.startsWith("Analyze (") || name === "secret-check");
 
-/** The security checks among a run's jobs that ran and ended red, for an alarm's run (4.41). */
 export const securityJobs = (jobs) => jobs.filter((job) => job.steps > 0 && RED.has(job.conclusion) && isSecurityCheck(job.name)).map((job) => job.name);
 
-/**
- * How many attempts a CI run red only on the runner may reach before it is judged as any red is: run 39460677369 on
- * main needed three (a browser crash at launch, then a macOS job no runner took, then green), so three reruns.
- */
 export const RUNNER_ATTEMPTS = 4;
-/** ci.yml's jobs that only read the `platforms` jobs' result, so fail when one of those does, whatever failed it. */
 export const FOLLOWERS = new Set(["verify", "automerge"]);
 
-/**
- * Why a red run's failures are all the hosted runner's, from its jobs ({ name, conclusion, steps, runner }) and its
- * failed steps' log (`gh run view --log-failed`, each line led by its job's name and a tab), or null when any failure
- * may be the code's (4.29). The runner's are a job cancelled with no step run and no runner named (GitHub found no
- * runner for it, as rerun-unrun.yml reads it) and a job whose log says the browser died of SIGSEGV at launch, before
- * any of our code ran in it (apps/desktop/src/capture/launch.ts). A job that failed beside that crash for another
- * reason still reads as the runner's; the bound on attempts is what keeps that from rerunning forever.
- */
 export function runnerFault(jobs, log = "") {
   const red = jobs.filter((job) => RED.has(job.conclusion) && !FOLLOWERS.has(job.name));
   if (!red.length) return null;
@@ -69,7 +36,6 @@ export function runnerFault(jobs, log = "") {
   return why.join("; ");
 }
 
-/** A pull request's failed CI runs ({ id, attempt, status, jobs, log }) to rerun because only the runner failed each, below RUNNER_ATTEMPTS; null when any is the code's or spent (4.29). */
 export function runnerReruns(runs) {
   if (!runs.length) return null;
   const why = [];
@@ -81,17 +47,7 @@ export function runnerReruns(runs) {
   return { runs, why: why.join("; ") };
 }
 
-/**
- * From the latest published release ({ tag, sha, at }), the release runs that attempted a release and main's push CI
- * runs (each newest first: { id, sha, created, updated, status, conclusion, attempt, url, job, fault }), decide what to rerun
- * and whether releases are stopped. Only attempts made since the latest release, and the run that published it, count:
- * an older one is no part of this stop, and rerunning it could publish an older build. While a rerun is running nothing
- * is alarmed.
- */
 export function judgeReleases({ release, attempts, main, now, limitMs = RELEASE_LIMIT_MS }) {
-  // The run that published the latest release counts too: it publishes without a platform whose job failed (4.6) and
-  // ends red, and that platform's stop is this one. Its rerun proves the build and uploads nothing: the build comes
-  // with the next version.
   const published = (run) => run.sha === release.sha;
   const since = attempts.filter((run) => Date.parse(run.created) > Date.parse(release.at) || published(run));
   const done = since.filter((run) => run.status === "completed");
@@ -100,7 +56,6 @@ export function judgeReleases({ release, attempts, main, now, limitMs = RELEASE_
   if (since[0]?.status === "completed" && RED.has(since[0].conclusion) && since[0].attempt === 1) {
     reruns.push({ what: "release", run: since[0], why: `release run ${since[0].id} ended ${since[0].conclusion}` });
   }
-  // A red only the runner caused (its `fault`, from runnerFault) is rerun again, up to RUNNER_ATTEMPTS (4.29).
   if (head?.status === "completed" && MAIN_RED.has(head.conclusion) && (head.attempt === 1 || (head.fault && head.attempt < RUNNER_ATTEMPTS))) {
     reruns.push({ what: "main", run: head, why: `main's CI run ${head.id} on ${head.sha.slice(0, 8)} ended ${head.conclusion}${head.fault ? ` on the runner (${head.fault})` : ""}` });
   }
@@ -110,7 +65,6 @@ export function judgeReleases({ release, attempts, main, now, limitMs = RELEASE_
   if (head?.status === "completed" && MAIN_RED.has(head.conclusion)) {
     return { reruns, alarm: { why: `main's CI is still red on ${head.sha.slice(0, 8)} after its rerun`, run: named(head) } };
   }
-  // The last two attempts, so a fresh one still running holds this alarm until it ends.
   if (since.length >= 2 && since.slice(0, 2).every((run) => run.status === "completed" && RED.has(run.conclusion))) {
     return { reruns, alarm: { why: "the last two release attempts both ended failed or cancelled", run: named(since[0]) } };
   }
@@ -128,14 +82,12 @@ export function judgeReleases({ release, attempts, main, now, limitMs = RELEASE_
 }
 
 const statePath = (dir) => join(dir, "release.json");
-/** Write `text` to `path` whole: beside it first, then renamed over it, so a watcher stopped mid-write leaves the old file, never half of one. */
 export async function writeWhole(path, text) {
   await writeFile(`${path}.tmp`, text);
   await rename(`${path}.tmp`, path);
 }
 const save = (dir, state) => writeWhole(statePath(dir), `${JSON.stringify(state, null, 2)}\n`);
 const load = async (dir) => { try { return JSON.parse(await readFile(statePath(dir), "utf8")); } catch { return null; } };
-/** "Releases stopped since 2026-10-13 12:00Z": the fix session's row in the sessions list, 40 characters at most. */
 export const stopName = (at) => `Releases stopped since ${new Date(at).toISOString().slice(0, 16).replace("T", " ")}Z`;
 
 function fixBrief({ release, alarm, tail, n, limit, name }) {
@@ -166,24 +118,15 @@ Your job is to get releases moving and nothing else. Work from {checkout} and fo
 `;
 }
 
-/**
- * Whether an increment's wait holds, from its status and waits as the library reads them (11.6): an owner wait until it
- * is cleared, an event wait until UTC midnight of its check-back day; a closed increment holds nothing.
- */
 export const waitHolding = ({ status, waitsFor = [] }, today) => status !== "closed"
   && waitsFor.some(({ releaser, checkBack }) => releaser === "owner" || (releaser === "event" && today < checkBack));
 
-/** Whether an increment's wait holds, read from the library by `storytree` (its command line's output); an unreadable increment holds nothing, so a record the watcher cannot see never mutes the alarm. */
 export async function readWait(storytree, id, today) {
   const read = (field) => storytree(["library", "read", id, "--field", field]).then((text) => text.trim(), () => "");
   const [status, waits] = await Promise.all([read("status"), read("waitsFor")]);
   return Boolean(status) && waitHolding({ status, waitsFor: waits ? JSON.parse(waits) : [] }, today);
 }
 
-/**
- * The question raised on the release arc under `title` at or after `since`, if one was; the security check's title
- * repeats across stops, so an older one is never adopted (4.62).
- */
 export async function raisedSince(storytree, { title, since }) {
   const listed = await storytree(["library", "list", "question", "--where", `arc=${RELEASE_ARC}`, "--where", `title=${title}`]);
   for (const id of listed.match(/question_\w+/g) ?? []) {
@@ -193,19 +136,10 @@ export async function raisedSince(storytree, { title, since }) {
   return undefined;
 }
 
-/**
- * One look at releases: forget a stop a new release ended, order the reruns, and on an alarm start one fix session
- * for the stop with an engine slot free. None starts while the last one lives, while the pull request it recorded is
- * still with the watcher, while the wait it parked an outside stop on holds, or while the question it (or the watcher)
- * raised is open; a cleared wait or a settled question lets the alarm start sessions again. After `limit` sessions the
- * watcher raises that question itself. A new release closes an increment a recorded wait parked, its stop over.
- */
 export async function watchReleases({ dir, readReleases, rerun, tail, alive, room, questionOpen, waitHolds, raise, raised = async () => undefined, startFix, startedAs = async () => undefined, limit, storytree, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} releases: ${message}`);
   const { release, reruns, alarm } = await readReleases();
   let state = await load(dir);
-  // A fix session start written down as begun but never as done: the watcher stopped between the two, so it looks for
-  // the session and adopts and counts one that started, or forgets one that never did (4.59).
   if (state?.starting) {
     const { stamp, n, entry } = state.starting;
     const found = await startedAs({ name: `release-fix-${stamp}-${n}`, since: entry.at });
@@ -218,7 +152,6 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
     dated(`fix session ${n} ${found ? "had started before the watcher stopped, and is counted" : "never started before the watcher stopped"}`);
   }
   if (state && state.stop !== release.tag) {
-    // The waited increment is closed before the stop is forgotten, so a watcher stopped in between closes it on restart (4.59).
     if (state.wait) {
       try { await storytree?.(["arc", "increment", "close", state.wait, "--disposition", "withdrawn", "--note", `${release.tag} published: the outside stop it waited out is over`]); }
       catch (error) { dated(`closing ${state.wait} failed (${error.message.split("\n")[0]})`); }
@@ -230,7 +163,6 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
   for (const { what, run, why } of reruns) {
     try { await rerun(run); dated(`${why}: rerun once`); }
     catch (error) { dated(`${why}: the rerun was refused (${error.message.split("\n")[0]})`); continue; }
-    // GitHub names the owner as every rerun's actor, since the watcher signs in as him: its own record tells them apart (4.27).
     try { await storytree?.(["workspace", "rerun", String(run.id), "--repo", run.repo, "--attempt", String(run.attempt + 1), "--what", what]); }
     catch (error) { dated(`recording the rerun of ${run.id} failed (${error.message.split("\n")[0]})`); }
   }
@@ -246,8 +178,6 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
     Object.assign(state, { wait: null, fixes: [] });
     await save(dir, state);
   }
-  // A question written down as being asked but never as asked: the watcher stopped while it raised it, so it adopts the
-  // question raised since on the release arc under that title, or asks again when none was (4.62).
   if (state.asking) {
     const { title, since } = state.asking;
     const found = state.question ?? await raised({ title, since });
@@ -263,7 +193,6 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
     await save(dir, state);
   }
   const name = stopName(state.since);
-  // Its intent is written before the question is raised, so a watcher stopped in between finds it on restart and looks (4.62).
   const ask = async (question) => {
     state.asking = { title: question.title, since: new Date(now()).toISOString() };
     await save(dir, state);
@@ -271,7 +200,6 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
     delete state.asking;
     await save(dir, state);
   };
-  // A failed security check is the owner's, asked once with no log or alert text and no fix session (4.41).
   if (alarm.run.security?.length) {
     const checks = alarm.run.security.join(", ");
     await ask({
@@ -299,7 +227,6 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
   const n = state.fixes.length + 1;
   const brief = localBrief(fixBrief({ release, alarm, tail: await tail(alarm.run).catch(() => ""), n, limit, name }), folders);
   const entry = { at: new Date(now()).toISOString(), run: alarm.run.id };
-  // Written before the session starts, so a watcher stopped in between finds it on restart and looks (4.59).
   state.starting = { stamp: now(), n, entry };
   await save(dir, state);
   const fix = await startFix({ n, stamp: state.starting.stamp, brief });
@@ -310,7 +237,6 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
   dated(`${alarm.why}: fix session ${n} of ${limit} started, log ${fix.log}`);
 }
 
-/** Record what the fix session left behind: the pull request it handed over, the increment it parked on a wait, or the question it raised. */
 export async function recordFix({ dir, pr, wait, question }) {
   const state = await load(dir);
   if (!state) return false;

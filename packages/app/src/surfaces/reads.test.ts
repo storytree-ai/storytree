@@ -1,8 +1,4 @@
-/**
- * Capability 3 · Surfaces: the page's reads, contracts 3.1 and 3.2 in the app story, against the
- * real Postgres `pnpm test` provides. Each test works in projects named t- and 8 hex digits, so
- * tests sharing the server never read each other's, and drops their libraries afterwards.
- */
+// Capability 3 · Surfaces
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -23,7 +19,6 @@ test("3.1 the page can ask the app for the library's changes and the agent log's
   const shown = uniqueProjectName();
   const other = uniqueProjectName();
   await withApp([shown, other], async ({ storytree, log, reads }) => {
-    // An agent's work, written as Session management writes it: into the project's library and the log.
     const library = await storytree.openProject(shown);
     const first = await library.addStory({ title: "Visitor can sign up" });
     await log.append(shown, { session: "A", source: "hook", kind: "session-started" });
@@ -90,7 +85,6 @@ test("3.21 · a project's library closed beneath the page's reads (deleted and m
 test("3.22 · the page's reads open each project with the kinds of record the factory plugins the app mounts declare, and with none when it mounts none (ADR-1178 D3)", async () => {
   const reading = { kind: "my-health.reading", version: 1, fields: { type: "object", properties: {} }, writers: ["my_health"] };
   const opened: unknown[] = [];
-  // A server that only records how each project is opened: what the library does with the kinds is its own 1.26.
   const storytree = {
     listProjects: async () => ["shown"],
     openProject: async (_name: string, options?: { kinds?: unknown }) => {
@@ -196,7 +190,6 @@ test("3.14 the app reads where a project sits among factories and whether a fact
     assert.deepEqual(await reads.projectLineage(loose), { kind: "none" });
     await assert.rejects(reads.projectLineage(uniqueProjectName()), /there is no project called/);
 
-    // A factory with a folder of its own, on any machine, builds itself (ADR-1086 D3); a library-only one does not.
     assert.equal(await reads.projectBuildsItself(factory), false);
     await registerTrunk(storytree, { project: factory, machine: "another-machine", machineName: "another", folder: path.join(tmpdir(), factory) }, "setup");
     try {
@@ -209,7 +202,6 @@ test("3.14 the app reads where a project sits among factories and whether a fact
   });
 });
 
-/** A session that ran on another machine:its transcript streamed into the shared log there, and its file out of this app's reach. */
 async function ranElsewhere(log: ActivityLog, project: string, session: string, records: readonly unknown[]): Promise<string> {
   const folder = mkdtempSync(path.join(tmpdir(), "reads-"));
   const transcript = path.join(folder, `${session}.jsonl`);
@@ -254,7 +246,6 @@ test("3.6 the page can ask the app for a session's window (Session management 9.
     assert.deepEqual("absent" in none && none.absent, "no hook has named this session's transcript");
 
 
-    // A session named since the last read is still seen.
     await ranElsewhere(log, shown, "B", [{ type: "user", message: { content: "hello" } }]);
     const named = await reads.windowReading(shown, "B");
     assert.ok("opens" in named, "a session named since the last read has its window");
@@ -270,14 +261,12 @@ test("3.9 after each app start, context readings and windows read no more activi
       await storytree.openProject(project);
       if (index === 1) history = await longHistory(project, "/old-work", 400, "other-machine");
       for (const session of ["A", "B"]) {
-        // Both named sessions have older references; only the latest reference places the reading.
         await log.append(project, { session, source: "hook", kind: "command-run", transcript: "/old/transcript.jsonl", command: "x".repeat(index === 1 ? 1_000_000 : 1) });
         const transcript = await ranElsewhere(log, project, session, [
           { type: "assistant", message: { model: "claude-opus-5-5", usage: { input_tokens: 321 }, content: [{ type: "tool_use", id: "c1", name: "mcp__storytree__open", input: { id: "decision_000000000001" } }] } },
           { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "c1", content: "Claims" }] } },
         ]);
         await log.append(project, { session, harness: "claude-code", source: "hook", kind: "command-run", transcript, command: "x".repeat(index === 1 ? 1_000_000 : 1) });
-        // A newer line without a transcript must not hide the last reference that named one.
         await log.append(project, { session, source: "hook", kind: "turn-ended" });
       }
       const store = await countingStore();
@@ -286,7 +275,6 @@ test("3.9 after each app start, context readings and windows read no more activi
       const counted = await connect({ url: url.href });
       const bytes: number[] = [];
       try {
-        // Each entry point is the first read of a fresh main process, with no lines or transcripts cached.
         for (const kind of ["context", "window"] as const) {
           const reads = pageReads({ storytree: counted });
           const before = store.received();
@@ -431,7 +419,6 @@ test("3.10 a Codex session's kept records survive a torn or unreadable checkpoin
         const [file] = checkpoints();
         assert.ok(file !== undefined, "the records are kept on disk");
 
-        // A torn write, then a batch written twice: what continues is kept, the rest fetched again.
         const lines = readFileSync(file, "utf8").trimEnd().split("\n");
         writeFileSync(file, `${lines.join("\n")}\n{"from":12,"fini\n${lines.at(-1)}\n`);
         await append([tokens(2000)]);
@@ -444,14 +431,11 @@ test("3.10 a Codex session's kept records survive a torn or unreadable checkpoin
         writeFileSync(file, "not a checkpoint");
         assert.equal((await read()).tokens, 2000, "an unreadable checkpoint is fetched again whole");
 
-        // The store now holds less than was kept (emptied, or another one): the checkpoint is not trusted.
         await activityQuery("DELETE FROM transcript_records WHERE project = $1", [project]);
         cursor = 0;
         await append([{ type: "session_meta", payload: { id: "codex" } }, tokens(3000)]);
         assert.equal((await read()).tokens, 3000);
 
-        // Retention keeps the reading before the raw records go, and the checkpoint goes with them.
-        // Only this project's records age: pruning in the future would expire concurrent tests' records too.
         await activityQuery("UPDATE transcript_records SET at = at - $2 * interval '1 millisecond' WHERE project = $1", [project, RETAIN_MS + 60_000]);
         await pruneTranscripts(log);
         assert.equal((await read()).tokens, 3000);
@@ -461,9 +445,6 @@ test("3.10 a Codex session's kept records survive a torn or unreadable checkpoin
   } finally { rmSync(cacheHome, { recursive: true, force: true }); }
 });
 
-// --- helpers ---------------------------------------------------------------------------------
-
-/** A reading without the moment it was taken, to compare two takes of it. */
 function stable<T extends { at: string }>(value: T): Omit<T, "at"> {
   const { at: _at, ...rest } = value;
   return rest;
@@ -475,7 +456,6 @@ interface App {
   reads: PageReads;
 }
 
-/** Run `body` with the app's reads over a connection to the test server, then close it all and drop `projects`' libraries. */
 test("3.11 the page's survey reads the folders this machine imports for the project on show, and no other machine's or project's; a name that is not a project is refused", async () => {
   const [shown, other, missing] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   const home = mkdtempSync(path.join(tmpdir(), "app-imports-"));
@@ -515,7 +495,6 @@ async function withApp(projects: readonly string[], body: (app: App) => Promise<
   }
 }
 
-/** Run one statement against the activity database directly, as another writer of it would. */
 async function activityQuery(text: string, values: unknown[]): Promise<void> {
   const url = new URL(testServerUrl());
   url.pathname = `/${ACTIVITY_DATABASE}`;
@@ -528,7 +507,6 @@ async function activityQuery(text: string, values: unknown[]): Promise<void> {
   }
 }
 
-/** The server the tests run against: `pnpm test` starts one. A Postgres test must never skip silently. */
 function testServerUrl(): string {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined || url === "") {
@@ -537,12 +515,10 @@ function testServerUrl(): string {
   return url;
 }
 
-/** A project name no other test, and no earlier run, is using. */
 function uniqueProjectName(): string {
   return `t-${randomBytes(4).toString("hex")}`;
 }
 
-/** Drop these projects' libraries, if there are any: the library keeps project `name` in the database `storytree_<name>`. */
 async function dropLibraries(projects: readonly string[]): Promise<void> {
   await dropTestDatabases(projects.map((name) => `storytree_${name}`));
 }

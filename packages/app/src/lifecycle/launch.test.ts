@@ -1,10 +1,4 @@
-/**
- * Capability 1 · Lifecycle, contract 1.6 in the app story: with storytree closed, an agent's
- * session start opens it, from the record the app leaves of how it was started (app.json). Which
- * build writes that record decides which build opens, so a development copy of the app must not
- * take it from the installed app (seen 2026-09-27: the record named a stale dev worktree, and weeks
- * of merged work never reached the screen). Also what the app says it is.
- */
+// Capability 1 · Lifecycle
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -51,8 +45,6 @@ test("1.6 a packaged build run from an AppImage records the AppImage file, not t
 test("1.6 the app says which build it is: its version when packaged, else the development checkout and commit it runs from", async (t) => {
   const checkout = mkdtempSync(path.join(tmpdir(), "storytree-checkout-"));
   t.after(() => rmSync(checkout, { recursive: true, force: true }));
-  // A commit with a fixed author, date and message is always the same commit, whatever machine makes it.
-  // The identity is set in the environment, which outranks git's config, so a shell's own GIT_AUTHOR_* cannot change it.
   const env = {
     ...process.env,
     GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_AUTHOR_DATE: "2026-01-01T00:00:00Z",

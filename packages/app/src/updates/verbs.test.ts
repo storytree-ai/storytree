@@ -1,4 +1,4 @@
-/** Capability 4 · Updates, contract 4.16, as the app declares `release pin`: the command line reads its words (13.5 there). */
+// Capability 4 · Updates
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

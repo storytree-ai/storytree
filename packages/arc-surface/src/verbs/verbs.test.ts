@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Arc surface: contract 3.11, the `arc` and `question` verbs the arc surface declares for the command line,
- * run with a caller on a fresh project's library and activity log on the real Postgres `pnpm test` provides.
- */
+// Capability 3 · Arc surface.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";

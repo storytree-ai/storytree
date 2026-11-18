@@ -1,28 +1,18 @@
-/**
- * Capability 4 · Updates, contract 4.4: when a downloaded release may restart the installed app.
- * Installing stops the app and its database for a minute or two, so it waits for a quiet moment.
- */
+// Capability 4 · Updates
 import { isUnreachable, outageSaidOnce } from "@storytree/library/connection-error";
 
 import { insideHours, type InstallChoice } from "./install-choice.js";
 
-/** How long after a launch the app is left alone: its user, or an agent, has just opened it. */
 export const SETTLE_MS = 10 * 60_000;
-/** How long the window and agents must have been idle before the app counts as unused. */
 export const QUIET_MS = 10 * 60_000;
 
 export interface InstallMoment {
   readonly now: number;
   readonly launchedAt: number;
-  /** When someone last used the open window; undefined while no window is showing. */
   readonly windowActiveAt?: number;
-  /** When an agent session that has not ended last wrote to the activity log; undefined if none. */
   readonly agentActiveAt?: number;
-  /** The user asked for the update from the gear. */
   readonly asked?: boolean;
-  /** When the user lets a release install itself (4.13); undefined reads as any quiet moment. */
   readonly choice?: InstallChoice;
-  /** The local time of day, in minutes after midnight, for quiet hours. */
   readonly minuteOfDay?: number;
 }
 
@@ -39,16 +29,12 @@ export function whenToInstall(moment: InstallMoment): "now" | "wait" {
 export interface QuietMomentOptions {
   readonly launchedAt: number;
   readonly now?: () => Date;
-  /** The user's install choice (4.13), read at each check so a change in Settings applies at once. */
   readonly choice: () => InstallChoice;
-  /** When someone last used the window; undefined while no window is showing. */
   readonly windowActiveAt: () => number | undefined;
   readonly agentActiveAt: () => Promise<number | undefined>;
-  /** Where a library that cannot be reached is said, once per outage, as one line (contract 8.8's promise for the main side). */
   readonly log?: (line: string) => void;
 }
 
-/** Whether now is a moment to restart into an update unasked: one check, shared by releases and merged-main builds. */
 export function quietMoment(options: QuietMomentOptions): () => Promise<boolean> {
   const outage = outageSaidOnce(line => options.log?.(`releases: ${line}`));
   return async () => {
@@ -59,7 +45,6 @@ export function quietMoment(options: QuietMomentOptions): () => Promise<boolean>
       agentActiveAt = await options.agentActiveAt();
       outage.answered();
     } catch (error) {
-      // An agent may be at work where the library cannot be read, so the moment is not quiet; any other failure is the caller's.
       if (!isUnreachable(error)) throw error;
       outage.failed("whether an agent is at work could not be read", error);
       return false;

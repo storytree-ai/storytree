@@ -1,14 +1,8 @@
-/**
- * Capability 3 · Surfaces. The Surfaces menu's readings (the app story; ADR-0750): each surface the stories declare, read
- * against the choices saved in the settings file. Every surface is on and every setting at its
- * default until it is set; a surface that follows another is on only while that one is. The
- * declared list is handed in by whoever composes the stories, so this package depends on none.
- */
+// Capability 3 · Surfaces
 import { readSurfaceChoices, setSurfaceChoice } from "@storytree/project-and-caller";
 
 import type { SurfacesResult } from "./bridge.js";
 
-/** One named choice of a surface's setting, such as a named opening view. */
 export interface SurfaceChoice {
   readonly id: string;
   readonly name: string;
@@ -22,16 +16,12 @@ export interface SurfaceSettingDeclaration {
   readonly choices: readonly SurfaceChoice[];
 }
 
-/** A surface as its story declares it (`@storytree/<story>/surfaces`). */
 export interface SurfaceDeclaration {
   readonly id: string;
   readonly name: string;
   readonly description: string;
-  /** False for a surface that is always on. */
   readonly switchable: boolean;
-  /** The group it is listed within, such as the Story panel. */
   readonly within?: string;
-  /** The surface it goes on and off with, when it has no switch of its own. */
   readonly follows?: string;
   readonly settings: readonly SurfaceSettingDeclaration[];
 }
@@ -47,7 +37,6 @@ export interface SurfaceReading extends Omit<SurfaceDeclaration, "settings"> {
   readonly settings: readonly SurfaceSettingReading[];
 }
 
-/** Every declared surface, in order, with whether it is on and its settings' values. */
 export function readSurfaces(declared: readonly SurfaceDeclaration[], home?: string): SurfaceReading[] {
   const saved = readSurfaceChoices(home);
   const own = (surface: SurfaceDeclaration): boolean => !surface.switchable || saved[surface.id]?.on !== false;
@@ -68,11 +57,6 @@ export function readSurfaces(declared: readonly SurfaceDeclaration[], home?: str
   });
 }
 
-/**
- * Save a change, given as words: `<surface> on|off`, or `<surface> <setting> <choice>`. It is
- * refused, with the choices there are, when it names no declared surface, setting or choice, or
- * switches an always-on surface.
- */
 export function setSurface(declared: readonly SurfaceDeclaration[], words: readonly string[], home?: string): SurfaceReading[] {
   const [id, second, third, ...rest] = words;
   const surface = declared.find((each) => each.id === id);
@@ -94,7 +78,6 @@ export function setSurface(declared: readonly SurfaceDeclaration[], words: reado
   return readSurfaces(declared, home);
 }
 
-/** The main process's answers to the page, errors kept as data (as the settings panel's are). */
 export function surfacesActions(declared: readonly SurfaceDeclaration[], home?: string) {
   const result = (action: () => readonly SurfaceReading[]): SurfacesResult => {
     try { return { ok: true, value: action() }; }

@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Arc surface. Who holds what now, as the verbs read a wait on a capability's claim against it (ADR-1228 D1,
- * library 11.12; contracts 3.24 and 3.25): the claims standing in the activity log, folded with their holders' recent lines.
- */
+// Capability 3 · Arc surface.
 import type { Holds } from "@storytree/library";
 import { holdersOf, LogFold, LONGEST_COMMAND_MS, type LogReading } from "@storytree/session-management/readings";
 
@@ -9,7 +6,6 @@ import { agentsOnBoard, type ArcWork } from "../agents/agents.js";
 import { claimedNow, claimWaitsNow } from "../board/board.js";
 import type { ArcVerbContext } from "./context.js";
 
-/** The claims standing in `project`'s log, with their holders' lines recent enough to judge them live or idle at `now`. */
 export async function claimsReading({ log, project }: Pick<ArcVerbContext, "log" | "project">, now: number): Promise<LogReading> {
   const claimLines = await log.standing(project);
   const holders = holdersOf(claimLines);
@@ -17,10 +13,6 @@ export async function claimsReading({ log, project }: Pick<ArcVerbContext, "log"
   return { fold: LogFold.fromBounded(lines, claimLines), lines };
 }
 
-/**
- * Every hold, a wait on a capability's claim read against the capabilities live sessions hold now for other work than its waiter
- * (3.26): `unread`, the library's reading given no claims, which reads every such wait as holding, as it is when it has none.
- */
 export async function holdsNow(context: Pick<ArcVerbContext, "library" | "log" | "project">, unread: Holds): Promise<Holds> {
   if (!Object.values(unread.waits).some((holds) => holds.some(({ claim }) => claim === true))) return unread;
   const now = Date.now();

@@ -1,27 +1,4 @@
-/**
- * Capability 3 · Arc surface. The `arc` verbs and the `arc increment` family within them, declared here (ADR-0969 D2)
- * and mounted by the command line as its `arc` family (ADR-1033): see one arc whole, its intent, end state, increments
- * and their states, the questions waiting on the owner, what each waiting item waits for, and each open increment's
- * pending plan changes (ADR-0966 D3); and every wait for the owner or an outside event across arcs. Create, edit, park
- * or unpark an arc; park an increment, record a landing that was never parked, close one with its outcome, move one to
- * another arc keeping its id, and make an arc or increment wait on another with a reason, or an increment wait for the
- * owner or an outside event with a note (ADR-0938 D1), or clear the wait (the library clears one itself when its
- * blocker lands or closes, 11.8). Return active work nobody holds to proposal (`increment unstart`), and settle the
- * pending plan changes closed increments left behind (`increment settle-pending`), apply an open increment's leftovers
- * under a merged pull request's mark, asking GitHub that it merged (`increment apply-pending`), or drop one an open
- * increment holds that something else overtook (`increment drop-pending`). Closing an increment ends its claims
- * through Session management's `closed`, and is refused while another session holds it live (its `closeRefusal`). Only
- * apply-pending is a tool (apply_pending); for the rest, the MCP server's own show_plan, park_increment, edit_plan,
- * move_increment, close_increment, set_wait and clear_wait do these jobs.
- *
- * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a close's note, the loop
- * check, whether a wait holds (`waitHolds`) and whether work is held on the owner (`heldOnQuestion`), and an arc's
- * state, which `arcView` works out. There is no `increment start` (starting is claiming, the agent tools'), no
- * `increment ready` (ADR-0645 D5; ADR-0909 D4 retired the step, and the word is refused saying so), and no hand close
- * or re-open of an arc (the owner's R1). `arc list` reads the board's arcs: live ones and those closed yesterday or today, or a window's closed arcs.
- * `arc status` (status.ts) says, for every active arc, whether it is moving and why not; `arc recent` (recent.ts) what
- * landed since a time, by arc.
- */
+// Capability 3 · Arc surface.
 import { verb, VerbRefusal, type VerbFamilies } from "@storytree/library/verbs";
 import { beforeCutover, listedNotice, pullSaid, type ArcView, type Holds, type NoteWait, type WaitFor } from "@storytree/library";
 
@@ -35,14 +12,12 @@ import { status } from "./status.js";
 
 const NO_TOOL = "the MCP server's own plan tools do this";
 
-/** The given values among `given`, each under the library field it names (`end-state` is `endState`), kept as the text given. */
 function fieldsOf(given: Readonly<Record<string, string | undefined>>): Record<string, string> {
   const fields: Record<string, string> = {};
   for (const [name, value] of Object.entries(given)) if (value !== undefined) fields[name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())] = value;
   return fields;
 }
 
-/** `--priority <n|none>` (ADR-0963 D3): a whole number of 1 or more, or `none`, which clears it; not given, nothing. */
 function priorityOf(value: string | undefined): { priority?: number | undefined } {
   if (value === undefined) return {};
   if (value === "none") return { priority: undefined };
@@ -50,47 +25,34 @@ function priorityOf(value: string | undefined): { priority?: number | undefined 
   return { priority: Number(value) };
 }
 
-/** `--rank <n>` on a wait for the owner (11.10): where it ranks among his actions, a whole number of 1 or more; not given, nothing. */
 function actionRankOf(flag: string, value: string | undefined): { rank?: number } {
   if (value === undefined) return {};
   if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value))) throw new VerbRefusal(`--${flag} is a whole number of 1 or more (1 first); not "${value}"`, { misuse: true });
   return { rank: Number(value) };
 }
 
-/** An arc's priority as said: 1 first, and an arc with none comes after every arc that has one (ADR-0963 D1). */
 const rankOf = (view: Pick<ArcView, "arc">): number => view.arc.fields.priority ?? Infinity;
 
-/**
- * An increment's pending changes (ADR-0966 D3) as `arc show` says them: their count and the command that lists them,
- * so one increment carrying many never pushes the rest of the arc out of view (friction_0d86ef47917d).
- */
 function pendingSaid(id: string, count: number): string {
   return `Pending changes (${count}), applied when its branch merges: storytree library read ${id} lists them`;
 }
 
-/**
- * Why an open increment cannot start yet, from one reading of every hold: the blockers holding it, the owner's questions
- * it is held on or its waits on other work end on, and what it waits for outside the plan (ADR-0938 D1).
- */
 function holdsOn(holds: Holds, id: string): string[] {
   const lines: string[] = [];
   for (const hold of holds.waits[id] ?? []) {
     lines.push(`waits on ${hold.on}: ${hold.reason}${hold.forGood ? " (never releases: the blocker did not land, or is gone)" : ""}`);
   }
   for (const question of holds.heldOn[id] ?? []) lines.push(`waiting on you: question ${question}`);
-  // Work it waits on is held on your question, however many hops away, so it waits on you too.
   for (const question of questionsBehind(id, holds)) lines.push(`waiting on you: question ${question} (through other work)`);
   for (const wait of holds.waitsFor?.[id] ?? []) lines.push(waitSaid(wait));
   return lines;
 }
 
-/** A wait for the owner or an outside event, as `arc show` names it under its increment: an event's reads passed from its check-back day. */
 function waitSaid({ releaser, note, checkBack, holds }: NoteWait): string {
   if (releaser === "owner") return `waiting on you: ${note}`;
   return holds ? `waits for an event: ${note} (check back ${checkBack})` : `check-back passed ${checkBack}: ${note}`;
 }
 
-/** An arc's state as said: "parked until <day>" while a dated park holds (the owner's, or its work's check-back), its state otherwise. */
 function stateOf({ state, wakes }: Pick<ArcView, "state" | "wakes">): string {
   return state === "parked" && wakes !== undefined ? `parked until ${wakes} (UTC)` : state;
 }
@@ -101,7 +63,6 @@ const show = verb({
   inputs: { arc: { kind: "text", word: 0, describe: "the arc's id" } },
   async act({ arc: id }, context: ArcVerbContext) {
     const { library } = context;
-    // Every hold in one ask, never one per increment: each ask reads all the project's work (4.8), a wait on a capability's claim then read against the live claims (3.25, 3.26).
     const [view, unread, cutover] = await Promise.all([library.arcView(id), library.holds(), library.prCutover()]);
     const holds = await holdsNow(context, unread);
     if (view === null) throw new VerbRefusal(`no arc "${id}" in this project`);
@@ -122,7 +83,6 @@ const show = verb({
       if (pending > 0) lines.push(`      ${pendingSaid(increment.id, pending)}`);
     }
     const waiting = questions.filter((question) => question.fields.lifecycle === "open");
-    // A parked arc's questions are parked with it until it is unparked (ADR-0835 D2).
     lines.push("", state === "parked" ? `Questions parked with the arc, waiting for it to be unparked (${waiting.length})` : `Questions waiting on you (${waiting.length})`);
     for (const question of waiting) lines.push(`  - ${question.id}  ${labelOf(question.fields)}`);
     const settled = questions.filter((question) => question.fields.lifecycle === "settled");
@@ -133,7 +93,6 @@ const show = verb({
     lines.push("", `Increment log (${closed.length} closed)`);
     for (const increment of closed) {
       const outcome = increment.fields.outcome;
-      // A pull request closed before the repository cut-over is the old repository's, and says so.
       const pr = outcome?.pr !== undefined && beforeCutover(cutover, outcome.date) ? pullSaid(cutover, outcome.pr, outcome.date) : outcome?.pr;
       const how = [outcome?.date, outcome?.disposition, pr].filter((part) => part !== undefined).join("  ");
       lines.push(`  - ${how}  ${increment.id}  ${increment.fields.title}`);
@@ -205,29 +164,21 @@ const unpark = verb({
   },
 });
 
-/** Who releases a wait for something outside the plan, in words. */
 function releasedBy(releaser: WaitFor["releaser"]): string {
   return releaser === "owner" ? "the owner" : "an outside event";
 }
 
-/** What `--for` names an increment waiting for outside the plan, or undefined for a wait `--on` other work: exactly one of the two is given. */
 function releaserOf(on: string | undefined, releaser: string | undefined): WaitFor["releaser"] | undefined {
   if ((on !== undefined) === (releaser !== undefined)) throw new VerbRefusal("give exactly one of --on and --for", { misuse: true });
   if (releaser === undefined || releaser === "owner" || releaser === "event") return releaser;
   throw new VerbRefusal(`--for is owner or event, not "${releaser}"`, { misuse: true });
 }
 
-/** A flag a verb needs in the form it was given: an arc's wait needs its `--reason`, an increment's owner wait its `--note`. */
 function needed(value: string | undefined, name: string): string {
   if (value === undefined) throw new VerbRefusal(`this needs --${name}`, { misuse: true });
   return value;
 }
 
-/**
- * Make an arc or increment wait on another, or clear the wait: the library's addWait and removeWait, which take either.
- * An increment can instead wait for the owner or an outside event, with a note (`--for`): its addWaitFor and
- * removeWaitFor, whose refusals are the library's (ADR-0938 D1).
- */
 const arcWait = verb({
   command: { family: "arc", name: "wait", summary: "make an arc wait on another arc or an increment, with a reason", usage: "arc wait <arc> --on <arc|increment> --reason <why>" },
   tool: { absent: NO_TOOL },
@@ -281,11 +232,9 @@ const incrementWait = verb({
     const releaser = releaserOf(on, waitingFor);
     if (releaser !== undefined) {
       if (releaser === "event") needed(note, "note");
-      // Written again for you, a wait keeps the note, why and rank it is not given, and reads as read again today (11.10).
       const done = await context.library.addWaitFor(id, { releaser, ...fieldsOf({ note, why, checkBack }), ...actionRankOf("rank", rank) }, context.writer);
       if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);
       const said = done.fields.waitsFor?.find((one) => one.releaser === releaser)?.note ?? note;
-      // Waiting on the owner releases the caller's claims on it, as raising a question does (ADR-0944 D4); an event releases nothing.
       const released = releaser === "owner" ? await releasedAsking(context, id) : "";
       return { text: `${id} now waits for ${releasedBy(releaser)}: ${said}${checkBack === undefined ? "" : ` (check back ${checkBack})`}.${released}` };
     }
@@ -314,7 +263,6 @@ const incrementUnwait = verb({
   writes: true,
   async act({ increment: id, on, for: waitingFor, claim, merged, reason: given }, context: ArcVerbContext) {
     const releaser = releaserOf(on, waitingFor);
-    // A clear says why the state changed, kept in the history (the owner, 2026-11-05).
     const reason = given ?? (merged === undefined ? undefined : `pull request #${merged} merged`);
     if (reason === undefined && claim === undefined) needed(reason, "reason");
     if (merged !== undefined && releaser !== "event") throw new VerbRefusal("--merged goes with --for event", { misuse: true });
@@ -322,7 +270,6 @@ const incrementUnwait = verb({
     if (claim !== undefined) {
       if (releaser !== "owner") throw new VerbRefusal("--claim goes with --for owner", { misuse: true });
       if (context.session.startsWith("person:")) throw new VerbRefusal("Run it from the agent's shell: a claim belongs to the agent session that will finish the work.");
-      // Claimed first, through the owner wait, then cleared: it never reads ready and unclaimed in between (5.57).
       const { claimClearingOwnerWait } = await import("@storytree/session-management/tools");
       const { workspaceRefusalText } = await import("@storytree/session-management/workspace-verbs");
       const answer = await claimClearingOwnerWait(context, id, claim);
@@ -330,10 +277,8 @@ const incrementUnwait = verb({
       return { text: `${id} no longer waits for the owner, and ${context.session} holds it: ${claim}.` };
     }
     if (releaser !== undefined) {
-      // A merged pull request is marked on the wait for the owner in the same write, so the audit asks for it to be read again (11.11).
       const done = await context.library.removeWaitFor(id, releaser, { ...context.writer, reason: reason! }, merged === undefined ? undefined : { merged: Number(merged) });
       if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);
-      // Nobody holds it now, so the pool may start a lane on it (5.57), unless only a cloud container takes it.
       const { CLOUD_MACHINE } = await import("@storytree/session-management/machines");
       const cloud = (done.fields as { machine?: string }).machine === CLOUD_MACHINE;
       const ready = releaser !== "owner" ? "" : cloud
@@ -365,7 +310,6 @@ const PLAN_INPUTS = {
 
 type PlanGiven = { readonly [K in keyof typeof PLAN_INPUTS]?: string | undefined };
 
-/** A new or edited increment's fields, as given. `--touches` is retired (ADR-0949 D2), and refused rather than ignored. */
 function incrementOf({ capabilities, links, remedies, "held-on": heldOn, machine: _machine, "escape-of": escapeOf, "escape-commit": escapeCommit, "escape-story": escapeStory, touches, ...rest }: PlanGiven): Record<string, unknown> {
   if (touches !== undefined) {
     throw new VerbRefusal("--touches is retired (ADR-0949 D2): name the capabilities it changes with --capabilities, and cite its stories or anything else with --links", { misuse: true });
@@ -375,14 +319,9 @@ function incrementOf({ capabilities, links, remedies, "held-on": heldOn, machine
     const list = listOf(value, flag);
     if (list !== undefined) fields[field] = list;
   }
-  // `--held-on none`, or an empty value where the shell delivers one (Windows PowerShell 5.1 drops it),
-  // clears the hold, as settling or retiring its last question does.
-  // `--capabilities none` (or empty) empties the list, which a parked increment starts with (ADR-1208).
   if ((fields.capabilities as string[] | undefined)?.join() === "none") fields.capabilities = [];
   const held = fields.heldOn as string[] | undefined;
   if (held?.length === 0 || (held?.length === 1 && held[0] === "none")) fields.heldOn = undefined;
-  // The escape it fixes: what caused it (a pull request with its merge commit) and the story it hit,
-  // given together; `--escape-of none` clears it. The library refuses a pull request without its commit.
   if (escapeOf === "none" && escapeStory === undefined && escapeCommit === undefined) fields.escape = undefined;
   else if (escapeOf !== undefined && escapeOf !== "none" && escapeStory !== undefined) fields.escape = { causedBy: escapeOf, ...(escapeCommit === undefined ? {} : { commit: escapeCommit }), story: escapeStory };
   else if (escapeOf !== undefined || escapeStory !== undefined || escapeCommit !== undefined) {
@@ -391,10 +330,6 @@ function incrementOf({ capabilities, links, remedies, "held-on": heldOn, machine
   return fields;
 }
 
-/**
- * `--machine <name|none>`: the one machine that can take the increment, checked by Session management's Machines
- * (`incrementMachine`): a named machine's name, or `none`, which clears it; not given, nothing.
- */
 async function machineGiven(name: string | undefined, context: ArcVerbContext): Promise<{ machine?: string | undefined }> {
   if (name === undefined) return {};
   const { incrementMachine, MachineNameError } = await import("@storytree/session-management/machines");
@@ -416,7 +351,6 @@ const CLOSE_INPUTS = {
   date: { kind: "text", optional: true, describe: "the day it closed, YYYY-MM-DD" },
 } as const;
 
-/** An increment's close, as given: its outcome, its pull request kept as the text given (`--pr 132` is "132"). */
 function closeOf(given: { disposition?: string | undefined; pr?: string | undefined; note?: string | undefined; date?: string | undefined }): { disposition: never; pr?: string; note?: string; date?: string } {
   return fieldsOf(given) as never;
 }
@@ -435,20 +369,17 @@ const incrementNew = verb({
   },
   writes: true,
   async act({ "waits-on": waitsOn, "wait-reason": reason, "wait-for": waitFor, "wait-note": waitNote, "wait-why": waitWhy, "wait-rank": waitRank, ...given }, context: ArcVerbContext) {
-    // `--waits-on a,b --wait-reason <why>`: the increments, or capabilities' claims (ADR-1228 D1), a new one is born waiting on, all for the one reason; neither given, none.
     const on = listOf(waitsOn, "waits-on");
     if ((on !== undefined || reason !== undefined) && (on === undefined || on.length === 0 || reason === undefined)) {
       throw new VerbRefusal("--waits-on and --wait-reason go together: the increments or capabilities it waits on, and why", { misuse: true });
     }
     const waits = on === undefined ? {} : { waits: on.map((id) => ({ on: id, reason: reason! })) };
-    // `--wait-for owner --wait-note <what>`: born waiting for the owner in the parking's one write, so the pool never reads it ready in between.
     if ((waitFor !== undefined || waitNote !== undefined) && (waitFor !== "owner" || waitNote === undefined)) {
       throw new VerbRefusal("--wait-for owner and --wait-note go together: a new increment is born waiting only for you, with what you must do (an event wait is set after, with `arc increment wait`)", { misuse: true });
     }
     if (waitNote === undefined && (waitWhy !== undefined || waitRank !== undefined)) throw new VerbRefusal("--wait-why and --wait-rank go with --wait-for owner --wait-note", { misuse: true });
     const owner = { releaser: "owner" as const, note: waitNote!, ...fieldsOf({ why: waitWhy }), ...actionRankOf("wait-rank", waitRank) };
     const waitsFor = waitNote === undefined ? {} : { waitsFor: [owner] };
-    // A capability already on another open increment's list is refused, naming that increment (10.35).
     const increment = await context.library.addIncrement({ ...incrementOf(given), ...waits, ...waitsFor, ...(await machineGiven(given.machine, context)) } as never, context.writer).catch((error: unknown) => {
       throw error instanceof RangeError ? new VerbRefusal(error.message) : error;
     });
@@ -533,23 +464,15 @@ const incrementEdit = verb({
       fields.remedies = [...new Set([...had, ...(fields.remedies as string[])])];
     }
     const had = fields.capabilities === undefined ? [] : ((await library.get(id))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
-    // Only what the edit adds is checked: a capability it keeps was checked when it was listed, so taking one off never refuses.
     const added = ((fields.capabilities as string[] | undefined) ?? []).filter((capability) => !had.includes(capability));
     await refuseShared(id, added, context);
     const edited = await library.editIncrement(id, fields as never, context.writer);
     if (edited === null) throw new VerbRefusal(`no increment "${id}" in this project`);
-    // Told, not refused, of another open increment already listing a capability it newly lists: a lane that backed off
-    // keeps the shared one on its list while it waits on the claim (ADR-1228), so an edit cannot refuse it.
     const shared = await library.openListing(added, id);
     return { text: [`Edited increment ${id}.`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n") };
   },
 });
 
-/**
- * Refuses `capabilities`, the ones an edit adds to `target`'s list, when one is on the list of an increment another
- * live session holds: two sessions never plan changes to the same capability (ADR-0949 D2), as edit_plan refuses. An
- * entry whose capability another session's live claim holds is left behind by a lane that backed off from it (ADR-0944 D3), and refuses nothing.
- */
 async function refuseShared(target: string, capabilities: readonly string[], context: ArcVerbContext): Promise<void> {
   const { readClaims } = await import("@storytree/session-management");
   const claims = await readClaims(context.log, context.project);
@@ -639,20 +562,13 @@ const incrementDropPending = verb({
   },
 });
 
-/** How long `gh` may take to say whether a pull request merged. */
 const GH_TIMEOUT_MS = 10_000;
 
-/**
- * Pull request `pr` (`#n` or `n`) as GitHub says it, asked through `gh pr view` in `folder` so it finds the project's
- * repository: its number when it merged from this repository's own branch, and a refusal otherwise (open, closed
- * unmerged, a fork's, or `gh` unable to say).
- */
 async function mergedPull(folder: string, pr: string): Promise<number> {
   const number = pr.replace(/^#/, "");
   if (!/^[1-9]\d*$/.test(number)) throw new VerbRefusal(`--pr is a pull request's number, such as #151; not "${pr}"`, { misuse: true });
   const { execFile } = await import("node:child_process");
   const out = await new Promise<string>((resolve, reject) => {
-    // No shell: gh is an .exe on Windows, and the number is checked above.
     execFile("gh", ["pr", "view", number, "--json", "number,state,mergedAt,isCrossRepository"], { cwd: folder, timeout: GH_TIMEOUT_MS, windowsHide: true }, (error, stdout, stderr) => {
       if (error === null) resolve(stdout);
       else reject(new VerbRefusal(`could not ask GitHub whether #${number} merged, so nothing was applied: ${(stderr.trim().split(/\r?\n/, 1)[0] || error.message)}`));
@@ -708,11 +624,6 @@ const incrementApplyPending = verb({
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-/**
- * The closing days `arc list` reads closed arcs by, as the sessions History tab's presets and From–to (3.12): none given,
- * none (the board's routine read, yesterday and today, lists them beside the live arcs); a preset, or both days of a
- * From–to, both ends included.
- */
 function closedRangeOf(closed: string | undefined, from: string | undefined, to: string | undefined): ClosedRange | undefined {
   if (closed !== undefined && (from !== undefined || to !== undefined)) throw new VerbRefusal("give --closed or --from and --to, not both");
   if (closed !== undefined) {
@@ -744,9 +655,7 @@ const list = verb({
   async act({ closed, from, to }, { library }: ArcVerbContext) {
     const range = closedRangeOf(closed, from, to);
     const now = Date.now();
-    // The board's reads (10.22): live arcs and the recently closed in one ask, or a window's closed arcs alone in one.
     const read = range === undefined ? await library.boardArcs(recentWindow(now)) : await library.closedArcs(windowOf(range, now));
-    // A stable sort: within one priority, and among the unranked, the order is the library's.
     const views = [...read].sort((one, other) => rankOf(one) - rankOf(other) || 0);
     const lines = views.map((view) => {
       const priority = view.arc.fields.priority === undefined ? "" : `  priority ${view.arc.fields.priority}`;
@@ -764,10 +673,8 @@ const list = verb({
   },
 });
 
-/** An owner action's rank as said: 1 first, and one with none after every ranked one (11.10). */
 const actionRank = (wait: NoteWait): number => wait.rank ?? Infinity;
 
-/** How long an owner action's why stands before a session must read it again (the audit's lease, as an open question's). */
 const REVIEW_DAYS = 7;
 
 const waits = verb({
@@ -781,16 +688,13 @@ const waits = verb({
   inputs: { audit: { kind: "switch", describe: "list instead the actions of yours that need attention, oldest first, each with why" } },
   async act({ audit }, context: ArcVerbContext) {
     const { library } = context;
-    // Every hold in one ask and every arc in one more, never a read per increment (4.10), a wait on a capability's claim then read against the live claims (3.25, 3.26).
     const [views, unread] = await Promise.all([library.arcViews(), library.holds()]);
     const holds = await holdsNow(context, unread);
     if (audit) return auditOf(views, holds, new Date());
     const found = views.flatMap(({ arc, increments }) =>
       increments.flatMap((increment) => (holds.waitsFor?.[increment.id] ?? [])
-        // A wait for you on work that still waits on open work is not yours yet: it is listed once that work lands.
         .filter((wait) => wait.releaser !== "owner" || !(holds.waits[increment.id] ?? []).length)
         .map((wait) => ({ wait, increment, arc }))));
-    // A parked arc asks nothing of the owner until it is unparked (ADR-0835 D2): its waits for you are counted, not listed.
     const parkedArcs = new Set(views.flatMap((view) => (view.state === "parked" ? [view.arc.id] : [])));
     const shelved = found.filter(({ wait, arc }) => wait.releaser === "owner" && parkedArcs.has(arc.id));
     const holding = [...new Set(shelved.map(({ arc }) => arc.id))];
@@ -799,7 +703,6 @@ const waits = verb({
       : [`${shelved.length} more for you ${shelved.length === 1 ? "waits" : "wait"} on a parked arc until it is unparked: ${holding.join(", ")} (storytree arc show <arc> names them).`];
     const listed = found.filter((one) => !shelved.includes(one));
     if (listed.length === 0) return { text: ["No waits for you or an outside event.", ...aside].join("\n") };
-    // Yours first, by rank, the unranked after; then events by check-back day. The sort is stable, so arc order holds within a rank or a day.
     listed.sort((one, other) => (one.wait.releaser === other.wait.releaser
       ? actionRank(one.wait) - actionRank(other.wait) || (one.wait.checkBack ?? "").localeCompare(other.wait.checkBack ?? "")
       : one.wait.releaser === "owner" ? -1 : 1));
@@ -816,12 +719,6 @@ const waits = verb({
   },
 });
 
-/**
- * The owner's actions that need attention (11.10): every open increment's wait for him, on any arc, with each reason it does:
- * its note says "not yet" while nothing holds it, or names an increment that has closed; it has no why, or no rank; its arc
- * is parked or closed; a pull request it was handed over with has merged since it was last read (11.11); or it has not been
- * read again in REVIEW_DAYS days. Oldest read first, the never-read before them.
- */
 function auditOf(views: readonly ArcView[], holds: Holds, at: Date): { text: string; next?: { command: string; why: string }[] } {
   const closed = new Set(views.flatMap(({ increments }) => increments.flatMap((one) => (one.fields.status === "closed" ? [one.id] : []))));
   const due = new Date(at.getTime() - REVIEW_DAYS * 86_400_000).toISOString().slice(0, 10);
@@ -864,9 +761,7 @@ const increment: VerbFamilies<ArcVerbContext> = {
   },
 };
 
-/** The arc verbs, as the command line's `arc` family lists them, and the `arc increment` family within it. */
 export const ARC_VERBS = [readsElsewhere(show), readsElsewhere(list), readsAcross(waits), status, recent, create, edit, park, unpark, arcWait, arcUnwait];
 export const ARC_INNER = [increment];
 
-/** Words agents try for seeing one arc. */
 export const ARC_GUESSES: Readonly<Record<string, string>> = { read: "arc show <arc>", get: "arc show <arc>", open: "arc show <arc>" };

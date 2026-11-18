@@ -22,7 +22,7 @@ for (const mask of [0o022, 0o077]) for (const existing of [false, true]) {
     const dir = path.join(home, "backups"), folder = path.join(dir, "synthetic");
     const previousMask = process.umask(mask);
     t.after(() => { process.umask(previousMask); fs.rmSync(home, { recursive: true, force: true }); });
-    fs.chmodSync(home, 0o755); // An existing traversable home must not be relied on for privacy.
+    fs.chmodSync(home, 0o755);
     const retained = path.join(folder, "2026-10-07T00-00-00-000Z.json");
     const stale = `${retained}.partial`, notes = path.join(folder, "notes.txt");
     if (existing) {

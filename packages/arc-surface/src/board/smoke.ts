@@ -1,6 +1,5 @@
-/** Capability 3 · Arc surface. */
+// Capability 3 · Arc surface.
 import type { BoardView } from "./board.js";
-/** What the page drew; `folded` names the increments a strip's mark stands for, drawn without an oval or a flag (3.2). */
 export interface ArcDrawn { arcs: string[]; increments: string[]; holders: { work: string; session: string; label: string }[]; folded?: string[] }
 export function arcSmokeProblems(board: BoardView, drawn: ArcDrawn): string[] {
   const problems: string[] = [];

@@ -1,74 +1,30 @@
-/**
- * Capability 3 · Arc surface. The page's one live reading (ADR-0836 D3): every surface on the page (the forest, the sessions
- * list, the knowledge core, the arc surface) hears the same news from one live reading, so the page
- * asks the library's changes and the agent log's lines once per tick, not once per surface.
- *
- * - It holds what it has read, so a surface that starts listening late (the arc surface opens when
- *   its drawer does) first hears everything held, without asking the library again. What it holds
- *   keeps only what a surface reads (ADR-0836 D4): the news each surface hears is whole, but the
- *   history held is thinned as it arrives, so the page never keeps the whole history in memory.
- * - Each surface takes news at its own pace: one whose handling fails is told so, and hears that
- *   news again together with the next, while the others hear it once.
- * - With nothing kept, it starts bounded (3.29): the library's changes thinned on the server to what it holds, and the
- *   log's start (Agent activity log 2.16), its lines read one by one and the lines that decide the sessions in view and the
- *   claims, never every line since the project began (693,145 lines, 455 MB for storytree's own, 2026-11-07). A host
- *   without that start is read from 0. News from a session the fold has never seen (one out of view at that start, back
- *   since) first asks the log for the lines that decide that session alone, and folds them before the news (3.31).
- * - Given a kept reading (the page's storage, ADR-0836 D4), it keeps what it holds there, a piece at
- *   a time, with the log's fold as it last stood rather than every line folded into it, and the next
- *   start hears the kept reading at once and asks the library only from where it got to. The first ask overlaps the kept reading by one change and one line, so a kept reading
- *   the library does not know (another library, a project made again) is dropped and read again
- *   from the start, and the reading converges either way (D5).
- * - It never writes to the library.
- */
+// Capability 3 · Arc surface.
 import type { Change, ChangesFilter, Line } from "@storytree/library";
 import type { LinesStart } from "@storytree/session-management";
 import { LogFold, type LogFoldSnapshot, type LogReading } from "@storytree/session-management/readings";
 
 import { ASK_EVERY_MS, liveReading, pageTimers, type LiveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
 
-/** One surface's ears on the page reading. */
 export interface NewsListener {
-  /** Called with what is new to this surface; a returned promise that rejects hands the news back. */
   onNews(news: News): unknown;
-  /** Called once a minute with the time. */
   onClock?(now: number): void;
-  /** Called when a read, or this surface's handling of news, fails; the next ask tries again. */
   onError?(error: unknown): void;
 }
 
 export interface PageReading extends LiveReading {
-  /** Start hearing news: the first is everything held so far, once the first read has landed. Returns a function that stops. */
   subscribe(listener: NewsListener): () => void;
-  /**
-   * Everything read so far, oldest first, thinned to what a surface reads; it grows as news comes.
-   * Its log's sessions and claims are folded, and its lines are only those a surface reads one by one.
-   */
   held(): News & LogReading;
 }
 
-/** The most of a running command's text a surface shows (the sessions list's title on its words). */
 const COMMAND_SHOWN = 300;
 
-/** The kinds of log line a surface reads one by one, rather than through the fold: claims and closes, subagents and reads. */
 const READ_ONE_BY_ONE: ReadonlySet<Line["kind"]> = new Set(["claimed", "released", "landed", "closed", "merged", "subagent-started", "subagent-ended", "note-read"]);
 
-/**
- * The record fields a surface reads from the held history (other than health's): note cards' text and
- * links, a decision's status, a friction's state, a question's lifecycle, a capability's story, an
- * increment's status and outcome, and the arc an increment or question is on (the plan's teaching card). Bodies, pending edits and an agent's workflow are never read from it,
- * and were most of what a kept reading held (463 MB on the laptop, 2026-10-22).
- */
 const HELD_FIELDS = ["title", "term", "text", "statement", "meaning", "role", "description", "summary", "oneLine",
   "links", "supersedes", "frontCoverOf", "status", "state", "lifecycle", "story", "outcome", "arc"] as const;
 
-/** What a first start asks of the library: the fields held, and a health record's own, of reported health alone (ADR-0630). */
 const START_CHANGES: ChangesFilter = { fields: [...HELD_FIELDS, "node", "column"], healthColumns: ["reported"] };
 
-/**
- * `line` as held: a finished command without its text, and a running one's cut to what the sessions list shows. A running one
- * written with no text (storytree's own log holds such lines from 2026-09-30) is held with none.
- */
 function heldLine(line: Line): Line {
   if (line.kind === "command-run") return { ...line, command: "" };
   if (line.kind === "command-started" && typeof line.command !== "string") return { ...line, command: "" };
@@ -76,9 +32,7 @@ function heldLine(line: Line): Line {
   return line;
 }
 
-/** `change` with only the fields a surface reads, an outcome only its disposition. */
 function thinned(change: Change): Change {
-  // A change that carries no fields (a stand-in's) is held as it came.
   const from = (change.record as Change["record"] | undefined)?.fields as Record<string, unknown> | undefined;
   if (from === undefined) return change;
   const fields: Record<string, unknown> = {};
@@ -88,26 +42,13 @@ function thinned(change: Change): Change {
   return { ...change, record: { ...change.record, fields } };
 }
 
-/**
- * What is held of the history and the log, kept as news arrives. Every surface reads the history and
- * the log in order, so dropping is only of what no surface reads:
- * - every record field but those a surface reads (HELD_FIELDS);
- * - a health change other than a reported one (verified health is not drawn, ADR-0630), and a
- *   reported state the same as that contract's last held one (the drill-down's trail shows each
- *   change of state once), each held with only its node, column and state;
- * - a finished command's text, and a running command's text past what the sessions list shows;
- * - once folded into the sessions and claims reading, every line no surface reads one by one: a
- *   session's commands, edits, prompts and turns, which are most of the log.
- */
 class Held implements News, LogReading {
   readonly changes: Change[] = [];
   readonly lines: Line[] = [];
   fold = new LogFold();
-  /** The last line taken, whatever its kind: where a next start asks from. */
   last: Line | undefined;
   #reported = new Map<string, unknown>();
 
-  /** Hold what a start kept: its changes and one-by-one lines as they were, its log as the fold kept (or, kept with none, as its lines fold). */
   restore({ changes, lines, fold, last }: Keeping): void {
     if (fold === undefined) {
       this.add({ changes, lines });
@@ -119,7 +60,6 @@ class Held implements News, LogReading {
     this.last = last ?? lines.at(-1);
   }
 
-  /** Hold a bounded start: `changes`, and the log's start, its sessions and claims folded as readSessions folds them. */
   begin(changes: readonly Change[], { lines, sessions, claims }: LinesStart): void {
     this.add({ changes: [...changes], lines: [] });
     this.lines.push(...lines.filter(({ kind }) => READ_ONE_BY_ONE.has(kind)));
@@ -127,7 +67,6 @@ class Held implements News, LogReading {
     for (const line of [...lines, ...sessions, ...claims]) if (this.last === undefined || line.seq > this.last.seq) this.last = line;
   }
 
-  /** Hold what is new, and say what of it was kept, before the lines folded were dropped. */
   add({ changes, lines }: News): News {
     const added: News = { changes: [], lines: [] };
     for (const change of changes) {
@@ -146,33 +85,20 @@ class Held implements News, LogReading {
   }
 }
 
-/**
- * What a page reading holds once it has heard `news`: the thinning a surface's reading has on the page, so a surface's own
- * test that hands it this, not the whole news, goes red when the surface reads a field or a line the page drops.
- */
 export function heldReading(news: News): News & LogReading {
   const held = new Held();
   held.add(news);
   return held;
 }
 
-/**
- * What a page reading keeps: its thinned changes and the lines a surface reads one by one, and the
- * log's fold with the last line folded into it, which stand for every line before.
- */
 export interface Keeping extends News {
   fold?: LogFoldSnapshot;
-  /** The last line folded, whatever its kind: where the next start asks from. */
   last?: Line;
 }
 
-/** Where a page reading is kept between starts: pieces added in order, read back as one, and the latest fold. */
 export interface KeptReading {
-  /** Everything kept, oldest first, with the latest fold kept, or undefined when nothing is. */
   read(): Promise<Keeping | undefined>;
-  /** Keep this piece after what is kept; a fold given replaces the one kept. */
   add(piece: Keeping): Promise<void>;
-  /** Keep nothing. */
   clear(): Promise<void>;
 }
 
@@ -180,23 +106,18 @@ export interface PageReadingOptions {
   project: string;
   reads: LiveReads;
   timers?: Timers;
-  /** Where to keep the reading between starts; without it every start reads from the start. */
   kept?: KeptReading;
 }
 
 interface Ears {
   listener: NewsListener;
-  /** News this surface has not yet taken, oldest first. */
   owed: News | undefined;
-  /** Whether it is taking news now. */
   busy: boolean;
-  /** How many asks had been made when it last failed to take news: it is offered it again after the next. */
   failedAt: number;
 }
 
 const joined = (a: News | undefined, b: News): News => a === undefined ? b : { changes: [...a.changes, ...b.changes], lines: [...a.lines, ...b.lines] };
 
-/** Start the page's one live reading of `project`. */
 export function pageReading({ project, reads, timers, kept }: PageReadingOptions): PageReading {
   const clock = timers ?? pageTimers;
   const everyone = new Set<Ears>();
@@ -206,7 +127,6 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
   let reading: LiveReading | undefined;
   let asks = 0;
 
-  /** Hand `ears` what it is owed, unless it is still taking the last. */
   async function hand(ears: Ears): Promise<void> {
     if (ears.busy || ears.owed === undefined || stopped) return;
     const news = ears.owed;
@@ -223,18 +143,14 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     }
   }
 
-  /** Fold first the lines that decide each session `lines` bring that the fold has never seen, before the lines themselves. */
   async function catchUp(sessionLines: NonNullable<LiveReads["sessionLines"]>, strangers: string[], lines: readonly Line[]): Promise<void> {
     const earlier = await sessionLines.call(reads, project, strangers);
-    // The news is every line after the cursor, so a stranger's earlier lines are those before the news, and the rest come in it.
     const from = Math.min(...lines.map(({ seq }) => seq));
     if (!stopped) held.fold.foldEarlier(earlier.filter(({ seq }) => seq < from).map(heldLine));
   }
 
-  /** Hold `news`, keep what was held, and hand it on; `whole` is what surfaces hear. */
   async function heard(news: News, whole: News = news): Promise<void> {
     if (read && whole.changes.length === 0 && whole.lines.length === 0) return;
-    // Only news with a stranger waits for its ask: the rest is held in the same turn, as before.
     const strangers = reads.sessionLines === undefined ? [] : held.fold.strangers(news.lines);
     if (strangers.length > 0) await catchUp(reads.sessionLines!, strangers, news.lines);
     const added = held.add(news);
@@ -242,7 +158,7 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     if (kept !== undefined && (added.changes.length > 0 || added.lines.length > 0)) {
       const piece: Keeping = { changes: added.changes, lines: added.lines.filter(({ kind }) => READ_ONE_BY_ONE.has(kind)) };
       kept.add(added.lines.length === 0 ? piece : { ...piece, fold: held.fold.snapshot(), ...(held.last === undefined ? {} : { last: held.last }) })
-        .catch(() => { /* This start still holds it. */ });
+        .catch(() => {});
     }
     await Promise.all([...everyone].map((ears) => {
       ears.owed = joined(ears.owed, whole);
@@ -264,7 +180,6 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
       onNews: (news) => heard(news),
       onAsked() {
         asks++;
-        // A surface still owed news is offered it again at the ask after the one it failed in, even when nothing is new.
         for (const ears of everyone) if (ears.failedAt < asks - 1) void hand(ears);
       },
       onClock(now) {
@@ -274,11 +189,6 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     });
   }
 
-  /**
-   * Start from the kept reading: ask from one change and one line before where it got to, and hear
-   * it with what is new when the library still knows where it got to; drop it otherwise. A failed
-   * ask is tried again at the next.
-   */
   async function resume(): Promise<void> {
     const last = await kept!.read().catch(() => undefined);
     if (stopped) return;
@@ -286,7 +196,6 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     const change = last.changes.at(-1);
     const line = last.last ?? last.lines.at(-1);
     const from = { changes: Math.max(0, (change?.seq ?? 0) - 1), lines: Math.max(0, (line?.seq ?? 0) - 1) };
-    // The kept reading is let go of once held or dropped: held, it is folded down to what a surface reads.
     let unheard: Keeping | undefined = last;
     let trying = false;
     const attempt = async (): Promise<boolean> => {
@@ -320,7 +229,6 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     const stopTrying = clock.every(ASK_EVERY_MS, () => void attempt().then((done) => { if (done) stopTrying(); }));
   }
 
-  /** Start with nothing kept: bounded when the host has the log's start (3.29), else from 0. A failed ask is tried again at the next. */
   async function begin(): Promise<void> {
     const linesStart = reads.linesStart;
     if (linesStart === undefined) return live();
@@ -333,7 +241,7 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
         if (stopped) return true;
         held.begin(changes.changes, start);
         kept?.add({ changes: [...held.changes], lines: [...held.lines], fold: held.fold.snapshot(), ...(held.last === undefined ? {} : { last: held.last }) })
-          .catch(() => { /* This start still holds it. */ });
+          .catch(() => {});
         await heard({ changes: [], lines: [] }, { changes: [...held.changes], lines: [...held.lines] });
         live({ changes: changes.cursor, lines: start.cursor });
         return true;
@@ -367,10 +275,6 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
   };
 }
 
-/**
- * `reads` with its project tree read joined: a read asked while the same one is on the way gets that
- * one's answer, so the surfaces hearing one news share one read (ADR-0836 D3).
- */
 export function joinedReads<T extends { projectTree(project: string): Promise<unknown> }>(reads: T): T {
   const going = new Map<string, Promise<unknown>>();
   const projectTree = (project: string): Promise<unknown> => {
@@ -381,7 +285,5 @@ export function joinedReads<T extends { projectTree(project: string): Promise<un
     }
     return read;
   };
-  // Defined, not assigned: the desktop's bridge (Electron's context bridge) makes `reads`'s functions read-only, and an
-  // inherited read-only property refuses assignment.
   return Object.defineProperty(Object.create(reads) as T, "projectTree", { value: projectTree, enumerable: true });
 }

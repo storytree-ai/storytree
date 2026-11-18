@@ -1,8 +1,4 @@
-/**
- * Capability 4 · Updates. `storytree release pin`, declared once (ADR-0969 D2, ADR-1033): the owner pins one of the
- * builds already published as stable, or previews its landed-increment notes; nothing else promotes (4.16). The command
- * line mounts it as its `release` family (RELEASE_FAMILIES); it has no tool.
- */
+// Capability 4 · Updates
 import { verb, type VerbFamily } from "@storytree/library/verbs";
 
 const pin = verb({
@@ -39,7 +35,6 @@ const candidate = verb({
   },
 });
 
-/** The command line's `release` family, at its place among `storytree`'s families. */
 export const RELEASE_FAMILIES: readonly VerbFamily[] = [
   { name: "release", summary: "find, pin or move back the build stable installations take", order: 12, verbs: [candidate, pin] },
 ];

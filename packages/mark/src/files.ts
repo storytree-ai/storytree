@@ -1,16 +1,10 @@
-/**
- * Capability 2 · Fixed-colour icon files: PNG, Windows .ico and macOS .icns written and read with node:zlib alone. Both icon
- * containers hold PNG entries, the form Windows (since Vista) and macOS (since 10.7) read.
- */
+// Capability 2 · Fixed-colour icon files
 import { crc32, deflateSync, inflateSync } from "node:zlib";
 
 const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-/** The sizes of the committed PNGs, in pixels. */
 export const PNG_SIZES = [16, 32, 48, 64, 128, 256, 512, 1024];
-/** The sizes a Windows .ico holds. */
 export const ICO_SIZES = [16, 32, 48, 64, 128, 256];
-/** The entries a macOS .icns holds, by type, with the size of each. */
 export const ICNS_TYPES: Readonly<Record<string, number>> = { icp4: 16, icp5: 32, icp6: 64, ic07: 128, ic08: 256, ic09: 512, ic10: 1024 };
 
 function chunk(type: string, data: Buffer): Buffer {
@@ -22,7 +16,6 @@ function chunk(type: string, data: Buffer): Buffer {
   return Buffer.concat([head, data, crc]);
 }
 
-/** Straight RGBA pixels, row by row, as a PNG. */
 export function writePng(pixels: Uint8Array, size: number): Buffer {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(size, 0);
@@ -33,7 +26,6 @@ export function writePng(pixels: Uint8Array, size: number): Buffer {
   return Buffer.concat([SIGNATURE, chunk("IHDR", header), chunk("IDAT", deflateSync(rows, { level: 9 })), chunk("IEND", Buffer.alloc(0))]);
 }
 
-/** A PNG this package wrote (8-bit RGBA, unfiltered rows) back to its pixels. */
 export function readPng(file: Buffer): { width: number; height: number; pixels: Uint8Array } {
   if (!file.subarray(0, 8).equals(SIGNATURE)) throw new Error("Not a PNG.");
   let width = 0, height = 0;
@@ -58,7 +50,6 @@ export function readPng(file: Buffer): { width: number; height: number; pixels: 
   return { width, height, pixels };
 }
 
-/** A Windows .ico of PNG entries, smallest first. */
 export function writeIco(entries: readonly { size: number; png: Buffer }[]): Buffer {
   const header = Buffer.alloc(6 + 16 * entries.length);
   header.writeUInt16LE(1, 2);
@@ -85,7 +76,6 @@ export function readIco(file: Buffer): { size: number; png: Buffer }[] {
   });
 }
 
-/** A macOS .icns of PNG entries, in the order given. */
 export function writeIcns(entries: readonly { type: string; png: Buffer }[]): Buffer {
   const parts = entries.map(({ type, png }) => {
     const head = Buffer.alloc(8);

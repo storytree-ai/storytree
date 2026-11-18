@@ -1,9 +1,3 @@
-// The first-time cards are offered as a tour and never block the map (increment_b29c14f6f748; contracts 3.5, 3.7, 3.8): the real
-// desktop page on the eight-story forest snapshot, opened as a fresh install would, with no answer to the tour kept. Three views:
-// the ask in its corner, the plan's card at the Arcs tab after "Show me", the story's card tied to its island after "Next",
-// again with More open and scrolled to its end, and the map clear after "End tour".
-// `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/tour). Measures each card's box against the
-// box of the island it explains and of every other island drawn, so "never over an island" is measured, not only seen.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +10,6 @@ const dist = buildFolder(here);
 await buildCapture({ dist });
 
 const until = (page, predicate, arg) => page.waitForFunction(predicate, arg, { timeout: 180_000, polling: 200 });
-/** The card on show, its box, and the box of the island it explains when it is on one. */
 const measure = page => page.evaluate(() => {
   const card = document.querySelector('.teaching-card');
   if (card === null) return { cards: 0 };
@@ -24,11 +17,8 @@ const measure = page => page.evaluate(() => {
   const story = document.body.dataset.teachingStory;
   const drawn = window.storytreeGlobe.islands().filter(one => one.visible && one.box !== undefined);
   const island = drawn.find(one => one.story === story);
-  // The bar's project switcher and gear and the globe's Stories/Library switch, which no card covers (increment_176e36671e3c,
-  // increment_ec73adabddb1).
   const switches = [...document.querySelectorAll('.app-factory, .app-gear, .forest-views')].map(one => one.getBoundingClientRect()).filter(one => one.width > 0)
     .map(({ left, top, right, bottom }) => ({ left, top, right, bottom }));
-  // The card's tie to its thing: a ring round it and a line to the card (3.10).
   const ties = card.querySelectorAll('.teaching-card-ring, .teaching-card-tie').length;
   const shown = card.querySelector('.teaching-card-actions')?.getBoundingClientRect();
   const actions = shown === undefined ? undefined : { left: shown.left, top: shown.top, right: shown.right, bottom: shown.bottom };
@@ -63,7 +53,6 @@ await runCapture({
     {
       name: 'a-story-card-beside-its-island',
       prepare: async ({ page, settle }) => {
-        // The story's card: the island it explains is the forest's first story.
         await page.evaluate(story => { document.body.dataset.teachingStory = story; }, seed.tree.stories[0].id);
         await page.getByRole('button', { name: 'Next', exact: true }).click();
         await until(page, () => document.querySelector('.teaching-card')?.dataset.kind === 'story');

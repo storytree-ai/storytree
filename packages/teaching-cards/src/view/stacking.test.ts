@@ -4,7 +4,6 @@ import { test } from "node:test";
 import { build } from "esbuild";
 import { chromium } from "playwright-core";
 
-/** The real card code, bundled for the browser: `window.teach()` shows the story's card, or the decision's once the story's is seen. */
 async function teachingBundle({ seen = [] as string[], at = { x: 100, y: 20 } } = {}): Promise<string> {
   const entry = `import { mountTeaching } from ${JSON.stringify(path.join(import.meta.dirname, "index.ts"))};
     import { journal } from ${JSON.stringify(path.join(import.meta.dirname, "../journal.ts"))};
@@ -19,11 +18,9 @@ async function teachingBundle({ seen = [] as string[], at = { x: 100, y: 20 } } 
 }
 
 test("3.4 · an open popover, modal dialog or overlay surface draws over the card on show: the card hides while it is open and comes back when it closes", async t => {
-  // Chrome is installed on the three CI runner images; no browser download during tests.
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
-  // A menu like the gear's: a popover below a bar the card may overlap, and a modal dialog.
   await page.setContent(`<header style="position:fixed;inset:0 0 auto;height:48px;z-index:7;background:#101418"></header>
     <div id="menu" popover="auto" style="position:fixed;inset:48px 0 0;margin:0;width:100%;height:auto;background:rgb(0 0 0 / .25)">menu</div>
     <dialog id="ask">ask</dialog><section id="consent" data-surface-layer="overlay" hidden>consent</section><main id="content"></main>`);
@@ -42,7 +39,6 @@ test("3.4 · an open popover, modal dialog or overlay surface draws over the car
   await page.evaluate(() => document.querySelector<HTMLDialogElement>("#ask")!.close());
   assert.equal(await card.isVisible(), true);
 
-  // An overlay surface on show, like the first launch's sharing consent, which is neither a popover nor a dialog.
   await page.evaluate(() => { document.querySelector<HTMLElement>("#consent")!.hidden = false; });
   assert.equal(await card.isVisible(), false, "an overlay surface on show hides it too");
   await page.evaluate(() => { document.querySelector<HTMLElement>("#consent")!.hidden = true; });
@@ -59,14 +55,12 @@ test("3.1 · the decision card with More open, drawing and all, keeps Next and E
   assert.equal(await page.locator(".teaching-card").getAttribute("data-kind"), "decision");
   await page.locator(".teaching-card [data-more]").click();
   assert.ok(await page.locator(".teaching-card .tour-diagram").isVisible(), "its depth draws the decision");
-  // Taller than a 24rem card's text could show, the drawing still shows whole: a card that draws is not held to 24rem.
   const drawing = (await page.locator(".teaching-card .tour-diagram").boundingBox())!, text = (await page.locator(".teaching-card .teaching-card-text").boundingBox())!;
   assert.ok(drawing.y >= text.y && drawing.y + drawing.height <= text.y + text.height, `the drawing whole inside the card's text: ${JSON.stringify({ drawing, text })}`);
   for (const name of ["Next", "End tour"]) {
     const button = page.getByRole("button", { name, exact: true });
     const box = (await button.boundingBox())!;
     assert.ok(box.y >= 0 && box.y + box.height <= 960 && box.x >= 0 && box.x + box.width <= 1440, `${name} is inside the window: ${JSON.stringify(box)}`);
-    // Drawn at its own centre: not cut off by the card's scrolling part, nor reached only by scrolling it.
     const drawn = await button.evaluate(one => { const { left, top, right, bottom } = one.getBoundingClientRect(); const at = document.elementFromPoint((left + right) / 2, (top + bottom) / 2); return at !== null && one.contains(at); });
     assert.ok(drawn, `${name} shows without scrolling inside the card`);
   }
@@ -97,13 +91,11 @@ test("3.1 · nothing on the map behind the decision card shows through it: a whi
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
-  // A map label as bright as can be, filling the window behind the card.
   await page.setContent(`<div style="position:fixed;inset:0;background:#fff"></div><main id="content"></main>`);
   await page.addScriptTag({ content: await teachingBundle({ seen: ["story"], at: { x: 1000, y: 480 } }) });
   await page.evaluate(() => (window as unknown as { teach(): void }).teach());
   await page.locator(".teaching-card [data-more]").click();
   const card = (await page.locator(".teaching-card").boundingBox())!;
-  // A pixel in the card's padding, where only its background is drawn.
   const shot = await page.screenshot({ clip: { x: Math.round(card.x + 4), y: Math.round(card.y + card.height / 2), width: 1, height: 1 } });
   const pixel = await page.evaluate(async data => {
     const image = new Image();

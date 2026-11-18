@@ -1,7 +1,4 @@
-// Capability 8 · Storytree's own test and gate entries. contract_328bafda205c (8.19, ADR-1370 D1, ADR-1366 D3): `pnpm lint`
-// runs ESLint as its rule `eslint` over the checkout's tracked JavaScript and TypeScript files, with storytree's own rules
-// loaded as a local plugin from packages/repo-checks/src/eslint-rules, every rule it exports on; each problem is one lint
-// problem naming file, line, rule and message. A fake plugin stands in for the real one so a rule can be made to fire.
+// Capability 8 · Storytree's own test and gate entries.
 import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -19,7 +16,6 @@ import { RULES } from "./lint.mjs";
 const DEBUGGER_MESSAGE = "Remove this debugger statement before committing.";
 const FORBIDDEN_MESSAGE = "Rename forbidden: the name is reserved.";
 
-/** A local plugin with two rules and no config of its own: each rule it exports must be on without being named anywhere. */
 const plugin = {
   meta: { name: "storytree" },
   rules: {
@@ -34,7 +30,6 @@ const plugin = {
   },
 };
 
-/** A throwaway git checkout holding `files` (path → text); `track` lists the paths `git add`ed, the rest stay untracked. */
 function checkout(t, files, track = Object.keys(files)) {
   const root = mkdtempSync(path.join(tmpdir(), "eslint-"));
   t.after(() => removeTemp(root));

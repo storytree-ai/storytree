@@ -1,25 +1,4 @@
-// Capability 7 · Own health. `pnpm check:own-health`: storytree's own health, which is the recording of a test run
-// (./test-run, ADR-1066 D2 G, moved from CI health by ADR-1170 D3, and into this repository's own checks by
-// question_eda214a321bb) configured for storytree: each of 0.3's own stories' tests run
-// through this repo's test harness, and each contract's VERIFIED health recorded in the project `storytree`. The library
-// is the one copy of those stories (ADR-0641), so each story, its contracts and their numbers are read from it. What
-// counts as passing, and how each verdict is written, are CI health's, reached through its interface.
-//
-// Which library, and as whom (recordingTarget, ./test-run/test-run.mjs):
-// - On CI (.github/workflows/own-health.yml, after each merge to main, ADR-0744 D3), as "storytree
-//   test run on CI", with the commit in each note: the library at HEALTH_PG_ADDRESS over Tailscale
-//   (ADR-0928 D4). With that variable unset, it says so and records nothing, successfully.
-// - Run by hand, the library the storytree setting names (`storytree settings show`): a Postgres
-//   address, or the desktop app's own (~/.storytree/0.3/pgdata),
-//   joining the running app's database, or starting the app's Postgres itself when the app is not
-//   running, and holding the one-writer lock while it records (packages/repo-checks/src/library-server.mjs), so the
-//   app never restarts into an update mid-write.
-//
-// `pnpm check:factory-health [folder]` (this with --factory) records instead the stories whose code is a plugin in the
-// owner's factory (the folder named, else this computer's factory setting): each run by the factory's own test command
-// and recorded as "factory test run" at the factory's commit (./test-run/factory-run.mjs), in the library the setting
-// names: storytree's CI cannot see the private factory. With --unrecorded it skips each plugin already recorded at that
-// commit: the Mint box's factory-health timer (packages/repo-checks/box/) runs it so after the factory moves.
+// Capability 7 · Own health
 
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -41,7 +20,7 @@ const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
 const COMMAND = "pnpm check:own-health";
 
-let server; // the app's Postgres, while it runs
+let server;
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   process.once("SIGINT", () => {
@@ -66,14 +45,12 @@ async function main({ factory } = {}) {
     console.log(target.why);
     return 0;
   }
-  // workflow_run's GITHUB_SHA names the default branch, not necessarily the checked-out CI commit.
   target.writer.commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
   const { commit } = target.writer;
   const evidence = [
     readCiEvidence(process.env.STORYTREE_WINDOWS_EVIDENCE, { commit, run: process.env.STORYTREE_WINDOWS_RUN, platform: "win32" }),
     readCiEvidence(process.env.STORYTREE_MACOS_EVIDENCE, { commit, run: process.env.STORYTREE_MACOS_RUN, platform: "darwin" }),
   ];
-  // The verdicts of the workflow jobs that prove contracts no test run can, read by own-health.yml's first step.
   const jobProofs = jobProofsFrom(process.env.STORYTREE_JOB_PROOFS);
   for (const { package: name, contract, state } of jobProofs) console.log(`workflow job proof: ${name} ${contract} ${state}`);
   let where;
@@ -98,7 +75,6 @@ async function main({ factory } = {}) {
       let code = 0;
       const { stories } = await library.projectTree();
       if (factory !== undefined) return await recordFactory(library, stories, factory.folder, { unrecorded: factory.unrecorded, env: withoutLibrarySignIn(process.env) });
-      // Say first what this run will record, so the health worklist holds it back meanwhile (markPending, ./test-run/test-run.mjs).
       let pending = 0;
       for (const story of stories) pending += (await markPending(library, story, target.writer, { root })).length;
       console.log(`marked ${pending} contracts pending: this run's numbered tests name them and their verified health is not yet passing`);
@@ -115,10 +91,6 @@ async function main({ factory } = {}) {
   }
 }
 
-/**
- * Run the tests `globs` name through this repo's test harness (its own throwaway Postgres), reading their junit report. The
- * harness is the root `pnpm test` script's entry, which holds the machine's heavy-run lock around the base test runner.
- */
 export async function runStoryTests(globs, root) {
   const work = mkdtempSync(path.join(tmpdir(), "storytree-health-"));
   const report = path.join(work, "tests.xml");
@@ -139,12 +111,6 @@ export async function runStoryTests(globs, root) {
   }
 }
 
-/**
- * The environment without CI's sign-ins to the library: its Google one (what
- * google-github-actions/auth exports) and its Postgres one (PGPASSWORD and every other libpq
- * variable, and HEALTH_PG_ADDRESS). The stories' tests run against their own throwaway Postgres,
- * and none of them may reach the real library as CI's identity.
- */
 function withoutLibrarySignIn(env) {
   return Object.fromEntries(Object.entries(env).filter(([name]) => !/^(GOOGLE_|CLOUDSDK_|GCLOUD_|GCP_|PG|HEALTH_PG_)/.test(name)));
 }

@@ -1,5 +1,3 @@
-// Contracts proved by a named workflow job rather than a numbered test (job-proofs.mjs): what own health reads from
-// the Actions API, against a fake one, and how that reading changes a story's verdicts.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -8,7 +6,6 @@ import { applyJobProofs, jobProofsFrom, readJobProofs } from "./job-proofs.mjs";
 const repo = { owner: "storytree-ai", repo: "storytree" };
 const url = (id) => `https://github.com/storytree-ai/storytree/actions/runs/${id}`;
 
-/** A fake Octokit: `runs` per workflow file, newest first, and `jobs` per run id (the latest attempt's), or per `id/attempt`. */
 function github({ runs = {}, jobs = {} } = {}) {
   const calls = [];
   const answer = (key) => ({ data: { jobs: jobs[key] ?? [] } });
@@ -48,7 +45,6 @@ test("7.16 · CI's installer job in the run own health credits proves 4.43 and 4
 
 test("7.16 · the newest release run on main that ran the windows-update legs proves 4.45: passing when every leg that ran succeeded, failing when any failed or timed out", async () => {
   const runs = { "release.yml": [release(3, "c".repeat(40)), release(2, "b".repeat(40)), release(1, "a".repeat(40))] };
-  // The newest release ran no legs (its source was skipped), so the one before it is read.
   const passing = await readJobProofs({ github: github({ runs, jobs: { 3: [job("source", "success")], 2: legs(["success", "success", "success", "skipped"]), 1: legs(["failure"]) } }), repo });
   const proof = passing.proofs.find((p) => p.contract === "4.45");
   assert.equal(proof?.package, "app");

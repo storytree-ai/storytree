@@ -1,5 +1,3 @@
-// The push check (packages/repo-checks/src/push-check.mjs): git's pre-push hook refuses a push that adds a credential
-// this machine holds, read from a home folder's credential files, without ever saying the value.
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -18,10 +16,8 @@ import { checkPush, machineSecrets } from "./push-check.mjs";
 const script = fileURLToPath(new URL("./push-check.mjs", import.meta.url));
 const ZEROS = "0".repeat(40);
 const utf16 = (text) => Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, "utf16le")]);
-/** Every run of six characters of `value`, none of which a refusal may hold. */
 const pieces = (value) => Array.from({ length: value.length - 5 }, (_, at) => value.slice(at, at + 6));
 
-/** A home folder holding two credentials, made at run time so no file holds them, and a repository with a remote. */
 function machine(t) {
   const dir = mkdtempSync(path.join(tmpdir(), "push-check-"));
   t.after(() => removeTemp(dir));
@@ -81,7 +77,6 @@ test("1.6 · the push check refuses a push whose commits add a credential this m
   assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/leaky ${ZEROS} refs/heads/leaky ${head}\n`, home }), 0, "deleting a branch pushes no text");
 });
 
-/** Run git to its end without blocking this process, so the runner hears the test's reports on every platform. */
 function push(root, home, ...args) {
   return new Promise((resolve) => {
     execFile("git", ["push", "--", ...args], { cwd: root, encoding: "utf8", env: { ...process.env, HOME: home, USERPROFILE: home } }, (error, stdout, stderr) => resolve({ status: error ? 1 : 0, stderr }));

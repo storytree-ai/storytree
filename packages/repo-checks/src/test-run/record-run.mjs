@@ -1,13 +1,4 @@
-// Capability 7 · Own health. A story's run: its own packages' tests, and each dependant's test titled with its
-// package (a title like processes 3.6: …, ADR-0845), run through the caller's test runner, judged by test-run.mjs's
-// rules and written to each contract's verified column, saying in the log what it saw and recorded. Since every story
-// numbers its contracts from 1.1, another package's test counts for the story only when its title names the story's
-// package first. A story with no package has no tests yet, so its contracts are left not checked. A story whose code is a
-// plugin in the owner's factory is given its plugin's folder as its sources instead (./factory-run.mjs): its tests are
-// that folder's, run by the factory's own test command, and no other package's test counts for it.
-//
-// Only the verified column is written. The reported column is what an agent says through the agent link, and this
-// never writes it: showing the two apart is the point of the two columns.
+// Capability 7 · Own health
 
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -16,12 +7,6 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { applyJobProofs } from "./job-proofs.mjs";
 import { contractsCoveredBy, contractsOf, creditPlatforms, dependantTestsNaming, judge, packageOf, recordHealth, sourcesOf } from "./test-run.mjs";
 
-/**
- * Run `story`'s own tests (those of its packages under `root`, or the folders `folders` names there, through `runTests`, which gives the run's exit code and
- * its junit report's results) and record each of its contracts' verified health from what they showed. False if the run produced no report, so no
- * health could be recorded. `platform` is the one the tests ran on (this computer's, by default). `jobProofs` are the
- * verdicts of the workflow jobs that prove contracts no test run can (./job-proofs.mjs), laid over the tests' own.
- */
 export async function checkStory(library, story, writer, { root, folders, evidence = [], jobProofs = [], runTests, platform = process.platform, pause = sleep, log = (line) => console.log(line), error = (line) => console.error(line) }) {
   const { numbers, contractIds } = contractsOf(story);
   const name = packageOf(story);
@@ -43,7 +28,6 @@ export async function checkStory(library, story, writer, { root, folders, eviden
   const dependant = (test) => sourceOf(test) === undefined;
   const count = (status) => run.results.filter((result) => result.status === status).length;
   log(`tests: ${run.results.length} results: ${count("passed")} passed, ${count("failed")} failed, ${count("skipped")} skipped`);
-  // The junit report goes to a file, so the log is the only place a failure seen only here can be traced from (friction_065efa9f6ad4).
   const failed = run.results.filter((result) => result.status === "failed");
   if (failed.length > 0) log(`\n${failed.length} failing test(s):`);
   for (const result of failed) {
@@ -60,14 +44,11 @@ export async function checkStory(library, story, writer, { root, folders, eviden
     dependant,
   });
   applyJobProofs(verdicts, name, jobProofs);
-  // A flake stays red; it is named so the box's telling parks one investigation of the test (7.19, library 5.33).
   const flakes = [...new Set([...verdicts.values()].flatMap((verdict) => verdict.flaky ?? []))];
   if (flakes.length > 0) {
     log(`\n${flakes.length} failing test(s) the passing CI run of this commit passed, recorded failing and named flaky, so the box's telling investigates each:`);
     for (const flake of flakes) log(`  ${flake}`);
   }
-  // A run can re-run only its own platform's tests and those its CI evidence credits: a platform:<os> skip of any other
-  // was never reached, so a pass from that platform stands (7.15), as the laptop's factory run skipping a Linux-only test.
   const platformsSeen = new Set([platform, ...evidence.filter(Boolean).map(({ platform: seen }) => seen)]);
   const unreached = (verdict) => verdict.state === "not-checked" && /^platform:/.test(verdict.skip ?? "") && !platformsSeen.has(verdict.skip.slice("platform:".length));
   for (const verdict of verdicts.values()) if (unreached(verdict)) verdict.unrun = true;
@@ -78,7 +59,6 @@ export async function checkStory(library, story, writer, { root, folders, eviden
     );
   }
   if (stray.length > 0) {
-    // A capability moved to another story leaves dependants' titles with the old package first: they pass but prove nothing (friction_2f5f177c7e09).
     log(`\n${stray.length} test(s) titled with "${name}" name a number "${story.title}" does not have, so that number counts for none; retitle each with its story's package:`);
     for (const { result, numbers } of stray) log(`  ${numbers.join(", ").padEnd(7)} ${path.relative(root, result.file).replaceAll("\\", "/")}: ${result.name}`);
   }
@@ -105,7 +85,6 @@ export async function checkStory(library, story, writer, { root, folders, eviden
       log(line);
     }
   }
-  // Writing a verdict again after a lost connection only repeats it in the contract's history.
   const written = await retrying(() => recordHealth(library, contractIds, verdicts, writer, { platformsSeen }), { pause, log });
   log(
     `\nrecorded: ${written.passing} passing, ${written.failing} failing; ` +
@@ -116,14 +95,8 @@ export async function checkStory(library, story, writer, { root, folders, eviden
   return true;
 }
 
-/** The pauses before each retry of a library call whose connection was lost, in milliseconds: a few, then the run fails. */
 const RETRY_PAUSES = [5_000, 15_000, 30_000];
 
-/**
- * `call`, tried again with a fresh connection after a pause when the library's connection was lost while a story's
- * tests ran: over the tailnet a week of runs lost five that way (increment_309affca93cf), each at the first library call
- * after a story's tests. Any other error, and the last loss, fails at once.
- */
 async function retrying(call, { pause, log }) {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -136,7 +109,6 @@ async function retrying(call, { pause, log }) {
   }
 }
 
-/** pg's words, or a network code, for a connection dropped, never made in time, or ended by the server as idle in a transaction (SQLSTATE 25P03). */
 function connectionLost(error) {
   const { code, message } = error ?? {};
   return (

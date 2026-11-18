@@ -1,13 +1,4 @@
-// Capability 1 · Leak, secret and push scans. The push check: the exact-value half of the secret check, run only on this machine as
-// git's pre-push hook, which provision-worktree.mjs installs (installPushHook). It reads the credentials already held in
-// this machine's own files (MACHINE_CREDENTIALS: storytree's, the GitHub command line's, the coding agents' logins,
-// git's and Postgres's password files), and refuses a push whose commits add one to a file, read through leak-scan's
-// textsOf, so a value inside gzip, an archive or UTF-16 is found. It names the file, the commit and the kind of value
-// (where it was read from), never the value: values stay in this process, and a credential file that cannot be read
-// or parsed is passed over without its error, which can quote the file. CI and the gate never see a real value; they
-// run the shapes-only check:secrets (leak-scan.mjs). It also refuses a push whose commits add a CodeQL pattern a pull
-// request has met to a code file (codeql-patterns.mjs, increment_15f747652fc7), naming the file, its line and the
-// commit, so the pattern is fixed before it reaches the repository; `pnpm lint` refuses the same over the whole tree.
+// Capability 1 · Leak, secret and push scans
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -18,16 +9,12 @@ import { CODE_FILE, describe, sanitizationHits } from "./codeql-patterns.mjs";
 import { ruleHits } from "./eslint.mjs";
 import { textsOf } from "./leak-scan.mjs";
 
-/** A credential's key: a name that holds a token, secret, password or key. */
 const SECRET_KEY = /token|secret|passw|key|credential|auth/i;
-/** A link's password (scheme://user:password@host). */
 const LINK_PASSWORD = /[a-z][a-z0-9+.-]*:\/\/[^\s:/@"'\\]+:([^\s@"'\\/]+)@/gi;
-/** Shorter than this, a value is too likely to be an ordinary word to be matched exactly. */
 const MIN_LENGTH = 12;
 
 const linkPasswords = (text) => [...text.matchAll(LINK_PASSWORD)].map((match) => decodeURIComponent(match[1]));
 
-/** Every string a JSON file holds under a credential's key, and every link password in any of its strings. */
 function jsonValues(text) {
   const values = [];
   const walk = (value, key) => {
@@ -38,7 +25,6 @@ function jsonValues(text) {
   return values;
 }
 
-/** Each `key: value` or `key = value` line under a credential's key, and every link password. */
 function lineValues(text) {
   const values = linkPasswords(text);
   for (const line of text.split(/\r?\n/)) {
@@ -48,12 +34,10 @@ function lineValues(text) {
   return values;
 }
 
-/** The password, the last field of each host:port:database:user:password line. */
 const pgpassValues = (text) => text.split(/\r?\n/).filter((line) => line.trim() && !line.startsWith("#")).map((line) => line.split(/(?<!\\):/).at(-1));
 
 const READERS = { whole: (text) => [text.trim()], json: jsonValues, lines: lineValues, pgpass: pgpassValues };
 
-/** The files on a machine that hold credentials: where (under the home folder), what they hold, and how to read them. */
 export const MACHINE_CREDENTIALS = [
   { file: ".storytree/secrets.json", what: "storytree's lane login", read: "json" },
   { file: ".storytree/0.3/auth.json", what: "storytree's library key", read: "json" },
@@ -69,11 +53,6 @@ export const MACHINE_CREDENTIALS = [
   { file: ".npmrc", what: "an npm token", read: "lines" },
 ];
 
-/**
- * The credential values this machine holds, each with what it is and the file it came from: `sources` read under
- * `home`. A file that is missing, unreadable or unparsable is passed over in silence, since a parser's error can
- * quote the file's text.
- */
 export function machineSecrets({ home = homedir(), sources = MACHINE_CREDENTIALS } = {}) {
   const secrets = new Map();
   for (const { file, what, read } of sources) {
@@ -98,7 +77,6 @@ const occurrences = (texts, value) => texts.reduce((n, text) => n + text.split(v
 const ZERO = /^0+$/;
 const ZEROS = "0".repeat(40);
 
-/** A blob's texts; one textsOf cannot open (a damaged archive) is read as its raw bytes, so it is still searched. */
 function readable(bytes) {
   try {
     return textsOf(bytes);
@@ -107,13 +85,6 @@ function readable(bytes) {
   }
 }
 
-/**
- * The refusals for a push: for each update git hands the hook (local sha, remote sha), each commit no ref of
- * `remote` holds, and each file it adds or changes whose count of a machine value, or of a CodeQL pattern in a code
- * file, rises against every parent of the commit, so a merge of main is not charged with main's own text. `secrets`
- * are one line a hit, naming the file, the commit and the kind, never the value; `patterns` name the file, the line
- * and the commit.
- */
 export function pushProblems({ root, remote, updates, secrets }) {
   const git = (args, encoding = "utf8") => execFileSync("git", args, { cwd: root, encoding, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024 });
   const textCache = new Map();
@@ -125,11 +96,9 @@ export function pushProblems({ root, remote, updates, secrets }) {
   const problems = [];
   const patterns = [];
   const seen = new Set();
-  // git names the remote by its URL when the push does, and no remote-tracking ref is under a URL: there every one is
-  // excluded, so the range is still the branch's own commits.
   const notPushed = git(["remote"]).split("\n").includes(remote) ? `--remotes=${remote}` : "--remotes";
   for (const { localSha, remoteSha } of updates) {
-    if (ZERO.test(localSha)) continue; // a deletion pushes no text
+    if (ZERO.test(localSha)) continue;
     const known = !ZERO.test(remoteSha) && spawnSync("git", ["cat-file", "-e", `${remoteSha}^{commit}`], { cwd: root }).status === 0;
     const range = [localSha, ...(known ? [`^${remoteSha}`] : []), "--not", notPushed];
     for (const commit of git(["rev-list", ...range]).split("\n").filter(Boolean)) {
@@ -157,12 +126,10 @@ export function pushProblems({ root, remote, updates, secrets }) {
   return { secrets: problems, patterns };
 }
 
-/** The updates git writes to a pre-push hook's stdin: `<local ref> <local sha> <remote ref> <remote sha>` a line. */
 export function parseUpdates(stdin) {
   return stdin.split(/\r?\n/).map((line) => line.trim().split(/\s+/)).filter((fields) => fields.length === 4).map(([, localSha, , remoteSha]) => ({ localSha, remoteSha }));
 }
 
-/** The hook's run: 1 with the refusal said through `error` when the push adds a machine value, else 0. */
 export function checkPush({ root, remote, stdin, home = homedir(), sources, error = console.error }) {
   const { secrets, patterns } = pushProblems({ root, remote, updates: parseUpdates(stdin), secrets: machineSecrets({ home, sources }) });
   if (secrets.length > 0) {

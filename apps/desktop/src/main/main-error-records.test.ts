@@ -93,7 +93,6 @@ test("9.5 when the library cannot take the errors, app.log keeps writing them as
       await records.settled();
       await new Promise(resolve => setImmediate(resolve));
 
-      // app.log's entries, split at each one's timestamp, since a stack runs over several lines.
       const logged = readFileSync(file, "utf8").split(/^\d{4}-\d\d-\d\dT\S+Z /m).slice(1);
       assert.ok(logged.some(line => /^main process uncaught exception: Error: first\n/.test(line)));
       assert.ok(logged.some(line => /^main process unhandled rejection: Error: second\n/.test(line)));
@@ -109,7 +108,6 @@ test("9.6 while the user's library holds an app error not yet marked submitted, 
   const database = `storytree-app-errors-t-${randomBytes(4).toString("hex")}`;
   const storytree: Storytree = await connect({ url: testServerUrl() });
   try {
-    // The box's buttons, as the person presses them: 0 is Keep going (also closing it), 1 is "It's been submitted".
     const opening = async (answer: "keep-going" | "submitted") => {
       const records = mainErrorRecords({ build: () => "0.3.41", log: () => {}, database });
       await records.open(storytree);
@@ -154,7 +152,6 @@ test("4.35 when the app stops restarting itself after five restarts in a row, th
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const storytree: Storytree = await connect({ url: testServerUrl() });
   try {
-    // An install from before the stop was a kind of error.
     await storytree.ownDatabase(database, { tables: [
       `CREATE TABLE main_errors (key text PRIMARY KEY, kind text NOT NULL CHECK (kind IN ('uncaught-exception', 'unhandled-rejection')),
         build text NOT NULL, stack text NOT NULL, count integer NOT NULL, first_at timestamptz NOT NULL, last_at timestamptz NOT NULL)`,

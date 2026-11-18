@@ -3,7 +3,6 @@ import { test } from "node:test";
 
 import { titleWindow, type TitledWindow } from "./window-title.js";
 
-/** A stand-in for Electron's window: setTitle throws once it is destroyed, as BrowserWindow's does. */
 function fakeWindow() {
   let destroyed = false;
   const titles: string[] = [];

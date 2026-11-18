@@ -25,7 +25,6 @@ const ANCHOR = {
 const NOTE = { text: "The drawer hides the island", surface: "arcs", anchor: ANCHOR, selection: "story_000000000001", project: "site", window: { width: 1440, height: 960 }, theme: "dark" } as const;
 const JPEG = Uint8Array.from([0xff, 0xd8, 1, 2, 0xff, 0xd9]);
 
-/** A frame whose library is a stand-in that keeps what it is sent, holding the projects named. */
 function frame(projects: readonly string[], capture: FeedbackPageFrame["captureWindow"] = async () => JPEG) {
   const sent: { note: FeedbackNote; screenshot: Uint8Array | undefined; crop: Uint8Array | undefined; actor: string | undefined }[] = [];
   const opened: string[] = [];
@@ -54,12 +53,10 @@ test("3.1 · sending writes one feedback record in project storytree with the te
     actor: "app:feedback-corner",
   }]);
 
-  // Only a note's own fields are kept, whatever else the page sent; a missing selection or project is left out.
   await runtime.sendFeedback({ ...NOTE, surface: "menu:help", selection: undefined, project: undefined, extra: "dropped" } as never);
   assert.deepEqual(sent[1]!.note, { text: NOTE.text, surface: "menu:help", story: "app", anchor: ANCHOR, window: NOTE.window, theme: "dark", version: "0.3.99", at: "2026-10-21T12:00:00.000Z" });
   assert.deepEqual(opened, ["storytree"], "the library is opened once");
 
-  // A drawn object a canvas answered with is kept by its ids, checked field by field; one that is not whole is dropped.
   const drawn = { kind: "gate", story: "story_a", between: ["capability_a", "capability_b"], name: "A ↔ B", box: { x: 1, y: 2, width: 3, height: 4 } } as const;
   await runtime.sendFeedback({ ...NOTE, anchor: { ...ANCHOR, drawn: { ...drawn, extra: "dropped" } } } as never);
   assert.deepEqual((sent.at(-1)!.note.anchor as { drawn?: unknown } | undefined)?.drawn, drawn);

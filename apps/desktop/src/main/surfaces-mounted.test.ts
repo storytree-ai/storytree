@@ -1,9 +1,4 @@
-/**
- * The frame mounting the arc surface (capability 3 · Arc surface, the arc-surface story): the app's
- * Surfaces menu lists and switches it, and its live board reads the app's database through the
- * app's page reads. These need both the frame and the story, so they live here, where both meet;
- * the board's own behaviour is tested in packages/arc-surface without the frame (ADR-0847).
- */
+// Capability 3 · Surfaces
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -71,7 +66,6 @@ test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed
     await waitUntil(() => state?.status === "error", 10_000, "the board to show the failed read");
     assert.match(state?.error ?? "", /read unavailable/);
     fail = false;
-    // The page's first start reads its bounded start before it asks every two seconds.
     await waitUntil(() => ticks.has(2_000), 10_000, "the page reading to start asking");
     ticks.get(2_000)!();
     await waitUntil(() => state?.status === "ready", 10_000, "the board to be ready");

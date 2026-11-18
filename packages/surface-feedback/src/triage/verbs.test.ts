@@ -1,7 +1,4 @@
-/**
- * Capability 4 · Triage: contracts 4.1 to 4.3, the `feedback` verbs, run with a caller on a fresh project's library on
- * the real Postgres `pnpm test` provides.
- */
+// Capability 4 · Triage
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -18,7 +15,6 @@ const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.com
 const verbOf = (name: string) => FEEDBACK_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === name) as Verb<VerbInputs, VerbContext>;
 const [list, show, route] = [verbOf("list"), verbOf("show"), verbOf("route")];
 
-/** A fresh project's library, dropped when the test ends, and a caller's context on it in a throwaway folder. */
 async function aProject(t: TestContext): Promise<{ library: Library; context: VerbContext }> {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");

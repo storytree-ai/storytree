@@ -1,21 +1,8 @@
-/**
- * Capability 9 · Errors and app.log. The main process's uncaught exceptions and unhandled rejections, kept in the user's own
- * library on every install (contract 9.4, the owner's answer to question_010c37c7a21c), beside the app's log, which an
- * installed release keeps nowhere. An app error belongs to no project, so it is kept in a database of the app's own on the
- * library's server, one row for each error: the same error again (its kind, build and stack) adds to its count, so a
- * loop cannot flood the library. Nothing here leaves the user's machine.
- *
- * Errors before the library opens are held, a bounded few, and written once it does. A write that fails is said in the
- * log and dropped: the log keeps the error either way, and the failure raises nothing (contract 9.5).
- *
- * Each record is written not yet submitted. While one is, opening the app asks the person to have their agent submit a
- * GitHub issue, until they mark it submitted from that box (contract 9.6, ADR-1122).
- */
+// Capability 9 · Errors and app.log
 import { createHash } from "node:crypto";
 
 import type { Storytree } from "@storytree/library";
 
-/** The app's own database the errors are kept in, beside the projects' libraries on the same server. */
 export const MAIN_ERRORS_DATABASE = "storytree-app-errors";
 
 const SCHEMA: readonly string[] = [
@@ -28,14 +15,11 @@ const SCHEMA: readonly string[] = [
     first_at timestamptz NOT NULL,
     last_at  timestamptz NOT NULL
   )`,
-  // Installs from before ADR-1122 already have the table.
   "ALTER TABLE main_errors ADD COLUMN IF NOT EXISTS submitted_at timestamptz",
-  // And from before contract 4.35, a kind check without its stopped restarts.
   "ALTER TABLE main_errors DROP CONSTRAINT IF EXISTS main_errors_kind_check",
   "ALTER TABLE main_errors ADD CONSTRAINT main_errors_kind_check CHECK (kind IN ('uncaught-exception', 'unhandled-rejection', 'restarts-stopped'))",
 ];
 
-/** What went wrong: an uncaught error, or the app stopping restarting itself after too many in a row (contract 4.35). */
 export type MainErrorKind = "uncaught-exception" | "unhandled-rejection" | "restarts-stopped";
 
 interface Held {
@@ -51,15 +35,10 @@ interface Held {
 type Pool = Awaited<ReturnType<Storytree["ownDatabase"]>>;
 
 export interface MainErrorRecords {
-  /** Keep one error: written now if the library is open, else held until it is. */
   record(kind: MainErrorKind, stack: string): void;
-  /** The library is open: write what is held, and from now on each error as it comes. */
   open(server: Pick<Storytree, "ownDatabase">): Promise<void>;
-  /** Resolves once every write asked for so far has finished. */
   settled(): Promise<void>;
-  /** The recorded errors not yet marked submitted, oldest first; none while the library is not open. */
   unsubmitted(): Promise<readonly UnsubmittedError[]>;
-  /** Mark these records submitted, so the app stops asking about them. */
   markSubmitted(keys: readonly string[]): Promise<void>;
 }
 
@@ -68,10 +47,6 @@ export interface UnsubmittedError {
   readonly stack: string;
 }
 
-/**
- * Keep the main process's errors in the library `open` is given. `build` names the running build at each error; `log`
- * is the log's; at most `hold` different errors wait for the library (later ones are left to the log).
- */
 export function mainErrorRecords({ build, log, now = () => new Date(), hold = 50, database = MAIN_ERRORS_DATABASE }: {
   build: () => string;
   log: (line: string) => void;
@@ -83,7 +58,6 @@ export function mainErrorRecords({ build, log, now = () => new Date(), hold = 50
   let pool: Pool | undefined;
   let writing: Promise<void> | undefined;
 
-  // One write at a time: what arrives meanwhile is held, and a repeat only adds to its held count.
   const write = (): void => {
     if (pool === undefined || writing !== undefined || held.size === 0) return;
     const into = pool;
@@ -132,7 +106,6 @@ export function mainErrorRecords({ build, log, now = () => new Date(), hold = 50
   };
 }
 
-/** What the box about unsubmitted errors says, and its two ways out, in that order. */
 export interface ReportMessage {
   readonly title: string;
   readonly message: string;
@@ -140,7 +113,6 @@ export interface ReportMessage {
   readonly buttons: readonly ["Keep going", "It's been submitted"];
 }
 
-/** The message box `askToReportErrors` asks through: Keep going is the default, and closing the box keeps going too. */
 export function reportBox(
   show: (options: ReportMessage & { type: "warning"; buttons: string[]; defaultId: 0; cancelId: 0; noLink: true }) => Promise<{ response: number }>,
 ): (message: ReportMessage) => Promise<"keep-going" | "submitted"> {
@@ -150,10 +122,6 @@ export function reportBox(
   };
 }
 
-/**
- * When the library holds errors not yet submitted, ask once, in ADR-1119's words, for the person's agent to submit a
- * GitHub issue. "It's been submitted" marks every error the box listed; Keep going (the default) leaves them to ask again.
- */
 export async function askToReportErrors(
   records: Pick<MainErrorRecords, "unsubmitted" | "markSubmitted">,
   { ask }: { ask: (message: ReportMessage) => Promise<"keep-going" | "submitted"> },

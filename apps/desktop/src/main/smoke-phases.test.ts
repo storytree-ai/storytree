@@ -38,7 +38,7 @@ test("1.36 · a smoke check keeps Electron's files in a scratch folder apart fro
     assert.ok(files.line.includes(files.dir) && files.line.includes(shared), files.line);
     files.remove();
     assert.equal(existsSync(files.dir), false);
-    files.remove(); // removing twice is harmless
+    files.remove();
   } finally {
     await removeTemp(tmp);
   }

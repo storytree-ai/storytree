@@ -1,7 +1,3 @@
-// Snapshots what the circuit-board mock draws into data.json beside it: The library's capabilities (lines of code from
-// the code survey, tests excluded; health word; parked), every link (capability.dependsOn) with the called
-// capability's contracts, and the open increments whose capabilities lists name one of them (the wrenches).
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/b-circuit/tools/measure.mjs
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -33,7 +29,6 @@ try {
     dependsOn: (c.dependsOn ?? []).map((id) => ({ id, ...named.get(id) })),
     contracts: c.contracts.map((k) => ({ id: k.id, title: k.title })),
   }));
-  // Links from other stories' capabilities into this one: they arrive at the board's edge connector.
   const ids = new Set(capabilities.map(({ id }) => id));
   const incoming = tree.stories.filter((s) => s.id !== STORY).flatMap((s) => s.capabilities.flatMap((c) =>
     (c.dependsOn ?? []).filter((id) => ids.has(id)).map((to) => ({ from: c.id, fromTitle: c.title, story: s.title, storyId: s.id, to }))));

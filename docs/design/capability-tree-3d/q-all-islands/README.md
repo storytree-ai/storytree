@@ -156,3 +156,5 @@ Run from the checkout root.
    names, where round 3's price on a gate under a name stops short of the pixels just beside it.
 5. **Step 2 inherits the dock reading**: the map knows its docks (`plan.docks` in forest-world's pathways), so the build
    can take them from there rather than reading them off the lanes.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

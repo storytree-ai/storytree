@@ -1,7 +1,3 @@
-// Searches for the calmest routing once (several orders, then rip-up and reroute) and saves it to routes.js, which the
-// page draws from instead of routing at load. Rerun after measure.mjs/build.mjs or any layout change; the page falls
-// back to routing live when the saved grid no longer matches. Run from the checkout root:
-// node docs/design/capability-tree-3d/b-circuit/tools/route.mjs
 import { createRequire } from 'node:module';
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';

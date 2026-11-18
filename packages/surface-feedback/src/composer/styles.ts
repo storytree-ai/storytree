@@ -1,5 +1,4 @@
-// Capability 1 · Button and composer. Adopted by the document, as the app menu's are, since the page's CSP is style-src 'self'.
-// The app bar's dark chrome, so the corner reads the same over the globe, a panel or the gear menu.
+// Capability 1 · Button and composer
 export const cornerStyles = `
 .feedback-corner { position: fixed; right: 10px; bottom: 10px; z-index: 2147483000; font: 13px/1.45 "Segoe UI", system-ui, sans-serif; color: #eceae3; color-scheme: dark; }
 .feedback-corner, .feedback-corner * { box-sizing: border-box; }

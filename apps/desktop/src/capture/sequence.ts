@@ -1,8 +1,4 @@
-/**
- * Capability 2 · Storytree projects. A turn, tilt or zoom of the map as a seeded frame sequence and one captioned contact sheet:
- * Claude takes no video, so motion reaches it as pictures (2.65). The pose is set in code at each step, never dragged, so the same
- * call takes the same frames; the sheet is an HTML grid drawn in the same browser, so no image library is needed.
- */
+// Capability 2 · Storytree projects
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { Browser, Page } from "playwright-core";
@@ -11,12 +7,6 @@ import { settle as settleFrames } from "./runner.js";
 
 export type SequenceKind = "turn" | "tilt" | "zoom";
 
-/**
- * The map's pose as its user sets it, the eye standing still: `turn` the sheet's heading, spun about its upright axis through the
- * middle of the view, anticlockwise on its top face; `tilt` how far the sheet is tipped from facing the eye square-on, its north
- * edge away (0 straight down on its top face, 90 edge-on, 180 straight up at its underside); both in degrees. `zoom` in CSS pixels
- * per unit at the middle of the view, as the wheel measures it.
- */
 export interface MapPose {
   turn: number;
   tilt: number;
@@ -25,13 +15,10 @@ export interface MapPose {
 
 export interface SequenceOptions {
   kind: SequenceKind;
-  /** Frames from `from` to `to`, evenly spaced, both ends included; six unless asked. */
   frames?: number;
   from: number;
   to: number;
-  /** The folder the frames and the sheet are written to (a capture's `out`). */
   out: string;
-  /** The files' stem: `<view>-01.png` … and `<view>-sheet.png`. */
   view: string;
   settle?: (page: Page) => Promise<void>;
 }
@@ -39,7 +26,6 @@ export interface SequenceOptions {
 export interface SequenceCell {
   step: number;
   caption: string;
-  /** The frame's place on the sheet, in its pixels. */
   x: number;
   y: number;
   width: number;
@@ -51,12 +37,8 @@ export interface Sequence {
   sheet: { file: string; width: number; cells: SequenceCell[] };
 }
 
-/** As wide as Claude reads one image at full size (its long edge), so a sheet costs one image. */
 const SHEET_WIDTH = 2576;
 
-// Quaternion arithmetic on plain { x, y, z, w }, as text, not a function, so tsx copies none of its helpers into the page. The sheet
-// is posed as the map's own navigation poses it (sheetTilted): spun about the eye's axis, then tipped about the window's
-// horizontal line through the middle of the view, which stays where it is.
 const POSE = `const mul = (a, b) => ({ w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z, x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
     y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x, z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w });
   const about = (axis, angle) => ({ x: axis.x * Math.sin(angle / 2), y: axis.y * Math.sin(angle / 2), z: axis.z * Math.sin(angle / 2), w: Math.cos(angle / 2) });
@@ -94,7 +76,6 @@ const setPose = (pose: MapPose) => `(pose => { ${POSE}
   state.invalidate();
 })(${JSON.stringify(pose)})`;
 
-/** The sheet's and the eye's pose as they stand, to put back exactly once the sequence is taken. */
 const SAVE = `(() => {
   const { camera, scene } = globalThis.__globe, sheet = scene.getObjectByName('globe');
   return { rotation: { x: sheet.quaternion.x, y: sheet.quaternion.y, z: sheet.quaternion.z, w: sheet.quaternion.w },
@@ -119,15 +100,9 @@ function round(value: number): number {
   return Math.round(value * 100) / 100 || 0;
 }
 
-/**
- * Takes `frames` pictures of the map with its sheet turned or tilted, or the eye zoomed, evenly from `from` to `to`, the rest of
- * the pose kept, each after the map has settled, then one contact sheet of them in order, each cell captioned with its step and
- * value, and puts the map back as it was.
- */
 export async function captureSequence(page: Page, { kind, frames = 6, from, to, out, view, settle = settleFrames }: SequenceOptions): Promise<Sequence> {
   if (!Number.isInteger(frames) || frames < 1) throw new Error(`A capture sequence takes a whole number of frames, at least 1, not ${frames}`);
   if (!Number.isFinite(from) || !Number.isFinite(to)) throw new Error("A capture sequence's from and to must be finite");
-  // The sheet is drawn in a page of the map's browser; a page whose context has none (an Electron window) cannot make one.
   const browser = page.context().browser();
   if (browser === null) throw new Error("A capture sequence draws its contact sheet in the map's browser; this page has none to open a page in");
   const values = Array.from({ length: frames }, (_, step) => frames === 1 ? from : from + (to - from) * step / (frames - 1));
@@ -156,10 +131,8 @@ export async function captureSequence(page: Page, { kind, frames = 6, from, to, 
   return { frames: taken, sheet: await contactSheet(browser, taken.map(frame => frame.file), captions, path.join(out, `${view}-sheet.png`)) };
 }
 
-/** The frames in a grid as wide as one image Claude reads, each under its caption, drawn and photographed in a page of its own. */
 async function contactSheet(browser: Browser, files: string[], captions: string[], file: string): Promise<Sequence["sheet"]> {
   const columns = Math.min(files.length, Math.max(3, Math.ceil(Math.sqrt(files.length))));
-  // A page of its own in the same browser, so the sheet is not drawn at the map's viewport or in its context.
   const sheet = await browser.newPage({ viewport: { width: SHEET_WIDTH, height: 400 }, deviceScaleFactor: 1 });
   try {
     const cells = files.map((frame, index) => `<figure><figcaption>${captions[index]}</figcaption><img src="data:image/png;base64,${readFileSync(frame).toString("base64")}"></figure>`).join("");

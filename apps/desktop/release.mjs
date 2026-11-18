@@ -1,5 +1,3 @@
-// GitHub Actions' release front door. No builds or publication happen on import.
-// Source selection runs from main; the commit main's CI verified is then checked out in the build jobs.
 import { execFileSync, spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -12,19 +10,15 @@ import { freshPlatforms, hostPlatform, PLATFORMS, platformUploads } from "./rele
 import { macReleaseNote, withMacNote } from "./mac-signing.mjs";
 
 const repository = "storytree-ai/storytree";
-/** Each platform's own delivery file: Windows' manifest, and the Mac's and Linux's entries merged into it on publish. */
 const OWN_DELIVERY = { windows: "storytree-delivery.json", mac: "storytree-delivery-mac.json", linux: "storytree-delivery-linux.json" };
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
-// GitHub's answers outgrow Node's 1 MB default: the last 100 releases, with every asset's uploader, passed it.
 const gh = (...args) => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 }).trim();
 const output = (key, value) => appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
 
 function onMain(sha) {
-  // A source must be reachable from main even if another merge has arrived in the meantime.
   git("merge-base", "--is-ancestor", sha, "origin/main");
 }
 
-/** Where `version` stands against GitHub's latest published release: "newer", "latest" (it is that release) or "older". */
 function againstPublished(version) {
   const result = spawnSync("gh", ["api", `repos/${repository}/releases/latest`], { encoding: "utf8" });
   if (result.status !== 0) {
@@ -37,9 +31,6 @@ function againstPublished(version) {
   return order > 0 ? "newer" : order === 0 ? "latest" : "older";
 }
 
-// A rehearsal (release-package.yml called with rehearsal: true, ADR-1032 D3) runs the same build, signing and install
-// check on a branch, so a changed workflow, script or secret is proven before a real release reads it. It must never
-// touch a release, whatever its workflow says: these steps are refused before they read anything or call GitHub (4.22).
 if (process.env.STORYTREE_REHEARSAL === "true" && ["source", "draft", "upload", "publish"].includes(process.argv[2])) {
   throw new Error(`A rehearsal never runs ${process.argv[2]}: it builds and checks, and publishes nothing`);
 }
@@ -64,12 +55,8 @@ if (process.argv[2] === "source") {
   onMain(sha);
   const standing = againstPublished(version);
   const tag = `v${version}`;
-  // A release publishes once, complete, and is never written to again (4.6): a rerun of a platform that was missing
-  // from it passes without uploading, and its build waits for the next version, which carries every platform's newest.
   if (standing === "latest") console.log(`${tag} is already published: a late build waits for the next version.`);
   else if (standing === "newer") {
-    // A draft keeps partially uploaded releases invisible to installed clients. Reruns can finish it.
-    // One job makes it before the platforms upload: two drafts can share a tag, so never race to create.
     const existing = spawnSync("gh", ["release", "view", tag, "--repo", repository, "--json", "isDraft,targetCommitish,assets"], { encoding: "utf8" });
     const release = existing.status === 0 ? JSON.parse(existing.stdout) : undefined;
     if (release !== undefined && (!release.isDraft || release.targetCommitish !== sha)) throw new Error("Release identity already belongs to another publication");
@@ -84,7 +71,6 @@ if (process.argv[2] === "source") {
       const missing = PLATFORMS[platform].required(version).filter((name) => !files.includes(name));
       if (missing.length > 0) throw new Error(`Missing ${platform} release assets: ${missing.join(", ")}`);
       gh("release", "upload", tag, ...files.map((file) => path.join(dir, file)), "--repo", repository, "--clobber");
-      // The draft's Mac sentence was written before the build; now say what Apple answered (contract 4.20).
       if (platform === "mac") {
         const answer = path.join(dir, "mac-notarisation.json");
         const mode = !existsSync(answer) ? "ad-hoc" : JSON.parse(readFileSync(answer, "utf8")).notarised ? "notarised" : "pending";
@@ -93,18 +79,14 @@ if (process.argv[2] === "source") {
     } else publish(tag, version, release);
   } else console.log(`${version} was already published or superseded.`);
 } else if (process.argv[2] === "rehearse") {
-  // Where a real release uploads, a rehearsal only checks this runner built its platform's whole set.
   const version = process.env.STORYTREE_RELEASE_VERSION || JSON.parse(readFileSync("apps/desktop/package.json", "utf8")).version;
   const platform = hostPlatform();
   const files = platformUploads(platform, readdirSync("apps/desktop/release"));
   const missing = PLATFORMS[platform].required(version).filter((name) => !files.includes(name));
   if (missing.length > 0) throw new Error(`Missing ${platform} release assets: ${missing.join(", ")}`);
-  // The set's names, for rehearse-publish to read with this platform's delivery file.
   writeFileSync(path.join("apps/desktop/release", `${platform}.names`), files.join("\n") + "\n");
   console.log(`Rehearsal: ${platform} built its complete set for ${version}; nothing was drafted, uploaded or published.`);
 } else if (process.argv[2] === "rehearse-publish") {
-  // After a rehearsal's platforms ran, what publishing would do with the ones that built (4.22): each built platform's
-  // set names and delivery file are in the folder given; the newest real release supplies any carried build. Read only.
   const dir = path.resolve(process.argv[3] ?? "");
   const version = process.env.STORYTREE_RELEASE_VERSION || JSON.parse(readFileSync("apps/desktop/package.json", "utf8")).version;
   const names = readdirSync(dir).filter((name) => name.endsWith(".names")).flatMap((name) => readFileSync(path.join(dir, name), "utf8").split("\n").filter(Boolean));
@@ -113,12 +95,6 @@ if (process.argv[2] === "source") {
   console.log(JSON.stringify(manifest, null, 2));
 } else throw new Error("Use source, draft, upload, publish, rehearse or rehearse-publish");
 
-/**
- * What publishing writes (4.6), into `dir`, which holds each fresh platform's own delivery file. Every platform whose
- * build is in the release (`names`) publishes it. A platform whose build is not keeps its last good build: its feed and
- * delivery entry are carried from the newest earlier published release, and its bootstraps, which name no build, are
- * written from this checkout. It reads GitHub and changes nothing there.
- */
 function publication(tag, version, names, dir) {
   const fresh = freshPlatforms(names, version);
   if (fresh.length === 0) throw new Error(`Release ${tag} has no platform's complete build`);
@@ -150,7 +126,6 @@ function publication(tag, version, names, dir) {
   return { fresh, carried, uploads, manifest, summary };
 }
 
-/** Publishes the draft with what `publication` writes, as its last write: once published, nothing is uploaded to it. */
 function publish(tag, version, release) {
   const names = release.assets.map((asset) => asset.name);
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-delivery-"));
@@ -172,7 +147,6 @@ function editNotes(tag, change) {
   gh("release", "edit", tag, "--repo", repository, "--notes-file", notesFile);
 }
 
-/** The release page's text: how to install first, since a first user may arrive here from anywhere. */
 function notes(command, macCommand, sha) {
   return [
     "## Install",
@@ -193,11 +167,8 @@ function notes(command, macCommand, sha) {
     "",
     `Windows installers, one per architecture (\`windows-x64-setup.exe\` for most PCs, \`windows-arm64-setup.exe\` for ARM PCs such as Snapdragon laptops; the one-liner picks for you), built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
     "",
-    // The draft is written before the Mac build, so the workflow says whether its certificate is set; the Mac upload
-    // replaces this with Apple's answer.
     macReleaseNote(process.env.STORYTREE_MAC_SIGNED === "true" ? "pending" : "ad-hoc"),
     "",
-    // An update from an older release can hang on Windows; every page points there to the way out (4.44).
     "If a Windows update stays on **Installing, please wait...** and never finishes, [these steps](https://github.com/storytree-ai/storytree/blob/main/INSTALL.md#if-a-windows-update-never-finishes) get it unstuck.",
     "",
     "Alpha installations follow every published build. To install alpha explicitly, use the command in install-storytree-alpha.txt (Windows) or install-storytree-mac-alpha.txt (Mac and Linux). Existing installations retain their channel.",

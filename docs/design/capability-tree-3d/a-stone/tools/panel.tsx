@@ -1,4 +1,3 @@
-/** The story panel beside the island: the story, a legend of what is drawn, and whatever was last clicked on the island. */
 import { WRENCH, type GateInfo, type LinkInfo, type Picked } from "./island.js";
 
 type Contract = { id: string; title: string };
@@ -7,7 +6,6 @@ type Capability = { id: string; title: string; description: string; word: string
 type Work = { arc: string; arcTitle: string; increment: string; title: string; status: string; capabilities: string[] };
 type Data = { story: { id: string; title: string }; measuredAt: string; capabilities: Capability[]; openWork: Work[] };
 
-/** Made-up work, shown only while its box is ticked, so a wrench listing more than one arc can be seen. Not in the library. */
 export const SAMPLE = {
   capability: "10 · Work in flight",
   work: [
@@ -93,7 +91,6 @@ export function Panel({ data, picked, onPick, sample, onSample, fills, links = n
     <footer>
       <ul className="mock-legend">
         {fills.map(f => <li key={f.word}><span className="mock-swatch" style={{ background: f.colour }} />{f.word}</li>)}
-        {/* Each swatch is a small copy of the mark it names. */}
         <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 6H21" stroke="#2b261f" strokeWidth="1.4" strokeDasharray="3.5 2.5" /></svg>outline</li>
         <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 7H21" stroke="#7a5838" strokeWidth="2.6" /></svg>road</li>
         <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M0 3H6M16 3H22" stroke="#2b261f" strokeWidth="1.4" strokeDasharray="3 2" /><path d="M7 0.5V5.5M15 0.5V5.5" stroke="#2b261f" strokeWidth="1.6" /><path d="M11 1V12" stroke="#7a5838" strokeWidth="2.6" /></svg>gate</li>

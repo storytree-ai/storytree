@@ -1,4 +1,3 @@
-/** The story panel beside the island: the story, a legend of what is drawn, and whatever was last clicked on the island. */
 import { PALETTE, WRENCH, type Layer, type Picked } from "./overlay.js";
 
 type Contract = { id: string; title: string };

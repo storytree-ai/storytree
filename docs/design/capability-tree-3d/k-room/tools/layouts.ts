@@ -1,5 +1,3 @@
-/** Round 13's arrangements (layouts/<name>.json, written by tools/layout.ts), one picked by `?layout=<name>`; the chosen
- * one by default. build.mjs writes layouts.gen.ts, which imports every one of them. */
 import { LAYOUTS } from "./layouts.gen.ts";
 
 export const CHOSEN = "chosen";

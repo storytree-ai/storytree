@@ -1,9 +1,4 @@
-/**
- * Capability 2 · Storytree projects. The page's mounting: it mounts each story's surface, joined to the main process through the
- * preload's functions, and hands them to the app's page (@storytree/app/page), which decides what is on show, when it is drawn
- * again and what the page says about itself (`data-state`, `data-drew`, `data-fresh`, `data-selected`, `data-start`), all of which
- * the smoke check and the lag run read. Nothing here decides: each decision is the page's, tested there.
- */
+// Capability 2 · Storytree projects
 import { openProjectPage, type ProjectPage } from "@storytree/app/page";
 import { mountAppMenu } from "@storytree/app/view";
 import { mountAddProject, mountDeleteProject, mountFactory, mountProjectSentence, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
@@ -32,9 +27,7 @@ declare global {
 }
 
 const content = element("content");
-/** The cards seen, kept for this user on this machine, so a kind is taught once across projects (Learning as you build). */
 const seenCards = journal(window.localStorage);
-/** The story panel's folds, which keep the kinds the user opened across picks and projects until the app restarts (ADR-1284 D1). */
 const folds = panelFolds();
 let page: ProjectPage | undefined;
 const appMenu = mountAppMenu(element("app-menu-host"), {
@@ -48,7 +41,6 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
   onSurfacesChanged: () => void page?.surfacesChanged(),
   onError: (error) => page?.choiceFailed(error),
   mountJourney: (host) => mountJourneySettings(host, window.storytree),
-  // Help holds the setup guide and, below it, the journal of teaching cards seen.
   mountHelp: (host, returnFocus, onOpen) => {
     const setup = mountSetupHelp(host, window.storytree, { returnFocus, embedded: true, onOpen });
     const learned = mountJournal(host, { journal: seenCards, library: () => page?.libraryOn() });
@@ -68,11 +60,9 @@ const consentHost = document.createElement("div");
 document.body.append(consentHost);
 const consent = mountJourneyConsent(consentHost, window.storytree);
 const lagRecorder = mountLagRecorder(window.storytree);
-// The feedback corner, above every canvas; a note records the project on show and the story node or note selected.
 const corner = mountFeedbackCorner(document, window.storytree, {
   shown: () => ({ project: document.body.dataset.project, selection: document.body.dataset.selected ?? document.body.dataset.note }),
 });
-/** The page's failures, an unreachable library said once per outage, however many polls fail meanwhile (8.11). */
 const outage = outageSaidOnce((line, ...error) => console.error(`desktop renderer: ${line}`, ...error));
 
 page = openProjectPage({
@@ -89,8 +79,6 @@ page = openProjectPage({
   globe: () => (window as { storytreeGlobe?: GlobeLocator }).storytreeGlobe,
   pluginViews: window.storytree.pluginViews.length,
   project: (name, timed) => {
-    // One live reading for every surface on the page, started from the reading kept at the last start (ADR-0836 D3, D4); the
-    // surfaces hearing one news share one read of the tree.
     const reads = joinedReads(window.storytree);
     const reading = pageReading({ project: name, reads, kept: timed(pageKeptReading(`storytree.page-reading.v1:${name}`)) });
     const core = createKnowledgeCore(name, { reads: window.storytree });
@@ -108,7 +96,6 @@ page = openProjectPage({
         core.onSelect(session => sessions.select(session));
         return sessions;
       },
-      // Its in-CI count is the page's live reading's, the same branch states the arc lanes' CI bars and the sessions list read.
       ciTimes: (host) => mountCiTimes(host, { read: async () => window.storytree.ciTimes?.(name), going: () => reading.held().fold.pullsInCi() }),
       take: (changes, lines) => core.take(changes, lines),
       libraryCard: (panel, onClose) => mountLibraryPanel(panel, core, onClose),

@@ -1,16 +1,3 @@
-/** Round 10's layer on the real island (the territories laid out by their links and shrunk off the coast, as round 9,
- * territories-shim.ts), laid in the island's plate so it turns and tilts with it. The map's island, territories, colours,
- * borders, names, claim flags and the selection's lanes over the sea stay as the map draws them; the open land round the
- * island and at the mouth is the island's own bare ground. It adds:
- * - a SETTLEMENT in each territory that has links: round 9's quiet cartographer's mark beside its name, graded by how many
- *   links meet there (1-2, 3-5, 6 or more);
- * - ONE SHARED ROAD NETWORK (network.ts) in the selection lanes' style: links that go the same way travel one road until
- *   they part, each segment drawn once and a step wider where it carries more; the arrivals come ashore at the open mouth
- *   on a trunk that branches inland toward the interfaces it serves; the way out to Keys takes its own short road;
- * - a GATE wherever a road crosses a border (one for every link a shared road carries through it), and each link's own
- *   entrance gate where it enters the territory it calls, its click target; no arrowheads (the panel says which way);
- * - a picked link lit in gold along its whole way over the shared roads; a picked shared road lists what it carries;
- * - 6C's wrench, upright and constant on screen like a claim flag, at the entrance gate its work changes. */
 import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, FrontSide, Group, Matrix4, Mesh, MeshBasicMaterial,
   Raycaster, Vector2, Vector3, type Camera, type BufferAttribute, type LineSegments } from "three";
 import type { RootState } from "@react-three/fiber";
@@ -20,22 +7,15 @@ import { network, type NetLink } from "./network.js";
 
 export type P = { x: number; z: number };
 export type Picked = { kind: "territory"; id: string } | { kind: "link"; id: string } | { kind: "road"; id: string } | { kind: "wrench"; id: string };
-/** One link, as the panel tells it: `inside` between two of this story's capabilities, `down` other stories calling one of
- * them (one line carries every such link to it), `up` one of them calling another story's. */
 export type LinkInfo = { key: string; from: string; to: string; fromTitle: string; toTitle: string; fromStory: string; toStory: string; dir: "inside" | "down" | "up";
   carries?: { from: string; fromTitle: string; fromStory: string; to: string; toTitle: string; toStory: string }[] };
 
-/** The palette (README.md lists it). Line colours are the selection lanes' own (packages/forest-world/src/planet/lanes.ts);
- * the wrench's ink and paper are round 6C's. */
 export const PALETTE = {
   line: "#6a5fee", out: "#0d8fb0", casing: "#141a20", lit: "#ffd34d", post: "#1b2024",
   ink: "#2a2723", paper: "#f3efe4",
 } as const;
 export const WRENCH = "M5.6-9.6a5.4 5.4 0 0 0-6.7 6.9L-9.4 5.6a2.1 2.1 0 1 0 3 3L2.1-0.9a5.4 5.4 0 0 0 6.9-6.7L5.7-4.3 3.2-4.9 2.6-7.4z";
 
-/** Round 11's road styles, the swatches' (pieces/roads-tools/roads.mjs) by the same keys, chosen by `?road=<key>`: layers drawn
- * in order, each one colour mixed into the land under it by `alpha` (so the road stays opaque and joins do not darken),
- * with a width per load class (1, 2-3, 4-7, 8+ links); `border` quietens the map's white borders. `r10` is round 10's. */
 type RoadStyle = { layers: { colour: string; alpha: number; widths: number[] }[]; border?: { colour: string; alpha: number } };
 const ROAD_STYLES: Record<string, RoadStyle> = {
   r10: { layers: [{ colour: "#141a20", alpha: 0.88, widths: [1.54, 1.79, 2.09, 2.44] }, { colour: "#6a5fee", alpha: 1, widths: [0.7, 0.95, 1.25, 1.6] }] },
@@ -50,15 +30,8 @@ const ROAD_STYLES: Record<string, RoadStyle> = {
   "worn-faint": { border: { colour: "#f4f7f8", alpha: 0.4 }, layers: [{ colour: "#000000", alpha: 0.16, widths: [0.6, 0.8, 1.1, 1.5] }] },
 };
 const QUERY = typeof location === "undefined" ? new URLSearchParams() : new URLSearchParams(location.search);
-/** Mick's pick, 2026-11-03: "17 sandy track" (the swatches' 17); `?road=<key>` shows another. */
 const ROAD_KEY = QUERY.get("road") ?? "sand-faint";
 const ROAD = ROAD_STYLES[ROAD_KEY] ?? ROAD_STYLES.r10!;
-/** Round 11's relief (Mick's pick: the relief pieces' 4, bevel and standing posts, with 5's ramps only where open land meets
- * a territory): every territory a plateau `height` above the open land, all at one height, with walls where it stands above
- * the open land or the coast and a soft shadow on the open land; a ramp where a road climbs from the open land into a
- * territory; a bevel rim inside each border, light where it faces the light and dark where it faces away, broken at each
- * gate; the gate posts standing up. `?relief=0` draws round 10's flat land and flat posts. Values from the pieces'
- * relief-tools/relief.ts, the height raised for the island's smaller scale. */
 const RELIEF = QUERY.get("relief") === "0" ? undefined : {
   height: 1.3,
   wall: { lit: 0.84, away: 0.56 },
@@ -67,16 +40,11 @@ const RELIEF = QUERY.get("relief") === "0" ? undefined : {
   rim: { width: 0.9, light: 0.45, dark: 0.36, hold: 0.45 },
   post: { side: 1.2, entrance: 1.4, height: 1.0, entranceHeight: 1.2, faceRatio: 0.62, body: "#9aa2a8", shadow: 0.22, reach: 0.8 },
 };
-/** The island's bare ground as it shows on the page (round 11's still), under the see-through territory fills. */
 const GROUND_HEX = "#686d70";
 
-/** Sizes in ground units (about 2.6 pixels each at rest). */
 const SIZE = { line: 0.75, casing: 0.42, lift: 0.35, trunk: 1.0, clear: 1.5, apart: 3.2,
-  /** A settlement: its disc's radius, by how many roads meet there (1-2, 3-5, 6 or more), its ink ring, and its dot. */
   town: [1.05, 1.4, 1.75], townRing: 0.36, townDot: 0.42,
-  /** A gate: the opening cut in the border, and a post each side of it (an ink square with a paper face). */
   opening: 3.0, post: 1.45, face: 0.9, entrancePost: 1.8, entranceFace: 1.15, entranceApart: 3.8, road: 6.5,
-  /** A road's width by the links it carries: 1, 2-3, 4-7, 8 or more. */
   width: [0.7, 0.95, 1.25, 1.6] };
 
 type Capability = { id: string; title: string; dependsOn: { id: string; title: string; story: string; storyId: string }[] };
@@ -89,7 +57,6 @@ export type Layer = {
   highlight(picked: Picked | undefined): void;
   point(kind: string, id: string): { x: number; y: number } | undefined;
   links: Map<string, LinkInfo>;
-  /** Each road segment's links, by its id. */
   roads: Map<string, string[]>;
   wrenches: Map<string, { at: string }>;
   fills: { word: string; colour: string }[];
@@ -120,7 +87,6 @@ function segCross(a: P, b: P, c: P, d: P): { p: P; t: number; u: number } | unde
   const t = ((c.x - a.x) * s.z - (c.z - a.z) * s.x) / den, u = ((c.x - a.x) * r.z - (c.z - a.z) * r.x) / den;
   return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? { p: { x: a.x + t * r.x, z: a.z + t * r.z }, t, u } : undefined;
 }
-/** A smooth way through `pts` (Catmull-Rom), passing through every one of them, a point every unit or so. */
 function smooth(pts: P[]): P[] {
   if (pts.length < 3) { const [s, e] = [pts[0]!, pts.at(-1)!], n = Math.max(2, Math.ceil(dist(s, e))); return Array.from({ length: n + 1 }, (_, i) => ({ x: s.x + (e.x - s.x) * i / n, z: s.z + (e.z - s.z) * i / n })); }
   const out: P[] = [];
@@ -134,7 +100,6 @@ function smooth(pts: P[]): P[] {
   out.push(pts.at(-1)!);
   return out;
 }
-/** A flat ribbon `width` wide along `points`, coloured per point when `colourAt` is given. */
 function ribbon(points: P[], width: number, y: (p: P) => number, colourAt?: (p: P) => Color): BufferGeometry {
   const positions: number[] = [], index: number[] = [], colours: number[] = [];
   points.forEach((p, i) => {
@@ -150,7 +115,6 @@ function ribbon(points: P[], width: number, y: (p: P) => number, colourAt?: (p: 
   geometry.setIndex(index);
   return geometry;
 }
-/** A flat bar from `a` to `b`, `wide` across. */
 function bar(a: P, b: P, wide: number, y: (p: P) => number): BufferGeometry { return ribbon([a, b], wide, y); }
 
 export function overlayLayer(state: RootState, story: string, data: Data, host: HTMLElement, map: TerritoryMap, coast: readonly (readonly P[])[], layout: Layout): Layer {
@@ -161,7 +125,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const byId = new Map(data.capabilities.map(c => [c.id, c]));
   const elsewhere = new Map(data.map.tree.stories.flatMap(s => s.capabilities.map(c => [c.id, { title: c.title, story: s.title, storyId: s.id }] as const)));
 
-  // The ground's height: the plate is a shallow dome, fitted from the territories' own corners.
   const heights: [number, number][] = [];
   const fillOf = new Map<string, { colour: string; mesh: Mesh }>();
   land.traverse(object => {
@@ -178,18 +141,15 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
 
   const onLand = (p: P) => coast.reduce((inside, loop) => inPolygon(p, loop) ? !inside : inside, false);
   const coastEdges = coast.flatMap(loop => loop.map((a, i) => [a, loop[(i + 1) % loop.length]!] as [P, P]));
-  /** The territory under a point: its capability, "open" on the open land, undefined off the island. */
   const territoryAt = (p: P): string | undefined => {
     if (!onLand(p)) return undefined;
     const cell = map.cells.find(c => inPolygon(p, c.polygon));
     return cell === undefined ? undefined : map.territories[cell.territory]?.capability ?? "open";
   };
   const ownerOfCell = (c: number) => map.territories[map.cells[c]!.territory]?.capability ?? "open";
-  // The borders, as the map draws them (cut to the coast), with the two territories each parts.
   const borderSegs: { a: P; b: P; pair: [string, string] }[] = [];
   for (const b of map.borders) {
     const pair = [ownerOfCell(b.between[0]), ownerOfCell(b.between[1])] as [string, string];
-    // Cut to the land, as the map cuts them.
     const mid = { x: (b.from.x + b.to.x) / 2, z: (b.from.z + b.to.z) / 2 };
     if (onLand(b.from) && onLand(b.to)) borderSegs.push({ a: b.from, b: b.to, pair });
     else if (onLand(mid)) borderSegs.push({ a: onLand(b.from) ? b.from : mid, b: onLand(b.to) ? b.to : mid, pair });
@@ -198,7 +158,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const edges: [P, P][] = [...borderSegs.map(s => [s.a, s.b] as [P, P]), ...coastEdges];
   const clearance = (p: P) => Math.min(...edges.map(([a, b]) => toSegment(p, a, b)));
 
-  // Where things are on the page: the map's own nameplates, measured as they stand now (the rest view).
   const project = (v: Vector3) => {
     const rect = state.gl.domElement.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
     const w = v.clone().applyMatrix4(root.matrixWorld).project(state.camera as Camera);
@@ -212,10 +171,7 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   });
   const underName = (p: P, pad: number) => { const q = project(lift(p)).page; return nameBoxes.some(b => q.x > b.l - pad && q.x < b.r + pad && q.y > b.t - pad && q.y < b.b + pad); };
 
-  // ── The sea: the selection's lanes stop at the coast, where the roads ashore take over ─────────────────────────────
   const inverse = new Matrix4().copy(root.matrixWorld).invert();
-  // Round 11: with no coast band a lane that rounds the island lies along its very edge, so a lane is cut a little offshore
-  // too, except where the sea roads come ashore (the mouth and the way out to Keys).
   const SHORE = 1.4, ashoreAt = [layout.harbour.dock, layout.keys.dock];
   const nearCoast = (p: P) => onLand(p) || (ashoreAt.every(d => dist(p, d) > 4 * SHORE) &&
     Array.from({ length: 8 }, (_, k) => ({ x: p.x + SHORE * Math.cos(k * Math.PI / 4), z: p.z + SHORE * Math.sin(k * Math.PI / 4) })).some(onLand));
@@ -242,11 +198,9 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   };
   cutLanes();
 
-  // ── Every link, by key ─────────────────────────────────────────────────────────────────────────────────────────────
   const links = new Map<string, LinkInfo>();
   for (const c of data.capabilities) for (const d of c.dependsOn) if (own.has(d.id))
     links.set(`${c.id}->${d.id}`, { key: `${c.id}->${d.id}`, from: c.id, to: d.id, fromTitle: c.title, toTitle: byId.get(d.id)!.title, fromStory: data.story.title, toStory: data.story.title, dir: "inside" });
-  // The links between islands, from the map's own lanes as the selection lights them (their userData names each end).
   const lanes: { from: string; to: string; dir: "up" | "down" }[] = [];
   state.scene.getObjectByName("pathways:selection-lanes")?.traverse(o => { if (o.name.startsWith("lane:") && !lanes.some(l => l.from === o.userData.from && l.to === o.userData.to)) lanes.push({ from: o.userData.from, to: o.userData.to, dir: o.userData.dir }); });
   const name = (id: string) => elsewhere.get(id) ?? { title: id, story: "?", storyId: "" };
@@ -260,7 +214,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     if (out.length) links.set(`${id}->leave`, { key: `${id}->leave`, from: id, to: "sea", fromTitle: byId.get(id)!.title, toTitle: out.length === 1 ? name(out[0]!.to).title : `${out.length} links`, fromStory: data.story.title, toStory: [...new Set(out.map(l => name(l.to).story))].join(", "), dir: "up", carries: out.map(carry) });
   }
 
-  // ── Settlements: one clear spot in each territory with roads, beside its name, toward the roads it meets ────────────
   const anchorOf = (id: string): P => { const p = plates.get(id); return p ? { x: p.x, z: p.z } : { x: 0, z: 0 }; };
   const spot = (territory: string, toward: P): P => {
     const nm = anchorOf(territory), want = sub(toward, nm);
@@ -281,7 +234,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   };
   const internal = [...links.values()].filter(l => l.dir === "inside");
   const landingOf = new Map(layout.landings.map(l => [l.capability, l]));
-  /** Each territory's settlement, toward the middle of what its roads reach: its partners' names and its landing. */
   const towns = new Map<string, P>();
   for (const id of own) {
     const toward = [...internal.filter(l => l.from === id).map(l => anchorOf(l.to)), ...internal.filter(l => l.to === id).map(l => anchorOf(l.from)), ...(landingOf.has(id) ? [landingOf.get(id)!.at] : [])];
@@ -289,7 +241,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     towns.set(id, spot(id, { x: toward.reduce((s, p) => s + p.x, 0) / toward.length, z: toward.reduce((s, p) => s + p.z, 0) / toward.length }));
   }
 
-  // ── The roads: one shared network (network.ts), routed between the settlements and from the mouth ────────────────
   const netLinks: NetLink[] = [];
   for (const l of internal) netLinks.push({ key: l.key, kind: "inside", from: towns.get(l.from)!, to: towns.get(l.to)!, fromT: l.from, toT: l.to, links: 1 });
   for (const landing of layout.landings) {
@@ -301,11 +252,9 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const net = network({
     tAt: territoryAt, toCoast, borders: borderSegs, links: netLinks, mouth: layout.harbour.dock, band: layout.open.band, mouthReach: layout.open.mouth,
     towns: [...towns].map(([territory, at]) => ({ territory, at })),
-    // A road keeps out from under the names where it can.
     extra: p => underName(p, 2) ? 2.5 : 0,
   });
   type Way = { key: string; pts: P[]; from: string; to: string; crossings: { p: P; along: P; coast: boolean; pair?: [string, string] }[] };
-  /** Every border a line crosses (and the coast): where, and the border's direction there, in order along it. */
   const crossingsOf = (pts: P[]) => {
     const out: Way["crossings"] = [];
     for (let i = 0; i + 1 < pts.length; i++) {
@@ -317,14 +266,11 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   };
   const ways: Way[] = netLinks.map(l => { const pts = net.ways.get(l.key)!; return { key: l.key, pts, from: l.kind === "arrival" ? "sea" : l.fromT, to: l.kind === "out" ? "sea" : l.toT, crossings: crossingsOf(pts) }; });
   const segments = net.segments.map(s => ({ ...s, out: s.links.every(k => k.endsWith("->leave")) }));
-  /** How many links meet at each settlement, in and out (its grade, as round 9's): shared roads carry several. */
   const degree = new Map<string, number>();
   for (const w of ways) for (const id of [w.from, w.to]) if (towns.has(id)) degree.set(id, (degree.get(id) ?? 0) + 1);
 
-  // ── Gates: where a road crosses a border; one gate for every link a shared road carries through it ───────────────
   const gates: Gate[] = [];
   for (const s of segments) for (const c of crossingsOf(s.pts)) gates.push({ at: c.p, along: c.along, links: [...s.links], coast: false, open: c.pair?.includes("open") ?? false });
-  // Each link's own entrance: the gate where its way last enters the territory it calls (the way out: where it leaves).
   for (const w of ways) {
     const entering = w.to === "sea" ? w.crossings.find(c => c.pair?.includes(w.from)) : [...w.crossings].reverse().find(c => c.pair?.includes(w.to));
     if (!entering) continue;
@@ -333,7 +279,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   }
   const entranceGate = new Map(gates.filter(g => g.entranceOf).map(g => [g.entranceOf!, g]));
 
-  // Cut each opening out of the map's own border line (and redo it when the map redraws the island).
   const cutBorders = () => {
     const lines = land.parent?.getObjectByName("territory-borders") as LineSegments | undefined;
     if (!lines || lines.userData.cutFor === lines.geometry.uuid) return;
@@ -342,7 +287,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     for (let s = 0; s * 4 < ground.length; s++) {
       const a = { x: ground[4 * s]!, z: ground[4 * s + 1]! }, b = { x: ground[4 * s + 2]!, z: ground[4 * s + 3]! }, l = dist(a, b);
       const A = new Vector3(pos.getX(2 * s), pos.getY(2 * s), pos.getZ(2 * s)), B = new Vector3(pos.getX(2 * s + 1), pos.getY(2 * s + 1), pos.getZ(2 * s + 1));
-      // The openings on this segment, as stretches of it.
       const holes = gates.filter(g => !g.coast && toSegment(g.at, a, b) < 0.05).map(g => { const t = ((g.at.x - a.x) * (b.x - a.x) + (g.at.z - a.z) * (b.z - a.z)) / (l * l); return [t - SIZE.opening / 2 / l, t + SIZE.opening / 2 / l] as [number, number]; }).sort((x, y) => x[0] - y[0]);
       let from = 0;
       for (const [h0, h1] of [...holes, [1, 1] as [number, number]]) {
@@ -359,19 +303,16 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   };
   cutBorders();
 
-  // ── Draw ───────────────────────────────────────────────────────────────────────────────────────────────────────────
   const group = new Group(); group.name = "mock-overlay-lines"; root.add(group);
   const H = RELIEF?.height ?? 0;
   const dot = (a: P, b: P) => a.x * b.x + a.z * b.z;
   const perp = (a: P): P => ({ x: -a.z, z: a.x });
   const at = (p: P, d: P, k: number): P => ({ x: p.x + d.x * k, z: p.z + d.z * k });
-  // The light, from the upper left of the page at rest, as a direction on the ground (toward the light).
   const L = (() => {
     const o = project(lift({ x: 0, z: 0 })).page, ax = project(lift({ x: 10, z: 0 })).page, az = project(lift({ x: 0, z: 10 })).page;
     const m00 = (ax.x - o.x) / 10, m01 = (az.x - o.x) / 10, m10 = (ax.y - o.y) / 10, m11 = (az.y - o.y) / 10, det = m00 * m11 - m01 * m10 || 1;
     return norm({ x: (m11 * -1 - m01 * -1) / det, z: (-m10 * -1 + m00 * -1) / det });
   })();
-  // A ramp at every gate between a territory and the open land, on the open land's side, climbing to the territory.
   type Ramp = { at: P; along: P; out: P; gate: Gate; territory: string };
   const ramps: Ramp[] = [];
   if (RELIEF) for (const g of gates) if (g.open) {
@@ -383,21 +324,17 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     for (const r of ramps) { const d = sub(p, r.at), u = dot(d, r.along), w = dot(d, r.out); if (Math.abs(u) <= RELIEF!.ramp.width / 2 && w >= -0.05 && w <= RELIEF!.ramp.depth) return 1 - Math.max(0, w) / RELIEF!.ramp.depth; }
     return undefined;
   };
-  /** How far a point stands above the open land: a territory's plateau, or part way up a ramp. */
   const raise = (p: P) => { if (!RELIEF) return 0; const t = territoryAt(p); if (t && t !== "open") return H; return (onRamp(p) ?? 0) * H; };
   const topAt = (p: P) => heightAt(p) + raise(p);
   const liftTop = (p: P, up = 0) => new Vector3(p.x, topAt(p) + up, p.z);
   const y = (up: number) => (p: P) => topAt(p) + SIZE.lift + up;
-  /** A way resampled every half unit, so what it carries follows the ramps. */
   const dense = (pts: P[]) => { const out: P[] = [pts[0]!]; for (let i = 1; i < pts.length; i++) { const a = pts[i - 1]!, b = pts[i]!, n = Math.max(1, Math.ceil(dist(a, b) / 0.5)); for (let k = 1; k <= n; k++) out.push({ x: a.x + (b.x - a.x) * k / n, z: a.z + (b.z - a.z) * k / n }); } return out; };
-  // The map's own territories (fills and borders) lifted onto the plateau; again whenever the map redraws them.
   const raiseLand = () => {
     if (!RELIEF) return;
     for (const o of [land, land.parent?.getObjectByName("territory-borders")]) if (o) { o.userData.baseY ??= o.position.y; o.position.y = (o.userData.baseY as number) + H; }
   };
   raiseLand();
   const GROUND = new Color(GROUND_HEX);
-  /** The colour a point shows: its territory's fill over the island's ground, or the bare ground. */
   const under = (p: P) => { const t = territoryAt(p), f = t && t !== "open" ? fillOf.get(t) : undefined; if (!f) return GROUND.clone(); const m = f.mesh.material as MeshBasicMaterial; return GROUND.clone().lerp(new Color(f.colour), m.transparent ? m.opacity : 1); };
   const fillShown = (t: string) => under(at(anchorOf(t), { x: 0, z: 0 }, 0)).clone();
   const mat = (colour: string, opacity = 1) => new MeshBasicMaterial({ color: colour, transparent: true, opacity, side: DoubleSide, depthWrite: false, depthTest: false, fog: false });
@@ -406,7 +343,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const disc = (p: P, r: number, m: MeshBasicMaterial, order: number, up: number) => { const g = new CircleGeometry(r, 20); g.rotateX(-Math.PI / 2); const o = add(g, m, order); o.position.copy(liftTop(p, SIZE.lift + up)); return o; };
   const coreMats = new Map<string, MeshBasicMaterial[]>();
   const keep = (key: string, m: MeshBasicMaterial) => { m.userData.colour ??= `#${m.color.getHexString()}`; coreMats.set(key, [...(coreMats.get(key) ?? []), m]); return m; };
-  /** A road's width, by how many links it carries: a quiet step at 2, 4 and 8. */
   const widthOf = (n: number) => SIZE.width[n >= 8 ? 3 : n >= 4 ? 2 : n >= 2 ? 1 : 0]!;
   const roadMat = mat(PALETTE.line), outMat = mat(PALETTE.out);
   const ends = new Map<string, { at: P; n: number; out: boolean }>();
@@ -421,10 +357,8 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
       add(ribbon(s.pts, w + SIZE.casing * 2, y(0)), casingMat, 10);
       keep(`road:${s.id}`, add(ribbon(s.pts, w, y(0.02)), s.out ? outMat.clone() : roadMat.clone(), 11).material as MeshBasicMaterial);
     }
-    // Junctions: a disc as wide as the widest road meeting there, so the joins read as one road.
     for (const { at, n, out } of ends.values()) { const w = widthOf(n); disc(at, w / 2 + SIZE.casing, casingMat, 10, -0.01); disc(at, w / 2, out ? outMat : roadMat, 11, 0.01); }
   } else {
-    // Round 11: each layer opaque, its colour mixed into the land under each point, so a faint road joins without dark knots.
     const cls = (n: number) => n >= 8 ? 3 : n >= 4 ? 2 : n >= 2 ? 1 : 0;
     ROAD.layers.forEach((layer, li) => {
       const ink = new Color(layer.colour), mix = (p: P) => under(p).lerp(ink, layer.alpha);
@@ -432,13 +366,11 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
       for (const s of segments) add(ribbon(dense(s.pts), layer.widths[cls(s.links.length)]!, y(0.02 * li), mix), m, 10 + li);
       for (const { at, n } of ends.values()) { const g = new CircleGeometry(layer.widths[cls(n)]! / 2, 16); g.rotateX(-Math.PI / 2); const o = add(g, new MeshBasicMaterial({ color: mix(at), transparent: true, opacity: 1, side: DoubleSide, depthWrite: false, depthTest: false, fog: false }), 10 + li); o.position.copy(liftTop(at, SIZE.lift + 0.02 * li + 0.005)); }
     });
-    // A picked road lights in gold on a thin dark edge, so it holds on yellow land.
     for (const s of segments) {
       const edge = add(ribbon(dense(s.pts), SIZE.line + 0.6, y(0.04)), mat(PALETTE.casing, 0.75), 12), gold = add(ribbon(dense(s.pts), SIZE.line, y(0.05)), mat(PALETTE.lit), 13);
       edge.visible = gold.visible = false; litRoad.set(`road:${s.id}`, [edge, gold]);
     }
   }
-  // A lit link: its whole way, in gold, over the shared roads it travels (hidden until it is picked).
   const litMat = mat(PALETTE.lit);
   const litWay = new Map<string, Mesh>();
   const litEdge = new Map<string, Mesh>();
@@ -446,7 +378,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     const o = add(ribbon(dense(w.pts), SIZE.line, y(0.05)), litMat, 13); o.visible = false; litWay.set(w.key, o);
     if (ROAD_KEY !== "r10") { const e = add(ribbon(dense(w.pts), SIZE.line + 0.6, y(0.04)), mat(PALETTE.casing, 0.75), 12); e.visible = false; litEdge.set(w.key, e); }
   }
-  // The settlements, over the roads that meet there: a paper disc ringed in ink, graded by how many roads meet.
   const inkTown = mat(PALETTE.ink), paperTown = mat(PALETTE.paper);
   for (const [id, at] of towns) {
     const n = degree.get(id) ?? 0, grade = n >= 6 ? 2 : n >= 3 ? 1 : 0, r = SIZE.town[grade]!;
@@ -456,17 +387,14 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     if (grade === 2) { disc(at, r - SIZE.townRing * 2.1, inkTown, 18, 0.14); disc(at, r - SIZE.townRing * 2.9, paperTown, 19, 0.16); }
     if (grade >= 1) disc(at, SIZE.townDot, inkTown, 20, 0.18);
   }
-  // The gates' posts: a small square each side of the opening, standing on the border, ink edged with a paper face.
   const square = (c: P, along: P, side: number, m: MeshBasicMaterial, order: number, up: number) => {
     const h = side / 2, a = { x: c.x - along.x * h, z: c.z - along.z * h }, b = { x: c.x + along.x * h, z: c.z + along.z * h };
     return add(bar(a, b, side, y(up)), m, order);
   };
   const inkMat = mat(PALETTE.post);
-  /** Coloured triangles: `tri(a, b, c, colour)` with points in the root's frame; one mesh per call of `solid`. */
   const solid = (order: number, opts: { depth?: boolean; front?: boolean } = {}) => {
     const pos: number[] = [], col: number[] = [];
     const tri = (a: Vector3, b: Vector3, c: Vector3, ca: Color, cb = ca, cc = ca) => { pos.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z); col.push(ca.r, ca.g, ca.b, cb.r, cb.g, cb.b, cc.r, cc.g, cc.b); };
-    /** A quad a-b-c-d; with `facing`, wound so its front faces that way on the ground (a vertical face seen from outside). */
     const quad = (a: Vector3, b: Vector3, c: Vector3, d: Vector3, ca: Color, cb = ca, cc = cb, cd = ca, facing?: P) => {
       if (facing) { const n = new Vector3().subVectors(b, a).cross(new Vector3().subVectors(c, a)); if (n.x * facing.x + n.z * facing.z < 0) { tri(a, c, b, ca, cc, cb); tri(a, d, c, ca, cd, cc); return; } }
       tri(a, b, c, ca, cb, cc); tri(a, c, d, ca, cc, cd);
@@ -491,7 +419,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
         square(c, g.along, face, m, 18, 0.14);
       }
     } else {
-      // Standing posts: an ink-edged top with a paper face, slate sides shaded by the light, a soft shadow away from it.
       const P = RELIEF.post, side = g.entranceOf ? P.entrance : P.side, tall = g.entranceOf ? P.entranceHeight : P.height;
       const gap = ramp ? Math.max(opening, RELIEF.ramp.width) : opening, nrm = perp(g.along);
       for (const sgn of [-1, 1]) {
@@ -507,7 +434,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
         const faceGeom = new BufferGeometry(); faceGeom.setAttribute("position", new Float32BufferAttribute(faceAt.flatMap(q => [q.x, base + tall + 0.02, q.z]), 3)); faceGeom.setIndex([0, 1, 2, 0, 2, 3]);
         const faceMat = new MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 1, side: DoubleSide, depthWrite: true, depthTest: true, fog: false });
         add(faceGeom, faceMat, 18); if (g.entranceOf) keep(g.entranceOf, faceMat);
-        // The shadow: the footprint swept away from the light, flat on the ground beside it.
         const away = { x: -L.x * tall * P.reach, z: -L.z * tall * P.reach }, hull = [...foot, ...foot.map(q => ({ x: q.x + away.x, z: q.z + away.z }))];
         const mid = { x: hull.reduce((a, q) => a + q.x, 0) / hull.length, z: hull.reduce((a, q) => a + q.z, 0) / hull.length };
         hull.sort((a, b) => Math.atan2(a.z - mid.z, a.x - mid.x) - Math.atan2(b.z - mid.z, b.x - mid.x));
@@ -518,11 +444,9 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   }
   postSolid?.done(); postShadow?.done();
 
-  // ── The relief: walls and shadows round the plateaus, ramps, and the bevel rims inside the borders ─────────────────
   const reliefStats = { walls: 0, ramps: ramps.length, rims: 0 };
   if (RELIEF) {
     const R = RELIEF, black = new Color("#000"), white = new Color("#fff");
-    /** The stretches of a-b (as [from, to] fractions) left once `holes` (each a centre and a half-width along it) are cut. */
     const keepOf = (a: P, b: P, holes: { at: P; half: number }[]) => {
       const l = dist(a, b) || 1, u = { x: (b.x - a.x) / l, z: (b.z - a.z) / l }, cut = holes.filter(h => toSegment(h.at, a, b) < 0.6).map(h => { const t = dot(sub(h.at, a), u) / l; return [t - h.half / l, t + h.half / l] as [number, number]; }).sort((x, y2) => x[0] - y2[0]);
       const out: [number, number][] = []; let from = 0;
@@ -531,7 +455,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     };
     const lerpP = (a: P, b: P, t: number): P => ({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
     const rampHoles = ramps.map(r => ({ at: r.at, half: R.ramp.width / 2 }));
-    // Walls: every edge of a territory's fill that no other territory shares (onto the open land, or the coast).
     const walls = solid(9, { front: true }), shadows = solid(8);
     const edges = new Map<string, { a: P; b: P; c: P; t: string; n: number }>();
     for (const [t, f] of fillOf) {
@@ -555,7 +478,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
         const a = lerpP(e.a, e.b, t0), b = lerpP(e.a, e.b, t1);
         walls.quad(new Vector3(a.x, heightAt(a) + H, a.z), new Vector3(b.x, heightAt(b) + H, b.z), new Vector3(b.x, heightAt(b) - 0.05, b.z), new Vector3(a.x, heightAt(a) - 0.05, a.z), face, face, face, face, n);
         reliefStats.walls++;
-        // Its shadow on the open land, where the wall faces away from the light.
         const k = -dot(n, L);
         if (beyond === "open" && k > 0) {
           const A = R.shadow.alpha * Math.sqrt(k), r1 = R.shadow.reach * Math.sqrt(k), r2 = r1 + R.shadow.feather;
@@ -567,7 +489,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
       }
     }
     walls.done(); shadows.done();
-    // Ramps: a slope from the open land up to the plateau, its two cheeks first so the slope covers the far one.
     const cheeks = solid(9.2), slopes = solid(9.4);
     for (const r of ramps) {
       const fill = fillShown(r.territory), w = R.ramp.width / 2, d = R.ramp.depth;
@@ -579,7 +500,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
       slopes.quad(top(e1), top(e2), low(f2), low(f1), fill, fill, slope, slope);
     }
     cheeks.done(); slopes.done();
-    // Bevel rims: inside each border, on each territory's side, broken at every gate.
     const rims = solid(9.6), gateHoles = gates.map(g => ({ at: g.at, half: openingOf(g) / 2 + (g.entranceOf ? R.post.entrance : R.post.side) + 0.2 }));
     for (const seg of borderSegs) {
       const n = norm(perp(sub(seg.b, seg.a)));
@@ -600,7 +520,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     rims.done();
   }
 
-  // ── The wrenches: 6C's rule, at the entrance gate of the link its work changes (its most central entrance) ───────────
   const overlay = document.createElement("div");
   overlay.className = "mock-overlay";
   host.appendChild(overlay);
@@ -633,14 +552,12 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   follow();
   state.invalidate();
 
-  // ── Picking: a wrench, then an entrance gate, then a settlement (its territory), then a road, then the territory below ─
   const raycaster = new Raycaster();
   const gateAt = (x: number, yy: number) => {
     let best: string | undefined, d = 10;
     for (const [key, g] of entranceGate) { const q = project(liftTop(g.at, SIZE.lift)).page, dd = Math.hypot(q.x - x, q.y - yy); if (dd < d) { d = dd; best = key; } }
     return best;
   };
-  /** The road segment under a point on the page. */
   const lineAt = (x: number, yy: number) => {
     let best: (typeof segments)[number] | undefined, d = 6;
     for (const s of segments) {
@@ -657,7 +574,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     const gate = gateAt(x, yy);
     if (gate) return { kind: "link", id: gate };
     for (const [id, at] of towns) { const q = project(liftTop(at, SIZE.lift)).page; if (Math.hypot(q.x - x, q.y - yy) < 7) return { kind: "territory", id }; }
-    // A road carrying one link opens that link; a shared road opens the road, with the links it carries.
     const line = lineAt(x, yy);
     if (line) return line.links.length === 1 ? { kind: "link", id: line.links[0]! } : { kind: "road", id: String(line.id) };
     const rect = state.gl.domElement.getBoundingClientRect();
@@ -673,8 +589,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     if (kind === "road") return segments.some(s => String(s.id) === id) ? { kind, id } : undefined;
     return undefined;
   };
-  // A picked link lights its whole way along the shared roads, and its entrance gate, in gold; a picked road lights
-  // itself. Nothing is hidden or dimmed.
   const highlight = (picked: Picked | undefined) => {
     for (const list of coreMats.values()) for (const m of list) m.color.set(m.userData.colour as string);
     for (const o of [...litWay.values(), ...litEdge.values(), ...[...litRoad.values()].flat()]) o.visible = false;
@@ -684,7 +598,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     if (picked?.kind === "wrench") wrenches.get(picked.id)!.el.classList.add("lit");
     state.invalidate();
   };
-  /** Where a mark stands on the page: a link by its entrance gate, a territory by a clear point in it. */
   const point = (kind: string, id: string) => {
     if (kind === "wrench") { const w = wrenches.get(id); if (!w) return undefined; const b = w.el.querySelector(".plate")!.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }
     if (kind === "gate") { const g = entranceGate.get(id); return g ? project(liftTop(g.at, SIZE.lift)).page : undefined; }

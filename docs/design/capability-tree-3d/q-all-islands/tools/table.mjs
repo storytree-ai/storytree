@@ -1,5 +1,3 @@
-// Rollout 1: the measures table per island for the README, from two captures' measures (islands.mjs), biggest island first.
-// Run from the checkout root: node docs/design/capability-tree-3d/q-all-islands/tools/table.mjs before after
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

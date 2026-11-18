@@ -43,3 +43,5 @@ shipping lines all stay the same. Only add thickness for more lines merging." (r
 3. The legend still describes purple and teal roads.
 
 Build: `node docs/design/capability-tree-3d/l-port/tools/build.mjs`; stills: `node docs/design/capability-tree-3d/l-port/tools/stills.mjs`.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

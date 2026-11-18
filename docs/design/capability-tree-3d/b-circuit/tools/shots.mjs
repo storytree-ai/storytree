@@ -1,5 +1,3 @@
-// Takes the stills from index.html with the pre-installed Playwright. Run from the checkout root:
-// node docs/design/capability-tree-3d/b-circuit/tools/shots.mjs [name ...]
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';

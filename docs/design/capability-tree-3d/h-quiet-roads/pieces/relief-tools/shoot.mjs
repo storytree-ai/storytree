@@ -1,6 +1,3 @@
-// Stills of relief.html in the capture kit's Chromium: pieces/stills/relief-sheet.png (the six panels with captions) and
-// pieces/stills/relief-close.png (the close-up row).
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/h-quiet-roads/pieces/relief-tools/shoot.mjs
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

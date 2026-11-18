@@ -1,12 +1,3 @@
-/** Round 7's layer on the real island, laid in the island's own plate so it turns and tilts with it. The map's island, its
- * territories, borders, names, claim flags and the selection's lanes over the sea all stay as the map draws them. It adds:
- * - each link between The library's capabilities as one overlay line, in the selection lanes' style, laid above the land with
- *   a thin dark casing, gently curved, crossing whatever territories lie between;
- * - an arrowhead where each line enters the territory it calls, near that territory's name, and a dot where it leaves its
- *   caller; a line only passing over a territory marks nothing there;
- * - the selection's lanes cut at the coast (they no longer follow the borders inland), and from each dock either a small
- *   landing of open ground that fans out to the capabilities it serves, or, when it serves one, a line straight in;
- * - 6C's wrench, upright and constant on screen like a claim flag, at the entrance its work changes. */
 import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Matrix4, Mesh, MeshBasicMaterial,
   Raycaster, RingGeometry, Vector2, Vector3, type Camera, type BufferAttribute } from "three";
 import type { RootState } from "@react-three/fiber";
@@ -19,24 +10,16 @@ export type Picked =
   | { kind: "link"; id: string }
   | { kind: "landing"; id: string }
   | { kind: "wrench"; id: string };
-/** One link, as the panel tells it: `inside` between two of this story's capabilities, `down` another story calling one of
- * them, `up` one of them calling another story's. */
 export type LinkInfo = { key: string; from: string; to: string; fromTitle: string; toTitle: string; fromStory: string; toStory: string; dir: "inside" | "down" | "up"; arrival?: string;
-  /** A fan line from a landing or dock: the links between islands it stands for, all calling (or called by) one capability. */
   carries?: string[] };
-/** Where one road from other islands comes ashore. */
 export type ArrivalInfo = { key: string; kind: "landing" | "direct"; stories: string[]; capabilities: string[]; links: string[] };
 
-/** The palette (README.md lists it). The line colours are the selection lanes' own (packages/forest-world/src/planet/lanes.ts,
- * LANE_COLOUR); the wrench's ink and paper are round 6C's. */
 export const PALETTE = {
   line: "#6a5fee", out: "#0d8fb0", casing: "#141a20", lit: "#ffd34d",
   landing: "#e4dcc4", landingEdge: "#f4f7f8", ink: "#2a2723", paper: "#f3efe4",
 } as const;
-/** 6C's wrench (docs/design/capability-tree-3d/c-cartographer/index.html), drawn in a 24-unit box about its middle. */
 export const WRENCH = "M5.6-9.6a5.4 5.4 0 0 0-6.7 6.9L-9.4 5.6a2.1 2.1 0 1 0 3 3L2.1-0.9a5.4 5.4 0 0 0 6.9-6.7L5.7-4.3 3.2-4.9 2.6-7.4z";
 
-/** Sizes in ground units (about 2.6 pixels each at rest). */
 const SIZE = { line: 0.85, casing: 0.5, lift: 0.35, arrow: 3.4, arrowHalf: 1.55, dot: 0.95, landing: 7.5, clear: 1.6, apart: 3.6, bend: 0.12 };
 const params = new URLSearchParams(location.search);
 const BEND = Number(params.get("bend") ?? SIZE.bend);
@@ -49,7 +32,6 @@ export type Layer = {
   highlight(picked: Picked | undefined): void;
   point(kind: string, id: string): { x: number; y: number } | undefined;
   links: Map<string, LinkInfo>; arrivals: Map<string, ArrivalInfo>;
-  /** For each wrench, the link whose entrance it stands at, or the capability's own start when nothing calls it. */
   wrenches: Map<string, { at: string }>;
   fills: { word: string; colour: string }[];
   stats: Record<string, unknown>;
@@ -74,14 +56,12 @@ const toSegment = (p: P, a: P, b: P) => {
 };
 const angleBetween = (a: P, b: P) => Math.acos(Math.max(-1, Math.min(1, (a.x * b.x + a.z * b.z) / ((Math.hypot(a.x, a.z) || 1) * (Math.hypot(b.x, b.z) || 1)))));
 
-/** A gentle curve from `s` to `e`, bent to the left of its way by `bend` of its length. */
 function curve(s: P, e: P, bend: number): P[] {
   const d = sub(e, s), l = Math.hypot(d.x, d.z), c = { x: (s.x + e.x) / 2 - d.z * bend, z: (s.z + e.z) / 2 + d.x * bend };
   const n = Math.max(8, Math.ceil(l / 1.5));
   return Array.from({ length: n + 1 }, (_, i) => { const t = i / n, u = 1 - t; return { x: u * u * s.x + 2 * u * t * c.x + t * t * e.x, z: u * u * s.z + 2 * u * t * c.z + t * t * e.z }; });
 }
 
-/** A flat ribbon `width` wide along `points`, at height `y`. */
 function ribbon(points: P[], width: number, y: (p: P) => number): BufferGeometry {
   const positions: number[] = [], index: number[] = [];
   points.forEach((p, i) => {
@@ -96,7 +76,6 @@ function ribbon(points: P[], width: number, y: (p: P) => number): BufferGeometry
   return geometry;
 }
 
-/** A flat triangle with its tip at `tip`, pointing along `dir`. */
 function arrow(tip: P, dir: P, length: number, half: number, y: (p: P) => number): BufferGeometry {
   const d = norm(dir), side = { x: -d.z, z: d.x }, back = { x: tip.x - d.x * length, z: tip.z - d.z * length };
   const notch = { x: tip.x - d.x * length * 0.78, z: tip.z - d.z * length * 0.78 };
@@ -115,7 +94,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const byId = new Map(data.capabilities.map(c => [c.id, c]));
   const elsewhere = new Map(data.map.tree.stories.flatMap(s => s.capabilities.map(c => [c.id, { title: c.title, story: s.title, storyId: s.id }] as const)));
 
-  // The ground's height: the plate is a shallow dome, fitted from the territories' own corners.
   const heights: [number, number][] = [];
   const fillOf = new Map<string, { colour: string; mesh: Mesh }>();
   land.traverse(object => {
@@ -132,7 +110,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
 
   const onLand = (p: P) => coast.reduce((inside, loop) => inPolygon(p, loop) ? !inside : inside, false);
   const coastEdges = coast.flatMap(loop => loop.map((a, i) => [a, loop[(i + 1) % loop.length]!] as [P, P]));
-  /** On land, or on the coastline itself (a lane walking along the coast is ashore). */
   const ashoreAt = (p: P) => onLand(p) || coastEdges.some(([a, b]) => toSegment(p, a, b) < 0.6);
   const territoryAt = (p: P): string | undefined => {
     if (!onLand(p)) return undefined;
@@ -142,7 +119,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const edges: [P, P][] = [...map.borders.map(b => [b.from, b.to] as [P, P]), ...coast.flatMap(loop => loop.map((a, i) => [a, loop[(i + 1) % loop.length]!] as [P, P]))];
   const clearance = (p: P) => Math.min(...edges.map(([a, b]) => toSegment(p, a, b)));
 
-  // Where things are on the page: the map's own nameplates, measured as they stand now (the rest view).
   const project = (v: Vector3) => {
     const rect = state.gl.domElement.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
     const w = v.clone().applyMatrix4(root.matrixWorld).project(state.camera as Camera);
@@ -156,7 +132,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   });
   const underName = (p: P, pad: number) => { const q = project(lift(p)).page; return nameBoxes.some(b => q.x > b.l - pad && q.x < b.r + pad && q.y > b.t - pad && q.y < b.b + pad); };
 
-  // The selection's lanes: read where each comes ashore, then cut away what runs on inland along the borders.
   const inverse = new Matrix4().copy(root.matrixWorld).invert();
   const lanes: { from: string; to: string; dir: "up" | "down"; dock: P; sea: P }[] = [];
   const cutLanes = () => {
@@ -176,13 +151,11 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
       const ashore: boolean[] = [];
       for (let i = 0; i < count; i++) { const a = local(2 * i).clone(), b = local(2 * i + 1); ashore.push(ashoreAt({ x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 })); }
       if (o.name.startsWith("lane:") && !lanes.some(l => l.from === o.userData.from && l.to === o.userData.to)) {
-        // The dock: the first point on land coming in from the sea, on whichever end is this island's.
         const mine = ashore[0] ? 0 : count - 1, step = mine === 0 ? 1 : -1;
         let k = mine;
         while (k + step >= 0 && k + step < count && ashore[k]) k += step;
         const mid = (i: number): P => { const a = local(2 * i).clone(), b = local(2 * i + 1); return { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 }; };
         const dock = mid(k - step);
-        // A point some way out over the sea along the lane, which tells one road from another where they touch the coast together.
         let j = k, sea = dock;
         while (j >= 0 && j < count && dist(sea = mid(j), dock) < 14) j += step;
         if (ashore[mine]) lanes.push({ from: o.userData.from, to: o.userData.to, dir: o.userData.dir, dock, sea });
@@ -200,14 +173,12 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   };
   cutLanes();
 
-  // Group the docks: lanes coming ashore within a few units of each other, off the same road over the sea, arrive by one road.
   const docks: { at: P; sea: P; lanes: typeof lanes }[] = [];
   for (const lane of lanes) {
     const d = docks.find(k => dist(k.at, lane.dock) < 6 && dist(k.sea, lane.sea) < 3);
     if (d) d.lanes.push(lane); else docks.push({ at: lane.dock, sea: lane.sea, lanes: [lane] });
   }
 
-  // Every link, by key.
   const links = new Map<string, LinkInfo>();
   for (const c of data.capabilities) for (const d of c.dependsOn) if (own.has(d.id))
     links.set(`${c.id}->${d.id}`, { key: `${c.id}->${d.id}`, from: c.id, to: d.id, fromTitle: c.title, toTitle: byId.get(d.id)!.title, fromStory: data.story.title, toStory: data.story.title, dir: "inside" });
@@ -225,7 +196,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     }
   });
 
-  // The landings: a little open ground cut from the coast, just inland of the dock, for a road that serves several capabilities.
   const centre = { x: 0, z: 0 };
   const landingAt = new Map<string, P>();
   docks.forEach((dock, k) => {
@@ -235,10 +205,8 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   });
   const inLanding = (p: P, pad = 0) => [...landingAt.values()].some(c => dist(p, c) < SIZE.landing + pad);
 
-  // Each line's ends. Where a line leaves from or arrives at: a capability's name, a landing, or a dock.
   const anchorOf = (id: string): P => { const p = plates.get(id); return p ? { x: p.x, z: p.z } : centre; };
   const placed = new Map<string, P[]>();
-  /** A clear point in `territory`, near its name and toward `toward`: off every name, clear of its borders and other marks. */
   const spot = (territory: string, toward: P): P => {
     const n = anchorOf(territory), want = sub(toward, n), taken = placed.get(territory) ?? [];
     let best: P | undefined, score = Infinity;
@@ -255,7 +223,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
         break;
       }
     }
-    // A territory too small for its marks keeps them at its name's edge.
     best ??= n;
     placed.set(territory, [...taken, best]);
     return best;
@@ -265,11 +232,9 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const lines: Line[] = [];
   const entranceOf = new Map<string, P>();
   const startOf = new Map<string, P>();
-  // Arrivals first: a link called from inside the island, or from a landing or dock, enters its called territory.
   const internal = [...links.values()].filter(l => l.dir === "inside");
   for (const l of internal) entranceOf.set(l.key, spot(l.to, anchorOf(l.from)));
   const fanFrom = (a: ArrivalInfo): P => landingAt.get(a.key) ?? docks[Number(a.key.slice(7))]!.at;
-  // A road from other islands brings many links; it draws one line per capability it serves (and per way), carrying them all.
   const fans: { key: string; arrival: ArrivalInfo; capability: string; dir: "down" | "up"; carries: string[] }[] = [];
   for (const a of arrivals.values()) for (const k of a.links) {
     const l = links.get(k)!, capability = l.dir === "up" ? l.from : l.to, dir = l.dir as "down" | "up", key = `${a.key}:${dir}:${capability}`;
@@ -285,7 +250,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
       : { key: f.key, from: f.capability, to: f.arrival.key, fromTitle: one.fromTitle, toTitle: title, fromStory: data.story.title, toStory: across, dir: "up", arrival: f.arrival.key, carries: f.carries });
     if (f.dir === "down") entranceOf.set(f.key, spot(f.capability, fanFrom(f.arrival)));
   }
-  // Then each caller's starts: one dot per direction it calls out in (within a quarter turn), shared by its lines that way.
   const ports = new Map<string, { at: P; dirs: P[] }[]>();
   const startFor = (from: string, target: P): P => {
     const n = anchorOf(from), dir = norm(sub(target, n)), list = ports.get(from) ?? [];
@@ -298,7 +262,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   for (const l of internal) startOf.set(l.key, startFor(l.from, entranceOf.get(l.key)!));
   for (const f of fans) if (f.dir === "up") startOf.set(f.key, startFor(f.capability, fanFrom(f.arrival)));
 
-  // Lay the lines.
   const group = new Group(); group.name = "mock-overlay-lines"; root.add(group);
   const y = (up: number) => (p: P) => heightAt(p) + SIZE.lift + up;
   const material = (colour: string, order: number) => new MeshBasicMaterial({ color: colour, transparent: true, opacity: 1, side: DoubleSide, depthWrite: false, depthTest: false, fog: false });
@@ -314,11 +277,8 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const dotMats = new Map<string, MeshBasicMaterial>();
   const dotDrawn = new Set<string>();
   const drawLine = (key: string, s: P, e: P, colour: string, tip: boolean, startDot: boolean) => {
-    // Lines between the same two places in both directions bend to opposite sides; every line bends a little, so lines
-    // that share a start fan apart.
     const pts = curve(s, e, BEND);
     const endDir = sub(pts.at(-1)!, pts.at(-3)!);
-    // The line stops short of its arrowhead's tip, so the head reads sharp.
     const body = tip ? (() => { const back = SIZE.arrow * 0.7, cut: P[] = [...pts]; while (cut.length > 2 && dist(cut.at(-1)!, e) < back) cut.pop(); return cut; })() : pts;
     const mat = lineMat(key, colour);
     const meshes = [
@@ -341,20 +301,16 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   for (const f of fans) {
     const a = f.arrival, k = f.key, from = fanFrom(a), dock = docks[Number(a.key.slice(7))]!.at;
     if (f.dir === "down") {
-      // From the landing's rim (or the dock) in to the capability it serves.
       const e = entranceOf.get(k)!, s = landingAt.has(a.key) ? (() => { const u = norm(sub(e, from)); return { x: from.x + u.x * SIZE.landing * 0.92, z: from.z + u.z * SIZE.landing * 0.92 }; })() : dock;
       drawLine(k, s, e, PALETTE.line, true, false);
     } else {
-      // Out from the capability to the landing's rim, or to the dock, where the lane goes on over the sea.
       const s = startOf.get(k)!, e = landingAt.has(a.key) ? (() => { const u = norm(sub(s, from)); return { x: from.x + u.x * SIZE.landing * 0.95, z: from.z + u.z * SIZE.landing * 0.95 }; })() : dock;
       drawLine(k, s, e, PALETTE.out, true, true);
     }
   }
-  // The landings themselves: open ground, its rim the map's thin white border.
   const landingMeshes = new Map<string, Mesh>();
   for (const [key, c] of landingAt) {
     const fill = new MeshBasicMaterial({ color: PALETTE.landing, transparent: true, side: DoubleSide, depthWrite: false, depthTest: false, fog: false });
-    // A disc of open ground, cut to the land: the part over the sea is left out.
     const pts: number[] = [], R = SIZE.landing, rings = 10, around = 48;
     const at = (r: number, a: number): P => ({ x: c.x + r * Math.cos(a), z: c.z + r * Math.sin(a) });
     const put = (...ps: P[]) => { if (!onLand({ x: ps.reduce((s, p) => s + p.x, 0) / 3, z: ps.reduce((s, p) => s + p.z, 0) / 3 })) return; for (const p of ps) pts.push(p.x - c.x, 0, p.z - c.z); };
@@ -371,8 +327,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     flush();
   }
 
-  // The wrenches: 6C's rule. An increment names a capability, not a link: its wrench stands at the capability's most central
-  // entrance in (the one nearest its name), or, when nothing calls it, at the start of its own line out.
   const overlay = document.createElement("div");
   overlay.className = "mock-overlay";
   host.appendChild(overlay);
@@ -382,10 +336,8 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   for (const id of new Set(data.openWork.flatMap(w => w.capabilities))) {
     if (!own.has(id)) continue;
     const ins = lines.filter(l => links.get(l.key)?.to === id);
-    // The plate stands about 16 to 38 pixels above its foot: it must not cover a name.
     const plateClear = (p: P) => { const q = project(lift(p)).page; return !nameBoxes.some(b => q.x + 12 > b.l && q.x - 12 < b.r && q.y - 16 > b.t && q.y - 38 < b.b); };
     const ordered = ins.sort((a, b) => dist(a.e, anchorOf(id)) - dist(b.e, anchorOf(id)));
-    // At the marker, or, when its plate would cover a name there, a little way back along the same line.
     const along = (l: Line) => [...l.pts].reverse().filter(p => dist(p, l.e) < 7);
     let via: Line | undefined, at: P | undefined;
     for (const l of ordered) { const p = along(l).find(plateClear); if (p) { via = l; at = p; break; } }
@@ -416,7 +368,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   follow();
   state.invalidate();
 
-  // Picking: a wrench by its icon, then the nearest line on the page, then a landing, then the territory below.
   const raycaster = new Raycaster();
   const lineAt = (x: number, y: number) => {
     let best: Line | undefined, d = 7;
@@ -452,7 +403,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     return undefined;
   };
 
-  // The pick lights in the selection's gold; nothing is hidden or dimmed.
   const highlight = (picked: Picked | undefined) => {
     for (const m of [...coreMats.values(), ...dotMats.values()]) m.color.set(m.userData.colour as string);
     for (const w of wrenches.values()) w.el.classList.remove("lit");
@@ -472,7 +422,6 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     if (kind === "wrench") { const w = wrenches.get(id); if (!w) return undefined; const b = w.el.querySelector(".plate")!.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }
     if (kind === "landing") { const c = landingAt.get(id); return c ? project(lift(c)).page : undefined; }
     if (kind === "territory") {
-      // A point in the territory that is on no line and under no name.
       const n = anchorOf(id);
       for (let r = 3; r < 30; r += 1) for (let a = 0; a < 360; a += 20) {
         const p = { x: n.x + r * Math.cos(a * Math.PI / 180), z: n.z + r * Math.sin(a * Math.PI / 180) }, q = project(lift(p)).page;

@@ -89,3 +89,5 @@ Run from the checkout root:
    each option's three views and their measures. Run `today` first: the other options are framed on its gate. Without
    `--retake` the stills go to the capture kit's scratch folder. `REST`, `CLOSE` and `SECOND_REST` change the zooms, and
    `SECOND` names the second island.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

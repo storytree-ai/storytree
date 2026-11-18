@@ -1,7 +1,4 @@
-/**
- * The page mounting a factory plugin's surface views (capability 2 · Storytree projects; plugin loader capability 5): each
- * view module is imported where the window serves it, at run time, and mounted while its surface is on.
- */
+// Capability 2 · Storytree projects
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

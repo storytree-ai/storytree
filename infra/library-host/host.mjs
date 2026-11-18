@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// ADR-0928: reviewed operator tools for this host, never imported by the product.
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { createReadStream, realpathSync } from 'node:fs';
@@ -13,31 +12,18 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = process.env.LIBRARY_HOST_REPO ?? path.resolve(HERE, '../..');
 const ROOT = path.join(homedir(), '.storytree/library-host');
 const LOGS = path.join(homedir(), 'storytree-lanes/library-backups');
-// Each uploaded backup's digest, create-only: the last one holds the last seq and the running SHA-256 the next extends.
 const DIGESTS = path.join(LOGS, 'digests');
 const ADC = path.join(homedir(), '.config/gcloud/application_default_credentials.json');
 const GCLOUD = path.join(homedir(), 'google-cloud-sdk/bin/gcloud');
-// The cloud project is the one the Mint service account belongs to, read from its credentials (mintProject):
-// the backup bucket and CI's role are named after it.
 const bucketOf = project => `gs://${project}-library-backups`;
-// The box's own account, which runs these tools and is the database's local superuser over the socket.
 const ACCOUNT = userInfo().username;
-// The box's PostgreSQL 16 clients by absolute path, never whatever a PATH lookup finds first.
 const PG_BIN = '/usr/lib/postgresql/16/bin';
 const LOCAL = { host: '/var/run/postgresql', port: 5432, user: ACCOUNT };
 const OWNER = 'storytree_library';
-// The backup timer's whole PATH: gcloud and the PostgreSQL clients are named by absolute path.
 const UNIT_PATH = '/usr/bin:/bin';
-// A backup's uploads finish within this long of the time its prefix is named for (about ten minutes in October 2026).
 const UPLOAD_WINDOW_MS = 2 * 60 * 60 * 1000;
-// The name CI's role had before the library moved here, so grants.sql's row policies name it unchanged. Local SCRAM, not IAM.
 const ciRoleOf = project => `storytree-ci-health@${project}.iam`;
-// The three 0.3 databases. 0.2's frozen `storytree` was never moved here (owner, 2026-10-07: "we dont need backups
-// for 0.2"); its final export sits under the bucket's archive/.
 const DBS = ['storytree_storytree', 'storytree-activity', 'storytree-trunks'];
-// Backed up beside them: the lag runner's history (src/lag-box.mjs in Mick's factory plugin micks-dev-loop), whose baselines and
-// recorded reasons cannot be measured again, and the QA ledger (code review, now the micks-dev-loop factory plugin), whose review history
-// ADR-0956 D7's ten-review refusal counts.
 const BACKED = [...DBS, 'storytree-lag', 'storytree-quality'];
 const MARK = 'storytree library-host increment_b3ccd17ff113';
 const PASSWORD = path.join(ROOT, 'postgres-password');
@@ -54,7 +40,6 @@ export function checkedCounts(source, restored) {
 
 export function checkedManifest(manifest) {
   if (manifest?.format !== 1 || !Array.isArray(manifest.databases) ||
-      // A backup from before storytree-lag, or then storytree-quality, joined still restores.
       ![DBS, [...DBS, 'storytree-lag'], BACKED].some(names => JSON.stringify(manifest.databases.map(d => d.name).sort()) === JSON.stringify([...names].sort())) ||
       manifest.databases.some(d => d.file !== `${d.name}.dump` || !/^[a-f0-9]{64}$/.test(d.sha256) ||
         !Number.isSafeInteger(d.bytes) || d.bytes <= 0 || !d.rows ||
@@ -64,10 +49,6 @@ export function checkedManifest(manifest) {
   return manifest;
 }
 
-// A restore takes only a prefix the off-box check verified: its manifest's SHA-256 is on the verified list (one hash
-// opening each line; `#` lines are comments), its name's time is not in the future, and every object in it was
-// created in the upload window after that time.
-/** The cloud project of the Mint service account's credentials, refused unless they are that account's. */
 export function mintProject(adc) {
   const project = adc?.project_id;
   if (adc?.type !== 'service_account' || !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(project ?? '') ||
@@ -82,7 +63,6 @@ export function checkedPrefix({ prefix, manifestHash, verified, objects, now = n
   checkedCreation({ prefix, objects, now });
 }
 
-/** A backup's name is the time it began: not in the future, and every object in it created in the upload window after it. */
 export function checkedCreation({ prefix, objects, now = new Date() }) {
   const name = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\d{3})Z-[a-f0-9]{8}$/.exec(path.basename(prefix ?? ''));
   if (!name) throw new Error('The backup prefix carries no timestamp');
@@ -90,15 +70,11 @@ export function checkedCreation({ prefix, objects, now = new Date() }) {
   const at = Date.UTC(y, mo - 1, d, h, mi, sec, ms);
   if (at > now.getTime()) throw new Error('The backup prefix is stamped in the future');
   const created = objects.map(object => Date.parse(object.creation_time));
-  // Creation times are reported to the second.
   if (!created.length || created.some(t => !(t >= Math.floor(at / 1000) * 1000 && t <= at + UPLOAD_WINDOW_MS))) {
     throw new Error('The backup\'s object creation times do not match its prefix\'s timestamp');
   }
 }
 
-// The digest chain (verify-offbox.mjs checks it from off the box): each uploaded backup's digest carries the next seq
-// and a SHA-256 over the previous digest's, the backup's name and its manifest's hash, so a backup cannot be dropped
-// from the chain, nor one slipped in, without the next check seeing it.
 const GENESIS = '0'.repeat(64);
 export function chainOf(previous, seq, prefix, manifest) {
   return createHash('sha256').update(`${previous}\n${seq}\n${prefix}\n${manifest}`).digest('hex');
@@ -127,13 +103,11 @@ export function restoreCommand(server, name, file) {
     args: ['--no-password', '--exit-on-error', '--single-transaction', '--no-owner', '--no-acl', '-d', name, file],
     env: pgEnv(server, name) };
 }
-// The account a dump of `database` acts as: none for a superuser, else the owner, refused when it may not act as it.
 export function dumpRole(database, { name, may, superuser }) {
   if (superuser) return undefined;
   if (!may) throw new Error(`Cannot act as ${name}, the owner of ${database}; refused before dumping`);
   return name;
 }
-// `role` is the account the dump acts as, or none to dump as the account that connected.
 export function dumpCommand(server, database, snapshot, role, file) {
   return { command: path.posix.join(PG_BIN, 'pg_dump'),
     args: ['-Fc', '--no-password', `--snapshot=${snapshot}`, ...(role ? [`--role=${role}`] : []), '-f', file], env: pgEnv(server, database) };
@@ -149,7 +123,6 @@ async function sha256(file) {
   return hash.digest('hex');
 }
 
-// Never inherit connection/password overrides. No secrets in argv or child error messages.
 function environment(extra = {}) {
   const env = { ...process.env };
   for (const name of Object.keys(env)) if (name.startsWith('PG') || name.startsWith('CLOUDSDK_') || name === 'GOOGLE_APPLICATION_CREDENTIALS') delete env[name];
@@ -173,7 +146,6 @@ function pgEnv(server, database, role) {
     ...(role ? { PGOPTIONS: `-c role=${role}` } : {}) };
 }
 async function connect(server, database = 'postgres', role) {
-  // pg also consults the parent environment when a config value is empty.
   for (const name of Object.keys(process.env)) if (name.startsWith('PG')) delete process.env[name];
   const client = new pg.Client({ ...server, database, password: server.password ?? '', connectionTimeoutMillis: 15000,
     ...(role ? { options: `-c role=${role}` } : {}) });
@@ -205,8 +177,6 @@ async function dump(server, database, directory) {
   const client = await connect(server, database);
   const file = `${database}.dump`;
   try {
-    // A superuser (the box's own account) dumps as itself: it passes row-level security even where it is forced on
-    // the owner (library contract 1.28). Any other account acts as the table owner to pass CI-only RLS, as contract 8.3.
     const ownership = (await client.query(`SELECT pg_get_userbyid(datdba) AS name,
       pg_has_role(session_user, datdba, 'SET') AS may,
       (SELECT rolsuper FROM pg_roles WHERE rolname = session_user) AS superuser
@@ -214,7 +184,6 @@ async function dump(server, database, directory) {
     const owner = ownership.name;
     const role = dumpRole(database, ownership);
     if (role) await client.query(`SET ROLE ${q(role)}`);
-    // An error, never silently filtered rows, if row security would apply.
     await client.query('SET row_security = off');
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const version = (await client.query('SHOW server_version')).rows[0].server_version;
@@ -235,12 +204,9 @@ async function ownedDatabase(server, name) {
   if (rows[0]?.mark !== MARK) throw new Error(`Refusing to alter unowned database ${name}`);
 }
 async function dropCreated(server, name) {
-  // No FORCE: never terminate another lane's connections. The mark is checked first.
   await ownedDatabase(server, name);
   await query(server, 'postgres', `DROP DATABASE ${q(name)}`);
 }
-// A dump's SQL runs, and its counts are read, as the library's own role over 127.0.0.1, never as the superuser
-// that creates and drops the scratch database around it. The database is the role's, so its objects become the role's.
 async function restore(name, directory, entry) {
   if (await sha256(path.join(directory, entry.file)) !== entry.sha256) throw new Error('Dump checksum mismatch');
   const server = restorer((await readFile(PASSWORD, 'utf8')).trim());
@@ -250,7 +216,6 @@ async function restore(name, directory, entry) {
   try { checkedCounts(entry.rows, await counts(client)); } finally { await client.end(); }
 }
 async function scratchRestore(directory, entry, name = `st_verify_${randomBytes(8).toString('hex')}`) {
-  // CREATE fails if the name already exists; cleanup only follows our successful CREATE.
   await newDatabase(LOCAL, name, OWNER);
   try { await restore(name, directory, entry); }
   finally { await dropCreated(LOCAL, name); }
@@ -286,7 +251,6 @@ async function backup() {
   await mkdir(directory, { mode: 0o700 });
   const manifest = { format: 1, at: new Date().toISOString(), source: 'mint', databases: [] };
   for (const name of BACKED) {
-    // storytree-lag and storytree-quality were made by their own packages, not here, so they carry no mark; dump still refuses a stranger's database.
     if (DBS.includes(name)) await ownedDatabase(LOCAL, name);
     const entry = await dump(LOCAL, name, directory);
     await scratchRestore(directory, entry);
@@ -295,18 +259,15 @@ async function backup() {
   }
   checkedManifest(manifest);
   await exclusive(path.join(directory, 'manifest.json'), JSON.stringify(manifest, null, 2));
-  // No upload at all until every database restored and matched. Manifest is the completion marker.
   const prefix = `${bucketOf(await cloudProject())}/backups/${path.basename(directory)}`;
   for (const entry of manifest.databases) await storage(['cp', path.join(directory, entry.file), `${prefix}/${entry.file}`, '--if-generation-match=0']);
   await storage(['cp', path.join(directory, 'manifest.json'), `${prefix}/manifest.json`, '--if-generation-match=0']);
-  // The digest goes up after the manifest and is saved here only once it is up, so a failed upload leaves no gap.
   const digest = nextDigest(await lastDigest(DIGESTS), path.basename(directory), await sha256(path.join(directory, 'manifest.json')));
   await exclusive(path.join(directory, 'digest.json'), JSON.stringify(digest));
   await storage(['cp', path.join(directory, 'digest.json'), `${prefix}/digest.json`, '--if-generation-match=0']);
   await saveDigest(DIGESTS, digest);
   console.log(await storage(['ls', prefix + '/']));
   await exclusive(path.join(directory, 'uploaded.json'), JSON.stringify({ prefix, at: new Date().toISOString() }));
-  // Retain the manifest/log; only remove this run's own dumps, after all uploads succeeded.
   for (const entry of manifest.databases) await unlink(path.join(directory, entry.file));
   console.log(`Verified backup: ${prefix}`);
   return { directory, manifest, prefix };
@@ -334,8 +295,6 @@ async function bucketRestore(prefix, verifiedFile) {
   console.log(`Bucket restore proof: ${directory}`);
 }
 
-// The reviewed script and its pg dependency, bundled into one file in a runtime folder outside the disposable
-// worktree: nothing a backup runs resolves from any checkout's node_modules.
 export async function bundleRuntime(runtime) {
   const { build } = await import('esbuild');
   await build({ entryPoints: [path.join(HERE, 'host.mjs')], outfile: path.join(runtime, 'host.mjs'), bundle: true,
@@ -401,14 +360,11 @@ async function operationLock() {
     await lock.end();
     throw new Error('Another library-host operation is running');
   }
-  // Session lock: the server releases it after exit, SIGKILL, connection loss or reboot.
   return lock;
 }
 
-// Node runs the entry point from its real path, so compare real paths (macOS's /var is a symlink).
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).catch(error => { console.error(error.message); process.exitCode = 1; });
 }
 
-// Shared only with the separately reviewed smoke and local fixture scripts.
 export const operator = { LOGS, LOCAL, OWNER, ISOLATED, stamp, q, exclusive, run, query, dump, newDatabase, restore, operationLock, dropCreated, counts, sha256 };

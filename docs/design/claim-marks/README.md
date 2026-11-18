@@ -32,3 +32,5 @@ writes `preview.html` beside the page (the page wrapped in a document, which is 
 | An island with no code, all claimed | [strip](stills/strip-first-held.png) | [flag](stills/flag-first-island-held.png) |
 
 Today's band, the mock-up of it: [band](stills/band-held.png). The site's capture of it: [1440](stills/today-1440.png), [390](stills/today-390.png).
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

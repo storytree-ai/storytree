@@ -1,7 +1,3 @@
-/** Capability tree, round 6A: a flowchart in the map's clothes. The real map's view of The library, as the desktop app draws
- * it, with the island's own territory cut hidden and the capabilities laid on its land in layers by dependency, organic patches
- * with open land and solid roads between them, a gap in the dashed outline for each link's gate (flow.ts, island.ts). `?real`
- * draws the island as the map does today, file dots and all, with nothing added. */
 import { createRoot } from "react-dom/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RootState } from "@react-three/fiber";
@@ -23,24 +19,17 @@ const data = measured as unknown as Data;
 const STORY = data.story.id;
 const params = new URLSearchParams(location.search);
 const REAL = params.has("real");
-/** How much of the sheet half the window's short side spans at rest, in ground units: The library close up. */
 const GROUND = Number(params.get("ground") ?? 150);
-/** How much larger the island is drawn than its lines of code would make it, so the open land has room. */
 const ROOM = Number(params.get("room") ?? 1.6);
 const PANEL_WIDTH = 352;
-/** The rest view's margin around the plan, in CSS pixels. */
 const MARGIN = 28;
 
-/** The capture build's seam, the only one the forest offers a host for its canvas's live state (PlanetWorldCanvas.tsx). */
 const seam = globalThis as { __storytreeCaptureGlobe?: (get: () => RootState) => void };
 
-// Room for the open land: the island is given land for ROOM times its lines, as one unclaimed share the mock hides with the
-// rest of the map's cut, so the map draws a larger island (and keeps the sea between it and its neighbours) by its own rules.
 const own = (data.map.survey as Record<string, { files: { path: string; lines: number }[] }>)[STORY]!;
 const lines = own.files.reduce((sum, file) => sum + file.lines, 0);
 const survey = REAL ? data.map.survey : { ...data.map.survey, [STORY]: { ...own, files: [...own.files, { path: "(the mock's open land)", lines: Math.round(lines * (ROOM - 1)) }] } } as typeof data.map.survey;
 const scene = forestScene(data.map.tree, data.map.changes, workStates([]), survey);
-// The island's own coast, as the map draws it.
 const island = scene.islands.find(one => one.story === STORY)!;
 const coast = islandCoast(island);
 const places = new Map(storyNodes(data.map.tree, data.map.changes, survey).map(node => [node.id, node.place]));
@@ -56,7 +45,6 @@ function Mock() {
   const ground = useRef(GROUND), side = useRef(-PANEL_WIDTH / 2);
   useState(() => { seam.__storytreeCaptureGlobe = state => setGet(() => state); });
   const ignore = useCallback(() => {}, []);
-  // Aim at the island, close up, as the app flies to a story a click selects; again until the sheet has drawn it.
   useEffect(() => {
     if (!controls) return;
     let again: ReturnType<typeof setTimeout> | undefined, tries = 400;
@@ -64,18 +52,14 @@ function Mock() {
     aim();
     return () => clearTimeout(again);
   }, [controls]);
-  // Then framed on the plan itself, its names included, as large as the map's side of the window holds with a margin (unless
-  // the page was asked for a framing).
   useEffect(() => {
     if (!controls || !layer || !get || params.has("ground")) return;
     let tries = 8, timer: ReturnType<typeof setTimeout>, last = "", waited = 0;
     const frame = () => {
       get().invalidate();
       const box = layer.extent(), width = window.innerWidth - PANEL_WIDTH, height = window.innerHeight, key = [box.left, box.right, box.top, box.bottom].map(Math.round).join();
-      // Each step waits until the view has moved to it before it measures again.
       if (key === last && waited++ < 20) { timer = setTimeout(frame, 150); return; }
       last = key; waited = 0;
-      // The camera shifts only sideways, so the island's farther edge from the window's middle must fit.
       const need = Math.max((box.right - box.left) / (width - 2 * MARGIN), 2 * Math.max(box.bottom - height / 2, height / 2 - box.top) / (height - 2 * MARGIN));
       const off = (box.left + box.right) / 2 - width / 2;
       console.info("framing", ground.current, side.current, need, off, waited);
@@ -85,14 +69,11 @@ function Mock() {
       controls.stop({ target: { kind: "story", story: STORY }, framing: ground.current / SHEET_RADIUS, sideOffset: side.current, duration: 0 });
       timer = setTimeout(frame, 150);
     };
-    // Looked at from higher than the map's opening, by its own tilt key pressed twice, so the layers furthest away keep their
-    // room on the page (`?tilt=` says how many presses; 0 keeps the map's own).
     const tilt = Number(params.get("tilt") ?? 2);
     for (let k = 0; k < tilt; k++) { window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" })); window.dispatchEvent(new KeyboardEvent("keyup", { key: "r" })); }
     timer = setTimeout(frame, 600);
     return () => clearTimeout(timer);
   }, [controls, layer, get]);
-  // Lay the plan on the island once the map has drawn its territories in full.
   useEffect(() => {
     if (!get || REAL) return;
     let timer: ReturnType<typeof setTimeout>, last = "", same = 0;
@@ -111,8 +92,6 @@ function Mock() {
     wait();
     return () => clearTimeout(timer);
   }, [get]);
-  // The selection lights its links to other islands as lanes across the land (the map's selection lanes); on the mock the
-  // pathways and the road off the coast stand for those links, so the lanes are hidden whenever the map draws them.
   useEffect(() => {
     if (!get || REAL) return;
     const hide = setInterval(() => { layer?.keepHidden(); const lanes = get().scene.getObjectByName("pathways:selection-lanes"); if (lanes?.visible) { lanes.visible = false; get().invalidate(); } }, 100);
@@ -124,7 +103,6 @@ function Mock() {
     document.body.dataset.state = REAL ? (get ? "ready" : "loading") : layer ? "ready" : "loading";
     document.body.dataset.framed = framed ? "yes" : "no";
   }, [layer, controls, get, framed]);
-  // A click (a press that hardly moved) picks what is under it; a drag stays the map's.
   const host = useRef<HTMLDivElement>(null);
   const down = useRef<{ x: number; y: number }>();
   const onDown = (event: React.PointerEvent) => { down.current = { x: event.clientX, y: event.clientY }; };

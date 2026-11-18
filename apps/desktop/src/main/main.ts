@@ -1,53 +1,13 @@
-/**
- * Capability 1 · Lifecycle. The storytree 0.3 desktop app's main process. It starts the app's own Postgres on its data
- * directory (~/.storytree/0.3/pgdata) through local-postgres, or, when the user's library setting
- * names a Postgres address, starts none and uses the address; connects the library through its
- * public API, opens the project asked for (`--project <name>`, else `storytree` if there is one,
- * else the first), and shows it. It answers the page's questions (bridge.ts) through
- * @storytree/app's pageReads: the projects, a project's tree, and the library's changes and the
- * agent activity log's new lines since a point.
- *
- * Closing the window does not stop the app or its database (ADR-0636 D3): the app keeps running in
- * the background, with a tray icon, so agents' activity is still recorded. The tray's Quit is the
- * one way to stop it, and it stops Postgres before the app exits. Opening the app again, or the
- * tray's Open, brings the window back on the project it showed.
- *
- * Installed, the app takes published releases on its channel (./releases.ts), installing them when the user's install
- * choice allows; a development copy run from a checkout does not update itself.
- *
- * While it runs, it keeps a snapshot of every project, taken at start and once a day (ADR-0641 B1),
- * in ~/.storytree/0.3/backups: @storytree/app's keepBackups, which holds restarts while writing.
- *
- * `--start-check` goes as far as registering the main process's handlers and exits 0 without opening the library: the
- * release's install checks start the installed build with it, so a release that cannot start never publishes
- * (./start-check.ts). With `--page-check` too, it first loads the page hidden and hears its road worker answer, or exits 1
- * saying why (./page-scheme.ts, contract 1.41). A start that fails ends the app.
- *
- * `--callback-check` holds the single-instance lock with no window and no library, and prints a line for each sign-in
- * callback a later start hands it, saying whether it reached the sign-in session (./callback-check.ts): CI's proof that a
- * deep link reaches the running app, with no live sign-in.
- *
- * `--smoke` renders the project without showing a window, saves a screenshot to the file given
- * with `--screenshot <file>`, prints the page's text to stdout, and quits: exit 0 only if the
- * surface on show says it drew every story of the project and every one of its capabilities. With `--stress <rounds>` it
- * then closes and reopens its window at awkward moments before it quits (./smoke-stress.ts), and any main-process error
- * it logs, while it quits included, turns its exit red; it never waits on an error box (./smoke-verdict.ts, contract 1.30).
- * It prints a `smoke:` line as each phase starts, keeps Electron's files in a scratch folder of its own, and a run that gives
- * up names the phase it was stuck in (./smoke-phases.ts, contract 1.36).
- */
+// Capability 1 · Lifecycle
 import { smokeArcSurface } from "@storytree/arc-surface";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-// The app's surfaces (ADR-0750), in the Surfaces menu's order: the plugin loader composes them into the bundle
-// from the manifests of the story packages this app depends on (ADR-1021; build.mjs).
 import NAMED_SURFACES from "#parts/namedSurfaces";
 import SURFACES from "#parts/surfaces";
-// The page operations the stories' manifests name, composed in the same way, with the channels they travel on.
 import PAGE_ANSWERS from "#parts/pageAnswers";
 import PAGE_CHANNELS from "#parts/pageChannels";
-// The records the stories keep for a project outside its library, which Delete forgets with it (ADR-1170 D2).
 import PROJECT_RECORDS from "#parts/projectRecords";
 import { mount } from "@storytree/plugin-loader/switch";
 import { readPartsOff, readStandIns } from "@storytree/project-and-caller";
@@ -141,22 +101,12 @@ import { answerStartMarks, processLaunchedAt, startMarks } from "./start-marks.j
 import { appLog, teeConsole } from "./app-log.js";
 import { START_MARK } from "../bridge.js";
 
-// A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
 declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 
-// The main process's own uncaught errors reach the log (app.log once teeConsole runs below, stderr in the checks), before startup work can throw.
-// The box then offers Keep going or Restart; before the app is ready only the error box can show, so it keeps going.
-// Each is also kept in the user's own library on every install, held until it opens (errors 9.4), naming the build:
-// a packaged one's version and commit from the first moment (4.39), a development checkout's once it is known.
-/** Which build this is (`version 0.3.0 (commit 80bcc63)`, or the development checkout), shown in the title and the tray. */
 let build = app.isPackaged ? packagedBuild(app.getVersion()) : "";
 const args = parseArgs(process.argv, { packaged: app.isPackaged, env: process.env });
-// What the app reads from its library is the app's, whatever its argv[1] (none packaged, --updated after an update);
-// each page operation's read is that operation's (late-reads.ts, 8.11).
 nameReader("app");
-// In a smoke check, every main-process error logged turns its exit red, and no error box waits for a person (lifecycle 1.30).
 const verdict = smokeVerdict({ smoke: args.smoke, log: line => console.error(line) });
-// A smoke check says each phase as it starts, so one that never reaches its page shows where it stopped (lifecycle 1.36).
 const phases = smokePhases({ log: line => { if (args.smoke) console.log(line); } });
 phases.phase("launched");
 const errorRecords = mainErrorRecords({ build: () => build || app.getVersion(), log: line => console.error(line) });
@@ -181,39 +131,27 @@ logMainErrors(process, {
 });
 
 const home = appHome();
-/** app.log beside the app's data, bounded (contract 9.7): an installed app has no terminal, so what it says is kept here. */
 const log = appLog(path.join(home.dir, "app.log"));
-// The release's checks and the smoke check say what they say on stderr only, as before.
 if (!args.smoke && !args.startCheck && !args.callbackCheck) teeConsole(console, log);
-/** This start's timing marks, kept in app.log (contract 1.33); the release's checks write none. */
 const marks = args.startCheck || args.callbackCheck ? { mark() {} } : startMarks({ launchedAt: processLaunchedAt(), log });
-/** How long the smoke check may take, start to finish, before it gives up. */
 const SMOKE_TIMEOUT_MS = 180_000;
 
-// Electron's own files (cache, local storage) live in the app's home too, apart from any other app. A smoke check keeps
-// them in a scratch folder instead: an app already open on this computer holds the home's (lifecycle 1.36).
-// It is removed as the app exits; what Chromium writes after that, a later smoke run sweeps.
 const scratch = args.smoke ? smokeElectronFiles({ shared: home.electron, tmp: tmpdir() }) : undefined;
 if (scratch !== undefined) console.log(scratch.line);
 app.setPath("userData", scratch?.dir ?? home.electron);
-// The machine's GPU resets must not leave the globe white until a restart.
 keepDrawingThroughGpuResets(app);
 
-/** Sign-in for feedback (app setup contract 5.6): offered only when this build carries both public settings. */
 const identityConfig = feedbackIdentityConfig(STORYTREE_WORKOS_CLIENT_ID);
 let signInSession: CallbackSession | undefined;
-/** Sign-in callbacks that arrived before the session was made (macOS delivers a cold start's before ready). */
 const earlyCallbacks: string[] = [];
 
 let postgres: LocalPostgres | undefined;
 let storytree: Storytree | undefined;
 let reads: PageReads | undefined;
-/** How often the app looks at each project's branches itself; the look is shared with the hooks', once a minute a machine. */
 const LOOK_EVERY_MS = 60_000;
 let projects: ReturnType<typeof projectSelection> | undefined;
 let backups: ReturnType<typeof keepBackups> | undefined;
 let journey: JourneyRuntime | undefined;
-// Quitting stops the journey, the page reads, the library and Postgres, in that order (lifecycle 1.43).
 const stopping = appShutdown({
   backups: { held: () => backups },
   journey: { held: () => journey },
@@ -222,18 +160,12 @@ const stopping = appShutdown({
   postgres: { held: () => postgres, letGo: () => { postgres = undefined; } },
   error: (line) => verdict.error(line),
 });
-/** The parts this computer switches off, read once as the app starts (ADR-1095). */
 let partsOff: readonly string[] = [];
-/** The window's parts with the factory plugins standing in for switched-off parts composed in, as the app starts. */
 let parts = windowStandIns({ surfaces: SURFACES, pageAnswers: PAGE_ANSWERS, pageChannels: PAGE_CHANNELS }, { plugins: {} }, []);
-/** An installed app's release updater, which answers the gear's Updates panel in its place. */
 let releases: ReturnType<typeof followReleases>;
-/** What the window was opened with, so it can be opened again after it is closed. */
 let windowQuery: WindowQuery = {};
-/** Held here so it is not garbage-collected, which would remove the icon. */
 let tray: Tray | undefined;
 const lifecycle = background({
-  // End every renderer (project polling and live reading) before closing what it reads.
   stopPages: () => void verdict.stopping("the pages", () => { for (const window of BrowserWindow.getAllWindows()) window.destroy(); }),
   stopDatabase: () => verdict.stopping("the database", shutdown),
   exit: (code) => {
@@ -241,16 +173,12 @@ const lifecycle = background({
     app.exit(verdict.exitCode(code));
   },
   relaunch,
-  // A stop that hangs (a late writer on the closed library, say) is cut short, so a restart into an update still runs its installer.
   error: (line) => verdict.error(line),
-  // After five restarts in a row the app stops restarting itself, and the stop is an error the user is asked to report (updates 4.35).
   ...(args.smoke || args.startCheck || args.callbackCheck ? {} : {
     limit: restartLimit({ file: path.join(home.dir, "restarts.json"), stopped: message => errorRecords.record("restarts-stopped", message) }),
   }),
 });
 
-// A start on Windows while a release's installer runs says storytree is still updating and quits, instead of starting and
-// being closed by that installer, which opens the new build itself when it is done (updates 4.41).
 const installing = answerStartWhileInstalling({
   platform: process.platform,
   args,
@@ -262,19 +190,14 @@ const installing = answerStartWhileInstalling({
 });
 
 if (installing) {
-  // answered: it quits once it has said so
 } else if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
-  app.quit(); // the app is already open: that one is focused instead (or, with --quit, quits)
+  app.quit();
 } else if (args.quit) {
-  app.exit(0); // asked to quit, and none is running: start nothing
+  app.exit(0);
 } else if (args.callbackCheck) {
-  // Hold the lock with no window or library, and report each callback a later start hands over; a later `--quit` ends it.
   answerCallbackCheckEvents(app, process, { deliver: deliverCallback, exit: (code) => app.exit(code) });
   void runWhenReady(app.whenReady(), checkCallbacks, fail);
 } else {
-  // A second start shows the window; one that arrives while the app is quitting or restarting opens
-  // it again once it has stopped, instead of being lost. Closing the last window leaves the app, and its
-  // database, running in the background; quitting waits for Postgres to stop.
   answerAppEvents(app, process, { deliver: deliverCallback, lifecycle, showWindow, quitApp: () => app.quit() });
   if (args.smoke) {
     setTimeout(() => {
@@ -282,13 +205,10 @@ if (installing) {
       void lifecycle.quit(1);
     }, SMOKE_TIMEOUT_MS).unref();
   }
-  // The page is served over the app's own scheme, and a stand-in's views over the window's; both must be named before
-  // the app is ready. The page needs no file:// privileges, so the packaged app turns them off (contract 1.41).
   protocol.registerSchemesAsPrivileged([
     { scheme: PAGE_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
     { scheme: PLUGIN_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
   ]);
-  // A failure in run, not only in whenReady, ends the app: half-started, it would hold the lock with no handlers.
   void runWhenReady(app.whenReady(), run, fail);
 }
 
@@ -296,24 +216,16 @@ async function run(): Promise<void> {
   marks.mark("app ready");
   phases.phase("starting the app's handlers");
   answerStartMarks(ipcMain, START_MARK, marks);
-  // Every page operation is answered through one outage guard: a library that cannot be reached is said once in app.log, not a stack per poll (page bridge 8.8).
   const page = sayOutagesOnce(readerPerChannel(ipcMain), (line) => console.error(line));
-  // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
   const appVersion = runningVersion({ packaged: app.isPackaged, packagedVersion: () => app.getVersion(), appPath: app.getAppPath() });
-  // The journey stays in the frame, not in a manifest (ADR-1030 D4): the frame is its client too, telling it of the launch,
-  // an added project, a failure and the quit, so the frame makes the one runtime and answers the page with it.
   journey = createJourneyRuntime({ home: home.dir, appVersion });
   answerPage(page, JOURNEY_CHANNELS, journey);
-  // The tree the page last read for each project, which the code survey surveys rather than reading it a second time.
   const treesRead = new Map<unknown, AnnotatedTree>();
-  // The parts this computer switches off (ADR-1095), read as the app starts: their surfaces and page operations are not mounted.
   partsOff = readPartsOff(home.dir);
-  // A factory plugin named to stand in for a switched-off part is mounted in its place, read from the factory as the app starts.
   parts = windowStandIns({ surfaces: SURFACES, pageAnswers: PAGE_ANSWERS, pageChannels: PAGE_CHANNELS }, readStandIns(home.dir), partsOff);
   ipcMain.on(STAND_INS_OFFERED, (event) => { event.returnValue = parts.page; });
   protocol.handle(PAGE_SCHEME, (request) => pageResponse(request.url, path.join(__dirname, "renderer")));
   protocol.handle(PLUGIN_SCHEME, (request) => pluginResponse(request.url, parts.served));
-  // The page operations the stories' manifests name, each answered with what the frame offers (ADR-1021, ADR-1030 D2).
   answerPageParts(page, parts.pageAnswers, parts.pageChannels, {
     home: home.dir,
     appVersion,
@@ -322,7 +234,6 @@ async function run(): Promise<void> {
     surveyWorker: path.join(__dirname, "survey-worker.cjs"),
     declaredSurfaces: declaredSurfaces([SURFACES, NAMED_SURFACES], partsOff),
     server: () => storytree,
-    // capturePage pictures the app's own page, so no screen-recording permission is asked for on any system.
     captureWindow: async (rect) => {
       const shown = BrowserWindow.getAllWindows().find((each) => !each.isDestroyed() && each.isVisible());
       return shown === undefined ? undefined : new Uint8Array((await shown.webContents.capturePage(rect)).toJPEG(70));
@@ -331,12 +242,9 @@ async function run(): Promise<void> {
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
   const surfaces = surfacesActions(mount(parts.surfaces, partsOff).mounted, home.dir);
   answerPage(page, SURFACES_CHANNELS, surfaces);
-  // Setup help stays in the frame (ADR-1030 D4): its actions need Electron's dialog, shell and clipboard, the license
-  // file's path and the open library, and adding a project also tells the journey, which the frame holds.
   const help = setupHelpActions({
     licenseFile: path.join(app.isPackaged ? process.resourcesPath : __dirname, "LICENSE"),
     storytreeHome: home.dir,
-    // The guide connects agents to the tools the app carries, when the installer recorded none (ADR-1162 D3).
     agentTools: path.join(app.isPackaged ? process.resourcesPath : __dirname, "agent-tools"),
     chooseFolder: async () => {
       const result = await dialog.showOpenDialog({ properties: ["openDirectory"] });
@@ -350,11 +258,7 @@ async function run(): Promise<void> {
     },
     projectRecords: windowProjectRecords(PROJECT_RECORDS, readStandIns(home.dir), partsOff),
   });
-  // Adding a project also tells the journey, so the frame composes that answer from the two stories'.
   answerPage(page, SETUP_HELP_CHANNELS, { ...help, addProject: () => help.addProject().then(result => journey!.afterProjectAdded(result)) });
-  // Sign-in for feedback, when this build offers it: the page asks for it before it loads, and gets only an id and an email.
-  // It stays in the frame (ADR-1030 D4): the preload asks whether it is offered before the page loads, and its sign-in
-  // returns through the frame's own app events (open-url, second-instance) and the protocol the frame registers.
   const feedbackIdentity = identityConfig === undefined ? undefined : startFeedbackIdentity(identityConfig);
   ipcMain.on(FEEDBACK_IDENTITY_OFFERED, (event) => { event.returnValue = feedbackIdentity !== undefined; });
   if (feedbackIdentity !== undefined) {
@@ -366,7 +270,6 @@ async function run(): Promise<void> {
   }
 
   answerPage(page, PROJECTS_CHANNELS, projectAnswers({ reads: () => reads, projects: () => projects }));
-  // Each read asks the library open by then: these are answered before it opens, and again after it reopens.
   answerPage(page, PAGE_READS_CHANNELS, {
     ...lateReads(Object.keys(PAGE_READS_CHANNELS) as (keyof typeof PAGE_READS_CHANNELS & keyof PageReads)[], open),
     projectTree: async (name: unknown) => {
@@ -392,10 +295,7 @@ async function run(): Promise<void> {
   }
 
   let errorsOpened: Promise<void> | undefined;
-  /** Open the library where the settings say, and what the page reads through it; the project to show. */
   const openLibrary = async (): Promise<string | undefined> => {
-    // Where the library lives is the user's library setting: this app's own Postgres (the default),
-    // or a Postgres address, when no Postgres is started here at all (ADR-0846, ADR-0735 D4).
     const opened = await openAppLibrary({
       home: home.dir,
       startLocal: () => start({ dataDir: home.pgdata, owner: APP_OWNER, bin: postgresBinaries(), log: (message) => console.log(`Postgres: ${message}`) }),
@@ -405,14 +305,12 @@ async function run(): Promise<void> {
     errorsOpened = errorRecords.open(opened.storytree);
     console.log(`library: ${opened.where}`);
     marks.mark("library open");
-    // Each project is opened with the kinds of record the factory plugins mounted here declare (ADR-1178 D3).
     const kinds = windowKinds(SURFACES.graph, readStandIns(home.dir), partsOff, (line) => console.log(line));
     reads = pageReads({ storytree, transcriptCacheHome: path.join(home.dir, "transcripts"), kinds });
     const pages = reads;
     projects = projectSelection({
       listProjects: async () => projectsOnThisComputer(await opened.storytree.projectIdentities(), home.dir),
       file: path.join(home.dir, "project-choice.json"),
-      // The app bar's switch to the factory and back reads each project's lineage through the libraries the page reads keep open.
       lineageOf: (name) => pages.projectLineage(name),
       buildsItself: (name) => pages.projectBuildsItself(name),
     });
@@ -421,7 +319,6 @@ async function run(): Promise<void> {
     return current;
   };
   phases.phase("opening the library");
-  // A library the network cannot reach yet (the computer just started) is waited for, the page saying so (lifecycle 1.46).
   const started = await openAtStartup({ open: openLibrary, show: (query) => showPage(query, !args.background && !args.smoke), log: (line) => console.error(line), now: Date.now, sleep });
   const [project, problem] = "opened" in started ? [started.opened, undefined] : [undefined, started.problem];
   build = await whichBuild();
@@ -431,11 +328,8 @@ async function run(): Promise<void> {
     seedWriting,
     backups: () => backups,
   });
-  // When an update may install itself (updates 4.13): offered only where releases install themselves.
   const installing = installChoice({ available: !args.smoke && releasesInstall(), file: path.join(home.dir, "install-choice.json") });
-  // Which release channel the updater follows (updates 4.24): stable unless the user opts in to alpha.
   const channels = channelChoice(home.dir, args.smoke);
-  // Restarting into an update stops the app and its database for a minute or two: not under a user or an agent (4.4).
   const quiet = quietMoment({
     launchedAt: Date.now(),
     choice: () => installing.read().choice,
@@ -444,12 +338,6 @@ async function run(): Promise<void> {
     agentActiveAt: async () => storytree === undefined ? undefined : await asReader("app quietMoment", () => agentActiveAt(storytree!)),
     log: (line) => console.error(line),
   });
-  // The installed app opens at sign-in, in the tray, unless the user turned that off (lifecycle 1.12). An installed Mac app
-  // (updates 4.21) does too, through its LaunchAgent; the journey's desktopStarted uses installedApp as Windows does.
-  // The install choice is offered only where releases install themselves, which an ad-hoc Mac build does not.
-  // On Linux the autostart entry starts the AppImage itself (APPIMAGE), not the executable inside its mount, which is gone
-  // once it quits, and keeps the menu entry's --no-sandbox where the kernel blocks the sandbox; appData there is
-  // $XDG_CONFIG_HOME, or ~/.config.
   const signingIn = signIn({ installed: !args.smoke && installedApp(), file: path.join(home.dir, "sign-in.json"), loginItems: loginItemsFor(process.platform, {
     electron: { set: (item) => app.setLoginItemSettings(item) },
     execPath: process.env.APPIMAGE ?? process.execPath,
@@ -476,18 +364,14 @@ async function run(): Promise<void> {
     showTray();
     libraryWork();
     try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
-    // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (Session management 4.21).
     setInterval(() => void asReader("app lookAround", () => reads?.lookAround()), LOOK_EVERY_MS).unref();
     releases = followReleases({ restart: lifecycle.restart, canRestart, quiet }, home.dir, () => installing.read().choice);
-    // Behind the error page the app keeps trying a library it could not reach, and shows the project once it answers (lifecycle 1.47).
     if ("unreachable" in started && started.unreachable) {
       void keepTryingBehind({ open: openLibrary, opened: libraryWork, show: (query) => showPage(query, false), log: (line) => console.error(line), stopped: stopping.stopping, now: Date.now, sleep });
     }
   }
 
-  /** What the app does with its library once it is open: ask to report the errors it holds, and keep its backups. */
   function libraryWork(): void {
-    // An error the library holds that is not yet reported asks to be, until it is marked submitted (errors 9.6, ADR-1122).
     void errorsOpened?.then(() => errorRecords.settled())
       .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
       .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
@@ -495,26 +379,21 @@ async function run(): Promise<void> {
   }
 }
 
-/** What the window's page is opened with: the project, or why the library is not open. */
 type WindowQuery = LibraryQuery & { project?: string };
 
-/** Wait `ms`, without holding the app open. */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms).unref());
 }
 
-/** Show `query` on every open window, and remember it for a window opened later; with none open, open one when `open`. */
 function showPage(query: WindowQuery, open: boolean): void {
   windowQuery = query;
   showPageQuery(BrowserWindow.getAllWindows(), query, {
-    load: (window, shown) => window.loadURL(pageUrl(shown)).catch(() => { /* the page's own error logging says it */ }),
+    load: (window, shown) => window.loadURL(pageUrl(shown)).catch(() => {}),
     open: open ? openWindow : undefined,
   });
 }
 
-/** The tray icon, whose menu brings the window back or quits the app. */
 function showTray(): void {
-  // The mark, in the colourway of the taskbar it sits on, worn again when that setting changes (contract 1.17).
   tray = keepTray({
     theme: nativeTheme,
     items: TRAY_MENU,
@@ -529,11 +408,6 @@ function showTray(): void {
   });
 }
 
-/**
- * Sign-in for feedback through WorkOS's official Electron SDK (app setup contract 5.6, Context 6.5): its session manager, protected storage
- * and system-browser PKCE ceremony, composed here without the SDK's own page bridge, so no token reaches the page. The
- * storytree-auth callback is completed by this app's own deep-link handling, under its own single-instance lock.
- */
 function startFeedbackIdentity(config: FeedbackIdentityConfig): ReturnType<typeof createFeedbackIdentity> {
   const authKit = { clientId: config.clientId, redirectUri: AUTH_CALLBACK };
   const storage = createDefaultStorage({ name: "feedback-sign-in" });
@@ -554,31 +428,21 @@ function startFeedbackIdentity(config: FeedbackIdentityConfig): ReturnType<typeo
   return createFeedbackIdentity({ clientId: config.clientId, session: signInSession });
 }
 
-/** Hand a sign-in callback to the session, or keep it until the session is made; with no sign-in offered, drop it. */
 function deliverCallback(url: string): void {
   routeCallback(url, { offered: identityConfig !== undefined, session: signInSession, early: earlyCallbacks, report: args.callbackCheck ? console.log : undefined });
 }
 
-/** A `--callback-check` start once ready: make the sign-in session when this build offers one, then take callbacks. */
 async function checkCallbacks(): Promise<void> {
   if (identityConfig !== undefined) startFeedbackIdentity(identityConfig);
-  // Claim the scheme as a normal start does, so a callback opened through the OS's protocol handler reaches this app.
   if (registersSignInScheme(args, identityConfig !== undefined)) registerProtocol(AUTH_SCHEME);
   console.log("callback check: waiting for sign-in callbacks");
   for (const url of [...earlyCallbacks.splice(0), ...callbackUrls(process.argv)]) deliverCallback(url);
 }
 
-/** Bring the window forward, opening it again on the same project if it was closed. */
 function showWindow(): void {
   bringWindowForward(BrowserWindow.getAllWindows(), { stopping: stopping.stopping(), open: () => openWindow(windowQuery) });
 }
 
-/**
- * Record how this app was started, so that an agent's session start can open it again when it is
- * closed (the app setup's setup check). A packaged portable build runs from a temporary copy, and an
- * AppImage from a mount that vanishes when it exits, so the portable file or the AppImage itself is
- * what is recorded; in development, Electron and the app's folder.
- */
 function recordLaunch(): void {
   const portableFile = process.env.PORTABLE_EXECUTABLE_FILE;
   const appImage = process.env.APPIMAGE;
@@ -597,39 +461,30 @@ function recordLaunch(): void {
     return;
   }
   try {
-    // With its own process id: on a Postgres-address library there is no local database's owner record, so
-    // this is how `storytree app quit` finds the running app (app lifecycle 1.11).
     writeFileSync(home.launchRecord, `${JSON.stringify({ ...record, pid: process.pid }, null, 2)}\n`);
   } catch (error) {
     console.error(`recording how to open the app: ${messageOf(error)}`);
   }
 }
 
-/** Which build this is, for the title and the tray: a version, or the checkout. */
 async function whichBuild(): Promise<string> {
   if (app.isPackaged) return packagedBuild(app.getVersion());
   const sha = await checkoutSha(app.getAppPath()).catch(() => undefined);
   return buildLabel({ appPath: app.getAppPath(), ...(sha === undefined ? {} : { sha }) });
 }
 
-/**
- * Start the app again once this one has stopped (a restart into a newer build, or a start that
- * arrived while it was quitting): `target`, or this same build (from an AppImage, the AppImage file).
- */
 function relaunch(target: Launch | undefined, inBackground: boolean): void {
   const appImage = process.env.APPIMAGE;
   const launch = target ?? thisBuild({ execPath: process.execPath, argv: process.argv, ...(appImage === undefined ? {} : { appImage }) });
   app.relaunch({ execPath: launch.execPath, args: [...launch.args, ...(inBackground ? ["--background"] : [])] });
 }
 
-/** The Postgres binaries: shipped in the packaged app's resources, or from node_modules in development. */
 function postgresBinaries(): string {
   return app.isPackaged
     ? findBinaries({ dir: path.join(process.resourcesPath, "postgres", "bin") })
     : findBinaries({ resolveFrom: app.getAppPath() });
 }
 
-/** The page's reads, once the library is open. */
 function open(): PageReads {
   if (reads === undefined) throw new Error("the library is not open");
   return reads;
@@ -639,7 +494,6 @@ function openWindow(query: WindowQuery): BrowserWindow {
   return pageWindow(query).window;
 }
 
-/** The app's window on its page, and the page's load, which fails if the page cannot be loaded. */
 function pageWindow(query: WindowQuery): { window: BrowserWindow; loaded: Promise<void> } {
   const window = new BrowserWindow({
     width: 1120,
@@ -653,21 +507,16 @@ function pageWindow(query: WindowQuery): { window: BrowserWindow; loaded: Promis
     autoHideMenuBar: true,
     webPreferences: pageWebPreferences(),
   });
-  // The page is the app: it never navigates away, opens other windows or gets a permission.
   keepPageInWindow(window, { headless: args.smoke || args.pageCheck });
-  // A failure inside the page (a surface's failed refresh, an uncaught throw) is kept in app.log with the rest.
   logPageErrors(window.webContents, line => console.error(line));
-  // The page names the project; the title adds which build this is.
   titleWindow(window, build);
-  // The lag instrument measures the catalogue with the page's lag recorder on and off (STORYTREE_LAG_RECORDER=off).
   const recorder = process.env.STORYTREE_LAG_RECORDER === "off" ? { "lag-recorder": "off" } : {};
   window.once("ready-to-show", () => marks.mark("window ready to show"));
   const loaded = window.loadURL(pageUrl({ ...query, ...recorder }));
-  loaded.catch(() => { /* the page's own error logging says it; the page check reads it */ });
+  loaded.catch(() => {});
   return { window, loaded };
 }
 
-/** The page's preferences: its preload, isolated and sandboxed, with no Node. */
 function pageWebPreferences(): Electron.WebPreferences {
   return {
     preload: path.join(__dirname, "preload.cjs"),
@@ -677,10 +526,6 @@ function pageWebPreferences(): Electron.WebPreferences {
   };
 }
 
-/**
- * The smoke check: wait for the page, screenshot it, print its text, and judge the surface on show
- * by what it says it drew (@storytree/app's smokeProblems).
- */
 async function smoke(window: BrowserWindow, project: string | undefined): Promise<void> {
   let code = 1;
   try {
@@ -688,10 +533,7 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
     const state = await pageState(window);
     phases.phase(`reading the page (${state})`);
     project = await window.webContents.executeJavaScript("document.body.dataset.project") as string | undefined;
-    // A first launch's guide and tour would cover the forest in the screenshot (lifecycle 1.48).
     await window.webContents.executeJavaScript(CLEAR_FIRST_LAUNCH);
-    // Open one capability, as a click would, so the screenshot shows contracts too: the first
-    // whose verified column is not passing, else the first.
     const opened = (await window.webContents.executeJavaScript(`(() => {
       const all = [...document.querySelectorAll("details.capability")];
       const pick = all.find((node) => node.querySelector("summary [data-column=verified] .badge-passing") === null) ?? all[0];
@@ -699,12 +541,10 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
       pick.querySelector("summary").click();
       return { title: pick.querySelector("summary .row-title").innerText, contracts: pick.querySelectorAll("[data-contract-id]").length };
     })()`)) as { title: string; contracts: number } | null;
-    // A surface switched off draws nothing to judge (ADR-0750); the forest's globe is always on.
     const read = await surfacesActions(mount(parts.surfaces, partsOff).mounted, home.dir).readSurfaces();
     const arcsOn = !read.ok || surfaceOn(read.value, "arcs");
     const arcProblems = project !== undefined && state === "ready" && arcsOn ? await smokeArcSurface(window.webContents, project, open()) : [];
     if (state === "ready" && args.forestMode !== undefined) {
-      // The Library mode is the globe's Stories switch off (ADR-1002 D2), with its Library switch on: a launch opens it off.
       const mode = args.forestMode, stories = mode === "forest";
       await window.webContents.executeJavaScript(`(async () => {
         if (${!stories}) document.querySelector('.forest-views [data-globe-switch="library"][aria-pressed="false"]')?.click();
@@ -725,17 +565,14 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
     }))()`)) as { text: string; drew?: string };
 
     phases.phase("taking the screenshot");
-    // A screenshot holds only what is in view, so the window is made as tall as the page first.
     const [width] = window.getContentSize();
     const height = Number(await window.webContents.executeJavaScript("document.documentElement.scrollHeight"));
     window.setContentSize(width ?? 1120, Math.min(Math.max(height, 480), 4000));
-    // A window that was never shown does not composite a WebGL canvas (the forest), so it is shown,
-    // without taking focus, before the screenshot, and given a moment to paint.
     window.showInactive();
     await new Promise((resolve) => setTimeout(resolve, 800));
     let image = await window.webContents.capturePage();
     if (image.isEmpty()) {
-      window.showInactive(); // some systems will not paint a window that has never been shown
+      window.showInactive();
       await new Promise((resolve) => setTimeout(resolve, 500));
       image = await window.webContents.capturePage();
     }
@@ -757,7 +594,6 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
       for (const problem of problems) console.error(`smoke: ${problem}`);
     }
     if (args.stress > 0) phases.phase(`closing and reopening the window ${args.stress} time(s)`);
-    // The window is closed and reopened at awkward moments, and the quit below lands while the last one loads.
     await stressWindow(window, args.stress, windowSteps({
       windows: () => BrowserWindow.getAllWindows(),
       reopen: showWindow,
@@ -773,7 +609,6 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
   }
 }
 
-/** Wait until the page has finished loading its project (or found it cannot), and return its state. */
 async function pageState(window: BrowserWindow): Promise<string> {
   for (;;) {
     const state = window.webContents.isLoading()
@@ -784,14 +619,12 @@ async function pageState(window: BrowserWindow): Promise<string> {
   }
 }
 
-/** A passing check's summary: which surface drew the project's stories, and how many capabilities. */
 function drewText(tree: AnnotatedTree, drew: string | undefined): string {
   const { surface } = JSON.parse(drew ?? "{}") as { surface?: string };
   const capabilities = tree.stories.reduce((sum, story) => sum + story.capabilities.length, 0);
   return `the ${surface ?? "surface"} drew ${tree.stories.map((story) => `story "${story.title}"`).join(", ")} and all ${capabilities} capabilities`;
 }
 
-/** Close the library and stop Postgres. Safe to call more than once. */
 function shutdown(): Promise<void> {
   return stopping.shutdown();
 }

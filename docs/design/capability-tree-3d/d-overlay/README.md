@@ -111,3 +111,5 @@ node --import tsx docs/design/capability-tree-3d/d-overlay/tools/shots.mjs --ret
 the lines, the landing and the wrenches in the island's plate and cuts the selection's lanes at the coast;
 `tools/panel.tsx` is the story panel; `tools/look.mjs` takes one quick still while drawing. `?bend=0.2` changes the
 lines' curve.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

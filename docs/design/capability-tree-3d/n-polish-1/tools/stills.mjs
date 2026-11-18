@@ -1,6 +1,3 @@
-// Takes this folder's stills with look.mjs: port-rest, port-mouth, port-mouth-near and port-keys (and the same with a
-// query, named by NAME). Run from the checkout root:
-//   node docs/design/capability-tree-3d/n-polish-1/tools/stills.mjs [query] [view ...]
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

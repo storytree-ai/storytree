@@ -1,9 +1,4 @@
-/**
- * Capability 4 · Triage. The `feedback` verbs the two-hourly session manager triages the owner's notes with
- * (question_aef9cf65f529): `feedback list` the new ones (4.1), `feedback show` one whole with its screenshot (4.3), and
- * `feedback route` it to an increment, a question or a reasoned close (4.2). Declared here and named under `verbs` in the
- * package's manifest, so the command line mounts them as its `feedback` family.
- */
+// Capability 4 · Triage
 import { writeFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 
@@ -15,10 +10,8 @@ const ROUTES = ["increment", "question", "closed"] as const;
 
 type Note = SchemaRecord<"feedback">;
 
-/** `word` with its article: "an increment", "a question". */
 const a = (word: string): string => `${/^[aeiou]/.test(word) ? "an" : "a"} ${word}`;
 
-/** A note's one line: when, where, and what he wrote, its first line cut at 100 characters. */
 function lineOf({ id, fields }: Note): string {
   const text = fields.text.split(/\r?\n/, 1)[0] ?? "";
   const where = fields.story === undefined ? fields.surface : `${fields.surface} (${fields.story})`;
@@ -26,7 +19,6 @@ function lineOf({ id, fields }: Note): string {
   return `  ${id}  ${fields.at}  ${where}${fields.screenshot ? "  [screenshot]" : ""}\n    ${text.length > 100 ? `${text.slice(0, 99)}…` : text}${routed}`;
 }
 
-/** The live feedback note `id`, or a refusal naming what it is instead. */
 async function noteOf(context: VerbContext, id: string): Promise<Note> {
   const record = await context.library.get(id);
   if (record === null) throw new VerbRefusal(`no feedback note "${id}" in this project`, { next: [{ command: "feedback list", why: "see the notes waiting" }] });
@@ -99,13 +91,11 @@ const show = verb({
   },
 });
 
-/** A drawn object by its ids: `gate story_x, capability_a ↔ capability_b "name"`. */
 function drawnLine(drawn: NonNullable<NonNullable<Note["fields"]["anchor"]>["drawn"]>): string {
   const ids = drawn.between === undefined ? [drawn.story, ...(drawn.capability === undefined ? [] : [drawn.capability])].join(", ") : `${drawn.story}, ${drawn.between[0]} ↔ ${drawn.between[1]}`;
   return `${drawn.kind} ${ids} ${JSON.stringify(drawn.name)}`;
 }
 
-/** The element a note points at, a line a fact: what a building agent searches the code with. */
 function anchorLines(anchor: NonNullable<Note["fields"]["anchor"]>): string[] {
   const { box } = anchor;
   return [
@@ -152,7 +142,6 @@ const route = verb({
   },
 });
 
-/** The `feedback` family, beside `friction` and `resteer`. */
 export const FEEDBACK_FAMILIES: readonly VerbFamily[] = [
   { name: "feedback", summary: "the owner's feedback notes from the app's corner button: list the new ones, read one with its screenshot, route it", order: 14.5, verbs: [list, show, route] },
 ];

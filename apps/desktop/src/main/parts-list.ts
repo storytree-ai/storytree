@@ -1,10 +1,4 @@
-/**
- * Capability 4 · Updates. How the main process and preload script are packed with the parts the app's story packages'
- * manifests name (ADR-1021): esbuild answers each `import parts from "#parts/<kind>"` with a module importing the parts
- * the importing file's package's parts list names. Plugin loader writes that list as data, by a step of its own run as
- * part of this build (question_efc2a06dacad, option A): the build reads its output and imports none of its code. A
- * list missing, or out of date with a package.json it was written from, stops the build rather than pack the wrong parts.
- */
+// Capability 4 · Updates
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -16,24 +10,20 @@ import { promisify } from "node:util";
 
 import type { Plugin } from "esbuild";
 
-/** A host's parts list, as Plugin loader writes it. */
 interface PartsList {
   readonly kinds: Record<string, readonly { module: string; export: string; owner: string }[]>;
   readonly graph: unknown;
   readonly inputs: Record<string, string>;
 }
 
-/** Write the parts list of the host in `host` to `file`. */
 export type WriteList = (host: string, file: string) => Promise<void>;
 
-/** Plugin loader's step, run as the command it is: node, with tsx from Plugin loader's own folder, on its parts-list module. */
 export const writeWithPluginLoader: WriteList = async (host, file) => {
   const step = createRequire(import.meta.url).resolve("@storytree/plugin-loader/parts-list");
   const tsx = pathToFileURL(createRequire(step).resolve("tsx")).href;
   await promisify(execFile)(process.execPath, ["--import", tsx, step, host, file]);
 };
 
-/** The package a file belongs to: the nearest folder above it holding a package.json. */
 function hostOf(from: string): string {
   for (let dir = path.resolve(from); ; dir = path.dirname(dir)) {
     if (existsSync(path.join(dir, "package.json"))) return dir;
@@ -41,7 +31,6 @@ function hostOf(from: string): string {
   }
 }
 
-/** The list at `file` for `host`, refused when it is missing or a package.json it was written from has changed since. */
 function readList(host: string, file: string): PartsList {
   if (!existsSync(file)) throw new Error(`There is no parts list for ${host}: Plugin loader's step wrote none, so the build stops rather than pack no parts.`);
   const list = JSON.parse(readFileSync(file, "utf8")) as PartsList;
@@ -54,12 +43,10 @@ function readList(host: string, file: string): PartsList {
 
 const ESCAPES: Record<string, string> = { "<": "\\u003C", ">": "\\u003E", "/": "\\u002F", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t", "\0": "\\0", "\u2028": "\\u2028", "\u2029": "\\u2029" };
 
-/** `value` as a JavaScript literal, with the characters that could end a string or a script written as escapes. */
 function literal(value: unknown): string {
   return JSON.stringify(value).replace(/[<>/\b\f\n\r\t\0\u2028\u2029]/g, (char) => ESCAPES[char] as string);
 }
 
-/** The esbuild plugin that packs `#parts/<kind>` from each host's parts list, written once per host per build by `write`. */
 export function partsFromList({ write = writeWithPluginLoader }: { write?: WriteList } = {}): Plugin {
   return {
     name: "storytree-parts-list",
@@ -82,9 +69,6 @@ export function partsFromList({ write = writeWithPluginLoader }: { write?: Write
         }
         return list;
       };
-      // The module's path names its host as well as its kind: esbuild loads one module per path, and two hosts in one
-      // bundle pack a kind each from their own lists. The host is a
-      // hash of its folder, since a path esbuild names a chunk after holds no folder.
       build.onResolve({ filter: /^#parts\/[\w-]+$/ }, (args) => {
         const host = hostOf(args.resolveDir);
         const tag = createHash("sha256").update(host).digest("hex").slice(0, 12);

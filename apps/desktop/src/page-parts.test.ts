@@ -1,8 +1,4 @@
-/**
- * The frame mounting its stories' page operations from their manifests (capability 1 · Lifecycle, ADR-1021): the main
- * process answers the page parts the plugin loader composes, and the page's bridge offers the channels it composes, so
- * neither main.ts nor bridge.ts names the story. Lag in real use is the story mounted this way.
- */
+// Capability 8 · Page bridge
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -27,7 +23,6 @@ import { createBridge } from "./bridge.js";
 import { answerPageParts } from "./page-operations.js";
 import { partsFromList } from "./main/parts-list.js";
 
-/** The feedback corner's side of the frame, which these tests do not use: nothing declared, no library, no window. */
 const NO_FEEDBACK = { declaredSurfaces: [], server: () => undefined, captureWindow: async () => undefined };
 
 test("8.2 a story's page operations its package's manifest names are answered in the main process and offered to the page, the frame naming no story: a lag reading the page sends is kept in the app's home, stamped with the app's version", async (t) => {
@@ -49,7 +44,6 @@ test("8.2 a story's page operations its package's manifest names are answered in
   await page.recordLag([{ name: "open-island", response: 40, longFrames: 1, longestFrame: 72, settled: 300, progress: false }]);
   assert.deepEqual(readReadings(home).map(({ name, version, settled }) => ({ name, version, settled })), [{ name: "open-island", version: "0.3.99", settled: 300 }]);
 
-  // The preload is bundled: its channels are the loader's build plugin's composition, the same as run unbundled.
   const desktop = fileURLToPath(new URL("..", import.meta.url));
   const out = mkdtempSync(path.join(tmpdir(), "storytree-page-channels-"));
   t.after(() => rmSync(out, { recursive: true, force: true }));
@@ -82,7 +76,6 @@ test("8.2 the settings panel's page operations its manifest names are answered f
 test("8.2 the forest's code survey its manifest names is answered from what the frame offers: the open library's project folder and imports, the tree the page last read, and the bundled survey worker", async (t) => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-page-survey-"));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
-  // The worker bundled as build.mjs bundles it, resolved through the forest package the survey mounts from.
   const surveyWorker = path.join(folder, "survey-worker.cjs");
   const worker = createRequire(fileURLToPath(import.meta.resolve("@storytree/forest/code-survey"))).resolve("@storytree/map/code-survey/worker");
   await build({ entryPoints: [worker], outfile: surveyWorker, bundle: true, format: "cjs", platform: "node", target: "node22", logLevel: "silent" });
@@ -96,7 +89,6 @@ test("8.2 the forest's code survey its manifest names is answered from what the 
     appVersion: "0.3.99",
     library: () => ({
       projectFolder: async (project: unknown) => project === "shop" ? checkout : undefined,
-      // The page read the tree already, so the survey must not read it again.
       projectTree: async () => { throw new Error("the tree was read a second time"); },
       projectImports: async () => [],
     }),
@@ -126,7 +118,6 @@ test("8.2 CI health's CI times read its manifest names is answered from the open
       await storytree.close();
     }
   });
-  // Recorded a minute ago, so the read starts no recording of its own.
   await db.query("INSERT INTO ci_readings (project, repository, read_at) VALUES ($1, 'acme/shop', now() - interval '1 minute')", [project]);
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
   answerPageParts({ handle: (channel, listener) => { handlers.set(channel, listener); } }, pageAnswers, pageChannels, {

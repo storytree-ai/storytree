@@ -22,7 +22,6 @@ test("4.17 the start check passes a build only when its main process exits 0 whe
     if (!process.argv.includes("--start-check")) process.exit(2);
     if (process.env.ELECTRON_RUN_AS_NODE !== undefined) process.exit(3);
     process.exit(0);`);
-  // A long stack after the message must not push the message out of the refusal.
   const dies = script("dies.cjs", `console.error("x".repeat(20)); throw new TypeError("sourceVersion: no package.json" + "\\n    at frame".repeat(200));`);
   const lingers = script("lingers.cjs", `setInterval(() => {}, 1000);`);
   const ownHome = script("own-home.cjs", `process.exit(process.env.STORYTREE_HOME === "throwaway" ? 0 : 4);`);
@@ -60,12 +59,10 @@ test("4.17 an exited child with inherited output pipes is diagnosed and cannot k
   const pidFile = path.join(dir, "holder.pid");
   t.after(() => {
     if (existsSync(pidFile)) {
-      try { process.kill(Number(readFileSync(pidFile, "utf8")), "SIGKILL"); } catch { /* Already ended. */ }
+      try { process.kill(Number(readFileSync(pidFile, "utf8")), "SIGKILL"); } catch {}
     }
     rmSync(dir, { recursive: true, force: true });
   });
-  // The descendant outlives the checker's budget by far, so a checker its pipes kept alive is caught,
-  // while that budget leaves room for a loaded runner's slow process starts (Windows CI took over 3 s).
   const CHECKER_BUDGET_MS = 30_000;
   const HOLDS_PIPES_MS = 2 * CHECKER_BUDGET_MS;
   const child = path.join(dir, "exits.cjs");
@@ -87,7 +84,6 @@ test("4.17 an exited child with inherited output pipes is diagnosed and cannot k
     console.log(\`refused after \${Math.round(performance.now() - began)} ms\`);
     console.log(problem);
   `);
-  // The checker must exit naturally after refusing, although a descendant still holds its pipes.
   const { stdout } = await promisify(execFile)(process.execPath, [checker], { timeout: CHECKER_BUDGET_MS });
   assert.match(stdout, /exited with code 0.*stdout open.*stderr open/s);
   assert.match(stdout, /main process reached its handlers/);
@@ -100,7 +96,6 @@ test("4.17 a start that leaves a promise rejection unhandled fails its check, th
   const start = (name: string, plant: string): { execPath: string; args: string[] } => {
     const file = path.join(dir, name);
     writeFileSync(file, `import { finishStartCheck } from ${JSON.stringify(finish)};\n${plant}\nawait finishStartCheck((code) => process.exit(code));\n`);
-    // Electron's main process only warns of an unhandled rejection, as Node does in this mode.
     return { execPath: process.execPath, args: ["--unhandled-rejections=warn", file] };
   };
   assert.equal(await startsCleanly(start("starts.mjs", "")), undefined);

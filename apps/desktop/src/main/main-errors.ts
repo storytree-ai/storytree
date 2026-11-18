@@ -1,14 +1,8 @@
-/**
- * Capability 9 · Errors and app.log. What goes wrong in the main process itself, kept in the app's log so it can be read after the
- * fact (contract 9.2), then put to the person using the app: ask their agent to file a GitHub issue, and keep going or
- * restart (contract 9.3, the owner's answer to question_8a7d4b27a8d6; the message is ADR-1119's). Each is also handed
- * to `record`, which keeps it in the user's own library (contract 9.4, ./main-error-records.ts).
- */
+// Capability 9 · Errors and app.log
 export interface MainProcess {
   on(event: "uncaughtException" | "unhandledRejection", listener: (reason: unknown) => void): unknown;
 }
 
-/** What an uncaught error's box says, and the two ways out of it, in that order. */
 export interface ErrorMessage {
   readonly title: string;
   readonly message: string;
@@ -18,11 +12,6 @@ export interface ErrorMessage {
 
 export type ErrorChoice = "keep-going" | "restart";
 
-/**
- * Write each uncaught exception and unhandled rejection to `log` with its stack. Handling the exception takes Electron's
- * own dialog away, so `ask` shows ours: it says the error was logged and lets the person keep going (the default) or
- * restart, which `restart` does. One box at a time: an error while it is open is only logged. A rejection is only logged.
- */
 export function logMainErrors(
   main: MainProcess,
   { log, ask, restart, record = () => {} }: {

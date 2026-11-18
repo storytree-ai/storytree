@@ -165,3 +165,5 @@ Run from the checkout root.
 5. **The queue at scale.** Today's library has one open increment per capability here, so the queue was shown on made-up
    work. Looked at against a busier island (one whose capabilities carry several increments, with one being built), the
    tabs may want to stand by the territory's settlement instead of its wrench.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

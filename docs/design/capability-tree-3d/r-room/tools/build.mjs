@@ -1,7 +1,3 @@
-// Builds the desktop app's own page once per option (variants.mjs), as the capture kit's buildCapture does, with that
-// option's edits applied to the bundle: the page, its road worker and its territory search worker alike, so the layout
-// searched off the page is the option's too. Each goes to the checkout's ignored .evidence-builds/, one folder per option.
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/r-room/tools/build.mjs [option ...]
 import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -16,7 +12,6 @@ const desktop = path.join(root, 'apps/desktop');
 const require = createRequire(path.join(desktop, 'package.json'));
 const { build, stop } = require('esbuild');
 
-/** Where option `name`'s page is built. */
 export const optionFolder = name => buildFolder(here, name);
 
 export async function buildOption(name) {

@@ -1,16 +1,3 @@
-/** The sea lane, after the six landings (i-sea-lanes/): Mick picked the coast gate (6) and asked for "the pathway leading into
- * a port/structure then we draw a different style line for the shipping lanes, like a light blue or something. This way the
- * two lines don't need to connect", the structure "like the gates but not exactly the same, maybe a port building but with
- * gate style towers", and "no dotted lines please, shipping lines all stay the same. Only add thickness for more lines
- * merging." So (`?sea=port`, the default):
- * - the line: the map's own lanes (pathways:selection-lanes) followed piece by piece, each stretch drawn once however many
- *   lanes share it, in and out alike, one solid pale sea-blue, a step wider only where more lanes share it; mixed opaque into
- *   the sea so shared stretches show no knots. It stops at every coast, and at the selected island it ends just off the port,
- *   never on the road. The map's purple and teal lanes, their pips and the tan band they ride are hidden;
- * - the port, at each landing (the mouth, Keys' landfall): a low building at the coast where the sandy road ends (the
- *   jetty an earlier take had is gone: Mick, "remove the jetty though dont think its needed"), and two towers either side in the gate posts' own slate, shading and
- *   ink top, but twice as tall and capped, so it reads as the gates' kin and not a gate;
- * - `map`: the map's own lanes, as round 11 drew them. */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Matrix4, Mesh, MeshBasicMaterial, Vector3,
   type BufferAttribute, type Object3D } from "three";
 import type { RootState } from "@react-three/fiber";
@@ -20,36 +7,22 @@ export type SeaKey = "port" | "map";
 const QUERY = typeof location === "undefined" ? new URLSearchParams() : new URLSearchParams(location.search);
 export const SEA: SeaKey = (["port", "map"] as const).find(k => k === QUERY.get("sea")) ?? "port";
 
-/** The sea as it shows on the page under the lines, and the one lane tone mixed into it (`?lane=#rrggbb` tries another). */
 const SEA_HEX = "#17222b";
 const LANE = { ink: QUERY.get("lane") ?? "#8fbfd4", mix: Number(QUERY.get("laneMix") ?? 0.78) };
-/** The lane's tone as drawn, for the legend. */
 export const LANE_HEX = `#${new Color(SEA_HEX).lerp(new Color(LANE.ink), LANE.mix).getHexString()}`;
-/** A line's width in ground units by how many lanes share its stretch: 1, 2-7, 8-31, 32 or more. */
 const WIDTHS = [0.32, 0.5, 0.78, 1.15];
 const widthOf = (n: number) => WIDTHS[n >= 32 ? 3 : n >= 8 ? 2 : n >= 2 ? 1 : 0]!;
 const LIFT = 0.16;
-/** How far from the mouth the way out's reach from Keys joins its line, in ground units. */
 const JOIN_CLEAR = 80;
-/** A lane passing this near a berth (in ground units) ends on it. */
 const SNAP = 10;
-/** How far off the coast the reach from Keys' landfall rounds the island, in ground units. */
 const OFFSHORE = 6;
-/** Polish round 1: the way out runs this far straight out from Keys' berth before it turns, easing onto its round over
- * EASE steps. `?kink=1` draws it as before. */
 const STRAIGHT = 9, EASE = 4, KINK = QUERY.get("kink") === "1";
-/** Polish round 1, tried and dropped (README): a port where lanes come ashore on the other islands (`?otherPorts=1`), lanes
- * within CLUSTER units of one another sharing it, drawn at OTHER_SCALE of Keys' size. */
 const OTHER_PORTS = QUERY.get("otherPorts") === "1", CLUSTER = 10, OTHER_SCALE = 0.85;
-/** The port, in ground units: the berth, the building, the towers. `?port=<scale>`
- * scales it all. */
 const SCALE = Number(QUERY.get("port") ?? 1);
 const PORT = {
-  /** The lanes end this far off the coast, in front of the building. */
   berth: 3 * SCALE,
   house: { along: 2.4 * SCALE, half: 2.0 * SCALE, height: 1.6 * SCALE, roof: "#2a3036" },
   tower: { side: 1.4 * SCALE, height: 3.3 * SCALE, cap: 1.75 * SCALE, capDepth: 0.35 * SCALE, apart: 0.6 * SCALE },
-  /** Keys' landfall carries one link, so its port is smaller. */
   small: 0.8,
 };
 
@@ -64,9 +37,7 @@ const inPolygon = (p: P, poly: readonly P[]) => {
 
 export type SeaInput = {
   state: RootState; root: Object3D; story: string;
-  /** The selected island's landings, in its plate's frame: where the road ends, and a point out to sea from it. */
   docks: { at: P; sea: P; dir: "down" | "up" }[];
-  /** The ground's height in the plate's frame, and the light's direction on the ground (toward it). */
   heightAt: (p: P) => number; light: P;
   post: { faceRatio: number; body: string; ink: string; paper: string; shadow: number; reach: number; wall: { lit: number; away: number } };
 };
@@ -84,7 +55,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
   root.updateMatrixWorld(true);
   const toRoot = new Matrix4().copy(root.matrixWorld).invert();
 
-  // Every island's coast (its white line's own rings), to stop the lines at the shore.
   const coasts: { mesh: Mesh; inverse: Matrix4; ring: P[]; story: string }[] = [];
   state.scene.traverse(o => {
     if (!o.name.startsWith("island-coast:")) return;
@@ -95,7 +65,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     coasts.push({ mesh, inverse: new Matrix4().copy(mesh.matrixWorld).invert(), ring, story: plate?.name.slice("planet:".length) ?? "" });
   });
   const v = new Vector3();
-  /** The island a world point stands on, if any. */
   const islandAt = (w: Vector3) => {
     for (const c of coasts) { v.copy(w).applyMatrix4(c.inverse); if (Math.abs(v.y) < 30 && inPolygon({ x: v.x, z: v.z }, c.ring)) return c; }
     return undefined;
@@ -104,7 +73,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
   const toWorld = root.matrixWorld;
   const onIsland = (p: P) => !!islandAt(new Vector3(p.x, heightAt(p), p.z).applyMatrix4(toWorld));
 
-  // Each landing's port: the coast found walking out from the road's end, its berth a little off the coast.
   const ports = docks.map(d => {
     const l = Math.hypot(d.sea.x - d.at.x, d.sea.z - d.at.z) || 1, u = { x: (d.sea.x - d.at.x) / l, z: (d.sea.z - d.at.z) / l };
     let t = 0; while (t < 30 && onIsland({ x: d.at.x + u.x * t, z: d.at.z + u.z * t })) t += 0.2;
@@ -113,16 +81,13 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     return { ...d, u, n: { x: -u.z, z: u.x }, k, coast, inland: t, berth };
   });
 
-  // The lanes, piece by piece in world space: each stretch once, in and out alike, with how many lanes share it.
   type Piece = { a: Vector3; b: Vector3; sa: Vector3; sb: Vector3; n: number };
   const pieces = new Map<string, Piece>();
   const q = (w: Vector3) => `${w.x.toFixed(2)},${w.y.toFixed(2)},${w.z.toFixed(2)}`;
   const seen = new Set<string>();
   const joins: { to: Vector3; next: Vector3; port: (typeof ports)[number] }[] = [];
   let lanes = 0, drop = 0, drops = 0;
-  /** Polish round 1: where a lane comes ashore on another island, its port goes there too. */
   const landfalls: { end: Vector3; coast: (typeof coasts)[number] }[] = [];
-  /** A berth in world space, at the height of a lane point near it. */
   const berthAt = (port: (typeof ports)[number], near: Vector3) => { const r = near.clone().applyMatrix4(toRoot); return new Vector3(port.berth.x, r.y, port.berth.z).applyMatrix4(toWorld); };
   const addPiece = (a: Vector3, b: Vector3, sa: Vector3, sb: Vector3, key: string) => { const was = pieces.get(key); if (was) was.n++; else pieces.set(key, { a, b, sa, sb, n: 1 }); };
   lanesGroup?.traverse(o => {
@@ -136,12 +101,9 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
       centre.push(l.clone().add(r).multiplyScalar(0.5)); side.push(l.sub(r).normalize());
     }
     const wet = centre.map(c => !islandAt(c));
-    // How far the sea stands below the ground's dome, read off the lanes at sea.
     centre.forEach((c, i) => { if (!wet[i] || i % 5) return; const r = c.clone().applyMatrix4(toRoot); drop += heightAt({ x: r.x, z: r.z }) - r.y; drops++; });
     let skip = (_i: number) => false;
     const ownEnd = islandAt(centre.at(-1)!)?.story === story ? "end" : islandAt(centre[0]!)?.story === story ? "start" : undefined;
-    // The way out: the map sends it from the mouth, but the island's own road leaves at Keys' landfall, so the line is
-    // taken from the nearest point of its way well clear of the mouth, and a new reach joins it to Keys' berth.
     const outPort = ports.find(p => p.dir === "up"), inPort = ports.find(p => p.dir === "down");
     if (dir === "up" && outPort && ownEnd) {
       const mouth = inPort?.at ?? outPort.at;
@@ -153,7 +115,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
         joins.push({ to: centre[best]!, next, port: outPort });
       }
     }
-    // The way in: cut where it first comes within SNAP of the mouth's berth, and run straight from there onto the berth.
     if (dir === "down" && inPort && ownEnd) {
       const order = centre.map((_, i) => i); if (ownEnd === "start") order.reverse();
       const ci = order.find(i => { const r = centre[i]!.clone().applyMatrix4(toRoot); return Math.hypot(r.x - inPort.berth.x, r.z - inPort.berth.z) < SNAP; });
@@ -162,8 +123,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
         addPiece(centre[ci]!, berthAt(inPort, centre[ci]!), side[ci]!, side[ci]!, `${q(centre[ci]!)}|berth:${inPort.dir}`);
       }
     }
-    // Where it first touches the island at its far end (another story's), walking in from the sea: it ends there, at a
-    // port, rather than skimming that island's coast to the capability it calls (the map's lanes hug a coast on their way).
     const landAt = new Set<number>();
     let cutFar = (_i: number) => false;
     const far = (c: Vector3) => { const at = islandAt(c); return at && at.story !== story ? at : undefined; };
@@ -177,7 +136,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
       if (!wet[i] && !wet[i + 1]) continue;
       if (skip(i) || cutFar(i)) continue;
       if (wet[i] !== wet[i + 1]) {
-        // Where it meets the shore, found by halving the piece; near a port it ends on the berth instead.
         let lo = wet[i] ? a : b, hi = wet[i] ? b : a;
         for (let k = 0; k < 14; k++) { const m = lo.clone().lerp(hi, 0.5); if (islandAt(m)) hi = m; else lo = m; }
         const r = lo.clone().applyMatrix4(toRoot), near = ports.find(p => Math.hypot(r.x - p.coast.x, r.z - p.coast.z) < SNAP);
@@ -193,8 +151,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
   });
   const seaDrop = drops ? drop / drops : 8;
 
-  // Polish round 1: the other islands' ports. Lanes that come ashore near one another on an island share one port, on its
-  // coast facing straight out to sea, built in that island's own frame; each lane there ends just off its front.
   type OtherPort = { coast: (typeof coasts)[number]; at: P; u: P; n: P; k: number; top: number; berth: P; lanes: number };
   const otherPorts: OtherPort[] = [];
   for (const c of new Set(landfalls.map(l => l.coast))) {
@@ -205,14 +161,12 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     for (const h of here) { const g = groups.find(g => g.some(o => Math.hypot(o.p.x - h.p.x, o.p.z - h.p.z) < CLUSTER)); if (g) g.push(h); else groups.push([h]); }
     for (const g of groups) {
       const m = { x: g.reduce((s, h) => s + h.p.x, 0) / g.length, z: g.reduce((s, h) => s + h.p.z, 0) / g.length };
-      // The nearest point of the coast, and the way out to sea from it.
       let best = { d: Infinity, p: m, t: { x: 1, z: 0 } };
       for (let i = 0; i < c.ring.length; i++) {
         const a = c.ring[i]!, b = c.ring[(i + 1) % c.ring.length]!, ab = { x: b.x - a.x, z: b.z - a.z }, l2 = ab.x * ab.x + ab.z * ab.z || 1;
         const t = Math.max(0, Math.min(1, ((m.x - a.x) * ab.x + (m.z - a.z) * ab.z) / l2)), p = { x: a.x + ab.x * t, z: a.z + ab.z * t }, d = Math.hypot(p.x - m.x, p.z - m.z);
         if (d < best.d) best = { d, p, t: { x: ab.x / Math.sqrt(l2), z: ab.z / Math.sqrt(l2) } };
       }
-      // The coast's normal, averaged over a few units either way so a crinkle in the coast does not turn the port.
       let u = { x: -best.t.z, z: best.t.x };
       if (inPolygon({ x: best.p.x + u.x * 0.5, z: best.p.z + u.z * 0.5 }, c.ring)) u = { x: -u.x, z: -u.z };
       const k = PORT.small * OTHER_SCALE, berth = { x: best.p.x + u.x * PORT.berth * k, z: best.p.z + u.z * PORT.berth * k };
@@ -221,7 +175,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     }
   }
 
-  // Draw them in the plate's frame, lifted off the sea along the globe's normal.
   const group = new Group(); group.name = "mock-sea"; root.add(group);
   const local = (w: Vector3, up: number) => w.clone().addScaledVector(w.clone().normalize(), up).applyMatrix4(toRoot);
   const tone = new Color(SEA_HEX).lerp(new Color(LANE.ink), LANE.mix);
@@ -233,7 +186,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     const B1 = local(p.b.clone().addScaledVector(p.sb, h), LIFT), B2 = local(p.b.clone().addScaledVector(p.sb, -h), LIFT);
     push([A1, A2, B1, A2, B2, B1]);
   }
-  // The reach from Keys' berth out to the way out's line: offshore, rounding the island a few units off its coast.
   const catmull = (pts: P[]) => {
     const out: P[] = [];
     for (let i = 0; i + 1 < pts.length; i++) {
@@ -242,7 +194,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     }
     out.push(pts.at(-1)!); return out;
   };
-  /** Cuts each corner a quarter of the way in from each end, `times` over; the ends stay. */
   const chaikin = (pts: P[], times: number): P[] => {
     let ps = pts;
     for (let n = 0; n < times; n++) {
@@ -252,7 +203,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     }
     return ps;
   };
-  /** A point at least every unit along it. */
   const densify = (pts: P[]): P[] => pts.flatMap((p, i) => { if (!i) return [p]; const a = pts[i - 1]!, n = Math.max(1, Math.ceil(Math.hypot(p.x - a.x, p.z - a.z))); return Array.from({ length: n }, (_, k) => ({ x: a.x + (p.x - a.x) * (k + 1) / n, z: a.z + (p.z - a.z) * (k + 1) / n })); });
   for (const j of joins) {
     const end = local(j.to, 0), endP = { x: end.x, z: end.z }, y = end.y + LIFT;
@@ -264,9 +214,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     const t0 = angle(sea0), t1 = angle(endP);
     let dt = t1 - t0; while (dt > Math.PI) dt -= 2 * Math.PI; while (dt < -Math.PI) dt += 2 * Math.PI;
     const steps = Math.max(2, Math.ceil(Math.abs(dt) / 0.3)), round: P[] = [];
-    // Polish round 1: the way out left the berth and swung straight onto the round, a kink just off the port. It now runs
-    // straight out from the port's front for a stretch, then eases onto the round: the round's reach is blended in from
-    // the straight's end over its first few steps, and the corners are cut (Chaikin) rather than splined, so it cannot curl.
     const out = { x: j.port.berth.x + j.port.u.x * STRAIGHT, z: j.port.berth.z + j.port.u.z * STRAIGHT };
     const r0 = Math.hypot(out.x - cx, out.z - cz), t0o = angle(out);
     let dto = t1 - t0o; while (dto > Math.PI) dto -= 2 * Math.PI; while (dto < -Math.PI) dto += 2 * Math.PI;
@@ -275,7 +222,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
       round.push({ x: cx + Math.cos(t) * r, z: cz + Math.sin(t) * r });
     }
     const nx = local(j.next, 0);
-    // From just off the port's front, so the way out visibly leaves the port.
     const front = { x: j.port.coast.x + j.port.u.x * 0.8, z: j.port.coast.z + j.port.u.z * 0.8 };
     const all = KINK ? catmull([front, j.port.berth, sea0, ...round, endP, { x: nx.x, z: nx.z }])
       : densify(chaikin([front, j.port.berth, out, ...round, endP, { x: nx.x, z: nx.z }], 4));
@@ -295,7 +241,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     lineMesh.renderOrder = 5; lineMesh.raycast = () => {}; group.add(lineMesh);
   }
 
-  // ── The ports: solid shapes, shaded by the light as the gate posts are ─────────────────────────────────────────────
   const dot = (a: P, b: P) => a.x * b.x + a.z * b.z, black = new Color("#000");
   const shade = (base: Color, facing: P) => { const l = Math.hypot(facing.x, facing.z) || 1, k = (dot({ x: facing.x / l, z: facing.z / l }, light) + 1) / 2; return base.clone().multiplyScalar(post.wall.away + (post.wall.lit - post.wall.away) * k); };
   let sides = { pos: [] as number[], col: [] as number[] }, into: Object3D = group;
@@ -306,9 +251,7 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     const m = new Mesh(geo, new MeshBasicMaterial({ color: c, side: DoubleSide, depthWrite: opacity === 1, depthTest: true, transparent: true, opacity, fog: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
     m.renderOrder = order; m.raycast = () => {}; into.add(m); return m;
   };
-  /** A rectangle centred on c, `along` either way of u and `half` either way of n. */
   const rect = (c: P, u: P, n: P, along: number, half: number): P[] => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => ({ x: c.x + u.x * along * i! + n.x * half * j!, z: c.z + u.z * along * i! + n.z * half * j! }));
-  /** Upright walls round a foot, from y0 (or the ground under each corner) to y1, each face shaded by the light. */
   const walls = (foot: P[], y0: number | ((p: P) => number), y1: number, body: Color, skipFace?: (mid: P) => boolean) => {
     const cx = foot.reduce((s, p) => s + p.x, 0) / foot.length, cz = foot.reduce((s, p) => s + p.z, 0) / foot.length, lo = typeof y0 === "number" ? () => y0 : y0;
     for (let i = 0; i < foot.length; i++) {
@@ -318,11 +261,9 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
       for (const [p, top] of [[a, false], [b, false], [b, true], [a, false], [b, true], [a, true]] as [P, boolean][]) { sides.pos.push(p.x, top ? y1 : lo(p), p.z); sides.col.push(face.r, face.g, face.b); }
     }
   };
-  /** Its shadow on the ground (or the sea), cast away from the light by its height. */
   const shadow = (foot: P[], tall: number, y: (p: P) => number) => {
     const away = { x: -light.x * tall * post.reach, z: -light.z * tall * post.reach };
     const pts = [...foot, ...foot.map(p => ({ x: p.x + away.x, z: p.z + away.z }))];
-    // The hull of the foot and its cast copy.
     const c0 = pts.reduce((s, p) => ({ x: s.x + p.x / pts.length, z: s.z + p.z / pts.length }), { x: 0, z: 0 });
     pts.sort((p, r) => Math.atan2(p.z - c0.z, p.x - c0.x) - Math.atan2(r.z - c0.z, r.x - c0.x));
     flat([c0, ...pts, pts[0]!], p => y(p) + 0.05, black, 27, post.shadow * 1.6);
@@ -330,20 +271,16 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
   const body = new Color(post.body), ink = new Color(post.ink), paper = new Color(post.paper), roof = new Color(PORT.house.roof);
   const ground = (p: P) => heightAt(p), seaY = (p: P) => heightAt(p) - seaDrop;
   const portStats: Record<string, unknown>[] = [];
-  /** One port at a coast point, its walls into `sides` and its flats into `into`. */
   const drawPort = (port: { u: P; n: P; k: number; coast: P }, top: number, ground: (p: P) => number) => {
     const { u, n, k } = port;
-    // The building: a low block at the coast, where the road ends, its long side facing the land.
     const ha = PORT.house.along * k / 2, hh = PORT.house.half * k, tall = PORT.house.height * k;
     const hc = { x: port.coast.x - u.x * (ha + 0.15), z: port.coast.z - u.z * (ha + 0.15) }, house = rect(hc, u, n, ha, hh);
     shadow(house, tall, ground);
     walls(house, p => ground(p) - 0.1, top + tall, body);
     flat(house, top + tall, roof, 33);
     flat(rect(hc, u, n, ha * post.faceRatio, hh - ha * (1 - post.faceRatio)), top + tall + 0.02, paper, 34);
-    // A door on the land side, where the road arrives.
     const door = rect({ x: hc.x - u.x * (ha + 0.02), z: hc.z - u.z * (ha + 0.02) }, u, n, 0.02, 0.32 * k);
     walls(door, p => ground(p), top + tall * 0.55, ink.clone().lerp(black, 0.2));
-    // The towers: the gate posts' slate and ink top, twice as tall, with a wider cap.
     const ts = PORT.tower.side * k / 2, tt = PORT.tower.height * k;
     for (const sgn of [-1, 1]) {
       const tc = { x: hc.x + n.x * (hh + PORT.tower.apart * k + ts) * sgn, z: hc.z + n.z * (hh + PORT.tower.apart * k + ts) * sgn };
@@ -362,7 +299,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
   };
   for (const port of ports) { drawPort(port, heightAt(port.coast), ground); portStats.push({ dir: port.dir, roadEndToCoast: +port.inland.toFixed(1) }); }
   flushSides();
-  // The other islands' ports, each in its island's frame (the coast's own, carried into the plate's).
   for (const c of new Set(otherPorts.map(p => p.coast))) {
     const frame = new Group(); frame.matrixAutoUpdate = false; frame.matrix.copy(toRoot).multiply(c.mesh.matrixWorld); frame.matrixWorldNeedsUpdate = true;
     group.add(frame); into = frame;
@@ -370,7 +306,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     flushSides();
   }
   into = group;
-  // The white coastline breaks in front of each building, where the lanes come in.
   const cutCoast = () => {
     for (const c of own) {
       const geo = c.mesh.geometry; if (c.mesh.userData.gapFor === geo.uuid) continue;
@@ -390,7 +325,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
   };
   cutCoast();
 
-  // The tan band under the selection's lanes is hidden where the lines now run; the map's other roads stay.
   const litLinks = new Set(seen);
   const hideBand = () => {
     state.scene.getObjectByName("pathways:cross-island")?.traverse(o => {

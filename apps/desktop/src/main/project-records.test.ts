@@ -1,4 +1,4 @@
-/** Capability 8 · Page bridge: the records the stories keep for a project outside its library, which the setup help's Delete forgets with it. */
+// Capability 8 · Page bridge
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,7 +25,6 @@ test("8.6 the desktop app composes the project records its story packages' manif
   assert.deepEqual(bundled.owners, unbundled.owners);
   assert.equal(import.meta.resolve("#parts/projectRecords"), new URL("./parts/project-records.ts", import.meta.url).href, "the app's #parts/projectRecords is its composing module");
 
-  // A factory plugin that keeps records of its own outside the library, added as a part of its own.
   const factory = path.join(out, "factory");
   const plugin = path.join(factory, "plugins", "my-review");
   mkdirSync(plugin, { recursive: true });

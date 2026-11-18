@@ -1,55 +1,27 @@
-/**
- * Capability 1 · Run results (ADR-0902 D1): a CI job log's test output, read into one result per test.
- *
- * A log comes as the GitHub Actions API gives it (each line timestamped) or as `gh run view --log` saves
- * it (job and step columns, then the timestamp). Either way the test runner's TAP is in it: `node --test`
- * prints `ok N - title` or `not ok N - title`, a `# SKIP` or `# TODO` directive after the title, and a
- * test's subtests indented four spaces under it, before its own line. From Node 23 on, `node --test` prints its
- * spec format instead, in CI too: `✔ title (12ms)` passed, `✖` failed, `﹣ … # reason` skipped, `# TODO` after the
- * time, a `▶ title` opening a suite whose tests sit two spaces in, and a failing-tests recap at the end that repeats
- * each failure after a `test at <file>` line. A Python project's log holds pytest's short test summary instead, as
- * `pytest -rA` prints it: `PASSED <file>::<Class>::<test>` (XPASS too) passed, `FAILED` and `ERROR` failed, after ` - ` their
- * message, and `XFAIL` failed too, its message saying it was expected to (question_b5918c0ff273: a test a project marks as
- * expected to fail is a failure it ships, so it reads red, not skipped), each named by its node id; a `SKIPPED [n] <file>:<line>: <reason>` line names no test, only
- * where it was skipped. Nothing else in the log is a result.
- */
+// Capability 1 · Run results.
 
-/**
- * One test as the run reported it: its title, the titles of the tests it sits in (outermost first), and how it went;
- * and the platform of the job that ran it (`win32`, `darwin`, `linux`), where the job named one. A pytest result's name
- * is its test's, its suites its classes, and its file the node id's (from wherever pytest ran); a skip's name is empty,
- * and its line the one it was skipped at.
- */
 export type TestResult = { name: string; suites: string[]; status: "passed" | "failed" | "skipped"; message?: string; platform?: string; file?: string; line?: number };
 
-/** pytest's statuses in its short test summary, as a result's. */
 const PYTEST_STATUS: Record<string, TestResult["status"]> = { PASSED: "passed", XPASS: "passed", FAILED: "failed", ERROR: "failed", XFAIL: "failed" };
 
-/** A log line's text, without the saved log's job and step columns or the runner's timestamp. */
 function textOf(line: string): string {
   const columns = line.replace(/^\uFEFF/, "").split("\t");
   const last = (columns.length >= 3 ? columns.slice(2).join("\t") : line).replace(/^\uFEFF/, "");
   return last.replace(/\x1b\[[0-9;]*m/g, "").replace(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z ?/, "").replace(/\r$/, "");
 }
 
-/** A TAP title's text: TAP escapes a `#` and a backslash in it. */
 function unescape(title: string): string {
   return title.replace(/\\([#\\])/g, "$1");
 }
 
-/** The results a job log's TAP reports, in the order it reports them. */
 export function parseTestLog(log: string): TestResult[] {
   const results: TestResult[] = [];
-  // The open `# Subtest:` names by depth: a result at depth d sits in the subtests open above it.
   const open: string[] = [];
-  // The spec format's open `▶` suites by depth, and whether the line before was the recap's `test at <file>`.
   const suites: string[] = [];
   let recap = false;
   for (const line of log.split("\n").map(textOf)) {
     const repeated = recap;
     recap = /^test at \S/.test(line);
-    // The test id runs to the first " - " after its first character, the message after it: found by indexOf, so no
-    // regex backtracks over the line.
     const pytest = /^(PASSED|XPASS|FAILED|ERROR|XFAIL) (\S+?\.py)::(?=.)/.exec(line);
     if (pytest !== null) {
       const rest = line.slice(pytest[0].length);
@@ -96,8 +68,6 @@ export function parseTestLog(log: string): TestResult[] {
       open[depth] = unescape(subtest[2]!);
       continue;
     }
-    // A point's name runs from " - " to its first " # SKIP" or " # TODO", its message after that: found by a search, so no
-    // regex backtracks over the line.
     const point = /^((?: {4})*)(not ok|ok) \d+(?= - | # (?:SKIP|TODO)\b|$)/i.exec(line);
     if (point === null) continue;
     const depth = point[1]!.length / 4;
@@ -114,7 +84,6 @@ export function parseTestLog(log: string): TestResult[] {
   return results;
 }
 
-/** The commit a run tested, as its checkout step printed it (`git log -1 --format=%H`), or undefined. */
 export function commitOfLog(log: string): string | undefined {
   const lines = log.split("\n").map(textOf);
   const at = lines.findIndex((line) => /git log -1 --format=%H\s*$/.test(line));
@@ -122,14 +91,8 @@ export function commitOfLog(log: string): string | undefined {
   return commit !== undefined && /^[0-9a-f]{40}$/.test(commit) ? commit : undefined;
 }
 
-/**
- * The folders a run's tests were scoped to, from the `scope: <mode> — <folders> — <why>` line storytree's test runner
- * prints first (`scope: affected — packages/cart, apps/web — changed: …`): an empty list for `nothing`, `everything` for
- * a run of everything (`full`, or the files named on the command line), and undefined when the log names no scope.
- */
 export function scopeOfLog(log: string): string[] | "everything" | undefined {
   for (const line of log.split("\n").map(textOf)) {
-    // Only the first: a test's own output may print another.
     const scope = /^scope: ([\w-]+)(?: — (.*?) — )?/.exec(line);
     if (scope === null) continue;
     if (scope[1] === "full" || scope[2] === undefined) return "everything";

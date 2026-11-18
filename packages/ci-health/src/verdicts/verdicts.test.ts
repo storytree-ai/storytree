@@ -3,7 +3,6 @@ import { test } from "node:test";
 import type { TestResult } from "../run-results/run-results.js";
 import { judgeRun, proofsAt, unclaimedVerdicts, verdictOf, type PlanTree } from "./verdicts.js";
 
-/** Two stories whose contract numbers repeat, as every user's do: each has a 1.1. */
 const TREE: PlanTree = {
   stories: [
     { id: "story_cart", title: "Review the cart", capabilities: [{ id: "cap_cart", title: "1 · Cart page", contracts: [{ id: "c_cart_11", title: "1.1 · Cart page shows its shell" }, { id: "c_cart_12", title: "1.2 · Cart lists its contents" }] }] },
@@ -11,7 +10,6 @@ const TREE: PlanTree = {
   ],
 };
 
-/** The test files at the run's commit, in repository coordinates. */
 const FILES = [
   { path: "packages/review-the-cart/src/cart.js", text: "export const cart = 1;\n" },
   { path: "packages/review-the-cart/src/cart.test.js", text: [
@@ -72,17 +70,13 @@ test("2.3 a test skipped on one platform for a platform reason counts passed whe
   const proofs = proofsAt(TREE, FILES);
   const onPosix = "platform:posix: a stand-in gh on PATH must be an .exe on Windows";
   const { verdicts } = judgeRun(proofs, [
-    // The cart's 1.1: skipped on Windows, passed on Linux and macOS, the platforms it needs.
     { name: "1.1 cart page shows its shell", suites: [], status: "skipped", message: onPosix, platform: "win32" },
     { name: "1.1 cart page shows its shell", suites: [], status: "passed", platform: "linux" },
     { name: "1.1 cart page shows its shell", suites: [], status: "passed", platform: "darwin" },
-    // The cart's 1.2: skipped on Windows, and on macOS too, a platform it needs: no credit.
     { name: "1.2 cart lists what is in cart-contents", suites: [], status: "skipped", message: onPosix, platform: "win32" },
     { name: "1.2 cart lists what is in cart-contents", suites: [], status: "passed", platform: "linux" },
     { name: "1.2 cart lists what is in cart-contents", suites: [], status: "skipped", message: "platform:posix", platform: "darwin" },
-    // Checkout's 1.1: needs Windows, and no Windows job ran it.
     { name: "1.1 your information page shows the form", suites: [], status: "skipped", message: "platform:win32 needs Windows", platform: "linux" },
-    // Checkout's 1.2: only the owner can run it.
     { name: "1.2 missing details show the error", suites: [], status: "skipped", message: "owner: needs a signed-in account", platform: "linux" },
     { name: "1.2 the shopper's details are kept", suites: [], status: "skipped", message: "slow", platform: "linux" },
   ]);
@@ -143,7 +137,6 @@ test("2.5 a failing verdict's note carries, after its tally, the first line of t
   assert.match(long, /…$/);
 });
 
-/** A pytest file in the cart's package; the checkout's package holds one at the same path inside it. */
 const CART_PYTEST = [
   `"""The cart's totals."""`,
   `import sys`,
@@ -329,7 +322,6 @@ test("2.10 · a result no contract claims counts for each explored capability co
   assert.deepEqual(
     Object.fromEntries([...reached].map(([id, { state, note }]) => [id, { state, note }])),
     {
-      // test_stats.py imports app/stats/week.py (Stats) and app/cart.py (Cart); test_cart.py's unclaimed test_empty reaches Cart.
       cap_stats: { state: "failing", note: "1/2 tests passed; first failure: assert 3 == 4" },
       cap_cart: { state: "failing", note: "2/3 tests passed; first failure: assert 3 == 4" },
     },
@@ -355,7 +347,6 @@ test("2.11 · a result no contract claims that names no file (TAP's) is the one 
   const files = [
     { path: "src/total.js", text: "export const total = () => 0;\n" },
     { path: "src/tax.js", text: "export const tax = () => 0;\n" },
-    // Neither is a JavaScript test file, so the title each passes to a call is no test's.
     { path: "src/other.js", text: `export const other = () => log("adds the shopper's tax");\n` },
     { path: "tests/test_tax.py", text: `def test_logs():\n    check("adds the shopper's tax")\n` },
     { path: "src/total.test.js", text: [
@@ -369,10 +360,8 @@ test("2.11 · a result no contract claims that names no file (TAP's) is the one 
   ];
   const results: TestResult[] = [
     { ...pass("sums the cart", ["cart"]), status: "failed", message: "expected 1" },
-    // Two files hold "returns null": the suite "cart", which one does, names its file.
     pass("returns null", ["cart"]),
     pass("adds the shopper's tax"),
-    // Held by two files with no suite to tell them apart, and held by none.
     { ...pass("returns null"), status: "failed" },
     { ...pass("is nowhere"), status: "failed" },
   ];

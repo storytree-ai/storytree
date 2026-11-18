@@ -1,6 +1,3 @@
-// A project's own tests recorded as its stories' verified health (local-run.ts), through the front door: the `health local`
-// verb run in a scratch project folder with no git repository, against a throwaway project of the Postgres `pnpm test`
-// provides (STORYTREE_TEST_PG_URL), dropped afterwards.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -61,7 +58,6 @@ test("5.1, 3.17 · `health local`, on the command line only (no tool), runs a pr
   assert.match(failing.text, /0 contracts verified passing, 1 failing/);
   assert.equal((await library.health(contract.id)).verified.state, "failing");
 
-  // Its CI is read instead, once storytree can: a GitHub origin with a workflow.
   execFileSync("git", ["init", "--quiet", folder]);
   execFileSync("git", ["-C", folder, "remote", "add", "origin", "https://github.com/someone/scratch.git"]);
   mkdirSync(path.join(folder, ".github", "workflows"), { recursive: true });
@@ -193,17 +189,14 @@ test("5.5 · `health local` whose test command reports no results it can read sa
   const place = { library, project: name, session: "test", folder };
   const refused = (said: RegExp) => (error: unknown) => error instanceof VerbRefusal && said.test(error.message) && /nothing was verified/i.test(error.message);
 
-  // A runner this computer cannot find, through the real shell.
   writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "scratch", scripts: { test: "storytree-no-such-runner --run" } }));
   await assert.rejects(local.act({} as never, place as never, WORDS), refused(/could not be started.*storytree-no-such-runner/s));
 
-  // A command that ran and printed nothing storytree reads: its last lines are quoted.
   writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "scratch", scripts: { test: `node -e "console.log('collected 0 items')"` } }));
   await assert.rejects(local.act({} as never, place as never, WORDS), refused(/collected 0 items/));
   writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "scratch", scripts: { test: `node -e ""` } }));
   await assert.rejects(local.act({} as never, place as never, WORDS), refused(/printed nothing/));
 
-  // The reported case: a uv project whose uv is not on PATH reads as uv missing, not as pytest's output.
   rmSync(path.join(folder, "package.json"));
   writeFileSync(path.join(folder, "pyproject.toml"), "[project]\nname = \"checkbox\"\n");
   writeFileSync(path.join(folder, "uv.lock"), "version = 1\n");
@@ -244,7 +237,6 @@ test("5.6 · `health local` records, on each explored capability its tests no co
   assert.equal(await stateOf(users.id), "passing");
   assert.equal(await stateOf(story!.id), "failing", "the island reads red");
 
-  // The users test is gone: its reading no longer stands. The folder is now a git repository, so each note names its commit.
   execFileSync("git", ["init", "--quiet", folder]);
   execFileSync("git", ["-C", folder, "add", "."]);
   execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "--quiet", "-m", "start"]);
@@ -293,14 +285,12 @@ test("5.7 · `health local` on an imported story whose tests fail names each red
   assert.match(said, /capabilities list nam/i, "each fix increment names its capability, so selecting the arc rings it");
   assert.match(said, /user's own requests/i);
 
-  // The agent does as it says: one arc, a fix increment naming each red capability, the user's request beside it.
   const arc = await library.createArc({ title: "Fix checkbox and add sharing", intent: "Its tests pass, and todos can be shared", endState: "Every capability reads green and sharing works" });
   for (const { id, title } of read.red) await library.addIncrement({ arc: arc.id, title: `Fix ${title}`, objective: `${title}'s tests pass`, body: "Fix the failing test", capabilities: [id] });
   await library.addIncrement({ arc: arc.id, title: "Share a todo", objective: "A user shares a todo", body: "The user's request" });
   const ringed = (await library.projectTree()).stories.flatMap(({ capabilities }) => capabilities).filter(({ openWork }) => openWork !== undefined).map(({ id }) => id);
   assert.deepEqual(ringed, [todos.id], "selecting the arc rings exactly the red capabilities");
 
-  // A run that leaves nothing red asks for no arc.
   const passing = await recordLocalTests({ library, folder, run: async () => ({ output: "PASSED tests/test_api.py::test_creates\nPASSED tests/test_users.py::test_signs_up\n", code: 0 }) });
   assert.ok(passing.written && passing.red.length === 0, JSON.stringify(passing));
   assert.doesNotMatch(localReadingText(passing), /plan one arc/i);

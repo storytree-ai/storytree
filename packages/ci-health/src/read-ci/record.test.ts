@@ -1,7 +1,3 @@
-// How a verdict is written to a contract's verified column (record.ts's recordHealth), whoever judged it: a project's CI
-// read from its logs here, or a run of the tests (Mick's dev loop's recording of a test run, through this package's
-// interface). The tests run against the Postgres `pnpm test` provides (STORYTREE_TEST_PG_URL), each in a project of its
-// own that is dropped afterwards.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
@@ -9,7 +5,6 @@ import { test } from "node:test";
 import { connect, type Library } from "@storytree/library";
 import { recordHealth, verdictOf, type RecordedVerdict } from "../index.js";
 
-/** A project in the test Postgres with one story, one capability and contracts 1.1 to 1.4, dropped afterwards; their ids by number. */
 async function kettle(t: { after(fn: () => Promise<void>): void }): Promise<{ lib: Library; contractIds: Map<string, string> }> {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
@@ -124,8 +119,6 @@ test("3.17 · recordHealth writes its writer's source on every entry it writes, 
 
 test("3.20 · a verdict kept in its column whose follow-up write the writer's role refuses is named untold, and the rest are recorded; a refused verdict still fails", async (t) => {
   const { lib, contractIds } = await kettle(t);
-  // CI's library role may write only health (infra/library-host/grants.sql): its verdict lands, then the FYI a turn to
-  // red writes is refused with row-level security's insufficient_privilege (runs 42965732858, 42972444829).
   const refused = Object.assign(new Error('new row violates row-level security policy for table "record_event"'), { code: "42501" });
   let refuseVerdict = false;
   const ci: Pick<Library, "recordVerified" | "recordVerifiedAll" | "health"> = {

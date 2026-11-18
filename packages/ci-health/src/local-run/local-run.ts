@@ -1,24 +1,4 @@
-/**
- * Capability 5 · A project's own tests, run locally (ADR-1193 D1, D2, as narrowed by ADR-1335; ADR-1194). A project with no
- * CI storytree can read, perhaps with no repository at all, has its own tests run here: its package.json `test` script,
- * through a shell, in the project's folder, its output read as a CI log is (parseTestLog), each numbered test tied to its
- * contract as a CI run's are (proofsAt, judgeRun) over the folder's files as they stand, and its verdicts written to the
- * verified column by "a local test run", with the folder's commit in each note when it is a git repository.
- * - A project whose CI storytree reads (a GitHub origin and a workflow under .github/workflows) is read from its CI
- *   (`health ci`, ADR-0901) and never written by a local run: the newest CI verdict is of the merged tree, a local run's
- *   of whatever the folder holds, so a local run writes nothing there and says so (ADR-1194 D2).
- * - A Python project (a pyproject.toml, setup.cfg or setup.py, and no package.json test command) has its tests run by
- *   `pytest -rA`, whose short test summary is what a CI log of it is read by, through `uv run` or `poetry run` when its
- *   lockfile is uv's or Poetry's; its .py files are read beside its JS and TS, as reading its CI reads them. A uv project
- *   whose .venv already exists runs `uv run --no-sync`, so the environment its user built is tested as it stands, with
- *   nothing added or removed from uv.lock; with no .venv yet, `uv run` makes it.
- * - A project with no test command (neither), or whose run reported no results, writes nothing and says why; a run with
- *   no results says what it printed, or that its runner could not be started, and `health local` then fails (5.5).
- * - The tests no contract claims colour the explored capabilities their files reach (ADR-1274 D3, unclaimedVerdicts): each
- *   reached capability's own reading is written, and one no such test reaches any more turns not checked (5.6).
- * - A run that leaves an imported story's capabilities red names each, and asks for one arc whose increments fix them,
- *   each naming its capability, and carry the user's own requests, so selecting the arc rings exactly them (ADR-1271, 5.7).
- */
+// Capability 5 · A project's own tests, run locally.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -30,31 +10,26 @@ import { recordHealth, recordUnclaimed } from "../read-ci/record.js";
 import { parseTestLog } from "../run-results/run-results.js";
 import { judgeRun, proofsAt, unclaimedVerdicts, type Verdict } from "../verdicts/verdicts.js";
 
-/** Who writes a verdict from a local run of a project's own tests. */
 export const VERIFIED_BY_LOCAL_RUN = "a local test run";
 
 export type LocalReading =
   | { written: false; why: string; unread?: true }
   | { written: true; command: string; commit?: string; tests: number; unmatched: number; passing: number; failing: number; notChecked: number; red: RedCapability[] };
 
-/** A capability of an imported (mapped) story that a run left verified failing. */
 export interface RedCapability {
   id: string;
   title: string;
 }
 
-/** The GitHub repository whose CI storytree reads for `folder`: its origin's, when the folder holds a workflow; else undefined. */
 async function ciOf(folder: string): Promise<string | undefined> {
   const workflows = path.join(folder, ".github", "workflows");
   if (!existsSync(workflows) || !readdirSync(workflows).some((file) => /\.ya?ml$/.test(file))) return undefined;
   return repositoryOf(await gitIn(folder)(["remote", "get-url", "origin"]).catch(() => ""));
 }
 
-/** The files that make `folder` a Python project, and the lockfiles that name the runner its pytest runs through. */
 const PYTHON_MANIFESTS = ["pyproject.toml", "setup.cfg", "setup.py"];
 const PYTHON_RUNNERS: [lockfile: string, runner: string][] = [["uv.lock", "uv run "], ["poetry.lock", "poetry run "]];
 
-/** The project in `folder`'s test command and the output storytree reads of it, or why it has none. */
 function testCommandOf(folder: string): { command: string; reads: string } | { why: string } {
   const manifest = path.join(folder, "package.json");
   const script: unknown = existsSync(manifest) ? JSON.parse(readFileSync(manifest, "utf8")).scripts?.test : undefined;
@@ -68,12 +43,9 @@ function testCommandOf(folder: string): { command: string; reads: string } | { w
   return { why: `This project has no test command (a "test" script in its package.json), so storytree has no tests of it to run; nothing was written.` };
 }
 
-/** The exit codes a shell gives a command it cannot find: sh's 127, cmd.exe's 9009. */
 const NOT_FOUND = new Set([127, 9009]);
-/** What cmd.exe prints for a command it cannot find, since `cmd /c` may exit 1 instead of 9009. */
 const CMD_NOT_FOUND = /is not recognized as an internal or external command/;
 
-/** Why a run of `command` that reported no results storytree reads wrote nothing: that its runner could not be started, or its last lines. */
 function unreadWhy(command: string, reads: string, output: string, code: number | null): string {
   const last = output.trimEnd().split(/\r?\n/).slice(-10).map((line) => `  ${line}`).join("\n");
   const printed = last.trim() === "" ? "It printed nothing." : `It printed:\n${last}`;
@@ -84,7 +56,6 @@ function unreadWhy(command: string, reads: string, output: string, code: number 
   return `${said}\nNothing was verified or written.`;
 }
 
-/** Run the project in `folder`'s own tests and write their verdicts to its stories' verified health, as a local run. */
 export async function recordLocalTests({ library, folder, run = runTests }: { library: Library; folder: string; run?: RunTests }): Promise<LocalReading> {
   const tests = testCommandOf(folder);
   if ("why" in tests) return { written: false, why: tests.why };
@@ -111,7 +82,6 @@ export async function recordLocalTests({ library, folder, run = runTests }: { li
   return { written: true, command, ...(commit === undefined ? {} : { commit }), tests: results.length, unmatched: unmatched.length, passing: written.passing, failing: written.failing, notChecked, red };
 }
 
-/** What `health local` says of a run that wrote its verdicts: the counts, and the one arc that fixes what it left red (ADR-1271). */
 export function localReadingText(read: Extract<LocalReading, { written: true }>): string {
   const counts = `Ran this project's ${read.tests} tests locally by \`${read.command}\`${read.commit === undefined ? "" : ` (commit ${read.commit.slice(0, 12)})`}: ${read.passing} contracts verified passing, ${read.failing} failing, ${read.notChecked} not checked` +
     `${read.unmatched === 0 ? "." : `; ${read.unmatched} results named no contract of one story.`}`;

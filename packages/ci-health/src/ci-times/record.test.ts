@@ -19,12 +19,10 @@ type Run = { id: number; name: string; event: string; status: string; conclusion
 type Job = { name: string; labels: string[]; started_at: string; completed_at: string; conclusion: string };
 type Artifact = { name: string; expired: boolean };
 
-/** A run as the Actions API lists it. */
 function run(id: number, fields: Partial<Run> & Pick<Run, "event" | "created_at">): Run {
   return { id, name: "CI", status: "completed", conclusion: "success", head_sha: `sha${id}`, head_branch: "feature", run_attempt: 1, run_started_at: fields.created_at, updated_at: fields.created_at, pull_requests: [], ...fields };
 }
 
-/** The Actions API as GitHub answers it, over `runs`, each run's jobs and artifacts, a downloadable timing file per artifact, and the merged pull requests; every route asked is kept. */
 function actions(world: { runs: Run[]; jobs?: Record<number, Job[]>; artifacts?: Record<number, Artifact[]>; files?: Record<string, string>; pulls?: object[]; open?: { number: number; sha: string; files: number | string[] }[] }): ActionsReader & { asked: string[]; downloads: number[] } {
   const asked: string[] = [];
   const downloads: number[] = [];
@@ -73,7 +71,6 @@ function actions(world: { runs: Run[]; jobs?: Record<number, Job[]>; artifacts?:
   };
 }
 
-/** The CI times' database in the test Postgres `pnpm test` starts, and a project name of the test's own, its rows removed afterwards. */
 async function store(t: { after(fn: () => Promise<void>): void }): Promise<{ db: CiTimesDb; project: string }> {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
@@ -97,7 +94,6 @@ test("6.1 Recording CI times keeps one row per pull-request and merge-queue run 
       run(1, { event: "pull_request", created_at: "2026-11-10T10:00:00Z", run_started_at: "2026-11-10T10:00:05Z", updated_at: "2026-11-10T10:12:00Z", pull_requests: [{ number: 5 }] }),
       run(2, { event: "pull_request", created_at: "2026-11-10T11:50:00Z", status: "in_progress", conclusion: null, pull_requests: [{ number: 6 }] }),
       run(3, { event: "merge_group", created_at: "2026-11-09T10:20:00Z", updated_at: "2026-11-09T10:35:00Z", conclusion: "failure", head_branch: "gh-readonly-queue/main/pr-5-abc" }),
-      // Another workflow's push run is not CI a pull request waits on.
       run(4, { event: "push", created_at: "2026-11-10T10:40:00Z" }),
     ],
     jobs: {
@@ -198,7 +194,6 @@ test("6.9 Recording CI times keeps each open pull request's scope, the packages 
     ],
   };
   const github = actions(world);
-  /** What CI's own scope rule would decide: a package.json runs everything, else each file's package. */
   const scopeOf = (files: readonly string[]) => files.includes("package.json") ? { full: true as const, dirs: [] } : { full: false as const, dirs: [...new Set(files.filter((file) => file.startsWith("packages/")).map((file) => file.split("/").slice(0, 2).join("/")))].sort() };
   const scopes = async () => (await db.query<Record<string, unknown>>("SELECT pull, head_sha, every AS full, dirs FROM ci_pull_scopes WHERE project = $1 ORDER BY pull", [project])).rows;
 

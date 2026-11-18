@@ -1,8 +1,3 @@
-// The map's bottom-left CI times strip (capability 6, stage 1 of question_177bdb4c1e2a's display): the real desktop page on
-// storytree's own map (the code-rows snapshot and its survey), its bridge answering a CI times reading shaped like storytree's own on 2026-11-10 (to merge 42 min
-// this week against 35 the week before, Windows bounding 16-minute runs, 28% queue reds). The whole window with the rail beside
-// the map; the same with the rail collapsed, where the strip follows the map's edge; and the strip close up.
-// `node --import tsx capture.mjs` (append --retake to write into src/ci-times/evidence). Measures the strip's box and its figures.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +5,6 @@ import { buildCapture, buildFolder, captureOutput, captureSeed, runCapture } fro
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const evidence = path.join(here, '../../../src/ci-times/evidence');
-// Where this run writes: the evidence folder under --retake, else a scratch folder; runCapture picks the same one.
 const folder = captureOutput(evidence);
 const { seed, survey } = captureSeed('code-rows');
 const dist = buildFolder(here);

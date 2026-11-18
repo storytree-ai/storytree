@@ -27,10 +27,8 @@ const READING: CiTimesReading = {
   now: { inCi: 2, inQueue: 1 },
 };
 
-/** The text of each of the strip's figures, its markup stripped. */
 const lines = (html: string) => html.split("</span><span class=\"ci-times-item\"").map((line) => line.split(/<[^>]*>/).join("").replace(/^[^>]*>/, ""));
 
-/** An element as the page gives the strip, and the document it is in, its adopted stylesheets each the text they were given. */
 function host(): CiTimesHost {
   class Sheet { text = ""; replaceSync(text: string) { this.text = text; } }
   return { hidden: false, innerHTML: "", title: "", ownerDocument: { adoptedStyleSheets: [], defaultView: { CSSStyleSheet: Sheet } } };
@@ -143,7 +141,6 @@ test("6.6 While the strip is on show the app records again once the last recordi
   const { server, db, project } = await store(t);
   let now = NOW;
   const started: string[] = [];
-  // Each recording waits for the test to let it go, and says when it has written.
   let finish!: () => void;
   let recorded!: Promise<void>;
   const answers = ciTimesAnswers({ server: () => server, library: () => ({ projectFolder: async () => "/work/shop" }) }, {
@@ -156,7 +153,6 @@ test("6.6 While the strip is on show the app records again once the last recordi
       return recorded;
     },
   });
-  /** Let the recording under way finish, and the answer hear it has. */
   const finished = async () => {
     finish();
     await recorded;

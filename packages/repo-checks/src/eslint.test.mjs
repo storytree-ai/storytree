@@ -12,6 +12,7 @@ import { test } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
 import storytreePlugin from "./eslint-rules/index.mjs";
+import * as lintPackage from "./eslint.mjs";
 import { eslintProblems } from "./eslint.mjs";
 import { RULES } from "./lint.mjs";
 
@@ -128,4 +129,202 @@ test("8.19 · the local plugin in packages/repo-checks/src/eslint-rules is an ES
   });
   assert.deepEqual(await eslintProblems(root), []);
   assert.deepEqual(await eslintProblems(root, { plugin }), []);
+});
+
+function branch(t, { base, main = {}, head = {}, uncommitted = {}, origin = true }) {
+  const root = mkdtempSync(path.join(tmpdir(), "eslint-branch-"));
+  t.after(() => removeTemp(root));
+  const git = (...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", ...args], { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
+  const write = (files) => {
+    for (const [file, text] of Object.entries(files)) {
+      mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      writeFileSync(path.join(root, file), text);
+    }
+  };
+  git("init", "-q", "-b", "work");
+  write(base);
+  git("add", "-A");
+  git("commit", "-q", "--no-verify", "-m", "base");
+  if (origin) {
+    git("checkout", "-q", "-b", "main-side");
+    write(main);
+    git("add", "-A");
+    git("commit", "-q", "--no-verify", "--allow-empty", "-m", "main moves on");
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
+    git("checkout", "-q", "work");
+  }
+  write(head);
+  git("add", "-A");
+  git("commit", "-q", "--no-verify", "--allow-empty", "-m", "the branch");
+  write(uncommitted);
+  return root;
+}
+
+const lines = (...each) => `${each.join("\n")}\n`;
+const NO_COMMENTS = /^(\S+:\d+) storytree\/no-comments: (.+)$/;
+
+function refusedAt(problems) {
+  return problems
+    .map((problem) => {
+      const match = NO_COMMENTS.exec(problem);
+      assert.ok(match, `not a storytree/no-comments problem: ${problem}`);
+      return match[1];
+    })
+    .sort();
+}
+
+test("8.20 · storytree/no-comments refuses each line, block, JSDoc and trailing comment on a line the branch adds, committed or not, in a source or test file, as <file>:<line> storytree/no-comments: saying its content goes to a decision or the library; a comment on a line of merge-base(origin/main, HEAD) is not refused, even one origin/main has since removed", async (t) => {
+  const oldBase = lines(
+    "// Capability 1 · Old things.",
+    "// narration already on main",
+    "export const old = 1; // trailing on main",
+    "/* block on main */",
+    "export const kept = 2;",
+  );
+  const oldHead = oldBase + lines(
+    "// narration the branch adds",
+    "export const added = 3; /* trailing block the branch adds */",
+    "/** JSDoc the branch adds */",
+    "export function f() {}",
+  );
+  const root = branch(t, {
+    base: {
+      "packages/a/src/old.mjs": oldBase,
+      "packages/a/src/gone.mjs": lines("export const g = 1;", "// main removes this later"),
+    },
+    main: { "packages/a/src/gone.mjs": lines("export const g = 1;") },
+    head: {
+      "packages/a/src/old.mjs": oldHead,
+      "packages/b/src/new.ts": lines("// Capability 2 · New things.", "const n: number = 1; // why n is one", "export { n };"),
+      "packages/b/src/new.test.mjs": lines("import { test } from \"node:test\";", "// a test file's narration", "test(\"x\", () => {});"),
+    },
+    uncommitted: { "packages/a/src/old.mjs": oldHead + lines("// uncommitted narration") },
+  });
+
+  const problems = await eslintProblems(root);
+  assert.deepEqual(refusedAt(problems), [
+    "packages/a/src/old.mjs:6",
+    "packages/a/src/old.mjs:7",
+    "packages/a/src/old.mjs:8",
+    "packages/a/src/old.mjs:10",
+    "packages/b/src/new.ts:2",
+    "packages/b/src/new.test.mjs:2",
+  ].sort());
+  for (const problem of problems) assert.match(problem, /goes to a decision or the library/);
+});
+
+test("8.20 · where merge-base(origin/main, HEAD) cannot be read, with no origin/main or with no commit at all, every line counts as added and its comment outside the kept set is refused", async (t) => {
+  const committed = branch(t, {
+    origin: false,
+    base: { "packages/a/src/a.mjs": lines("// Capability 1 · A.", "// narration in the first commit", "export const a = 1;") },
+  });
+  assert.deepEqual(refusedAt(await eslintProblems(committed)), ["packages/a/src/a.mjs:2"]);
+
+  const uncommitted = checkout(t, { "packages/a/src/a.mjs": lines("export const a = 1;", "/* narration never committed */") });
+  assert.deepEqual(refusedAt(await eslintProblems(uncommitted)), ["packages/a/src/a.mjs:2"]);
+});
+
+test("8.20 · on added lines the kept set passes: a file's opening Capability N · declaration (after a #! line), posix-only: <reason>, a pause marker saying the wait is the behaviour under test, ESLint directives, @ts-expect-error, @ts-ignore and /// <reference/>; a Capability comment after code, or after the file's first comment, is refused", async (t) => {
+  const root = checkout(t, {
+    "packages/a/src/script.mjs": lines(
+      "#!/usr/bin/env node",
+      "// Capability 3 · A script.",
+      "import { execFileSync } from \"node:child_process\";",
+      "// posix-only: ps has no Windows twin here",
+      "execFileSync(\"ps\", [\"-A\"]);",
+      "// eslint-disable-next-line no-console -- prints the list",
+      "console.log(\"x\");",
+      "/* global window */",
+      "export const w = typeof window;",
+    ),
+    "packages/a/src/wait.test.mjs": lines(
+      "// Capability 3 · Waits.",
+      "import { test } from \"node:test\";",
+      "test(\"x\", async () => {",
+      "  // the wait is the behaviour under test",
+      "  await new Promise((resolve) => setTimeout(resolve, 5));",
+      "});",
+    ),
+    "packages/b/src/ref.ts": lines("/// <reference types=\"node\" />", "export const ref = 1;"),
+    "packages/b/src/typed.ts": lines(
+      "// Capability 4 · Typed.",
+      "// @ts-expect-error the value is a string on purpose",
+      "export const n: number = \"x\";",
+      "// @ts-ignore",
+      "export const m: number = \"y\";",
+    ),
+    "packages/b/src/late.mjs": lines("export const a = 1;", "// Capability 5 · After code."),
+    "packages/b/src/second.mjs": lines("// Capability 6 · First.", "// Capability 6 · Second.", "export const b = 1;"),
+    "packages/b/src/continued.mjs": lines("// Capability 7 · Continued.", "// and a second line of it", "export const c = 1;"),
+  });
+
+  assert.deepEqual(refusedAt(await eslintProblems(root)), [
+    "packages/b/src/continued.mjs:2",
+    "packages/b/src/late.mjs:2",
+    "packages/b/src/second.mjs:2",
+  ]);
+});
+
+test("8.21 · // eslint-disable-next-line storytree/no-comments -- <reason> keeps the next line's comment, and commentHatches lists each such hatch on a line the branch adds as { file, line of the kept comment, the comment's text, the reason }; one on merge-base(origin/main, HEAD) is not listed", async (t) => {
+  const oldBase = lines(
+    "export const a = 1;",
+    "// eslint-disable-next-line storytree/no-comments -- on main already",
+    "// a comment main keeps",
+  );
+  const root = branch(t, {
+    base: { "packages/a/src/old.mjs": oldBase },
+    head: {
+      "packages/a/src/old.mjs": oldBase + lines(
+        "// eslint-disable-next-line storytree/no-comments -- the regex reads backwards without it",
+        "// matches the tail first",
+        "export const re = /a$/;",
+      ),
+      "packages/b/src/new.ts": lines(
+        "export const n = 1;",
+        "// eslint-disable-next-line storytree/no-comments -- a tool reads this block",
+        "/* keep: block */",
+      ),
+    },
+  });
+
+  assert.deepEqual(await eslintProblems(root), []);
+  const hatches = [...(await lintPackage.commentHatches(root))].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  assert.deepEqual(hatches, [
+    { file: "packages/a/src/old.mjs", line: 5, comment: "matches the tail first", reason: "the regex reads backwards without it" },
+    { file: "packages/b/src/new.ts", line: 3, comment: "keep: block", reason: "a tool reads this block" },
+  ]);
+});
+
+test("8.21 · a next-line disable of storytree/no-comments with no -- <reason> is one problem at its line saying it needs a reason; an eslint-disable-line, a block eslint-disable naming it and a disable naming no rule are each one problem at their line saying only a next-line disable with a reason keeps a comment; none is a hatch", async (t) => {
+  const root = checkout(t, {
+    "packages/a/src/bare.mjs": lines("export const a = 1;", "// eslint-disable-next-line storytree/no-comments", "// kept without a reason"),
+    "packages/a/src/line.mjs": lines("export const a = 1; // eslint-disable-line storytree/no-comments -- why"),
+    "packages/a/src/block.mjs": lines(
+      "/* eslint-disable storytree/no-comments -- the whole file */",
+      "// narration hidden below",
+      "export const a = 1;",
+      "/* eslint-enable storytree/no-comments */",
+    ),
+    "packages/a/src/all.mjs": lines("/* eslint-disable */", "// narration hidden by a bare disable", "export const a = 1;"),
+    "packages/a/src/next-all.mjs": lines("export const a = 1;", "// eslint-disable-next-line -- a reason but no rule", "// hidden by it"),
+  });
+
+  const problems = await eslintProblems(root);
+  const at = (location) => problems.filter((problem) => problem.startsWith(`${location} `));
+  const ONLY_NEXT_LINE = /only a next-line disable with a reason keeps a comment/;
+  const expected = {
+    "packages/a/src/bare.mjs:2": /needs a reason/,
+    "packages/a/src/line.mjs:1": ONLY_NEXT_LINE,
+    "packages/a/src/block.mjs:1": ONLY_NEXT_LINE,
+    "packages/a/src/all.mjs:1": ONLY_NEXT_LINE,
+    "packages/a/src/next-all.mjs:2": ONLY_NEXT_LINE,
+  };
+  for (const [location, message] of Object.entries(expected)) {
+    const found = at(location);
+    assert.equal(found.length, 1, `${location}: ${problems.join("\n")}`);
+    assert.match(found[0], NO_COMMENTS);
+    assert.match(found[0], message);
+  }
+  assert.doesNotMatch(at("packages/a/src/bare.mjs:2")[0], ONLY_NEXT_LINE);
+  assert.deepEqual([...(await lintPackage.commentHatches(root))], []);
 });

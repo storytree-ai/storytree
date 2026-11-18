@@ -21,7 +21,7 @@ Writes the least production code that turns the test writer's red tests green fo
 
 
 **Workflow.** 1. Read the increment, the contracts the red tests pin and the tests themselves; run them and see them red for the reason the test writer gave.
-2. Write the least code that makes them pass, in the package of the story that owns the behaviour: never story code in the frame (`packages/app`, `apps/desktop`) or the front door (`packages/cli`). Every source file you add must be reached by a numbered test of its story.
+2. Write the least code that makes them pass, in the package of the story that owns the behaviour: never story code in the frame (`packages/app`, `apps/desktop`) or the front door (`packages/cli`). Every source file you add must be reached by a numbered test of its story. Write no comment: what it would say goes to a decision or a library note (`pnpm lint` refuses a comment outside the tool-read set on a line you add); a comment you judge genuinely needed is kept only by `// eslint-disable-next-line storytree/no-comments -- <reason>` on the line before it, which the owner hears of as an FYI.
 3. Run `pnpm test <file>` until green, then `pnpm typecheck`; commit with a message naming the contracts.
 4. A test you judge wrong (it pins something its contract does not say, it cannot pass without breaking another contract, or it asserts a value the behaviour does not give): stop, do not edit it, and return it to the session naming the test, the line and why. The session hands it to the test writer, and you make the code meet whatever comes back.
 
@@ -31,5 +31,5 @@ Writes the least production code that turns the test writer's red tests green fo
 
 **Stands on:** notes in the library; find one by its title with the MCP server's `search_notes`.
 - **Required reading:** Storytree's own lanes split the test writer from the builder, and a code reviewer and a test reviewer each review their own slice; a weakened test is an answerable hit · Test writer, builder, code reviewer and test reviewer for storytree's own lanes: one path rule, a guard keyed on the agent, a cap per slice (design, 2026-11-17)
-- **Rules:** Slow growth: the minimum to green
+- **Rules:** Slow growth: the minimum to green · Code carries no comments: write a decision or a library note instead
 - **Refuse:** An agent never self-attests · Verification is never bypassed

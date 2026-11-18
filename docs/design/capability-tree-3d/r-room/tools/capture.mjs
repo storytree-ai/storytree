@@ -1,11 +1,3 @@
-// This round's stills: the desktop app's own page (built per option by build.mjs) on storytree's own map (the capture
-// kit's code-rows seed and its survey), each option at the same views: The library at rest, close round one gate, and a
-// second island at rest. The gate is the one today's look draws between two of The library's capabilities carrying the
-// most links; every option is framed on its gate for the same links. Counted from the scene for each option: the
-// territories' land on both islands (against today's: what the option takes from the territories, or how much bigger an
-// island would have to be to give it back) and the gates drawn.
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/r-room/tools/capture.mjs [option ...] [--retake]
-// (today first: the other options read the gate it picked from its measurements). --retake writes into r-room/stills.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,7 +33,6 @@ const faceStory = async (page, settle, story, zoom) => {
   await until(page, () => window.storytreeGlobe.still());
   await zoomTo(page, settle, zoom);
 };
-/** An island's territories' land (the area of its territory meshes, in the island's own units), and its gates. */
 const islandMeasures = (page, story) => page.evaluate(s => {
   const island = window.__globe.scene.getObjectByName(`planet:${s}`), V = window.__globe.camera.position.constructor;
   let land = 0;
@@ -57,7 +48,6 @@ const islandMeasures = (page, story) => page.evaluate(s => {
   });
   return { territoryLand: Math.round(land * 10) / 10, gates: gates.size };
 }, story);
-/** The gate posts of The library, each with its links, pair and place in the island's frame, nearest the middle of the view first. */
 const gatesOf = (page, story) => page.evaluate(s => {
   const { scene, camera } = window.__globe, island = scene.getObjectByName(`planet:${s}`), found = [];
   scene.updateMatrixWorld(true);
@@ -109,7 +99,6 @@ for (const name of names) {
       prepare: async ({ page, settle }) => {
         const wanted = new Set(name === 'today' ? found.gateLinks : all.today.gateLinks);
         const gates = await gatesOf(page, ISLANDS.library);
-        // An option that draws no gate posts (E) keeps today's layout, so it is framed where today's gate stands.
         const best = gates.length === 0 ? { links: [], between: [], at: all.today.gateAt, shared: 0 }
           : gates.map(g => ({ ...g, shared: g.links.filter(l => wanted.has(l)).length })).sort((a, b) => b.shared - a.shared)[0];
         if (gates.length > 0 && !best.shared) throw new Error(`${name}: no gate carries today's gate's links`);
@@ -118,7 +107,6 @@ for (const name of names) {
         if (!await facePoint(page, ISLANDS.library, best.at)) throw new Error('no camera stop for the gate');
         await until(page, () => window.storytreeGlobe.still());
         await zoomTo(page, settle, DETAIL_ZOOM.near * CLOSE);
-        // The camera stop leaves the gate a little off the middle: drag it there, as a hand would.
         const at = await page.evaluate(({ s, at }) => {
           const { scene, camera } = window.__globe, island = scene.getObjectByName(`planet:${s}`), box = document.querySelector('canvas').getBoundingClientRect();
           scene.updateMatrixWorld(true);

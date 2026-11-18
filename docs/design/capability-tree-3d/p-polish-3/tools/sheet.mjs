@@ -1,12 +1,9 @@
-// Lays a before and an after still side by side, each cropped the same way, with a caption under each, into stills/.
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/p-polish-3/tools/sheet.mjs
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withCapture } from '../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), dist = path.dirname(here), stills = path.join(dist, 'stills');
-/** name: [before file, its caption], [after file, its caption], the crop (a scale and the corner it keeps). */
 const SHEETS = {
   'sheet-rest': [['before-rest.png', 'Before (polish round 2): 5 marks overlapping, 11 within 4 px, 39 gates'], ['after-rest.png', 'After: 3 overlapping (2 the map\'s own names), 8 within 4 px, 34 gates'], { scale: 0.64, origin: '-40px -110px' }],
   'sheet-waits': [['before-rest.png', 'Before: Waits and Work in flight joined by two roads, side by side'], ['after-rest.png', 'After: one road, through one gate'], { scale: 2, origin: '300px 760px' }],

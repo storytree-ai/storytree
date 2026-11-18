@@ -1,14 +1,8 @@
-// Capability tree mock, round 6B: The library drawn as a circuit board. Every capability is a chip whose area is its
-// lines of code and whose package is its health colour; every link is a copper trace that lands on its own gold pad
-// (its gate) on the chip it calls. Callers sit to the right of what they call, so traces run one way. Traces are routed
-// on an 8-pixel grid by a maze router (A*) that prefers straight runs, avoids chips and names, and lets a trace pass
-// under another only at a cost (drawn as a break with two vias). Links from other stories enter at the right-hand edge
-// connector, one gold finger per calling capability, and a finger's trace splits where it serves several pads.
 (() => {
   'use strict';
   const D = window.CAPTREE;
   const STORY = D.story.id;
-  const G = 8; // grid pitch, px
+  const G = 8;
   const NS = 'http://www.w3.org/2000/svg';
   const FONT = '"Segoe UI", "Helvetica Neue", "DejaVu Sans", Arial, sans-serif';
   const MONO = 'Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace';
@@ -19,7 +13,6 @@
     pad: '#d9b45a', padEdge: '#7d5f27', silk: '#efe4c8', silk2: '#d9cdae', ink: '#1b1814', via: '#e0c27a',
   };
 
-  // ---- the model ------------------------------------------------------------------------------------------------
   const caps = D.capabilities.map((c) => ({ ...c }));
   const byId = new Map(caps.map((c) => [c.id, c]));
   const links = [];
@@ -29,18 +22,14 @@
   }
   for (const i of D.incoming) links.push({ kind: 'inc', from: i.from, to: i.to, story: i.story, storyId: i.storyId, fromTitle: i.fromTitle });
   links.forEach((l, n) => { l.n = n; });
-  const work = new Map(); // capability -> open increments naming it
+  const work = new Map();
   for (const w of D.openWork) for (const c of w.capabilities) { if (!work.has(c)) work.set(c, []); work.get(c).push(w); }
 
-  // ---- text measure ---------------------------------------------------------------------------------------------
-  // Widths are estimated from the character count, not measured, so the layout (and the routes saved for it) come out
-  // the same on every machine whatever fonts it has; the estimate is generous, so names never overrun their space.
   const textW = (s, size, font = FONT, weight = '') => s.length * size * (font === MONO ? 0.61 : weight ? 0.6 : 0.56) + (/^[A-Z ]+$/.test(s) ? s.length * 1.2 : 0);
   const cells = (px) => Math.ceil(px / G);
   const NAME = 13, META = 10.5;
   const metaOf = (c) => `${c.lines.toLocaleString('en')} lines · ${c.contracts.length} contracts`;
 
-  // ---- columns by dependency ------------------------------------------------------------------------------------
   const inDeps = (c) => c.dependsOn.filter((d) => d.storyId === STORY).map((d) => d.id);
   const memo = new Map();
   const layerOf = (id) => {
@@ -55,7 +44,6 @@
   }
   const L = Math.max(...caps.map((c) => c.layer)) + 1;
 
-  // ---- chip sizes: area by lines of code -------------------------------------------------------------------------
   for (const c of caps) {
     const side = Math.max(2, Math.round(Math.sqrt(c.lines) * 4.2 / G));
     c.w = side; c.h = side;
@@ -72,8 +60,6 @@
     return lo <= k && k < hi;
   }).length;
 
-  // External fingers: one per story whose capabilities call into this one (right edge; its trace splits to each gate),
-  // and one per capability this story calls in another (left edge).
   const fingers = [];
   for (const l of links) {
     if (l.kind === 'inc') {
@@ -94,15 +80,14 @@
   const zoneW = (side) => Math.max(10, ...fingers.filter((f) => f.side === side).map((f) => f.labelW + 3),
     ...storyHeads(side).map((s) => cells(textW(s.toUpperCase(), 11, FONT, '700')) + 4));
 
-  const M = 6; // margin cells
+  const M = 6;
   const leftZone = zoneW('L'), rightZone = zoneW('R');
   const colX = []; let cursor = M + leftZone + 8 + Math.round(passing(-1) * 1);
   for (let k = 0; k < L; k++) { colX[k] = cursor; cursor += colW[k] + 8 + Math.round(passing(k) * 0.9); }
   const rightZoneX = cursor; const Wc = cursor + rightZone + M;
   for (const c of caps) c.x = colX[c.layer] + 2;
 
-  // ---- rows: barycentre ordering, then spacing -------------------------------------------------------------------
-  const GAP = 5; // free rows between one chip and the next block's name
+  const GAP = 5;
   const block = (c) => c.labelH + c.h;
   const neigh = (c) => links.filter((l) => l.kind === 'in' && (l.from === c.id || l.to === c.id)).map((l) => byId.get(l.from === c.id ? l.to : l.from));
   const cols = Array.from({ length: L }, (_, k) => caps.filter((c) => c.layer === k));
@@ -112,7 +97,6 @@
     col.sort((a, b) => a.want - b.want);
     let y = -Infinity;
     for (const c of col) { c.top = Math.max(Math.round(c.want - c.labelH - c.h / 2), y); y = c.top + block(c) + GAP; }
-    // pull the column back up by half its overflow so the stack stays centred on what it wants
     const over = col.reduce((s, c) => s + (centre(c) - c.want), 0) / col.length; for (const c of col) c.top -= Math.round(over);
     y = -Infinity; for (const c of col) { c.top = Math.max(c.top, y); y = c.top + block(c) + GAP; }
   };
@@ -123,11 +107,10 @@
       place(col);
     }
   }
-  const TOP = M + 8; // title band
+  const TOP = M + 8;
   const minTop = Math.min(...caps.map((c) => c.top));
   for (const c of caps) { c.top += TOP - minTop; c.y = c.top + c.labelH; }
 
-  // fingers: place by where they lead
   const placeFingers = (side) => {
     const fs = fingers.filter((f) => f.side === side);
     for (const f of fs) { const ys = f.links.map((l) => centre(byId.get(side === 'R' ? l.to : l.from))); f.want = ys.reduce((a, b) => a + b, 0) / ys.length; }
@@ -149,7 +132,6 @@
     else { f.x = 1; f.stubEnd = leftZone + M - 1; }
   }
 
-  // ---- pads (gates) and pins on each chip -------------------------------------------------------------------------
   const srcY = (l) => (l.kind === 'inc' ? l.finger.y : centre(byId.get(l.from)));
   const dstY = (l) => (l.kind === 'out' ? l.finger.y : centre(byId.get(l.to)));
   const slots = (n, h, base) => {
@@ -165,7 +147,6 @@
   }
   for (const l of links) if (l.kind === 'out') l.pad = { x: l.finger.stubEnd, y: l.finger.y, finger: true };
 
-  // ---- the grid and the router ------------------------------------------------------------------------------------
   const N = Wc * Hc;
   const blocked = new Uint8Array(N); const owner = new Int32Array(N).fill(-1); const axis = new Uint8Array(N); const fixed = new Uint8Array(N);
   const reserved = new Int32Array(N).fill(-1);
@@ -174,15 +155,14 @@
   for (let x = 0; x < Wc; x++) { blocked[at(x, 0)] = 1; blocked[at(x, Hc - 1)] = 1; }
   for (let y = 0; y < Hc; y++) { blocked[at(0, y)] = 1; blocked[at(Wc - 1, y)] = 1; }
   for (const c of caps) {
-    rect(c.x - 1, c.y - 1, c.x + c.w, c.y + c.h, (i) => { blocked[i] = 1; }); // chip and its pad ring
-    rect(c.x - 1, c.top - 1, c.x + c.labelW, c.y - 2, (i) => { blocked[i] = 1; }); // its name
+    rect(c.x - 1, c.y - 1, c.x + c.w, c.y + c.h, (i) => { blocked[i] = 1; });
+    rect(c.x - 1, c.top - 1, c.x + c.labelW, c.y - 2, (i) => { blocked[i] = 1; });
   }
   rect(M - 1, M - 1, M + cells(textW('THE LIBRARY', 22, FONT, '700')) + 2, TOP - 4, (i) => { blocked[i] = 1; });
   for (const side of ['R', 'L']) for (const g of side === 'R' ? groupsR : groupsL) {
     const x0 = side === 'R' ? rightZoneX : M; const x1 = side === 'R' ? Wc - 2 : leftZone + M;
     rect(x0, g.top, x1, g.top + 1, (i) => { blocked[i] = 1; });
   }
-  // finger labels sit just above their stub, the stub is fixed copper
   const groupOf = (l) => (l.finger ? 'f:' + l.finger.side + l.finger.cap : 'l:' + l.n);
   const gid = new Map(); const gnum = (l) => { const k = groupOf(l); if (!gid.has(k)) gid.set(k, gid.size); return gid.get(k); };
   for (const f of fingers) {
@@ -191,7 +171,6 @@
     rect(a, f.y + 1, b, f.y + 1, (i) => { blocked[i] = 1; });
     for (let x = a; x <= b; x++) { const i = at(x, f.y); owner[i] = g; axis[i] |= 1; fixed[i] = 1; }
   }
-  // reserve each pad's and pin's escape cell for its own link
   const esc = (p, dx) => at(p.x + dx, p.y);
   for (const l of links) { if (l.pin) reserved[esc(l.pin, -1)] = gnum(l); if (l.pad && !l.pad.finger) reserved[esc(l.pad, 1)] = gnum(l); }
 
@@ -200,7 +179,6 @@
     pop() { const a = this.k, b = this.v; const top = b[0]; const k = a.pop(), v = b.pop(); if (a.length) { let i = 0; const n = a.length; for (;;) { let l = 2 * i + 1; if (l >= n) break; if (l + 1 < n && a[l + 1] < a[l]) l++; if (a[l] >= k) break; a[i] = a[l]; b[i] = b[l]; i = l; } a[i] = k; b[i] = v; } return top; }
     get size() { return this.v.length; } }
 
-  // Routes from `start` (leaving in direction d0) to `goal` (entered moving in direction dGoal).
   const route = (g, start, d0, goal, dGoal) => {
     const best = new Float32Array(N * 4).fill(Infinity); const prev = new Int32Array(N * 4).fill(-1);
     const gx = goal % Wc, gy = (goal / Wc) | 0; const shared = started.has(g);
@@ -214,8 +192,8 @@
       }
       const foreign = owner[i] !== -1 && owner[i] !== g;
       for (let nd = 0; nd < 4; nd++) {
-        if ((nd ^ 1) === d && (nd >> 1) === (d >> 1)) continue; // no U-turn
-        if (foreign && nd !== d) continue; // never bend where passing under another trace
+        if ((nd ^ 1) === d && (nd >> 1) === (d >> 1)) continue;
+        if (foreign && nd !== d) continue;
         const x = (i % Wc) + DX[nd], y = ((i / Wc) | 0) + DY[nd]; if (x < 0 || y < 0 || x >= Wc || y >= Hc) continue;
         const j = at(x, y);
         if (j === goal) { if (nd !== dGoal) continue; }
@@ -228,7 +206,6 @@
         let c = owner[j] === g ? 0.25 : 1;
         if (nd !== d) c += 6;
         if (owner[j] !== -1 && owner[j] !== g) c += 90;
-        // a little rent for hugging another trace, so parallel runs keep a clean pitch
         const ns = j; for (const q of [ns - 1, ns + 1, ns - Wc, ns + Wc]) if (q >= 0 && q < N && owner[q] !== -1 && owner[q] !== g) { c += 0.15; }
         const ns2 = j * 4 + nd; const nc = cost + c;
         if (nc < best[ns2]) { best[ns2] = nc; prev[ns2] = s; heap.push(nc + h(j), ns2); }
@@ -247,8 +224,6 @@
       owner[i] = g; axis[i] |= ax; if (bend || k === 0 || k === path.length - 1) fixed[i] = 1;
     }
   };
-  // Routing order matters: the first traces get the straight runs. Try a few honest orders and keep the one whose
-  // traces pass under each other least (ties: fewest bends), so the board stays calm.
   const span = (l) => (l.kind === 'in' ? byId.get(l.from).layer - byId.get(l.to).layer : 99);
   const dy = (l) => Math.abs(srcY(l) - dstY(l));
   const orders = [
@@ -278,8 +253,6 @@
     for (const l of order) { const p = routeOne(l); if (p) { commit(l, p); started.add(gnum(l)); } }
     return { order: [...order], score: scoreOf() };
   };
-  // Rip up and reroute: take each trace that passes under or over another out, route it again around everything else,
-  // and keep the change only when the whole board scores better.
   const search = () => {
     const tried = orders.map((o) => runAll(o));
     let best = tried.reduce((a, b) => (b.score < a.score ? b : a));
@@ -317,7 +290,6 @@
   };
   if (failed.length) console.warn('unrouted', failed.map((l) => `${l.from}->${l.to}`));
 
-  // ---- drawing ------------------------------------------------------------------------------------------------------
   const el = (name, attrs = {}, parent) => { const e = document.createElementNS(NS, name); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (parent) parent.appendChild(e); return e; };
   const svg = document.getElementById('board');
   const world = el('g', { id: 'world' }, svg);
@@ -325,13 +297,11 @@
   const W = Wc * G, H = Hc * G;
   el('rect', { x: 0, y: 0, width: W, height: H, rx: 18, fill: C.board, stroke: C.boardEdge, 'stroke-width': 3 }, world);
 
-  // title block, in silkscreen
   const silk = el('g', { class: 'silk' }, world);
   const text = (x, y, s, size, attrs = {}, parent = silk) => { const t = el('text', { x, y, 'font-size': size, 'font-family': FONT, fill: C.silk, ...attrs }, parent); t.textContent = s; return t; };
   text(M * G, (M + 2) * G, D.story.title.toUpperCase(), 22, { 'font-weight': 700, 'letter-spacing': 2 });
   text(M * G, (M + 4.2) * G, `${caps.length} capabilities · ${links.filter((l) => l.kind === 'in').length} links inside · ${links.filter((l) => l.kind === 'inc').length} arriving from ${new Set(D.incoming.map((i) => i.storyId)).size} stories · 1 leaving · measured ${D.measuredAt.slice(0, 10)}`, 11, { 'font-family': MONO, fill: C.silk2 });
 
-  // edge connectors
   for (const [side, groups] of [['R', groupsR], ['L', groupsL]]) for (const g of groups) {
     const x0 = (side === 'R' ? rightZoneX + 1 : M) * G; const xr = (side === 'R' ? Wc - 3 : leftZone + M - 1) * G;
     text(side === 'R' ? xr : x0, (g.top + 1.4) * G, g.s.toUpperCase(), 11, { 'font-weight': 700, 'letter-spacing': 1.2, 'text-anchor': side === 'R' ? 'end' : 'start' });
@@ -343,7 +313,6 @@
     f.lines.forEach((s, i) => text(lx, y - 5 - 2 * G * (f.lines.length - 1 - i), s, LABEL, { 'font-weight': 600, 'text-anchor': f.side === 'R' ? 'end' : 'start' }));
   }
 
-  // traces
   const traces = el('g', { class: 'traces' }, world);
   const lit = el('g', { class: 'lit' }, world);
   const pointsOf = (path) => {
@@ -364,7 +333,7 @@
     const g = el('g', { class: 'trace', 'data-link': l.n }, traces);
     el('path', { d, fill: 'none', stroke: C.traceEdge, 'stroke-width': 4.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, g);
     el('path', { d, fill: 'none', stroke: C.trace, 'stroke-width': 2.4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, g);
-    for (const k of l.under) { // passes under another trace: a break in the board's colour, a via each side
+    for (const k of l.under) {
       const [x, y] = px(l.path[k]); const horiz = Math.abs(l.path[k + 1] - l.path[k]) === 1;
       el('rect', horiz ? { x: x - 5, y: y - 3.4, width: 10, height: 6.8, fill: C.board } : { x: x - 3.4, y: y - 5, width: 6.8, height: 10, fill: C.board }, g);
       for (const s of [-1, 1]) el('circle', { cx: horiz ? x + s * 6.5 : x, cy: horiz ? y : y + s * 6.5, r: 2.6, fill: C.board, stroke: C.via, 'stroke-width': 1.4 }, g);
@@ -372,14 +341,12 @@
     el('path', { d, fill: 'none', stroke: 'transparent', 'stroke-width': 9, class: 'hit' }, g).addEventListener('click', clickOf({ type: 'link', l }));
     drawn.set(l.n, d);
   }
-  // where a finger's trace splits, a solder junction
   const junction = new Map();
   for (const l of links) if (l.kind === 'inc' && l.path) for (let k = 1; k < l.path.length - 1; k++) {
     const i = l.path[k]; const key = gnum(l) + ':' + i; const nb = new Set(junction.get(key) ?? []); nb.add(l.path[k - 1]); nb.add(l.path[k + 1]); junction.set(key, nb);
   }
   for (const [key, nb] of junction) if (nb.size >= 3) { const [x, y] = px(+key.split(':')[1]); el('circle', { cx: x, cy: y, r: 3.4, fill: C.trace, stroke: C.traceEdge, 'stroke-width': 1 }, traces); }
 
-  // chips
   const chips = el('g', { class: 'chips' }, world);
   for (const c of caps) {
     const g = el('g', { class: 'chip', 'data-cap': c.id }, chips);
@@ -394,7 +361,6 @@
     g.addEventListener('click', clickOf({ type: 'cap', c }));
   }
 
-  // pins (where a trace leaves its caller) and pads (gates: where it lands on what it calls)
   const pads = el('g', { class: 'pads' }, world);
   for (const l of links) {
     if (l.pin) { const [x, y] = px(at(l.pin.x, l.pin.y)); el('rect', { x: x - 3, y: y - 2, width: 7, height: 4, fill: C.trace, stroke: C.traceEdge, 'stroke-width': 0.8, 'data-pin': l.n }, pads); }
@@ -415,7 +381,6 @@
     g.addEventListener('click', clickOf({ type: 'finger', f }));
   }
 
-  // wrenches: at the gate its work changes (the chip's busiest pad), or on the chip's pad edge when nothing calls it
   const wrenches = el('g', { class: 'wrenches' }, world);
   const WRENCH = 'M-1.6 -6.2 L-1.6 2.6 A4.3 4.3 0 1 0 1.6 2.6 L1.6 -6.2 A3.6 3.6 0 0 0 4.2 -9.6 L4.2 -12.6 L2 -12.6 L2 -9.8 L-2 -9.8 L-2 -12.6 L-4.2 -12.6 L-4.2 -9.6 A3.6 3.6 0 0 0 -1.6 -6.2 Z';
   for (const [id, ws] of work) {
@@ -430,12 +395,10 @@
     g.addEventListener('click', clickOf({ type: 'wrench', c, ws, pad }));
   }
 
-  // ---- naming ---------------------------------------------------------------------------------------------------
   function nameFrom(l) { return l.kind === 'inc' ? `${l.fromTitle} (${l.story})` : byId.get(l.from).title; }
   function nameTo(l) { return l.kind === 'out' ? `${l.ext.title} (${l.ext.story})` : byId.get(l.to).title; }
   function contractsTo(l) { return l.kind === 'out' ? l.ext.contracts : byId.get(l.to).contracts; }
 
-  // ---- selection and the datasheet panel --------------------------------------------------------------------------
   const panel = document.getElementById('panel');
   const esc2 = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
   const contractList = (ks) => `<ol class="contracts">${ks.map((k) => { const m = /^([\d.]+)\s*·\s*(.*)$/s.exec(k.title); return `<li><b>${esc2(m ? m[1] : '')}</b> ${esc2(m ? m[2] : k.title)}</li>`; }).join('')}</ol>`;
@@ -488,7 +451,6 @@
   let dragged = false;
   function clickOf(sel) { return (e) => { if (dragged) return; e.stopPropagation(); show(sel); }; }
 
-  // ---- pan and zoom -------------------------------------------------------------------------------------------------
   const view = { x: 0, y: 0, k: 1 };
   const apply = () => world.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${view.k})`);
   const fit = () => { const r = svg.getBoundingClientRect(); const k = Math.min(r.width / (W + 40), r.height / (H + 40)); view.k = k; view.x = (r.width - W * k) / 2; view.y = (r.height - H * k) / 2; apply(); };
@@ -505,7 +467,6 @@
   window.addEventListener('resize', fit);
   fit();
 
-  // hooks for the stills script
   window.__board = {
     W, H, view, apply, fit, failed: failed.length, routeMs, exportRoutes, searched: searched && { score: searched.score, tried: searched.tried }, byKind: ['in','out','inc'].map((k) => links.filter((l) => l.kind === k).reduce((s, l) => s + (l.under?.length ?? 0), 0)), crossings: links.reduce((s, l) => s + (l.under?.length ?? 0), 0),
     select(kind, key) {

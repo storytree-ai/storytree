@@ -107,3 +107,5 @@ Run from the checkout root. The island's data and layout are round 11's, read fr
    the plan beside its description, so a new capability is born with one.
 3. **Other islands.** Six kinds fit The library, a data story. A story that is mostly screens or commands may want a kind
    this set lacks (a screen, a job); the set should be checked against two more islands before it is fixed.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

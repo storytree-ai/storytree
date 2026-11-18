@@ -1,8 +1,3 @@
-/** The link layout, handed to the real map at build time (tools/build.mjs points every import of the map's
- * territories module here). Everything is the map's own module, re-exported unchanged, except `islandTerritories`:
- * for The library's island it returns the map's own cutter's finer cut (layout-core.ts's CUT) with each cell given to the
- * owner tools/layout.ts chose, or left open land, so the map's drawing, names, borders and lanes all read the new
- * arrangement. `?layout=today` leaves the map's own arrangement. Other islands are untouched. */
 export * from "../../../../../packages/forest/src/territories/territories.ts";
 import { islandTerritories as mapsOwn, territories, type Coast, type TerritoryMap, type TerritoryShare } from "../../../../../packages/forest/src/territories/territories.ts";
 import layout from "../layout.json" with { type: "json" };

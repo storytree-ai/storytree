@@ -1,8 +1,3 @@
-// Rollout 1: runs the layout tool (layout.ts) for every story with docks, a few at a time, each with the same search
-// settings; The library starts from round 3's arrangement (layouts/round3.json). Prints each island's line as it finishes.
-// Run from the checkout root: node docs/design/capability-tree-3d/q-all-islands/tools/lay-all.mjs [story ...]
-// (JOBS=3, ITER=200, SEED=43 and The library's LIB_ITER=400, as round 13 searched it, by default; any other layout.ts
-// setting, BEFORE=1 among them, passes through the environment.)
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

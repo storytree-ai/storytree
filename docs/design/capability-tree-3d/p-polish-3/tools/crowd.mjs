@@ -1,7 +1,3 @@
-// Round 13's page measures: opens the built page once for each query given (each an arrangement and its prices), at rest,
-// and prints what the layer counts there: the roads, the gates and the crowding (overlay.ts, `crowding`), as JSON lines;
-// with --out <file>, writes them to it too.
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/p-polish-3/tools/crowd.mjs '?layout=r11' '?layout=min5' …
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

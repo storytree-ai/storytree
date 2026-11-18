@@ -1,6 +1,3 @@
-/** Capability tree mock, round 11 (round 10 with no coast band and a road style by `?road=<key>`, overlay.ts): the real map's view of The library with the story selected, its territories laid out by
- * their links and shrunk off the coast onto open land (territories-shim.ts, layout.json), and its links drawn as one shared
- * road network between settlements that passes a gate at every border it crosses (overlay.ts, network.ts). `?real&layout=today` draws the selected story as the map does today, with nothing added. */
 import { createRoot } from "react-dom/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RootState } from "@react-three/fiber";
@@ -23,18 +20,11 @@ import { overlayLayer, type Layer, type Picked } from "./overlay.js";
 import { Panel } from "./panel.js";
 import { laneLine, readDocks } from "./docks.js";
 
-/** Rollout 1: the snapshot holds every story (tools/measure.mjs); the page draws the one `?story=<id>` names (story.ts), The
- * library by default: that story's capabilities, links and open work beside the map's own inputs. */
 type One = (typeof snapshot.stories)[keyof typeof snapshot.stories];
 type Data = One & { measuredAt: string; workReadAt: string; map: { tree: AnnotatedTree; changes: { type: string; action: string; recordId: string }[]; survey: Record<string, never> } };
 const data = { ...(snapshot.stories as Record<string, One>)[STORY]!, measuredAt: snapshot.measuredAt, workReadAt: snapshot.measuredAt, map: snapshot.map } as unknown as Data;
-/** `?work=round3`: polish round 3's open work (../p-polish-3/open-work.json, read 2026-11-03) in place of this snapshot's, to
- * measure The library against round 3 on the same queue. */
 if (new URLSearchParams(location.search).get("work") === "round3") Object.assign(data, { openWork: round3Work.openWork, workReadAt: round3Work.readAt });
-/** Round 13: the open work, lined up on each capability by the wrench. `?queue=demo` adds made-up increments, marked as
- * such, to show a queue longer than the library holds today (on The library's capabilities). */
 const DEMO_QUEUE: Record<string, number> = { "7 · Library API": 3, "21 · Links": 2, "26 · Rounds": 4, "10 · Work in flight": 6 };
-// The story panel's tree shows each capability's two health marks; the panel here says them when a territory is clicked.
 const health = new Map(data.map.tree.stories.flatMap(s => s.capabilities).map(c => [c.id, (c as unknown as { health: { reported: { state: string }; verified: { state: string } } }).health]));
 for (const c of data.capabilities) Object.assign(c, { verified: health.get(c.id)?.verified.state.replace("-", " "), reported: health.get(c.id)?.reported.state.replace("-", " ") });
 if (new URLSearchParams(location.search).get("queue") === "demo") for (const [title, n] of Object.entries(DEMO_QUEUE)) {
@@ -42,14 +32,11 @@ if (new URLSearchParams(location.search).get("queue") === "demo") for (const [ti
   if (c) for (let k = 0; k < n; k++) (data.openWork as unknown as object[]).push({ arc: "demo", arcTitle: "Made-up queue (?queue=demo)", increment: `demo-${c.id.slice(-4)}-${k + 1}`, title: `Made-up increment ${k + 1} on ${title.replace(/^\d+ · /, "")}`, status: k === 0 && n > 3 ? "active" : "proposal", parked: null, capabilities: [c.id], demo: true });
 }
 const params = new URLSearchParams(location.search);
-/** `?real`, or a story with no arrangement yet: the map as it draws the island, with nothing added. */
 const REAL = params.has("real") || !layout;
 const GROUND = Number(params.get("ground") ?? 150);
 const PANEL_WIDTH = 352;
-/** The rest view's margin around the island, in CSS pixels. */
 const MARGIN = 28;
 
-/** The capture build's seam, the only one the forest offers a host for its canvas's live state (PlanetWorldCanvas.tsx). */
 const seam = globalThis as { __storytreeCaptureGlobe?: (get: () => RootState) => void };
 
 const scene = forestScene(data.map.tree, data.map.changes, workStates([]), data.map.survey);
@@ -58,7 +45,6 @@ const coast = islandCoast(island);
 const cut = islandTerritories(island.land!.territories, coast);
 const places = new Map(storyNodes(data.map.tree, data.map.changes, data.map.survey).map(node => [node.id, node.place]));
 
-/** The island's box on the page: the rest view is framed on it. */
 function extentOf(state: RootState) {
   const plate = state.scene.getObjectByName(`planet:${STORY}`), land = plate?.getObjectByName("territory-land");
   if (!land?.parent) return undefined;
@@ -78,7 +64,6 @@ function Mock() {
   const ground = useRef(GROUND), side = useRef(-PANEL_WIDTH / 2);
   useState(() => { seam.__storytreeCaptureGlobe = state => setGet(() => state); });
   const ignore = useCallback(() => {}, []);
-  // Aim at the island, as the app flies to a story a click selects; again until the sheet has drawn it.
   useEffect(() => {
     if (!controls) return;
     let again: ReturnType<typeof setTimeout> | undefined, tries = 400;
@@ -86,7 +71,6 @@ function Mock() {
     aim();
     return () => clearTimeout(again);
   }, [controls]);
-  // Then framed on the island, as large as the map's side of the window holds with a margin.
   useEffect(() => {
     if (!controls || !get || framed) return;
     let tries = 10, timer: ReturnType<typeof setTimeout>, last = "", waited = 0;
@@ -108,7 +92,6 @@ function Mock() {
     timer = setTimeout(frame, 600);
     return () => clearTimeout(timer);
   }, [controls, get, framed]);
-  // Lay the lines once the view is framed and the map has drawn its territories, names and lanes in full.
   useEffect(() => {
     if (!get || REAL || !framed) return;
     let timer: ReturnType<typeof setTimeout>, last = "", same = 0;
@@ -126,7 +109,6 @@ function Mock() {
     wait();
     return () => clearTimeout(timer);
   }, [get, framed]);
-  // The map draws its lanes again when it likes; they are cut at the coast each time.
   useEffect(() => {
     if (!layer) return;
     const keep = setInterval(() => layer.keep(), 250);
@@ -137,7 +119,6 @@ function Mock() {
     document.body.dataset.state = REAL ? (get && framed ? "ready" : "loading") : layer ? "ready" : "loading";
     document.body.dataset.framed = framed ? "yes" : "no";
   }, [layer, controls, get, framed]);
-  // A click (a press that hardly moved) picks what is under it; a drag stays the map's.
   const host = useRef<HTMLDivElement>(null);
   const down = useRef<{ x: number; y: number }>();
   const onDown = (event: React.PointerEvent) => { down.current = { x: event.clientX, y: event.clientY }; };

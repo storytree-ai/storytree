@@ -156,3 +156,5 @@ Run from the checkout root.
    likely want the same treatment.
 5. **Ramps where gates crowd.** Six gates open onto the open land at the mouth, so their ramps sit close together there.
    Letting the arrivals share one wide ramp, with the panel saying what it carries, would read more like a town gate.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

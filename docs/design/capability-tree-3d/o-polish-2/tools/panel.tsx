@@ -1,4 +1,3 @@
-/** The story panel beside the island: the story, a legend of what is drawn, and whatever was last clicked on the island. */
 import { GROUND_HEX, PALETTE, ROAD_HEX, WRENCH, type Layer, type Picked } from "./overlay.js";
 import { LANE_HEX } from "./sea.js";
 import { GLYPHS, KIND_NAMES, kindOf } from "../kinds.mjs";

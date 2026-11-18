@@ -1,9 +1,6 @@
-// Reads colours off the real captures and crops today's band, so the mock-ups start from what the site draws.
-// Run from the checkout root: node docs/design/claim-marks/tools/sample.mjs
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-// The website package is the one that depends on the browser driver.
 const { chromium } = createRequire(resolve('packages/website/package.json'))('playwright-core');
 
 const root = 'packages/website/evidence/';
@@ -37,7 +34,6 @@ for (const [name, file] of Object.entries(shots)) {
     ctx.drawImage(image, 0, 0);
     const colours = {};
     for (const [key, [x, y]] of Object.entries(probes ?? {})) {
-      // The commonest colour in a 5 by 5 patch, so one antialiased pixel does not decide it.
       const data = ctx.getImageData(x - 2, y - 2, 5, 5).data;
       const seen = new Map();
       for (let i = 0; i < data.length; i += 4) { const k = `${data[i]},${data[i + 1]},${data[i + 2]}`; seen.set(k, (seen.get(k) ?? 0) + 1); }

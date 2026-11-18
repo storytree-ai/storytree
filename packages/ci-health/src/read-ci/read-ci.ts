@@ -117,7 +117,7 @@ async function filesOf(git: Git, commit: string, mapped: readonly string[]): Pro
   try {
     return await filesAt(git, commit, mapped);
   } catch {
-    await git(["fetch", "--quiet", "origin", commit]).catch(() => "");
+    await git(["fetch", "--quiet", "origin", "--", commit]).catch(() => "");
     return filesAt(git, commit, mapped).catch(() => undefined);
   }
 }

@@ -66,7 +66,7 @@ export async function planReclone({ checkout, repo, lanes, stamp, x }) {
   for (const tree of follow) steps.push({ say: `move follow-main worktree ${tree.path} to ${tree.path}.before-${stamp}`, act: () => x.rename(tree.path, `${tree.path}.before-${stamp}`) });
   const moved = [...within.map((tree) => join(aside, relative(own, real(tree.path)))), ...follow.map((tree) => `${tree.path}.before-${stamp}`)];
   if (moved.length) steps.push({ say: `repair the moved-aside checkout's links to its ${moved.length} worktree${moved.length === 1 ? "" : "s"}`, act: () => x.git(["worktree", "repair", ...moved], aside) });
-  steps.push({ say: `clone ${repo} into ${checkout}`, act: () => x.git(["clone", "--quiet", repo, checkout], resolve(checkout, "..")) });
+  steps.push({ say: `clone ${repo} into ${checkout}`, act: () => x.git(["clone", "--quiet", "--", repo, checkout], resolve(checkout, "..")) });
   if (pushUrl) {
     // The old push URL's SSH host is kept, so a deploy key's alias (github.com-storytree) pushes the new repository too.
     const host = /^git@(github\.com(?:-[\w.-]+)?):/.exec(pushUrl)?.[1] ?? "github.com";

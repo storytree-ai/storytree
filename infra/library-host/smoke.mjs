@@ -34,7 +34,6 @@ if (process.argv.includes('--dry-run')) {
     assert.equal((await release(context, capability.id)).ok, true);
     assert.equal((await readClaims(log, project)).length, 0);
     const certificate = fileURLToPath(new URL('./mint-library.crt', import.meta.url));
-    // The box's own machine name on the tailnet, the name its certificate is for.
     const box = JSON.parse(await o.run('tailscale', ['status', '--json'])).Self.DNSName.split('.')[0];
     const tailnet = await connect({ address: `postgres://${o.OWNER}@${box}:5432/postgres?sslrootcert=${certificate}` });
     try {

@@ -1,4 +1,4 @@
-/** Capability 7 · Running sessions. Session hover is a temporary forest reading, independent of selection and capability health. */
+// Capability 7 · Running sessions
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useRef } from "react";
 import { Group, Mesh, ShaderMaterial, type Material } from "three";
@@ -6,7 +6,6 @@ import { restoreTerritoryPresentation } from "./globe-surfaces.js";
 
 export type SessionEmphasis = "held" | "dimmed" | undefined;
 
-/** Own per-mesh copies: shared materials, palette colours and live shader inputs stay intact. */
 export function SessionIslandEmphasis({ emphasis }: { emphasis: SessionEmphasis }) {
   const anchor = useRef<Group>(null);
   const saved = useRef(new Map<Mesh, { original: Material | Material[]; copies: Material[] }>());
@@ -30,14 +29,11 @@ export function SessionIslandEmphasis({ emphasis }: { emphasis: SessionEmphasis 
   useFrame(() => {
     if (!emphasis) return;
     anchor.current?.parent?.traverse(object => {
-      // Wisps keep their own colour and fade; the session they belong to is lit through them directly.
-      // What the selected session's traversal lights on the land stays at full strength: it is read on every island.
       if (!(object instanceof Mesh) || object.name.startsWith("session-highlight:") || saved.current.has(object)
         || object.parent?.userData.sessionWisp !== undefined || object.userData.traversal === true) return;
       const original: Material | Material[] = object.material;
       const copies = (Array.isArray(original) ? original : [original]).map(source => {
         const copy = source.clone();
-        // ShaderMaterial.clone deep-copies light vectors/textures; retain the engine's live inputs.
         if (source instanceof ShaderMaterial && copy instanceof ShaderMaterial) copy.uniforms = { ...source.uniforms };
         const hook = source.onBeforeCompile;
         const cacheKey = source.customProgramCacheKey;

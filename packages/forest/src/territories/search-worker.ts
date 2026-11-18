@@ -1,11 +1,8 @@
-/** Capability 3 · Story node render. The territory search worker (3.80): a host bundles this as its own script and names
- * it in its page (kept-layout.ts, TERRITORY_WORKER_META); the page posts it each island in turn and keeps what it answers.
- * It routes each island's roads too, asked `{ roads }` (island-roads.ts, 3.82). */
+// Capability 3 · Story node render
 import { answerRoads, type RoadsAnswer, type RoadsAsk } from "./island-roads.js";
 import type { SearchAnswer, SearchAsk } from "./kept-layout.js";
 import { searchTerritories } from "./territory-search.js";
 
-/** Searches one island, as the page asks. */
 export function answerSearch(ask: SearchAsk): SearchAnswer {
   try {
     return { found: searchTerritories(ask) };
@@ -14,11 +11,9 @@ export function answerSearch(ask: SearchAsk): SearchAnswer {
   }
 }
 
-/** Answers what the page posts: an island's roads when it asks `{ roads }`, else a search. */
 export function answerAsk(data: SearchAsk | { roads: RoadsAsk }): SearchAnswer | RoadsAnswer {
   return "roads" in data ? answerRoads(data.roads) : answerSearch(data);
 }
 
-// In a worker, answer everything the page posts.
 const scope = globalThis as unknown as { WorkerGlobalScope?: unknown; onmessage?: (event: { data: SearchAsk | { roads: RoadsAsk } }) => void; postMessage?: (answer: SearchAnswer | RoadsAnswer) => void };
 if (scope.WorkerGlobalScope !== undefined) scope.onmessage = ({ data }) => scope.postMessage!(answerAsk(data));

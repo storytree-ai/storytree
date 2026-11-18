@@ -1,80 +1,41 @@
-/**
- * Capability 3 · Story node render: an island's capability territories as drawn (ADR-0804 D2). Each
- * territory is one mesh named `territory:<capability>`, filled by its capability's word (ADR-0825 D3);
- * a mapped story's unexplored land is `territory:mapped`, in brown (ADR-0993 D3), no capability and no hatch, and each
- * capability an agent explored there is `territory:<capability>` beside it, filled by its word (ADR-0993 D5, D7);
- * Unclaimed code's is `territory:unclaimed`, with no capability: uncharted land, a night-dark fill with a
- * thin diagonal hatch (`territory-hatch:unclaimed`), still picked by a click on its land. The borders between territories are one set of line segments,
- * stopping at the island's coast. A claim draws nothing here: its flag and lot are `claim-flag.ts`'s (ADR-0968).
- * Plain three.js, so the marks are read without a browser.
- */
+// Capability 3 · Story node render
 import type { CapabilityWord } from "@storytree/forest-world/scene";
 import type { IslandRoads } from "../territories/island-roads.js";
 import { insideOf, onLand } from "../territories/territories.js";
 import { cutOpenings, QUIET_BORDER } from "./island-roads.js";
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, type Object3D, ShapeUtils, Vector2, type Vector3 } from "three";
 
-/**
- * Each word's fill (ADR-0825 D3, ADR-0992): healthy green, unhealthy red, and yellow while not proven yet, which
- * asks for attention. Strong enough that the grey island ground beneath does not turn yellow to tan.
- */
 export const WORD_FILL: Readonly<Record<CapabilityWord, { colour: string; opacity: number }>> = {
   healthy: { colour: "#97C459", opacity: 0.8 },
   unhealthy: { colour: "#E24B4A", opacity: 0.85 },
   proposed: { colour: "#F2D16B", opacity: 0.8 },
   untested: { colour: "#F2D16B", opacity: 0.8 },
 };
-/**
- * A capability not proven and parked on purpose, asking nothing of anyone (ADR-0992 D1, D4): mid slate grey, cool so it
- * stays apart from mapped's brown when that comes, and dark enough to read as a territory on the island's near-white ground.
- */
 export const PARKED_FILL = { colour: "#86939D", opacity: 0.8 };
-/**
- * Mapped code no agent has explored yet, here before storytree and assumed to be working (ADR-0993 D3, ADR-0992 D5): brown,
- * mapped's alone. Warm and earthy, so it reads apart from parked's cool grey and from the health words' green, yellow and
- * red; it carries no health.
- */
 export const MAPPED_FILL = { colour: "#A9794E", opacity: 0.85 };
-/**
- * Unclaimed code, land no contract has surveyed, is drawn as uncharted land: the cartographic no-data convention.
- * A region with no data gets no hue and is hatched, since green, yellow and red are health words and grey means
- * parked (ADR-0825 D3, ADR-0992). The fill is the globe's own background (`PlanetWorldCanvas`), dense enough that the
- * island's grey ground does not read through, and the hatch a faint cool light, far below the white borders.
- */
 export const UNCHARTED_FILL = { colour: "#101418", opacity: 0.92 };
 export const UNCHARTED_HATCH = { colour: "#8fa8b8", opacity: 0.35 };
-/** The hatch lines lie this far apart, measured across them, in ground units. */
 const HATCH_SPACING = 0.35;
 const BORDER_COLOUR = "#f4f7f8";
 const BORDER_OPACITY = 0.85;
 
 type Point = { readonly x: number; readonly z: number };
 
-/** Land cut into territories: each territory's capability, title and description, its cells, and the borders between. */
 export type DrawnLand = {
   readonly territories: readonly { readonly capability?: string; readonly title?: string; readonly description?: string; readonly status?: CapabilityWord; readonly parked?: true; readonly mapped?: true }[];
   readonly cells: readonly { readonly polygon: readonly Point[]; readonly territory: number }[];
   readonly borders: readonly { readonly from: Point; readonly to: Point }[];
 };
 
-/**
- * The territories of `land`, each point placed on the island's surface by `onSurface`, cut to `coast`
- * (its loops, in the same coordinates as the land) when given. Given the island's `roads` (every island once routed,
- * ADR-1236 D1), the opening of each gate and of each stretch of open road is cut out of its border and the borders are
- * quietened under the roads.
- */
 export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vector3, coast?: readonly (readonly Point[])[], claimed: ReadonlyMap<string, { colour: string; faded: boolean }> = new Map(), roads?: Pick<IslandRoads, "gates" | "passes">): Group {
   const group = new Group();
   group.name = "territory-land";
-  // The land as triangles, so each cell (convex) cuts each triangle exactly, whatever bays the coast has.
   const land3 = coast === undefined ? undefined : landTriangles(coast);
   land.territories.forEach((territory, at) => {
     const cells = land.cells.filter((cell) => cell.territory === at && cell.polygon.length >= 3).map((cell) => cell.polygon);
     const pieces = cells.flatMap((cell) => land3 === undefined ? [cell] : land3.map((triangle) => clipToConvex(triangle, cell)).filter((piece) => piece.length >= 3));
     const mesh = new Mesh(fan(pieces, onSurface), territoryFill(territory));
-    // territory:mapped is an imported story's unexplored land: its "mapped" means imported (ADR-1300 D3).
     mesh.name = `territory:${territory.capability ?? (territory.mapped === true ? "mapped" : "unclaimed")}`;
-    // A capability a running session claims keeps its fill and its borders; the flag says who holds it (ADR-0968 D1).
     const claimant = territory.capability === undefined ? undefined : claimed.get(territory.capability);
     mesh.userData = territory.mapped === true && territory.capability === undefined ? { territory: true, mapped: true } : territory.capability === undefined ? { territory: true }
       : { territory: true, ...(territory.mapped === true ? { mapped: true } : {}), capability: territory.capability, title: territory.title ?? territory.capability, ...(territory.description === undefined ? {} : { description: territory.description }), word: territory.status ?? "untested", ...(territory.parked === true ? { parked: true } : {}), ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
@@ -91,20 +52,14 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
   const ink = roads === undefined ? { colour: BORDER_COLOUR, opacity: BORDER_OPACITY } : QUIET_BORDER;
   const lines = new LineSegments(borders, new LineBasicMaterial({ color: ink.colour, transparent: true, opacity: ink.opacity, depthWrite: false }));
   lines.name = "territory-borders";
-  // Each segment's ends on the ground, so a rebuilt island knows which borders it already drew (3.46).
   lines.userData = { borders: kept.length, ground: kept.flatMap(({ from, to }) => [from.x, from.z, to.x, to.z]) };
   lines.renderOrder = 2;
   group.add(lines);
   return group;
 }
 
-/** Each territory's land as convex pieces on the ground, so a rebuilt island knows what filled the land a new one takes (3.46). */
 const groundOf = new WeakMap<Object3D, readonly (readonly Point[])[]>();
 
-/**
- * The territory of `before` whose land held the middle of `mark`'s largest piece: the fill a new territory was carved
- * from (3.46), or none where `before` drew no territory there.
- */
 export function filledUnder(before: Group, mark: Object3D): Mesh | undefined {
   const area = (piece: readonly Point[]) => Math.abs(piece.reduce((sum, p, at) => { const q = piece[(at + 1) % piece.length]!; return sum + p.x * q.z - q.x * p.z; }, 0));
   const largest = (groundOf.get(mark) ?? []).reduce<readonly Point[] | undefined>((best, piece) => best === undefined || area(piece) > area(best) ? piece : best, undefined);
@@ -113,17 +68,11 @@ export function filledUnder(before: Group, mark: Object3D): Mesh | undefined {
   return before.children.find((old): old is Mesh => old.name.startsWith("territory:") && (groundOf.get(old) ?? []).some((piece) => inConvex(middle, piece)));
 }
 
-/** A territory's fill: its word's colour, parked's grey, mapped's brown for a mapped island's unexplored rest, or the uncharted-land ink for Unclaimed code. */
 function territoryFill(territory: DrawnLand["territories"][number]): MeshBasicMaterial {
   const fill = territory.capability === undefined ? (territory.mapped === true ? MAPPED_FILL : UNCHARTED_FILL) : territory.parked === true ? PARKED_FILL : WORD_FILL[territory.status ?? "untested"];
-  // One pass, as every flat mark on the globe: two would re-derive its shader program twice a frame (ADR-0836 D1).
   return new MeshBasicMaterial({ color: new Color(fill.colour), transparent: true, opacity: fill.opacity, side: DoubleSide, forceSinglePass: true, depthWrite: false });
 }
 
-/**
- * Diagonal hatching across convex land pieces: lines x + z = n * spacing, the same lines on every piece so the
- * hatch runs on unbroken across cells, each cut to the piece by the same clipping the lots' dashes use.
- */
 function hatch(pieces: readonly (readonly Point[])[], onSurface: (point: Point) => Vector3): LineSegments {
   const step = HATCH_SPACING * Math.SQRT2;
   const positions = pieces.flatMap((piece) => {
@@ -144,7 +93,6 @@ function hatch(pieces: readonly (readonly Point[])[], onSurface: (point: Point) 
   return lines;
 }
 
-/** Convex pieces as triangles on the surface: a fan from each piece's first corner covers it. */
 function fan(pieces: readonly (readonly Point[])[], onSurface: (point: Point) => Vector3): BufferGeometry {
   const positions: number[] = [];
   for (const piece of pieces) {
@@ -156,11 +104,6 @@ function fan(pieces: readonly (readonly Point[])[], onSurface: (point: Point) =>
   return geometry;
 }
 
-/**
- * A staked lot's dashed line (ADR-0968 D4): dashes `on` long and `off` apart, `inset` inside the border of territory `at`.
- * The border is every edge of the territory's cells not shared with another of its cells, cut to the coast, and the coast
- * where it crosses the territory; a dash is kept only where it lies on the territory's land, `inset` clear of every border edge.
- */
 export function lotDashes(land: DrawnLand, at: number, coast: readonly (readonly Point[])[] | undefined, { inset, on, off }: { inset: number; on: number; off: number }): { from: Point; to: Point }[] {
   const cells = land.cells.filter((cell) => cell.territory === at && cell.polygon.length >= 3).map((cell) => cell.polygon);
   const land3 = coast === undefined ? undefined : landTriangles(coast);
@@ -192,14 +135,12 @@ export function lotDashes(land: DrawnLand, at: number, coast: readonly (readonly
   });
 }
 
-/** How far `p` is from the segment from `a` to `b`. */
 export function toSegment(p: Point, a: Point, b: Point): number {
   const [dx, dz] = [b.x - a.x, b.z - a.z];
   const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
   return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
 }
 
-/** Whether `p` lies in the convex loop `loop`, on its edge included. */
 function inConvex(p: Point, loop: readonly Point[]): boolean {
   let sign = 0;
   for (let i = 0; i < loop.length; i++) {
@@ -212,7 +153,6 @@ function inConvex(p: Point, loop: readonly Point[]): boolean {
   return true;
 }
 
-/** The part of the segment from `from` to `to` inside the convex loop `loop`: Cyrus and Beck's clipping. */
 export function segmentInConvex(from: Point, to: Point, loop: readonly Point[]): { from: Point; to: Point }[] {
   const turn = Math.sign(loop.reduce((sum, p, at) => { const q = loop[(at + 1) % loop.length]!; return sum + p.x * q.z - q.x * p.z; }, 0));
   let [enter, leave] = [0, 1];
@@ -229,7 +169,6 @@ export function segmentInConvex(from: Point, to: Point, loop: readonly Point[]):
   return [{ from: at(enter), to: at(leave) }];
 }
 
-/** The coast's land as triangles: each outer loop, less the loops inside it (its lakes). */
 export function landTriangles(coast: readonly (readonly Point[])[]): Point[][] {
   const loops = coast.filter((ring) => ring.length >= 3);
   const depth = (ring: readonly Point[]) => loops.filter((other) => other !== ring && onLand(ring[0]!, [other])).length;
@@ -241,7 +180,6 @@ export function landTriangles(coast: readonly (readonly Point[])[]): Point[][] {
   });
 }
 
-/** The part of the convex loop `subject` inside the convex loop `clip`: Sutherland and Hodgman's clipping. */
 export function clipToConvex(subject: readonly Point[], clip: readonly Point[]): Point[] {
   const turn = Math.sign(clip.reduce((sum, p, at) => { const q = clip[(at + 1) % clip.length]!; return sum + p.x * q.z - q.x * p.z; }, 0));
   let out = [...subject];
@@ -260,14 +198,8 @@ export function clipToConvex(subject: readonly Point[], clip: readonly Point[]):
   return out;
 }
 
-/** A lit territory's fill: the session's colour, filled while the read is in the window, lighter and fainter once compacted out. */
 const LIT_TERRITORY = { "in-window": 0.36, faded: 0.26 } as const;
 
-/**
- * Fills the territories of the capabilities the selected session opened (ADR-0804 D5) in its `colour`: a read
- * in the window fully, one compacted out lighter. The fill is laid over the territory, never swapped into it,
- * so every other territory, and this one once let go, is as it was; the session emphasis that dims an island leaves it at full strength.
- */
 export function lightTerritories(land: Group, lit: ReadonlyMap<string, "in-window" | "faded">, colour: string): void {
   for (const mesh of land.children) {
     const capability = mesh.userData.capability;

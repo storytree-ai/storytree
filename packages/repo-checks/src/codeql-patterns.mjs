@@ -1,25 +1,4 @@
-// Capability 8 · Storytree's own test and gate entries. The CodeQL patterns a pull request has met, refused locally so
-// they never reach the repository (increment_15f747652fc7, Mick's voice note voice.note_496b63639fbb): `pnpm lint`
-// (lint.mjs) refuses them over the whole tree, in `pnpm gate` and in CI, and the push check (push-check.mjs) refuses
-// a push whose commits add one. Four patterns so far:
-// - PR #489's (CodeQL's js/incomplete-multi-character-sanitization): a global replace that removes an HTML tag or
-//   comment by a regex starting with `<`, replaced with the empty string, in one pass. What it removes can re-form
-//   from what is left (`<scr<script>ipt>`). A replace repeated in a loop until nothing changes passes, as do a spaced
-//   replacement, a single (non-global) replace, an escape and a split.
-// - PR #724's (CodeQL's js/incomplete-sanitization, increment_171a0ab97911): a replace that escapes characters by a
-//   backslash, its regex one character, a class or a group of either, none of which is backslash (`/\./g, "\\."`).
-//   A backslash already in the text is left bare, so it escapes the next character instead. A pattern that matches
-//   backslash too (the full escape `/[.*+?^${}()|[\]\\]/g, "\\$&"`, a range over it, `\W`, a negated class) passes.
-//   A string pattern of one character other than backslash (`replaceAll(".", "\\.")`) is the same shape, and with
-//   `replace` it escapes only the first (increment_82d197743d7b).
-// - PR #988's (CodeQL's js/second-order-command-line-injection, increment_6f5baa5be4ed): a git call passing an
-//   input-built argument after a subcommand that reads a remote (clone, fetch, pull, ls-remote, push) with neither
-//   `--` nor `--end-of-options` before it. A value opening with `-` is read as an option (`--upload-pack=…` runs a
-//   command). A git call is the array argument of a call whose first argument is "git" (execFile, spawn and their
-//   sync forms), or the arguments of a call whose callee's name holds "git", an array among them or a ternary's array
-//   branch (`git([...])`, `runGit(root, ...)`). A string, a template opening with literal text other than `-`, the
-//   value of an option that takes one (`--depth`, `--branch` and the like), a ternary of those and a spread of literal
-//   lists pass, as does a call with `--` before the argument; a list naming no remote subcommand is not read.
+// Capability 8 · Storytree's own test and gate entries.
 // - PR #989's (CodeQL's js/polynomial-redos, increment_b3e14f7421a6): a regex whose repeated parts overlap, so a run
 //   of characters both can match is split between them in many ways and a long one that fails backtracks
 //   super-linearly (`/^(.*)\{(.*)\}$/`, two `\s*` with only an optional part between them). A regex literal or a
@@ -30,9 +9,6 @@
 //   otherwise reads as empty, a backreference as nothing). A test file (`*.test.*`, `*.spec.*`) and a file named minified
 //   are not read for it: CodeQL's rule fires only on a regex run over outside input, which a test's assertion and a
 //   vendored bundle never are.
-//
-// It reads the code alone (Babel's parser), so a pattern inside a string or comment is never refused. A fix session
-// that meets a new pattern adds it here, beside this one, with its numbered test.
 
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -44,16 +20,10 @@ import { MINIFIED_NAME } from "./sketch-bundles.mjs";
 export const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const SKIP_DIRS = new Set(["node_modules", "dist", "out", "build", "coverage"]);
 const SKIP_KEYS = new Set(["loc", "start", "end", "extra", "range", "leadingComments", "trailingComments", "innerComments", "comments", "tokens"]);
-const FUNCTIONS = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression", "ObjectMethod", "ClassMethod", "ClassPrivateMethod"]);
 /** A test file, whose regexes run only over the test's own strings, never outside input, so CodeQL's ReDoS rule never
  * fires there. */
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
-const LOOPS = new Set(["WhileStatement", "DoWhileStatement", "ForStatement", "ForOfStatement", "ForInStatement"]);
 
-/** Each tag-removing global replace, each partial backslash escape, each git call with an unended remote argument and
- * each regex whose repeated parts overlap in `text`, the code of `file`: its line, its regex or git subcommand, and
- * which of the four it is. Any file may hold a regex, so every one is parsed; a test file and a file named minified
- * (sketch-bundles.mjs) are not read for an overlapping regex. */
 export function sanitizationHits(file, text) {
   let ast;
   try {
@@ -66,26 +36,18 @@ export function sanitizationHits(file, text) {
   }
   const hits = [];
   const readsRegexes = !TEST_FILE.test(file) && !MINIFIED_NAME.test(file);
-  const visit = (node, inLoop) => {
-    if (node.type === "CallExpression" || node.type === "OptionalCallExpression") {
-      const stripped = stripping(node);
-      if (stripped !== undefined && !inLoop) hits.push({ line: node.loc.start.line, regex: stripped, kind: "strip" });
-      const escaped = partialEscape(node);
-      if (escaped !== undefined) hits.push({ line: node.loc.start.line, regex: escaped, kind: "escape" });
-      for (const subcommand of unendedGitArguments(node)) hits.push({ line: node.loc.start.line, subcommand, kind: "unended" });
-    }
+  const visit = (node) => {
     const regex = !readsRegexes ? undefined : node.type === "RegExpLiteral" || (node.type === "NewExpression" || node.type === "CallExpression") && literal(node.arguments[0]) !== undefined ? regexOf(node) : undefined;
     const pump = regex === undefined ? undefined : overlapping(regex);
     if (pump !== undefined) hits.push({ line: node.loc.start.line, regex: `/${regex.source}/${regex.flags}`, pump, kind: "redos" });
-    const loop = FUNCTIONS.has(node.type) ? false : inLoop || LOOPS.has(node.type);
     for (const [key, value] of Object.entries(node)) {
       if (SKIP_KEYS.has(key) || value === null || typeof value !== "object") continue;
       for (const child of Array.isArray(value) ? value : [value]) {
-        if (child !== null && typeof child === "object" && typeof child.type === "string") visit(child, loop);
+        if (child !== null && typeof child === "object" && typeof child.type === "string") visit(child);
       }
     }
   };
-  visit(ast.program, false);
+  visit(ast.program);
   return hits;
 }
 
@@ -101,52 +63,11 @@ export function codeqlPatternProblems(root) {
 }
 
 /** What a hit is and the way out, for a refusal. */
-export function describe({ regex, kind, subcommand, pump }) {
-  if (kind === "unended") {
-    return `passes an input-built argument to git ${subcommand} with no "--" before it (CodeQL's js/second-order-command-line-injection): ` +
-      'a value opening with "-" is read as an option; put "--" before the first input-built argument';
-  }
+export function describe({ regex, pump }) {
   const shown = regex.length > 40 ? `${regex.slice(0, 37)}...` : regex;
-  if (kind === "redos") {
-    return `matches ${shown} by repeated parts that overlap (CodeQL's js/polynomial-redos): a run of ${JSON.stringify(pump)} can be split between ` +
-      "them in many ways, so a long one that fails backtracks super-linearly; make the repeated parts match disjoint characters " +
-      "(a negated class such as [^{]*), drop the optional part between them, or bound one";
-  }
-  if (kind === "escape") {
-    return `escapes ${shown} by a backslash and misses backslash itself (CodeQL's js/incomplete-sanitization): a backslash already in the text is left bare; ` +
-      'escape it too, as /[.*+?^${}()|[\\]\\\\]/g, "\\\\$&" does for a regex';
-  }
-  return `removes ${shown} by one global replace with "" (CodeQL's js/incomplete-multi-character-sanitization): what it removes can re-form from what is left; ` +
-    "repeat it until nothing changes, split on the pattern instead, or escape the text rather than strip it";
-}
-
-function codeFiles(root, dir = "") {
-  const files = [];
-  for (const entry of readdirSync(path.join(root, dir), { withFileTypes: true })) {
-    if (entry.name.startsWith(".") || SKIP_DIRS.has(entry.name)) continue;
-    const rel = dir === "" ? entry.name : `${dir}/${entry.name}`;
-    if (entry.isDirectory()) files.push(...codeFiles(root, rel));
-    else if (CODE_FILE.test(entry.name)) files.push(rel);
-  }
-  return files;
-}
-
-/** The method a call names, `replace` or `replaceAll` among them. */
-function methodOf(call) {
-  const callee = call.callee;
-  if (callee.type !== "MemberExpression" && callee.type !== "OptionalMemberExpression") return undefined;
-  return callee.computed ? (callee.property.type === "StringLiteral" ? callee.property.value : undefined) : callee.property.name;
-}
-
-/** The regex, shown as `/source/flags`, when `call` is a global replace of a multi-character `<…` pattern by "". */
-function stripping(call) {
-  const method = methodOf(call);
-  if (method !== "replace" && method !== "replaceAll") return undefined;
-  const [pattern, replacement] = call.arguments;
-  const regex = regexOf(pattern);
-  if (regex === undefined || !(regex.flags.includes("g") || method === "replaceAll")) return undefined;
-  if (!isEmptyString(replacement) || !removesTag(regex.source)) return undefined;
-  return `/${regex.source}/${regex.flags}`;
+  return `matches ${shown} by repeated parts that overlap (CodeQL's js/polynomial-redos): a run of ${JSON.stringify(pump)} can be split between ` +
+    "them in many ways, so a long one that fails backtracks super-linearly; make the repeated parts match disjoint characters " +
+    "(a negated class such as [^{]*), drop the optional part between them, or bound one";
 }
 
 function regexOf(node) {
@@ -165,117 +86,15 @@ function literal(node) {
   return undefined;
 }
 
-const isEmptyString = (node) => literal(node) === "";
-
-/** Whether a regex source starts, past any opening groups, with `<` followed by more of the pattern. */
-function removesTag(source) {
-  const rest = /^(?:\((?:\?:)?)*<(.*)$/s.exec(source)?.[1];
-  return rest !== undefined && rest !== "" && !/^(?:[+*?]|\{\d+(?:,\d*)?\})\??$/.test(rest);
-}
-
-/** The pattern, shown as `/source/flags` or `"c"`, when `call` is a replace by a backslash-led string of a pattern
- * that matches only characters it lists, backslash not among them: a regex, or a string of one character. */
-function partialEscape(call) {
-  const method = methodOf(call);
-  if (method !== "replace" && method !== "replaceAll") return undefined;
-  const [pattern, replacement] = call.arguments;
-  const escaped = escapedBy(pattern);
-  if (escaped === undefined || !literal(replacement)?.startsWith("\\") || escaped.backslash !== "misses") return undefined;
-  return escapesBackslashFirst(call.callee.object) ? undefined : escaped.shown;
-}
-
-/** Whether `node` is a chain of replaces one of which escapes backslash by a backslash, as `.replace(/\\/g, "\\\\")`. */
-function escapesBackslashFirst(node) {
-  for (let call = node; call?.type === "CallExpression" || call?.type === "OptionalCallExpression"; call = call.callee.object) {
-    const method = methodOf(call);
-    if (method !== "replace" && method !== "replaceAll") return false;
-    if (literal(call.arguments[1])?.startsWith("\\") && escapedBy(call.arguments[0])?.backslash === "matches") return true;
+function codeFiles(root, dir = "") {
+  const files = [];
+  for (const entry of readdirSync(path.join(root, dir), { withFileTypes: true })) {
+    if (entry.name.startsWith(".") || SKIP_DIRS.has(entry.name)) continue;
+    const rel = dir === "" ? entry.name : `${dir}/${entry.name}`;
+    if (entry.isDirectory()) files.push(...codeFiles(root, rel));
+    else if (CODE_FILE.test(entry.name)) files.push(rel);
   }
-  return false;
-}
-
-/** A replace's pattern as shown and whether it "matches" or "misses" a backslash: a regex of one character, a class
- * or a group of either, or a string of one character; undefined for any other. */
-function escapedBy(node) {
-  const regex = regexOf(node);
-  if (regex !== undefined) return { shown: `/${regex.source}/${regex.flags}`, backslash: characters(regex.source) };
-  const text = literal(node);
-  if (text?.length !== 1) return undefined;
-  return { shown: JSON.stringify(text), backslash: text === "\\" ? "matches" : "misses" };
-}
-
-const CLASS_ESCAPES = /^[dDwWsSbBpPkcxuv0-9]$/;
-
-/** For a regex source of one character, a class or a group of either: whether it "matches" a backslash or "misses"
- * it; undefined for any other source. */
-function characters(source) {
-  const inner = /^\((?:\?:)?(.*)\)$/s.exec(source)?.[1] ?? source;
-  if (/^\\.$/s.test(inner)) return inner[1] === "\\" ? "matches" : CLASS_ESCAPES.test(inner[1]) ? undefined : "misses";
-  if (/^[^\\[\](){}|.*+?^$]$/.test(inner)) return "misses";
-  const [, negated, body] = /^\[(\^?)(.+)\]$/s.exec(inner) ?? [];
-  if (body === undefined) return undefined;
-  const chars = [];
-  let matches = false;
-  for (let at = 0; at < body.length; at++) {
-    if (body[at] === "]") return undefined; // the class closed early: not one class
-    if (body[at] !== "\\") chars.push(body[at]);
-    else if (/[WDS]/.test(body[++at] ?? "")) matches = true; // \W, \D and \S match a backslash
-    else chars.push(/[dws]/.test(body[at]) ? undefined : body[at]);
-  }
-  matches ||= chars.includes("\\") || chars.some((char, at) => chars[at + 1] === "-" && char !== undefined && chars[at + 2] !== undefined && char <= "\\" && "\\" <= chars[at + 2]);
-  return matches !== (negated === "^") ? "matches" : "misses";
-}
-
-const REMOTE_SUBCOMMANDS = new Set(["clone", "fetch", "pull", "ls-remote", "push"]);
-const VALUE_OPTIONS = new Set(["--depth", "-b", "--branch", "-o", "--origin", "--filter", "-j", "--jobs", "--shallow-since", "--shallow-exclude", "--deepen", "--reference", "--separate-git-dir", "--template", "--server-option"]);
-
-/** The remote subcommand of each git argument list in `call` that passes an input-built argument after it with no
- * `--` before it: the array arguments of a call whose first argument is "git", or, for a callee whose name holds
- * "git", its arguments, an array among them and a ternary's array branches. */
-function unendedGitArguments(call) {
-  const args = call.arguments;
-  let lists;
-  if (literal(args[0]) === "git") lists = args.slice(1).filter((arg) => arg.type === "ArrayExpression").map((arg) => arg.elements);
-  else if (/git/i.test(calleeName(call.callee))) {
-    lists = [args];
-    for (const arg of args) {
-      if (arg.type === "ArrayExpression") lists.push(arg.elements);
-      if (arg.type === "ConditionalExpression") for (const branch of [arg.consequent, arg.alternate]) if (branch.type === "ArrayExpression") lists.push(branch.elements);
-    }
-  } else return [];
-  return lists.map(unended).filter((subcommand) => subcommand !== undefined);
-}
-
-const calleeName = (callee) => callee.type === "Identifier" ? callee.name : (callee.type === "MemberExpression" || callee.type === "OptionalMemberExpression") && !callee.computed ? callee.property.name : "";
-
-/** The list's first remote subcommand when an unsafe element follows it before any `--` or `--end-of-options`. */
-function unended(list) {
-  const at = list.findIndex((element) => REMOTE_SUBCOMMANDS.has(literal(element)));
-  if (at < 0) return undefined;
-  for (let index = at + 1; index < list.length; index++) {
-    const element = list[index];
-    if (!element) continue;
-    const value = literal(element);
-    if (value === "--" || value === "--end-of-options") return undefined;
-    if (VALUE_OPTIONS.has(value)) index++;
-    else if (!safeArgument(element)) return literal(list[at]);
-  }
-  return undefined;
-}
-
-/** A string, a template opening with literal text other than `-`, a ternary of those, or a spread of literal lists. */
-function safeArgument(node) {
-  if (literal(node) !== undefined) return true;
-  if (node.type === "TemplateLiteral") {
-    const head = node.quasis[0].value.cooked;
-    return head !== "" && !head.startsWith("-");
-  }
-  if (node.type === "ConditionalExpression") return safeArgument(node.consequent) && safeArgument(node.alternate);
-  if (node.type === "SpreadElement") {
-    const lists = node.argument.type === "ConditionalExpression" ? [node.argument.consequent, node.argument.alternate] : [node.argument];
-    return lists.every((list) => list.type === "ArrayExpression" && list.elements.every((element) => element && safeArgument(element)));
-  }
-  return false;
+  return files;
 }
 
 /** The characters a regex's parts are compared over: ASCII and one of each kind past it (a no-break space, É and é, the

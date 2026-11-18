@@ -594,7 +594,8 @@ function commandsOf(project) {
 /**
  * What a fix session on a failed security check does instead of reading a failing log (4.41): reads a code-scanning
  * alert signed in and fixes it, judges a secret-check hit by its file and kind, reshaping a plain fixture and putting
- * one that may be a real credential to the owner, and leaves a retro and a question for him; none of it in public.
+ * one that may be a real credential to the owner, and leaves him a retro: a friction report, a local check parked on the
+ * linter arc and an FYI, with no question (ADR-1370 D3); none of it in public.
  */
 function securitySteps({ pr, increment, checks, closed, project, use }) {
   const scans = checks.filter((check) => check !== "secret-check");
@@ -611,9 +612,12 @@ function securitySteps({ pr, increment, checks, closed, project, use }) {
   naming only PR #${pr} and the check secret-check, so the owner rotates the key; record it with
   \`${use.watch} verdict ${pr} owner --summary "a secret-check hit may be a real credential" --question <question>\`, close out and end.` : ""}
 - Once you have fixed it, before handing back, leave the owner a retro: file a friction report (\`${use.storytree} friction new --increment ${increment}\`)
-  on the mistake behind it, and raise one open question on ${increment}'s arc, holding nothing, so voice reads it to him: what
-  the alert was, what leaked (or that nothing did), the mistake behind it, and how to prevent it (a local check for the pattern
-  that fails before a push, with your recommendation). The library is private, so these two may name the alert.`;
+  on the mistake behind it; park the local check for the pattern (one that fails before a push, a rule in ESLint's local plugin)
+  as an increment on the linter arc arc_7605fd815da9 (\`${use.storytree} arc increment new --arc arc_7605fd815da9 ...\`), adding
+  \`--waits-on increment_131b79872a3f --wait-reason "the local plugin lands there"\` if that increment has not landed; and leave
+  him an FYI (\`${use.storytree} fyi new --increment ${increment} --about "PR #${pr}" --title ... --what ...\`): what the alert was,
+  what leaked (or that nothing did), the mistake behind it, and the increment you parked. Raise no question for it.
+  The library is private, so these may name the alert.`;
 }
 
 function fixBrief({ pr, increment, why, logs, n, limit, keepOpen, closed, review, lag, project, security }) {

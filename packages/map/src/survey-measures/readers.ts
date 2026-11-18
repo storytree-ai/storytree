@@ -23,12 +23,12 @@ export interface SurveyMeasureReader {
 export const PINNED_COMMIT = "c6935dc5f1af582d05e39df8f9f7aa8b22f93617";
 
 const MEASURES: readonly { readonly series: SurveySeries; readonly quantity: SurveyQuantity; readonly measure: string }[] = [
-  { series: "pinned", quantity: "wall", measure: "measure_000000000a01" },
-  { series: "pinned", quantity: "cpu", measure: "measure_000000000a02" },
-  { series: "pinned", quantity: "peak", measure: "measure_000000000a03" },
-  { series: "head", quantity: "wall", measure: "measure_000000000a04" },
-  { series: "head", quantity: "cpu", measure: "measure_000000000a05" },
-  { series: "head", quantity: "peak", measure: "measure_000000000a06" },
+  { series: "pinned", quantity: "wall", measure: "measure_387ddab4af77" },
+  { series: "pinned", quantity: "cpu", measure: "measure_fa25359a4a63" },
+  { series: "pinned", quantity: "peak", measure: "measure_2a5ccc2b9245" },
+  { series: "head", quantity: "wall", measure: "measure_ad04f2903e0a" },
+  { series: "head", quantity: "cpu", measure: "measure_9577fb54a4cc" },
+  { series: "head", quantity: "peak", measure: "measure_9b178e514855" },
 ];
 
 export function surveyMeasureReaders({ pinned, runs, benchmark = surveyBenchmark }: {

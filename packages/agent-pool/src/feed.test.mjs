@@ -25,7 +25,6 @@ test("2.2 · the survey reads arcs and holds once, with every increment's arc, c
           { id: "arc_laptop", createdAt: new Date(now), state: "active", openQuestions: 1 }, { id: "arc_cap", state: "active", openQuestions: 0 },
           { id: "arc_box", state: "parked", openQuestions: 0 }, { id: "arc_stale", state: "active", openQuestions: 0 },
         ],
-        // i4 closed, as the survey gives one it was asked to follow.
         increments: [record("i3", "arc_cap", { capabilities: ["capability_x"] }), record("i1", "arc_laptop"), record("i2", "arc_laptop", { capabilities: ["capability_x"] }),
           record("i4", "arc_box", { status: "closed", outcome: { date: "2026-10-07", disposition: "landed" } }), record("i5", "arc_stale", { machine: "laptop" })],
         holds: () => ({ waits: { i1: [{ on: "z", reason: "r" }] }, heldOn: {} }),
@@ -494,7 +493,6 @@ test("2.30 · one survey of every project the machine names offers each one's re
   const reading = ({ picks, skipped }) => [picks.map((one) => one.id), skipped];
   assert.deepEqual(reading(pickPool(alone, { max: Infinity, now })), reading(pickPool(libraries.storytree, { max: Infinity, now })), "storytree alone picks and skips as its own survey does");
 
-  // A failed lane's count is cleared in the project it was counted in.
   const offered = [];
   const options = { env: {}, say: () => {}, complain: () => {}, offer: async (request) => (offered.push(request), 1) };
   assert.equal(await main(["reoffer", "w_tripped", "--project", "storytree-website", "--reason", "the website's brief is fixed"], options), 0);
@@ -508,7 +506,6 @@ test("2.31 · work that waits only on a released claim is ready at the next surv
   const storytree = await connect({ url: testServerUrl() });
   try {
     const library = await storytree.openProject(name);
-    // The 2026-11-03 case: the speed fix's lane was refused the Arc surface, on the list of the Arcs tab expansion another session held.
     const arc = await library.createArc({ title: "Board", intent: "An intent", endState: "An end state" });
     const story = await library.addStory({ title: "Visitor sees the arcs" });
     const surface = await library.addCapability({ title: "Arc surface", story: story.id });
@@ -524,7 +521,6 @@ test("2.31 · work that waits only on a released claim is ready at the next surv
     const direct = await pick([{ ...live, capability: surface.id }]);
     assert.match(direct.skipped.find((one) => one.id === fix.id).why, new RegExp(`waits on ${surface.id}`), "and while one holds it directly");
 
-    // That session asked the owner, which released its claims; the expansion stays open, held on his question.
     const released = await pick([]);
     assert.deepEqual(released.picks.map((one) => one.id).sort(), [expansion.id, fix.id].sort(), "the fix is ready at the next survey");
     await library.close();

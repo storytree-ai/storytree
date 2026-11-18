@@ -85,7 +85,6 @@ test("3.26 · on Windows each lane's engine counts once from the process list, i
 
 test("3.32 · two engine starters racing for the last slot under the cap start one engine between them; a dead starter's reservation holds none", async (t) => {
   const dir = join(await folder(t), "engine-slots");
-  // One engine runs under a cap of 2; a starter's engine shows in the process table only once it is up, a moment after its count.
   let engines = 1;
   const count = async () => { const seen = engines; await new Promise((go) => setTimeout(go, 20)); return seen; };
   const started = [], waits = [];
@@ -104,7 +103,6 @@ test("3.32 · two engine starters racing for the last slot under the cap start o
   assert.deepEqual(waits.map((one) => one.running), [2], "the waiter counted the engine running and the other's reservation");
   await loser.release();
   assert.deepEqual(await readdir(dir), [], "each released slot, and the lock, are gone");
-  // A reservation whose starter died leaves its slot free, and is cleared.
   await reserveSlot({ dir, max: 2, count: async () => 1, pid: 21, alive: () => true, onWait: () => {}, sleep: async () => {} });
   const freed = await reserveSlot({ dir, max: 2, count: async () => 1, pid: 22, alive: (pid) => pid !== 21, onWait: () => assert.fail("a dead starter's reservation held the slot"), sleep: async () => {} });
   assert.equal(freed.running, 1);

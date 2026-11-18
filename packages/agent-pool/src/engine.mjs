@@ -1,4 +1,4 @@
-// Capability 1 · A lane runs on the engine its allowance allows. The lane's allowance and limit-stop policy (Agent runner's capability 1; ADR-0929).
+// Capability 1 · A lane runs on the engine its allowance allows.
 import { createReadStream } from "node:fs";
 import { mkdir, open, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -7,7 +7,6 @@ import { createInterface } from "node:readline";
 
 import { poolConfig } from "./pool-config.mjs";
 
-/** A lane's settings: the pool's lanes folder, switch point, models and commit identity (pool-config.mjs), and where Codex keeps its sessions. */
 export function laneSettings({ home = homedir(), env = process.env, config = poolConfig({ home, env }) } = {}) {
   return {
     home,
@@ -54,7 +53,6 @@ async function* events(path) {
   }
 }
 
-/** Stat the dated rollout files, but stream only the newest eight, as the box's reader does. */
 export async function readLatestAllowance(sessionsDir, { newestFiles = 8 } = {}) {
   let directories = [sessionsDir];
   for (const pattern of [/^\d{4}$/, /^\d{2}$/, /^\d{2}$/]) {
@@ -124,12 +122,6 @@ export async function pickEngine({ lanesDir, reading, now, stopAt = 100 }) {
   return { engine: reached || used >= stopAt ? "claude" : "codex", basis: "reading", reason: `Codex weekly allowance ${used}% used, resets ${iso(resets)}` };
 }
 
-/**
- * Pick from the newest reading, but check a Claude pick that rests only on a reading older than `staleAfter`
- * seconds against a fresh one first: no Codex run writes a reading while lanes run on Claude, so an early reset
- * would otherwise go unseen until the old reading's reset time (increment_892b871d0b7d). A reading that says the
- * limit was reached is never probed, so Codex credits are never touched.
- */
 export async function pickFresh({ lanesDir, sessionsDir, stopAt = 100, now, refresh, staleAfter = 3600 }) {
   const reading = await readLatestAllowance(sessionsDir);
   const picked = await pickEngine({ lanesDir, reading, now, stopAt });

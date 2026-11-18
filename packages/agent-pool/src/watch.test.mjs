@@ -23,10 +23,8 @@ async function box(t, { looks = {}, board = "" } = {}) {
   let clock = at, room = true;
   const options = {
     dir, limit: 2, say: (line) => lines.push(line), now: () => clock, folders: { checkout: "/srv/shop", lanes: "/srv/lanes" },
-    // No repository cut-over unless a test sets one (4.39): the watcher's own default reads the real library.
     cutover: async () => undefined,
     look: async (pr) => looks[pr],
-    // Open whenever a session would start, unless a test says otherwise (4.61).
     stateOf: async () => "OPEN",
     storytree: async (args) => { calls.push(args); return args[0] === "noticeboard" ? board : ""; },
     viewOf: async (pr) => view(pr),
@@ -34,7 +32,6 @@ async function box(t, { looks = {}, board = "" } = {}) {
     room: async () => room,
     startFix: async (fix) => { fixes.push(fix); const pid = 1000 + fixes.length; live.add(pid); return { pid, log: `/lanes/fix-${fix.pr}-${fix.n}.log` }; },
     startReview: async (review) => { reviews.push(review); const pid = 2000 + reviews.length; live.add(pid); return { pid, log: `/lanes/review-${review.pr}-${review.n}.log` }; },
-    // What a restart finds of a session it may have started: its log, and its pid while it runs (4.58).
     startedAs: async ({ name }) => {
       const [, kind, pr, n] = /^(fix|review)-(\d+)-(\d+)$/.exec(name).map((part, i) => (i > 1 ? Number(part) : part));
       const [list, first] = kind === "review" ? [reviews, 2000] : [fixes, 1000];
@@ -51,7 +48,6 @@ const pull = ({ state = "OPEN", head = "h1", checks = [], removed = [], queued =
   commits: { nodes: [{ commit: { statusCheckRollup: { contexts: { nodes: checks } } } }] },
   timelineItems: { nodes: removed },
 });
-/** Pull request `pr` as `gh pr view` describes its head: on this repository unless `cross` and `owner` say otherwise. */
 const view = (pr, { cross = false, owner = "storytree-ai" } = {}) => ({ headRefName: `claude/pr-${pr}`, isCrossRepository: cross, headRepository: { name: "storytree" }, headRepositoryOwner: { login: owner } });
 const failed = { __typename: "CheckRun", name: "verify on Windows", status: "COMPLETED", conclusion: "FAILURE", detailsUrl: "https://ci/run/9" };
 const passed = { __typename: "CheckRun", name: "verify", status: "COMPLETED", conclusion: "SUCCESS", detailsUrl: "https://ci/run/8" };
@@ -149,7 +145,6 @@ test("4.3 · past its fix limit the watcher starts a review session, never a thi
   assert.equal(b.reviews.length, 1, "an independent review instead");
   assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "no owner wait below the cap");
   for (const piece of ["#41", "increment_one", "https://ci/run/9", "/lanes/fix-41-1.log", "/lanes/fix-41-2.log", "watch.mjs verdict 41", "Work from /srv/shop."]) assert.ok(b.reviews[0].brief.includes(piece), piece);
-  // Each review sends it back to a fix session, until six sessions are spent.
   for (let round = 0; round < 3; round++) {
     if ((await saved(b)).fixes.at(-1).review) await recordVerdict({ dir: b.dir, pr: 41, kind: "fix", summary: `the cache test reads a stale key (${round})` });
     await watchOnce(b.options); b.live.clear();
@@ -172,7 +167,6 @@ test("4.37 · a review session's one verdict decides the red: retried, retried a
     b.looks[41] = flaky({ outside: false });
     for (let round = 0; round < 3; round++) { await watchOnce(b.options); b.live.clear(); }
     assert.equal(b.reviews.length, 1);
-    // A test elsewhere is parked on, or added to, that test's one investigation, never a new increment on a shared arc (ADR-1352).
     assert.match(b.reviews[0].brief, /`pnpm storytree health investigate --test "<title>" --unit <packages\/x> --seen "PR #41 at <head>" --evidence "[^`]*" --found "[^`]*" --increment increment_one`/);
     assert.doesNotMatch(b.reviews[0].brief, /arc increment new|arc_1a42179de853/);
     await recordVerdict({ dir: b.dir, pr: 41, kind, summary: "random timing on a loaded runner" });
@@ -253,7 +247,6 @@ test("4.58 · a watcher killed while it starts a fix session finds on restart wh
   const b = await box(t);
   await handOff(b);
   b.looks[41] = red;
-  // Killed just after the session started, before the watcher wrote it down.
   const start = b.options.startFix;
   b.options.startFix = async (fix) => { await start(fix); throw new Error("killed"); };
   await assert.rejects(watchOnce(b.options), /killed/);
@@ -264,7 +257,6 @@ test("4.58 · a watcher killed while it starts a fix session finds on restart wh
   assert.deepEqual([record.fixing, record.fixes.length, record.fixes[0].log, record.fixes[0].head], [{ pid: 1001 }, 1, "/lanes/fix-41-1.log", "h1"]);
   assert.ok(b.lines.some((line) => /PR #41: fix session 1 had started before the watcher stopped/.test(line)), b.lines.join("\n"));
 
-  // Killed before the session started: the restart finds none and starts it.
   const c = await box(t);
   await handOff(c);
   c.looks[41] = red;
@@ -283,7 +275,6 @@ test("4.4 · a hand-off on disk survives a watcher restart, and handing back kee
   b.looks[41] = red;
   await watchOnce(b.options);
   assert.equal(b.fixes.length, 1);
-  // A new watcher process: nothing in memory, the same folder, and the fix session's process still running.
   await watchOnce({ ...b.options });
   assert.equal(b.fixes.length, 1, "the running fix session is still counted");
   await handOff(b);
@@ -391,14 +382,12 @@ test("4.10 · a watcher whose code changes between two looks ends with the resta
   const watching = { ...b.options, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 7, argsOf: async () => "",
     codeVersion: async () => version,
     look: async (pr) => { looks++; return b.looks[pr]; },
-    // The checkout moves on, and the pull request goes red, while the watcher sleeps between looks.
     sleep: async () => { version = "tree-b"; b.looks[41] = red; } };
   assert.equal(await main(["watch"], watching), RESTART);
   assert.equal(looks, 1, "it looked once, on the code it started with");
   assert.equal(b.fixes.length, 0, "no fix session is started after the change");
   assert.match(b.lines.join("\n"), /tree-a → tree-b/);
 
-  // `run` keeps it running: a restart starts the loop again (on the new code), anything else after a pause, until another holds it.
   const ends = [RESTART, 0, 1], slept = [];
   const kept = await main(["run"], { ...watching, pidFile: join(b.dir, "watch.pid"), sleep: async (ms) => { slept.push(ms); },
     intervalMs: 60_000, loop: async () => ends.shift() });
@@ -406,7 +395,6 @@ test("4.10 · a watcher whose code changes between two looks ends with the resta
   assert.deepEqual(ends, [], "the loop ran three times");
   assert.deepEqual(slept, [60_000], "only an unexpected end waits before starting again");
 
-  // Its version is its own code's: a merge touching only other dev loop code leaves it looking, its own file restarts it.
   const home = await mkdtemp(join(tmpdir(), "lane-watch-home-"));
   t.after(() => removeTemp(home));
   const repo = join(home, "code", "storytree03");
@@ -432,7 +420,6 @@ test("4.10 · a watcher whose code changes between two looks ends with the resta
     sleep: async () => { assert.ok(merges.length, "it restarts once its own code changes"); await merges.shift()(); } }), RESTART);
   assert.equal(looks, 2, "the test runner changed: it looked again; then its own code changed: it restarted");
 
-  // The machine's own configuration, outside the repository (ADR-1216 D1), is read once at start, so a change to it restarts it too.
   looks = 0;
   const configured = [() => writeFile(join(home, ".storytree", "agent-pool.json"), JSON.stringify({ checkout: "~/code/storytree03", watcher: { fixesPerRed: 3 } }))];
   assert.equal(await main(["watch"], { ...unpinned, home,
@@ -449,7 +436,6 @@ test("4.42 · the look loop reads main's changes to the secret-check exemptions 
     readExemptions: async () => { read.push(b.options.now()); return [{ sha: "a1", at: "2026-10-27T00:00:00Z", pr: "7", by: "someone", added: ["x.test.ts"], removed: [] }]; },
     exemptionRecorded: async (about) => told.some((fyi) => fyi.about === about),
     recordExemption: async (fyi) => { told.push(fyi); },
-    // Twenty minutes a lap, six laps, then the checkout moves on and the loop restarts.
     sleep: async () => { b.tick(20 * 60_000); if (++laps === 6) version = "tree-b"; } };
   assert.equal(await main(["watch"], watching), RESTART);
   assert.deepEqual(read.map((when) => (when - at) / 60_000), [0, 60], "read at its first look and an hour later");
@@ -524,7 +510,6 @@ test("4.52 · each merge-queue red the watcher sees is kept on its hand-off once
   ]);
   assert.deepEqual(await readdir(b.dir), [], "then forgotten");
 
-  // A compare with main that GitHub refuses leaves whether the entry ahead landed unread: unknown.
   await handOff(b, 44, "increment_four");
   b.looks[44] = { state: "pending", head: "h1", queueReds: [later] };
   await watchOnce(b.options);
@@ -536,7 +521,6 @@ test("4.52 · each merge-queue red the watcher sees is kept on its hand-off once
     ["workspace", "queue-red", "44", "--increment", "increment_four", "--removed-at", minutes(-30), "--commit", "q2", "--outcome", "unknown"],
   ]);
 
-  // With no way to ask whether a commit is on main, a merged pull request's reds are unknown too.
   await handOff(b, 45, "increment_five");
   b.looks[45] = { state: "pending", head: "h1", queueReds: [later] };
   await watchOnce(b.options);
@@ -548,7 +532,6 @@ test("4.52 · each merge-queue red the watcher sees is kept on its hand-off once
     ["workspace", "queue-red", "45", "--increment", "increment_five", "--removed-at", minutes(-30), "--commit", "q2", "--outcome", "unknown"],
   ]);
 
-  // A hand-off forgotten at a cut-over has no pull request read, so each red it kept is unknown.
   await handOff(b, 43, "increment_three");
   b.looks[43] = { state: "pending", head: "h1", queueReds: [seen] };
   await watchOnce(b.options);
@@ -651,7 +634,6 @@ test("4.14 · a fix session refused by another session's claim hands back withou
   await watchOnce(b.options);
   assert.equal(b.fixes.length, 2);
   assert.match(b.fixes[1].brief, /watch\.mjs hand 42 increment_two --refused/, "the brief says how to hand back a refusal");
-  // #42's session is refused (#41's session holds what it needs), hands back with --refused, and ends.
   await hand({ ...b.options, pr: 42, increment: "increment_two", session: SESSION, refused: true, startWatcher: async () => {} });
   b.live.delete(1002);
   for (let round = 0; round < 3; round++) await watchOnce(b.options);
@@ -776,7 +758,6 @@ test("4.19 · a fix session that pushed is not counted when a newer main conflic
   const b = await box(t);
   await handOff(b);
   let head = 0;
-  // Each fix session merges main and pushes; the next sibling's landing conflicts the branch again.
   for (let round = 0; round < 4; round++) { b.looks[41] = conflictOn(`h${++head}`); await watchOnce(b.options); b.live.clear(); }
   assert.equal(b.fixes.length, 4, "every fix that moved the branch is free");
   assert.match(b.fixes[3].brief, /Fix session 1 of 3/);
@@ -885,7 +866,6 @@ test("4.21 · the watcher's status says when its look loop runs code other than 
   await writeFile(join(b.dir, "watch-loop.pid"), "8\n");
   assert.match(await status(), /look loop: running \(pid 8\).*unknown/, "a loop that recorded no version predates the check");
 
-  // A look loop records the version it started on.
   const looping = { ...b.options, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 8, argsOf: async (pid) => procs[pid] ?? "",
     codeVersion: async () => checkout, sleep: async () => { checkout = "tree-b"; } };
   b.looks = {};
@@ -901,7 +881,6 @@ test("4.21 · the watcher's status says when its look loop runs code other than 
 
 test("4.17 · a watch loop on a folder other than the box's own reads no releases, so it starts no release fix session", async (t) => {
   const b = await box(t);
-  // A home with the lane runner is the box's; the loop is given another folder, as a test on the box gives it.
   const home = await mkdtemp(join(tmpdir(), "lane-watch-box-"));
   t.after(() => removeTemp(home));
   await mkdir(join(home, ".storytree"), { recursive: true });
@@ -937,7 +916,6 @@ test("4.30 · a hand-over that finds no machine names the file to set it in; on 
   assert.equal(await main(["handover", "41", "increment_one"], { home, env: { AGENT_POOL_CONFIG: file }, onBox: false, session: SESSION, platform: "win32",
     exec: async (command, args) => { started.push([command, ...args]); return { stdout: "" }; },
     out: (line) => lines.push(line), ownViewOf: async () => view(41) }), 0);
-  // The refusal says where the box is named, so the laptop's owner can name it.
   assert.ok(lines.join("\n").includes(`names no machine to hand over to (set "machine" and "machineCheckout" in ${file})`), lines.join("\n"));
   assert.deepEqual(started.map((command) => command.slice(0, 7)), [
     [process.execPath, "--import", "tsx", "packages/cli/src/bins/storytree.ts", "arc", "increment", "wait"],
@@ -1009,7 +987,6 @@ test("4.29 · a pull request red only on the runner is rerun with no fix session
   assert.deepEqual(reruns, [5]);
   assert.equal(b.fixes.length, 0, "no model session for the runner's red");
   assert.match(b.lines.at(-1), /PR #41 .*runner.*no runner took it.*rerun/);
-  // Rerun again on a later attempt's runner red; the bound is the reader's (runnerReruns), so a red without one is the code's.
   b.looks[41] = { ...red, runner: { ...runner, runs: [{ ...runner.runs[0], attempt: 2 }] } };
   await watchOnce(b.options);
   assert.deepEqual(reruns, [5, 5]);
@@ -1139,11 +1116,9 @@ test("4.32 · a pull request whose head is not on this repository, or whose head
   assert.deepEqual(adopt.calls.find(([, , verb]) => verb === "unwait").slice(6), ["--reason", "PR #44 is not watched (PR #44's head is not on storytree-ai/storytree, or GitHub did not say where it is)"], "its wait's clear says why");
 });
 
-/** A job's log line as `gh api …/jobs/<id>/logs` gives it, led by its timestamp. */
 const logged = (...lines) => lines.map((line) => `2026-10-24T01:41:17.7416938Z ${line}`).join("\n");
 const job = (name, log, conclusion = "failure") => ({ name, conclusion, steps: 9, log });
 const ci = (jobs, id = 5, attempt = 1) => ({ id, attempt, repo: "storytree-ai/storytree", jobs });
-/** A red the watcher read as failing in `units` and `tests`, all outside what the pull request changes unless `outside` is false. */
 const flaky = ({ head = "h1", tests = ["4.17 · a browser draws"], units = ["packages/forest-world"], run = 5, attempt = 1, outside = true } = {}) => ({ ...red, head,
   failures: { outside, units, tests, runs: [{ id: run, attempt, repo: "storytree-ai/storytree" }], key: `${run}:${attempt}` } });
 
@@ -1371,7 +1346,6 @@ test("4.41 · a code-scanning red starts a fix session that reads its alerts sig
   await watchOnce(b.options);
   assert.equal(b.fixes.length, 2, "a security session that gave no verdict is followed by the next fix session while red");
 
-  // Another project's pull request: its alerts are read on its own repository.
   const theirs = await box(t);
   await handOff(theirs);
   await writeFile(join(theirs.dir, "41.json"), JSON.stringify({ ...(await saved(theirs)), project: { folder: "/srv/site", name: "website", repo: "storytree-ai/storytree-website" } }));
@@ -1400,7 +1374,6 @@ test("4.41 · a secret-check red's fix session reshapes a plain fixture without 
   assert.deepEqual(b.calls.find(([, , verb]) => verb === "unwait"), ["arc", "increment", "unwait", "increment_one", "--for", "event", "--reason", "PR #41 waits on the owner's answer to question_key"]);
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
 
-  // An increment already closed on an earlier pull request is held by nothing.
   const closed = await box(t);
   await handOff(closed);
   await writeFile(join(closed.dir, "41.json"), JSON.stringify({ ...(await saved(closed)), closed: true }));
@@ -1520,7 +1493,6 @@ test("4.46 · a saturated box holds new pull request and release fix sessions, s
   b.looks[41] = red;
   const saturated = { hold: "pause", windows: ["cpu"], reason: "box saturated: CPU load 30.0 on 16 cores" };
   const releaseFixes = [];
-  // Each look reads the box as the next reading says; the third sleep changes the code, which ends the loop.
   const readings = [saturated, saturated, new Error("no /proc here")];
   let version = "tree-a", sleeps = 0, reading;
   const watching = { ...b.options, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 7, argsOf: async () => "",
@@ -1539,7 +1511,6 @@ test("4.46 · a saturated box holds new pull request and release fix sessions, s
   assert.equal(held.length, 1, `the hold is said once, with its reading: ${b.lines.join(" | ")}`);
   assert.match(held[0], /holding back fix sessions: box saturated/);
 
-  // A box that cannot be read holds nothing back, and says so once.
   version = "tree-b"; sleeps = 2; reading = readings[2];
   watching.sleep = async () => { version = "tree-c"; };
   assert.equal(await main(["watch"], watching), RESTART);
@@ -1627,7 +1598,6 @@ test("4.49 · another project's hand-off is handed over on its repository, and i
   };
   const rewrite = async (b, change) => writeFile(join(b.dir, "7.json"), JSON.stringify({ ...(await saved(b, 7)), ...change }));
 
-  // Handed over from storytree's checkout, as a website lane's brief says: asked of the website's repository, and handed over.
   const asked = [], over = (await setUp()).b;
   const theirs = async (pr, on) => { asked.push(on); return { ...view(pr), headRepository: { name: on.split("/")[1] } }; };
   const code = await main(["handover", "8", "increment_web"], { onBox: true, session: SESSION, out: () => {}, ownerOf: async () => web, ownViewOf: theirs, viewOf: theirs,
@@ -1636,7 +1606,6 @@ test("4.49 · another project's hand-off is handed over on its repository, and i
   assert.deepEqual(asked, ["storytree-ai/storytree-website", "storytree-ai/storytree-website"], "its head is asked of its own repository, before and on the box");
   assert.deepEqual((await saved(over, 8)).project, web, "and the box records it as the website's");
 
-  // Past its fix sessions, its review session starts in its checkout, with its own commands.
   let s = await setUp();
   await rewrite(s.b, { fixes: [{ at: minutes(-30), head: "a" }, { at: minutes(-20), head: "b" }] });
   s.b.looks[7] = { ...red, head: "c" };
@@ -1648,7 +1617,6 @@ test("4.49 · another project's hand-off is handed over on its repository, and i
   assert.match(review.brief, /`storytree question new --arc <arc>/);
   assert.doesNotMatch(review.brief, /arc_1a42179de853|pnpm storytree/, "a test elsewhere is parked on its own arc, not storytree's flakes arc");
 
-  // A red outside its reach is refreshed from its own repository's main; a fix session reads how far behind its own main it is.
   s = await setUp();
   const refreshed = [], behind = [];
   s.b.options.refresh = async (pr, head, on) => { refreshed.push(on); };
@@ -1659,7 +1627,6 @@ test("4.49 · another project's hand-off is handed over on its repository, and i
   await watchOnce(s.b.options);
   assert.deepEqual([refreshed, behind], [["storytree-ai/storytree-website"], ["storytree-ai/storytree-website"]]);
 
-  // A fix session refused by another session's claim waits on that session's claims in its own library's noticeboard.
   s = await setUp(`  - increment increment_web  other-session  fixing it\n`);
   await rewrite(s.b, { fixes: [{ at: minutes(-30), head: "a", refused: true, refusedAt: minutes(-30), holder: "other-session" }] });
   s.b.looks[7] = { ...red, head: "b" };
@@ -1667,20 +1634,17 @@ test("4.49 · another project's hand-off is handed over on its repository, and i
   assert.equal(s.b.fixes.length, 0, "the holder still holds it");
   assert.deepEqual(s.steps(), [["noticeboard", "/srv/web"]]);
 
-  // Open past its three days, it goes back on its own arc.
   s = await setUp();
   s.b.tick(4 * 86_400_000);
   s.b.looks[7] = { state: "pending", head: "h1" };
   await watchOnce(s.b.options);
   assert.deepEqual(s.steps(), [["library read increment_web", "/srv/web"], ["arc increment edit", "/srv/web"], ["arc increment unwait", "/srv/web"], ["workspace let-go 7", "/srv/web"]]);
 
-  // Handed over before its repository's cut-over, it is forgotten in its own library.
   s = await setUp();
   s.b.options.cutover = async (project) => project?.folder === "/srv/web" ? minutes(60) : undefined;
   await watchOnce(s.b.options);
   assert.deepEqual(s.steps(), [["arc increment unwait", "/srv/web"], ["workspace let-go 7", "/srv/web"]]);
 
-  // One whose increment had already closed has no wait to clear before its fix session.
   s = await setUp();
   await rewrite(s.b, { closed: true });
   s.b.looks[7] = { ...red, head: "h2" };
@@ -1698,25 +1662,20 @@ test("4.51 · a hand-over never takes another repository's pull request number a
     remote: async (args) => { sshed.push(args); return ""; }, here: async (args) => { written.push(args); return ""; },
     ownViewOf: async (pr, repo) => { asked.push(repo); return opened(pr, repo); }, ...more });
 
-  // A bare number for a website pull request, on an increment in storytree's library, names storytree's long-merged PR #5.
   assert.equal(await main(["handover", "5", "increment_site"], away({ ownViewOf: async (pr) => ({ ...view(pr), state: "MERGED" }) })), 1);
   assert.match(lines.at(-1), /not handed over: PR #5 on storytree-ai\/storytree is merged, not open/);
   assert.match(lines.at(-1), /--repo/, "the refusal says how to name another repository");
   assert.deepEqual([sshed, written], [[], []], "neither the box nor the library is asked");
 
-  // Named on the website's repository while its increment is in storytree's library: refused, before GitHub is asked.
   assert.equal(await main(["handover", "5", "increment_site", "--repo", WEB], away()), 1);
   assert.match(lines.at(-1), /not handed over: increment_site is in storytree's library, whose pull requests are on storytree-ai\/storytree, and PR #5 is on storytree-ai\/storytree-website/);
   assert.deepEqual([sshed, written, asked], [[], [], []]);
 
-  // Named on its own project's repository, it is handed over, and the box is told the repository too.
   assert.equal(await main(["handover", "8", "increment_web", "--repo", WEB], away({ ownerOf: async () => web })), 0, lines.join("\n"));
   assert.deepEqual(asked, [WEB]);
   assert.deepEqual(sshed.at(-1), ["hand", "8", "increment_web", "--session", SESSION, "--repo", WEB]);
-  // A machine that knows neither library leaves the check to the box, asking GitHub of the repository named.
   assert.equal(await main(["handover", "9", "increment_web", "--repo", WEB], away({ holds: async () => false })), 0, lines.join("\n"));
   assert.deepEqual([asked.at(-1), sshed.at(-1).slice(-2)], [WEB, ["--repo", WEB]]);
-  // By default whether storytree's library holds the increment is read in storytree's checkout: a read that finds it refuses, one that fails leaves it to the box.
   const home = await mkdtemp(join(tmpdir(), "lane-watch-holds-"));
   t.after(() => removeTemp(home));
   await writeFile(join(home, "agent-pool.json"), JSON.stringify({ lanes: join(home, "lanes") }));
@@ -1729,7 +1688,6 @@ test("4.51 · a hand-over never takes another repository's pull request number a
   assert.ok(read.some((args) => args.join(" ").includes("library read increment_site")), "it asked storytree's library");
   assert.equal(await main(["handover", "5", "increment_site", "--repo", WEB], reading(false)), 0, lines.join("\n"));
 
-  // On the box, `hand` refuses a repository other than its increment's, and a pull request that is not open; it writes nothing.
   const b = await box(t);
   const handBox = (more) => ({ dir: b.dir, now: b.options.now, out: (line) => lines.push(line), storytree: b.options.storytree, viewOf: opened,
     ownerOf: async () => undefined, project: async () => undefined, pidFile: join(b.dir, "pid"), argsOf: async () => "", startWatcher: async () => 1, ...more });
@@ -1741,7 +1699,6 @@ test("4.51 · a hand-over never takes another repository's pull request number a
   assert.deepEqual([b.calls, await readdir(b.dir)], [[], []]);
   assert.equal(await main(["hand", "8", "increment_web", "--session", SESSION, "--repo", WEB], handBox({ ownerOf: async () => web })), 0, lines.join("\n"));
 
-  // A request written through the library for a merged pull request is not adopted: its wait and held claims are let go.
   const waits = `  - event  PR #5 is open and green and handed to the box's watcher through the library by session ${SESSION}, which closes this on its merge or starts a fix session on a red. — increment_site  The site, on arc_a  An arc; check back 2026-10-13\n`;
   const adopt = await box(t);
   adopt.options.storytree = async (args) => { adopt.calls.push(args); return args[1] === "waits" ? waits : ""; };
@@ -1763,7 +1720,6 @@ test("4.57 · the watcher starts every fix, review and release fix session's lan
   const runner = join(dirname(fileURLToPath(import.meta.url)), "runner.mjs");
   assert.deepEqual(started.map(({ args, cwd }) => [args.indexOf(runner) >= 0, args[args.indexOf(runner) + 1], cwd]),
     [[true, "run", "/srv/shop"], [true, "run", box.repo], [true, "run", box.repo]]);
-  // Each start's arguments, its runner swapped for a stand-in that loads session-management, as the runner's exit recorder does.
   const probe = join(dir, "runner-probe.mjs");
   await writeFile(probe, `const { openActivityLog } = await import(${JSON.stringify(import.meta.resolve("@storytree/session-management"))});\nconsole.log(typeof openActivityLog);\n`);
   const { NODE_OPTIONS: _options, ...env } = process.env;
@@ -1785,13 +1741,11 @@ test("4.58 · the box finds a session it started by the runner log the start ope
   assert.deepEqual(await box.startedAs({ name: "fix-7-1", since }), { log: join(dir, "watch", "fix-7-1.log") }, "started, and no longer running");
   assert.deepEqual(await box.startedAs({ name: "release-fix-99-1", since }), { log: join(dir, "watch", "release-fix-99-1.log") });
   assert.equal(await box.startedAs({ name: "fix-7-2", since }), undefined, "never started");
-  // One still running is found by its runner's command line, naming its brief.
   const running = boxDefaults({ home: dir, env: { LANES_DIR: dir }, spawn: (command, args, options) => {
     const child = spawnChild(process.execPath, ["-e", "setTimeout(() => {}, 60_000)", "--", ...args], { ...options, cwd: dir });
     t.after(() => child.kill());
     return child;
   } });
-  // Another pull request's session started first, so a lookup taking any runner would find it instead.
   await running.startFix({ pr: 9, n: 1, brief: "fix the other" });
   const { pid } = await running.startFix({ pr: 8, n: 1, brief: "fix it" });
   const found = await waitUntil(async () => { const one = await running.startedAs({ name: "fix-8-1", since }); return one?.pid ? one : undefined; },
@@ -1804,7 +1758,6 @@ test("4.58 · a record write that cannot complete leaves the old record whole, s
   const b = await box(t);
   await handOff(b);
   const before = await readFile(join(b.dir, "41.json"), "utf8");
-  // The write's first half is the file beside the record; one that fails there stands for a watcher killed mid-write.
   await mkdir(join(b.dir, "41.json.tmp"));
   b.looks[41] = red;
   await assert.rejects(watchOnce(b.options));
@@ -1817,7 +1770,6 @@ test("4.60 · a check cancelled because a newer run of its concurrency group too
   const cancelled = (name, run, ...messages) => ({ __typename: "CheckRun", name, status: "COMPLETED", conclusion: "CANCELLED",
     detailsUrl: `https://github.com/storytree-ai/storytree/actions/runs/${run}/job/7${run}${name.length}`, annotations: { nodes: messages.map((message) => ({ message })) } });
   const superseded = (group) => `Canceling since a higher priority waiting request for ${group}-refs/pull/41/merge exists`;
-  // PR #651's: the run's first jobs carry the annotation, its later jobs are cancelled with none.
   const rehearsal = [cancelled("rehearse / package (Linux)", 5, superseded("release-rehearsal"), "The operation was canceled."),
     cancelled("rehearse / sign-mac", 5), cancelled("publication", 5), cancelled("windows", 6, superseded("staging-desktop"))];
   assert.equal(readPull(pull({ checks: [passed, ...rehearsal] }), options).state, "pending");

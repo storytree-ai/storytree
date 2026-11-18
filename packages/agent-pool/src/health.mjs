@@ -1,10 +1,4 @@
-// Capability 8 · Reports the pool's health, concerns first. Run on the pool's machine:
-// node --import tsx packages/agent-pool/src/health.mjs [--all] (concerns, then with --all what is healthy too; exits 1 on a concern)
-// It reads the dispatcher's pid, stop file and status lines (launch.mjs), whether the service host keeps the dispatcher
-// (its agent-pool/dispatcher service on in this machine's settings, services.mjs), the engines running against the cap, each
-// session's logs and report, and the watcher's hand-offs (watch.mjs) with their pull requests on GitHub. It changes
-// nothing: restarting, stopping or re-queueing stays the session manager's call. It also flags a lane whose engine started
-// with a tool server other than storytree, and a stored claude.ai login on the box (ADR-1175 D1).
+// Capability 8 · Reports the pool's health, concerns first.
 import { execFile } from "node:child_process";
 import { open, readdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -19,11 +13,8 @@ import { HOME, readPull } from "./watch.mjs";
 const run = promisify(execFile);
 const DISPATCHER = /launch\.mjs pool( |$)/;
 const WATCHER = /watch\.mjs run( |$)/;
-/** A live session whose logs have not grown in this long is stuck. */
 const STUCK_MS = 90 * 60_000;
-/** How far back an ended session's missing report is still a concern. */
 const ENDED_MS = 24 * 3_600_000;
-/** The exit of a start the dispatcher refused at its claim: no engine ran, so no report is owed. */
 const CLAIM_REFUSED = 78;
 
 const ago = (ms) => {
@@ -33,10 +24,6 @@ const ago = (ms) => {
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const mtime = (path) => stat(path).then((found) => found.mtimeMs, () => undefined);
 
-/**
- * The sessions in the dispatcher's status lines: those started since its last start and not ended (running), and every
- * one that ended, with when it started and its exit.
- */
 export function readSessions(text) {
   const running = new Map(), ended = [], started = new Map();
   for (const line of text.split("\n")) {
@@ -51,22 +38,19 @@ export function readSessions(text) {
   return { running: [...running].map(([id, at]) => ({ id, at })), ended };
 }
 
-/** When any of a session's logs (pool-<id>-<at>.log, its Claude hand-over and resume logs) last grew. */
 async function logGrew(lanesDir, names, id) {
   const times = await Promise.all(names.filter((name) => name.startsWith(`pool-${id}-`) && name.endsWith(".log")).map((name) => mtime(join(lanesDir, name))));
   return Math.max(...times.filter(Number.isFinite), -Infinity);
 }
 
-/** The watcher's hand-offs, one `<pr>.json` each in its folder. */
 async function handOffs(dir) {
   const found = [];
   for (const name of (await readdir(dir).catch(() => [])).filter((one) => /^\d+\.json$/.test(one)).sort((a, b) => parseInt(a) - parseInt(b))) {
-    try { found.push(JSON.parse(await readFile(join(dir, name), "utf8"))); } catch { /* a half-written hand-off is read next time */ }
+    try { found.push(JSON.parse(await readFile(join(dir, name), "utf8"))); } catch {}
   }
   return found;
 }
 
-/** The tool servers a Claude engine's log says it started with (its init event, near the log's head), or none. */
 async function toolServers(path) {
   const file = await open(path, "r").catch(() => undefined);
   if (!file) return [];
@@ -77,13 +61,12 @@ async function toolServers(path) {
       try {
         const event = JSON.parse(line);
         if (event.type === "system" && event.subtype === "init") return (event.mcp_servers ?? []).map((server) => server.name);
-      } catch { /* a line cut at the read's end */ }
+      } catch {}
     }
     return [];
   } finally { await file.close(); }
 }
 
-/** A pull request out of the merge queue that would be in it: open, ready, unheld, clean, and its own verify passed. */
 function stalledGreen(raw) {
   const checks = raw.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
   return raw.state === "OPEN" && !raw.isDraft && !(raw.labels?.nodes ?? []).some((label) => label.name === "hold")
@@ -91,7 +74,6 @@ function stalledGreen(raw) {
     && checks.some((check) => check.name === "verify" && check.conclusion === "SUCCESS");
 }
 
-/** The pool's state on this machine, read from its files, processes and GitHub, judged into concerns and detail lines. */
 export async function poolHealth(b) {
   const L = b.lanesDir, now = b.now();
   const concerns = [], details = [];
@@ -128,8 +110,6 @@ export async function poolHealth(b) {
     if (report === undefined || (at && report < Date.parse(at))) concerns.push(`${id} ended ${ago(now - Date.parse(endedAt))} ago (exit ${code}) with no report`);
   }
 
-  // A lane runs only on the lane token and loads no tool server but storytree (ADR-1175 D1): its logs and the watcher's
-  // fix sessions' of the last day are read for what each engine started with, and a stored claude.ai login is flagged.
   for (const folder of ["", "watch"]) {
     for (const name of (await readdir(join(L, folder)).catch(() => [])).filter((one) => one.endsWith(".log")).sort()) {
       const path = join(L, folder, name), grew = await mtime(path);
@@ -166,7 +146,6 @@ const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(ow
   timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 1) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason } } }
 } } }`;
 
-/** The box's lanes folder, cap and processes, from the pool's configuration (pool-config.mjs), and its pull requests through `gh`. */
 function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const config = poolConfig({ home, env });
   const { lanesDir, checkout: repo } = config;
@@ -182,7 +161,6 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   };
 }
 
-/** Concerns first, then with `--all` the healthy details; with no concern, one line. Exits 1 on a concern. `box` overrides the box in tests. */
 export async function main(args, box = {}) {
   const b = { ...boxDefaults({ home: box.home, env: box.env }), ...box };
   const { concerns, details, summary } = await poolHealth(b);

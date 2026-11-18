@@ -9,7 +9,6 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { poolConfig, readCap } from "./pool-config.mjs";
 
-/** The checkout these tests run in, as Git names it. */
 const CHECKOUT = resolve(execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: import.meta.dirname, encoding: "utf8" }).trim());
 
 async function configFile(t, fields) {
@@ -35,7 +34,6 @@ test("3.15 · the pool reads its machine, checkout, lanes, briefs, session cap, 
   };
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), expected);
 
-  // With no AGENT_POOL_CONFIG it is the machine file under this machine's home, ~/.storytree/agent-pool.json (ADR-1216 D1).
   const home = await mkdtemp(join(tmpdir(), "pool-config-home-"));
   t.after(() => removeTemp(home));
   await mkdir(join(home, ".storytree"));
@@ -43,24 +41,20 @@ test("3.15 · the pool reads its machine, checkout, lanes, briefs, session cap, 
   assert.deepEqual(poolConfig({ home, env: {} }), { ...expected, file: join(home, ".storytree", "agent-pool.json"), checkout: join(home, "src/shop"), lanesDir: join(home, "pool"), briefsDir: join(home, "pool/briefs"),
     addDirs: [join(home, "src/shop-wt"), "/srv/shared", join(home, "pool")] });
 
-  // An identity is read only whole: a name with no email (or the reverse) is none, and git's own configuration decides.
   await writeFile(file, JSON.stringify({ identity: { name: "Lane Owner" } }));
   assert.equal(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).identity, undefined);
   await writeFile(file, JSON.stringify({ identity: { email: "owner@example.com" } }));
   assert.equal(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).identity, undefined);
 
-  // A hand-over from another machine runs in the pool's checkout there, which may be named apart from this machine's own.
   await writeFile(file, JSON.stringify({ machine: "box", checkout: "C:/src/shop", machineCheckout: "~/code/shop" }));
   assert.equal(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).remoteCheckout, "~/code/shop");
 
-  // The environment the pool read before still overrides the file.
   const env = { AGENT_POOL_CONFIG: file, LANES_DIR: "/tmp/lanes", CODEX_STOP_AT: "70", WATCH_BOX_HOST: "other", WATCH_FIX_LIMIT: "3", WATCH_FIX_CAP: "9", WATCH_INTERVAL_S: "5" };
   const over = poolConfig({ home: "/home/u", env });
   assert.equal(over.lanesDir, "/tmp/lanes"); assert.equal(over.addDirs.at(-1), "/tmp/lanes");
   assert.equal(over.switchAt, 70); assert.equal(over.machine, "other");
   assert.deepEqual(over.watcher, { fixesPerRed: 3, fixesPerPullRequest: 9, intervalMs: 5000 });
 
-  // A configuration that cannot be read stops the pool rather than running it on defaults.
   await writeFile(file, "{ not json");
   assert.throws(() => poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), /could not read the agent pool's configuration/);
 });
@@ -73,7 +67,6 @@ test("3.16 · with no configuration the pool runs on general defaults: this chec
     watcher: { fixesPerRed: 2, fixesPerPullRequest: 6, intervalMs: 60_000 }, machineOnly: false, projects: [{ name: "storytree" }],
     cloud: { enabled: false, cap: 2 },
   });
-  // The cloud overflow is on only when switched on in so many words (ADR-1264): any other value leaves it off.
   await writeFile(file, JSON.stringify({ cloud: { enabled: "yes", trigger: "trig_01abc" } }));
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).cloud, { enabled: false, cap: 2, trigger: "trig_01abc" });
 });
@@ -84,7 +77,6 @@ test("3.35 · the pool serves each project its machine names, each from its chec
   assert.deepEqual(read(), [{ name: "storytree" }, { name: "storytree-website", checkout: join("/home/u", "code/storytree-website") }]);
   await writeFile(file, JSON.stringify({ projects: [] }));
   assert.deepEqual(read(), [{ name: "storytree" }], "an empty list names none");
-  // Only storytree's lanes may start in the pool's own checkout: another project's must say where its own is.
   await writeFile(file, JSON.stringify({ projects: [{ name: "storytree-website" }] }));
   assert.throws(read, /project storytree-website names no checkout/);
 });

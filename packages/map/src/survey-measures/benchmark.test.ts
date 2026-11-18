@@ -1,9 +1,10 @@
 // Capability 10 · Survey run time and memory measured
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { test, type TestContext } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
@@ -100,14 +101,17 @@ function assertShaped(reading: SurveyBenchmark, quantity: "wall" | "cpu" | "peak
   assert.ok(typeof spread === "number" && Number.isFinite(spread) && spread >= 0, `${quantity}'s spread is a finite number not below zero: ${spread}`);
 }
 
-test("10.1 · surveyBenchmark surveys the commit given, extracted from the folder's Git objects rather than its working tree, the runs asked, answering the stories it read and each of wall, CPU and peak memory as a positive finite median and a non-negative spread; it leaves the working tree, index, HEAD, refs and worktrees as they were and no extracted checkout behind, and refuses a commit the folder lacks naming it", async (t) => {
+test("10.1 · surveyBenchmark surveys the commit given, extracted from the folder's Git objects rather than its working tree, the runs asked, answering the stories it read and each of wall, CPU and peak memory as a positive finite median and a non-negative spread, two runs' wall times fitting inside the whole call; it leaves the working tree, index, HEAD, refs and worktrees as they were and no extracted checkout behind, and refuses a commit the folder lacks naming it", async (t) => {
   const repo = repository(t);
   const before = state(repo);
 
   await inPrivateTemp(t, async (temp) => {
+    const startedBoth = performance.now();
     const atBoth = await surveyBenchmark({ folder: repo.folder, commit: repo.both, tree, runs: 2 });
+    const elapsedBoth = performance.now() - startedBoth;
     assert.deepEqual({ commit: atBoth.commit, runs: atBoth.runs, stories: atBoth.stories }, { commit: repo.both, runs: 2, stories: 2 }, "the older commit holds the shop and cart packages, though HEAD and the working tree hold only shop; the ghost story has none");
     for (const quantity of ["wall", "cpu", "peak"] as const) assertShaped(atBoth, quantity);
+    assert.ok(atBoth.wall.median * 2 <= elapsedBoth, `two runs' wall times, which are twice their median, fit inside the whole call they ran in, whatever the machine's speed: ${atBoth.wall.median} * 2 against ${elapsedBoth}`);
     assert.deepEqual(state(repo), before, "the folder's working tree, index, HEAD, refs, worktrees and stashes are as they were");
     assert.deepEqual(extractedLeft(temp), [], "the extracted checkout is removed");
 
@@ -123,6 +127,44 @@ test("10.1 · surveyBenchmark surveys the commit given, extracted from the folde
       (error: unknown) => error instanceof Error && error.message.includes(missing),
       "a commit the folder does not hold is refused, naming it",
     );
+    assert.deepEqual(state(repo), before);
+    assert.deepEqual(extractedLeft(temp), []);
+  });
+});
+
+function gitOnlyPath(t: TestContext): string | undefined {
+  const executable = process.platform === "win32" ? "git.exe" : "git";
+  const tarName = process.platform === "win32" ? "tar.exe" : "tar";
+  const git = (process.env.PATH ?? "").split(path.delimiter).map((dir) => path.join(dir, executable)).find((file) => existsSync(file));
+  if (git === undefined) return undefined;
+  if (process.platform === "win32") return existsSync(path.join(path.dirname(git), tarName)) ? undefined : path.dirname(git);
+  const bin = mkdtempSync(path.join(tmpdir(), "survey-benchmark-bin-"));
+  t.after(() => removeTemp(bin));
+  symlinkSync(git, path.join(bin, executable));
+  return bin;
+}
+
+test("10.1 · surveyBenchmark refuses a commit it cannot extract because tar will not start, with tar's start error, leaving the folder as it was and no extracted checkout behind", async (t) => {
+  const repo = repository(t);
+  const before = state(repo);
+  const bin = gitOnlyPath(t);
+  if (bin === undefined) {
+    t.skip("environment: no folder on PATH holds git without tar, so tar cannot be made to fail to start");
+    return;
+  }
+
+  await inPrivateTemp(t, async (temp) => {
+    const kept = process.env.PATH;
+    process.env.PATH = bin;
+    try {
+      await assert.rejects(
+        surveyBenchmark({ folder: repo.folder, commit: repo.both, tree, runs: 1 }),
+        (error: unknown) => error instanceof Error && (error as NodeJS.ErrnoException).code === "ENOENT" && (error as NodeJS.ErrnoException).syscall === "spawn tar",
+        "tar failing to start rejects the benchmark with that start error",
+      );
+    } finally {
+      process.env.PATH = kept;
+    }
     assert.deepEqual(state(repo), before);
     assert.deepEqual(extractedLeft(temp), []);
   });

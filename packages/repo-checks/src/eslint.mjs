@@ -20,7 +20,6 @@ function config(plugin) {
   const rules = Object.fromEntries(Object.keys(plugin.rules).map((name) => [`storytree/${name}`, "error"]));
   return [
     { linterOptions: { reportUnusedDisableDirectives: "off" } },
-    { files: ["**/*.js", "**/*.mjs", "**/*.cjs"], languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } } },
     { files: TYPESCRIPT, languageOptions: { parser: tseslint.parser } },
     { files: ["**/*.js", "**/*.mjs", "**/*.cjs", ...TYPESCRIPT], plugins: { storytree: plugin }, rules },
   ];

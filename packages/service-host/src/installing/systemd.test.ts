@@ -1,4 +1,4 @@
-/** Capability 3 · Keeping the host running, contracts 3.1 and 3.2: the Mint box's storytree-host.service, and `services install` / `services uninstall` writing and removing it. */
+// Capability 3 · Keeping the host running
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -16,7 +16,6 @@ function tempDir(t: TestContext): string {
   return dir;
 }
 
-/** A stand-in node at `bin`/node that writes the folder it ran in and its arguments to `said`. */
 function fakeNode(bin: string, said: string): void {
   mkdirSync(bin, { recursive: true });
   writeFileSync(path.join(bin, "node"), `#!/bin/sh\nprintf '%s\\n' "${bin}" "$PWD" "$@" > "${said}"\n`);

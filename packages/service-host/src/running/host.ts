@@ -1,12 +1,4 @@
-/**
- * Capability 1 · Running services, contract 1.1 (ADR-1180 D2, D4). The service host: it reads the services the parts it
- * stands on mount once, as it starts, and on each tick runs exactly those this machine's settings turn on, so turning
- * one on or off takes within seconds, takes the restarts asked for by name, and writes how each service stands. A part
- * switched on or off takes at the host's next start. Stopping it stops every service, as the supervisor stops them.
- * Capability 4 · Keeping the factory current, contracts 4.1 to 4.4 (ADR-1180 D3): on its cadence it pulls the factory,
- * restarts only the services whose plugins the pull moved, on their declarations read again, and once its own code in
- * the storytree checkout has moved it stops every service and exits 3, for whatever keeps it running to start it again.
- */
+// Capability 1 · Running services
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -21,14 +13,8 @@ import { freshMountedServices, mountedServices, type Declared } from "./declared
 import { startChild } from "./spawn.js";
 import { realClock, Supervisor, type Child, type Clock } from "./supervise.js";
 
-/** This package's own folder: the host whose package.json names the built-in parts it hosts. */
 export const HOST_DIR = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
-/**
- * The host folder the `services` verbs read the parts from: `own`, when its package.json is there (run from a checkout),
- * otherwise the folder the host last running in storytree home `home` stood on. The installed command is one bundled
- * file in a build folder with no package.json beside it, so its own folder names no parts (friction_c130275368ab).
- */
 export function hostFolder(home: string, own: string = HOST_DIR): string {
   if (existsSync(path.join(own, "package.json"))) return own;
   const recorded = readStatus(home)?.hostDir;
@@ -36,13 +22,10 @@ export function hostFolder(home: string, own: string = HOST_DIR): string {
   throw new Error("this storytree command is a build with no service host beside it, and no service host has run here to say where its own is: start one with `storytree services run` from storytree's checkout, or run this command there with `pnpm storytree`.");
 }
 
-/** How often the host reads the settings and the restarts asked for. */
 export const TICK_MS = 2_000;
 
-/** How often the host pulls the factory and reads its own code's version. */
 export const PULL_MS = 15 * 60_000;
 
-/** The host's exit once its own code moved: whatever keeps it running starts it again, on the new code. */
 export const RESTART = 3;
 
 export interface HostOptions {
@@ -53,22 +36,16 @@ export interface HostOptions {
   readonly tickMs?: number;
   readonly start?: (service: Declared, home: string, log: (line: string) => void) => Child;
   readonly pullMs?: number;
-  /** How the factory clone is installed when a pull changes its lockfile. */
   readonly install?: Install;
-  /** The version of the host's own code. */
   readonly ownCode?: () => string | undefined;
-  /** How the host exits once its own code moved, every service stopped. */
   readonly exit?: (code: number) => void;
 }
 
-/** A running service host. */
 export interface RunningHost {
   readonly supervisor: Supervisor;
-  /** Stop every service and the host's ticks; resolves when every child has ended. */
   stop(): Promise<void>;
 }
 
-/** The commit `folder` (the factory) is at, when it is a git checkout. */
 function commitOf(folder: string): string | undefined {
   try {
     return execFileSync("git", ["-C", folder, "rev-parse", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
@@ -77,7 +54,6 @@ function commitOf(folder: string): string | undefined {
   }
 }
 
-/** Start the service host for storytree home `home`. */
 export function startHost({
   home = storytreeHome(), hostDir = HOST_DIR, log = (line) => process.stdout.write(`${line}\n`), clock = realClock, tickMs = TICK_MS, start = startChild,
   pullMs = PULL_MS, install = pnpmInstall, ownCode = () => ownCodeVersion(hostDir), exit = (code) => process.exit(code),
@@ -110,7 +86,6 @@ export function startHost({
   log(`service host: ${declared.size} service${declared.size === 1 ? "" : "s"} declared by the mounted parts${commit === undefined ? "" : `; factory at ${commit.slice(0, 12)}`}`);
   let cancel: () => void = () => {};
   let cancelPull: () => void = () => {};
-  /** Run exactly the declared services this machine's settings turn on. */
   const apply = () => {
     const on = new Set(readServicesOn(home));
     supervisor.set([...declared.values()].filter((service) => on.has(service.id)).map(({ id, run }) => ({ id, run })));
@@ -125,7 +100,6 @@ export function startHost({
     write();
     if (!stopped) cancel = clock.after(tickMs, tick);
   };
-  /** After a move of `plugins`, read the declarations again and start each of their running services on its new code. */
   const restartMoved = async (plugins: readonly string[]) => {
     if (plugins.length === 0) return;
     let fresh: Awaited<ReturnType<typeof freshMountedServices>>;
@@ -152,7 +126,6 @@ export function startHost({
     await supervisor.stop();
     write();
   };
-  /** One turn of keeping the factory current: pull it, restart what moved, and exit once the host's own code moved. */
   const keep = async () => {
     try {
       const pulled = await pullFactory(factoryFolder, install);

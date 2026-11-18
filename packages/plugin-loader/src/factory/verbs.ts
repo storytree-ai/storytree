@@ -1,22 +1,10 @@
-/**
- * Capability 5 · Factory plugins. The `plugin` verbs, declared here (ADR-0969 D2) and named under `verbs` in the
- * package's manifest (ADR-1033), so the command line mounts them as its `plugin` family and the MCP server as tools: an
- * agent with only the installed app reads what a plugin must contain, starts one in this computer's factory folder, and
- * checks that this storytree would load it before switching it in (friction_97e888ba1a89). None of those needs a project.
- * The fourth removes a switched-off plugin's records from the project's library: a deliberate step, listed before it is
- * taken, which switching a plugin off never takes (ADR-1178 D4). The fifth fences, in the project's library, the database
- * roles each plugin this computer mounts declares (its kinds' writers, and its librarian): a deliberate step, run with an
- * account that may act as the project database's owner, which never makes a role (ADR-1178 D5). The sixth writes a plugin's own
- * story, capabilities and contracts into the project's plan from the plan file it carries (ADR-1187), read from this computer's factory
- * folder or from one it is given, such as a lane's own factory worktree (friction_6614c32ede85).
- */
+// Capability 5 · Factory plugins
 import path from "node:path";
 
 import { verb, VerbRefusal, type VerbContext, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
 import type { Composition, ProvidingFamily } from "../switch/switch.js";
 
-/** Where a plugin verb was called: the place, and, from a door that composes them, the host's command families, each with the part that declares it. */
 export interface PluginPlace extends VerbPlace {
   hostVerbs?(): Promise<Composition<ProvidingFamily>>;
 }
@@ -108,11 +96,6 @@ const check = verb({
   },
 });
 
-/**
- * What the part plugin `plugin` of `folder` stands in for provides of the host's command families `composed` that the
- * plugin does not (friction_195e0c8067ff), said; the part is `named`, else the one its manifest names, else the one this
- * computer's setting names it for, and none is said for a plugin standing in for no part of the host's.
- */
 async function lackingLine(folder: string | undefined, plugin: string, named: string | undefined, composed: Composition<ProvidingFamily>): Promise<string | undefined> {
   const [{ readStandIns }, { pluginFor, pluginParts }, { lackingSaid, partProvides, provided }] = await Promise.all([import("@storytree/project-and-caller"), import("./factory.js"), import("../switch/switch.js")]);
   const part = named ?? pluginFor(folder, plugin) ?? Object.entries(readStandIns().plugins).find(([, one]) => one === plugin)?.[0];
@@ -177,7 +160,6 @@ const importPlan = verb({
       const folder = from === undefined ? factoryFolder().folder : path.resolve(from);
       const plan = pluginPlan(folder, plugin);
       if (plan === undefined) throw new Error(`${plugin}'s storytree manifest names no plan`);
-      // Retire only what the folder's own history held, so a folder behind the factory's main retires no other lane's landing.
       const held = pluginPlanHeld(folder, plugin);
       const done = await library.importPluginPlan(plugin, plan, { ...writer, ...(adopt === undefined ? {} : { adopt }), ...(held === undefined ? {} : { held }) });
       const left = done.left.length === 0 ? "" : `\n${done.left.length} live in the plan that this folder's plan has never held were left, not retired: ${done.left.join(", ")}. Another lane may have landed them since this folder was cut: merge the factory's main and import again; retire by hand any that no plan holds.`;
@@ -194,7 +176,6 @@ const importPlan = verb({
   },
 });
 
-/** What `grant` lets its role do, in words: "adds voice.note", or "adds and changes voice.note, voice.tag". */
 function granted(grant: { readonly kinds: readonly string[]; readonly update?: boolean }): string {
   return `${grant.update === true ? "adds and changes" : "adds"} ${grant.kinds.join(", ")}`;
 }
@@ -243,12 +224,10 @@ const fence = verb({
   },
 });
 
-/** The command line's `plugin` family, at its place after `settings`. */
 export const PLUGIN_FAMILIES: readonly VerbFamily<VerbPlace>[] = [
   { name: "plugin", summary: "what a factory plugin must contain, start one, check this storytree would load it, import its plan, fence its roles, or remove a switched-off one's records", order: 25.5, verbs: [contract, create, check, importPlan as never, removeRecords as never, fence as never] },
 ];
 
-/** What the MCP server's card says of these tools (ADR-1021: guidance travels with its part). */
 export const pluginGuidance: readonly string[] = [
   "To make a plugin in the user's factory standing in for a storytree module, read `plugin_contract` first, start it with `new_plugin`, and call `check_plugin` after each edit: it says whether storytree would load it, and why not. Switching a plugin off keeps its records; remove them with `remove_plugin_records` only when the user asked for the plugin removed, otherwise ask them first. `fence_plugin` fences a mounted plugin's database roles, when the user asks. `import_plugin_plan` imports a plugin's own plan.",
 ];

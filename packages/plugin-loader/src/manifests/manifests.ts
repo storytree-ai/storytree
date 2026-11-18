@@ -1,20 +1,11 @@
-/**
- * Capability 1 · Manifests. The parts a host's story packages add, read from the `storytree` key of each package's
- * package.json (ADR-1021): per kind, a list of `{ from, export, order? }`, where `from` is one of the package's own
- * export subpaths and `export` the name its module exports the part's declarations under. The packages read are
- * those the host's package.json depends on: storytree's own, never one a user's or project's configuration names. A
- * package's long-running `services` (ADR-1180 D1) are entries of their own shape, `{ name, from, export, run }`, read by
- * storyServices for the service host.
- */
+// Capability 1 · Manifests
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 import { partName, type PartsGraph } from "../switch/switch.js";
 
-/** One part a story package adds: the module a host imports and the name the declarations are exported under. */
 export interface StoryPart {
   readonly package: string;
-  /** The package's export subpath, as a host imports it: `@storytree/forest/surfaces`. */
   readonly module: string;
   readonly export: string;
 }
@@ -27,11 +18,6 @@ export interface PackageJson {
   readonly storytree?: unknown;
 }
 
-/**
- * While readsOf runs, every package.json read, so a list written from them can say what it was written from. Each is
- * kept by its real path: a part's own dependencies are found from the folder it really lives in, so one file can be
- * reached by two paths (macOS's /var is /private/var), and a build checks the file, not the way it was reached.
- */
 let reading: Set<string> | undefined;
 
 const readJson = (file: string): PackageJson => {
@@ -39,7 +25,6 @@ const readJson = (file: string): PackageJson => {
   return JSON.parse(readFileSync(file, "utf8")) as PackageJson;
 };
 
-/** What `run` returns, with every package.json it read, in the order first read. */
 export function readsOf<T>(run: () => T): { value: T; files: string[] } {
   const outer = reading;
   reading = new Set();
@@ -51,18 +36,15 @@ export function readsOf<T>(run: () => T): { value: T; files: string[] } {
   }
 }
 
-/** The kinds a host imports as `#parts/<kind>`, as its package.json's `imports` maps them, for its unbundled form. */
 export function hostKinds(host: string): string[] {
   const imports = (readJson(path.join(host, "package.json")) as { imports?: Record<string, unknown> }).imports ?? {};
   return Object.keys(imports).filter((key) => /^#parts\/[\w-]+$/.test(key)).map((key) => key.slice("#parts/".length));
 }
 
-/** The installed package.json of `name`, found as Node finds a package: in node_modules from `from` upwards. */
 function installed(name: string, from: string): PackageJson | undefined {
   return installedAt(name, from)?.pkg;
 }
 
-/** The installed package.json of `name` and the folder it really lives in, where its own dependencies are found from. */
 function installedAt(name: string, from: string): { pkg: PackageJson; dir: string } | undefined {
   for (let dir = path.resolve(from); ; dir = path.dirname(dir)) {
     const file = path.join(dir, "node_modules", ...name.split("/"), "package.json");
@@ -71,7 +53,6 @@ function installedAt(name: string, from: string): { pkg: PackageJson; dir: strin
   }
 }
 
-/** The host a file belongs to: the nearest folder above it holding a package.json, as Node finds the package a file is in. */
 export function hostOf(from: string): string {
   for (let dir = path.resolve(from); ; dir = path.dirname(dir)) {
     if (existsSync(path.join(dir, "package.json"))) return dir;
@@ -82,7 +63,6 @@ export function hostOf(from: string): string {
 const exported = (exports: unknown, from: string): boolean =>
   typeof exports === "object" && exports !== null && !Array.isArray(exports) && Object.hasOwn(exports, from);
 
-/** The story packages `host` depends on, sorted by name, each with its installed package.json. */
 function dependencies(host: string): { name: string; pkg: PackageJson | undefined }[] {
   const own = readJson(path.join(host, "package.json"));
   const names = [...new Set([...Object.keys(own.dependencies ?? {}), ...Object.keys(own.devDependencies ?? {})])].sort();
@@ -93,23 +73,12 @@ const manifested = (pkg: PackageJson | undefined): boolean => typeof pkg?.storyt
 
 const declaresServices = (pkg: PackageJson | undefined): boolean => manifested(pkg) && (pkg!.storytree as Record<string, unknown>).services !== undefined;
 
-/**
- * The parts `host` depends on (capability 4): each package with a manifest, by part name, with the parts its package.json
- * depends on. A part reached only through another part is in it too, so switching it off takes the one standing on it.
- * So is a part another takes only as a development dependency and whose manifest declares services, as the service host
- * takes the agent runner it mounts (contract 4.4), but with no edge from the one taking it, which stays on without it.
- */
 export function partsGraph(host: string): PartsGraph {
   return partsGraphOf(dependencies(host).map(({ name }) => name), host, installedAt);
 }
 
-/** A package.json and the folder its own dependencies are found from, as `find` gives it for a name. */
 export type FoundPackage = { readonly pkg: PackageJson; readonly dir: string };
 
-/**
- * The parts graph reached from `names`, found from `from`, each package found by `find(name, from)`: partsGraph's rule
- * over packages read any way, as storytree's own gate reads them at another commit (repository checks' 8.15).
- */
 export function partsGraphOf(names: readonly string[], from: string, find: (name: string, from: string) => FoundPackage | undefined): PartsGraph {
   const graph: Record<string, string[]> = {};
   const visit = (name: string, from: string): void => {
@@ -124,7 +93,6 @@ export function partsGraphOf(names: readonly string[], from: string, find: (name
   return Object.fromEntries(Object.entries(graph).sort(([a], [b]) => a.localeCompare(b)));
 }
 
-/** The parts of `kind` the story packages `host` depends on declare, lowest order first (see 1.3). */
 export function storyParts(host: string, kind: string): StoryPart[] {
   const found: { part: StoryPart; order: number; position: number }[] = [];
   for (const { name, pkg } of dependencies(host)) {
@@ -140,28 +108,19 @@ export function storyParts(host: string, kind: string): StoryPart[] {
       found.push({ part: { package: name, module: path.posix.join(name, from), export: entry.export }, order, position });
     });
   }
-  // Names are already sorted, and the sort is stable, so ties keep package name then manifest position.
   return found.sort((a, b) => (a.order === b.order ? 0 : a.order - b.order)).map(({ part }) => part);
 }
 
-/** How a service runs: started again whenever it ends, or started every n minutes, never while the last run still goes. */
 export type ServiceRun = "always" | { readonly every: `${number}m` };
 
-/** Whether `run` is how a service runs: "always", or { every: "<n>m" } with n a whole number above 0. */
 export const isServiceRun = (run: unknown): run is ServiceRun =>
   run === "always" || (typeof run === "object" && run !== null && Object.keys(run).length === 1 && typeof (run as { every?: unknown }).every === "string" && /^[1-9][0-9]*m$/.test((run as { every: string }).every));
 
-/** One long-running service a story package declares (ADR-1180 D1): its name, how it runs, and the module and export a service host starts. */
 export interface StoryService extends StoryPart {
   readonly name: string;
   readonly run: ServiceRun;
 }
 
-/**
- * The services the story packages `host` depends on declare in their manifests' `services`, by package name then
- * manifest position: each named in lower-case letters, digits and dashes, running "always" or { every: "<n>m" }, from
- * one of its package's export subpaths. One that is not is refused, naming the package.
- */
 export function storyServices(host: string): StoryService[] {
   const found: StoryService[] = [];
   for (const { name, pkg } of dependencies(host)) {

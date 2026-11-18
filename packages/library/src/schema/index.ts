@@ -1,4 +1,4 @@
-/** Capability 3 · Data schema. */
+// Capability 3 · Data schema
 export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } from "./errors.js";
 export type { FieldProblem } from "./errors.js";
 export { SchemaRecords, unstorable } from "./records.js";

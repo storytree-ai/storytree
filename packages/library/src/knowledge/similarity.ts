@@ -1,73 +1,38 @@
-/**
- * Capability 6 · the related-but-unlinked search (ADR-0654, owner L1): rank the other artifacts by
- * how alike they are to one artifact, and say of each whether a link already joins them. It is 0.2's
- * `relatedArtifacts` (`packages/library/src/search.ts` in storytree 0.2), which its librarian ran in
- * the Links round, ported whole: the same tokeniser and removal-only stemmer, BM25 with the standard
- * constants, and the source's own most distinguishing words (tf·idf) as the query.
- *
- * Three properties carry over because they are what makes the answer honest:
- * - it can return nothing: an artifact sharing no word with the source is never listed;
- * - every answer carries its denominator (`scanned`), so "nothing is unlinked" and "nothing was read"
- *   read differently;
- * - linked and unlinked come from ONE ranking, and `linkedCount` counts the whole of it, so it checks
- *   the link reading rather than measuring something else.
- *
- * Pure: the caller hands in the artifacts as plain documents.
- */
+// Capability 6 · Knowledge artifacts
 
-/** An artifact as the ranking sees it. */
 export interface SimilarityDoc {
   readonly id: string;
   readonly type: string;
-  /** Its title, or a definition's term. */
   readonly title: string;
-  /** Its one-line description, if it has one. */
   readonly description?: string;
-  /** The rest of its words. */
   readonly body: string;
-  /** Every artifact it links to, with the field the link is in. */
   readonly links: readonly { readonly field: string; readonly to: string }[];
 }
 
-/** What related() may be asked. */
 export interface RelatedOptions {
-  /** Show only the artifacts no link reaches, in either direction. */
   readonly unlinked?: boolean;
-  /** Rank only artifacts of this kind. */
   readonly kind?: string;
-  /** How many to show, 20 unless given. The counts always describe the whole ranking. */
   readonly limit?: number;
 }
 
-/** One ranked artifact. */
 export interface RelatedHit {
   readonly id: string;
   readonly type: string;
   readonly title: string;
-  /** BM25 over the source's terms this artifact holds: comparable within one answer only. */
   readonly score: number;
-  /** The source's terms it holds, rarest first. */
   readonly matched: string[];
-  /** Whether a link joins it to the source, in either direction. */
   readonly linked: boolean;
-  /** How: the field of a link the source holds, or `<field> → this` for one it holds to the source. */
   readonly linkVia: string[];
 }
 
-/** The artifacts ranked by likeness to one. */
 export interface Related {
   readonly source: string;
-  /** The source's most distinguishing words, which the ranking searched with. */
   readonly terms: string[];
-  /** How many artifacts were ranked: the denominator. */
   readonly scanned: number;
-  /** How many of the ranked artifacts a link already joins to the source, before any filter or limit. */
   readonly linkedCount: number;
-  /** Best first. */
   readonly hits: RelatedHit[];
 }
 
-/** Words too common in English to say which artifact is wanted. Generic only: BM25 discounts the rest. */
 const STOP_WORDS: ReadonlySet<string> = new Set([
   "a", "an", "and", "are", "as", "at", "be", "been", "but", "by", "can", "do", "does", "for", "from",
   "had", "has", "have", "how", "in", "into", "is", "it", "its", "not", "of", "on", "or", "our",
@@ -77,28 +42,23 @@ const STOP_WORDS: ReadonlySet<string> = new Set([
 
 const MIN_TOKEN_LENGTH = 2;
 
-/** Suffixes a stem is made by removing, longest first. Removal only, so a stem is a prefix of its word. */
 const SUFFIXES: readonly string[] = [
   "ability", "ations", "ements", "ation", "ement", "ments", "ingly", "able", "edly", "ible", "ings",
   "ment", "ness", "est", "ies", "ing", "ed", "es", "ly", "s", "y",
 ];
 
-/** A stem shorter than this is a fragment (at three, `capability` would become `cap`). */
 const MIN_STEM_LENGTH = 4;
 
 const BM25_K1 = 1.2;
 const BM25_B = 0.75;
 
-/** A field's weight, applied by repeating its words: a title match outweighs one in a long body. */
 const TITLE_WEIGHT = 6;
 const DESCRIPTION_WEIGHT = 3;
 const BODY_WEIGHT = 1;
 
 const DEFAULT_LIMIT = 20;
-/** How many of the source's words the ranking searches with. */
 const TERM_COUNT = 12;
 
-/** The stem of one word, or null when it is its own stem. */
 function stemOf(word: string): string | null {
   for (const suffix of SUFFIXES) {
     if (!word.endsWith(suffix)) continue;
@@ -111,10 +71,6 @@ function stemOf(word: string): string | null {
   return null;
 }
 
-/**
- * Text as search words: a hyphenated run whole and each of its parts, and each word's stem beside
- * it, never instead of it.
- */
 export function tokenize(text: string): string[] {
   const out: string[] = [];
   const emit = (token: string): void => {
@@ -164,15 +120,10 @@ function indexOf(docs: readonly SimilarityDoc[]): Index {
   return { docs: indexed, documentFrequency, averageLength: docs.length === 0 ? 0 : total / docs.length };
 }
 
-/** BM25's inverse document frequency, in the form that never goes negative. */
 function idf(df: number, total: number): number {
   return Math.log(1 + (total - df + 0.5) / (df + 0.5));
 }
 
-/**
- * The words that most distinguish `entry` from the rest (tf·idf), leaving out any no other artifact
- * holds: such a word can match nothing, so it would only take the place of one that can.
- */
 function salientTerms(index: Index, entry: Indexed): string[] {
   const total = index.docs.length;
   const scored: { term: string; weight: number }[] = [];
@@ -201,7 +152,6 @@ function scoreOf(index: Index, entry: Indexed, terms: readonly string[]): { scor
   return { score, matched: hits.map(({ term }) => term) };
 }
 
-/** Every artifact a link joins to `sourceId`, either way, with how. */
 function linksTo(docs: readonly SimilarityDoc[], sourceId: string): Map<string, string[]> {
   const via = new Map<string, string[]>();
   const add = (id: string, how: string): void => {
@@ -219,15 +169,10 @@ function linksTo(docs: readonly SimilarityDoc[], sourceId: string): Map<string, 
   return via;
 }
 
-/**
- * Rank `docs` by likeness to the one with id `sourceId`, which must be among them. Every artifact is
- * ranked against the whole corpus's word counts; `kind` narrows which are listed and counted.
- */
 export function relatedTo(docs: readonly SimilarityDoc[], sourceId: string, options: RelatedOptions = {}): Related {
   return relatedEach(docs, [sourceId], options)[0]!;
 }
 
-/** relatedTo() for each of `sourceIds`, from one indexing of the corpus. */
 export function relatedEach(docs: readonly SimilarityDoc[], sourceIds: readonly string[], options: RelatedOptions = {}): Related[] {
   const index = indexOf(docs);
   return sourceIds.map((sourceId) => relatedIn(index, docs, sourceId, options));

@@ -1,22 +1,4 @@
-/**
- * Capability 30 · Outside writers (30.1-30.3, ADR-1178 D1 and D5). The role template for a writer that runs outside
- * storytree and connects to a project's library as its own database role, generalised from CI's (infra/library-host/
- * grants.sql): row-level security lets it insert only records of its plugin's declared kinds, update them only when
- * its plugin declares so, and read only those kinds and the ones its grant names. It deletes nothing and changes no
- * table. The database's own `recorded_by` stamp on each history entry (1.22) is how a reader tells which door a record
- * came through.
- *
- * It is applied by storytree, as the project database's owner, from what a plugin declares: never by running SQL a
- * plugin ships, which would hand the plugin the owner's reach (research_52f88d6d30d8, 2B). The role itself (LOGIN,
- * its password) is made apart from this.
- *
- * Row-level security is ENABLED on `record` and `record_event`, as grants.sql leaves it, and FORCED by the project's
- * schema: the owner's accounts pass through the owner's own policies (contract 1.28), and an account with no policy
- * sees and writes no rows at all.
- *
- * fenceProject is that deliberate step on a live library: it reaches project `project`'s database as the library
- * setting does, with the account that setting signs in as, and fences each writer it is handed in turn.
- */
+// Capability 30 · Outside writers
 import type { ClientBase } from "pg";
 
 import { addressServer } from "./address.js";
@@ -25,28 +7,17 @@ import { projectDatabase } from "./names.js";
 import { localServer, type ServerAccess } from "./server.js";
 import type { ConnectOptions } from "./storytree.js";
 
-/** One outside writer's grant, read from its plugin's declared kinds. */
 export interface OutsideWriter {
-  /** The database role it connects as. */
   readonly role: string;
-  /** The kinds it writes, all its one plugin's, each `<plugin>.<kind>`. */
   readonly kinds: readonly string[];
-  /** Whether its plugin declares that it may change a record of its kinds after inserting it. */
   readonly update?: boolean;
-  /** Other kinds it may read, beside its own. */
   readonly reads?: readonly string[];
 }
 
 const PLUGIN_KIND = /^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$/;
 const KIND = /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)?$/;
-/** Room for a policy name, `<role> insert`, inside Postgres's 63-byte names. */
 const ROLE_MAX = 48;
 
-/**
- * Fence an outside writer to its plugin's kinds in the project database `client` is connected to. The client's account
- * must be able to act as the database's owner; the grants are made as that owner, in one transaction. Safe to apply
- * again, and applying a narrower grant takes back what a wider one gave.
- */
 export async function fenceOutsideWriter(client: ClientBase, writer: OutsideWriter): Promise<void> {
   const sql = outsideWriterSql(writer);
   await client.query("BEGIN");
@@ -59,12 +30,6 @@ export async function fenceOutsideWriter(client: ClientBase, writer: OutsideWrit
   }
 }
 
-/**
- * Fence each of `writers`, in order, in project `project`'s library on the server `options` reach, as the account they
- * sign in as, which must be able to act as the project database's owner. Each is its own transaction, so a refusal
- * leaves the ones before it fenced and says which they were. A role the server does not have is refused with what to do:
- * the role, its LOGIN and its password are made apart from this.
- */
 export async function fenceProject(options: ConnectOptions, project: string, writers: readonly OutsideWriter[]): Promise<void> {
   const server: ServerAccess = options.address !== undefined ? addressServer(options.address, options.connectTimeoutMs) : localServer(new URL(options.url), options.connectTimeoutMs);
   const pool = server.pool(projectDatabase(project));
@@ -93,7 +58,6 @@ export async function fenceProject(options: ConnectOptions, project: string, wri
   }
 }
 
-/** The statements fenceOutsideWriter runs, inside its transaction. */
 export function outsideWriterSql(writer: OutsideWriter): string {
   const { role, kinds, update = false, reads = [] } = writer;
   if (role === "" || Buffer.byteLength(role) > ROLE_MAX || /[\0"]/.test(role)) {
@@ -115,8 +79,6 @@ export function outsideWriterSql(writer: OutsideWriter): string {
   const array = (each: readonly string[]) => `ARRAY[${[...new Set(each)].map((kind) => `'${kind}'`).join(", ")}]::text[]`;
   const own = array(kinds);
   const readable = array([...kinds, ...reads]);
-  // An entry's id must name nothing yet, or (when it may update) only a record of the entry's own kind: asked of
-  // outside_writer_id_kinds(), which runs as the owner, so it sees the records and history the writer cannot.
   const history = update
     ? `action IN ('created', 'updated') AND outside_writer_id_kinds(record_id) <@ ARRAY[type]`
     : `action = 'created' AND cardinality(outside_writer_id_kinds(record_id)) = 0`;

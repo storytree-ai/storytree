@@ -1,13 +1,9 @@
-// Lays a before and an after still side by side, each cropped the same way, with a caption under each, into stills/.
-// Rollout 1: The library, polish round 3 as landed beside this round on round 3's open work (islands.mjs lib-r3-after).
-// Run from the checkout root: node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/sheet.mjs
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withCapture } from '../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), dist = path.dirname(here), stills = path.join(dist, 'stills');
-/** name: [before file, its caption], [after file, its caption], the crop (a scale and the corner it keeps). */
 const SHEETS = {
   library: [['../../p-polish-3/stills/after-rest.png', 'Polish round 3 as landed (its snapshot): 3 overlapping, 8 within 4 px, 34 gates'], ['islands/lib-r3-after/story_754e87e7d531-rest.png', 'This round, on round 3\'s open work: 1 overlapping, 8 within 4 px, 32 gates'], { scale: 0.64, origin: '-40px -110px' }],
 };

@@ -1,9 +1,3 @@
-// The plain diagrams: both arrangements as boxes and lines, in the manner of the architecture diagram Mick liked (a dashed
-// story frame, capability boxes, plain lines, no arrowheads), each box where the map puts that territory's name. Today's
-// lines run straight, one per link. Round 10's are the shared road network tools/layout.ts routed (network.ts): each road
-// segment drawn once, as thick as the links it carries; teal where it carries only links to or from other stories, which
-// come ashore at the open mouth and branch inland. The territories' outline (dotted) stands back from the open land.
-// Run from the checkout root after layout.ts: node --import tsx docs/design/capability-tree-3d/g-network/tools/plain.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +14,6 @@ const nameOf = (t) => t.replace(/^\d+ · /, '');
 
 function boxes(m) {
   const out = m.plates.map((p) => { const c = at(p), w = 9 + nameOf(p.title).length * 6.6; return { id: p.capability, title: nameOf(p.title), x: c.x, y: c.y, w, h: 24, ox: c.x, oy: c.y }; });
-  // Nudge overlapping boxes apart, a little at a time, keeping each near its territory's name.
   for (let k = 0; k < 300; k++) {
     let moved = false;
     for (const a of out) for (const b of out) {
@@ -33,7 +26,6 @@ function boxes(m) {
   }
   return new Map(out.map((b) => [b.id, b]));
 }
-/** Where the way from `p` toward the box's middle meets its edge. */
 function edge(b, p) {
   const dx = p.x - b.x, dy = p.y - b.y, tx = Math.abs(dx) > 1e-6 ? (b.w / 2 + 3) / Math.abs(dx) : Infinity, ty = Math.abs(dy) > 1e-6 ? (b.h / 2 + 3) / Math.abs(dy) : Infinity, t = Math.min(tx, ty, 1);
   return { x: b.x + dx * t, y: b.y + dy * t };
@@ -47,9 +39,7 @@ function svg(m, title, sub) {
   parts.push(`<path d="${d(loop.map(at))}Z" fill="none" stroke="${FRAME}" stroke-width="1.4" stroke-dasharray="7 6"/>`);
   parts.push(`<text x="${OX}" y="${OY + 118 * S + 8}" text-anchor="middle" font-size="15" fill="${FRAME}" font-weight="600">The library</text>`);
   const arrow = (pts, colour, width) => `<path d="${d(pts)}" fill="none" stroke="${colour}" stroke-width="${width}" stroke-linejoin="round" stroke-linecap="round"/>`;
-  // The sea road and where it comes ashore.
   const harbour = at(layout.harbour.sea), dock = at(layout.harbour.dock);
-  // The sea roads, run on out of the frame the way they come.
   const outer = (dockP, seaP, k) => ({ x: seaP.x + (seaP.x - dockP.x) * k, y: seaP.y + (seaP.y - dockP.y) * k });
   const far = outer(dock, harbour, 4.5);
   parts.push(`<path d="M${far.x} ${far.y}L${harbour.x} ${harbour.y}L${dock.x} ${dock.y}" stroke="${TEAL}" stroke-width="5" stroke-linecap="round" opacity="0.9"/>`);
@@ -69,16 +59,13 @@ function svg(m, title, sub) {
     parts.push(`<path d="M${keysDock.x} ${keysDock.y}L${keys.x} ${keys.y}" stroke="${TEAL}" stroke-width="2.5" stroke-linecap="round"/>`);
     for (const j of m.junctionPoints) { const q = at(j); parts.push(`<circle cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="2.2" fill="${INK}"/>`); }
   } else if (m.name === 'roads') {
-    // The territories' outline: every border with the open land, dotted, so the open land reads as the space between.
     for (const [a, b] of layout.outline ?? []) parts.push(`<path d="M${at(a).x} ${at(a).y}L${at(b).x} ${at(b).y}" stroke="${FRAME}" stroke-width="1" stroke-dasharray="1.5 3"/>`);
-    // The ring road: from the mouth along the open land to the furthest landing each way.
     const h = near(layout.harbour.dock), stops = m.landings.filter((l) => !l.capability.includes('keys') && m.paths.some((p) => p.kind === 'arrival' && p.to === l.capability)).map((l) => rel(h, near(l.at)));
     const lo = Math.min(0, ...stops), hi = Math.max(0, ...stops);
     const forward = Array.from({ length: hi - lo + 1 }, (_, k) => ring[(h + lo + k + 2 * ring.length) % ring.length]);
     parts.push(`<path d="${d(forward.map(at))}" fill="none" stroke="${TEAL}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>`);
     parts.push(`<path d="M${dock.x} ${dock.y}L${at(ring[h]).x} ${at(ring[h]).y}" stroke="${TEAL}" stroke-width="5" stroke-linecap="round"/>`);
   } else if (m.name === 'links') {
-    // The coast road: from the harbour along the coast, offshore, to the furthest landing each way.
     const off = (p) => { const r = Math.hypot(p.x, p.z) || 1; return { x: p.x + p.x / r * 7, z: p.z + p.z / r * 7 }; };
     const walk = []; let s = 0;
     for (let i = 0; i < loop.length; i++) { const a = loop[i], b = loop[(i + 1) % loop.length]; walk.push({ p: a, s }); s += Math.hypot(b.x - a.x, b.z - a.z); }
@@ -95,15 +82,12 @@ function svg(m, title, sub) {
   for (const p of m.paths ?? []) {
     const pts = p.points.map(at);
     const from = p.kind === 'arrival' ? null : bx.get(p.from), to = p.kind === 'out' ? null : bx.get(p.to);
-    // Ends at the boxes' edges; an arrival starts on its landing (or the dock), the way out ends on the coast.
     if (from) pts[0] = edge(from, pts[1]);
     if (to) pts[pts.length - 1] = edge(to, pts[pts.length - 2]);
     if (p.kind === 'out' && m.name === 'roads') {
-      // Along the ring road the short way, to Keys' landfall and out over the sea.
       pts.push(...run(near(p.points.at(-1)), near(layout.keys.dock)).map(at), keysDock, keys);
     } else if (p.kind === 'arrival' && m.name === 'links') { const r = Math.hypot(p.points[0].x, p.points[0].z) || 1; pts.unshift(at({ x: p.points[0].x + p.points[0].x / r * 7, z: p.points[0].z + p.points[0].z / r * 7 })); }
     else if (p.kind === 'out') {
-      // Offshore along the coast, the short way round, to Keys' road.
       const e = p.points.at(-1), r = Math.hypot(e.x, e.z) || 1, ks = layout.keys.dock, kr = Math.hypot(ks.x, ks.z) || 1;
       let a0 = Math.atan2(e.z, e.x), a1 = Math.atan2(ks.z, ks.x), da = a1 - a0; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
       const steps = Math.max(1, Math.round(Math.abs(da) / 0.08));
@@ -127,7 +111,6 @@ function svg(m, title, sub) {
   <path d="M1230 344h40" stroke="${TEAL}" stroke-width="1.6"/><text x="1280" y="348" font-size="12" fill="${LINE}">${m.name === 'network' ? 'only links from or to other stories' : 'from or to another story'}</text></svg>`;
 }
 
-// Drawn in the desktop capture kit's Chromium, as the styled stills are.
 await withCapture({ folder: path.join(dir, 'stills'), dist: dir }, async ({ browser }) => {
   for (const [key, file, title, sub] of [['today', 'plain-today', 'Today’s arrangement', 'The map’s own halving layout, which ignores the links'], ['network', 'plain-diagram', 'Shared roads', 'One network: links share a road while they go the same way']]) {
     const page = await browser.newPage({ viewport: { width: W, height: H } });

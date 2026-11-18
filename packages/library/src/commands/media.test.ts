@@ -1,7 +1,4 @@
-/**
- * Capability 17 · The library's commands: contract 17.18, the `media` family, through both of its faces' declarations,
- * run with a caller on a fresh project's library on the real Postgres `pnpm test` provides.
- */
+// Capability 17 · The library's commands
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -59,7 +56,6 @@ test("17.18 · media attach keeps a file from the caller's folder beside a recor
   assert.deepEqual(readFileSync(path.join(folder, "back", "dusk.png")), png, "saved back exactly, its folder made");
   assert.ok(got.text.includes(path.join(folder, "back", "dusk.png")), got.text);
 
-  // The library's refusals and the caller's mistakes are said, not thrown as they are.
   writeFileSync(path.join(folder, "dusk.png"), Buffer.from("redrawn"));
   await assert.rejects(verbOf("attach").act({ record: note.id, file: "dusk.png", name: undefined, type: undefined, replace: false }, context, WORDS), (error: unknown) => error instanceof VerbRefusal && /other bytes/.test(error.message));
   assert.match((await verbOf("attach").act({ record: note.id, file: "dusk.png", name: undefined, type: undefined, replace: true }, context, WORDS)).text, /^Replaced dusk\.png/);

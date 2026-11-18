@@ -1,7 +1,4 @@
-/**
- * Capability 4 · Work model, contract 4.23: a pull request number resolves through the project's repository cut-over
- * by when it was recorded (increment_7f7599b35fe4).
- */
+// Capability 4 · Work model
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

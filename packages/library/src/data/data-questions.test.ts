@@ -1,8 +1,4 @@
-/**
- * Capability 27 · Fixed data questions: contracts 27.1 to 27.6, the `library count`, `changes` (all of them or one writer's) and `find` commands and
- * `library read` by a decision's number, run through the library family on a fresh project's library on the real
- * Postgres `pnpm test` provides.
- */
+// Capability 27 · Fixed data questions
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { test, type TestContext } from "node:test";

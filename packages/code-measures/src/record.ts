@@ -1,4 +1,8 @@
 // Capability 3 · Measure readings recorded on the box
+import { execFile } from "node:child_process";
+import { availableParallelism, loadavg } from "node:os";
+import { promisify } from "node:util";
+
 import { VerbRefusal } from "@storytree/library/verbs";
 
 import { pairMeasures, pairingText, type MeasureReader, type MeasureRecord } from "./pair.js";
@@ -7,7 +11,14 @@ import { writeReadings, type MeasureReadingRow, type MeasureReadingsDb } from ".
 
 type Stories = Parameters<typeof readStoryMeasures>[0]["stories"];
 
-export async function recordMeasures({ folder, project, machine, stories, records, readers, db }: {
+const run = promisify(execFile);
+
+export interface MachineLoad {
+  readonly load: number;
+  readonly cpus: number;
+}
+
+export async function recordMeasures({ folder, project, machine, stories, records, readers, db, plan, load = () => ({ load: loadavg()[0]!, cpus: availableParallelism() }) }: {
   readonly folder: string;
   readonly project: string;
   readonly machine: string;
@@ -15,6 +26,8 @@ export async function recordMeasures({ folder, project, machine, stories, record
   readonly records: readonly MeasureRecord[];
   readonly readers: readonly MeasureReader[];
   readonly db: MeasureReadingsDb;
+  readonly plan: () => Promise<unknown>;
+  readonly load?: () => MachineLoad;
 }): Promise<string> {
   const unpaired = pairMeasures(records, readers).filter(({ unpaired: none }) => none.length > 0);
   if (unpaired.length > 0) {
@@ -26,6 +39,26 @@ export async function recordMeasures({ folder, project, machine, stories, record
 
   const commit = await commitOf(folder, undefined);
   const short = commit.slice(0, 12);
+  const lines = [
+    await recordBase({ folder, project, machine, stories, records, readers, db, commit, short }),
+    await recordDedicated({ folder, project, machine, records, readers, db, commit, short, plan, load }),
+  ];
+  return lines.filter((line) => line !== undefined).join("\n");
+}
+
+const s = (n: number) => (n === 1 ? "" : "s");
+
+async function recordBase({ folder, project, machine, stories, records, readers, db, commit, short }: {
+  readonly folder: string;
+  readonly project: string;
+  readonly machine: string;
+  readonly stories: Stories;
+  readonly records: readonly MeasureRecord[];
+  readonly readers: readonly MeasureReader[];
+  readonly db: MeasureReadingsDb;
+  readonly commit: string;
+  readonly short: string;
+}): Promise<string> {
   const { rows: [last] } = await db.query<{ recorded: boolean | null; at: Date | null; recent: boolean | null }>(
     `SELECT bool_or(commit = $3) AS recorded, max(recorded_at) AS at, max(recorded_at) > now() - interval '1 day' AS recent
       FROM measure_recordings WHERE project = $1 AND machine = $2`,
@@ -56,6 +89,52 @@ export async function recordMeasures({ folder, project, machine, stories, record
       ON CONFLICT (project, machine, commit) DO UPDATE SET recorded_at = EXCLUDED.recorded_at`,
     [project, machine, commit],
   );
-  const s = (n: number) => (n === 1 ? "" : "s");
   return `Recorded ${rows.length} reading${s(rows.length)} of ${base.length} base measure${s(base.length)} read on ${machine}, for ${reading.stories.length} stor${reading.stories.length === 1 ? "y" : "ies"} at origin/main ${short} (${reading.committed.slice(0, 10)}).`;
+}
+
+async function recordDedicated({ folder, project, machine, records, readers, db, commit, short, plan, load }: {
+  readonly folder: string;
+  readonly project: string;
+  readonly machine: string;
+  readonly records: readonly MeasureRecord[];
+  readonly readers: readonly MeasureReader[];
+  readonly db: MeasureReadingsDb;
+  readonly commit: string;
+  readonly short: string;
+  readonly plan: () => Promise<unknown>;
+  readonly load: () => MachineLoad;
+}): Promise<string | undefined> {
+  const dedicated = records.filter(({ fields }) => fields["base"] !== true && fields["machine"] === machine);
+  if (dedicated.length === 0) return undefined;
+  const { rows: [last] } = await db.query<{ recorded: boolean | null; at: Date | null; recent: boolean | null }>(
+    `SELECT bool_or(commit = $4) AS recorded, max(read_at) AS at, max(read_at) > now() - interval '1 day' AS recent
+      FROM measure_readings WHERE project = $1 AND machine = $2 AND measure = ANY($3)`,
+    [project, machine, dedicated.map(({ id }) => id), commit],
+  );
+  if (last?.recorded === true) return `Recorded nothing dedicated: ${machine} already read them at origin/main ${short}.`;
+  if (last?.recent === true) return `Recorded nothing dedicated: ${machine} last read them at ${last.at?.toISOString()}, less than a day ago, and reads them at most once a day.`;
+  const machineLoad = load();
+  if (machineLoad.load >= machineLoad.cpus) {
+    return `Recorded nothing dedicated: ${machine} is busy, its load ${Number(machineLoad.load.toFixed(2))} on ${machineLoad.cpus} CPUs at or over its CPU count; the next run tries again.`;
+  }
+
+  const sampled = dedicated.map((record) => ({ record, sample: readers.find(({ measure }) => measure === record.id)?.sample }));
+  const unsampled = sampled.filter(({ sample }) => sample === undefined).map(({ record: { id, fields } }) => `${String(fields["title"] ?? id)} (${id})`);
+  const rows: MeasureReadingRow[] = [];
+  if (unsampled.length < sampled.length) {
+    const tree = await plan();
+    const committed = new Date((await run("git", ["show", "-s", "--format=%cI", commit], { cwd: folder })).stdout.trim()).toISOString();
+    const readAt = new Date().toISOString();
+    for (const { record: { id, fields }, sample } of sampled) {
+      if (sample === undefined) continue;
+      const { value, runs, spread } = (await sample({ folder, commit, tree })) as { value: number; runs: number; spread: number };
+      rows.push({
+        project, story: String(fields["story"]), measure: id, version: Number(fields["version"]), value, unit: String(fields["unit"]),
+        commit, committed, machine, runs, spread, readAt,
+      });
+    }
+    await writeReadings(db, rows);
+  }
+  const named = unsampled.length === 0 ? "" : `; no sample, so nothing recorded, for ${unsampled.join(", ")}`;
+  return `Recorded ${rows.length} reading${s(rows.length)} of ${dedicated.length} dedicated measure${s(dedicated.length)} read on ${machine} at origin/main ${short}${named}.`;
 }

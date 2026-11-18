@@ -1,7 +1,4 @@
-/**
- * Capability 7 · Library API: contract 7.20, through the package's light entry `@storytree/library/printable`,
- * the way the command line and the status line reach it.
- */
+// Capability 7 · Library API
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

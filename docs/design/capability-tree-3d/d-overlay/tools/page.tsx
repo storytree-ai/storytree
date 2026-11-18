@@ -1,6 +1,3 @@
-/** Capability tree mock, round 7: the real map's view of The library with the story selected, as the desktop app draws it,
- * and the links between its capabilities laid over it as lines through the territories (overlay.ts). `?real` draws the
- * selected story as the map does today, with nothing added: the left half of the side-by-side. */
 import { createRoot } from "react-dom/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RootState } from "@react-three/fiber";
@@ -26,10 +23,8 @@ const params = new URLSearchParams(location.search);
 const REAL = params.has("real");
 const GROUND = Number(params.get("ground") ?? 150);
 const PANEL_WIDTH = 352;
-/** The rest view's margin around the island, in CSS pixels. */
 const MARGIN = 28;
 
-/** The capture build's seam, the only one the forest offers a host for its canvas's live state (PlanetWorldCanvas.tsx). */
 const seam = globalThis as { __storytreeCaptureGlobe?: (get: () => RootState) => void };
 
 const scene = forestScene(data.map.tree, data.map.changes, workStates([]), data.map.survey);
@@ -38,7 +33,6 @@ const coast = islandCoast(island);
 const cut = islandTerritories(island.land!.territories, coast);
 const places = new Map(storyNodes(data.map.tree, data.map.changes, data.map.survey).map(node => [node.id, node.place]));
 
-/** The island's box on the page: the rest view is framed on it. */
 function extentOf(state: RootState) {
   const plate = state.scene.getObjectByName(`planet:${STORY}`), land = plate?.getObjectByName("territory-land");
   if (!land?.parent) return undefined;
@@ -58,7 +52,6 @@ function Mock() {
   const ground = useRef(GROUND), side = useRef(-PANEL_WIDTH / 2);
   useState(() => { seam.__storytreeCaptureGlobe = state => setGet(() => state); });
   const ignore = useCallback(() => {}, []);
-  // Aim at the island, as the app flies to a story a click selects; again until the sheet has drawn it.
   useEffect(() => {
     if (!controls) return;
     let again: ReturnType<typeof setTimeout> | undefined, tries = 400;
@@ -66,7 +59,6 @@ function Mock() {
     aim();
     return () => clearTimeout(again);
   }, [controls]);
-  // Then framed on the island, as large as the map's side of the window holds with a margin.
   useEffect(() => {
     if (!controls || !get || framed) return;
     let tries = 10, timer: ReturnType<typeof setTimeout>, last = "", waited = 0;
@@ -88,7 +80,6 @@ function Mock() {
     timer = setTimeout(frame, 600);
     return () => clearTimeout(timer);
   }, [controls, get, framed]);
-  // Lay the lines once the view is framed and the map has drawn its territories, names and lanes in full.
   useEffect(() => {
     if (!get || REAL || !framed) return;
     let timer: ReturnType<typeof setTimeout>, last = "", same = 0;
@@ -106,7 +97,6 @@ function Mock() {
     wait();
     return () => clearTimeout(timer);
   }, [get, framed]);
-  // The map draws its lanes again when it likes; they are cut at the coast each time.
   useEffect(() => {
     if (!layer) return;
     const keep = setInterval(() => layer.keep(), 250);
@@ -117,7 +107,6 @@ function Mock() {
     document.body.dataset.state = REAL ? (get && framed ? "ready" : "loading") : layer ? "ready" : "loading";
     document.body.dataset.framed = framed ? "yes" : "no";
   }, [layer, controls, get, framed]);
-  // A click (a press that hardly moved) picks what is under it; a drag stays the map's.
   const host = useRef<HTMLDivElement>(null);
   const down = useRef<{ x: number; y: number }>();
   const onDown = (event: React.PointerEvent) => { down.current = { x: event.clientX, y: event.clientY }; };

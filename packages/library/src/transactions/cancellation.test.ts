@@ -1,4 +1,3 @@
-/** Contract 2.11: the cancellation boundary on both transaction backends. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -25,7 +24,6 @@ for (const backend of ["memory", "postgres"] as const) {
       assert.deepEqual(await store.get("kept"), original);
       assert.deepEqual(await store.history(), before);
 
-      // Validation runs inside the write, after Postgres takes the lock. Cancelling here is too late.
       for (const verb of ["save", "edit"] as const) {
         const late = new AbortController();
         const written = await store[verb]({

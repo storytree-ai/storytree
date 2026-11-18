@@ -1,7 +1,4 @@
 // Capability 26 · Rounds. @storytree/library/librarian: The library's curation tooling, the worklist and the operations the
-// librarian-curator role uses at a landing to keep a project's library honest (ADR-1077 D3). It files and routes no
-// friction, which is Friction's own (ADR-1077 D1), and reaches the library only through its public API, holding no data of
-// its own.
 export { brokenEdges, link, relatedUnlinked, unrestedDecisions } from "./links/index.js";
 export type { BrokenEdge } from "./links/index.js";
 export { annotate, correct, supersede } from "../decisions/index.js";

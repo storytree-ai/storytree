@@ -1,4 +1,4 @@
-/** Capability 26 · Rounds. Rounds 26.3–26.4: curation on the shared MCP server, through its public extension point. */
+// Capability 26 · Rounds
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -13,15 +13,12 @@ import { roundDue, worklist, worklistView } from "./rounds.js";
 
 const text = z.string().trim().min(1);
 
-/** The librarian's tool part, named in its manifest (ADR-1021): served for storytree's own library first (ADR-0644 U1). */
 export const librarianToolParts = [({ project, tools }: ToolHost): ToolExtension | undefined => (project === "storytree" ? librarianTools({ tools }) : undefined)];
 
-/** The server supplies its discovered tool names; another host can supply the same catalogue. */
 export function librarianTools({ tools }: { tools?: () => readonly string[] } = {}): ToolExtension {
   return {
     instructions: "Before landing, use `worklist` for the librarian's pass: `link`, `supersede`, `correct` (including load-bearing), `annotate`, `retire`, `park` and `graduate`; graduate durable memory every time. Friction drains apart, through `friction_drain` and `route`.",
     async landNext(_capability, call) {
-      // A write to a mounted plugin's kind makes its guidance due, and so the pass (ADR-1178 D5).
       const due = await roundDue(call.library, { ...await sessionStart(call), ...pluginKinds(call) });
       return due.rest || (due.plugins?.length ?? 0) > 0 ? "run the librarian's pass" : undefined;
     },
@@ -38,7 +35,6 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
           ...pluginKinds(call),
           ...(call.progress === undefined ? {} : { progress: call.progress }),
         });
-        // Bounded (6.9): the full records once reached fifteen million characters.
         return { text: "The librarian's worklist. Review graduation at every landing; each other list shows its first few, with counts: read any note whole by its ID.", data: { worklist: worklistView(full) } };
       }, { consumers: ["agent"] });
       define("link", "Make one note rest on another, preserving its existing links. A definition rests only on the decision that created its term. A question, open or settled, links the evidence it cites this way: a note, decision, research, increment or another question.", z.object({ from: text, to: text }), async ({ from, to }, { library, writer }) => {
@@ -80,28 +76,18 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
   };
 }
 
-/**
- * Recover the library cursor at the calling session's first start from its timed activity line.
- * A resume is still that session. No recorded start means unsure, so roundDue fires. An equal
- * millisecond stays after the cursor too: uncertainty must never hide a curated write.
- */
 async function sessionStart(call: ToolCall): Promise<{ since?: number }> {
-  // The session's first start line alone, never the rest of the log (Session management 2.7).
   const [start] = await call.log.lines(call.project, { kinds: ["session-started"], sessions: [call.caller.session], where: { harness: call.caller.harness ?? null }, oldest: 1, omit: ["transcript"] });
   if (start === undefined) return {};
-  // Two changes, never the whole history (contract 26.6): the newest, read first so that a change
-  // written between the reads still lands after the cursor, and the first made since the start.
   const [newest] = await call.library.history({ newest: 1 });
   const [first] = await call.library.history({ from: start.at, oldest: 1 });
   return { since: first === undefined ? (newest?.seq ?? 0) : first.seq - 1 };
 }
 
-/** The mounted plugins' kinds the host handed this call, so their guidance is offered live; none when it handed none. */
 function pluginKinds(call: ToolCall): { pluginKinds?: readonly string[] } {
   return call.pluginKinds === undefined ? {} : { pluginKinds: call.pluginKinds };
 }
 
-/** Schema optionals arrive as undefined; domain writes omit them unless the caller supplied one. */
 function defined<T extends object>(value: T): { [K in keyof T]: Exclude<T[K], undefined> } {
   return Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined)) as { [K in keyof T]: Exclude<T[K], undefined> };
 }

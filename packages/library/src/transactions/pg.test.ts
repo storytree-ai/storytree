@@ -1,10 +1,3 @@
-/**
- * Capability 2's behaviour suite against Postgres. Each test gets a fresh project, opened through
- * capability 1 on the server `pnpm test` provides and named with uniqueProjectName(), and a
- * PgTransactions on that project's pool. The project's database is dropped afterwards, pass or
- * fail, so tests share the server without seeing each other's records. Then contract 2.21, which only Postgres can be
- * behind for.
- */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -38,7 +31,6 @@ test("2.21 [postgres] a library whose history has no place for the outside-text 
   const storytree = await connect({ url: testServerUrl() });
   try {
     const project = await storytree.openProject(name);
-    // As a shared library stands until merged code, opened with its owner's rights, adds the column.
     await project.pool.query("ALTER TABLE record_event DROP COLUMN outside_read");
     const store = new PgTransactions(project.pool);
     const outsideRead = () => ["gh pr view 12"];

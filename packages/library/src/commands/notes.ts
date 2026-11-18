@@ -1,24 +1,4 @@
-/**
- * Capability 17 · The library's commands (ADR-1035 D3): the artifact tools the library declares for the MCP server, on the
- * library's knowledge entrances (ADR-0627): search artifacts, open a story or capability (its shelf of front covers, as
- * spines) or an artifact (whole, with the titles of what it links to and what links to it), write an artifact, and
- * correct one's wording, and find every record holding a phrase exactly, for a link sweep. They are tools only: a person does this work with `storytree library search`, `exact`, `read`, `new`
- * and `edit`, which record no reads.
- *
- * - Every artifact a tool shows is a read, which the door records in the agent activity log (ADR-0624 D1, ADR-0627
- *   D7): a spine or title shown is a peek, an opened artifact is read whole. How it was found is how the session last
- *   saw it: in a search, on a shelf, or as a link from another artifact; an artifact opened without having been shown
- *   was found by its id. The record says what was reached, never what helped (ADR-0624 D3).
- * - A contract opens whole too: what it guarantees and the capability it belongs to, or, on an edge, the edge, the two
- *   capabilities it joins and its own health. So does a question: its arc and state,
- *   its wording and answer, and the open increments held on it. An arc is refused.
- * - An artifact is corrected in place through editNote (ADR-0641 D2 step 3): only the fields given change, and its
- *   old wording stays in its history.
- * - A new artifact with no place named goes onto the shelf of the capability the session holds (ADR-0627 D4), and
- *   one held among several is never guessed: it is refused, asking which (17.26): a decision becomes one of its front covers; a definition or other artifact kind links to the cover
- *   the session last opened on that shelf, else to the shelf's first book; with an empty shelf nothing is added, and
- *   the agent is told. A session holding no claim gets no default, and a place the agent names always wins.
- */
+// Capability 17 · The library's commands
 import type { KnowledgeKind, Library, NewLine, Note, NoteEdit, PhraseKind, SchemaRecord, WriteOptions } from "../index.js";
 import { isPluginKind } from "../schema/index.js";
 import { ARTIFACT_KINDS, KNOWLEDGE_KINDS, WRITTEN_KINDS } from "../knowledge/index.js";
@@ -28,37 +8,27 @@ import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
 import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
 
-/** How a session came to an artifact it read. */
 export type Found = Extract<NewLine, { kind: "note-read" }>["found"];
 
-/** One artifact read: what was reached, how it was found, and whether it was peeked at or read whole. */
 export interface NoteRead {
   readonly note: string;
   readonly found: Found;
   readonly read: "peek" | "whole";
 }
 
-/** A live session putting a question to the owner. */
 export interface Presenter {
   readonly session: string;
   readonly label: string;
   readonly since: string;
 }
 
-/**
- * The caller, with what the artifact tools need from above the library, which the door hands them: the project's
- * claims (with the capability each is on), the calling session's artifact reads and a way to record more, and the
- * live session putting a question to the owner.
- */
 export interface NoteToolContext extends VerbContext {
   claims(): Promise<readonly HeldClaim[]>;
-  /** The calling session's artifact reads, oldest first. */
   notesRead(): Promise<readonly NoteRead[]>;
   recordReads(reads: readonly NoteRead[]): Promise<void>;
   presenterOf(question: SchemaRecord<"question">): Promise<Presenter | undefined>;
 }
 
-/** What a search finds: an artifact, or a story, capability or contract of the plan, found by its own words. */
 type Findable = Note | SchemaRecord<"story" | "capability" | "contract">;
 type CapabilityNode = Awaited<ReturnType<Library["projectTree"]>>["stories"][number]["capabilities"][number];
 type ContractNode = CapabilityNode["contracts"][number];
@@ -87,14 +57,12 @@ const searchNotes = verb({
     let by: string | undefined;
     for (const reached of await librariesNamed(context.library, named)) {
       if (reached.opened === undefined) {
-        // A project that could not be opened is named, never skipped (ADR-1348 D2).
         sections.push(unopenedSaid(reached.project, reached.unopened));
         found.push({ project: reached.project, unopened: reached.unopened });
         continue;
       }
       const ranked = await rankedSearch(reached.opened, query, { ...(limit === undefined ? {} : { limit }), history, kinds });
       by ??= ranked.by;
-      // Only the folder's own artifacts are reads on its knowledge core; another project's are that project's.
       const own = reached.opened === context.library;
       if (own) await context.recordReads(ranked.hits.map(({ note }) => ({ note: note.id, found: "search", read: "peek" })));
       const heading = ranked.by === "meaning"
@@ -145,10 +113,8 @@ const open = verb({
   async act({ id, field, project }, context: NoteToolContext) {
     const library = await libraryNamed(context.library, project);
     if (library === context.library) return field === undefined ? openRecord(id, context) : openField(id, field, context);
-    // Another project's record, opened as its own is but said to be that project's, and no read on this folder's knowledge core (ADR-1348 D2).
     const elsewhere: NoteToolContext = { ...context, library, project: library.name, notesRead: async () => [], recordReads: async () => undefined };
     const data = { project: library.name };
-    // One field stays exactly as stored, to write back: its project is in the data alone.
     if (field !== undefined) return { ...(await openField(id, field, elsewhere)), data };
     const answer = await openRecord(id, elsewhere);
     return { ...answer, text: `project ${library.name}:\n${answer.text}`, data: { ...answer.data, ...data } };
@@ -211,7 +177,6 @@ const correctNote = verb({
   },
 });
 
-/** The artifact tools the library declares for the MCP server, in the order it serves them. */
 export const NOTE_TOOLS: readonly Verb<VerbInputs, NoteToolContext>[] = [searchNotes, findText, open, writeNote, correctNote];
 
 async function openRecord(id: string, context: NoteToolContext): Promise<VerbAnswer> {
@@ -231,10 +196,8 @@ async function openRecord(id: string, context: NoteToolContext): Promise<VerbAns
   }
   const record = await library.get(id);
   if (record?.type === "question") return openQuestion(record as SchemaRecord<"question">, context);
-  // A plugin's record reads whole, as library read gives it: said dormant when no mounted plugin declares its kind (ADR-1178 D3).
   if (record !== null && isPluginKind(record.type)) return { text: wholeRecord(record) };
   const notes = await library.search("");
-  // A role, check or note this computer switches off is listed nowhere, but read by its id, as a link to it is (ADR-1092 D2).
   const note = notes.find((candidate) => candidate.id === id) ?? (record !== null && (KNOWLEDGE_KINDS as readonly string[]).includes(record.type) ? (record as Note) : undefined);
   if (note === undefined) {
     const arc = tree.arcs.some((node) => node.id === id);
@@ -253,7 +216,6 @@ async function openRecord(id: string, context: NoteToolContext): Promise<VerbAns
   return { text: out.join("\n"), data: { note: { id, kind: note.type, ...note.fields }, linksTo: linksTo.map(spineData), linkedFrom: linkedFrom.map(spineData) } };
 }
 
-/** One field of a record exactly as stored (a list or other value as JSON), as `library read --field` prints it; an artifact's is a whole read. */
 async function openField(id: string, field: string, context: NoteToolContext): Promise<VerbAnswer> {
   const record = await context.library.get(id);
   if (record === null) throw new VerbRefusal(`Nothing in this project has the id ${id}.`);
@@ -264,13 +226,10 @@ async function openField(id: string, field: string, context: NoteToolContext): P
   return { text: typeof value === "string" ? value : JSON.stringify(value, null, 2) };
 }
 
-/** The words of a question shown whole, in the order the owner reads them. */
 const QUESTION_WORDS = ["stakes", "statement", "context", "options", "analogy", "diagram", "recommendation", "answer"] as const;
 
-/** A question whole: its arc and state, every field of its wording and answer, the open increments held on it, and the evidence it links. */
 async function openQuestion(question: SchemaRecord<"question">, { library, presenterOf }: NoteToolContext): Promise<VerbAnswer> {
   const fields = question.fields as Readonly<Record<string, unknown>>;
-  // A question another live session is putting to the owner says so, so he is not asked twice (Session management 5.36).
   const presenter = await presenterOf(question);
   const settled = typeof fields.settledAt === "string" ? `, settled ${fields.settledAt}${typeof fields.settledBy === "string" ? ` by ${fields.settledBy}` : ""}` : "";
   const holding = Object.entries((await library.holds()).heldOn).flatMap(([increment, on]) => (on.includes(question.id) ? [increment] : []));
@@ -279,12 +238,10 @@ async function openQuestion(question: SchemaRecord<"question">, { library, prese
     if (typeof fields[name] === "string") out.push(`${name[0]?.toUpperCase()}${name.slice(1)}: ${fields[name]}`);
   }
   if (holding.length > 0) out.push(`Holding: ${holding.join(", ")}`);
-  // The evidence it cites, each by title (12.17); after Holding, where the voice door's read keeps it.
   const links = question.fields.links ?? [];
   if (links.length > 0) {
     const named = await Promise.all(links.map(async (id) => {
       const fields = (await library.get(id))?.fields as Readonly<Record<string, unknown>> | undefined;
-      // Every kind a question links has a title, or a definition's term.
       return fields === undefined ? `${id} (no longer live)` : `${String(fields.title ?? fields.term)} [${id}]`;
     }));
     out.push(`Evidence: ${named.join(", ")}`);
@@ -293,7 +250,6 @@ async function openQuestion(question: SchemaRecord<"question">, { library, prese
   return { text: out.join("\n"), data: { question: { id: question.id, ...fields, holding, ...(presenter === undefined ? {} : { presenter }) } } };
 }
 
-/** A contract whole: its title, its description, and the capability it belongs to. */
 function openContract(contract: ContractNode, capability: CapabilityNode): VerbAnswer {
   const out = [`Contract ${quoted(contract.title)} (${contract.id}):`];
   if (contract.description !== undefined) out.push(contract.description);
@@ -304,7 +260,6 @@ function openContract(contract: ContractNode, capability: CapabilityNode): VerbA
   };
 }
 
-/** A contract on an edge whole: its title, its description, the edge and the two capabilities it joins, and its own health. */
 function openEdgeContract(contract: EdgeContractNode, edge: EdgeNode, capabilities: readonly CapabilityNode[]): VerbAnswer {
   const [from, to] = [edge.from, edge.to].map((cap) => ({ id: cap, title: capabilities.find((node) => node.id === cap)?.title ?? cap }));
   const out = [`Contract ${quoted(contract.title)} (${contract.id}):`];
@@ -340,11 +295,9 @@ interface NoteArgs {
   readonly front_cover_of?: string | undefined;
 }
 
-/** What each kind of artifact is written with. */
 const FIELDS = { decision: ["title", "text"], definition: ["term", "meaning"] } as const;
 
 async function writeArtifact(args: NoteArgs, context: NoteToolContext): Promise<VerbAnswer> {
-  // A tool call that leaves out fields or links reads as none of either: the door hands an empty object and list.
   const fields = Object.keys(args.fields).length === 0 ? undefined : args.fields;
   const links = args.links.length === 0 ? undefined : [...args.links];
   if (args.kind === "memory") throw new VerbRefusal("memory belongs to the agent harness, not the library (ADR-0650); write a proper artifact kind such as decision, definition or principle.");
@@ -362,7 +315,6 @@ async function writeArtifact(args: NoteArgs, context: NoteToolContext): Promise<
   if (missing.length > 0 || extra.length > 0) throw new VerbRefusal(`A ${args.kind} is written with ${needs.join(" and ")}${extra.length > 0 ? `, not ${extra.join(" or ")}` : ""}.`);
   if (args.front_cover_of !== undefined && args.kind !== "decision") throw new VerbRefusal("Only a decision can be a front cover.");
 
-  // A story or capability named in links is where the writer meant to file it: say the field that does (F5.4).
   for (const id of links ?? []) {
     const part = await context.library.get(id);
     if (part?.type !== "story" && part?.type !== "capability") continue;
@@ -377,13 +329,11 @@ async function writeArtifact(args: NoteArgs, context: NoteToolContext): Promise<
   };
   let placed = "where you named";
   let emptyShelf: string | undefined;
-  // A measure's story is its place (1.18): it hangs on that story's shelf with the links it was given, inside no guessed cover.
   if (args.kind === "measure") {
     place = { links: [...args.links] };
     placed = `on the shelf of its story ${String((fields as { story?: unknown } | undefined)?.story)}`;
   } else if (links === undefined && args.front_cover_of === undefined) {
     const holding = await heldCapabilities(context);
-    // Two held parts and none named is a guess storytree does not make: it asks which (F5.4).
     if (holding.length > 1) {
       const titled = await Promise.all(holding.map(async (id) => `${quoted(((await context.library.get(id))?.fields as { title?: string } | undefined)?.title ?? id)} (${id})`));
       const which = args.kind === "decision" ? "give front_cover_of with the one this decision belongs to" : "give links with a decision on the shelf of the one it belongs to";
@@ -422,12 +372,6 @@ function write(library: Library, args: NoteArgs, fields: NoteArgs["fields"] | un
   }
 }
 
-/**
- * What a decision filed on part `id` stands beside (question_dffa215d411e): the part and each part one link from it
- * on the map (an edge or a stored dependency, either way; never two links), each with its description and its
- * contracts' titles quoted, and a sentence saying to correct with `correct` any the decision overtook. Undefined
- * when `id` is no live story or capability.
- */
 export async function partsBeside(library: Library, id: string, correct: string): Promise<string | undefined> {
   const tree = await library.projectTree();
   const story = tree.stories.find((node) => node.id === id);
@@ -455,13 +399,11 @@ export async function partsBeside(library: Library, id: string, correct: string)
   return out.join("\n");
 }
 
-/** The capabilities the calling session holds, in the order it claimed them. */
 async function heldCapabilities(context: NoteToolContext): Promise<string[]> {
   const mine = (await context.claims()).filter((held) => held.session === context.session && held.capability !== undefined);
   return [...new Set(mine.sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0)).map((held) => held.capability!))];
 }
 
-/** The cover on `shelf` the calling session opened most recently, if it opened any. */
 async function lastOpened(context: NoteToolContext, shelf: readonly SchemaRecord<"decision">[]): Promise<SchemaRecord<"decision"> | undefined> {
   const opened = (await context.notesRead()).filter((read) => read.read === "whole").map((read) => read.note);
   for (const note of opened.reverse()) {
@@ -471,29 +413,24 @@ async function lastOpened(context: NoteToolContext, shelf: readonly SchemaRecord
   return undefined;
 }
 
-/** How the calling session came to artifact `id`: where it last saw it shown, or by its id if it never was. */
 async function howFound(context: NoteToolContext, id: string): Promise<Found> {
   return (await context.notesRead()).filter((read) => read.note === id && read.read === "peek").at(-1)?.found ?? "id";
 }
 
-/** A title, quoted as the tools quote names. */
 function quoted(title: string): string {
   return `"${title}"`;
 }
 
-/** A record's spine: what it is called, the way a shelf or a search result shows it. */
 function spineOf(note: Findable): string {
   return note.type === "definition" ? note.fields.term : note.fields.title;
 }
 
-/** A record's first line, below its spine: the decision's text, the definition's meaning, or the description, begun. */
 function firstLineOf(note: Findable): string {
   const text = note.type === "decision" ? note.fields.text : note.type === "definition" ? note.fields.meaning : note.fields.description ?? "";
   const line = text.split(/\r?\n/, 1)[0] ?? "";
   return line.length > 120 ? `${line.slice(0, 117)}...` : line;
 }
 
-/** An artifact in full, as opening it shows it. */
 function wholeOf(note: Note): string {
   switch (note.type) {
     case "decision":
@@ -501,8 +438,6 @@ function wholeOf(note: Note): string {
     case "definition":
       return `Definition of ${quoted(note.fields.term)} (${note.id}):\n${note.fields.meaning}`;
     default: {
-      // One of the library's eight further kinds (ADR-0640): its title, its one-line description,
-      // and each other field that holds words, by name.
       const { title, description, ...rest } = note.fields as Record<string, unknown>;
       const fields = Object.entries(rest).flatMap(([name, value]) => (typeof value === "string" ? [`${name}: ${value}`] : []));
       return [`${ARTIFACT_KINDS[note.type].name} ${quoted(String(title))} (${note.id}):`, String(description), ...fields].join("\n");
@@ -512,7 +447,6 @@ function wholeOf(note: Note): string {
 
 function spineLine(note: Findable): string {
   const first = firstLineOf(note);
-  // A friction report says where it stands, so a settled one found by meaning reads as settled (ADR-1016 D4).
   const state = note.type === "friction" ? `, ${note.fields.state}` : "";
   return `- ${quoted(spineOf(note))} (${note.id}${state})${first === "" ? "" : `: ${first}`}`;
 }

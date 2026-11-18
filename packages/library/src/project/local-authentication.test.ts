@@ -1,4 +1,4 @@
-/** Capability 28 · Shared server, contract 28.10: local connections must not disclose credentials to a substituted listener. */
+// Capability 28 · Shared server
 import assert from "node:assert/strict";
 import { createServer, type Socket } from "node:net";
 import { test } from "node:test";
@@ -6,7 +6,6 @@ import { test } from "node:test";
 import { ConnectionError } from "./connection-error.js";
 import { localServer } from "./server.js";
 
-// Synthetic only; punctuation exercises the same URL encoding as authenticated discovery.
 const password = "synthetic-local-password-:@/#?% with spaces";
 
 for (const method of ["cleartext", "MD5"] as const) {
@@ -33,7 +32,6 @@ for (const method of ["cleartext", "MD5"] as const) {
         const fields = startup.subarray(8).toString().split("\0");
         databases.push(fields[fields.indexOf("database") + 1]!);
         asked = true;
-        // PostgreSQL AuthenticationCleartextPassword (3) / AuthenticationMD5Password (5).
         const request = Buffer.alloc(method === "cleartext" ? 9 : 13);
         request[0] = 0x52;
         request.writeInt32BE(request.length - 1, 1);
@@ -47,7 +45,6 @@ for (const method of ["cleartext", "MD5"] as const) {
     const server = localServer(new URL(`postgres://postgres:${encodeURIComponent(password)}@127.0.0.1:${port}/postgres`));
     const project = server.pool("storytree_synthetic");
     try {
-      // Repeated attempts also pin newly created pooled connections after a refusal.
       for (const pool of [server.admin, project, server.admin, project]) {
         const error = await pool.query("SELECT 42").then(() => undefined, (error: unknown) => error);
         await Promise.all(closed);
@@ -84,7 +81,6 @@ test("28.10 a local password URL refuses a listener that skips authentication, s
       startup = Buffer.concat([startup, chunk]);
       if (startup.length < 4 || startup.length < startup.readInt32BE(0)) return;
       answered = true;
-      // PostgreSQL AuthenticationOk (R, 0) then ReadyForQuery (Z, idle): no authentication at all.
       socket.write(Buffer.from([0x52, 0, 0, 0, 8, 0, 0, 0, 0, 0x5a, 0, 0, 0, 5, 0x49]));
     });
   });
@@ -102,8 +98,6 @@ test("28.10 a local password URL refuses a listener that skips authentication, s
       assert.equal(error.message.includes(password), false);
     }
     assert.equal(Buffer.concat(received).toString().includes("SELECT 42"), false, "the impostor must receive no query");
-    // With no password configured there is nothing to protect: the passwordless test harness still connects.
-    // pg falls back to PGPASSWORD (GitHub's Windows image sets one), which would be a password to protect.
     const pgPassword = process.env.PGPASSWORD;
     delete process.env.PGPASSWORD;
     try {

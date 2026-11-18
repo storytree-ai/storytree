@@ -19,16 +19,13 @@ test('a restore accepts only a complete manifest with safe dump names and hashes
   const databases = ['storytree_storytree', 'storytree-activity', 'storytree-trunks'];
   const good = { format: 1, databases: databases.map(name => ({ name, file: `${name}.dump`, sha256: 'a'.repeat(64), bytes: 123, rows: { 'public.record': '1' } })) };
   assert.doesNotThrow(() => checkedManifest(good));
-  // The lag runner's history (storytree-lag) is backed up beside them; a backup from before it joined still restores.
   const lag = { ...good.databases[0], name: 'storytree-lag', file: 'storytree-lag.dump' };
   assert.doesNotThrow(() => checkedManifest({ ...good, databases: [...good.databases, lag] }));
   assert.throws(() => checkedManifest({ ...good, databases: [...good.databases.slice(1), lag] }), /manifest/);
-  // So is the QA ledger (storytree-quality), whose review history cannot be re-run.
   const quality = { ...good.databases[0], name: 'storytree-quality', file: 'storytree-quality.dump' };
   assert.doesNotThrow(() => checkedManifest({ ...good, databases: [...good.databases, lag, quality] }));
   assert.throws(() => checkedManifest({ ...good, databases: [...good.databases, quality] }), /manifest/);
   assert.throws(() => checkedManifest({ ...good, databases: good.databases.slice(1) }), /manifest/);
-  // 0.2's frozen store was archived once, never backed up from Mint.
   assert.throws(() => checkedManifest({ ...good, databases: [...good.databases, { ...good.databases[0], name: 'storytree', file: 'storytree.dump' }] }), /manifest/);
   assert.throws(() => checkedManifest({ ...good, databases: good.databases.map(d => ({ ...d, file: '../outside.dump' })) }), /manifest/);
   assert.throws(() => checkedManifest({ ...good, databases: good.databases.map(d => ({ ...d, sha256: 'wrong' })) }), /manifest/);
@@ -82,7 +79,6 @@ test('a restore refuses a backup the off-box check never verified, one stamped i
   assert.throws(() => checkedPrefix({ ...good, verified: `${'c'.repeat(64)}\n` }), /not verified/);
   assert.throws(() => checkedPrefix({ ...good, verified: `# ${hash}\n` }), /not verified/);
   assert.throws(() => checkedPrefix({ ...good, now: new Date('2026-10-23T17:00:00Z') }), /future/);
-  // An object made long after the name's time, or before it, does not belong to that run.
   assert.throws(() => checkedPrefix({ ...good, objects: [...objects, { name: 'backups/20261023T180036163Z-9995f059/x', creation_time: '2026-10-24T02:00:00+0000' }] }), /creation/);
   assert.throws(() => checkedPrefix({ ...good, objects: [...objects, { name: 'backups/20261023T180036163Z-9995f059/x', creation_time: '2026-10-23T17:59:00+0000' }] }), /creation/);
   assert.throws(() => checkedPrefix({ ...good, objects: [] }), /creation/);
@@ -98,8 +94,6 @@ test('the backup timer runs on a PATH of /usr/bin and /bin alone, from a runtime
     await bundleRuntime(runtime);
     assert.deepEqual(await readdir(runtime), ['host.mjs']);
     const env = { PATH: '/usr/bin:/bin', HOME: runtime };
-    // Reached through a symlink, as macOS's /var is /private/var: it still runs as the entry point.
-    // A junction on Windows, where a directory symlink needs Developer Mode; POSIX ignores the type.
     const link = `${runtime}-link`;
     await symlink(runtime, link, 'junction');
     const { stdout } = await promisify(execFile)(process.execPath, [path.join(link, 'host.mjs'), 'backup', '--dry-run'], { cwd: runtime, env });
@@ -116,14 +110,12 @@ test('each backup\'s digest carries the next sequence number and a SHA-256 chain
   assert.equal(second.seq, 2);
   assert.equal(second.previous, first.chain);
   assert.notEqual(second.chain, first.chain);
-  // The chain covers the backup's name and its manifest's hash: changing either changes it.
   assert.notEqual(nextDigest(first, '20261024T000041000Z-0123abcd', 'c'.repeat(64)).chain, second.chain);
   assert.notEqual(nextDigest(first, '20261024T000041000Z-ffffffff', 'b'.repeat(64)).chain, second.chain);
 });
 
 test('the digests folder is create-only: the last digest is the highest sequence, and a sequence is never written twice', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'library-host-digests-'));
-  // The first backup with digests finds no digests folder yet.
   const folder = path.join(root, 'digests');
   try {
     assert.equal(await lastDigest(folder), undefined);

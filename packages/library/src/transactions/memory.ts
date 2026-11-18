@@ -1,7 +1,4 @@
-/**
- * Capability 2 · Library transactions. MemoryTransactions: the in-memory twin of PgTransactions. The behaviour suite runs unchanged on
- * both, so later stories can test against this one without a database.
- */
+// Capability 2 · Library transactions
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import { check, editedRecord, saveAllInputs, historyEntry, historyFilter, jsonCopy, listed, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
@@ -19,21 +16,11 @@ import type {
   Transactions,
 } from "./types.js";
 
-/**
- * Every write reads what is stored, builds and checks the new record, and writes it, with no
- * `await` in between: nothing else can run between its read and its write, so each write is
- * atomic, as a Postgres transaction is. What is stored is only ever replaced, never changed in
- * place, and callers only ever get copies. inOneWrite keeps what was stored when it began, puts it
- * back if its work throws, and holds every other writer until it settles.
- */
 export class MemoryTransactions implements Transactions {
-  /** The current records by id. A retired record is not here; its history is. */
   readonly #records = new Map<string, RecordEnvelope>();
   readonly #history: HistoryEntry[] = [];
   #lastSeq = 0;
-  /** Set inside an inOneWrite's work. */
   readonly #inside = new AsyncLocalStorage<true>();
-  /** Settles when the open inOneWrite does; undefined while none is open. */
   #open: Promise<unknown> | undefined;
 
   async save(input: SaveInput): Promise<RecordEnvelope> {
@@ -157,26 +144,18 @@ export class MemoryTransactions implements Transactions {
     }
   }
 
-  /**
-   * Whether a write must wait for an open inOneWrite it is not inside, as Postgres's write lock makes it wait. Each
-   * waiter checks again right before it writes, with no await between, so none slips in as one settles.
-   */
   #waits(): boolean {
     return this.#open !== undefined && this.#inside.getStore() !== true;
   }
 
-  /** `input` numbered from every number its type's records have held, as the history keeps them. */
   #numbered(input: SaveInput): SaveInput {
     const field = input.sequence;
     if (field === undefined) return input;
-    // Cross-type reservations retain legacy numbers, but health-only writers have no authority
-    // over that namespace. Use the event's type, not its freely supplied JSON fields.
     const held = this.#history.filter((entry) => (input.sequenceNeverHeld ? entry.type !== "health" : entry.type === input.type) && typeof entry.record.fields[field] === "number");
     const highest = Math.max(0, ...held.map((entry) => entry.record.fields[field] as number));
     return numbered(input, highest, (number) => held.some((entry) => (input.sequenceNeverHeld || entry.recordId !== input.id) && entry.record.fields[field] === number));
   }
 
-  /** Append one history entry, numbered one past the last. */
   #append(
     action: HistoryEntry["action"],
     record: RecordEnvelope,

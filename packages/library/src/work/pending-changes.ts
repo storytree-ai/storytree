@@ -1,10 +1,4 @@
-/**
- * Capability 4 · Work model, its pending plan changes (the library story, ADR-0966; with plan structure, ADR-1243 D4):
- * an active increment holds the changes to the plan it did not plan (a dependency edge's among them, ADR-1282 D2) as pending, leaving the live records alone until it lands; its branch reads the plan with them laid
- * over; at its landing they apply through the plan's own editors, a stale or refused one parked as residue on its arc,
- * and a close that does not land drops them. These are the rules; WorkInFlight (capability 10) is their one door, and
- * queues each write behind its own as it does for waits (11) and questions (12).
- */
+// Capability 4 · Work model
 import { isDeepStrictEqual } from "node:util";
 
 import { byCreation } from "../creation-order.js";
@@ -14,24 +8,14 @@ import type { FieldsOf } from "../schema/index.js";
 import type { HistoryEntry } from "../transactions/index.js";
 import type { CapabilityNode, EdgeNode, ProjectTree, StoryNode, WorkModel } from "./work-model.js";
 
-/** A pending plan change, as its increment keeps it (ADR-0966 D1). */
 export type PendingChange = NonNullable<FieldsOf<"increment">["pending"]>[number];
 
-/**
- * A change to a story, capability, contract or edge, to wait on an increment: some of its fields (one
- * set to undefined is removed), or its retirement with the reason.
- */
 export type PlanChange =
   | { readonly record: string; readonly fields: Readonly<Record<string, unknown>> }
   | { readonly record: string; readonly retire: string };
 
-/** What pendChange did: the change now pending, or nothing, since the increment planned the record and edits it live. */
 export type Pended = { readonly pending: PendingChange } | { readonly plannedHere: true };
 
-/**
- * A pending change written against an older version of its record (ADR-0966 D5): the history entry
- * it was read at (`base`), and the one that has changed the record since (`moved`), with when and who.
- */
 export interface StalePending {
   readonly record: string;
   readonly type: PendingChange["type"];
@@ -39,43 +23,24 @@ export interface StalePending {
   readonly moved: { readonly seq: number; readonly action: "created" | "updated" | "retired"; readonly at: string; readonly actor?: string };
 }
 
-/** A pending change not applied at its increment's landing (ADR-0966 D5): stale, naming the entry that moved it, or refused by its editor. */
 export type UnappliedPending =
   | (StalePending & { readonly why: "stale" })
   | { readonly record: string; readonly type: PendingChange["type"]; readonly base: number; readonly why: "refused"; readonly refusal: string };
 
-/** What applying an increment's pending changes did: the records changed, and, when some could not be, the residue increment parked for them. */
 export interface AppliedPending {
   readonly applied: string[];
   readonly residue?: { readonly increment: string; readonly changes: UnappliedPending[] };
 }
 
-/** What settling one closed increment's leftover pending changes did (settleClosedPending). */
 export interface SettledPending extends AppliedPending {
   readonly increment: string;
-  /** How many were dropped, since it did not land. */
   readonly dropped: number;
 }
 
-/** What an increment's pending changes may name: its plan's records (ADR-0966 D1), a dependency edge among them (ADR-1282 D2). */
 const PLAN_RECORD = { name: "story, capability, contract or edge", types: ["story", "capability", "contract", "edge"] } as const;
 
-/** How a pending retirement retires its record: WorkInFlight's retire, which refuses a capability with live dependents. */
 export type Retire = (id: string, reason: string, options?: WriteOptions) => Promise<void>;
 
-/**
- * Hold `change` on active increment `id` as a pending change (ADR-0966 D1), leaving the live record
- * alone: kept with the record's latest history entry as its base, and, for an edit, the changed
- * fields' live values beside the new ones. A second change to the same record merges into the first,
- * keeping its base and first values; a retirement replaces an edit, and an edit after a pending
- * retirement is refused. A record the increment planned itself, created after it started, is not
- * held: the answer says so, and the caller edits it live. Refused, with nothing written: an increment
- * that is not active (RangeError); a record that is not a live story, capability, contract or edge
- * (MissingReferenceError); an edit naming an edge's `from` or `to`, which editEdge refuses (SchemaError); an edit to a plugin's plan, refused as the plan's editors refuse it live (SchemaError,
- * 4.35); an edit that would leave the record invalid (SchemaError) or name a
- * missing record (MissingReferenceError); and a record another open increment already holds a
- * pending change for, naming that increment (RangeError, D5). Null if `id` is not a live increment.
- */
 export async function pendChange(records: SchemaRecords, work: WorkModel, id: string, change: PlanChange, options?: WriteOptions): Promise<Pended | null> {
   const increment = await liveRecord(records, id, ["increment"]);
   if (increment === null) return null;
@@ -114,7 +79,6 @@ export async function pendChange(records: SchemaRecords, work: WorkModel, id: st
     const before = { ...Object.fromEntries(given.map((field) => [field, live[field] ?? null])), ...(earlier?.before ?? {}) };
     const merged = { ...live, ...after };
     for (const [field, value] of Object.entries(after)) if (value === null) delete merged[field];
-    // A contract moved onto an edge leaves its capability, and one moved onto a capability its edge, as editContract moves it (ADR-1282 D1).
     if (record.type === "contract" && typeof after["edge"] === "string" && !Object.hasOwn(after, "capability")) delete merged["capability"];
     if (record.type === "contract" && typeof after["capability"] === "string" && !Object.hasOwn(after, "edge")) delete merged["edge"];
     records.check(record.type, merged);
@@ -129,22 +93,11 @@ export async function pendChange(records: SchemaRecords, work: WorkModel, id: st
   return { pending: entry };
 }
 
-/**
- * `tree`, as WorkModel.projectTree() gives it, with increment `id`'s pending changes laid over (ADR-0966
- * D3): what its branch's own checks read. An edit's new fields replace the live ones the tree shows
- * (a capability or contract given a new story or capability moves there), and a retirement takes the
- * record, and anything under it, out: a retired edge's link leaves its dependent's dependsOn. The tree given is not changed. Null if `id` is not a live increment.
- */
 export async function withPending(records: SchemaRecords, id: string, tree: ProjectTree): Promise<ProjectTree | null> {
   const increment = await liveRecord(records, id, ["increment"]);
   return increment === null ? null : overlay(tree, increment.fields.pending ?? []);
 }
 
-/**
- * Increment `id`'s pending changes their record has moved since they were read (ADR-0966 D5's gate
- * case, movedSince): each with its base and its record's latest history entry, in the increment's
- * order. A record whose latest entry is this increment's own applying of the change is not moved (4.34). Empty when none has moved; null if `id` is not a live increment.
- */
 export async function stalePending(records: SchemaRecords, id: string): Promise<StalePending[] | null> {
   const increment = await liveRecord(records, id, ["increment"]);
   if (increment === null) return null;
@@ -159,19 +112,6 @@ export async function stalePending(records: SchemaRecords, id: string): Promise<
   return stale;
 }
 
-/**
- * Apply increment `id`'s pending changes (ADR-0966 D4): what GitHub reporting its branch merged, or
- * its landed close, calls. Each goes through the plan's own editor (editStory, editCapability,
- * editContract, retire), which checks it as a live edit is checked, and its history entry's reason
- * reads "applied at the merge of PR #n (<increment>)". One its record has moved since it was read
- * (movedSince), or whose record is gone, is stale; one its editor refuses is refused: neither is applied, and both are
- * parked together as one proposal increment on the same arc, its body naming each record, its base,
- * the entry that moved it or the refusal, and the change (D5). A change whose record's latest entry
- * already carries this increment's mark (any of its pull requests) on an entry after the change's base, as after a crash part-way, counts as
- * applied. Each change leaves the increment's pending list as it applies, so an apply cut off part-way
- * leaves pending only what it had not applied (4.34); the increment keeps none pending afterwards. The library has no transaction across records, so they apply one at a time,
- * in the increment's order.
- */
 export async function applyPending(records: SchemaRecords, work: WorkModel, retire: Retire, increment: SchemaRecord<"increment">, pr: string | undefined, options?: WriteOptions): Promise<AppliedPending> {
   const pending = increment.fields.pending ?? [];
   if (pending.length === 0) return { applied: [] };
@@ -182,7 +122,6 @@ export async function applyPending(records: SchemaRecords, work: WorkModel, reti
   for (const change of pending) {
     const { record, type, base } = change;
     const [latest] = await records.history({ id: record, newest: 1 });
-    // Its own mark counts only on an entry after the change was read: one pended on top of the increment's own earlier apply is not applied yet.
     if (latest !== undefined && latest.seq !== base && appliedBy(latest.reason, increment.id)) {
       applied.push(record);
       continue;
@@ -210,7 +149,6 @@ export async function applyPending(records: SchemaRecords, work: WorkModel, reti
       unapplied.push({ record, type, base, why: "refused", refusal: error instanceof Error ? error.message : String(error) });
       continue;
     }
-    // Cleared as it applies, so an apply cut off part-way (a hook's deadline) leaves pending only what it had not applied.
     const left = pending.filter((other) => !applied.includes(other.record));
     if (left.length > 0) await records.edit(increment.id, { pending: left }, { ...options, reason: `${mark}: ${record}` });
   }
@@ -233,13 +171,6 @@ export async function applyPending(records: SchemaRecords, work: WorkModel, reti
   return { applied, ...(residue === undefined ? {} : { residue }) };
 }
 
-/**
- * Drop open increment `id`'s one pending change to `record`, with a reason, its history entry saying
- * which and why: for a change something else overtook, such as a plugin's own plan (ADR-0966 D6 drops
- * them all only at a close that does not land). The live plan is left as it was. Refused, with nothing
- * written: a closed increment, and a record it holds no pending change for (RangeError). Null if `id`
- * is not a live increment.
- */
 export async function dropPending(records: SchemaRecords, id: string, record: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
   const increment = await liveRecord(records, id, ["increment"]);
   if (increment === null) return null;
@@ -252,11 +183,6 @@ export async function dropPending(records: SchemaRecords, id: string, record: st
   return (await records.edit(id, { pending: rest.length === 0 ? undefined : rest }, { ...options, reason: why })) as SchemaRecord<"increment"> | null;
 }
 
-/**
- * Settle every closed increment's leftover pending changes, those of increments closed before
- * closing applied or dropped them: each that landed has them applied, as applyPending applies them
- * with its pull request; each that did not has them dropped. Oldest first; empty when none is left.
- */
 export async function settleClosedPending(records: SchemaRecords, work: WorkModel, retire: Retire, options?: WriteOptions): Promise<SettledPending[]> {
   const closed = (await records.select("increment", ["pending", "outcome"], { where: { status: "closed" } }))
     .filter((increment) => (increment.fields.pending ?? []).length > 0)
@@ -275,17 +201,14 @@ export async function settleClosedPending(records: SchemaRecords, work: WorkMode
   return settled;
 }
 
-/** Whether a history entry's reason is increment `id`'s own applying of a pending change (applyPending's mark). */
 function appliedBy(reason: string | undefined, id: string): boolean {
   return reason !== undefined && (reason.includes(`applied at the landing of ${id}`) || new RegExp(`applied at the merge of PR #\\d+ \\(${id}\\)`).test(reason));
 }
 
-/** Why a close or a settling dropped `count` pending plan changes (ADR-0966 D6). */
 export function droppedReason(count: number, disposition: string): string {
   return `dropped ${count} pending plan change${count === 1 ? "" : "s"}: the increment closed ${disposition}, so they never apply (ADR-0966 D6)`;
 }
 
-/** The residue increment's body: each unapplied change, its record, its base, why it was not applied, and the change itself. */
 function residueBody(increment: string, mark: string, unapplied: readonly UnappliedPending[], changes: ReadonlyMap<string, PendingChange>): string {
   const lines = unapplied.map((one) => {
     const why = one.why === "stale"
@@ -302,12 +225,6 @@ function residueBody(increment: string, mark: string, unapplied: readonly Unappl
   ].join("\n");
 }
 
-/**
- * Whether `latest`, its record's newest history entry, has moved `change` since it was read (ADR-0966
- * D5): the record is retired, or, for a retirement, any entry since its base; for an edit, a field it
- * sets no longer holds the value it was read with. A write that touched only other fields, as marking
- * a capability built does, leaves the edit to apply, since applying it overwrites nothing newer.
- */
 function movedSince(change: PendingChange, latest: HistoryEntry): boolean {
   if (latest.seq === change.base) return false;
   if (latest.action === "retired" || "retire" in change) return true;
@@ -315,7 +232,6 @@ function movedSince(change: PendingChange, latest: HistoryEntry): boolean {
   return Object.entries(change.before).some(([field, value]) => !isDeepStrictEqual(live[field] ?? null, value));
 }
 
-/** `tree` with `pending` laid over, as withPending gives it. */
 function overlay(tree: ProjectTree, pending: readonly PendingChange[]): ProjectTree {
   const retired = new Set(pending.flatMap((change) => ("retire" in change ? [change.record] : [])));
   const after = new Map(pending.flatMap((change) => ("after" in change ? [[change.record, change.after] as const] : [])));
@@ -333,7 +249,6 @@ function overlay(tree: ProjectTree, pending: readonly PendingChange[]): ProjectT
   };
   const capabilities = tree.stories.flatMap((story) => story.capabilities.map((capability) => ({ capability, story: parentOf(capability.id, "story", story.id) })));
   const contracts = capabilities.flatMap(({ capability }) => capability.contracts.map((contract) => ({ contract, capability: parentOf(contract.id, "capability", capability.id) })));
-  // A retired edge takes its link out of its dependent's dependsOn, which the tree reads from the story's edges (ADR-1282 D1).
   const unlinked = tree.stories.flatMap((story) => (story.edges ?? []).filter((edge) => retired.has(edge.id)));
   const edgeNode = (edge: EdgeNode): EdgeNode => {
     const fields = after.get(edge.id);

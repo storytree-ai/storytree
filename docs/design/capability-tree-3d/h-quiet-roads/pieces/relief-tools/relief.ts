@@ -1,10 +1,3 @@
-/** A piece of the capability-tree map (round 11's colours and sizes) drawn six ways, to see whether a little 2.5D makes the
- * map easier on the eyes and its gates read as entrances. One piece of land about 110 x 70 ground units: two healthy
- * territories (A west, B north-east), one untested (C south-east), a strip of open land along the coast with the plate's
- * side falling to the sea, a quiet road that crosses two borders at gates (G1 A|B, G2 B|C) to a settlement in C, and a
- * second road from there that leaves C onto the open land at a third gate (G3).
- * Hand-picked face colours with MeshBasicMaterial, no lights, linear output with no tone mapping, so the hex colours here
- * are the bytes on screen. Light from the upper left of the screen (north-west and above). */
 import * as THREE from "three";
 
 THREE.ColorManagement.enabled = false;
@@ -20,27 +13,20 @@ const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] 
 const mul = (a: RGB, f: number): RGB => [Math.min(1, a[0] * f), Math.min(1, a[1] * f), Math.min(1, a[2] * f)];
 const rgba = (c: RGB, a = 1): RGBA => [c[0], c[1], c[2], a];
 
-/** Round 11's displayed colours (sampled from the still) and overlay.ts's PALETTE. */
 const COL = {
   healthy: hex("#8eb35e"), untested: hex("#d6bd6c"), open: hex("#686d70"), sea: "#18242d",
   border: hex("#f4f7f8"), road: hex("#efe8d6"), post: hex("#1b2024"), paper: hex("#f3efe4"),
   townInk: hex("#2a2723"), casing: hex("#141a20"), white: [1, 1, 1] as RGB, black: [0, 0, 0] as RGB,
-  /** The plate's side fall as the map shades it: #374335 facing south, #4f624d facing west (both sampled). */
   wallSouth: hex("#374335"),
 };
-/** overlay.ts SIZE, in ground units. */
 const SIZE = { opening: 3.0, post: 1.45, face: 0.9, town: 1.05, townRing: 0.36, casing: 0.42, road: 0.6 };
 
-// ── Light: from the upper left of the screen, which is north-west (-x, -z) and above ─────────────────────────────────
 const L = new THREE.Vector3(-0.6, 1, -0.75).normalize();
 const LH = (() => { const l = Math.hypot(-0.6, -0.75); return { x: -0.6 / l, z: -0.75 / l }; })();
-/** Where a shadow falls, per unit of height: away from the light. */
 const SHADOW = { x: -L.x / L.y, z: -L.z / L.y };
 const AMB = 0.5, DIF = 0.5, TOP = AMB + DIF * L.y;
-/** A face's brightness against a level top: 1 for a top, 0.58 for a south or east face, 0.83 west, 0.89 north. */
 const shade = (n: THREE.Vector3) => (AMB + DIF * Math.max(0, n.dot(L))) / TOP;
 
-// ── 2D helpers ─────────────────────────────────────────────────────────────────────────────────────────────────────
 const sub = (a: P, b: P): P => ({ x: a.x - b.x, z: a.z - b.z });
 const addP = (a: P, b: P, k = 1): P => ({ x: a.x + b.x * k, z: a.z + b.z * k });
 const len = (a: P) => Math.hypot(a.x, a.z);
@@ -67,7 +53,6 @@ function segCross(a: P, b: P, c: P, d: P): P | undefined {
   const t = ((c.x - a.x) * s.z - (c.z - a.z) * s.x) / den, u = ((c.x - a.x) * r.z - (c.z - a.z) * r.x) / den;
   return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? { x: a.x + t * r.x, z: a.z + t * r.z } : undefined;
 }
-/** A smooth way through `pts` (Catmull-Rom), then a point every `step` along it. */
 function smooth(pts: P[], step = 0.2): P[] {
   const dense: P[] = [];
   for (let i = 0; i + 1 < pts.length; i++) {
@@ -92,7 +77,6 @@ function resample(pts: P[], step: number): P[] {
   if (dist(out.at(-1)!, pts.at(-1)!) > 1e-6) out.push(pts.at(-1)!);
   return out;
 }
-/** `pts` with the stretch within `half` (along it) of each hole cut out, as the pieces left. */
 function cut(pts: P[], holes: P[], half: number): P[][] {
   const cum = [0];
   for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1]! + dist(pts[i - 1]!, pts[i]!));
@@ -119,9 +103,6 @@ function cut(pts: P[], holes: P[], half: number): P[][] {
   return keep.map(([a, b]) => [at(a), ...pts.filter((_, i) => cum[i]! > a && cum[i]! < b), at(b)]);
 }
 
-// ── The piece ──────────────────────────────────────────────────────────────────────────────────────────────────────
-// x runs east (screen right), z south (toward the eye); the coast is the south edge. The polygons run past the frame on
-// the north, west and east, so each panel is a window on the map rather than a tile of it.
 const T1 = { x: -12, z: -3 }, T2 = { x: -10, z: 15.5 };
 const AB: P[] = [{ x: -28, z: -80 }, { x: -26, z: -60 }, { x: -24, z: -38 }, { x: -17, z: -26 }, { x: -19, z: -12 }, T1];
 const AC: P[] = [T1, { x: -16, z: 6 }, T2];
@@ -148,7 +129,6 @@ const ROADS: P[][] = [
   smooth([TOWN, { x: 22.5, z: 11 }, { x: 25, z: 17.5 }, { x: 30, z: 21.5 }, { x: 44, z: 22.3 }, { x: 62, z: 21 }, { x: 90, z: 22 }]),
 ];
 type Gate = { name: string; at: P; along: P; border: string; pair: [Region, Region] };
-/** A gate wherever a road crosses a border, as overlay.ts finds them. */
 const GATES: Gate[] = (() => {
   const out: Gate[] = [];
   for (const road of ROADS) for (let i = 0; i + 1 < road.length; i++) for (const b of BORDERS) for (let j = 0; j + 1 < b.pts.length; j++) {
@@ -161,30 +141,21 @@ const GATES: Gate[] = (() => {
 })();
 const gate = (name: string) => GATES.find(g => g.name === name)!;
 
-// ── The ways of drawing it ─────────────────────────────────────────────────────────────────────────────────────────
 export type Variant = {
   key: string;
-  /** Each region's height above the plate's top (the open land). */
   heights?: Partial<Record<Region, number>>;
-  /** A ramp cut into the higher side at these gates. */
   ramps?: string[];
   rims?: boolean;
   standing?: boolean;
   lintel?: boolean;
-  /** Overrides of LOOK for this panel. */
   rim?: Partial<typeof LOOK.rim>;
   post?: Partial<typeof LOOK.standing>;
 };
-/** The sizes each look uses, which the captions quote. */
 export const LOOK = {
-  /** A rim's width, its strongest white and black (scaled by the square root of how squarely its edge faces toward or away
-   * from the light), and how much of its width holds that before it fades inward. */
   rim: { width: 0.9, light: 0.45, dark: 0.36, hold: 0.45 },
   wall: 0.92,
   shadow: { alpha: 0.3, feather: 0.8 },
   ramp: { width: SIZE.opening, depth: 2.6 },
-  /** A standing post: footprint, height, the paper face's share of its top, its sides' colour, its shadow; and a lintel's
-   * section when it carries one. */
   standing: { side: 1.2, height: 1.5, faceRatio: 0.62, body: hex("#59626a"), shadow: 0.3, feather: 0.55, lintel: 0.32 },
 };
 export const VARIANTS: Record<string, Variant> = {
@@ -194,7 +165,6 @@ export const VARIANTS: Record<string, Variant> = {
   standing: { key: "standing", standing: true },
   both: { key: "both", rims: true, standing: true },
   levels: { key: "levels", heights: { A: 0.8, B: 1.6, C: 0.8 }, ramps: ["G1", "G2", "G3"] },
-  // Tries, not on the sheet.
   standingPaper: { key: "standingPaper", standing: true, post: { body: hex("#f3efe4") } },
   standingLow: { key: "standingLow", standing: true, post: { height: 0.9 } },
   lintel: { key: "lintel", rims: true, standing: true, lintel: true, post: { height: 1.6 } },
@@ -203,7 +173,6 @@ export const VARIANTS: Record<string, Variant> = {
 
 type Notch = { gate: Gate; E: P; along: P; inward: P; hi: Region; lo: Region; hHi: number; hLo: number };
 
-/** Triangles gathered by layer: 0 is opaque and writes depth, the rest blend over it in order. */
 class Layers {
   private layers = new Map<number, { pos: number[]; col: number[] }>();
   tri(layer: number, a: V3, b: V3, c: V3, ca: RGBA, cb: RGBA = ca, cc: RGBA = ca) {
@@ -230,7 +199,6 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
   const colourOf = (r: Region) => REGIONS.find(x => x.id === r)!.colour;
   const out = new Layers();
 
-  // The ramps: each cut into the higher side of its gate's border, its low end on the border.
   const notches: Notch[] = (v.ramps ?? []).map(name => {
     const g = gate(name), n = left(g.along), probe = addP(g.at, n, 0.5);
     const sideL = regionAt(probe)!, sideR = regionAt(addP(g.at, n, -0.5))!;
@@ -250,10 +218,8 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
     if (n) return n.k.hLo + (n.k.hHi - n.k.hLo) * Math.max(0, Math.min(1, n.w / LOOK.ramp.depth));
     return H(regionAt(p));
   };
-  /** On a border: the higher of its two sides. */
   const edgeHeight = (p: P, along: P) => { const n = left(along); return Math.max(H(regionAt(addP(p, n, 0.3))), H(regionAt(addP(p, n, -0.3)))); };
 
-  // ── Outlines, with the gates' gaps (for rims) and the ramps' notches cut in ──────────────────────────────────────
   type Outline = { pts: P[]; flag: ("gap" | "notch" | undefined)[] };
   const outlineOf = (poly: P[], self: Region): Outline => {
     let pts = [...poly], flag: Outline["flag"] = poly.map(() => undefined);
@@ -280,7 +246,6 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
     return { pts, flag };
   };
 
-  // ── The ground: each region's top, the walls where it stands above its neighbour, and their soft shadows ─────────
   for (const r of REGIONS) {
     const h = H(r.id), o = outlineOf(r.poly, r.id), ccw = area(o.pts) > 0;
     const contour = o.pts.map(p => new THREE.Vector2(p.x, p.z));
@@ -289,7 +254,6 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
       out.tri(LAYER.solid, [a.x, h, a.z], [b.x, h, b.z], [c.x, h, c.z], rgba(r.colour));
     }
     if (h <= 0) continue;
-    // Walls and shadow runs along every edge that stands above its neighbour.
     const n = o.pts.length;
     const edges = o.pts.map((a, i) => {
       const b = o.pts[(i + 1) % n]!, dir = norm(sub(b, a)), outward = ccw ? { x: -left(dir).x, z: -left(dir).z } : left(dir);
@@ -300,7 +264,6 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
       const f = shade(new THREE.Vector3(e.outward.x, 0, e.outward.z)) * LOOK.wall, c = rgba(mul(r.colour, f));
       out.quad(LAYER.solid, [e.a.x, h, e.a.z], [e.b.x, h, e.b.z], [e.b.x, e.low, e.b.z], [e.a.x, e.low, e.a.z], c);
     }
-    // Shadows: each edge's quad pushed out by the shadow's reach across it, the corners shared with the next edge.
     const reach = (outward: P, dh: number) => Math.max(0, dot(outward, SHADOW)) * dh;
     edges.forEach((e, i) => {
       if (e.low === undefined) return;
@@ -315,7 +278,6 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
       out.quad(LAYER.shadow, [aCore.x, y, aCore.z], [bCore.x, y, bCore.z], [bEnd.x, y, bEnd.z], [aEnd.x, y, aEnd.z], rgba(black, A * ka * 0.85), rgba(black, A * kb * 0.85), rgba(black, 0), rgba(black, 0));
     });
   }
-  // The ramps and the notch's two cheeks.
   for (const k of notches) {
     const c = colourOf(k.hi);
     const e1 = addP(k.E, k.along, -LOOK.ramp.width / 2), e2 = addP(k.E, k.along, LOOK.ramp.width / 2);
@@ -328,8 +290,6 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
     }
   }
 
-  // ── Bevel rims: a thin band inside each territory's edge, light where the edge faces the light, dark where it faces
-  //    away, fading inward; it stops at each gate's opening ─────────────────────────────────────────────────────────
   if (v.rims) for (const r of REGIONS) {
     if (r.id === "open") continue;
     const R = { ...LOOK.rim, ...v.rim };
@@ -350,7 +310,6 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
     }
   }
 
-  // ── A flat ribbon, `width` across, along `pts`, at `y(p)` ─────────────────────────────────────────────────────────
   const ribbon = (layer: number, pts: P[], width: number, y: (p: P, along: P) => number, c: RGBA) => {
     const side = pts.map((p, i) => {
       const a = pts[Math.max(0, i - 1)]!, b = pts[Math.min(pts.length - 1, i + 1)]!, d = norm(sub(b, a));
@@ -363,10 +322,9 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
   };
   const px = 1 / ppu;
 
-  // ── The coast: the plate's side falling to the sea, a light band on its top edge and the white coast line ─────────
   const wallBase = mul(COL.wallSouth, 1 / shade(new THREE.Vector3(0, 0, 1)));
   for (let i = 0; i + 1 < COAST.length; i++) {
-    const a = COAST[i]!, b = COAST[i + 1]!, d = norm(sub(b, a)), outward = left(d); // land is north of the coast
+    const a = COAST[i]!, b = COAST[i + 1]!, d = norm(sub(b, a)), outward = left(d);
     const o = outward.z > 0 ? outward : { x: -outward.x, z: -outward.z };
     const c = rgba(mul(wallBase, shade(new THREE.Vector3(o.x, 0, o.z))));
     out.quad(LAYER.solid, [a.x, 0, a.z], [b.x, 0, b.z], [b.x, -10, b.z], [a.x, -10, a.z], c);
@@ -375,23 +333,19 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
   ribbon(LAYER.coast, coastBand.map(p => ({ x: p.x, z: p.z - 0.3 })), 0.6, () => 0.02, rgba(mix(COL.open, COL.white, 0.17)));
   ribbon(LAYER.coast, coastBand, 1.1 * px, () => 0.04, rgba(COL.border, 0.85));
 
-  // ── Borders: 1 px white lines at 85%, each gate's opening cut out of them ─────────────────────────────────────────
   for (const b of BORDERS) {
     const holes = GATES.filter(g => g.border === b.name).map(g => g.at);
     for (const piece of cut(resample(b.pts, 0.5), holes, SIZE.opening / 2)) ribbon(LAYER.border, piece, 1.1 * px, (p, d) => edgeHeight(p, d) + 0.05, rgba(COL.border, 0.85));
   }
 
-  // ── The quiet road: 0.6 wide, #efe8d6 laid 55% over the land under it, no casing ───────────────────────────────────
   for (const road of ROADS) ribbon(LAYER.road, road, SIZE.road, p => heightAt(p) + 0.07, rgba(COL.road, 0.55));
 
-  // ── The gates' posts ──────────────────────────────────────────────────────────────────────────────────────────────
   const square = (layer: number, c: P, along: P, side: number, y: number, col: RGBA) => {
     const a = along, n = left(along), h = side / 2;
     const k = (s: number, t: number): V3 => [c.x + a.x * h * s + n.x * h * t, y, c.z + a.z * h * s + n.z * h * t];
     out.quad(layer, k(-1, -1), k(1, -1), k(1, 1), k(-1, 1), col);
   };
   const S = { ...LOOK.standing, ...v.post };
-  /** A box from `base` to `top` over the footprint `k(+-1, +-1)`, its sides shaded by the light. */
   const box = (k: (s: number, t: number) => P, base: number, top: number, body: RGB) => {
     const faces: [P, P][] = [[k(-1, -1), k(1, -1)], [k(1, -1), k(1, 1)], [k(1, 1), k(-1, 1)], [k(-1, 1), k(-1, -1)]];
     const c = k(0, 0);
@@ -401,16 +355,13 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
     }
   };
   for (const g of GATES) for (const side of [-1, 1]) {
-    // At a ramp the posts stand on its high side, flanking its foot.
     const ramp = notches.find(k => k.gate === g), seat = (c: P, size: number) => ramp ? addP(c, ramp.inward, size / 2 + 0.1) : c;
     if (v.standing) {
       const c = seat(addP(g.at, g.along, (SIZE.opening / 2 + S.side / 2) * side), S.side), base = edgeHeight(c, g.along);
-      // Its soft shadow: the footprint swept away from the light, feathered.
       const a = g.along, n = left(a), hs = S.side / 2;
       const foot = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([s, t]) => ({ x: c.x + a.x * hs * s! + n.x * hs * t!, z: c.z + a.z * hs * s! + n.z * hs * t! }));
       const hull = convexHull([...foot, ...foot.map(p => addP(p, SHADOW, S.height))]);
       softPolygon(out, LAYER.shadow, hull, base + 0.02, S.shadow, S.feather);
-      // The block: a paper face on an ink-edged top, two shaded sides showing.
       const top = base + S.height, k = (s: number, t: number) => ({ x: c.x + a.x * hs * s + n.x * hs * t, z: c.z + a.z * hs * s + n.z * hs * t });
       box(k, base, top, S.body);
       square(LAYER.solid, c, a, S.side, top, rgba(COL.post));
@@ -421,7 +372,6 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
       square(LAYER.post, c, g.along, SIZE.face, y + 0.14, rgba(COL.paper));
     }
   }
-  // A lintel: a thin bar across the opening between the two posts' tops, a little below them, with its own soft shadow.
   if (v.standing && v.lintel) for (const g of GATES) {
     const a = g.along, n = left(a), t = S.lintel / 2, reach = SIZE.opening / 2 + S.side * 0.5, base = edgeHeight(g.at, a);
     const top = base + S.height - 0.15, bottom = top - S.lintel * 0.8;
@@ -433,7 +383,6 @@ export function buildScene(v: Variant, ppu: number): THREE.Scene {
     softPolygon(out, LAYER.shadow, convexHull(kk.map(p => addP(p, lift))), base + 0.02, S.shadow * 0.7, S.feather);
   }
 
-  // ── The settlement where the two roads meet: a paper disc ringed in ink (1-2 roads) ───────────────────────────────
   const disc = (p: P, r: number, y: number, c: RGBA) => {
     const n = 28;
     for (let i = 0; i < n; i++) {
@@ -459,7 +408,6 @@ function convexHull(points: P[]): P[] {
   for (const p of [...pts].reverse()) { while (upper.length >= 2 && cross(upper.at(-2)!, upper.at(-1)!, p) <= 0) upper.pop(); upper.push(p); }
   return [...lower.slice(0, -1), ...upper.slice(0, -1)];
 }
-/** A convex shadow: its core at `alpha`, feathered to nothing over `feather` round its edge. */
 function softPolygon(out: Layers, layer: number, hull: P[], y: number, alpha: number, feather: number) {
   const n = hull.length, ccw = area(hull) > 0, c = hull.reduce((s, p) => ({ x: s.x + p.x / n, z: s.z + p.z / n }), { x: 0, z: 0 });
   const outwardOf = (i: number) => { const d = norm(sub(hull[(i + 1) % n]!, hull[i]!)); return ccw ? { x: d.z, z: -d.x } : { x: -d.z, z: d.x }; };
@@ -473,9 +421,8 @@ function softPolygon(out: Layers, layer: number, hull: P[], y: number, alpha: nu
   }
 }
 
-// ── The page: one renderer, each panel drawn at twice its size and laid into its own canvas ──────────────────────────
-const TILT = 40 * Math.PI / 180;     // the map's resting tilt off straight down (SHEET_TILT)
-const MAP_PPU = 2.6, MAP_D = 549;    // the map at rest: 2.6 px per ground unit, its eye about 549 units off (fov 35, 900 px)
+const TILT = 40 * Math.PI / 180;
+const MAP_PPU = 2.6, MAP_D = 549;
 const SS = 2;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: false });
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;

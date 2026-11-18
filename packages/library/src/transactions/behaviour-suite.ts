@@ -1,12 +1,4 @@
-/**
- * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12, 2.14-2.20 and 2.23-2.25 in
- * the library story. Each backend registers it (memory.test.ts, pg.test.ts) and it must pass
- * unchanged on every one. Parity is the point: later stories test against the in-memory twin, so
- * the twin has to behave exactly as Postgres does.
- *
- * Every test gets a fresh, empty store from `makeStore` and disposes of it afterwards, pass or
- * fail, so the whole history a test reads is its own. Nothing here knows which backend it tests.
- */
+// Capability 2 · Library transactions
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -14,20 +6,14 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { LaterWriterError, StaleRevertError } from "./records.js";
 import type { HistoryEntry, RecordEnvelope, Transactions } from "./types.js";
 
-/** A fresh, empty store, and how to dispose of it. */
 export interface StoreUnderTest {
   readonly store: Transactions;
   cleanup(): Promise<void>;
 }
 
-/**
- * How many writers the race checks run at once. More than two, so that the writes genuinely
- * overlap even on a backend that has to open a connection for each of them.
- */
 const RACERS = 8;
 
 export function transactionsBehaviourSuite(label: string, makeStore: () => Promise<StoreUnderTest>): void {
-  /** Register contract `number`'s test for this backend, run against a fresh store. */
   function contract(number: string, title: string, body: (store: Transactions) => Promise<void>): void {
     test(`${number} [${label}] ${title}`, async () => {
       const { store, cleanup } = await makeStore();
@@ -58,9 +44,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     );
     assert.deepEqual(await store.get("note-1"), created, "get returns the record save returned");
 
-    // What is stored is the store's own copy: changing the caller's objects afterwards, or the
-    // records save and get handed out, changes nothing stored. (Compared with a snapshot, which
-    // no store can reach.)
     const asSaved = structuredClone(created);
     fields.title = "changed by the caller";
     fields.tags.push("changed by the caller");
@@ -99,8 +82,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
       "one entry per save, each holding the record as that save left it",
     );
 
-    // Saves of one new id racing each other: exactly one of them creates it, and every other one
-    // replaces it. Each save still appends exactly one entry.
     await warmUp(store);
     const racers = await Promise.all(
       Array.from({ length: RACERS }, (_, n) => store.save({ id: "raced", type: "note", fields: { n } })),
@@ -143,8 +124,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.ok(Date.parse(edited.updatedAt) >= Date.parse(saved.updatedAt), "updatedAt never goes back");
     assert.deepEqual(await store.get("task-1"), edited);
 
-    // A named field that was not there is added. null is a value like any other. undefined
-    // removes the field. The merge is shallow: a named object field is replaced whole.
     const added = await store.edit({ id: "task-1", fields: { priority: 2 } });
     assert.deepEqual(added?.fields, {
       title: "Plant the seed",
@@ -187,8 +166,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
       "each edit appends one entry holding the record as that edit left it",
     );
 
-    // What is stored is the store's own copy: changing an object the caller passed in the edit,
-    // or the record the edit handed back, changes nothing stored.
     const asStored = structuredClone(removed);
     meta.z = 4;
     removed.fields.title = "changed by a reader";
@@ -198,15 +175,12 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
   contract("2.3", "edit merges onto what is stored now, so racing edits of different fields all survive", async (store) => {
     await store.save({ id: "plan", type: "note", fields: { a: 0, b: 0, keep: "yes" } });
 
-    // A caller reads the record, then another writer changes b. The caller's edit of a merges onto
-    // the b stored now, not onto the b in the copy it read earlier.
     const readEarlier = await store.get("plan");
     await store.edit({ id: "plan", fields: { b: 1 } });
     const merged = await store.edit({ id: "plan", fields: { a: 1 } });
     assert.deepEqual(readEarlier?.fields, { a: 0, b: 0, keep: "yes" });
     assert.deepEqual(merged?.fields, { a: 1, b: 1, keep: "yes" });
 
-    // Edits of different fields racing each other: every one of them survives.
     await warmUp(store);
     const names = Array.from({ length: RACERS }, (_, n) => `f${n}`);
     await Promise.all(names.map((name, n) => store.edit({ id: "plan", fields: { [name]: n } })));
@@ -218,7 +192,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
       ...Object.fromEntries(names.map((name, n) => [name, n])),
     });
 
-    // The history shows them applied one after another, each onto the result of the one before.
     const racing = (await store.history({ id: "plan" })).slice(3);
     assert.equal(racing.length, RACERS, "one entry per raced edit");
     let previous: string[] = [];
@@ -242,7 +215,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.equal(await store.get("ghost"), null, "no record was created");
     assert.deepEqual(await store.history(), [], "no history entry was written");
 
-    // A retired record is missing too: editing it brings nothing back.
     await store.save({ id: "gone", type: "note", fields: { title: "Old" } });
     await store.retire({ id: "gone", reason: "obsolete" });
     const history = await store.history();
@@ -256,7 +228,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.equal(await store.get("anything"), null, "an empty store");
 
     await store.save({ id: "Present", type: "note", fields: {} });
-    // Near misses of the stored id (case, spaces, pattern characters) and ids of every awkward shape.
     const missing = [
       "",
       " ",
@@ -286,16 +257,15 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
   contract("2.6", "list(type) returns only that type's current records, ordered by id, and [] when there are none", async (store) => {
     assert.deepEqual(await store.list("note"), [], "an empty store");
 
-    // Saved out of order, under ids whose code-point order is not dictionary order.
     for (const id of ["note-b", "🌲-tree", "Note-a", "étude", "_draft", "note-a", "Ｆull"]) {
       await store.save({ id, type: "note", fields: { label: id } });
     }
-    await store.edit({ id: "note-a", fields: { edited: true } }); // listed as it is now
-    await store.save({ id: "task-1", type: "task", fields: {} }); // another type
+    await store.edit({ id: "note-a", fields: { edited: true } });
+    await store.save({ id: "task-1", type: "task", fields: {} });
     await store.save({ id: "note-c", type: "note", fields: {} });
-    await store.retire({ id: "note-c", reason: "dropped" }); // retired
+    await store.retire({ id: "note-c", reason: "dropped" });
     await store.save({ id: "was-a-note", type: "note", fields: {} });
-    await store.save({ id: "was-a-note", type: "task", fields: {} }); // replaced as another type
+    await store.save({ id: "was-a-note", type: "task", fields: {} });
 
     const notes = await store.list("note");
     assert.deepEqual(
@@ -312,7 +282,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.deepEqual(await store.list("Note"), [], "a type matches exactly");
     assert.deepEqual(await store.list("nothing"), [], "a type with no records");
 
-    // The records handed out are copies: changing one changes nothing stored.
     const asStored = structuredClone(notes);
     for (const record of notes) record.fields.label = "changed by a reader";
     assert.deepEqual(await store.list("note"), asStored, "the stored records are untouched");
@@ -336,7 +305,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
       "the history keeps the record, the reason, who retired it, and the record's last state",
     );
 
-    // Retiring it again, or retiring an id that never existed, is a harmless no-op.
     const history = await store.history();
     assert.equal(await store.retire({ id: "drop", reason: "again" }), undefined);
     assert.equal(await store.retire({ id: "never-existed", reason: "nothing to retire" }), undefined);
@@ -351,9 +319,9 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     const b1 = await store.save({ id: "b", type: "task", fields: { v: 1 } });
     const a2 = await store.edit({ id: "a", fields: { v: 2 } });
     const a3 = await store.save({ id: "a", type: "note", fields: { v: 3 } });
-    await store.edit({ id: "missing", fields: { v: 1 } }); // no change, so no entry
+    await store.edit({ id: "missing", fields: { v: 1 } });
     await store.retire({ id: "b", reason: "finished", actor: "bob" });
-    await store.retire({ id: "missing", reason: "nothing there" }); // no change, so no entry
+    await store.retire({ id: "missing", reason: "nothing there" });
     const c1 = await store.save({ id: "c", type: "note", fields: { v: 1 } });
 
     const all = await store.history();
@@ -372,26 +340,20 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.deepEqual(await store.history({}), all);
     assert.deepEqual(await store.history({ since: 0 }), all, "since 0 is everything");
 
-    // Filtered to one record, a retired one included.
     assert.deepEqual(await store.history({ id: "a" }), [all[0], all[2], all[3]]);
     assert.deepEqual(await store.history({ id: "b" }), [all[1], all[4]]);
     assert.deepEqual(await store.history({ id: "missing" }), []);
 
-    // Only the entries after a sequence number, alone and combined with an id.
     const third = all[2]?.seq ?? assert.fail("no third entry");
     const last = all.at(-1)?.seq ?? assert.fail("no last entry");
     assert.deepEqual(await store.history({ since: third }), all.slice(3));
     assert.deepEqual(await store.history({ id: "a", since: third }), [all[3]]);
     assert.deepEqual(await store.history({ since: last }), []);
 
-    // The entries handed out are copies: changing one changes nothing stored. (Compared with a
-    // snapshot: `all` itself would change along with a store that handed out its own entries.)
     const asStored = structuredClone(all);
     for (const entry of all) entry.record.fields.v = 99;
     assert.deepEqual(await store.history(), asStored, "the stored history is untouched");
 
-    // A reader following the history with `since` while changes are being written never misses
-    // one: an entry only becomes visible once every entry before it is visible too.
     await warmUp(store);
     let writing = true;
     const writes = Promise.all(
@@ -399,7 +361,7 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     ).finally(() => {
       writing = false;
     });
-    writes.catch(() => undefined); // a failed write is reported by the `await writes` below
+    writes.catch(() => undefined);
     const followed: HistoryEntry[] = [];
     let cursor = last;
     const follow = async (): Promise<void> => {
@@ -423,7 +385,7 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
   contract("2.12", "history narrows on the server: from a time, to some types, up to a change, to some health columns, to some fields, to the oldest or newest few, and all of them combined", async (store) => {
     await store.save({ id: "a", type: "note", fields: { v: 1 } });
     await store.save({ id: "h", type: "health", fields: { v: 1 } });
-    await sleep(5); // so that some changes are made before `from` and some at or after it
+    await sleep(5);
     await store.save({ id: "h", type: "health", fields: { v: 2 } });
     await store.save({ id: "b", type: "task", fields: { v: 1 } });
     await store.edit({ id: "a", fields: { v: 2 } });
@@ -433,27 +395,22 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     const fromOn = all.filter((entry) => entry.at >= from);
     assert.ok(fromOn.length < all.length, "some changes were made before `from`");
 
-    // From a time: the changes made at or after it, to the millisecond, however the time is written.
     assert.deepEqual(await store.history({ from }), fromOn);
     const elevenHoursAhead = new Date(Date.parse(from) + 11 * 3_600_000).toISOString().replace("Z", "+11:00");
     assert.deepEqual(await store.history({ from: elevenHoursAhead }), fromOn, "the same instant in another zone");
     assert.deepEqual(await store.history({ from: new Date(Date.parse(all.at(-1)!.at) + 1).toISOString() }), []);
 
-    // To some types: their changes only, a retirement included; none for no types.
     assert.deepEqual(await store.history({ types: ["note", "task"] }), all.filter((entry) => entry.type === "note" || entry.type === "task"));
     assert.deepEqual(await store.history({ types: [] }), []);
 
-    // The oldest or the newest few, in order either way.
     assert.deepEqual(await store.history({ oldest: 2 }), all.slice(0, 2));
     assert.deepEqual(await store.history({ newest: 2 }), all.slice(-2));
     assert.deepEqual(await store.history({ newest: 100 }), all);
 
-    // Combined with each other and with id and since: each narrows what the others leave.
     assert.deepEqual(await store.history({ from, types: ["note"], oldest: 1 }), fromOn.filter((entry) => entry.type === "note").slice(0, 1));
     assert.deepEqual(await store.history({ id: "h", newest: 1 }), all.filter((entry) => entry.recordId === "h").slice(-1));
     assert.deepEqual(await store.history({ since: all[0]!.seq, types: ["health"] }), all.filter((entry) => entry.type === "health"));
 
-    // Up to a change; of health, only some columns' changes; of each record, only some fields.
     assert.deepEqual(await store.history({ upTo: all[1]!.seq }), all.slice(0, 2));
     await store.save({ id: "r", type: "health", fields: { column: "reported", v: 1 } });
     await store.save({ id: "v", type: "health", fields: { column: "verified", v: 1 } });
@@ -463,7 +420,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.deepEqual(slim.map((entry) => entry.record.fields), [{ column: "reported" }, { column: "verified" }], "only the fields asked");
     assert.deepEqual(slim.map((entry) => ({ ...entry, record: { ...entry.record, fields: {} } })), (await store.history({ since: all.at(-1)!.seq })).map((entry) => ({ ...entry, record: { ...entry.record, fields: {} } })), "the rest as it was");
 
-    // A filter that is not one is refused before anything is read.
     for (const filter of [{ oldest: 0 }, { newest: -1 }, { oldest: 1.5 }, { oldest: 1, newest: 1 }, { from: "yesterday" }]) {
       await assert.rejects(store.history(filter), RangeError, JSON.stringify(filter));
     }
@@ -500,7 +456,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
   });
 
   contract("2.9", "a validate check sees the merged result, and if it throws nothing is written", async (store) => {
-    // What validate saw is copied at the moment it ran, so a later change to that object cannot hide it.
     const seen: RecordEnvelope[] = [];
     const witness = (candidate: RecordEnvelope): void => {
       seen.push(structuredClone(candidate));
@@ -520,16 +475,13 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.deepEqual(seen, [created, edited], "edit's validate saw the record exactly as it was then stored");
     assert.deepEqual(edited.fields, { title: "Final", tags: ["x"] }, "that is the merged result, not the edit alone");
 
-    // A rule that needs the merged record to judge: a note keeps a non-empty title.
     const refusal = new Error("a note needs a title");
     const needsTitle = (candidate: RecordEnvelope): void => {
       if (typeof candidate.fields.title !== "string" || candidate.fields.title === "") throw refusal;
     };
-    // This edit names no title, but the merged record has one, so the rule passes it.
     const tagged = await store.edit({ id: "v-1", fields: { tags: ["x", "y"] }, validate: needsTitle });
     assert.deepEqual(tagged?.fields, { title: "Final", tags: ["x", "y"] });
 
-    // Every write the rule refuses rejects with the rule's own error and writes nothing.
     const before = { record: await store.get("v-1"), history: await store.history() };
     const refusedWrites = [
       () => store.edit({ id: "v-1", fields: { title: undefined }, validate: needsTitle }),
@@ -547,7 +499,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.equal(await store.get("v-2"), null, "no record created");
     assert.deepEqual(await store.history(), before.history, "no history entry");
 
-    // The refused writes left the store sound: the next write goes through and appends one entry.
     const after = await store.edit({ id: "v-1", fields: { body: "back" }, validate: needsTitle });
     assert.deepEqual(after?.fields, { title: "Final", tags: ["x", "y"], body: "back" });
     const history = await store.history();
@@ -696,7 +647,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
 
   contract("2.20", "a write made for a writer who had read outside text keeps what it read in its history entry; a write without one carries no mark", async (store) => {
     const read = ["WebFetch https://example.com/issue", "gh pr view 12"];
-    // The writer names what it read for the types it marks; this one marks only principles.
     const outsideRead = (type: string) => (type === "principle" ? read : undefined);
     await store.save({ id: "p-1", type: "principle", fields: { v: 1 }, actor: "session:one", outsideRead });
     await store.save({ id: "n-1", type: "note", fields: { v: 1 }, actor: "session:one", outsideRead });
@@ -797,7 +747,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.equal(await store.get("b-4"), null);
     assert.deepEqual(await store.saveAll([]), [], "an empty batch writes nothing");
 
-    // More than one statement's worth on Postgres (SAVE_CHUNK), still in the order given.
     const last = (await store.history()).at(-1)!.seq;
     const many = Array.from({ length: 2501 }, (_, n) => ({ id: `m-${2501 - n}`, type: "note", fields: { n } }));
     await store.saveAll(many);
@@ -807,16 +756,11 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
 
 }
 
-/** Assert that `value` is an ISO 8601 UTC timestamp, exactly as Date#toISOString writes one. */
 function assertTimestamp(value: unknown, what: string): void {
   assert.equal(typeof value, "string", `${what} is a string`);
   assert.equal(new Date(value as string).toISOString(), value, `${what} is an ISO 8601 timestamp`);
 }
 
-/**
- * Check what every history entry must be (a positive whole seq, strictly increasing, and an ISO
- * timestamp), then return the entries without seq and at, for comparing with what a test expects.
- */
 function changesOf(entries: readonly HistoryEntry[]): Omit<HistoryEntry, "seq" | "at" | "recordedBy">[] {
   let previous = 0;
   for (const entry of entries) {
@@ -825,19 +769,13 @@ function changesOf(entries: readonly HistoryEntry[]): Omit<HistoryEntry, "seq" |
     assertTimestamp(entry.at, `the at of entry ${entry.seq}`);
     previous = entry.seq;
   }
-  // The account the server saw is a server's to set, as seq and at are: the stores this suite runs on differ in it.
   return entries.map(({ seq: _seq, at: _at, recordedBy: _recordedBy, ...change }) => change);
 }
 
-/** Records carrying a numeric field `n`, sorted by it. */
 function byN(records: readonly RecordEnvelope[]): RecordEnvelope[] {
   return [...records].sort((a, b) => Number(a.fields.n) - Number(b.fields.n));
 }
 
-/**
- * Start RACERS reads at once, so that a pooled backend has a connection ready for every racer
- * that follows and the race is not decided by who got a connection first.
- */
 async function warmUp(store: Transactions): Promise<void> {
   await Promise.all(Array.from({ length: RACERS }, () => store.get("warm-up")));
 }

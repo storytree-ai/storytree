@@ -1,5 +1,3 @@
-// Takes this folder's stills with look.mjs, two options at a time: <key>-rest, <key>-mouth, <key>-mouth-near and <key>-keys.
-// Run from the checkout root: node docs/design/capability-tree-3d/i-sea-lanes/c-cable/tools/stills.mjs [key ...]
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +15,5 @@ const one = (key, view) => new Promise(done => {
     { env: { ...process.env, LOOK_DIR: stills }, stdio: ['ignore', 'inherit', 'inherit'] });
   child.on('exit', done);
 });
-// VIEWS=rest,keys takes only those views.
 const wanted = process.env.VIEWS ? process.env.VIEWS.split(',') : Object.keys(views);
 await Promise.all(keys.map(async key => { for (const view of wanted) await one(key, view); }));

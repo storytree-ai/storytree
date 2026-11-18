@@ -1,5 +1,4 @@
 // Capability 16 · The command schema: the shapes a story declares its verbs with, which every story downstream imports
-// from the library and each front door reads (ADR-1035 D1).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

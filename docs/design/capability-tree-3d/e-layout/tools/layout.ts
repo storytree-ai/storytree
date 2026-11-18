@@ -1,19 +1,3 @@
-/** Round 8's layout tool. Lays The library's territories out by their links, on the map's own cut of the island, measures
- * that arrangement against the map's own, and writes what the page and the plain diagrams draw:
- *   layout.json    each cell's owner in the link layout (territories-shim.ts hands it to the real map), and the landings
- *   measures.json  both arrangements measured, with the lines the plain diagrams draw
- * Run from the checkout root: node --import tsx docs/design/capability-tree-3d/e-layout/tools/layout.ts
- *
- * The method (README.md, "The layout method"):
- * 1. Interfaces on the coast: every capability another story calls (the map's own selection lanes, `selectionLanes`), and
- *    the one that calls out (Connection by address, to Keys), is seeded on a coast cell. They are seeded round the coast
- *    in a ring order, nearest the road's harbour first where that pays.
- * 2. Internals inland: the rest are seeded on inland cells.
- * 3. Every territory grows from its seed, a cell at a time, the one furthest short of its count taking its free
- *    neighbouring cell nearest its seed, until each holds exactly the cells the map gives it (its lines of code).
- * 4. A search (simulated annealing, seeded so it repeats) changes the ring order, the ring's turn and the inland seeds,
- *    and keeps a change when it lowers the score: crossings, links over a third territory, line length and the coast
- *    road's length, less a reward for links between neighbours. */
 import { readFileSync, writeFileSync } from "node:fs";
 import { forestScene, selectionLanes } from "../../../../../packages/forest/src/index.ts";
 import { workStates } from "../../../../../packages/arc-surface/src/index.ts";
@@ -25,8 +9,6 @@ import { relayout, cellEdges, type P } from "./layout-core.ts";
 const DIR = "docs/design/capability-tree-3d/e-layout";
 const data = JSON.parse(readFileSync(`${DIR}/data.json`, "utf8"));
 const STORY: string = data.story.id;
-/** Where the map's sea roads come ashore on this island, in its own coordinates, read off the selection's lanes on the page
- * (round 7's dock reading; tools/look.mjs printed them): the one road from the 20 calling stories, and the road out to Keys. */
 const HARBOUR = { dock: { x: 62.47, z: 35.49 }, sea: { x: 73.36, z: 45.25 } };
 const KEYS = { dock: { x: -51.71, z: 70.59 }, sea: { x: -61.77, z: 80.77 } };
 
@@ -39,7 +21,6 @@ const own = new Set(caps.map(c => c.id));
 const titleOf = new Map(caps.map(c => [c.id, c.title]));
 const short = (id: string) => (titleOf.get(id) ?? id).replace(/^\d+ · /, "");
 
-// The links: inside the story (recorded dependsOn, both ends here), and the lanes to and from other stories.
 type Link = { from: string; to: string };
 const inside: Link[] = caps.flatMap(c => c.dependsOn.filter(d => own.has(d.id)).map(d => ({ from: c.id, to: d.id })));
 const lanes = selectionLanes(scene, STORY);
@@ -48,7 +29,6 @@ for (const l of lanes) if (l.dir === "down") arriving.set(l.to, (arriving.get(l.
 const coastal = caps.map(c => c.id).filter(id => arriving.has(id) || leaving.has(id));
 const inland = caps.map(c => c.id).filter(id => !coastal.includes(id));
 
-// The cut.
 const cells = today.cells;
 const N = cells.length;
 const counts = new Map<string, number>();
@@ -58,7 +38,6 @@ const isCoastCell = cells.map(c => c.polygon.some(p => !onLand(p, coast)));
 const angleOf = (p: P) => Math.atan2(p.z, p.x);
 const dist = (a: P, b: P) => Math.hypot(a.x - b.x, a.z - b.z);
 
-// The coast, as one walk round its longest loop, a point every half unit, each pulled a little inland.
 const loop = [...coast].sort((a, b) => b.length - a.length)[0]!;
 const walk: { p: P; s: number }[] = [];
 let around = 0;
@@ -73,10 +52,8 @@ for (let i = 0; i < loop.length; i++) {
 const COAST_LENGTH = around;
 const sAt = (p: P) => walk.reduce((best, w) => dist(w.p, p) < dist(best.p, p) ? w : best).s;
 const harbourS = sAt(HARBOUR.dock), keysS = sAt(KEYS.dock);
-/** Along-the-coast distance between two places on the walk, the short way round. */
 const along = (a: number, b: number) => { const d = Math.abs(a - b) % COAST_LENGTH; return Math.min(d, COAST_LENGTH - d); };
 
-// ── Growing an arrangement from seeds ─────────────────────────────────────────────────────────────────────────────────
 function grow(seeds: Map<string, number>): string[] | undefined {
   const owner = new Array<string | undefined>(N).fill(undefined);
   const have = new Map<string, number>();
@@ -88,7 +65,6 @@ function grow(seeds: Map<string, number>): string[] | undefined {
     for (const id of ids) {
       const want = counts.get(id)!, got = have.get(id)!, need = (want - got) / want;
       if (need <= short) continue;
-      // Its free neighbouring cell nearest its seed.
       let cell = -1, d = Infinity;
       const seed = cells[seeds.get(id)!]!.site;
       for (let c = 0; c < N; c++) if (owner[c] === id) for (const n of cells[c]!.neighbours) if (owner[n] === undefined) { const dd = dist(cells[n]!.site, seed); if (dd < d) { d = dd; cell = n; } }
@@ -103,7 +79,6 @@ function grow(seeds: Map<string, number>): string[] | undefined {
   return owner as string[];
 }
 
-/** Whether `id`'s cells stay one piece without `cell`. */
 function staysWhole(owner: readonly string[], id: string, cell: number): boolean {
   const mine = owner.map((o, c) => o === id && c !== cell ? c : -1).filter(c => c >= 0);
   if (mine.length === 0) return false;
@@ -112,14 +87,12 @@ function staysWhole(owner: readonly string[], id: string, cell: number): boolean
   return seen.size === mine.length;
 }
 
-/** Hands cells along a chain of neighbouring territories until every territory holds exactly its count. */
 function balance(owner: string[], seeds: Map<string, number>): void {
   for (let round = 0; round < 200; round++) {
     const have = new Map<string, number>();
     for (const o of owner) have.set(o, (have.get(o) ?? 0) + 1);
     const under = [...counts].find(([id, n]) => (have.get(id) ?? 0) < n)?.[0];
     if (under === undefined) return;
-    // The nearest territory with a cell to spare, through neighbouring territories.
     const next = new Map<string, Set<string>>();
     for (const [key] of cellEdges(cells)) { const [a, b] = key.split(":").map(Number) as [number, number]; if (owner[a] !== owner[b]) { (next.get(owner[a]!) ?? next.set(owner[a]!, new Set()).get(owner[a]!)!).add(owner[b]!); (next.get(owner[b]!) ?? next.set(owner[b]!, new Set()).get(owner[b]!)!).add(owner[a]!); } }
     const back = new Map<string, string>([[under, ""]]), queue = [under];
@@ -128,7 +101,6 @@ function balance(owner: string[], seeds: Map<string, number>): void {
     if (!spare) return;
     const chain: string[] = [];
     for (let t: string = spare; t !== ""; t = back.get(t)!) chain.push(t);
-    // chain runs spare → … → under: each gives the next one cell on their shared border.
     for (let i = 0; i + 1 < chain.length; i++) {
       const giver = chain[i]!, taker = chain[i + 1]!, seed = cells[seeds.get(taker)!]!.site;
       const options = owner.map((o, c) => o === giver && c !== seeds.get(giver) && cells[c]!.neighbours.some(n => owner[n] === taker) ? c : -1).filter(c => c >= 0 && staysWhole(owner, giver, c));
@@ -139,7 +111,6 @@ function balance(owner: string[], seeds: Map<string, number>): void {
   }
 }
 
-// ── Measuring an arrangement ─────────────────────────────────────────────────────────────────────────────────────────
 type Path = { key: string; kind: "inside" | "arrival" | "out"; from: string; to: string; points: P[]; links: number; gates: P[]; third: string[]; borders: number; neighbours: boolean };
 export type Measured = {
   name: string; crossings: number; length: number; insideLength: number; arrivalLength: number; roadLength: number;
@@ -160,14 +131,12 @@ export function measure(name: string, map: TerritoryMap, landingsFor: "dock" | "
   const plates = capabilityPlates(map);
   const plate = new Map(plates.map(p => [p.capability, { x: p.x, z: p.z } as P]));
   const tAt = (p: P) => territoryAt(map, p.x, p.z)?.capability;
-  // Borders between each pair of territories, as segments.
   const between = new Map<string, [P, P][]>();
   for (const b of map.borders) {
     const [x, y] = b.between.map(c => map.territories[map.cells[c]!.territory]!.capability!) as [string, string];
     const key = [x, y].sort().join("|");
     (between.get(key) ?? between.set(key, []).get(key)!).push([b.from, b.to]);
   }
-  /** The gate where a way from `p` to `q` best crosses the border of `a` and `b`: a point on their border, kept off its corners. */
   const gate = (a: string, b: string, p: P, q: P): P | undefined => {
     const segs = between.get([a, b].sort().join("|"));
     if (!segs) return undefined;
@@ -178,7 +147,6 @@ export function measure(name: string, map: TerritoryMap, landingsFor: "dock" | "
     }
     return best;
   };
-  /** Walks a way, noting each territory it is over in turn, and the points where it crosses from one to the next. */
   const trace = (points: P[]) => {
     const seq: (string | undefined)[] = [], at: P[] = [];
     for (let i = 0; i + 1 < points.length; i++) {
@@ -202,7 +170,6 @@ export function measure(name: string, map: TerritoryMap, landingsFor: "dock" | "
   };
   const paths: Path[] = [];
   for (const l of inside) paths.push(path(`${l.from}->${l.to}`, "inside", l.from, l.to, plate.get(l.from)!, plate.get(l.to)!, 1, [l.from, l.to]));
-  // The arrivals: from the dock (today), or from each interface's own landing on its own coast.
   const landings: Measured["landings"] = [];
   const runs = (id: string) => {
     const out: { s: number; p: P }[][] = [];
@@ -217,7 +184,6 @@ export function measure(name: string, map: TerritoryMap, landingsFor: "dock" | "
     if (landingsFor === "own") {
       const rs = runs(id);
       if (rs.length) {
-        // The stretch of its coast nearest the road, and on it the point a little toward the road from the stretch's middle.
         const run = rs.reduce((a, b) => Math.min(...a.map(w => along(w.s, want))) <= Math.min(...b.map(w => along(w.s, want))) ? a : b);
         const mid = run[Math.floor(run.length / 2)]!;
         at = mid.p; s = mid.s;
@@ -227,7 +193,6 @@ export function measure(name: string, map: TerritoryMap, landingsFor: "dock" | "
     if (lp) { lp.lines++; lp.links += links; } else landings.push({ capability: landingsFor === "own" ? id : "dock", at, s, lines: 1, links });
     paths.push(out ? path(`${id}->keys`, "out", id, "keys", plate.get(id)!, at, links, [id, tAt(at)]) : path(`harbour->${id}`, "arrival", "harbour", id, at, plate.get(id)!, links, [tAt(at), id]));
   }
-  // Crossings between any two ways over the land, not counting where ways meet at a shared end.
   let crossings = 0;
   for (let i = 0; i < paths.length; i++) for (let j = i + 1; j < paths.length; j++) {
     const A = paths[i]!, B = paths[j]!;
@@ -239,7 +204,6 @@ export function measure(name: string, map: TerritoryMap, landingsFor: "dock" | "
   }
   const len = (p: Path) => p.points.reduce((s, q, i) => i ? s + dist(p.points[i - 1]!, q) : 0, 0);
   const ins = paths.filter(p => p.kind === "inside");
-  // The coast road (own landings only): from the harbour along the coast, offshore, to its furthest landing each way.
   let roadLength = 0;
   if (landingsFor === "own") {
     const offs = landings.filter(l => l.capability !== "dock" && !leaving.has(l.capability)).map(l => { let d = (l.s - harbourS) % COAST_LENGTH; if (d > COAST_LENGTH / 2) d -= COAST_LENGTH; if (d < -COAST_LENGTH / 2) d += COAST_LENGTH; return d; });
@@ -254,7 +218,6 @@ export function measure(name: string, map: TerritoryMap, landingsFor: "dock" | "
   };
 }
 
-// ── The search ───────────────────────────────────────────────────────────────────────────────────────────────────────
 let seed = Number(process.env.SEED ?? 8);
 const random = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
 type Gene = { ring: string[]; turn: number; inland: Map<string, number> };
@@ -279,7 +242,6 @@ function seedsOf(g: Gene): Map<string, number> | undefined {
 function score(m: Measured, owners: readonly string[]): number {
   const offCoast = coastal.filter(id => !owners.some((o, c) => o === id && isCoastCell[c])).length;
   const extra = m.paths.filter(p => p.kind === "inside").reduce((s, p) => s + Math.max(0, p.borders - 1), 0);
-  // The way out to Keys should leave near Keys' own road.
   const keysOff = m.landings.filter(l => leaving.has(l.capability)).reduce((s, l) => s + along(l.s, keysS), 0);
   return 14 * m.crossings + 6 * extra + 10 * m.overThird + 0.04 * m.length + 0.07 * m.roadLength + 0.1 * keysOff - 3 * m.neighbours + 500 * offCoast;
 }
@@ -290,7 +252,6 @@ function evaluate(g: Gene) {
   if (!owners) return undefined;
   const have = new Map<string, number>(); for (const o of owners) have.set(o, (have.get(o) ?? 0) + 1);
   if ([...counts].some(([id, n]) => have.get(id) !== n)) return undefined;
-  // Every territory one piece.
   if ([...counts.keys()].some(id => { const c = owners.indexOf(id); return !staysWhole(owners, id, -1) || c < 0; })) return undefined;
   const map = relayout(today, owners);
   const m = measure("links", map, "own");
@@ -311,7 +272,6 @@ function mutate(g: Gene): Gene {
 const ITER = Number(process.env.ITER ?? 6000);
 let best: { g: Gene; owners: string[]; m: Measured; s: number } | undefined;
 for (let restart = 0; restart < Number(process.env.RESTARTS ?? 3); restart++) {
-  // Start: the ring in id order, the inland seeds near the middle.
   let g: Gene = { ring: [...coastal].sort(() => random() - 0.5), turn: random() * 2 * Math.PI, inland: new Map() };
   const middle = [...inlandCells].sort((a, b) => Math.hypot(cells[a]!.site.x, cells[a]!.site.z) - Math.hypot(cells[b]!.site.x, cells[b]!.site.z));
   inland.forEach((id, k) => g.inland.set(id, middle[k * 3]!));

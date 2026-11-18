@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Exercise dump/restore against unique local fixtures without touching the live library.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';

@@ -1,11 +1,4 @@
-/**
- * Capability 1 · Button and composer. One 22px button in the bottom-right corner of the whole app. Every note starts with
- * a pick (the owner's answer to question_c8c6697b2d3d): the button turns the cursor into a highlighter that outlines the
- * element under it, and a click attaches that element and opens the composer: the element named, its surface in a chip
- * the owner can correct, his text, the pictures of the window and of the element, and a Send that says Sent only once
- * the note is written. While a popover or dialog is open the corner moves into it, so it stays
- * above it and a press on it light-dismisses nothing: the surface the note is about stays on show for its picture.
- */
+// Capability 1 · Button and composer
 import type { FeedbackAnchor, FeedbackBridge } from "../record/bridge.js";
 import { anchorOf, pickableAt, surfaceOf, type Pickable } from "../naming/anchor.js";
 import { surfaceInFront } from "../naming/resolve.js";
@@ -15,23 +8,18 @@ export interface FeedbackCorner {
   stop(): void;
 }
 
-/** What the page has on show that a note records: the project, and the story node or note selected. */
 export interface Shown {
   project?: string | undefined;
   selection?: string | undefined;
 }
 
-/**
- * Mount the corner on `document`, once the main process says it is offered here (only where the library holds project
- * storytree); otherwise nothing is mounted.
- */
 export function mountFeedbackCorner(document: Document, bridge: FeedbackBridge, options: { shown(): Shown }): FeedbackCorner {
   let stopped = false;
   let stopMounted: (() => void) | undefined;
   void bridge.feedbackSetup().then((setup) => {
     if (stopped || !setup.offered) return;
     stopMounted = mount(document, bridge, setup.surfaces, options.shown);
-  }, () => { /* No corner where the setup cannot be read: the app works on without it. */ });
+  }, () => {});
   return {
     stop() {
       stopped = true;
@@ -87,7 +75,6 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
   let opening = false;
   let sending = false;
 
-  /** Into the top-most open popover or dialog, or back onto the page; never while the composer is on show. */
   const place = (): void => {
     if (!composer.hidden || !picker.hidden) return;
     const open = [...document.querySelectorAll<HTMLElement>(":popover-open, dialog[open]")].filter((layer) => !host.contains(layer));
@@ -107,7 +94,6 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
     send.hidden = on;
   };
 
-  /** Every note starts with a pick: the picture of the window is taken first, with nothing of the corner's on show. */
   const open = async (): Promise<void> => {
     if (opening || !composer.hidden || !picker.hidden) return;
     opening = true;
@@ -125,7 +111,6 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
     picker.hidden = false;
     button.setAttribute("aria-expanded", "true");
   };
-  /** The element under the pointer, outlined with its tag, role and size; none over a drawn canvas or the corner. */
   const hover = (x: number, y: number): Pickable | undefined => {
     const picked = pickableAt(document, x, y, host);
     const target = picked?.element;
@@ -133,7 +118,6 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
     if (picked !== undefined && target !== undefined) {
       const box = picked.drawn?.box ?? target.getBoundingClientRect();
       Object.assign(outline.style, { left: `${box.x}px`, top: `${box.y}px`, width: `${box.width}px`, height: `${box.height}px` });
-      // The label sits above the element, or below it at the top of the window, and leans in from the right half.
       outline.toggleAttribute("data-below", box.y < 24);
       outline.toggleAttribute("data-right", box.x + box.width / 2 > window.innerWidth / 2);
       const role = target.getAttribute("role");
@@ -144,13 +128,11 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
     return picked;
   };
   const pick = async ({ element: target, drawn }: Pickable): Promise<void> => {
-    // Until the composer is on show, a second press of the button or Ctrl+Shift+F starts nothing.
     opening = true;
     try {
       anchor = anchorOf(target, drawn);
       const surface = surfaceOf(target) ?? surfaceInFront(document);
       picker.hidden = true;
-      // The element's own picture, once the outline has left the screen.
       await new Promise((done) => window.requestAnimationFrame(() => window.requestAnimationFrame(done)));
       crop = token === undefined ? undefined : await bridge.captureForFeedback(anchor.box).catch(() => undefined);
       chip.value = surface ?? "";
@@ -166,7 +148,6 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
       opening = false;
     }
   };
-  /** Escape while picking: back to the note when there is one, else nothing is open. */
   const cancelPick = (): void => {
     picker.hidden = true;
     if (anchor !== undefined) {
@@ -225,7 +206,6 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
   });
   host.querySelector("[data-corner-repick]")!.addEventListener("click", startPicking);
   picker.addEventListener("mousemove", (event) => { hover(event.clientX, event.clientY); });
-  // The click is the picker's alone: the page under it hears nothing, so no button there is pressed.
   picker.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -243,8 +223,6 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
   });
   text.addEventListener("input", () => { if (!sending) say(""); ready(); });
   chip.addEventListener("change", ready);
-  // Ahead of the page's own keys (the window hears them before the document): Escape closes the composer and not the
-  // menu under it, and Ctrl+Shift+F (Cmd on macOS) opens it from anywhere.
   const key = (event: KeyboardEvent): void => {
     if (event.key === "Escape" && !picker.hidden) {
       event.stopImmediatePropagation();
@@ -266,8 +244,6 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
     }
   };
   window.addEventListener("keydown", key, true);
-  // A popover or dialog opening or closing anywhere on the page: toggle and close do not bubble, so they are heard as
-  // they come down to their element.
   document.addEventListener("toggle", place, true);
   document.addEventListener("close", place, true);
 

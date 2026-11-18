@@ -130,3 +130,5 @@ From the checkout root:
    real map code (with the territories shim).
 5. `node --import tsx docs/design/capability-tree-3d/e-layout/tools/shots.mjs --retake` takes the styled stills in the
    desktop capture kit's Chromium, clicking each mark where it stands and checking the panel it opens.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

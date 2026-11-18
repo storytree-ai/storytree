@@ -110,3 +110,5 @@ Run from the checkout root.
    cannot move them without changing the map's label layout.
 5. **Round 2's other next steps** still stand: a leaned wrench at other angles, round 13's sizes against room, a link's
    direction at rest, the panel's selection on the map, and the queue at scale.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

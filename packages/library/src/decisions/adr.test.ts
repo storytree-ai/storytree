@@ -1,7 +1,4 @@
-/**
- * Capability 13 · Decision log: contract 13.10, the `adr` verbs the library declares beside its own commands for the
- * command line, run with a context of a fresh project's library on the real Postgres `pnpm test` provides.
- */
+// Capability 13 · Decision log
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

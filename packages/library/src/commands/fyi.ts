@@ -1,8 +1,4 @@
-/**
- * Capability 17 · The library's commands: the `fyi` family (ADR-1184 D3), mounted beside `library` and `adr`. An FYI is
- * something the owner should know after the fact; `new` records one, `list` gives those he has not heard yet, oldest
- * first, and `heard` marks them heard, through the library's recordFyi, unheardFyis and markFyisHeard. None is a tool.
- */
+// Capability 17 · The library's commands
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 
 const NO_TOOL = { absent: "FYIs are recorded and marked heard from the command line; what reads them to the owner calls the library itself" } as const;

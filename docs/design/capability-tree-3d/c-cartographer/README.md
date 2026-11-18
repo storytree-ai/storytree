@@ -109,3 +109,5 @@ the gate, harbour, wrench and estate stills are opened by real clicks on the mar
    a pan away, would trade the whole view for legibility.
 5. Gates are uniform; a gate's posts could carry a tiny count of the called capability's contracts, so the chart says how
    much each door opens on before it is clicked.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

@@ -1,15 +1,3 @@
-/** The sea lane, round 12's first look (`?sea=<key>`): at sea every route is one thin quiet cartographer's line, as charts draw
- * shipping lanes, and the two options differ only in how that line meets the island's sandy trunk.
- * - the line: the map's own lanes (pathways:selection-lanes, each lane's userData naming its ends) followed piece by piece,
- *   each stretch drawn once however many lanes share it, a step wider where it carries more (1, 2-7, 8-31, 32+ links; the
- *   widest is the trunk's own 1.3), in the trunk's sand for the way in and a pale sea-grey teal for the way out, mixed
- *   opaque into the sea so shared stretches show no knots; it stops at every island's coast. The map's purple and teal
- *   lanes, their glow, their end pips and the tan band they ride (pathways:cross-island) are hidden under it;
- * - `station`: one small landing mark on the shore where the line ends and the trunk begins: a flat ink-edged square, its
- *   face in the line's tone, turned to the line, like a cable landing station or a port symbol on a chart;
- * - `gap`: the island's white coastline breaks where the line comes in, with a standing gate post either side at the shore
- *   (round 11's posts, entrance size), so the coast itself is the story's front door;
- * - `map`: the map's own lanes, as round 11 drew them. */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Matrix4, Mesh, MeshBasicMaterial, Vector3,
   type BufferAttribute, type Object3D } from "three";
 import type { RootState } from "@react-three/fiber";
@@ -19,22 +7,15 @@ export type SeaKey = "station" | "gap" | "map";
 const QUERY = typeof location === "undefined" ? new URLSearchParams() : new URLSearchParams(location.search);
 export const SEA: SeaKey = (["station", "gap", "map"] as const).find(k => k === QUERY.get("sea")) ?? "station";
 
-/** The sea as it shows on the page under the lines, and the two tones mixed into it. */
 const SEA_HEX = "#17222b";
 const TONE = { down: { ink: "#e2d3aa", mix: 0.7 }, up: { ink: "#a9d2d8", mix: 0.68 } } as const;
-/** A line's width in ground units by the links its stretch carries: 1, 2-7, 8-31, 32 or more. */
 const WIDTHS = [0.34, 0.55, 0.85, 1.3];
 const widthOf = (n: number) => WIDTHS[n >= 32 ? 3 : n >= 8 ? 2 : n >= 2 ? 1 : 0]!;
 const LIFT = 0.16;
-/** How far from the mouth the way out's reach from Keys joins its line, in ground units. */
 const JOIN_CLEAR = 80;
-/** In `gap`, the coastline's opening either side of the line, beyond its half width, in ground units. */
 const GAP = 2.2;
-/** A line that comes ashore this near a landing (in ground units) ends on the landing itself. */
 const SNAP = 9;
-/** How far off the coast the reach from Keys' landfall rounds the island, in ground units. */
 const OFFSHORE = 6;
-/** Within this many ground units of a landing the line is drawn over everything, so it climbs the shore unbroken. */
 const NEAR = 14;
 
 const inPolygon = (p: P, poly: readonly P[]) => {
@@ -48,9 +29,7 @@ const inPolygon = (p: P, poly: readonly P[]) => {
 
 export type SeaInput = {
   state: RootState; root: Object3D; story: string;
-  /** The selected island's landings, in its plate's frame: the mouth (the trunk's start) and the way out to Keys. */
   docks: { at: P; sea?: P; dir: "down" | "up" }[];
-  /** The ground's height in the plate's frame, and the light's direction on the ground (toward it). */
   heightAt: (p: P) => number; light: P;
   post: { side: number; height: number; faceRatio: number; body: string; ink: string; paper: string; shadow: number; reach: number; wall: { lit: number; away: number } };
 };
@@ -68,7 +47,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
   root.updateMatrixWorld(true);
   const toRoot = new Matrix4().copy(root.matrixWorld).invert();
 
-  // Every island's coast (its white line's own rings), to stop the lines at the shore.
   const coasts: { mesh: Mesh; inverse: Matrix4; ring: P[]; story: string }[] = [];
   state.scene.traverse(o => {
     if (!o.name.startsWith("island-coast:")) return;
@@ -79,13 +57,11 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     coasts.push({ mesh, inverse: new Matrix4().copy(mesh.matrixWorld).invert(), ring, story: plate?.name.slice("planet:".length) ?? "" });
   });
   const v = new Vector3();
-  /** The island a world point stands on, if any. */
   const islandAt = (w: Vector3) => {
     for (const c of coasts) { v.copy(w).applyMatrix4(c.inverse); if (Math.abs(v.y) < 30 && inPolygon({ x: v.x, z: v.z }, c.ring)) return c; }
     return undefined;
   };
 
-  // The lanes, piece by piece in world space: each stretch once per colour, with how many lanes share it.
   type Piece = { a: Vector3; b: Vector3; sa: Vector3; sb: Vector3; dir: "up" | "down"; n: number; shore?: "a" | "b" };
   const pieces = new Map<string, Piece>();
   const q = (w: Vector3) => `${w.x.toFixed(2)},${w.y.toFixed(2)},${w.z.toFixed(2)}`;
@@ -103,14 +79,11 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
       centre.push(l.clone().add(r).multiplyScalar(0.5)); side.push(l.sub(r).normalize());
     }
     const wet = centre.map(c => !islandAt(c));
-    // The way out: the map sends it from the mouth, but the island's own road leaves at Keys' landfall, so the line is
-    // taken from the nearest point of its way to Keys' offshore point, and a new reach joins it to Keys' landfall.
     let skip = (_i: number) => false;
     const outDock = docks.find(d => d.dir === "up" && d.sea);
     if (dir === "up" && outDock) {
       const ownEnd = islandAt(centre.at(-1)!)?.story === story ? "end" : islandAt(centre[0]!)?.story === story ? "start" : undefined;
       if (ownEnd) {
-        // The join: the first point of its way, walking out from the island, well clear of the mouth.
         const mouth = docks.find(d => d.dir === "down")?.at ?? outDock.at;
         const order = centre.map((_, i) => i); if (ownEnd === "end") order.reverse();
         const best = order.find(i => { if (!wet[i]) return false; const r = centre[i]!.clone().applyMatrix4(toRoot); return Math.hypot(r.x - mouth.x, r.z - mouth.z) > JOIN_CLEAR; }) ?? -1;
@@ -121,8 +94,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
         }
       }
     }
-    // The way in: the map's lane runs on along the coast to its own dock, so it is cut where it first comes within SNAP
-    // of the mouth and runs straight from there onto the mouth, where the trunk begins.
     const inDock = docks.find(d => d.dir === "down");
     if (dir === "down" && inDock) {
       const ownEnd = islandAt(centre.at(-1)!)?.story === story ? "end" : islandAt(centre[0]!)?.story === story ? "start" : undefined;
@@ -141,10 +112,8 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
       if (!wet[i] && !wet[i + 1]) continue;
       if (skip(i)) continue;
       if (wet[i] !== wet[i + 1]) {
-        // Where it meets the shore, found by halving the piece.
         let lo = wet[i] ? a : b, hi = wet[i] ? b : a;
         for (let k = 0; k < 14; k++) { const m = lo.clone().lerp(hi, 0.5); if (islandAt(m)) hi = m; else lo = m; }
-        // A line coming ashore near a landing ends on it, where the trunk begins.
         const r = lo.clone().applyMatrix4(toRoot), near = docks.find(d => Math.hypot(r.x - d.at.x, r.z - d.at.z) < SNAP);
         if (near) lo = new Vector3(near.at.x, heightAt(near.at), near.at.z).applyMatrix4(root.matrixWorld);
         if (wet[i]) { b = lo; shore = "b"; } else { a = lo; shore = "a"; }
@@ -154,12 +123,9 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     }
   });
 
-  // Draw them in the plate's frame, lifted off the sea along the globe's normal.
   const group = new Group(); group.name = "mock-sea"; root.add(group);
   const local = (w: Vector3, up: number) => w.clone().addScaledVector(w.clone().normalize(), up).applyMatrix4(toRoot);
   const sea = new Color(SEA_HEX), tone = { down: sea.clone().lerp(new Color(TONE.down.ink), TONE.down.mix), up: sea.clone().lerp(new Color(TONE.up.ink), TONE.up.mix) };
-  // Two meshes: the open sea, depth tested so an island's cliff hides the sea behind it, and the last reach to each
-  // landing, drawn over everything so the line climbs the shore unbroken.
   const buf = { far: { pos: [] as number[], col: [] as number[] }, near: { pos: [] as number[], col: [] as number[] } };
   const push = (vs: Vector3[], c: Color, near = false) => { const b = near ? buf.near : buf.far; for (const p of vs) { b.pos.push(p.x, p.y, p.z); b.col.push(c.r, c.g, c.b); } };
   const nearDock = (w: Vector3) => { const r = w.clone().applyMatrix4(toRoot); return docks.some(d => Math.hypot(r.x - d.at.x, r.z - d.at.z) < NEAR); };
@@ -170,9 +136,7 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     const B1 = local(p.b.clone().addScaledVector(p.sb, h), LIFT), B2 = local(p.b.clone().addScaledVector(p.sb, -h), LIFT);
     push([A1, A2, B1, A2, B2, B1], c, near);
   }
-  // The reach from Keys' landfall out to the way out's line: offshore, pushed off the island wherever it would cross it.
   const toWorld = root.matrixWorld;
-  /** Open sea at p and for 6 units round it. */
   const wetLocal = (p: P, y: number) => [[0, 0], ...Array.from({ length: 8 }, (_, k) => [6 * Math.cos(k * Math.PI / 4), 6 * Math.sin(k * Math.PI / 4)])]
     .every(([dx, dz]) => !islandAt(new Vector3(p.x + dx!, y, p.z + dz!).applyMatrix4(toWorld)));
   const catmull = (pts: P[]) => {
@@ -187,13 +151,10 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     const end = local(j.to, 0), endP = { x: end.x, z: end.z }, y0 = heightAt(j.dock.at), y1 = end.y;
     const out = { x: j.dock.sea!.x - j.dock.at.x, z: j.dock.sea!.z - j.dock.at.z }, ol = Math.hypot(out.x, out.z) || 1;
     const sea0 = { x: j.dock.at.x + out.x / ol * 4, z: j.dock.at.z + out.z / ol * 4 };
-    // Round the island a few units off its coast (the coast pushed out, sampled every few units), from abreast of the
-    // landfall to abreast of the join, the shorter way round, then on into the line along its own direction.
     const ring = own.flatMap(c => c.ring.map(p => new Vector3(p.x, 0, p.z).applyMatrix4(c.mesh.matrixWorld).applyMatrix4(toRoot)))
       .map(w => ({ x: w.x, z: w.z }));
     const cx = ring.reduce((s, p) => s + p.x, 0) / ring.length, cz = ring.reduce((s, p) => s + p.z, 0) / ring.length;
     const angle = (p: P) => Math.atan2(p.z - cz, p.x - cx);
-    /** The coast's farthest reach from its middle at each bearing, pushed out by OFFSHORE. */
     const reachAt = (t: number) => { let r = 0; for (const p of ring) { const d = Math.abs(((angle(p) - t + 3 * Math.PI) % (2 * Math.PI)) - Math.PI); if (d < 0.6) r = Math.max(r, Math.hypot(p.x - cx, p.z - cz)); } return r + OFFSHORE; };
     const t0 = angle(sea0), t1 = angle(endP);
     let dt = t1 - t0; while (dt > Math.PI) dt -= 2 * Math.PI; while (dt < -Math.PI) dt += 2 * Math.PI;
@@ -219,7 +180,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     lineMesh.renderOrder = which === "far" ? 5 : 6; lineMesh.raycast = () => {}; group.add(lineMesh);
   }
 
-  // Where the lines come ashore on the selected island: one landfall per dock, as wide as the widest line reaching it.
   const landfalls = docks.map(d => {
     let width = 0, along = d.sea ? { x: d.sea.x - d.at.x, z: d.sea.z - d.at.z } : { x: 1, z: 0 }, nearest = Infinity;
     for (const p of pieces.values()) if (p.dir === d.dir) for (const [end, other] of [[p.a, p.b], [p.b, p.a]] as const) {
@@ -242,14 +202,12 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
 
   const stats: Record<string, unknown> = { sea: SEA, lanes, pieces: pieces.size, landfalls: landfalls.map(l => ({ dir: l.dir, width: l.width })) };
   if (SEA === "station") {
-    // A flat landing mark on the shore, turned to the line: an ink edge, its face in the line's tone.
     for (const l of landfalls) {
       const half = l.dir === "down" ? 1.05 : 0.8;
       flat(square(l.at, l.seaward, half + 0.28), LIFT + 0.05, new Color(post.ink), 30);
       flat(square(l.at, l.seaward, half), LIFT + 0.07, tone[l.dir].clone().lerp(new Color(post.paper), 0.35), 31);
     }
   } else {
-    // A gate in the coast: the white line cut where the line comes in, a standing post either side at the shore.
     const cutCoast = () => {
       for (const c of own) {
         const geo = c.mesh.geometry; if (c.mesh.userData.gapFor === geo.uuid) continue;
@@ -268,7 +226,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
       for (const sgn of [-1, 1]) {
         const c = { x: l.at.x + along.x * (l.width / 2 + GAP + s / 2) * sgn, z: l.at.z + along.z * (l.width / 2 + GAP + s / 2) * sgn };
         const foot = square(c, l.seaward, s / 2), base = heightAt(c);
-        // Its shadow, then its four sides, then its ink top with a paper face.
         const away = { x: -light.x * tall * post.reach, z: -light.z * tall * post.reach };
         flat([...foot.map(p => ({ x: p.x + away.x, z: p.z + away.z }))], 0.04, new Color(SEA_HEX).lerp(black, post.shadow), 28);
         for (let i = 0; i < 4; i++) {
@@ -285,7 +242,6 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     const keepGap = cutCoast; (stats as { keepGap?: () => void }).keepGap = keepGap;
   }
 
-  // The tan band under the selection's lanes is hidden where the lines now run; the map's other roads stay.
   const litLinks = new Set(seen);
   const hideBand = () => {
     state.scene.getObjectByName("pathways:cross-island")?.traverse(o => {

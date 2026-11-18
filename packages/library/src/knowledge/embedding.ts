@@ -1,38 +1,21 @@
-/**
- * Capability 14 · Ranked search (the library story, ADR-0732; built as ADR-0733 says): a search ranks the live artifacts by
- * how close their meaning is to the question, with an embedding model computed on this computer.
- * The shape is the one 0.2's measurement settled (hindsight-memory-layer-arc-inc-02): an artifact's
- * rendered text, packed into ~1600-character chunks on paragraph boundaries (ADR-1044 D1); each chunk
- * embedded; an artifact scored by its best chunk's cosine with the question, which is sent after the
- * model's query prefix (14.15).
- *
- * A vector is kept under the hash of the chunk it was made from, so an artifact that is written is
- * embedded again at the next search, and a search never ranks by a stale vector (ADR-0733 D4).
- */
+// Capability 14 · Ranked search
 import { createHash } from "node:crypto";
 
 import type { SchemaRecord } from "../schema/index.js";
 
-/** Turns texts into unit-length vectors. The real one is arctic-embed-s (embedding-model.ts); tests use a fake. */
 export interface Embedder {
-  /** The model's name: vectors are kept per model, so a changed model never reads another's. */
   readonly model: string;
-  /** Put before a question, never before a chunk, as the model was trained to read a search. */
   readonly queryPrefix?: string;
-  /** One unit-length vector per text, in order. */
   embed(texts: readonly string[]): Promise<Float32Array[]>;
 }
 
-/** Hands out the embedder, loading it the first time; throws, saying why, when there is none. */
 export type EmbedderSource = () => Promise<Embedder>;
 
-/** Where vectors are kept between searches, under their model and the hash of their chunk. */
 export interface VectorStore {
   get(model: string, keys: readonly string[]): Promise<Map<string, Float32Array>>;
   put(model: string, vectors: ReadonlyMap<string, Float32Array>): Promise<void>;
 }
 
-/** A VectorStore held in memory, for the in-memory twin. */
 export class MemoryVectors implements VectorStore {
   readonly #vectors = new Map<string, Float32Array>();
 
@@ -50,17 +33,8 @@ export class MemoryVectors implements VectorStore {
   }
 }
 
-/**
- * The most characters in one chunk: few enough that dense text stays inside the 512 tokens the model
- * reads, which drops the rest without warning (ADR-1044 D1).
- */
 export const CHUNK = 1600;
 
-/**
- * The fields that name other artifacts or bookkeeping, not words: never rendered. Matched at every
- * depth, so it names `refs` and `to` inside a role's `stepRefs` and a process's `branchEdges`, whose
- * steps and labels are words; not REFERENCE_FIELD_NAMES, which knowledge.ts, importing this, holds.
- */
 const UNRENDERED: ReadonlySet<string> = new Set([
   "title",
   "term",
@@ -82,10 +56,6 @@ const UNRENDERED: ReadonlySet<string> = new Set([
   "dependsOn",
 ]);
 
-/**
- * An artifact as it is embedded: its heading (title, or a definition's term), its kind and id, its
- * description, then each other field with words in it under its name.
- */
 export function renderNote(note: SchemaRecord): string {
   const fields = note.fields as Record<string, unknown>;
   const heading = typeof fields.title === "string" ? fields.title : typeof fields.term === "string" ? fields.term : note.id;
@@ -108,7 +78,6 @@ function wordsIn(value: unknown): string[] {
   return [];
 }
 
-/** Paragraphs packed greedily into chunks of at most `size` characters; a longer paragraph is cut. */
 export function chunksOf(text: string, size = CHUNK): string[] {
   const out: string[] = [];
   let current = "";
@@ -130,17 +99,11 @@ export function chunksOf(text: string, size = CHUNK): string[] {
   return out;
 }
 
-/** One ranked artifact and its score: the cosine of its best chunk with the question. */
 export interface Scored<T> {
   readonly item: T;
   readonly score: number;
 }
 
-/**
- * Rank `items` (each with the text it is embedded by) by the cosine of their best chunk with
- * `query`, highest first, ties in the order given. Chunks with no kept vector are embedded now and
- * kept.
- */
 export async function rankByMeaning<T>(
   items: readonly { readonly item: T; readonly text: string }[],
   query: string,
@@ -167,7 +130,6 @@ export async function rankByMeaning<T>(
   return scored.sort((a, b) => b.score - a.score || a.order - b.order).map(({ item, score }) => ({ item, score }));
 }
 
-/** Embed `texts` a batch at a time, shortest first so a batch pads little, and give them back in order. */
 async function embedInBatches(embedder: Embedder, texts: readonly string[], batch = 16): Promise<Float32Array[]> {
   const order = texts.map((_, index) => index).sort((a, b) => texts[a]!.length - texts[b]!.length);
   const out: Float32Array[] = new Array(texts.length);
@@ -179,7 +141,6 @@ async function embedInBatches(embedder: Embedder, texts: readonly string[], batc
   return out;
 }
 
-/** The key a chunk's vector is kept under: its text's hash. */
 function keyOf(chunk: string): string {
   return createHash("sha256").update(chunk).digest("hex");
 }

@@ -1,34 +1,4 @@
-/**
- * Capability 17 · The library's commands (ADR-1035 D3): the `storytree library` family the library declares in its
- * manifest's `verbs`, first among `storytree`'s families: read any record whole (several, and the records they link to,
- * in one start), list a kind, search the artifacts, see what links to an artifact and a record's history, all through
- * the library's own reads; write a new record of any kind, edit named fields of one, refile an artifact as another
- * kind under its id (ADR-1058 D2), or retire one with its reason and
- * writer. Long text can come from a file; refusals are the library's own messages. No verb is a tool: an agent searches,
- * opens, writes and corrects artifacts with the tools the library declares beside them (notes.ts), which record its reads.
- * Capability 27's fixed data questions (`count`, `changes`, `find`) join the family from data/commands.ts, and `read`
- * takes a decision's number in place of its id. Beside it the list mounts capability 13's `adr` family (decisions/adr.ts, ADR-1077 D2), the `fyi` family (fyi.ts, ADR-1184 D3) and the `media` family (media.ts, ADR-1234 D3), whose verbs are tools too.
- *
- * - `new` hands the fields to the one library function that writes that kind, and the library
- *   judges them. A new contract skips the numbers its story package's tests carry, and one whose title runs past
- *   LONG_CONTRACT_TITLE characters gets an advisory quoting CONTRACT_DEFINITION, and its answer names the
- *   capability's other contracts no numbered test carries yet, as plan_contract does. Friction and re-steers are not written here: they go through Session management's
- *   capture functions (capability 9), whose evidence rules a person meets exactly as an agent does.
- * - A field's value is text, except `true`, `false`, a whole number, or one starting with `[` or
- *   `{`, which are read as JSON (a list of links, a number, a switch). `@file` reads the file.
- *   Text given for a field the library wants as a list is read as comma-separated ids (`--links a,b`),
- *   since Windows PowerShell 5.1 strips a JSON list's inner quotes; a shell-joined word is refused.
- * - Run by a session holding an increment claimed on a branch, `edit` and `retire` of a story, capability or contract
- *   planned before it hold the change on the increment as a pending change until its branch merges
- *   (ADR-0966 D1), and `read` of the increment lists them as before and after (D3); one claimed on no branch or
- *   the main line has none to merge, so its edits are live (friction_f02365572601).
- * - `exact` sweeps every page of `phrase`'s search for a link sweep: each record holding the phrase, with the fields
- *   that hold it (friction_45f8338e8931); the find_text tool sweeps the same way.
- * - A plugin kind no mounted plugin declares stays out of `list`, `search` and `phrase` (ADR-1178 D3), never in silence:
- *   each says how many of its records the library holds, that they are dormant here, and how to mount the plugin.
- * - Reads use `get`, `list` and `history`. Edits use the kind's public editor; question wording
- *   has no public editor yet, so that edit says what is missing.
- */
+// Capability 17 · The library's commands
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -49,7 +19,6 @@ import { refuseStaleEdit } from "./stale-edit.js";
 import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
 export { contextIn, libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
 
-/** A claim as the door reads it: the session holding it, the increment or capability it is for, and since when. */
 export interface HeldClaim {
   readonly session: string;
   readonly increment?: string | undefined;
@@ -58,33 +27,24 @@ export interface HeldClaim {
   readonly branch?: string | undefined;
 }
 
-/**
- * The caller, with what the library's verbs need from above the library, which the door hands them: the project's
- * claims, and the contract numbers a capability's story package's numbered tests carry in the caller's checkout, with
- * the titles of its planned contracts none of them carries yet.
- */
 export interface LibraryVerbContext extends VerbContext {
   claims(): Promise<readonly HeldClaim[]>;
   testedNumbers(capability: string): Promise<{ readonly tested: readonly string[]; readonly untested: readonly string[] }>;
-  /** Whether this computer's factory folder holds the plugin `plugin`, which `settings set module` can mount; unsaid when the door cannot tell. */
   pluginInFactory?(plugin: string): Promise<boolean>;
 }
 
 type Fields = Record<string, unknown>;
 
-/** A record's one-line label: its title, term or text, cut at 100 characters. */
 function labelOf(fields: Readonly<Fields>): string {
   const title = typeof fields.title === "string" ? fields.title : typeof fields.term === "string" ? fields.term : typeof fields.text === "string" ? fields.text : "";
   const line = title.split(/\r?\n/, 1)[0] ?? "";
   return line.length > 100 ? `${line.slice(0, 99)}…` : line;
 }
 
-/** The fields given, each value read as `new` reads it. */
 function fieldsOf(given: Readonly<Record<string, string>>): Fields {
   return Object.fromEntries(Object.entries(given).map(([name, text]) => [name, fieldValue(text)]));
 }
 
-/** Comma-separated ids: refuse a shell-joined word, never infer its intended ids. */
 function commaSeparatedIds(value: string, name: string): string[] {
   const ids = value.split(",").map((one) => one.trim()).filter((one) => one !== "");
   if (ids.some((id) => /\s/.test(id))) {
@@ -96,11 +56,6 @@ function commaSeparatedIds(value: string, name: string): string[] {
   return ids;
 }
 
-/**
- * `value`, or the text of the file it names when it is `@file` (relative to the caller's folder), without a leading
- * byte-order mark: PowerShell 5.1's `Set-Content -Encoding utf8` writes one. An `@` value holding whitespace that names
- * no file is prose, kept as written; a one-word one is a path, so a mistyped file is refused.
- */
 function readAt(value: string, folder: string): string {
   if (!value.startsWith("@") || value.length === 1) return value;
   const file = path.resolve(folder, value.slice(1));
@@ -113,22 +68,16 @@ function readAt(value: string, folder: string): string {
   }
 }
 
-/** `value`, or a misuse saying the verb needs `what`. */
 function needed<T>(value: T | undefined, what: string): T {
   if (value === undefined) throw new VerbRefusal(`this needs ${what}`, { misuse: true });
   return value;
 }
 
-/** `limit`, refused unless a whole number above 0. */
 function countOf(limit: string | undefined): number | undefined {
   if (limit !== undefined && !/^[1-9]\d*$/.test(limit)) throw new VerbRefusal(`--limit is how many to show, a whole number above 0; got "${limit}"`, { misuse: true });
   return limit === undefined ? undefined : Number(limit);
 }
 
-/**
- * `write(fields)`, and once more with each field the library refused as text for a list read as
- * comma-separated ids. The refused write wrote nothing, so a shell-joined list is refused before any write.
- */
 async function withIdLists<T>(fields: Fields, write: (fields: Fields) => Promise<T>): Promise<T> {
   try {
     return await write(fields);
@@ -142,7 +91,6 @@ async function withIdLists<T>(fields: Fields, write: (fields: Fields) => Promise
 
 type Writer = (library: Library, fields: Fields, options: WriteOptions) => Promise<{ id: string }>;
 
-/** The library's writer for each kind `new` writes. */
 const WRITERS: Readonly<Record<string, Writer>> = {
   story: (library, fields, options) => library.addStory(fields as never, options),
   capability: (library, fields, options) => library.addCapability(fields as never, options),
@@ -161,16 +109,10 @@ const WRITERS: Readonly<Record<string, Writer>> = {
   ),
 };
 
-/** Kinds written through another family, which keeps a rule `new` must not skip. */
 const ELSEWHERE: Readonly<Record<string, string>> = Object.fromEntries(
   Object.entries(ARTIFACT_KINDS).flatMap(([kind, { captured }]) => (captured === undefined ? [] : [[kind, captured.command]])),
 );
 
-/**
- * A line for each plugin kind among `kinds` (every one, when not given) whose records the library holds but read dormant
- * here (ADR-1178 D3): how many, why, and the command that mounts its plugin, or that this computer's factory has none. A
- * list leaves them out; this says so, never showing them.
- */
 async function dormantSaid(context: LibraryVerbContext, words: DoorWords, kinds?: readonly string[]): Promise<string[]> {
   const dormant = (await context.library.dormantKinds()).filter(({ kind }) => kinds === undefined || kinds.includes(kind));
   return Promise.all(dormant.map(async ({ kind, count }) => {
@@ -204,7 +146,6 @@ const search = verb({
     const count = countOf(limit);
     const named = project === undefined || project.length === 0 ? undefined : project;
     const sections: string[] = [];
-    // Another project's results come under its name; a project that could not be opened is named, never skipped (ADR-1348 D2).
     for (const reached of await librariesNamed(context.library, named)) {
       if (reached.opened === undefined) {
         sections.push(unopenedSaid(reached.project, reached.unopened));
@@ -212,9 +153,7 @@ const search = verb({
       }
       const ranked = await rankedSearch(reached.opened, query, { ...(count === undefined ? {} : { limit: count }), history, kinds: kind });
       const heading = ranked.by === "meaning" ? `closest in meaning to "${query}":` : `ranked by words: ${ranked.why}; the records holding every word of "${query}":`;
-      // Records of a plugin kind no mounted plugin declares are never ranked; the answer says so (ADR-1178 D3).
       const dormant = await dormantSaid({ ...context, library: reached.opened }, door);
-      // A friction report says where it stands, so a settled one found by meaning reads as settled (ADR-1016 D4).
       const kindOf = (note: (typeof ranked.hits)[number]["note"]): string => note.type === "friction" ? `friction: ${note.fields.state}` : note.type;
       const lines = ranked.hits.length === 0 ? ["  none"] : ranked.hits.map(({ note, score, narrowedBy }) => `  ${score === undefined ? "" : `${score.toFixed(2)}  `}${note.id}  [${kindOf(note)}]  ${labelOf(note.fields)}${narrowedSaid(narrowedBy)}`);
       sections.push([...(named === undefined ? [] : [`project ${reached.project}:`]), heading, ...lines, ...dormant].join("\n"));
@@ -253,14 +192,12 @@ const phrase = verb({
   },
 });
 
-/** One record holding a phrase, its title's first line, and its stored top-level string fields that hold it, by name. */
 export interface PhraseHit {
   readonly record: SchemaRecord<PhraseKind>;
   readonly title: string;
   readonly fields: readonly string[];
 }
 
-/** Every live record holding `phrase` exactly, following findPhrase's cursor to the end, in id order. */
 export async function everyHolding(library: Library, phrase: string, options: { kinds?: readonly PhraseKind[]; fields?: readonly string[] } = {}): Promise<PhraseHit[]> {
   const hits: PhraseHit[] = [];
   let after: string | undefined;
@@ -278,7 +215,6 @@ export async function everyHolding(library: Library, phrase: string, options: { 
   return hits;
 }
 
-/** A sweep's answer: how many records hold the phrase, then a line for each. */
 export function holdingLines(phrase: string, hits: readonly PhraseHit[]): string {
   if (hits.length === 0) return `No record holds ${JSON.stringify(phrase)} exactly.`;
   const heading = `${hits.length} ${hits.length === 1 ? "record holds" : "records hold"} ${JSON.stringify(phrase)} exactly:`;
@@ -365,7 +301,6 @@ const create = verb({
     const write = WRITERS[kind];
     if (write === undefined) throw new VerbRefusal(`storytree library new writes ${Object.keys(WRITERS).join(", ")}; not "${kind}"`, { misuse: true });
     const fields = fieldsOf(values);
-    // An accepted decision says whose call it was (friction_b2b343a7a75e): `adr new` asks for it.
     if (kind === "decision" && fields.status === "accepted" && fields.authority === undefined) {
       throw new VerbRefusal("an accepted decision carries its authority, whose call it was: record it with `storytree adr new … --basis <owner-directed|owner-ratified|agent-derived|agent-flipped> [--owner-said …]`, or give --authority @file holding its JSON", { misuse: true });
     }
@@ -374,7 +309,6 @@ const create = verb({
     const options = numbers === undefined ? { ...context.writer!, ...pending } : { ...context.writer!, testedNumbers: [...numbers.tested] };
     const written = await withIdLists(fields, (fields) => write(context.library, fields, options));
     const untested = numbers?.untested ?? [];
-    // Counted, not named, so the answer stays short however many there are (3.21, F2.10).
     const one = untested.length === 1;
     const open = untested.length === 0 ? "" : `\n${untested.length} other ${one ? "contract" : "contracts"} of this capability ${one ? "has" : "have"} no test yet. If this one repeats ${one ? "it" : "any of them"}, retire it and build that one (list ${one ? "it" : "them"} with \`storytree map --select cap:${String(fields.capability)} --down 1 --kind contract --show\`).`;
     const long = kind === "contract" && String(fields.title ?? "").length > LONG_CONTRACT_TITLE;
@@ -384,10 +318,8 @@ const create = verb({
   },
 });
 
-/** A record as the library returns it. */
 type Stored = NonNullable<Awaited<ReturnType<Library["get"]>>>;
 
-/** `record`, and for a capability with links its dependsOn as the plan's tree gives it (ADR-1282 D1). */
 async function withDependsOn(library: Library, record: Stored): Promise<Stored> {
   if (record.type !== "capability") return record;
   const dependsOn = (await library.dependsOn(record.id)) ?? [];
@@ -407,20 +339,16 @@ const moveToEdges = verb({
   },
 });
 
-/** A stored record's id: its kind, an underscore and twelve hex digits. */
 const RECORD_ID = /^[a-z]+_[0-9a-f]{12}$/;
 
-/** The ids `record`'s list fields name (a note's links, a role's rules and context), in stored order. */
 function idsNamedBy(record: Stored): string[] {
   return Object.values(record.fields).flatMap((value) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && RECORD_ID.test(item)) : []));
 }
 
-/** `record` whole: its heading, then each field, then an increment's pending changes. */
 export function wholeRecord(record: Stored): string {
   const { pending, ...rest } = record.fields as Fields & { pending?: PendingChange[] };
   const fields = Object.entries(rest).map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`);
   const held = record.type === "increment" && pending !== undefined && pending.length > 0 ? pendingSaid(pending) : [];
-  // A plugin's kind no mounted plugin declares reads as stored, said dormant (ADR-1178 D3).
   const dormant = record.dormant === true ? "  dormant: its plugin is not mounted on this computer" : "";
   return [`${record.id}  [${record.type}]  schema ${record.version}${dormant}`, `Created: ${record.createdAt}`, `Updated: ${record.updatedAt}`, "", ...fields, ...held].join("\n");
 }
@@ -438,15 +366,12 @@ const read = verb({
   async act({ ids: given, linked: withLinked, field, out, project }, context: LibraryVerbContext) {
     needed(given[0], "the record's id");
     if (out !== undefined && field === undefined) throw new VerbRefusal("--out writes one field; give --field <name> with it", { misuse: true });
-    // Another library of the factory's circle, when named (ADR-1348 D2): what it shows is said to be that project's.
     const library = await libraryNamed(context.library, project);
     const where = library === context.library ? "this project" : `project ${library.name}`;
-    // A decision may be named by its number (1103 or ADR-1103), capability 27's lookup.
     const ids = [...new Set(await Promise.all(given.map(async (id) => (await decisionNamed(library, id)) ?? id)))];
     const records = await Promise.all(ids.map((id) => library.get(id)));
     const missing = ids.filter((_, index) => records[index] === null);
     if (missing.length > 0) throw new VerbRefusal(missing.map((id) => `no record "${id}" in ${where}`).join("\n"));
-    // A capability's dependsOn reads as the plan's tree gives it, its story's edges included (ADR-1282 D1).
     const named = await Promise.all((records as Stored[]).map((record) => withDependsOn(library, record)));
     if (field !== undefined) {
       if (named.length > 1 || withLinked) throw new VerbRefusal("--field reads one record's field; give one id", { misuse: true });
@@ -468,16 +393,11 @@ const read = verb({
   },
 });
 
-/** Hold `change` on the increment the calling session holds (ADR-0966 D1), and say so; undefined when the change is made live. */
 async function heldOnIncrement(context: LibraryVerbContext, change: PlanChange): Promise<string | undefined> {
   const increment = await holdPlanChange(context.library, await context.claims(), context.session, change, context.writer!);
   return increment === undefined ? undefined : heldSaid(increment);
 }
 
-/**
- * An increment's pending changes (ADR-0966 D3), under the field's own name as every other field is, so a reader
- * looking for `pending` finds them: each record, then each field as before -> after, or its retirement.
- */
 function pendingSaid(pending: readonly PendingChange[]): string[] {
   const said = (value: unknown): string => (value === null || value === undefined ? "(none)" : typeof value === "string" ? value : JSON.stringify(value));
   return [
@@ -507,21 +427,16 @@ const edit = verb({
     if (id === PR_CUTOVER_ID) return editCutover(fieldsOf(values), context);
     const record = await library.get(id);
     if (record === null) throw new VerbRefusal(`no record "${id}" in this project`);
-    // A settled question keeps its words, answered as they were, but still gains the evidence it cites (12.17) and the capabilities its answer leaves unbuilt (12.19).
     if (record.type === "question" && record.fields.lifecycle === "settled" && (remove.length > 0 || Object.keys(values).some((field) => field !== "links" && field !== "unbuilt"))) {
       throw new VerbRefusal(`question ${id} is settled, so its wording cannot change: its answer stands (it may only gain --links, and record --unbuilt)`);
     }
     const both = remove.find((field) => Object.hasOwn(values, field));
     if (both !== undefined) throw new VerbRefusal(`--${both} and --remove ${both} are both given: change the field or remove it`, { misuse: true });
-    // A planned record's held change is stored as JSON, which would drop a removal, so it is refused (ADR-0966 D1).
     if (remove.length > 0 && PLAN_TYPES.has(record.type)) throw new VerbRefusal(`a field of a ${record.type} is not removed with --remove: its edits can wait on an increment, which keeps no removal`);
-    // The store removes a field given as undefined, and the kind's schema refuses removing one it requires.
     const fields: Fields = { ...fieldsOf(values), ...Object.fromEntries(remove.map((field) => [field, undefined])) };
     if (Object.keys(fields).length === 0) return { text: `No fields given: ${id} is unchanged.` };
     const writer = context.writer!;
-    // A note, decision or question is written whole-field and live, so one built on a stale read is refused (friction_90ff039d8cce); a planned record's edit is held with the entry it read (ADR-0966 D1).
     if (!isPlanRecordType(record.type)) await refuseStaleEdit(library, id, writer, readGiven);
-    // --live names a correction the increment does not change, made live with its claim kept (ADR-0966 D1's note).
     const done = await withIdLists(fields, async (fields): Promise<PlanEdit | null> => {
       if (isPlanRecordType(record.type)) return editPlanRecord(library, await context.claims(), context.session, { type: record.type, id, fields, live }, writer);
       const edited =
@@ -534,7 +449,6 @@ const edit = verb({
     });
     if (done === null) throw new VerbRefusal(`no live ${record.type} "${id}" in this project`);
     if ("held" in done) {
-      // An increment that will have no branch (a library-only redo) never merges, so the way out is said (friction_f02365572601).
       const drop = `arc increment drop-pending ${done.held} ${id} --reason <why>`;
       return {
         text: `Your edit of ${record.type} ${id} (${Object.keys(fields).join(", ")}) is ${heldSaid(done.held)} If ${done.held} will have no branch, run ${drop}, then this edit again with --live.`,
@@ -553,10 +467,6 @@ const edit = verb({
   },
 });
 
-/**
- * The project's anchor, written a half at a time (ADR-1085 D1): it is made on its first write, so `library edit`
- * reaches it before it exists. Only its two halves are fields; anything else is refused with nothing written.
- */
 async function editAnchor(fields: Fields, context: LibraryVerbContext): Promise<{ text: string; next: { command: string; why: string }[] }> {
   const wrong = Object.keys(fields).filter((field) => field !== "what" && field !== "audience");
   if (wrong.length > 0) throw new VerbRefusal(`the project's anchor has no ${wrong.join(" or ")}: it has what (what the project is) and audience (who it is for)`, { misuse: true });
@@ -565,11 +475,6 @@ async function editAnchor(fields: Fields, context: LibraryVerbContext): Promise<
   return { text: `Edited the project's anchor ${ANCHOR_ID}: ${Object.keys(fields).join(", ")}.`, next: [{ command: `library read ${ANCHOR_ID}`, why: "read it back" }] };
 }
 
-/**
- * The project's repository cut-over (increment_7f7599b35fe4), made on its first write as the anchor is: `--at` the
- * time, `--repository` the owner/name that holds the name from then, and `--before` the one that held pull request
- * numbers until then (by default that repository renamed `<name>-history`), or "none" when it was deleted.
- */
 async function editCutover(fields: Fields, context: LibraryVerbContext): Promise<{ text: string; next: { command: string; why: string }[] }> {
   const wrong = Object.keys(fields).filter((field) => field !== "at" && field !== "repository" && field !== "before");
   if (wrong.length > 0) throw new VerbRefusal(`the repository cut-over has no ${wrong.join(" or ")}: it has at (when), repository (the owner/name that holds the name from then) and before (the one that held pull requests until then, or none)`, { misuse: true });
@@ -629,15 +534,12 @@ const retire = verb({
   },
 });
 
-/** An increment's statuses while it is open work. */
 const OPEN: ReadonlySet<string> = new Set(["proposal", "active"]);
 
-/** A `--where` value matches a field it equals, or a list field holding it: an array never answers a silent empty. */
 function matches(stored: unknown, value: unknown): boolean {
   return isDeepStrictEqual(stored, value) || (Array.isArray(stored) && stored.some((one) => isDeepStrictEqual(one, value)));
 }
 
-/** The friction states that leave the default list (ADR-1016 D4). */
 const SETTLED: ReadonlySet<string> = new Set(["resolved", "dismissed"]);
 
 const list = verb({
@@ -652,7 +554,6 @@ const list = verb({
   async act({ kind: given, where, all, open }, context: LibraryVerbContext, door) {
     const kind = needed(given, "the kind of record");
     if (open && kind !== "increment") throw new VerbRefusal(`--open keeps only open increments, so it lists no ${kind}`, { misuse: true });
-    // A plugin's kind no mounted plugin declares lists nothing; the answer names it instead (ADR-1178 D3).
     const dormant = await dormantSaid(context, door, [kind]);
     if (dormant.length > 0) return { text: dormant.join("\n") };
     const filters = where.map((one) => {
@@ -663,7 +564,6 @@ const list = verb({
     const matching = (await context.library.list(kind as RecordType))
       .filter((record) => filters.every(({ field, value }) => matches((record.fields as Fields)[field], value)))
       .filter((record) => !open || OPEN.has(String((record.fields as Fields)["status"])));
-    // Settled friction stays live but out of the default list (ADR-1016 D4).
     const hideSettled = kind === "friction" && !all && !filters.some(({ field }) => field === "state");
     const records = hideSettled ? matching.filter((record) => !SETTLED.has(String((record.fields as Fields)["state"]))) : matching;
     const left = matching.length - records.length;
@@ -690,7 +590,6 @@ const history = verb({
     if (entries.length === 0) return { text: `No history for ${id}.` };
     return { text: [`History of ${id}:`, ...entries.flatMap((entry) => [
       `  ${entry.seq}  ${entry.at}  ${entry.action}  ${entry.actor ?? "writer not recorded"}${entry.reason === undefined ? "" : `  ${entry.reason}`}`,
-      // The mark a write carries when its session had read outside text before it (capability 2's 2.20): observed, never refused.
       ...(entry.outsideRead === undefined ? [] : [`    read outside text first: ${entry.outsideRead.join("; ")}`]),
       ...(fields ? [`    fields: ${JSON.stringify(entry.record.fields)}`] : []),
     ])].join("\n") };
@@ -758,21 +657,14 @@ const undo = verb({
 });
 
 export { NOTE_TOOLS, type Found, type NoteRead, type NoteToolContext, type Presenter } from "./notes.js";
-// The plan-edit rule both front doors call (ADR-0966 D1, ADR-0793).
 export { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "../work/index.js";
 
-/**
- * What a contract's move onto a link left its part, `capability`, as both front doors say it (question_db632f671942's
- * option D): a sentence naming the part when it now has no live contracts of its own, with the step its own work needs,
- * `plan` naming how this door plans a contract; nothing while it keeps one (ADR-1282 D2 moves them as work touches them).
- */
 export async function bareSaid(library: Library, capability: string | undefined, plan: string): Promise<string> {
   const part = capability === undefined ? undefined : (await library.projectTree()).stories.flatMap((story) => story.capabilities).find((node) => node.id === capability);
   if (part === undefined || part.contracts.length > 0) return "";
   return ` "${part.title}" (${part.id}) now has no contracts of its own: plan its own behaviour contract (${plan}), or leave it bare knowingly.`;
 }
 
-/** The library's command family, which the package's manifest names under `verbs` (ADR-1033), first among `storytree`'s. */
 export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{
   name: "library",
   summary: "read, search and write the project's records",

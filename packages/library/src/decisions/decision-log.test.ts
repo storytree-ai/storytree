@@ -1,14 +1,4 @@
-/**
- * Capability 13 · Decision log (ADR-0640): one test per contract 13.1-13.4 in the library story,
- * each run on BOTH backends:
- *
- * - memory: Knowledge layers over one fresh MemoryTransactions; "separate connections" are two
- *   Knowledge layers over it, each with its own SchemaRecords;
- * - postgres: the `knowledge` of a fresh project on the server `pnpm test` provides, opened twice
- *   for separate connections (two pools), and dropped afterwards, pass or fail.
- *
- * Whether anything was written is judged one layer down: an unchanged history means nothing was.
- */
+// Capability 13 · Decision log
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -21,7 +11,6 @@ import { Knowledge, SupersessionLoopError } from "../knowledge/index.js";
 
 interface Library {
   readonly knowledge: Knowledge;
-  /** The same project, reached through a connection of its own. */
   readonly other: Knowledge;
   readonly records: SchemaRecords;
   readonly transactions: Transactions;
@@ -98,13 +87,10 @@ for (const backend of [memory, postgres]) {
     assert.ok(numbers.every((number) => number > 1), "each higher than any before");
     assert.deepEqual([...numbers].sort((a, b) => a - b), [2, 3, 4, 5, 6, 7]);
 
-    // A retired decision's number is never handed out again.
     const last = raced.find((decision) => decision.fields.number === 7)!;
     await records.retire(last.id, "recorded by mistake");
     assert.equal((await knowledge.recordDecision(DECIDE)).fields.number, 8);
 
-    // A decision brought in under its own number (the one-copy lane loading 0.2's, N1) keeps it, and
-    // numbering continues after it; a number already used is refused, with nothing written.
     assert.equal((await knowledge.recordDecision({ ...DECIDE, number: 640 })).fields.number, 640);
     assert.equal((await other.recordDecision(DECIDE)).fields.number, 641);
     const history = await transactions.history();
@@ -213,7 +199,6 @@ for (const backend of [memory, postgres]) {
 
   contract("13.8", "founding books preview in creation order, preserve history, skip Full record decisions and finish once", async ({ records, transactions, knowledge }) => {
     const own = new Knowledge(records, "storytree");
-    // Reverse lexical IDs: creation order, not list's ID order, determines their fresh numbers.
     const first = await records.create("decision", { ...DECIDE, number: 1 }, { id: "founding-z" });
     const second = await records.create("decision", { ...DECIDE, number: 2 }, { id: "founding-a" });
     const imported = await records.create("decision", { ...DECIDE, number: 3, text: "Full record: ADR-0621" });
@@ -305,7 +290,6 @@ for (const backend of [memory, postgres]) {
   contract("13.5", "repair refuses numbers non-health records ever held, including a collision arriving after preview", async ({ records, transactions }) => {
     const own = new Knowledge(records, "storytree");
     const imported = await records.create("decision", { ...DECIDE, number: 1, text: "Full record: ADR-0621" });
-    // Transaction history may contain old or foreign schemas; every record counts.
     await transactions.save({ id: "old-kind", type: "legacy", fields: { number: 621 } });
     await transactions.retire({ id: "old-kind", reason: "retired" });
     const definition = await records.create("definition", { term: "A term", meaning: "Full record: ADR-0621" });
@@ -316,7 +300,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before);
 
     const later = await records.create("decision", { ...DECIDE, number: 2, text: "Full record: ADR-0622" });
-    // Insert a competing writer after preflight reads history, before the repair takes its lock.
     const history = records.history.bind(records);
     records.history = async (filter) => {
       const read = await history(filter);
@@ -390,7 +373,6 @@ for (const backend of [memory, postgres]) {
       "a stamp claiming the owner quotes him",
     );
 
-    // A decision as storytree wrote it before (version 1): a title, a text and a cover.
     await transactions.save({ id: "decision-old", type: "decision", version: 1, fields: { title: "Old", text: "Decided before status" } });
     const upgraded = await records.get("decision-old");
     assert.equal(upgraded?.version, 2);

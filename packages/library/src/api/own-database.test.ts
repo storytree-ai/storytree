@@ -1,7 +1,4 @@
-/**
- * Capability 7 · Library API, contract 7.7: a connection hands its caller one named database of its
- * own beside the projects, on the same server (ADR-0735 D3). Its database is dropped afterwards.
- */
+// Capability 7 · Library API
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -55,8 +52,6 @@ test("7.7 once its tables are there, a new connection's set-up runs no DDL, so i
   try {
     await writer.query("BEGIN");
     await writer.query("INSERT INTO entries (said) VALUES ('mid-write')");
-    // The server says when a backend in this database waits on a lock (asked outside the writer's
-    // transaction, which reads its activity as it stood when it began): the set-up must finish without one.
     let settled = false;
     opening = second.ownDatabase(name, { tables }).finally(() => (settled = true));
     const outcome = await waitUntil(async () => {

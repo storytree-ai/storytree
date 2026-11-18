@@ -1,14 +1,4 @@
-/**
- * Capability 4 · Work model, its pending plan changes (ADR-0966): one test per contract 4.28-4.35 and 4.50 in the library story
- * (4.36 is in plan-hold.test.ts), each run on BOTH backends, as work-in-flight.test.ts runs capability 10's:
- *
- * - memory: a WorkModel and a WorkInFlight over SchemaRecords over a fresh MemoryTransactions;
- * - postgres: the `work` and `flight` of a fresh project on the server `pnpm test` provides,
- *   dropped afterwards, pass or fail.
- *
- * Whether anything was written is judged one layer down, through the project's Transactions: every
- * change appends a history entry (capability 2), so an unchanged history means nothing was written.
- */
+// Capability 4 · Work model
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -239,7 +229,6 @@ for (const backend of [memory, postgres]) {
     for (const [id, title] of [[form.id, "1 · Address form"], [link.id, "2 · Link"], [code.id, "3 · Code"]] as const) {
       await flight.pendChange(increment.id, { record: id, fields: { title } });
     }
-    // The apply is cut at its second change: that edit never returns, as when a hook's process is killed mid-write.
     let reached!: () => void;
     const cut = new Promise<void>((resolve) => (reached = resolve));
     const cutWork = Object.create(work) as WorkModel;
@@ -255,7 +244,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(left, [link.id, code.id], "what it applied no longer reads pending");
     assert.deepEqual(await flight.stalePending(increment.id), [], "the gate finds nothing stale");
 
-    // A change applied whose clearing the cut beat still counts as applied, not stale.
     await records.edit(link.id, { title: "2 · Link" }, { reason: `applied at the merge of PR #145 (${increment.id})` });
     assert.deepEqual(await flight.stalePending(increment.id), [], "applied by its own increment: not stale");
 
@@ -404,7 +392,6 @@ for (const backend of [memory, postgres]) {
       await flight.advanceIncrement(increment.id, "active");
       await flight.pendChange(increment.id, { record: record.id, fields: { title: "Renamed" } });
     }
-    // Closed before closing applied or dropped anything: written as the earlier code wrote a close.
     await records.edit(landed.id, { status: "closed", outcome: { date: "2026-10-11", pr: "1130", disposition: "landed" } });
     await records.edit(failed.id, { status: "closed", outcome: { date: "2026-10-11", note: "abandoned", disposition: "failed" } });
 

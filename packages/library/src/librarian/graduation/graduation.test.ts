@@ -1,8 +1,4 @@
-/**
- * Capability 24 · Graduation: one test per contract 24.1-24.4 in The library story. The memory
- * folders are throwaway ones, laid out as Claude Code keeps its own; the library is a fresh
- * project's on the real Postgres `pnpm test` provides.
- */
+// Capability 24 · Graduation
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,7 +10,6 @@ import { graduate, memoryWorklist, park, processGaps } from "./index.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/** Run `body` with a fresh memory folder, `<project>/memory`, removed afterwards. */
 async function withMemoryFolder(body: (folder: string) => Promise<void>): Promise<void> {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
   const folder = path.join(root, "memory");

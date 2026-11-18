@@ -1,8 +1,4 @@
-/**
- * Capability 17 · The library's commands: contract 17.1, the `library` family the library declares for the command
- * line, and 17.2, the artifact tools it declares for the MCP server, run with a caller on a fresh project's library on
- * the real Postgres `pnpm test` provides.
- */
+// Capability 17 · The library's commands
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -46,7 +42,7 @@ test("17.1 · The library declares the library family first among storytree's fa
   const story = await library.addStory({ title: "Sign up" });
   const form = await library.addCapability({ story: story.id, title: "Form" });
   const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Red then green" });
-  await library.advanceIncrement(increment.id, "active"); // as claiming it does
+  await library.advanceIncrement(increment.id, "active");
   const claims: HeldClaim[] = [{ session: "lane", increment: increment.id, since: "2026-10-15T00:00:00.000Z", branch: "claude/address-form" }, { session: "library-lane", increment: increment.id, since: "2026-10-15T00:00:00.000Z" }];
   const contextOf = (session: string): LibraryVerbContext => ({
     library, project, session, folder, writer: { actor: `session:${session}` },
@@ -274,7 +270,6 @@ test("17.28 · A decision filed on a part answers with that part's and each part
   assert.match(filed.text, /correct it with edit_plan\./);
   assert.doesNotMatch(filed.text, /Disk|Writes pages/, "a part two links away is not quoted");
 
-  // The command line's library new answers the same, naming its own way to correct; a story quotes only itself.
   const create = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "new")!;
   const person: LibraryVerbContext = { ...context, testedNumbers: async () => ({ tested: [], untested: [] }) };
   const decision = (on: string) => ({ "<kind>": "decision", "<fields>": { status: "accepted", authority: JSON.stringify({ basis: "agent-derived", scribedBy: "person:owner", at: "2026-11-12T00:00:00.000Z" }), title: "No cache", text: "Fresh.", frontCoverOf: on } });
@@ -318,7 +313,7 @@ test("17.4 · One field round-trips byte for byte: library read --field and the 
   writeFileSync(file, read.text);
   const edited = readFileSync(file, "utf8").replace("isn’t", "is not");
   writeFileSync(file, edited);
-  await verbOf("edit").act({ "<id>": decision.id, "<fields>": { text: readFileSync(file, "utf8") } }, context, WORDS); // as the door reads `--text @text.txt`
+  await verbOf("edit").act({ "<id>": decision.id, "<fields>": { text: readFileSync(file, "utf8") } }, context, WORDS);
   const back = await verbOf("read").act({ ids: [decision.id], linked: false, field: "text" }, context, WORDS);
   assert.equal(back.text, edited, "the edited file comes back byte for byte");
 
@@ -672,7 +667,7 @@ test("17.13 · library new capability, run by a session holding an increment, ju
   const current = await library.addCapability({ story: updates.id, title: "1 · Keeping the factory current" });
   const arc = await library.createArc({ title: "Split the host", intent: "Move running out", endState: "Each story holds its own" });
   const increment = await library.addIncrement({ arc: arc.id, title: "Move running", objective: "Split it", body: "Red then green" });
-  await library.advanceIncrement(increment.id, "active"); // as claiming it does
+  await library.advanceIncrement(increment.id, "active");
   const writer = { actor: "session:lane" };
   await library.pendChange(increment.id, { record: running.id, fields: { story: updates.id, title: "2 · Keeping the host running" } }, writer);
   await library.pendChange(increment.id, { record: old.id, retire: "folded into reading the logs" }, writer);
@@ -719,7 +714,6 @@ test("17.15 · library list --where on a list field matches the records whose li
   const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
   const work = { arc: arc.id, objective: "Do it", body: "Red then green" };
   const both = await library.addIncrement({ ...work, title: "Both", capabilities: [form.id, mailer.id] });
-  // A second open increment on a capability is listed by an edit, since parking it would be refused (10.35).
   const onlyMailer = await library.addIncrement({ ...work, title: "Only the mailer" });
   await library.editIncrement(onlyMailer.id, { capabilities: [mailer.id] });
   const done = await library.addIncrement({ ...work, title: "Done", capabilities: [form.id], outcome: { pr: "#1", disposition: "landed" } });
@@ -756,7 +750,7 @@ test("17.16 · library edit --live, run by a session holding an increment, edits
   const mail = await library.addCapability({ story: story.id, title: "Mail" });
   const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
   const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Red then green" });
-  await library.advanceIncrement(increment.id, "active"); // as claiming it does
+  await library.advanceIncrement(increment.id, "active");
   const context: LibraryVerbContext = {
     library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" },
     claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z", branch: "claude/address-form" }],
@@ -789,7 +783,7 @@ test("17.20 · library edit's answer for an edit held on the caller's increment 
   const form = await library.addCapability({ story: story.id, title: "Form" });
   const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
   const increment = await library.addIncrement({ arc: arc.id, title: "Redo the form's plan", objective: "Redo it", body: "Library only" });
-  await library.advanceIncrement(increment.id, "active"); // as claiming it does
+  await library.advanceIncrement(increment.id, "active");
   const context: LibraryVerbContext = {
     library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" },
     claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z", branch: "claude/address-form" }],
@@ -832,7 +826,6 @@ test("17.17 · library exact and the find_text tool list every live record holdi
   const arc = await library.createArc({ title: "Docs", intent: "Move headings", endState: "Links work" });
   const increment = await library.addIncrement({ arc: arc.id, title: `Repoint ${link}`, objective: "Repoint", body: `Every ${link} moves.` });
   await library.defineTerm({ term: "Other case", meaning: "See readme.md#keys." });
-  // More than one page of the store's: only following the cursor reaches them all.
   const stories = [];
   for (let n = 0; n < 101; n += 1) stories.push(await library.addStory({ title: `Story ${n} at ${link}` }));
   const every = [term.id, increment.id, ...stories.map((story) => story.id)];
@@ -949,7 +942,7 @@ test("17.21 · library edit and correct_note refuse, naming the newer change and
   const routine = { title: "Land a pull request", description: "A routine", statement: "S", trigger: "When green", steps: "1. Push", surfaces: "The box", failureModes: "None" };
   const process = await library.writeKnowledge("process", routine);
   await edit.act({ "<id>": process.id, "<fields>": { steps: "1. Push\n2. Hand over" } }, contextOf("A"), WORDS);
-  await edit.act({ "<id>": process.id, "<fields>": { steps: "1. Push\n2. Hand over\n3. Close out" } }, contextOf("A"), WORDS); // its own last change
+  await edit.act({ "<id>": process.id, "<fields>": { steps: "1. Push\n2. Hand over\n3. Close out" } }, contextOf("A"), WORDS);
   const theirs = await newest(process.id);
 
   const refused = async (input: Record<string, unknown>, context: LibraryVerbContext | NoteToolContext, verb: typeof edit | typeof correct, id: string) => {
@@ -970,7 +963,7 @@ test("17.21 · library edit and correct_note refuse, naming the newer change and
   assert.equal(((await library.get(term.id))?.fields as { meaning?: string } | undefined)?.meaning, "A session the pool starts on the Mint box.");
 
   await assert.rejects(edit.act({ "<id>": term.id, "<fields>": { meaning: "A worker." }, read: "latest" }, contextOf("B"), WORDS), (error: unknown) => error instanceof VerbRefusal && error.misuse === true, "a --read that is no entry's seq");
-  await refuseStaleEdit(library, term.id, { actor: "session:A" }, undefined, Date.now() + RECENT_MS + 1000); // B's change, read or not, is older than the window
+  await refuseStaleEdit(library, term.id, { actor: "session:A" }, undefined, Date.now() + RECENT_MS + 1000);
   const story = await library.addStory({ title: "Sign up" });
   const form = await library.addCapability({ story: story.id, title: "Form" });
   await edit.act({ "<id>": form.id, "<fields>": { description: "Typed here" } }, contextOf("A"), WORDS);
@@ -1014,7 +1007,6 @@ test("17.22 · library new edge and library new contract --edge write an edge an
   const read = await verbOf("read").act({ ids: [link.id], linked: false, field: "dependsOn", out: undefined }, context, WORDS);
   assert.deepEqual(JSON.parse(read.text), [form.id], "a capability's dependsOn reads its edge");
 
-  // A link stored before edges, written around the work model, is moved onto an edge.
   const mail = await library.addCapability({ story: story.id, title: "Mail" });
   const lower = await connectProject({ url: testServerUrl() });
   try {
@@ -1151,11 +1143,9 @@ test("17.30 · library search and read, and the search_notes and open tools, rea
     claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }),
     notesRead: async () => reads, recordReads: async (more) => void reads.push(...more), presenterOf: async () => undefined,
   });
-  // The product's folder reopens it, so it reads its factory (29.2).
   const fromProduct = contextOf(await storytree.openProject(productName));
   const fromFactory = contextOf(factory);
 
-  // From the factory's folder: the product's library, by name, its results under its name.
   const searched = await verbOf("search").act({ words: ["land", "by", "pull", "request"], limit: undefined, history: false, kind: [], project: [productName] }, fromFactory, WORDS);
   assert.match(searched.text, new RegExp(`^project ${productName}:`));
   assert.ok(searched.text.includes(sitePlan.id) && !searched.text.includes(howToWork.id), "the product's decision, not the factory's");
@@ -1163,7 +1153,6 @@ test("17.30 · library search and read, and the search_notes and open tools, rea
   assert.match(read.text, new RegExp(`^project ${productName}:[\\s\\S]*${sitePlan.id}`));
   await assert.rejects(verbOf("read").act({ ids: [sitePlan.id], linked: false, field: undefined, out: undefined, project: undefined }, fromFactory, WORDS), /no record .* in this project/, "named nowhere, it reads the folder's own");
 
-  // From the product's folder: the factory's library, and every one with all.
   const all = await verbOf("search").act({ words: ["land", "by", "pull", "request"], limit: undefined, history: false, kind: ["decision"], project: ["all"] }, fromProduct, WORDS);
   const own = all.text.indexOf(`project ${productName}:`);
   const theirs = all.text.indexOf(`project ${factoryName}:`);
@@ -1178,7 +1167,6 @@ test("17.30 · library search and read, and the search_notes and open tools, rea
   assert.equal((await verbOf("read").act({ ids: [howToWork.id], linked: false, field: "title", out: undefined, project: factoryName }, fromProduct, WORDS)).text, "Land by pull request");
   assert.ok(!reads.some(({ note }) => note === howToWork.id), "another project's record is no read on this folder's knowledge core");
 
-  // A project outside the circle is refused; one that could not be opened is named with why, never skipped.
   await assert.rejects(verbOf("read").act({ ids: [sitePlan.id], linked: false, field: undefined, out: undefined, project: outsideName }, fromProduct, WORDS), (error: unknown) => error instanceof VerbRefusal && error.message.includes(outsideName));
   const shut = { ...fromProduct, library: { ...fromProduct.library, reachAll: async () => [{ project: "elsewhere", unopened: "permission denied for table record" }] } };
   const named = await verbOf("search").act({ words: ["land"], limit: undefined, history: false, kind: [], project: ["all"] }, shut, WORDS);

@@ -1,7 +1,4 @@
-/**
- * Capability 14 · Ranked search: what an artifact's embedded text holds. Its words are embedded; the
- * ids its reference fields name are not, so they never weigh on its meaning.
- */
+// Capability 14 · Ranked search
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

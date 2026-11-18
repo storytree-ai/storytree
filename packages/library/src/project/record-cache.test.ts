@@ -12,7 +12,6 @@ import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject
 import type { Project } from "./index.js";
 import { connect } from "./storytree.js";
 
-/** A note's worth of text: about a kilobyte, as the library's notes run. */
 const BODY = "words ".repeat(170);
 
 async function seed(project: Project, count: number): Promise<void> {
@@ -21,7 +20,6 @@ async function seed(project: Project, count: number): Promise<void> {
   }
 }
 
-/** Open the counted project again, through the same counting proxy, as a second process on this machine would. */
 async function reopen(project: Project, recordCache: string | null): Promise<{ again: Project; close: () => Promise<void> }> {
   const server = await connect({ url: project.pool.options.connectionString! }, { recordCache });
   const again = await server.openProject(project.name, { create: false });
@@ -55,7 +53,6 @@ test("1.31 · a second identical read with nothing changed takes under 4 KB from
       } finally {
         await close();
       }
-      // A later process on the same machine starts from the copy the first one left.
       const { again: later, close: closeLater } = await reopen(project, file);
       try {
         const before = received();
@@ -76,17 +73,14 @@ test("1.32 · a cached read sees every change committed before it, by this conne
       const { again, close } = await reopen(project, file);
       try {
         assert.equal((await again.transactions.list("note")).length, 3);
-        // Another connection, with no cache, changes the records.
         await project.transactions.edit({ id: "note_0000", fields: { title: "Edited elsewhere" } });
         await project.transactions.retire({ id: "note_0001", reason: "gone" });
         await project.transactions.save({ id: "note_0009", type: "note", fields: { title: "Made elsewhere" } });
         assert.equal((await again.transactions.get("note_0000"))?.fields.title, "Edited elsewhere");
         assert.equal(await again.transactions.get("note_0001"), null);
         assert.deepEqual((await again.transactions.list("note")).map(({ id }) => id), ["note_0000", "note_0002", "note_0009"]);
-        // Its own write, read straight back.
         await again.transactions.edit({ id: "note_0002", fields: { title: "Edited here" } });
         assert.equal((await again.transactions.get("note_0002"))?.fields.title, "Edited here");
-        // Filters read the copy as the server would.
         assert.deepEqual(
           await again.transactions.list("note", { where: { title: "Edited here" }, projection: { version: 1, fields: ["title"] } }),
           await project.transactions.list("note", { where: { title: "Edited here" }, projection: { version: 1, fields: ["title"] } }),
@@ -122,7 +116,6 @@ test("1.33 · a cached read inside inOneWrite sees that write's own changes, and
       const { again, close } = await reopen(project, file);
       try {
         await again.transactions.list("note");
-        // The copy breaks after it was filled: its records' table is gone.
         const broken = new DatabaseSync(file);
         broken.exec("DROP TABLE record_v1");
         broken.close();
@@ -134,7 +127,7 @@ test("1.33 · a cached read inside inOneWrite sees that write's own changes, and
     });
   });
   await withCacheFolder(async (file) => {
-    await mkdir(file, { recursive: true }); // a folder where the cache's file would be: it cannot be opened
+    await mkdir(file, { recursive: true });
     await withCountedProject(async (project) => {
       await seed(project, 2);
       const { again, close } = await reopen(project, file);

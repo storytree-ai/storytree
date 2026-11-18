@@ -1,4 +1,3 @@
-/** ADR-0650: writes use artifact kinds; opening an old project preserves its records and history. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

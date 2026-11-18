@@ -6,7 +6,6 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 
 const script = new URL('./cloud-route.sh', import.meta.url).pathname;
-// The script runs only on the Mint box; its GNU tools (stat -c, realpath -m) are Linux's.
 const linuxOnly = { skip: process.platform !== 'linux' && 'platform:linux: cloud-route.sh runs only on the Mint box' };
 const unit = name => execFileSync('bash', ['-c', `source "$1"; ${name}`, 'cloud-route-test', script], { encoding: 'utf8' });
 const settings = text => text.split('\n').filter(l => /^[A-Za-z]+=/.test(l)).map(l => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]);
@@ -16,7 +15,6 @@ test('wsproxy listens only on loopback, may reach only 127.0.0.1:5432, and runs 
   const env = Object.fromEntries(s.filter(([k]) => k === 'Environment').map(([, v]) => v.split(/=(.*)/s).slice(0, 2)));
   assert.equal(env.LISTEN_PORT, '127.0.0.1:8080');
   assert.match(env.PROMETHEUS_BIND, /^127\.0\.0\.1:\d+$/);
-  // wsproxy dials what this pattern admits; the destination comes from the request's address alone.
   assert.equal(env.USE_HOST_HEADER, 'false');
   assert.equal(env.APPEND_PORT, '');
   const allow = new RegExp(env.ALLOW_ADDR_REGEX);
@@ -35,7 +33,6 @@ test("cloudflared reads the tunnel's token from the root-only file through syste
   const text = unit('cloudflared_unit');
   const s = settings(text);
   const [name, from] = s.find(([k]) => k === 'LoadCredential')[1].split(/:(.*)/s);
-  // The file the owner's real run installs, root:root 600 (README.md, "Cloud sessions' HTTPS route").
   assert.equal(from, '/etc/storytree/cloudflared-mint-library.token');
   const exec = s.find(([k]) => k === 'ExecStart')[1].split(' ');
   assert.equal(exec[exec.indexOf('--token-file') + 1], `%d/${name}`);
@@ -53,13 +50,11 @@ test('the dry run names every change it would make and makes none', linuxOnly, (
       writeFileSync(join(dir, name), `#!/usr/bin/env bash\nprintf '%s\\n' "${name} $(printf '%s ' "$@" | tr '\\n' ' ')" >> "${calls}"\n${body}\n`);
       chmodSync(join(dir, name), 0o755);
     };
-    // Postgres listens on 5432 and pg_hba admits loopback with a password; nothing else is installed.
     stub('ss', 'case "$*" in *":5432"*) echo "LISTEN 0 200 127.0.0.1:5432 0.0.0.0:*";; esac');
     stub('psql', 'echo 125');
     stub('dpkg', '[ "$1" = --print-architecture ] && echo amd64');
     stub('dpkg-query', 'exit 1');
     for (const writer of ['curl', 'install', 'tar', 'chown', 'chmod', 'mv', 'cp', 'mktemp', 'systemctl', 'go']) stub(writer);
-    // The install's folders point into the throwaway one, so a box where the services already run reads as a fresh one.
     const units = join(dir, 'systemd');
     const wsproxyDir = join(dir, 'storytree-wsproxy');
     const r = spawnSync('bash', ['-c', 'source "$1"; UNIT_DIR=$2; WSPROXY_DIR=$3; WSPROXY_BIN=$WSPROXY_DIR/${WSPROXY_BIN##*/}; main --dry-run',

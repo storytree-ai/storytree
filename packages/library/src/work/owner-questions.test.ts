@@ -1,11 +1,4 @@
-/**
- * Capability 12 · Owner questions (ADR-0640): one test per contract 12.1-12.13 and 12.15-12.18 in the library story (12.14 is in commands.test.ts),
- * and the half of 10.3 that waits for questions, each run on BOTH backends: a WorkModel, a
- * WorkInFlight and a Knowledge over a fresh MemoryTransactions, and those of a fresh Postgres
- * project, dropped afterwards, pass or fail.
- *
- * Whether anything was written is judged one layer down: an unchanged history means nothing was.
- */
+// Capability 12 · Owner questions
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -142,8 +135,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await flight.heldOnQuestion(held.id), [question.id]);
     await assert.rejects(flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [arc.id] }), MissingReferenceError, "it is held on a question");
 
-    // 10.3's other half: an arc whose work is all closed still reads active while a question on it
-    // waits on the owner.
     await flight.closeIncrement((await flight.addIncrement({ arc: arc.id, ...WORK })).id, { pr: "#1", disposition: "landed" });
     await flight.closeIncrement(held.id, { pr: "#2", disposition: "landed" });
     assert.deepEqual(await flight.heldOnQuestion(held.id), [], "closed work waits on nobody");
@@ -155,7 +146,6 @@ for (const backend of [memory, postgres]) {
     await flight.closeIncrement(open.id, { pr: "#3", disposition: "landed" });
     assert.equal((await flight.arcView(arc.id))?.state, "closed");
 
-    // A link to a question that does not exist (written around the check) holds nothing.
     const orphan = await flight.addIncrement({ arc: arc.id, ...WORK });
     await records.edit(orphan.id, { heldOn: ["question_000000000000"] });
     assert.deepEqual(await flight.heldOnQuestion(orphan.id), []);
@@ -227,12 +217,10 @@ for (const backend of [memory, postgres]) {
     assert.equal((await flight.checkQuestion(question.id))?.state, "fresh", "fresh now, when no moment is given");
     assert.equal(await flight.checkQuestion("question_000000000000"), null, "null for no question");
 
-    // The drain's list: the open questions lapsed at that moment, longest lapsed first.
     const later = new Date(verified + 10 * DAY);
     assert.deepEqual((await flight.lapsedQuestions(later)).map(({ id }) => id).sort(), [question.id, short.id].sort());
     assert.deepEqual((await flight.lapsedQuestions(new Date(verified + 3 * DAY))).map(({ id }) => id), [short.id]);
 
-    // Renewing stamps it verified now: fresh again, with the lease it had.
     await records.edit(question.id, { verifiedAt: new Date(verified - 30 * DAY).toISOString() });
     assert.equal((await flight.checkQuestion(question.id))?.state, "lapsed");
     const renewed = await flight.renewQuestion(question.id);
@@ -385,7 +373,6 @@ for (const backend of [memory, postgres]) {
     assert.equal(last?.reason, "asked under the launch arc", "the history keeps why it moved");
     assert.equal(last?.actor, "agent-m");
 
-    // Moving the last open question off an arc whose work is done closes it, clearing the waits on it (10.33).
     const finished = await flight.createArc(ARC);
     const shipped = await flight.addIncrement({ arc: finished.id, ...WORK });
     await flight.closeIncrement(shipped.id, { pr: "#2", disposition: "landed" });
@@ -396,7 +383,6 @@ for (const backend of [memory, postgres]) {
     assert.equal((await flight.arcView(finished.id))?.state, "closed");
     assert.equal(((await records.get(waiter.id))?.fields as { waits?: unknown } | undefined)?.waits, undefined, "the wait on the arc it closed is cleared");
 
-    // A parked arc raises no questions, but a moved one parks with it (ADR-0835 D2).
     const parked = await flight.createArc(ARC);
     await flight.parkArc(parked.id);
     assert.equal((await flight.moveQuestion(question.id, parked.id, "waits with the parked work"))?.fields.arc, parked.id);
@@ -467,7 +453,6 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(flight.scoreQuestion(question.id, { prediction: "match", recommendation: "match", by: "lane" }), (error: unknown) => error instanceof RangeError && /already scored/.test(error.message), "it takes one score");
     assert.deepEqual(await transactions.history(), once, "nothing was written");
 
-    // A question with no would-be answer still takes the raiser's score alone, so the baseline keeps counting.
     const unpredicted = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "SES" });
     await flight.settleQuestion(unpredicted.id, { answer: "SES, with changes" });
     await assert.rejects(flight.scoreQuestion(unpredicted.id, { prediction: "match", recommendation: "match", by: "lane" }), RangeError, "no would-be answer, nothing to score for it");
@@ -476,7 +461,6 @@ for (const backend of [memory, postgres]) {
     assert.equal(alone?.fields.score?.prediction, undefined);
     assert.equal(await flight.scoreQuestion("question_000000000000", { recommendation: "match", by: "lane" }), null, "null for no question");
 
-    // A recommendation that declines to recommend ("None: …", with its why) is none: unscored, and left out of the deviation.
     const declined = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "None: the trial measures your reading, so a recommendation would bias it." });
     await flight.predictQuestion(declined.id, { pick: 1, confidence: "low", why: "x" });
     await flight.settleQuestion(declined.id, { answer: "Mailgun" });

@@ -121,3 +121,5 @@ tilt.
 Round 6A answers round 5's lesson: a full tiling of territories leaves no room for the links, so this round keeps the
 diagram's open space, layers and compact nodes, and keeps from the rounds before only what Mick liked: dashed outlines,
 solid roads, a gap for each gate, the flat ink wrench, the map's island, colours and names.
+
+This sketch's code carries no comments (ADR-1369); read it with the comments it was written with at commit 028c0ff7.

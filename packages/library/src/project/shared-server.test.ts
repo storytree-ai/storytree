@@ -1,11 +1,4 @@
-/**
- * Capability 28 · Shared server, contract 28.1 (ADR-0734 D3), and 28.2-28.6: two accounts on one server,
- * each a member of the role that creates project databases (the laptop's owner and the Mint box's
- * service account on one shared server), both open, write and read one project. Tables made
- * through either belong to the database's owning role, so neither needs the other's ownership to
- * open the project again. Run here with two roles on the test server, as a shared server makes them: no
- * superuser, and no right to create databases of their own.
- */
+// Capability 28 · Shared server
 import assert from "node:assert/strict";
 import { createServer, connect as openSocket, type Server } from "node:net";
 import { hostname } from "node:os";
@@ -34,7 +27,6 @@ test("28.1 two accounts sharing the creator role both open, write and read one p
       await client.query(`GRANT "${creator}" TO "${laptop}"`);
       await client.query(`GRANT "${creator}" TO "${mint}"`);
     });
-    // Each account is let in only with its own password: the server refuses the other's.
     const borrowed = new URL(as(laptop));
     borrowed.password = new URL(as(mint)).password;
     const refused = new pg.Client({ connectionString: borrowed.href });
@@ -78,8 +70,6 @@ test("28.2 a library read refused for want of a connection slot waits for one an
     opened.push(first);
     await (await first.openProject(project)).addStory({ title: "Written before the rush", description: "Read back under it." });
     await first.close();
-    // One slot on the project's database, and another client holds it for a moment: Postgres
-    // refuses a new connection there (SQLSTATE 53300) as a full server does.
     await withTestClient((client) => client.query(`ALTER DATABASE "storytree_${project}" CONNECTION LIMIT 1`));
 
     const said: string[] = [];
@@ -100,12 +90,6 @@ test("28.2 a library read refused for want of a connection slot waits for one an
   }
 });
 
-/**
- * On Windows, Postgres refusing a connection for want of a slot can reset the socket before its
- * refusal (SQLSTATE 53300) reaches pg, which then reports only `read ECONNRESET`: the Windows CI
- * runner did so in 28.2 above (run 36907270707). Here a stand-in in front of the test server resets
- * the first two connections as soon as they ask in, and passes the rest through.
- */
 test("28.2 a connection reset while it is being opened, as Windows delivers a full server's refusal, is asked for again and the read succeeds", async () => {
   const project = `${uniqueProjectName()}-reset`;
   const opened: Storytree[] = [];
@@ -154,7 +138,6 @@ test("28.3 on a shared server, each of a library's connections names the machine
     opened.push(storytree);
     await (await storytree.openProject(project)).addStory({ title: "Held open", description: "Its connection is named." });
 
-    // Only the pool's settled connections: a background worker, or a connection still starting, carries no name yet.
     const names = await withTestClient(async (client) =>
       (
         await client.query<{ name: string }>(
@@ -179,8 +162,6 @@ test("28.4 a caller that may be cut off bounds each statement, and the server en
   const own = `${uniqueProjectName()}-bounded`;
   const opened: Storytree[] = [];
   try {
-    // CREATE DATABASE can take longer than the query's 200 ms budget on Windows.
-    // Provision it before opening the connection whose cancellation this test proves.
     const fixture = await connect({ url: testServerUrl() });
     opened.push(fixture);
     await fixture.ownDatabase(own);
@@ -198,10 +179,6 @@ test("28.4 a caller that may be cut off bounds each statement, and the server en
   }
 });
 
-/**
- * A project's database held to one connection, which a test client holds while `during` runs:
- * Postgres refuses the library's own connections there (SQLSTATE 53300), as a full server does.
- */
 async function withFullDatabase<T>(during: (url: string, project: string) => Promise<T>): Promise<T> {
   const run = uniqueProjectName();
   const lane = `${run}-lane@storytree.test`;
@@ -244,12 +221,6 @@ test("28.5 a library call kept waiting for a connection slot says once what it w
   });
 });
 
-/**
- * The bound leaves room for the first refusal: a call refused within one pause of its bound gives
- * up without waiting, and so says nothing, and on Windows Postgres starts a process for each
- * connection, so a refusal there can take a few hundred milliseconds (a 300 ms bound failed so on
- * the Windows runner, run 43086384622).
- */
 test("28.5 a library call still refused a connection slot at its wait bound fails with the server's reason", async () => {
   await withFullDatabase(async (url, project) => {
     const said: string[] = [];
@@ -267,7 +238,6 @@ test("28.5 a library call still refused a connection slot at its wait bound fail
   });
 });
 
-/** Run `during` while a test client holds `project`'s write lock, released when `during` ends. */
 async function withWriteLockHeld<T>(project: string, during: () => Promise<T>): Promise<T> {
   return withTestClient(async (client) => {
     await client.query("BEGIN");
@@ -323,18 +293,15 @@ test("28.5 a write still kept waiting for another session's write at its wait bo
 test("28.6 a writer cut off holding the project's write lock holds it at most 10 s: the server ends its idle transaction, and another session's waiting write is written", async () => {
   const project = `${uniqueProjectName()}-orphan`;
   const storytree = await connect({ url: testServerUrl(), onWait: () => {} });
-  // A library connection that takes the write lock mid-write and then goes silent, as one does
-  // whose process was killed or whose network went away before it could commit.
   const cutOff = localServer(new URL(testServerUrl())).pool(`storytree_${project}`);
   let silent: pg.PoolClient | undefined;
   try {
     const library = await storytree.openProject(project);
     silent = await cutOff.connect();
-    silent.on("error", () => {}); // the server ending its session is the point
+    silent.on("error", () => {});
     await silent.query("BEGIN");
     await silent.query(WRITE_LOCK);
 
-    // Without the server's idle bound this write is refused at its 30 s wait for the lock.
     await library.addStory({ title: "Written past the cut-off writer", description: "Its lock was let go." });
     assert.deepEqual((await library.projectTree()).stories.map((story) => story.title), ["Written past the cut-off writer"]);
   } finally {

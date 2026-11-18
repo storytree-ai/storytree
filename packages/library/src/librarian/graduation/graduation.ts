@@ -1,15 +1,4 @@
-/**
- * Capability 24 · Graduation (The library story, its librarian package): a durable lesson moves out of the agent's
- * private memory into a principle, process or definition, and then the memory is deleted. Whether a
- * memory is durable is the agent's judgement (0.2's ADR-0095 D8); this is the worklist it judges
- * from, the park that keeps a reviewed memory quiet for 60 days (0.2's ADR-0202), the write that
- * deletes only after the library has the lesson (capture, then delete: ADR-0095 D6), and the check
- * that every process matches a tool served and every tool a process.
- *
- * A memory folder is laid out as Claude Code keeps one: one Markdown file per memory, and an index,
- * `MEMORY.md`, with a line per memory. The park ledger sits beside the folder, as 0.2's did
- * (`graduation-park.json`): machine-local, never in the library.
- */
+// Capability 24 · Graduation
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -18,24 +7,19 @@ import type { Library, Note, WriteOptions } from "../../index.js";
 
 import { allNotes, LibrarianRefusal } from "../notes.js";
 
-/** The kinds a lesson graduates into. */
 export type GraduationKind = "principle" | "process" | "definition";
 
-/** A memory on the worklist: why it is there, and what it says. */
 export interface MemoryItem {
   readonly file: string;
-  /** New: never reviewed. Changed: edited since it was parked. Lapsed: parked more than 60 days ago, so "is this still alive?". */
   readonly why: "new" | "changed" | "lapsed";
   readonly text: string;
 }
 
-/** Processes that name none of the tools served, and tools served that no process names. */
 export interface ProcessGaps {
   readonly processes: Note[];
   readonly tools: string[];
 }
 
-/** How long a park keeps a reviewed memory off the worklist. */
 export const PARK_DAYS = 60;
 const DAY = 24 * 60 * 60 * 1000;
 const INDEX = "MEMORY.md";
@@ -47,16 +31,10 @@ interface Park {
   readonly hash: string;
 }
 
-/** Claude Code's memory folder for the project at `projectPath`: `<home>/.claude/projects/<slug>/memory`. */
 export function claudeCodeMemoryFolder(projectPath: string, home: string): string {
   return path.join(home, ".claude", "projects", path.resolve(projectPath).replace(/[^A-Za-z0-9]/g, "-"), "memory");
 }
 
-/**
- * The worklist's graduation: each memory in `folders` that is new, changed since it was parked, or
- * parked more than 60 days before `now`, by file within each folder. A folder that does not exist
- * has none.
- */
 export async function memoryWorklist(folders: readonly string[], { now = new Date() }: { now?: Date } = {}): Promise<MemoryItem[]> {
   const items: MemoryItem[] = [];
   for (const folder of folders) {
@@ -74,7 +52,6 @@ export async function memoryWorklist(folders: readonly string[], { now = new Dat
   return items;
 }
 
-/** Park the memory `file`, reviewed and kept: its reason, the date, and a fingerprint of what it said, so an edit brings it back. */
 export async function park(file: string, reason: string, { now = new Date() }: { now?: Date } = {}): Promise<void> {
   if (reason.trim() === "") throw new LibrarianRefusal("a memory is parked with its reason");
   const folder = path.dirname(file);
@@ -83,11 +60,6 @@ export async function park(file: string, reason: string, { now = new Date() }: {
   writeLedger(folder, ledger);
 }
 
-/**
- * Graduate the memory `file` into the library as a principle, process or definition with `fields`,
- * then delete it, with its index line and any park. A write the library refuses leaves the memory
- * as it was; any other kind is refused.
- */
 export async function graduate(library: Library, file: string, kind: string, fields: Record<string, unknown>, writer?: WriteOptions): Promise<Note> {
   if (kind !== "principle" && kind !== "process" && kind !== "definition") {
     throw new LibrarianRefusal(`a lesson graduates into a principle, process or definition, not a ${kind}`);
@@ -99,7 +71,6 @@ export async function graduate(library: Library, file: string, kind: string, fie
   return note;
 }
 
-/** Each process whose `surfaces` names none of `tools`, and each tool of `tools` no process's `surfaces` names. */
 export async function processGaps(library: Library, tools: readonly string[], read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<ProcessGaps> {
   const processes = (await read).filter((note): note is Extract<Note, { type: "process" }> => note.type === "process");
   const names = (note: Extract<Note, { type: "process" }>, tool: string): boolean => new RegExp(`\\b${tool.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(note.fields.surfaces);
@@ -109,7 +80,6 @@ export async function processGaps(library: Library, tools: readonly string[], re
   };
 }
 
-/** Delete a graduated memory, its line in the folder's index, and its park. */
 function forget(file: string): void {
   const folder = path.dirname(file);
   const name = path.basename(file);

@@ -1,17 +1,4 @@
-/**
- * Capability 3 · Data schema: one test per contract 3.1-3.6 in the library story, plus one
- * robustness check, each run on BOTH backends. SchemaRecords is a layer over any Transactions,
- * so it must behave the same over each:
- *
- * - memory: SchemaRecords over a fresh MemoryTransactions;
- * - postgres: the `records` of a fresh project, opened through capability 1 on the server
- *   `pnpm test` provides and named with uniqueProjectName(). Its database is dropped afterwards,
- *   pass or fail. Other test files share that server, so a test only ever reads its own project.
- *
- * Whether anything was written is judged one layer down, through the same project's
- * Transactions: every change appends a history entry (capability 2), so an unchanged history and
- * unchanged records mean nothing was written.
- */
+// Capability 3 · Data schema
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { isDeepStrictEqual } from "node:util";
@@ -38,7 +25,6 @@ import {
   type RecordType,
 } from "./index.js";
 
-/** A fresh, empty library: the typed layer under test, and the transactions it runs over. */
 interface Library {
   readonly records: SchemaRecords;
   readonly transactions: Transactions;
@@ -71,7 +57,6 @@ const postgres: Backend = {
       }
     };
     try {
-      // The project handle's own records and transactions: the layer as later stories reach it.
       const project = await storytree.openProject(name);
       return { records: project.records, transactions: project.transactions, cleanup };
     } catch (error) {
@@ -81,17 +66,8 @@ const postgres: Backend = {
   },
 };
 
-/**
- * The eight types capability 3 was built with, which the tables below restate. The types added
- * later have their own capability's tests (6.6 for the eight knowledge kinds of ADR-0640), so these
- * tables do not grow with every new type.
- */
 type TableType = "arc" | "story" | "capability" | "contract" | "health" | "decision" | "definition";
 
-/**
- * One record of every type holding only its required fields: the brief's table of fields,
- * restated here rather than taken from the code. Its keys ARE each type's required fields.
- */
 const MINIMAL: { readonly [T in TableType]: FieldsOf<T> } = {
   arc: { title: "Launch v1", intent: "Ship sign-up", endState: "Visitors can sign up" },
   story: { title: "Visitor can sign up" },
@@ -102,7 +78,6 @@ const MINIMAL: { readonly [T in TableType]: FieldsOf<T> } = {
   definition: { term: "arc", meaning: "An initiative that grows stories" },
 };
 
-/** The same records with every optional field filled in as well. */
 const FULL: { readonly [T in TableType]: FieldsOf<T> } = {
   arc: { title: "Launch v1", description: "The first public release", stories: ["story-1", "story-2"], intent: "Ship sign-up", endState: "Visitors can sign up", parked: true },
   story: { title: "Visitor can sign up", description: "By email, with a confirmation link" },
@@ -119,11 +94,6 @@ const FULL: { readonly [T in TableType]: FieldsOf<T> } = {
   definition: { term: "arc", meaning: "An initiative that grows stories", links: [] },
 };
 
-/**
- * The emptiest record of every type the brief allows: only a title, text, term or meaning must be
- * non-empty, so every other string may be "" and every list may be empty or hold "". (Whether an
- * id names a record that exists is for later capabilities, not for this layer.)
- */
 const EMPTIEST: { readonly [T in TableType]: FieldsOf<T> } = {
   arc: { title: "A", description: "", stories: [], intent: "I", endState: "E" },
   story: { title: "S", description: "" },
@@ -137,7 +107,6 @@ const EMPTIEST: { readonly [T in TableType]: FieldsOf<T> } = {
 const TYPES = Object.keys(MINIMAL) as TableType[];
 
 for (const backend of [memory, postgres]) {
-  /** Register one test for this backend, run against a fresh library disposed of afterwards, pass or fail. */
   const contract = (number: string, title: string, body: (library: Library) => Promise<void>): void => {
     test(`${number} [${backend.label}] ${title}`, async () => {
       const library = await backend.open();
@@ -151,7 +120,6 @@ for (const backend of [memory, postgres]) {
 
   contract("3.1", "saving a story with no title is refused, the error names title, and nothing is written", async ({ records, transactions }) => {
     const untitled = { description: "By email, with a confirmation link" };
-    // No title at all, a title set to undefined (which no stored record can hold), and no id given.
     const attempts = [
       () => records.create("story", untyped(untitled), { id: "story-1" }),
       () => records.create("story", untyped({ title: undefined, ...untitled }), { id: "story-1" }),
@@ -164,7 +132,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.list("story"), [], "not under a generated id either");
     assert.deepEqual(await transactions.history(), [], "no history entry was written");
 
-    // The same holds for every required field of every type...
     for (const type of TYPES) {
       for (const field of Object.keys(MINIMAL[type])) {
         const { [field]: _missing, ...rest } = MINIMAL[type] as Record<string, unknown>;
@@ -174,8 +141,6 @@ for (const backend of [memory, postgres]) {
         );
       }
     }
-    // ...and for any field filled in badly: an empty title, a text or meaning, a value of the wrong
-    // kind, a list item that is not an id, a state or column outside its fixed set.
     const badlyFilled: [RecordType, Record<string, unknown>, string][] = [
       ["story", { title: "" }, "title"],
       ["story", { title: 42 }, "title"],
@@ -199,34 +164,28 @@ for (const backend of [memory, postgres]) {
     for (const [type, fields, field] of badlyFilled) {
       await assert.rejects(records.create(type, untyped(fields)), schemaError(type, [field]));
     }
-    // A list field given as text is marked so; a list holding a non-id is not.
     await assert.rejects(records.create("arc", untyped({ ...MINIMAL.arc, stories: "story-1" })), (error) => error instanceof SchemaError && isDeepStrictEqual(error.lists, ["stories"]));
     await assert.rejects(records.create("arc", untyped({ ...MINIMAL.arc, stories: ["story-1", 2] })), (error) => error instanceof SchemaError && isDeepStrictEqual(error.lists, []));
     assert.deepEqual(await transactions.history(), [], "none of them wrote anything");
 
-    // Control: the same story with a title is saved.
     const saved = await records.create("story", { title: "Visitor can sign up", ...untitled }, { id: "story-1" });
     assert.deepEqual(saved.fields, { title: "Visitor can sign up", description: "By email, with a confirmation link" });
     assert.deepEqual(await transactions.get("story-1"), saved);
   });
 
   contract("3.2", "an unknown field (for example titel) is refused and named", async ({ records, transactions }) => {
-    // A misspelt field beside a good title: refused, and named alone.
     await assert.rejects(
       records.create("story", untyped({ title: "Visitor can sign up", titel: "Visitor can sign up" }), { id: "story-1" }),
       schemaError("story", ["titel"], 'story: unknown field "titel"'),
     );
-    // The misspelling INSTEAD of the title: both of its problems are named.
     await assert.rejects(
       records.create("story", untyped({ titel: "Visitor can sign up" })),
       schemaError("story", ["title", "titel"]),
     );
-    // Every unknown field is named, not only the first.
     await assert.rejects(
       records.create("story", untyped({ ...MINIMAL.story, titel: "?", status: "open", Title: "?" })),
       schemaError("story", ["titel", "status", "Title"]),
     );
-    // Another type's field is unknown here, and every type refuses a field it does not declare.
     await assert.rejects(records.create("story", untyped({ ...MINIMAL.story, story: "story-0" })), schemaError("story", ["story"]));
     for (const type of TYPES) {
       await assert.rejects(
@@ -234,7 +193,6 @@ for (const backend of [memory, postgres]) {
         schemaError(type, ["extra"], `${type}: unknown field "extra"`),
       );
     }
-    // Names that every object inherits are unknown fields like any other.
     for (const field of ["__proto__", "constructor", "toString", "hasOwnProperty"]) {
       const fields: Record<string, unknown> = { ...MINIMAL.story };
       Object.defineProperty(fields, field, { value: "?", enumerable: true, configurable: true, writable: true });
@@ -242,7 +200,6 @@ for (const backend of [memory, postgres]) {
     }
     assert.deepEqual(await transactions.history(), [], "none of them wrote anything");
 
-    // An edit that brings in an unknown field is refused and named the same way, and writes nothing.
     const story = await records.create("story", MINIMAL.story, { id: "story-1" });
     const before = await transactions.history();
     await assert.rejects(
@@ -254,7 +211,6 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("3.3", "an unknown type is refused", async ({ records, transactions }) => {
-    // Near misses of the declared types, names every object inherits, and no name at all.
     const unknownTypes = [
       "widget",
       "note",
@@ -274,14 +230,11 @@ for (const backend of [memory, postgres]) {
         records.create(untyped(type), untyped({ title: "Visitor can sign up" }), { id: "record-1" }),
         unknownType(type),
       );
-      // Listing one is refused too, rather than answered with an empty list.
       await assert.rejects(records.list(untyped(type)), unknownType(type));
     }
     assert.equal(await transactions.get("record-1"), null, "no record was saved");
     assert.deepEqual(await transactions.history(), [], "no history entry was written");
 
-    // A record stored under a type this code does not know (as a later storytree might store one)
-    // is refused when read, not handed out as if it were typed; an edit of it writes nothing.
     const widget = await transactions.save({ id: "widget-1", type: "widget", fields: { title: "From elsewhere" } });
     await assert.rejects(records.get("widget-1"), unknownType("widget", "widget-1"));
     const before = await transactions.history();
@@ -289,17 +242,12 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.get("widget-1"), widget, "the record is unchanged");
     assert.deepEqual(await transactions.history(), before, "no history entry was written");
 
-    // Control: every declared type is known. Its list is empty, not refused.
     for (const type of TYPES) assert.deepEqual(await records.list(type), [], `list("${type}")`);
   });
 
   contract("3.4", "every stored record carries its schema version (1 today)", async ({ records, transactions }) => {
-    // Every declared type has a version, a whole number from 1. (It pinned every type at 1 until
-    // ADR-0640 added types and raised two of them; a record is now checked against its type's.)
     for (const type of TYPES) assert.ok(Number.isSafeInteger(SCHEMA_VERSIONS[type]) && SCHEMA_VERSIONS[type] >= 1, type);
 
-    // A record of every type, with only its required fields, with every field, and as empty as the
-    // brief allows, none given an id.
     const created: RecordEnvelope[] = [];
     for (const type of TYPES) {
       for (const fields of [MINIMAL[type], FULL[type], EMPTIEST[type]]) {
@@ -310,26 +258,22 @@ for (const backend of [memory, postgres]) {
           `a new ${type}, stamped with its type's version`,
         );
         assert.match(record.id, new RegExp(`^${type}_[0-9a-f]{12}$`), "a generated id: the type, _, and 12 lowercase hex digits");
-        // Stored with its version (seen one layer down), and read back through the typed layer as stored.
         assert.deepEqual(await transactions.get(record.id), record);
         assert.deepEqual(await records.get(record.id), record);
         created.push(record);
       }
     }
     assert.equal(new Set(created.map((record) => record.id)).size, created.length, "every generated id is different");
-    // Every history entry holds the record as stored, version and all, and who wrote it.
     assert.deepEqual(
       (await transactions.history()).map(({ action, record, actor }) => ({ action, record, actor })),
       created.map((record) => ({ action: "created", record, actor: "agent-a" })),
     );
-    // list hands out the stored records unchanged, each at version 1.
     for (const type of TYPES) {
       const listed = await records.list(type);
       assert.deepEqual(listed, await transactions.list(type), `list("${type}") is the stored ${type} records`);
       assert.deepEqual(listed.map((record) => record.version), [1, 1, 1].fill(SCHEMA_VERSIONS[type]));
     }
 
-    // A given id is used as given, an edit keeps the stamp, and retire and history pass straight through.
     const story = await records.create("story", MINIMAL.story, { id: "story-given" });
     assert.equal(story.id, "story-given");
     const edited = await records.edit("story-given", { description: "By email" }, { actor: "agent-b" });
@@ -360,9 +304,6 @@ for (const backend of [memory, postgres]) {
 
   contract("3.5", "reading a record stamped with a version newer than this code knows is refused, saying so, never guessed at", async ({ records, transactions }) => {
     const today = await records.create("story", MINIMAL.story, { id: "story-today" });
-    // Written straight through the transactions layer, as a newer storytree would write them: a
-    // story on version 2 with a field version 1 never had, and a memory on version 7 whose fields
-    // happen to fit version 1 exactly. Neither one is guessed at.
     const future = await transactions.save({
       id: "story-future",
       type: "story",
@@ -378,13 +319,10 @@ for (const backend of [memory, postgres]) {
 
     await assert.rejects(records.get("story-future"), newerVersion("story-future", "story", 2));
     await assert.rejects(records.get("definition-future"), newerVersion("definition-future", "definition", 7));
-    // A list holding one is refused whole: never handed out with that record missing or misread.
     await assert.rejects(records.list("story"), newerVersion("story-future", "story", 2));
     await assert.rejects(records.list("definition"), newerVersion("definition-future", "definition", 7));
     await assert.rejects(records.select("story", ["title"]), newerVersion("story-future", "story", 2));
 
-    // Editing one would check it by rules older than the ones it was written on, so an edit is
-    // refused the same way, and writes nothing.
     const before = await transactions.history();
     await assert.rejects(records.edit("definition-future", { meaning: "Rewritten" }), newerVersion("definition-future", "definition", 7));
     await assert.rejects(records.edit("story-future", { title: "Rewritten" }), newerVersion("story-future", "story", 2));
@@ -392,10 +330,8 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.get("story-future"), future, "the record is unchanged");
     assert.deepEqual(await transactions.history(), before, "no history entry was written");
 
-    // Control: a version-1 record beside them still reads, and so does a list without one.
     assert.deepEqual(await records.get("story-today"), today);
     assert.deepEqual(await records.list("arc"), []);
-    // retire passes straight through, so a newer record can be retired, and the list reads again.
     await records.retire("story-future", "written by a newer storytree");
     assert.deepEqual(await records.list("story"), [today]);
   });
@@ -407,8 +343,8 @@ for (const backend of [memory, postgres]) {
     const before = await transactions.history();
 
     const refused: [id: string, type: RecordType, edit: Record<string, unknown>, fields: string[], message?: string][] = [
-      ["story-1", "story", { title: "" }, ["title"]], // blanking a required field
-      ["story-1", "story", { title: undefined }, ["title"], 'story: missing required field "title"'], // removing it
+      ["story-1", "story", { title: "" }, ["title"]],
+      ["story-1", "story", { title: undefined }, ["title"], 'story: missing required field "title"'],
       ["story-1", "story", { title: 42 }, ["title"]],
       ["story-1", "story", { description: null }, ["description"]],
       ["story-1", "story", { title: "", description: 7 }, ["title", "description"]],
@@ -425,14 +361,11 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.get("health-1"), health, "no record change");
     assert.deepEqual(await transactions.history(), before, "no history entry was written");
 
-    // It is the merged record that is checked: an edit naming no title passes, because the stored
-    // title stays, and an optional field may be removed.
     const edited = await records.edit("story-1", { description: "By email or phone" });
     assert.deepEqual(edited?.fields, { title: "Visitor can sign up", description: "By email or phone" });
     const trimmed = await records.edit("story-1", { description: undefined });
     assert.deepEqual(trimmed?.fields, { title: "Visitor can sign up" });
     assert.deepEqual(await transactions.get("story-1"), trimmed);
-    // An edit of a record that is not there returns null and writes nothing, as in capability 2.
     const history = await transactions.history();
     assert.equal(await records.edit("story-missing", { title: "Visitor can sign up" }), null);
     assert.equal(await transactions.get("story-missing"), null);
@@ -440,13 +373,11 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("robustness", "a NUL character or a lone UTF-16 surrogate in any field is refused and named, so both backends agree", async ({ records, transactions }) => {
-    // Postgres cannot store these anywhere in a text value, and the in-memory twin could, so the
-    // two backends would disagree. This layer refuses them before either backend sees them.
     const unstorable: [text: string, what: RegExp][] = [
       ["Visitor\u0000can sign up", /NUL/],
-      ["Visitor can sign up \uD83C", /surrogate/], // a high surrogate with no low one after it
-      ["\uDF32 Visitor can sign up", /surrogate/], // a low surrogate with no high one before it
-      ["Visitor \uDF32\uD83C can sign up", /surrogate/], // a pair the wrong way round
+      ["Visitor can sign up \uD83C", /surrogate/],
+      ["\uDF32 Visitor can sign up", /surrogate/],
+      ["Visitor \uDF32\uD83C can sign up", /surrogate/],
     ];
     const story = await records.create("story", MINIMAL.story, { id: "story-1" });
     const before = await transactions.history();
@@ -470,9 +401,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.get("story-1"), story, "no record change");
     assert.deepEqual(await transactions.history(), before, "no history entry was written");
 
-    // Control: text that can be stored comes back exactly, on both backends: an astral character
-    // (a surrogate PAIR), the characters either side of the surrogate range, U+0001 beside NUL,
-    // the last code point, and whitespace.
     const title = "\u{1F332} grows ퟿ \u0001 \u{10FFFF} ü";
     const saved = await records.create("story", { title, description: "\t\n" }, { id: "story-2" });
     assert.equal(saved.fields.title, title);
@@ -485,7 +413,6 @@ for (const backend of [memory, postgres]) {
     const pay = await records.create("story", { title: "Visitor can pay", description: "By card" }, { id: "story-2" });
     const before = await transactions.history();
 
-    // Tomorrow's code, where a story's title is renamed and its summary is required.
     const later = new SchemaRecords(transactions, STORY_V2);
     assert.deepEqual(await later.get("story-1"), { ...signUp, version: 2, fields: { name: "Visitor can sign up", summary: "" } });
     assert.deepEqual(await later.list("story"), [
@@ -493,17 +420,13 @@ for (const backend of [memory, postgres]) {
       { ...pay, version: 2, fields: { name: "Visitor can pay", summary: "By card" } },
     ]);
 
-    // Two versions on, the steps run in order, whatever order they are listed in.
     const muchLater = new SchemaRecords(transactions, STORY_V3);
     assert.deepEqual((await muchLater.get("story-2"))?.fields, { name: "Visitor can pay", about: "By card" });
 
-    // Projection cannot deprive an upgrade of fields used to derive its answer. This schema
-    // exists only in the test, so its renamed field is deliberately outside today's static type.
     assert.deepEqual(await later.select("story", ["summary"] as never), [
       { ...signUp, version: 2, fields: { summary: "" } },
       { ...pay, version: 2, fields: { summary: "By card" } },
     ]);
-    // A step that does not name what it reads keeps the older record whole, so it still upgrades right.
     const unnamed = new SchemaRecords(transactions, { ...STORY_V2, upgrades: STORY_V2.upgrades.map(({ reads: _reads, ...step }) => step) });
     assert.deepEqual(await unnamed.select("story", ["summary"] as never), [
       { ...signUp, version: 2, fields: { summary: "" } },
@@ -511,7 +434,6 @@ for (const backend of [memory, postgres]) {
     ]);
     assert.deepEqual(await records.select("story", ["title"], { ids: [pay.id] }), [{ ...pay, fields: { title: "Visitor can pay" } }]);
 
-    // Reading changes nothing stored.
     assert.deepEqual(await transactions.get("story-1"), signUp);
     assert.deepEqual(await transactions.history(), before, "no history entry was written");
   });
@@ -529,7 +451,6 @@ for (const backend of [memory, postgres]) {
     const last = (await transactions.history({ id: "story-1" })).at(-1);
     assert.deepEqual({ action: last?.action, record: last?.record }, { action: "updated", record: stored });
 
-    // The upgrade is part of the write: an edit whose upgraded result does not fit is refused whole.
     const other = await records.create("story", { title: "Visitor can pay" }, { id: "story-2" });
     const before = await transactions.history();
     await assert.rejects(later.edit("story-2", untyped({ summary: undefined })), schemaError("story", ["summary"]));
@@ -647,7 +568,6 @@ for (const backend of [memory, postgres]) {
     for (const [fields, field] of refused) {
       await assert.rejects(records.create("process", untyped({ ...process, ...fields })), schemaError("process", [field]), JSON.stringify(fields));
     }
-    // An edit is judged the same way, on the merged record: a schedule may be added, and removing it while a time zone stays is refused.
     await assert.rejects(records.edit("process-0", { schedule: "now and then" }), schemaError("process", ["schedule"]));
     await assert.rejects(records.edit("process-zoned", { schedule: undefined }), schemaError("process", ["timeZone"]));
     assert.deepEqual(await transactions.history(), before, "nothing refused was written");
@@ -723,16 +643,13 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await voice.list(plugin("voice.note")), [note]);
     const heard = await voice.edit(note.id, untyped({ heard: true }));
     assert.deepEqual(heard?.fields, { text: "Call the bank", heard: true });
-    // The core kinds are read as before beside it.
     const story = await voice.create("story", MINIMAL.story, { id: "story-1" });
     assert.deepEqual(await voice.get("story-1"), story);
 
-    // The plugin's next version renames text to words and adds a channel, by steps declared as data.
     const later = new SchemaRecords(transactions, pluginSchema([VOICE_NOTE_V2]));
     assert.deepEqual((await later.get(note.id))?.fields, { words: "Call the bank", heard: true, channel: "voice" });
     assert.equal((await transactions.get(note.id))?.version, 1, "reading changes nothing stored");
 
-    // A declaration not under a plugin's prefix, or taking a core kind's or another declaration's name, is refused.
     assert.throws(() => pluginSchema([{ ...VOICE_NOTE, kind: "note" }]), /"note" is not named <plugin>\.<kind>/);
     assert.throws(() => pluginSchema([VOICE_NOTE, VOICE_NOTE]), /"voice\.note" is declared twice/);
     assert.throws(() => pluginSchema([{ ...VOICE_NOTE, fields: { type: "string" } }]), /"voice\.note"'s fields must be a JSON Schema of type "object"/);
@@ -762,7 +679,6 @@ for (const backend of [memory, postgres]) {
     const voice = new SchemaRecords(transactions, pluginSchema([VOICE_NOTE]));
     const note = await voice.create(plugin("voice.note"), untyped({ text: "Call the bank" }), { id: "voice.note_1" });
 
-    // The plugin switched off: the library is opened with no voice kinds.
     assert.deepEqual(await records.get(note.id), { ...note, dormant: true });
     assert.deepEqual(await records.list(plugin("voice.note")), []);
     assert.deepEqual(await records.select(plugin("voice.note"), untyped(["text"])), []);
@@ -771,7 +687,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.get(note.id), note, "kept intact");
     assert.deepEqual(await transactions.history(), before, "nothing refused was written");
 
-    // Switched back on.
     const again = new SchemaRecords(transactions, pluginSchema([VOICE_NOTE]));
     assert.deepEqual(await again.get(note.id), note);
     assert.deepEqual(await again.list(plugin("voice.note")), [note]);
@@ -804,7 +719,6 @@ for (const backend of [memory, postgres]) {
 
 test("3.20 · a projected read of records stored on an older version of their type comes back as the same fields of them upgraded, and takes no more bytes than of the same records stored on the current one", async () => {
   await withCountedProject(async ({ records, transactions }, received) => {
-    // The same increments, as each version of the type stores them, with a body no selection asks for.
     const body = "b".repeat(4000);
     const stored = { 1: { status: "ready", touches: ["capability_a", "story_b"] }, 2: { status: "active", touches: ["capability_a", "story_b"] }, 3: { status: "active", capabilities: ["capability_a"], links: ["story_b"] } };
     for (const [version, fields] of Object.entries(stored)) {
@@ -835,7 +749,6 @@ function pick(fields: Record<string, unknown>, names: readonly string[]): Record
   return Object.fromEntries(names.filter((name) => Object.hasOwn(fields, name)).map((name) => [name, fields[name]]));
 }
 
-/** Tomorrow's schema: a story's `title` is renamed `name`, and its optional `description` becomes a required `summary`. */
 const STORY_V2: LibrarySchema = {
   versions: { ...SCHEMA_VERSIONS, story: 2 },
   schemas: { ...RECORD_SCHEMAS, story: z.object({ name: z.string().min(1), summary: z.string() }).strict() },
@@ -850,7 +763,6 @@ const STORY_V2: LibrarySchema = {
   ],
 };
 
-/** The day after: `summary` is renamed `about`. Its steps are listed newest first. */
 const STORY_V3: LibrarySchema = {
   versions: { ...SCHEMA_VERSIONS, story: 3 },
   schemas: { ...RECORD_SCHEMAS, story: z.object({ name: z.string().min(1), about: z.string() }).strict() },
@@ -860,7 +772,6 @@ const STORY_V3: LibrarySchema = {
   ],
 };
 
-/** voice.note as its plugin's manifest declares it: data only, no zod and no storytree types (ADR-1112). */
 const VOICE_NOTE: PluginRecordKind = {
   kind: "voice.note",
   version: 1,
@@ -868,7 +779,6 @@ const VOICE_NOTE: PluginRecordKind = {
   fields: { type: "object", properties: { text: { type: "string", minLength: 1 }, heard: { type: "boolean" } }, required: ["text"], additionalProperties: false },
 };
 
-/** Its next version: `text` is renamed `words`, and a required `channel` is added, every older note's being "voice". */
 const VOICE_NOTE_V2: PluginRecordKind = {
   ...VOICE_NOTE,
   version: 2,
@@ -881,21 +791,14 @@ const VOICE_NOTE_V2: PluginRecordKind = {
   upgrades: [{ from: 1, name: "text-becomes-words", rename: { text: "words" }, set: { channel: "voice" } }],
 };
 
-/** A plugin's kind, which the compiler knows only as a core kind's name: as a plugin, through its host, would send it. */
 function plugin(kind: string): RecordType {
   return kind as RecordType;
 }
 
-/** A value the compiler would refuse, sent the way a JavaScript caller or an agent could send it. */
 function untyped(value: unknown): never {
   return value as never;
 }
 
-/**
- * An assert.rejects check: a SchemaError for `type` whose fields at fault are exactly `fields`
- * (in any order), with a message that starts with the type and names each of them. `message`,
- * when given, is the whole message expected.
- */
 function schemaError(type: string, fields: readonly string[], message?: string): (error: unknown) => true {
   return (error) => {
     assert.ok(error instanceof SchemaError, `expected a SchemaError, got: ${String(error)}`);
@@ -910,7 +813,6 @@ function schemaError(type: string, fields: readonly string[], message?: string):
   };
 }
 
-/** An assert.rejects check: an UnknownTypeError naming `type` and, when it was read from one, the record `id`. */
 function unknownType(type: string, id?: string): (error: unknown) => true {
   return (error) => {
     assert.ok(error instanceof UnknownTypeError, `expected an UnknownTypeError, got: ${String(error)}`);
@@ -924,11 +826,6 @@ function unknownType(type: string, id?: string): (error: unknown) => true {
   };
 }
 
-/**
- * An assert.rejects check: a NewerSchemaError for record `id` of `type` on `version`, where this
- * code knows version 1, whose message says the version is newer and names the record, the type
- * and both versions.
- */
 function newerVersion(id: string, type: RecordType, version: number): (error: unknown) => true {
   return (error) => {
     assert.ok(error instanceof NewerSchemaError, `expected a NewerSchemaError, got: ${String(error)}`);
@@ -948,7 +845,6 @@ function newerVersion(id: string, type: RecordType, version: number): (error: un
   };
 }
 
-/** An assert.rejects check: a MissingUpgradeError for record `id` of `type`, naming the version no step leads on from. */
 function missingUpgrade(id: string, type: RecordType, from: number, knownVersion: number): (error: unknown) => true {
   return (error) => {
     assert.ok(error instanceof MissingUpgradeError, `expected a MissingUpgradeError, got: ${String(error)}`);

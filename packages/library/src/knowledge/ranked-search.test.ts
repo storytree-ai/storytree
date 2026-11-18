@@ -1,8 +1,4 @@
-/**
- * Capability 14 · Ranked search (ADR-0732): `rank` orders the live artifacts by meaning, on BOTH
- * backends. The embedder is a fake that maps words to a few meanings, so "email" and "mailer" land
- * together as a real model would place them; no test loads or downloads the real model.
- */
+// Capability 14 · Ranked search
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -12,15 +8,9 @@ import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/
 import { MemoryTransactions } from "../transactions/index.js";
 import { Knowledge, MemoryVectors, type Embedder, type EmbedderSource } from "./index.js";
 
-/** Words that share a meaning; any other word is its own meaning. */
 const MEANINGS: Record<string, string> = { email: "mail", mailer: "mail", mail: "mail", sender: "mail", ship: "ship", deploy: "ship", deploys: "ship", release: "ship" };
 const WIDTH = 4096;
 
-/**
- * Each meaning's axis, handed out the first time it is met and kept for every embedder this file
- * makes, so a new process reads vectors the old one kept. Never by hash: an artifact's random id
- * is embedded too, and a hash let its letters land on a question's axis (`fbdd` on `ship`).
- */
 const AXES = new Map<string, number>();
 
 function axisOf(meaning: string): number {
@@ -33,7 +23,6 @@ function axisOf(meaning: string): number {
   return axis;
 }
 
-/** A fake embedder: each meaning is one axis of its own, record ids aside; it counts the texts it is asked to embed. */
 function fakeEmbedder(): Embedder & { embedded: string[] } {
   const embedded: string[] = [];
   return {
@@ -43,7 +32,6 @@ function fakeEmbedder(): Embedder & { embedded: string[] } {
       embedded.push(...texts);
       return texts.map((text) => {
         const vector = new Float32Array(WIDTH);
-        // A record's random id is left out: its letters (`ffe`, `ded`) would weigh on its length by chance.
         for (const word of text.toLowerCase().replace(/\b[a-z]+_[0-9a-f]{12}\b/g, " ").match(/[a-z]+/g) ?? []) {
           vector[axisOf(MEANINGS[word] ?? word)]! += 1;
         }
@@ -54,11 +42,6 @@ function fakeEmbedder(): Embedder & { embedded: string[] } {
   };
 }
 
-/**
- * The fake embedder reading only the first 512 tokens of each text, as the model does (transformers.js
- * drops the rest without warning). A token here is a word or a punctuation mark, with [CLS] and [SEP]
- * taking two: fewer than the real tokenizer counts, never more.
- */
 function reads512Tokens(embedder: ReturnType<typeof fakeEmbedder>): Embedder {
   return {
     model: embedder.model,
@@ -68,9 +51,7 @@ function reads512Tokens(embedder: ReturnType<typeof fakeEmbedder>): Embedder {
 
 interface Opened {
   readonly knowledge: Knowledge;
-  /** The records under it, to write the plan's stories, capabilities and contracts. */
   readonly records: SchemaRecords;
-  /** A second library over the same store, as a new process would open it. */
   reopen(embedder: EmbedderSource): Promise<Knowledge>;
   cleanup(): Promise<void>;
 }
@@ -150,7 +131,6 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("14.2", "an artifact scores by its best chunk, and at most `limit` come back", async (_, { knowledge }) => {
-    // Each filler is one paragraph too long to share a chunk, so the release line is a chunk of its own.
     const filler = "The forest and its islands and their trees. ".repeat(36);
     const long = await knowledge.defineTerm({ term: "Handbook", meaning: `${filler}\n\nRelease: we ship on Fridays, and we ship again on Mondays.\n\n${filler}` });
     await knowledge.defineTerm({ term: "Pricing", meaning: "Plans cost ten a month." });
@@ -301,7 +281,6 @@ for (const backend of [memory, postgres]) {
   contract("14.12", "a long note's late paragraph is embedded, so a search finds the note by what that paragraph says", async (embedder, { reopen }) => {
     const knowledge = await reopen(async () => reads512Tokens(embedder));
     await knowledge.defineTerm({ term: "Pricing", meaning: "Plans cost ten a month." });
-    // About 2,900 characters and 590 tokens in all: one chunk of 3,000 would hold the release line past what the model reads.
     const sentence = "The forest and its islands and their trees. ";
     const long = await knowledge.defineTerm({ term: "Handbook", meaning: `${sentence.repeat(35)}\n\n${sentence.repeat(30)}\n\nRelease: we ship on Fridays.` });
 

@@ -1,19 +1,4 @@
-/**
- * Capability 14 · Reading the doors' use. The weekly doors check, the last step of the learner in the friction drain
- * (ADR-1090 D2): no timer. When the latest `door-checked` line is a week old or older, or there is none, the drain reads the
- * trailing week and files what stands out as friction, at most three items, so the next drains route it as friction is
- * routed. It writes a `door-checked` line even when nothing stood out: silence writes nothing else, and this is when it is
- * looked at.
- *
- * - A guessed word refused at least 5 times in the week where no command answers it (BARS.wantRefusals over 28 days is
- *   fewer a week), filed under the learner's want title, so a word the learner filed, or pointed, is never filed again.
- * - A hint offered at least 20 times in the week whose next call took it under 5% of the time (ADR-1090 D1's dead hints
- *   were 0 to 2%).
- * - A group of agent-only verbs with no call in the 28 days, once the lines cover them, skipped when its cut question is
- *   open or already names every verb in it.
- *
- * An item already filed under its title is not filed again unless it was resolved, which it reinforces: it came back.
- */
+// Capability 14 · Reading the doors' use
 import type { SchemaRecord } from "@storytree/library";
 import { CaptureError, recordFriction, reinforceFriction } from "@storytree/session-management/friction";
 
@@ -22,25 +7,18 @@ import type { LearnerWorld } from "./learner.js";
 import { readDoors } from "./read.js";
 import type { Reading } from "./reading.js";
 
-/** The weekly check's bars, the building session's call (ADR-1090 D2), recorded on its increment's close. */
 export const CHECK = {
-  /** How old the latest check must be before the drain checks again, and the window it reads. */
   days: 7,
-  /** Refusals of one guessed word in one place in the week. */
   wordRefusals: 5,
-  /** A hint's offers in the week before its follow rate is judged, and the rate below which it stands out. */
   hintOffers: 20,
   hintRate: 0.05,
-  /** The most items one check files. */
   items: 3,
 } as const;
 
-/** The branch the check files on: its own, so it spends neither the landing session's three nor the learner's. */
 export const CHECK_BRANCH = "(doors check)";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** One item that stood out, as it is filed. */
 interface Item {
   readonly title: string;
   readonly description: string;
@@ -49,10 +27,6 @@ interface Item {
   readonly impact: string;
 }
 
-/**
- * Check the doors when a week has passed since the last check, and say what it did. `lesson` and `pointers` are the
- * learner's, read in the same drain; `titles` the ones it files wants and raises cuts under.
- */
 export async function checkDoors(world: LearnerWorld, lesson: Lesson, pointers: readonly Pointer[], titles: { want(where: string, word: string): string; cut(group: string): string }): Promise<string[]> {
   const [last] = await world.log.lines(world.project, { kinds: ["door-checked"], newest: 1 });
   if (last !== undefined) {
@@ -102,7 +76,6 @@ export async function checkDoors(world: LearnerWorld, lesson: Lesson, pointers: 
   return said;
 }
 
-/** Where a week's evidence was read. */
 function weekTo(now: Date): string {
   return `\`storytree doors --days ${CHECK.days}\` to ${day(now)}`;
 }
@@ -111,7 +84,6 @@ function day(at: Date): string {
   return at.toISOString().slice(0, 10);
 }
 
-/** Each guessed word refused often enough in the week, with no live pointer, most refused first. */
 function words(reading: Reading, pointers: readonly Pointer[], title: (where: string, word: string) => string, now: Date): Item[] {
   const pointed = new Set(pointers.filter(({ to }) => to !== undefined).map(({ where, word }) => JSON.stringify([where, word])));
   const tools = new Set(reading.surfaces.filter(({ door }) => door === "tool").map(({ verb }) => verb));
@@ -132,7 +104,6 @@ function words(reading: Reading, pointers: readonly Pointer[], title: (where: st
     }));
 }
 
-/** Each hint offered often in the week and almost never taken, the least taken first. */
 function hints(reading: Reading, now: Date): Item[] {
   return reading.follows.filter(({ offered, followed }) => offered >= CHECK.hintOffers && followed / offered < CHECK.hintRate)
     .sort((a, b) => a.followed / a.offered - b.followed / b.offered || b.offered - a.offered)
@@ -145,7 +116,6 @@ function hints(reading: Reading, now: Date): Item[] {
     }));
 }
 
-/** Each group of verbs unused for 28 days whose cut question is not open and does not already name them all. */
 function unused(groups: readonly CutGroup[], asked: readonly SchemaRecord<"question">[], title: (group: string) => string, now: Date): Item[] {
   return groups.flatMap(({ group, verbs }) => {
     const earlier = asked.filter((question) => question.fields.title === title(group));

@@ -1,19 +1,4 @@
-/**
- * Capability 14 · Reading the doors' use: one window of both doors' `door-answered` lines (ADR-0998 D1, ADR-0983
- * D2), the command line's own reading and the MCP server's side by side, with the views that read both (ADR-1071 D3,
- * which keeps them in the command line, the door that already reaches the other).
- *
- * - Each door's own reading: its declared verbs with their use and consumers, its misses, failures and refusals: the
- *   commands counted here (./commands.ts), the tools by the MCP server (its capability 8).
- * - Follows: for each offered step, how often it was offered, how often the session's next call took
- *   it, and ADR-0786's like-for-like baseline: after the same previous verbs, with the step not offered.
- * - Repoints: for each word refused as unknown with steps offered (ADR-1045 D3), how often it was offered, the offers
- *   followed by target (the session's next call is that command, answered: a refused or failed one is no follow), and
- *   how often none was taken.
- * - Door share per step.
- * - Splits by machine, harness, and briefed: a session given at most one prompt, as a lane is given its
- *   brief and runs headless. The lines carry no other sign of a brief, so this is a reading, not a fact.
- */
+// Capability 14 · Reading the doors' use
 import type { Consumer } from "@storytree/library/verbs";
 import { readToolUse } from "@storytree/mcp-server";
 
@@ -22,32 +7,26 @@ import { STEPS, stepOf, type Step } from "./steps.js";
 
 export type Door = "command" | "tool";
 
-/** One `door-answered` line, as the reading needs it. */
 export interface DoorLine {
   readonly session: string;
-  /** When it was written (ISO 8601). */
   readonly at: string;
   readonly harness?: string;
   readonly machine?: string;
   readonly door: Door;
-  /** The verb as its door names it: `storytree arc show`, `show_plan`. */
   readonly verb: string;
   readonly outcome: "answered" | "unknown" | "refused" | "failed" | "denied-by-arm";
   readonly word?: string;
   readonly named?: string;
   readonly class?: string;
   readonly next: readonly string[];
-  /** Where the `word` a pointer ran this command for was typed (ADR-1045 D4). */
   readonly pointedFrom?: string;
 }
 
-/** One declared verb, as its door names it, with the consumers its story declared for it. */
 export interface DeclaredVerb {
   readonly verb: string;
   readonly consumers: readonly Consumer[];
 }
 
-/** The surfaces each door declares, from its own table: every command-line verb and every tool. */
 export interface Declared {
   readonly commands: readonly DeclaredVerb[];
   readonly tools: readonly DeclaredVerb[];
@@ -58,10 +37,6 @@ export interface Window {
   readonly until: string;
 }
 
-/**
- * One surface's use. A declared one carries its consumers; `judged` is whether these lines can judge its use: false when
- * a person or the watcher may call it, since a person's own terminal and the watcher write no line.
- */
 export interface Surface { readonly door: Door; readonly verb: string; readonly declared: boolean; readonly consumers?: readonly Consumer[]; readonly judged: boolean; readonly calls: number; readonly sessions: number }
 export interface Miss { readonly door: Door; readonly where: string; readonly word: string; readonly named?: string; readonly count: number }
 export interface Follow { readonly step: string; readonly offered: number; readonly answered: number; readonly followed: number; readonly baseline: { readonly calls: number; readonly took: number } }
@@ -69,30 +44,24 @@ export interface Repoint { readonly door: Door; readonly where: string; readonly
 export interface Failure { readonly door: Door; readonly verb: string; readonly class: string; readonly count: number }
 export interface Split { readonly by: "machine" | "harness" | "briefed"; readonly value: string; readonly command: number; readonly tool: number; readonly sessions: number; readonly unknown: number }
 
-/** One window's reading. */
 export interface Reading {
   readonly since: string;
   readonly until: string;
   readonly calls: Readonly<Record<Door, number>>;
   readonly sessions: number;
-  /** Declared commands, declared tools, then the verbs neither door declares. */
   readonly surfaces: readonly Surface[];
   readonly misses: readonly Miss[];
-  /** Each door's unknowns per 1,000 of its calls; null for a door with no call. */
   readonly unknownPer1000: Readonly<Record<Door, number | null>>;
   readonly steps: readonly { readonly step: Step; readonly command: number; readonly tool: number }[];
   readonly follows: readonly Follow[];
-  /** Words refused with steps offered, most offered first. */
   readonly repoints: readonly Repoint[];
   readonly failures: readonly Failure[];
   readonly refusals: readonly { readonly door: Door; readonly verb: string; readonly count: number }[];
   readonly splits: readonly Split[];
 }
 
-/** What a session with no machine or harness named is split under. */
 const UNNAMED = "unnamed";
 
-/** Count `lines`, the window's door-answered lines oldest first, against `declared`; `prompts` is how many prompts each session was given. */
 export function countDoors(lines: readonly DoorLine[], declared: Declared, prompts: ReadonlyMap<string, number>, window: Window): Reading {
   const commands = readCommandUse(lines.filter((line) => line.door === "command"), declared.commands);
   const tools = readToolUse(lines.filter((line) => line.door === "tool"), declared.tools);
@@ -118,7 +87,6 @@ export function countDoors(lines: readonly DoorLine[], declared: Declared, promp
   };
 }
 
-/** Each session's calls, in order, each with the call after it in the same session. */
 function pairs(lines: readonly DoorLine[]): { line: DoorLine; after?: DoorLine }[] {
   const last = new Map<string, { line: DoorLine; after?: DoorLine }>();
   const out: { line: DoorLine; after?: DoorLine }[] = [];

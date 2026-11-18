@@ -1,58 +1,27 @@
-/**
- * Capability 14 · Reading the doors' use. What the doors learn from their own lines (ADR-1045 D4 to D7), a pure count over
- * 28 days of both doors' door-answered lines, as the log tallies them (DoorTally), with the declared surfaces and the pointers already written handed in; the
- * friction drain acts on it (./learner.ts).
- *
- * - A pointer (D4): a guessed word, judged as a want is, whose followed hints clear the bar points to its leading target.
- *   A word already pointed is not pointed again, and after a pointer fell back only follows since count.
- * - A fallback (D4): a pointer whose pointed calls mostly leave it, read as more than half of at least 5 pointed calls since
- *   it was written. A pointed call is left when it did not answer, or when its session's next command was another of the
- *   word's followed targets: the session went where the pointer did not send it.
- * - A want (D5): a guessed word refused at least 10 times in one place, whose followed hints stay below D4's bar for a
- *   pointer (at least 5 follows across at least 3 sessions, at least 70% to one command). A word is judged where it was
- *   refused, as D5's own `friction list` is, though `list` is a verb in other families; a tool's name typed as a command is
- *   the mistake D2 names, which keeps its refusal naming the command, and is never a want. Nor is a word holding
- *   whitespace: that is text that strayed into a command's place, such as a quoted argument, never a command's name.
- * - A cut candidate (D6): a verb whose consumers are only agents (never one the watcher runs), with no call in the 28 days across at least 100
- *   sessions, grouped by its command family, or with the tools that have no command. A verb both doors mount is one
- *   candidate only when neither door called it; one door's unused while the other's carries the job is a door gap,
- *   reported apart and never cut. Nothing is a candidate unless the lines cover the whole window: silence before the
- *   log began is not disuse. Nor is silence before a verb was mounted: a verb is judged only once it has been mounted for
- *   the whole window, read from when the learner first saw it (a pair, from when it first saw either door's), and a verb
- *   it has never seen is not judged.
- */
+// Capability 14 · Reading the doors' use
 import { judgedByLines } from "@storytree/library/verbs";
 
 import type { DeclaredVerb, DoorLine } from "./reading.js";
 
-/** ADR-1045's starting bars, tuned only by decision. */
 export const BARS = {
   days: 28,
-  /** D5: refusals of one guessed word that make a want. */
   wantRefusals: 10,
-  /** D4: follows to one command, the sessions they came from and that command's share of all the word's follows. */
   pointerFollows: 5,
   pointerSessions: 3,
   pointerShare: 0.7,
-  /** D6: the sessions a window needs before a verb with no call in it is a cut candidate. */
   cutSessions: 100,
-  /** D4's fallback, "mostly leave": pointed calls since the pointer before it is judged, and the share of them left that falls it back. */
   fallbackCalls: 5,
   fallbackShare: 0.5,
 } as const;
 
-/** A guessed word agents keep typing where no command answers it, and what its refusal's hints led to. */
 export interface Want {
-  /** Where it was refused, as the door names it: `storytree adr`. */
   readonly where: string;
   readonly word: string;
   readonly refusals: number;
   readonly sessions: number;
-  /** Each refusal's hint the session's next answered call took, by target, most first. */
   readonly followed: readonly { readonly target: string; readonly count: number }[];
 }
 
-/** A pointer as its latest line holds it: no `to` once it fell back. `at` is when that line was written. */
 export interface Pointer {
   readonly where: string;
   readonly word: string;
@@ -61,19 +30,16 @@ export interface Pointer {
   readonly at: string;
 }
 
-/** A word whose followed hints clear the bar, to be pointed to `to`, with the word's other followed targets and the evidence. */
 export interface NewPointer {
   readonly where: string;
   readonly word: string;
   readonly to: string;
   readonly others: readonly string[];
-  /** Follows to `to`, and the sessions they came from. */
   readonly follows: number;
   readonly sessions: number;
   readonly evidence: string;
 }
 
-/** A pointer whose pointed calls mostly left it: `left` of its `calls` since it was written. */
 export interface Fallback {
   readonly where: string;
   readonly word: string;
@@ -83,54 +49,42 @@ export interface Fallback {
   readonly evidence: string;
 }
 
-/** A verb the doors could forget, as its doors name it: its command, its tool, or both. */
 export interface Candidate {
   readonly command?: string;
   readonly tool?: string;
 }
 
-/** A command family's candidates, or the tools' that have no command (`group` names which). */
 export interface CutGroup {
   readonly group: string;
   readonly verbs: readonly Candidate[];
 }
 
-/** A verb one door has no call for while the other door's twin carries the job. */
 export interface Gap {
   readonly unused: string;
   readonly carriedBy: string;
   readonly calls: number;
 }
 
-/** What 28 days of lines teach. `cuts` is absent when the lines cannot judge disuse: the window is not covered or has too few sessions. */
 export interface Lesson {
   readonly sessions: number;
   readonly wants: readonly Want[];
   readonly pointers: readonly NewPointer[];
   readonly fallbacks: readonly Fallback[];
   readonly cuts?: readonly CutGroup[];
-  /** The agent-only verbs with no call in the 28 days, grouped as cuts are, whatever the sessions; absent when the lines do not cover the window. */
   readonly unused?: readonly CutGroup[];
   readonly gaps: readonly Gap[];
 }
 
-/** The surfaces the learner judges: each door's declared verbs, and each verb both doors mount as its command and its tool. */
 export interface Surfaces {
   readonly commands: readonly DeclaredVerb[];
   readonly tools: readonly DeclaredVerb[];
   readonly twins: readonly { readonly command: string; readonly tool: string }[];
 }
 
-/** The group of the tools that have no command. */
 export const TOOLS_ALONE = "the tools with no command";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/**
- * Both doors' door-answered lines of a window, counted: how many sessions wrote one, when the first was written, the calls
- * of each verb, and, oldest first, the lines a refusal or a pointer is judged by: each command refused as unknown with its
- * session's next line, and each pointed call with its session's next command. Every line of the window serves as those.
- */
 export interface DoorTally {
   readonly sessions: number;
   readonly first?: string;
@@ -138,10 +92,6 @@ export interface DoorTally {
   readonly lines: readonly DoorLine[];
 }
 
-/**
- * Learn from `tally`, both doors' door-answered lines of the 28 days from `since`, `pointers`, the latest line of each
- * word's pointer, and `mounted`, when the learner first saw each verb mounted, by the verb as its door names it.
- */
 export function learnDoors({ sessions, first, calls, lines }: DoorTally, surfaces: Surfaces, since: string, pointers: readonly Pointer[] = [], mounted: ReadonlyMap<string, string> = new Map()): Lesson {
   const covered = first !== undefined && Date.parse(first) <= Date.parse(since) + DAY_MS;
   const { cuts, gaps } = disuse(calls, surfaces, (...verbs) => verbs.some((verb) => mounted.has(verb) && Date.parse(mounted.get(verb)!) <= Date.parse(since)));
@@ -163,13 +113,11 @@ export function learnDoors({ sessions, first, calls, lines }: DoorTally, surface
   };
 }
 
-/** The evidence a want or a pointer is written with: the word's refusals and where its followed hints went. */
 export function evidenceOf(guess: Pick<Want, "where" | "word" | "refusals" | "sessions" | "followed">): string {
   const hints = guess.followed.length === 0 ? "no hint was followed" : `hints followed: ${guess.followed.map(({ target, count }) => `${target} ${count}`).join(", ")}`;
   return `"${guess.where} ${guess.word}" refused as unknown ${guess.refusals} times in ${guess.sessions} sessions; ${hints}.`;
 }
 
-/** Whether `followed`, a word's follows by target, clears D4's bar for a pointer to its leading target. */
 export function clearsPointerBar(followed: readonly { readonly target: string; readonly count: number; readonly sessions: number }[]): boolean {
   const [lead] = followed;
   const total = followed.reduce((sum, { count }) => sum + count, 0);
@@ -182,11 +130,9 @@ interface Guess {
   readonly word: string;
   readonly refusals: number;
   readonly sessions: number;
-  /** Its followed hints by target, most first, counting only refusals after its pointer's latest line. */
   readonly targets: readonly { readonly target: string; readonly count: number; readonly sessions: number }[];
 }
 
-/** Each guessed word refused in a place, with its refusals and its follows. */
 function guesses(lines: readonly DoorLine[], tools: ReadonlySet<string>, latest: ReadonlyMap<string, Pointer>): Guess[] {
   const words = new Map<string, { where: string; word: string; refusals: number; sessions: Set<string>; followed: Map<string, { count: number; sessions: Set<string> }> }>();
   const pending = new Map<string, { key: string; next: readonly string[] }>();
@@ -216,7 +162,6 @@ function guesses(lines: readonly DoorLine[], tools: ReadonlySet<string>, latest:
   })).sort((a, b) => b.refusals - a.refusals || a.where.localeCompare(b.where) || a.word.localeCompare(b.word));
 }
 
-/** Each live pointer whose pointed calls since it was written mostly left it. */
 function fallbacks(lines: readonly DoorLine[], pointers: readonly Pointer[]): Fallback[] {
   return pointers.flatMap(({ where, word, to, others, at }) => {
     if (to === undefined) return [];
@@ -236,7 +181,6 @@ function fallbacks(lines: readonly DoorLine[], pointers: readonly Pointer[]): Fa
   });
 }
 
-/** The cut candidates and door gaps by each verb's `calls`; `old` says whether a verb, by any of its doors' names, was mounted for the whole window. */
 function disuse(calls: ReadonlyMap<string, number>, { commands, tools, twins }: Surfaces, old: (...verbs: string[]) => boolean): { cuts: CutGroup[]; gaps: Gap[] } {
   const agentOnly = new Set([...commands, ...tools].filter(({ consumers }) => judgedByLines(consumers)).map(({ verb }) => verb));
   const unused = (verb: string) => agentOnly.has(verb) && (calls.get(verb) ?? 0) === 0;
@@ -245,7 +189,6 @@ function disuse(calls: ReadonlyMap<string, number>, { commands, tools, twins }: 
   const gaps: Gap[] = [];
   const twinned = new Set<string>();
   const declared = new Set([...commands, ...tools].map(({ verb }) => verb));
-  // A twin whose other door is not served here (its part switched off) is judged as the one door it has.
   for (const { command, tool } of twins.filter(({ command, tool }) => declared.has(command) && declared.has(tool))) {
     twinned.add(command);
     twinned.add(tool);
@@ -260,7 +203,6 @@ function disuse(calls: ReadonlyMap<string, number>, { commands, tools, twins }: 
   return { cuts, gaps: gaps.sort((a, b) => b.calls - a.calls || a.unused.localeCompare(b.unused)) };
 }
 
-/** The family a command is in: its path without its last word. */
 function familyOf(command: string): string {
   return command.split(" ").slice(0, -1).join(" ");
 }

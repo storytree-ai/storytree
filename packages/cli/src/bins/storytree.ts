@@ -1,8 +1,4 @@
-/**
- * Capability 16 · Build and launch. `storytree`: the command line for people (the command line story). Everything it
- * does is the front door's (../door.ts); this refuses a word changed on its way here (../handed.ts), and otherwise hands
- * the door the command and the terminal.
- */
+// Capability 16 · Build and launch
 import { printable } from "@storytree/library/printable";
 
 import { render } from "../answer.js";
@@ -11,7 +7,6 @@ import { changedOnItsWay, handedToPnpm } from "../handed.js";
 
 const argv = process.argv.slice(2);
 const handed = handedToPnpm(process.env, process.argv[1]);
-// The line the Windows launcher was handed (ADR-0854) is this command's alone: what it starts must not read it as its own.
 const launched = process.env.STORYTREE_COMMAND_LINE;
 delete process.env.STORYTREE_COMMAND_LINE;
 const changed = changedOnItsWay(argv, handed, launched);

@@ -1,10 +1,4 @@
-/**
- * Capability 10 · Plan view (the command line story): `storytree plan` prints what the show_plan tool answers, the
- * plan's stories, capabilities and contracts with their health, who holds what, the arcs and the sessions about, so
- * the two front doors answer the word agents reach for alike (ADR-0793). The answer is the MCP server's own; this
- * door only reads its flags and prints it. A word naming what to plan points to the command that plans it. `storytree show`,
- * the word agents reach for by the tool's name, is this command too.
- */
+// Capability 10 · Plan view
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
 
@@ -31,7 +25,6 @@ const show: Verb = {
   },
 };
 
-/** A word after `plan` (or `show`) is most often a record's id: name the commands that read one thing on the plan, `--id` first. */
 function wordsRefused(word: string): Refusal {
   const read = `storytree library read ${word}`;
   const part = `storytree plan --id ${word}`;

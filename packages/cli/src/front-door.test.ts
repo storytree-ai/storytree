@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35, 1.36, 1.45, 1.48 and 1.49 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35, 1.36, 1.45 and 1.48-1.50 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
@@ -358,6 +358,29 @@ test("1.36 a word agents guess for a job a command already does runs that comman
     assert.equal(resteers.code, 0, resteers.stderr);
     assert.match(resteers.stdout, /storytree resteer list is storytree library list resteer\n/);
     assert.match(resteers.stdout, /storytree library list <kind>/);
+  });
+});
+
+test("1.50 `storytree arc close` is refused with exit code 2, saying an arc has no close of its own and closes when its last increment does, offering `storytree arc increment close <increment> --disposition …` as its next step, and is recorded as a refused line", async () => {
+  await inWorld(command, async (world) => {
+    const session = { CLAUDE_CODE_SESSION_ID: "arc-close-1" };
+
+    const closed = await world.run(["arc", "close", "some-arc"], session);
+
+    assert.equal(closed.code, 2, closed.stderr);
+    assert.match(closed.stderr, /no close of its own/);
+    assert.match(closed.stderr, /closes when its last increment does/);
+    assert.match(closed.stderr, /storytree arc increment close <increment> --disposition/);
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const lines = await log.lines(world.project, { sessions: ["arc-close-1"], kinds: ["door-answered"] });
+      assert.deepEqual(lines.map((line) => {
+        const { outcome, next } = line as Extract<typeof line, { kind: "door-answered" }>;
+        return { outcome, next };
+      }), [{ outcome: "refused", next: ["storytree arc increment close"] }]);
+    } finally {
+      await log.close();
+    }
   });
 });
 

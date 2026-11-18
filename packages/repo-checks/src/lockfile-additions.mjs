@@ -30,7 +30,7 @@ export function builtDependencies(text) {
   for (const line of text.split(/\r?\n/)) {
     if (/^\S/.test(line)) inList = line.trim() === "onlyBuiltDependencies:";
     else if (inList) {
-      const name = /^\s+-\s+(.+?)\s*$/.exec(line)?.[1];
+      const name = /^\s+-(\s.+)$/.exec(line)?.[1].trim();
       if (name) names.add(name.replace(/^(["'])(.*)\1$/, "$2"));
     }
   }

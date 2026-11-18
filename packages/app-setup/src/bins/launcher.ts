@@ -25,7 +25,7 @@ export function buildLauncher(file: string, arch: keyof typeof TARGETS): void {
   const work = mkdtempSync(path.join(tmpdir(), "storytree-launcher-"));
   try {
     // The kernel32 calls the source declares, one IMPORT line each, become the import library it links against.
-    const calls = [...readFileSync(SOURCE, "utf8").matchAll(/^IMPORT\b[^(]*?(\w+)\(/gm)].map((match) => match[1]);
+    const calls = [...readFileSync(SOURCE, "utf8").matchAll(/^IMPORT\b[^(]*[^\w(](\w+)\(/gm)].map((match) => match[1]);
     const definition = path.join(work, "kernel32.def");
     const library = path.join(work, "kernel32.lib");
     const object = path.join(work, "launcher.obj");

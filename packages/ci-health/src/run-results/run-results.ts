@@ -48,20 +48,25 @@ export function parseTestLog(log: string): TestResult[] {
   for (const line of log.split("\n").map(textOf)) {
     const repeated = recap;
     recap = /^test at \S/.test(line);
-    const pytest = /^(PASSED|XPASS|FAILED|ERROR|XFAIL) (\S+?\.py)::(.+?)(?: - (.*))?$/.exec(line);
+    // The test id runs to the first " - " after its first character, the message after it: found by indexOf, so no
+    // regex backtracks over the line.
+    const pytest = /^(PASSED|XPASS|FAILED|ERROR|XFAIL) (\S+?\.py)::(?=.)/.exec(line);
     if (pytest !== null) {
-      const ids = pytest[3]!.trim().split("::");
+      const rest = line.slice(pytest[0].length);
+      const dash = rest.indexOf(" - ", 1);
+      const ids = (dash < 0 ? rest : rest.slice(0, dash)).trim().split("::");
       const result: TestResult = { name: ids.at(-1)!, suites: ids.slice(0, -1), status: PYTEST_STATUS[pytest[1]!]!, file: pytest[2]!.replaceAll("\\", "/") };
-      const message = pytest[4]?.trim() ?? "";
+      const message = dash < 0 ? "" : rest.slice(dash + 3).trim();
       if (pytest[1] === "XFAIL") result.message = `expected to fail (xfail)${message === "" ? "" : `: ${message}`}`;
       else if (message !== "") result.message = message;
       results.push(result);
       continue;
     }
-    const skip = /^SKIPPED \[\d+\] (\S+?\.py):(\d+): ?(.*)$/.exec(line);
+    const skip = /^SKIPPED \[\d+\] (\S+?\.py):(\d+):/.exec(line);
     if (skip !== null) {
       const result: TestResult = { name: "", suites: [], status: "skipped", file: skip[1]!.replaceAll("\\", "/"), line: Number(skip[2]) };
-      if (skip[3]!.trim()) result.message = skip[3]!.trim();
+      const message = line.slice(skip[0].length).trim();
+      if (message) result.message = message;
       results.push(result);
       continue;
     }
@@ -72,11 +77,11 @@ export function parseTestLog(log: string): TestResult[] {
       suites[depth] = suite[2]!.trim();
       continue;
     }
-    const spec = /^((?: {2})*)(✔|✖|﹣) (.*?) \(\d+(?:\.\d+)?ms\)(?: # (.*))?$/.exec(line);
+    const spec = /^((?: {2})*)(✔|✖|﹣) (.*?) \(\d+(?:\.\d+)?ms\)(?:( # )|$)/.exec(line);
     if (spec !== null) {
       if (repeated) continue;
       const depth = spec[1]!.length / 2;
-      const directive = spec[4]?.trim();
+      const directive = spec[4] === undefined ? undefined : line.slice(spec[0].length).trim();
       const skipped = spec[2] === "﹣" || directive === "TODO";
       const result: TestResult = { name: spec[3]!.trim(), suites: suites.slice(0, depth), status: skipped ? "skipped" : spec[2] === "✔" ? "passed" : "failed" };
       if (spec[2] === "﹣" && directive && directive !== "SKIP") result.message = directive;
@@ -91,13 +96,18 @@ export function parseTestLog(log: string): TestResult[] {
       open[depth] = unescape(subtest[2]!);
       continue;
     }
-    const point = /^((?: {4})*)(not ok|ok) \d+(?: - (.*?))?(?: # (SKIP|TODO)\b ?(.*))?$/i.exec(line);
+    // A point's name runs from " - " to its first " # SKIP" or " # TODO", its message after that: found by a search, so no
+    // regex backtracks over the line.
+    const point = /^((?: {4})*)(not ok|ok) \d+(?= - | # (?:SKIP|TODO)\b|$)/i.exec(line);
     if (point === null) continue;
     const depth = point[1]!.length / 4;
-    const name = unescape(point[3] ?? "").trim();
-    const directive = point[4]?.toUpperCase();
+    const rest = line.slice(point[0].length).replace(/^ - /, "");
+    const marked = / # (SKIP|TODO)\b ?/i.exec(rest);
+    const name = unescape(rest.slice(0, marked?.index ?? rest.length)).trim();
+    const directive = marked?.[1]!.toUpperCase();
     const result: TestResult = { name, suites: open.slice(0, depth), status: directive !== undefined ? "skipped" : point[2]!.toLowerCase() === "ok" ? "passed" : "failed" };
-    if (directive !== undefined && point[5]) result.message = point[5].trim();
+    const message = marked === null ? "" : rest.slice(marked.index + marked[0].length);
+    if (directive !== undefined && message) result.message = message.trim();
     results.push(result);
     open.length = depth;
   }

@@ -76,7 +76,7 @@ export function processTable(json) {
  * process that only mentions an engine (a wrapper, a grep, a brief quoting `codex exec`) is not one.
  */
 export function countEngines(table) {
-  const rows = table.split("\n").map((line) => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line)).filter(Boolean)
+  const rows = table.split("\n").map((line) => /^\s*(\d+)\s+(\d+)\s+(\S.*|)$/.exec(line)).filter(Boolean)
     .map(([, pid, ppid, args]) => ({ pid, ppid, args }));
   const engines = new Set(rows.filter((row) => isEngine(row.args)).map((row) => row.pid));
   return rows.filter((row) => engines.has(row.pid) && !engines.has(row.ppid)).length;
@@ -88,7 +88,7 @@ export function countEngines(table) {
  * Only engines count, once a lane; a process that only mentions an increment (a grep) does not.
  */
 export function runningLanes(table) {
-  const ids = table.split("\n").map((line) => /^\s*\d+\s+\d+\s+(.*)$/.exec(line)?.[1]).filter((args) => args && isEngine(args))
+  const ids = table.split("\n").map((line) => /^\s*\d+\s+\d+\s+(\S.*|)$/.exec(line)?.[1]).filter((args) => args && isEngine(args))
     .map((args) => /Your increment: (increment_[0-9a-f]+)/.exec(args)?.[1]).filter(Boolean);
   return [...new Set(ids)];
 }

@@ -122,7 +122,7 @@ export function contractsCoveredBy(file, { root, prefix }) {
     for (const title of titlesIn(text, prefix)) {
       for (const number of leadingContracts(title)) numbers.add(number);
     }
-    for (const [, specifier] of text.matchAll(/(?:\bfrom|\bimport)\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g)) {
+    for (const [, specifier] of text.matchAll(/(?:\bfrom|\bimport)\s*(?:\(\s*)?["'](\.{1,2}\/[^"']+)["']/g)) {
       const target = moduleFile(path.resolve(path.dirname(current), specifier));
       if (target !== undefined && !path.relative(root, target).startsWith("..")) queue.push(target);
     }

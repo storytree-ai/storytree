@@ -175,8 +175,9 @@ test("4.3 · storytree code-measures story prints every story in the plan, or th
   const text = (await story.act({ json: false, ...WINDOW }, context, WORDS)).text;
   const titles = ["Alpha tools", "Beta kit", "Gamma bare"];
   const alphaText = section(text, "Alpha tools", titles);
-  assert.match(alphaText, /Source lines[^\n]*shifted up/);
+  assert.match(alphaText, /Source lines \(base\)[^\n]*shifted up/, "a base measure's line says it is base");
   assert.match(alphaText, /Alpha timing[^\n]*too few readings/);
+  assert.doesNotMatch(alphaText, /Alpha timing[^\n]*\(base\)/, "a dedicated measure's line does not say base");
   const betaText = section(text, "Beta kit", titles);
   assert.match(betaText, /Source lines[^\n]*not shown/);
   assert.match(betaText, /Beta reach[^\n]*no readings/);

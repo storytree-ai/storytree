@@ -2,6 +2,8 @@
 import assert from "node:assert/strict";
 import type { ChildProcess } from "node:child_process";
 import diagnostics from "node:diagnostics_channel";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import { layoutBenchmark, type LayoutBenchmark } from "./benchmark.js";
@@ -43,6 +45,37 @@ test("6.1 · layoutBenchmark runs the full code survey seed in a new Node proces
   );
   for (const quantity of ["layout", "routing", "peak"] as const) assertShaped(result, quantity);
   assert.deepEqual(started.map(({ spawnfile }) => spawnfile), [process.execPath], "the one run is one Node process");
+});
+
+test("6.1 · layoutBenchmark rejects when a run's Node process fails, its message carrying what that process wrote to its error output", async () => {
+  const missing = path.join(tmpdir(), "layout-run-preload-that-is-not-there.cjs");
+  const kept = process.env.NODE_OPTIONS;
+  process.env.NODE_OPTIONS = `--require ${missing}`;
+  try {
+    await assert.rejects(
+      layoutBenchmark({ seed: "five-story-row", runs: 1 }),
+      (error: unknown) => error instanceof Error && error.message.includes(missing),
+      "the failed run's own error output names the preload it could not find",
+    );
+  } finally {
+    if (kept === undefined) delete process.env.NODE_OPTIONS;
+    else process.env.NODE_OPTIONS = kept;
+  }
+});
+
+test("6.1 · layoutBenchmark rejects with the start error when a run's Node process cannot start", async () => {
+  const kept = process.execPath;
+  const absent = path.join(tmpdir(), "no-node-here", "node");
+  process.execPath = absent;
+  try {
+    await assert.rejects(
+      layoutBenchmark({ seed: "five-story-row", runs: 1 }),
+      (error: unknown) => error instanceof Error && (error as NodeJS.ErrnoException).code === "ENOENT" && (error as NodeJS.ErrnoException).syscall === `spawn ${absent}`,
+      "a Node that will not start rejects the benchmark with that start error",
+    );
+  } finally {
+    process.execPath = kept;
+  }
 });
 
 test("6.1 · layoutBenchmark refuses a seed name it does not know, naming it", async () => {

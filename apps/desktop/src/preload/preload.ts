@@ -1,9 +1,4 @@
-/**
- * Capability 8 · Page bridge. The preload script: exposes the bridge's functions (bridge.ts) to the page through the context
- * bridge, and nothing else. The page runs sandboxed, with no Node and no Electron. Whether sign-in for feedback is
- * among them is the main process's answer, asked once before the page loads (app setup contract 5.6), and so are the page
- * channels and views of the factory plugins standing in for switched-off parts, which the preload cannot read itself.
- */
+// Capability 8 · Page bridge
 import { contextBridge, ipcRenderer } from "electron";
 
 import { FEEDBACK_IDENTITY_OFFERED } from "@storytree/app-setup/bridge";

@@ -1,9 +1,4 @@
-/**
- * Capability 2 · Storytree projects. A capture of islands the shared `code-rows` seed lacks: the committed seed is a
- * snapshot that falls behind the library, so a capture naming a newer island builds a fresh seed and code survey from
- * the library and this checkout into a scratch folder instead, leaving the committed pair as it was (2.52). Imported on
- * its own, like live.ts, so the kit's other captures do not reach the library.
- */
+// Capability 2 · Storytree projects
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -17,20 +12,13 @@ import { openNamedProject, requireApproval, route } from "@storytree/project-and
 import type { CaptureSeed, SeededCaptureOptions } from "./runner.js";
 import { captureSeed } from "./seeds.js";
 
-/** A seed and its code survey, as `captureSeed` returns them. */
 export interface SeedPair {
   seed: CaptureSeed;
   survey: SeededCaptureOptions["survey"];
 }
 
-/** This checkout, whose code the survey reads and whose marker routes to the library. */
 const checkout = path.resolve(import.meta.dirname, "../../../..");
 
-/**
- * `project`'s seed read from `storytree`, folded as the committed one is (each record's creation and its last later
- * change; the cursor kept), and its code survey read from `checkout`, both written to `folder` (a fresh scratch
- * folder when not named) as seed.json.gz and survey.json. Writes nothing to the library.
- */
 export async function freshSeed({ storytree, project, checkout, folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-seed-")) }: {
   storytree: Storytree; project: string; checkout: string; folder?: string | undefined;
 }): Promise<SeedPair & { folder: string }> {
@@ -55,13 +43,11 @@ export async function freshSeed({ storytree, project, checkout, folder = mkdtemp
   return { folder, seed, survey: survey as SeedPair["survey"] };
 }
 
-/** A fresh seed of storytree's own library, routed from this checkout as the command line routes, in a scratch folder (or `folder`). */
 export async function freshFromCheckout(folder?: string): Promise<SeedPair & { folder: string }> {
   const where = route(checkout);
   if (where.status !== "routed") throw new Error(where.message);
   const storytree = await connect(where.library);
   try {
-    // Only from an approved checkout of storytree, whatever project the folder's marker names (ADR-0942 D1).
     await requireApproval(storytree, "storytree", where.folder);
     return await freshSeed({ storytree, project: "storytree", checkout, folder });
   } finally {
@@ -69,10 +55,6 @@ export async function freshFromCheckout(folder?: string): Promise<SeedPair & { f
   }
 }
 
-/**
- * A seed holding every island `islands` names, by story id or title (any case): the committed `code-rows` pair when it holds them all, else a
- * fresh one built into a scratch folder. An island the fresh seed lacks too fails, naming the stories it has.
- */
 export async function seedHolding(islands: readonly string[], { committed = () => captureSeed("code-rows"), fresh = () => freshFromCheckout() }: {
   committed?: () => SeedPair; fresh?: () => Promise<SeedPair>;
 } = {}): Promise<SeedPair> {

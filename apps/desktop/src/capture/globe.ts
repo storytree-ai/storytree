@@ -1,22 +1,18 @@
-/** Capability 2 · Storytree projects. Read-only globe observations, and zoom through the same wheel input as a person. */
+// Capability 2 · Storytree projects
 import type { Page } from "playwright-core";
 
 export interface GlobeTarget {
   id: string;
-  /** CSS coordinates in the page, ready for page.mouse. */
   x: number;
   y: number;
 }
 
 export interface GlobeTargets {
-  /** The eye's zoom, CSS pixels per ground unit at the middle of the view (`sheetEyeZoom`), as zoomGlobe takes it. */
   zoom: number;
   dots: GlobeTarget[];
   islands: GlobeTarget[];
 }
 
-// The perspective eye's zoom as the sheet measures it (`sheetEyeZoom`, and captureSequence's pose.zoom): its focal length
-// in CSS pixels over its distance from the middle of the view, which the controls hold as their target. Text, as below.
 const EYE_ZOOM = `(state => {
   const { camera, controls, size } = state;
   if (!camera?.isPerspectiveCamera || !controls?.target || !size) throw new Error('Capture needs the map\\'s perspective eye, its controls and its size; wait for the globe');
@@ -25,16 +21,10 @@ const EYE_ZOOM = `(state => {
   return focal / (Math.hypot(eye.x, eye.y, eye.z) - Math.hypot(middle.x, middle.y, middle.z));
 })`;
 
-/**
- * Targets nearer the eye than the globe's centre, inside the canvas and not hidden by an ancestor.
- * Bounds are fractions of the canvas's half-width/height; { x: .5, y: .6 } selects its middle.
- * This observes centres, not pixel occlusion by other marks or HTML panels.
- */
 export async function visibleGlobeTargets(page: Page, bounds = { x: 1, y: 1 }): Promise<GlobeTargets> {
   if (![bounds.x, bounds.y].every(value => Number.isFinite(value) && value > 0 && value <= 1)) {
     throw new Error("Globe target bounds must be above 0 and at most 1");
   }
-  // Text avoids tsx copying its function-name helpers into the page.
   return page.evaluate(`(bounds => {
     const state = globalThis.__globe;
     if (!state) throw new Error('Capture globe observation is unavailable; use buildCapture and wait for the globe');
@@ -63,11 +53,6 @@ export async function visibleGlobeTargets(page: Page, bounds = { x: 1, y: 1 }): 
   })(${JSON.stringify(bounds)})`);
 }
 
-/**
- * Wheel toward an absolute zoom (CSS pixels per ground unit at the middle of the view), returning the attained zoom (within
- * 3%, one half-notch). Save visibleGlobeTargets(...).zoom to return to an opening view, or multiply it for a close-up.
- * The pointer defaults to the canvas centre; callers can choose a returned target's coordinates.
- */
 export async function zoomGlobe(page: Page, target: number, at?: { x: number; y: number }): Promise<number> {
   if (!Number.isFinite(target) || target <= 0) throw new Error("Globe zoom must be positive and finite");
   const state = await page.evaluate(`(() => {

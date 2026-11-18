@@ -1,78 +1,36 @@
-/**
- * Capability 2 · Storytree projects. A fake `window.storytree` for a capture: it answers what the capture hands it, and every other
- * bridge method with a quiet answer of the right shape, so a capture written before the bridge grew
- * still reaches ready. It records which methods the page asked that the capture left to those
- * answers. A call that is no bridge method at all fails the capture at once, naming the method,
- * instead of the renderer landing on its error page while the capture waits out a timeout.
- */
+// Capability 2 · Storytree projects
 import type { Page } from "playwright-core";
 
 import type { StorytreeBridge } from "../bridge.js";
 import { loadedSeedLayouts } from "./seeds.js";
 
 export interface FakeBridge {
-  /** The page's call of `method`: its answer, or a refusal naming the method when there is none. */
   call(method: string, args: readonly unknown[]): Promise<unknown>;
-  /** The bridge methods the page asked that the capture left to the quiet answers, in the order first asked. */
   readonly defaulted: readonly string[];
-  /** Rejects, naming the method, at the first call the fake cannot answer; never resolves. */
   readonly unanswered: Promise<never>;
-  /** Put the fake on `page` as window.storytree, the first-run guide's memory, the teaching cards' hiding and the seed's layouts, before the page's own scripts run. */
   install(page: Page): Promise<void>;
-  /** Wait until `page`'s body reads data-state=ready, failing at once on an unanswered call. */
   ready(page: Page, timeoutMs?: number): Promise<void>;
 }
 
-/**
- * window.storytree in the page: a method the page's own `window.storytreeAnswers` holds is answered
- * there (a capture that keeps its seeded state in the page sets it in an init script); every other
- * is carried to the fake. Text, not a function, since a capture run through tsx would hand the page
- * esbuild's __name helper, which the page lacks. `then` stays unanswered so that awaiting the bridge
- * itself is not mistaken for a call, and `pluginViews`, data rather than a method, is none.
- */
 const PAGE_BRIDGE = `window.storytree = new Proxy({}, { get: (_, method) => method === "then" ? undefined : method === "pluginViews" ? [] : (...args) => typeof window.storytreeAnswers?.[method] === "function" ? window.storytreeAnswers[method](...args) : window.storytreeFakeBridge(String(method), args) });`;
 
-/**
- * The first-run guide remembered as seen, as app-setup's guideOffered reads it, so a capture opens on
- * the globe rather than behind the guide. Text for the same reason as PAGE_BRIDGE.
- */
 const GUIDE_SEEN = `try { localStorage.setItem("storytree:setup:guide-seen:v1", "yes"); } catch { /* about:blank has no storage */ }`;
 
-/**
- * Every teaching card (packages/teaching-cards) hidden as it appears, so none intercepts a capture's
- * clicks. An init script, since the page's CSP refuses an added style tag; it watches the document
- * itself, which exists before the page's own elements do. Text for the same reason as PAGE_BRIDGE.
- */
 const TEACHING_HIDDEN = `new MutationObserver(() => { for (const card of document.querySelectorAll(".teaching-card")) card.style.display = "none"; }).observe(document, { childList: true, subtree: true });`;
 
-/**
- * `layouts` put in the page's localStorage before its scripts run, each key the page has not already kept. Text for the
- * same reason as PAGE_BRIDGE.
- */
 const keptLayouts = (layouts: Readonly<Record<string, string>>): string =>
   `try { for (const [key, value] of Object.entries(${JSON.stringify(layouts)})) if (localStorage.getItem(key) === null) localStorage.setItem(key, value); } catch { /* about:blank has no storage */ }`;
 
 export interface FakeBridgeOptions {
-  /**
-   * The map's kept island layouts and roads, as localStorage entries (a shared seed's `layouts`), so its islands search none
-   * they hold; the shared seed's the capture read unless given (2.64), so a capture of a shared seed's map settles in seconds, not minutes.
-   */
   layouts?: Readonly<Record<string, string>> | undefined;
-  /** "unseen" for a capture of the first-run guide itself: the page then opens as a first launch. */
   guide?: "seen" | "unseen" | undefined;
-  /** "shown" for a capture of the teaching cards themselves; otherwise every card is hidden. */
   teaching?: "hidden" | "shown" | undefined;
 }
 
 const PROJECT = "storytree";
-/** A session's reading, context or window, that the stand-in cannot make: no transcript is read. */
 const unread = (session: string) => ({ session, absent: "a capture's stand-in bridge reads no transcript", at: new Date().toISOString() });
 const idle = { phase: "unavailable", runningBuild: "capture", reason: "a capture's stand-in bridge" } as const;
 
-/**
- * A quiet answer for every bridge method: one project with nothing in it, nothing running, nothing
- * set up, every change refused. Typed as the whole bridge, so a method the bridge gains needs one here.
- */
 const QUIET: StorytreeBridge = {
   readJourney: async () => ({ consent: "off", available: false, installId: "00000000-0000-4000-8000-000000000000", queued: 0 }),
   chooseJourney: async () => { throw new Error("a capture’s stand-in bridge changes no sharing consent"); },
@@ -124,23 +82,14 @@ const QUIET: StorytreeBridge = {
   pins: async () => [],
   recordLag: async () => {},
   feedbackSetup: async () => ({ offered: false, surfaces: [] }),
-  // No CI times recorded: no strip in the map's corner unless a capture hands it a reading.
   ciTimes: async () => undefined,
   captureForFeedback: async () => undefined,
   sendFeedback: async () => { throw new Error("a capture's stand-in bridge writes no feedback"); },
-  // Data, not a method: a capture mounts no factory plugin's views.
   pluginViews: [],
   startMark: async () => {},
 };
 
-/**
- * The update reads of an installed copy, for a capture to hand its fakeBridge, where the quiet answers are a copy that cannot
- * install releases: its updater idle, or a build waiting to install, with the install choice, the update channel and Open at
- * sign-in each available, so the gear's Updates section opens as an installed user sees it (2.60). Changing any of them is
- * refused, as the quiet answers refuse.
- */
 export function installedUpdates(state: "idle" | "waiting"): Pick<StorytreeBridge, "checkForUpdates" | "readInstallChoice" | "readReleaseChannel" | "readSignIn"> {
-  // Stable's build is the one running at idle, and the one waiting otherwise.
   const runningBuild = "0.3.2700";
   const nextBuild = "0.3.2741";
   return {
@@ -153,16 +102,10 @@ export function installedUpdates(state: "idle" | "waiting"): Pick<StorytreeBridg
 
 type Lines = Awaited<ReturnType<StorytreeBridge["linesSince"]>>;
 
-/**
- * The log's start as the capture's whole-history answer holds it, so a capture that seeds its lines
- * through linesSince still shows them on a first start that asks linesStart: the kinds asked, every
- * line to fold sessions and claims from, and that answer's cursor.
- */
 function startFromLines({ lines, cursor }: Lines, kinds: readonly string[]) {
   return { lines: lines.filter(line => kinds.includes(line.kind)), sessions: lines, claims: lines, cursor };
 }
 
-/** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */
 export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", teaching = "hidden", layouts = loadedSeedLayouts() }: FakeBridgeOptions = {}): FakeBridge {
   let refuse!: (error: Error) => void;
   const unanswered = new Promise<never>((_, reject) => (refuse = reject));
@@ -176,7 +119,6 @@ export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", 
       if (!defaulted.includes(method)) defaulted.push(method);
       return startFromLines(await call("linesSince", [args[0], 0]) as Lines, args[1] as readonly string[]);
     }
-    // A session's deciding lines, as the capture's whole-history answer holds them: every line of it.
     if (method === "sessionLines" && !Object.hasOwn(methods, method)) {
       if (!defaulted.includes(method)) defaulted.push(method);
       const sessions = args[1] as readonly string[];

@@ -1,9 +1,4 @@
-/**
- * Capability 2 · Storytree projects. The capture kit: what a renderer evidence capture imports instead of copying the last one's
- * harness. A fake bridge typed against the desktop app's StorytreeBridge, a launch that finds
- * Playwright and Chromium from this checkout on any machine, seeded work states, and an output
- * folder that leaves the committed evidence alone unless the run is named to re-take it.
- */
+// Capability 2 · Storytree projects
 export { fakeBridge, installedUpdates } from "./fake-bridge.js";
 export type { FakeBridge, FakeBridgeOptions } from "./fake-bridge.js";
 export { browserProcess, closeBrowser, fallbackChromium, installedChromium, launch, launchFailure, launchPlan, loadPlaywright } from "./launch.js";

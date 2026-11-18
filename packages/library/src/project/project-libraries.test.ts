@@ -323,6 +323,19 @@ test("1.12 a project once deleted is not made again by an open that only reaches
   });
 });
 
+test("1.12 a project whose database a drop has marked invalid is refused as gone by an open that only reaches an existing project, and no usable database is made again", async () => {
+  const site = uniqueProjectName();
+  await withStorytree([databaseOf(site)], async (storytree) => {
+    await (await storytree.openProject(site)).close();
+    // What DROP DATABASE does before it removes the files, and what a drop cut short by a crash leaves behind.
+    await withTestClient((client) => client.query("UPDATE pg_database SET datconnlimit = -2 WHERE datname = $1", [databaseOf(site)]));
+
+    await assert.rejects(storytree.openProject(site, { create: false }), (error: unknown) => error instanceof ProjectGoneError && error.project === site);
+    const usable = await withTestClient(async (client) => (await client.query("SELECT 1 FROM pg_database WHERE datname = $1 AND datconnlimit <> -2", [databaseOf(site)])).rowCount);
+    assert.equal(usable, 0, "nothing is made again");
+  });
+});
+
 test("1.12 an open that only reaches an existing project, racing that project's deletion, opens it or is refused as gone", async () => {
   const run = uniqueProjectName();
   const sites = Array.from({ length: 20 }, (_, index) => `${run}-site-${index}`);

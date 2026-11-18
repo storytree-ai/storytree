@@ -15,6 +15,13 @@ const TEST_TOKEN = /t-[0-9a-f]{8}/;
 /** How many more times a drop is tried while the database is still being accessed. */
 const DEPARTED_RETRIES = 5;
 
+/**
+ * How many times the drop's own connection is tried while the server resets it or has no free slot
+ * (53300), from 50 ms doubling, as the library's pools do (RESET_TRIES). On Windows Postgres's
+ * refusal reaches pg only as `read ECONNRESET`: seen failing cli 4.5's teardown in CI run 42957147988.
+ */
+const CONNECT_TRIES = 5;
+
 /** Something SQL can be run on: a pg Client or Pool. */
 export interface Queryable {
   query(text: string): Promise<unknown>;
@@ -40,12 +47,27 @@ export async function dropTestDatabases(databases: Iterable<string>, server?: Qu
     for (const name of names) await drop(server, name);
     return;
   }
-  const client = new pg.Client({ connectionString: testAdminUrl() });
-  await client.connect();
+  const client = await connect(testAdminUrl());
   try {
     for (const name of names) await drop(client, name);
   } finally {
     await client.end();
+  }
+}
+
+/** A client connected to `url`, asked again while the server resets it or has no free slot. */
+async function connect(url: string): Promise<pg.Client> {
+  for (let tries = 1, pause = 50; ; tries++, pause *= 2) {
+    const client = new pg.Client({ connectionString: url });
+    try {
+      await client.connect();
+      return client;
+    } catch (error) {
+      await client.end().catch(() => {});
+      const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
+      if ((code !== "ECONNRESET" && code !== "53300") || tries >= CONNECT_TRIES) throw error;
+      await new Promise((resolve) => setTimeout(resolve, pause));
+    }
   }
 }
 

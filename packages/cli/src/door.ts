@@ -28,7 +28,7 @@ import { printable } from "@storytree/library/printable";
 
 import { Refusal, render, UnknownCommand, type Answer, type Next } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
-import { FAMILIES, familiesOff, GUESSES, POINTERS } from "./families/index.js";
+import { FAMILIES, familiesOff, GUESSES, NO_SUCH_JOB, POINTERS } from "./families/index.js";
 import { recordKindsMounted } from "./mount.js";
 import { commandSession, commandWriter, person } from "./writer.js";
 
@@ -317,6 +317,11 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
   if (verb !== undefined) return asksHelp(rest) ? helpOf(verb) : act(verb, parseArgs(rest, verb.switches ?? [], context.cwd), context, heard);
   const pointer = `${path} ${second}`;
   if (second !== undefined && Object.hasOwn(POINTERS, pointer)) return pointedBy(pointer, rest, heard, context);
+  if (second !== undefined && Object.hasOwn(NO_SUCH_JOB, pointer)) {
+    const { why, instead } = NO_SUCH_JOB[pointer]!;
+    const usage = usageOf(`storytree ${instead}`);
+    throw new Refusal(`storytree ${path} has no "${second}": ${why}\nRun ${usage}`, { code: 2, next: [{ command: usage, why: "the command for this job" }] });
+  }
   // A word the family names as a guess points to the command for that job before its bare verb would take it as its own.
   const guessed = second !== undefined && Object.hasOwn(family.guesses ?? {}, second) ? family.guesses?.[second] : undefined;
   const help = second === undefined || second === "--help" || second === "-h";

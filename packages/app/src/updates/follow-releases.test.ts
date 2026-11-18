@@ -3,6 +3,7 @@
  * reports. The updater is a stand-in whose checks answer as each test says.
  */
 import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -118,6 +119,29 @@ test("4.42 the installation a start follows is the AppImage's folder on Linux, t
   assert.equal(installationFolder({ platform: "linux", execPath: "/tmp/.mount_storyXY/storytree-0.3", appImage: "/home/u/.local/share/storytree-0.3/storytree-0.3.AppImage" }), "/home/u/.local/share/storytree-0.3");
   assert.equal(installationFolder({ platform: "darwin", execPath: "/Applications/storytree-0.3.app/Contents/MacOS/storytree-0.3", appImage: undefined }), "/Applications/storytree-0.3.app");
   assert.equal(installationFolder({ platform: "win32", execPath: path.join("C:", "Programs", "storytree-0.3", "storytree-0.3.exe"), appImage: undefined }), path.join("C:", "Programs", "storytree-0.3"));
+});
+
+// Injects a host's path module: a module loaded with `?host=win32` or `?host=posix` gets that platform's `node:path`,
+// so code that computes a fixed platform's path with the host's bare `path` fails here on any host, not only on CI's
+// other runner (escape_82042510e491).
+registerHooks({
+  resolve(specifier, context, next) {
+    const host = /[?&]host=(win32|posix)\b/.exec(context.parentURL ?? "")?.[1];
+    if (host === undefined) return next(specifier, context);
+    if (specifier === "node:path" || specifier === "path") return { url: `data:text/javascript,import p from "node:path"; export default p.${host};`, shortCircuit: true };
+    const resolved = next(specifier, context);
+    return resolved.url.startsWith("file:") && !resolved.url.includes("/node_modules/") ? { ...resolved, url: `${resolved.url}?host=${host}` } : resolved;
+  },
+});
+const underHost = async (host: "win32" | "posix") => (await import(`./follow-releases.js?host=${host}`)) as typeof import("./follow-releases.js");
+
+test("4.42 · the installation folder is the same whichever host's path module computes it (escape_82042510e491)", async () => {
+  for (const host of ["win32", "posix"] as const) {
+    const { installationFolder: folder } = await underHost(host);
+    assert.equal(folder({ platform: "linux", execPath: "/tmp/.mount_storyXY/storytree-0.3", appImage: "/home/u/.local/share/storytree-0.3/storytree-0.3.AppImage" }), "/home/u/.local/share/storytree-0.3", `the AppImage's folder under a ${host} host`);
+    assert.equal(folder({ platform: "darwin", execPath: "/Applications/storytree-0.3.app/Contents/MacOS/storytree-0.3", appImage: undefined }), "/Applications/storytree-0.3.app", `the .app bundle under a ${host} host`);
+    assert.equal(folder({ platform: "win32", execPath: "C:\\Programs\\storytree-0.3\\storytree-0.3.exe", appImage: undefined }), "C:\\Programs\\storytree-0.3", `the exe's folder under a ${host} host`);
+  }
 });
 
 test("4.32 the gear offers the update channel only where releases install themselves, and never in a smoke check", () => {

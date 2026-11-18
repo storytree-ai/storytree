@@ -1,12 +1,15 @@
 // Capability 10 · Survey run time and memory measured
 import { execFile, spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import type { AnnotatedTree } from "@storytree/library";
+
+import { codeSurveyReader } from "../code-survey/read-survey.js";
 
 const run = promisify(execFile);
 
@@ -31,7 +34,7 @@ interface RunReading {
   readonly peak: number;
 }
 
-const SURVEY_RUN = fileURLToPath(new URL("./survey-run.ts", import.meta.url));
+const SURVEY_RUN = fileURLToPath(import.meta.url);
 
 function spreadOf(values: readonly number[]): Spread {
   const sorted = [...values].sort((a, b) => a - b);
@@ -58,6 +61,17 @@ async function extract(folder: string, commit: string, into: string): Promise<vo
     archive.on("close", done);
     tar.on("close", done);
   });
+}
+
+async function surveyHere(folder: string, treeFile: string): Promise<RunReading> {
+  const tree = JSON.parse(await readFile(treeFile, "utf8")) as AnnotatedTree;
+  const reader = codeSurveyReader({ checkout: "current" });
+  const cpuBefore = process.cpuUsage();
+  const started = performance.now();
+  const survey = await reader.read(folder, tree);
+  const wall = performance.now() - started;
+  const cpuUsed = process.cpuUsage(cpuBefore);
+  return { stories: Object.keys(survey).length, wall, cpu: (cpuUsed.user + cpuUsed.system) / 1000, peak: process.resourceUsage().maxRSS / 1024 };
 }
 
 function surveyOnce(folder: string, treeFile: string): Promise<RunReading> {
@@ -101,4 +115,9 @@ export async function surveyBenchmark({ folder, commit, tree, runs }: { folder: 
   } finally {
     await Promise.all([rm(checkout, { recursive: true, force: true }), rm(planned, { recursive: true, force: true })]);
   }
+}
+
+if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === SURVEY_RUN) {
+  const [folder, treeFile] = process.argv.slice(2) as [string, string];
+  process.stdout.write(`${JSON.stringify(await surveyHere(folder, treeFile))}\n`);
 }

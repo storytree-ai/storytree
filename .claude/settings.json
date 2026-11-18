@@ -19,7 +19,7 @@
           {
             "type": "command",
             "command": "node packages/base-dev-loop/src/provision-worktree.mjs --hook --factory https://github.com/HuaMick/storytree-factory.git --factory-token FACTORY_READ_TOKEN --factory-plugin micks-dev-loop",
-            "timeout": 300
+            "timeout": 600
           }
         ]
       }

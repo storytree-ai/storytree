@@ -1,0 +1,18 @@
+diff --git a/lib/coreBundle.js b/lib/coreBundle.js
+index bc601fcf741792e3fc76884a28a3c43f80c6472f..af8545f7f9813bc971697bf03348351184340d48 100644
+--- a/lib/coreBundle.js
++++ b/lib/coreBundle.js
+@@ -8688,6 +8688,13 @@ async function launchProcess(options2) {
+       options2.log(`[pid=${spawnedProcess.pid}] <will force kill>`);
+       try {
+         if (process.platform === "win32") {
++          // storytree patch (arc_3a2c40c6af10): once Node has seen the browser's process exit, Windows may already have
++          // given its freed pid to an unrelated process, and `taskkill /F` of that pid ends that process with exit 1.
++          // Force-kill by pid only while Node still holds the browser's process.
++          if (spawnedProcess.exitCode !== null || spawnedProcess.signalCode !== null) {
++            options2.log(`[pid=${spawnedProcess.pid}] <skipped force kill exitCode=${spawnedProcess.exitCode} signalCode=${spawnedProcess.signalCode}>`);
++            return;
++          }
+           const taskkillProcess = childProcess.spawnSync(`taskkill /pid ${spawnedProcess.pid} /T /F`, { shell: true });
+           const [stdout2, stderr2] = [taskkillProcess.stdout.toString(), taskkillProcess.stderr.toString()];
+           if (stdout2)

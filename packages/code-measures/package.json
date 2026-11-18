@@ -15,7 +15,8 @@
   "dependencies": {
     "@babel/parser": "^7.29.9",
     "@storytree/library": "workspace:*",
-    "@storytree/map": "workspace:*"
+    "@storytree/map": "workspace:*",
+    "@storytree/session-management": "workspace:*"
   },
   "devDependencies": {
     "@storytree/test-waits": "workspace:*",

@@ -13,7 +13,8 @@ import { verb, VerbRefusal, type Verb, type VerbFamily, type VerbInputs } from "
 
 import type { SessionVerbContext } from "../sessions/verbs.js";
 import { CATCH_LAYERS, catchRateLines, catchReading, catchText } from "./catch.js";
-import { MEASURES } from "./summary.js";
+import type { LaneRow, LaneWindow } from "./lanes.js";
+import { MEASURES, type GroupMeasures } from "./summary.js";
 
 /** Records a mounted part keeps for a project outside its library; one that keeps a QA ledger may also say each increment's review rounds. */
 interface ProjectRecords {
@@ -22,7 +23,7 @@ interface ProjectRecords {
 }
 
 /** The context the verb reads: the session context, with what the command line's door adds. */
-type MeasuresContext = SessionVerbContext & { readonly server?: Storytree; projectRecords?(): Promise<readonly ProjectRecords[]> };
+export type MeasuresContext = SessionVerbContext & { readonly server?: Storytree; projectRecords?(): Promise<readonly ProjectRecords[]> };
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_DAYS = 7;
@@ -33,12 +34,28 @@ function dayBefore(now: Date, days: number): string {
 }
 
 /** The window `--from` and `--to` give, each a real day and in order: to today unless given, and from DEFAULT_DAYS days ending there. */
-function windowOf(from: string | undefined, to: string | undefined): { from: string; to: string } {
+export function windowOf(from: string | undefined, to: string | undefined, days = DEFAULT_DAYS): { from: string; to: string } {
   const last = to ?? dayBefore(new Date(), 0);
-  const first = from ?? dayBefore(new Date(`${last}T00:00:00Z`), DEFAULT_DAYS - 1);
+  const first = from ?? dayBefore(new Date(`${last}T00:00:00Z`), days - 1);
   for (const day of [first, last]) if (!DAY.test(day) || Number.isNaN(Date.parse(`${day}T00:00:00Z`)) || new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) !== day) throw new VerbRefusal(`"${day}" is not a day: give it as YYYY-MM-DD.`, { misuse: true });
   if (first > last) throw new VerbRefusal(`--from ${first} is after --to ${last}.`, { misuse: true });
   return { from: first, to: last };
+}
+
+async function laneReading(context: MeasuresContext, window: LaneWindow): Promise<{ rows: LaneRow[]; stories: GroupMeasures[] }> {
+  const [{ laneRows }, { pullFiles }, { groupMeasures }] = await Promise.all([import("./lanes.js"), import("./pull-files.js"), import("./summary.js")]);
+  const keeper = (await context.projectRecords?.())?.find((records) => records.reviewRounds !== undefined);
+  const server = context.server;
+  const rows = await laneRows(context, window, {
+    prFiles: await pullFiles(context.folder).catch(() => async () => undefined),
+    ...(context.placeFiles === undefined ? {} : { placeFiles: context.placeFiles }),
+    ...(keeper?.reviewRounds === undefined || server === undefined ? {} : { reviewRounds: (increments: readonly string[]) => keeper.reviewRounds!(server, context.project, increments) }),
+  });
+  return { rows, stories: groupMeasures(rows, (row) => row.stories) };
+}
+
+export async function storyLaneMeasures(context: MeasuresContext, window: LaneWindow): Promise<GroupMeasures[]> {
+  return (await laneReading(context, window)).stories;
 }
 
 const MEASURES_REPORT = verb({
@@ -56,17 +73,10 @@ const MEASURES_REPORT = verb({
   },
   async act({ from, to, json }, context: MeasuresContext) {
     const window = windowOf(from, to);
-    const [{ laneRows }, { pullFiles }, { groupMeasures, measuresText }] = await Promise.all([import("./lanes.js"), import("./pull-files.js"), import("./summary.js")]);
-    const keeper = (await context.projectRecords?.())?.find((records) => records.reviewRounds !== undefined);
-    const server = context.server;
-    const rows = await laneRows(context, window, {
-      prFiles: await pullFiles(context.folder).catch(() => async () => undefined),
-      ...(context.placeFiles === undefined ? {} : { placeFiles: context.placeFiles }),
-      ...(keeper?.reviewRounds === undefined || server === undefined ? {} : { reviewRounds: (increments: readonly string[]) => keeper.reviewRounds!(server, context.project, increments) }),
-    });
+    const [{ groupMeasures, measuresText }, { rows, stories }] = await Promise.all([import("./summary.js"), laneReading(context, window)]);
     const caught = (await catchReading(context.library, window)).stories;
     if (!json) return { text: [measuresText(rows, window), "", ...catchRateLines(caught)].join("\n") };
-    return { text: JSON.stringify({ window, rows, stories: groupMeasures(rows, (row) => row.stories), capabilities: groupMeasures(rows, (row) => row.capabilities), catch: caught }, null, 2), raw: true };
+    return { text: JSON.stringify({ window, rows, stories, capabilities: groupMeasures(rows, (row) => row.capabilities), catch: caught }, null, 2), raw: true };
   },
 });
 

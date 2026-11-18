@@ -1,15 +1,9 @@
-/** Capability 2 · Settings: who decides what, shown read-only in the app (2.14). */
+// Capability 2 · Settings
 /// <reference lib="dom" />
 import { decisionRights } from "../settings/decision-rights.js";
 import { escape } from "./render.js";
 import { decisionRightsStyles } from "./styles.js";
 
-/**
- * Who decides what, shown (capability 7, contract 7.6; ADR-0842 D4): the split the habits card
- * hands every agent, rendered from the same lines the card is built from so the two never
- * disagree, and the project's standing delegations when its library defines them. Read-only
- * (ADR-0842 D3): nothing on it is a control.
- */
 export function renderDecisionRights({ delegations, failure }: { readonly delegations?: string | undefined; readonly failure?: string }): string {
   const split = decisionRights();
   const group = (title: string, lines: readonly string[]) =>
@@ -34,11 +28,6 @@ export function renderDecisionRights({ delegations, failure }: { readonly delega
   </section>`;
 }
 
-/**
- * Mounts the view in `host`, hidden until opened; each opening reads the project's register
- * afresh. An absent read still shows the split, which needs no project; a failed one shows the split and says
- * the register could not be read, never that the project has none.
- */
 export function mountDecisionRights(host: HTMLElement, readDelegations: () => Promise<string | undefined>) {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(decisionRightsStyles);

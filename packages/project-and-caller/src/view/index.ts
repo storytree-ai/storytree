@@ -1,4 +1,4 @@
-/** Capability 2 · Settings. */
+// Capability 2 · Settings
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 import type { SettingsBridge } from "../settings/bridge.js";
@@ -9,10 +9,6 @@ import { settingsStyles } from "./styles.js";
 export { SETTINGS_CHANNELS, type SettingsBridge } from "../settings/bridge.js";
 export { mountDecisionRights, renderDecisionRights } from "./decision-rights.js";
 
-/**
- * Capability 10 owns its panel; the app surface only mounts it and supplies the desktop bridge.
- * Given a group, the panel is that group's tab: its heading, and only the settings that declare it.
- */
 export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options: { returnFocus: HTMLElement; embedded?: boolean; group?: SettingGroup }) {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(settingsStyles);

@@ -1,4 +1,4 @@
-/** Capability 2 · Settings, contract 2.17: a module of the host switched off and on, and the modules `settings show` lists. */
+// Capability 2 · Settings
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -10,7 +10,6 @@ import { withTempDir } from "../testing/folders.js";
 import { partsSaid, switchedSaid, switchPart } from "./parts.js";
 import { factoryFolder, makeFactoryFolder, readStandIns, setFactory } from "./settings.js";
 
-/** A host's parts: the core, and forest with arc-surface standing on it. */
 const parts = ["arc-surface", "forest", "library", "project-and-caller"];
 
 test("2.17 `settings set module <module> off` switches a module of the host off and `on` back on, saying every module now off with the module each stands on and that hosts take it as they start, and `settings show` lists each module on, off, off with another or always on; the core, a module the host lacks and a state but on or off are refused, saving nothing", async () => {
@@ -62,7 +61,6 @@ test("2.20 `settings set factory <folder>` chooses this computer's factory folde
     assert.match(switchedSaid(new Map([["forest", "forest"]]), standIns), /forest \(my-forest stands in for it\)/);
     assert.match(partsSaid(parts, new Map([["forest", "forest"]]), standIns), /^  forest: off, my-forest stands in for it$/m);
 
-    // A part that has left the base (voice) is in no host's parts, yet a factory plugin stands in for it, and it switches back.
     assert.deepEqual(switchPart("voice", "plugin", parts, home, "voice"), ["forest", "voice"]);
     assert.equal(readStandIns(home).plugins.voice, "voice");
     assert.deepEqual(switchPart("voice", "on", parts, home), ["forest"]);

@@ -1,20 +1,10 @@
-/** Capability 2 · Settings: who decides what, as the MCP server's habits card states it and the app's panel shows it (2.14). */
+// Capability 2 · Settings
 
-/**
- * Who decides what (ADR-0842 D1, D2, as ADR-1273 narrows D1): the kinds of decision a user's agent makes and records, the
- * kinds it asks the owner about, and the honesty promises no instructions file moves. The card is
- * built from these lines, and anything that shows the split reads them here, so the two never drift.
- */
 export interface DecisionRights {
-  /** Kinds the agent decides itself, and records. */
   decides: readonly string[];
-  /** Kinds it asks the owner about before acting. */
   asks: readonly string[];
-  /** That it checks the owner's standing delegations before asking. */
   delegations: string;
-  /** That the user's own instructions file overrides the split, either way. */
   override: string;
-  /** Promises no file moves. */
   honesty: readonly string[];
 }
 
@@ -41,12 +31,10 @@ const DECISION_RIGHTS: DecisionRights = {
   ],
 };
 
-/** The split between what the agent decides and what it asks the owner, as the card states it. */
 export function decisionRights(): DecisionRights {
   return DECISION_RIGHTS;
 }
 
-/** Its section of the habits card (ADR-1021, the guidance kind): who decides what, built from the lines above. */
 export const decisionRightsGuidance: readonly string[] = [
   [
     "Who decides what.",

@@ -1,11 +1,10 @@
-/** Capability 2 · Settings: per-user settings, owned by Project and caller (ADR-0729, ADR-1025; the library's location, ADR-0734/0735). */
+// Capability 2 · Settings
 import { randomUUID } from "node:crypto";
 import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { storytreeHome } from "../routing/index.js";
 
-/** The gear menu tab a setting shows under (the settings view offers its rows by group). */
 export type SettingGroup = "sessions" | "library" | "machine";
 
 const contextGuidance = {
@@ -37,7 +36,6 @@ const leaveAfter = {
   meaning: "A session that holds no unmerged work and has not closed out leaves the running-sessions list once it has been quiet this long, counted from its last activity or from when its work was merged, whichever is later; a session the Claude or Codex app keeps shows as done until you archive it there instead. Use whole seconds (s), minutes (m), hours (h) or days (d), such as 2h. Default: 1 hour.",
 } as const;
 
-/** The limits `storytree machine health` reads this machine against (Session management's Machines): past one, it is a concern. */
 const healthMemory = {
   name: "health-memory",
   group: "machine",
@@ -118,10 +116,6 @@ interface HealthReading {
 
 export type SettingReading = ContextGuidanceReading | IdleReading | HealthReading;
 
-/**
- * Where the library lives: this computer's app, or any Postgres by its address, a postgres:// URL
- * without its password (ADR-0846 D1).
- */
 export type LibraryLocation =
   | { readonly location: "local" }
   | { readonly location: "postgres"; readonly address: string };
@@ -145,10 +139,6 @@ export interface SettingsReading {
   readonly library: LibraryReading;
 }
 
-/**
- * The app's surface choices (ADR-0750): per surface id, `on` and each setting's chosen value. The
- * Project and caller keeps them and checks their shape; each story declares what they mean.
- */
 export type SurfaceChoices = Readonly<Record<string, Readonly<Record<string, boolean | string>>>>;
 
 interface Stored {
@@ -174,27 +164,17 @@ interface Stored {
   "services-on"?: readonly string[];
 }
 
-/**
- * The system switched off and on on this computer (ADR-1092 D2), each a sorted list of names: `all`, a group (`roles`,
- * `checks` or `notes`), or one record's title or id. The library reads a record's most specific mention (1.21).
- */
 export interface SystemSwitches {
   readonly off: readonly string[];
   readonly on: readonly string[];
 }
 
-/**
- * The experiment and arm a lane runs in (ADR-1064 D2), as its storytree home's settings.json names them, with the verbs
- * that arm denies by door once its run has copied them from the experiment's record: what the Experiments story reads
- * for its verdict, and the labels the activity log stamps. Written by whoever makes the arm's home and runs it.
- */
 export interface ExperimentArm {
   readonly name: string;
   readonly arm: string;
   readonly denies?: { readonly tools: readonly string[]; readonly commands: readonly string[] };
 }
 
-/** Read each setting with its declared default, meaning and value source. */
 export function readSettings(home: string = storytreeHome()): SettingsReading {
   const stored = readStored(home);
   const guidance = stored["context-guidance"];
@@ -228,13 +208,6 @@ function healthReadings(stored: Stored): Pick<SettingsReading, HealthName> {
   return { "health-memory": reading(healthMemory), "health-load": reading(healthLoad), "health-disk": reading(healthDisk) };
 }
 
-/**
- * Only where the library lives, for everything that finds the library (routing, the app). Damage
- * elsewhere in settings.json is left for the settings that own it to report, so it never stops a
- * command that needs only the library (a context reading among them). The file must still be a
- * JSON object, and a damaged library setting is reported naming the file: where the library is
- * cannot be guessed, and is never read as local.
- */
 export function readLibrary(home: string = storytreeHome()): LibraryLocation {
   const file = path.join(home, "settings.json");
   let text: string;
@@ -254,10 +227,6 @@ export function readLibrary(home: string = storytreeHome()): LibraryLocation {
   }
 }
 
-/**
- * Only the experiment and arm this home names, none when it names none: like the library, read on its own, so damage
- * elsewhere in settings.json never stops a lane's lines being labelled, and a damaged value is reported naming the file.
- */
 export function readExperiment(home: string = storytreeHome()): ExperimentArm | undefined {
   const file = path.join(home, "settings.json");
   let text: string;
@@ -277,11 +246,6 @@ export function readExperiment(home: string = storytreeHome()): ExperimentArm | 
   }
 }
 
-/**
- * The modules switched off on this computer (ADR-1092 D2, ADR-1095, ADR-1322 D2), by name, sorted; none when it names
- * none. Read on its own, like the library, since every host reads it as it starts; a damaged value is reported naming the
- * file. A file that names none under modules-off is read under the old parts-off key, so no computer's settings break.
- */
 export function readPartsOff(home: string = storytreeHome()): readonly string[] {
   const file = path.join(home, "settings.json");
   let text: string;
@@ -302,16 +266,8 @@ export function readPartsOff(home: string = storytreeHome()): readonly string[] 
   }
 }
 
-/** The default factory folder's name (ADR-1118 D2): storytree collects no account name to call it by. */
 const DEFAULT_FACTORY = "your-factory";
 
-/**
- * This computer's factory folder: the one `settings set factory` chose, or else storytree's own, `your-factory`
- * (ADR-1118 D2). It sits beside a versioned home (`~/.storytree/0.3` keeps it at `~/.storytree/your-factory`, so it
- * outlasts the version) and inside any other home, so a lane's or a test's home keeps its own. Reading it writes
- * nothing; `makeFactoryFolder` makes the default. A damaged value is reported naming the file. STORYTREE_FACTORY names
- * the folder for one run over both, the setting unread and untouched, so a lane can mount its own factory worktree.
- */
 export function factoryFolder(home: string = storytreeHome()): { readonly folder: string; readonly chosen: boolean; readonly switched?: FactorySwitched } {
   const forRun = process.env.STORYTREE_FACTORY;
   if (forRun !== undefined && forRun !== "") return { folder: path.resolve(forRun), chosen: true };
@@ -322,20 +278,12 @@ export function factoryFolder(home: string = storytreeHome()): { readonly folder
   return { folder: path.join(path.basename(path.dirname(full)) === ".storytree" ? path.dirname(full) : full, DEFAULT_FACTORY), chosen: false };
 }
 
-/**
- * This computer's factory folder, storytree's own made with the factory's shape (a `plugins` folder) when no other is
- * chosen and it is not there yet, without saving a setting: what the desktop app does as it starts (ADR-1118 D2).
- */
 export function makeFactoryFolder(home: string = storytreeHome()): { readonly folder: string; readonly chosen: boolean } {
   const factory = factoryFolder(home);
   if (!factory.chosen) mkdirSync(path.join(factory.folder, "plugins"), { recursive: true });
   return factory;
 }
 
-/**
- * This computer's factory folder and the factory plugin standing in for each part it names: what a host hands the
- * plugin loader as it starts. A damaged value is reported naming the file.
- */
 export function readStandIns(home: string = storytreeHome()): {
   readonly folder: string;
   readonly plugins: Readonly<Record<string, string>>;
@@ -346,33 +294,21 @@ export function readStandIns(home: string = storytreeHome()): {
   return { folder: factoryFolder(home).folder, plugins: stored[STAND_INS] ?? {}, switched: stored[STAND_INS_SWITCHED] ?? {}, history: stored[STAND_INS_HISTORY] ?? {} };
 }
 
-/** Where the factory folder, or a plugin standing in for a part, was switched from: no approval is asked (question_0b0b82eb8fbc), so this record is the safeguard. */
 export type FactorySwitcher = { readonly through: "desktop app" | "command line" | "agent tool"; readonly session?: string };
 
-/** Who switched this computer's factory folder, or a plugin standing in for a part, and when. */
 export type FactorySwitched = FactorySwitcher & { readonly at: string };
 
-/** A factory plugin that stood in for a part and was switched back: who switched it in (when that was recorded) and who switched it back, each with when. */
 export interface StandInSwitchedBack {
   readonly plugin: string;
   readonly in?: FactorySwitched;
   readonly back: FactorySwitched;
 }
 
-/** A factory folder chosen: given the factory's shape just now, or found with it already. */
 export interface ChosenFactory {
   readonly status: "set up" | "already a factory";
   readonly folder: string;
 }
 
-/**
- * Choose `folder`, an existing folder, as this computer's factory folder in place of storytree's own, saved as its full
- * path (`settings set factory`). An empty folder is given the factory's
- * shape, a `plugins` folder the plugin loader reads each plugin from, and one that has it is accepted; a folder holding
- * anything else is refused, left as it was and not saved. Hidden entries (a fresh repository's `.git`) do not count,
- * so a newly made private repo can be the factory. No approval is asked, from a person or an agent; who switched it
- * (`by`) and when is kept beside it.
- */
 export function setFactory(folder: string, home: string = storytreeHome(), by: FactorySwitcher = { through: "command line" }, now: Date = new Date()): ChosenFactory {
   const full = path.resolve(folder);
   if (!statSync(full, { throwIfNoEntry: false })?.isDirectory()) refuse(`There is no folder at ${full}; make it first, or choose another.`);
@@ -389,10 +325,6 @@ export function setFactory(folder: string, home: string = storytreeHome(), by: F
   return { status, folder: full };
 }
 
-/**
- * The system switched off and on on this computer, none when it names none. Read on its own, like the parts, since an
- * agent's door reads it as it opens the project; a damaged value, or a name in both lists, is reported naming the file.
- */
 export function readSystemSwitches(home: string = storytreeHome()): SystemSwitches {
   const file = path.join(home, "settings.json");
   let text: string;
@@ -411,11 +343,6 @@ export function readSystemSwitches(home: string = storytreeHome()): SystemSwitch
   }
 }
 
-/**
- * Switch the system named `name` off or on for this computer, and return what is now off and on. Off takes it out of
- * the on list and into the off list; on takes it out of the off list and, unless it is `all`, into the on list, so it
- * beats a wider name switched off.
- */
 export function setSystemSwitch(name: string, off: boolean, home: string = storytreeHome()): SystemSwitches {
   const stored = readStored(home);
   const without = (names: readonly string[] | undefined) => (names ?? []).filter((one) => one !== name);
@@ -426,13 +353,6 @@ export function setSystemSwitch(name: string, off: boolean, home: string = story
   return switches;
 }
 
-/**
- * Switch the story part `part` off or on for this computer, and return the parts now off. The core is refused: this
- * story's own copy of the plugin loader's (ADR-1017 D2), which never leaves it out. Whether `part` is one a host has is
- * the switch's to check, since only a host knows its parts. Switched off with `plugin`, that factory plugin is named to
- * stand in for it, with who switched it (`by`) and when (ADR-1126 D2); any other switch drops its stand-in and that record,
- * which moves to the part's history beside who switched it back (`by`) and when, so the record outlives the stand-in.
- */
 export function setPartOff(part: string, off: boolean, home: string = storytreeHome(), plugin?: string, by: FactorySwitcher = { through: "command line" }, now: Date = new Date()): readonly string[] {
   if (CORE.includes(part)) refuse(`${part} is the core, which every host stands on, so it is never switched off.`);
   const stored = readStored(home);
@@ -449,7 +369,6 @@ export function setPartOff(part: string, off: boolean, home: string = storytreeH
   write(home, {
     ...stored,
     [MODULES_OFF]: parts,
-    // A file that had the old key keeps it in step, so a storytree that reads only that key (an older checkout on the same computer) reads the same.
     ...(stored[PARTS_OFF] === undefined ? {} : { [PARTS_OFF]: parts }),
     ...(stored[STAND_INS] === undefined && plugin === undefined ? {} : { [STAND_INS]: named }),
     ...(stored[STAND_INS_SWITCHED] === undefined && plugin === undefined ? {} : { [STAND_INS_SWITCHED]: recorded }),
@@ -458,15 +377,10 @@ export function setPartOff(part: string, off: boolean, home: string = storytreeH
   return parts;
 }
 
-/**
- * The services turned on on this computer (ADR-1180 D2), each `<part>/<service>`, sorted; none when it names none, since
- * every service is off until it is turned on. The service host reads it as it runs; a damaged value is reported naming the file.
- */
 export function readServicesOn(home: string = storytreeHome()): readonly string[] {
   return readStored(home)[SERVICES_ON] ?? [];
 }
 
-/** Turn the service `service` (`<part>/<service>`) on or off for this computer, and return the services now on. */
 export function setServiceOn(service: string, on: boolean, home: string = storytreeHome()): readonly string[] {
   checkedServicesOn([service]);
   const stored = readStored(home);
@@ -476,18 +390,15 @@ export function setServiceOn(service: string, on: boolean, home: string = storyt
   return services;
 }
 
-/** The user's approval of a project's checked-in worktree setup: its commands' fingerprint, and when it was given (capability 19, 19.6). */
 export interface SetupApproval {
   readonly fingerprint: string;
   readonly at: string;
 }
 
-/** The approval the user gave the checked-in worktree setup of the repository whose main checkout is `repository`, if any. */
 export function readSetupApproval(repository: string, home: string = storytreeHome()): SetupApproval | undefined {
   return readStored(home)[SETUP_APPROVALS]?.[repository];
 }
 
-/** Record the user's approval of `repository`'s checked-in setup commands with `fingerprint`, replacing any earlier one. */
 export function setSetupApproval(repository: string, fingerprint: string, home: string = storytreeHome(), now: Date = new Date()): SetupApproval {
   const stored = readStored(home);
   const approval = { fingerprint, at: now.toISOString() };
@@ -495,7 +406,6 @@ export function setSetupApproval(repository: string, fingerprint: string, home: 
   return approval;
 }
 
-/** Persist a user's choice in the same home as project-choice.json, after checking its type. */
 export function setSetting(name: string, value: string, home: string = storytreeHome()): SettingReading {
   checkName(name);
   if (name === library.name) return refuse("Set the library with `storytree settings set library local` or `… library postgres <address>`.");
@@ -513,10 +423,6 @@ export function setSetting(name: string, value: string, home: string = storytree
   return readSettings(home)["context-guidance"];
 }
 
-/**
- * Persist where the library lives: `["local"]` or `["postgres", <address>]`. All of it is checked before
- * anything is written, so the setting is never half-set.
- */
 export function setLibrary(words: readonly string[], home: string = storytreeHome()): LibraryReading {
   const given = words[0] === "postgres" ? { location: "postgres", address: words[1] } : { location: words[0] };
   const location = checkedLibrary(given, words.length);
@@ -524,12 +430,10 @@ export function setLibrary(words: readonly string[], home: string = storytreeHom
   return readSettings(home).library;
 }
 
-/** The surface choices saved in the settings file, none when it has none. */
 export function readSurfaceChoices(home: string = storytreeHome()): SurfaceChoices {
   return readStored(home).surfaces ?? {};
 }
 
-/** Save one surface choice (`on`, or a setting's id) beside the rest, the file checked first. */
 export function setSurfaceChoice(surface: string, key: string, value: boolean | string, home: string = storytreeHome()): SurfaceChoices {
   const stored = readStored(home);
   const surfaces = { ...stored.surfaces, [surface]: { ...stored.surfaces?.[surface], [key]: value } };
@@ -564,7 +468,6 @@ function isHealth(name: string): name is HealthName {
   return HEALTH.some((declared) => declared.name === name);
 }
 
-/** A health limit: a positive whole number, and for the disk a percentage, at most 100. */
 function checkedHealth(value: unknown, name: HealthName): number {
   const most = name === healthDisk.name ? 100 : Number.MAX_SAFE_INTEGER;
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0 || value > most) {
@@ -573,12 +476,10 @@ function checkedHealth(value: unknown, name: HealthName): number {
   return value;
 }
 
-/** The current idle duration in milliseconds; read afresh so a running session sees changes. */
 export function idleAfterMs(home?: string): number {
   return checkedDuration(readSettings(home)["idle-after"].value);
 }
 
-/** The current leave-after duration in milliseconds (ADR-0754 D4); read afresh so a running reader sees changes. */
 export function leaveAfterMs(home?: string): number {
   return checkedDuration(readSettings(home)["leave-after"].value, leaveAfter.name);
 }
@@ -600,19 +501,11 @@ function checkedGuidance(value: unknown): number {
   return value;
 }
 
-/**
- * The refusal of a library set to Cloud SQL, as settings written before it was taken out say (ADR-0735 D4: never read as
- * local): what storytree no longer does, and how to reach the same instance as a Postgres address.
- */
 const NO_CLOUD_SQL =
   "library: Cloud SQL is no longer built into storytree. Reach the instance as a Postgres address instead: through the Cloud SQL Auth Proxy, " +
   "or its public IP, as an ordinary database user, with `storytree settings set library postgres postgres://<user>@<host>[:<port>]/postgres` " +
   "and its password saved with `storytree auth set postgres`.";
 
-/**
- * A stored or given library location, if it is one; refused with what to write otherwise. `words`
- * counts the words a command gave, so a stray extra one is refused rather than dropped.
- */
 function checkedLibrary(value: unknown, words?: number): LibraryLocation {
   const usage =
     "library is `local`, or `postgres <address>`: postgres://<user>@<host>[:<port>]/<database> or wss://<user>@<host>[:<port>]/<database>.";
@@ -625,11 +518,6 @@ function checkedLibrary(value: unknown, words?: number): LibraryLocation {
   return refuse(usage);
 }
 
-/**
- * A Postgres address as the library setting keeps it: a postgres:// URL, or a wss:// one for Postgres
- * over a WebSocket, naming a user and a host, with no password. A password belongs in the key store (ADR-0843), so one given here is refused
- * without being repeated.
- */
 function checkedAddress(address: unknown): string {
   const usage =
     "library: a Postgres address is written postgres://<user>@<host>[:<port>]/<database>, with ?sslmode=… where the server needs it, " +
@@ -662,10 +550,8 @@ function checkedExperiment(value: unknown): ExperimentArm {
 }
 
 const MODULES_OFF = "modules-off";
-/** The key the modules switched off were saved under before ADR-1322 D2 named them modules: still read. */
 const PARTS_OFF = "parts-off";
 
-/** The core, never switched off: this story's own copy of the plugin loader's (ADR-1017 D2). */
 export const CORE: readonly string[] = ["library", "plugin-loader", "project-and-caller"];
 
 function checkedPartsOff(value: unknown, key: string): readonly string[] {
@@ -731,7 +617,6 @@ function checkedSetupApprovals(value: unknown): Readonly<Record<string, SetupApp
 
 const SERVICES_ON = "services-on";
 
-/** A service's name on this computer: its part, then the service's own name, each in lower-case letters, digits and dashes. */
 export const SERVICE_NAME = /^[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/;
 
 function checkedServicesOn(value: unknown): readonly string[] {
@@ -777,7 +662,6 @@ function readStored(home: string): Stored {
   try {
     text = readFileSync(file, "utf8");
   } catch (error) {
-    // A dangling symlink exists but cannot be read; it must not become a default or be replaced.
     if ((error as NodeJS.ErrnoException).code === "ENOENT" && lstatSync(file, { throwIfNoEntry: false }) === undefined) return {};
     throw new Error(`Cannot read settings file "${file}": ${(error as Error).message}`, { cause: error });
   }

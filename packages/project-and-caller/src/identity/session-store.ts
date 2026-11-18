@@ -1,4 +1,4 @@
-/** Capability 6 · Social sign-in and session. */
+// Capability 6 · Social sign-in and session
 import { spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
@@ -6,9 +6,7 @@ import { lstat, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { SessionStore } from "./client.js";
 
-/** Starts Windows's protection process; by default Node's spawn. */
 type Spawn = (command: string, args: readonly string[], options: SpawnOptionsWithoutStdio) => ChildProcessWithoutNullStreams;
-/** A session is bound to its WorkOS client only; status needs nothing else. */
 interface StoreConfiguration { readonly directory: string; readonly clientId: string; readonly spawn?: Spawn }
 class PrivateStorageError extends Error {
   constructor(diagnostic?: string) {
@@ -19,12 +17,6 @@ class PrivateStorageError extends Error {
 const storageError = () => new PrivateStorageError();
 const missing = (error: unknown) => (error as NodeJS.ErrnoException)?.code === "ENOENT";
 
-/**
- * POSIX: owner-only directory and file. Windows: CurrentUser DPAPI encryption (never a plaintext fallback).
- * Hold the lock over the whole command, including refresh and sign-out, so competing CLI processes cannot
- * reuse a rotating refresh token or save a session after sign-out. An interrupted command leaves its lock
- * for explicit recovery after checking the recorded PID; we never guess that a slow sign-in has died.
- */
 export async function withSessionStore<T>(config: StoreConfiguration, act: (store: SessionStore) => Promise<T>): Promise<T> {
   const directory = path.resolve(config.directory);
   const lock = path.join(directory, "command-lock");
@@ -80,7 +72,6 @@ async function check(file: string, directory: boolean): Promise<void> {
     || (process.platform !== "win32" && ((info.mode & 0o077) !== 0 || info.uid !== process.getuid?.()))) throw storageError();
 }
 
-/** Secrets travel through stdin/stdout pipes, never command arguments, environment variables or logs. */
 function dpapi(value: string, encrypt: boolean, start: Spawn = spawn): Promise<string> {
   const script = `$ErrorActionPreference = 'Stop'; Add-Type -AssemblyName System.Security; `
     + `[Console]::InputEncoding = [Text.UTF8Encoding]::new($false); [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); `
@@ -90,8 +81,6 @@ function dpapi(value: string, encrypt: boolean, start: Spawn = spawn): Promise<s
       : `$bytes = [Convert]::FromBase64String($inputValue); [Console]::Out.Write([Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect($bytes, $null, [Security.Cryptography.DataProtectionScope]::CurrentUser)))`)
     + ` } catch { exit 2 }`;
   const started = Date.now();
-  // Windows CI failed near the old ten-second bound. Allow cold PowerShell startup
-  // a finite budget, and diagnose our deadline separately from process exit.
   const timeoutMs = 30_000;
   const errorCode = (error: unknown) => {
     const code = (error as NodeJS.ErrnoException)?.code;
@@ -125,8 +114,6 @@ function dpapi(value: string, encrypt: boolean, start: Spawn = spawn): Promise<s
       if (output.length + chunk.length > 128 * 1024) { fail("output-limit", "", true); return; }
       output += chunk;
     });
-    // PowerShell's stderr and Node's error message may contain input. Retain only
-    // our own category, elapsed time, an allowlisted OS code and numeric exit status.
     child.stderr.resume();
     child.on("error", error => fail("startup", `code=${errorCode(error)}`, true));
     child.stdin.on("error", error => fail("input", `code=${errorCode(error)}`, true));

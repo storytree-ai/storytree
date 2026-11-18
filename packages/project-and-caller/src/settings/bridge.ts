@@ -1,7 +1,6 @@
-/** Capability 2 · Settings. */
+// Capability 2 · Settings
 import type { LibraryReading, SettingGroup, SettingsReading } from "./settings.js";
 
-/** Data only: safe to import into the sandboxed page or preload. */
 export type SettingsResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: string };
 export interface NumberReading {
   readonly name: string;
@@ -25,5 +24,4 @@ export const SETTINGS_CHANNELS = {
   saveSetting: "storytree:save-setting",
 } as const;
 
-/** The page's side of the settings panel's operations, named in its manifest (`pageChannels`, ADR-1021): the desktop's preload offers them. */
 export const settingsPageChannels = [SETTINGS_CHANNELS];

@@ -5,14 +5,11 @@
  * decisions narrow it.
  */
 import type { Library } from "../index.js";
-import type { Findable, NarrowingDecision, NoteType, PlanKind, Ranked } from "../knowledge/index.js";
+import { KNOWLEDGE_KINDS, type Findable, type NarrowingDecision, type NoteType, type PlanKind, type Ranked } from "../knowledge/index.js";
 import { VerbRefusal } from "../verbs/verb.js";
 
 /** The kinds a search may be narrowed to. */
-const SEARCHABLE: readonly string[] = [
-  "decision", "definition", "principle", "guardrail", "pattern", "process", "agent", "friction", "resteer", "techstack", "check", "research", "experiment", "escape", "drill", "measure",
-  "story", "capability", "contract",
-];
+const SEARCHABLE: readonly string[] = ["decision", "definition", ...KNOWLEDGE_KINDS, "story", "capability", "contract"];
 
 /** rankAll, with an unknown kind refused as the caller's misuse rather than thrown. */
 export async function rankedSearch(library: Library, query: string, options: { readonly limit?: number; readonly history?: boolean; readonly kinds?: readonly string[] }): Promise<Ranked<Findable>> {

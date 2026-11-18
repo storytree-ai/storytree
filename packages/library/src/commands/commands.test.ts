@@ -12,6 +12,7 @@ import { test } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
 import { connect } from "../index.js";
+import { ARTIFACT_KINDS } from "../knowledge/index.js";
 import { connect as connectProject } from "../project/index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
@@ -1182,4 +1183,45 @@ test("17.30 · library search and read, and the search_notes and open tools, rea
   const shut = { ...fromProduct, library: { ...fromProduct.library, reachAll: async () => [{ project: "elsewhere", unopened: "permission denied for table record" }] } };
   const named = await verbOf("search").act({ words: ["land"], limit: undefined, history: false, kind: [], project: ["all"] }, shut, WORDS);
   assert.match(named.text, /project elsewhere: not read: it could not be opened from this computer: permission denied for table record/);
+});
+
+test("17.31 · Every kind ARTIFACT_KINDS registers is ranked by library search --kind; one it marks captured is refused by library new and write_note naming its capture command and tool (friction and resteer only), and any other reaches its writer, refused only for its missing fields", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const reads: NoteRead[] = [];
+  const context = {
+    library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" },
+    claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }),
+    notesRead: async () => reads, recordReads: async (more: readonly NoteRead[]) => void reads.push(...more), presenterOf: async () => undefined,
+  } satisfies LibraryVerbContext & NoteToolContext;
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verb = (name: string) => family.verbs.find((one) => mounted(one.command) && one.command.name === name) as Verb<VerbInputs, LibraryVerbContext>;
+  const writeNote = NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "write_note") as Verb<VerbInputs, NoteToolContext>;
+  const refusal = (attempt: Promise<unknown>): Promise<string> => attempt.then(() => "written", (error: Error) => error.message);
+
+  assert.deepEqual(
+    Object.entries(ARTIFACT_KINDS).filter(([, kind]) => kind.captured !== undefined).map(([name, kind]) => [name, kind.captured]),
+    [["friction", { command: "storytree friction new", tool: "record_friction" }], ["resteer", { command: "storytree resteer new", tool: "record_resteer" }]],
+  );
+  for (const [kind, { captured }] of Object.entries(ARTIFACT_KINDS)) {
+    await verb("search").act({ words: ["anything"], limit: undefined, history: false, kind: [kind] } as never, context, WORDS);
+    const made = await refusal(verb("new").act({ "<kind>": kind, "<fields>": {} } as never, context, WORDS));
+    const noted = await refusal(writeNote.act({ kind, fields: {}, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined } as never, context, WORDS));
+    if (captured === undefined) {
+      assert.ok(made.startsWith(`${kind}: missing required field "title"`), `library new ${kind}: ${made}`);
+      assert.equal(noted, `Give the required fields for a ${kind} in fields.`, `write_note ${kind}`);
+    } else {
+      assert.ok(made.includes(`\`${captured.command}\``), `library new ${kind}: ${made}`);
+      assert.ok(noted.includes(captured.tool), `write_note ${kind}: ${noted}`);
+    }
+  }
+  assert.deepEqual(await library.list("principle"), [], "nothing was written");
 });

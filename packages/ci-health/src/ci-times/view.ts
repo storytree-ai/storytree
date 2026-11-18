@@ -1,15 +1,7 @@
-/**
- * Capability 6 · CI times. The map's bottom-left strip (stage 1 of question_177bdb4c1e2a's display): the factory's CI
- * averages as four small dim figures on one line, read when wanted and never asking for attention (ADR-0853 P2). One line
- * low enough to sit in the band the map opens with clear below its south edge (forest's sheet-navigation CLEAR_BOTTOM,
- * 45 px), so at rest it covers no island or name; a block of four lines covered the southmost island. Its hover says what
- * each figure is. With nothing recorded there is no strip. It reads again every minute while it is mounted; the app records
- * again behind that read once the last recording is ten minutes old (runtime.ts).
- */
+// Capability 6 · CI times.
 import { ciTimesLines, type CiGoing } from "./lines.js";
 import type { CiTimesReading } from "./reading.js";
 
-/** How often the strip reads again while mounted. */
 export const READ_EVERY_MS = 60 * 1000;
 
 const STYLES = `
@@ -31,7 +23,6 @@ const STYLES = `
 
 const escape = (text: string) => text.replace(/[&<>"]/g, (one) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[one]!);
 
-/** The strip's inner markup for `reading` as of `now`: its four figures, the last saying `going` when a live count is given (6.8). */
 export function renderCiTimes(reading: CiTimesReading, now = new Date(), going?: CiGoing): string {
   const lines = ciTimesLines(reading, now, going);
   const spark = `<span class="ci-times-spark" aria-hidden="true"><span class="ci-times-spark-before">${escape(lines.spark.before)}</span>${escape(lines.spark.week)}</span>`;
@@ -43,9 +34,7 @@ export function renderCiTimes(reading: CiTimesReading, now = new Date(), going?:
   ].join("");
 }
 
-/** The element the strip is drawn in, as the page gives it: only what the strip sets. */
 export interface CiTimesHost {
-  // A page element's `hidden` may also read "until-found"; the strip only sets it true or false.
   hidden: boolean | string;
   innerHTML: string;
   title: string;
@@ -55,16 +44,10 @@ export interface CiTimesHost {
   };
 }
 
-/** A constructed stylesheet: the page's policy takes no inline style element, so the strip's styles are adopted, as the feedback corner's are. */
 interface Sheet {
   replaceSync(text: string): void;
 }
 
-/**
- * Draw the CI times in `host` and keep them current: `read` gives the reading (the page's bridge), every `everyMs`, and
- * `going`, when it counts one, the pull requests in CI now (6.8). A read that fails leaves the strip as it was. Stopping
- * clears the timer; the page removes the host.
- */
 export function mountCiTimes(host: CiTimesHost, { read, going = () => undefined, everyMs = READ_EVERY_MS, now = () => new Date() }: { read(): Promise<CiTimesReading | undefined>; going?: () => CiGoing | undefined; everyMs?: number; now?: () => Date }): { stop(): void } {
   const document = host.ownerDocument;
   const sheet = new document.defaultView!.CSSStyleSheet();

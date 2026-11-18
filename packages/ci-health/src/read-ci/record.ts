@@ -1,70 +1,32 @@
-/**
- * Capability 3 · Reading the project's CI. How each contract's verdict is written to its VERIFIED column, whoever ran the
- * tests: a project's CI read from its logs (read-ci) or a run of the tests read from their junit report (Mick's dev
- * loop's recording of a test run, packages/repo-checks/src/test-run, storytree's own health among them, ADR-1066 D2 G),
- * which reaches it through this package's interface: base never depends on that plugin (ADR-1170 D2). The reported column is never touched: that is what an agent says.
- *
- * Not checked is written only when a contract's tests were skipped or crashed (ADR-0825 D2): with the kind of its skip,
- * and any earlier passing or failing it did not reproduce, carried as "not re-run" (history keeps the old verdict).
- * With no tests there is nothing to re-run, and a verdict from elsewhere stands. The tests no contract claims write each
- * explored capability they reach its own reading the same way, a local run's or a CI reading's (recordUnclaimed, ADR-1274 D3).
- */
+// Capability 3 · Reading the project's CI.
 import { MissingReferenceError, type EarlierVerdict, type HealthSource, type Library, type SkipKind } from "@storytree/library";
 
 import type { Verdict } from "../verdicts/verdicts.js";
 
-/**
- * Who writes a verdict, and where it was seen: by a run on this computer (`local`) or read from CI (`ci`), written on
- * every entry so the map can say which (ADR-1193 D3), and the commit it ran on and the CI run that ran it, when known.
- */
 export type Writer = { by: string; source: HealthSource; commit?: string; run?: string };
 
-/** A contract's verdict as recording needs it: passing and failing carry their tally as `note`, not checked its `reason`. */
 export type RecordedVerdict = {
   state: "passing" | "failing" | "not-checked";
   note?: string;
   reason?: string;
   skip?: SkipKind;
-  /** Its tests' file produced no results: its process died before running any. */
   crashed?: true;
-  /** Its skipped tests were never reached by the run of the platform they need (its scope left their package out). */
   unrun?: true;
-  /** The names of the tests that judged a passing or failing verdict, written with it. */
   tests?: readonly string[];
-  /** Of a failing verdict's tests, those a passing CI run of the same commit ran without failing: flakes, written with it. */
   flaky?: readonly string[];
 };
 
-/** The CI systems whose evidence credits a `platform:<os>` skip, by Node's platform name. */
 export const CI_PLATFORMS: Readonly<Record<string, string>> = { win32: "Windows", darwin: "macOS" };
 
-/** Whether `skip` is a CI platform's whose evidence this run did not see, so it could not re-run that platform's tests. */
 export function unseenPlatform(skip: string | undefined, platformsSeen: ReadonlySet<string> | undefined): boolean {
   const platform = /^platform:(.+)$/.exec(skip ?? "")?.[1];
   return platformsSeen !== undefined && platform !== undefined && Object.hasOwn(CI_PLATFORMS, platform) && !platformsSeen.has(platform);
 }
 
-/** Where `writer` saw it, for a note: ` at commit <commit>, run <run>`, or as much of it as it knows. */
 function seenAt(writer: Writer): string {
   return `${writer.commit === undefined ? "" : ` at commit ${writer.commit}`}${writer.run === undefined ? "" : `${writer.commit === undefined ? "" : ","} run ${writer.run}`}`;
 }
 
-/**
- * Write each verdict to its contract's VERIFIED column, by `writer`, with its tally and where it was seen as the note,
- * and a passing or failing one with the names of the tests that judged it, when it carries them, and a failing one with
- * its flaky tests, when it names any (the box's telling parks their investigations, library 5.33).
- * A not-checked verdict is written only when its tests were skipped or crashed; one whose column already says the same
- * is not written again, so its note keeps the commit it was first not re-run at. A run that saw no CI evidence for a
- * platform (one missing from `platformsSeen`) cannot re-run a test that only runs there, so a passing verdict from
- * elsewhere stands against its `platform:<os>` skip; so does one whose skipped tests that platform's run never reached.
- * Every verdict that tells the owner nothing is written in one write (recordVerifiedAll); the rest one at a time.
- * A contract retired since the run read it is skipped, not written, and named in `retired` as `<number> (<id>)`.
- * A verdict kept in its column whose follow-up write (the owner's FYI on a turn red or green again, a release of work
- * waiting on it) the writer's database role refuses is named in `untold` the same way, and the rest are recorded: CI's
- * role may write only health (infra/library-host/grants.sql), and one such turn sank whole runs (3.20).
- * @param contractIds contract number -> id
- * @param options the platforms whose CI evidence the run read; all, when absent
- */
 export async function recordHealth(
   library: Pick<Library, "recordVerified" | "recordVerifiedAll" | "health">,
   contractIds: ReadonlyMap<string, string>,
@@ -83,12 +45,10 @@ export async function recordHealth(
     const note = at === "" ? verdict.note : `${verdict.note ?? ""},${at}`;
     return [{ number, id, state: verdict.state, note, options: { by: writer.by, source: writer.source, ...(note === undefined || note === "" ? {} : { note }), ...(verdict.tests === undefined ? {} : { tests: verdict.tests }), ...(verdict.flaky === undefined ? {} : { flaky: verdict.flaky }) } }];
   });
-  // Every verdict that tells nothing in one write: one at a time, a library far away cost Own health its time limit (3.23).
   let together: readonly unknown[] = [];
   try {
     if (judged.length > 0) together = await library.recordVerifiedAll(judged.map(({ id, state, options }) => ({ contractId: id, state, options })));
   } catch (error) {
-    // A contract retired since the run read the plan refuses them all: one at a time below names it.
     if (!(error instanceof MissingReferenceError)) throw error;
   }
   for (const [index, { number, id, state, note, options }] of judged.entries()) {
@@ -105,7 +65,6 @@ export async function recordHealth(
       }
       written[state]++;
     } catch (error) {
-      // Retired on the library after the run read its plan (runs 40092872110, 40103014567): one contract gone sinks no run.
       if (!(error instanceof MissingReferenceError && error.field === "node" && error.id === id && error.found === undefined)) throw error;
       retired.push(`${number} (${id})`);
     }
@@ -124,24 +83,16 @@ export async function recordHealth(
   return { ...written, ...(retired.length === 0 ? {} : { retired }), ...(untold.length === 0 ? {} : { untold }) };
 }
 
-/** Whether `error` is Postgres refusing for want of a privilege, as row-level security refuses a row (SQLSTATE 42501). */
 function isPrivilegeRefusal(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "42501";
 }
 
-/** Whether contract `id`'s verified column holds the verdict just written: the refusal came after it, not to it. */
 async function kept(library: Pick<Library, "health">, id: string, state: string, by: string, note: string | undefined): Promise<boolean> {
   const { verified } = await library.health(id);
   return verified.state === state && verified.by === by && (verified.note ?? "") === (note ?? "");
 }
 
-/**
- * Mark contract `id` not checked when its tests were skipped or crashed: with its skip's kind, and the earlier verdict
- * it did not reproduce (carried over from a mark already standing). True if it wrote.
- */
 async function markNotChecked(library: Pick<Library, "recordVerified" | "health">, id: string, verdict: RecordedVerdict, writer: Writer, platformsSeen: ReadonlySet<string> | undefined): Promise<boolean> {
-  // Only a run that had tests for it, skipped or crashed, failed to reproduce a verdict: with none,
-  // a verdict from elsewhere (an acceptance run, ADR-0825 D5) stands.
   if (verdict.skip === undefined && verdict.crashed !== true) return false;
   const earlier = (await library.health(id)).verified;
   if ((verdict.unrun === true || unseenPlatform(verdict.skip, platformsSeen)) && earlier.state === "passing") return false;
@@ -155,10 +106,6 @@ async function markNotChecked(library: Pick<Library, "recordVerified" | "health"
   return true;
 }
 
-/**
- * Write each explored capability's reading of the tests no contract claims (ADR-1274 D3) from `reached`, by `writer` with where it
- * was seen, and turn not checked a reading that stands on a capability no such test reached this time.
- */
 export async function recordUnclaimed(library: Pick<Library, "recordUnclaimed">, tree: Awaited<ReturnType<Library["projectTree"]>>, reached: ReadonlyMap<string, Verdict>, writer: Writer): Promise<void> {
   const at = seenAt(writer);
   const options = { by: writer.by, source: writer.source };

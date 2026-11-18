@@ -1,10 +1,6 @@
-/**
- * Capability 6 · CI times. The reading said as the strip's four figures (research_5ab97b11f915: four distinct things at rest,
- * no more), the same words on the map and, a line each, at the command line. Data and functions only: safe for the page.
- */
+// Capability 6 · CI times.
 import type { CiTimesReading } from "./reading.js";
 
-/** The reading's four figures, and the sparkline of time to merge over two weeks, split at the week. */
 export interface CiTimesLines {
   readonly toMerge: string;
   readonly was: string;
@@ -12,21 +8,18 @@ export interface CiTimesLines {
   readonly run: string;
   readonly queue: string;
   readonly going: string;
-  /** What the figures are, for the block's hover. */
   readonly detail: string;
 }
 
 const SYSTEMS: Readonly<Record<string, string>> = { linux: "Linux", win32: "Windows", darwin: "macOS" };
 const BARS = "▁▂▃▄▅▆▇█";
 
-/** A number of minutes as a person says it: "36 min", or "1 h 05" from an hour and a half. */
 export function minutesSaid(minutes: number | undefined): string {
   if (minutes === undefined) return "—";
   const whole = Math.round(minutes);
   return whole < 90 ? `${whole} min` : `${Math.floor(whole / 60)} h ${String(whole % 60).padStart(2, "0")}`;
 }
 
-/** Each day's value as a bar from the lowest to the highest of them; a day with none is a dot. */
 export function sparkline(days: readonly (number | null)[]): string {
   const known = days.filter((day): day is number => day !== null);
   const low = Math.min(...known);
@@ -34,7 +27,6 @@ export function sparkline(days: readonly (number | null)[]): string {
   return days.map((day) => (day === null ? "·" : BARS[high === low ? 3 : Math.round(((day - low) / (high - low)) * (BARS.length - 1))])).join("");
 }
 
-/** How long ago `at` was, from `now`. */
 function ago(at: string, now: Date): string {
   const minutes = Math.max(0, Math.round((now.getTime() - Date.parse(at)) / 60_000));
   if (minutes < 1) return "just now";
@@ -43,13 +35,11 @@ function ago(at: string, now: Date): string {
   return hours < 36 ? `${hours} h ago` : `${Math.round(hours / 24)} days ago`;
 }
 
-/** The pull requests in CI and in the merge queue now, as a live reading counts them (6.8): the page's branch states. */
 export interface CiGoing {
   readonly inCi: number;
   readonly inQueue: number;
 }
 
-/** The reading in the block's words, as of `now`; `going`, a live count, stands in for the last recording's (6.8). */
 export function ciTimesLines(reading: CiTimesReading, now = new Date(), going?: CiGoing): CiTimesLines {
   const { toMerge, run, queue } = reading;
   const spark = sparkline(toMerge.days);
@@ -72,7 +62,6 @@ export function ciTimesLines(reading: CiTimesReading, now = new Date(), going?: 
   };
 }
 
-/** The four figures as text, a line each, for the command line. */
 export function ciTimesText(reading: CiTimesReading, now = new Date()): string {
   const lines = ciTimesLines(reading, now);
   return [`${lines.toMerge} ${lines.spark.before}${lines.spark.week} ${lines.was}`.trimEnd(), lines.run, lines.queue, lines.going].join("\n");

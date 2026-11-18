@@ -62,6 +62,10 @@ export const NO_SUCH_JOB: Readonly<Record<string, { why: string; instead: string
     why: "an arc has no close of its own: it reads closed once none of its increments is open and none of its questions waits, so it closes when its last increment does",
     instead: "arc increment close",
   },
+  "auth get": {
+    why: "storytree never prints a key's value: a key is a person's own, given at a terminal, and `storytree auth list` names each key and where it resolves from",
+    instead: "auth list",
+  },
 };
 
 /** The families still kept here, each at the place it takes among the declared ones in `storytree`'s list. */

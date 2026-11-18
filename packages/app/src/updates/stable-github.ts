@@ -1,4 +1,4 @@
-/** Capability 4 · Updates. Contract 4.16: GitHub holds the channel's metadata history; each installer stays on its original release. */
+// Capability 4 · Updates
 import { execFileSync } from "node:child_process";
 import { CATALOGUE } from "@storytree/forest/actions";
 import type { Library } from "@storytree/library";
@@ -20,7 +20,6 @@ function github(cwd: string): GithubRequest {
   ], { cwd, encoding: "utf8", input: body === undefined ? undefined : JSON.stringify(body), maxBuffer: 16 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"] }));
 }
 
-/** A fresh tree contains metadata only. Fast-forward-only moves make competing pins mutually exclusive. */
 export async function publishStable(manifest: StableManifest, bootstrap: Bootstraps, expectedRef: string | undefined, api: GithubRequest): Promise<void> {
   const tree = await api("git/trees", "POST", { tree: [
     { path: "latest.yml", mode: "100644", type: "blob", content: JSON.stringify(manifest, null, 2) + "\n" },
@@ -42,13 +41,6 @@ export async function publishStable(manifest: StableManifest, bootstrap: Bootstr
   }
 }
 
-/**
- * Reads the update feed electron-builder wrote for one platform (latest-mac.yml, latest-linux.yml) into one whose files
- * name the release's own assets by absolute URL, so a feed on the stable branch fetches them from that release.
- * Only that writer's fixed shape is read; anything else in a file entry refuses the pin rather than being dropped.
- * A feed naming another version was carried from an earlier build because the release has no new one (4.6): it is
- * no build of this release, so undefined, and the pin keeps that platform where an earlier pin put it.
- */
 export function releaseFeed(text: string, resolve: (name: string) => { url: string; size: number }, release: string): PlatformFeed | undefined {
   const files: Partial<PlatformFeed["files"][number]>[] = [];
   let version: string | undefined;
@@ -83,7 +75,6 @@ interface Release {
   assets: { name: string; browser_download_url: string; id: number; size: number }[];
 }
 
-/** The stable branch's pin commits, newest first: the version each pinned, from the message publishStable writes. */
 export function pinCommits(commits: readonly { sha: string; commit: { message: string } }[]): { sha: string; version: string }[] {
   return commits.flatMap(({ sha, commit }) => {
     const m = /^(?:Pin storytree (0\.3\.[1-9]\d*) as stable|Move stable back to storytree (0\.3\.[1-9]\d*) from )/.exec(commit.message);
@@ -97,7 +88,6 @@ async function readPin(api: GithubRequest, ref: string): Promise<StableManifest>
   return readStableManifest(JSON.parse(Buffer.from(file.content, "base64").toString("utf8")));
 }
 
-/** The manifest the newest earlier pin of `version` published, or nothing when stable was never pinned to it. */
 export async function formerPin(version: string, api: GithubRequest): Promise<StableManifest | undefined> {
   for (let page = 1; ; page++) {
     const commits = await api(`commits?sha=${STABLE_BRANCH}&per_page=100&page=${page}`) as { sha: string; commit: { message: string } }[];
@@ -107,7 +97,6 @@ export async function formerPin(version: string, api: GithubRequest): Promise<St
   }
 }
 
-/** The platforms a release has its own build of: Windows by its installers, the Mac and Linux by the builds their feeds name; a feed carried from an earlier build (4.6) counts for nothing. */
 export function releasePlatforms(release: Pick<Release, "tag_name" | "assets">): PublishedBuild["platforms"] {
   const names = new Set(release.assets.map(a => a.name));
   const version = release.tag_name.slice(1);
@@ -118,7 +107,6 @@ export function releasePlatforms(release: Pick<Release, "tag_name" | "assets">):
   ];
 }
 
-/** A release run passed when it published the build and its Mac acceptance run passed; any rerun of it may say so. */
 export function releaseRunPassed(runs: readonly { id: number; jobs: readonly { name: string; conclusion: string | null }[] }[]): { passed: boolean; evidence: string } {
   const url = (id: number) => `https://github.com/${REPOSITORY}/actions/runs/${id}`;
   const passed = (jobs: readonly { name: string; conclusion: string | null }[], match: RegExp) => jobs.some(j => match.test(j.name) && j.conclusion === "success");
@@ -130,20 +118,11 @@ export function releaseRunPassed(runs: readonly { id: number; jobs: readonly { n
     : "no release run of its commit published it with every job passing" };
 }
 
-/**
- * What says `version` passed its fresh-install sweep (4.25): the stable routine (fortnight.sh) raises "Pin 0.3.N as
- * stable?" only after the old-laptop acceptance run passed that build, so that question, unless retired as wrongly asked,
- * is the pass.
- */
 export function sweptBy(questions: readonly { id: string; fields: Record<string, unknown> }[], version: string): string | undefined {
   const pass = questions.find(q => q.fields["title"] === `Pin ${version} as stable?` && q.fields["lifecycle"] !== "retired");
   return pass && `${pass.id}: the stable routine's fresh-install sweep on the old laptop passed ${version}`;
 }
 
-/**
- * Whether main's latest green nightly macOS run (macos-nightly.yml, ADR-1303 D3) tested `commit`: its head is that commit
- * or a later main commit containing it. Only the newest green run on main counts; a run off another branch tests nothing.
- */
 export async function nightlyMacos(runs: readonly { id: number; head_sha: string; head_branch: string | null; conclusion: string | null }[], commit: string,
   contains: (head: string, commit: string) => Promise<boolean>): Promise<{ tested: boolean; evidence: string }> {
   const last = runs.find(r => r.head_branch === "main" && r.conclusion === "success");
@@ -154,10 +133,6 @@ export async function nightlyMacos(runs: readonly { id: number; head_sha: string
     : { tested: false, evidence: `main's last green nightly macOS run, ${last.id}, tested ${at} (${url})` };
 }
 
-/**
- * Whether main's commit `head` is `commit` or comes after it. Main is fetched first, so a nightly run's head newer than the
- * clone is known; a fetch that fails throws its own error rather than reading as "not after it".
- */
 export function mainContains(git: Git): (head: string, commit: string) => Promise<boolean> {
   return async (head, commit) => {
     git("fetch", "origin", "+refs/heads/main:refs/remotes/origin/main");
@@ -166,10 +141,6 @@ export function mainContains(git: Git): (head: string, commit: string) => Promis
   };
 }
 
-/**
- * The commit tagged `v<wanted>`, once it is on main and its first-parent count gives that version. A shallow clone (a cloud
- * session's checkout) counts only its own depth, so its history is fetched whole before it is counted.
- */
 export function releaseCommit(git: Git, wanted: string): string {
   const shallow = git("rev-parse", "--is-shallow-repository") === "true";
   git("fetch", ...(shallow ? ["--unshallow"] : []), "origin", "+refs/heads/main:refs/remotes/origin/main", `refs/tags/v${wanted}:refs/tags/v${wanted}`);
@@ -179,14 +150,8 @@ export function releaseCommit(git: Git, wanted: string): string {
   return commit;
 }
 
-/** A workspace package's folder and its package.json. */
 export interface Manifest { folder: string; json: { name?: string; dependencies?: Record<string, string>; optionalDependencies?: Record<string, string>; devDependencies?: Record<string, string> } }
 
-/**
- * Whether a changed path is the desktop app's code: in apps/desktop, in a workspace package it reaches (its own dependencies, dev ones
- * included because its build bundles them, then theirs), or the lockfile and root manifests that choose what is installed. Tests,
- * notes and the dev loop's own packages are not the app's code; a later build that changed only those measures the same app.
- */
 export function appCode(manifests: readonly Manifest[]): (path: string) => boolean {
   const byName = new Map(manifests.map(m => [m.json.name, m]));
   const reached = new Set<Manifest>();
@@ -204,7 +169,6 @@ export function appCode(manifests: readonly Manifest[]): (path: string) => boole
   return path => roots.has(path) || [...reached].some(m => path.startsWith(`${m.folder}/`));
 }
 
-/** The lag run's verdicts on the catalogue's budget contracts (ADR-1001 D5), from their verified history: each names the commit it measured. */
 export function lagVerdicts(contract: string, history: readonly { column: string; state: LagVerdict["state"]; note?: string }[]): LagVerdict[] {
   return history.flatMap(({ column, state, note }) => {
     const commit = column === "verified" ? /\bat commit ([0-9a-f]{40})\b/.exec(note ?? "")?.[1] : undefined;
@@ -212,10 +176,6 @@ export function lagVerdicts(contract: string, history: readonly { column: string
   });
 }
 
-/**
- * Whether main's commit `later` is `commit`, or comes after it with the same app code (appCode, read from `commit`'s manifests).
- * The lag run measures main's commits, so main's history is fetched whole once, a shallow clone's included, before any is compared.
- */
 export function sameAppCode(git: Git): (commit: string, later: string) => Promise<boolean> {
   let fetched = false;
   const apps = new Map<string, (path: string) => boolean>();
@@ -242,7 +202,6 @@ export function sameAppCode(git: Git): (commit: string, later: string) => Promis
   };
 }
 
-/** `storytree release candidate`: the stable candidate read from GitHub and the library; it changes nothing. */
 export async function findStableCandidate(options: { library: Pick<Library, "list" | "prCutover" | "healthHistory">; cwd: string }): Promise<StableCandidate> {
   const api = github(options.cwd);
   const git = (...args: string[]) => execFileSync("git", args, { cwd: options.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 16 * 1024 * 1024 }).trim();
@@ -269,7 +228,6 @@ export async function findStableCandidate(options: { library: Pick<Library, "lis
           if (r.draft || r.prerelease || !r.published_at || !/^v0\.3\.[1-9]\d*$/.test(r.tag_name)) continue;
           if (Number(r.tag_name.slice(5)) > floor) builds.push({ version: r.tag_name.slice(1), publishedAt: r.published_at, platforms: releasePlatforms(r) });
         }
-        // Releases come newest first; a page reaching the pin, or a short one, is the last needed.
         const oldest = releases.filter(r => /^v0\.3\.\d+$/.test(r.tag_name)).map(r => Number(r.tag_name.slice(5)));
         if (releases.length < 100 || Math.min(...oldest) <= floor) return builds;
       }
@@ -305,7 +263,6 @@ export async function findStableCandidate(options: { library: Pick<Library, "lis
   });
 }
 
-/** Thin front doors call this with their project library; all release rules stay in the app story. */
 export async function pinRelease(version: string, options: { library: Pick<Library, "list" | "prCutover">; cwd: string; preview?: boolean; back?: boolean; expedited?: string }): Promise<StableManifest> {
   const api = github(options.cwd);
   const git = (...args: string[]) => execFileSync("git", args, { cwd: options.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 16 * 1024 * 1024 }).trim();
@@ -342,7 +299,6 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
         schema: number; version: string; channelSchema: number; architectures: string[]; installers?: Record<string, Entry>; installer?: Entry;
       };
       if (delivery.schema !== 1 || delivery.version !== wanted || !delivery.architectures?.includes("x64") || !delivery.architectures.includes("arm64")) throw new Error("Release delivery manifest does not match the selected build");
-      // One installer per architecture, or the one for both of a build from before the split.
       const entries = delivery.installers ? [delivery.installers["x64"], delivery.installers["arm64"]] : [delivery.installer];
       const installers = windowsInstallers(wanted, !delivery.installers).map((name, i) => {
         const entry = entries[i];
@@ -350,7 +306,6 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
         if (entry?.name !== installer.name || entry.size !== installer.size) throw new Error("Release installer does not match its delivery manifest");
         return { ...entry, url: installer.browser_download_url };
       });
-      // The alpha updater's complete publication is required too; it remains untouched.
       asset(release, "latest.yml");
       const feeds: PlatformFeeds = {};
       for (const platform of Object.keys(FEED_PLATFORMS) as FeedPlatform[]) {

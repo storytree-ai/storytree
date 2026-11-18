@@ -1,17 +1,13 @@
-/** Capability 4 · Updates. Contract 4.15: channel identity belongs to the installation, outside replaceable app files; 4.24: the user may choose it. */
+// Capability 4 · Updates
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 export type ReleaseChannel = "stable" | "alpha";
-/** The build stable offers, and the day it was published (4.34). */
 export interface StableBuild { readonly version: string; readonly published: string }
-/** Whether this app installs releases, so the channel means something here, the channel it follows, and stable's build when read. */
 export interface ReleaseChannelState { readonly available: boolean; readonly channel: ReleaseChannel; readonly stable?: StableBuild }
 export const STABLE_BRANCH = "release-channel-stable";
 export const STABLE_FEED = `https://raw.githubusercontent.com/storytree-ai/storytree/${STABLE_BRANCH}/`;
 
-/** Only the old NSIS marker denotes an existing alpha install; new installers say nsis-stable. A record written under
- * alpha's old name, development, is read as alpha (ADR-1121), so an owner install never drifts to stable. */
 export function releaseChannel(home: string, marker: string): ReleaseChannel {
   const file = path.join(home, "release-channel.json");
   try {
@@ -37,7 +33,6 @@ async function fetchText(url: string): Promise<string> {
   return response.text();
 }
 
-/** Stable's build and its day, from the pin's latest.yml; nothing when the pin predates recording the day or cannot be read. */
 export async function stableBuild(read: (url: string) => Promise<string> = fetchText): Promise<StableBuild | undefined> {
   try {
     const pin = JSON.parse(await read(`${STABLE_FEED}latest.yml`)) as { version?: unknown; releaseDate?: unknown };
@@ -49,21 +44,15 @@ export async function stableBuild(read: (url: string) => Promise<string> = fetch
   }
 }
 
-/**
- * The gear's update channel (4.24): read as releaseChannel decides, so a first user reads stable, and kept by
- * rewriting release-channel.json, which the updater reads again on its next check. `marker` is the installer's.
- */
 export function releaseChannelChoice(options: { available: boolean; home: string; marker: () => string; stable?: () => Promise<StableBuild | undefined> }) {
   const read = (): ReleaseChannelState => ({ available: options.available, channel: releaseChannel(options.home, options.marker()) });
   return {
     read,
-    /** The channel with stable's build (4.34), read only where the channel is offered. */
     async describe(): Promise<ReleaseChannelState> {
       const state = read();
       const stable = state.available ? await options.stable?.() : undefined;
       return stable ? { ...state, stable } : state;
     },
-    /** Refused unless the app installs releases here and the channel is one. */
     set(value: unknown): ReleaseChannelState {
       if (!options.available) throw new Error("Only the installed app follows an update channel.");
       if (value !== "alpha" && value !== "stable") throw new Error("Choose alpha or stable.");

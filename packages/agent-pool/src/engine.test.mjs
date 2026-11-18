@@ -25,7 +25,6 @@ test("1.1 · reads the newest allowance event from the eight newest rollout file
   const event = (timestamp, used) => JSON.stringify({ timestamp, payload: { type: "token_count", rate_limits: { secondary: { used_percent: used } } } });
   for (let i = 0; i < 9; i++) {
     const path = join(day, `rollout-${i}.jsonl`);
-    // The excluded oldest file has the newest event timestamp.
     await writeFile(path, event(i === 0 ? "2026-10-07T00:00:00Z" : `2026-10-06T00:00:0${i}Z`, i));
     await utimes(path, now + i, now + i);
   }
@@ -67,7 +66,6 @@ test("1.3 · Codex is the default below 95 percent; a live reached flag and CODE
     [reading(77), 75, "claude"], [reading(77), 80, "codex"],
     [reading(100, { secondary: { used_percent: 100, resets_at: now }, rate_limit_reached_type: "weekly" }), 95, "codex"],
   ]) assert.equal((await pickEngine({ lanesDir, reading: allowance, stopAt, now })).engine, engine);
-  // The switch point and lanes folder are the machine file's (ADR-1216 D1), and CODEX_STOP_AT overrides it.
   await mkdir(join(lanesDir, ".storytree"), { recursive: true });
   await writeFile(join(lanesDir, ".storytree", "agent-pool.json"), JSON.stringify({ lanes: "~/lanes", engines: { switchAt: 95 } }));
   assert.equal(laneSettings({ home: lanesDir, env: {} }).stopAt, 95);

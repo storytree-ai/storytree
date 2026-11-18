@@ -1,30 +1,21 @@
-// Capability 2 · The pool keeps its lanes fed (ADR-0955 D2): one survey of the library names every active
-// arc's ready increments, under the manager's skip rules, and claims are the only conflict guard.
+// Capability 2 · The pool keeps its lanes fed (ADR-0955 D2).
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** The body's leading needs clause: its first needs label, up to that sentence's full stop or the line's end. Later wording, and a needs label quoted later, are not its need. */
 function needs(body) {
   return body.match(/\bneeds:(?:[^\n.]|\.(?!\s|$))*/i)?.[0] ?? "";
 }
 
-/** Work whose needs clause says read-only: it writes no package, whatever packages it reads. */
 export function readOnly(body) {
   return /\bread-only\b/i.test(needs(body));
 }
 
-/** Work whose needs clause says blind: a blind reviewer's (ADR-0950). */
 export function blind(body) {
   return /\bblind\b/i.test(needs(body));
 }
 
-/** A wait's note that says its pull request is with the watcher: the hand-off's event wait, or the watcher's own record. */
 export const HANDED = /\b(?:handed to|is with) the [\w ]+'s watcher\b/;
 
-/**
- * Each capability a live session holds, by the claim that holds it: one on the list of an increment a live session holds,
- * as the edit gate reads it (ADR-0949 D3), with `on` naming that increment, and a direct claim over it.
- */
 function liveCapabilities(claims, increments) {
   const listOf = new Map(increments.map((one) => [one.id, one.capabilities ?? []]));
   const held = new Map(claims.filter((claim) => claim.holder === "live" && claim.increment)
@@ -33,33 +24,14 @@ function liveCapabilities(claims, increments) {
   return held;
 }
 
-/** The failed lanes after which the pool offers an increment no more (2.27): its residue names them, and a session that fixed the cause offers it again (2.28). */
 export const LANE_FAILURES = 3;
 
-/** An increment's place by its arc's priority (ADR-0963 D1): 1 first, an arc with none after every ranked one. */
 const rank = (one) => one.priority ?? Infinity;
 
-/**
- * The pool's next `max` increments from one survey (ADR-0955 D2), and why each other was skipped. A candidate is
- * not closed, sits on an active arc, has no live claim on it or on a capability its list names (directly, or on the list of an
- * increment a live session holds), no capability its lane was refused while any live session holds it (whoever it passed to), no wait or held-on
- * question (only those say it needs the owner; its body's wording never does), its machine field, when set, names this
- * machine (`survey.here`; its body's wording never names one), and with `machineOnly` it must name it: untagged work is then the shared pool's (ADR-1179 D2); no fence or track is read. By arc priority, then oldest parked first, and within one priority
- * those on an arc no live session (nor a pick already made) is on before the rest (ADR-0963 D2). `running` names the increments this dispatcher is running, never started
- * twice; `attempts` maps each increment this dispatcher has started to when it started it: a live claim older than that start
- * (on it, on a listed capability or on one its lane was refused) refused it, and it is retried only once that claim clears (it records the refusal in `attempts`). Work whose session has
- * ended and is back in the pool (it bounced on a capability claim, say) is offered again `backoffMs` after the first
- * survey that found the session gone (it records that in `attempts` as `ended`), so a bounce needs no restart and a
- * session that bounces every time starts at most once a back-off. Within one survey (ADR-1079 D1), a candidate whose known needs (its
- * capabilities list plus every capability refused under it, whoever holds that now) meet those of an earlier pick or of an increment
- * in `running` is not picked: it is skipped naming the shared capability and the increment that took it, and offered again on the next survey.
- * Work whose lanes failed LANE_FAILURES times (`survey.failures`, its lane-failed lines, which outlast the dispatcher) is not offered at all (2.27).
- */
 export function pickPool(survey, { attempts = new Map(), running = [], max = 1, now = Date.now(), backoffMs = 30 * 60_000, machineOnly = false }) {
   const skipped = [];
   const live = new Map(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => [claim.increment, claim]));
   const held = liveCapabilities(survey.claims, survey.increments);
-  // A lane refused a capability before it was on the list is held off by that refusal while any live session holds the capability.
   const refusedUnder = Map.groupBy((survey.refusals ?? []).filter((refusal) => held.has(refusal.capability)), (refusal) => refusal.under);
   const failuresOf = Map.groupBy(survey.failures ?? [], (failure) => failure.increment);
   const arcOf = new Map(survey.increments.map((one) => [one.id, one.arc]));
@@ -107,7 +79,6 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
   }
   const refusedOf = Map.groupBy(survey.refusals ?? [], (refusal) => refusal.under);
   const needsOf = (one) => new Set([...(one.capabilities ?? []), ...(refusedOf.get(one.id) ?? []).map((refusal) => refusal.capability)]);
-  // A lane still starting has claimed nothing yet, so the round's taken capabilities start from the running increments' known needs.
   const taken = new Map();
   for (const one of survey.increments.filter((one) => running.includes(one.id))) {
     for (const capability of needsOf(one)) if (!taken.has(capability)) taken.set(capability, `${one.id}, running now`);
@@ -130,10 +101,6 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
   return { picks, skipped };
 }
 
-/**
- * An arc's state as planning reads it: its open questions and each open increment with its status and what holds it.
- * Equal states mean nothing a planning session acts on has changed, however many surveys apart they were read.
- */
 export function planState(survey, arcId) {
   const arc = (survey.arcs ?? []).find((one) => one.id === arcId);
   const holds = (id) => ({
@@ -146,13 +113,6 @@ export function planState(survey, arcId) {
   return JSON.stringify([arc?.openQuestions ?? 0, open]);
 }
 
-/**
- * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
- * none of them waiting on the owner, a question or work that can still land (planning has nothing to add there: the waits name what releases them, 2.21), oldest first, skipping an arc whose own wait holds on work that can still land (2.22) and an arc whose entry in `planned` (arc to the planState it was last planned in, kept across the dispatcher's restarts)
- * is its present state: an arc waiting on the owner is planned once until something on it changes. An arc made less than `freshMs` before `now` is skipped too:
- * the session that made it may still be parking its work (arc_c331455caee0 was planned 20 seconds after it was made, and both parked the same pieces), and so is one whose making time cannot be read. The arc comes with its `state`, for `planned`.
- * Undefined when none qualifies. Work handed to the watcher, or waiting on work that is (at any depth), is in flight like claimed work, not stalled.
- */
 export function pickPlan(survey, { planned = new Map(), now = Date.now(), freshMs = 30 * 60_000 } = {}) {
   const live = new Set(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => claim.increment));
   const handed = (id, seen = new Set()) => !seen.has(id) && (seen.add(id), (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds && HANDED.test(hold.note))
@@ -169,22 +129,11 @@ export function pickPlan(survey, { planned = new Map(), now = Date.now(), freshM
   return arc && { ...arc, state: planState(survey, arc.id) };
 }
 
-/** A record's time as an ISO string: the library gives it as one, a Date is turned into one, and a missing or unreadable time is undefined. */
 const iso = (at) => {
   const time = at == null ? NaN : new Date(at).getTime();
   return Number.isNaN(time) ? undefined : new Date(time).toISOString();
 };
 
-/**
- * One survey of the library (2.32): one `workSurvey` read, which carries every arc's state, its open questions counted and, unless
- * it is closed, its title and priority, and the open increments with only the fields the pool decides on, never a body (the pool
- * reads a picked one's body by id, `incrementBody`); with `also`, the increments named there whatever their status (the cloud
- * trial's, to see how each closed, 3.44); with `closedTitles`, the closed arcs' titles too. Its holds are read against the
- * capabilities the standing claims hold, so a wait on a released claim no longer holds (2.31). With them: this machine's short
- * name (`here`, undefined while it has none), the standing claims, the refusals under every open increment on an active arc,
- * whoever holds the capability now, each under the increment its refused session held (`refusals`, given those increments),
- * and the failed lanes on those increments (`failures`, given them).
- */
 export async function readSurvey({ library, claims, refusals = async () => [], failures = async () => [], here = async () => undefined, also = [], closedTitles = false }) {
   const [work, held, name] = await Promise.all([library.workSurvey(new Date(), { also, closedTitles }), claims(), here()]);
   const arcOf = new Map(work.arcs.map((arc) => [arc.id, arc]));
@@ -192,10 +141,8 @@ export async function readSurvey({ library, claims, refusals = async () => [], f
   const increments = work.arcs.flatMap((arc) => byArc.get(arc.id) ?? []).map((record) => ({
     id: record.id, arc: record.fields.arc, arcState: arcOf.get(record.fields.arc)?.state, title: record.fields.title,
     status: record.fields.status, capabilities: record.fields.capabilities ?? [], machine: record.fields.machine, parked: record.fields.parked ?? iso(record.createdAt), priority: arcOf.get(record.fields.arc)?.priority,
-    // How a closed one closed (landed, failed or withdrawn), which the cloud overflow's trial counts (3.44).
     ...(record.fields.outcome?.disposition ? { disposition: record.fields.outcome.disposition } : {}),
   }));
-  // A wait on a capability's claim holds only while a live session holds that capability (2.31, ADR-1228 D1): the library reads it against these.
   const holds = work.holds({ claimed: new Set(liveCapabilities(held, increments).keys()) });
   const arcs = work.arcs.map((arc) => ({ id: arc.id, state: arc.state, title: arc.title ?? arc.id, created: iso(arc.createdAt), openQuestions: arc.openQuestions }));
   const open = increments.filter((one) => one.status !== "closed" && one.arcState === "active").map((one) => one.id);
@@ -203,7 +150,6 @@ export async function readSurvey({ library, claims, refusals = async () => [], f
   return { arcs, increments, holds, claims: held, here: name, refusals: refused, failures: failed };
 }
 
-/** The body of increment `id`, read by id once the pool has picked it (2.32): its needs clause and the cloud trial's reading of it; empty when it has none or is gone. */
 export async function readBody(library, id) {
   return (await library.get(id))?.fields.body ?? "";
 }
@@ -221,7 +167,6 @@ export async function withLibrary(project, use) {
   } finally { await storytree.close(); }
 }
 
-/** One survey of the shared library, where this computer's `library` setting says it is, with readSurvey's `also` and `closedTitles`. */
 export async function surveyLibrary(project = "storytree", { also, closedTitles } = {}) {
   const { openActivityLog, readClaims } = await import("@storytree/session-management");
   const { thisComputer } = await import("@storytree/session-management/machines");
@@ -233,16 +178,10 @@ export async function surveyLibrary(project = "storytree", { also, closedTitles 
   });
 }
 
-/** A picked increment's body from the shared library (readBody), in its project (by default storytree). */
 export async function incrementBody(id, project = "storytree") {
   return withLibrary(project, (library) => readBody(library, id));
 }
 
-/**
- * One survey of every project in `projects` (the pool's configuration names them), each read by `surveyOne` from its own
- * project in the library: their arcs, increments, claims, holds, refusals and failed lanes side by side, each arc and
- * increment naming its `project`, so pickPool offers every project's ready work under each project's own records; `options` go to each `surveyOne` (surveyLibrary's).
- */
 export async function surveyProjects(projects, surveyOne, options) {
   const found = await Promise.all(projects.map(async (project) => ({ project, survey: await surveyOne(project, options) })));
   const tagged = (list, project) => (list ?? []).map((one) => ({ ...one, project }));
@@ -258,28 +197,20 @@ export async function surveyProjects(projects, surveyOne, options) {
   };
 }
 
-/** The session a lane-failed line is written on: the pool's own, which reads as no session. */
 export const POOL_SESSION = "pool";
 
-/** The lines an increment's failure count is read from (2.28). */
 const COUNT_KINDS = ["lane-failed", "lane-reoffered"];
 
-/** The lane-failed lines that still count, oldest first: on each increment, only those after its newest lane-reoffered line (2.28). */
 function counted(lines) {
   const since = new Map(lines.filter((line) => line.kind === "lane-reoffered").map((line) => [line.increment, line.seq]));
   return lines.filter((line) => line.kind === "lane-failed" && line.seq > (since.get(line.increment) ?? -Infinity));
 }
 
-/** The survey's reading of the failures that count under the given increments (2.27, 2.28), from the activity log. */
 export function laneFailures(log, project) {
   return async (increment) => counted(await log.lines(project, { kinds: COUNT_KINDS, where: { increment }, omit: ["logs"] }))
     .map((line) => ({ increment: line.increment, at: line.at, why: line.why }));
 }
 
-/**
- * Record a failed lane (2.27): a lane-failed line on the pool for `failure.increment`, and the increment's failures so far, oldest first.
- * A lane whose session (`failure.lane`) was refused a claim since it `started` is no failure: nothing is written, and null comes back.
- */
 export async function noteLaneFailure({ log, project, failure }) {
   const { increment, why, logs, lane, started } = failure;
   if (lane && (await log.lines(project, { kinds: ["claim-refused"], sessions: [lane], ...(started ? { since: started } : {}), newest: 1 })).length) return null;
@@ -287,10 +218,6 @@ export async function noteLaneFailure({ log, project, failure }) {
   return counted(await log.lines(project, { kinds: COUNT_KINDS, where: { increment } })).map((line) => ({ increment: line.increment, at: line.at, why: line.why, logs: line.logs }));
 }
 
-/**
- * Offer `increment` to the pool again (2.28): a lane-reoffered line on the pool, saying `why` and naming the session `by`, after which its
- * failures count from none. Refused, writing nothing, when no failure counts yet. Gives back how many failures it cleared.
- */
 export async function reoffer({ log, project, increment, why, by }) {
   if (!why?.trim()) throw new Error("say what was fixed: --reason …");
   const cleared = counted(await log.lines(project, { kinds: COUNT_KINDS, where: { increment }, omit: ["logs"] })).length;
@@ -299,7 +226,6 @@ export async function reoffer({ log, project, increment, why, by }) {
   return cleared;
 }
 
-/** node packages/agent-pool/src/feed.mjs reoffer <increment> [--project <name>] --reason "…": offer an increment the pool gave up on to it again, in its project (by default storytree) in the shared library. */
 export async function main(args, { env = process.env, say = console.log, complain = console.error, offer } = {}) {
   const at = args.indexOf("--reason");
   const [verb, increment] = args;
@@ -329,7 +255,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   process.exitCode = await main(process.argv.slice(2));
 }
 
-/** Record a failed lane in the shared library, where this computer's `library` setting says it is (noteLaneFailure). */
 export async function recordLaneFailure(failure, project = "storytree") {
   const { openActivityLog } = await import("@storytree/session-management");
   return withLibrary(project, async (_library, storytree) => noteLaneFailure({ log: await openActivityLog(storytree), project, failure }));

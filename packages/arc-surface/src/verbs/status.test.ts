@@ -1,8 +1,4 @@
-/**
- * Capability 3 · Arc surface: contracts 3.13, 3.14 and 3.24, `arc status`, 3.25 and 3.26, a wait on a capability's claim as the
- * board, `arc show` and `arc waits` read it, and 3.40, an arc past its size tripwire, run with a caller on a fresh project's library and activity log on the real
- * Postgres `pnpm test` provides.
- */
+// Capability 3 · Arc surface.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test, type TestContext } from "node:test";
@@ -18,7 +14,6 @@ import { ARC_FAMILIES, type ArcVerbContext } from "./index.js";
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 const status = ARC_FAMILIES.find((family) => family.name === "arc")!.verbs.find((one) => "name" in one.command && one.command.name === "status") as Verb<VerbInputs, ArcVerbContext>;
 
-/** A fresh project's library and activity log, its lines written from the machine `mint`, dropped when the test ends. */
 async function aProject(t: TestContext): Promise<{ library: Library; log: ActivityLog; project: string }> {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
@@ -44,7 +39,6 @@ test("3.13 · `arc status` gives one line per active arc, moving ones first, eac
   const { library, log, project } = await aProject(t);
   const context: ArcVerbContext = { library, log, project, session: "person:test", folder: "/work", writer: { actor: "person:test" } };
 
-  // Made in the reverse of the order they print, so the order is the command's, not the library's.
   const idle = await anArc(library, "Ideas");
   const blocked = await anArc(library, "Search");
   const waiting = await anArc(library, "Mobile");
@@ -73,7 +67,6 @@ test("3.13 · `arc status` gives one line per active arc, moving ones first, eac
   await library.closeIncrement(schema.id, { disposition: "landed", pr: "#12" });
   assert.equal((await claim({ log, library, project, session: "codex-lane", harness: "codex" }, form.id, "building the form")).ok, true);
   const since = (await readClaims(log, project)).find((one) => one.increment === form.id)!.since;
-  // Said to the minute in UTC, worked out here by the clock rather than by cutting the stored text.
   const when = `${new Intl.DateTimeFormat("sv-SE", { timeZone: "UTC", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(since))} UTC`;
 
   const answer = await status.act({}, context, WORDS);
@@ -88,7 +81,6 @@ test("3.13 · `arc status` gives one line per active arc, moving ones first, eac
     `  Idle            ${idle.id}  Ideas — nothing parked`,
   ]);
 
-  // A landing before --since is no landing: Docs is then only ready.
   const later = await status.act({ since: "2099-01-01T00:00:00Z" }, context, WORDS);
   assert.ok(later.text.split("\n").includes(`  Ready           ${landed.id}  Docs — nobody holds ${pages.id} Pages`), later.text);
   assert.ok(later.text.split("\n").includes(`  Working         ${working.id}  Sign-up — ${form.id} Form: Codex session codex-lane on mint since ${when}`), later.text);
@@ -115,7 +107,6 @@ test("3.14 · `arc status` reads the board's arcs and the holds once each howeve
   assert.match(answer.text, /^3 active arcs, 0 moving:/);
   assert.deepEqual(asked, { arcView: 0, arcViews: 0, boardArcs: 1, closedArcs: 0, holds: 1, waitHolds: 0, heldOnQuestion: 0, waitsFor: 0 });
 
-  // A landing a minute old is counted in the default two hours and in a span that reaches it, and not in one that does not.
   const arc = await anArc(library, "Docs");
   const outline = await work(library, arc.id, "Outline");
   await work(library, arc.id, "Pages");
@@ -144,11 +135,9 @@ test("3.24 · `arc status` reads a wait on a capability's claim against the clai
   const line = async () => (await status.act({}, context, WORDS)).text.split("\n").find((one) => one.includes(arc.id))!;
   assert.equal(await line(), `  Blocked         ${arc.id}  Speed — ${fix.id} Open-app speed fix: waits on ${surface.id} ${surface.fields.title} (refused: another session holds it)`);
 
-  // The holder lets the claim go: nothing is written to the wait, and it no longer holds.
   assert.equal((await release(holder, surface.id)).ok, true);
   assert.equal(await line(), `  Ready           ${arc.id}  Speed — nobody holds ${fix.id} Open-app speed fix`);
 
-  // A capability on the list of an increment a live session holds is held; one listed only by an increment nobody holds is not.
   const board = await library.addCapability({ title: "Board", story: story.id });
   const queue = await library.addCapability({ title: "Queue", story: story.id });
   const other = await anArc(library, "Panels");
@@ -188,14 +177,12 @@ test("3.25 · the board, `arc show` and `arc waits` read a wait on a capability'
   assert.deepEqual((await bar()).waits.map(({ id, title }) => [id, title]), [[surface.id, surface.fields.title]], "the board names the capability by its title from the library's holds alone");
   assert.equal((await bar()).reading.state, "queued");
 
-  // The holder lets the claim go: nothing is written to the wait, and every reader reads it cleared.
   assert.equal((await release(holder, surface.id)).ok, true);
   assert.doesNotMatch(await shown(), /waits on capability_/);
   assert.match(await waiting(), /Sign the Apple agreement/);
   assert.deepEqual((await bar()).waits, []);
   assert.equal((await bar()).reading.state, "waiting-on-you");
 
-  // A capability on the list of an increment a live session holds is held.
   const other = await anArc(library, "Panels");
   const panel = await work(library, other.id, "Panel");
   await library.editIncrement(panel.id, { capabilities: [surface.id] });
@@ -226,7 +213,6 @@ test("3.26 · a wait on a capability's claim reads cleared on the board, in `arc
     return board.lanes.flatMap(({ bars }) => bars).find(({ id }) => id === fix.id)!;
   };
 
-  // The holder let both go and the waiting increment's own lane takes it: its list holds one, and it claims the other under it.
   const lane = { log, library, project, session: "claude-lane", harness: "claude-code" as const };
   assert.equal((await claim(lane, fix.id, "building the fix")).ok, true);
   assert.equal((await claim(lane, queue.id, "the fix needs the queue")).ok, true);
@@ -234,7 +220,6 @@ test("3.26 · a wait on a capability's claim reads cleared on the board, in `arc
   assert.doesNotMatch(await line(), /waits on capability_/);
   assert.deepEqual((await bar()).waits, []);
 
-  // Another session holding it for other work still holds the wait.
   const other = await anArc(library, "Panels");
   const panel = await work(library, other.id, "Panel");
   await library.editIncrement(panel.id, { capabilities: [surface.id] });
@@ -253,7 +238,6 @@ test("3.40 · an arc holding more than 20 increments, open and closed together, 
     const arc = await anArc(library, title);
     const made = [];
     for (let at = 0; at < count; at++) made.push(await work(library, arc.id, `${title} ${at}`));
-    // Ten of them closed, so the count is open and closed together.
     for (const increment of made.slice(0, 10)) await library.closeIncrement(increment.id, { disposition: "landed", pr: "#1" });
     return arc;
   };
@@ -270,7 +254,6 @@ test("3.40 · an arc holding more than 20 increments, open and closed together, 
   assert.ok(lines.find((line) => line.includes(big.id))?.endsWith(`. ${flag}`), lines.join("\n"));
   assert.doesNotMatch(lines.find((line) => line.includes(small.id)) ?? "", /decomposition/, lines.join("\n"));
 
-  // A flag, never a refusal: work parks onto the big arc and closes on it as before.
   const more = await work(library, big.id, "Hardening 21");
   await library.closeIncrement(more.id, { disposition: "landed", pr: "#2" });
   assert.ok((await verbNamed("show").act({ arc: big.id }, context, WORDS)).text.includes("it holds 22 increments"));

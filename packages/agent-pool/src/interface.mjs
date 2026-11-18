@@ -1,26 +1,17 @@
-// Capability 3 · The agent runner's declared interface (ADR-1216 D3, ADR-1112): the entries its manifest declares
-// (`storytree.declares`), which its dependents reach it by, never a path into its package: the ready pool
-// (`./launch`, whose `ready` says what the pool would start), the lane runner (`./runner`, whose `run` runs one lane) and
-// the watcher (`./watch`, whose `readFailures` and `queueOutcome` say what a red failed on and whether it was a flake,
-// which the CI health story's harvest sorts every failed run by, ci-health 3.26).
-// While this computer's settings switch the part off and name a factory plugin standing in for it, an entry is the
-// stand-in's export of the same name; switched off with none, it answers nothing, said with why.
+// Capability 3 · The agent runner's declared interface (ADR-1216 D3, ADR-1112).
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { pluginExport } from "@storytree/plugin-loader";
 import { readPartsOff, readStandIns, storytreeHome } from "@storytree/project-and-caller";
 
-/** The agent runner's part name, as the part switch names it. */
 export const PART = "agent-pool";
 
 const PACKAGE = new URL("../package.json", import.meta.url);
 const own = JSON.parse(readFileSync(PACKAGE, "utf8"));
 
-/** The entries the agent runner declares as its interface. */
 export const DECLARED = own.storytree.declares;
 
-/** The file that answers the agent runner's declared entry `from` on the computer whose storytree home is `home`. */
 export function agentRunnerEntry(from, home = storytreeHome()) {
   if (!DECLARED.includes(from)) throw new Error(`the agent runner declares no ${JSON.stringify(from)} in its interface; it declares ${DECLARED.join(", ")}`);
   if (!readPartsOff(home).includes(PART)) return fileURLToPath(new URL(own.exports[from], PACKAGE));

@@ -1,4 +1,4 @@
-/** Capability 4 · Updates, contract 4.4: an agent at work in the app's library holds a downloaded release back. */
+// Capability 4 · Updates
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";

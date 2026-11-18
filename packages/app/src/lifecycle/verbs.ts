@@ -1,9 +1,4 @@
-/**
- * Capability 1 · Lifecycle. `storytree app quit`, declared once (ADR-0969 D2, ADR-1033): control the running storytree app
- * from outside (ADR-0656 D0), so an agent testing it, or a script needing its database, never force-kills it. It asks the
- * running app to quit, as its tray's Quit does, and answers once its database has stopped; a stopped app is left stopped
- * (1.7). It needs no caller. The command line mounts it as its `app` family (APP_FAMILIES); it has no tool.
- */
+// Capability 1 · Lifecycle
 import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
 const quit = verb({
@@ -28,7 +23,6 @@ const quit = verb({
   },
 });
 
-/** The command line's `app` family, at its place among `storytree`'s families. */
 export const APP_FAMILIES: readonly VerbFamily<VerbPlace>[] = [
   { name: "app", summary: "control the running storytree app (the app story's)", order: 11, verbs: [quit] },
 ];

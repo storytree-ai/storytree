@@ -1,12 +1,4 @@
-// Capability 9 · A machine moves onto a fresh clone of the repository, keeping its old checkout (9.1), at a cut-over
-// to a new repository (process_761459dc626c B7 on the box, B10 on the laptop):
-// node packages/agent-pool/src/reclone.mjs [--checkout <folder>] [--repo <git url>] [--lanes <folder>] [--apply]
-// Dry by default: it prints its steps and changes nothing. With --apply it moves the checkout to <folder>.before-<time>
-// and each follow-main worktree (a detached worktree of it kept outside it) to <path>.before-<time>, never deleting
-// either; clones, installs, makes the lane worktree root and the follow-main worktrees again from the new clone; on
-// the box (a lanes folder) sets the watcher's hand-offs aside and restarts a watcher that was running; then checks
-// that storytree's own commands reach the library. On the box it refuses while the pool is not paused (pause.mjs), or
-// while the dispatcher's loop still runs from the checkout.
+// Capability 9 · A machine moves onto a fresh clone of the repository, keeping its old checkout (9.1).
 import { execFile, spawn } from "node:child_process";
 import { existsSync, openSync, readdirSync, readFileSync, readlinkSync, realpathSync } from "node:fs";
 import { mkdir, readFile, rename } from "node:fs/promises";
@@ -22,13 +14,10 @@ import { forget } from "./watch.mjs";
 const run = promisify(execFile);
 const windows = process.platform === "win32";
 const git = async (args, cwd) => (await run("git", args, { cwd, maxBuffer: 64 * 1024 * 1024 })).stdout;
-// pnpm is a .cmd on Windows, which only a shell runs.
 const pnpm = async (args, cwd) => (await run("pnpm", args, { cwd, shell: windows, maxBuffer: 64 * 1024 * 1024 })).stdout;
-// A folder as Git names it: links followed, and Windows' short names (RUNNER~1) made long.
 const real = (path) => existsSync(path) ? realpathSync.native(path) : resolve(path);
 const inside = (path, folder) => { const rel = relative(folder, path); return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel)); };
 
-/** `git worktree list --porcelain` as rows: path, head, detached, locked, branch. */
 export function worktreesOf(porcelain) {
   return porcelain.trim().split(/\n\n+/).filter(Boolean).map((block) => {
     const lines = block.split("\n"), field = (name) => lines.find((line) => line.startsWith(`${name} `))?.slice(name.length + 1);
@@ -36,18 +25,12 @@ export function worktreesOf(porcelain) {
   });
 }
 
-/** `owner/name` from a GitHub clone URL, https or ssh. */
 export function slugOf(url) {
   const found = /github\.com[:/]([^/]+\/[^/]+?)(?:\.git)?\/?$/.exec(url);
   if (!found) throw new Error(`not a GitHub repository URL: ${url}`);
   return found[1];
 }
 
-/**
- * The re-clone's steps, as `{ say, act }`: what each does, and the act that does it. `checkout` is the folder to
- * re-clone, `repo` the URL to clone, `lanes` the box's lanes folder (absent on the laptop), `stamp` the time that names
- * every moved-aside copy. `x` holds the commands (git, install, check, watcher), so tests can watch them.
- */
 export async function planReclone({ checkout, repo, lanes, stamp, x }) {
   checkout = resolve(checkout);
   const aside = `${checkout}.before-${stamp}`;
@@ -55,7 +38,6 @@ export async function planReclone({ checkout, repo, lanes, stamp, x }) {
   if (existsSync(aside)) throw new Error(`${aside} already exists: nothing moved`);
   const own = real(checkout);
   const trees = worktreesOf(await x.git(["worktree", "list", "--porcelain"], checkout)).filter((tree) => real(tree.path) !== own);
-  // Follow-main worktrees: detached, kept outside the checkout (the watcher's main, the box's timers' runners).
   const follow = trees.filter((tree) => tree.detached && !inside(real(tree.path), own));
   const left = trees.filter((tree) => !tree.detached && !inside(real(tree.path), own));
   const within = trees.filter((tree) => inside(real(tree.path), own));
@@ -68,7 +50,6 @@ export async function planReclone({ checkout, repo, lanes, stamp, x }) {
   if (moved.length) steps.push({ say: `repair the moved-aside checkout's links to its ${moved.length} worktree${moved.length === 1 ? "" : "s"}`, act: () => x.git(["worktree", "repair", ...moved], aside) });
   steps.push({ say: `clone ${repo} into ${checkout}`, act: () => x.git(["clone", "--quiet", "--", repo, checkout], resolve(checkout, "..")) });
   if (pushUrl) {
-    // The old push URL's SSH host is kept, so a deploy key's alias (github.com-storytree) pushes the new repository too.
     const host = /^git@(github\.com(?:-[\w.-]+)?):/.exec(pushUrl)?.[1] ?? "github.com";
     const url = /github\.com/.test(repo) ? `git@${host}:${slugOf(repo)}.git` : repo;
     steps.push({ say: `push over SSH, as the old checkout did (${url})`, act: () => x.git(["config", "remote.origin.pushurl", url], checkout) });
@@ -90,7 +71,6 @@ export async function planReclone({ checkout, repo, lanes, stamp, x }) {
   return { aside, follow, steps };
 }
 
-/** Run the steps, saying each; dry (no `apply`), only say them. A step that fails stops the rest, saying where it stopped. */
 export async function reclone({ steps, apply, say = console.log }) {
   say(apply ? "re-clone:" : "re-clone, dry run (nothing changes; --apply does it):");
   for (const [n, step] of steps.entries()) {
@@ -100,7 +80,6 @@ export async function reclone({ steps, apply, say = console.log }) {
       const note = await step.act();
       if (typeof note === "string" && note.trim()) say(`   ${note.trim().split("\n").join("\n   ")}`);
     } catch (error) {
-      // A command's own last words say why (pnpm's "no package.json"), where its message names only the command.
       const why = [String(error.message).split("\n")[0], ...[error.stderr, error.stdout].map((text) => String(text ?? "").trim().split("\n").at(-1)).filter(Boolean)];
       say(`   failed: ${[...new Set(why)].join(": ")}\nstopped at step ${n + 1}; steps before it are done, and nothing was deleted`);
       return 1;
@@ -109,17 +88,15 @@ export async function reclone({ steps, apply, say = console.log }) {
   return 0;
 }
 
-/** The processes on this machine (Linux) still running inside `folder`, the moved-aside checkout: they need restarting from the new one. */
 export function runningInside(folder, proc = "/proc") {
   if (!existsSync(proc)) return [];
   const found = [];
   for (const pid of readdirSync(proc).filter((name) => /^\d+$/.test(name))) {
-    try { if (inside(readlinkSync(join(proc, pid, "cwd")), folder)) found.push(pid); } catch { /* gone, or not ours */ }
+    try { if (inside(readlinkSync(join(proc, pid, "cwd")), folder)) found.push(pid); } catch {}
   }
   return found;
 }
 
-/** The dispatcher's loops (launch-pool.sh run) running inside `folder`: after a move they would start the dispatcher again on the moved-aside code. */
 export function loopsInside(folder, proc = "/proc") {
   return runningInside(folder, proc).filter((pid) => {
     try { return /launch-pool\.sh run\b/.test(readFileSync(join(proc, pid, "cmdline"), "utf8").split("\0").join(" ")); } catch { return false; }
@@ -140,7 +117,6 @@ function commands() {
       const arcs = (await pnpm(["-s", "storytree", "arc", "list"], checkout)).trim().split("\n").length;
       return `the library answers (arc list: ${arcs} lines); main is at ${(await git(["log", "--oneline", "-1"], checkout)).trim()}`;
     },
-    // The watcher's keeper and look loop are stopped and a keeper started from the new clone, only when one ran.
     restartWatcher: async ({ watch, checkout }) => {
       const pids = [];
       for (const file of ["watch.pid", "watch-loop.pid"]) {
@@ -157,13 +133,11 @@ function commands() {
   };
 }
 
-/** The command line; `box` overrides commands, paths and the clock in tests. */
 export async function main(args, box = {}) {
   const flag = (name) => args.includes(name) ? args[args.indexOf(name) + 1] : undefined;
   const say = box.say ?? console.log, home = box.home ?? homedir();
   const config = poolConfig({ home, env: box.env ?? process.env });
   const checkout = flag("--checkout") ?? config.checkout, repo = flag("--repo") ?? "https://github.com/storytree-ai/storytree.git";
-  // The box is the machine whose lanes folder holds the watcher's hand-offs; elsewhere (the laptop) there are none to carry.
   const lanes = flag("--lanes") ?? (existsSync(join(config.lanesDir, "watch")) ? config.lanesDir : undefined);
   const apply = args.includes("--apply");
   if (args.some((arg) => arg.startsWith("--") && !["--checkout", "--repo", "--lanes", "--apply"].includes(arg))) {

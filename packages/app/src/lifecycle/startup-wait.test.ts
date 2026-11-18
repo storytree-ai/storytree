@@ -1,8 +1,4 @@
-/**
- * Capability 1 · Lifecycle, contracts 1.46 and 1.47: a library that cannot be reached yet, because the computer's network
- * is not up when the app starts, is tried again instead of leaving the app on its error page until it is reopened.
- * The clock and the waits are handed in, so two minutes of trying run at once.
- */
+// Capability 1 · Lifecycle
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -10,13 +6,11 @@ import { ConnectionError } from "@storytree/library";
 
 import { keepTrying, keepTryingBehind, openAtStartup, openPatiently, type LibraryQuery } from "./startup-wait.js";
 
-/** A key command whose ssh could not reach the box, as @storytree/keys throws it, inside the app's own refusal. */
 function sshDown(): Error {
   const key = Object.assign(new Error("The command saved for key postgres failed (exit 255)"), { name: "KeyCommandError", unreachable: true });
   return new Error(`The library is set to the Postgres at postgres://box/storytree, and it could not be reached: ${key.message}`, { cause: key });
 }
 
-/** A clock that moves only when the code under test waits. */
 function clock() {
   let at = 0;
   const waits: number[] = [];

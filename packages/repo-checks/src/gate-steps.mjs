@@ -30,4 +30,5 @@ export const gateSteps = [
   { name: "check:evidence", command: () => node("packages/repo-checks/src/evidence-check.mjs") },
   { name: "check:capability-list", when: listed, command: () => node("packages/repo-checks/src/capability-list.mjs") },
   { name: "check:mounted-parts", when: (options) => mountedPartsFor(options), command: () => node("packages/repo-checks/src/mounted-parts.mjs") },
+  { name: "fyi:comment-hatches", command: () => node("packages/repo-checks/src/comment-hatches.mjs") },
 ];

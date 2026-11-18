@@ -10,7 +10,6 @@ const NOW = Date.parse("2026-10-21T12:00:00Z");
 const ago = (minutes) => new Date(NOW - minutes * 60_000);
 const stamp = (minutes) => ago(minutes).toISOString().replace(/\.\d{3}Z$/, "Z");
 
-/** A green pull request, as GitHub's GraphQL returns it, ready for the merge queue and in it. */
 const green = (extra = {}) => ({
   state: "OPEN", isDraft: false, labels: { nodes: [] }, mergeStateStatus: "CLEAN", mergeable: "MERGEABLE", mergeQueueEntry: { state: "QUEUED" },
   headRefOid: "abc", headRefName: "claude/x", isCrossRepository: false, headRepository: { nameWithOwner: "storytree-ai/storytree" },
@@ -18,7 +17,6 @@ const green = (extra = {}) => ({
   timelineItems: { nodes: [] }, ...extra,
 });
 
-/** A lanes folder with a live dispatcher and its status lines, and the box's processes and GitHub faked. */
 async function box(t, { status = [], live = { 100: "node launch.mjs pool", 200: "node watch.mjs run" }, engines = 2, cap = 5, pulls = {}, serviceOn = false } = {}) {
   const lanesDir = await mkdtemp(join(tmpdir(), "pool-health-"));
   t.after(() => rm(lanesDir, { recursive: true, force: true }));
@@ -54,11 +52,9 @@ test("8.1 · a dispatcher not running is a concern unless the stop file says it 
   assert.deepEqual(stopped.lines.filter((line) => line.startsWith("concern")), []);
   assert.match(stopped.lines.join("\n"), /dispatcher stopped on purpose \(pool-stop is there\)/);
 
-  // A pid file left by a dead dispatcher, its pid now another program's, is no dispatcher.
   const reused = await box(t, { live: { 100: "vim notes.md", 200: "node watch.mjs run" } });
   assert.equal(await main([], reused.b), 1);
 
-  // Where the service host keeps the dispatcher, health says so, and a dispatcher down there points at its service.
   const kept = await box(t, { serviceOn: true });
   assert.equal(await main(["--all"], kept.b), 0);
   assert.ok(kept.lines.includes("dispatcher: running (pid 100) under the service host's agent-pool/dispatcher"));
@@ -92,7 +88,6 @@ test("8.3 · a running session whose log has not grown in 90 minutes while the d
   assert.ok(lines.includes("session increment_busy: running 2h0m, its log grew 2m ago"), lines.join("\n"));
   assert.ok(!lines.some((line) => line.includes("increment_done") && line.startsWith("session")));
 
-  // With the dispatcher down its sessions are not judged stuck: the dispatcher's own concern says it.
   const down = await box(t, { live: {}, status: [`${stamp(200)} start increment_stuck`] });
   await touch(join(down.lanesDir, "pool-increment_stuck-20261021T084000.log"), 95);
   await main([], down.b);

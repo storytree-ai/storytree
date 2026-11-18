@@ -1,11 +1,4 @@
-/**
- * Capability 2 · Storytree projects. The desktop page's decisions, apart from Electron and from the surfaces it mounts, which the
- * renderer hands it as parts: which project is on show and when it is drawn again; what the page says while it loads, has nothing
- * to show or fails (`data-state`: loading, ready, empty, missing, error); the forest drawn at once from the tree kept at the last
- * start (`data-fresh="no"`) and the notice over it while the first read fails; which surfaces are mounted as the settings say
- * (every one when they cannot be read), the CI times strip in the map's bottom-left, the sessions list and the arcs each in its tab of the left rail, the arcs mounted once the forest has asked its first read and reading once the start settled; the start-timing marks, each sent once (lifecycle 1.33); and that a read landing after
- * the user switched project changes nothing on show.
- */
+// Capability 2 · Storytree projects
 import { drawingOf, drillDown, forestDrawn, forestScene, linkedStores, storyNodes, type ForestReadingOptions, type ForestScene, type KeptDrawing, type StoryPanel } from "@storytree/forest";
 import type { AnnotatedTree, SharedStore } from "@storytree/library";
 
@@ -24,86 +17,57 @@ type PartStates = Parameters<typeof forestScene>[2];
 type Held = ReturnType<PageReading["held"]>;
 type Changes = Held["changes"];
 
-/** What a click on the forest picked: a story (on one of its territories' capabilities), a note, a shared store by its address, or empty space. */
 export type ForestSelection = { kind: "story"; id: string; capability?: string; gate?: readonly [string, string] } | { kind: "note"; id: string } | { kind: "store"; id: string } | undefined;
 
-/** The forest's globe (the forest's openForestView), the little of it the page drives. */
 export interface ForestGlobe {
   show(scene: ForestScene, places: ReadonlyMap<string, number>): void;
-  /** Resolves once the globe has painted a frame of the scene on show. */
   drawn(): Promise<void>;
   select(story: string | undefined): void;
-  /** Ring the capabilities the arc opened in the Arcs tab names in its open work, and the gates of the edges whose contracts it
-   * links (forest 3.92), and dim the rest; undefined for none. */
   circle(capabilities: readonly string[] | undefined, contracts?: readonly string[] | undefined): void;
   dispose(): void;
 }
 
-/** A start-timing mark's sender, wrapped round the kept reading's read-back. */
 export type TimedRead = <K extends { read(): Promise<unknown> }>(kept: K) => K;
 
-/** The surfaces that draw one project, each mounted only when the page asks, already joined to the project's reads. */
 export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
-  /** The page's one live reading of the project (ADR-0836 D3), its kept reading's read-back timed by the page. */
   page: PageReading;
   states: PartStates & { add(lines: News["lines"]): void };
-  /** The tree the forest last drew, and what it drew it with (forest keptTree and keptDrawing). */
   kept: { read(): AnnotatedTree | undefined; write(tree: AnnotatedTree): void };
   drawing: { read(): KeptDrawing | undefined; write(drawing: ReturnType<typeof drawingOf>): void };
-  /**
-   * The arcs, in `host` (the rail's Arcs tab); `onWaiting` hears what waits on the owner there, the tab's badge. They read nothing
-   * until `startAfter`, the page's start settled or the forest's first read failed (2.40), so the start does not wait on them.
-   */
   arcs(host: HTMLElement, on: { onFreshDraw(): void; onWaiting(count: number): void; onOpened(capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined): void; startAfter: PromiseLike<void> }): { stop(): void; openIncrement(id: string): void };
   openView(holder: HTMLElement, onSelect: (selection: ForestSelection) => void, options: { library: boolean; opening: string | undefined }): Promise<View>;
-  /** The sessions list in `host` (the rail's Sessions tab), joined to `view` and the knowledge core both ways. */
   sessions(view: View, host: HTMLElement): { stop(): void };
-  /** The CI times strip (CI health's capability 6) in `host`, the map's bottom-left corner. */
   ciTimes(host: HTMLElement): { stop(): void };
-  /** Hand the knowledge core the library's changes and the log's lines. */
   take(changes: Changes, lines: News["lines"]): void;
   libraryCard(panel: HTMLElement, onClose: () => void): () => void;
   teaching(locate: (target: CardTarget) => Place | undefined, reading: (target: CardTarget) => Box[], islands: () => Box[]): { take(reading: { tree: AnnotatedTree; changes: Changes; lines: Held["lines"]; factory: boolean; library: boolean }): void; stop(): void };
-  /** Mount the factory's stand-in surfaces (ADR-1174) that `on` says are on. */
   plugins(on: (surface: string) => boolean): Promise<{ stop(): void; failed: readonly { surface: string; why: string }[] }>;
   reading(options: Pick<ForestReadingOptions, "onTree" | "onError" | "onSettled" | "survey">): { stop(): void };
-  /** `open`: the contracts the arc opened in the Arcs tab links in its open work, which say why a picked gate is ringed. */
   renderPanel(drilled: StoryPanel, selected: string | undefined, options: { details: boolean; gate: readonly [string, string] | undefined; open: readonly string[] | undefined }): string;
-  /** A shared store's panel (the forest's renderStorePanel), shown in the story panel's slot, with who the plan says touches it. */
   renderStore(store: SharedStore, tree: AnnotatedTree | undefined): string;
-  /** Work the folds of the panel just drawn into `panel` (the forest's capability 4), opening the kinds the user keeps open. */
   foldPanel(panel: HTMLElement): void;
 }
 
 export interface PageParts<View extends ForestGlobe = ForestGlobe> {
   document: Document;
   content: HTMLElement;
-  /** The page's `?problem=`: the library could not be opened, and why. */
   problem: string | null;
-  /** The page's `?waiting=`: the app is still trying a library it cannot reach yet, and why. */
   waiting: string | null;
   menu: { update(selection: ProjectSelection): void };
   projectSelection(): Promise<ProjectSelection>;
   readSurfaces(): Promise<SurfacesResult>;
   startMark(name: string): Promise<unknown>;
-  /** A failure the page caught, for the console (errors 9.1 carries it to app.log), said once per outage (8.11). */
   failed(what: string, error: unknown): void;
-  /** The library answered again. */
   answered(): void;
   project(name: string, timed: TimedRead): ProjectParts<View>;
   globe(): IslandsAndNotes | undefined;
-  /** How many stand-in surface views the user's factory offers. */
   pluginViews: number;
 }
 
 export interface ProjectPage {
-  /** Whether the Library surface was on at the last read of the surfaces, which Help's journal shows its cards by; on until read. */
   libraryOn(): boolean;
-  /** Read the projects again now; `redraw` draws the project on show again even when nothing changed. */
   refresh(redraw?: boolean): Promise<void>;
-  /** A surface was switched or set in the Surfaces menu: draw the project on show again, as the settings now say. */
   surfacesChanged(): Promise<void>;
-  /** Choosing a project failed: say why in place of the project, and read the projects again. */
   choiceFailed(error: unknown): void;
   stop(): void;
 }
@@ -129,9 +93,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
   const status = pageStatus(document, content);
   let showing: Showing | undefined;
   let current: string | undefined;
-  /** Whether the project on show is the user's factory, which its teaching cards read (ADR-1048 D3). */
   let onFactory = false;
-  /** Whether the Library surface was on at the last read of the surfaces. */
   let libraryOn = true;
   let following: ReturnType<typeof followProjects> | undefined;
   const marked = new Set<string>();
@@ -171,7 +133,6 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     status.showMessage(state, heading, text);
   };
 
-  /** Redraw the picker when the list changes; only replace the surface when its project changes. */
   const show = async ({ current: name, projects, factory }: ProjectSelection): Promise<void> => {
     parts.menu.update({ projects, current: name, ...(factory === undefined ? {} : { factory }) });
     onFactory = factory?.place === "factory";
@@ -199,10 +160,6 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     await showForest(name);
   };
 
-  /**
-   * Draw project `name` as its forest and keep it current: the live reading hands on the library's changes and the agent log's
-   * lines as they come, the tree is read again when the library changed, and only the story nodes that changed are redrawn.
-   */
   const showForest = async (name: string): Promise<void> => {
     status.showProgress(true);
     const holder = document.createElement("div");
@@ -214,7 +171,6 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     body.dataset.surface = "forest";
     const mine: Showing = {};
     showing = mine;
-    // The surfaces switched on in the settings file (ADR-0750); if they cannot be read, all are on.
     const read = await parts.readSurfaces().catch((error: unknown) => ({ ok: false as const, error: messageOf(error) }));
     if (read?.ok === false) parts.failed("the surfaces could not be read, so every surface is on", read.error);
     if (showing !== mine) return;
@@ -227,12 +183,9 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     mine.page = page;
     const history = () => page.held().changes;
     const states = project.states;
-    // The left rail, a tab for each of the sessions list and the arcs that is on (ADR-1219).
-    // Its toggle leads the app bar, where it stays reachable while the rail is collapsed.
     const toggleHost = content.ownerDocument.querySelector<HTMLElement>(".app-bar > .app-factory") ?? undefined;
     const rail = mountRail(content, { project: name, tabs: (["sessions", "arcs"] as const).filter((tab: RailTab) => surfaceOn(surfaces, tab)), ...(toggleHost ? { toggleHost } : {}) });
     if (rail) mine.rail = rail;
-    // The factory's CI averages in the map's bottom-left corner, beside the rail (stage 1 of question_177bdb4c1e2a's display).
     const ciHost = content.ownerDocument.createElement("aside");
     ciHost.className = "ci-times";
     ciHost.hidden = true;
@@ -241,21 +194,17 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     let started!: () => void;
     const startAfter = new Promise<void>((resolve) => { started = resolve; });
     let tree: AnnotatedTree | undefined;
-    /** The code survey last read, which counts a mapped story's files and lines for its panel. */
     let surveyed: Survey = {};
-    /** The contracts the arc opened in the Arcs tab links in its open work, for the panel of a picked gate (ADR-1284 D4). */
     let opened: readonly string[] | undefined;
 
     const panel = storyPanel(panelHost, {
       body,
       drill: (story) => tree === undefined ? undefined : drillDown(tree, story, states, history(), surveyed),
       render: (drilled, selected, gate) => project.renderPanel(drilled, selected, { details: withDetails, gate, open: opened }),
-      // The shared stores the plan's store links name, drawn beside the islands, whose panel a picked one opens.
       store: (address) => { const store = tree === undefined ? undefined : linkedStores(tree.stories).find((each) => each.address === address); return store === undefined ? undefined : project.renderStore(store, tree); },
       folds: (host) => project.foldPanel(host),
       libraryCard: (host, onClose) => project.libraryCard(host, onClose),
       deselect: () => mine.view?.select(undefined),
-      // The map has no view of an increment: the rail's Arcs tab shows it (2.57).
       openIncrement: (id) => { rail?.show("arcs"); mine.arcs?.openIncrement(id); },
     });
     mine.panel = panel;
@@ -266,17 +215,12 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       if (selection?.kind === "story") body.dataset.selected = selection.id;
       if (selection?.kind === "store") body.dataset.store = selection.id;
       if (selection?.kind === "note") body.dataset.note = selection.id;
-      // A click on a territory opens its story on that capability (forest 3.15), and one on a gate on the pair it joins (3.88).
       panel.choose(selection?.kind === "story" ? selection.capability : undefined, selection?.kind === "story" ? selection.gate : undefined);
     }, { library: surfaceOn(surfaces, "library"), opening: globeOpening });
     if (showing !== mine) return view.dispose();
     mine.view = view;
-    // Sessions off is a quiet globe: no list, no session tints and no islands lit on hover.
     if (rail && surfaceOn(surfaces, "sessions")) mine.sessions = project.sessions(view, rail.panel("sessions"));
-    // The first time each kind appears on this map, its card shows beside it (ADR-1048 D1), clear of what is being read there,
-    // and of the other islands as far as it can be.
     mine.teaching = project.teaching((target) => locateTarget(target, { document, globe: parts.globe }), (target) => readingNear(target, document), () => drawnIslands(parts.globe()));
-    // A factory plugin standing in for a switched-off part draws its surfaces from the factory, while each is on.
     if (parts.pluginViews > 0) {
       const plugins = await project.plugins((id) => surfaceOn(surfaces, id));
       if (showing !== mine) return plugins.stop();
@@ -284,9 +228,6 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       for (const { surface, why } of plugins.failed) console.error(`The ${surface} surface could not be loaded from the factory: ${why}`);
     }
 
-    // The tree this project last drew, at once and marked as not yet fresh, while the first read runs, drawn with the survey,
-    // story order and work states it was drawn with, so the fresh drawing of an unchanged project lays out nothing again. The
-    // page stays "loading" until that read lands; a failure meanwhile keeps the kept forest on show.
     const last = project.kept.read();
     const drawnWith = last === undefined ? undefined : project.drawing.read();
     if (last !== undefined) {
@@ -294,8 +235,6 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       view.show(forestScene(last, created, was, survey), new Map(storyNodes(last, created, survey).map((node) => [node.id, node.place])));
       status.showFreshness("Showing the forest as last read. Refreshing…");
     }
-    // A read that fails before the first one lands keeps the reading going: the next ask tries again, and the forest is drawn
-    // once the library answers. Once drawn, a failed read changes nothing on show.
     const failed = (error: unknown): void => {
       if (showing !== mine) return;
       started();
@@ -326,15 +265,11 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
         startMark("forest first fresh draw");
       },
       onError: failed,
-      // A kept start is settled only once the globe has painted what is on show after the fresh tree, never before the globe
-      // is on screen (3.49; the owner's ruling on question_f1589345683f, which moved open-app-kept's baseline for it).
       onSettled: () => {
         void (last === undefined ? Promise.resolve() : view.drawn()).then(() => { if (showing === mine) { status.showProgress(false); started(); } });
       },
     };
     mine.reading = project.reading(drawnWith === undefined ? reading : { ...reading, survey: drawnWith.survey });
-    // The arcs mount at the page reading's first news or first failure, heard after the forest's reading, which has asked its
-    // tree by then: drawing the board kept at the last start (about 40 ms on the large seed) never holds that read back (2.41).
     if (rail && surfaceOn(surfaces, "arcs")) {
       let stopWaiting: (() => void) | undefined;
       let mounted = false;
@@ -352,7 +287,6 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     }
   };
 
-  /** Draw project `name` again from the start, as the surfaces now say. */
   const redraw = async (name: string): Promise<void> => {
     stopShowing();
     status.setState("loading");
@@ -368,12 +302,10 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     if (parts.problem !== null) return showMessage("error", "The library could not be opened", parts.problem);
     if (parts.waiting !== null) return showMessage("waiting", "Waiting for the library", parts.waiting);
     following = followProjects({
-      // The projects poll every few seconds, so their answer is the page's word that the library answers again.
       read: () => parts.projectSelection().then((selection) => { parts.answered(); return selection; }),
       onChange: (selection) => show(selection),
       onError: (error) => {
         parts.failed("the projects could not be read", error);
-        // An intermittent read must not tear down a working forest; the next poll retries.
         const state = status.state();
         if (state !== "ready" && state !== "empty") showMessage("error", "The projects could not be read", messageOf(error));
       },

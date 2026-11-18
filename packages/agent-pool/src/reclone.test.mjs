@@ -14,7 +14,6 @@ import { loopsInside, main, slugOf } from "./reclone.mjs";
 const run = promisify(execFile);
 const git = async (args, cwd) => (await run("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd })).stdout.trim();
 
-/** A file's text with Windows line endings read as plain ones: Git for Windows checks text out with CRLF. */
 const text = async (path) => (await readFile(path, "utf8")).replace(/\r\n/g, "\n");
 
 async function folder(t) {
@@ -23,7 +22,6 @@ async function folder(t) {
   return path;
 }
 
-/** Two repositories (the old and the new), a checkout of the old one with a follow-main worktree outside it and a branch worktree inside it. */
 async function machine(t) {
   const root = await folder(t);
   const repos = {};
@@ -53,7 +51,6 @@ const ASIDE = ".before-20261025T090000Z";
 test("9.1 · the re-clone moves the old checkout and its follow-main worktrees aside, clones, installs, makes them again and checks the library; dry by default", async (t) => {
   const m = await machine(t);
   const did = [], lines = [];
-  // The GitHub repository the URL names decides the push URL; the local bare repository stands in for it.
   const repo = m.repos.new;
   const x = {
     install: async (at) => { did.push(["install", at]); },
@@ -69,25 +66,21 @@ test("9.1 · the re-clone moves the old checkout and its follow-main worktrees a
   assert.deepEqual(did, []);
   assert.match(lines.join("\n"), /dry run/);
 
-  // On the box it refuses until the pool is paused.
   lines.length = 0;
   assert.equal(await main([...args, "--apply"], box), 1);
   assert.match(lines.join("\n"), /refused: pause the pool first/);
   assert.equal(await text(join(m.checkout, "which.txt")), "old\n");
-  // With no --lanes, the box is found by the lanes folder holding the watcher's hand-offs.
   lines.length = 0;
   assert.equal(await main(["--checkout", m.checkout, "--repo", repo, "--apply"], box), 1);
   assert.match(lines.join("\n"), new RegExp(`refused: pause the pool first .*no stop file in ${m.lanes.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")}`));
   assert.equal(await text(join(m.checkout, "which.txt")), "old\n");
 
   await writeFile(join(m.lanes, "pool-stop"), "paused\n");
-  // Nor while another lane still runs, each counted in what it says.
   for (const [beside, said] of [[["300"], "1 other lane is still running"], [["300", "301"], "2 other lanes are still running"]]) {
     lines.length = 0;
     assert.equal(await main([...args, "--apply"], { ...box, lanesBeside: async () => beside.map((pid) => ({ pid, args: "claude -p" })) }), 1);
     assert.match(lines.join("\n"), new RegExp(`refused: pause the pool first .*: ${said}$`));
   }
-  // Nor while the dispatcher's loop still runs from the checkout: it would restart on the moved-aside code.
   lines.length = 0;
   assert.equal(await main([...args, "--apply"], { ...box, loopsInside: (at) => at === m.checkout ? ["77"] : [] }), 1);
   assert.match(lines.join("\n"), /refused: the dispatcher's loop still runs from .* \(77\)/);
@@ -109,13 +102,11 @@ test("9.1 · the re-clone moves the old checkout and its follow-main worktrees a
   assert.match(lines.join("\n"), /old checkout is kept at .*before-20261025T090000Z/);
   assert.match(lines.join("\n"), /nothing still runs from the moved-aside checkout/);
 
-  // A second re-clone in the same second would overwrite a moved-aside copy: refused, nothing moved.
   lines.length = 0;
   assert.equal(await main([...args, "--apply"], box), 1);
   assert.match(lines.join("\n"), /already exists: nothing moved/);
   assert.equal(await text(join(m.checkout, "which.txt")), "new\n");
 
-  // A step that fails stops the rest and says why, in the command's own words.
   lines.length = 0;
   const failing = { ...box, now: () => NOW() + 1000, x: { ...x, install: async () => { throw Object.assign(new Error("Command failed: pnpm install"), { stderr: "ERR_PNPM_NO_PKG_MANIFEST No package.json found\n" }); } } };
   assert.equal(await main([...args, "--apply"], failing), 1);
@@ -144,7 +135,6 @@ test("9.1 · a re-clone from GitHub pushes over SSH to the repository it cloned,
   const lines = [], set = [];
   const x = {
     install: async () => {}, check: async () => "",
-    // Only the push URL is read from the real clone; cloning GitHub is the stand-in's.
     git: async (args, cwd) => {
       if (args[0] === "clone") return (await run("git", ["clone", "-q", "--", m.repos.new, args.at(-1)], { cwd })).stdout;
       if (args[0] === "config" && args[1] === "remote.origin.pushurl") set.push(args[2]);

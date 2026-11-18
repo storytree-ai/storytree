@@ -1,4 +1,4 @@
-/** Capability 1 · Lifecycle, contract 1.7, as the declared `app quit` answers it to whichever door mounts it. */
+// Capability 1 · Lifecycle
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

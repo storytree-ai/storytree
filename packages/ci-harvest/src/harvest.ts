@@ -1,25 +1,4 @@
-/**
- * Capability 1 · Harvesting failed CI runs. The harvest of every failed CI run (ADR-1356 D2, research_f0fba6695fbd sections
- * 1 and 2): each failed GitHub Actions run of the window is sorted once, by run id, and never again.
- *
- * - A run of a workflow that tests no code (a release, a staging build, a Windows update) is infra, and so is one whose red
- *   jobs only timed out or were cancelled; own health's are skipped, since 5.33 already routes them (1.1).
- * - A CI run's failing tests are read by the watcher's own reading (the agent runner's `readFailures`, through its declared
- *   interface), and sorted by its flake rules: a test outside what the pull request changes, one whose head later passed
- *   unchanged, or one in a merge-queue red the watcher reads as a flake (`queueOutcome`) is a flake, and goes to the one
- *   investigation of that test (CI health's `investigateFlakyTest`, ADR-1352), never a second flake record (1.2).
- * - A flaky test an earlier increment, open or landed, already answers (its title names the test, by its full title or its
- *   number as a whole token, and its title or body the run's id as a whole token) goes to that increment, not a new
- *   investigation (1.5).
- * - A test that failed at a head and passed only once the pull request changed code it reaches is a real failure, and so is
- *   every increment that landed fixing an escape; each is recorded once as an escape pattern, unjudged, for the agent that
- *   runs the harvest to judge whether it generalises (1.3).
- * - A red run of the property checks' nightly tier finds a counterexample on a fresh seed, which no later green run on
- *   another seed clears: each failing test it names is a real failure, never a flake (1.4).
- *
- * A run nothing settles yet (its pull request still red, say) is left for the next harvest, until it is as old as the
- * window, when it is recorded unsettled; every count is printed, so nothing is dropped silently.
- */
+// Capability 1 · Harvesting failed CI runs
 import { pathToFileURL } from "node:url";
 
 import type { FieldsOf, Library, SchemaRecord, WriteOptions } from "@storytree/library";
@@ -27,31 +6,20 @@ import type { FieldsOf, Library, SchemaRecord, WriteOptions } from "@storytree/l
 import type { GitHub } from "@storytree/ci-health";
 import { investigateFlakyTest, placeOf } from "@storytree/ci-health/investigate";
 
-/** Which packages a change to `files` reaches: CI's scope rule (CI health's ciScopeRule), every package when it cannot say. */
 export type ScopeRule = (files: readonly string[]) => { readonly full: boolean; readonly dirs: readonly string[] };
 
-/** The workflows whose runs test code: every other workflow's failed run is infra. */
 export const CODE_WORKFLOWS: ReadonlySet<string> = new Set(["CI"]);
-/**
- * The property checks' nightly tier (story_c4838b46de87 contract 3.2, .github/workflows/property-nightly.yml): it tests
- * code, and each failing test it names is a real failure (1.4).
- */
 export const PROPERTY_NIGHTLY = "Property checks nightly";
-/** Own health's workflow, whose failures contract 5.33 already routes. */
 export const OWN_HEALTH = "Own health";
-/** The title the library gives the arc of a flaky test's one investigation (investigateFlake, 5.33), naming the test. */
 const INVESTIGATION = /^The flaky test "(.*)" passes reliably$/;
-/** The increment among `increments` that already answers `test`'s flake in run `run` (1.5): its title names the test, its title or body the run. */
 function answeredBy(increments: readonly { id: string; fields: { title: string; body?: string } }[], test: string, run: number): string | undefined {
   const number = /^(\d+)\.(\d+) · /.exec(test);
   const named = number === null ? undefined : new RegExp(`(?<![\\d.])${number[1]}\\.${number[2]}(?!\\.?\\d)`);
   const ran = new RegExp(`(?<!\\d)${run}(?!\\d)`);
   return increments.find(({ fields }) => (fields.title.includes(test) || named?.test(fields.title) === true) && ran.test(`${fields.title}\n${fields.body ?? ""}`))?.id;
 }
-/** Who the harvest's flakes and patterns are by. */
 const BY = "storytree harvest ci";
 
-/** A failed GitHub Actions run, as the harvest lists it. */
 export interface FailedRun {
   readonly id: number;
   readonly attempt: number;
@@ -61,11 +29,9 @@ export interface FailedRun {
   readonly branch: string;
   readonly conclusion: string;
   readonly createdAt: string;
-  /** Its pull request: a pull request run's own, or the one a merge-queue branch names. */
   readonly pr?: number;
 }
 
-/** One job of a run, as the watcher's readFailures reads it. */
 export interface RunJob {
   readonly name: string;
   readonly conclusion: string | null;
@@ -73,22 +39,15 @@ export interface RunJob {
   readonly log: string;
 }
 
-/** What a run's failing tests are sorted by, read from GitHub. */
 export interface RunFacts {
   readonly jobs: readonly RunJob[];
-  /** Its pull request, when the run did not name it (one merged since, found by its branch). */
   readonly pr?: number;
-  /** The packages and apps its pull request changes (reachOf), empty for a run on no pull request. */
   readonly reach: ReadonlySet<string>;
-  /** Whether a later run of its workflow at the same head passed: the same code, rerun green. */
   readonly passedSameHead: boolean;
-  /** What the watcher reads a merge-queue red as (queueOutcome), for a run on the merge queue. */
   readonly queue?: "flake" | "real" | "ahead" | "unknown";
-  /** The head its pull request was next green at, and the packages the change from the failing head to it reaches. */
   readonly laterGreen?: { readonly head: string; readonly reaches: (unit: string) => boolean };
 }
 
-/** The watcher's reading of a red, from the agent runner's declared interface (its `./watch`). */
 export interface WatcherReading {
   readFailures(runs: readonly { id: number; attempt: number; repo: string; jobs: readonly RunJob[] }[], reach: ReadonlySet<string>): {
     outside: boolean; units: string[]; tests: string[]; where: Record<string, string>;
@@ -98,27 +57,22 @@ export interface WatcherReading {
   onMain(status: string): boolean;
 }
 
-/** The watcher's reading, as the agent runner on this computer answers it (its own, or the stand-in's). */
 export async function watcherReading(): Promise<WatcherReading> {
   const { agentRunnerEntry } = await import("@storytree/agent-pool/interface");
   return (await import(pathToFileURL(agentRunnerEntry("./watch")).href)) as WatcherReading;
 }
 
-/** One failing test of a CI run, sorted. */
 export type SortedTest = { readonly test: string; readonly unit?: string } & (
   | { readonly verdict: "flake" | "real"; readonly why: string }
-  /** Nothing settles it yet: it is never routed or recorded, so it carries no reason. */
   | { readonly verdict: "undecided" }
 );
 
-/** What one failed run is. */
 export type RunSort =
   | { readonly kind: "infra"; readonly why: string }
   | { readonly kind: "own-health" }
   | { readonly kind: "no-test"; readonly units: readonly string[] }
   | { readonly kind: "tests"; readonly tests: readonly SortedTest[] };
 
-/** Whether `run` is sorted without reading its jobs: a workflow that tests no code, own health's, or a run that only timed out or was cancelled. */
 export function sortByWorkflow(run: FailedRun): RunSort | undefined {
   if (run.workflow === OWN_HEALTH) return { kind: "own-health" };
   if (!CODE_WORKFLOWS.has(run.workflow) && run.workflow !== PROPERTY_NIGHTLY) return { kind: "infra", why: `${run.workflow} tests no code` };
@@ -126,12 +80,6 @@ export function sortByWorkflow(run: FailedRun): RunSort | undefined {
   return undefined;
 }
 
-/**
- * What a CI run's failing tests are (1.2, 1.3), by the watcher's reading: none when its red jobs only timed out or were
- * cancelled (infra), or named no test; else each test a flake (outside what the pull request changes, its head rerun green,
- * or a queue red the watcher read as a flake, or green later with no change reaching it), real (green only once the pull
- * request changed code it reaches), or undecided. Each failing test of a property-checks nightly run is real (1.4).
- */
 export function sortRun(run: FailedRun, facts: RunFacts, watcher: WatcherReading): RunSort {
   const byWorkflow = sortByWorkflow(run);
   if (byWorkflow !== undefined) return byWorkflow;
@@ -144,7 +92,6 @@ export function sortRun(run: FailedRun, facts: RunFacts, watcher: WatcherReading
   const tests = failures.tests.map((test): SortedTest => {
     const unit = failures.where[test];
     const placed = unit === undefined ? {} : { unit };
-    // A counterexample is deterministic for its seed: no rerun on another seed clears it.
     if (run.workflow === PROPERTY_NIGHTLY) return { test, ...placed, verdict: "real", why: "a property check found a counterexample on a fresh seed" };
     if (failures.outside) return { test, ...placed, verdict: "flake", why: "it failed outside what its pull request changes" };
     if (facts.passedSameHead) return { test, ...placed, verdict: "flake", why: `its head ${run.head.slice(0, 12)} passed on a rerun, unchanged` };
@@ -160,19 +107,16 @@ export function sortRun(run: FailedRun, facts: RunFacts, watcher: WatcherReading
   return { kind: "tests", tests };
 }
 
-/** The harvested runs, by run id: each sorted once (1.1). */
 export interface HarvestLedger {
   harvested(ids: readonly number[]): Promise<ReadonlySet<number>>;
   mark(rows: readonly { id: number; sorted: string }[]): Promise<void>;
 }
 
-/** What the harvest reads GitHub through. */
 export interface HarvestSource {
   failedRuns(since: Date): Promise<readonly FailedRun[]>;
   facts(run: FailedRun): Promise<RunFacts>;
 }
 
-/** What one harvest sorted, as it prints it (1.3). */
 export interface HarvestCounts {
   readonly runs: number;
   readonly already: number;
@@ -190,22 +134,14 @@ export interface HarvestCounts {
   readonly unread: number;
 }
 
-/** The library the harvest writes through: its plan tree, flake investigations, and escape patterns. */
 export type HarvestLibrary = Pick<Library, "projectTree" | "investigateFlake" | "writeKnowledge" | "list">;
 
-/** The capability whose contracts hold `contract` in `tree`. */
 function capabilityOf(library: Awaited<ReturnType<Library["projectTree"]>>, contract: string | undefined): string | undefined {
   if (contract === undefined) return undefined;
   for (const story of library.stories) for (const capability of story.capabilities) if (capability.contracts.some(({ id }) => id === contract)) return capability.id;
   return undefined;
 }
 
-/**
- * Harvest every failed run created in the `days` before `now` (1.1 to 1.3): sort each not yet harvested, send its
- * flakes to their investigations, record its real failures and every increment that landed fixing an escape as escape
- * patterns, once each, and mark the run harvested; a run nothing settles yet waits for the next harvest, until it is as
- * old as the window.
- */
 export async function harvest({ library, source, ledger, watcher, now = new Date(), days = 7, write = {} }: {
   library: HarvestLibrary; source: HarvestSource; ledger: HarvestLedger; watcher: WatcherReading; now?: Date; days?: number; write?: WriteOptions;
 }): Promise<HarvestCounts> {
@@ -235,7 +171,7 @@ export async function harvest({ library, source, ledger, watcher, now = new Date
         pr ??= facts.pr;
         sorted = sortRun(run, facts, watcher);
       } catch {
-        counts.unread++; // GitHub could not be read for it: the next harvest reads it again
+        counts.unread++;
         continue;
       }
     }
@@ -245,9 +181,6 @@ export async function harvest({ library, source, ledger, watcher, now = new Date
     sortedRuns.push({ run, pr, tests: sorted.tests });
   }
 
-  // A test already under investigation as a flaky test (ADR-1352), or one that flaked in another run of the window, is a
-  // flake wherever else it failed: it joins its one investigation, never becomes an escape pattern. A property-checks
-  // nightly run's counterexample is real whatever else flaked (1.4).
   const increments = await library.list("increment");
   const investigating = new Set(increments.filter(({ fields }) => fields.status !== "closed").map(({ fields }) => fields.arc));
   const flaky = new Map<string, string>();
@@ -297,7 +230,6 @@ export async function harvest({ library, source, ledger, watcher, now = new Date
     marks.push({ id: run.id, sorted: tests.some(({ verdict }) => verdict === "real") ? "real" : tests.every(({ verdict }) => verdict === "flake") ? "flake" : "unsettled" });
   }
 
-  // Every increment that landed fixing an escape is a real failure every layer missed (1.3).
   for (const increment of increments) {
     const escape = (increment.fields as FieldsOf<"increment">).escape;
     if (escape === undefined || escape === "none" || recorded.has(increment.id)) continue;
@@ -317,7 +249,7 @@ export async function harvest({ library, source, ledger, watcher, now = new Date
   }
 
   const order = new Map(runs.map(({ id }, at) => [id, at]));
-  await ledger.mark(marks.sort((a, b) => order.get(a.id)! - order.get(b.id)!)); // in the order the runs were listed
+  await ledger.mark(marks.sort((a, b) => order.get(a.id)! - order.get(b.id)!));
   const all = [...patterns, ...written];
   return {
     ...counts,
@@ -327,7 +259,6 @@ export async function harvest({ library, source, ledger, watcher, now = new Date
   };
 }
 
-/** What a harvest printed, in plain words (1.3). */
 export function harvestText(counts: HarvestCounts): string {
   const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
   return [
@@ -340,23 +271,16 @@ export function harvestText(counts: HarvestCounts): string {
   ].join("\n");
 }
 
-/** A failed run as GitHub's REST API lists it. */
 interface ApiRun {
   id: number; run_attempt: number; name: string; event: string; head_sha: string; head_branch: string | null; conclusion: string | null;
   created_at: string; pull_requests?: { number: number }[];
 }
 
-/** The pull request a merge-queue branch (`gh-readonly-queue/main/pr-<n>-<sha>`) names. */
 export function queuedPr(branch: string): number | undefined {
   const found = /^gh-readonly-queue\/[^/]+\/pr-(\d+)-/.exec(branch)?.[1];
   return found === undefined ? undefined : Number(found);
 }
 
-/**
- * The harvest's reading of `repository` on GitHub (1.1 to 1.3): its failed and timed-out runs since a time, and each CI
- * run's facts: its jobs with their logs, its pull request's reach, whether its head later passed unchanged, a merge-queue
- * red's outcome as the watcher reads it, and the head the pull request was next green at with what the change to it reaches.
- */
 export function gitHubSource(github: GitHub, repository: string, watcher: WatcherReading, scope: ScopeRule): HarvestSource {
   const api = `repos/${repository}`;
   const listed = async (route: string): Promise<ApiRun[]> => {
@@ -370,8 +294,6 @@ export function gitHubSource(github: GitHub, repository: string, watcher: Watche
   };
   const green = async (query: string, workflow: string): Promise<ApiRun[]> =>
     (await listed(`${api}/actions/runs?${query}&status=success`)).filter((one) => one.name === workflow);
-  // What the pull request's own change from one head to another reaches: the files both changed between them and in the
-  // pull request, so main merged into its branch in between is not counted as its change.
   const reachesFrom = async (from: string, to: string, own: ReadonlySet<string>): Promise<(unit: string) => boolean> => {
     const { files } = (await github.json(`${api}/compare/${from}...${to}`)) as { files?: { filename: string }[] };
     const decided = scope((files ?? []).map(({ filename }) => filename).filter((file) => own.has(file)));
@@ -399,7 +321,6 @@ export function gitHubSource(github: GitHub, repository: string, watcher: Watche
         log: job.conclusion === "failure" || job.conclusion === "timed_out" ? await github.text(`${api}/actions/jobs/${job.id}/logs`) : "",
       })));
       const passedSameHead = (await green(`head_sha=${run.head}`, run.workflow)).length > 0;
-      // A pull request's run lists its pull request only while it is open: one merged since is found by its branch.
       const number = run.pr ?? (run.event === "pull_request" && run.branch !== ""
         ? ((await github.json(`${api}/pulls?head=${repository.split("/")[0]}:${encodeURIComponent(run.branch)}&state=all&per_page=1`)) as { number: number }[])[0]?.number
         : undefined);
@@ -415,7 +336,6 @@ export function gitHubSource(github: GitHub, repository: string, watcher: Watche
       const own = new Set(files.map(({ filename }) => filename));
       const reach = watcher.reachOf([...own]);
       if (run.event === "merge_group") {
-        // The queue's commit: its first parent main or the entry ahead, its second the pull request's head it was red at.
         const { parents } = (await github.json(`${api}/commits/${run.head}`)) as { parents: { sha: string }[] };
         const shas = parents.map(({ sha }) => sha);
         const base = shas[0];

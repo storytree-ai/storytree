@@ -1,7 +1,4 @@
-/**
- * Capability 1 · Lifecycle, contract 1.45: what the app says when its library cannot be opened, with local-postgres's
- * own refusal for a data folder another program holds.
- */
+// Capability 1 · Lifecycle
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

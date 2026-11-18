@@ -28,7 +28,7 @@ test("8.1 the gate installs an uninstalled worktree before its first check, and 
   const { root } = checkout(t);
   const calls = [];
   const code = await gate({ root, provision: () => (calls.push("install"), 0), run: async (step) => (calls.push(step), 0), log: () => {} });
-  assert.deepEqual(calls, ["install", "typecheck", "test", "lint", "check:seed-records", "check:leaks", "check:secrets", "check:evidence"]);
+  assert.deepEqual(calls, ["install", "typecheck", "test", "lint", "check:seed-records", "check:leaks", "check:secrets", "check:evidence", "fyi:comment-hatches"]);
   assert.equal(code, 0);
 
   const ran = [];

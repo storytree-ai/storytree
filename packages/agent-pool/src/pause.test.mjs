@@ -15,7 +15,6 @@ async function folder(t) {
   return path;
 }
 
-// Two lanes: 100's engine (its node child is no engine of its own), and 200's, which runs the shell calling pause.
 const TABLE = `
   1 0 node --import tsx packages/agent-pool/src/launch.mjs pool
   100 1 claude -p # Pool lane: increment_a
@@ -45,7 +44,6 @@ test("3.23 · pause stops the pool taking new work and waits until no other lane
   assert.match(lines.join("\n"), /#9 left open/);
   assert.match(lines.join("\n"), /PR #9: increment_c/);
 
-  // A wait that runs out keeps the pool paused and says what still runs.
   lines.length = 0;
   let clock = 0;
   const stuck = { ...box, lanes: async () => [{ pid: "300", args: "claude -p # Pool lane: increment_d" }], queue: async () => [], now: () => clock, sleep: async () => { clock += 60_000; } };

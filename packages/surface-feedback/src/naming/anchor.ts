@@ -1,20 +1,11 @@
-/**
- * Capability 2 · Surface naming. The element the owner points at, read from the page as he clicks it (ADR-1151, the
- * owner's answer to question_c8c6697b2d3d): what a building agent needs to find it in the code without guessing from a
- * picture. HTML is picked as the element; a drawn canvas is one element with nothing inside to name, so it is picked only
- * when the canvas answers a feedback pick (2.3, ADR-1286): the object it draws there, named by its ids.
- */
+// Capability 2 · Surface naming
 import { FEEDBACK_PICK_EVENT, type DrawnObject, type FeedbackAnchor, type FeedbackPickDetail } from "../record/bridge.js";
 
-/** At most this much of the element's markup is kept. */
 export const HTML_LIMIT = 2048;
 const TEXT_LIMIT = 200;
 const COMPONENT_LIMIT = 6;
-/** The computed styles an agent changing a look reads first. */
 const STYLES = ["display", "position", "width", "height", "margin", "padding", "border", "border-radius", "color", "background-color", "font-family", "font-size", "font-weight", "line-height", "opacity", "gap"] as const;
-/** The attributes kept in the markup; any other (a value, a style, an event handler) is dropped. */
 const KEPT = /^(id|class|type|name|role|href|src|alt|title|placeholder|for|disabled|checked|hidden|popover|tabindex|open|aria-[\w-]+|data-[\w-]+)$/;
-/** An attribute named like a secret, or a value shaped like one (a token, a key, a signed URL's part). */
 const SECRET_NAME = /token|secret|password|passwd|api-?key|auth|session|cookie|credential/i;
 const SECRET_VALUE = /(eyJ[\w-]+\.[\w-]+\.[\w-]+)|([A-Za-z0-9_\-+/=]{32,})|((sk|pk|ghp|gho|xox[bp])[-_][\w-]{10,})/;
 
@@ -25,18 +16,11 @@ const IMPLICIT_ROLE: Readonly<Record<string, string>> = {
 };
 const INPUT_ROLE: Readonly<Record<string, string>> = { checkbox: "checkbox", radio: "radio", range: "slider", button: "button", submit: "button", search: "searchbox" };
 
-/** What a note may point at: an element, and for a canvas that answered, the object it draws there (2.3). */
 export interface Pickable {
   readonly element: Element;
   readonly drawn?: DrawnObject;
 }
 
-/**
- * What is drawn at `x`, `y` that a note may point at: the top-most element that is not inside `corner` (the feedback
- * corner's own), an svg's shape standing for the HTML element holding it. A canvas is asked (2.3): a synchronous
- * `FEEDBACK_PICK_EVENT` on it, whose detail the drawing side answers; the canvas is picked with that object if it
- * answers, and nothing is picked where it does not. None where the corner is all there is.
- */
 export function pickableAt(document: Document, x: number, y: number, corner: Element): Pickable | undefined {
   for (const element of document.elementsFromPoint(x, y)) {
     if (corner.contains(element)) continue;
@@ -45,7 +29,6 @@ export function pickableAt(document: Document, x: number, y: number, corner: Ele
       element.dispatchEvent(new (document.defaultView!.CustomEvent)(FEEDBACK_PICK_EVENT, { detail }));
       return detail.answer === undefined ? undefined : { element, drawn: detail.answer };
     }
-    // An icon's drawing is picked as the control it draws: the HTML element holding the svg.
     let html: Element = element;
     while (html instanceof document.defaultView!.SVGElement && html.parentElement !== null) html = html.parentElement;
     return { element: html };
@@ -53,13 +36,11 @@ export function pickableAt(document: Document, x: number, y: number, corner: Ele
   return undefined;
 }
 
-/** The declared surface `element` is drawn in: the nearest it or an ancestor marks. */
 export function surfaceOf(element: Element): string | undefined {
   const marked = element.closest<HTMLElement>("[data-surface-id]");
   return marked?.dataset.surfaceId === "" ? undefined : marked?.dataset.surfaceId;
 }
 
-/** What a note records of `element`; of a canvas with `drawn`, the object, its box standing for the element's (2.3). */
 export function anchorOf(element: Element, drawn?: DrawnObject): FeedbackAnchor {
   const view = element.ownerDocument.defaultView!;
   const box = drawn === undefined ? element.getBoundingClientRect() : drawn.box;
@@ -87,7 +68,6 @@ const squeeze = (text: string): string => {
   return one.length > TEXT_LIMIT ? `${one.slice(0, TEXT_LIMIT - 1)}…` : one;
 };
 
-/** A selector only `element` matches in its document: its id where that is unique, else a path of tags down to it. */
 export function selectorOf(element: Element): string {
   const document = element.ownerDocument;
   const unique = (selector: string): boolean => document.querySelectorAll(selector).length === 1;
@@ -145,7 +125,6 @@ function nameOf(element: Element): string | undefined {
   return undefined;
 }
 
-/** Each `data-*` mark on the element and its ancestors, nearest first, as a selector part. */
 function marksOf(element: Element): string[] {
   const marks: string[] = [];
   for (let node: Element | null = element; node !== null && marks.length < 12; node = node.parentElement) {
@@ -157,10 +136,6 @@ function marksOf(element: Element): string[] {
   return marks;
 }
 
-/**
- * The names of the React components that drew `element`, nearest first, up to six: read from the fiber React keeps on
- * the nearest node it rendered, walking up through its owners. None where React drew nothing.
- */
 function componentsOf(element: Element): string[] {
   let fiber: Fiber | undefined;
   for (let node: Element | null = element; node !== null && fiber === undefined; node = node.parentElement) {
@@ -187,7 +162,6 @@ function componentName(type: unknown): string | undefined {
     return typeof named === "string" && /^[A-Z]/.test(named) ? named : undefined;
   }
   if (typeof type === "object" && type !== null) {
-    // memo and forwardRef wrap the component they name.
     const { displayName, render, type: inner } = type as { displayName?: unknown; render?: unknown; type?: unknown };
     if (typeof displayName === "string" && displayName !== "") return displayName;
     return componentName(render ?? inner);
@@ -197,7 +171,6 @@ function componentName(type: unknown): string | undefined {
 
 const redacted = (name: string, value: string): string => (SECRET_NAME.test(name) || SECRET_VALUE.test(value) ? "[redacted]" : value);
 
-/** The element's markup with only the kept attributes, secret-looking values redacted, at most HTML_LIMIT long. */
 function htmlOf(element: Element): string {
   const copy = element.cloneNode(true) as Element;
   for (const node of [copy, ...copy.querySelectorAll("*")]) {

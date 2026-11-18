@@ -1,4 +1,3 @@
-/** The command line 14.9: the repoint hints a refused word offers, learned from what sessions ran next after it. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -20,7 +19,6 @@ test("14.9 · a refused word learns the commands sessions ran next after it, ans
     refused("d"), line("d", "storytree adr pull", { outcome: "refused" }),
     refused("e"), line("e", "storytree adr pull", { outcome: "failed" }),
     refused("f"), line("f", "search_notes", { door: "tool" }),
-    // The same word refused elsewhere is another word.
     line("g", "storytree arc", { outcome: "unknown", word: "show" }), line("g", "storytree arc show"),
   ], "storytree adr", "show");
   assert.deepEqual(learned, [{ verb: "storytree library search", count: 2 }, { verb: "storytree adr list", count: 1 }]);

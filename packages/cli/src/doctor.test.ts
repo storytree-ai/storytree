@@ -1,16 +1,4 @@
-/**
- * Capability 8 · Doctor: one test per contract 8.1-8.4 in the command line story, each running the real,
- * built `storytree doctor`.
- *
- * Every run is in a throwaway user home: HOME and USERPROFILE, Claude Code's and Codex's settings
- * folders, and a folder of the user's own on the PATH, all under the test's folder, so the check
- * never touches this machine's settings. A stand-in hook script sits beside the built command, as
- * storytree's hook sits beside it once installed, so the check registers hooks and puts the command
- * on the path as it does for a user. First on the PATH is a `gh` that is signed out: a copy of Node,
- * which `gh auth status` runs, and which fails as a signed-out gh does. The user's folder holds a
- * signed-in Claude Code and Codex that only answer, so the check never reaches the developer's own,
- * which write files of their own into the throwaway home.
- */
+// Capability 8 · Doctor
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -27,12 +15,7 @@ import { BuiltCommand, dropTestProjects, inWorld, placeHandoff, placeTestServer,
 const STUB_APP = fileURLToPath(new URL("./testing/stub-app.mjs", import.meta.url));
 
 const command = new BuiltCommand();
-/** A folder holding a signed-out `gh`, made once for every test. */
 let ghFolder: string;
-/**
- * A folder standing in for the developer's own PATH, after the user's: its `claude` writes a file of
- * its own into Claude Code's settings folder whenever it runs, as the real Claude Code does.
- */
 let developerFolder: string;
 
 before(async () => {
@@ -64,7 +47,6 @@ after(async () => {
   await removeTemp(developerFolder);
 });
 
-/** A throwaway user: their home, the harnesses' settings folders, and a folder of their own on the PATH. */
 interface User {
   readonly home: string;
   readonly env: Record<string, string>;
@@ -78,7 +60,6 @@ function aUser(world: World): User {
   for (const folder of [bin, claude, codex]) mkdirSync(folder, { recursive: true });
   agentCli(bin, "claude", ["--version", "auth status"]);
   agentCli(bin, "codex", ["--version", "login status"]);
-  // No Cursor here: without this, a machine's own cursor-agent is asked, and a ~/.cursor appeared in this home after it was (2026-10-12).
   agentCli(bin, "cursor-agent", []);
   agentCli(bin, "pi", []);
   const env = {
@@ -91,7 +72,6 @@ function aUser(world: World): User {
   return { home, env };
 }
 
-/** A stand-in agent CLI named `name` in `bin`: it answers each of `answers` as signed in, and fails anything else. */
 function agentCli(bin: string, name: string, answers: readonly string[]): void {
   if (process.platform === "win32") {
     const cases = answers.map((args) => `if "%*"=="${args}" exit /b 0`);
@@ -103,7 +83,6 @@ function agentCli(bin: string, name: string, answers: readonly string[]): void {
   }
 }
 
-/** Every file under `folders`, by path, with its text: what a run may change. */
 function snapshot(...folders: string[]): Record<string, string> {
   const files: Record<string, string> = {};
   const walk = (folder: string): void => {
@@ -123,10 +102,7 @@ for (const interrupted of [false, true]) test(`8.1 with storytree closed, it ope
     const user = aUser(world);
     const closedHome = world.stoppedHome;
     const dataDir = path.join(closedHome, "pgdata");
-    // The stand-in writes the owner record; the sign-in handoff the app would keep beside it is placed now.
     placeHandoff(dataDir);
-    // Run the proof in its own process, so killing it really skips its teardown. The real doctor
-    // launches the detached app; this owner must outlive that short-lived command.
     const owner = spawn(process.execPath, ["--import", import.meta.resolve("tsx"), "--input-type=module", "-e", `
       import { writeFileSync } from "node:fs";
       import { storytree } from ${JSON.stringify(new URL("./testing/cli.ts", import.meta.url).href)};
@@ -163,7 +139,6 @@ for (const interrupted of [false, true]) test(`8.1 with storytree closed, it ope
     } finally {
       if (owner.exitCode === null && owner.signalCode === null) owner.kill("SIGKILL");
       await ownerExited;
-      // Clean even a failing proof, checking lifetime identity before killing a possibly reused PID.
       if (app === undefined && existsSync(`${dataDir}.owner.json`)) {
         const reading = await readProcess(JSON.parse(readFileSync(`${dataDir}.owner.json`, "utf8")).pid);
         if (reading.state === "live") app = reading.identity;
@@ -219,7 +194,6 @@ test("8.3 in a folder that is not a project, it creates nothing unless told to",
 test("1.16 a folder whose marker names a project, unapproved on this machine, is refused a read and a write until `doctor --join` approves it", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);
-    // A downloaded copy of the project, on a machine where it was never set up or joined.
     writeFileSync(path.join(world.elsewhere, ".storytree.json"), `${JSON.stringify({ project: world.project })}\n`);
     const home = path.join(path.dirname(world.folder), "other-machine");
     mkdirSync(home, { recursive: true });
@@ -249,7 +223,6 @@ test("app-setup 8.42 in a folder whose marker names a project this computer's li
   await inWorld(command, async (world) => {
     const user = aUser(world);
     const project = uniqueProjectName();
-    // A marker committed on another computer, against another library: this one never had the project.
     writeFileSync(path.join(world.elsewhere, ".storytree.json"), `${JSON.stringify({ project, identity: "19697429" })}\n`);
     const run = (args: readonly string[]) => storytree(command.script, args, { cwd: world.elsewhere, home: world.home, env: user.env });
     try {
@@ -308,7 +281,6 @@ test("app-setup 8.45 the doctor names each plugin in this computer's factory tha
 test("8.6 with Codex's hooks registered and none of them run yet, it names the one step that lets Codex run them (Session management 8.16)", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);
-    // Codex is connected: its settings carry storytree's hooks, an older build's (8.43).
     const other = path.join(user.home, "older", "storytree-hook.mjs");
     writeFileSync(path.join(user.home, ".codex", "hooks.json"), `${JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: "command", command: `node ${other} codex` }] }] } }, null, 2)}\n`);
 
@@ -322,7 +294,6 @@ test("8.6 with Codex's hooks registered and none of them run yet, it names the o
 test("8.4 a second run changes nothing", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);
-    // Run from a Claude Code session's shell, so Claude Code is connected by asking (8.43).
     const env = { ...user.env, CLAUDECODE: "1" };
     const first = await world.run(["doctor", "--repair"], env);
     assert.equal(first.code, 0, first.stderr);
@@ -349,7 +320,6 @@ test("8.7 run plain, the doctor leaves another build's hooks in an agent's setti
     assert.equal(looked.code, 0, looked.stderr);
     assert.deepEqual(snapshot(user.home), before, `the plain doctor changed an agent's files:\n${looked.stdout}`);
     assert.ok(looked.stdout.includes(`Hooks for Codex: another build's hooks, which run ${other}; left as they are (\`storytree doctor --repair\` registers storytree's).`), looked.stdout);
-    // A Claude Code with none of storytree's hooks, the doctor run from no session of it, is not connected: named, never wired (8.43).
     assert.match(looked.stdout, /Hooks for Claude Code: none, since it is not connected to storytree \(Help → Connect Claude Code in the app, or `storytree setup connect --claude`, connects it\)/);
 
     const repaired = await world.run(["doctor", "--repair"], user.env);
@@ -365,7 +335,6 @@ test("8.7 run plain, the doctor leaves another build's hooks in an agent's setti
 test("8.9 run from a Claude Code session's shell, the doctor counts Claude Code signed in, though `claude auth status` there answers signed out (a CLAUDE_CODE_OAUTH_TOKEN sign-in Claude Code strips from its tools' shells)", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);
-    // The session's claude answers its version, and signed out to `auth status`, as it does without the stripped token.
     agentCli(path.join(user.home, "bin"), "claude", ["--version"]);
 
     const plain = await world.run(["doctor"], user.env);

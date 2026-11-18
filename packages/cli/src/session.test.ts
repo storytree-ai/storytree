@@ -1,8 +1,3 @@
-/**
- * `storytree session close-out` (ADR-0758 D2): the real, built command, run from an agent's shell,
- * records the session's close-out for Session management to read; a person's shell, or a --safe that is
- * neither yes nor no, is refused.
- */
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 

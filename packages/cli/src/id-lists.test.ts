@@ -1,4 +1,4 @@
-/** Capability 1 · Front door, contract 1.13: shell-joined id lists get a usable refusal before writing. */
+// Capability 1 · Front door
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
@@ -23,7 +23,6 @@ for (const flag of ["links", "capabilities", "stories"] as const) {
           ? ["arc", "increment", "new", "--arc", arc.id, "--title", "Forms", "--objective", "People can enter", "--body", "Build both forms"]
           : ["arc", "new", "--title", "Entry", "--intent", "People can enter", "--end-state", "Both forms work", "--project", world.project];
 
-      // This is the single argv word PowerShell produces from the unquoted comma list.
       const before = (await library.changesSince(0)).cursor;
       const refused = await world.run([...args, `--${flag}`, ids.join(" ")]);
       assert.notEqual(refused.code, 0, refused.stdout);
@@ -32,7 +31,6 @@ for (const flag of ["links", "capabilities", "stories"] as const) {
       assert.match(refused.stderr, /array/);
       assert.ok(refused.stderr.includes(`--${flag} "id1,id2"`), refused.stderr);
 
-      // Quotes belong to the caller's shell; the command receives the comma-separated word.
       const accepted = await world.run([...args, `--${flag}`, ` ${ids.join(", ")} `]);
       assert.equal(accepted.code, 0, accepted.stderr);
       const kind = flag === "links" ? "decision" : flag === "capabilities" ? "increment" : "arc";

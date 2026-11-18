@@ -1,7 +1,4 @@
-/**
- * Capability 10 · Plan view: one test per contract 10.1-10.16 in the command line story, each running the
- * real, built `storytree` command.
- */
+// Capability 10 · Plan view
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { waitUntil } from "@storytree/test-waits";

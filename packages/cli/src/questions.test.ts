@@ -1,7 +1,4 @@
-/**
- * Capability 5 · Questions: one test per contract in the command line story, each running the real,
- * built `storytree` command.
- */
+// Capability 5 · Questions
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
@@ -108,7 +105,6 @@ test("5.8 `question list` across arcs reads every arc in one ask to find the par
   });
 });
 
-/** A question's fields as flags, all but those in `leaving`. */
 function questionFlags(arc: string, leaving: readonly string[] = []): string[] {
   const flags: Record<string, string> = {
     arc,

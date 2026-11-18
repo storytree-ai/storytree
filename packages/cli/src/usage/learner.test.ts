@@ -1,4 +1,3 @@
-/** The command line 14.12, 14.13, 14.15, 14.16 and 14.19: the learner in the friction drain files each want, raises each cut group and writes each pointer once, against a real Postgres. */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
@@ -19,7 +18,6 @@ const surfaces: Surfaces = {
   twins: [],
 };
 
-/** A fresh project with both arcs and `sessions` sessions (100 unless named) over the whole 28 days, twelve for each of `words` typing it where no command answers it, handed to `body` with the learner's world. */
 async function inProject(words: readonly string[], body: (world: LearnerWorld, library: Library) => Promise<void>, sessions = 100): Promise<void> {
   const project = `t-${randomBytes(4).toString("hex")}`;
   const storytree = await connect({ url: testServerUrl() });
@@ -32,9 +30,7 @@ async function inProject(words: readonly string[], body: (world: LearnerWorld, l
       const now = new Date("2026-11-20T00:00:00.000Z");
       const day = (offset: number) => new Date(now.getTime() - offset * 24 * 60 * 60 * 1000).toISOString();
       const common = { harness: "claude-code", source: "tool", machine: "box" } as const;
-      // Every verb of `surfaces` was first seen mounted before the window, so its disuse can be judged.
       await log.append(project, { ...common, session: "drain-0", kind: "door-mounted", verbs: [...surfaces.commands, ...surfaces.tools].map(({ verb }) => verb) }, { at: day(40) });
-      // Sessions over the whole 28 days, so disuse can be judged; twelve of them for each word type it where no command answers it.
       for (let index = 0; index < sessions; index += 1) {
         const word = words[Math.floor(index / 12)];
         const line = word === undefined
@@ -83,7 +79,6 @@ test("14.13 · a want is filed on the learner's own branch, so it never spends t
     assert.deepEqual(filed.map((friction) => friction.fields.provenance?.branch), ["(doors learner)", "(doors learner)", "(doors learner)"], said.join("\n"));
     assert.ok(said.includes("  1 more want waits for a later drain: the learner has filed its three for today."), said.join("\n"));
     assert.equal((await library.questions(world.arcs.cuts)).length, 2, "the cut groups are raised all the same");
-    // The landing session's own three still file.
     const own = { title: "A session's own", description: "Its own.", statement: "Its own.", evidence: "`pnpm test` failed", impact: "Slow." };
     for (const branch of ["claude/lane", "claude/lane", "claude/lane"]) await recordFriction(library, { ...own, branch });
     assert.equal((await library.list("friction")).length, 6);
@@ -94,7 +89,6 @@ test("14.15 · the drain writes a word's pointer line once, with its evidence, a
   await inProject([], async (world) => {
     const common = { harness: "claude-code", source: "tool" as const, kind: "door-answered" as const, door: "command" as const, next: [] as string[] };
     const minute = (offset: number) => new Date(world.now.getTime() + offset * 60 * 1000).toISOString();
-    // Six sessions refuse `adr show`, offered `adr pull`, and take it: above the bar.
     for (let index = 0; index < 6; index += 1) {
       await world.log.append(world.project, { ...common, session: `show-${index}`, verb: "storytree adr", outcome: "unknown", word: "show", next: ["storytree adr pull"] }, { at: minute(-60 + index * 2) });
       await world.log.append(world.project, { ...common, session: `show-${index}`, verb: "storytree adr pull", outcome: "answered" }, { at: minute(-59 + index * 2) });
@@ -110,7 +104,6 @@ test("14.15 · the drain writes a word's pointer line once, with its evidence, a
     await learnInDrain(world);
     assert.equal((await pointers()).length, 1, "a second drain writes no second pointer");
 
-    // Six pointed calls, each refused: the sessions left it.
     for (let index = 0; index < 6; index += 1) {
       await world.log.append(world.project, { ...common, session: `pointed-${index}`, verb: "storytree adr pull", outcome: "refused", word: "show", pointedFrom: "storytree adr" }, { at: minute(1 + index) });
     }
@@ -127,18 +120,15 @@ test("14.16 · a drain a week or more after the last doors check reads the trail
   await inProject([], async (world, library) => {
     const common = { harness: "claude-code", source: "tool" as const, kind: "door-answered" as const, door: "command" as const };
     const hour = (offset: number) => new Date(world.now.getTime() - offset * 60 * 60 * 1000).toISOString();
-    // In the last week: "storytree story" refused 6 times, below a want's 10; "storytree wait" 4 times, below the check's bar.
     for (let index = 0; index < 10; index += 1) {
       await world.log.append(world.project, { ...common, session: `guess-${index}`, verb: "storytree", outcome: "unknown", word: index < 6 ? "story" : "wait", next: [] }, { at: hour(100 - index) });
     }
-    // The hint "storytree quality graduate" offered 25 times and never taken.
     for (let index = 0; index < 26; index += 1) {
       await world.log.append(world.project, { ...common, session: "hinted", verb: "storytree adr pull", outcome: "answered", next: index < 25 ? ["storytree quality graduate"] : [] }, { at: hour(50 - index) });
     }
     const checks = async () => (await world.log.lines(world.project, { kinds: ["door-checked"] })).map((line) => (line.kind === "door-checked" ? [...line.filed].sort() : []));
     const checked = async () => (await library.list("friction")).filter((friction) => friction.fields.provenance?.branch === "(doors check)");
 
-    // 50 sessions: too few for the learner to raise cuts, so the unused groups are the check's.
     const said = await learnInDrain(world);
     const first = await checked();
     assert.deepEqual(first.map((friction) => friction.fields.title).sort(), [
@@ -154,7 +144,6 @@ test("14.16 · a drain a week or more after the last doors check reads the trail
     assert.ok(again.some((line) => line.includes("the next weekly check is due from 2026-11-27")), again.join("\n"));
 
     const week = new Date(world.now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    // A week later the check runs again; the open three are not filed again, and the one left waiting meets the branch's three for today.
     const later = await learnInDrain({ ...world, now: week });
     assert.equal((await checked()).length, 3, later.join("\n"));
     assert.ok(later.includes("  The rest wait for next week's check: the check has filed its three for today."), later.join("\n"));
@@ -178,7 +167,6 @@ test("14.19 · the drain writes the verbs it sees mounted for the first time as 
 
 test("14.20 · the drain's learner reads its 28 days as the log's door tally, never every door-answered line, and learns the same lesson from it", async () => {
   await inProject(["plan"], async (world, library) => {
-    // This week's doors check is done, so the drain reads only what the learner reads.
     await world.log.append(world.project, { session: "drain-0", source: "tool", kind: "door-checked", since: world.now.toISOString(), until: world.now.toISOString(), filed: [] }, { at: world.now.toISOString() });
     const log: LearnerWorld["log"] = {
       ...world.log,

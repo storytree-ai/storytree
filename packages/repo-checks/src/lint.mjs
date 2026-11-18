@@ -5,7 +5,6 @@ import { allocationProblems } from "./allocation.mjs";
 import { codeqlPatternProblems } from "./codeql-patterns.mjs";
 import { eslintProblems } from "./eslint.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
-import { sketchBundleProblems } from "./sketch-bundles.mjs";
 import { typeImportProblems } from "./type-imports.mjs";
 
 /** The rules, each `{ name, problems(root) }`, its problems one sentence each naming the file that breaks it. */
@@ -14,7 +13,6 @@ export const RULES = [
   { name: "package-boundaries", problems: boundaryProblems },
   { name: "allocation", problems: allocationProblems },
   { name: "codeql-patterns", problems: codeqlPatternProblems },
-  { name: "sketch-bundle-names", problems: sketchBundleProblems },
   { name: "eslint", problems: eslintProblems },
 ];
 

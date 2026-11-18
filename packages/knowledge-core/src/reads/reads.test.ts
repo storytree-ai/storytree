@@ -1,4 +1,4 @@
-/** Capability 3 · Reads by session and agent (the knowledge core story). */
+// Capability 3 · Reads by session and agent
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

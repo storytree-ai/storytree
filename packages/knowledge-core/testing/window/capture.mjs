@@ -1,19 +1,11 @@
-// Bounded browser acceptance for ADR-0746 D1: the real desktop page, built by
-// forest's sessions-list build script (its production build folder), over the read-only forest snapshot. One running
-// session has read six real notes; its window reading (agent link 9.10) says four of those it holds
-// now, one fell out at a compaction, and which were in view when each was opened. Selecting its row
-// rings the notes it holds in warm white and joins the in-view pairs with dotted warm white lines.
-// --smoke builds its own page into its build folder (buildFolder) and takes no pictures, so a test proves every wait below still resolves in a real browser.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, buildFolder, captureOutput, captureSeed, closeBrowser, fakeBridge, launch, seedFile } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { buildCapture, buildFolder, captureOutput, captureSeed, closeBrowser, fakeBridge, launch, seedFile } from '../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-// Pictures and measurements: a scratch folder unless run with --retake, which writes them into the package's evidence set of
-// this name; nothing here reads them.
 const out = captureOutput(path.join(here, '../../evidence', 'window'));
 const root = path.resolve(here, '../../../..');
 const smoke = process.argv.includes('--smoke');
@@ -34,8 +26,6 @@ read.forEach((note, i) => line(15 - i, { kind: 'note-read', source: 'tool', note
 seed.lines = { lines, cursor: lines.length };
 seed.tree.arcs = [];
 
-// The window reading: what each open had in view. The first and fourth came from a search; the
-// fifth was opened before a compaction, so its read is no longer held.
 const opened = note => [{ kind: 'note', id: note }];
 const open = (note, call, from, resident = true) => ({ kind: 'note', id: note, call, tool: 'mcp__storytree__open', resident,
   inViewFrom: from.map(([via, notes]) => ({ call: via, tool: notes.length === 0 ? 'mcp__storytree__search_notes' : 'mcp__storytree__open', opened: notes.flatMap(opened) })) });
@@ -55,7 +45,7 @@ const held = [read[5], read[0], read[1], read[2], read[3]];
 
 const server = createServer((req, res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  if (name === 'favicon.ico') { res.writeHead(204).end(); return; } // a full Chrome asks for one, as the shared runner answers
+  if (name === 'favicon.ico') { res.writeHead(204).end(); return; }
   if (!['index.html', 'renderer.js', 'road-worker.js', 'territory-worker.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
   res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
   res.end(readFileSync(path.join(built, name)));
@@ -82,7 +72,6 @@ try {
       linesSince: async (_, cursor) => ({ lines: copy(data.seed.lines.lines.filter(item => item.seq > cursor)), cursor: data.seed.lines.lines.at(-1)?.seq ?? cursor }),
       frontCovers: async (_, id) => copy(data.seed.covers[id] ?? []), relatedNotes: async () => [],
       arcView: async () => null, waitHolds: async () => [], heldOnQuestion: async () => [],
-      // The core's own ask, on selection, is counted.
       windowReading: async (_, session) => { window.__asked.push(session); return copy(data.window); },
     };
   }, { seed, window });
@@ -92,10 +81,10 @@ try {
     const close = page.getByRole('button', { name, exact: true });
     if (await close.isVisible()) await close.click();
   }
-  await page.locator('[data-rail-tab="sessions"]').click(); // the sessions list is the left rail's Sessions tab (ADR-1219)
+  await page.locator('[data-rail-tab="sessions"]').click();
   const row = page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator(`.session-row[data-session-id="${session}"]`);
   await row.waitFor();
-  await page.locator('button[data-globe-switch="library"]').click(); // a launch opens on the Stories face: turn the sheet over to its notes
+  await page.locator('button[data-globe-switch="library"]').click();
   const frames = async () => page.evaluate(async () => {
     for (let i = 0; i < 8; i++) { window.__globe.invalidate(); await new Promise(requestAnimationFrame); }
   });
@@ -111,32 +100,25 @@ try {
     });
     return { rings: rings.sort(), links };
   });
-  // The knowledge dots are drawn; with none selected no session lights what it read (ADR-0921), so none is lit.
   await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-point:')) n++; }); return n > 0; });
   await frames();
   const lit = () => page.evaluate(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-point:') && o.userData.lit) n++; }); return n; });
 
-  // None selected: nothing lit, and no window is drawn.
   assert.equal(await lit(), 0, 'no read lit while no session is selected');
   assert.deepEqual(await drawn(), { rings: [], links: [] }, 'no window while no session is selected');
   assert.deepEqual(await page.evaluate(() => window.__asked), [], 'no one session\'s window asked while none is selected');
   if (!smoke) await page.screenshot({ path: path.join(out, 'window-none-selected.png') });
 
-  // Select its row: the core asks for that session's window and draws it.
   await row.click();
-  // The window's rings arrive as the replay reaches each read (ADR-0797 D1): wait for all it holds.
   await page.waitForFunction(want => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-window:')) n++; }); return n >= want; }, held.length);
   await frames();
   const selected = await drawn();
-  // Asked for the selected session only; a slow machine may already have seen the timed re-read.
   const asked = await page.evaluate(() => window.__asked);
   assert.ok(asked.length >= 1 && asked.every(name => name === session), `only the selected session's window asked: ${JSON.stringify(asked)}`);
   assert.deepEqual(selected.rings, [...held].sort(), 'a ring on each note it holds now, and not on the one a compaction dropped');
-  // The dotted in-view lines gave way to the traversal drawing (ADR-0756), which the traversal capture covers.
   assert.deepEqual(selected.links, [], 'no in-view lines: the traversal drawing replaced them');
   if (!smoke) await page.screenshot({ path: path.join(out, 'window-selected.png') });
 
-  // Back to every session: the window goes.
   await row.click();
   await frames();
   assert.deepEqual(await drawn(), { rings: [], links: [] }, 'deselecting takes the window away');

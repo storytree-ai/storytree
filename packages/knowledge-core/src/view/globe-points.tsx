@@ -1,4 +1,4 @@
-/** Capability 4 · Look inside and inspect an artifact. */
+// Capability 4 · Look inside and inspect an artifact
 import type { GlobePoint } from "../shelves/positions.js";
 import { noteMoments, noteShown } from "../shelves/growing.js";
 import type { RecordEnvelope } from "@storytree/library";
@@ -14,47 +14,28 @@ import { DOT_FLOOR, IN_VIEW, curvePoint, fillAt, growthPlan, heldNotes, noteTitl
 
 const noRaycast = () => {};
 
-/** How long a new step's line takes to grow (ADR-0742). */
 const GROW_MS = 900;
-/** A traversal step's faint fill: how long it takes to run from the earlier note to the later, and its rest (ADR-0756). */
 const FILL = { run: 1600, pause: 900 };
-/** A selected session's replay (ADR-0797): each step's line grows in this long, and the finished picture holds this long. */
 const REPLAY = { step: 700, rest: 2500 };
 
-/** How a selected session's note is drawn (ADR-0756): a compacted read lighter, a glimpse faintest. */
 const noteState = (window: WindowView | undefined, id: string): "in-window" | "faded" | "glimpsed" | null =>
   window?.notes.has(id) ? "in-window" : window?.faded.has(id) ? "faded" : window?.glimpsed.has(id) ? "glimpsed" : null;
 const lighter = (colour: string): string => `#${new Color(colour).lerp(new Color("#ffffff"), 0.55).getHexString()}`;
 
-/** How much of its plain opacity a quiet note keeps: another story's, with one selected, is a faint backdrop (ADR-1260 D3). */
 const QUIET = 0.12;
 
-/**
- * A dot's opacity: a selected session's open read or window note full, a compacted read lighter, a glimpse fainter (ADR-0756);
- * with a session lighting notes the rest dim; and a quiet note no session marks fades to a faint backdrop (ADR-1260 D3).
- */
 export function dotOpacity({ state, lit, anyLit, quiet }: { state: ReturnType<typeof noteState>; lit: boolean; anyLit: boolean; quiet: boolean }): number {
   const plain = state === "glimpsed" && !lit ? 0.4 : state === "faded" ? 0.8 : lit || state === "in-window" ? 1 : anyLit ? 0.3 : 0.52;
   return quiet && !lit && state === null ? plain * QUIET : plain;
 }
 
-/**
- * A ball lit by the sheet's lights (ADR-1260 D4): its glow and the soft light all round keep about its own colour on its far
- * side, and the lamp near the eye brightens the side turned toward it, so it reads as a ball and keeps its colour.
- */
 const SHADED = { body: 0.5, glow: 0.4 };
 const shadedBody = (colour: string): Color => new Color(colour).multiplyScalar(SHADED.body);
 const shadedGlow = (colour: string): Color => new Color(colour).multiplyScalar(SHADED.glow);
 
-/** A dot's unit ball for each look, a ball lit by the sheet's lights finer than a flat one, shared by every dot of that look. */
 const spheres = { flat: new SphereGeometry(1, 12, 8), shaded: new SphereGeometry(1, 20, 14) };
 const materials = new Map<string, MeshBasicMaterial | MeshLambertMaterial>();
 
-/**
- * How one note's dot is drawn (4.24): its look's unit ball scaled to its size, and a material shared by every dot of its look,
- * colour and opacity. Drawing the sheet's notes for the first time then builds a few materials, not a ball and a material per
- * note (754 of each on storytree's own library, the one task over 50 ms left as the map opened).
- */
 export function dotDrawing({ shaded, colour, opacity, size, radius }: { shaded: boolean; colour: string; opacity: number; size: number; radius: number }):
   { geometry: SphereGeometry; material: MeshBasicMaterial | MeshLambertMaterial; scale: number; ring: { radius: number; tube: number } } {
   const key = `${shaded ? "shaded" : "flat"} ${colour} ${opacity}`;
@@ -64,37 +45,25 @@ export function dotDrawing({ shaded, colour, opacity, size, radius }: { shaded: 
       : new MeshBasicMaterial({ color: colour, transparent: true, opacity, depthWrite: false });
     materials.set(key, material);
   }
-  // The ring on a note in the window is the dot's child, so drawn in its scale: its sizes are fractions of the dot's.
   return { geometry: shaded ? spheres.shaded : spheres.flat, material, scale: grownScale(1, radius, size), ring: { radius: Math.max(0.015, size + 0.006) / size, tube: 0.0022 / size } };
 }
 
-/** A dot's scale while it grows in (capability 1.9): `shown` of its full size, never quite none. */
 export const grownScale = (shown: number, radius: number, size: number): number => Math.max(shown, 0.001) * radius * size;
 
 const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 
-/** A replay the core grows with (world 7): its clock, and where a recorded date falls on it. The globe's growth reader is one. */
 export interface CoreGrowth { now(): number; moment(date: string): number }
 
-/** Mesh raycasts stay disabled: the globe picks these small dots in screen space. */
 export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), trails = [], window, replay = false, growth: grows, quiet, shaded = false }: {
   points: readonly GlobePoint[]; radius: number; notes: ReadonlyMap<string, RecordEnvelope>;
-  /** Notes drawn quieter than the rest: on the glass sheet, every note but the selected story's (ADR-1043 D3). */
   quiet?: ReadonlySet<string> | undefined;
-  /** Draw each dot as a ball lit by the scene's lights, as under the glass sheet (ADR-1260 D4); flat otherwise. */
   shaded?: boolean;
-  /** Each note's dot radius, as a fraction of the globe's, from how widely it is read (ADR-0926); the floor for one not given. */
   sizes?: ReadonlyMap<string, number> | undefined;
-  /** Notes the selected session read, each in the colour of the agent that read it (ADR-0738 D5). */
   lit?: ReadonlyMap<string, Lighting>;
-  /** The selected session's reading path, one curve per step, from the earlier read to the later (ADR-0740). */
   trails?: readonly Trail[];
-  /** The selected session's window, in its colour: a warm white ring on each note it holds now, compacted reads lighter, glimpses faint (ADR-0756). */
   window?: (WindowView & { colour: string }) | undefined;
-  /** A selected session: its trails replay as one head walking them in recorded order, building the picture, then resting and starting again (ADR-0797). */
   replay?: boolean;
-  /** A replay to grow with (capability 1.9): each note appears under its home once the replay reaches its recorded date. */
   growth?: CoreGrowth | undefined;
 }) {
   const at = useMemo(() => new Map<string, Point>([...points.map((point): [string, Point] => [point.id, point.at])]), [points]);
@@ -102,7 +71,6 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
   const group = useRef<Group>(null);
   const moments = useMemo(() => grows === undefined ? undefined : noteMoments(points, notes, date => grows.moment(date)), [grows, points, notes]);
   const grownAt = useRef(Number.NaN);
-  // Grown again after every render: one that resizes a dot sets its full scale.
   useEffect(() => { grownAt.current = Number.NaN; });
   useFrame(() => {
     const now = grows?.now();
@@ -116,10 +84,8 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
       dot.scale.setScalar(grownScale(shown, radius, dot.userData.size as number));
       growing ||= shown < 1;
     }
-    // The globe asks for frames while it grows; a note still fading in after it is done asks for its own.
     if (growing) invalidate();
   });
-  // One replay for the session, never one per agent: a single clock walks every trail in seq order (ADR-0797 D1).
   const replaying = replay && !reducedMotion();
   const clock = useRef(performance.now());
   const moment = useRef<(ReplayMoment<Trail> & { keys: Set<string> }) | undefined>(undefined);
@@ -130,9 +96,7 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
     let next = replayAt(trails, now - clock.current, REPLAY);
     if (next.over) { clock.current = now; next = replayAt(trails, 0, REPLAY); }
     const before = moment.current;
-    // Matched by key: the window is read again every few seconds, remaking the same steps as new objects.
     moment.current = { ...next, keys: new Set(next.drawn.map(trailKey)) };
-    // Notes light as the head reaches them: a render only when it passes a step, not every frame.
     if (before === undefined || before.drawn.length !== next.drawn.length || (before.head === undefined) !== (next.head === undefined)) reach(tick => tick + 1);
     invalidate();
   });
@@ -144,7 +108,6 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
     if (now.head !== undefined && trailKey(now.head.step) === trailKey(trail)) return now.head.t * now.head.t * (3 - 2 * now.head.t);
     return now.keys.has(trailKey(trail)) ? 1 : 0;
   }, [replaying]);
-  // Steps already read when the view first had any are history and never grow (ADR-0742 D4).
   const history = useRef<number | undefined>(undefined);
   const growth = useRef<{ starts: Map<string, number>; busy: Map<string, number> }>({ starts: new Map(), busy: new Map() });
   const starts = useMemo(() => {
@@ -161,7 +124,6 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
     growth.current = { starts: new Map([...growth.current.starts, ...plan.starts]), busy: plan.busy };
     return growth.current.starts;
   }, [trails]);
-  // A newly read note lights only when the growing line into it arrives (ADR-0742 D2).
   const shown = useRef<ReadonlySet<string>>(new Set());
   const [, arrive] = useState(0);
   const now = performance.now();
@@ -184,15 +146,11 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
         : <TrailCurve key={trailKey(trail)} trail={trail} from={from} to={to} grow={starts.get(trailKey(trail))} radius={radius} replayed={replayed} />;
     })}
     {points.map(point => {
-      // A note the replay has not reached yet is drawn as if unread (ADR-0797 D1).
       const hidden = unreached(point.id);
       const state = hidden ? null : noteState(window, point.id);
       const lighting = hidden ? undefined : showing.get(point.id);
-      // An open read wears its reader's colour, or the session's; a compacted one is lighter; a glimpse is the session's, faint (ADR-0756).
-      // A dot no session colours wears its kind's colour (capability 5, D3).
       const colour = dotColour(notes.get(point.id)?.type, state === "faded" ? lighter(window!.colour) : lighting?.colour ?? (state === null ? undefined : window!.colour));
       const opacity = dotOpacity({ state, lit: lighting !== undefined, anyLit: lit.size > 0, quiet: quiet?.has(point.id) === true });
-      // A dot's size is its note's reach alone: a session's read shows in colour, brightness and rings, never in size (ADR-0926 D3).
       const size = sizes?.get(point.id) ?? DOT_FLOOR;
       const drawn = dotDrawing({ shaded, colour, opacity, size, radius });
       return <mesh key={point.id} name={`knowledge-point:${point.id}`} geometry={drawn.geometry} material={drawn.material} scale={drawn.scale}
@@ -214,19 +172,8 @@ const STEPS = 24;
 const sample = (from: Point, to: Point, end: number): number[] =>
   Array.from({ length: STEPS + 1 }, (_, index) => curvePoint(from, to, end * index / STEPS)).flatMap(({ x, y, z }) => [x, y, z]);
 
-/**
- * One step of a reading path: a quadratic Bezier bowed away from the globe's centre, so it never
- * cuts through the globe, with no arrowhead (ADR-0740 D1; ADR-0742 D5). A new step grows from its
- * earlier read to its later one, starting at `grow` (ADR-0742 D2); before then it is not drawn.
- *
- * A log's reading path fades from dim at the earlier read to full colour at the later one. A
- * selected session's traversal step (ADR-0756) is one colour, solid along a stored link and dotted
- * for a jump, lighter when a read it touches was compacted out; once grown, a faint fill runs along
- * it from the earlier note to the later, like a progress bar, then rests and runs again.
- */
 function TrailCurve({ trail, from, to, grow, radius, replayed }: {
   trail: Trail; from: Point; to: Point; grow: number | undefined; radius: number;
-  /** How far the session's replay has drawn this step, 0 to 1, when one is replaying (ADR-0797): it then has no fill of its own. */
   replayed?: ((trail: Trail) => number) | undefined;
 }) {
   const invalidate = useThree(state => state.invalidate);
@@ -256,12 +203,10 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
     const dim = full.clone().multiplyScalar(0.25);
     return Array.from({ length: STEPS + 1 }, (_, index) => dim.clone().lerp(full, index / STEPS).toArray()).flat();
   }, [trail.colour, step?.faded]);
-  // Faint: additive, so a quarter of a lightened colour only brightens the line it runs along.
   const fillColours = useMemo(() => {
     const faint = new Color(trail.colour).lerp(new Color("#ffffff"), 0.5).multiplyScalar(step?.faded ? 0.12 : 0.25);
     return Array.from({ length: STEPS + 1 }, () => faint.toArray()).flat();
   }, [trail.colour, step?.faded]);
-  // Drawn to `end` of the way along; a log path's colours stay dim-to-bright over what is drawn.
   const draw = (end: number) => {
     moveLine(line.geometry, sample(from, to, end), colours);
     if (step?.edge === "dotted") line.computeLineDistances();
@@ -305,17 +250,11 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
   </group>;
 }
 
-/**
- * Draws a line through `positions` in `colours`. A line the core animates is redrawn every frame, and
- * three's `setPositions` and `setColors` make new GPU buffers on every call; this moves its points in
- * place and uploads its colours only when they change (ADR-0836 D1).
- */
 export function moveLine(geometry: LineGeometry, positions: readonly number[], colours: readonly number[]): void {
   const start = geometry.getAttribute("instanceStart") as InterleavedBufferAttribute | undefined;
   const segments = positions.length / 3 - 1;
   if (start === undefined || start.count !== segments) geometry.setPositions([...positions]);
   else {
-    // As `LineGeometry.setPositions` lays them out: each segment is its start point, then its end.
     const pairs = start.data.array;
     for (let i = 0; i < segments; i++) for (let k = 0; k < 6; k++) pairs[6 * i + k] = positions[3 * i + k]!;
     start.data.needsUpdate = true;
@@ -327,7 +266,6 @@ export function moveLine(geometry: LineGeometry, positions: readonly number[], c
   geometry.userData.colours = colours;
 }
 
-/** A thick line whose points change as it grows or glows; additive for a glow, so its dark end adds nothing. */
 function lineOf(width: number, additive: boolean): Line2 {
   const line = new Line2(new LineGeometry(), new LineMaterial({
     linewidth: width, vertexColors: true, transparent: true, depthWrite: false,
@@ -339,7 +277,6 @@ function lineOf(width: number, additive: boolean): Line2 {
   return line;
 }
 
-/** The selected story's roots under the glass sheet (ADR-1260 D2): one hairline from each of its notes straight up to the sheet. */
 export function NoteRoots({ roots }: { roots: readonly (readonly [Point, Point])[] }) {
   const drawn = useMemo(() => {
     const geometry = new BufferGeometry();
@@ -355,7 +292,6 @@ export function NoteRoots({ roots }: { roots: readonly (readonly [Point, Point])
   return <primitive object={drawn} />;
 }
 
-/** The sea floor under the glass (ADR-1063 D3): a faint plane through its four corners, so the notes lying on it read as the bottom of the scene. */
 export function SeaFloor({ corners, notes }: { corners: readonly Point[]; notes: number }) {
   const drawn = useMemo(() => {
     const geometry = new BufferGeometry();
@@ -372,8 +308,6 @@ export function SeaFloor({ corners, notes }: { corners: readonly Point[]; notes:
   return <primitive object={drawn} />;
 }
 
-/** 3.73: `drawn`'s shader compiled as it is mounted, before any frame draws it, so one built anew after the map opened (a
- * selection's roots, a new floor) leaves no turn to stall on compiling it. */
 function useCompiled(drawn: LineSegments | Mesh): void {
   const { gl, camera, scene } = useThree();
   useLayoutEffect(() => { gl.compile(drawn, camera, scene); }, [gl, camera, scene, drawn]);

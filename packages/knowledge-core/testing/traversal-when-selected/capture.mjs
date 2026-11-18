@@ -1,10 +1,3 @@
-// Session traversal shows only for a selected session (owner, 2026-10-05): storytree's own globe (the code-rows snapshot and its
-// survey) as the app opens it, five running sessions in the stand-in bridge, each holding a capability and with a window that
-// opens three notes and a surveyed file no other window opens. Two views: none selected, then one session's row clicked.
-// `node --import tsx build.mjs <checkout> before|after`, then `node --import tsx capture.mjs before|after` (append --retake to
-// replace the committed pictures; --smoke runs the page built as `smoke`, takes no pictures and skips the fixed rests (and the frames settled after the long one), so a test
-// proves every wait below still resolves in a real browser). Counts, from the scene, every lit note, trail and lit file mark (none since ADR-1212) by colour, and every claimed
-// territory, so "no traversal with none selected" and "who holds what unchanged" are measured, not looked at.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -13,17 +6,14 @@ import { buildFolder, captureOutput, captureSeed, runCapture, seedFile } from '.
 import { sessionColour } from '../../../forest/src/agent-claims/agent-claims.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-// --retake writes its pictures and measurements into the package's evidence set of this name; nothing here reads them.
 const pictures = path.join(here, '../../evidence', 'traversal-when-selected');
 const label = process.argv[2];
 const smoke = process.argv.includes('--smoke');
 assert.ok(['before', 'after'].includes(label), 'pass a before/after build label');
 const { seed, survey } = captureSeed('code-rows');
 
-// Every session worked in the last few minutes before the capture runs, so none is idle.
 const NOW = Date.now();
 const CHECKOUT = '/repo';
-// Each session opens a file of one story's package, named by the seed's story title so a package rename cannot desync it.
 const SESSIONS = {
   builder: { minutes: 2, reason: 'Build the window replay', capability: 'capability_062b84e5c6b0', story: 'The knowledge core', path: 'src/look-inside/look-inside.ts' },
   reviewer: { minutes: 3, reason: 'Review the sessions list', capability: null, story: 'The forest', path: 'src/sessions-list/sessions-list.ts' },
@@ -34,7 +24,6 @@ const SESSIONS = {
 const SELECTED = 'scout';
 const ids = Object.keys(SESSIONS);
 const storyId = title => seed.tree.stories.find(story => story.title === title).id;
-// Each session holds a capability of the story whose file it opens, so the claimed territories show beside the traversal.
 for (const one of Object.values(SESSIONS)) {
   one.file = seedFile(seed, one.story, one.path);
   const file = survey[storyId(one.story)].files.find(f => f.path === one.path);
@@ -53,7 +42,6 @@ for (const [session, { minutes, reason, capability }] of Object.entries(SESSIONS
 lines.sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).forEach((one, i) => { one.seq = i + 1; });
 seed.lines = { lines, cursor: lines.length };
 
-// Three accepted decisions per session, none shared, so every lit note names one reader.
 const latest = new Map(seed.changes.changes.map(change => [change.recordId, change]));
 const notes = [...latest.values()].filter(c => c.type === 'decision' && c.action !== 'deleted' && c.record?.fields?.status === 'accepted').map(c => c.recordId).slice(-3 * ids.length);
 const reads = Object.fromEntries(ids.map((session, i) => [session, notes.slice(3 * i, 3 * i + 3)]));
@@ -72,7 +60,6 @@ const windowReading = async (_, session) => { asked.push(session); return window
 const colour = Object.fromEntries(ids.map(session => [session, sessionColour(session)]));
 assert.equal(new Set(Object.values(colour)).size, ids.length, 'five sessions, five colours');
 
-/** What the globe draws for the sessions, counted from the scene. */
 const measure = page => page.evaluate(() => {
   const { scene } = window.__globe;
   const trails = [], litNotes = {}, windowNotes = {}, litFiles = [], claimed = [];
@@ -88,12 +75,8 @@ const measure = page => page.evaluate(() => {
 const rowsShown = page => page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator('.session-row').evaluateAll(list => list.map(row => row.dataset.sessionId));
 const rest = async (page, settle) => { if (!smoke) await page.waitForTimeout(1500); await settle(page, 24); };
 
-// Each phase goes to stderr as it starts, so a run killed from outside still says where it was (four macOS runs were killed
-// at a fixed 180 s limit with nothing said, increment_724389f3f21d).
 const started = performance.now();
 const phase = message => console.error(`[traversal +${Math.round(performance.now() - started)} ms] ${message}`);
-// A loaded runner draws the page's frames seconds apart, so a wait goes on while frames keep coming and fails, naming what it
-// waited for, when none comes for STALL_MS (the page cannot draw) or at its cap (frames came, but the target never was drawn).
 const STALL_MS = 30_000;
 const framesDrawn = page => page.evaluate(() => {
   if (window.__captureFrames === undefined) {
@@ -127,9 +110,6 @@ await runCapture({
   answers: { windowReading, idleAfterMs: async () => 30 * 60_000, leaveAfterMs: async () => 60 * 60_000 },
   prepare: async ({ page, bridge }) => {
     phase('page loaded');
-    // Since 3.95 an island draws no territories until its first search lands, and the worker searches the seed's islands one
-    // at a time (minutes in software GL). Where territories lie is not what this capture measures, so each search answers at
-    // once with nothing found, the path that draws an island's start; its roads and the lanes still go to their workers.
     await page.addInitScript(() => {
       const Original = window.Worker;
       window.Worker = class extends Original {
@@ -142,7 +122,6 @@ await runCapture({
     });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await bridge.ready(page);
-    // The traversal is drawn on the knowledge graph under the glass sheet, which the Library face turns the sheet over to (ADR-1043 D3).
     await whileFramesCome(page, 'the ready page and its Library switch', () => document.body.dataset.state === 'ready' && !!document.querySelector('[data-globe-switch="library"]'), undefined, 120_000);
     await page.evaluate(() => document.querySelector('[data-globe-switch="library"][aria-pressed="false"]')?.click());
     await whileFramesCome(page, 'the glass sheet over every island', ids => {
@@ -153,7 +132,6 @@ await runCapture({
     await whileFramesCome(page, 'every session\'s claimed territory', want => { let outlines = 0, claimed = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('territory:') && o.userData.claimedBy !== undefined) claimed++; }); return outlines > 0 && claimed >= want; }, ids.length, 60_000);
     for (const button of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name: button, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
     await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
-    // The sessions list is the left rail's Sessions tab, which a project opens beside Arcs (ADR-1219).
     await page.locator('[data-rail-tab="sessions"]').click();
   },
   views: [{
@@ -169,9 +147,6 @@ await runCapture({
     name: `${label}-one-selected`, ...(smoke ? { picture: false } : {}),
     prepare: async ({ page, settle }) => {
       const row = page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator(`.session-row[data-session-id="${SELECTED}"]`);
-      // Pointing at the row lights its session's islands, the globe's first draw of that highlight, which compiles six new shaders
-      // (slow in software GL on a busy Windows runner). The click waits until that highlight is drawn, so its press and release
-      // do not queue behind the compile (a click timed out there, PR #764's Windows run).
       phase('view: one selected; point at its row');
       await row.hover();
       await whileFramesCome(page, 'the pointed row\'s island highlight', story => !!window.__globe.scene.getObjectByName(`session-highlight:${story}`), storyId(SESSIONS[SELECTED].story), 60_000);

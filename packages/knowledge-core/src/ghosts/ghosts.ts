@@ -1,51 +1,31 @@
-/** Capability 2 · Earlier decisions beside their replacements. Capability 2's founding book (G2): earlier decisions sit as ghosts beside their replacements. */
+// Capability 2 · Earlier decisions beside their replacements
 import type { Change, RecordEnvelope } from "@storytree/library";
 
-/** What made a decision a ghost: the decision log's supersession, or the older cover-history recipe. */
 export type GhostEvidence = "superseded" | "earlier-cover";
 
 export interface Ghost {
   note: string;
   evidence: GhostEvidence;
-  /** The decision that replaced it directly; undefined when more than one did. */
   replacedBy: string | undefined;
-  /** The current decision it sits beside, at the end of its chain of replacements; undefined when not placed. */
   beside: string | undefined;
   label: string;
 }
 
-/** A project's knowledge as the core reads it from the library's change history. */
 export interface Knowledge {
-  /** Every live note, ghosts and proposals included, by id. */
   notes: ReadonlyMap<string, RecordEnvelope>;
-  /** The notes that are neither ghosts nor proposed: the only ones depth and link counts use. */
   active: ReadonlySet<string>;
   ghosts: ReadonlyMap<string, Ghost>;
   proposed: ReadonlySet<string>;
-  /** For each active note, how many distinct active notes link to it. */
   linksIn: ReadonlyMap<string, number>;
 }
 
-/** The library's note kinds (its NoteType): memory notes, decisions, definitions, the eight kinds, quality control checks, research and measures. */
 const NOTE_TYPES = new Set(["memory", "decision", "definition", "principle", "guardrail", "pattern", "process", "agent", "friction", "resteer", "techstack", "check", "research", "measure"]);
 
-/** The friction states the Library leaves out: its remedy landed, or it was judged as needing nothing. */
 const SETTLED: ReadonlySet<string> = new Set(["resolved", "dismissed"]);
 
-/**
- * Read a project's knowledge from its change history (changesSince(0)): its live notes, settled
- * friction left out, which
- * decisions are ghosts and beside what, which are proposed, and the links between the rest.
- *
- * A decision is superseded once an accepted decision names it in `supersedes`, the library's own
- * reading (capability 13), whether or not its cover mark was cleared. Failing that, the older
- * recipe makes it an "earlier cover": its mark on a shelf was cleared while a newer cover on that
- * same shelf linked to it, and it has not been marked since. Proposed decisions are neither.
- */
 export function knowledge(changes: readonly Change[]): Knowledge {
   const notes = new Map<string, RecordEnvelope>();
   const created = new Map<string, number>();
-  /** For each decision whose mark was cleared, the newer covers on its shelf that linked to it then. */
   const clearedFor = new Map<string, string[]>();
 
   for (const change of changes) {
@@ -67,7 +47,6 @@ export function knowledge(changes: readonly Change[]): Knowledge {
       );
       clearedFor.set(id, covers.map(({ id: cover }) => cover));
     }
-    // Settled friction stays live in the library but out of the Library's view (ADR-1016 D4).
     if (change.type === "friction" && SETTLED.has(String(change.record.fields.state))) notes.delete(change.recordId);
     else notes.set(change.recordId, change.record);
   }
@@ -106,7 +85,6 @@ export function knowledge(changes: readonly Change[]): Knowledge {
   return { notes, active, ghosts, proposed, linksIn };
 }
 
-/** Follow replacements to the first live, current, accepted decision; undefined when the chain breaks or branches. */
 function currentSuccessor(
   first: string | undefined,
   notes: ReadonlyMap<string, RecordEnvelope>,
@@ -127,15 +105,10 @@ function coverOf(record: RecordEnvelope): string | undefined {
   return typeof cover === "string" ? cover : undefined;
 }
 
-/** A note's stored links, in their stored order. */
 export function linksOf(record: RecordEnvelope): string[] {
   return stringsIn(record.fields.links);
 }
 
-/**
- * Whether a stored reference joins two notes, either way round: one's `links`, `supersedes` or
- * `frontCoverOf` names the other. Only what is stored joins them, never a neighbour they share.
- */
 export function storedEdges({ notes }: Knowledge): (a: string, b: string) => boolean {
   const joined = new Set<string>();
   for (const note of notes.values()) {

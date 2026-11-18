@@ -1,7 +1,5 @@
-/** Test fixtures: a library's change history written by hand, as changesSince(0) returns it. */
 import type { Change } from "@storytree/library";
 
-/** Builds a history in the order its calls are made, one change per call, each with the next seq. */
 export class History {
   readonly changes: Change[] = [];
   readonly #state = new Map<string, { type: string; fields: Record<string, unknown>; createdAt: string }>();
@@ -13,7 +11,6 @@ export class History {
     return this.#push(id, "created", at);
   }
 
-  /** Set the fields named, keeping the others; a field set to undefined is removed. */
   update(id: string, fields: Record<string, unknown>): this {
     const known = this.#known(id);
     const merged = { ...known.fields, ...fields };
@@ -27,7 +24,6 @@ export class History {
     return this.#push(id, "retired", this.#at());
   }
 
-  /** A decision, accepted unless the fields say otherwise, with the text a decision needs. */
   decision(id: string, fields: Record<string, unknown> = {}): this {
     return this.create(id, "decision", { title: id, text: `${id}'s text`, status: "accepted", ...fields });
   }

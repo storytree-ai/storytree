@@ -1,4 +1,3 @@
-/** The core's moving lines (ADR-0742, ADR-0797) redraw every frame while they animate; a frame only draws (ADR-0836 D1). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { InterleavedBufferAttribute } from "three";

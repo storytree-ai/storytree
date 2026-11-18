@@ -1,11 +1,10 @@
-/** Capability 1 · Knowledge under its shelves. Capability 1's drawing coordinates, shared by the sheet and the inspection view. */
+// Capability 1 · Knowledge under its shelves
 export interface Point { x: number; y: number; z: number }
 export interface GlobePoint {
   id: string;
   at: Point;
   depth: number | undefined;
   home: string | undefined;
-  /** Under the glass sheet, the shelves pulling it, strongest first (ADR-1063 D1). */
   toward?: string[];
 }
 

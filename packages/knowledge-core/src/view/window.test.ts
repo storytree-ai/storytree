@@ -1,4 +1,4 @@
-/** Capability 4 · 4.16: the core reads a selected session's window from its host, and only that session's. */
+// Capability 4 · Look inside and inspect an artifact
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -58,7 +58,6 @@ test("4.16, 4.23 a failed read of the selected session's window, or of the facto
     inherited: async () => { throw new Error("the factory did not answer"); },
   } });
   try {
-    // The factory's notes are read once they are drawn (ADR-1340 D2).
     const close = (core as unknown as { view(): () => void }).view();
     core.select("S");
     await logs;

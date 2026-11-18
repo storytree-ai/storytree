@@ -1,4 +1,3 @@
-/** Capability 1 under the glass sheet: each note is pulled toward every island its links reach, unlinked ones lie on a sea floor (ADR-1063). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { knowledge, sheetLayout, sheetLit, sheetPoints, sheetRoots, sheetSteps, underShelves, whole } from "@storytree/knowledge-core";
@@ -154,7 +153,6 @@ test("1.16 the sheet read again after news that changes nothing it lays out keep
   const layout = sheetLayout();
   const read = (history: History, at: ReadonlyMap<string, { x: number; y: number }> = shelves) => {
     const known = knowledge(history.changes);
-    // Each reading hands it fresh objects, as the globe's live updates do.
     return whole(layout(underShelves(history.changes, known), { shelfAt: node => at.get(node), floor: { ...floor }, depthStep: 7 }, known.notes));
   };
   const history = islands().decision("cover", { frontCoverOf: "cap" }).decision("citer", { links: ["cover"] }).decision("loose");
@@ -176,7 +174,6 @@ test("1.17 the sheet is laid out a few steps to a task, no task past its budget,
   const known = knowledge(history.changes);
   const core = underShelves(history.changes, known);
   const hanging = { shelfAt: (node: string) => shelves.get(node), floor, depthStep: 7 };
-  // A clock each step moves on by 10 ms, and a page whose tasks are run by hand.
   let clock = 0;
   const tasks: (() => void)[] = [];
   let stepped = 0;

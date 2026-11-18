@@ -1,10 +1,3 @@
-// A selected island's notes with the camera still (ADR-1260, increment_ebd12caebc5c): storytree's own map (the code-rows
-// seed) as the desktop page draws it, The knowledge core's island clicked, then the sheet tilted by a real right-drag to side
-// on and to below, each shot on smoked glass and under the Library button's clear glass. Build the page of a checkout first:
-//   node --import tsx packages/knowledge-core/testing/traversal-when-selected/build.mjs <checkout> before|after
-// then, from the checkout root, in the foreground: node --import tsx packages/knowledge-core/testing/selected-island-roots/capture.mjs before|after [--retake]
-// Counts, from the scene, the links and roots drawn and the faintest and brightest dot, so "no link web", "roots for the
-// selected story's notes only" and "the rest faded back" are measured, not looked at.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -15,7 +8,6 @@ import { SHEET_TILT } from '../../../forest-world/src/planet/PlanetWorldCanvas.t
 const label = process.argv[2];
 assert.ok(['before', 'after'].includes(label), 'pass a before/after build label');
 const here = path.dirname(fileURLToPath(import.meta.url));
-// Pictures and measurements go to the package's evidence set of this name (a scratch folder unless --retake).
 const evidence = path.join(here, '../../src/view/evidence', 'selected-island-roots');
 const dist = buildFolder(path.join(here, '../traversal-when-selected'), label);
 const { seed, survey } = captureSeed('code-rows');
@@ -86,7 +78,6 @@ const { results, out } = await withCapture({ folder: evidence, dist }, async ({ 
   };
   const press = async which => { await page.locator(`[data-globe-switch="${which}"]`).click(); await page.mouse.move(2, 2); await page.waitForTimeout(1200); await settle(page, 12); };
   const results = {};
-  // The sheet opens straight down (ADR-1349 D1); the drag tilts it from there.
   let at = 0;
   for (const { name, deg } of TILTS) {
     await tiltBy(deg - at);
@@ -96,7 +87,6 @@ const { results, out } = await withCapture({ folder: evidence, dist }, async ({ 
     await press('library');
     await page.screenshot({ path: path.join(out, `${label}-${name}-library.png`), timeout: 180000 });
     const clear = await measure(page);
-    // Closer, the eye's zoom alone, so a ball's shading and a root's line can be seen; then back.
     const zoomBy = times => page.evaluate(times => { const { camera, invalidate } = window.__globe; camera.zoom *= times; camera.updateProjectionMatrix(); invalidate(); }, times);
     await zoomBy(CLOSE); await settle(page, 12);
     await page.screenshot({ path: path.join(out, `${label}-${name}-library-close.png`), timeout: 180000 });

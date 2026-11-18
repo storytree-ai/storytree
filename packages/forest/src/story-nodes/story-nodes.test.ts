@@ -1,8 +1,4 @@
-/**
- * Capability 1 · Story nodes (the forest story): one story node for every story in the project,
- * with its title and its health as the agent reports it. The library's tree and
- * history are written out here as the library hands them to the forest, so no database is needed.
- */
+// Capability 1 · Story nodes
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -10,17 +6,15 @@ import type { AnnotatedStory, Change, HealthState } from "@storytree/library";
 
 import { storyNodes, type StoryNode } from "./story-nodes.js";
 
-/** A project's stories as the library hands them to the forest: projectTree()'s stories and changesSince(0)'s changes. */
 class Project {
   readonly #stories: AnnotatedStory[] = [];
   readonly #history: Change[] = [];
 
-  /** Add a story with its health as it rolls up, then a capability under it, as an agent planning it would. */
   add(title: string, reported: HealthState = "not-checked", verified: HealthState = "not-checked"): string {
     const id = `story_${this.#history.length + 1}`;
     this.#stories.push({ id, title, capabilities: [], health: { reported: { state: reported }, verified: { state: verified } } });
     this.#change(id, "story", "created", { title });
-    this.#change(`${id}_part`, "capability", "created", { title: "1 · A part", story: id }); // the history holds every record
+    this.#change(`${id}_part`, "capability", "created", { title: "1 · A part", story: id });
     return id;
   }
 

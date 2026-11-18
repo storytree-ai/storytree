@@ -1,6 +1,4 @@
-/**
- * Capability 3 · Story node render: agents' pins drawn on the deepest place the map draws that holds them, near and far (3.119).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

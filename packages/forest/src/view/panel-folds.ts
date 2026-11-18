@@ -1,26 +1,16 @@
-/**
- * Capability 4 · Drill-down. The panel's folds as the user works them (ADR-1287, narrowing ADR-1284 D1): a single click on
- * a handle opens its fold in place and another closes it; Enter or Space opens or closes it from the keyboard, the arrow keys move between the handles shown, and Escape closes the fold the focus is in or, with none
- * focused, closes every fold and forgets the kept depth. The kinds of fold the user opened open again on every later
- * pick for the session; a contract's own fold is never kept. No control opens or closes every fold at once (ADR-1292). No
- * hint explains any of it (ADR-1283 D2).
- */
+// Capability 4 · Drill-down
 
 import { panelScope } from "./microscope.js";
 
-/** The kinds of fold whose being open is kept across picks: the top-level handles, never a contract's own. */
 const KEPT = new Set(["open-work", "contracts", "extra-checks"]);
 
 export interface PanelFolds {
-  /** After the panel's HTML is drawn into `panel`: open the kinds the user keeps open, and answer his handles (once per element). */
   draw(panel: HTMLElement): void;
 }
 
-/** One session's folds: the kinds the user opened are held here until he closes them, presses Escape, or the app restarts. */
 export function panelFolds(): PanelFolds {
   const kept = new Set<string>();
   const wired = new WeakSet<HTMLElement>();
-  // The microscope's drills are worked beside the folds, on the same panel just drawn (ADR-1350 D2).
   const scope = panelScope();
 
   const handles = (panel: HTMLElement): HTMLButtonElement[] => [...panel.querySelectorAll<HTMLButtonElement>(".panel-handle")];
@@ -33,7 +23,6 @@ export function panelFolds(): PanelFolds {
   };
   const kind = (handle: HTMLElement): string | undefined => handle.parentElement?.dataset.fold;
 
-  /** The user opens or closes one fold. */
   const toggle = (panel: HTMLElement, handle: HTMLElement): void => {
     const open = handle.getAttribute("aria-expanded") !== "true";
     set(handle, open);
@@ -76,7 +65,6 @@ export function panelFolds(): PanelFolds {
       }
       if (handle === null) return;
       if (event.key === "Enter" || event.key === " ") {
-        // Kept from the button's own click, which would toggle the fold a second time.
         event.preventDefault();
         toggle(panel, handle);
         return;

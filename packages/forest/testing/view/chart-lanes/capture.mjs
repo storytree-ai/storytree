@@ -1,8 +1,3 @@
-// Shipping lanes as chart dots at rest, a selected story's share filled (ADR-1278 D1, D2; 4.44, 4.8): storytree's own map
-// (the code-rows snapshot and its survey) as the app opens it, first at rest, every lane a dotted course, then with The
-// library's island clicked, its share of each lane filled pale over the dimmed dots, drawn on and settled.
-// `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/chart-lanes). Measures, from the
-// scene, the stretches dotted and the lanes lit, so the pictures can be compared by numbers too.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +14,6 @@ const started = performance.now();
 const phase = message => console.error(`[chart lanes +${Math.round(performance.now() - started)}ms] ${message}`);
 const until = async (page, what, predicate, arg, timeout = 180_000) => { phase(`wait for ${what}`); await page.waitForFunction(predicate, arg, { timeout, polling: 200 }); };
 const library = seed.tree.stories.find(story => story.title === 'The library').id;
-/** The sea as the scene draws it: the stretches dotted and their dots, how opaque they are, and the lanes lit. */
 const sea = page => page.evaluate(() => {
   const rest = window.__globe.scene.getObjectByName('pathways:rest-lanes'), dots = rest?.getObjectByName('lane-dots');
   const lit = window.__globe.scene.getObjectByName('pathways:selection-lanes')?.userData.lanes ?? [];
@@ -34,7 +28,6 @@ const prepare = async ({ page, settle }) => {
   await settle(page);
 };
 const still = async ({ page, settle }) => { await until(page, 'the globe still', () => window.storytreeGlobe.still()); await settle(page, 12); };
-/** Selects The library and waits for its lanes to settle, the panels over the sea hidden for the picture. */
 const selectLibrary = async ({ page, settle }) => {
   const island = await page.evaluate(story => window.storytreeGlobe.islands().find(i => i.story === story), library);
   await page.mouse.click(island.x, island.y);

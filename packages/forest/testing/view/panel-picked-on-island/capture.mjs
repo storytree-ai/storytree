@@ -1,12 +1,3 @@
-// The story panel draws no capability tree (ADR-1285; Mick, 2026-11-07: "I'm actually really liking the one on the map. I
-// don't think it's needed."): storytree's own map (the code-rows snapshot and its survey) as the app opens it, close up on The
-// library. A capability's territory clicked on the island (a road click falls through to the land under it) opens the panel
-// on exactly that capability: its title, its story named small above it, its whole description and its contracts, each with
-// its own state, with no tree, card or pop-out and no How it works or Health fold (4.6, 4.8, ADR-1297). The story's name
-// opens the story alone, with nothing picked for it and its capabilities by name (4.7); a name opens that capability,
-// ringed on the island (4.8), and a contract opens on one click (4.41, ADR-1287); then a gate clicked shows its pair's
-// links in the panel (3.88). `node --import tsx capture.mjs` (append --retake to write into
-// src/view/evidence/panel-picked-on-island). Measures, from the page, what the panel holds, so "no tree" is measured.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -24,10 +15,6 @@ await buildCapture({ dist });
 const until = async (page, predicate, arg) => page.waitForFunction(predicate, arg, { timeout: 180_000, polling: 200 });
 const libraryStory = seed.tree.stories.find(story => story.title === 'The library');
 const library = libraryStory.id;
-// The snapshot predates edge records (ADR-1279), so The library's links are staged here, one for every pair a gate may join
-// (by its recorded dependency where it has one), each with contracts of its own but every third with none, for the gate's
-// panel to show both states (ADR-1284 D4). Each link's first contract storytree last saw failing, its second passing, so the
-// state line counts one failing.
 const ids = libraryStory.capabilities.map(({ id }) => id);
 const depends = new Set(libraryStory.capabilities.flatMap(({ id, dependsOn }) => dependsOn.map(to => `${id}>${to}`)));
 const seen = state => ({ reported: { state: 'passing', at: '2026-11-08T00:00:00.000Z' }, verified: { state, at: '2026-11-08T00:00:00.000Z' } });
@@ -39,7 +26,6 @@ libraryStory.edges = pairs.map(({ from, to }, index) => ({
     { id: `staged-edge-${index}-ids`, title: 'Names each record it hands over by its id', health: seen('passing') },
   ],
 }));
-/** What the panel holds: the capability whose detail it shows, a gate's links, and anything of a tree. */
 const panel = page => page.evaluate(() => {
   const aside = document.querySelector('aside.story-panel');
   return {
@@ -51,7 +37,6 @@ const panel = page => page.evaluate(() => {
     contractStates: [...aside?.querySelectorAll('.panel-detail [data-contract-id] .panel-handle .panel-mark') ?? []].length,
     gate: aside?.querySelector('.panel-gate') !== null && aside?.querySelector('.panel-gate') !== undefined,
     links: [...aside?.querySelectorAll('.panel-gate h3') ?? []].map(h => ({ said: h.textContent, contracts: h.nextElementSibling?.querySelectorAll('[data-contract-id]').length ?? 0, state: (h.nextElementSibling?.classList.contains('panel-link-state') ? [h.nextElementSibling.querySelector('.panel-handle')?.textContent, h.nextElementSibling.querySelector('.panel-link-failing')?.textContent, h.nextElementSibling.querySelector('.panel-link-open')?.textContent].filter(Boolean).join(' ') : h.nextElementSibling?.textContent) ?? '' })),
-    // The microscope (ADR-1350 D2, narrowing ADR-1285) is not the capability tree ADR-1285 retired, so it is not counted.
     tree: [...aside?.querySelectorAll('svg:not(.panel-mark > svg), .panel-tree, [data-open-tree], [role="button"]') ?? []].filter(e => e.closest('.panel-microscope') === null).length,
     handles: [...aside?.querySelectorAll('.panel-handle') ?? []].filter(h => h.closest('.panel-fold-body[hidden]') === null).map(h => h.textContent),
     opened: [...aside?.querySelectorAll('.panel-handle[aria-expanded="true"]') ?? []].map(h => h.textContent),
@@ -69,7 +54,6 @@ const closeUp = async (page, settle, times) => {
   }, { zoom: DETAIL_ZOOM.near * times, ...eye });
   await settle(page, 12);
 };
-/** The screen points of The library's gate posts or road segments, nearest the middle of the view first. */
 const targets = (page, kind) => page.evaluate(({ story, kind }) => {
   const { scene, camera } = window.__globe, box = document.querySelector('canvas').getBoundingClientRect();
   const marks = [];
@@ -87,7 +71,6 @@ const targets = (page, kind) => page.evaluate(({ story, kind }) => {
 }, { story: library, kind });
 const clickUntil = async (page, settle, kind, done) => {
   for (const target of await targets(page, kind)) {
-    // A point the open panel covers is skipped: a click there would work its folds (ADR-1287), not the map.
     if (await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('aside.story-panel'), target)) continue;
     await page.mouse.click(target.x, target.y);
     await settle(page, 8);
@@ -125,7 +108,6 @@ await runCapture({
       assert.deepEqual(found.opened, [], 'every fold closed on the first pick');
     },
   }, {
-    // ADR-1297 D1: the story's name opens the story alone, with no capability picked for it and its capabilities by name.
     name: 'story-alone',
     prepare: async ({ page, settle }) => {
       await page.locator('aside.story-panel .panel-story-name').click();
@@ -143,7 +125,6 @@ await runCapture({
       assert.ok(!found.handles.some(h => /How it works/.test(h)), 'its whole description, no fold');
     },
   }, {
-    // ADR-1297 D1, 4.8: a name opens that capability, ringed on the island as its territory's click would.
     name: 'capability-picked-by-name',
     prepare: async ({ page, settle }) => {
       const names = page.locator('aside.story-panel .panel-pick');
@@ -163,7 +144,6 @@ await runCapture({
       assert.equal(found.opened.length, 1, 'one click opens a contract to its detail');
     },
   }, {
-    // ADR-1284 D4: a gate's links, each its sentence and one state line, their contracts closed behind the handle.
     name: 'gate-picked-on-island',
     prepare: async ({ page, settle }) => {
       await clickUntil(page, settle, 'gate', found => found.open && found.gate && found.links.some(link => link.contracts > 0));
@@ -190,7 +170,6 @@ await runCapture({
     },
     expect: found => { assert.equal(found.opened.length, 1, 'a click opens the link\'s contracts'); },
   }, {
-    // A gate's contract opens one level deeper, to what a capability's contract shows and nothing more (ADR-1289).
     name: 'gate-contract-opened',
     prepare: async ({ page, settle }) => {
       await page.locator('aside.story-panel .panel-gate [data-fold="contract"] > .panel-handle').first().click();

@@ -1,5 +1,4 @@
-// Capability 3 · Story node render. @storytree/forest: the forest story. Each project is drawn as its own forest,
-// one story node per story, read from the library through its public API.
+// Capability 3 · Story node render
 export { storyNodes } from "./story-nodes/story-nodes.js";
 export type { Point, StoryNode } from "./story-nodes/story-nodes.js";
 export { NAMEPLATE_ROOM, sheetPlaces, type SheetPlaces } from "./planet-places/sheet-places.js";

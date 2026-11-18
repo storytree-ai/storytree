@@ -4,7 +4,6 @@ import { test } from "node:test";
 import { WITHHELD_ARCS, captureProblems, captureText, machinesNamed, sanitiseSeed, scrubCapture, seedProblems } from "./evidence-seed.js";
 
 const withheld = WITHHELD_ARCS[0]!;
-// The test's own machines stand in for the owner's, and the links and addresses are joined at run time, so this file holds none.
 const machines = machinesNamed({ "box-one-two": "<mint-box>", "lapone": "<laptop>", "testlap": "<test-laptop>", "oldlap": "<test-laptop>" });
 const join = (...parts: string[]) => parts.join("");
 const claude = join("https://claude", ".ai/");

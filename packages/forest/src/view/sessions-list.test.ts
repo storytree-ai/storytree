@@ -1,4 +1,3 @@
-/** Visible rows, safe text and the context slot before composition arrives. */
 import { createElement } from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";

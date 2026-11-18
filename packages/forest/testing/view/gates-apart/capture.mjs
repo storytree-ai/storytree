@@ -1,10 +1,3 @@
-// Island gates stand apart where their border has room (increment_af16a373441d): storytree's own map (the code-rows
-// snapshot and its survey, a fresh pair built in a scratch folder when the snapshot lacks an island `--islands` names, or a
-// given pair: `--seed <folder holding seed.json.gz and survey.json>`) as the app opens it, every island's ask to route its roads written down (`--dump <asks.json>`,
-// for gates.mjs to measure), and a picture of each island `--islands <title,…>` names, whole and close on each of its
-// gates' clusters. `node --import tsx capture.mjs --prefix <name> [--islands "Code map"] [--dump asks.json]` (append
-// --retake to write into src/view/evidence/gates-apart). Run on a checkout of main as well, with
-// `--at <this branch's measurements.json>`, so its close pictures stand where this branch's do.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
@@ -45,7 +38,6 @@ const zoomTo = async (page, settle, zoom) => {
   }, { zoom, ...eye });
   await settle(page, 12);
 };
-/** Each gate's posts on an island, in the island's own frame, from the scene. */
 const gatesOn = (page, island) => page.evaluate(island => {
   const object = window.__globe.scene.getObjectByName(`planet:${island}`), found = [];
   object.updateWorldMatrix(true, false);
@@ -72,7 +64,6 @@ await runCapture({
   folder: pictures, name: prefix, dist, seed, survey,
   prepare: async ({ page, settle, bridge }) => {
     await page.addInitScript(() => {
-      // Each island's ask to route its roads, written down as it is posted to the worker.
       window.__roads = [];
       const Original = window.Worker;
       window.Worker = class extends Original {
@@ -112,7 +103,6 @@ await runCapture({
   }, ...(before?.[story.id]?.close ?? [undefined, undefined, undefined]).map((_, k) => ({
     name: `${prefix}-${slug(story.title)}-close-${k + 1}`,
     prepare: async ({ page, settle }) => {
-      // Close on the k-th tightest pair of posts of different gates (main's, when `--at` gives them).
       const close = before?.[story.id]?.close ?? tightest(results[story.id].posts);
       results[story.id].close = close;
       const at = close[k];
@@ -125,7 +115,6 @@ await runCapture({
     measure: async () => ({}),
   }))]),
 });
-/** The middles of the three tightest pairs of posts of two different gates. */
 function tightest(posts) {
   const pairs = [];
   posts.forEach(({ gate: g, at: p }, i) => posts.forEach(({ gate: h, at: q }, j) => { if (j > i && g !== h) pairs.push({ d: Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]), at: p.map((v, k) => (v + q[k]) / 2) }); }));

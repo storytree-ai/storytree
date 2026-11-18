@@ -1,9 +1,3 @@
-// Sea lanes at rest as fine dots of one size on gentle curves, a busy stretch as strands side by side (4.44): storytree's
-// own map (the code-rows snapshot and its survey) as the app opens it, nothing selected, first near The knowledge core, where trunks merge, at about
-// the zoom of the owner's screenshot (the islands' own detail shown, a few islands across), the sidebar hidden, then with The knowledge core selected, its share filled over the strands, then at the
-// whole map's opening zoom, where every lane size scales up together (`laneScale`). `node --import tsx capture.mjs`
-// (append --retake to write into src/view/evidence/sea-strands). Measures, from the scene, the stretches, their strands
-// and dots, so the pictures can be compared by numbers too.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -22,10 +16,8 @@ const phase = message => console.error(`[sea strands +${Math.round(performance.n
 const until = async (page, what, predicate, arg, timeout = 300_000) => { phase(`wait for ${what}`); await page.waitForFunction(predicate, arg, { timeout, polling: 250 }); };
 const eye = { radius: SHEET_RADIUS + PLATE_CLEARANCE, fov: SHEET_FOV };
 const centre = seed.tree.stories.find(story => story.title === 'The knowledge core').id;
-/** The zoom (CSS pixels per ground unit) the owner's screenshot was at, about: four islands across the view. */
 const NEAR = Number(process.env.SEA_STRANDS_ZOOM ?? 2.2);
 
-/** The sea at rest as the scene draws it: the stretches, strands and dots, and how big the dots are. */
 const sea = page => page.evaluate(({ radius, fov }) => {
   const { camera, size, scene } = window.__globe;
   const rest = scene.getObjectByName('pathways:rest-lanes'), dots = rest?.getObjectByName('lane-dots');

@@ -1,8 +1,4 @@
-/**
- * Capability 3 · Story node render (the forest story): the selected island's territories arranged by the mock's
- * network-scored search, run off the page, and the arrangement it finds kept so the island does not reshuffle (3.80,
- * ADR-1236 D1, rollout 2 step 2b).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 
@@ -15,16 +11,13 @@ import { answerSearch } from "./search-worker.js";
 import { capabilityPlates } from "../view/nameplates.js";
 import { insideOf, landArea, territoryAt, type Coast, type TerritoryMap } from "./territories.js";
 
-// An island of The library's size, so its scale is 1 and kept seeds are in its own units.
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
 const coast: Coast = [Array.from({ length: 96 }, (_, i) => ({ x: R * Math.cos(i * Math.PI / 48), z: R * Math.sin(i * Math.PI / 48) }))];
 const shares = [{ capability: "a", lines: 900 }, { capability: "b", lines: 700 }, { capability: "c", lines: 500 }, { capability: "d", lines: 300 }, { lines: 150 }];
-// a and b take lanes over the sea; c and d link only at home, d to a far across the island.
 const links = [{ from: "z1", to: "a" }, { from: "b", to: "y" }, { from: "c", to: "a" }, { from: "d", to: "c" }, { from: "d", to: "a" }];
 const docks = [{ local: { x: R, z: 0 }, links: ["z1->a"] }, { local: { x: -R, z: 0 }, links: ["b->y"] }];
 const ask: SearchAsk = { shares, coast, links, docks, steps: 4 };
 const owners = (map: TerritoryMap) => map.cells.map((cell) => cell.territory);
-/** Whether every territory of `map` holds the land at its seed. */
 const grownFrom = (map: TerritoryMap, seeds: Seeds) => Object.entries(seeds).every(([id, at]) => (territoryAt(map, at.x, at.z)?.capability ?? "") === id);
 
 afterEach(() => shelveOn(undefined));
@@ -48,7 +41,6 @@ test("3.80 an island with nothing to arrange answers no search", () => {
 });
 
 test("3.80 the network's measures: an inside link through a third territory and the borders it crosses, the inside links between neighbours, and the road drawn", () => {
-  // A long thin island cut into three strips, west to east a, b and c: a link from a to c must cross b.
   const strip: Coast = [[{ x: -200, z: -18 }, { x: 200, z: -18 }, { x: 200, z: 18 }, { x: -200, z: 18 }]];
   const S = Math.sqrt(landArea(strip) / LIBRARY_LAND), thirds = [{ capability: "a", lines: 100 }, { capability: "b", lines: 100 }, { capability: "c", lines: 100 }];
   const seeds = { a: { x: -150 / S, z: 0 }, b: { x: 0, z: 0 }, c: { x: 150 / S, z: 0 } };
@@ -59,11 +51,9 @@ test("3.80 the network's measures: an inside link through a third territory and 
   assert.deepEqual([m.overThird, m.overThirdBorders, m.neighbours, m.unrouted, m.tunnels], [1, 2, 0, 0, 1], "a to c goes through b, over two borders, in a tunnel");
   const next = roadMeasures(map, beside, [], names);
   assert.deepEqual([next.overThird, next.overThirdBorders, next.neighbours, next.tunnels], [0, 0, 1, 0], "a to b, its neighbour, crosses no third territory");
-  // The road from a's settlement to c's is at least as long as the straight line between them.
   const towns = islandRoads(map, across, [], names).towns, a = towns.get("a")!, c = towns.get("c")!;
   assert.ok(m.roadDrawn * S >= Math.hypot(a.x - c.x, a.z - c.z), "the road drawn reaches from a to c");
   assert.equal(roadMeasures(map, [], [], names).roadDrawn, 0, "no links, no road");
-  // The border between the strips runs across the land only, never on past the coast: two crossings of a strip 36 / S wide.
   const island = prepareIsland(thirds, strip, [], [])!, held = owners(map), across36 = 36 / S;
   const border = borderLength(island, held);
   assert.ok(border >= 2 * across36 && border < 2 * 1.5 * across36, `two borders across the strip, ${border}, each a little longer than its width ${across36}`);
@@ -76,7 +66,6 @@ test("3.80 an interface off the coast costs the arrangement 500, and a link no r
   const none = { overThird: 0, overThirdBorders: 0, roadDrawn: 0, neighbours: 0, unrouted: 0, tunnels: 0 };
   const network = networkScore(island, held, { overThird: 1, overThirdBorders: 2, roadDrawn: 100, neighbours: 1, unrouted: 0, tunnels: 1 })! - networkScore(island, held, none)!;
   assert.ok(Math.abs(network - (100 + 10 + 6 + 5 - 4)) < 1e-9, `a tunnel, a link over a third territory across two borders, 100 of road and a link between neighbours: ${network}`);
-  // a's frontier cells made open land: the border it held there is gone too, at most 0.2 a unit of it.
   const inland = held.map((o, c) => (o === 0 && island.frontier[c] ? -1 : o));
   const offCoast = networkScore(island, inland, none)! - networkScore(island, held, none)!;
   assert.ok(offCoast > 400 && offCoast <= 500, `a, whose lane lands, holds no frontier cell: ${offCoast}`);
@@ -96,7 +85,6 @@ test("3.80 a territory reaching into its neighbours' land costs the arrangement 
   const island = prepareIsland(shares, coast, links, docks)!;
   const held = owners(linkLayout(shares, coast, links, docks));
   const m = { overThird: 0, overThirdBorders: 0, roadDrawn: 150, neighbours: 2, unrouted: 0, tunnels: 0 };
-  // a and b each give three of their inmost cells to the other: the same land each, reaching into the other's.
   const inmost = (t: number) => held.map((o, c) => c).filter((c) => held[c] === t && island.fine.cells[c]!.neighbours.every((n) => held[n] === t)).slice(0, 3);
   const reaching = [...held];
   for (const c of inmost(0)) reaching[c] = 1;
@@ -107,7 +95,6 @@ test("3.80 a territory reaching into its neighbours' land costs the arrangement 
 });
 
 test("3.80 the border the search measures is the border drawn: on a lumpy coast, every stretch of land between two territories, a short one at a bay's head included", () => {
-  // Three lobes, so bays reach in between them, at The library's size so both are in its units.
   const ring = Array.from({ length: 120 }, (_, i) => { const t = (i * Math.PI) / 60, r = 1 + 0.25 * Math.sin(3 * t + 1) + 0.1 * Math.sin(5 * t + 4); return { x: r * Math.cos(t), z: r * Math.sin(t) }; });
   const k = Math.sqrt(LIBRARY_LAND / landArea([ring])), lumpy: Coast = [ring.map((p) => ({ x: p.x * k, z: p.z * k }))];
   const dock = [{ local: lumpy[0]![0]!, links: ["z1->a"] }];
@@ -129,7 +116,6 @@ test("3.80 a kept arrangement for the island's structure draws from its seeds an
   assert.equal(asked.length, 0, "the structure the arrangement was kept for asks no search");
   assert.ok(grownFrom(islandLayout("s", shares, coast, links, docks), seeds), "drawn from the kept seeds");
   assert.ok(!grownFrom(islandLayout("other", shares, coast, links, docks), seeds), "an island with nothing kept draws the start");
-  // More lines are no change of structure.
   searchIsland("s", { ...ask, shares: shares.map((s) => ({ ...s, lines: s.lines * 2 })) }, searcher);
   assert.equal(asked.length, 0, "a change of lines only resizes");
   const more = [...shares, { capability: "e", lines: 200 }];
@@ -243,7 +229,6 @@ test("3.80 an arrangement kept before the search's score changed is searched aga
   shelveOn(undefined);
   const asked: SearchAsk[] = [];
   const searcher: TerritorySearcher = (given) => { asked.push(given); return new Promise(() => {}); };
-  // The key an arrangement was kept under before the score counted tunnels as a last resort: the structure alone.
   const before = JSON.stringify([["", "a", "b", "c", "d"], ["c->a", "d->a", "d->c"], [["b->y"], ["z1->a"]]]);
   const seeds = { a: { x: 60, z: 10 }, b: { x: -60, z: -10 }, c: { x: 0, z: 50 }, d: { x: 0, z: -50 }, "": { x: 20, z: 20 } };
   keepArrangement("s", { key: before, seeds });
@@ -268,7 +253,6 @@ test("3.80 a search asked for another island waits its turn behind the one in fl
   asked[0]!.answer(found(1));
   await waitUntil(() => asked.length === 2, 2000, "the next island's search to start once the first answers");
   assert.equal(keptArrangement("one")?.seeds.a?.x, 1, "the first island keeps what it found");
-  // "two" is in flight: a new structure for it overtakes it, and is searched in its place, ahead of "three".
   const more = [...shares, { capability: "e", lines: 200 }];
   searchIsland("two", { ...ask, shares: more }, searcher);
   assert.equal(asked[1]!.signal.aborted, true, "the old structure's search is overtaken");

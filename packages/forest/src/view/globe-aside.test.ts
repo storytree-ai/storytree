@@ -6,7 +6,6 @@ import { pickGlobe } from "./planet-navigation.js";
 
 const wide = { width: 1600, height: 900 }, narrow = { width: 1000, height: 900 };
 const opening = { framing: 1.18, sideOffset: 0 };
-// The story panel's 30rem plus its 0.75rem gutter, as the page measures it.
 const panel = 492;
 
 test("3.40 with the panel open the globe's centre sits mid-way across the free width; on a wide window it neither zooms nor turns", () => {
@@ -44,7 +43,6 @@ test("3.40 the user's own wheel zoom is never fought: only the fit is applied, a
   const aside = createGlobeAside(() => opening);
   const wheeledIn = { framing: 0.6, sideOffset: 0 };
   const open = aside.place(wide, panel, wheeledIn);
-  // 900 px of short side over the 1084 px left once the panel and a 12 px margin each side are taken.
   assert.ok(Math.abs(open!.to.framing - 0.8303) < 1e-4, `zoomed out only to the fit (${open?.to.framing})`);
   const wheeledAgain = { framing: 3, sideOffset: open!.to.sideOffset };
   assert.deepEqual(aside.place(wide, 0, wheeledAgain)?.to, { framing: 3, sideOffset: 0 }, "the wheel moved it since: its zoom stays");
@@ -75,7 +73,6 @@ test("3.40 under a side offset a click picks the island drawn where it was click
   world.add(plate);
   const camera = new OrthographicCamera(-400, 400, 300, -300, 0.1, 100);
   camera.position.z = 40; camera.zoom = 10;
-  // The globe moved 246 px left: the island at the origin is drawn at x = 400 - 246.
   camera.setViewOffset(800, 600, 246, 0, 800, 600);
   const box = { left: 0, top: 0, width: 800, height: 600 };
   assert.equal(pickGlobe(world, camera, box, { x: 154, y: 300 }, "forest")?.id, "story", "picked where it is drawn");
@@ -83,9 +80,7 @@ test("3.40 under a side offset a click picks the island drawn where it was click
 });
 
 test("3.40 the sheet slides the picked island to the middle of the free width, whole, and closing slides back by as much", () => {
-  // The desktop's map at 1440x960 with the rail open: 1008 px of canvas, the panel covering its right 492.
   const canvas = { width: 1008, height: 912 }, rest = { framing: 0.4, sideOffset: 0 }, aside = createGlobeAside(() => rest, { fit: false });
-  // An island at canvas x 272 is already in the free width: half the panel's slide would put it at 26, cut by the edge.
   const open = aside.place(canvas, panel, rest, 272);
   assert.deepEqual(open, { to: { framing: 0.4, sideOffset: -14 }, glide: true }, "to x 258, the middle of the 516 px left free");
   assert.deepEqual(aside.place(canvas, 0, open!.to)?.to, rest, "closing slides back by exactly that");
@@ -107,13 +102,10 @@ test("3.40 the panel's slide reads the picked island where it is drawn on the ca
 
 test("3.85 the map's frame changing size keeps the zoom on screen and the place under its unchanged edge where it was", () => {
   const before = { width: 1000, height: 600, left: 280 }, pose = { framing: 0.4, sideOffset: -120 };
-  // The left rail hides: the frame's left edge moves out to the window's, its right edge stays.
   const hidden = framedOnResize(pose, before, { width: 1280, height: 600, left: 0 });
   assert.deepEqual(hidden, { framing: 0.4, sideOffset: 20 }, "no rescale; the middle of the view keeps its distance from the right edge");
   assert.deepEqual(framedOnResize(hidden, { width: 1280, height: 600, left: 0 }, before), pose, "showing it again covers that map and gives back the view");
-  // The window narrows from its right: the left edge stays, and so does what is drawn against it.
   assert.deepEqual(framedOnResize(pose, before, { width: 800, height: 600, left: 280 }), { framing: 0.4, sideOffset: -20 });
-  // The window shortens: the short side drawn the same number of pixels per unit is fewer radii of the map.
   assert.deepEqual(framedOnResize(pose, before, { width: 1000, height: 300, left: 280 }), { framing: 0.2, sideOffset: -120 });
   assert.equal(framedOnResize(pose, before, { ...before }), undefined, "the same frame: nothing to post");
 });
@@ -123,7 +115,6 @@ test("3.85 with the sheet beside the panel a resize leaves it where the frame's 
   const open = aside.place(wide, panel, rest)!.to;
   assert.equal(aside.place({ width: 1880, height: 900 }, panel, { framing: 0.4, sideOffset: open.sideOffset + 140 }), undefined, "the resize's own place stands");
   assert.deepEqual(aside.place({ width: 1880, height: 900 }, 0, { framing: 0.4, sideOffset: open.sideOffset + 140 })?.to, { framing: 0.4, sideOffset: 140 });
-  // Opened on a window too narrow to slide into, then widened: Home places it beside the panel, and closing undoes that.
   assert.equal(aside.place({ width: 600, height: 900 }, panel, rest), undefined, "no useful free width: no slide");
   const home = aside.home(wide);
   assert.deepEqual(home, { framing: 0.4, sideOffset: -246 }, "Home beside the panel");

@@ -1,9 +1,3 @@
-// A territory's roads meet at a junction, with no settlement symbol (ADR-1339 D2; Mick, 2026-11-15: "I think we remove the
-// icons from the center, change it as some like dot for the pathways to go into, and then leave the markers for the
-// agents"): storytree's own map (the code-rows snapshot and its survey) as the app opens it, from each island's own camera
-// stop, near and far. `node --import tsx capture.mjs <before|after>` (append --retake to write into
-// src/view/evidence/road-junctions). Counts, from the scene, the settlement symbols and the junctions where a territory's
-// roads meet that are shown, so "no symbol" is measured.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +17,6 @@ const phase = message => console.error(`[road junctions +${Math.round(performanc
 const until = async (page, what, predicate, arg, timeout = 180_000) => { phase(`wait for ${what}`); await page.waitForFunction(predicate, arg, { timeout, polling: 200 }); };
 const storyOf = title => seed.tree.stories.find(story => story.title === title).id;
 const islands = [['the-library', 'The library'], ['the-agent-link', 'The agent link'], ['the-command-line', 'The command line'], ['the-dev-loop', 'The dev loop']];
-/** What an island shows, counted from the scene: its settlement symbols and its territories' junctions whose every ancestor is visible. */
 const measure = (page, story) => page.evaluate(story => {
   const found = { settlements: 0, territoryJunctions: 0 };
   const shown = object => { for (let o = object; o; o = o.parent) if (!o.visible) return false; return true; };
@@ -35,7 +28,6 @@ const measure = (page, story) => page.evaluate(story => {
   return found;
 }, story);
 const eye = { radius: SHEET_RADIUS + PLATE_CLEARANCE, fov: SHEET_FOV };
-/** The sheet's own camera stop for `story`, then the eye at `times` the near detail zoom. */
 const closeUp = async (page, settle, story, times) => {
   if (!await page.evaluate(story => window.storytreeGlobe.face({ kind: 'story', story }), story)) throw new Error(`no camera stop for ${story}`);
   await until(page, 'the globe still', () => window.storytreeGlobe.still());

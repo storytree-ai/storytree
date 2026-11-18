@@ -1,8 +1,4 @@
-/**
- * Capability 3 · Story node render: the selected island's relief (ADR-1236 D1, rollout 2 step 3b): every territory a
- * plateau above the open land, walls and rims round it, a ramp only where a road climbs from the open land, and the
- * gate posts standing.
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Color, Mesh, Vector3 } from "three";
@@ -32,10 +28,8 @@ const toSegment = (p: Point, a: Point, b: Point) => {
   return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
 };
 const at = (p: Point, d: Point, k: number): Point => ({ x: p.x + d.x * k, z: p.z + d.z * k });
-/** The territory whose cell outline holds `p` (-1 open land), read from the outlines, not the sites. */
 const territoryOf = (p: Point) => map.cells.find((c) => c.polygon.every((a, i) => { const b = c.polygon[(i + 1) % c.polygon.length]!; return (b.x - a.x) * (p.z - a.z) - (b.z - a.z) * (p.x - a.x) >= -1e-9; }))?.territory;
 const open = map.cells.filter((c) => c.territory < 0);
-// Six capabilities where the arrivals climb onto a by open road, and b's road to e goes under a third territory.
 const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
 const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
   { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }];
@@ -85,7 +79,6 @@ test("3.78 open road onto the open land climbs a ramp with no gate; a road in a 
     }
   }
   assert.ok(rise > 0 && rise < H && halfWidth < 3, "low, and narrow");
-  // Each end hipped down to its mouth: no rise at the mouth, most of it a little way in along the tunnel.
   const walk = (pts: readonly Point[], d: number): Point => {
     for (let i = 1; i < pts.length; i++) { const l = far(pts[i - 1]!, pts[i]!); if (d <= l) return at(pts[i - 1]!, { x: (pts[i]!.x - pts[i - 1]!.x) / l, z: (pts[i]!.z - pts[i - 1]!.z) / l }, d); d -= l; }
     return pts.at(-1)!;
@@ -97,7 +90,6 @@ test("3.78 open road onto the open land climbs a ramp with no gate; a road in a 
 });
 
 test("3.78 a tunnel too short for a rise along it stands under a flat-topped knoll, reaching past both its mouths and no wider than a rise (question_921aee319481)", () => {
-  // The six capabilities' tunnel cut down to a short way under the middle of its land, a mouth at each end.
   const long = sixRoads.tunnels[0]!, mid = long.pts[Math.floor(long.pts.length / 2)]!, d = { x: long.pts.at(-1)!.x - long.pts[0]!.x, z: long.pts.at(-1)!.z - long.pts[0]!.z }, l = Math.hypot(d.x, d.z);
   const along = { x: d.x / l, z: d.z / l }, ends = [at(mid, along, -1.5), at(mid, along, 1.5)] as const;
   const short = { ...sixRoads, tunnels: [{ pts: [ends[0], mid, ends[1]], links: long.links }], portals: ends.map((m) => ({ ...sixRoads.portals[0]!, at: m })) };
@@ -119,14 +111,11 @@ test("3.78 a tunnel's rise drawn over it, shaded by the light: lighter on its si
   const pos = rise.geometry.getAttribute("position"), col = rise.geometry.getAttribute("color");
   const ys = Array.from({ length: pos.count }, (_, k) => pos.getY(k));
   assert.ok(Math.max(...ys) > sixRelief.height + sixRelief.rise.height * 0.4 && Math.max(...ys) <= sixRelief.height + sixRelief.rise.height + 0.05, "up to the rise's height over the plateau, just over it");
-  // Each vertex's brightness against the land under it, by whether the slope there faces the light, where it is drawn
-  // more than half seen (its foot fades into the land).
   const toward: number[] = [], away: number[] = [], fill = landFill(six, land), under = landColour(fill);
   for (let k = 0; k < pos.count; k++) {
     const q = { x: pos.getX(k), z: pos.getZ(k) }, e = 0.2, slope = { x: sixRelief.raise({ x: q.x + e, z: q.z }) - sixRelief.raise({ x: q.x - e, z: q.z }), z: sixRelief.raise({ x: q.x, z: q.z + e }) - sixRelief.raise({ x: q.x, z: q.z - e }) };
     if (Math.hypot(slope.x, slope.z) < 0.05 || col.getW(k) < 0.5) continue;
     const ground = under(q), here = new Color(col.getX(k), col.getY(k), col.getZ(k)), k2 = here.r + here.g + here.b - (ground.r + ground.g + ground.b);
-    // Downhill toward the light faces it.
     ((-slope.x * LIGHT.x - slope.z * LIGHT.z) > 0 ? toward : away).push(k2);
   }
   const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
@@ -174,7 +163,6 @@ test("3.78 the walls, ramps and rims are drawn, a face toward the light lighter 
   }
   const rims = vertices("relief-rims");
   assert.ok(rims.every((v) => v.y > H && relief.rims.some((r) => toSegment(v, r.from, r.to) < 1e-4 || near(toSegment(v, at(r.from, r.into, relief.rimWidth * 0.45), at(r.to, r.into, relief.rimWidth * 0.45)), 0) || near(toSegment(v, at(r.from, r.into, relief.rimWidth), at(r.to, r.into, relief.rimWidth)), 0))), "each rim on the plateau, a band inside its border");
-  // The shadows: on the open land, beside the walls that face away from the light, darker than the bare ground.
   const ground = new Color("#686d70"), shadows = vertices("relief-shadows"), shadowed = relief.walls.filter((w) => w.onto === "open" && w.out.x * LIGHT.x + w.out.z * LIGHT.z < 0);
   assert.ok(shadowed.length > 0 && shadows.length > 0);
   assert.ok(shadows.every((v) => near(v.y, 0.02) && shadowed.some((w) => toSegment(v, w.from, w.to) < 1.9 + 1e-4 && (v.x - w.from.x) * w.out.x + (v.z - w.from.z) * w.out.z > -1e-4)), "beside a wall turned from the light, on its open land's side");
@@ -194,7 +182,6 @@ test("3.78 the roads follow the relief, and every gate's posts stand up from the
   for (const road of marks.children.filter((o) => o.name.startsWith("road:")) as Mesh[]) {
     const p = road.geometry.getAttribute("position");
     for (let i = 0; i < p.count; i += 7) {
-      // Stored as 32-bit floats, so a point on a border may read from either side of it.
       const near = [[0, 0], [1e-4, 0], [-1e-4, 0], [0, 1e-4], [0, -1e-4]].map(([dx, dz]) => relief.raise({ x: p.getX(i) + dx!, z: p.getZ(i) + dz! }));
       assert.ok(near.some((h) => Math.abs(p.getY(i) - h) < 1e-4), "on the land under it");
     }
@@ -207,7 +194,6 @@ test("3.78 the roads follow the relief, and every gate's posts stand up from the
     const [, gate, sign] = post.name.split(":"), g = roads.gates[Number(gate)]!, ramp = relief.ramps.find((r) => r.gate === g);
     const middle = { x: (Math.max(...Array.from({ length: p.count }, (_, i) => p.getX(i))) + Math.min(...Array.from({ length: p.count }, (_, i) => p.getX(i)))) / 2, z: (Math.max(...Array.from({ length: p.count }, (_, i) => p.getZ(i))) + Math.min(...Array.from({ length: p.count }, (_, i) => p.getZ(i)))) / 2 };
     if (ramp !== undefined) assert.ok(Math.abs((middle.x - g.at.x) * g.along.x + (middle.z - g.at.z) * g.along.z) > relief.rampWidth / 2, `post ${gate}:${sign} beside its ramp`);
-    // Its shadow lies away from the light, darker than the land it falls on.
     const shadow = marks.getObjectByName(`gate-shadow:${gate}:${sign}`) as Mesh, s = shadow.geometry.getAttribute("position"), c = shadow.geometry.getAttribute("color");
     const centre = { x: Array.from({ length: s.count }, (_, i) => s.getX(i)).reduce((a, b) => a + b) / s.count, z: Array.from({ length: s.count }, (_, i) => s.getZ(i)).reduce((a, b) => a + b) / s.count };
     assert.ok((centre.x - middle.x) * LIGHT.x + (centre.z - middle.z) * LIGHT.z < 0, "its shadow away from the light");
@@ -218,12 +204,10 @@ test("3.78 the roads follow the relief, and every gate's posts stand up from the
 });
 
 test("3.78 a road leaving a gate or open road onto the open land runs straight down its ramp to the ramp's foot, never across its side (Mick, 2026-11-07)", () => {
-  // Islands whose roads leave their gates at an angle: the four and six above, and others laid out by other links.
   const laid = [...[
     [{ from: "z1", to: "a" }, { from: "z2", to: "c" }, { from: "b", to: "a" }, { from: "d", to: "b" }, { from: "e", to: "d" }, { from: "f", to: "c" }],
     [{ from: "z1", to: "b" }, { from: "z2", to: "a" }, { from: "a", to: "c" }, { from: "c", to: "d" }, { from: "d", to: "e" }, { from: "e", to: "f" }, { from: "f", to: "a" }],
   ].map((l) => ({ shares: ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i })), links: l })),
-  // And one whose open road climbs a ramp onto a plateau to a tunnel's mouth set back on it.
   { shares: ["a", "b", "c", "d", "e", "f", "g"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability}`, lines: 823 - 100 * i })),
     links: [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "b", to: "a" }, { from: "c", to: "b" }, { from: "d", to: "c" }, { from: "e", to: "d" }, { from: "f", to: "b" }, { from: "g", to: "f" }] }];
   const islands = [{ r: roads, rel: relief }, { r: sixRoads, rel: sixRelief }, ...laid.map((island) => {
@@ -233,7 +217,6 @@ test("3.78 a road leaving a gate or open road onto the open land runs straight d
   let ramps = 0;
   for (const { r, rel } of islands) {
     for (const ramp of rel.ramps) {
-      // The road through the ramp's top, walked from there onto the ramp.
       const road = r.segments.find((s) => s.pts.some((p, i) => i > 0 && toSegment(ramp.at, s.pts[i - 1]!, p) < 1e-6))!;
       assert.ok(road !== undefined, "a road through every ramp");
       const i = road.pts.findIndex((p, k) => k > 0 && toSegment(ramp.at, road.pts[k - 1]!, p) < 1e-6);
@@ -245,7 +228,6 @@ test("3.78 a road leaving a gate or open road onto the open land runs straight d
         for (let t = 0; t <= 1 && walked + t * l <= 3 * rel.rampDepth; t += 0.05) {
           const p = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t }, u = (p.x - ramp.at.x) * ramp.along.x + (p.z - ramp.at.z) * ramp.along.z, d = walked + t * l;
           if (d <= rel.rampDepth) assert.ok(Math.abs(u) <= rel.rampWidth / 2 - road.width / 2, `the road ${d.toFixed(2)} down the ramp at ${ramp.at.x.toFixed(1)},${ramp.at.z.toFixed(1)} stands ${u.toFixed(2)} off its middle`);
-          // Past the foot it turns on the open land, never back up the ramp's side or under its wall.
           else if (w(p) < 3 * rel.rampDepth) assert.ok(w(p) >= rel.rampDepth - 1e-6 && rel.territoryAt(p) === -1, `the road ${d.toFixed(2)} from the ramp at ${ramp.at.x.toFixed(1)},${ramp.at.z.toFixed(1)} turns ${w(p).toFixed(2)} out from its top, on ${rel.territoryAt(p)}`);
         }
         walked += l;

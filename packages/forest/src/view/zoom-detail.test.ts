@@ -1,13 +1,9 @@
-/**
- * Capability 3 · Story node render (the forest story): which marks the map shows at the eye's zoom (3.86, ADR-1253 D2 as
- * narrowed by ADR-1272). Plain numbers, so read without a browser.
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { DETAIL_SLACK, DETAIL_ZOOM, DetailStore, detailAt } from "./zoom-detail.js";
 
-/** The zoom that frames a map of storytree's size whole, as measured; the wheel stops at half of it. */
 const WHOLE = 0.96, FLOOR = WHOLE / 2;
 
 test("3.86 · the territories show at every zoom down to the wheel's floor; near, the roads, gates, relief and settlements too", () => {

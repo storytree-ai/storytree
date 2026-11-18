@@ -1,10 +1,3 @@
-// A session points the owner's eye at one capability (5.8, question_97c6d6036e47 answered E): storytree's own map (the
-// code-rows snapshot and its survey) with the open-work capture's arc in the stand-in bridge and three sessions in the agent
-// log. A claims Story node render and points at Running sessions, which the arc names; B points at Arcs and increments for a
-// question; C points at Agent capability claims, off the arc and for no question. No arc selected shows B's pulse alone; the
-// arc selected shows A's and B's, never C's; the camera stays where it was put. Close up on The forest and The command line.
-// `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/agent-pointer). Counts, from the scene,
-// every pointer shown, so "only on the arc's open work or for a question" is measured.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -28,7 +21,6 @@ const arcs = [{ arc: tree, state: 'active', questions: [], increments: [
   work('inc_point', 'arc_tree', 'While an agent works, the map points where your eye is needed', 'active', [RUNNING_SESSIONS, STORY_NODE_RENDER]),
 ] }];
 
-// The agent log, written minutes before the page opens, so every session is working.
 const now = Date.now();
 const lines = [];
 const add = (minutesAgo, session, line) => lines.push({ ...line, session, harness: 'claude-code', project: seed.projects[0], seq: lines.length + 1, at: new Date(now - minutesAgo * 60_000).toISOString() });
@@ -42,7 +34,6 @@ seed.lines = { lines, cursor: lines.length };
 const started = performance.now();
 const phase = message => console.error(`[agent pointer +${Math.round(performance.now() - started)}ms] ${message}`);
 const until = async (page, what, predicate, arg, timeout = 180_000) => { phase(`wait for ${what}`); await page.waitForFunction(predicate, arg, { timeout, polling: 200 }); };
-/** The pointers the map shows, counted from the scene: each whose every ancestor is visible, with its colour; and where the eye stands. */
 const measure = page => page.evaluate(() => {
   const pointers = [];
   const shown = object => { for (let o = object; o; o = o.parent) if (!o.visible) return false; return true; };
@@ -93,7 +84,6 @@ await runCapture({
       await until(page, 'the arc\'s pointer', capability => { let found = false; window.__globe.scene.traverse(o => { if (o.name === `territory-pointer:${capability}`) found = true; }); return found; }, RUNNING_SESSIONS);
       await settle(page, 12);
       results.cameraBefore = (await measure(page)).camera;
-      // The pulse plays on for three seconds: the eye stays where it was put.
       await page.waitForTimeout(3000);
     },
     measure: async ({ page }) => (results.selected = await measure(page)),

@@ -26,7 +26,6 @@ test("3.48 a start on an unchanged project draws once: the forest drawn from wha
   const { workStates } = await import("@storytree/arc-surface");
   const capability = (id: string, dependsOn: string[] = []) => ({ id, title: `The ${id}`, dependsOn, status: "proposed", contracts: [], health: { reported: { state: "passing" }, verified: { state: "passing" } } });
   const story = (id: string, ...capabilities: ReturnType<typeof capability>[]) => ({ id, title: id, capabilities, health: { reported: { state: "passing" }, verified: { state: "passing" } } });
-  // The tree lists the stories in another order than they were created in, the survey ranks story_a above story_b, and story_c and story_d tie in the bottom row.
   const project = { arcs: [], stories: [story("story_a", capability("cap_a")), story("story_d", capability("cap_d")), story("story_c", capability("cap_c")), story("story_b", capability("cap_b"))] } as unknown as AnnotatedTree;
   const at = new Date(0).toISOString();
   const history = ["story_c", "story_b", "story_a", "story_d"].map((id, index) => ({ seq: index + 1, recordId: id, type: "story", action: "created", record: { id, type: "story", version: 1, fields: {}, createdAt: at, updatedAt: at } })) as never[];
@@ -38,13 +37,11 @@ test("3.48 a start on an unchanged project draws once: the forest drawn from wha
   const drawn = (survey: Parameters<typeof forestScene>[3], tree = project, created: Parameters<typeof forestScene>[1] = history, by: Parameters<typeof forestScene>[2] = states) =>
     ({ scene: forestScene(tree, created, by, survey), places: new Map(storyNodes(tree, created, survey).map((node) => [node.id, node.place])) });
 
-  // The last start kept its tree and what it drew it with.
   const values = new Map<string, string>();
   const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
   keptTree("shop", storage).write(project);
   keptDrawing("shop", storage).write(drawingOf(project, history, states, surveyed(120)));
 
-  // This start: drawn from what was kept, before the page reading's history or the log is restored.
   const tree = keptTree("shop", storage).read()!;
   const kept = keptDrawing("shop", storage).read()!;
   const first = drawn(kept.survey, tree, kept.created, kept.states);
@@ -52,10 +49,8 @@ test("3.48 a start on an unchanged project draws once: the forest drawn from wha
   assert.deepEqual(changedIslands(first.scene, fresh.scene), [], "no island is redrawn when the fresh read and survey land");
   assert.equal(nextScene(first, fresh.scene, fresh.places), undefined, "the globe draws nothing more, so the roads are routed once");
 
-  // A stale kept survey is still drawn, and the fresh one redraws only the island it changed.
   assert.deepEqual(changedIslands(first.scene, drawn(surveyed(300)).scene), ["story_a"]);
 
-  // A drawing kept by an older build, in another shape, is not drawn.
   for (const [key, value] of values) if (key.includes("drawing")) values.set(key, JSON.stringify({ survey: {}, created: "story_a" }));
   assert.equal(keptDrawing("shop", storage).read(), undefined);
   assert.equal(keptDrawing("other", storage).read(), undefined);

@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Story node render (the forest story): the selected island's links as one shared road network with
- * gates (ADR-1236 D1, rollout 2 step 3).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -18,7 +15,6 @@ const shares = [
   { capability: "a", title: "1 · Alpha", lines: 900 }, { capability: "b", title: "2 · Beta", lines: 700 }, { capability: "c", title: "3 · Gamma", lines: 500 },
   { capability: "d", title: "4 · Delta", lines: 300 }, { capability: "e", title: "5 · Epsilon", lines: 200 }, { lines: 150 },
 ];
-// Other islands' z1 to z3 build on a and on b, arriving at the east dock; c builds on y over the sea; d and e link at home.
 const links = [{ from: "z1", to: "a" }, { from: "z2", to: "a" }, { from: "z3", to: "b" }, { from: "c", to: "y" },
   { from: "d", to: "a" }, { from: "e", to: "d" }, { from: "e", to: "b" }];
 const docks = (r: number) => [{ local: { x: r, z: 0 }, links: ["z1->a", "z2->a", "z3->b"] }, { local: { x: -r, z: 0 }, links: ["c->y"] }];
@@ -36,9 +32,7 @@ const laid = (radius: number, among: typeof links = links) => {
   return { map, roads: islandRoads(map, among, docks(radius), names(map)) };
 };
 const library = laid(LIBRARY_RADIUS), small = laid(LIBRARY_RADIUS / 2);
-/** Every link the island's roads should carry: each one at home, and each dock's arrival or way out per capability. */
 const LINKS = ["d->a", "e->d", "e->b", "arrive:0->a", "arrive:0->b", "c->leave:1"];
-/** Each link's way, as the segments carrying it joined end to end. */
 const carrying = (roads: IslandRoads, key: string) => roads.segments.filter((s) => s.links.includes(key));
 
 test("3.77 every link on the selected island has a road from its start to its end: between two settlements, or from its dock to one", () => {
@@ -48,7 +42,6 @@ test("3.77 every link on the selected island has a road from its start to its en
     "one arrival per dock and capability, one way out, and each link between two of its capabilities");
   for (const key of keys) {
     const ends = carrying(roads, key).flatMap((s) => [s.pts[0]!, s.pts.at(-1)!]);
-    // A way's own two ends are met by one of its segments only; every other end of its segments joins another of them.
     const loose = ends.filter((p) => ends.filter((q) => far(p, q) < 1e-6).length === 1);
     assert.equal(loose.length, 2, `${key} is one unbroken way`);
   }
@@ -72,7 +65,6 @@ test("3.77 links going the same way share one road, a step wider where it carrie
   }
 });
 
-/** Where each road drawn crosses a border of `map`. */
 const borderCrossings = (map: TerritoryMap, roads: IslandRoads) => {
   const borders = map.borders.map((b) => [b.from, b.to] as const);
   return roads.segments.flatMap((s) => s.pts.slice(1).flatMap((p, i) => {
@@ -86,7 +78,6 @@ const borderCrossings = (map: TerritoryMap, roads: IslandRoads) => {
     return out;
   }));
 };
-/** The capability under a point of `map`, by its nearest cell ("open" on open land). */
 const ownerAt = (map: TerritoryMap, p: Point) => {
   const cell = map.cells.reduce((b, c) => (far(c.site, p) < far(b.site, p) ? c : b));
   return cell.territory < 0 ? "open" : map.territories[cell.territory]!.capability!;
@@ -111,7 +102,6 @@ test("3.77 one gate per linked pair and none elsewhere (ADR-1253 D3): where the 
   for (const p of roads.passes) assert.ok(!roads.gates.some((g) => far(g.at, p.at) < 0.3), "open road is no gate");
 });
 
-// Six capabilities where f's road to c must cross a third territory, and leaves f with no gate.
 const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
 const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "e", to: "c" }, { from: "d", to: "b" }, { from: "c", to: "b" }, { from: "c", to: "a" },
   { from: "f", to: "a" }, { from: "f", to: "c" }, { from: "b", to: "e" }];
@@ -122,8 +112,6 @@ test("3.77 a road that must cross a third territory goes under it (ADR-1253 D3):
   const ends = (key: string) => key.split("->").map((e) => (e.includes(":") ? "sea" : e));
   const third = (t: string, keys: readonly string[]) => t !== "open" && keys.every((k) => !ends(k).includes(t));
   assert.ok(six.portals.length >= 2 && six.tunnels.length > 0, "the island has a tunnel");
-  // The land across the border from its mouth: where its road goes under, or, for a mouth set back on the land passed
-  // under because open land lies on its road's side, that open land.
   const across = (p: { at: Point; border: Point }) => { const d = far(p.at, p.border); return ownerAt(sixMap, { x: p.border.x + (p.border.x - p.at.x) / d * 0.6, z: p.border.z + (p.border.z - p.at.z) / d * 0.6 }); };
   for (const p of six.portals) {
     assert.ok(sixMap.borders.some((b) => toSegment(p.border, b.from, b.to) < 1e-6), "where its road meets the border");
@@ -133,7 +121,6 @@ test("3.77 a road that must cross a third territory goes under it (ADR-1253 D3):
     else assert.ok(third(across(p), p.links), `${p.links.join(",")}'s mouth on ${side}, its road going under ${across(p)}`);
     assert.ok(six.segments.some((s) => s.links.join() === p.links.join() && [s.pts[0]!, s.pts.at(-1)!].some((q) => far(q, p.at) < 1e-6)), "its road drawn up to it");
     assert.ok([...six.gates, ...six.passes].some((g) => far(g.at, p.border) < 1e-6), "the border cut open where its road crosses onto that land");
-    // Its tunnel's other end: a portal for the same links.
     assert.ok(six.portals.some((q) => q !== p && q.links.join() === p.links.join()), "a portal at each end");
   }
   assert.ok(six.portals.some((p) => !third(ownerAt(sixMap, p.at), p.links)), "a mouth on the land of a territory its road runs between");
@@ -151,8 +138,6 @@ test("3.77 a road that must cross a third territory goes under it (ADR-1253 D3):
   assert.deepEqual(six.gates.flatMap((g) => g.entrances).sort(), ["arrive:0->a", "arrive:0->b", "b->e", "c->a", "c->b", "d->b", "e->c", "f->a", "f->c"], "still one gate per link");
 });
 
-// Eight capabilities where d's land meets the dock's open land, but its neighbour e's lies nearer the dock (Mick, 2026-11-06:
-// "why did it need to go into waits").
 const eightShares = [488, 525, 216, 207, 563, 351, 636, 617].map((lines, i) => ({ capability: "abcdefgh"[i]!, title: `${i + 1} · ${"ABCDEFGH"[i]}`, lines }));
 const eightLinks = [{ from: "d", to: "f" }, { from: "f", to: "d" }, { from: "g", to: "e" }, { from: "b", to: "e" }, { from: "b", to: "e" }, { from: "h", to: "e" },
   { from: "c", to: "f" }, { from: "e", to: "d" }, { from: "b", to: "g" }, { from: "z0", to: "a" }, { from: "z1", to: "d" }, { from: "z2", to: "h" }];
@@ -181,7 +166,6 @@ test("3.77 a road leaves the capability that depends with no gate, and its one g
 });
 
 test("3.77 two gates on one island stand apart where their border has room: their posts at least GATE_POSTS_APART apart, never touching (Mick, 2026-11-08)", () => {
-  // A gate's posts stand either side of its opening, wider where a ramp climbs to it from the open land (island-roads.ts in view).
   const reach = (g: IslandRoads["gates"][number]) => (g.between.includes("open") ? Math.max(g.opening, RELIEF.ramp.width) : g.opening) / 2 + RELIEF.post.side;
   const islands = [library.roads, six, eight];
   let pairs = 0;
@@ -219,7 +203,6 @@ test("3.77 each settlement stands in its own territory beside its name, clear of
   }
 });
 
-/** The roads that meet at each settlement: every link's way that ends there. */
 const meeting = (roads: IslandRoads) => {
   const per = new Map<string, number>();
   for (const key of new Set(roads.segments.flatMap((s) => s.links))) {
@@ -229,7 +212,6 @@ const meeting = (roads: IslandRoads) => {
 };
 
 test("3.79 each settlement's clear spot is 3.4, 4.0 or 4.7 across by the roads meeting there (1-2, 3-5, 6 or more), at the island's own size", () => {
-  // And b and c calling on a too, so a meets four roads: its arrival, d's, b's and c's.
   const busier = [...links, { from: "b", to: "a" }, { from: "c", to: "a" }];
   for (const [{ roads }, S] of [[laid(LIBRARY_RADIUS, busier), 1], [laid(LIBRARY_RADIUS / 2, busier), 0.5]] as const) {
     assert.deepEqual([...roads.settlements.keys()].sort(), [...roads.towns.keys()].sort(), "one settlement per town");
@@ -251,7 +233,6 @@ test("3.79 each settlement's whole clear spot stands clear of every name and eve
       const half = size / 2;
       const inside = (p: Point) => Math.abs(p.x - at.x) <= half && Math.abs(p.z - at.z) <= half;
       for (const name of names(map)) {
-        // A name's box at The library's size, padded by the mock's 4 pixels (2.6 to a ground unit).
         const w = ((name.title.length * 6.5 + 12) / 2.6 + 8 / 2.6) * S, h = (7 + 8 / 2.6) * S;
         assert.ok(Math.abs(at.x - name.x) > w / 2 + half || Math.abs(at.z - name.z) > h / 2 + half, `${id}'s symbol off ${name.capability}'s name`);
       }
@@ -264,13 +245,11 @@ test("3.79 each settlement's whole clear spot stands clear of every name and eve
   }
 });
 
-/** The Library-sized island asked again: a map of its own each time, since the page keeps an island's roads by its map. */
 const fresh = (): RoadsAsk => {
   const map = structuredClone(library.map);
   return { map, links, docks: docks(LIBRARY_RADIUS), names: names(map) };
 };
 const carried = (roads: IslandRoads) => [...new Set(roads.segments.flatMap((s) => s.links))].sort();
-/** A router the test answers by hand: the asks it was given, and the answer to give the latest. */
 const byHand = () => {
   const asked: RoadsAsk[] = [], answers: { resolve(r: IslandRoads): void; reject(e: Error): void }[] = [];
   const router = (a: RoadsAsk) => { asked.push(a); return new Promise<IslandRoads>((resolve, reject) => { answers.push({ resolve, reject }); }); };
@@ -304,7 +283,6 @@ test("3.82 an island's routed roads outlive the run on the page's storage: after
     islandRoadsWhenRouted(ask, router, shown);
     answers[0]!.resolve(roads);
     await waitUntil(() => knownIslandRoads(ask) ?? undefined, 2000, "the roads to arrive");
-    // A restart: the page forgets every island it routed, and reads its storage again.
     shelveRoadsOn(roadsShelf(storage));
     const again = { ...fresh(), story: "s" };
     assert.deepEqual(knownIslandRoads(again), roads, "the unchanged island's roads are had at once from storage");

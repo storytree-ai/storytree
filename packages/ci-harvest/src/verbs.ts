@@ -1,10 +1,4 @@
-/**
- * Capability 1 · Harvesting failed CI runs. The `harvest` verbs, declared here (ADR-0969 D2) and named under `verbs` in
- * the package's manifest (ADR-1033), so the command line mounts them as its `harvest` family: `harvest ci` sorts every
- * failed CI run of the last days once (infra counted, each flaky test to its one investigation, each real failure and
- * escape recorded as an escape pattern) and prints what it sorted, for the agent running it to judge the patterns
- * (ADR-1356 D2). The Mint box runs it daily as a scheduled process; it is no tool.
- */
+// Capability 1 · Harvesting failed CI runs
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
 
 const ci = verb({
@@ -29,7 +23,6 @@ const ci = verb({
   },
 });
 
-/** The command line's `harvest` family. */
 export const HARVEST_FAMILIES: readonly VerbFamily[] = [
   { name: "harvest", summary: "harvesting failed CI runs: flakes to their investigations, real failures and escapes to escape patterns", order: 18.5, verbs: [ci] },
 ];

@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Knowledge and memory, grown by ADR-0640 and ADR-0956: contracts 6.6, 6.7, 6.12, 6.13, 6.14, 6.15 and 6.16 (6.18 and 6.19, the friction a close moves, in work-in-flight.test.ts)
+ * Capability 6 · Knowledge and memory, grown by ADR-0640 and ADR-0956: contracts 6.6, 6.7, 6.12, 6.13, 6.14, 6.15 and 6.16, and the kinds after them to 6.25 (6.18 and 6.19, the friction a close moves, in work-in-flight.test.ts)
  * in the library story, each run on BOTH backends, as 6.1-6.5 are (knowledge-memory.test.ts):
  *
  * - memory: a Knowledge over SchemaRecords over a fresh MemoryTransactions;
@@ -10,7 +10,7 @@
  * change appends a history entry (capability 2), so an unchanged history means nothing was written.
  */
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 
 import { connect } from "../project/index.js";
 import { MissingReferenceError } from "../references.js";
@@ -659,6 +659,179 @@ for (const backend of [memory, postgres]) {
         );
       }
       assert.deepEqual(await transactions.history(), settled, "nothing was written");
+    } finally {
+      await cleanup();
+    }
+  });
+}
+
+/** A measure's whole set of fields (contract 6.24): what it reads, its unit, its better direction, how and where it is read, its runs and version. */
+function coldStart(story: string): Record<string, unknown> {
+  return {
+    title: "Cold start to first frame",
+    description: "How long the desktop app takes from launch to drawing its first frame",
+    story,
+    reads: "the milliseconds from process start to the first frame the map draws",
+    unit: "ms",
+    better: "lower",
+    howRead: "launch the packaged app five times with a cold cache and take the median",
+    machine: "the Mint box",
+    runs: 5,
+    version: 1,
+  };
+}
+
+/**
+ * Write records one after another on a mocked clock (both backends stamp a record's creation with the process's Date),
+ * each a second after the one before, until there are at least `count` and the ids of the even-numbered ones (and so
+ * of all of them) are not in creation order: any order a test then sees them in can only be creation order.
+ */
+async function writeInOrder<R extends { readonly id: string; readonly createdAt: string }>(t: TestContext, count: number, write: (n: number) => Promise<R>): Promise<R[]> {
+  const written: R[] = [];
+  const evens = () => written.filter((_, n) => n % 2 === 0);
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-11-18T09:00:00.000Z") });
+  try {
+    while (written.length < count || evens().every((record, n, all) => n === 0 || all[n - 1]!.id < record.id)) {
+      written.push(await write(written.length));
+      t.mock.timers.tick(1_000);
+    }
+  } finally {
+    t.mock.timers.reset();
+  }
+  return written;
+}
+
+for (const backend of [memory, postgres]) {
+  test(`6.24 [${backend.label}] a measure is saved with its live story, what it reads, its unit, its better direction, how and where it is read, its runs and its version; one missing a field, naming no live story, with a direction outside higher, lower and neither, or runs or a version that is not a whole number from 1 is refused naming the field`, async () => {
+    const { knowledge, transactions, cleanup } = await backend.open();
+    try {
+      const records = new SchemaRecords(transactions);
+      const story = await records.create("story", { title: "Desktop app" });
+      const rule = await knowledge.writeKnowledge("principle", { title: "Measure before tuning", description: "One line", statement: "S", why: "W", howToApply: "H" } as never);
+      const measure = coldStart(story.id);
+
+      for (const [why, fields] of [
+        ["a measure with its whole set of fields", measure],
+        ["a base measure, read for every story, with links, read once, where neither direction is better", { ...measure, title: "Files in the story", base: true, better: "neither", runs: 1, links: [rule.id] }],
+        ["a measure where higher is better, at a later version", { ...measure, title: "Frames drawn per second", unit: "fps", better: "higher", version: 3 }],
+      ] as const) {
+        const saved = await knowledge.writeKnowledge("measure", fields as never);
+        assert.equal(saved.type, "measure", why);
+        assert.deepEqual((await transactions.get(saved.id))?.fields, fields, `${why}: it reads back as given`);
+      }
+
+      const without = (field: string) => Object.fromEntries(Object.entries(measure).filter(([name]) => name !== field));
+      const before = await transactions.history();
+      for (const [field, wrong, why] of [
+        ...["title", "description", "story", "reads", "unit", "better", "howRead", "machine", "runs", "version"].map((field) => [field, without(field), `a measure without its ${field} is refused`] as const),
+        ["better", { ...measure, better: "faster" }, "better is higher, lower or neither"],
+        ["better", { ...measure, better: "Lower" }, "better is one of the three as written"],
+        ["runs", { ...measure, runs: 0 }, "a reading takes at least one run"],
+        ["runs", { ...measure, runs: 2.5 }, "runs is a whole number"],
+        ["runs", { ...measure, runs: "5" }, "runs is a number, not text"],
+        ["version", { ...measure, version: 0 }, "a version starts at 1"],
+        ["version", { ...measure, version: -1 }, "a version is never below 1"],
+        ["version", { ...measure, version: 1.5 }, "a version is a whole number"],
+      ] as const) {
+        await assert.rejects(
+          knowledge.writeKnowledge("measure", wrong as never),
+          (error: unknown) => error instanceof SchemaError && assert.deepEqual(error.fields, [field], why) === undefined,
+          why,
+        );
+      }
+      assert.deepEqual(await transactions.history(), before, "nothing was written");
+
+      const retired = await records.create("story", { title: "A retired story" });
+      await transactions.retire({ id: retired.id, reason: "folded into the desktop app" });
+      const settled = await transactions.history();
+      for (const [id, why] of [
+        ["story_000000000000", "a measure naming no stored story is refused"],
+        [retired.id, "a measure naming a retired story is refused"],
+        [rule.id, "a measure naming a principle, not a story, is refused"],
+      ] as const) {
+        await assert.rejects(
+          knowledge.writeKnowledge("measure", { ...measure, story: id } as never),
+          (error: unknown) => error instanceof MissingReferenceError && error.field === "story" && error.id === id,
+          why,
+        );
+      }
+      assert.deepEqual(await transactions.history(), settled, "nothing was written");
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test(`6.24 [${backend.label}] measures(story) lists that story's live measures oldest first, and measures() every live measure oldest first, a retired one in neither`, async (t) => {
+    const { knowledge, transactions, cleanup } = await backend.open();
+    try {
+      const records = new SchemaRecords(transactions);
+      const desktop = await records.create("story", { title: "Desktop app" });
+      const library = await records.create("story", { title: "Library" });
+      assert.deepEqual(await knowledge.measures(), [], "no measure yet");
+      const written = await writeInOrder(t, 4, (n) =>
+        knowledge.writeKnowledge("measure", { ...coldStart(n % 2 === 0 ? desktop.id : library.id), title: `Measure ${n}` } as never),
+      );
+      const retired = await knowledge.writeKnowledge("measure", { ...coldStart(desktop.id), title: "A retired measure" } as never);
+      await transactions.retire({ id: retired.id, reason: "it read the wrong frame" });
+      await knowledge.writeKnowledge("principle", { title: "Not a measure", description: "One line", statement: "S", why: "W", howToApply: "H" } as never);
+
+      const ids = written.map(({ id }) => id);
+      assert.deepEqual((await knowledge.measures(desktop.id)).map(({ id }) => id), ids.filter((_, n) => n % 2 === 0), "the desktop app's, oldest first, the retired one left out");
+      assert.deepEqual((await knowledge.measures(library.id)).map(({ id }) => id), ids.filter((_, n) => n % 2 === 1), "the library's, oldest first");
+      assert.deepEqual((await knowledge.measures()).map(({ id }) => id), ids, "every live measure, oldest first, of no other kind");
+      assert.deepEqual(await knowledge.measures("story_000000000000"), [], "a story with no measure has none");
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test(`6.25 [${backend.label}] a measure's edit that changes what it reads without raising its version, or that lowers it, is refused naming version with nothing written; a title, description or links edit needs no new version`, async () => {
+    const { knowledge, transactions, cleanup } = await backend.open();
+    try {
+      const records = new SchemaRecords(transactions);
+      const desktop = await records.create("story", { title: "Desktop app" });
+      const library = await records.create("story", { title: "Library" });
+      const rule = await knowledge.writeKnowledge("principle", { title: "Measure before tuning", description: "One line", statement: "S", why: "W", howToApply: "H" } as never);
+      const saved = await knowledge.writeKnowledge("measure", coldStart(desktop.id) as never);
+
+      const worded = { title: "Cold start to the first map frame", description: "Launch to first frame, on the box", links: [rule.id] };
+      assert.deepEqual((await knowledge.editNote(saved.id, worded as never))?.fields, { ...coldStart(desktop.id), ...worded }, "its words and links change at the same version");
+
+      const before = await transactions.history();
+      for (const [why, edit] of [
+        ["what it reads", { reads: "the milliseconds from process start to the window shown" }],
+        ["how it is read", { howRead: "launch it once with a warm cache" }],
+        ["its unit", { unit: "s" }],
+        ["its better direction", { better: "higher" }],
+        ["the machine it is read on", { machine: "the laptop" }],
+        ["its runs per reading", { runs: 9 }],
+        ["whether it is a base measure", { base: true }],
+        ["its story", { story: library.id }],
+        ["what it reads, naming the same version", { reads: "the milliseconds to the window shown", version: 1 }],
+      ] as const) {
+        await assert.rejects(
+          knowledge.editNote(saved.id, edit as never),
+          (error: unknown) => error instanceof SchemaError && assert.deepEqual(error.fields, ["version"], why) === undefined,
+          `an edit of ${why} is refused`,
+        );
+      }
+      assert.deepEqual(await transactions.history(), before, "nothing was written");
+
+      const raised = { reads: "the milliseconds from process start to the window shown", version: 2 };
+      assert.deepEqual((await knowledge.editNote(saved.id, raised as never))?.fields, { ...coldStart(desktop.id), ...worded, ...raised }, "what it reads changes with its version raised");
+      const raisedAt = await transactions.history();
+      await assert.rejects(
+        knowledge.editNote(saved.id, { version: 1 } as never),
+        (error: unknown) => error instanceof SchemaError && assert.deepEqual(error.fields, ["version"]) === undefined,
+        "its version never falls, even back to one it had",
+      );
+      await assert.rejects(
+        knowledge.editNote(saved.id, { runs: 3, version: 1 } as never),
+        (error: unknown) => error instanceof SchemaError && assert.deepEqual(error.fields, ["version"]) === undefined,
+        "a change of what it reads with a lowered version is refused",
+      );
+      assert.deepEqual(await transactions.history(), raisedAt, "nothing was written");
+      assert.deepEqual((await knowledge.editNote(saved.id, { story: library.id, base: true, version: 3 } as never))?.fields, { ...coldStart(desktop.id), ...worded, ...raised, story: library.id, base: true, version: 3 }, "its story and base move with its version raised");
     } finally {
       await cleanup();
     }

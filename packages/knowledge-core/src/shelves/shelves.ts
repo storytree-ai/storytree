@@ -69,8 +69,11 @@ export function underShelves(changes: readonly Change[], { notes, active }: Know
   for (const change of changes) if (change.action === "created" && !noteAge.has(change.recordId)) noteAge.set(change.recordId, change.seq);
   const coverShelf = new Map<string, string>();
   for (const id of active) {
-    const shelf = notes.get(id)?.fields.frontCoverOf;
-    if (typeof shelf === "string" && nodes.has(shelf)) coverShelf.set(id, shelf);
+    const note = notes.get(id);
+    // A measure's story is its shelf (1.18), as a front cover's node is: it hangs among that story's covers.
+    const shelf = note?.type === "measure" ? note.fields.story : note?.fields.frontCoverOf;
+    const onStory = note?.type !== "measure" || (typeof shelf === "string" && nodes.get(shelf)?.story === shelf);
+    if (typeof shelf === "string" && nodes.has(shelf) && onStory) coverShelf.set(id, shelf);
   }
   const shelves: Shelf[] = order.map((node) => {
     const covers = [...coverShelf].filter(([, shelf]) => shelf === node).map(([cover]) => cover).sort((a, b) => (noteAge.get(a) ?? 0) - (noteAge.get(b) ?? 0));

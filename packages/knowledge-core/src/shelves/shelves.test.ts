@@ -81,3 +81,28 @@ test("1.4 forty covers on their shelves and five notes on none give forty at dep
   assert.equal(shelves.find(({ node }) => node === "cap-3")?.empty, undefined);
   assert.equal(shelves.find(({ node }) => node === "s")?.story, "s", "a story's own shelf is on its own island");
 });
+
+test("1.18 a live measure hangs under its story's shelf among the covers, oldest first with the decisions, at depth 1 with that shelf as its home; one whose story is retired or absent, or that is retired, is on no shelf", () => {
+  const measure = (id: string, story: string) => ({ title: id, description: `${id}'s description`, story, reads: "milliseconds to first frame", unit: "ms", better: "lower", howRead: "median of five launches", machine: "the Mint box", runs: 5, version: 1 });
+  const history = new History()
+    .story("s").capability("cap", "s").story("gone").story("t")
+    .memory("below")
+    .decision("older", { frontCoverOf: "s" })
+    .create("cold-start", "measure", { ...measure("cold-start", "s"), links: ["below"] })
+    .decision("newer", { frontCoverOf: "s" })
+    .create("orphan", "measure", measure("orphan", "gone"))
+    .create("nowhere", "measure", measure("nowhere", "story_000000000000"))
+    .create("dropped", "measure", measure("dropped", "s"))
+    .retire("gone").retire("dropped");
+  const { placed, shelves } = core(history);
+
+  assert.deepEqual(shelves.find(({ node }) => node === "s")?.covers, ["older", "cold-start", "newer"], "on its story's shelf, oldest first among the decisions");
+  assert.deepEqual(placed.get("cold-start"), { note: "cold-start", depth: 1, home: "s", entrances: ["s"], loop: undefined });
+  assert.equal(placed.get("below")?.depth, 2, "a note it links to hangs one below it, as below a cover");
+  assert.deepEqual(shelves.find(({ node }) => node === "cap")?.covers, [], "not on its story's capabilities' shelves");
+  assert.deepEqual(shelves.find(({ node }) => node === "t")?.covers, [], "nor on another story's");
+  for (const off of ["orphan", "nowhere", "dropped"]) {
+    assert.equal(placed.has(off), false, `${off} is placed nowhere`);
+    assert.ok(shelves.every(({ covers }) => !covers.includes(off)), `${off} is on no shelf`);
+  }
+});

@@ -142,6 +142,7 @@ const LIBRARY_API = [
   "frontCovers",
   "decision",
   "decisions",
+  "measures",
   "composeStatement",
   "refile",
   "retire",

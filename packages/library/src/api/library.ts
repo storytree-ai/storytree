@@ -92,7 +92,7 @@ const FROM_HEALTH = ["reportHealth", "recordVerified", "recordVerifiedAll", "rec
 const FROM_KNOWLEDGE = [
   "recordDecision", "numberDecision", "decisionNumberPlan", "numberDecisionsFromFullRecord", "setDecisionNumberFloor", "numberFoundingDecisions",
   "writeKnowledge", "defineTerm", "editNote", "search", "searchEach", "rank", "rankAll", "findPhrase",
-  "relatedNotes", "related", "relatedEach", "definitions", "frontCovers", "decision", "decisions", "composeStatement", "refile",
+  "relatedNotes", "related", "relatedEach", "definitions", "measures", "frontCovers", "decision", "decisions", "composeStatement", "refile",
 ] as const satisfies readonly (keyof Project["knowledge"])[];
 const FROM_LINEAGE = ["factory", "markFactory", "recordFactory"] as const satisfies readonly (keyof Project["lineage"])[];
 const FROM_DATA = ["counts", "latestChanges", "findByTitle", "decisionNumbered"] as const satisfies readonly (keyof DataQuestions)[];

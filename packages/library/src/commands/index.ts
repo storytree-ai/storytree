@@ -153,7 +153,7 @@ const WRITERS: Readonly<Record<string, Writer>> = {
   decision: (library, fields, options) => recordDecision(library, fields as never, options),
   definition: (library, fields, options) => library.defineTerm(fields as never, options),
   ...Object.fromEntries(
-    (["principle", "guardrail", "pattern", "process", "agent", "techstack", "check", "research", "experiment", "escape", "drill"] as const satisfies readonly KnowledgeKind[]).map((kind) => [
+    (["principle", "guardrail", "pattern", "process", "agent", "techstack", "check", "research", "experiment", "escape", "drill", "measure"] as const satisfies readonly KnowledgeKind[]).map((kind) => [
       kind,
       ((library, fields, options) => library.writeKnowledge(kind, fields as never, options)) satisfies Writer,
     ]),

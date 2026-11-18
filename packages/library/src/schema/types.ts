@@ -41,8 +41,8 @@ export type RecordType =
 /**
  * Capability 6's kinds beyond decisions and definitions: ADR-0640's eight, each with 0.2's fields
  * (`packages/library/src/knowledge.ts` in storytree 0.2), ADR-0956 D3's quality control check and
- * ADR-1058's research, ADR-1064 D5's experiment, ADR-1356 D2's escape pattern and ADR-1356 D1's red-team drill, each with a title
- * and a one-line description.
+ * ADR-1058's research, ADR-1064 D5's experiment, ADR-1356 D2's escape pattern, ADR-1356 D1's red-team drill and ADR-1354's
+ * measure, each with a title and a one-line description.
  */
 export type KnowledgeKind =
   | "principle"
@@ -57,7 +57,8 @@ export type KnowledgeKind =
   | "research"
   | "experiment"
   | "escape"
-  | "drill";
+  | "drill"
+  | "measure";
 
 /**
  * An increment's lifecycle, in the only order it moves (capability 10). Its ready step, between
@@ -832,6 +833,26 @@ export const RECORD_SCHEMAS = {
       }
     }),
   /**
+   * A measure (ADR-1354, increment_1b9ea5bb16db): what one of a story's numbers `reads`, in its `unit`, which way is
+   * `better` (higher, lower or neither), `howRead` and on which `machine` it is read, and the `runs` one reading takes. Its
+   * `story` is the live story whose package reads it; a `base` measure is read for every story. Its `version` is raised by
+   * every change to what it reads (ADR-1354 D3), which a reader names to pair with it.
+   */
+  measure: z
+    .object({
+      ...knowledgeHead,
+      story: nonEmpty,
+      base: z.boolean().optional(),
+      reads: nonEmpty,
+      unit: nonEmpty,
+      better: z.enum(["higher", "lower", "neither"]),
+      howRead: nonEmpty,
+      machine: nonEmpty,
+      runs: z.number().int().min(1),
+      version: z.number().int().min(1),
+    })
+    .strict(),
+  /**
    * One increment of an arc's work (capability 10), from the moment it is decided until it closes;
    * closed, it is the arc's log entry. It names the `capabilities` it changes, the lock list a claim
    * on it lights (ADR-0949 D2), parked empty and filled by the session that claims it; it cites
@@ -1152,6 +1173,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   experiment: 1,
   escape: 1,
   drill: 1,
+  measure: 1,
   increment: 3,
   question: 1,
   prediction: 1,

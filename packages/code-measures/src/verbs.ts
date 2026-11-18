@@ -89,7 +89,7 @@ const RECORD = verb({
     const [{ measureReadersOf }, { recordMeasures }, { measureReadingsPool }] = await Promise.all([import("./pair.js"), import("./record.js"), import("./readings.js")]);
     const [records, readers, stories] = await Promise.all([context.library.measures(), measureReadersOf(context.folder), storiesOf(context.library)]);
     const db = await measureReadingsPool(context.server);
-    return { text: await recordMeasures({ folder: context.folder, project: context.project, machine, stories, records: records.map(({ id, fields }) => ({ id, fields })), readers, db, plan: () => context.library.projectTree() }) };
+    return { text: await recordMeasures({ folder: context.folder, project: context.project, machine, stories, records: records.map(({ id, fields }) => ({ id, fields })), readers, db, plan: () => context.library.projectTree(), server: context.server }) };
   },
 });
 

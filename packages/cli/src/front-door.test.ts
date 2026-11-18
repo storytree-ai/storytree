@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35, 1.36, 1.45 and 1.48-1.50 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35, 1.36, 1.45 and 1.48-1.51 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
@@ -379,6 +379,32 @@ test("1.50 `storytree arc close` is refused with exit code 2, saying an arc has 
         const { outcome, next } = line as Extract<typeof line, { kind: "door-answered" }>;
         return { outcome, next };
       }), [{ outcome: "refused", next: ["storytree arc increment close"] }]);
+    } finally {
+      await log.close();
+    }
+  });
+});
+
+test("1.51 `storytree auth get <name>` is refused with exit code 2, saying storytree never prints a key's value and naming `storytree auth list` as its next step, holds no saved key's value in either stream, and is recorded as a refused line", async () => {
+  await inWorld(command, async (world) => {
+    const value = "never-shown-7f3e9a";
+    const saved = await storytree(command.script, ["auth", "set", "anthropic"], { cwd: world.folder, home: world.home, input: `${value}\n` });
+    assert.equal(saved.code, 0, saved.stderr);
+    const session = { CLAUDE_CODE_SESSION_ID: "auth-get-1" };
+
+    const got = await world.run(["auth", "get", "anthropic"], session);
+
+    assert.equal(got.code, 2, got.stderr);
+    assert.match(got.stderr, /never prints a key's value/);
+    assert.match(got.stderr, /storytree auth list/);
+    assert.ok(!got.stdout.includes(value) && !got.stderr.includes(value), `the key's value was printed:\nstdout:\n${got.stdout}\nstderr:\n${got.stderr}`);
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const lines = await log.lines(world.project, { sessions: ["auth-get-1"], kinds: ["door-answered"] });
+      assert.deepEqual(lines.map((line) => {
+        const { outcome, next } = line as Extract<typeof line, { kind: "door-answered" }>;
+        return { outcome, next };
+      }), [{ outcome: "refused", next: ["storytree auth list"] }]);
     } finally {
       await log.close();
     }

@@ -116,7 +116,7 @@ export function clearOlderTools(home: string, keep: string, remove: (file: strin
 }
 
 export function runningFrom(
-  // posix-only: its one caller, deliverTools (delivery.ts), calls it only when the platform is not win32.
+  // eslint-disable-next-line storytree/posix-commands -- its one caller, deliverTools (delivery.ts), calls it only when the platform is not win32.
   list: () => { status: number | null; stdout: unknown } = () => spawnSync("ps", ["-A", "-ww", "-o", "args="], { encoding: "utf8" }),
 ): (dir: string) => boolean {
   const listed = list();
